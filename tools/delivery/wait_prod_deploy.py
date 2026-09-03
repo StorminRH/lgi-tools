@@ -33,14 +33,11 @@ SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 WAITING_STATES = frozenset({"queued", "pending", "in_progress"})
 FAILED_STATES = frozenset({"error", "failure"})
-# `inactive` means superseded/destroyed — not currently live.
 SUCCESS_STATE = "success"
-
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
-
 
 def newest_by_created(records: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Pick the newest record by `created_at`, then `id` (API order is not guaranteed)."""
@@ -58,14 +55,12 @@ def newest_by_created(records: list[dict[str, Any]]) -> dict[str, Any] | None:
 
     return max(records, key=key)
 
-
 def latest_status_state(statuses: list[dict[str, Any]]) -> str | None:
     newest = newest_by_created(statuses)
     if newest is None:
         return None
     state = newest.get("state")
     return str(state) if state is not None else None
-
 
 def deployment_url(statuses: list[dict[str, Any]]) -> str | None:
     newest = newest_by_created(statuses)
@@ -76,7 +71,6 @@ def deployment_url(statuses: list[dict[str, Any]]) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
-
 
 def evaluate_prod_deploy(
     expected_sha: str,
@@ -116,7 +110,6 @@ def evaluate_prod_deploy(
         return "waiting", "could not read current Production tip SHA"
     return "ready", "Production deployment success for merge SHA"
 
-
 def fetch_deployments(token: str, *, sha: str | None, environment: str) -> list[dict[str, Any]]:
     query = {"environment": environment, "per_page": "100"}
     if sha is not None:
@@ -128,7 +121,6 @@ def fetch_deployments(token: str, *, sha: str | None, environment: str) -> list[
     rows = get_all(path, token)
     return [row for row in rows if isinstance(row, dict)]
 
-
 def fetch_statuses(token: str, deployment_id: int) -> list[dict[str, Any]]:
     path = (
         f"/repos/{OWNER}/{REPO}/deployments/{deployment_id}/statuses"
@@ -136,7 +128,6 @@ def fetch_statuses(token: str, deployment_id: int) -> list[dict[str, Any]]:
     )
     rows = get_all(path, token)
     return [row for row in rows if isinstance(row, dict)]
-
 
 def poll_until_ready(
     expected_sha: str,
@@ -194,7 +185,6 @@ def poll_until_ready(
         f"timed out after {int(timeout_s)}s waiting for Production deploy: {last_detail}"
     )
 
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Wait until the merge SHA is live on Production (GitHub Deployments).",
@@ -231,7 +221,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(json.dumps(result, indent=2))
     return 0
-
 
 if __name__ == "__main__":
     try:

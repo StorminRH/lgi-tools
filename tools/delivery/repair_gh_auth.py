@@ -11,7 +11,6 @@ import subprocess
 
 from tools.delivery.github_api import github_token
 
-
 def run(command: list[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
@@ -20,7 +19,6 @@ def run(command: list[str], *, input_text: str | None = None) -> subprocess.Comp
         capture_output=True,
         check=True,
     )
-
 
 def main() -> None:
     token = github_token()
@@ -46,7 +44,6 @@ def main() -> None:
     print(status.stdout.strip() or status.stderr.strip())
     whoami = run(["gh", "api", "user", "--jq", ".login"])
     print(f"GitHub API login: {whoami.stdout.strip()}")
-
 
 if __name__ == "__main__":
     main()

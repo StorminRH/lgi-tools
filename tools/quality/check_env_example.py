@@ -15,7 +15,6 @@ from pathlib import Path
 
 from tools._lib.checker_common import Finding, run_checker
 
-
 _PLATFORM_INJECTED = {
     "VERCEL_ENV",
     "VERCEL_URL",
@@ -26,11 +25,9 @@ _PLATFORM_INJECTED = {
 _NEXT_PUBLIC_ALLOWLIST = {"NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL"}
 _TOOLING_KEYS = {"CONVEX_DEPLOYMENT"}
 
-
 def _relative(root: Path, path: Path) -> str:
     """Return a stable repo-relative path for a finding."""
     return path.relative_to(root).as_posix()
-
 
 def _registry_keys(root: Path) -> tuple[dict[str, int], list[Finding]]:
     """Parse env registry keys and report structural changes that blind the check."""
@@ -99,7 +96,6 @@ def _registry_keys(root: Path) -> tuple[dict[str, int], list[Finding]]:
             )
     return keys, findings
 
-
 def _example_keys(root: Path) -> tuple[dict[str, int], list[Finding]]:
     """Return live and commented KEY= declarations in the env example."""
     path = root / ".env.example"
@@ -117,7 +113,6 @@ def _example_keys(root: Path) -> tuple[dict[str, int], list[Finding]]:
         if match:
             keys.setdefault(match.group(1), line_number)
     return keys, []
-
 
 def collect_findings(root: Path) -> list[Finding]:
     """Report missing registry declarations and stale example declarations."""
@@ -151,11 +146,9 @@ def collect_findings(root: Path) -> list[Finding]:
         )
     return findings
 
-
 def main() -> int:
     """Run the env-example checker CLI."""
     return run_checker(collect_findings)
-
 
 if __name__ == "__main__":
     sys.exit(main())

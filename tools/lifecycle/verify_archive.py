@@ -18,20 +18,16 @@ import sys
 from tools._lib.checker_common import Finding, find_line, run_checker
 from tools.lifecycle.resolve_development_state import active_roadmap
 
-
 REQUIRED_SETS = ("session-contracts", "session-plans")
 OPTIONAL_SETS = ("session-as-built",)
-
 
 def _add_arguments(parser: argparse.ArgumentParser) -> None:
     """Register archive phase and optional archive-root override."""
     parser.add_argument("--phase", choices=("pre", "post"), default="pre")
     parser.add_argument("--archive-root", type=Path)
 
-
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
 
 def _active_bundle_files(
     root: Path,
@@ -63,7 +59,6 @@ def _active_bundle_files(
             for source in source_files
         )
     return files, findings
-
 
 def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
     """Report failed archive preconditions and post-copy fidelity checks."""
@@ -123,11 +118,9 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
             )
     return findings
 
-
 def main() -> int:
     """Run the archive-transition verifier CLI."""
     return run_checker(collect_findings, add_arguments=_add_arguments)
-
 
 if __name__ == "__main__":
     sys.exit(main())

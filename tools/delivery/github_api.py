@@ -21,7 +21,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-
 def github_token() -> str:
     result = subprocess.run(
         ["git", "credential", "fill"],
@@ -39,7 +38,6 @@ def github_token() -> str:
     if not token:
         raise RuntimeError("git credential helper returned no GitHub password")
     return token
-
 
 def request(method: str, path: str, token: str, data: object | None) -> tuple[object, dict[str, str]]:
     url = f"https://api.github.com{path}"
@@ -63,7 +61,6 @@ def request(method: str, path: str, token: str, data: object | None) -> tuple[ob
         detail = error.read().decode(errors="replace")
         raise RuntimeError(f"GitHub API {error.code}: {detail}") from error
 
-
 def next_path(link_header: str | None) -> str | None:
     if not link_header:
         return None
@@ -74,7 +71,6 @@ def next_path(link_header: str | None) -> str | None:
             parsed = urllib.parse.urlparse(url)
             return f"{parsed.path}?{parsed.query}"
     return None
-
 
 def get_all(path: str, token: str, key: str | None = None) -> list[object]:
     """Every record from a paginated list endpoint, following Link rel="next".
@@ -95,7 +91,6 @@ def get_all(path: str, token: str, key: str | None = None) -> list[object]:
         records.extend(page)
         page_path = next_path(headers.get("Link"))
     return records
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -140,7 +135,6 @@ def main() -> int:
 
     print(json.dumps(pages, indent=2))
     return 0
-
 
 if __name__ == "__main__":
     try:

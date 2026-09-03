@@ -13,7 +13,6 @@ import unittest
 
 from tools._lib.checker_common import Finding, find_line, run_checker
 
-
 class CheckerCommonTests(unittest.TestCase):
     def test_finding_requires_positive_line_and_known_severity(self) -> None:
         with self.assertRaisesRegex(ValueError, "line must be positive"):
@@ -77,7 +76,6 @@ class CheckerCommonTests(unittest.TestCase):
             ["docs/example.md:2: custom argument"],
             json.loads(stdout.getvalue())["warnings"],
         )
-
 
 if __name__ == "__main__":
     unittest.main()

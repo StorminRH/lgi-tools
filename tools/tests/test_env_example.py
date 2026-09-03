@@ -9,7 +9,6 @@ import unittest
 
 from tools.quality.check_env_example import collect_findings
 
-
 class EnvFixture:
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -34,7 +33,6 @@ class EnvFixture:
 
     def write_example(self, text: str) -> None:
         (self.root / ".env.example").write_text(text, encoding="utf-8")
-
 
 class EnvExampleTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -106,7 +104,6 @@ class EnvExampleTests(unittest.TestCase):
             "src/lib/env.ts:1: unterminated REQUIRED_ENV registry block",
             messages,
         )
-
 
 if __name__ == "__main__":
     unittest.main()

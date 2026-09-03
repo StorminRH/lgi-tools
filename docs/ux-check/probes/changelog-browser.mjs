@@ -55,10 +55,6 @@ export default {
     check('v3.9 route has versioned metadata', /v3\.9.*Changelog/i.test(await page.title()));
     await shot('desktop-v3-9');
 
-    // Cache Components streams a 200 App Shell before notFound() fires, so the
-    // documented soft-404 contract is the injected noindex meta plus the
-    // not-found boundary (node_modules/next/dist/docs streaming.md), not the
-    // HTTP status the pre-16.3 structure produced.
     for (const slug of ['v4.0', 'v9.9']) {
       const response = await page.request.get(new URL(`/changelog/${slug}`, baseUrl).href);
       const body = await response.text();
