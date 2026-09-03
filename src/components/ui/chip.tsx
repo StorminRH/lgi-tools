@@ -6,7 +6,6 @@ import { eyebrow } from './type-roles';
 
 export type { ChipTone };
 
-/** Shared static and pressable chip presentation variants. */
 export const chipVariants = cva(
   `inline-flex items-center px-[5px] py-px rounded-ctl border leading-[1.5] shrink-0 ${eyebrow({
     weight: 'semibold',
@@ -24,19 +23,16 @@ export const chipVariants = cva(
   },
 );
 
-/**
- * Renders the domain-neutral chip with house behavior and tokens; callers own semantic meaning and
- * content while this primitive owns presentation.
- */
 export function Chip({
   tone,
   children,
   className,
 }: {
-  // Required — Chip is a deliberate subset of the tone vocabulary (tones.ts).
+
   tone: ChipTone;
   children: ReactNode;
   className?: string;
 }) {
   return <span className={cn(chipVariants({ tone }), className)}>{children}</span>;
+
 }

@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Input, Textarea } from './input';
 
-// Node-env, no RTL: calling a component returns a React element whose props/tree
-// we inspect directly for the prop-forwarding and prompt-branch contracts.
-
-// One level of the returned element's children, normalized to an array.
 function kids(el: { props: { children?: unknown } }): Array<{ type?: unknown; props?: Record<string, unknown> }> {
   return ([] as unknown[]).concat(el.props.children ?? []) as Array<{
     type?: unknown;

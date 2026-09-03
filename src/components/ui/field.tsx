@@ -34,6 +34,7 @@ function FieldDescription({ id, children }: { id: string; children?: ReactNode }
     <Base.Description id={id} className="font-ui text-label text-faint">
       {children}
     </Base.Description>
+
   );
 }
 
@@ -43,13 +44,10 @@ function FieldError({ id, children }: { id: string; children?: ReactNode }) {
     <Base.Error id={id} match className="font-ui text-label text-pill-red-text">
       {children}
     </Base.Error>
+
   );
 }
 
-/**
- * Renders the domain-neutral field with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
- */
 export function Field({
   label,
   hint,
@@ -89,6 +87,7 @@ export function Field({
       <Base.Label htmlFor={controlId} className={eyebrow()}>
         {label}
       </Base.Label>
+
       {cloneElement(children, {
         id: controlId,
         disabled: controlDisabled(disabled, children),
@@ -96,7 +95,10 @@ export function Field({
         'aria-invalid': isInvalid,
       })}
       <FieldDescription id={hintId}>{hint}</FieldDescription>
+
       <FieldError id={errorId}>{error}</FieldError>
+
     </Base.Root>
+
   );
 }

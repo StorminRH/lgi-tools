@@ -5,23 +5,8 @@ import { cva } from 'class-variance-authority';
 import { cn } from './cn';
 import type { Tone } from './tones';
 
-// The platform's one checkbox primitive — the idiomatic Base UI Checkbox styled
-// to the existing tone tokens, the Switch's terminal look in multi-select form
-// (a sunk square that fills with a solid inner block when ticked, not a rounded
-// tick). Controlled (the caller owns `checked` + `onCheckedChange`);
-// className-only state via Base UI's `data-checked`/`data-unchecked`
-// attributes. An accessible `label` is required — Base UI renders a hidden
-// `<input>`, so without a name the control is unlabelled. First consumer: the
-// multibuy panel's tier scope list.
-
-/**
- * Closed presentation vocabulary for checkbox tone; feature callers map domain meaning to these
- * abstract values before rendering.
- */
 export type CheckboxTone = Extract<Tone, 'green' | 'neutral' | 'red'>;
 
-// The box. Unticked = a sunk square with an idle border; ticked = the ISK-green
-// pill surface + dim-ISK border (the Switch track's affirmative tone).
 const box = cva(
   'inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center ' +
     'rounded-ctl border outline-none transition-colors duration-fast ' +
@@ -42,9 +27,6 @@ const box = cva(
   },
 );
 
-// The inner fill block — only mounted while ticked (Base unmounts the
-// indicator when unchecked).
-// eslint-disable-next-line no-restricted-syntax -- inner checkbox-fill indicator, sub-4px by design
 const fill = cva('block h-[8px] w-[8px] rounded-[1px]', {
   variants: {
     tone: {
@@ -56,10 +38,6 @@ const fill = cva('block h-[8px] w-[8px] rounded-[1px]', {
   defaultVariants: { tone: 'green' },
 });
 
-/**
- * Renders the domain-neutral checkbox with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
- */
 export function Checkbox({
   checked,
   onCheckedChange,
@@ -70,7 +48,7 @@ export function Checkbox({
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  // Accessible name (the hidden input is otherwise unnamed).
+
   label: string;
   tone?: CheckboxTone;
   disabled?: boolean;
@@ -86,5 +64,6 @@ export function Checkbox({
     >
       <Base.Indicator className={fill({ tone })} />
     </Base.Root>
+
   );
 }

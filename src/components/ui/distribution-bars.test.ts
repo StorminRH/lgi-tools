@@ -9,7 +9,7 @@ describe('distributionBars', () => {
       { key: 'c', label: '/c', count: 20 },
     ]);
     expect(bars.map((b) => b.key)).toEqual(['b', 'a', 'c']);
-    // total 100 → shares 60/20/20; max 60 → fills 100/33.3/33.3.
+
     expect(bars[0]).toMatchObject({ sharePct: 60, fillPct: 100 });
     expect(bars[1]!.sharePct).toBe(20);
     expect(Math.round(bars[1]!.fillPct)).toBe(33);
@@ -32,7 +32,7 @@ describe('distributionBars', () => {
       { key: 'a', label: 'a', count: 1 },
       { key: 'b', label: 'b', count: 999 },
     ]);
-    expect(bars[1]!.fillPct).toBeGreaterThanOrEqual(2); // the tiny row still shows
+    expect(bars[1]!.fillPct).toBeGreaterThanOrEqual(2);
     const zero = distributionBars([{ key: 'z', label: 'z', count: 0 }]);
     expect(zero[0]).toMatchObject({ sharePct: 0, fillPct: 0 });
   });

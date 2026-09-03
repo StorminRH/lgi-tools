@@ -20,13 +20,10 @@ function DialogError({ children }: { children?: ReactNode }) {
     <p role="alert" className="font-ui text-ui text-tone-red">
       {children}
     </p>
+
   );
 }
 
-/**
- * Renders the domain-neutral confirm dialog with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -76,17 +73,22 @@ export function ConfirmDialog({
       >
         {title}
       </DialogTitle>
+
       <div className="flex flex-col gap-3 px-4 py-4">
         <DialogDescription className="font-ui text-ui leading-relaxed text-text">
           {consequence}
         </DialogDescription>
+
         {children}
         <DialogError>{error}</DialogError>
+
       </div>
+
       <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
         <DialogClose render={<Button variant="secondary" size="sm" />} disabled={busy}>
           Cancel
         </DialogClose>
+
         <Button
           variant={appearance.button}
           size="sm"
@@ -95,7 +97,10 @@ export function ConfirmDialog({
         >
           {busy ? busyLabel : confirmLabel}
         </Button>
+
       </footer>
+
     </Dialog>
+
   );
 }
