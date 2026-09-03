@@ -342,7 +342,6 @@ function BuildTimeTile({
 
             <PopoverRow label="Runs">×{runs}</PopoverRow>
 
-            {}
             <PopoverRow label="Time efficiency">
               {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
             </PopoverRow>

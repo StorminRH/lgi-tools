@@ -1,7 +1,5 @@
 'use client';
 
-// ESI endpoints per character sequentially and takes tens of seconds for a
-
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import type { OutcomeOf } from '@/transport/endpoint';

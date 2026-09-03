@@ -262,7 +262,6 @@ export function NodeCard({
           className="absolute inset-0 z-0"
         />
       )}
-      {}
       <span className="relative z-10 pointer-events-none [&_button]:pointer-events-auto">
         {efficiency ? (
           <BuildableIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
@@ -274,7 +273,6 @@ export function NodeCard({
         )}
       </span>
 
-      {}
       <div className="relative z-10 pointer-events-none flex min-w-0 flex-1 flex-col gap-px">
         <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
           {name}
@@ -286,7 +284,6 @@ export function NodeCard({
 
       </div>
 
-      {}
       <span className="relative z-10 pointer-events-none [&_button]:pointer-events-auto">
         <QtyRingCell name={name} qty={qty} value={value} ownedQty={ownedQty} heldBy={heldBy} />
       </span>

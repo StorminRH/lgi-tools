@@ -62,10 +62,8 @@ export function GemIcon({ state }: { state: IconState }) {
   }
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', tone.glow)}>
-      {}
       <g transform="translate(-0.5 0)">
         <path d="M6 3h12l4 6-10 13L2 9Z" className={tone.fill} strokeLinejoin="round" />
-        {}
         <path
           d="M11 3 8 9l4 13 4-13-3-6M2 9h20"
           className="fill-none stroke-bg"
@@ -99,7 +97,6 @@ export function HourglassIcon({ state }: { state: IconState }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', tone.glow)}>
       <path d="M5 3h14l-7 9 7 9H5l7-9Z" className={tone.fill} strokeLinejoin="round" />
-      {}
       <path d="M4 3h16M4 21h16" className="stroke-bg" strokeWidth={1.6} strokeLinecap="round" />
     </svg>
 
@@ -127,7 +124,6 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
 
         <span className="break-words text-right font-data text-micro tracking-copy text-faint">
           {detail.locationName}
-          {}
           <span className="block text-micro tracking-copy text-muted">{detail.locationFlag}</span>
 
         </span>

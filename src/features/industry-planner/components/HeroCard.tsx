@@ -148,7 +148,6 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
         'px-[18px] py-4',
       )}
     >
-      {}
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-ctl border border-border p-2">
         <TypeIcon
           {...heroImage(structure.blueprintTypeId)}
@@ -160,13 +159,11 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
 
       <HeroSteppers blueprintTypeId={structure.blueprintTypeId} isManufacturing={isManufacturing} />
 
-      {}
       <div className="relative flex shrink-0">
         <RunAsSelector />
         <BuildSkillsIndicator structure={structure} />
       </div>
 
-      {}
       <div className="flex min-w-0 w-full flex-wrap gap-x-6 gap-y-3 sm:ml-auto sm:w-auto">
         <BuildLocationSelector />
         <ReactionStructureSelect />

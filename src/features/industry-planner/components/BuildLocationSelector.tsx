@@ -98,7 +98,6 @@ function BuildFacilitySelect({
     <div className={cn(HERO_LOCATION_ROW_CLASS, 'flex-wrap')}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
 
-      {}
       <Select
         value={facilityValueFor(selectedStructure, station)}
         onValueChange={onChange}
@@ -286,7 +285,6 @@ export function BuildLocationSelector() {
   return (
 
     <div className={HERO_LOCATION_GROUP_CLASS}>
-      {}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Manufacturing</span>
 

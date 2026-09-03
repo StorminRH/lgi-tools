@@ -366,7 +366,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
   return (
     <div className="mt-7">
-      {}
       <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
           <SectionLabel>Build plan</SectionLabel>
