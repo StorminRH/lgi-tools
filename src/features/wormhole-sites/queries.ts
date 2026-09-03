@@ -25,8 +25,6 @@ const SITE_LIST_COLUMNS = {
   resourceValueIsk: sites.resourceValueIsk,
 } as const;
 
-// Raw `npcs` row as the DB returns it now that the cached stat columns are
-// gone. Combat stats are merged on top from getCombatStatsBatch.
 type NpcRow = {
   id: number;
   waveId: number;
@@ -45,23 +43,10 @@ type WaveRow = {
   waveLabel: string;
 };
 
-// Wire-format conversion from CombatStats to the per-NPC fields the API has
-// always returned. Kept in one place — same mapping used by both list and
-// detail queries.
-//
-// Three semantics preserved from the original Phase 1 ingest of the C1-C6
-// tabs (NOT the Calculations tab):
-//  - `web` is a 0/1 presence flag (the sleeper either fits a web or it doesn't),
-//    not the speed factor (the SDE attribute -60% lives in stats.ewar.web)
-//  - `neut` is the NEGATIVE per-NPC neut count (the Sheet's C1-C6 tabs print
-//    it as "-6" to read as "you take 6 neut")
-//  - `rrep` is the POSITIVE per-NPC rep count
 function mergeNpc(base: NpcRow, stats: CombatStats | undefined): Npc {
   const { waveId: _waveId, typeId: _typeId, ...rest } = base;
   if (!stats) {
-    // Type isn't in the SDE ingest (shouldn't happen in normal operation;
-    // surface as null fields rather than crash so the rest of the response
-    // stays valid).
+
     return { ...rest, scram: null, web: null, neut: null, rrep: null,
       sig: null, speed: null, distance: null, velocity: null,
       dps: null, alpha: null, ehp: null };
@@ -82,14 +67,6 @@ function mergeNpc(base: NpcRow, stats: CombatStats | undefined): Npc {
   };
 }
 
-// Build wave-level aggregates. Combat totals (dps/alpha/ehp) go through
-// summariseWave's quantity-weighted sum — that's the honest "what damage
-// hits you per second" number. EWAR aggregates follow a different rule
-// preserved from pre-2.7.1: each ew* field is the sum across distinct NPC
-// TYPES of that type's per-NPC EWAR value, NOT quantity-weighted (so a
-// wave with 3× Awakened Watchman (neut=-6) reports ewNeut=-6, not -18).
-// The wire is null when no NPC contributes to that category, otherwise the
-// integer sum.
 function nullIfZero(value: number, anyContrib: boolean): number | null {
   return anyContrib ? value : null;
 }
@@ -106,9 +83,6 @@ function aggregateWave(
     .filter((x): x is { stats: CombatStats; quantity: number } => x.stats !== undefined);
   const totals = summariseWave(contributing);
 
-  // Sum each per-NPC EWAR value across the wave's NPC types (no quantity
-  // multiplication — see comment above). One row per NPC type, taking the
-  // wire-format per-NPC value, including the sign convention.
   let ewScramSum = 0;
   let ewWebSum = 0;
   let ewNeutSum = 0;
@@ -153,10 +127,6 @@ function aggregateWave(
   };
 }
 
-// Class match accounts for two cases: ordinary classed sites (an exact
-// match on the column) AND gas sites whose `wormhole_class` is always NULL
-// in the data but whose name encodes a class RANGE (see ./gas-classes).
-// Filtering by class therefore happens in JS so the range logic can apply.
 function matchesClass(s: Pick<SiteListItem, 'name' | 'siteType' | 'wormholeClass'>, cls: WormholeClass): boolean {
   if (s.wormholeClass === cls) return true;
   if (s.siteType === 'gas') {
@@ -166,19 +136,14 @@ function matchesClass(s: Pick<SiteListItem, 'name' | 'siteType' | 'wormholeClass
   return false;
 }
 
-/** Lists wormhole sites as lightweight catalogue rows ordered by canonical site identity. */
 export async function listSites(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteListItem[]> {
-  // The catalogue is deploy-static (seeded once by migration, untouched by either
-  // cron), so cache the read and let the build ID invalidate it — same pattern as
-  // getSiteSearchIndex / getSiteDetail. Keyed automatically on the filter args.
+
   'use cache';
   cacheLife('max');
-  // Class filtering happens post-fetch (see matchesClass) — only `type` goes
-  // into the SQL clause. The whole-table cost of fetching ~70 rows is
-  // negligible vs. the clarity of single-source-of-truth class matching.
+
   const conditions = [
     filters.type ? eq(sites.siteType, filters.type) : undefined,
   ].filter((c) => c !== undefined);
@@ -196,9 +161,6 @@ export async function listSites(filters: {
     : rows;
 }
 
-// Every NPC row for a set of waves, in one batched order-preserving fetch — empty
-// (no query) when there are no waves. Shared by the list and single-site details
-// reads so both project the identical NPC columns.
 async function loadNpcsForWaves(waveIds: number[]): Promise<NpcRow[]> {
   if (waveIds.length === 0) return [];
   return db
@@ -217,25 +179,16 @@ async function loadNpcsForWaves(waveIds: number[]): Promise<NpcRow[]> {
     .orderBy(npcs.orderInWave);
 }
 
-/** Loads full site details for the requested IDs in one batched query. */
 export async function listSiteDetails(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteDetail[]> {
-  // The catalogue is deploy-static, so cache this whole 4-round-trip structural
-  // read into the prerender shell keyed by the filter args — same pattern as
-  // getSiteDetail. Live prices are layered on separately by the /sites page
-  // (overlayLivePrices) so they keep their own freshness; this returns the raw
-  // pre-overlay shape.
+
   'use cache';
   cacheLife('max');
-  // One retry wrap around the whole multi-round-trip read (including the
-  // npc-stats batch) — re-running the full body on a cold-start failure is
-  // safe (pure reads) and simpler than per-query wraps.
+
   return withColdStartRetry(async () => {
-    // Class filtering applied in JS post-fetch (see matchesClass) so gas
-    // sites can match by their name-derived class range rather than the
-    // always-NULL `wormhole_class` column.
+
     const conditions = [
       filters.type ? eq(sites.siteType, filters.type) : undefined,
     ].filter((c) => c !== undefined);
@@ -254,8 +207,6 @@ export async function listSiteDetails(filters: {
 
     const siteIds = siteRows.map((s) => s.id);
 
-    // Waves and resources are both keyed off siteIds with no dependency on each
-    // other; fetch them concurrently. NPCs still wait on waveIds afterwards.
     const [waveRows, resourceRows]: [
       WaveRow[],
       (Omit<SiteResource, 'liveIsk' | 'effectiveIsk' | 'liveEligible'> & { siteId: number })[],
@@ -292,8 +243,6 @@ export async function listSiteDetails(filters: {
 
     const npcRows = await loadNpcsForWaves(waveIds);
 
-    // One batched fetch of combat stats for every distinct NPC type across all
-    // sites — same shape as the existing 4-round-trip pattern for listSiteDetails.
     const distinctTypeIds = [...new Set(npcRows.map((n) => n.typeId))];
     const statsByType = await getCombatStatsBatch(distinctTypeIds);
 
@@ -333,11 +282,6 @@ export async function listSiteDetails(filters: {
   });
 }
 
-/**
- * Compact catalogue row for global search and scanner name/ISK seeding.
- * Server-rendered once (AppHeader / map layout) and passed to the client so
- * search and scanner lookups stay zero-RPC. ~69 rows; liveRecipes stay light.
- */
 export type SiteSearchEntry = {
   id: number;
   name: string;
@@ -345,14 +289,10 @@ export type SiteSearchEntry = {
   wormholeClass: WormholeClass | null;
   blueLootIsk: number | null;
   resourceValueIsk: number | null;
-  /** Live-eligible harvestable resources for scanner refresh-on-view. */
+
   liveRecipes?: readonly SiteLiveRecipe[];
 };
 
-/**
- * Cached count of catalogued wormhole sites, for the home dashboard's status
- * card. Deploy-static row count — the build ID invalidates it.
- */
 export async function getCachedSiteCount(): Promise<number> {
   'use cache';
   cacheLife('max');
@@ -362,11 +302,6 @@ export async function getCachedSiteCount(): Promise<number> {
   });
 }
 
-/**
- * Deploy-static lightweight catalogue for AppHeader search, sitemap, and
- * static params. Does not load NPC waves or live prices — those stay on
- * {@link getScannerSiteIndex} / {@link listPricedSiteDetails}.
- */
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   'use cache';
   cacheLife('max');
@@ -385,11 +320,6 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   );
 }
 
-/**
- * Live-priced scanner catalogue: exact name→id, headline Est. ISK, and
- * harvestable live recipes. Isolated from {@link getSiteSearchIndex} so
- * header/sitemap/static params are not blocked on the hourly price overlay.
- */
 export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
   'use cache';
   cacheLife('hours');
@@ -406,25 +336,15 @@ export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
   }));
 }
 
-/**
- * Loads one complete wormhole-site record with waves, NPCs, resources, and derived values, or null
- * when absent.
- */
 async function getSiteDetail(id: number): Promise<SiteDetail | null> {
-  // The catalogue is deploy-static (seeded once by migration, untouched by either
-  // cron), so cache the structural read into the prerender shell and let the build
-  // ID invalidate it — same pattern as getSiteSearchIndex. Live prices are layered
-  // on separately (getPricedSiteDetail) so they can carry their own freshness.
+
   'use cache';
   cacheLife('max');
-  // One retry wrap around the whole multi-round-trip read (including the
-  // npc-stats batch) — re-running on a cold-start failure is safe (pure reads).
+
   return withColdStartRetry(async () => {
     const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
     if (!site) return null;
 
-    // Waves and resources both key off the site id with no inter-dependency;
-    // fetch them concurrently. NPCs still wait on waveIds afterwards.
     const [siteWaves, resourceRows] = await Promise.all([
       db
         .select({
@@ -482,35 +402,22 @@ async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   });
 }
 
-/**
- * Loads the complete site catalogue with the hourly price snapshot used by its prerendered shell.
- */
 export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
   'use cache';
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
   const raw = await listSiteDetails({});
-  // listSiteDetails carries its own cold-start retry; keep the independent
-  // price overlay read inside its own retry budget.
+
   return withColdStartRetry(() => overlayLivePrices(raw));
 }
 
-/**
- * Price-overlaid site detail, cached for the static prerender shell. The site
- * structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
- * only change on the hourly cron, so we cache the overlaid result under the same
- * freshness tag the cron revalidates. This gives the detail page the same price
- * freshness as a per-request fetch while letting the full site content prerender
- * into the static shell for crawlers. Returns null for an unknown id.
- */
 export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null> {
   'use cache';
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
   const raw = await getSiteDetail(id);
   if (!raw) return null;
-  // getSiteDetail carries its own cold-start retry; only the price overlay's
-  // direct read needs one here (wrapping both would multiply the attempts).
+
   const [priced] = await withColdStartRetry(() => overlayLivePrices([raw]));
   return priced ?? null;
 }

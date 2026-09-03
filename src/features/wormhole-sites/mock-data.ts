@@ -1,14 +1,5 @@
 import type { Npc, SiteDetail, SiteResource, Wave } from './types';
 
-/**
- * Mock SiteDetail fixtures used by /preview/cards. Shapes match the
- * real `SiteDetail` interface so swapping these for `getSiteDetail()`
- * in Session 7 is a one-line change.
- *
- * Values mirror the visual prototype in
- * `LGI Tool References/card_reference.html`.
- */
-
 let nextId = 1;
 const id = () => nextId++;
 
@@ -25,7 +16,6 @@ interface NpcArgs {
   trigger?: boolean;
 }
 
-/** Builds a deterministic NPC fixture with caller overrides for wormhole-site tests and previews. */
 function npc(
   order: number,
   {
@@ -62,7 +52,6 @@ function npc(
   };
 }
 
-/** Builds a deterministic wave fixture containing the supplied NPC groups. */
 function wave(
   waveNumber: number,
   label: string,
@@ -93,7 +82,6 @@ function wave(
   };
 }
 
-/** Builds a deterministic site-resource fixture with caller-provided quantities and value. */
 function resource(
   order: number,
   kind: SiteResource['resourceKind'],
@@ -117,7 +105,6 @@ function resource(
   };
 }
 
-// ── Combat ────────────────────────────────────────────────────────────────
 const combatC1: SiteDetail = {
   id: id(),
   name: 'Perimeter Ambush Point',
@@ -193,7 +180,6 @@ const combatC5: SiteDetail = {
   resources: [],
 };
 
-// ── Ore ───────────────────────────────────────────────────────────────────
 const oreC2: SiteDetail = {
   id: id(),
   name: 'Ordinary Perimeter Deposit',
@@ -234,7 +220,6 @@ const oreC3: SiteDetail = {
   ],
 };
 
-// ── Gas ───────────────────────────────────────────────────────────────────
 const gasC2: SiteDetail = {
   id: id(),
   name: 'Ordinary Perimeter Reservoir',
@@ -279,7 +264,6 @@ const gasC4: SiteDetail = {
   ],
 };
 
-// ── Relic ─────────────────────────────────────────────────────────────────
 const relicC1: SiteDetail = {
   id: id(),
   name: 'Crumbling Frontier Ruins',
@@ -322,7 +306,6 @@ const relicC3: SiteDetail = {
   ],
 };
 
-// ── Data ──────────────────────────────────────────────────────────────────
 const dataC1: SiteDetail = {
   id: id(),
   name: 'Unsecured Frontier Receiver',
@@ -365,10 +348,6 @@ const dataC4: SiteDetail = {
   ],
 };
 
-/**
- * Deterministic wormhole-site catalogue used by local demos and fixtures; production reads never
- * depend on it.
- */
 export const MOCK_SITES: SiteDetail[] = [
   combatC1,
   combatC3,

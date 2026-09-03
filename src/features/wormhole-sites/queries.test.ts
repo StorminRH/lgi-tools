@@ -2,8 +2,6 @@ import type { CombatStats } from '@/data/npc-stats/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SiteListItem } from './types';
 
-// Dequeue at select creation so concurrent wave/resource reads keep call order;
-// the fluent thenable shape exercises outcomes without coupling tests to SQL.
 const h = vi.hoisted(() => {
   const state = { results: [] as unknown[] };
   const select = vi.fn(() => {
@@ -306,7 +304,7 @@ describe('listSiteDetails', () => {
       id: 102,
       scram: 0,
       web: 0,
-      // The query negates neut counts, deliberately preserving zero as -0.
+
       neut: -0,
       rrep: 4,
       dps: 5,

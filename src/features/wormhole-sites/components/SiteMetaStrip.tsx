@@ -1,10 +1,5 @@
-// Meta strip rendered above the SiteCard on the /sites/[id] deep-link
-// page. Two label/value pairs: the originating Sheet tab and the last
-// market-price refresh. Stateless and presentational — the page passes
-// already-computed values in.
 import { formatRelativeTime } from '@/lib/format/time';
 
-/** Renders source-tab and last-price-update metadata above the deep-link card. */
 export function SiteMetaStrip({
   source,
   lastPriceUpdate,
@@ -12,7 +7,7 @@ export function SiteMetaStrip({
 }: {
   source: string;
   lastPriceUpdate: Date | null;
-  /** Optional injectable clock for tests; production omits it. */
+
   now?: number;
 }) {
   return (
@@ -21,16 +16,23 @@ export function SiteMetaStrip({
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Source
         </span>
+
         <span className="text-name font-data">{source}</span>
+
       </div>
+
       <div className="flex items-baseline gap-2">
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Last price update
         </span>
+
         <span className="text-name font-data">
           {formatRelativeTime(lastPriceUpdate, now)}
         </span>
+
       </div>
+
     </div>
+
   );
 }

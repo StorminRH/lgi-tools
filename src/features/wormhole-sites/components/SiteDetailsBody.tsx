@@ -15,6 +15,7 @@ function WaveCards({ waves }: { waves: SiteDetail['waves'] }) {
         <WaveCard key={wave.id} wave={wave} defaultOpen={true} />
       ))}
     </>
+
   );
 }
 
@@ -27,6 +28,7 @@ function ResourceSection({ site, view }: { site: SiteDetail; view: SiteDetailsVi
         <Callout className="mx-3.5 my-2" label="Spawn">
           Sleeper wave arrives ~20 min after warp-in
         </Callout>
+
       )}
       <SiteResourcesLive
         resources={displayableResources(site.resources)}
@@ -34,6 +36,7 @@ function ResourceSection({ site, view }: { site: SiteDetail; view: SiteDetailsVi
         footerLabel={view.footerLabel}
       />
     </>
+
   );
 }
 
@@ -46,16 +49,13 @@ function NoWaveSection({ site, view }: { site: SiteDetail; view: SiteDetailsView
         <WaveCards waves={site.waves} />
       ) : (
         <EmptyState>No Sleeper presence — mine freely</EmptyState>
+
       )}
     </>
+
   );
 }
 
-/**
- * The expanded body for a wormhole site — everything that appears inside the
- * `<details>` element. Shared between the card view (SiteCard) and the table view
- * (SitesTable row), so both surfaces expose identical detail.
- */
 export function SiteDetailsBody({ site }: { site: SiteDetail }) {
   const view = deriveSiteDetailsView(site);
 
@@ -65,5 +65,6 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
       <ResourceSection site={site} view={view} />
       <NoWaveSection site={site} view={view} />
     </NpcNameColScope>
+
   );
 }
