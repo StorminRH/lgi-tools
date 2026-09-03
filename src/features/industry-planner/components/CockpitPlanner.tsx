@@ -28,7 +28,7 @@ function PlannerHead({
     <header className="grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
       <div className="inline-flex items-baseline gap-5 justify-self-start text-label tracking-label text-muted">
         <span className="font-data">
-          <span className="text-isk">lgi:
+          <span className="text-isk">lgi://</span>
           <Link href="/industry" className="hover:text-isk">
             industry
           </Link>
