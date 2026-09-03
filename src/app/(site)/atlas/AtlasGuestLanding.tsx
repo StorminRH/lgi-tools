@@ -23,7 +23,7 @@ const SETUP_STEPS = [
   {
     title: 'Open or create a map and turn on Tracking',
     detail:
-      "With a map open or when creating a new map, you may enable or disable tracking by clicking your character's portrait. Initial tracking may take up to 30 seconds to start.",
+      "With a map open, you may enable or disable tracking by clicking your character's portrait. Initial tracking may take up to 30 seconds to start.",
   },
 ] as const;
 
