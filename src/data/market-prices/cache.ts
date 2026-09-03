@@ -30,8 +30,6 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
 
-  // suspended Neon can't kill the build. The cron's postgres-js path calls the
-
   return withColdStartRetry(() => getPricesFreshness(db));
 }
 

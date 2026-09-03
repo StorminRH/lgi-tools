@@ -12,8 +12,6 @@ import {
 } from './constants';
 import type { HistoryDailyRow, RawHistory } from './types';
 
-// captureBodyForCache skips it by design (see src/platform/esi/index.ts) — and our
-
 const esiHistoryItemSchema = z.object({
   date: z.string(),
   average: z.number(),
