@@ -186,7 +186,9 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
                 focusEnabled={focusOnClick}
               />
             </MotionLayer>
+
           </OutboundArrowProvider>
+
           <MapWindowLayer
             dockSystemId={windowSystemId}
             onDeselect={deselectNodes}
@@ -225,9 +227,12 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
                 }}
               />
             </>
+
           ) : null}
           </ReactFlowProvider>
+
         </SignatureProvider>
+
         {showHomePrompt ? (
           <HomePrompt
             mapId={mapId}
@@ -237,6 +242,8 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
           />
         ) : null}
       </MapPresenceProvider>
+
     </div>
+
   );
 }

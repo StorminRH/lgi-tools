@@ -69,7 +69,7 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   expect(still).toContain('size-[55px]');
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
-  // Two occurrences: header + disc.
+
   expect(still.match(/pointer-events-auto/g)).toHaveLength(2);
 
   const noClass = renderToStaticMarkup(
@@ -116,8 +116,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(kspaceNode).toContain('text-sec-09');
   expect(kspaceNode).not.toContain('Jita - 0.9');
 
-  // A derived halo keeps a neutral name plus colored security; the frame opacity
-  // continues to distinguish provisional content.
   const halo = nodeMarkup({
     name: 'Perimeter',
     className: null,
@@ -131,8 +129,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(halo).toContain('text-sec-09');
   expect(halo).toContain('opacity-75');
 
-  // A typed stub keeps its signature identity above and shows the codex-derived
-  // destination class inside the disc.
   const stub = nodeMarkup({
     name: 'ABC-123',
     className: null,
@@ -146,8 +142,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(stub).toContain('>C3<');
   expect(stub).toContain('text-wh-c3');
 
-  // A K162 (or untyped) stub with a Leads-to bucket shows that class on the
-  // disc before anyone jumps — C1–C3 stays a bucket, not a fake C1.
   const hinted = nodeMarkup({
     name: 'ABC-123',
     className: null,
@@ -161,7 +155,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(hinted).toContain('text-wh-c2');
   expect(hinted).not.toContain('>C1<');
 
-  // A typed near-side code still wins over a stored hint.
   const typedOverHint = nodeMarkup({
     name: 'ABC-123',
     className: null,
@@ -302,10 +295,6 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
     renderEdge(new Map([['other-edge', { towardSystemId: 2, live: true }]])),
   ).not.toContain('data-pilot-arrow');
 
-  // The stub draws exactly FOG_EDGE_CUT_FRACTION of a fog-truncated segment from
-  // the non-fogged end — the arrow's fraction must sit strictly inside that span,
-  // derived from the SAME constant, so retuning the cut can never strand the
-  // glyph in the cloud past the end of its own line.
   expect(outboundArrowFraction('source')).toBeLessThan(FOG_EDGE_CUT_FRACTION);
   expect(outboundArrowFraction('target')).toBeLessThan(FOG_EDGE_CUT_FRACTION);
   expect(outboundArrowFraction('source')).toBeGreaterThan(0);

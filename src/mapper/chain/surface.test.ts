@@ -15,19 +15,12 @@ describe('mapper source contract', () => {
       .map((name) => name.replaceAll('\\', '/'));
   }
 
-  /**
-   * A file's CODE, with comments stripped.
-   *
-   * Prose naming a forbidden API is not a use of it — these modules document the constraints they
-   * uphold, and asserting against raw text would fail on its own documentation.
-   */
   function sourceOf(relative: string): string {
     return readFileSync(`${ROOT}/${relative}`, 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^\s*\/\/.*$/gm, '');
   }
 
-  // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
       'authoring/HomePrompt.tsx',
@@ -171,8 +164,7 @@ describe('mapper source contract', () => {
   });
 
   it('keeps internalized tombstone helpers off every UI surface', () => {
-    // SC-5.2: public destruction/restore is sever + restoreSeveredBranch +
-    // restoreConnection; the .1 single-row tombstone helpers stay internal.
+
     for (const file of mapperFiles()) {
       if (file === 'chain/optimistic-authoring.ts') continue;
       const source = sourceOf(file);
@@ -183,9 +175,7 @@ describe('mapper source contract', () => {
   });
 
   it('routes UI destruction only through sever and the public restore pair', () => {
-    // One mutation owner, one dispatcher owner, one ledger. Every UI entry
-    // point (editor Delete, edge-menu Delete) reaches destruction through
-    // `connectionLifecycleActions`, never by naming the mutations itself.
+
     const allowed = new Set([
       'chain/optimistic-authoring.ts',
       'signatures/connection-authoring-api.ts',
@@ -207,10 +197,7 @@ describe('mapper source contract', () => {
   });
 
   it('keeps the window layer off the hot nodes array', () => {
-    // PD-4: selection stays on an equality-stable store selector so
-    // position-only drag frames cannot re-render hosted window content.
-    // Titles come from the session directory, not node data, so off-map
-    // k-space still names.
+
     const layer = sourceOf('windows/MapWindowLayer.tsx');
     const host = sourceOf('chain/ChainLive.tsx');
     expect(layer).not.toMatch(/readonly nodes:/);
@@ -220,9 +207,7 @@ describe('mapper source contract', () => {
   });
 
   it('stacks the node info card above the scanner sibling layer', () => {
-    // MapWindowLayer and SignatureWindow are equal-band siblings; later DOM
-    // order used to paint the scanner over the summary card. The card layer
-    // owns z-float (20) so it wins without raising inner --map-window-z.
+
     expect(sourceOf('windows/MapWindowLayer.tsx')).toContain('z-float');
     expect(sourceOf('signatures/SignatureWindow.tsx')).toContain(
       'data-signature-window-layer',
@@ -259,8 +244,7 @@ describe('mapper source contract', () => {
   });
 
   it('keeps the page subscriptions split so a connection write cannot re-read systems', () => {
-    // HC-2's client half: one call per function over disjoint index ranges,
-    // never one aggregate read. The unresolved-slot feed is the third split.
+
     const hook = sourceOf('chain/use-map-chain-pages.ts');
 
     expect(hook).toContain('api.mapChainSystems.watchMapSystems');
@@ -277,8 +261,7 @@ describe('mapper source contract', () => {
   });
 
   it('confines client-callable mutations to the three named mapper seams', () => {
-    // Authoring, signatures, and tracking are independent mutation owners; all reach
-    // Convex only through the data-slice re-export — never raw convex/react.
+
     const mutationFiles = mapperFiles().filter((file) =>
       /useMutation|useAction/.test(sourceOf(file)),
     );
@@ -302,9 +285,7 @@ describe('mapper source contract', () => {
       expect(source, `${file} must not build state from pages`).not.toContain(
         'usePaginatedQuery',
       );
-      // Any live-data slice hook, not only today's two: the canvas renders what it is handed.
-      // `@/data/convex/client` stays allowed — the null-client gate is a client-existence check,
-      // not a subscription.
+
       expect(source, `${file} must not subscribe through a slice hook`).not.toMatch(
         /@\/data\/convex\/use-[\w-]+/,
       );
@@ -312,7 +293,7 @@ describe('mapper source contract', () => {
   });
 
   it('introduces no server-side Convex read for the map route', () => {
-    // HC-3: the client subscribes directly and the route stays static.
+
     for (const file of mapperFiles()) {
       expect(sourceOf(file)).not.toMatch(/preloadQuery|fetchQuery/);
     }

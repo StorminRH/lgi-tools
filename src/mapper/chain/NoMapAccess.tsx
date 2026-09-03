@@ -1,23 +1,5 @@
 'use client';
 
-// The calm state shown when the caller does not hold access to the map (contract IS-5 / DC-4).
-//
-// Reached from a live access VALUE, not from a caught error: `watchMapAccess` reports access as
-// `{ granted }`, so losing access is an ordinary state transition the canvas renders. There is no
-// error boundary in this path and nothing throws. A re-granted claim flips the same subscription back
-// and the map returns with no reload, which is why there is deliberately no retry control here
-// (contract HC-4).
-
-/**
- * Explains that map access is not held.
- *
- * The lost-access framing is deliberate operator-chosen copy. It reads as a revocation, which is the
- * common case, and it is also what a caller who never held access sees — following a stale or shared
- * `/atlas?map=` link resolves here through the same `granted: false`. That wording was chosen over
- * neutral phrasing knowingly; do not "correct" it back.
- *
- * Carries no spinner, retry, or reload affordance.
- */
 export function NoMapAccess() {
   return (
     <section
@@ -28,17 +10,21 @@ export function NoMapAccess() {
         <div className="font-data text-label uppercase tracking-eyebrow text-muted">
           Atlas · access
         </div>
-        {/* Deliberately NOT uppercased, unlike other display headings: `o7` is the salute and `O7`
-            is not, so the house uppercase treatment would break the word. The non-breaking space
-            keeps the salute from wrapping onto a line of its own. */}
+
+        {}
         <h2 className="font-display text-title font-bold tracking-copy text-name">
           You&rsquo;ve lost access to this map&nbsp;<span className="text-isk">o7</span>
+
         </h2>
+
         <p className="text-body leading-relaxed text-text">
           Another map can be opened from the atlas or access can be restored by the
           map&rsquo;s owner.
         </p>
+
       </div>
+
     </section>
+
   );
 }

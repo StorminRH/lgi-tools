@@ -20,9 +20,6 @@ function entry(
   return { id, name, whClassId, security: null };
 }
 
-// The class-id → text ladder itself is owned and tested by
-// `src/data/eve-data/system-identity.test.ts`; this file covers only the
-// directory-entry resolution and its silent fallbacks.
 describe('node label resolution', () => {
   it('resolves directory names with class/security fields and bare-id fallbacks', () => {
     expect(
@@ -55,8 +52,6 @@ describe('node label resolution', () => {
       whClassId: null,
     });
 
-    // Unknown system and an unloaded directory both fall back to the bare id
-    // with no class chip — HC-5: unloaded is not a loading state.
     const bare = {
       name: String(JITA),
       className: null,

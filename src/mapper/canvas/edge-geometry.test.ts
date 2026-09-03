@@ -46,28 +46,28 @@ const node = (
 const MEASURED = { measured: { width: FRAME_W, height: FRAME_H } };
 
 test('frameSegment clips H/V/diagonal segments to the disc rim and nulls touching discs', () => {
-  // Centers (CX, CY) and (300+CX, CY); each disc claims DISC_R of the 300px run.
+
   expect(frameSegment(frame(0, 0), frame(300, 0))).toEqual({
     startX: CX + DISC_R,
     startY: CY,
     endX: 300 + CX - DISC_R,
     endY: CY,
   });
-  // Centers (CX, CY) and (CX, 200+CY); each disc claims DISC_R of the 200px run.
+
   expect(frameSegment(frame(0, 0), frame(0, 200))).toEqual({
     startX: CX,
     startY: CY + DISC_R,
     endX: CX,
     endY: 200 + CY - DISC_R,
   });
-  // 3-4-5: dx 80, dy 60, dist 100. Source center (CX, CY).
+
   expect(frameSegment(frame(0, 0), frame(80, 60))).toEqual({
     startX: CX + 80 * (DISC_R / 100),
     startY: CY + 60 * (DISC_R / 100),
     endX: CX + 80 * (1 - DISC_R / 100),
     endY: CY + 60 * (1 - DISC_R / 100),
   });
-  // Discs exactly touching: center distance equals 2 * DISC_R.
+
   expect(frameSegment(frame(0, 0), frame(DISC_R * 2, 0))).toBeNull();
   expect(frameSegment(frame(0, 0), frame(30, 10))).toBeNull();
   expect(frameSegment(frame(0, 0), frame(0, 0))).toBeNull();

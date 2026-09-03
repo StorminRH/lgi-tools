@@ -1,12 +1,5 @@
 'use client';
 
-// Canvas panel: development-only layout/motion dial group. User-facing map
-// lock / camera follow / click focus live in page-settings (portrait menu).
-//
-// Controlled and domain-stateless — commit handlers apply `map-controls-model`
-// clamping so invalid configs cannot leave the panel. Composed from existing
-// `@/components/ui` primitives inside a React Flow `Panel`. Renders nothing
-// outside development so production never shows an empty frosted shell.
 import { Panel } from '@xyflow/react';
 import { memo, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
@@ -71,7 +64,6 @@ import {
   directionPresetOf,
 } from './map-controls-model';
 
-/** Controlled props for the development-only layout/motion/halo/fog dials. */
 export interface MapControlsProps {
   readonly config: LayoutConfig;
   readonly onConfigChange: (config: LayoutConfig) => void;
@@ -83,12 +75,6 @@ export interface MapControlsProps {
   readonly onFogChange: (fog: FogConfig) => void;
 }
 
-/**
- * Development-only layout, motion, halo, and fog dials for the live chain
- * surface — the G-1 tuning seam; the chosen halo/fog values pin as constants.
- *
- * Must mount inside `<ReactFlow>` (via `ChainSurface`'s children slot).
- */
 function MapControlsComponent({
   config,
   onConfigChange,
@@ -108,7 +94,7 @@ function MapControlsComponent({
       data-map-dev-dials
       position="bottom-right"
       className={cn(
-        // The mapper chrome's bottom-right chip rail owns this development-only slot.
+
         'nopan nodrag nowheel mb-2! ml-2! mr-64! mt-2! flex max-h-[calc(100dvh-2rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
         mapFrostedSurface,
       )}
@@ -132,6 +118,7 @@ function MapControlsComponent({
               onChange={(next) => onConfigChange(commitRingSpacing(config, next))}
             />
           </DialRow>
+
           <DialRow label="Separation">
             <Stepper
               value={config.minSeparation}
@@ -144,6 +131,7 @@ function MapControlsComponent({
               onChange={(next) => onConfigChange(commitMinSeparation(config, next))}
             />
           </DialRow>
+
           <DialRow label="Sibling fan">
             <Stepper
               value={config.siblingSpread}
@@ -155,8 +143,10 @@ function MapControlsComponent({
               onChange={(next) => onConfigChange(commitSiblingSpread(config, next))}
             />
           </DialRow>
+
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Wedge posture</span>
+
             <SegmentedControl
               label="Wedge posture"
               density="compact"
@@ -170,8 +160,10 @@ function MapControlsComponent({
               }
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Direction order</span>
+
             <Select
               ariaLabel="Direction order"
               value={preset}
@@ -186,7 +178,9 @@ function MapControlsComponent({
               }
             />
           </div>
+
         </div>
+
       </Collapsible>
 
       <Collapsible
@@ -208,6 +202,7 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitFastTempo(motion, next))}
             />
           </DialRow>
+
           <DialRow label="Mid">
             <Stepper
               value={motion.tempo.mid}
@@ -220,6 +215,7 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitMidTempo(motion, next))}
             />
           </DialRow>
+
           <DialRow label="Slow">
             <Stepper
               value={motion.tempo.slow}
@@ -232,6 +228,7 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitSlowTempo(motion, next))}
             />
           </DialRow>
+
           <DialRow label="Overshoot">
             <Stepper
               value={motion.overshootPct}
@@ -244,8 +241,10 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitOvershoot(motion, next))}
             />
           </DialRow>
+
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Edge flavor</span>
+
             <SegmentedControl
               label="Edge flavor"
               density="compact"
@@ -259,8 +258,10 @@ function MapControlsComponent({
               }
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Collapse exit</span>
+
             <SegmentedControl
               label="Collapse exit"
               density="compact"
@@ -276,7 +277,9 @@ function MapControlsComponent({
               }
             />
           </div>
+
         </div>
+
       </Collapsible>
 
       <Collapsible
@@ -298,6 +301,7 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloDrawnRings(halo, next))}
             />
           </DialRow>
+
           <DialRow label="Fogged rings">
             <Stepper
               value={halo.foggedRings}
@@ -310,6 +314,7 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloFoggedRings(halo, next))}
             />
           </DialRow>
+
           <DialRow label="Per exit">
             <Stepper
               value={halo.maxSystemsPerExit}
@@ -322,6 +327,7 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloPerExitCap(halo, next))}
             />
           </DialRow>
+
           <DialRow label="Total cap">
             <Stepper
               value={halo.maxSystemsTotal}
@@ -334,7 +340,9 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloTotalCap(halo, next))}
             />
           </DialRow>
+
         </div>
+
       </Collapsible>
 
       <Collapsible
@@ -356,6 +364,7 @@ function MapControlsComponent({
               onChange={(next) => onFogChange(commitFogRevealRadius(fog, next))}
             />
           </DialRow>
+
           <DialRow label="Corridor">
             <Stepper
               value={fog.strokeRadius}
@@ -368,6 +377,7 @@ function MapControlsComponent({
               onChange={(next) => onFogChange(commitFogStrokeRadius(fog, next))}
             />
           </DialRow>
+
           <DialRow label="Density %">
             <Stepper
               value={Math.round(fog.opacity * 100)}
@@ -380,8 +390,10 @@ function MapControlsComponent({
               onChange={(next) => onFogChange(commitFogOpacityPct(fog, next))}
             />
           </DialRow>
+
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Smoke tier</span>
+
             <SegmentedControl
               label="Smoke tier"
               density="compact"
@@ -395,31 +407,33 @@ function MapControlsComponent({
               }
             />
           </div>
+
         </div>
+
       </Collapsible>
+
     </Panel>
+
   );
 }
 
-/** The shared collapsible-group header row (label + chevron). */
 function DialGroupHeader({ label }: { readonly label: string }) {
   return (
     <span className="flex w-full items-center gap-2">
       <span className="text-label uppercase tracking-label text-muted">{label}</span>
+
       <span
         data-chevron
         className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
       >
         ▾
       </span>
+
     </span>
+
   );
 }
 
-/**
- * Memoized (drag hardening, IS-5): the panel's props are identity-stable
- * across a drag's per-frame renders, so the whole dial tree skips them.
- */
 export const MapControls = memo(MapControlsComponent);
 
 function DialRow({
@@ -432,7 +446,9 @@ function DialRow({
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-label uppercase tracking-label text-muted">{label}</span>
+
       {children}
     </div>
+
   );
 }

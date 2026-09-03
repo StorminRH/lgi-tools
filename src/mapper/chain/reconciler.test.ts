@@ -5,7 +5,6 @@ import {
 } from './intents';
 import { type PlacementAssigner } from './placement';
 
-/** Test-only row park — production placement is the kernel via assignerFromPositions. */
 function positionOfSlot(slot: number): ChainPosition {
   return { x: (slot % 6) * 220, y: Math.floor(slot / 6) * 160 };
 }
@@ -80,7 +79,6 @@ function link(
   return { connectionId, fromSystemId, toSystemId };
 }
 
-/** An assigner that parks everything on the grid but forces one node to a fixed spot. */
 function assignerMoving(systemId: number, to: ChainPosition): PlacementAssigner {
   return (input) => {
     const proposals = new Map(sequentialTestAssigner(input));
@@ -89,7 +87,6 @@ function assignerMoving(systemId: number, to: ChainPosition): PlacementAssigner 
   };
 }
 
-/** Reconciles a sequence of snapshots from empty, returning every merge's intents. */
 function replay(
   snapshots: readonly ChainSnapshot[],
   assigner: PlacementAssigner = sequentialTestAssigner,
@@ -109,7 +106,7 @@ function kindsOf(intents: readonly MapChainIntent[]): string[] {
 }
 
 describe('map chain reconciler', () => {
-  // ── SC-7 · DC-7 / AC-7 / V-3 — the named intent vocabulary ────────────────
+
   describe('intents', () => {
     it('emits system-appeared carrying the assigned position', () => {
       const merge = reconcileChain(
@@ -157,8 +154,6 @@ describe('map chain reconciler', () => {
       ]);
     });
 
-    // SC-3.4 — optimistic temp-id → confirmed id on the same endpoints is an
-    // in-place identity swap: one edge remains, no birth/death intent pair.
     it('suppresses connection intents when a same-merge id-swap shares endpoints', () => {
       const { state, intents } = replay([
         snapshot(
@@ -240,8 +235,6 @@ describe('map chain reconciler', () => {
         ),
       ]);
 
-      // The departing id is optimistic, but the confirmed row's endpoints do
-      // not match — this is a real departure plus a real appear, not a swap.
       expect(intents[1]).toEqual([
         { kind: 'connection-departed', connectionId: tempId },
         {
@@ -253,8 +246,6 @@ describe('map chain reconciler', () => {
       ]);
     });
 
-    // The 4.0.3.1 hand-off: the grid never proposes a move, so the emission path is proven by
-    // driving the seam directly. Without this the layout engine would inherit dead code.
     it('emits system-moved when the placement seam proposes a new position', () => {
       const target = { x: 999, y: 42 };
       const first = reconcileChain(
@@ -282,7 +273,6 @@ describe('map chain reconciler', () => {
     });
   });
 
-  // ── SC-1 · DC-1 / AC-1 / V-1 — arrivals and departures ───────────────────
   describe('arrivals and departures', () => {
     it('adds exactly one node for an added system row', () => {
       const { state, intents } = replay([snapshot([JITA]), snapshot([JITA, AMARR])]);
@@ -329,7 +319,6 @@ describe('map chain reconciler', () => {
     });
   });
 
-  // ── Edges around endpoints that have not arrived ──────────────────────────
   describe('edge visibility', () => {
     it('withholds a connection whose endpoint is absent and emits no intent', () => {
       const merge = reconcileChain(
@@ -384,7 +373,6 @@ describe('map chain reconciler', () => {
     });
   });
 
-  // ── SC-2 · DC-2 / AC-2 / HC-1 — the protection set is inviolable ──────────
   describe('protection', () => {
     it('leaves a user-placed node identical through an unrelated arrival', () => {
       const dragged = { x: 512, y: 64 };
@@ -427,8 +415,6 @@ describe('map chain reconciler', () => {
       expect(second.intents).toEqual([]);
     });
 
-    // Defence in depth: protection is derived from state, not only from the caller's argument, so a
-    // caller that forgets a user-placed node still cannot move it (HC-1).
     it('never repositions a user-placed node the caller omitted from the drag set', () => {
       const dragged = { x: 300, y: 300 };
       const first = reconcileChain(
@@ -473,7 +459,6 @@ describe('map chain reconciler', () => {
     });
   });
 
-  // ── Provisional placement determinism (PD-3) ─────────────────────────────
   describe('placement', () => {
     it('falls back to the origin when an assigner declines to place a new node', () => {
       const merge = reconcileChain(
