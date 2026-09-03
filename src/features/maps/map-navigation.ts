@@ -21,9 +21,9 @@ export function mapSelectionHref(
 
 /**
  * Where an EVE sign-in started from the signed-out Atlas landing returns to.
- * Only the shared map selection survives the round-trip: a stale `?error=` from
- * an earlier attempt, or any other transient query, would otherwise be replayed
- * onto the signed-in catalogue or canvas.
+ * Only the shared map selection survives the round-trip. Any other query on
+ * the guest URL is transient and would otherwise be replayed onto the
+ * signed-in catalogue or canvas.
  */
 export function atlasSignInReturnHref(
   searchParams: Pick<URLSearchParams, 'get'>,
