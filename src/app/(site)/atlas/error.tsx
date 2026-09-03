@@ -5,9 +5,6 @@ import { useEffect } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 
-/**
- * Renders a viewport-filling recovery surface for unhandled atlas-route errors.
- */
 export default function AtlasError({
   error,
   unstable_retry,
@@ -24,15 +21,21 @@ export default function AtlasError({
       <div className="font-data text-label uppercase tracking-eyebrow text-muted">
         Atlas signal lost
       </div>
+
       <h1 className="font-display text-display font-bold uppercase tracking-copy text-name">
         Map unavailable
       </h1>
+
       <div className="flex items-center gap-3">
         <Button onClick={() => unstable_retry()}>Try again</Button>
+
         <Link href="/" className={cn(buttonVariants({ variant: 'secondary' }))}>
           Warp to home
         </Link>
+
       </div>
+
     </div>
+
   );
 }

@@ -6,17 +6,12 @@ import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-social-card';
 import { parseNumericRouteId } from '@/transport/route-id';
 
-/** Accessible alternative text embedded in this generated social image. */
 export const alt = 'LGI.tools wormhole site overview';
-/** Canonical pixel dimensions for this generated social image. */
+
 export const size = { width: 1200, height: 630 };
-/** MIME type emitted by this generated social image route. */
+
 export const contentType = 'image/png';
 
-/**
- * Renders the 1200 by 630 Open Graph image for this route using bundled fonts; callers provide
- * only route parameters where required.
- */
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const id = parseNumericRouteId((await params).id);
   if (id === null) notFound();
@@ -52,7 +47,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         }}
       >
         <span>[ LGI.tools ]</span>
+
         <span style={{ color: toneHex.neutral }}>WORMHOLE SITE INTELLIGENCE</span>
+
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -67,6 +64,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         >
           {card.classification}
         </div>
+
         <div
           style={{
             display: 'flex',
@@ -81,6 +79,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         >
           {card.name}
         </div>
+
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -88,15 +87,21 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ display: 'flex', color: toneHex.neutral, fontSize: 18, letterSpacing: 2 }}>
             {card.valueCaption}
           </div>
+
           <div style={{ display: 'flex', color: toneHex.green, fontSize: 44 }}>
             {card.value}
           </div>
+
         </div>
+
         <div style={{ display: 'flex', color: toneHex.neutral, fontSize: 18, letterSpacing: 2 }}>
           LO-GANG INDUSTRIES
         </div>
+
       </div>
+
     </div>,
+
     { ...size, fonts },
   );
 }

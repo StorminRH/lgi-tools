@@ -23,16 +23,6 @@ import {
   type SettingsView,
 } from './settings-view';
 
-// The account-wide settings page (ACCOUNT.6), reached from the portrait menu.
-// Registry-rendered (D-8): the junction-owned '/settings' spec resolves through
-// the same presentation path as the menu, so lighting up an account-wide
-// preference is one spec ref — the page carries no per-setting code. Feature
-// controls resolve by id through an exhaustive switch (in settings-view.ts, so a
-// new id fails tsc until it is mapped); their data is fetched here in app land so
-// nothing server-only leaks into the junction's client-imported graph.
-
-// The settings-page sections, rendered from the derived view. The render guards
-// live here so the request-time content shell stays a thin, branch-light hole.
 function SettingsSections({ view }: { view: SettingsView }) {
   return (
     <>
@@ -44,7 +34,9 @@ function SettingsSections({ view }: { view: SettingsView }) {
               <SettingsControlRow key={model.key} model={model} />
             ))}
           </div>
+
         </Card>
+
       ) : null}
 
       {view.featureSections.map((section) => (
@@ -53,16 +45,13 @@ function SettingsSections({ view }: { view: SettingsView }) {
 
       {view.isEmpty ? (
         <EmptyState>Nothing to configure yet.</EmptyState>
+
       ) : null}
     </>
+
   );
 }
 
-// Session-gated: the whole content is a request-time dynamic hole (the
-// /characters idiom); the page container prerenders as the static shell.
-// getCorpStructuresPageData is the same read /structures uses — the
-// Station_Manager flags come from the identical code path, and viewing this
-// page dispatches the same stale-gated on-view refresh.
 async function SettingsContent() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
@@ -79,23 +68,20 @@ async function SettingsContent() {
     <div className="flex w-full flex-col gap-6">
       <SettingsSections view={view} />
     </div>
+
   );
 }
 
 function SettingsLoading() {
-  // One block only: every section beyond the first is account-conditional, so
-  // reserving phantom cards would shift more than it saves on most accounts.
+
   return (
     <div className="flex w-full flex-col gap-6">
       <Skeleton label="Loading account settings" className="h-40 w-full rounded-card" />
     </div>
+
   );
 }
 
-/**
- * Renders the /settings route surface and owns its page-level composition, metadata boundary, and
- * fallback presentation. PageHead stays in the static shell; session-gated sections stream.
- */
 export default function SettingsPage() {
   return (
     <PageShell mode="reading">
@@ -108,7 +94,10 @@ export default function SettingsPage() {
         <Suspense fallback={<SettingsLoading />}>
           <SettingsContent />
         </Suspense>
+
       </div>
+
     </PageShell>
+
   );
 }

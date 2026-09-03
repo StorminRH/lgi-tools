@@ -14,29 +14,20 @@ import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
 
 async function SkillsContent() {
-  // Session-gated (any signed-in pilot), the /characters precedent: signed
-  // out lands on the homepage with the login notice. The hole reads the
-  // session + the linked-character list per request; the queue data itself
-  // arrives client-side over the Convex websocket.
+
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect('/?auth_error=login_required');
   }
 
   const characters = await listLinkedCharacters(session.user.id);
-  // The strip's dimmed set, read from its ssrReadable cookie mirror inside the
-  // hole (the /sites initialView idiom) so a reload's first paint already hides
-  // dimmed cards instead of flashing all-lit until the preferences GET resolves.
+
   const stripDef = stripDimmedDef(skillsPageSettings.strip.surfaceId);
   const initialDimmed = readPreferenceCookieValue(
     (await cookies()).get(cookieNameFor(stripDef))?.value,
     stripDef,
   );
-  // Per-character scope gate: each card that can't sync its skill queue blocks
-  // itself behind an in-place grant, while granted characters still show. The
-  // scope health is derived per character at the app layer (toPanelCharacter →
-  // canSyncSkillQueue); the page composes the grant control + reason and passes
-  // them down, so the panel and gate primitive stay free of auth/scope imports.
+
   return (
     <SkillQueuePanel
       characters={characters.map((character) => toPanelCharacter(character, canSyncSkillQueue))}
@@ -54,12 +45,6 @@ function SkillsLoading() {
   return <CharacterPanelSkeleton label="Loading skill queues" />;
 }
 
-/**
- * Live skill queues across the pilot's linked characters (3.4.7) — the first
- * Convex tracker. The page container prerenders as the static shell; the
- * session + character-list read is a request-time dynamic hole, and the
- * queues stream in reactively from Convex inside the client island.
- */
 export default function SkillsPage() {
   return (
     <PageShell mode="reading">
@@ -73,8 +58,12 @@ export default function SkillsPage() {
           <Suspense fallback={<SkillsLoading />}>
             <SkillsContent />
           </Suspense>
+
         </div>
+
       </div>
+
     </PageShell>
+
   );
 }

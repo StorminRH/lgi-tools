@@ -59,21 +59,25 @@ function ProofContent({ state }: { state: ProofState }) {
   }
   if (state.status === 'error') {
     return <Banner tone="warn">Universe reference assets could not be loaded.</Banner>;
+
   }
   return (
     <>
       <span className="font-data text-label tracking-label uppercase text-muted">
         Universe assets · v{state.version}
       </span>
+
       <span className="font-data text-ui text-text">
         {state.systemName} · {state.neighbourCount} gates
       </span>
+
       <span className="font-data text-ui text-text">{state.wormholeSummary}</span>
+
     </>
+
   );
 }
 
-/** Exercises both browser-session asset loaders and reports a compact real-data proof. */
 export function UniverseAssetsProof() {
   const [state, setState] = useState<ProofState>({ status: 'loading' });
 
@@ -91,5 +95,6 @@ export function UniverseAssetsProof() {
     <div className="mb-6 flex min-h-9 flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-border-idle bg-panel px-4 py-2 shadow-card">
       <ProofContent state={state} />
     </div>
+
   );
 }

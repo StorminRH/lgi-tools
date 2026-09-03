@@ -9,20 +9,15 @@ import { buildDemoRoster } from '@/features/skill-queue/roster-demo-data';
 import { readEnv } from '@/lib/env';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
-/** Static search and social metadata for the / route. */
 export const metadata = buildPageMetadata({
   title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
   description:
     'Browse Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free tools for wormhole pilots.',
-  // Next normalizes the root canonical to the bare origin (`https://lgi.tools`)
-  // under `trailingSlash: false` — Google treats that as identical to
-  // `https://lgi.tools/`, the form URL Inspection displays.
+
   canonical: '/',
   absoluteTitle: true,
 });
 
-// WebSite + Organization structured data for the homepage — associates the
-// brand, site, and logo for search engines, and anchors future schema by @id.
 const HOME_JSON_LD = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -56,9 +51,6 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     'The admin dashboard is only available to authorized characters.',
 };
 
-// The only per-request input on this page is the transient `auth_error` query
-// param from a failed OAuth redirect. Isolating it in a Suspense hole lets the
-// hero and tool tiles prerender into the static shell.
 async function AuthErrorNotice({
   searchParams,
 }: {
@@ -72,15 +64,12 @@ async function AuthErrorNotice({
   return (
     <div className="w-full max-w-[640px] mb-8">
       <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
+
     </div>
+
   );
 }
 
-// Dev/preview-only roster preview. `?demo` (or `?demo=one` for the single-card
-// layout) renders the presentational roster with seeded sample data, so the
-// styling is reviewable on a preview deploy where EVE login is unavailable. Gated
-// OFF in production — `?demo` is a no-op there — and kept inside this request-time
-// Suspense hole (like the auth-error notice) so the home shell stays static.
 async function RosterDemo({
   searchParams,
 }: {
@@ -94,15 +83,13 @@ async function RosterDemo({
       <p className="text-label uppercase tracking-wide text-muted mb-3">
         Demo · sample data
       </p>
+
       <HomeRosterPanel demo={roster} />
     </div>
+
   );
 }
 
-/**
- * Composes the public or authenticated home dashboard while keeping request search parameters
- * inside the page boundary.
- */
 export default function Home({
   searchParams,
 }: {
@@ -114,10 +101,13 @@ export default function Home({
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
       </Suspense>
+
       <Suspense fallback={null}>
         <RosterDemo searchParams={searchParams} />
       </Suspense>
+
       <HomeDashboard />
     </PageShell>
+
   );
 }

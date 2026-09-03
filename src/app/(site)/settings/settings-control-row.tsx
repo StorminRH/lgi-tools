@@ -20,8 +20,10 @@ function SettingsRowFrame({
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-ui text-text">{label}</span>
+
       {children}
     </div>
+
   );
 }
 
@@ -36,6 +38,7 @@ function EnumSettingsRow({ model }: { model: EnumMenuControlModel }) {
         label={model.label}
       />
     </SettingsRowFrame>
+
   );
 }
 
@@ -50,14 +53,10 @@ function BooleanSettingsRow({ model }: { model: BooleanMenuControlModel }) {
         tone="neutral"
       />
     </SettingsRowFrame>
+
   );
 }
 
-/**
- * The account settings page's preference row — the page-styled twin of the
- * portrait menu's ControlRow (PageMenuSection), reading the same
- * PreferencesProvider state so every surface binding a key stays in sync live.
- */
 export function SettingsControlRow({ model }: { model: MenuControlModel }) {
   if (model.kind === 'preference-boolean') {
     return <BooleanSettingsRow model={model} />;
