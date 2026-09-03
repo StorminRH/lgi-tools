@@ -25,7 +25,6 @@ import {
   type PreDispatchState,
 } from './types';
 
-// path of every ESI call and must fail fast, not stall it.
 const REDIS_TIMEOUT_MS = 1500;
 
 const REDIS_RETRIES = 0;

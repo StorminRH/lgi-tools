@@ -9,7 +9,6 @@ import {
   type EsiFetchOptions,
 } from './dispatch';
 
-// here so every consumer keeps importing them from '@/platform/esi'.
 export {
   EsiBudgetExhaustedError,
   EsiServerError,

@@ -1,5 +1,3 @@
-// pilot's ESI access — it must never sit in the database as plaintext and must
-
 import { requireEnv } from '@/lib/env';
 import {
   AES_GCM_ENVELOPE_VERSION,
