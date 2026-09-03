@@ -1,5 +1,3 @@
-// Operator apply for `neon.ts`: Config-as-Code cannot clear an existing
-// branch `expiresAt`, so standing previews get a follow-up PATCH to null.
 import { spawn } from 'node:child_process';
 import { config } from 'dotenv';
 import neonConfig, { clearStandingPreviewExpirations } from '../neon';

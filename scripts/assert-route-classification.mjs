@@ -1,20 +1,4 @@
-// Asserts that `next build`'s render mode for every route matches the committed
-// expectation in route-classification.json. Runs after `next build` (in
 // `vercel-build`) so a route can't silently regress to a more dynamic mode — the
-// payoff of the conversion track (3.0.4.8 + 3.0.4.9) that took the site off the
-// all-dynamic path.
-//
-// How a route is classified from build artifacts (no console scraping):
-//   - `dynamic` (f): absent from .next/prerender-manifest.json — server-rendered
-//     per request (every /api/* route handler, by design).
-//   - prerendered: present in the prerender manifest. Then its .next/server/app
-//     `.meta` distinguishes:
-//       - `partial` (static shell + request-time <Suspense> holes): `.meta` carries
-//         a `postponed` payload.
-//       - `static` (O): `.meta` has no `postponed` payload.
-//
-// The `postponed` marker is an internal Next 16 detail; if a future release moves
-// it, this check fails loudly and the lookup here is the one place to update.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,7 +20,7 @@ if (!existsSync(prerenderManifestPath) || !existsSync(appRoutesManifestPath)) {
 }
 
 const expected = readJson(join(HERE, 'route-classification.json')).routes;
-const appRoutes = readJson(appRoutesManifestPath); // { "<file>/page": "/route", ... }
+const appRoutes = readJson(appRoutesManifestPath);
 const prerender = readJson(prerenderManifestPath);
 const prerendered = new Set([
   ...Object.keys(prerender.routes ?? {}),
@@ -51,13 +35,11 @@ function metaPathFor(route) {
 function classify(route) {
   if (!prerendered.has(route)) return 'dynamic';
   const metaPath = metaPathFor(route);
-  // Prerendered but no resolvable .meta → report 'partial' so it can't pass as a
-  // fully-static O without the evidence.
+
   if (!existsSync(metaPath)) return 'partial';
   return 'postponed' in readJson(metaPath) ? 'partial' : 'static';
 }
 
-// Public routes only — skip Next internals (/_not-found, /_global-error) and /favicon.ico.
 const routes = [...new Set(Object.values(appRoutes))]
   .filter((r) => !r.startsWith('/_') && r !== '/favicon.ico')
   .sort();

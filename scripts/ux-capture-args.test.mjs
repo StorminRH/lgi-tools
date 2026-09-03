@@ -21,8 +21,6 @@ describe('ux-capture args helpers', () => {
       settle: 2500,
     });
 
-    // Junk against a non-zero prior — "preserve" must be distinguishable from
-    // "reset to 0", so the parseable-0 case comes after.
     expect(parseArgs(['/', '--settle=2500', '--settle=soon']).opts.settle).toBe(2500);
     expect(parseArgs(['/', '--settle=2500', '--settle=0']).opts.settle).toBe(0);
 
@@ -75,8 +73,7 @@ describe('ux-capture args helpers', () => {
     ['/', 'home'],
     ['', 'home'],
     ['/sites/30002', 'sites-30002'],
-    // Trailing non-alphanumerics collapse to a trailing '-' (only leading/trailing
-    // slashes are trimmed first) — `]` survives as a dash.
+
     ['/sites/[id]', 'sites-id-'],
     ['/a/b', 'a-b'],
     ['/industry/templates/', 'industry-templates'],
@@ -89,7 +86,7 @@ describe('ux-capture args helpers', () => {
       { route: '/sites', slug: 'sites' },
       { route: '/industry', slug: 'industry' },
     ]);
-    // `/a/b` and `/a-b` both slugify to `a-b`.
+
     expect(assignSlugs(['/a/b', '/a-b', '/a/b/'])).toEqual([
       { route: '/a/b', slug: 'a-b' },
       { route: '/a-b', slug: 'a-b-2' },

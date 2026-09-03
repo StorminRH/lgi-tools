@@ -8,15 +8,6 @@ const {
   expectImportNonEmpty,
 } = createEslintRail(import.meta.url);
 
-// Durable fixtures for the 3.10.2.4 vendor rails, following
-// scripts/ui-import-rail.test.mjs: lint synthetic text at a virtual path so each
-// rule is exercised at the exact file position that decides it, with no probe
-// file left in the tree.
-//
-// The regression probes at the bottom exist because these rails were added by
-// editing roughly twenty flat-config blocks. Flat config REPLACES a rule's
-// options per matching file, so the real risk is not that a new ban fails to
-// fire — it is that re-listing dropped an existing one while lint stayed green.
 const PROBE = 'src/features/wormhole-sites/vendor-rail-probe.ts';
 const CONVEX_PROBE = 'convex/vendorRailProbe.ts';
 const FETCH_CALL = 'export const probe = () => fetch("https://example.test");\n';

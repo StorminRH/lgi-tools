@@ -1,17 +1,3 @@
-// Bounded `/sites` development profiler, reused by session 3.9.3.4.2.
-//
-// Run: pnpm --silent profile:sites-dev --label <label>
-// Labels: as-found, clean, after, sample (grammar: ^[a-z0-9-]{1,32}$).
-//
-// Stdout is exactly one JSON document on every exit path. Child-server output
-// and diagnostics go to stderr. The same JSON is written under
-// docs/ux-check/profiles/. Exit codes: 0 ok, 1 aborted, 2 refused.
-//
-// The child runs in its own process group. Every normal, signal, exception, and
-// rejection path uses the same idempotent teardown: SIGTERM, a bounded ten-second
-// poll, SIGKILL if needed, then a port-3000 closure check. SIGKILL of this
-// profiler itself is the one unhandleable cleanup case.
-
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';

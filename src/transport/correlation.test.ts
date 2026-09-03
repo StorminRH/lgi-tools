@@ -81,7 +81,6 @@ describe('correlation scope', () => {
       };
     });
 
-    // A 409 alone recovers only 'conflict'; the stash is what preserves 'template_limit'.
     expect(body.status).toBe(409);
     expect(stashed).toEqual({ category: 'conflict', code: 'template_limit' });
   });

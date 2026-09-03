@@ -323,17 +323,17 @@ describe('apiFetch', () => {
 
   it('requires and rejects call arguments from the endpoint contract', () => {
     if (false) {
-      // @ts-expect-error Body endpoints require their schema-derived input.
+
       apiFetch(typedEndpoint);
-      // @ts-expect-error Requestless endpoints cannot accept a body.
+
       apiFetch(requestlessEndpoint, { body: { value: 'no' } });
-      // @ts-expect-error The request body must satisfy the endpoint schema input.
+
       apiFetch(typedEndpoint, { body: { value: 42 } });
-      // @ts-expect-error A dynamic path endpoint requires its path parameters.
+
       apiFetch(detailEndpoint);
-      // @ts-expect-error Path parameter keys must match the path template.
+
       apiFetch(detailEndpoint, { params: { slug: '1' } });
-      // @ts-expect-error Query keys must come from the endpoint's query schema.
+
       apiFetch(filteredEndpoint, { query: { other: 'x' } });
     }
     expectTypeOf<{

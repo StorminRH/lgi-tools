@@ -1,8 +1,3 @@
-// Vercel `vercel-build` entry. Staging is a Vercel Preview that deploys to the
-// extra prod-type Convex `staging` backend. Convex refuses a prod-type
-// CONVEX_DEPLOY_KEY when VERCEL_ENV is not production unless this check is
-// disabled. Other Preview git refs keep the guard so a leaked prod key cannot
-// ship to production Convex.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readEnv } from '@/lib/env';
@@ -16,11 +11,6 @@ export type ConvexDeployEnv = {
   LGI_PREVIEW_LINE?: string;
 };
 
-/**
- * True when this Vercel build is the standing `staging` Preview. Origin
- * deploys may omit `VERCEL_GIT_COMMIT_REF`. The custom environment sets
- * `VERCEL_TARGET_ENV`; `LGI_PREVIEW_LINE` is the explicit fallback.
- */
 export function isStagingPreviewBuild(env: ConvexDeployEnv): boolean {
   return (
     env.VERCEL_GIT_COMMIT_REF === STAGING_GIT_REF ||

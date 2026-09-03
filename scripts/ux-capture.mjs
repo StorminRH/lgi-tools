@@ -1,9 +1,3 @@
-// UX log sweep — headless Chromium over the running app for changed routes.
-// Assertion surface is status + console + page errors + network diagnostics.
-// Screenshots only when a route×viewport fails (written under
-// docs/ux-check/captures/). Agents do not visually approve the UI; the operator
-// does after the log report. Agent procedure lives in the ux-check skill.
-
 import { chromium } from 'playwright';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,8 +7,6 @@ import { installOriginScopedBypass, loadRemoteAuthOptions } from './ux-remote-au
 const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
 const rel = (p) => path.relative(process.cwd(), p);
 
-// Local Convex websocket / HMR noise only — do not match every console line
-// that merely contains "Convex" (real ConvexError must still fail the sweep).
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,

@@ -11,12 +11,6 @@ function isWarmRetryable(err: unknown): boolean {
   return isNeonColdStartError(err) || hasTimeoutAbort(err);
 }
 
-/**
- * Wakes Neon before `next build` by running `read` with a warm-only retry
- * envelope. Retries cold-start connection failures and TimeoutError aborts
- * (unlike `withColdStartRetry`, which declines timeouts so prerender stays
- * bounded). Exhaustion rethrows; SQL/logic errors fail on the first attempt.
- */
 export async function warmNeon(read: () => Promise<unknown>): Promise<void> {
   for (let attempt = 1; ; attempt++) {
     try {

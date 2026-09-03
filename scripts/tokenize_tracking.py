@@ -11,7 +11,6 @@ count. Rare, intentionally bespoke tracking values are left for audit review.
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REPLACEMENTS = {
     "tracking-[0.04em]": "tracking-copy",
@@ -23,7 +22,6 @@ REPLACEMENTS = {
     "tracking-[0.16em]": "tracking-display",
     "tracking-[0.18em]": "tracking-eyebrow",
 }
-
 
 def main() -> None:
     changed = 0
@@ -42,7 +40,6 @@ def main() -> None:
             path.write_text(updated, encoding="utf-8")
             changed += 1
     print(f"updated {changed} files with {replacements} tracking-token replacements")
-
 
 if __name__ == "__main__":
     main()

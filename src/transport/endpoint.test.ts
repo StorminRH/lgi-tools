@@ -77,7 +77,7 @@ describe('endpoint contracts', () => {
 
   it('keeps transforming schemas out of JSON response codecs', () => {
     if (false) {
-      // @ts-expect-error Response codecs require identical Zod input and output types.
+
       jsonBody(z.string().transform((value) => value.length));
     }
     expect(true).toBe(true);
@@ -85,7 +85,7 @@ describe('endpoint contracts', () => {
 
   it('prevents GET contracts from declaring a request body', () => {
     if (false) {
-      // @ts-expect-error GET endpoint contracts cannot declare request bodies.
+
       defineEndpoint({
         method: 'GET',
         path: '/api/test/invalid-get',
@@ -139,7 +139,7 @@ describe('path parameter binding', () => {
 
   it('rejects a dynamic path whose params schema is missing or mismatched', () => {
     if (false) {
-      // @ts-expect-error A [segment] path template requires a matching params schema.
+
       defineEndpoint({
         method: 'GET',
         path: '/api/test/things/[id]',
@@ -150,7 +150,7 @@ describe('path parameter binding', () => {
         method: 'GET',
         path: '/api/test/things/[id]',
         request: null,
-        // @ts-expect-error The params schema key must match the path template's [segment].
+
         params: z.object({ slug: z.string() }),
         responses: { 200: jsonBody(responseSchema) },
       });
@@ -158,7 +158,7 @@ describe('path parameter binding', () => {
         method: 'GET',
         path: '/api/test/things',
         request: null,
-        // @ts-expect-error A static path template cannot declare params keys.
+
         params: z.object({ id: z.string() }),
         responses: { 200: jsonBody(responseSchema) },
       });
@@ -193,19 +193,19 @@ describe('endpointUrl', () => {
 
   it('requires exactly the declared parameters and rejects undeclared keys', () => {
     if (false) {
-      // @ts-expect-error A dynamic endpoint requires its path parameters.
+
       endpointUrl(pathEndpoint, {});
-      // @ts-expect-error Path parameter keys must match the path template.
+
       endpointUrl(pathEndpoint, { params: { slug: '1' } });
-      // @ts-expect-error Every declared path parameter must be supplied.
+
       endpointUrl(nestedPathEndpoint, { params: { thingId: '7' } });
-      // @ts-expect-error Query keys must come from the endpoint's query schema.
+
       endpointUrl(queryEndpoint, { query: { sort: 'name' } });
-      // @ts-expect-error Query values must satisfy the declared schema input.
+
       endpointUrl(queryEndpoint, { query: { type: 'relic' } });
-      // @ts-expect-error An endpoint without a query schema accepts no query input.
+
       endpointUrl(pathEndpoint, { params: { id: '1' }, query: { type: 'gas' } });
-      // @ts-expect-error An endpoint without a path template accepts no params.
+
       endpointUrl(queryEndpoint, { params: { id: '1' } });
     }
     expect(true).toBe(true);

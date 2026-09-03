@@ -52,10 +52,6 @@ import {
   sortTree,
 } from './resolver-fixtures';
 
-// Reference blueprints spanning the algorithm complexity spread (keys match the
-// committed flat-materials fixture). 691 Rifter (T1 frigate, no recursion),
-// 24699 Drake (shallow T1 components), 23758 Archon (deep capital recursion),
-// 29987 Legion (T3 — the whole-run-overbuild canary).
 const REFERENCE_BLUEPRINTS: Record<string, number> = {
   Rifter: 691,
   Drake: 24699,
@@ -63,8 +59,6 @@ const REFERENCE_BLUEPRINTS: Record<string, number> = {
   Legion: 29987,
 };
 
-// Sleeper NPC types (the "Sleepless" line) — a representative armor-tanked
-// wormhole-site set whose combat stats must be unchanged by the dogma reshape.
 const SLEEPER_TYPE_IDS = [
   30188, 30189, 30190, 30191, 30192, 30193, 30194, 30195, 30196, 30197,
 ];
@@ -74,12 +68,7 @@ const FLAT_FIXTURE = join(FIXTURE_DIR, 'blueprint-flat-materials.json');
 const TREES_FIXTURE = join(FIXTURE_DIR, 'blueprint-trees.json');
 const SLEEPER_FIXTURE = join(FIXTURE_DIR, 'npc-combat-stats.json');
 
-// Canonicalisation + flat-material grouping live in ./resolver-fixtures (pure,
-// import-safe, unit-tested).
-
-// ---- DB reads (resolved output only) -------------------------------
-
-type FlatMap = Record<string, number>; // rawTypeId(string) -> qty
+type FlatMap = Record<string, number>;
 
 async function readFlatMaterials(): Promise<Record<string, FlatMap>> {
   const ids = Object.values(REFERENCE_BLUEPRINTS);
@@ -124,8 +113,6 @@ async function readSleeperStats(): Promise<Record<string, CombatStats>> {
   return out;
 }
 
-// ---- Compare -------------------------------------------------------
-
 let failures = 0;
 
 function compare(label: string, expected: unknown, actual: unknown): void {
@@ -140,7 +127,6 @@ function compare(label: string, expected: unknown, actual: unknown): void {
   console.error(`    actual:   ${a.slice(0, 400)}${a.length > 400 ? '…' : ''}`);
 }
 
-// Compare each key with a (expected, actual) picker, prefixing the label.
 function compareAll(
   prefix: string,
   keys: string[],
@@ -158,9 +144,6 @@ function readFixture<T>(path: string): T {
 
 type FlatFixture = Record<string, { materials: FlatMap } | unknown>;
 
-// --capture: (re)write the trees + sleeper fixtures from the current DB, then
-// sanity-check the DB flat materials against the frozen committed fixture (never
-// rewritten). Aborts if the source DB isn't the expected pre-migration state.
 function runCapture(
   flat: Record<string, FlatMap>,
   trees: Record<string, TreeNode[]>,
@@ -188,7 +171,6 @@ function runCapture(
   process.exit(0);
 }
 
-// Default: check the DB output against all three committed fixtures.
 function runCheck(
   flat: Record<string, FlatMap>,
   trees: Record<string, TreeNode[]>,
@@ -235,9 +217,6 @@ async function main(): Promise<void> {
     readSleeperStats(),
   ]);
 
-  // Flat materials: the committed fixture is keyed by name with a `materials`
-  // object. It is the frozen pre-migration truth and is NEVER rewritten by this
-  // script — even in capture mode we only assert the DB still matches it.
   const flatFixture = readFixture<FlatFixture>(FLAT_FIXTURE);
 
   if (capture) runCapture(flat, trees, sleeper, flatFixture);

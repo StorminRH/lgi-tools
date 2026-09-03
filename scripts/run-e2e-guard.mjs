@@ -1,5 +1,3 @@
-/** Pure remote-auth guard for `scripts/run-e2e.mjs` (unit-tested). */
-
 function isLocalBaseUrl(baseUrl) {
   try {
     const { hostname } = new URL(baseUrl);
@@ -9,10 +7,6 @@ function isLocalBaseUrl(baseUrl) {
   }
 }
 
-/**
- * Returns an error message when remote skip-seed would fall back to the local
- * seed file; otherwise null.
- */
 export function remoteSkipSeedError({
   baseUrl,
   skipSeed,
