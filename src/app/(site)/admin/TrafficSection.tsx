@@ -306,10 +306,8 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
       <SectionHeader size="md" label="Activity" hint="events / day · 7d avg" />
       {!activity.hasData ? (
         <EmptyState>No events in this range.</EmptyState>
-
       ) : (
         <>
-          {}
           <div className="px-3.5 pt-1 flex items-baseline gap-2">
             <span className="font-data text-lead text-name tabular-nums">
               {activity.endValue.toLocaleString()}
@@ -321,8 +319,6 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
 
             {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}
           </div>
-
-          {}
           <div className="px-3.5 py-3 overflow-x-auto">
             <AdminDailyChart
               points={activity.points}
