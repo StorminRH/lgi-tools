@@ -29,12 +29,9 @@ export function QtyRing({
   className,
   children,
 }: {
-
   progress: number;
   tone?: QtyRingTone;
-
   label?: string;
-
   className?: string;
   children: ReactNode;
 }) {
@@ -45,7 +42,6 @@ export function QtyRing({
       role={label ? 'img' : undefined}
       aria-label={label}
     >
-      {}
       <svg viewBox="0 0 40 40" className="h-full w-full -rotate-90 -scale-y-100" aria-hidden>
         <circle cx="20" cy="20" r={RADIUS} className="fill-none stroke-border-soft" strokeWidth={2.5} />
         {progress > 0 && (
@@ -60,10 +56,7 @@ export function QtyRing({
           />
         )}
       </svg>
-
       <span className="absolute inset-0 flex items-center justify-center">{children}</span>
-
     </span>
-
   );
 }

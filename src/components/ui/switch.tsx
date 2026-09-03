@@ -26,7 +26,7 @@ const track = cva(
 );
 
 const thumb = cva(
-
+  // eslint-disable-next-line no-restricted-syntax -- inner switch-thumb indicator, sub-4px by design
   'block h-[12px] w-[12px] rounded-[1px] translate-x-0 data-[checked]:translate-x-[14px] ' +
     'transition-[translate,background-color] duration-fast motion-reduce:transition-none',
   {
@@ -53,7 +53,6 @@ export function Switch({
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
   id?: string;
-
   label: string;
   tone?: SwitchTone;
   className?: string;
@@ -69,6 +68,5 @@ export function Switch({
     >
       <Base.Thumb className={thumb({ tone })} />
     </Base.Root>
-
   );
 }

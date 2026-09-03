@@ -14,19 +14,14 @@ const identity = (label: string): string => label;
 
 export type TrendChartProps = {
   data: { x: number; y: number }[];
-
   labels: string[];
   tone?: SparklineTone;
   width?: number;
   height?: number;
   className?: string;
-
   yTicks?: number;
-
   xTicks?: number;
-
   formatY?: (y: number) => string;
-
   formatTick?: (label: string) => string;
   ariaLabel?: string;
 };
@@ -53,21 +48,16 @@ export function TrendChart({
       margin={MARGIN}
       className={className}
       ariaLabel={ariaLabel}
-
       computeYDomain={(ys) => [0, Math.max(...ys, 1)]}
       yNice
       fillOpacity={0.07}
       renderTooltip={(d) => (
         <>
           <span className="text-name">{formatY(d.y)}</span>
-
           <span className="text-muted"> · {labels[d.x] ?? d.x}</span>
-
         </>
-
       )}
       renderAxis={({ xScale, yScale, xs }) => {
-
         const yTickValues = yScale.ticks(yTicks).filter((t) => Number.isInteger(t));
         const xTickIdx = tickIndices(data.length, xTicks);
         return (
@@ -79,7 +69,6 @@ export function TrendChart({
               right={width - MARGIN.right}
               format={formatY}
             />
-            {}
             <line
               x1={MARGIN.left}
               x2={width - MARGIN.right}
@@ -98,10 +87,8 @@ export function TrendChart({
               >
                 {formatTick(labels[i] ?? '')}
               </text>
-
             ))}
           </>
-
         );
       }}
     />
