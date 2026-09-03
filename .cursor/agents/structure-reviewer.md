@@ -1,6 +1,6 @@
 ---
 name: structure-reviewer
-model: grok-4.5[effort=high,fast=false]
+model: glm-5.2[reasoning=high]
 description: Structure. Owners, existing controls, layer boundaries, and UI chrome on a freeze. Run origin pr diff when the brief is a change number.
 readonly: true
 ---

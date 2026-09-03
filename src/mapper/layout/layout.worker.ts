@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 import type { ChainPosition } from '../chain/intents';
 import { compassKernel } from './compass';
 import type { LayoutConfig, LayoutFacts } from './layout-contract';

@@ -1,6 +1,6 @@
 ---
 name: behavior-reviewer
-model: grok-4.5[effort=high,fast=false]
+model: glm-5.2[reasoning=high]
 description: Behavior. Authorized outcomes, contracts, failures, and recovery on a freeze. Run origin pr diff when the brief is a change number.
 readonly: true
 ---

@@ -1,6 +1,6 @@
 ---
 name: thermo-nuclear-review-subagent
-model: glm-5.2[effort=high,fast=false]
+model: claude-fable-5-1[thinking=true,context=1m,effort=high]
 description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to an Origin PR. Invoked via Task with a change number. Runs origin pr diff. Loads rubric from the local thermo-nuclear-review skill.
 ---
 
