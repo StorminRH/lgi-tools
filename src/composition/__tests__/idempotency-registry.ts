@@ -1,24 +1,11 @@
 import type { VendorIntegrationId } from './vendor-resilience-registry';
 
-/**
- * What happens when this unit of work runs twice.
- *
- * - `inherently-idempotent` — a second run converges on the same state by construction.
- * - `key-protected` — a persisted key, unique index, or lock rejects or absorbs the duplicate.
- * - `accepted-risk` — a duplicate is possible but has no observable business effect, and the
- *   protection that would prevent it would reject legitimate writes.
- * - `coordinated-elsewhere` — the workflow is owned by another tranche and is not built here.
- *
- * There is deliberately no `at-risk` member: an at-risk finding is remediated in the session that
- * finds it, so recording one as a durable state would be recording an unfixed defect.
- */
 export type IdempotencyVerdict =
   | 'inherently-idempotent'
   | 'key-protected'
   | 'accepted-risk'
   | 'coordinated-elsewhere';
 
-/** The kind of work an entry describes, used by the census to pick the right cross-check. */
 export type IdempotencyWorkKind =
   | 'vercel-cron'
   | 'convex-cron'
@@ -29,20 +16,19 @@ export type IdempotencyWorkKind =
   | 'http-route'
   | 'future';
 
-/** One re-runnable unit of work, what can redeliver it, and what happens when it re-runs. */
 export interface IdempotencyEntry {
   id: string;
   workKind: IdempotencyWorkKind;
-  /** What can cause this work to run a second time. */
+
   redeliverySource: string;
   verdict: IdempotencyVerdict;
-  /** Live code, constraint, or documented platform behavior supporting the verdict. */
+
   evidence: string;
-  /** Repository-relative module owning the work; the census resolves it against the tree. */
+
   module?: string;
-  /** Vercel cron path, resolved against `vercel.json`. */
+
   cronPath?: string;
-  /** POST route file, resolved against the tree. */
+
   route?: string;
   vendor?: VendorIntegrationId;
 }

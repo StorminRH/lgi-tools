@@ -7,10 +7,6 @@ import { panelSurface } from './dropdown-panel';
 
 export type TooltipPositionerProps = React.ComponentProps<typeof Base.Positioner>;
 
-/**
- * Renders the domain-neutral tooltip with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
- */
 export function Tooltip({
   content,
   children,
@@ -45,9 +41,14 @@ export function Tooltip({
               {content}
               <Base.Arrow className="fill-border-active" />
             </Base.Popup>
+
           </Base.Positioner>
+
         </Base.Portal>
+
       </Base.Root>
+
     </Base.Provider>
+
   );
 }

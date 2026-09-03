@@ -1,39 +1,20 @@
 import { type Tone, toneHex } from './tones';
 
-// A single 100%-width bar split into its parts, each segment carrying its own
-// value + share label directly beneath it — no separate legend. For two-way
-// shares (returning vs new, referred vs direct) that used to hide in a KPI sub.
-// Geometry is SVG presentation attributes; the split math is the pure
-// {@link stackedShareLayout}.
-
-/**
- * Display-ready share segment consumed by the shared visualization layer; callers keep all numeric
- * values in one consistent unit.
- */
 export interface ShareSegment {
   label: string;
   value: number;
   tone: Tone;
 }
 
-/**
- * Display-ready share layout part consumed by the shared visualization layer; callers keep all
- * numeric values in one consistent unit.
- */
 export interface ShareLayoutPart extends ShareSegment {
   x: number;
   w: number;
   pct: number;
-  /** Label anchor x and text-anchor, precomputed so the render stays trivial: the
-   * first label hugs the left edge, the last the right edge, the rest centre. */
+
   labelX: number;
   labelAnchor: 'start' | 'middle' | 'end';
 }
 
-/**
- * Converts non-negative share values into contiguous pixel segments whose widths fill the supplied
- * bar width.
- */
 export function stackedShareLayout(segments: ShareSegment[], width: number): ShareLayoutPart[] {
   const total = segments.reduce((sum, seg) => sum + seg.value, 0);
   if (total === 0) return [];
@@ -54,10 +35,6 @@ export function stackedShareLayout(segments: ShareSegment[], width: number): Sha
   });
 }
 
-/**
- * Renders the domain-neutral stacked share bar from display-ready caller data; callers own units
- * and labels while this primitive owns geometry and interaction.
- */
 export function StackedShareBar({
   segments,
   width = 360,
@@ -88,7 +65,7 @@ export function StackedShareBar({
           key={`bar-${part.label}`}
           x={part.x}
           y={0}
-          // A 1.5px gap between segments (except the last) reads them as distinct.
+
           width={Math.max(0, part.w - (i < last ? 1.5 : 0))}
           height={barH}
           fill={toneHex[part.tone]}
@@ -106,7 +83,9 @@ export function StackedShareBar({
         >
           {part.label} {part.value.toLocaleString()} · {Math.round(part.pct)}%
         </text>
+
       ))}
     </svg>
+
   );
 }

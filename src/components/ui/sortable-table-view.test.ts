@@ -41,8 +41,8 @@ describe('deriveSortHeaderCells', () => {
   it('active column toggles direction and shows the current-direction glyph', () => {
     const cell = deriveSortHeaderCells({ ...base, columns: [{ key: 'name', label: 'Name' }] })[0]!;
     expect(cell.isActive).toBe(true);
-    expect(cell.indicator).toBe('▲'); // current dir asc
-    expect(cell.href).toContain('dir=desc'); // clicking toggles to desc
+    expect(cell.indicator).toBe('▲');
+    expect(cell.href).toContain('dir=desc');
   });
 
   it('inactive column uses defaultDirFor, else desc', () => {
@@ -55,7 +55,7 @@ describe('deriveSortHeaderCells', () => {
       defaultDirFor: (k) => (k === 'ehp' ? 'asc' : 'desc'),
     });
     expect(cells[0]!.indicator).toBeNull();
-    expect(cells[0]!.href).toContain('dir=desc'); // no override → desc
-    expect(cells[1]!.href).toContain('dir=asc'); // override → asc
+    expect(cells[0]!.href).toContain('dir=desc');
+    expect(cells[1]!.href).toContain('dir=asc');
   });
 });
