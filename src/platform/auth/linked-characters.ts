@@ -5,7 +5,6 @@ import { portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 
-/** Login-owned character columns. Role and preferences are not in this write. */
 export interface CharacterLoginIdentity {
   characterId: number;
   name: string;
@@ -44,7 +43,6 @@ export async function upsertCharacterLoginIdentity(
   return row as Character;
 }
 
-/** User-owned linked EVE character with token availability, granted scopes, and display identity. */
 export interface LinkedCharacter {
   characterId: number;
   name: string;
@@ -104,7 +102,6 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
   });
 }
 
-/** Linked character selected for active account operations. */
 export interface ActiveCharacter {
   characterId: number;
   name: string | null;
@@ -163,7 +160,6 @@ export async function accountBelongsToUser(userId: string, characterId: number):
   return row != null;
 }
 
-/** Point the user's active character at the given (already-validated) character. */
 export async function setActiveCharacter(userId: string, characterId: number): Promise<void> {
   await db
     .update(user)
@@ -171,11 +167,6 @@ export async function setActiveCharacter(userId: string, characterId: number): P
     .where(eq(user.id, userId));
 }
 
-/**
- * Re-point the active character to the user's oldest remaining linked account
- * (NULL when none remain). Called after unlinking the active character so the
- * session never references a deleted account. Returns the new active id.
- */
 export async function repointActiveToOldest(userId: string): Promise<number | null> {
   const [row] = await db
     .select({ accountId: account.accountId })

@@ -23,8 +23,7 @@ describe('readEsiAuthed', () => {
 
   beforeEach(() => {
     __resetEsiGateForTests();
-    // Pin the in-process scoreboard path (esiFetch's budget gate) even if a local
-    // `vercel env pull` left Upstash creds around — mirrors index.test.ts.
+
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -70,9 +69,6 @@ describe('readEsiAuthed', () => {
     expect(read).toEqual({ kind: 'error', code: 'esi_403' });
   });
 
-  // The online-status live canary passes an RlSnapshot so the Convex engine can
-  // schedule its next run against the observed token-bucket usage; the Neon
-  // trackers omit it. (MIGRATE.D.2 unified this reader with convex/lib/esiRead.ts.)
   it('harvests the rate-limit headers into the snapshot when one is supplied', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
@@ -175,7 +171,7 @@ describe('readEsiPagedAuthed', () => {
     expect(read.items).toEqual([{ type_id: 1 }, { type_id: 2 }]);
     expect(read.responseHeaders.map((headers) => headers.page)).toEqual([1, 2]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    // Page 2 is requested with the ?page= cursor appended.
+
     expect(String(fetchSpy.mock.calls[1][0])).toContain('page=2');
   });
 

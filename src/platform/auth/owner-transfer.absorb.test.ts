@@ -1,21 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// absorbLinkedCharacterOnProof's failure paths — the arms only an
-// error-injecting mock can express (the decision forks themselves run against
-// real Postgres in owner-transfer.db.test.ts). The Drizzle
-// calls are stubbed with the admin-users reassignment-test chainable thenable:
-// every builder method returns the same object, awaiting it resolves the next
-// queued result (FIFO). getOAuthState is mocked settable so link/sign-in/throw
-// are each pinned; the mechanism itself (state timing, relink conversion) is
-// pinned end-to-end by absorb-link.spike.test.ts.
 const { chain, state } = vi.hoisted(() => {
   const state = {
     results: [] as unknown[],
     calls: { delete: 0, update: 0 },
   };
   const chain: Record<string, unknown> = {
-    // An Error queued as a result rejects that await — simulates a DB failure
-    // at an exact point in the sequence.
+
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
       const next = state.results.shift();
       if (next instanceof Error) reject(next);
@@ -48,8 +39,7 @@ vi.mock('better-auth/api', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
-// Identity projection hooks are composition-registered at route boot; unit
-// stubs here so reassignCharacter's never-throw runners do not breadcrumb.
+
 vi.mock('./identity-projection-hooks', () => ({
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
@@ -90,16 +80,13 @@ describe('absorbLinkedCharacterOnProof', () => {
     ];
     const out = await absorbLinkedCharacterOnProof(CHARACTER);
     expect(out).toEqual({ absorbed: true });
-    expect(state.calls).toEqual({ delete: 0, update: 1 }); // the move only
+    expect(state.calls).toEqual({ delete: 0, update: 1 });
     expect(state.results).toHaveLength(0);
   });
 
   it('still reports the absorb when source cleanup fails after the move committed', async () => {
     oauthState.value = { link: { userId: 'user-b' } };
-    // awaits: absorb row-lookup → move update → reassign remaining (sibling) →
-    // stored-active → reconcile remaining THROWS. The move has committed by
-    // then, so the failure degrades to a logged cleanup error — never a
-    // masked no-absorb (which would drop the audit event and the UI note).
+
     state.results = [
       [{ userId: 'stray' }],
       undefined,
@@ -109,8 +96,8 @@ describe('absorbLinkedCharacterOnProof', () => {
     ];
     const out = await absorbLinkedCharacterOnProof(CHARACTER);
     expect(out).toEqual({ absorbed: true });
-    expect(state.calls).toEqual({ delete: 0, update: 1 }); // the move only
-    expect(errorSpy).toHaveBeenCalledTimes(1); // the cleanup failure, logged
+    expect(state.calls).toEqual({ delete: 0, update: 1 });
+    expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(vi.mocked(logUsageEvent)).toHaveBeenCalledWith({
       action: 'auth_absorb',
       characterId: CHARACTER,
