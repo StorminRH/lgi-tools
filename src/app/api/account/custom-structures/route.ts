@@ -19,13 +19,6 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST /api/account/custom-structures — save one custom structure for the signed-in
- * caller. The route is the trust boundary: it confirms the type is a real industry
- * structure and every rig fits it, and enforces the per-user cap. The user id comes
- * from the session, never the body; anonymous callers are rejected. Returns the
- * full updated list (the page reads the initial list server-side, so there is no GET).
- */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {

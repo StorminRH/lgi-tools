@@ -21,10 +21,6 @@ function redirectToReview(request: NextRequest, outcome: string): Response {
   return Response.redirect(destination, 303);
 }
 
-/**
- * Admin-only statics refresh and review action. Every submitted form is gated,
- * same-origin checked, slice-validated, and redirected back to the review page.
- */
 // authz: admin
 export const POST = capabilityRoute('admin.wh-statics-review', handlePost);
 

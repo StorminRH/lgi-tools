@@ -9,12 +9,6 @@ import { deleteSavedPlan, listSavedPlans } from '@/features/industry-planner/sav
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST /api/account/saved-plans/delete — delete one of the caller's OWN
- * templates (the query's (userId, id) predicate makes a foreign id a no-op).
- * Echoes the updated list. apiFetch only speaks GET/POST, so this is a POST
- * sub-route rather than an HTTP DELETE.
- */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {

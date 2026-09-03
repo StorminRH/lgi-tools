@@ -12,12 +12,6 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST /api/account/custom-structures/delete. Deletes one of the caller's OWN
- * structures (the query's (userId, id) predicate makes it a no-op for a row the
- * caller doesn't own). Returns the updated list. apiFetch only speaks GET/POST,
- * so this is a POST sub-route rather than an HTTP DELETE.
- */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
