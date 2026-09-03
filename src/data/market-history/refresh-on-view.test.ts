@@ -41,7 +41,7 @@ beforeEach(() => {
 
 describe('getLiveHistory — stale gate', () => {
   it('serves a warm type from stored rows and makes NO source call', async () => {
-    const future = new Date(Date.now() + 60 * 60 * 1000); // stale_after in the future
+    const future = new Date(Date.now() + 60 * 60 * 1000);
     getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: future }]]));
     getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-13', 30)]]));
 
@@ -55,9 +55,9 @@ describe('getLiveHistory — stale gate', () => {
   });
 
   it('fetches a stale type, returns the fresh series, and persists write-behind', async () => {
-    const past = new Date(Date.now() - 60 * 60 * 1000); // stale_after in the past
+    const past = new Date(Date.now() - 60 * 60 * 1000);
     getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: past }]]));
-    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)]])); // old seed
+    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)]]));
     const fresh = series('2026-06-13', 30);
     fetchHistoryFromSourceMock.mockResolvedValue({
       results: [{ typeId: 34, rows: fresh, staleAfter: new Date(), source: 'esi' }],
@@ -69,9 +69,9 @@ describe('getLiveHistory — stale gate', () => {
 
     expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
     expect(degraded.fetched).toBe(1);
-    // Fresh series wins over the stored seed.
+
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
-    // Write-behind scheduled; running it persists + busts the cache tag.
+
     expect(afterMock).toHaveBeenCalledOnce();
     await afterMock.mock.calls[0]![0]();
     expect(persistHistoryMock).toHaveBeenCalledOnce();
@@ -126,7 +126,7 @@ describe('getLiveHistory — stale gate', () => {
 
     const { inputs, degraded, metrics } = await getLiveHistory([34]);
     expect(degraded.budgetExhausted).toBe(true);
-    // No fresh result → serve the stored seed rather than dropping the type.
+
     expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
     expect(metrics.staleStored).toBe(1);
     expect(afterMock).not.toHaveBeenCalled();

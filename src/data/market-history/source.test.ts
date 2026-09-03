@@ -13,7 +13,6 @@ import {
   staleAfterFromExpires,
 } from './source';
 
-// The verified live ESI history item shape (2026-06-14).
 const sampleItem = {
   average: 4.06,
   date: '2025-05-01',

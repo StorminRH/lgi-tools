@@ -7,30 +7,21 @@ import type { RawMarketPrice } from './types';
 
 const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
 
-/** Market-price refresh outcome containing persisted row counts grouped by canonical source. */
 export interface RefreshSummary {
   requested: number;
   fetched: number;
   written: number;
   durationMs: number;
-  // Source mix of the fetched rows (3.0.10 O-1). A non-zero
-  // fuzzworkFallbackCount means ESI degraded for those types; budgetExhausted
-  // means ESI's error budget was hit (the CCP rate-limit signal). Route
-  // handlers emit O-1 telemetry off these.
+
   esiCount: number;
   fuzzworkFallbackCount: number;
   budgetExhausted: boolean;
 }
 
-// EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.
 function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
 
-/**
- * Refreshes canonical market prices for the selected type IDs, falling back by source policy and
- * returning per-source row counts.
- */
 export async function refreshPrices(
   db: AnyPgDb,
   typeIds: number[],
@@ -50,14 +41,6 @@ export async function refreshPrices(
   return persistPrices(db, raw, { requested: typeIds.length, budgetExhausted });
 }
 
-/**
- * Upsert already-fetched price rows and summarize them. Split out from
- * refreshPrices so the refresh-on-view engine can persist rows it already has
- * from the short-term coalescing cache (write-behind) without re-fetching the
- * source. `requested` defaults to the row count (the on-view caller persists
- * exactly what it fetched); `budgetExhausted` is the one degradation fact the
- * rows themselves don't carry, threaded through from the source fetch.
- */
 export async function persistPrices(
   db: AnyPgDb,
   raw: RawMarketPrice[],
@@ -83,9 +66,6 @@ export async function persistPrices(
     return summary;
   }
 
-  // One updatedAt + staleAfter for the whole batch. Per-row variance
-  // arrives in 3.0.5 when the on-demand UI consumer updates single rows
-  // out of band — bulk-refresh rows still expire together.
   const updatedAt = new Date();
   const staleAfter = new Date(
     updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs,
@@ -100,30 +80,13 @@ export async function persistPrices(
     sellVolume: r.sellVolume,
     buyDepth: r.buyDepth,
     sellDepth: r.sellDepth,
-    // `?? null`: the on-view coalescing cache can serve RawMarketPrice
-    // payloads serialized before this field existed (undefined, not null,
-    // for ~60s after a deploy) — drizzle rejects undefined in a multi-row
-    // insert, so normalize here at the write boundary.
+
     regionalDiscount: r.regionalDiscount ?? null,
     updatedAt,
     staleAfter,
     source: r.source,
   }));
 
-  // Chunked upsert: 13 columns × the full ~6,000-type tracked set would push a
-  // single multi-row insert past Postgres's 65,535 bind-parameter ceiling — the
-  // two depth columns added in migration 0022 are what crossed it (10 cols used
-  // to fit). Batch like seedTrackedTypes (sde-pipeline.ts): 1,000 rows × 13 cols
-  // = 13k params per call. A ≤1,000-row refresh (the on-view path) stays one insert.
-  //
-  // Splitting the insert trades whole-batch atomicity for staying under the wire
-  // limit, which is safe here: each row is an independent, idempotent price with
-  // its own staleness, so a mid-loop failure that persists earlier batches just
-  // leaves some rows fresher than others (the normal steady state) and self-heals
-  // on the next refresh. A surrounding transaction is NOT an option — the same
-  // upsert runs on the neon-http request path (on-view refresh), and that driver
-  // has no interactive-transaction support. On failure the await rejects and this
-  // function throws before `summary.written` is set, so no caller reads a partial count.
   const BATCH = 1000;
   for (let i = 0; i < rows.length; i += BATCH) {
     await db

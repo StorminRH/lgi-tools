@@ -1,10 +1,7 @@
-/** Probe-scanner row kinds supported by the English client paste format. */
 export const SCANNED_KINDS = ['signature', 'anomaly'] as const;
 
-/** One supported probe-scanner row kind. */
 export type ScannedKind = (typeof SCANNED_KINDS)[number];
 
-/** Closed probe-scanner group vocabulary supported by this session. */
 export const SIG_GROUPS = [
   'Wormhole',
   'Combat Site',
@@ -14,10 +11,8 @@ export const SIG_GROUPS = [
   'Relic Site',
 ] as const;
 
-/** One supported probe-scanner group. */
 export type SigGroup = (typeof SIG_GROUPS)[number];
 
-/** One normalized row parsed from an English probe-scanner paste. */
 export interface ScannedRow {
   readonly signatureId: string;
   readonly kind: ScannedKind;
@@ -26,7 +21,6 @@ export interface ScannedRow {
   readonly signalPct: number | null;
 }
 
-/** Stable reasons a pasted line can be rejected without throwing. */
 export type ScanRejectReason =
   | 'column-count'
   | 'invalid-signature-id'
@@ -35,14 +29,12 @@ export type ScanRejectReason =
   | 'invalid-signal'
   | 'no-scanner-rows';
 
-/** One rejected scanner line and the reason no row was fabricated from it. */
 export interface RejectedLine {
   readonly lineNumber: number;
   readonly raw: string;
   readonly reason: ScanRejectReason;
 }
 
-/** The complete, non-throwing result of parsing one scanner paste. */
 export interface ScannerPasteResult {
   readonly rows: ScannedRow[];
   readonly rejects: RejectedLine[];
@@ -58,13 +50,10 @@ const KINDS: Readonly<Record<string, ScannedKind>> = {
 const SIGNATURE_ID = /^[A-Z]{3}-\d{3}$/;
 const SIGNAL_PERCENT = /^(?:100(?:\.0+)?|\d{1,2}(?:\.\d+)?)%$/;
 
-/** Whether a value is one scanner-owned ephemeral signature identifier. */
 export function isScannerSignatureId(value: string): boolean {
   return SIGNATURE_ID.test(value);
 }
 
-// Derived from the same closed vocabulary as the line parser so a widened
-// format never splits the cheap candidate gate from the real parse.
 const KIND_LABEL_PATTERN = new RegExp(
   `(?:${Object.keys(KINDS).join('|')})`,
 );
@@ -72,11 +61,6 @@ const LEADING_SIGNATURE_ID_PATTERN = new RegExp(
   `(?:^|\\n)${SIGNATURE_ID.source.slice(1, -1)}\\t`,
 );
 
-/**
- * Whether page-level paste capture may treat clipboard text as scanner-shaped.
- * A cheap pre-parse gate only — `parseScannerPaste` remains the sole judge of
- * whether the text actually parses.
- */
 export function isScannerPasteCandidate(text: string): boolean {
   return KIND_LABEL_PATTERN.test(text) || LEADING_SIGNATURE_ID_PATTERN.test(text);
 }
@@ -146,11 +130,6 @@ function parseScannerLine(raw: string, lineNumber: number): ParsedScannerLine {
   };
 }
 
-/**
- * Parses the closed six-column English probe-scanner format without throwing.
- * Distance is intentionally ignored after the column-count check because the
- * client emits both AU and km values.
- */
 export function parseScannerPaste(text: string): ScannerPasteResult {
   const rows: ScannedRow[] = [];
   const rejects: RejectedLine[] = [];

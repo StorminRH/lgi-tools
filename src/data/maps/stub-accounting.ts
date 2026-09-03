@@ -1,15 +1,3 @@
-/**
- * One stub per hole we believe exists. Unidentified scanned wormhole sigs are
- * presumed to be the statics first, then the way back on a non-root system;
- * only the surplus draws as Unknown.
- *
- * This is presentation accounting, not inference: it never assigns a type to
- * a signature. It only decides which already-known holes need their own ghost
- * on the canvas so the picture never double-counts a static, a known line, or
- * the inbound path on a system that is not the map home.
- */
-
-/** One stable slot in a system's statics multiset. */
 export interface StaticStubSlot {
   readonly id: string;
   readonly code: string;
@@ -17,40 +5,32 @@ export interface StaticStubSlot {
   readonly whClassId: number;
 }
 
-/** One live scanned wormhole row that could draw its existing signature stub. */
 export interface ScannedStubHole {
   readonly id: string;
   readonly wormholeTypeCode: string | null;
 }
 
-/** One already-drawn connection touching the system being accounted. */
 export interface ConnectionStubHole {
-  /** A code typed on this system's side, or null when the local side is unknown. */
+
   readonly wormholeTypeCode: string | null;
-  /** Whether this system's side of the line is already linked to a signature. */
+
   readonly linkedSignature: boolean;
 }
 
-/** The exact derived leaves one system contributes to the canvas. */
 export interface StubPlan {
-  /** Guaranteed statics that are not already represented by a typed hole. */
+
   readonly staticStubs: readonly StaticStubSlot[];
-  /** Scanned rows that need their own typed or Unknown stub. */
+
   readonly signatureStubIds: readonly string[];
-  /** The suffix of unidentified scanned rows included in signatureStubIds. */
+
   readonly unknownCount: number;
 }
 
-/** Live, endpoint-local facts needed to account one system's believed holes. */
 export interface StubAccountingInput {
   readonly statics: readonly StaticStubSlot[];
   readonly signatures: readonly ScannedStubHole[];
   readonly connections: readonly ConnectionStubHole[];
-  /**
-   * Home / layout root. Only the root skips the implicit return-hole reserve;
-   * every other system treats at least one scanned unidentified wormhole as
-   * the way back (an unlinked resolved line already counts as that slot).
-   */
+
   readonly isRoot: boolean;
 }
 
@@ -76,9 +56,6 @@ function openStaticSlots(input: StubAccountingInput): readonly StaticStubSlot[] 
     ]),
   );
 
-  // Retain the earliest duplicate slots. When a code-carrying line appears,
-  // the highest ordinal disappears; collapse therefore restores one stable
-  // sibling instead of renumbering every duplicate.
   const keptByCode = new Map<string, number>();
   return input.statics.filter((slot) => {
     const kept = keptByCode.get(slot.code) ?? 0;
@@ -88,7 +65,6 @@ function openStaticSlots(input: StubAccountingInput): readonly StaticStubSlot[] 
   });
 }
 
-/** Computes the exact statics and scanned ghosts the canvas should draw. */
 export function believedHoles(input: StubAccountingInput): StubPlan {
   const staticStubs = openStaticSlots(input);
   const unidentified = input.signatures.filter(

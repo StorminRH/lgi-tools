@@ -1,23 +1,20 @@
 import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 
-/** One live scanner row not yet linked to a resolved connection. */
 export interface EliminationSignature {
   readonly signatureId: string;
   readonly wormholeTypeCode: string | null;
   readonly typeProvenance: ConnectionProvenance | null;
 }
 
-/** Endpoint-local facts for one live resolved hallway touching this system. */
 export interface EliminationConnection {
   readonly connectionId: string;
-  /** Named or K162 type on this system's mouth, or null when only the other mouth is known. */
+
   readonly wormholeTypeCode: string | null;
-  /** Whether this system's mouth of the hallway already owns a scanner row. */
+
   readonly linkedSignature: boolean;
 }
 
-/** Plain cross-store evidence consumed by the pure signature eliminator. */
 export interface EliminationInput {
   readonly staticTypeCodes: readonly string[];
   readonly signatures: readonly EliminationSignature[];
@@ -30,21 +27,15 @@ export interface AssumedDeduction {
   readonly provenance: 'assumed';
 }
 
-/** One machine-safe type fill or link onto a hallway that already has the other system. */
 export type EliminationDeduction = AssumedDeduction & (
   | { readonly typeCode: string }
   | {
       readonly connectionId: string;
-      /**
-       * The stub's type code when this link was decided (null when untyped).
-       * The apply door rejects the write when the live stub no longer matches,
-       * so a person cannot lose a concurrent retype to a stale link delete.
-       */
+
       readonly expectedTypeCode: string | null;
     }
 );
 
-/** Pure deductions, or the deliberately indistinguishable quiet outcome. */
 export interface EliminationResult {
   readonly deductions: readonly EliminationDeduction[];
   readonly quiet: boolean;
@@ -121,8 +112,7 @@ function connectionAdmits(
   connection: EliminationConnection,
   typeCode: string,
 ): boolean {
-  // Untyped inbound lines do not uniquely admit K162 (or any other code).
-  // Several K162s can share a system; the way home is a human Leads-to pick.
+
   return connection.wormholeTypeCode === typeCode;
 }
 
@@ -139,9 +129,7 @@ function competingSignatures(
   slots: StaticSlots,
 ): number {
   return signatures.filter((signature) => {
-    // Blank scanner rows can still be this connection's type. Operators type
-    // holes one by one; counting only already-typed competitors would pin the
-    // first K162 onto the way home while siblings are still unnamed.
+
     if (signature.wormholeTypeCode === null) return true;
     const code = fixedType(signature);
     return code !== null
@@ -245,11 +233,6 @@ function bySignatureId(
   return left.signatureId.localeCompare(right.signatureId);
 }
 
-/**
- * Crosses fixed facts off a system's statics-plus-connections answer key and
- * returns only uniquely forced, assumed-tier deductions. Insufficiency and
- * contradiction both stay quiet, and no I/O or mutation occurs here.
- */
 export function eliminateSignatures(input: EliminationInput): EliminationResult {
   if (codebook(input) === null) return QUIET_RESULT;
 
