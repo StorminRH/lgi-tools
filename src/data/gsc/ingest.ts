@@ -19,18 +19,14 @@ import type {
   SitemapApiEntry,
 } from './types';
 
-// EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.
 function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
-
-// ── Pure transforms (API row → DB row) — the unit-tested core ────────────
 
 export type SearchAnalyticsRecord = typeof gscSearchAnalytics.$inferInsert;
 export type SitemapRecord = typeof gscSitemaps.$inferInsert;
 export type UrlInspectionRecord = typeof gscUrlInspection.$inferInsert;
 
-// int64 counts arrive as JSON strings; coerce defensively to a number.
 function coerceCount(v: string | number | undefined): number {
   if (v === undefined || v === null) return 0;
   const n = typeof v === 'number' ? v : Number(v);
@@ -43,11 +39,6 @@ function parseTimestamp(s: string | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/**
- * keys[0] is always the date; for 'query'/'page' keys[1] is the term/url, and
- * 'total' rows (dimensions=['date']) carry no second key, so key=''. Rows with
- * no date key are dropped (the API never omits it, but stay defensive).
- */
 export function searchRowsToRecords(
   apiRows: SearchAnalyticsApiRow[],
   dimension: GscDimension,
@@ -70,7 +61,6 @@ export function searchRowsToRecords(
   return records;
 }
 
-/** Maps one Search Console sitemap response into the stored sitemap record shape. */
 export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): SitemapRecord {
   let submitted = 0;
   let indexed = 0;
@@ -93,10 +83,6 @@ export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): Sitemap
   };
 }
 
-/**
- * Maps one URL Inspection response into the stored coverage record while preserving unknown
- * verdicts as nullable fields.
- */
 export function indexStatusToRecord(
   url: string,
   status: IndexStatusApiResult | null,
@@ -121,8 +107,6 @@ export function indexStatusToRecord(
   };
 }
 
-// ── Sync orchestrator ───────────────────────────────────────────────────
-
 function dateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -142,10 +126,6 @@ function matchesProperty(url: URL, property: string): boolean {
   return url.href.startsWith(prefix.href);
 }
 
-/**
- * Validate the cron-provided sitemap at the data boundary. The normalized,
- * deterministic ordering makes repeated runs and tests stable.
- */
 export function prepareInspectionUrls(urls: string[], property: string): string[] {
   const normalized = new Set<string>();
   for (const raw of urls) {
@@ -173,10 +153,6 @@ export function prepareInspectionUrls(urls: string[], property: string): string[
   return prepared;
 }
 
-/**
- * Returns canonical sitemap URLs that lack a current inspection result, bounded to the remaining
- * daily quota.
- */
 export function missingInspectionUrls(urls: string[], storedUrls: Iterable<string>): string[] {
   const completed = new Set(storedUrls);
   return urls.filter((url) => !completed.has(url));
@@ -184,10 +160,6 @@ export function missingInspectionUrls(urls: string[], storedUrls: Iterable<strin
 
 export type InspectionBatchResult = { records: UrlInspectionRecord[]; errors: string[] };
 
-/**
- * Upserts one inspection batch and advances its sync run atomically, preserving partial success
- * when individual URLs failed upstream.
- */
 export async function upsertUrlInspectionRecords(
   db: AnyPgDb,
   records: UrlInspectionRecord[],
@@ -214,11 +186,6 @@ export async function upsertUrlInspectionRecords(
     });
 }
 
-/**
- * Groups are sequential while the five inspections inside each group run in
- * parallel. A successful response with no indexStatusResult still becomes an
- * all-null row; only request failures remain absent and retryable.
- */
 export async function inspectUrlsInBatches(
   urls: string[],
   syncedAt: Date,
@@ -250,8 +217,6 @@ export async function inspectUrlsInBatches(
   return { records, errors };
 }
 
-// dimensions=['date'] → daily site totals; ['date','query'|'page'] → per-day
-// breakdowns. Stored under the corresponding GscDimension tag.
 const SEARCH_PULLS: { storage: GscDimension; apiDimensions: string[] }[] = [
   { storage: 'total', apiDimensions: ['date'] },
   { storage: 'query', apiDimensions: ['date', 'query'] },
@@ -278,9 +243,6 @@ async function upsertSearchAnalytics(
   }
 }
 
-// One pull-and-store surface's outcome: rows landed plus an optional error
-// string. Surfaces are isolated so a failure records the error and leaves the
-// prior snapshot intact (degrade-to-last-known, like the price path).
 type SurfaceResult = { count: number; error: string | null };
 
 function errText(err: unknown): string {
@@ -294,9 +256,7 @@ async function syncSearchAnalytics(
   syncedAt: Date,
 ): Promise<SurfaceResult> {
   try {
-    // The pulls are independent (same window, different dimensions), so fetch
-    // them concurrently — trivially within the per-site QPM budget, and it cuts
-    // the search-analytics leg's latency ~3x.
+
     const perPull = await Promise.all(
       SEARCH_PULLS.map(async (pull) =>
         searchRowsToRecords(
@@ -343,7 +303,6 @@ async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult>
   }
 }
 
-// Per-URL, so one bad URL can't sink the batch — each gets its own try/catch.
 async function syncUrlInspections(
   db: AnyPgDb,
   syncedAt: Date,
@@ -369,11 +328,6 @@ async function syncUrlInspections(
   }
 }
 
-/**
- * Pull-and-store across all three Search Console surfaces. Each surface degrades
- * to its last-known snapshot on failure; the summary threads into cron
- * observability.
- */
 export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSyncSummary> {
   const start = Date.now();
   if (!isGscConfigured()) {

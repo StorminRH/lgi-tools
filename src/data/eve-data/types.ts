@@ -1,7 +1,3 @@
-/**
- * Canonical EVE type record exposed to data consumers, including identity, group, name, and market
- * attributes.
- */
 export interface EveType {
   id: number;
   groupId: number;
@@ -20,8 +16,4 @@ export interface EveType {
   graphicId: number | null;
 }
 
-/**
- * Flat attrId → value map for one type. Hot-path shape consumed by the
- * npc-stats math layer; lives in eve-data because the data is from the SDE.
- */
 export type AttrMap = Record<number, number>;

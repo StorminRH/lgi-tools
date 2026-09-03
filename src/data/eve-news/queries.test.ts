@@ -35,10 +35,6 @@ describe('getEveNews', () => {
     expect(h.cacheLife).toHaveBeenCalledWith('hours');
   });
 
-  // Build-safety: an error must NEVER cross the cache boundary — under Cache
-  // Components a rejection from a 'use cache' fill during build prerender fails
-  // the whole deploy even when the consumer catches it. Failures resolve empty
-  // and pin the short-lived profile so they self-heal.
   it('resolves empty on timeout, http failure, and unparseable body without rethrowing', async () => {
     h.fetchWithTimeout.mockRejectedValue(
       new DOMException('signal timed out', 'TimeoutError'),

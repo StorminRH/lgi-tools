@@ -199,7 +199,7 @@ describe('syncGsc', () => {
     const saved = keys.map((k) => process.env[k]);
     for (const k of keys) delete process.env[k];
     try {
-      // The not-configured path returns before touching the client.
+
       const summary = await syncGsc({} as unknown as Parameters<typeof syncGsc>[0], []);
       expect(summary.status).toBe('skipped');
       expect(summary.reason).toBe('not_configured');

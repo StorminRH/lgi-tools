@@ -16,34 +16,13 @@ import {
   industryBlueprints,
 } from './schema';
 
-
-/**
- * Materialised tree node used both as the JSONB row in `blueprint_trees`
- * and as the in-memory representation walked by the resolver. `inputs`
- * is non-recursive at the leaf — leaves have `inputs: []`.
- */
 export type TreeNode = {
   typeId: number;
-  quantity: number; // qty required by the parent for one parent run
-  // For non-leaf nodes: the per-run inputs of the producing blueprint,
-  // multiplied through. Leaves carry the empty array.
+  quantity: number;
   inputs: TreeNode[];
-  // Present only on non-leaf nodes — the blueprint that produces this
-  // type, how many it yields per run, and the (fractional) runs the parent's
-  // need represents — see `runsFor`.
   producedBy?: { blueprintTypeId: number; quantityPerRun: number; runsNeeded: number };
 };
 
-/**
- * Graph height of every type that appears in a materialised build tree: the
- * longest path from the type down to a raw leaf. A raw leaf (empty `inputs`)
- * is height 0; a buildable is 1 + the tallest of its inputs. Height is a
- * property of a type's recipe subtree, which the resolver guarantees is
- * identical wherever that type appears (cycle-free DAG, path-independent), so
- * we memoise by typeId and the first computed value is authoritative — this
- * collapses a capital's millions of duplicated occurrences to one entry per
- * distinct type. Pure: operates on the JSON tree, no DB.
- */
 export function computeHeights(nodes: TreeNode[]): Map<number, number> {
   const heights = new Map<number, number>();
   const visit = (node: TreeNode): number => {
@@ -61,7 +40,6 @@ export function computeHeights(nodes: TreeNode[]): Map<number, number> {
   return heights;
 }
 
-/** Blueprint tree-resolution outcome containing rebuild identity and absolute resolved-row counts. */
 export type ResolveSummary = {
   blueprintsResolved: number;
   flatMaterialsWritten: number;
@@ -75,53 +53,32 @@ export type ResolveSummary = {
   durationMs: number;
 };
 
-/** Normalized blueprint material with type ID and base quantity before planner modifiers. */
 export type Material = { typeId: number; quantity: number };
-/** In-memory blueprint lookup indexes used only during one tree-resolution build. */
+
 export type Indexes = {
-  // blueprintTypeId -> direct materials. We collapse activity 1 + 11
-  // into a single per-blueprint list because no blueprint has BOTH
-  // (a manufacturing recipe is mutually exclusive with a reaction
-  // recipe), so the union is unambiguous.
   blueprintMaterials: Map<number, Material[]>;
-  // outputTypeId -> producer. Used to decide "is this material itself
-  // produced by a blueprint?" — i.e. leaf vs. recurse.
   productToBlueprint: Map<number, { blueprintTypeId: number; quantityPerRun: number }>;
 };
 
-/** Raw material edge read from the normalized SDE tables for resolver traversal. */
 export type MaterialRow = {
   blueprintTypeId: number;
   materialTypeId: number;
   quantity: number;
 };
-/** Raw blueprint product edge identifying activity, product type, and output quantity. */
+
 export type ProductRow = {
   blueprintTypeId: number;
   productTypeId: number;
   quantity: number;
 };
 
-// CCP blueprint `activities` JSON — the subset the resolver reads. Each activity
-// (keyed by CCP's string name: `manufacturing`, `reaction`, …) carries optional
-// `materials` / `products` lists of `{ typeID, quantity }`, plus `time` — the
-// base seconds for ONE run (ME0/TE0, no skill/structure bonuses), read by the
-// planner's Build-time tile.
 export type ActivityIO = {
   materials?: { typeID: number; quantity: number }[];
   products?: { typeID: number; quantity: number }[];
   time?: number;
 };
-/** Activities grouped by blueprint type for deterministic resolver traversal. */
 export type BlueprintActivities = Record<string, ActivityIO | undefined>;
 
-/**
- * Flatten a blueprint's manufacturing + reaction activities into flat
- * material/product rows — the shared currency consumed by the index builder
- * (buildIndexesFromActivities), the resolver hash (computeTreeResolverHash) and
- * the tracked-types query. The two activities are collapsed per blueprint (see
- * Indexes — a blueprint has one or the other), so the activity id isn't carried.
- */
 export function activitiesToRows(
   blueprintTypeId: number,
   activities: BlueprintActivities,
@@ -141,13 +98,6 @@ export function activitiesToRows(
   return { mats, prods };
 }
 
-/**
- * The base build time (SECONDS for one run) a blueprint produces under: the
- * `time` of its manufacturing or reaction activity, preferring manufacturing (a
- * blueprint carries at most one of the two). Returns null when neither carries a
- * positive numeric time — the degenerate self-recipes (and any malformed row)
- * have no honest build time, so the Build-time tile simply omits them.
- */
 export function pickBuildTimeSeconds(activities: BlueprintActivities): number | null {
   for (const name of INDUSTRY_ACTIVITY_NAMES) {
     const time = activities?.[name]?.time;
@@ -188,19 +138,6 @@ export function buildIndexesFromActivities(
     { blueprintTypeId: number; quantityPerRun: number }
   >();
 
-  // Producer selection below is first-writer-wins, so ROW ORDER decides which
-  // blueprint wins a product made by more than one. Order published producers
-  // first (deterministic blueprintTypeId tie-break) so the real, in-game
-  // blueprint beats CCP's unpublished test/dev artifacts that share a product:
-  // e.g. the unpublished "Test Reaction Blueprint" (45732, 20 Tungsten Carbide
-  // per run) must never beat the published "Tungsten Carbide Reaction Formula"
-  // (46207, 10000/run) — picking the former inflates every downstream reaction
-  // ~500x. This mirrors the game client, which hides unpublished blueprints.
-  // Fallback-safe: a product whose only producer is unpublished still registers
-  // (it is the first — and only — row seen). `published` absent/null counts as
-  // published, so synthetic test rows and any blueprint type missing from
-  // eve_types stay selectable. The tie-break also removes the latent
-  // non-determinism of the unordered source query.
   const ordered = [...rows].sort((a, b) => {
     const au = a.published === false ? 1 : 0;
     const bu = b.published === false ? 1 : 0;
@@ -211,16 +148,15 @@ export function buildIndexesFromActivities(
     const { mats, prods } = activitiesToRows(blueprintTypeId, activities);
     const ownProducts = new Set(prods.map((p) => p.productTypeId));
     const realMaterials = mats
-      .filter((m) => !ownProducts.has(m.materialTypeId)) // correction 1
+      .filter((m) => !ownProducts.has(m.materialTypeId))
       .map((m) => ({ typeId: m.materialTypeId, quantity: m.quantity }));
     if (realMaterials.length > 0) {
       blueprintMaterials.set(blueprintTypeId, realMaterials);
     }
-    // correction 2: had materials, none survived — don't register as a producer
     const degenerate = mats.length > 0 && realMaterials.length === 0;
     if (degenerate) continue;
     for (const p of prods) {
-      if (productToBlueprint.has(p.productTypeId)) continue; // first writer wins
+      if (productToBlueprint.has(p.productTypeId)) continue;
       productToBlueprint.set(p.productTypeId, {
         blueprintTypeId,
         quantityPerRun: p.quantity,
@@ -232,12 +168,6 @@ export function buildIndexesFromActivities(
 }
 
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
-  // Join eve_types for each blueprint's published flag so producer selection can
-  // prefer the real in-game blueprint over unpublished test/dev artifacts. The
-  // authoritative ordering happens in memory in buildIndexesFromActivities — no
-  // DB ORDER BY, whose DESC NULLS FIRST wouldn't match the in-memory null
-  // handling anyway. leftJoin: keep a blueprint even if its type row is somehow
-  // absent (published → null → treated as selectable).
   const rows = await db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
@@ -255,38 +185,12 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
   );
 }
 
-// How many runs of a producing blueprint a parent's need represents, as a
-// FRACTION — `quantity / quantityPerRun`, deliberately NOT rounded up. This
-// keeps the resolver's stored tree + flat materials a MARGINAL structural
-// artifact: each intermediate is charged only the fraction of a batch a single
-// build consumes. That output is pinned by `pnpm validate:resolver`.
-//
-// This is NOT the planner's displayed cost basis. The planner re-derives
-// whole-run "batched" totals at request time from these same per-run quantities
-// (runs = ceil(demand ÷ batch yield)) in the feature layer — industry-planner's
-// build-batch.ts — which is what a builder actually buys from an empty hangar.
-// That aggregate-then-ceil is distinct from the old PER-EDGE `ceilDiv` removed
-// here: per-edge rounding ceil'd every occurrence independently and compounded
-// (~30× on deep T3/capital trees — one Fullerene Intercalated Sheets needs 33
-// Fulleroferrocene against a 1000/run reaction); summing all demand for a type
-// before a single ceil does not.
 function runsFor(quantity: number, quantityPerRun: number): number {
   if (quantityPerRun === 0) throw new Error('runsFor: quantityPerRun is zero');
   return quantity / quantityPerRun;
 }
 
-/**
- * Walks one blueprint's tree, producing both the JSONB tree shape and
- * the flat materials accumulator. Memoized per blueprintId for the flat
- * totals — the per-run flat materials are stable across parents, and
- * capital recursion is what makes memoization worth the bytes.
- */
 export class TreeResolver {
-  // Raw-material totals are FRACTIONAL during the walk (a parent consumes a
-  // fraction of a producing run — see `runsFor`), so they accumulate as numbers,
-  // not bigints. The caller rounds to whole units at the storage boundary. Real
-  // totals (a capital's millions of minerals) stay far under 2^53, so float
-  // accumulation is exact enough; rounding happens once, at the end.
   private flatMemo = new Map<number, Map<number, number>>();
   private cycleWarnings: string[] = [];
   private memoHits = 0;
@@ -329,10 +233,6 @@ export class TreeResolver {
         result.set(mat.typeId, cur + mat.quantity);
         continue;
       }
-      // childPerRun is the raws for ONE run of the producing blueprint
-      // (memoized, stable across parents). The parent only needs `mat.quantity`
-      // of the child's `quantityPerRun`-per-run output, so it bears that
-      // fraction of the run's raws — not a whole rounded-up run.
       const runs = runsFor(mat.quantity, child.quantityPerRun);
       const childPerRun = this.walkFlat(child.blueprintTypeId, visited);
       for (const [k, v] of childPerRun) {
@@ -345,10 +245,6 @@ export class TreeResolver {
     return result;
   }
 
-  // Builds the nested-tree JSON for one blueprint. Walks fresh per
-  // blueprint (no memo for the tree shape — it'd be redundant since
-  // the JSON is written once per top-level blueprint, not per parent
-  // path). Cycle-guarded the same way as walkFlat.
   treeForOneRun(blueprintId: number): TreeNode[] {
     return this.walkTree(blueprintId, new Set());
   }
@@ -364,9 +260,6 @@ export class TreeResolver {
         nodes.push({ typeId: mat.typeId, quantity: mat.quantity, inputs: [] });
         continue;
       }
-      // Share the fractional `runsFor` helper with walkFlat so the two
-      // walkers can never disagree on runs-needed — the displayed tree's
-      // marginal runs match the flat-material cost basis by construction.
       const runsNeeded = runsFor(mat.quantity, child.quantityPerRun);
       nodes.push({
         typeId: mat.typeId,
@@ -392,23 +285,6 @@ export class TreeResolver {
   }
 }
 
-/**
- * Content hash of the blueprint recipe data, the resolver's idempotency gate.
- * Sensitive to recipe edits in the reference blueprints (so a CCP nudge to
- * Rifter's Tritanium — or a yield change — flips the hash) by sampling their
- * manufacturing + reaction recipes fully, PLUS global edge counts so a blueprint
- * added/removed or re-recipe'd anywhere triggers a rebuild — without
- * canonicalising all ~5k blueprints' JSON on every check. Also folds in every
- * blueprint's published flag, since producer selection now prefers published
- * blueprints — so a CCP publish/unpublish flip with no recipe change still
- * invalidates the trees on the cron re-resolve path. Stored under
- * SDE_META_KEY_TREE_HASH; the resolver short-circuits when the stored value
- * matches (and trees are still present — see resolveAllTrees).
- * The deterministic hash of the resolver-relevant SDE shape, given the raw
- * blueprint rows. Pure — the DB read lives in computeTreeResolverHash — so the
- * accumulation + sort + digest is unit-testable and stable across runs (the
- * algo version is folded in, so an intentional resolver change rotates it).
- */
 export function hashResolverInputs(
   rows: ReadonlyArray<{
     blueprintTypeId: number;
@@ -425,22 +301,14 @@ export function hashResolverInputs(
 
   for (const r of rows) {
     blueprintCount++;
-    // Fold each blueprint's published flag into the hash: producer selection
-    // depends on it, so a CCP publish/unpublish flip with no recipe edit must
-    // still invalidate the trees. null/undefined counts as published, matching
-    // the resolver's selection fallback.
     publishedSamples.push(`${r.blueprintTypeId}:${r.published === false ? 0 : 1}`);
     const activities = (r.activities ?? {}) as BlueprintActivities;
-    // Global edge counts across every activity key — matches the old row-count
-    // sensitivity to any recipe edge appearing/disappearing.
     for (const key of Object.keys(activities)) {
       const act = activities[key];
       matEdges += act?.materials?.length ?? 0;
       prodEdges += act?.products?.length ?? 0;
     }
     if (!refSet.has(r.blueprintTypeId)) continue;
-    // Full deterministic sample of the resolver-relevant (manufacturing +
-    // reaction) recipe for each reference blueprint.
     const { mats, prods } = activitiesToRows(r.blueprintTypeId, activities);
     for (const m of mats) {
       refSamples.push(`${m.blueprintTypeId}:m:${m.materialTypeId}:${m.quantity}`);
@@ -449,7 +317,6 @@ export function hashResolverInputs(
       refSamples.push(`${p.blueprintTypeId}:p:${p.productTypeId}:${p.quantity}`);
     }
   }
-  // Deterministic ordering JS-side so the hash is stable across runs.
   refSamples.sort();
   publishedSamples.sort();
 
@@ -464,10 +331,6 @@ export function hashResolverInputs(
     .digest('hex');
 }
 
-/**
- * Hashes the blueprint resolver's normalized source rows into a deterministic content identity
- * used to skip unchanged rebuilds.
- */
 async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   const all = await db
     .select({
@@ -480,9 +343,6 @@ async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   return hashResolverInputs(all);
 }
 
-// True when blueprint_trees holds at least one row. runIngest truncates the
-// derived tables before the deploy/cron pipeline reaches the resolver, so the
-// hash gate alone is not enough to decide a skip is safe — see resolveAllTrees.
 async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
   const [{ exists }] = await db.execute<{ exists: boolean }>(
     sql`SELECT EXISTS (SELECT 1 FROM ${blueprintTrees}) AS exists`,
@@ -490,18 +350,12 @@ async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
   return exists;
 }
 
-/** Persistable flattened blueprint material edge with accumulated quantity and depth. */
 export type FlatMaterialRow = {
   blueprintTypeId: number;
   rawMaterialTypeId: number;
   totalQuantity: bigint;
 };
 
-/**
- * One blueprint's resolved flat materials, rounded to whole storage units at the
- * bigint column boundary (done once, here). A material whose marginal share
- * rounds to zero contributes nothing and is dropped.
- */
 export function roundedFlatRows(
   flat: Iterable<[number, number]>,
   blueprintTypeId: number,
@@ -515,13 +369,6 @@ export function roundedFlatRows(
   return out;
 }
 
-/**
- * The hash-gate half of the resolve skip decision (pure): skip only when a
- * rebuild wasn't forced and a previously stored hash matches the current one.
- * The caller AND-combines this with a live presence check (a matching hash over
- * truncated tables must NOT skip) — kept in the rim so that DB read is
- * short-circuited away on the force/mismatch paths, exactly as before.
- */
 export function hashGateSkips(args: {
   forceRebuild: boolean;
   hashBefore: string | null;
@@ -530,12 +377,6 @@ export function hashGateSkips(args: {
   return !args.forceRebuild && args.hashBefore !== null && args.hashBefore === args.hashAfter;
 }
 
-/**
- * EVE manufacturing is a strict DAG and buildIndexesFromActivities drops the
- * known degenerate self-recipes; any remaining cycle is a novel SDE shape the
- * filter doesn't cover — fail loudly (rolling back the transaction) rather than
- * persisting empty flat materials for the offending blueprints.
- */
 export function assertNoResolverCycles(stats: { cycleWarnings: string[] }): void {
   if (stats.cycleWarnings.length > 0) {
     throw new Error(
@@ -545,11 +386,6 @@ export function assertNoResolverCycles(stats: { cycleWarnings: string[] }): void
   }
 }
 
-/**
- * A streaming batched inserter: buffers rows and flushes to `sink` every
- * `batchSize`, so at most one batch per table is held in memory at a time (the
- * resolve writes ~63k flat rows). `written` is the running committed count.
- */
 export function makeBatchInserter<T>(
   batchSize: number,
   sink: (batch: T[]) => Promise<void>,
@@ -580,34 +416,12 @@ export function makeBatchInserter<T>(
   };
 }
 
-/**
- * Top-level entry: rebuilds blueprint_trees + blueprint_flat_materials
- * for every row in industry_blueprints. Idempotent — short-circuits
- * when the stored tree-resolver hash matches the current SDE shape.
- * Set LGI_FORCE_TREE_REBUILD=1 to override (for when the resolver's
- * own code changes).
- *
- * Takes the postgres-js-concrete handle rather than the dual-driver
- * `AnyPgDb`: the rebuild runs inside an interactive `.transaction`,
- * which the neon-http request-path driver does not have. Both callers
- * already pass a postgres-js handle; the narrower type makes that a
- * compile-time guarantee instead of a convention.
- */
 export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary> {
   const start = Date.now();
   const forceRebuild = readEnv('LGI_FORCE_TREE_REBUILD') === '1';
 
   const hashBefore = await getSdeMetaValue(db, SDE_META_KEY_TREE_HASH);
   const hashAfter = await computeTreeResolverHash(db);
-  // Only honour the skip when the resolved trees are actually still present.
-  // runIngest TRUNCATEs blueprint_trees/blueprint_flat_materials, so on a
-  // re-ingest whose sample-blueprint hash is unchanged (e.g. an SDE
-  // version-marker change with no recipe change) the hash would match while
-  // the tables sit empty — skipping then would leave them empty until the next
-  // forced rebuild. Re-checking presence keeps the no-op deploy path (no
-  // re-ingest, trees intact) fast while never persisting an empty result. The
-  // presence check stays AND-combined in the rim so it's short-circuited away
-  // when the hash gate already declined the skip.
   if (hashGateSkips({ forceRebuild, hashBefore, hashAfter }) && (await hasResolvedTrees(db))) {
     return {
       blueprintsResolved: 0,
@@ -634,26 +448,11 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
   const TREE_BATCH_SIZE = 500;
   const computedAt = new Date();
 
-  // TRUNCATE + writes + hash update all live in one transaction so a
-  // mid-flight timeout (Vercel function killed at 300s, transient DB
-  // error, etc.) rolls back to the pre-resolve state instead of
-  // leaving the tables empty for up to a day until the next daily
-  // cron retries. Recovery becomes automatic: the hash isn't written
-  // unless every batch committed, so the next invocation will see a
-  // hash mismatch and re-run.
   const { flatWritten, treeWritten } = await db.transaction(async (tx) => {
-    // Wipe + rewrite trees + flat materials. Cascade FKs handle the
-    // ordering; everything that references industry_blueprints was
-    // already truncated by runIngest if this is the deploy-time path.
-    // On the cron-triggered re-resolve path (no full SDE re-ingest)
-    // we still want a clean slate.
     await tx.execute(
       sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}`,
     );
 
-    // The inserters report progress, not rows, so each batch discards the
-    // driver's result. postgres-js types its insert result concretely, unlike
-    // the dual-driver base type this used to accept.
     const flat = makeBatchInserter<FlatMaterialRow>(FLAT_BATCH_SIZE, async (batch) => {
       await tx.insert(blueprintFlatMaterials).values(batch);
     });
@@ -690,4 +489,3 @@ export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary>
     durationMs: Date.now() - start,
   };
 }
-

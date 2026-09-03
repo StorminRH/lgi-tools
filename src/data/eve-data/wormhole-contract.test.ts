@@ -41,7 +41,6 @@ describe('wormhole-contract mass and destination math', () => {
       maxKg: 0,
     });
 
-    // A same-value re-shake re-stamps the anchor at the current odometer.
     expect(remainingMassAfterTravel(entry, 'stable', 300_000_000, 300_000_000)).toEqual({
       minKg: 900_000_000,
       maxKg: 2_200_000_000,

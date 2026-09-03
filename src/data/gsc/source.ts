@@ -14,21 +14,8 @@ import {
 } from './constants';
 import type { IndexStatusApiResult, SearchAnalyticsApiRow, SitemapApiEntry } from './types';
 
-// External calls to the Google Search Console API. Like the market-prices
-// source layer, this holds no transaction open and pins no DB connection — the
-// ingest layer owns persistence. The data slice never imports telemetry; the
-// cron threads sync outcomes into usage_logs itself. Both outbound legs — the
-// API request and the SDK's own token acquisition — carry the shared outbound
-// bound; the declared policy lives in
-// src/composition/vendor-resilience-registry.ts.
-
-// Lazily-built, module-scoped JWT client. google-auth-library caches and
-// auto-refreshes the access token internally, so one client per process is
-// enough. Built on first use so module import stays side-effect-free.
 let _jwt: JWT | undefined;
 
-// The service-account key is provided as one-line JSON; we also accept a
-// base64-encoded blob in case an env store mangles the embedded newlines.
 function parseServiceAccount(raw: string): { client_email: string; private_key: string } {
   const trimmed = raw.trim();
   const json = trimmed.startsWith('{')
@@ -49,15 +36,12 @@ function getJwt(): JWT {
     email: client_email,
     key: private_key,
     scopes: [GSC_SCOPE],
-    // The SDK fetches and refreshes the access token through its own
-    // transporter, which is unbounded by default; this is the only injection
-    // point for that leg.
+
     transporterOptions: { timeout: OUTBOUND_FETCH_TIMEOUT_MS },
   });
   return _jwt;
 }
 
-/** Extracts and validates the canonical site URL from one Search Console sitemap entry. */
 export function siteUrl(): string {
   return requireEnv('GSC_SITE_URL');
 }
@@ -80,11 +64,6 @@ function searchAnalyticsUrl(): string {
   return `${WEBMASTERS_V3_BASE}/sites/${encodeURIComponent(siteUrl())}/searchAnalytics/query`;
 }
 
-/**
- * One Search Analytics query, paginated on startRow until a short page signals
- * the end. `dimensions` are the raw API dimension names (e.g. ['date'] or
- * ['date','query']) and map to each returned row's `keys` array positionally.
- */
 export async function querySearchAnalytics(args: {
   startDate: string;
   endDate: string;
@@ -115,7 +94,6 @@ export async function querySearchAnalytics(args: {
   return rows;
 }
 
-/** Lists Search Console sitemaps for the configured property through the authenticated Google API client. */
 export async function listSitemaps(): Promise<SitemapApiEntry[]> {
   const url = `${WEBMASTERS_V3_BASE}/sites/${encodeURIComponent(siteUrl())}/sitemaps`;
   const res = await authedFetch(url);
@@ -123,10 +101,6 @@ export async function listSitemaps(): Promise<SitemapApiEntry[]> {
   return body.sitemap ?? [];
 }
 
-/**
- * Inspect one URL; returns just the index-status half (the dashboard reads
- * verdict / coverage / last-crawl). Null when Google returns no index status.
- */
 export async function inspectUrl(url: string): Promise<IndexStatusApiResult | null> {
   const res = await authedFetch(URL_INSPECTION_ENDPOINT, {
     method: 'POST',

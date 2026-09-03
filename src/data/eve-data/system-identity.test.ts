@@ -31,15 +31,15 @@ it.each([
 
 it('has no class text for k-space null or an id the SDE does not assign', () => {
   expect(systemClassText(null)).toBeNull();
-  // 99 is synthetic — no real system carries it. The set assertion above is what guards real ids.
+
   expect(systemClassText(99)).toBeNull();
 });
 
 it.each([
-  // In-game display rounding: half-up to 0.1; ≥0.45 shows (and tones) as 0.5.
+
   ['Jita', 0.946, 'Jita - 0.9', 'text-sec-09'],
   ['Uedama', 0.45, 'Uedama - 0.5', 'text-sec-05'],
-  // Any positive value below 0.05 displays as 0.1, never 0.0.
+
   ['Ouelletta', 0.02, 'Ouelletta - 0.1', 'text-sec-01'],
   ['Old Man Star', 0.34, 'Old Man Star - 0.3', 'text-sec-03'],
   ['Ahbazon', 0.0, 'Ahbazon - 0.0', 'text-sec-null'],
@@ -61,11 +61,11 @@ it('keeps k-space security form for HS/LS/NS class ids and plain names when fact
   expect(
     systemIdentityReadout({ name: 'HED-GP', security: -0.1, whClassId: 9 }),
   ).toEqual({ label: 'HED-GP - -0.1', tone: 'text-sec-null' });
-  // An unresolved directory entry is a plainer label, not a loading state.
+
   expect(
     systemIdentityReadout({ name: '30000142', security: null, whClassId: null }),
   ).toEqual({ label: '30000142', tone: 'text-name' });
-  // The SDE's handful of untagged hi-sec rows carry a class id but no value.
+
   expect(
     systemIdentityReadout({ name: 'Bastion', security: null, whClassId: 7 }),
   ).toEqual({ label: 'Bastion', tone: 'text-name' });

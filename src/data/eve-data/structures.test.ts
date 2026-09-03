@@ -10,20 +10,19 @@ import {
 import { isIndustryRig, rigFitsStructure, shapeStructureRigs } from './structures';
 import type { AttrMap } from './types';
 
-// Real SDE dogma shapes (verified against the local SDE this session).
 const equipmentMfgEff: AttrMap = {
-  [STRUCTURE_RIG_SIZE_ATTR]: 3, // L
-  [RIG_MFG_MATERIAL_ATTR]: -2, // material reduction → a manufacturing rig
-  2593: -20, // time
+  [STRUCTURE_RIG_SIZE_ATTR]: 3,
+  [RIG_MFG_MATERIAL_ATTR]: -2,
+  2593: -20,
 };
 const reactorEff: AttrMap = {
   [STRUCTURE_RIG_SIZE_ATTR]: 3,
-  [RIG_REACTION_TIME_ATTR]: -20, // reactor time → a reaction rig
-  2714: -2, // reaction material (deliberately unread by the bonus math)
+  [RIG_REACTION_TIME_ATTR]: -20,
+  2714: -2,
 };
 const copyOptimization: AttrMap = {
   [STRUCTURE_RIG_SIZE_ATTR]: 3,
-  [RIG_MFG_MATERIAL_ATTR]: 0, // shares the time/cost attrs but NO material reduction
+  [RIG_MFG_MATERIAL_ATTR]: 0,
   2593: -20,
   2595: -10,
 };
@@ -38,9 +37,7 @@ describe('isIndustryRig', () => {
   });
 
   it('rejects optimization rigs that carry time/cost but no material reduction', () => {
-    // Blueprint Copy / Invention / Research optimization rigs share 2593/2595 but
-    // must NOT be offerable — the bonus math reads 2593 for every fitted rig, so
-    // including one would wrongly speed up a manufacturing build.
+
     expect(isIndustryRig(copyOptimization)).toBe(false);
   });
 
@@ -50,24 +47,22 @@ describe('isIndustryRig', () => {
 });
 
 describe('rigFitsStructure', () => {
-  const EC = SDE_ENGINEERING_COMPLEX_GROUP_ID; // 1404
-  const REFINERY = SDE_REFINERY_GROUP_ID; // 1406
-  const CITADEL = SDE_CITADEL_GROUP_ID; // 1657
+  const EC = SDE_ENGINEERING_COMPLEX_GROUP_ID;
+  const REFINERY = SDE_REFINERY_GROUP_ID;
+  const CITADEL = SDE_CITADEL_GROUP_ID;
 
-  // Manufacturing rigs carry canFitShipGroup {EC, Refinery, Citadel}; reaction
-  // rigs carry {Refinery} only (verified against the local SDE).
   const lMfgRig = { canFitGroups: [CITADEL, EC, REFINERY], rigSize: 3 };
   const xlMfgRig = { canFitGroups: [CITADEL, EC, REFINERY], rigSize: 4 };
   const mReactionRig = { canFitGroups: [REFINERY], rigSize: 2 };
   const lReactionRig = { canFitGroups: [REFINERY], rigSize: 3 };
 
-  const azbel = { groupId: EC, rigSize: 3 } as const; // L Engineering Complex
-  const sotiyo = { groupId: EC, rigSize: 4 } as const; // XL Engineering Complex
-  const raitaru = { groupId: EC, rigSize: 2 } as const; // M Engineering Complex
-  const athanor = { groupId: REFINERY, rigSize: 2 } as const; // M Refinery
-  const tatara = { groupId: REFINERY, rigSize: 3 } as const; // L Refinery
-  const fortizar = { groupId: CITADEL, rigSize: 3 } as const; // L Citadel
-  const keepstar = { groupId: CITADEL, rigSize: 4 } as const; // XL Citadel
+  const azbel = { groupId: EC, rigSize: 3 } as const;
+  const sotiyo = { groupId: EC, rigSize: 4 } as const;
+  const raitaru = { groupId: EC, rigSize: 2 } as const;
+  const athanor = { groupId: REFINERY, rigSize: 2 } as const;
+  const tatara = { groupId: REFINERY, rigSize: 3 } as const;
+  const fortizar = { groupId: CITADEL, rigSize: 3 } as const;
+  const keepstar = { groupId: CITADEL, rigSize: 4 } as const;
 
   it('fits a manufacturing rig to an Engineering Complex of the same size', () => {
     expect(rigFitsStructure(lMfgRig, azbel)).toBe(true);
@@ -105,7 +100,7 @@ describe('rigFitsStructure', () => {
 describe('shapeStructureRigs', () => {
   it('keeps only industry rigs, reading canFitGroups + rigSize, name-sorted', () => {
     const rows = [
-      // A manufacturing rig (nonzero 2594) with canFitShipGroup 1298/1299/1300.
+
       {
         id: 43920,
         name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
@@ -117,13 +112,13 @@ describe('shapeStructureRigs', () => {
           1300: 1657,
         } as AttrMap,
       },
-      // A copy-optimization rig (2594 === 0) → dropped by isIndustryRig.
+
       {
         id: 99999,
         name: 'Standup L-Set Copy Optimization',
         attributes: { [STRUCTURE_RIG_SIZE_ATTR]: 3, [RIG_MFG_MATERIAL_ATTR]: 0 } as AttrMap,
       },
-      // A reaction rig (reactor-time attr present) fitting Refineries only.
+
       {
         id: 46640,
         name: 'Standup M-Set Reactor Efficiency I',
@@ -135,7 +130,7 @@ describe('shapeStructureRigs', () => {
       },
     ];
     expect(shapeStructureRigs(rows)).toEqual([
-      // Name-sorted: 'Standup L-Set Basic…' < 'Standup M-Set Reactor…'.
+
       {
         typeId: 43920,
         name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
@@ -156,7 +151,7 @@ describe('shapeStructureRigs', () => {
       {
         id: 1,
         name: 'Rig',
-        // Only one canFitShipGroup present; no rig-size attr.
+
         attributes: { [RIG_MFG_MATERIAL_ATTR]: -1, 1298: 1406 } as AttrMap,
       },
     ]);
