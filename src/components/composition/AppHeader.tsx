@@ -1,5 +1,5 @@
-import { io } from 'next/cache';
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { AppHeaderShell } from '@/components/composition/AppHeaderShell';
 import { ServerStatus } from '@/components/composition/ServerStatus';
@@ -8,7 +8,7 @@ import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 async function NavServerStatus() {
-  await io();
+  await connection();
   return <ServerStatus status={await getNavServerStatus()} />;
 }
 

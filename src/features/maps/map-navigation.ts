@@ -14,6 +14,14 @@ export function mapSelectionHref(
   return `${pathname}?${next.toString()}`;
 }
 
+export function atlasSignInReturnHref(
+  searchParams: Pick<URLSearchParams, 'get'>,
+): string {
+  const mapId = searchParams.get('map');
+  if (mapId === null || mapId === '') return '/atlas';
+  return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
+}
+
 export function mapDeletionHref(
   searchParams: Pick<URLSearchParams, 'get' | 'toString'>,
   mapId: string,

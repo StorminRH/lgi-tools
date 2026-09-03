@@ -21,12 +21,12 @@ function AdminChip({ show }: { show: boolean }) {
   );
 }
 
-function SignedOutButton() {
+export function EveSignInButton({ callbackURL = '/' }: { callbackURL?: string }) {
   return (
     <button
       type="button"
       onClick={() => {
-        void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' });
+        void authClient.signIn.oauth2({ providerId: 'eve', callbackURL });
       }}
       className="inline-flex items-center hover:opacity-80 transition-opacity"
     >
@@ -106,7 +106,7 @@ export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' })
   }
 
   if (!session) {
-    return <SignedOutButton />;
+    return <EveSignInButton />;
   }
 
   return <SignedInCluster variant={variant} session={session} showAdminLink={showAdminLink} />;
