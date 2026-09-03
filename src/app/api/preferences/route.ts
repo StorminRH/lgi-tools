@@ -6,8 +6,8 @@ import {
   putPreferenceRequestSchema,
 } from '@/data/preferences/api-contract';
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
-import { getCurrentUserId } from '@/platform/auth/session';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { getCurrentUserId } from '@/composition/session';
+import { checkUserId } from '@/composition/route-guards';
 import { validationFailure } from '@/lib/failure';
 import { validatePreferenceValue } from '@/lib/preferences';
 import { apiResponse } from '@/transport/api-response';

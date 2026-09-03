@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { readEnv } from '@/lib/env';
-import { auth } from './auth';
-import type { Session } from './types';
+import { auth } from '@/composition/auth';
+import type { Session } from '@/platform/auth/types';
 
 export async function getSession(): Promise<Session | null> {
   const result = await auth.api.getSession({ headers: await headers() });

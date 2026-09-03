@@ -15,7 +15,7 @@ import {
   type PendingWhStaticsReview,
 } from '@/data/wh-statics/queries';
 import type { WhStaticsSystemCodes } from '@/data/wh-statics/schema';
-import { requireAdminPage } from '@/platform/auth/route-guards';
+import { requireAdminPage } from '@/composition/route-guards';
 
 const OUTCOME_LABELS: Readonly<Record<string, string>> = {
   busy: 'Another statics refresh is already running.',

@@ -6,7 +6,7 @@ import { problemResponse } from '@/transport/api-response';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
 import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
-import { checkSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 // authz: auth

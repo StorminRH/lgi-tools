@@ -5,7 +5,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
-import { checkAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 import {
   accountBelongsToUser,

@@ -15,7 +15,7 @@ import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue'
 import {
   checkSession,
   type SessionCheckResult,
-} from '@/platform/auth/route-guards';
+} from '@/composition/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { AtlasCanvasFrame } from './AtlasCanvasFrame';
 import { AtlasGuestLanding } from './AtlasGuestLanding';

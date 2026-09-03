@@ -13,7 +13,6 @@ import {
 import { bestEffort } from '@/lib/best-effort';
 import {
   createIdentityProjectionRunners,
-  registerIdentityProjectionHooks,
   type IdentityProjectionHooks,
 } from '@/platform/auth/identity-projection-hooks';
 
@@ -59,5 +58,3 @@ const hooks: IdentityProjectionHooks = {
 };
 
 export const identityProjectionRunners = createIdentityProjectionRunners(hooks);
-
-registerIdentityProjectionHooks(hooks);

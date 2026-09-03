@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   rateLimit: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/composition/map-creation', () => ({

@@ -16,7 +16,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
-import { requireAdminPage } from '@/platform/auth/route-guards';
+import { requireAdminPage } from '@/composition/route-guards';
 import {
   getUserByCharacterId,
   listAdminUsers,

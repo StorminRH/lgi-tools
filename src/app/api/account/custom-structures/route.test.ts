@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
   listCustomStructuresMock: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/data/eve-data/queries', () => ({

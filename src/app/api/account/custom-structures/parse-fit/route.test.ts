@@ -5,7 +5,7 @@ const h = vi.hoisted(() => ({
   getStructureFitNameIndex: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/data/eve-data/queries', () => ({

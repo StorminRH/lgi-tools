@@ -5,7 +5,7 @@ import {
   setCustomStructureTaxRequestSchema,
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, setCustomStructureTax } from '@/features/custom-structures/queries';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
