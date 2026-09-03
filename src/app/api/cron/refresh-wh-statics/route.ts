@@ -7,6 +7,8 @@ import {
 
 export const maxDuration = 60;
 
+// authz: cron
+// input: none
 export const GET = defineCronRoute<
   CronRefreshWhStaticsResponse,
   WhStaticsPreLock

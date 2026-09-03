@@ -7,6 +7,7 @@ import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: public
 export const POST = capabilityRoute('planner.resolve-entity-names', handlePost);
 
 async function handlePost(req: Request): Promise<Response> {

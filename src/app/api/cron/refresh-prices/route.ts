@@ -9,6 +9,8 @@ import { refreshPricesDeclaration } from './declaration';
  */
 export const maxDuration = 120;
 
+// authz: cron
+// input: none
 export const GET = defineCronRoute<CronRefreshPricesResponse>(
   refreshPricesDeclaration,
 );

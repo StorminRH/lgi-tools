@@ -8,6 +8,7 @@ import { getBuildLocation } from '@/features/industry-planner/queries';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: public
 export const POST = capabilityRoute('planner.resolve-build-location', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

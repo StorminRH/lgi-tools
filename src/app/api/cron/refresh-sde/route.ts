@@ -21,6 +21,8 @@ type SdePreLockState = Parameters<typeof refreshSdeDeclaration.work>[1];
  */
 export const maxDuration = 300;
 
+// authz: cron
+// input: none
 export const GET = defineCronRoute<CronRefreshSdeResponse, SdePreLockState>(
   refreshSdeDeclaration,
 );

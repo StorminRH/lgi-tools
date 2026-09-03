@@ -10,6 +10,7 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: auth
 export const POST = capabilityRoute('planner.read-owned-blueprints', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

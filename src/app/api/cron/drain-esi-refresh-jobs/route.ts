@@ -4,6 +4,8 @@ import { drainEsiRefreshJobsDeclaration } from './declaration';
 
 export const maxDuration = 300;
 
+// authz: cron
+// input: none
 export const GET = defineCronRoute<EsiRefreshWorkerSummary>(
   drainEsiRefreshJobsDeclaration,
 );
