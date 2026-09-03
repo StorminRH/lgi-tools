@@ -1,12 +1,3 @@
-// POST /api/internal/eve-token
-// Internal service endpoint. A Convex action authenticates with the shared
-// CONVEX_SERVICE_SECRET bearer and asks for a fresh short-lived EVE access token
-// for one character. The response carries ONLY the access token — the refresh
-// token is never read into this file, so it cannot leak to the caller. Per-user
-// ownership of the character is rechecked here after service authentication so
-// a caller cannot turn a character id from another enumeration into a token.
-// authz: service
-// rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import {
   eveTokenEndpoint,
   eveTokenRequestSchema,
@@ -22,10 +13,7 @@ import { checkBearerSecret } from '@/lib/service-auth';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * Handles POST requests for /api/internal/eve-token; this route owns its authorization, boundary
- * validation, and typed response mapping.
- */
+// authz: service
 export async function POST(req: Request): Promise<Response> {
   const auth = await checkBearerSecret(req, 'CONVEX_SERVICE_SECRET');
   if (!auth.ok) return apiResponse(eveTokenEndpoint, auth.failure.code === 'not_configured' ? 500 : 401, auth.failure);

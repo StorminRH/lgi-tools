@@ -10,7 +10,6 @@ import {
   withCacheControl,
 } from '@/transport/api-response';
 
-/** Serves immutable stargate adjacency only when its payload version matches the URL. */
 // authz: public
 // input: path
 export async function GET(
