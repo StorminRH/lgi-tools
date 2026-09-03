@@ -22,15 +22,18 @@ function AdminChip({ show }: { show: boolean }) {
   );
 }
 
-// CCP's official "Log in with EVE Online" SSO button. Clicking kicks off the EVE
-// OAuth handshake (Better Auth redirects to EVE SSO, then back through the
-// provider callback).
-function SignedOutButton() {
+/**
+ * CCP's official "Log in with EVE Online" SSO button. Clicking kicks off the EVE
+ * OAuth handshake (Better Auth redirects to EVE SSO, then back through the
+ * provider callback). `callbackURL` is where the round-trip lands afterwards;
+ * the header returns home, a gated landing returns to itself.
+ */
+export function EveSignInButton({ callbackURL = '/' }: { callbackURL?: string }) {
   return (
     <button
       type="button"
       onClick={() => {
-        void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' });
+        void authClient.signIn.oauth2({ providerId: 'eve', callbackURL });
       }}
       className="inline-flex items-center hover:opacity-80 transition-opacity"
     >
@@ -129,7 +132,7 @@ export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' })
   }
 
   if (!session) {
-    return <SignedOutButton />;
+    return <EveSignInButton />;
   }
 
   return <SignedInCluster variant={variant} session={session} showAdminLink={showAdminLink} />;
