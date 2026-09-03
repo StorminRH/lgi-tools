@@ -11,7 +11,11 @@ import {
   getOwnedMapIds,
 } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import { registerIdentityProjectionHooks } from '@/platform/auth/identity-projection-hooks';
+import {
+  createIdentityProjectionRunners,
+  registerIdentityProjectionHooks,
+  type IdentityProjectionHooks,
+} from '@/platform/auth/identity-projection-hooks';
 
 export async function mapIdsAffectedByCharacter(characterId: number): Promise<string[]> {
   const corporationId = await getCharacterCorporationId(characterId);
@@ -49,7 +53,11 @@ async function afterCharacterLinkChanged(args: {
   await teardownLocationTracking(args.userId, args.characterId);
 }
 
-registerIdentityProjectionHooks({
+const hooks: IdentityProjectionHooks = {
   beforeUserDelete: teardownProjectionsForDeletedUser,
   afterCharacterLinkChanged,
-});
+};
+
+export const identityProjectionRunners = createIdentityProjectionRunners(hooks);
+
+registerIdentityProjectionHooks(hooks);

@@ -27,7 +27,7 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 }));
 
 vi.mock('@/platform/auth/admin-users', () => ({
-  deleteLinkedCharacter: (u: string, c: number) => deleteLinkedCharacterMock(u, c),
+  deleteLinkedCharacter: (...args: unknown[]) => deleteLinkedCharacterMock(...args),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
@@ -96,7 +96,14 @@ describe('POST /api/admin/characters/unlink', () => {
     const active = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
     expect(active.status).toBe(303);
     expect(locationOf(active)).toBe('http://localhost:3000/admin/access/eve-user-2');
-    expect(deleteLinkedCharacterMock).toHaveBeenCalledWith('eve-user-2', 100);
+    expect(deleteLinkedCharacterMock).toHaveBeenCalledWith(
+      'eve-user-2',
+      100,
+      expect.objectContaining({
+        runBeforeUserDelete: expect.any(Function),
+        runAfterCharacterLinkChanged: expect.any(Function),
+      }),
+    );
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-2');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
 

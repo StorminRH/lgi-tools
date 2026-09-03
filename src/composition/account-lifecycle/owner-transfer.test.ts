@@ -3,15 +3,11 @@ import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
 const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/platform/auth/identity-projection-hooks', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/platform/auth/identity-projection-hooks')>();
-  return {
-    ...actual,
-    runAfterCharacterLinkChanged: (...args: unknown[]) =>
-      hooks.runAfterCharacterLinkChanged(...args),
-  };
+vi.mock('@/composition/map-access-identity', () => {
+  return { identityProjectionRunners: hooks };
 });
 
 const { chain, state } = vi.hoisted(() => {

@@ -5,11 +5,10 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
-import '@/composition/map-access-identity';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
-import { auth } from '@/platform/auth/auth';
+import { auth } from '@/composition/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
-import { runAfterCharacterLinkChanged } from '@/platform/auth/identity-projection-hooks';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
@@ -59,7 +58,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'unlink_failed');
       }
 
-      await runAfterCharacterLinkChanged({ userId: session.user.id, characterId });
+      await identityProjectionRunners.runAfterCharacterLinkChanged({
+        userId: session.user.id,
+        characterId,
+      });
 
       const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
       if (activeCharacterId === characterId) {

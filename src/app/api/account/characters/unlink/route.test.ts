@@ -25,6 +25,15 @@ const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
 
+vi.mock('@/composition/auth', () => ({
+  auth: {
+    api: {
+      getSession: () => getSessionMock(),
+      unlinkAccount: (args: unknown) => unlinkAccountMock(args),
+    },
+  },
+}));
+
 vi.mock('@/platform/auth/auth', () => ({
   auth: {
     api: {

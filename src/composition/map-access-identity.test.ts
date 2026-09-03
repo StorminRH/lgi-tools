@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   projectMapAccess: vi.fn(),
   purgeMapChain: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
-  registerIdentityProjectionHooks: vi.fn(),
   teardownLocationTracking: vi.fn(),
 }));
 
@@ -32,19 +31,12 @@ vi.mock('@/data/location-tracking/purge', () => ({
   teardownLocationTracking: mocks.teardownLocationTracking,
 }));
 
-vi.mock('@/platform/auth/identity-projection-hooks', () => ({
-  registerIdentityProjectionHooks: mocks.registerIdentityProjectionHooks,
-}));
-
 import {
+  identityProjectionRunners,
   mapIdsAffectedByCharacter,
   reprojectMapsForCharacter,
   teardownProjectionsForDeletedUser,
 } from './map-access-identity';
-
-const registeredHooks = mocks.registerIdentityProjectionHooks.mock.calls[0]![0] as {
-  afterCharacterLinkChanged: (args: { userId: string; characterId: number }) => Promise<void>;
-};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -98,7 +90,10 @@ describe('map-access-identity', () => {
   });
 
   it('tears down location tracking for the user losing a character', async () => {
-    await registeredHooks.afterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });
+    await identityProjectionRunners.runAfterCharacterLinkChanged({
+      userId: 'from-user',
+      characterId: 42,
+    });
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
   });
 

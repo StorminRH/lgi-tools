@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const getSessionMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 
-vi.mock('@/platform/auth/auth', () => ({
+vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
