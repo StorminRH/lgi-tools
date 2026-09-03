@@ -16,8 +16,7 @@ import type {
 
 describe('industry-planner contract', () => {
   it('pins the wire entry to BlueprintIndexEntry exactly (both directions)', () => {
-    // The schema carries `satisfies z.ZodType<BlueprintIndexEntry>` (no extra
-    // fields); this catches the reverse drift — a type field the schema lacks.
+
     expectTypeOf<z.infer<typeof blueprintIndexEntrySchema>>().toEqualTypeOf<BlueprintIndexEntry>();
   });
 
@@ -31,9 +30,7 @@ describe('industry-planner contract', () => {
   });
 
   it('carries a nullable taxPct on the available structure (schema ⇄ type)', () => {
-    // The groupId twin (3.7.13.3): the owner-set facility tax must survive the wire —
-    // dropping it from the schema would silently strip it and every structure would
-    // fall back to the 0.25% NPC-baseline assumption.
+
     expectTypeOf<z.infer<typeof availableStructureSchema>['taxPct']>().toEqualTypeOf<
       number | null
     >();

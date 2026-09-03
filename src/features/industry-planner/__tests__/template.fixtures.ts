@@ -92,8 +92,7 @@ export function makeMockPlanner(opts?: {
     get selectedStructure() {
       return state.selectedStructure;
     },
-    // Mimics the provider's #187 guard: taking the reaction slot's structure
-    // as the build structure vacates the reaction pair.
+
     setSelectedStructure(s: TestStructure | null) {
       state.selectedStructure = s;
       if (s && state.reactionStructure && state.reactionStructure.id === s.id) {

@@ -11,20 +11,6 @@ import { HeroCard } from './HeroCard';
 import { usePlannerConfig } from './planner-contexts';
 import { TemplatesMenu } from './TemplatesMenu';
 
-// The Cockpit planner body for /industry/[id] — the redesigned dashboard that
-// replaces the legacy hero + multi-view build plan. It lays the product economics
-// out as: a page head (here), the consolidated hero card (identity + steppers +
-// building-character frame + build-location area), a KPI tile row, and a
-// consolidated tier build plan (with its collapsible raw-materials ledger). This
-// file owns the page head and composes the sections below it.
-
-// The page head, ONE bottom-aligned line resting on the hero card: the
-// lgi://industry breadcrumb + the saved-templates popover left, the item's
-// name CENTERED (the card itself carries no title), and the terse stat strip
-// right — the product's category, the job-type chip, and the per-run output
-// chip. The 1fr/auto/1fr grid keeps the name on the true page center
-// regardless of the side content's widths; on narrow viewports the three
-// stack instead.
 function PlannerHead({
   name,
   group,
@@ -46,29 +32,32 @@ function PlannerHead({
           <Link href="/industry" className="hover:text-isk">
             industry
           </Link>
+
         </span>
+
         <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
       </div>
+
       <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-optical text-name">
         {name}
       </h1>
+
       <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 text-label uppercase tracking-label text-muted">
         {group && <span>{group}</span>}
+
         <Pill tone="blue">{activity}</Pill>
+
         <Pill tone="neutral">{perRun} per Run</Pill>
+
       </div>
+
     </header>
+
   );
 }
 
-/**
- * Composes the planner cockpit from concern-specific contexts while leaving data loading and
- * calculations in the provider.
- */
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  // Gross/Net is the user's preference, gated by an available net estimate.
-  // Provider-owned since 3.7.23.1 (template state); the KPI margin tile still
-  // reads the one source through these props.
+
   const { marginMode, setMarginMode } = usePlannerConfig();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
 
@@ -85,5 +74,6 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
       <CockpitBuildPlan structure={structure} />
     </>
+
   );
 }

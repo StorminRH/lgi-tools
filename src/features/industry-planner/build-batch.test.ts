@@ -14,19 +14,14 @@ import {
   computeMultibuyDemand,
 } from './build-batch';
 
-// "Owns nothing" — every blueprint is unowned, so the ME-aware path falls back
-// to ME0 everywhere. topBlueprintTypeId is irrelevant when meOf returns undefined.
 const NO_OWNED = { meOf: () => undefined, topBlueprintTypeId: 0 };
 
-// Helper: result list → typeId→quantity map for easy assertions.
 function asMap(rows: { typeId: number; quantity: number }[]): Record<number, number> {
   return Object.fromEntries(rows.map((r) => [r.typeId, r.quantity]));
 }
 
 describe('computeBatchMaterials — batch rounding', () => {
-  // Product needs 5 of intermediate X; X is made 10/run and consumes 7 of raw R
-  // per run. Marginal would charge 0.5 run → 3.5 R; whole-run runs ⌈5/10⌉ = 1,
-  // so the build bears a full run's 7 R (you can't run half a job).
+
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -41,15 +36,13 @@ describe('computeBatchMaterials — batch rounding', () => {
   });
 
   it('scales by requestedRuns, still whole-run', () => {
-    // 3 product runs → 15 of X → ⌈15/10⌉ = 2 runs → 14 R.
+
     expect(asMap(computeBatchMaterials(tree, 3))).toEqual({ 200: 14 });
   });
 });
 
 describe('computeBatchLedger — raws + buildable run-counts from one walk', () => {
-  // Product needs 5 of X (made 10/run, 7 R/run). One walk yields both the raw
-  // total AND X's whole run count + per-run yield (so the tier display can read
-  // the produced batch without a second computation).
+
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -61,13 +54,13 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
 
   it('exposes the buildable ledger and the raw totals', () => {
     const { raws, builds } = computeBatchLedger(tree, 1);
-    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0, blueprintTypeId: 1100, required: 5 }); // ⌈5/10⌉ = 1 run, 10/run
+    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0, blueprintTypeId: 1100, required: 5 });
     expect(raws.get(200)).toBe(7);
   });
 
   it('scales the run count by requestedRuns', () => {
     const { builds, raws } = computeBatchLedger(tree, 3);
-    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0, blueprintTypeId: 1100, required: 15 }); // ⌈15/10⌉ = 2 runs
+    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0, blueprintTypeId: 1100, required: 15 });
     expect(raws.get(200)).toBe(14);
   });
 
@@ -79,9 +72,7 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
 });
 
 describe('computeBatchMaterials — shared sub-component', () => {
-  // Two components A and B each need 300 of shared intermediate C (made 1000/run,
-  // consuming 1 raw R per run). Demand for C must be SUMMED (600) before the
-  // ceil → 1 run → 1 R. A per-occurrence ceil would give ⌈300/1000⌉ × 2 = 2 runs.
+
   const sub = (): TreeNode => ({
     typeId: 200,
     quantity: 300,
@@ -109,11 +100,7 @@ describe('computeBatchMaterials — shared sub-component', () => {
 });
 
 describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
-  // 1× Legion Hull (29986), ME0, empty hangar. The committed Legion tree is
-  // pinned to the live SDE by `pnpm validate:resolver`, so these whole-run
-  // totals are honest. Verified independently against the SDE and the operator's
-  // production spreadsheet: if this fixture ever drifts, 1,000 / 2,556 are the
-  // truth — reconcile, never regenerate-to-pass.
+
   const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
   const totals = asMap(computeBatchMaterials(legion));
 
@@ -127,10 +114,7 @@ describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
 });
 
 describe('chainActualsFrom — focused build consumes marginal, not batched', () => {
-  // Reaction Y (10) needs 50 fuel blocks F (20); F is made 40/run consuming 1 raw
-  // G (30) per run. The project rounds F up to ⌈50/40⌉ = 2 runs (80 produced, 2 G),
-  // but the actual amount Y burns is 50 fuel blocks — and those need 1.25 F runs'
-  // worth of G (1.25), not 2. Drilling into Y must show the actuals.
+
   const tree: TreeNode[] = [
     {
       typeId: 10,
@@ -149,14 +133,14 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
   const ledger = computeBatchLedger(tree, 1);
 
   it('the project cost basis rounds fuel blocks up to whole runs', () => {
-    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0, blueprintTypeId: 120, required: 50 }); // 80 produced
-    expect(ledger.raws.get(30)).toBe(2); // 2 whole F runs × 1 G
+    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0, blueprintTypeId: 120, required: 50 });
+    expect(ledger.raws.get(30)).toBe(2);
   });
 
   it('focusing the reaction shows the ACTUAL fuel blocks it burns (50, not 80)', () => {
     const actuals = chainActualsFrom(tree, 10, ledger);
-    expect(actuals.get(1)?.get(20)).toBe(50); // direct input, relative depth 1
-    expect(actuals.get(2)?.get(30)).toBeCloseTo(1.25, 9); // raw under F, marginal
+    expect(actuals.get(1)?.get(20)).toBe(50);
+    expect(actuals.get(2)?.get(30)).toBeCloseTo(1.25, 9);
   });
 
   it('omits the focused item itself (relative depth 0)', () => {
@@ -165,11 +149,7 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
 });
 
 describe('chainActualsFrom — ME-aware marginal cascade', () => {
-  // Focus M (BP 110) is consumed 2× by the unresearched top blueprint, and draws
-  // 100 of component F (BP 120, made 40/run) per run; F draws 1 raw G/run. With
-  // M's own blueprint at ME10, M's marginal draw of F drops 10% (200 → 180), and
-  // that cascades to G (5 → 4.5) — fractionally, matching the drill-down's
-  // un-rounded lens. F's own ME0 adds no further reduction.
+
   const tree: TreeNode[] = [
     {
       typeId: 10,
@@ -189,8 +169,8 @@ describe('chainActualsFrom — ME-aware marginal cascade', () => {
 
   it("reduces the focused build's marginal draw by its own ME, cascading fractionally", () => {
     const actuals = chainActualsFrom(tree, 10, computeBatchLedgerWithMe(tree, 1, me10));
-    expect(actuals.get(1)?.get(20)).toBeCloseTo(180, 9); // 2 runs × 100 × 0.9
-    expect(actuals.get(2)?.get(30)).toBeCloseTo(4.5, 9); // (180 / 40) × 1, F is ME0
+    expect(actuals.get(1)?.get(20)).toBeCloseTo(180, 9);
+    expect(actuals.get(2)?.get(30)).toBeCloseTo(4.5, 9);
   });
 
   it('byte-identical to the unowned cascade when nothing is owned', () => {
@@ -198,17 +178,13 @@ describe('chainActualsFrom — ME-aware marginal cascade', () => {
     const plainActuals = chainActualsFrom(tree, 10, computeBatchLedger(tree, 1));
     expect(meActuals.get(1)?.get(20)).toBe(plainActuals.get(1)?.get(20));
     expect(meActuals.get(2)?.get(30)).toBe(plainActuals.get(2)?.get(30));
-    expect(plainActuals.get(1)?.get(20)).toBe(200); // ME0: 2 × 100
-    expect(plainActuals.get(2)?.get(30)).toBe(5); // ME0: (200 / 40) × 1
+    expect(plainActuals.get(1)?.get(20)).toBe(200);
+    expect(plainActuals.get(2)?.get(30)).toBe(5);
   });
 });
 
 describe('computeBatchMaterialsWithMe — byte-identical to ME0 when nothing is owned', () => {
-  // THE load-bearing guarantee: with no owned blueprints the topological ME path
-  // must reproduce the incremental ME0 walk EXACTLY, so the gross seed (which
-  // never passes meOf) is untouched. Proven over every committed blueprint tree
-  // (incl. the Legion oracle's reactions + shared components) at several run
-  // counts — not just one fixture.
+
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
 
   for (const [name, tree] of fixtures) {
@@ -237,9 +213,7 @@ describe('computeBatchMaterialsWithMe — byte-identical to ME0 when nothing is 
 });
 
 describe('computeBatchMaterialsWithMe — EVE material-efficiency formula', () => {
-  // A one-level build: the TOP blueprint (BP 9000) consumes raw R (typeId 1) at a
-  // base quantity. The top blueprint's owned ME reduces it per the EVE formula
-  //   max(runs, ceil(round(qty · runs · (1 − ME/100), 2))).
+
   const oneLevel = (baseQty: number): TreeNode[] => [{ typeId: 1, quantity: baseQty, inputs: [] }];
   const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
 
@@ -261,11 +235,7 @@ describe('computeBatchMaterialsWithMe — EVE material-efficiency formula', () =
 });
 
 describe('computeBatchMaterialsWithMe — aggregate-then-ceil (non-linearity guard)', () => {
-  // Component C (BP 1200, ME10) is shared by two parents A and B, each driving 1
-  // run of C → C runs 2× total, consuming raw I at qty 7/run. ME must be applied
-  // ONCE over C's whole 2-run total: max(2, ceil(round(7·2·0.9))) = ceil(12.6) =
-  // 13. An incremental per-visit ME would compute ceil(6.3)=7 twice = 14. This
-  // test fails the moment the topological pass is "optimised" back to the walk.
+
   const child = (): TreeNode => ({
     typeId: 200,
     quantity: 1,
@@ -284,19 +254,18 @@ describe('computeBatchMaterialsWithMe — aggregate-then-ceil (non-linearity gua
 });
 
 describe('computeBatchLedgerWithMe — per-layer ME independence', () => {
-  // Top (BP 9000, ME10) → M (BP 9001, ME0) → D (BP 9002, ME10) → raw R. Each
-  // layer must reduce by ITS OWN blueprint's ME — never a neighbour's.
+
   const tree: TreeNode[] = [
     {
-      typeId: 10, // mid component M, top consumes 10/run
+      typeId: 10,
       quantity: 10,
       producedBy: { blueprintTypeId: 9001, quantityPerRun: 1, runsNeeded: 10 },
       inputs: [
         {
-          typeId: 20, // deep component D, M consumes 2/run
+          typeId: 20,
           quantity: 2,
           producedBy: { blueprintTypeId: 9002, quantityPerRun: 1, runsNeeded: 2 },
-          inputs: [{ typeId: 30, quantity: 10, inputs: [] }], // raw R, D consumes 10/run
+          inputs: [{ typeId: 30, quantity: 10, inputs: [] }],
         },
       ],
     },
@@ -306,9 +275,9 @@ describe('computeBatchLedgerWithMe — per-layer ME independence', () => {
 
   it('top ME10 reduces M (9 runs, not 10); mid ME0 leaves D (18); deep ME10 reduces R (162)', () => {
     const ledger = computeBatchLedgerWithMe(tree, 1, opts);
-    expect(ledger.builds.get(10)?.runs).toBe(9); // top ME10: max(1,ceil(9)) = 9
-    expect(ledger.builds.get(20)?.runs).toBe(18); // mid ME0: 9 runs × 2 = 18
-    expect(ledger.raws.get(30)).toBe(162); // deep ME10: max(18,ceil(162)) = 162
+    expect(ledger.builds.get(10)?.runs).toBe(9);
+    expect(ledger.builds.get(20)?.runs).toBe(18);
+    expect(ledger.raws.get(30)).toBe(162);
   });
 
   it('all-ME0 control: M 10, D 20, R 200', () => {
@@ -320,10 +289,7 @@ describe('computeBatchLedgerWithMe — per-layer ME independence', () => {
 });
 
 describe('computeBatchLedgerWithMe — cascade + reaction ME0', () => {
-  // Top (BP 9000, ME10) consumes 100 of reaction product C (BP 1200, a reaction →
-  // ME0), made 30/run, consuming 1 raw R/run. Top's ME cuts C demand 100 → 90, so
-  // C runs ⌈90/30⌉ = 3 (vs ⌈100/30⌉ = 4 at ME0) — the cascade. C is a reaction, so
-  // it applies NO ME of its own to R: 3 runs × 1 = 3.
+
   const tree: TreeNode[] = [
     {
       typeId: 200,
@@ -349,10 +315,7 @@ describe('computeBatchLedgerWithMe — cascade + reaction ME0', () => {
 });
 
 describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', () => {
-  // A one-level build: the TOP blueprint (BP 9000) consumes raw R (typeId 1). The
-  // structure applies a (1 − structureMe/100) factor to that job; here as a plain
-  // factor — the realistic per-activity mapping is tested over computeStructureBonus
-  // in the selector's structureFactorsFor.
+
   const oneLevel = (baseQty: number): TreeNode[] => [{ typeId: 1, quantity: baseQty, inputs: [] }];
   const noBpMe = (mult: number) => ({
     meOf: () => undefined,
@@ -361,14 +324,12 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
   });
 
   it('reduces a node by the structure factor, rounded once', () => {
-    // qty 200, 1 run, ME0, structure 0.95 → max(1, ceil(round(200·0.95))) = 190
+
     expect(asMap(computeBatchMaterialsWithMe(oneLevel(200), 1, noBpMe(0.95)))).toEqual({ 1: 190 });
   });
 
   it('composes blueprint ME and the structure as ONE round (no double-ceil)', () => {
-    // qty 199, ME1, structure 0.99: single round = ceil(round(199·0.99·0.99, 2)) =
-    // ceil(195.04) = 196. A double-ceil (ME-ceil 198, then structure-ceil) would
-    // give 197 — so this pins the single round-at-end.
+
     const opts = {
       meOf: (bp: number) => (bp === 9000 ? 1 : undefined),
       topBlueprintTypeId: 9000,
@@ -378,7 +339,7 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
   });
 
   it('honours the ≥1-per-run floor under a structure factor', () => {
-    // qty 1, 100 runs, structure 0.95 → max(100, ceil(round(95))) = 100
+
     expect(asMap(computeBatchMaterialsWithMe(oneLevel(1), 100, noBpMe(0.95)))).toEqual({ 1: 100 });
   });
 
@@ -390,10 +351,7 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
   });
 
   it('applies per node — a reaction child kept at factor 1 draws its raws unreduced', () => {
-    // Top (BP 9000, mfg, structure 0.95) consumes 100 of reaction C (BP 1200, kept
-    // at factor 1 — reactions get no structure ME), made 30/run, 1 raw/run. The top's
-    // factor cuts C demand 100 → 95 → ⌈95/30⌉ = 4 runs; C's own raw draw stays
-    // 4 × 1 = 4, never structure-reduced.
+
     const tree: TreeNode[] = [
       {
         typeId: 200,
@@ -413,9 +371,7 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
 });
 
 describe('computeMarginalMaterials — fractional (Item) basis', () => {
-  // Product needs 5 of X (made 10/run, 7 R/run). Marginal charges the exact
-  // fraction consumed: 0.5 run × 7 = 3.5 R — where the batched basis bears a
-  // whole run's 7.
+
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -434,9 +390,7 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   });
 
   it('sums shared-component demand once (no double count)', () => {
-    // Two parents each need 300 of shared C (1000/run, 1 R/run): 600 total →
-    // 0.6 run → 0.6 R. A per-occurrence walk would give 0.3 + 0.3 = same here,
-    // but the aggregate must not become 2 × anything ceiled.
+
     const sub = (): TreeNode => ({
       typeId: 200,
       quantity: 300,
@@ -451,15 +405,14 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   });
 
   it('applies owned ME as a LINEAR factor (no floor: 100 runs × qty 1 @ ME10 → 90)', () => {
-    // The batched meAdjust floors this at 100 (≥1 per run); the marginal lens is
-    // the un-rounded fraction — 10% off means 90.
+
     const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 1, inputs: [] }];
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
     expect(asMap(computeMarginalMaterials(oneLevel, 100, me10))).toEqual({ 1: 90 });
   });
 
   it('cascades a parent’s ME fractionally to its children', () => {
-    // Top ME10 cuts X demand 5 → 4.5 → 0.45 run × 7 = 3.15 R.
+
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
     const only = computeMarginalMaterials(tree, 1, me10)[0]!;
     expect(only.typeId).toBe(200);
@@ -467,7 +420,7 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   });
 
   it('composes the structure factor linearly with ME', () => {
-    // qty 200, ME10 + structure 0.95 → 200 × 0.9 × 0.95 = 171 exactly (no round/ceil).
+
     const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 200, inputs: [] }];
     const opts = {
       meOf: (bp: number) => (bp === 9000 ? 10 : undefined),
@@ -486,11 +439,7 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
 });
 
 describe('computeMarginalMaterials — resolver flat-materials cross-check', () => {
-  // The resolver's committed flat totals ARE the marginal basis (see the
-  // fixture's _meta): Math.round-ed per line at storage, with lines whose
-  // fractional total rounds to 0 dropped. The client-side marginal walk must
-  // reproduce them at ME0 / 1 run within that rounding: present key → ±1 after
-  // rounding; key absent from the fixture → the computed line rounds to 0.
+
   const flat = flatMaterialsFixture as unknown as Record<
     string,
     { blueprintTypeId: number; outputTypeId: number; materials: Record<string, number> }
@@ -510,7 +459,7 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
           expect(Math.abs(Math.round(quantity) - pinned), `type ${typeId}`).toBeLessThanOrEqual(1);
         }
       }
-      // Completeness the other way: every pinned line is present in the walk.
+
       const computedIds = new Set(computed.map((m) => m.typeId));
       for (const key of Object.keys(expected)) {
         expect(computedIds.has(Number(key)), `fixture type ${key} absent from walk`).toBe(true);
@@ -527,9 +476,7 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
 });
 
 describe('BatchLedger.required — surplus identity', () => {
-  // Every buildable's whole runs were ceiled FROM its aggregate demand, so
-  // produced (runs × batch) can never undershoot required, and demand is
-  // always positive — over every committed tree, both ledger variants.
+
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
 
   for (const [name, tree] of fixtures) {
@@ -545,11 +492,7 @@ describe('BatchLedger.required — surplus identity', () => {
 });
 
 describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)', () => {
-  // THE load-bearing multibuy guarantee: with every buildable in the build set
-  // and nothing owned, the buy list IS the live walk's raw frontier — same seed,
-  // same order, same meAdjust, so the export can never disagree with the ledger.
-  // Proven over every committed tree × several run counts × ME0 AND a nontrivial
-  // per-blueprint ME map (which also pins ME identity of the built portion).
+
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
   const flat = flatMaterialsFixture as unknown as Record<string, { blueprintTypeId: number }>;
 
@@ -558,7 +501,7 @@ describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)
       it(`${name} @ ${runs} run(s): all-build, no owned ≡ computeBatchLedgerWithMe.raws`, () => {
         const meVariants = [
           NO_OWNED,
-          // Deterministic nontrivial ME spread keyed off the blueprint id.
+
           { meOf: (bp: number) => bp % 11, topBlueprintTypeId: flat[name]!.blueprintTypeId },
         ];
         for (const opts of meVariants) {
@@ -596,9 +539,7 @@ describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)
 });
 
 describe('computeMultibuyDemand — bought intermediates terminate the cascade (MECE)', () => {
-  // Product needs 5 of X (made 10/run, 7 raw R per run). Building X buys its
-  // raws; buying X lists X at its demand and NEVER its inputs — an intermediate
-  // and its inputs can't both appear for the same demand, by construction.
+
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -621,16 +562,15 @@ describe('computeMultibuyDemand — bought intermediates terminate the cascade (
   });
 
   it('a checked type nothing demands drops out (bought parent starves it)', () => {
-    // Product → A → C: buying A means C never receives demand, even though C is
-    // in the build set — the buy list is just A.
+
     const nested: TreeNode[] = [
       {
-        typeId: 100, // A
+        typeId: 100,
         quantity: 2,
         producedBy: { blueprintTypeId: 1100, quantityPerRun: 1, runsNeeded: 2 },
         inputs: [
           {
-            typeId: 200, // C
+            typeId: 200,
             quantity: 300,
             producedBy: { blueprintTypeId: 1200, quantityPerRun: 10, runsNeeded: 60 },
             inputs: [{ typeId: 300, quantity: 7, inputs: [] }],
@@ -645,10 +585,7 @@ describe('computeMultibuyDemand — bought intermediates terminate the cascade (
 });
 
 describe('computeMultibuyDemand — multi-depth demand aggregates once', () => {
-  // C is consumed at TWO depths: the product takes 5 directly (depth 1) and each
-  // of A's runs takes 300 (depth 2; product needs 2 A at 1/run). Bought, C must
-  // appear ONCE at the summed demand 5 + 600 = 605 — never one line per depth.
-  // Built, that 605 sum-then-ceils into ⌈605/10⌉ = 61 runs → 427 R.
+
   const c = (qty: number): TreeNode => ({
     typeId: 200,
     quantity: qty,
@@ -656,9 +593,9 @@ describe('computeMultibuyDemand — multi-depth demand aggregates once', () => {
     inputs: [{ typeId: 300, quantity: 7, inputs: [] }],
   });
   const tree: TreeNode[] = [
-    c(5), // depth 1: the product consumes C directly
+    c(5),
     {
-      typeId: 100, // A, depth 1; its runs consume C at depth 2
+      typeId: 100,
       quantity: 2,
       producedBy: { blueprintTypeId: 1100, quantityPerRun: 1, runsNeeded: 2 },
       inputs: [c(300)],
@@ -679,10 +616,7 @@ describe('computeMultibuyDemand — multi-depth demand aggregates once', () => {
 });
 
 describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', () => {
-  // Helium Fuel Blocks (4247) sit at several depths of the committed Archon tree
-  // (reactions AND component jobs burn them). Bought, they must be one line at
-  // exactly the aggregate demand the live ledger derived its runs from, and every
-  // raw the fuel-block runs would have consumed shrinks or disappears.
+
   const archon = (treesFixture as Record<string, TreeNode[]>).Archon!;
   const base = computeBatchLedgerWithMe(archon, 1, NO_OWNED);
   const FUEL_BLOCK = 4247;
@@ -693,20 +627,19 @@ describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', 
     buildSet.delete(FUEL_BLOCK);
     const buy = computeMultibuyDemand(archon, 1, NO_OWNED, { buildSet });
     expect(buy.get(FUEL_BLOCK)).toBe(base.builds.get(FUEL_BLOCK)!.required);
-    // Raws only ever shrink when a buildable flips to bought…
+
     for (const [typeId, qty] of buy) {
       if (typeId === FUEL_BLOCK) continue;
       expect(qty, `raw ${typeId}`).toBeLessThanOrEqual(base.raws.get(typeId) ?? 0);
     }
-    // …and the fuel-block runs' own draw actually disappears somewhere.
+
     const shrank = [...base.raws].some(([typeId, qty]) => (buy.get(typeId) ?? 0) < qty);
     expect(shrank).toBe(true);
   });
 });
 
 describe('computeMultibuyDemand — Remaining (owned subtraction, one code path)', () => {
-  // Product needs 5 of X per run (X made 10/run, 7 R per run) — at 3 requested
-  // runs, X demand is 15 → 2 whole X runs → 14 R from scratch.
+
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -718,7 +651,7 @@ describe('computeMultibuyDemand — Remaining (owned subtraction, one code path)
   const all = { buildSet: new Set([100]) };
 
   it('an owned intermediate reduces its runs THROUGH the ceil (7 owned: 2 → 1 run)', () => {
-    // net 15 − 7 = 8 → ⌈8/10⌉ = 1 run → 7 R, not 14.
+
     const buy = computeMultibuyDemand(tree, 3, NO_OWNED, {
       ...all,
       ownedOf: (id) => (id === 100 ? 7 : 0),
@@ -768,7 +701,7 @@ describe('collectBlueprintTypeIds', () => {
           },
         ],
       },
-      { typeId: 400, quantity: 2, inputs: [] }, // raw — no blueprint
+      { typeId: 400, quantity: 2, inputs: [] },
     ];
     expect(collectBlueprintTypeIds(tree, 9000).sort((a, b) => a - b)).toEqual([1100, 1200, 9000]);
   });

@@ -8,35 +8,35 @@ import { buildSkillsView, type AppliedTimeSkill, type SkillTimeBreakdown } from 
 import { formatBonusPct } from '../structure-bonus-view';
 import type { BlueprintStructure } from '../types';
 
-// EVE renders trained levels as roman numerals — match the in-game reading.
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
 const roman = (level: number) => ROMAN[level] ?? String(level);
 
-// One applied-skill line: name + trained level left, its own reduction right —
-// the TotalJobHover row idiom, so every skills panel reads the same way.
 function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
   return (
     <div className="flex items-baseline justify-between gap-3 font-data text-micro">
       <span className="truncate text-muted">
         {skill.name} {roman(skill.level)}
       </span>
+
       <span className="shrink-0 tabular-nums text-text">−{formatBonusPct(skill.reductionPct)}</span>
+
     </div>
+
   );
 }
 
-// Divider + compound total — the popover's bottom line, toned to its icon.
 function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: number; toneClass: string }) {
   return (
     <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-data text-micro">
       <span className="uppercase tracking-wide text-muted">{label}</span>
+
       <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
+
     </div>
+
   );
 }
 
-// One hourglass metric that opens its skills panel on hover/tap — the Popover
-// primitive (never a bare title attr), same panel format as the other hovers.
 function SkillMetric({
   label,
   icon,
@@ -55,30 +55,16 @@ function SkillMetric({
         <span aria-hidden className="inline-flex h-3.5 w-3.5 shrink-0">
           {icon}
         </span>
+
       }
       triggerClassName={`inline-flex size-5 cursor-pointer items-center justify-center rounded-ctl border border-current/35 bg-surface-sunk transition-colors hover:bg-row-active focus-visible:ring-1 focus-visible:ring-current ${toneClass}`}
     >
       {children}
     </Popover>
+
   );
 }
 
-// The build character's skills-applied readout (3.7.19.1), filling the hero
-// seam RIGHT of the Run-As frame that ACCOUNT.8 reserved for exactly this. One
-// hourglass metric per activity the plan contains (time-only lever ⇒ hourglass
-// only, no gem): manufacturing in the OWNED evb-bright tone, reactions in
-// REACTION PURPLE (Ryan-directed token) so the two read apart at a glance.
-// Hovering either opens its skills panel: the applied skills listed, the
-// compound total effect at the bottom.
-//
-// Absolutely positioned off the frame wrapper so it has ZERO layout footprint —
-// it spills into the band's reserved cluster gap and nothing reflows when it
-// appears (Ryan's spec: fit the existing space, shift nothing). Renders nothing
-// in EVERY degraded state (unset, pending roster, levels loading or fail-open,
-// nothing trained for the plan's activities) — the readout never claims an
-// effect the time figures don't carry.
-// The manufacturing hourglass metric + its skills panel (activity-wide skills
-// with a compound total, then the per-item T2 skills present in this plan).
 function MfgSkillMetric({
   characterName,
   breakdown,
@@ -93,6 +79,7 @@ function MfgSkillMetric({
       toneClass="text-evb-bright"
     >
       <PopoverHeading>{characterName} — manufacturing</PopoverHeading>
+
       {breakdown.manufacturing.skills.length > 0 && (
         <div className="flex flex-col gap-1">
           {breakdown.manufacturing.skills.map((skill) => (
@@ -100,23 +87,27 @@ function MfgSkillMetric({
           ))}
           <TotalLine label="All mfg jobs" totalPct={breakdown.manufacturing.totalPct} toneClass="text-evb-bright" />
         </div>
+
       )}
       {breakdown.perItem.length > 0 && (
         <div className="flex flex-col gap-1">
           <div className="text-label uppercase tracking-wide text-faint">Per-item</div>
+
           {breakdown.perItem.map((skill) => (
             <SkillLine key={skill.name} skill={skill} />
           ))}
           <p className="text-micro leading-snug tracking-copy text-faint">
             Applied on top of the total, only to jobs requiring the skill.
           </p>
+
         </div>
+
       )}
     </SkillMetric>
+
   );
 }
 
-// The reaction hourglass metric (reaction purple) + its skills panel.
 function RxnSkillMetric({
   characterName,
   breakdown,
@@ -131,6 +122,7 @@ function RxnSkillMetric({
       toneClass="text-[var(--color-reaction-purple)]"
     >
       <PopoverHeading>{characterName} — reactions</PopoverHeading>
+
       <div className="flex flex-col gap-1">
         {breakdown.reaction.skills.map((skill) => (
           <SkillLine key={skill.name} skill={skill} />
@@ -141,11 +133,12 @@ function RxnSkillMetric({
           toneClass="text-[var(--color-reaction-purple)]"
         />
       </div>
+
     </SkillMetric>
+
   );
 }
 
-/** Renders character skill levels and their time reduction for the active blueprint activity. */
 export function BuildSkillsIndicator({ structure }: { structure: BlueprintStructure }) {
   const { buildCharacter, skillTimeFactors, buildCharacterSkillLevels } = useBuildCharacter();
   const view = buildSkillsView(buildCharacter, skillTimeFactors.active, buildCharacterSkillLevels, structure);
@@ -157,5 +150,6 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
       )}
       {view.showRxn && <RxnSkillMetric characterName={view.characterName} breakdown={view.breakdown} />}
     </div>
+
   );
 }
