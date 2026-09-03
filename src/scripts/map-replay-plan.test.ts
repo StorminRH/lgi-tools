@@ -93,7 +93,7 @@ describe('spawn planning', () => {
     const step = plan.steps[2];
     expect(step?.drainedConnections).toEqual([{ fromSystemId: A, toSystemId: C }]);
     expect(step?.connections).toEqual([{ fromSystemId: B, toSystemId: C }]);
-    // Prefer the current-step discoverer over the drained orphan/deferred edge.
+
     expect(step && attachingEdgeOf(step)).toEqual({ fromSystemId: B, toSystemId: C });
   });
 

@@ -25,10 +25,6 @@ export async function readSdeSentinelCounts(db: PostgresJsDb): Promise<SdeRowCou
   };
 }
 
-/**
- * Ingests from CCP and stamps `sde_version`. The same stamp ingest-sde and the
- * CI seed use after a successful load.
- */
 export async function ingestAndStampSdeVersion(
   db: PostgresJsDb,
   options: { keepCache?: boolean; remoteVersion?: string | null } = {},

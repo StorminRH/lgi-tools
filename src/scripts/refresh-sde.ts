@@ -1,15 +1,3 @@
-// Manual recovery hook for the SDE drift cron. Same logic as
-// /api/cron/refresh-sde — checks the stored sde_version against
-// CCP's current SDE build number and re-ingests on drift. Useful
-// when the daily cron didn't fire, when the operator wants to force
-// a re-resolve after a resolver code change (use --force), or when
-// debugging the drift path locally.
-//
-// Run:
-//   pnpm db:refresh-sde            (drift-aware, against .env.local)
-//   pnpm db:refresh-sde --force    (re-ingest regardless of version)
-//   pnpm db:refresh-sde:prod       (against .env.production.local)
-
 import { config } from 'dotenv';
 import { readEnv } from '@/lib/env';
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
@@ -33,9 +21,6 @@ import {
 
 const force = process.argv.includes('--force');
 
-// Direct (unpooled) endpoint — the SDE ingest advisory lock is
-// session-scoped and won't hold through the `-pooler` endpoint.
-// max: 2 — one for the advisory lock, one for the data ops.
 const client = postgres(resolveLockConnectionUrl(), { max: 2, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 

@@ -13,12 +13,6 @@ import { runScript } from './script-runtime';
 
 const mode = parseArgs(process.argv.slice(2));
 
-// Direct (unpooled) endpoint via resolveLockConnectionUrl — prefers
-// DATABASE_URL_UNPOOLED and fails closed on a pooled host. The bulk upsert
-// runs fine on the direct endpoint, which this shared resolver hands us.
-//
-// max: 5 gives headroom for the parallel bulk-upsert against the ~6,000-type
-// tracked set (bumped from 2 in 3.0.4 when the set grew).
 const client = postgres(resolveLockConnectionUrl(), { max: 5, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
 
 async function main() {
@@ -32,8 +26,7 @@ async function main() {
     const map = await getPrices(mode.ids);
     const readback = mode.ids.map((id) => map.get(id) ?? { typeId: id, missing: true });
     console.log('Read-back via getPrices:');
-    // Price rows carry bigint volume columns; JSON.stringify throws on a BigInt,
-    // so coerce them to number for the log (volumes stay well under MAX_SAFE_INTEGER).
+
     console.log(
       JSON.stringify(readback, (_key, value) => (typeof value === 'bigint' ? Number(value) : value), 2),
     );
