@@ -28,12 +28,6 @@ const SETUP_STEPS = [
   },
 ] as const;
 
-/**
- * The signed-out Atlas landing. Maps, membership, and location tracking are all
- * per-account, so a guest sees the sign-in gate plus the short setup path
- * instead of an empty catalogue with controls that cannot succeed. The sign-in
- * returns here, keeping a shared `?map=` selection through the round-trip.
- */
 export function AtlasGuestLanding() {
   const returnHref = atlasSignInReturnHref(useSearchParams());
 
