@@ -1,5 +1,5 @@
-import { io } from 'next/cache';
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { AppHeaderShell } from '@/components/composition/AppHeaderShell';
 import { ServerStatus } from '@/components/composition/ServerStatus';
@@ -14,9 +14,11 @@ import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 // instance of the registry, leaving the client's empty.
 
 async function NavServerStatus() {
-  // `stale: 30` is still prerender-eligible. Without `io()`, build HTML can
-  // bake one player count and request-time RSC another — React #418 on hydrate.
-  await io();
+  // Real request only. `io()` still lets `'use cache: remote'` fill on
+  // prerender/prefetch; a fail-closed ESI miss is then cached as offline and
+  // served to logged-out visitors. `connection()` is the same gate affiliation
+  // ESI uses so Next does not start that fetch until a full navigation.
+  await connection();
   return <ServerStatus status={await getNavServerStatus()} />;
 }
 
