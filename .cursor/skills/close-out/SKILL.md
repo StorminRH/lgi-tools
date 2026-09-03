@@ -51,19 +51,23 @@ is green on that run. Done when the list exists and step 1 is in progress.
 5. When the destination is `staging`, dump per **Dump**. Done when
    the dump PR is open ready and Greptile and CodeRabbit have been
    requested. Destination `main` skips dump.
-6. Freeze and review. Invoke `adversarial-review` on that Origin
+6. Comments. Invoke `no-comments` on that Origin change. It spawns
+   `comment-sicko`. Both write. Run the local test suite through
+   `test-runner`. Done when accepted deletions and in-scope fixes
+   are on the head and the suite is green.
+7. Freeze and review. Invoke `adversarial-review` on that Origin
    change. Brief is the change number. Every Cursor seat runs
    `origin pr diff <N>`. Bugbot on open. Dump bots when a dump
-   exists. Done when every Cursor seat has returned, Bugbot and
+   exists. Done when every freeze seat has returned, Bugbot and
    dump review have finished posting, and the tree is still the
    freeze head.
-7. One batch. Triage every finding from that settled window.
+8. One batch. Triage every finding from that settled window.
    Dedupe. Accept or reject. Fix the accepted set on the head.
    Note dispositions on the Origin PR. Run the local test suite.
    Pause in chat with the reasoning when leaving a finding
    unfixed. Done when every accepted finding is on the head, or
    the operator has that pause, and the suite is green.
-8. When the destination is `staging`, author as-builts for the
+9. When the destination is `staging`, author as-builts for the
    work this PR delivers, per `docs/workflows/schema/session-as-built.md`.
    One record per session in the range, and one for ordinary work
    in the same PR. A session that still has work only on
@@ -72,17 +76,17 @@ is green on that run. Done when the list exists and step 1 is in progress.
    lift. Push the as-builts and any remaining dump fixes to the
    Origin draft. Run the local test suite on that head. Done when
    those commits are on that PR and the suite is green.
-9. Dispatch per **Depot**. That command is the watch todo. Done
-   when the pipeline has settled (green or finished red).
-10. When Depot is red, one **Findings** cycle, then return to
-    step 9. Done when Depot is green.
-11. When the destination is `main`, merge per **Merge**. Resync
+10. Dispatch per **Depot**. That command is the watch todo. Done
+    when the pipeline has settled (green or finished red).
+11. When Depot is red, one **Findings** cycle, then return to
+    step 10. Done when Depot is green.
+12. When the destination is `main`, merge per **Merge**. Resync
     per **Resync**. Done when Origin `main` holds the head and
     `staging` and `development` contain `main`. Return `RELEASED`.
-12. When the destination is `staging`, `origin pr thread list
+13. When the destination is `staging`, `origin pr thread list
     --unresolved` empty. Merge per **Merge**. Close the dump PR
     unmerged. Done when Origin `staging` holds the head.
-13. Resync per **Resync**. Done when `development` contains
+14. Resync per **Resync**. Done when `development` contains
     `staging`. Return `PROMOTED`.
 
 Outputs. Exactly one:
@@ -137,7 +141,7 @@ comment's thread is resolved or the operator paused, and the dump
 branch matches the Origin head when a dump exists.
 
 A finding is a red Depot job, a dump bot comment, or a review note
-on the Origin PR, including Bugbot. The first batch is step 7.
+on the Origin PR, including Bugbot. The first batch is step 8.
 A red dispatch is a new cycle on the same rule: diagnose, one
 batch, local suite, one `dispatch`.
 

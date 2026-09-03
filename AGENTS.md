@@ -46,9 +46,10 @@ comments on standing `LGI-6`.
 `origin pr create --head <head> --base <destination>`
 Create defaults to draft. Leave it draft through reviews and fixes.
 Always pass `--head` and `--base`; after `test-runner` the checkout can
-be detached. Reviewers run `origin pr diff <N>`. The brief is the
-change number. Freeze that head until every seat has returned. Then
-one batch: triage, dedupe, fix, note on the PR. A push is a version.
+be detached. `no-comments` and `comment-sicko` write first. Freeze that
+head. Reviewers run `origin pr diff <N>`. The brief is the change
+number. Keep that freeze until every seat has returned. Then one
+batch: triage, dedupe, fix, note on the PR. A push is a version.
 `refresh` when `view` still shows the previous one. Bugbot reviews
 once on open. Accumulating drafts stay draft; `dispatch` waits until
 that PR is finishing. Origin assigns a thread id. A review is a
