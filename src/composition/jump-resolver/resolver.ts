@@ -40,16 +40,8 @@ import {
 
 const CAPSULE_TYPE_ID = 670;
 
-/**
- * Oldest transition the doorbell may still author. Long enough for the
- * observer's bounded retries across transient Neon/Convex failures; short
- * enough that a location document frozen while no edit-capable client was
- * open (laptop shut, map closed for days) lapses to re-anchor semantics
- * instead of authoring a long-dead crossing as current map fact.
- */
 const JUMP_CAPTURE_WINDOW_MS = 10 * 60_000;
 
-/** Injectable runtime seams for deterministic route/composition proof. */
 export interface JumpResolverDependencies {
   readonly readTransitionEvidence: typeof readTransitionEvidence;
   readonly readConnectionEvidence: typeof readConnectionEvidence;
@@ -173,7 +165,7 @@ function isWormholeSpace(
   systemId: number,
 ): boolean {
   const facts = systemFacts(systems, systemId);
-  // The J-space boundary has one owner: the shared row-based band classifier.
+
   return (
     facts !== null
     && systemSecurityClass(facts.securityStatus, facts.wormholeClassId) === 'wormhole'
@@ -269,8 +261,7 @@ async function eliminateAfterCommit(
         { mapId, systemId },
       );
     } catch (cause) {
-      // The topology commit already landed; elimination is a convergent
-      // follow-up and must not turn a real jump into a retryable movement.
+
       dependencies.reportEliminationFailure(cause);
     }
   }
@@ -369,9 +360,7 @@ async function resolveDoorbell(
     return retry('convex-resolve');
   }
   if (resolved.status === 'stale') {
-    // Candidate-set races (a concurrent author, correction, or scan changed
-    // the pool between the evidence read and the mutation) are re-derivable:
-    // a fresh read succeeds, so the client must not settle the transition.
+
     return RETRYABLE_STALE_REASONS.has(resolved.reason)
       ? retry(resolved.reason)
       : resolved;
@@ -386,12 +375,7 @@ async function resolveDoorbell(
     resolved.emission,
     dependencies,
   );
-  // Emission follows what the mutation actually stamped, never the matcher's
-  // pre-transaction verdict: on a convergence the touched row is a different
-  // document whose stored provenance governs (HC-3 — a human tier must not be
-  // overwritten by a jump-verified refresh). Every tier now emits under its own
-  // tag, `assumed` included (operator ruling D-B): the corpus records how each
-  // identity was learned rather than discarding the weaker evidence.
+
   const tier = resolved.emission.destinationProvenance;
   const emitted = tier === null
     ? false
@@ -437,10 +421,7 @@ async function resolveConfirmation(
   try {
     emitted = await emitObservation(database, emission, provenance, dependencies);
     if (!emitted && emission.observationKey !== null) {
-      // The identity event landed on facts the emission guard rejects
-      // (untyped target, K162, class contradiction). Any previously emitted
-      // row under this key now asserts a vacated identity — remove it rather
-      // than leaving unrepairable corpus pollution. Absent row: no-op.
+
       await dependencies.deleteWhObservation(database, emission.observationKey);
     }
   } catch (cause) {
@@ -479,9 +460,7 @@ async function resolveTypedHole(
       dependencies,
     );
     if (!emitted && evidence.connection.observationKey !== null) {
-      // Retyping to K162, an unidentified code, or a class-contradicted type
-      // makes any previously emitted row assert a superseded identity — the
-      // same repair as the answer path removes it. Absent row: no-op.
+
       await dependencies.deleteWhObservation(
         database,
         evidence.connection.observationKey,
@@ -494,7 +473,6 @@ async function resolveTypedHole(
   }
 }
 
-/** Resolves one authenticated jump workflow request without trusting client-supplied facts. */
 export function resolveJumpRequest(
   database: AnyPgDb,
   userId: string,

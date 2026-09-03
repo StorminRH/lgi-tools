@@ -13,7 +13,6 @@ import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import { resolveMapPrincipalsWithOutcome } from './map-access';
 
-/** One projected claim: the complete effective role set one user holds on one map. */
 export interface MapAccessClaim {
   readonly userId: string;
   readonly roles: readonly MapRole[];
@@ -130,7 +129,6 @@ async function computeMapAccessClaimsForState(
   return claims;
 }
 
-/** Computes ordinary/resync claims, always denying archived durable maps. */
 export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
   return computeMapAccessClaimsForState(mapId, false);
 }
@@ -171,10 +169,6 @@ async function projectMapAccessState(
   return postMapAccessProjection({ mapId, revision, claims }, options);
 }
 
-/**
- * Projects active durable access into Convex, or empty claims for an archived
- * map. One-way by construction: Convex never decides durable truth.
- */
 export function projectMapAccess(
   mapId: string,
   options: ProjectMapAccessOptions = {},
@@ -182,7 +176,6 @@ export function projectMapAccess(
   return projectMapAccessState(mapId, options, false);
 }
 
-/** Creation-only projection for the deliberately archived hidden staging row. */
 export function projectStagedMapAccess(
   mapId: string,
   options: ProjectMapAccessOptions = {},
@@ -201,10 +194,6 @@ export async function teardownMapAccessProjection(mapId: string): Promise<Projec
   );
 }
 
-/**
- * Deletes one user's projected claims across all maps through the bearer-gated
- * /purge-map-access door. Used by whole-user Neon purge after owned maps are gone.
- */
 export async function purgeUserMapAccessProjection(
   userId: string,
 ): Promise<{ deleted: number }> {

@@ -6,9 +6,6 @@ import { runAfterCharacterLinkChanged } from '@/platform/auth/identity-projectio
 import { classifyOwnerReconcile } from '@/platform/auth/owner-reconcile';
 import { account } from '@/db/auth-schema';
 
-/**
- * Reconciles an EVE character's verified owner hash with stored custody.
- */
 export async function reconcileCharacterOwner(
   characterId: number,
   jwtOwnerHash: string | null | undefined,
@@ -34,16 +31,12 @@ export async function reconcileCharacterOwner(
   await purgeTransferredCharacter(row.userId, characterId);
 }
 
-/**
- * Purges transferred character custody and reconciles the prior owner's remaining account.
- */
 export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
 ): Promise<void> {
   await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
   await reconcileAfterCharacterRemoval(priorUserId, characterId);
-  // Credential-only transfer must not skip Convex location/lease/tracking: the
-  // sync poll is mapTracking now, not a Neon character enum.
+
   await runAfterCharacterLinkChanged({ userId: priorUserId, characterId });
 }

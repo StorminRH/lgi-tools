@@ -1,6 +1,3 @@
-// One route shell owns auth → idle probe → pre-lock gate → advisory lock →
-// work → telemetry ordering. Routes declare policy and supply domain work;
-// none reassemble the lifecycle or reach its lower-level primitives directly.
 import type { Sql } from '@/db';
 import {
   capabilityResultForError,
@@ -18,22 +15,8 @@ import {
   type ReservedConnection,
 } from '@/db/advisory-lock';
 
-/**
- * Wake class a cron declares: `batch` for daily jobs whose purpose is waking
- * Neon; `idle-silent` for sub-daily watchdogs or drains whose healthy no-op run
- * must touch zero Neon (no lock, no read, no write). The schedule cross-check
- * gate requires every sub-daily schedule to map to an `idle-silent`
- * declaration or carry a written justification.
- */
 export type CronWakeClass = 'batch' | 'idle-silent';
 
-/**
- * Handles the shell passes to a declaration's stages so route files never
- * import DB or telemetry primitives directly: the shared direct Neon client,
- * the reserved lock connection when the declaration is lock-guarded, and
- * `record` for route-specific durable telemetry events. Recording failures are
- * swallowed because observability must not break cron work.
- */
 export type CronWorkContext = {
   client: Sql;
   reserved?: ReservedConnection;
@@ -43,12 +26,6 @@ export type CronWorkContext = {
   ) => Promise<void>;
 };
 
-/**
- * What one cron run produced. `outcome` labels the boundary log line and
- * durable telemetry row; `workDone` feeds the recording policy; `telemetry`
- * carries route-specific metadata; and `body` is serialized as the route's
- * typed JSON response. The shell appends `durationMs` to telemetry.
- */
 export type CronRunOutcome<Body> = {
   outcome: string;
   workDone: boolean;
@@ -56,17 +33,6 @@ export type CronRunOutcome<Body> = {
   body: Body;
 };
 
-/**
- * One cron route as a declaration: telemetry identity, wake class, lock and
- * recording policies, an optional pre-lock gate, and the work itself.
- * `defineCronRoute` is the only route-level path to auth, advisory locks, or
- * durable cron telemetry, so their ordering cannot drift. Lock contention
- * short-circuits to the declared busy body. `record: 'always'` requires a
- * written justification; the default noteworthy policy records only failure
- * or completed work. `idle.probe` runs before any context or lock exists and
- * may finish an idle-silent run with one boundary line. `preLock` may return a
- * full outcome or pass a typed value into `work`.
- */
 export type CronRouteDeclaration<Body, Pre = void> = {
   name: string;
   action: UsageAction;
@@ -128,13 +94,6 @@ type CronRecordedOutcome = Pick<
   'outcome' | 'workDone' | 'telemetry'
 >;
 
-/**
- * Emits one run's boundary line, then its durable rows under the declared recording policy. The
- * capability row obeys that same policy rather than firing per run, so an `idle` or `busy` no-op
- * still touches zero Neon and the `idle-silent` wake-class contract holds. The cron's own outcome
- * vocabulary (`idle`, `busy`, `refreshed`, …) stays in the `UsageAction` row's metadata; the
- * capability record's `outcome` is closed to the shared failure taxonomy plus `succeeded`.
- */
 async function emitRun(
   declaration: CronRecordingDeclaration,
   outcome: CronRecordedOutcome,
@@ -172,10 +131,6 @@ async function finishRun<Body, Pre>(
   return Response.json(outcome.body);
 }
 
-// Owns stage ordering, duration capture, the every-run structured boundary line,
-// the recording-policy-gated durable rows, the busy response, and failure
-// recording. Extracted from the returned handler so wrapping the run in a
-// correlation scope adds no nesting to the ordering below.
 async function runDeclaredCron<Body, Pre>(
   declaration: CronRouteDeclaration<Body, Pre>,
 ): Promise<Response> {
@@ -263,10 +218,6 @@ async function runDeclaredCron<Body, Pre>(
   }
 }
 
-/**
- * Builds the GET handler for one declared cron route. Bearer auth runs outside the correlation
- * scope so an unauthenticated probe never records a run.
- */
 export function defineCronRoute<Body, Pre = void>(
   declaration: CronRouteDeclaration<Body, Pre>,
 ): (req: Request) => Promise<Response> {
