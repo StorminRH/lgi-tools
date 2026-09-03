@@ -79,13 +79,13 @@ describe('apiResponse', () => {
 
   it('makes undeclared statuses, wrong bodies, and body-on-empty fail typecheck', () => {
     if (false) {
-
+      // @ts-expect-error Status 200 is not declared by this endpoint.
       apiResponse(endpoint, 200, { id: 'abc' });
-
+      // @ts-expect-error Status 201 requires the declared JSON body.
       apiResponse(endpoint, 201, 'abc');
-
+      // @ts-expect-error Empty status 204 accepts no body.
       apiResponse(endpoint, 204, { id: 'abc' });
-
+      // @ts-expect-error The other endpoint's response shape cannot cross endpoints.
       apiResponse(otherEndpoint, 200, { id: 'abc' });
     }
     expect(true).toBe(true);

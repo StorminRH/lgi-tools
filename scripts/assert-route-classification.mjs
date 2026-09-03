@@ -35,7 +35,6 @@ function metaPathFor(route) {
 function classify(route) {
   if (!prerendered.has(route)) return 'dynamic';
   const metaPath = metaPathFor(route);
-
   if (!existsSync(metaPath)) return 'partial';
   return 'postponed' in readJson(metaPath) ? 'partial' : 'static';
 }
