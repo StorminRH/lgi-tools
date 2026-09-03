@@ -10,7 +10,7 @@ const revalidateTagMock = vi.fn();
 
 let lockGot = true;
 const reservedTag = vi.fn(() => Promise.resolve([{ got: lockGot }]));
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (reservedTag as any).release = vi.fn();
 const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
