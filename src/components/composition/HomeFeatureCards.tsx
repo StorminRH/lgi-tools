@@ -47,8 +47,6 @@ export function HomeFeatureCards() {
   return (
     <section>
       <SectionLabel className="mb-cluster">Tools</SectionLabel>
-
-      {}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         <FeatureCard
           href="/sites"

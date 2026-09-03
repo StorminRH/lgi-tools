@@ -63,7 +63,6 @@ export function NavMenu() {
 
       <PageMenuSection />
       <div data-nav-login-footer className="flex border-t border-border px-4 py-3">
-        {}
         <LoginButton variant="flat" />
       </div>
 

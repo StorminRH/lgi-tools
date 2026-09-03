@@ -51,7 +51,6 @@ export async function HomeLiveStats() {
                 i < 2 && 'border-b',
               )}
             >
-              {}
               <dt className="order-2 font-data text-label uppercase tracking-label text-muted">
                 {stat.label}
               </dt>

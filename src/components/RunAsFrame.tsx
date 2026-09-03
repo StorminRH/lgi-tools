@@ -136,7 +136,6 @@ export function RunAsFrame({
         value={buildRadioValue(buildCharacter)}
         onValueChange={(value) => onSelect(parseRadioSelection(value as number))}
       >
-        {}
         <MenuRadioItem value={0} closeOnClick className={menuRow}>
           <span className="truncate">Default (active character)</span>
 

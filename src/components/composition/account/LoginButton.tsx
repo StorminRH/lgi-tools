@@ -30,7 +30,6 @@ function SignedOutButton() {
       }}
       className="inline-flex items-center hover:opacity-80 transition-opacity"
     >
-      {}
       <EveImage
         source="static"
         src="/eve-sso-login-black-large.png"
