@@ -1,6 +1,5 @@
 import { toast } from '@/components/ui/toast';
 
-/** Announces confirmed signature removal with the canonical Undo action. */
 export function announceSignatureRemoval(input: {
   readonly systemId: number;
   readonly signatureIds: readonly string[];

@@ -12,11 +12,6 @@ import {
 
 const LOADING_TARGET: TrackedSystemTarget = { kind: 'loading' };
 
-/**
- * Account-level live-system target for this map. Both tracking subscriptions
- * must have delivered before "untracked" is a truthful verdict. Paste and
- * persistent windows consume the result through their own policies.
- */
 export function useTrackedSystemTarget(mapId: string): TrackedSystemTarget {
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const coverage = useMapCoverage(mapId, tracking);

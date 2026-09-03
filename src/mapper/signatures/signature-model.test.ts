@@ -331,14 +331,12 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       ).map((section) => section.id),
     ).toEqual(['wormholes', 'combat']);
 
-    // Schema-legal legacy group strings must land unidentified instead of crashing.
     const legacy: SignatureWindowRow = {
       key: 'legacy',
       systemId: SYSTEM,
       signatureId: 'LEG-001',
       kind: 'signature',
-      // Stored rows may carry pre-vocabulary strings (legacy lowercase); the
-      // cast mirrors the schema's v.union(v.string(), v.null()) reality.
+
       group: 'wormhole' as SignatureWindowRow['group'],
       name: null,
       signalPct: null,
@@ -452,8 +450,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteDecision('ordinary clipboard text', true, READY)).toBeNull();
     expect(scannerPasteDecision(valid, false, READY)).toEqual({ kind: 'read-only' });
     expect(scannerPasteDecision(valid, true, NONE)).toEqual({ kind: 'untracked' });
-    // Warm-up honesty: an undelivered tracking feed must never read as
-    // "untracked" — the pilot may well be tracked and online.
+
     expect(scannerPasteDecision(valid, true, { kind: 'loading' })).toEqual({
       kind: 'loading',
     });

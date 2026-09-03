@@ -1,21 +1,9 @@
-/**
- * Account-level live-system target from the caller's online tracked pilots.
- * `loading` is the truthful warm-up state while tracking subscriptions have
- * not delivered — never reported as `none`. `ambiguous` is two+ covered
- * pilots in different systems (paste and window policies consume this
- * independently).
- */
 export type TrackedSystemTarget =
   | { readonly kind: 'ready'; readonly systemId: number }
   | { readonly kind: 'none' }
   | { readonly kind: 'loading' }
   | { readonly kind: 'ambiguous' };
 
-/**
- * Resolves the unique covered system from the account's online tracked
- * pilots on this map. Coverage is the present+online gate — last-known
- * location alone must not unlock a live-system target.
- */
 export function trackedSystemTarget(input: {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {

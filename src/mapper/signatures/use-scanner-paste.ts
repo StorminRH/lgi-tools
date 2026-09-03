@@ -49,7 +49,6 @@ function reportPasteDecision(
   });
 }
 
-/** Owns the Atlas page's one cleaned-up document-level scanner paste listener. */
 export function useScannerPaste(input: {
   readonly canEdit: boolean;
   readonly pasteTarget: TrackedSystemTarget;

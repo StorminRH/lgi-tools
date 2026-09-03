@@ -42,7 +42,6 @@ function sameSelectedIds(a: readonly number[], b: readonly number[]): boolean {
   return a.length === b.length && a.every((id, index) => id === b[index]);
 }
 
-/** Selected system ids — equality-stable across position-only node updates. */
 function useSelectedSystemIds(): readonly number[] {
   return useStore(
     (state) =>
@@ -161,12 +160,12 @@ function DockSurface({
       stackIndex={stackIndex}
       showCloseButton={false}
       onClose={() => undefined}
-      // Click-through overlay: pointer events never reach it, so activation
-      // (bring-to-front) is unreachable by construction.
+
       onActivate={() => undefined}
     >
       <SystemIntelligenceBody systemId={dockSystemId} />
     </MapWindow>
+
   );
 }
 
@@ -200,17 +199,16 @@ function SummarySurface({
     >
       <SystemIntelligenceBody systemId={summaryId} />
     </MapWindow>
+
   );
 }
 
-/** Props supplied by the chain host to the sibling window layer. */
 export interface MapWindowLayerProps {
-  /** Resolved system the persistent dock renders; null hides the dock. */
+
   readonly dockSystemId: number | null;
   readonly onDeselect: () => void;
 }
 
-/** Hosts every map window as a pointer-inert sibling above the canvas. */
 export function MapWindowLayer(props: MapWindowLayerProps) {
   const mounted = useSyncExternalStore(
     subscribeMounted,
@@ -278,5 +276,6 @@ function MountedMapWindowLayer({
         onActivate={() => activate('summary')}
       />
     </div>
+
   );
 }

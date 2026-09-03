@@ -11,7 +11,6 @@ import { loadSystemStatics } from '@/data/wh-statics/client';
 
 const EMPTY_STATIC_SLOTS: ReadonlyMap<number, readonly StaticStubSlot[]> = new Map();
 
-/** Resolves a near-side wormhole code to its broad destination class. */
 export function destinationClassIdForCode(
   code: string,
   codex: WormholeCodex | null,
@@ -20,7 +19,6 @@ export function destinationClassIdForCode(
   return entry === null || entry.farSide ? null : entry.targetClass;
 }
 
-/** Decorates one system's promoted statics with stable multiset identities and classes. */
 export function staticSlotsForCodes(
   systemId: number,
   codes: readonly string[],
@@ -51,7 +49,6 @@ interface LoadedStatics {
   readonly codex: WormholeCodex | null;
 }
 
-/** Loaded static-slot assertions and the codex that classified them. */
 export interface SystemStaticSlots {
   readonly bySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
   readonly codex: WormholeCodex | null;
@@ -62,10 +59,6 @@ const EMPTY_SYSTEM_STATIC_SLOTS: SystemStaticSlots = {
   codex: null,
 };
 
-/**
- * Loads promoted statics for the authored systems named by one content-stable
- * key. A failed system contributes no assertion and cannot retain stale slots.
- */
 export function useSystemStaticSlots(
   systemIdsKey: string,
 ): SystemStaticSlots {

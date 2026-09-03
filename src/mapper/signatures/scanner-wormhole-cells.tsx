@@ -182,21 +182,30 @@ function ReadOnlyWormholeCells({
           >
             {row.className}
           </span>
+
         ) : null}
       </span>
+
       <span className="truncate text-muted">
         <span className="sr-only">{`Mass ${row.signatureId} `}</span>
+
         {scannerMassReadout(connection?.massState ?? null)}
       </span>
+
       <span className="truncate text-muted">
         <span className="sr-only">{`Reliable Lifetime ${row.signatureId} `}</span>
+
         {lifeText}
       </span>
+
       <span className="truncate text-muted">
         <span className="sr-only">{`Destination ${row.signatureId} `}</span>
+
         {scannerLeadsReadout(scannerRowHint(connection, farSide), destination)}
       </span>
+
     </>
+
   );
 }
 
@@ -282,5 +291,6 @@ export function wormholeCells(
         onLinkOrigin={setters.linkToOrigin}
       />
     </>
+
   );
 }
