@@ -9,14 +9,6 @@ import { getCachedSiteCount } from '@/features/wormhole-sites/queries';
 import { formatQuantity } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
 
-/**
- * The home hero's live-data hook — a compact panel of the catalogue + market
- * freshness numbers that prove the tools sit on a living dataset. Identical for
- * anonymous and signed-in visitors and built entirely from cached, no-arg
- * accessors, so it prerenders into the static shell (no per-request work). Dates
- * are absolute UTC — a live "x ago" would freeze at build time. This supersedes
- * the old bottom-of-page Status card; the same five reads now lead the page.
- */
 export async function HomeLiveStats() {
   const [sde, sites, blueprints, trackedTypes, prices] = await Promise.all([
     getCachedSdeVersion(),
@@ -26,8 +18,6 @@ export async function HomeLiveStats() {
     getCachedPricesFreshness(),
   ]);
 
-  // `compact` marks a value that is text (a date) rather than a short tally, so
-  // it renders a step smaller — a 26px date overflows the half-width stat cell.
   const stats: { label: string; value: string; compact?: boolean }[] = [
     { label: 'Wormhole sites', value: formatQuantity(sites) },
     { label: 'Blueprints & reactions', value: formatQuantity(blueprints) },
@@ -44,6 +34,7 @@ export async function HomeLiveStats() {
             <Dot tone="green" />
             Updated on demand
           </span>
+
         }
       >
         Live data
@@ -60,12 +51,11 @@ export async function HomeLiveStats() {
                 i < 2 && 'border-b',
               )}
             >
-              {/* DOM order is <dt> then <dd> — valid <dl> semantics and natural
-                  reading order ("label, value"); `order` flips the visual so the
-                  value still sits on top. */}
+              {}
               <dt className="order-2 font-data text-label uppercase tracking-label text-muted">
                 {stat.label}
               </dt>
+
               <dd
                 className={cn(
                   'order-1 font-data font-semibold text-name tabular-nums',
@@ -74,7 +64,9 @@ export async function HomeLiveStats() {
               >
                 {stat.value}
               </dd>
+
             </div>
+
           ))}
         </dl>
 
@@ -82,14 +74,21 @@ export async function HomeLiveStats() {
           <span className="font-data text-label uppercase tracking-wide text-muted">
             EVE SDE
           </span>
+
           <span className="text-right font-data text-micro text-muted">
             <span className="text-name">{sde.version ?? '—'}</span>
+
             {sde.ingestedAt ? (
               <span className="text-muted"> · ingested {formatUtcDate(sde.ingestedAt)}</span>
+
             ) : null}
           </span>
+
         </div>
+
       </Card>
+
     </section>
+
   );
 }

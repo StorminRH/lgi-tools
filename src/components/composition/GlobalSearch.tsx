@@ -1,22 +1,5 @@
 'use client';
 
-// The in-nav global search component. Spotlight-style cross-source navigator
-// that consumes the platform search registry, now built on the shared Combobox
-// primitive (Base UI Autocomplete) — so the listbox, roving highlight,
-// aria-activedescendant, Esc + outside-press dismiss are the library's, not
-// hand-rolled. This component keeps only what Base UI can't own:
-//
-//   - the global ⌘K shortcut that focuses the input from anywhere
-//   - the debounced dispatch into the search engine, with an AbortController per
-//     query so a fast typist's earlier in-flight searches don't overwrite newer
-//     results when the future Blueprints source's `await import()` lands
-//   - recording rows into localStorage for the Recent source
-//   - dispatching `onSelect(router)` for side-effectful rows (Log out, Log in)
-//     instead of router-pushing their href
-//   - the grouped, grid-laid-out rich rows with match highlighting
-//
-// The Sites source's data is seeded once on mount via setSiteSearchIndex.
-
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { searchAll, type SearchResult, type SearchSection } from '@/platform/search';
@@ -38,10 +21,6 @@ export type Props = {
 
 const DEBOUNCE_MS = 120;
 
-/**
- * Renders the controlled global-search overlay, debounces queries by 120 milliseconds, and returns
- * navigation choices without owning route changes.
- */
 export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   const { session, isAdmin } = useAuth();
   const router = useRouter();
@@ -51,28 +30,20 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   const [sections, setSections] = useState<SearchSection[]>([]);
   const [recents, setRecents] = useState<SearchResult[]>([]);
 
-  // Seed the Sites source's data once. Subsequent rerenders don't re-set.
   useEffect(() => {
     setSiteSearchIndex(siteIndex);
   }, [siteIndex]);
 
-  // Read localStorage Recents on mount; SSR-safe because the read is inside
-  // useEffect. readRecents() returns a fresh array each call, so useSyncExternalStore
-  // would loop on the snapshot identity check — this one-shot setState is lighter.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setRecents(readRecents());
   }, []);
 
-  // Debounce the query so fast typing doesn't run searchAll on every keystroke.
   useEffect(() => {
     const id = setTimeout(() => setDebounced(value), DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [value]);
 
-  // Dispatch the debounced query. Each run gets its own AbortController so the
-  // lazy-loaded Blueprints source can cancel its `await import()` follow-up when
-  // the user keeps typing. AbortError is the expected cleanup signal — swallow it.
   useEffect(() => {
     const controller = new AbortController();
     searchAll(debounced, { session, isAdmin, recents, signal: controller.signal })
@@ -89,7 +60,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
     };
   }, [debounced, session, isAdmin, recents]);
 
-  // Global ⌘K (Ctrl-K on Win/Linux) focuses the input from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -103,8 +73,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
 
   const items = useMemo(() => flattenSections(sections), [sections]);
   const hasResults = sections.length > 0;
-  // The popup is visible only when the input is active AND there are results —
-  // an active-but-empty input stays expanded with no dropdown (as before).
+
   const open = active && hasResults;
 
   function fireResult(result: SearchResult) {
@@ -121,8 +90,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
     router.push(result.href);
   }
 
-  // Mirror the old dismiss: clear the query, collapse, and blur. Fired when Base UI
-  // requests a close (Escape, outside-press) — replacing the hand-rolled listeners.
   const dismiss = () => {
     setValue('');
     inputRef.current?.blur();
@@ -149,6 +116,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           aria-label="Search"
           className="nav-search w-[480px] max-lg:w-full"
           prompt={<span className="shrink-0 font-data text-ui font-bold text-isk">&gt;</span>}
+
           trailing={<SearchHints active={active} />}
           type="text"
           spellCheck={false}
@@ -166,34 +134,42 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                 <Combobox.Group key={section.name}>
                   <Combobox.GroupLabel>
                     <span>{section.name}</span>
+
                     {section.name === 'Sites' && section.results.length > 0 && (
                       <span className="font-normal text-muted">
                         {section.results.length} match{section.results.length === 1 ? '' : 'es'}
                       </span>
+
                     )}
                   </Combobox.GroupLabel>
+
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-1">
                     {section.results.map((row) => (
                       <SearchRow key={row.id} row={row} fireResult={fireResult} />
                     ))}
                   </div>
+
                 </Combobox.Group>
+
               ))}
             </Combobox.List>
+
             <SearchFooter />
           </Combobox.Panel>
+
         )}
       </Combobox.Root>
+
     </div>
+
   );
 }
 
 function SearchHints({ active }: { active: boolean }) {
   return <Kbd>{active ? 'esc' : '⌘K'}</Kbd>;
+
 }
 
-// The row's leading icon: the type's rendered image (falling back to a mono glyph
-// on a 404), or a tone-coloured class/kind badge for rows without a type image.
 function SearchRowIcon({ row }: { row: SearchResult }) {
   const image = searchRowImage(row);
   if (image) {
@@ -214,6 +190,7 @@ function SearchRowIcon({ row }: { row: SearchResult }) {
     >
       {row.iconText}
     </span>
+
   );
 }
 
@@ -240,19 +217,22 @@ function SearchRow({
         <span className="truncate font-data text-ui text-name">
           {renderLabel(row.label, row.matchIndices)}
         </span>
+
         {row.sub && (
           <span className="truncate font-data text-label uppercase tracking-[0.07em] text-muted">
             {row.sub}
           </span>
+
         )}
       </span>
+
       <span className="shrink-0 text-ui text-isk opacity-0 group-data-[highlighted]:opacity-100">↵</span>
+
     </Combobox.Item>
+
   );
 }
 
-// Walk the label into matched / unmatched runs (matched chars green, adjacent
-// matches collapse into one run) — see {@link splitMatchRuns}.
 function renderLabel(label: string, indices?: number[]) {
   return (
     <>
@@ -261,11 +241,14 @@ function renderLabel(label: string, indices?: number[]) {
           <span key={i} className="font-semibold text-isk">
             {run.text}
           </span>
+
         ) : (
           <Fragment key={i}>{run.text}</Fragment>
+
         ),
       )}
     </>
+
   );
 }
 
@@ -274,12 +257,19 @@ function SearchFooter() {
     <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-label text-faint">
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
+
       </span>
+
       <span className="flex gap-1">
         <Kbd>↑↓</Kbd>
+
         <Kbd>↵</Kbd>
+
         <Kbd>esc</Kbd>
+
       </span>
+
     </div>
+
   );
 }

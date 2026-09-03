@@ -10,7 +10,7 @@ export function FeedbackButton({
   embedded = false,
 }: {
   compact?: boolean;
-  /** Lets a route-owned chrome cluster own geometry without changing site placement. */
+
   embedded?: boolean;
 }) {
   const { session, loading } = useAuth();
@@ -33,6 +33,7 @@ export function FeedbackButton({
       >
         {compact ? '?' : 'Feedback'}
       </Button>
+
       <FeedbackModal
         key={formKey}
         open={open}
@@ -41,5 +42,6 @@ export function FeedbackButton({
         loading={loading}
       />
     </>
+
   );
 }

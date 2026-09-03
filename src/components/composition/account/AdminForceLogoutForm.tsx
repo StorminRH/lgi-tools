@@ -3,12 +3,6 @@
 import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 
-/**
- * Admin force-logout control — revokes all of a user's sessions. Pure HTML form
- * with a confirm() gate (bundled client JS — CSP-safe). `disabled` is set on the
- * admin's own row (you sign yourself out the normal way). The route is the real
- * guard.
- */
 export function AdminForceLogoutForm({
   userId,
   userName,
@@ -42,9 +36,12 @@ export function AdminForceLogoutForm({
       >
         Force logout
       </Button>
+
       <span id={disabledReasonId} className="sr-only">
         Use the normal sign-out for your own session.
       </span>
+
     </form>
+
   );
 }

@@ -12,20 +12,26 @@ export function Footer() {
           LGI.tools is an independent third-party tool, not affiliated with or endorsed by Fenris
           Creations.
         </span>
+
       }
       right={
         <span className="inline-flex items-center gap-4 tracking-[0.03em]">
           <Link href="/legal" className="text-muted">
             Privacy
           </Link>
+
           <Link href="/contact" className="text-muted">
             Contact
           </Link>
+
           <Link href="/changelog" className="text-muted">
             Changelog
           </Link>
+
           <span className="text-faint">v{APP_VERSION}</span>
+
         </span>
+
       }
     />
   );

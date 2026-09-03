@@ -5,15 +5,6 @@ import { HeroBanner } from '@/components/composition/HeroBanner';
 import { HomeRosterPanel } from '@/components/composition/HomeRosterPanel';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 
-/**
- * The home page's ONLY auth-conditional region. The anonymous hero is rendered
- * on the server and handed in as `anonHero` so it ships in the static prerender
- * (the hero is the anonymous pitch and should be crawlable). Until the client
- * session resolves — and for every signed-out visitor — we render that hero
- * unchanged, so there's no skeleton flash. A signed-in visitor keeps the hero
- * banner (the wordmark, sans the anon pitch line) and gains the character roster
- * and live skill queues client-side, leaving the static shell untouched.
- */
 export function HomeLeftColumn({ anonHero }: { anonHero: ReactNode }) {
   const { session } = useAuth();
   if (session) {
@@ -22,7 +13,9 @@ export function HomeLeftColumn({ anonHero }: { anonHero: ReactNode }) {
         <HeroBanner />
         <HomeRosterPanel />
       </div>
+
     );
   }
   return <>{anonHero}</>;
+
 }
