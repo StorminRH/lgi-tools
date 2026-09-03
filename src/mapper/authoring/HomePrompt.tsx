@@ -22,20 +22,11 @@ import { useSetMapTracking } from '../tracking/TrackingControls';
 import { useMapCoverage } from '../tracking/use-map-coverage';
 import { homeCurrentSystem, type HomeCurrentSystem } from './home-prompt-model';
 
-/** Props for the empty-map home-system prompt. */
 export interface HomePromptProps {
   readonly mapId: string;
   readonly onPick: (systemId: number) => void;
 }
 
-/**
- * Required first-run Dialog: system search plus current-system / start-tracking.
- * Stays open (`open` held true, no close control) until the host unmounts it
- * after a home system is set. Renders only when the host has already gated on
- * `canEdit` and a complete empty systems page. Portrait toggles opt in any
- * linked character — not only the session character — so an in-space alt can
- * supply the current system.
- */
 export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const { parse, suggest } = useSystemSearch();
   const titleId = useId();
@@ -68,6 +59,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
         >
           Set your home system
         </DialogTitle>
+
         <TerminalSearch<SystemParams, SystemErr>
           initialValue=""
           placeholder="Search systems — type a name"
@@ -89,6 +81,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
             <span className="font-ui text-micro text-muted">
               Track a character in space
             </span>
+
             <div className="flex flex-wrap items-center gap-2">
               {characters.map((character) => {
                 const pressed = trackedIds.has(character.characterId);
@@ -120,11 +113,15 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
                       size={32}
                       src={character.portraitUrl}
                     />
+
                   </Button>
+
                 );
               })}
             </div>
+
           </div>
+
         ) : null}
         <CurrentSystemControl
           current={current}
@@ -136,7 +133,9 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
           }}
         />
       </div>
+
     </Dialog>
+
   );
 }
 
@@ -162,6 +161,7 @@ function CurrentSystemControl({
       >
         Start tracking
       </Button>
+
     );
   }
 
@@ -180,12 +180,16 @@ function CurrentSystemControl({
       }}
     >
       <span className="font-ui text-nav">Use current system</span>
+
       {ready && currentSystemName !== null ? (
         <span className="font-data text-micro text-muted">{currentSystemName}</span>
+
       ) : null}
       {current.kind === 'offline' ? (
         <span className="font-data text-micro text-muted">Character is offline</span>
+
       ) : null}
     </Button>
+
   );
 }

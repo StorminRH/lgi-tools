@@ -1,4 +1,3 @@
-/** Build a schema.org breadcrumb trail from already-canonical absolute URLs. */
 export function buildBreadcrumbList(items: readonly { name: string; url: string }[]) {
   return {
     '@context': 'https://schema.org',

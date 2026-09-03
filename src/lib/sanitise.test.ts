@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { sanitiseUserText } from './sanitise';
 
-const NUL = String.fromCharCode(0); // Cc (control)
-const ZWSP = String.fromCharCode(0x200b); // Cf (zero-width space)
+const NUL = String.fromCharCode(0);
+const ZWSP = String.fromCharCode(0x200b);
 
 describe('sanitiseUserText', () => {
   it('strips control and zero-width format characters', () => {

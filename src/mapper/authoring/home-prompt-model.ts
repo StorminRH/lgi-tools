@@ -13,7 +13,6 @@ export interface HomePromptCoverage {
   }[];
 }
 
-/** What the home prompt's current-system control should do. */
 export type HomeCurrentSystem =
   | { readonly kind: 'loading' }
   | { readonly kind: 'untracked' }
@@ -34,13 +33,6 @@ function liveSystemId(
     ?.location?.solarSystemId ?? null;
 }
 
-/**
- * Derives the current-system control from this map's tracking opt-in and
- * present+online coverage. A last-known location without a covered sample
- * is offline — not a current system. Loading subscriptions keep the
- * control inert. The session character wins when it is live; otherwise a
- * unique tracked live location on this map is a current-system seed.
- */
 export function homeCurrentSystem(input: {
   readonly characterId: number | null;
   readonly tracking: HomePromptTracking | undefined;
