@@ -14,8 +14,6 @@ function isUnpublishedDirectSitePath(pathname: string): boolean {
   return id === null || !isPublishedWormholeSiteId(id);
 }
 
-// Vercel the value exists ONLY in the build env, injected per deployment by
-
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const CONVEX_CONNECT_SRC = (() => {
   if (!CONVEX_URL) return "";
