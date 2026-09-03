@@ -1,16 +1,9 @@
-// Owned-assets purge contributor (ACCOUNT.1) — cache tier. The owner_id column is
-// polymorphic (character | corporation), so a PERSONAL purge deletes ONLY the
-// owner_type='character' rows for this character — the same column also holds
 // corp-shared rows a personal purge must never touch. Regenerable ESI mirror.
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
-/**
- * Personal-data purge contributor for owned assets purge contributor; this data slice owns
- * deleting its user and character keyed rows.
- */
 export const ownedAssetsPurgeContributor: PurgeContributor = {
   name: 'owned-assets',
   tier: 'cache',

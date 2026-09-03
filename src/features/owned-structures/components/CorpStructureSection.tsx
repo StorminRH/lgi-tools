@@ -25,14 +25,6 @@ import {
 } from '../corp-structure-view';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '../types';
 
-/**
- * The corp-structures section of the /structures page. For each member corp: the
- * shared structures with, for a Station_Manager, a per-structure rig-completion
- * editor (ESI doesn't expose fitted rigs). A non-Station_Manager member sees the
- * shared structures read-only; a corp that isn't shared and where the viewer isn't
- * a manager shows nothing. The sharing consent toggle itself lives on the account
- * settings page (ACCOUNT.6 — its one home); managers get a pointer there.
- */
 export function CorpStructureSection({
   corps,
   structureTypes,
@@ -42,7 +34,7 @@ export function CorpStructureSection({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
-  // A non-manager of an un-shared corp has nothing to show.
+
   const visible = corps.filter((c) => c.isStationManager || c.sharingEnabled);
   if (visible.length === 0) return null;
 
@@ -52,8 +44,10 @@ export function CorpStructureSection({
         <div key={corp.corporationId} className="mt-4 w-full max-w-[760px]">
           <CorpCard corp={corp} structureTypes={structureTypes} structureRigs={structureRigs} />
         </div>
+
       ))}
     </>
+
   );
 }
 
@@ -77,13 +71,16 @@ function CorpCard({
             <Link href="/settings" className="text-name underline hover:text-text">
               Account settings
             </Link>
+
             {view.managerBlurb}
           </p>
+
         )}
 
         {view.showStructures &&
           (view.isEmpty ? (
             <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
+
           ) : (
             <ul className="flex flex-col gap-2.5">
               {corp.structures.map((s) => (
@@ -97,13 +94,15 @@ function CorpCard({
                 />
               ))}
             </ul>
+
           ))}
       </div>
+
     </Card>
+
   );
 }
 
-// Read-only rig + tax pills for a member (non-manager) view.
 function CorpStructureReadonlyDetails({ view }: { view: CorpStructureItemView }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -111,9 +110,12 @@ function CorpStructureReadonlyDetails({ view }: { view: CorpStructureItemView })
         <Pill key={r.key} tone="blue">
           {r.label}
         </Pill>
+
       ))}
       {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
+
     </div>
+
   );
 }
 
@@ -136,8 +138,11 @@ function CorpStructureItem({
     <Card as="li" className="flex flex-col gap-2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-data text-ui text-text">{view.displayName}</span>
+
         <Pill tone="neutral">{view.typeName}</Pill>
+
       </div>
+
       {canEdit ? (
         <CorpStructureRigEditor
           corporationId={corporationId}
@@ -148,8 +153,10 @@ function CorpStructureItem({
         <CorpStructureReadonlyDetails view={view} />
       ) : (
         <span className="text-micro text-muted">no rigs recorded</span>
+
       )}
     </Card>
+
   );
 }
 
@@ -166,9 +173,7 @@ function CorpStructureRigEditor({
   validRigs: StructureRigOption[];
 }) {
   const [slots, setSlots] = useState<(number | null)[]>(() => slotsFrom(structure.rigTypeIds));
-  // The owner-set facility tax (3.7.13.3), edited beside the rigs — kept as the
-  // raw input string until save. Empty = never entered: the planner then assumes
-  // the 0.25% NPC baseline (labeled as assumed in the fee breakdown).
+
   const [taxDraft, setTaxDraft] = useState(taxDraftFromStored(structure.taxPct));
   const [busy, setBusy] = useState(false);
 
@@ -185,17 +190,14 @@ function CorpStructureRigEditor({
         corporationId,
         structureId: structure.structureId,
         rigTypeIds: slots.filter((x): x is number => x !== null),
-        // Explicit, never omitted: this editor always shows the full completion,
-        // so an empty field is a deliberate clear (the tri-state's undefined is
-        // for rig-only callers that must not clobber a stored tax).
+
         taxPct: tax.value,
       },
       cache: 'no-store',
     });
     setBusy(false);
     if (res.ok) {
-      // Adopt the echoed stored value so the field reflects the authoritative
-      // state (normalizes drafts like "01.50" and can't drift from the save).
+
       setTaxDraft(taxDraftFromStored(res.data.taxPct));
       toast.success('Structure details saved');
     } else {
@@ -214,6 +216,7 @@ function CorpStructureRigEditor({
       />
       <label className="flex items-center gap-2">
         <span className="text-label uppercase tracking-wide text-muted">Facility tax %</span>
+
         <Input
           type="number"
           min={0}
@@ -227,9 +230,12 @@ function CorpStructureRigEditor({
           className="w-[180px]"
         />
       </label>
+
       <Button variant="primary" onClick={onSave} disabled={busy} className="self-start">
         Save details
       </Button>
+
     </div>
+
   );
 }

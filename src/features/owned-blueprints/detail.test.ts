@@ -14,7 +14,6 @@ const summary = (over: Partial<OwnedBlueprintSummary> = {}): OwnedBlueprintSumma
   ...over,
 });
 
-// A loud formatter so a test can assert it ran (resolved stations) vs not (structures).
 const fmt = (name: string) => `F:${name}`;
 
 describe('isPlayerStructure', () => {
@@ -31,13 +30,13 @@ describe('collectDetailNameIds', () => {
   it('collects owners + NPC-station locations, dedupes, excludes structures and unowned/un-requested types', () => {
     const map: OwnedBlueprintMap = new Map([
       [100, summary({ ownerId: 5, locationId: 60003760 })],
-      [200, summary({ ownerType: 'corporation', ownerId: 99, locationId: 1_036_000_000_001 })], // structure
-      [300, summary({ ownerId: 5, locationId: 60003760 })], // duplicate owner + station
+      [200, summary({ ownerType: 'corporation', ownerId: 99, locationId: 1_036_000_000_001 })],
+      [300, summary({ ownerId: 5, locationId: 60003760 })],
     ]);
-    // 999 is requested but unowned (absent from the map) → contributes nothing.
+
     const ids = collectDetailNameIds(map, [100, 200, 300, 999]);
     expect([...ids].sort((a, b) => a - b)).toEqual([5, 99, 60003760]);
-    // The structure's location id is never sent for resolution.
+
     expect(ids).not.toContain(1_036_000_000_001);
   });
 
@@ -72,7 +71,7 @@ describe('buildOwnedDetail', () => {
     ]);
     const entry = buildOwnedDetail(map, [200], { '99': 'Test Corp' }, fmt)[0]!;
     expect(entry.ownerName).toBe('Test Corp');
-    expect(entry.locationName).toBe('Upwell structure'); // not "F:..." → formatter not applied
+    expect(entry.locationName).toBe('Upwell structure');
     expect(entry.locationFlag).toBe('CorpSAG1');
   });
 
@@ -81,7 +80,7 @@ describe('buildOwnedDetail', () => {
       [300, summary({ ownerType: 'character', ownerId: 7, locationId: 60000999 })],
       [400, summary({ ownerType: 'corporation', ownerId: 88, locationId: 60000999 })],
     ]);
-    const [char, corp] = buildOwnedDetail(map, [300, 400], {}, fmt); // empty names → all miss
+    const [char, corp] = buildOwnedDetail(map, [300, 400], {}, fmt);
     expect(char!.ownerName).toBe('Character 7');
     expect(char!.locationName).toBe('Unknown location');
     expect(corp!.ownerName).toBe('Corporation 88');

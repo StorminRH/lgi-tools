@@ -5,18 +5,12 @@ import {
 import { apiFetch } from '@/transport/api-client';
 import type { PreparedMapCreation } from './access-editor-model';
 
-/** Minimum time the creation compass remains visible for a fast successful request. */
 export const MAP_CREATION_INTERSTITIAL_MIN_MS = 5_000;
 
 function delay(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-/**
- * Starts the non-idempotent create request and minimum interstitial clock
- * together. The server owns its projection retry budget; this client adds no
- * second timeout or retry.
- */
 export async function createMapWithMinimumInterstitial(input: CreateMapRequest) {
   const [outcome] = await Promise.all([
     apiFetch(createMapEndpoint, { body: input, cache: 'no-store' }),
@@ -25,7 +19,6 @@ export async function createMapWithMinimumInterstitial(input: CreateMapRequest) 
   return outcome;
 }
 
-/** Calm operator-facing copy for one closed create endpoint outcome. */
 export function mapCreationFailureMessage(
   outcome: Awaited<ReturnType<typeof createMapWithMinimumInterstitial>>,
 ): string {
@@ -39,7 +32,6 @@ export function mapCreationFailureMessage(
   return 'The map could not be created. Check your connection and try again.';
 }
 
-/** Side effects required to leave the persistent creation shell after success. */
 export interface MapCreationHandoffActions {
   readonly reset: () => void;
   readonly close: () => void;
@@ -47,7 +39,6 @@ export interface MapCreationHandoffActions {
   readonly navigate: (href: string) => void;
 }
 
-/** Resets and closes the shared-layout dialog before navigating to the new map. */
 export function handoffCreatedMap(
   mapId: string,
   actions: MapCreationHandoffActions,
@@ -59,13 +50,11 @@ export function handoffCreatedMap(
   actions.navigate(`/atlas?${query.toString()}`);
 }
 
-/** First synchronous gate of the creation-dialog submit path. */
 export type MapCreationSubmitStart =
   | { readonly kind: 'ignored' }
   | { readonly kind: 'invalid'; readonly message: string }
   | { readonly kind: 'begin'; readonly input: CreateMapRequest };
 
-/** Ignores an in-flight submit, surfaces draft errors, or starts transport. */
 export function mapCreationSubmitStart(
   busy: boolean,
   prepared: PreparedMapCreation,
@@ -75,12 +64,10 @@ export function mapCreationSubmitStart(
   return { kind: 'begin', input: prepared.input };
 }
 
-/** Closed create-request outcome after the interstitial has elapsed. */
 type MapCreationSubmitFinish =
   | { readonly kind: 'failed'; readonly message: string }
   | { readonly kind: 'created'; readonly mapId: string };
 
-/** Maps one create-endpoint outcome onto the dialog's success or retry state. */
 function mapCreationSubmitFinish(
   outcome: Awaited<ReturnType<typeof createMapWithMinimumInterstitial>>,
 ): MapCreationSubmitFinish {
@@ -90,7 +77,6 @@ function mapCreationSubmitFinish(
   return { kind: 'created', mapId: outcome.data.mapId };
 }
 
-/** Side effects the creation dialog applies as submit progresses. */
 export interface MapCreationSubmitActions {
   readonly onInvalid: (message: string) => void;
   readonly onBegin: () => void;
@@ -98,7 +84,6 @@ export interface MapCreationSubmitActions {
   readonly onCreated: (mapId: string) => void;
 }
 
-/** Runs one creation-dialog submit from the busy/draft gate through transport. */
 export async function runMapCreationSubmit(
   busy: boolean,
   prepared: PreparedMapCreation,
