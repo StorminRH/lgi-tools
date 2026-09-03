@@ -6,7 +6,6 @@ import { fetchAdjustedPrices, fetchCostIndices } from './source';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 
-// EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.
 function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
@@ -23,7 +22,6 @@ export interface DatasetResult {
   error?: string;
 }
 
-/** Industry-index refresh outcome containing fetched and persisted row counts. */
 export interface RefreshIndicesSummary {
   costIndices: DatasetResult;
   adjustedPrices: DatasetResult;
@@ -81,7 +79,6 @@ async function persistAdjustedPrices(
   return written;
 }
 
-// Fetch + persist one dataset, isolating its failure so the sibling still runs.
 async function refreshDataset<T>(
   fetcher: () => Promise<T[]>,
   persist: (rows: T[]) => Promise<number>,
@@ -99,17 +96,6 @@ async function refreshDataset<T>(
   }
 }
 
-/**
- * Refresh both datasets from ESI in one pass. The two run concurrently — they
- * are independent ESI calls + upserts, and `refreshDataset` swallows its own
- * errors into a result (never rejects), so one failing doesn't block the other.
- * A single batch-stamped `updatedAt`, captured up front, marks every row written
- * this run. Each ESI fetch completes before that dataset's upsert and with no
- * transaction open, so no DB connection is pinned across the network round-trip
- * (the upserts are single statements, chunked to stay under Postgres's
- * bind-param ceiling). Pure upsert, no delete — last-write-wins and idempotent,
- * since systems/types don't vanish.
- */
 export async function refreshIndustryIndices(db: AnyPgDb): Promise<RefreshIndicesSummary> {
   const start = Date.now();
   const updatedAt = new Date();

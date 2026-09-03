@@ -29,8 +29,6 @@ afterEach(() => {
 
 describe('locationTrackingPurgeContributor', () => {
   it('is a durable-tier contributor that claims no Neon table (its homes live in Convex)', () => {
-    // durable, not cache: mapTracking is app-authored opt-in state with no
-    // upstream to rebuild from — the stricter of the two tables decides.
     expect(locationTrackingPurgeContributor.tier).toBe('durable');
     expect(locationTrackingPurgeContributor.claims).toEqual([]);
   });
@@ -42,7 +40,6 @@ describe('locationTrackingPurgeContributor', () => {
       characterId: CHAR,
     });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    // The preceding call-count assertion proves the first recorded call exists.
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/purge-location-tracking');
     expect(init?.method).toBe('POST');
@@ -53,7 +50,6 @@ describe('locationTrackingPurgeContributor', () => {
   it('purgeUser POSTs the whole-user teardown (characterId null)', async () => {
     await locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    // The preceding call-count assertion proves the first recorded call exists.
     const [, init] = fetchSpy.mock.calls[0]!;
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
   });
@@ -68,7 +64,6 @@ describe('locationTrackingPurgeContributor', () => {
         characterId: CHAR,
       }),
     ).resolves.toBeUndefined();
-    // Detectable, not silent: bestEffort logs the structured failure line.
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('[location-tracking/purge] convex-teardown failed'),
       expect.anything(),
@@ -77,8 +72,6 @@ describe('locationTrackingPurgeContributor', () => {
   });
 
   it('logs a non-2xx response as a missed delete instead of asserting done', async () => {
-    // A rotated bearer (401) or deploy drift must be detectable in logs — a
-    // deleted account has no later sync to orphan-clean these tables.
     fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await expect(

@@ -115,9 +115,6 @@ describe('resolveMapRole', () => {
 
 describe('resolveMatchedMapRoles', () => {
   it('returns every matched role in precedence order', () => {
-    // The Convex gate unions capabilities across this whole set, and the projection stores it in
-    // this order so an unchanged re-projection compares equal and skips the write. Collapsing it
-    // to the display role would silently drop capabilities a second principal granted.
     expect(
       resolveMatchedMapRoles({
         isCreator: false,

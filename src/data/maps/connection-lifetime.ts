@@ -2,13 +2,11 @@ import type { WormholeLifeStage } from '@/data/eve-data/wormhole-contract';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** One persisted absolute death interval shared by every map client. */
 export interface ConnectionDeathWindow {
   readonly earliestAt: number;
   readonly latestAt: number;
 }
 
-/** Remaining-time projection for one death window at a client clock instant. */
 export type LifetimeDisplay =
   | {
       readonly kind: 'range';
@@ -31,12 +29,6 @@ const LIFE_STAGE_REMAINING_MS = {
   { readonly min: number; readonly max: number }
 >;
 
-/**
- * Normalizes a stored timestamp pair into a death window, or null when either
- * bound is absent, non-finite, or inverted. The single owner of what counts as
- * a stored window — server validation, optimistic patches, and card rendering
- * must all agree, so none of them re-implements this predicate.
- */
 export function deathWindowFrom(
   earliestAt: number | null | undefined,
   latestAt: number | null | undefined,
@@ -50,10 +42,6 @@ export function deathWindowFrom(
     : null;
 }
 
-/**
- * Converts one Reliable Lifetime report into an absolute death interval. A
- * typed lifetime caps the report's maximum possible remaining duration.
- */
 export function deathWindowForReport(
   bucket: WormholeLifeStage,
   observedAt: number,
@@ -75,10 +63,6 @@ export function deathWindowForReport(
   };
 }
 
-/**
- * Narrows a stored death window with a new report, or resets to the new report
- * when the two intervals contradict one another.
- */
 export function intersectOrReset(
   stored: ConnectionDeathWindow | null,
   next: ConnectionDeathWindow,
@@ -91,7 +75,6 @@ export function intersectOrReset(
   return intersection.earliestAt <= intersection.latestAt ? intersection : next;
 }
 
-/** Derives an honest countdown range from one shared absolute death window. */
 export function lifetimeDisplay(
   window: ConnectionDeathWindow,
   now: number,

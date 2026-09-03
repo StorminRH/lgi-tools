@@ -7,24 +7,19 @@ import {
 } from './access-contract';
 import type { MapAccessOwnerType, MapRole } from './schema';
 
-// The role/capability vocabulary is re-exported from its pure ./access-contract owner so existing
-// callers keep resolving these exact values while the Convex gate shares the same record.
 export { MAP_ROLE_CAPABILITIES, MAP_ROLE_PRECEDENCE };
 
-/** The EVE character and corporation principals through which one user may hold a grant. */
 export interface MapPrincipals {
   readonly characterIds: readonly number[];
   readonly corporationIds: readonly number[];
 }
 
-/** One stored delegated map grant shaped for the pure access rule. */
 export interface MapGrant {
   readonly ownerType: MapAccessOwnerType;
   readonly ownerId: number;
   readonly role: MapRole;
 }
 
-/** The authoritative role and current map capabilities returned to callers. */
 export interface MapAccess extends MapRoleCapabilities {
   readonly role: MapRole | null;
 }
@@ -39,20 +34,12 @@ function principalMatches(grant: MapGrant, principals: MapPrincipals): boolean {
   return ids.includes(grant.ownerId);
 }
 
-/** The inputs that decide one user's effective roles on one map. */
 export interface MapRoleInput {
   readonly isCreator: boolean;
   readonly grants: readonly MapGrant[];
   readonly principals: MapPrincipals;
 }
 
-/**
- * Resolves the complete, de-duplicated set of roles one user holds on one map, ordered by
- * `MAP_ROLE_PRECEDENCE` so equal sets serialize identically. This is the capability-preserving
- * projection: it keeps every matched role rather than collapsing to a display role, so a caller
- * matching through several principals cannot silently lose a capability. Map creation is
- * authoritative on its own and resolves to `admin` without consulting delegated grants.
- */
 export function resolveMatchedMapRoles(input: MapRoleInput): readonly MapRole[] {
   if (input.isCreator) return ['admin'];
 
@@ -64,18 +51,11 @@ export function resolveMatchedMapRoles(input: MapRoleInput): readonly MapRole[] 
   return canonicalizeMapRoles([...matchedRoles]);
 }
 
-/**
- * Decides one user's role and capabilities for one map from its grant rows and that user's
- * resolved principals. This is the version's single access rule: capabilities come from the
- * capability record, never from role ordering, so later non-linear roles remain representable.
- */
 export function resolveMapRole(input: MapRoleInput): MapAccess {
   const roles = resolveMatchedMapRoles(input);
   if (roles.length === 0) return { ...NO_ACCESS };
 
   return {
-    // `roles` is non-empty here; canonicalizeMapRoles already ordered it, so the
-    // head is the display role even when a value is absent from precedence.
     role: MAP_ROLE_PRECEDENCE.find((role) => roles.includes(role)) ?? roles[0]!,
     canView: rolesAllow(roles, 'view'),
     canEdit: rolesAllow(roles, 'edit'),
