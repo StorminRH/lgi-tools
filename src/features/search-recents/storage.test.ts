@@ -17,13 +17,17 @@ function installLocalStorageShim() {
     removeItem: (k) => { store.delete(k); },
     setItem: (k, v) => { store.set(k, String(v)); },
   };
-  // @ts-expect-error — installing a partial window into globalThis for tests
-  globalThis.window = { localStorage: ls };
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage: ls },
+  });
 }
 
 installLocalStorageShim();
 
-const { clearRecents, pushRecent, readRecents, __TEST_ONLY__ } = await import('./storage');
+const { pushRecent, readRecents } = await import('./storage');
+const STORAGE_KEY = 'lgi:search:recents';
+const MAX_RECENTS = 10;
 
 function row(id: string, label = id): SearchResult {
   return {
@@ -69,13 +73,13 @@ describe('search-recents storage', () => {
     expect(out[0]!.typeId).toBe(587);
     expect(out[0]!.icon).toEqual(blueprintImage(691));
     expect(out[0]!.originKind).toBe('blueprint');
-    const stored = JSON.parse(window.localStorage.getItem(__TEST_ONLY__.STORAGE_KEY)!);
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!);
     expect(stored[0].icon).toBeUndefined();
   });
 
   it('drops stale item recents that predate the typeId (so they never render "BP")', () => {
     window.localStorage.setItem(
-      __TEST_ONLY__.STORAGE_KEY,
+      STORAGE_KEY,
       JSON.stringify([
         { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
       ]),
@@ -85,7 +89,7 @@ describe('search-recents storage', () => {
 
   it('drops a blueprint recent whose stable id cannot reconstruct a blueprint image', () => {
     window.localStorage.setItem(
-      __TEST_ONLY__.STORAGE_KEY,
+      STORAGE_KEY,
       JSON.stringify([
         {
           kind: 'blueprint',
@@ -101,7 +105,7 @@ describe('search-recents storage', () => {
 
   it('keeps non-item recents without a typeId (sites/tools render their own glyph)', () => {
     window.localStorage.setItem(
-      __TEST_ONLY__.STORAGE_KEY,
+      STORAGE_KEY,
       JSON.stringify([
         { kind: 'site', id: 's1', label: 'A Site', href: '/sites/1', iconText: 'C3', iconTone: 'cls-c3' },
       ]),
@@ -128,17 +132,17 @@ describe('search-recents storage', () => {
   });
 
   it('caps the stored list at the configured max', () => {
-    const max = __TEST_ONLY__.MAX_RECENTS;
+    const max = MAX_RECENTS;
     for (let i = 0; i < max + 5; i++) {
       pushRecent(row(`id-${i}`, `label-${i}`));
     }
     expect(readRecents()).toHaveLength(max);
   });
 
-  it('clearRecents wipes the stored list', () => {
+  it('clearing the recents key wipes the stored list', () => {
     pushRecent(row('1'));
     pushRecent(row('2'));
-    clearRecents();
+    window.localStorage.removeItem(STORAGE_KEY);
     expect(readRecents()).toEqual([]);
   });
 
@@ -159,13 +163,13 @@ describe('search-recents storage', () => {
   });
 
   it('survives malformed localStorage content', () => {
-    window.localStorage.setItem(__TEST_ONLY__.STORAGE_KEY, 'not-json{{');
+    window.localStorage.setItem(STORAGE_KEY, 'not-json{{');
     expect(readRecents()).toEqual([]);
   });
 
   it('filters out non-conforming stored entries', () => {
     window.localStorage.setItem(
-      __TEST_ONLY__.STORAGE_KEY,
+      STORAGE_KEY,
       JSON.stringify([
         { kind: 'site', id: '1', label: 'good', href: '/sites/1' },
         { kind: 'site', id: 2, label: 'bad-id-type', href: '/sites/2' },

@@ -7,10 +7,13 @@ the forward record species that closes them out after in-session reshaping.
 It is written once at session close, never reopened, and archived with the
 version bundle beside the contract and plan pairs.
 
-Record only what the next planning agent cannot recover from the code, the
-plan, or the changelog. A session that shipped exactly per plan produces a
-near-empty record. `None.` is the expected value for sections with nothing to
-report. Do not restate the diff or duplicate changelog content.
+Write the record on the promote PR that delivers this work to `staging`,
+not after each Ordered work step. Ordinary work in that same PR gets its
+own record. The release changelog is written from these records. Record
+what the next planning agent cannot recover from the code or the plan. A
+session that shipped exactly per plan still needs the Delivered outcome
+lines the changelog will lift. `None.` is the expected value for other
+sections with nothing to report. Do not restate the diff.
 
 An as-built record starts with this frame:
 
@@ -34,9 +37,10 @@ The marker values are closed vocabularies:
 - `Recorded` is the authoring date in `YYYY-MM-DD` form.
 - `Contract` and `Plan` are the repository-relative paths of the session's
   frozen prompts; the digests are the lowercase SHA-256 of each file's exact
-  bytes, prefixed with `sha256:`. Author the record only after close-out has
-  set the plan's final `Execution status`, so the digests seal the prompts'
-  terminal bytes and any later edit to either prompt is mechanically visible.
+  bytes, prefixed with `sha256:`. Author the record on the promote PR.
+  Session records still use those frozen prompt paths. Ordinary work in
+  the same PR uses a separate file and writes `None.` for Contract, Plan,
+  and their digests.
 - `Branch` is the sub-version's deterministic lifecycle branch.
 - `PR` is the delivering PR's `#<number>`, written once that PR exists — on
   the final session, and on every session in a sub-version whose effective
@@ -56,8 +60,21 @@ valid body.
 ## Delivered outcome
 
 One short plain-English paragraph: what exists now that did not before, in
-behavior terms. This is the general summary an operator can lift directly
-into a devlog entry.
+behavior terms. The release changelog lifts this into the player-facing
+overview. Then list each player-facing change as one bullet with a closed
+prefix. Do not use `###` or `####` headings.
+
+```markdown
+<What this work now gives a player.>
+
+- Added: <one short line>
+- Changed: <one short line>
+- Fixed: <one short line>
+- Removed: <one short line>
+```
+
+Keep only the prefixes that apply. Internal-only notes stay out of these
+bullets. `None.` when the delivery has no player-facing change.
 
 ## Divergences from plan
 
@@ -104,12 +121,13 @@ Use exactly one ordered line per plan criterion and one review receipt:
 ```markdown
 - **SC-1:** `Passed` — <specific evidence covering every atomic proof row>
 - **SC-2:** `Passed` — <specific evidence covering every atomic proof row>
-- **Adversarial review:** Subject: <frozen identity>; Roles: <selected roles>; Runtime identity: requested=<requested selection>, observed=<observed identity or Not observable>; Verdict: <PASS, CLEAN, or CORRECTED>; Disposition: <accepted and rejected finding disposition>.
+- **Adversarial review:** Subject: Origin `<N>`; `origin pr diff <N>`; Roles: <selected roles>; Runtime identity: requested=<requested selection>, observed=<observed identity or Not observable>; Verdict: <PASS, CLEAN, or CORRECTED>; Disposition: <accepted and rejected finding disposition>.
 ```
 
 Every plan `SC-N` appears once, in order, and is `Passed`; grouped ranges and a
-bare command or suite name are invalid. Close-out adversarial-review writes
-`PASS`. Legacy `CLEAN` and `CORRECTED` remain accepted for earlier as-builts.
+bare command or suite name are invalid. Close-out writes `PASS` after the
+batch when every accepted finding is fixed. Legacy `CLEAN` and `CORRECTED`
+remain accepted for earlier as-builts.
 The review receipt records requested and observed runtime identity separately
 and never infers one from the other. Structured criterion and review receipts
 bind from session `4.0.2.2.1` onward; earlier as-built records remain a frozen

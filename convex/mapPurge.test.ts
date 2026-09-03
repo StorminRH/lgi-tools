@@ -6,7 +6,9 @@ import { internal } from './_generated/api';
 import schema from './schema';
 import { MAP_PURGE_BATCH, MAP_PURGE_TABLES } from './mapPurge';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc.setup';
+
 
 function schemaMapTables(): string[] {
   const source = readFileSync(resolve(process.cwd(), 'convex/schema.ts'), 'utf8');
@@ -36,16 +38,16 @@ describe('map purge declaration', () => {
         });
       }
       await ctx.db.insert('mapAccess', { mapId, userId: 'user', roles: ['admin'] });
+      await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision: 1 });
       await ctx.db.insert('mapSystems', { mapId, systemId: 30_000_142 });
-      await ctx.db.insert('mapConnections', {
+      await ctx.db.insert('mapConnections', connectionInsert({
         mapId,
         fromSystemId: 30_000_142,
         toSystemId: null,
         wormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
-      });
+      }));
       await ctx.db.insert('mapJumpBookkeeping', {
         mapId,
         characterId: 90_000_001,
@@ -90,7 +92,7 @@ describe('map purge declaration', () => {
 
     await expect(
       t.mutation(internal.mapPurge.purgeMapBatch, { mapId }),
-    ).resolves.toEqual({ deleted: MAP_PURGE_BATCH + 8, hasMore: true });
+    ).resolves.toEqual({ deleted: MAP_PURGE_BATCH + 9, hasMore: true });
 
     const interrupted = await t.run(async (ctx) => ({
       notes: await ctx.db

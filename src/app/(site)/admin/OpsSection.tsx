@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { metricLabelColumn } from './metric-label-column';
 import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import {
   getHistorySourceSplit,
@@ -64,13 +65,7 @@ function OpsCardFallback({ label }: { label: string }) {
 
 function MetricsTable({ rows, ariaLabel }: { rows: OpsMetricRow[]; ariaLabel: string }) {
   const columns = [
-    {
-      key: 'metric',
-      label: 'Metric',
-      rowHeader: true,
-      render: (row) => row.label,
-      className: 'text-text',
-    },
+    metricLabelColumn<OpsMetricRow>(),
     { key: 'value', label: 'Value', align: 'right', render: (row) => row.value, className: 'text-name' },
     {
       key: 'note',

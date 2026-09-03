@@ -1,17 +1,5 @@
 'use client';
 
-// Worker-backed LayoutKernel with in-process fallback.
-//
-// Construction throw → immediate fallback. A post-construction
-// `error`/`messageerror` (a chunk that fails to load or evaluate never rejects
-// the constructor) logs once, marks the worker dead, and settles outstanding
-// and subsequent requests through the same `compassKernel` seam — identical
-// deterministic output either way, so the map can never sit silently empty
-// behind a healthy subscription.
-//
-// Posted-key / latest-wins sequencing lives in `use-map-chain` via
-// `kernel-requests.ts`. This hook only correlates worker replies to the call
-// that posted them and owns degradation.
 import { useCallback, useEffect, useRef } from 'react';
 import type { ChainPosition } from '../chain/intents';
 import { compassKernel } from './compass';
@@ -70,7 +58,6 @@ export function useLayoutKernel(): LayoutKernel {
   const fallbackOnlyRef = useRef(false);
 
   useEffect(() => {
-    // Copied so the cleanup rejects exactly the requests pending at teardown.
     const pending = pendingRef.current;
     let worker: Worker | null = null;
     try {
@@ -82,9 +69,6 @@ export function useLayoutKernel(): LayoutKernel {
     }
 
     workerRef.current = worker;
-    // A fresh worker is healthy; clear any death recorded by a previous mount
-    // (StrictMode remount or route remount) so we do not leave a live worker idle
-    // while every request permanently takes the in-process branch.
     deadRef.current = false;
 
     worker.onmessage = (event: MessageEvent<LayoutWorkerResponse>) => {
@@ -111,7 +95,6 @@ export function useLayoutKernel(): LayoutKernel {
       try {
         worker?.terminate();
       } catch {
-        // Already dead.
       }
       for (const [requestId, pending] of [...pendingRef.current.entries()]) {
         settleInProcess(pendingRef, requestId, pending);
@@ -146,8 +129,6 @@ export function useLayoutKernel(): LayoutKernel {
       pendingRef.current.set(requestId, pending);
       const request: LayoutWorkerRequest = { requestId, facts, config };
       try {
-        // Non-null by the guard above; the closure runs outside render, where
-        // refs are legal to read.
         workerRef.current!.postMessage(request);
       } catch (error) {
         console.error('layout worker postMessage failed; using in-process kernel', error);

@@ -10,6 +10,7 @@ import {
   isNull,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
@@ -21,7 +22,9 @@ import {
   type MapPrincipals,
 } from './access';
 import type { MapRole } from './access-contract';
+import { activeMapLifecycle } from './lifecycle-contract';
 import {
+  MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
   maps,
   type MapAccessOwnerType,
@@ -41,7 +44,23 @@ export interface CreateMapGrant {
   readonly role: Extract<MapRole, 'viewer' | 'editor'>;
 }
 
-/** One exact durable grant change before the full access projection reconverges. */
+export async function reserveMapAccessProjectionRevision(
+  database: AnyPgDb = db,
+): Promise<number> {
+  const result = await database.execute(sql`
+    SELECT nextval(
+      ${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}::regclass
+    )::text AS revision
+  `);
+  const row = mapAuthorizationRows(result)[0];
+  const raw = row?.revision;
+  const revision = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isSafeInteger(revision) || revision <= 0) {
+    throw new Error('Map access projection sequence returned an invalid revision.');
+  }
+  return revision;
+}
+
 export type MapGrantChange =
   | {
       readonly operation: 'upsert';
@@ -116,7 +135,7 @@ function principalGrantCondition(principals: MapPrincipals) {
 async function readAuthorizedMapRows(
   userId: string,
   principals: MapPrincipals,
-  lifecycleCondition: ReturnType<typeof and>,
+  lifecycleCondition: SQL | undefined,
   database: AnyPgDb,
 ): Promise<RawAuthorizedMapRow[]> {
   const rows = await database
@@ -275,8 +294,14 @@ export async function createMapAtomic(
   );
   await database.execute(sql`
     WITH created_map AS (
-      INSERT INTO ${maps} (id, user_id, name, archived_at, purge_requested_at)
-      VALUES (${mapId}, ${userId}, ${name}, now(), now())
+      INSERT INTO ${maps} (
+        id, user_id, name, archived_at, purge_requested_at,
+        lifecycle_status, lifecycle_entered_at
+      )
+      VALUES (
+        ${mapId}, ${userId}, ${name}, now(), now(),
+        'purge_queued'::"public"."map_lifecycle_status", now()
+      )
       RETURNING id
     )
     INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
@@ -292,19 +317,20 @@ export async function createMapAtomic(
   return mapId;
 }
 
-/** Publishes a projected staged map by clearing its hidden recovery markers. */
 export async function publishCreatedMap(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<void> {
+  const now = new Date();
   const published = await database
     .update(maps)
-    .set({ archivedAt: null, purgeRequestedAt: null, updatedAt: new Date() })
+    .set({ ...activeMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),
         isNotNull(maps.archivedAt),
         isNotNull(maps.purgeRequestedAt),
+        isNull(maps.purgeClaimedAt),
         isNull(maps.tombstonedAt),
       ),
     )
@@ -314,18 +340,25 @@ export async function publishCreatedMap(
   }
 }
 
-/** Deletes one just-created map after projection exhaustion; grants cascade with it. */
 export async function compensateFailedMapCreation(
   mapId: string,
   database: AnyPgDb = db,
-): Promise<void> {
+): Promise<{ readonly outcome: 'deleted' | 'purge-owned' }> {
   const deleted = await database
     .delete(maps)
-    .where(eq(maps.id, mapId))
+    .where(and(eq(maps.id, mapId), isNull(maps.purgeClaimedAt)))
     .returning({ id: maps.id });
-  if (deleted.length !== 1) {
-    throw new Error(`Map creation compensation expected one row, deleted ${deleted.length}.`);
+  if (deleted.length === 1) return { outcome: 'deleted' };
+
+  const [retained] = await database
+    .select({ purgeClaimedAt: maps.purgeClaimedAt })
+    .from(maps)
+    .where(eq(maps.id, mapId))
+    .limit(1);
+  if (retained?.purgeClaimedAt !== null && retained?.purgeClaimedAt !== undefined) {
+    return { outcome: 'purge-owned' };
   }
+  throw new Error('Map creation compensation found neither its row nor a purge claim.');
 }
 
 /**
@@ -366,6 +399,7 @@ export async function listDeletedRestorableMapsForPrincipals(
       isNotNull(maps.archivedAt),
       isNull(maps.tombstonedAt),
       isNull(maps.purgeRequestedAt),
+      isNull(maps.purgeClaimedAt),
       gt(maps.archivedAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
     ),
     database,
@@ -383,7 +417,6 @@ export interface MapAccessSubject {
   readonly archivedAt: Date | null;
 }
 
-/** Reads one map's creator and archive marker, or null when the map does not exist. */
 export async function getMapAccessSubject(
   mapId: string,
   database: AnyPgDb = db,
@@ -391,7 +424,7 @@ export async function getMapAccessSubject(
   const [row] = await database
     .select({ userId: maps.userId, archivedAt: maps.archivedAt })
     .from(maps)
-    .where(eq(maps.id, mapId))
+    .where(and(eq(maps.id, mapId), isNull(maps.tombstonedAt)))
     .limit(1);
   return row ?? null;
 }

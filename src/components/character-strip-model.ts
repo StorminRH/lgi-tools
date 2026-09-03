@@ -14,7 +14,7 @@
  */
 export type StripCharacterState = 'lit' | 'dimmed' | 'locked';
 
-interface StripCharacter {
+export interface StripCharacter {
   characterId: number;
   needsReconnect: boolean;
 }

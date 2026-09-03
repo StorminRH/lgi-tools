@@ -30,7 +30,7 @@ function job(overrides: Partial<IndustryJob>): IndustryJob {
 }
 
 describe('jobRowModel', () => {
-  it('prefers the product as the headline, falling back to the blueprint', () => {
+  it('prefers the product headline, counts remaining only while active, and shows the bar for active/paused', () => {
     const product = jobRowModel(job({}), NOW);
     expect(product.headlineId).toBe(587);
     expect(product.icon).toEqual(jobImage(1, 587, 691));
@@ -38,15 +38,11 @@ describe('jobRowModel', () => {
     const blueprint = jobRowModel(job({ product_type_id: undefined }), NOW);
     expect(blueprint.headlineId).toBe(691);
     expect(blueprint.icon).toEqual(jobImage(1, undefined, 691));
-  });
 
-  it('reports remaining ms only while active with a finite end', () => {
     expect(jobRowModel(job({ end_date: '2026-06-12T13:00:00Z' }), NOW).remainingMs).toBe(3_600_000);
     expect(jobRowModel(job({ status: 'paused' }), NOW).remainingMs).toBeNull();
     expect(jobRowModel(job({ end_date: 'not-a-date' }), NOW).remainingMs).toBeNull();
-  });
 
-  it('shows the bar only for active or paused jobs', () => {
     expect(jobRowModel(job({ status: 'active' }), NOW).showBar).toBe(true);
     expect(jobRowModel(job({ status: 'paused' }), NOW).showBar).toBe(true);
     expect(jobRowModel(job({ status: 'ready' }), NOW).showBar).toBe(false);
@@ -87,12 +83,8 @@ describe('activeJobStatusText', () => {
 });
 
 describe('formatEndDate', () => {
-  it('formats as EVE YYYY.MM.DD HH:MM in local time', () => {
-    // Assert the structure without pinning the tz-dependent hour.
+  it('formats as EVE YYYY.MM.DD HH:MM in local time, or returns the raw unparseable string', () => {
     expect(formatEndDate('2026-06-13T00:00:00Z')).toMatch(/^\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}$/);
-  });
-
-  it('returns the raw string for an unparseable date', () => {
     expect(formatEndDate('not-a-date')).toBe('not-a-date');
   });
 });

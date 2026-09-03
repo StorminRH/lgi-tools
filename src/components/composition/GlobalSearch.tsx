@@ -30,7 +30,7 @@ import * as Combobox from '@/components/ui/combobox';
 import { Kbd } from '@/components/ui/kbd';
 import { flattenSections, searchIconClass, searchRowImage, splitMatchRuns } from './global-search-view';
 
-type Props = {
+export type Props = {
   active: boolean;
   onActiveChange: (active: boolean) => void;
   siteIndex: SiteSearchEntry[];

@@ -1,4 +1,8 @@
-import { projectStagedMapAccess } from '@/composition/map-access-projection';
+import {
+  projectStagedMapAccess,
+  requireCurrentProjection,
+  teardownMapAccessProjection,
+} from '@/composition/map-access-projection';
 import type { CreateMapRequest } from '@/data/maps/api-contract';
 import {
   compensateFailedMapCreation,
@@ -11,21 +15,22 @@ const CREATION_PROJECTION_ATTEMPT_TIMEOUT_MS = 2_000;
 const CREATION_PROJECTION_DEADLINE_MS = 20_000;
 const COMPENSATION_RETRY_OFFSETS_MS = [0, 250, 1_000] as const;
 
-type CreateMap = typeof createMapAtomic;
-type Compensate = typeof compensateFailedMapCreation;
-type Project = typeof projectStagedMapAccess;
-type Publish = typeof publishCreatedMap;
+export type CreateMap = typeof createMapAtomic;
+export type Compensate = typeof compensateFailedMapCreation;
+export type Project = typeof projectStagedMapAccess;
+export type Publish = typeof publishCreatedMap;
+export type Teardown = typeof teardownMapAccessProjection;
 
-interface MapCreationDependencies {
+export interface MapCreationDependencies {
   readonly createMap?: CreateMap;
   readonly compensate?: Compensate;
   readonly project?: Project;
   readonly publish?: Publish;
+  readonly teardown?: Teardown;
   readonly now?: () => number;
   readonly pause?: (delayMs: number) => Promise<void>;
 }
 
-/** Result of the durable create plus one-way projection workflow. */
 export type CreateProjectedMapResult =
   | { readonly ok: true; readonly mapId: string }
   | {
@@ -91,8 +96,13 @@ async function compensateWithRetry(
     if (offsetMs > priorOffset) await pause(offsetMs - priorOffset);
     priorOffset = offsetMs;
     try {
-      await compensate(mapId);
-      return { deleted: true };
+      const result = await compensate(mapId);
+      return result.outcome === 'deleted'
+        ? { deleted: true }
+        : {
+            deleted: false,
+            cause: new Error('Map creation cleanup is owned by the purge claim.'),
+          };
     } catch (cause) {
       finalCause = cause;
     }
@@ -103,13 +113,6 @@ async function compensateWithRetry(
   };
 }
 
-/**
- * Creates one hidden, purge-queued map atomically, projects its access on the
- * approved bounded ladder, and publishes only after projection succeeds.
- * Failure retries physical deletion; exhausted cleanup remains invisible with
- * durable purge intent, so the route can report failure without exposing a
- * half-created map.
- */
 export async function createProjectedMap(
   userId: string,
   input: CreateMapRequest,
@@ -119,6 +122,7 @@ export async function createProjectedMap(
   const compensate = dependencies.compensate ?? compensateFailedMapCreation;
   const project = dependencies.project ?? projectStagedMapAccess;
   const publish = dependencies.publish ?? publishCreatedMap;
+  const teardown = dependencies.teardown ?? teardownMapAccessProjection;
   const now = dependencies.now ?? Date.now;
   const pause = dependencies.pause ?? delay;
 
@@ -128,6 +132,18 @@ export async function createProjectedMap(
     await publish(mapId);
     return { ok: true, mapId };
   } catch (cause) {
+    try {
+      requireCurrentProjection(await teardown(mapId));
+    } catch (teardownCause) {
+      return {
+        ok: false,
+        cause: new AggregateError(
+          [cause, teardownCause],
+          'Map creation failed; projection teardown is queued for purge.',
+        ),
+        cleanup: 'queued',
+      };
+    }
     const cleanup = await compensateWithRetry(mapId, compensate, pause);
     return cleanup.deleted
       ? { ok: false, cause, cleanup: 'deleted' }

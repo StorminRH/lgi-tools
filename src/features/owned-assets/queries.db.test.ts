@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { readOwnerSyncState, saveOwnedAssets } from './queries';
 import { ownedAssets } from './schema';

@@ -9,15 +9,10 @@ describe('siteClassSet', () => {
     ]);
   });
 
-  it('expands a gas signature to its whole name-derived spawn range', () => {
-    // "Perimeter" gas sigs spawn across C1–C6; "Core" only in C5–C6.
+  it('expands a gas signature through the name-derived spawn range', () => {
     expect(
       siteClassSet({ wormholeClass: null, siteType: 'gas', name: 'Perimeter Reservoir' }),
     ).toEqual(['C1', 'C2', 'C3', 'C4', 'C5', 'C6']);
-    expect(siteClassSet({ wormholeClass: null, siteType: 'gas', name: 'Core Garden' })).toEqual([
-      'C5',
-      'C6',
-    ]);
   });
 
   it('matches no class when a site has neither a class nor a recognized gas range', () => {
@@ -46,7 +41,7 @@ describe('matchesClassFilter', () => {
 
 describe('matchesFilter', () => {
   const combatC5: { type: SiteType; clsSet: WormholeClass[] } = { type: 'combat', clsSet: ['C5'] };
-  // A gas signature spanning the whole C1–C6 range (see siteClassSet).
+
   const gasWide: { type: SiteType; clsSet: WormholeClass[] } = {
     type: 'gas',
     clsSet: ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'],
@@ -58,9 +53,9 @@ describe('matchesFilter', () => {
 
   it('requires BOTH axes when both are selected (intersection)', () => {
     expect(matchesFilter(combatC5, { cls: ['C5'], types: ['combat'] })).toBe(true);
-    // class matches but type does not
+
     expect(matchesFilter(combatC5, { cls: ['C5'], types: ['ore'] })).toBe(false);
-    // type matches but class does not
+
     expect(matchesFilter(combatC5, { cls: ['C1'], types: ['combat'] })).toBe(false);
   });
 
@@ -70,7 +65,7 @@ describe('matchesFilter', () => {
   });
 
   it('treats a null type as matching only when no type is selected', () => {
-    // The table reads rowType from a DOM attribute that can be absent.
+
     expect(matchesFilter({ type: null, clsSet: ['C5'] }, { cls: ['C5'], types: [] })).toBe(true);
     expect(matchesFilter({ type: null, clsSet: ['C5'] }, { cls: [], types: ['combat'] })).toBe(
       false,

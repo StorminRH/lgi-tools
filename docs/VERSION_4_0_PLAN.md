@@ -123,6 +123,10 @@ by hand where needed, and never see a refresh control.
 recorded here per lifecycle §8. Watch findings AF-006–AF-009 carry; the
 contracts below name every Watch/hotspot surface they touch.)*
 
+**2026-08-20.** Version-close audit, remediation, and code-health baseline
+tracking are retired. Every Status row is terminal. The next Start Session
+archives this master plan.
+
 *(Delivery-unit note: 4.0.4.2 and 4.0.4.3 are the version's two largest slices
 and are the only sub-versions whose sessions ship one PR per session. Their
 three-session boundaries isolate external synchronization, collaborative

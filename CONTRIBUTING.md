@@ -6,9 +6,8 @@ see [Local development](README.md#local-development) in the README.
 
 ## Before you start
 
-- **Open an issue first for anything non-trivial** so we can agree on the shape
-  before code is written. Small, obvious fixes (typos, a broken link, a clear
-  one-line bug) can go straight to a PR.
+- **Agree on the shape first** for anything non-trivial. Small, obvious
+  fixes (typos, a broken link, a clear one-line bug) can land directly.
 - **Be civil.** Reviews are conversations.
 
 Architecture is deny-by-default Fallow (`.fallowrc.json`) plus lint. Use the
@@ -32,16 +31,30 @@ feat: add API endpoints for browsing and filtering wormhole sites
 - invalid filters return a clear error instead of an empty result
 ```
 
-## Opening a pull request
+## Landing and review
 
-1. Branch off `main` and open your PR back into `main`.
-2. Run **`pnpm verify`** locally and confirm it passes — this bundles
-   `typecheck`, zero-warning `lint`, one coverage-enabled Vitest suite, and
-   `fallow` (dead code, duplication, complexity, and architecture boundaries).
-   CI installs with the frozen lockfile, runs those same four gates, and also
-   runs the route-classification presence check (`assert:routes-present`).
+1. Land on Origin `development`. Promote is an Origin PR
+   `development` → `staging`. After that merge, fast-forward
+   `development` to `staging` so the lines match. Release is
+   `staging` → `main`. Those merges, and any other merge onto
+   `staging` or `main`, run through close-out.
+2. Before you land, run the local test suite: `pnpm typecheck`,
+   `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests
+   for your diff. A promote or release waits on one Depot `dispatch` after
+   reviews (`verify`, `build`, and `e2e`). Laptop `pnpm verify` is not
+   done.
 3. Fill in the PR template's **test plan** — what you verified and how.
-4. Reference the issue the PR resolves (e.g. `Fixes #123`).
+4. Open Origin PRs as drafts after a green local suite. Leave them draft
+   through reviews and fixes. Reviewers run `origin pr diff <N>`. Open
+   GitHub dump PRs ready so Greptile and CodeRabbit can post.
+5. A GitHub dump is the app-facing files from
+   `python3 tools/cli.py lifecycle count-app-facing --list`. Pass `--base`
+   and `--head` for the two lines of that PR. Defaults are
+   `origin/staging` and `origin/development`. That list is dump isolation.
+   Skills and standing docs stay off it.
+6. Freeze the draft until every review seat has returned. Then one
+   batch: triage, dedupe, fix, note on the Origin PR. Dispatch Depot
+   once that batch is green.
 
 ## Conduct, security & license
 

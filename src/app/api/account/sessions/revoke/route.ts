@@ -3,7 +3,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { sessionsRevokeEndpoint } from '@/platform/auth/api-contract';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
 import { checkSession } from '@/platform/auth/route-guards';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { apiResponse } from '@/transport/api-response';
 
 /**
@@ -20,13 +20,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     capability: 'account.revoke-own-sessions',
     // Runs as the shell's preflight, keeping its position ahead of identity
     // while placing the 429 inside the capability scope so it is recorded.
-    preflight: async () => {
-      const limit = await checkRateLimit(request, {
-        name: 'account-logout-everywhere',
-        perMinute: 10,
-      });
-      return limit.ok ? null : apiResponse(sessionsRevokeEndpoint, 429, limit.failure);
-    },
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'account-logout-everywhere', perMinute: 10 },
+      (failure) => apiResponse(sessionsRevokeEndpoint, 429, failure),
+    ),
     authorize: checkSession,
     handle: async ({ session }) => {
       const revoked = await revokeUserSessions(session.user.id);

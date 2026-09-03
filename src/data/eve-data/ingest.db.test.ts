@@ -1,12 +1,20 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { asc } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { SdeJsonlPaths } from './source';
 import type { UniverseDataset } from './universe';
-import { industryBlueprints, typeDogma } from './schema';
+import {
+  dgmAttributeTypes,
+  eveCategories,
+  eveGroups,
+  eveTypes,
+  industryBlueprints,
+  typeDogma,
+} from './schema';
 
 const mocks = vi.hoisted(() => ({
   cleanupSdeJsonl: vi.fn(),
@@ -186,6 +194,70 @@ describe.skipIf(!harness.reachable)('runIngest executes against Postgres', () =>
     expect(mocks.emitUniverseNeon).toHaveBeenCalledWith(expect.anything(), EMPTY_UNIVERSE);
     expect(mocks.cleanupSdeJsonl).toHaveBeenCalledWith(fixturePaths);
 
+    const categories = await harness.db
+      .select()
+      .from(eveCategories)
+      .orderBy(asc(eveCategories.id));
+    expect(categories).toHaveLength(501);
+    expect(categories[0]).toEqual({
+      id: 1,
+      name: 'Category 1',
+      iconId: null,
+      published: true,
+    });
+    expect(categories[500]).toEqual({
+      id: 501,
+      name: 'Category 501',
+      iconId: null,
+      published: true,
+    });
+    expect(await harness.db.select().from(eveGroups)).toEqual([
+      {
+        id: 10,
+        categoryId: 1,
+        name: 'Group 10',
+        iconId: null,
+        useBasePrice: false,
+        anchored: false,
+        anchorable: false,
+        fittableNonSingleton: false,
+        published: true,
+      },
+    ]);
+    expect(await harness.db.select().from(eveTypes)).toEqual([
+      {
+        id: 100,
+        groupId: 10,
+        name: 'Type 100',
+        description: null,
+        mass: null,
+        volume: null,
+        capacity: null,
+        portionSize: null,
+        raceId: null,
+        basePrice: null,
+        published: true,
+        marketGroupId: null,
+        iconId: null,
+        soundId: null,
+        graphicId: null,
+      },
+    ]);
+    expect(await harness.db.select().from(dgmAttributeTypes)).toEqual([
+      {
+        id: 20,
+        name: 'massMultiplier',
+        description: null,
+        iconId: null,
+        defaultValue: null,
+        published: true,
+        displayName: null,
+        unitId: null,
+        stackable: false,
+        highIsGood: false,
+        categoryId: null,
+      },
+    ]);
     expect(await harness.db.select().from(typeDogma)).toEqual([
       { typeId: 100, attributes: { '20': 1.5 } },
     ]);

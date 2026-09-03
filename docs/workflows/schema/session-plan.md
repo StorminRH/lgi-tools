@@ -108,13 +108,8 @@ Settle every decision the contract required planning to surface.
 
 ### Audit-remediation mapping
 
-For a remediation contract, map each finding:
-
-| Finding | Principle-level outcome | Selected plan elements | Proving criteria |
-| --- | --- | --- | --- |
-| `AF-NNN` | [contract's required design outcome] | [owned surfaces, resolved decisions, ordered steps] | [`SC-N` identifiers] |
-
-Otherwise: `Not applicable — this is not an audit-remediation contract`.
+Write `Not applicable — audit-remediation is retired`. Keep this heading so
+existing plans stay valid.
 
 ## Design pressure and baseline effect
 
@@ -130,7 +125,7 @@ Otherwise: `Not applicable — this is not an audit-remediation contract`.
 ### Baseline effect and update
 
 - **Effect:** [`Improves`, `Neutral`, or `Temporary pressure`, matching the header marker] — [principle-level reason].
-- **Required update:** [exact baseline rows and measurements to refresh, or `None` with reason].
+- **Required update:** `None` — code-health baseline tracking is retired.
 
 ## Implementation blueprint
 
@@ -158,7 +153,16 @@ Otherwise: `Not applicable — this is not an audit-remediation contract`.
 2. **[Outcome-sized step].** Change `[named surfaces]` so [specific invariant or behavior holds]. Prove with [focused evidence].
 3. **[Integration/reconciliation step].** Connect changed owners, remove or repoint superseded surfaces.
 
-Each numbered step is one execution chat under `start-session`. Do not list close-out, adversarial review, push, or PR opening as Ordered work. When `Contract UX gate` is Yes, include one dedicated Ordered work step whose outcome is `ux-check` evidence plus the named `G-N` operator disposition. Name concrete surfaces. Avoid open-ended instructions.
+Each numbered step is one execution chat under `start-session`. Size as many
+thin steps as the feature needs. The operator looks during these steps, not
+when the session ends. Mark a visual look on about every other step, and on
+any step that presents something the operator can see. A backend-only step
+can skip the look. Close-out, promote,
+`thermos`, and `no-comments` stay out of Ordered work. When `Contract UX
+gate` is Yes, include a dedicated Ordered work step whose outcome is
+`ux-check` evidence plus the named `G-N` operator disposition, after there
+is something to look at. That step is not the first look. Name concrete
+surfaces.
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -186,8 +190,9 @@ Proof identifiers are unique and contiguous within each criterion (`SC-1.1`, `SC
 ## End of session
 
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary held.
-- **Delivery:** [exactly push in-branch after OW commits, open a PR, merge, or stop with a non-code artifact].
-- **Lifecycle artifacts:** [plan marker, roadmap, changelog, baseline, as-built, or archive updates this session owns; omit the rest].
+- **Delivery:** [land each Ordered work step on `development` through
+  `start-session`; no land PR].
+- **Lifecycle artifacts:** [plan marker, roadmap, changelog, as-built, or archive updates this session owns; omit the rest]. The last session of a version archives the master plan after its last Ordered work step.
 - **Handoff:** [exact resolver rerun, next-session pointer, or terminal pause after delivery]. Per-OW chat handoffs are owned by the `start-session` skill.
 
 Overwrite on re-approval; do not append an execution log. Record in-session reshapes after approval in the session as-built — do not rewrite this frozen prompt mid-execution.

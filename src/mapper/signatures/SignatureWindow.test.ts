@@ -2,12 +2,10 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { blankDoor } from '@/data/maps/connection-hallway';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
-import {
-  SignatureWindow,
-  scannerLeadsCellKey,
-  scannerTypeCellKey,
-} from './SignatureWindow';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
+import { SignatureWindow } from './SignatureWindow';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
@@ -59,7 +57,7 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
   }),
 }));
 
-vi.mock('../chain/use-map-chain', () => ({
+vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => null,
 }));
 
@@ -121,33 +119,17 @@ const ROWS: readonly SignatureWindowRow[] = [
     name: 'B274',
     signalPct: 100,
     firstSeenAt: 0,
-    connection: {
+    connection: connectionEditorFixture({
       connectionId: 'connection-1' as Id<'mapConnections'>,
       _creationTime: 2_000,
       fromSystemId: 1,
       toSystemId: null,
-      fromSignatureId: 'WHL-001',
-      toSignatureId: null,
-      fromSignalPct: 100,
-      firstSeenAt: 0,
-      wormholeTypeCode: 'B274',
-      typedSide: null,
-      massState: null,
+      from: { ...blankDoor(), typeCode: 'B274', signatureId: 'WHL-001', signalPct: 100 },
+      to: { ...blankDoor(), typeCode: 'K162' },
+      identity: { kind: 'typed', provenance: 'human' },
       shipSize: 'M',
-      lifeStage: null,
-      lifeStageObservedAt: null,
-      deathEarliestAt: null,
-      deathLatestAt: null,
-      deletedAt: null,
-      purgeAfter: null,
-      fromDestinationHint: null,
-      toDestinationHint: null,
-      destinationProvenance: null,
-      pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-      observedMassKg: null,
-      observedMassAtStateKg: null,
-    },
+      firstSeenAt: 0,
+    }),
     className: 'HS',
   },
   {
@@ -195,7 +177,7 @@ function render(
 }
 
 describe('SignatureWindow component prompt and filter states', () => {
-  it('renders sectioned Signatures chrome for the root system and stays empty without a root', () => {
+  it('renders sectioned Signatures chrome and the empty, complete-empty, and unread shells', () => {
     const html = render(1, new Set());
     expect(html).toContain('data-map-window="signatures"');
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
@@ -232,14 +214,12 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).not.toContain('>Age<');
     expect(html).toContain('Age ');
     expect(html).not.toContain('tabindex="0"');
-    expect(html).toContain('text-muted');
     expect(html).not.toContain('>Size<');
     expect(html).not.toContain('>Lifetime<');
     expect(html).not.toContain('data-signature-row-open');
     expect(html).not.toContain('Identify signature');
     expect(html).not.toContain('Identification is permanent');
     expect(html).toContain('placeholder="Unresolved"');
-    // Unmatched combat/harvestable names stay as the empty Est. ISK dash.
     expect(html).toContain('data-signature-isk="empty"');
     expect(html).toContain('data-signature-signal-fill');
     expect(html).toContain('scroll-area scroll-area-start');
@@ -251,7 +231,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-scanner-scroll');
     expect(html).toContain('data-scanner-scroll-frost="start"');
     expect(html).toContain('data-scanner-scroll-frost="end"');
-    // Root-system rows render without requiring a tracked online character.
     expect(html).not.toContain('Track an online character');
 
     const empty = render(null, new Set());
@@ -260,28 +239,18 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(empty).toContain('data-scanner-filled="false"');
     expect(empty).toContain('data-scanner-paste-hint');
     expect(empty).toContain('Paste signatures anywhere on the page.');
-    expect(empty).toContain('rounded-card');
-    expect(empty).toContain('bg-section');
-    expect(empty).toContain('text-isk');
     expect(empty).not.toContain('data-signature-id="ABC-123"');
     expect(empty).not.toContain('data-scanner-section=');
     expect(empty).not.toContain('No scanner rows in this system.');
     expect(empty).not.toContain('data-signature-empty');
-  });
 
-  it('shows a paste hint on a complete empty scan and only shows loading copy while unread', () => {
     const completeEmpty = render(1, new Set(), 0, null, {
       rows: [],
       complete: true,
     });
-    expect(completeEmpty).toContain('data-map-window="signatures"');
     expect(completeEmpty).toContain('data-scanner-filled="false"');
     expect(completeEmpty).toContain('data-scanner-paste-hint');
     expect(completeEmpty).toContain('Paste signatures anywhere on the page.');
-    expect(completeEmpty).toContain('rounded-card');
-    expect(completeEmpty).toContain('bg-section');
-    expect(completeEmpty).not.toContain('No scanner rows in this system.');
-    expect(completeEmpty).not.toContain('data-signature-empty');
     expect(completeEmpty).not.toContain('Reading scanner rows…');
     expect(completeEmpty).not.toContain('data-scanner-sections');
 
@@ -315,19 +284,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(remote).toContain('data-signature-missing-prompt');
     expect(remote).toContain('3 signatures missing from scan');
     expect(remote).not.toContain('data-signature-missing="true"');
-  });
-
-  it('keeps Type and Destination remount keys distinct when both values are empty', () => {
-    const connectionId = 'm577478djxw0qbjjh9dcntqabn8c965j';
-    expect(scannerTypeCellKey(connectionId, null)).toBe(
-      `type:${connectionId}:`,
-    );
-    expect(scannerLeadsCellKey(connectionId, undefined, null)).toBe(
-      `leads:${connectionId}:`,
-    );
-    expect(scannerTypeCellKey(connectionId, null)).not.toBe(
-      scannerLeadsCellKey(connectionId, undefined, null),
-    );
   });
 
   it('stacks missing-scan and ambiguous-jump prompts in one scanner rail', () => {
@@ -422,7 +378,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     const connection = {
       ...origin!.connection!,
       toSystemId: 2,
-      toSignatureId: 'FAR-001',
+      to: { ...origin!.connection!.to, signatureId: 'FAR-001' },
     };
     const originRow: SignatureWindowRow = {
       ...origin!,

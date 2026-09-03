@@ -33,7 +33,7 @@ export interface RegionalDiscount {
 // source-shaped row (RawMarketPrice) — one field list so the two can't
 // drift. All four price columns are nullable: NULL means "no orders on
 // that side at the time of the last refresh."
-interface PricedFigures {
+export interface PricedFigures {
   typeId: number;
   bestBuy: number | null;
   bestSell: number | null;

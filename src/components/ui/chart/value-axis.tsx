@@ -1,4 +1,4 @@
-type ValueAxisGridProps = {
+export type ValueAxisGridProps = {
   /** Tick values along the value (y) axis. */
   ticks: number[];
   /** The y scale — maps a tick value to its pixel row. */

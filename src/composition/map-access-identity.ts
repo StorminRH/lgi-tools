@@ -1,6 +1,3 @@
-// Projection side-effects for identity mutations that move or drop character
-// links without going through mapsPurgeContributor (admin/self-service unlink,
-// admin reassign / absorb-on-proof, and emptied-account user deletes).
 import {
   projectMapAccess,
   purgeUserMapAccessProjection,

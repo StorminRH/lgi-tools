@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isLocalBaseUrl, remoteSkipSeedError } from './run-e2e-guard.mjs';
+import { remoteSkipSeedError } from './run-e2e-guard.mjs';
 
 describe('run-e2e guard', () => {
   it('classifies local base URLs and gates remote skip-seed on operator storage', () => {
-    expect(isLocalBaseUrl('http://localhost:3000')).toBe(true);
-    expect(isLocalBaseUrl('http://127.0.0.1:3000')).toBe(true);
-    expect(isLocalBaseUrl('https://lgi.tools')).toBe(false);
-
     expect(
       remoteSkipSeedError({
         baseUrl: 'http://localhost:3000',

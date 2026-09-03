@@ -19,23 +19,21 @@ function line(
   return {
     fromSystemId: ORIGIN_SYSTEM,
     toSystemId: STUB_SYSTEM,
-    fromSignatureId: null,
-    toSignatureId: null,
-    deletedAt: null,
+    from: { signatureId: null },
+    to: { signatureId: null },
+    tombstone: { kind: 'live' },
     ...overrides,
   };
 }
 
 describe('origin lead encoding', () => {
-  it('round-trips a connection id and ignores class hints', () => {
+  it('round-trips origin leads and routes picks to link vs setLeadsTo', () => {
     expect(encodeOriginLead('conn-1')).toBe('origin:conn-1');
     expect(decodeOriginLead('origin:conn-1')).toBe('conn-1');
     expect(decodeOriginLead('hisec')).toBeNull();
     expect(decodeOriginLead(null)).toBeNull();
     expect(decodeOriginLead('origin:')).toBeNull();
-  });
 
-  it('routes an origin pick to link and a class hint to setLeadsTo', () => {
     const onLinkOrigin = vi.fn();
     const onChangeHint = vi.fn();
     dispatchLeadsToChange('origin:inbound-1', onLinkOrigin, onChangeHint);
@@ -53,19 +51,37 @@ describe('origin lead encoding', () => {
 });
 
 describe('originLeadCandidates', () => {
-  it('offers a sig-less inbound whose other end is a live system', () => {
+  it('offers live inbounds from either orientation, including occupied mouths, and skips stubs, tombs, and unrelated systems', () => {
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-1', [
         line({ connectionId: 'inbound' }),
       ]),
     ).toEqual([{ connectionId: 'inbound', systemId: ORIGIN_SYSTEM }]);
-  });
 
-  it('skips the stub itself, tombstones, unresolved rows, and systems that do not touch here', () => {
+    expect(
+      originLeadCandidates(STUB_SYSTEM, 'stub-1', [
+        line({
+          connectionId: 'from-here',
+          fromSystemId: STUB_SYSTEM,
+          toSystemId: ORIGIN_SYSTEM,
+          from: { signatureId: null },
+        }),
+      ]),
+    ).toEqual([{ connectionId: 'from-here', systemId: ORIGIN_SYSTEM }]);
+
+    expect(
+      originLeadCandidates(STUB_SYSTEM, 'stub-2', [
+        line({ connectionId: 'linked', to: { signatureId: 'ABC-123' } }),
+      ]),
+    ).toEqual([{ connectionId: 'linked', systemId: ORIGIN_SYSTEM }]);
+
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-1', [
         line({ connectionId: 'stub-1', fromSystemId: STUB_SYSTEM, toSystemId: null }),
-        line({ connectionId: 'dead', deletedAt: 1 }),
+        line({
+          connectionId: 'dead',
+          tombstone: { kind: 'removed', deletedAt: 1, purgeAfter: null },
+        }),
         line({ connectionId: 'ghost', toSystemId: null, fromSystemId: STUB_SYSTEM }),
         line({
           connectionId: 'elsewhere',
@@ -76,15 +92,7 @@ describe('originLeadCandidates', () => {
     ).toEqual([]);
   });
 
-  it('still offers an inbound whose local signature is already filled', () => {
-    expect(
-      originLeadCandidates(STUB_SYSTEM, 'stub-2', [
-        line({ connectionId: 'linked', toSignatureId: 'ABC-123' }),
-      ]),
-    ).toEqual([{ connectionId: 'linked', systemId: ORIGIN_SYSTEM }]);
-  });
-
-  it('links a return-system pick only when exactly one inbound matches', () => {
+  it('links a return-system pick or typed label only when exactly one inbound matches', () => {
     const inbound = { connectionId: 'inbound', systemId: ORIGIN_SYSTEM };
     expect(originLeadForSystem(ORIGIN_SYSTEM, [inbound])).toBe('inbound');
     expect(originLeadForSystem(OTHER_SYSTEM, [inbound])).toBeNull();
@@ -94,30 +102,15 @@ describe('originLeadCandidates', () => {
         { connectionId: 'other', systemId: ORIGIN_SYSTEM },
       ]),
     ).toBeNull();
-  });
 
-  it('links typed return-system text only when exactly one label matches', () => {
-    const inbound = { connectionId: 'inbound', label: 'J160650 - C3' };
-    expect(originLeadForTypedLabel('J160650', [inbound])).toBe('inbound');
-    expect(originLeadForTypedLabel('Jita', [inbound])).toBeNull();
+    const labeled = { connectionId: 'inbound', label: 'J160650 - C3' };
+    expect(originLeadForTypedLabel('J160650', [labeled])).toBe('inbound');
+    expect(originLeadForTypedLabel('Jita', [labeled])).toBeNull();
     expect(
       originLeadForTypedLabel('J160650', [
-        inbound,
+        labeled,
         { connectionId: 'other', label: 'J160650 - C3' },
       ]),
     ).toBeNull();
-  });
-
-  it('reads the origin from either endpoint orientation', () => {
-    expect(
-      originLeadCandidates(STUB_SYSTEM, 'stub-1', [
-        line({
-          connectionId: 'from-here',
-          fromSystemId: STUB_SYSTEM,
-          toSystemId: ORIGIN_SYSTEM,
-          fromSignatureId: null,
-        }),
-      ]),
-    ).toEqual([{ connectionId: 'from-here', systemId: ORIGIN_SYSTEM }]);
   });
 });

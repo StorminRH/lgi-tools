@@ -24,7 +24,6 @@ PAGE_TITLES = {
     "/changelog": "Changelog",
     "/legal": "Privacy",
     "/contact": "Contact",
-    "/devlog": "Under the Hood",
     "/sites": "Wormhole Sites — Live Jita Loot & Resource Values",
 }
 
@@ -103,20 +102,6 @@ def schemas_of_type(parser: MetadataParser, schema_type: str) -> list[dict[str, 
     return [value for value in parser.json_ld if value.get("@type") == schema_type]
 
 
-def verify_article(path: str, parser: MetadataParser) -> None:
-    articles = schemas_of_type(parser, "Article")
-    if len(articles) != 1:
-        raise ValueError(f"{path}: expected one Article, got {len(articles)}")
-    article = articles[0]
-    published = article.get("datePublished")
-    modified = article.get("dateModified")
-    if not isinstance(published, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", published):
-        raise ValueError(f"{path}: invalid datePublished {published!r}")
-    if modified != published:
-        raise ValueError(f"{path}: dateModified does not match the authoritative document date")
-    print(f"schema {path}: Article dated {published}")
-
-
 def verify_breadcrumb(path: str, parser: MetadataParser) -> None:
     breadcrumbs = schemas_of_type(parser, "BreadcrumbList")
     if len(breadcrumbs) != 1:
@@ -145,15 +130,9 @@ def main() -> None:
         _body, parser = parse_page(base_url, path)
         verify_page_metadata(path, parser, expected_title)
 
-    for path in ("/changelog/v3.7", "/devlog/neon"):
-        body, parser = parse_page(base_url, path)
-        verify_page_metadata(path, parser, None)
-        if path.startswith("/devlog/"):
-            verify_article(path, parser)
-            print_head(path, body)
-
-    _body, devlog_parser = parse_page(base_url, "/devlog")
-    verify_article("/devlog", devlog_parser)
+    body, parser = parse_page(base_url, "/changelog/v3.7")
+    verify_page_metadata("/changelog/v3.7", parser, None)
+    print_head("/changelog/v3.7", body)
 
     for path in ("/sites/100", "/industry/691"):
         _body, parser = parse_page(base_url, path)

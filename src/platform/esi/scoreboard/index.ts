@@ -1,4 +1,4 @@
-import { resolveUpstashRest } from '@/lib/upstash';
+import { allowUnconfiguredUpstash, resolveUpstashRest } from '@/lib/upstash';
 import { createMemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
 import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
 import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
@@ -47,7 +47,7 @@ function resolveConcreteScoreboard(): ResolvedScoreboard | null {
     return { backend: 'redis', scoreboard: created };
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (allowUnconfiguredUpstash()) {
     if (!warnedMissingEnvDev && process.env.NODE_ENV === 'development') {
       console.warn(
         '[esi] KV_REST_API_URL / KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN) not set — ESI budget scoreboard is per-process only in dev',

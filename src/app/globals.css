@@ -243,7 +243,7 @@
   --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
   --text-nav:     14px;     --text-nav--line-height:     1.6;  /* navigation, menu rows, everyday action language */
-  --text-body:    16px;     --text-body--line-height:    1.7;  /* prose, card descriptions, devlog text */
+  --text-body:    16px;     --text-body--line-height:    1.7;
   --text-lead:    17px;     --text-lead--line-height:    1.6;  /* hero pitch line, section intros */
   --text-h3:      19px;     --text-h3--line-height:      1.2;  /* small headings: card titles, dialog/section sub-heads */
   --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-data tabular-nums at call site */
@@ -757,12 +757,7 @@ a:hover {
  * these blocks. Descriptive prose uses the interface role; labels, values, and
  * version tags stay mono. No new tokens. */
 
-/* Shared long-form reading surface; the Prose primitive selects only the
- * measure and the few descendant recipes that genuinely differ by document. */
 .prose-copy {
-  max-width: 768px;
-}
-.prose-copy-legal {
   max-width: 760px;
   margin-inline: auto;
 }
@@ -772,10 +767,9 @@ a:hover {
   line-height: 1.72;
   letter-spacing: 0.01em;
   color: var(--color-text);
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   text-wrap: pretty;
 }
-.prose-copy-legal p { margin-bottom: 12px; }
 .prose-copy p:last-child { margin-bottom: 0; }
 .prose-copy strong { color: var(--color-name); font-weight: 600; }
 .prose-copy a {
@@ -788,13 +782,12 @@ a:hover {
 .prose-copy ul,
 .prose-copy ol {
   list-style: none;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.prose-copy-legal ul { margin-bottom: 12px; }
 .prose-copy li {
   position: relative;
   padding-left: 18px;
@@ -1194,75 +1187,6 @@ details[data-collapsible][open] > summary [data-chevron] {
     color: inherit !important;
   }
 }
-
-/* Inline code excerpt — a collapsed mono file:lines label expanding the snapshot. */
-.devlog-excerpt {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-section);
-  margin: 4px 0 16px;
-  overflow: hidden;
-}
-.devlog-excerpt-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 7px 12px;
-  font-family: var(--font-data);
-  font-size: var(--text-ui);
-  letter-spacing: 0.02em;
-}
-.devlog-excerpt-summary:hover { background: var(--color-row-hover); }
-.devlog-excerpt-chevron {
-  display: inline-block;
-  width: 8px;
-  font-size: var(--text-micro);
-  color: var(--color-faint);
-  transition: transform var(--transition-duration-fast);
-}
-.devlog-excerpt-file { color: var(--color-isk); }
-.devlog-excerpt-lines { color: var(--color-faint); }
-.devlog-excerpt-code {
-  margin: 0;
-  padding: 12px 14px;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-deep);
-  overflow-x: auto;
-  font-family: var(--font-data);
-  font-size: var(--text-ui);
-  line-height: 1.6;
-  color: var(--color-text);
-  tab-size: 2;
-}
-.devlog-excerpt-code code { font-family: inherit; white-space: pre; }
-/* "view on GitHub" toolbar, above the code and outside <summary> (so it never
-   toggles the details). Sits on the header surface; the code's border-top divides
-   it from the snapshot below. */
-.devlog-excerpt-permalink {
-  display: flex;
-  padding: 8px 14px 6px;
-  font-size: var(--text-label);
-}
-.devlog-excerpt-permalink a { color: var(--color-isk); }
-/* One highlighted line: a sticky, non-selectable line-number gutter + the tokens.
-   min-width:max-content keeps long lines at full width so the <pre> scrolls
-   horizontally; the gutter stays pinned left (opaque, so code scrolls under it) and
-   is excluded from copy. */
-.devlog-excerpt-line { display: flex; align-items: baseline; min-width: max-content; }
-.devlog-excerpt-gutter {
-  position: sticky;
-  left: 0;
-  flex: 0 0 auto;
-  min-width: 3ch;
-  padding-right: 14px;
-  text-align: right;
-  user-select: none;
-  color: var(--color-faint);
-  font-size: var(--text-label);
-  background: var(--color-bg-deep);
-}
-.devlog-excerpt-code-line { white-space: pre; }
 
 /* ── Atlas motion layer (4.0.3.2) ────────────────────────────────────────
  * The mapper's motion vocabulary: birth, exit, hover, and edge flavors, all

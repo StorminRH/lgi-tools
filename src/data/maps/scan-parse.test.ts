@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseScannerPaste } from './scan-parse';
-import { SCANNER_PASTE_FIXTURES } from './scan-parse.fixtures';
+import { SCANNER_PASTE_FIXTURES } from './__tests__/scan-parse.fixtures';
 
 describe('parseScannerPaste', () => {
   it.each(SCANNER_PASTE_FIXTURES)('parses operator fixture: $name', ({ paste, expected }) => {

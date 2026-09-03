@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { getFunctionName } from 'convex/server';
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
+import {
+  blankDoor,
+  blankHallway,
+  pendingResolution,
+  type ConnectionRowId,
+} from '@/data/maps/connection-hallway';
 import type { OptimisticLocalStore } from '@/data/convex/use-mutation';
 import {
   lifeStageWindowProposal,
@@ -25,9 +31,9 @@ const JITA = 30_000_142;
 const AMARR = 30_002_187;
 const MAP = 'map-a';
 
-const SYSTEMS_NAME = getFunctionName(api.mapChain.watchMapSystems);
-const CONNECTIONS_NAME = getFunctionName(api.mapChain.watchMapConnections);
-const UNRESOLVED_NAME = getFunctionName(api.mapChain.watchUnresolvedHoles);
+const SYSTEMS_NAME = getFunctionName(api.mapChainSystems.watchMapSystems);
+const CONNECTIONS_NAME = getFunctionName(api.mapChainConnections.watchMapConnections);
+const UNRESOLVED_NAME = getFunctionName(api.mapChainConnections.watchUnresolvedHoles);
 
 type PageResult<Row> = {
   page: Row[];
@@ -163,19 +169,11 @@ function connectionRow(
   return {
     _id: id,
     _creationTime: 1,
-    mapId: MAP,
-    fromSystemId,
-    toSystemId,
-    wormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    eolAt: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
+    ...blankHallway({
+      mapId: MAP,
+      fromSystemId,
+      toSystemId,
+    }),
     ...overrides,
   };
 }
@@ -220,8 +218,10 @@ describe('optimisticAddSystemFromNode', () => {
     expect(store.connections[0]).toMatchObject({
       fromSystemId: JITA,
       toSystemId: AMARR,
-      wormholeTypeCode: null,
+      from: blankDoor(),
+      to: blankDoor(),
       massState: null,
+      identity: { kind: 'unknown' },
     });
   });
 
@@ -267,11 +267,12 @@ describe('optimisticPatchConnection', () => {
     optimisticPatchConnection(store, {
       mapId: MAP,
       connectionId: 'stub',
-      patch: { typedSide: 'to', toDestinationHint: 'dangerous' },
+      patch: {
+        to: { ...blankDoor(), leadsTo: { kind: 'hint', hint: 'dangerous' } },
+      },
     });
     expect(store.unresolved[0]).toMatchObject({
-      typedSide: 'to',
-      toDestinationHint: 'dangerous',
+      to: { ...blankDoor(), leadsTo: { kind: 'hint', hint: 'dangerous' } },
     });
   });
 });
@@ -292,7 +293,9 @@ describe('optimisticSetConnectionDestination', () => {
       expect.objectContaining({
         _id: 'stub',
         toSystemId: null,
-        fromDestinationSystemId: AMARR,
+        from: expect.objectContaining({
+          leadsTo: { kind: 'system', systemId: AMARR },
+        }),
       }),
     ]);
     expect(store.connections).toHaveLength(0);
@@ -308,7 +311,9 @@ describe('optimisticSetConnectionDestination', () => {
       expect.objectContaining({
         _id: 'stub',
         toSystemId: null,
-        fromDestinationSystemId: undefined,
+        from: expect.objectContaining({
+          leadsTo: { kind: 'unset' },
+        }),
       }),
     ]);
   });
@@ -326,20 +331,26 @@ describe('optimistic collapse patches', () => {
       100,
     );
     expect(store.connections[0]).toMatchObject({
-      deletedAt: 100,
-      purgeAfter: 100 + 24 * 60 * 60 * 1000,
+      tombstone: {
+        kind: 'removed',
+        deletedAt: 100,
+        purgeAfter: 100 + 24 * 60 * 60 * 1000,
+      },
     });
     expect(store.systems.every((row) => row.deletedAt === null)).toBe(true);
   });
 
   it('restores every loaded row sharing the cut stamp', () => {
     const stamp = 100;
-    const tombstone = { deletedAt: stamp, purgeAfter: stamp + 1 };
+    const systemTombstone = { deletedAt: stamp, purgeAfter: stamp + 1 };
+    const connectionTombstone = {
+      tombstone: { kind: 'removed' as const, deletedAt: stamp, purgeAfter: stamp + 1 },
+    };
     const store = mockStore({
-      systems: [systemRow(JITA, tombstone), systemRow(AMARR)],
+      systems: [systemRow(JITA, systemTombstone), systemRow(AMARR)],
       connections: [
-        connectionRow('cut', JITA, AMARR, tombstone),
-        connectionRow('incident', JITA, AMARR, tombstone),
+        connectionRow('cut', JITA, AMARR, connectionTombstone),
+        connectionRow('incident', JITA, AMARR, connectionTombstone),
       ],
     });
     optimisticRestoreSeveredBranch(store, {
@@ -348,9 +359,7 @@ describe('optimistic collapse patches', () => {
     });
     expect(store.systems[0]).toMatchObject({ deletedAt: null, purgeAfter: null });
     expect(
-      store.connections.every(
-        (row) => row.deletedAt === null && row.purgeAfter === null,
-      ),
+      store.connections.every((row) => row.tombstone.kind === 'live'),
     ).toBe(true);
   });
 });
@@ -360,9 +369,15 @@ describe('explicit lifetime proposals', () => {
     connectionId: 'c1' as Id<'mapConnections'>,
     _creationTime: 1_000,
     firstSeenAt: null,
-    wormholeTypeCode: 'B274',
-    deathEarliestAt: 2_000,
-    deathLatestAt: 3_000,
+    from: { ...blankDoor(), typeCode: 'B274' },
+    to: { ...blankDoor(), typeCode: 'K162' },
+    lifetime: {
+      kind: 'window' as const,
+      earliestAt: 2_000,
+      latestAt: 3_000,
+      lifeStage: null,
+      observedAt: null,
+    },
   };
 
   it('proposes a typed ceiling that never widens a stored window (server parity)', () => {
@@ -375,7 +390,16 @@ describe('explicit lifetime proposals', () => {
     // A contradictory (fully earlier) stored window resets to the typed span.
     expect(
       wormholeTypeWindowProposal(
-        { ...connection, deathEarliestAt: 100, deathLatestAt: 200 },
+        {
+          ...connection,
+          lifetime: {
+            kind: 'window',
+            earliestAt: 100,
+            latestAt: 200,
+            lifeStage: null,
+            observedAt: null,
+          },
+        },
         60,
       ),
     ).toEqual({
@@ -391,8 +415,7 @@ describe('explicit lifetime proposals', () => {
         {
           ...connection,
           firstSeenAt: 500,
-          deathEarliestAt: null,
-          deathLatestAt: null,
+          lifetime: { kind: 'unknown' },
         },
         60,
       ),
@@ -445,11 +468,35 @@ describe('explicit lifetime proposals', () => {
       5,
     );
     expect(store.connections[0]).toMatchObject({
-      wormholeTypeCode: 'B274',
-      lifeStage: 'under_1_day',
-      lifeStageObservedAt: 5,
-      deathEarliestAt: 3,
-      deathLatestAt: 4,
+      from: expect.objectContaining({ typeCode: 'B274' }),
+      to: expect.objectContaining({ typeCode: 'K162' }),
+      identity: { kind: 'typed', provenance: 'human' },
+      lifetime: {
+        kind: 'window',
+        earliestAt: 3,
+        latestAt: 4,
+        lifeStage: 'under_1_day',
+        observedAt: 5,
+      },
+    });
+  });
+
+  it('clears a pending jump prompt on the optimistic type write', () => {
+    const store = mockStore({
+      connections: [
+        connectionRow('c1', JITA, AMARR, {
+          resolution: pendingResolution(['c1' as ConnectionRowId], 101),
+        }),
+      ],
+    });
+    optimisticSetConnectionWormholeType(store, {
+      mapId: MAP,
+      connectionId: 'c1',
+      value: 'B274',
+    });
+    expect(store.connections[0]?.resolution).toEqual({
+      kind: 'destination',
+      provenance: 'assumed',
     });
   });
 });

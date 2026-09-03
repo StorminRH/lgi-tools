@@ -1,16 +1,4 @@
-// Corp owned-structures composition layer (3.7.9). Lives here, above the slices,
-// because it is the only point that touches BOTH the auth slice (per-character token
-// vend, affiliation/role reads) AND the owned-structures slice (the ESI→projection +
-// Neon storage) — a cross-slice join the feature boundary forbids inside either slice
-// (the sde-pipeline.ts pattern). This wires the real corp port the pure refresh runs
-// over (entirely from the SHARED owner-sync-port.ts helpers — a descriptor + port
-// wiring, NOT a clone), and exposes the on-view seam the corp-structures API route
-// consumes: read the member's corps' shared catalogues, fire a stale-gated
-// write-behind refresh behind the response (zero added latency). A direct mirror of
-// src/composition/sync/corp-industry-jobs-sync.ts, with the KEY divergence that the store is keyed
-// by corporation ALONE (shared across members), so the read scope comes from the
-// viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
-import { after } from 'next/server';
+import { after, connection } from 'next/server';
 import { refreshStaleAffiliationsForUser } from '@/platform/auth/affiliation';
 import { decideCorpAccess } from '@/platform/auth/corp-access';
 import { memberCharacterIdsInCorp, memberCorpIds } from '@/platform/auth/membership';
@@ -72,21 +60,18 @@ export interface ViewerCorpStructuresResult {
   corporations: ViewerCorpStructures[];
 }
 
-// The on-view seam: scope the read to the corps the viewer is a CURRENT member of
-// (refresh stale affiliations first, then the fail-closed membership set — the 3.7.3
-// gate's refresh-then-decide), read those corps' shared catalogues + freshness, and
-// fire a stale-gated write-behind refresh behind the response. Because the staleness
-// stamp lives on the shared corp row, the FIRST member's view per window does the ESI
-// work and every other member's view inside the window makes no ESI call (the
-// refresh's per-corp staleness gate is the dedup). A non-member's affiliation set
-// never includes the corp, so they read nothing.
-// Fire the stale-gated write-behind refresh for the user's corps behind the
-// response — shared by both on-view reads.
 function scheduleCorpStructuresRefresh(userId: string): void {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
 }
 
-// Each corp's last-refreshed epoch ms, keyed by corp id, for the freshness readout.
+// headers() still resolves during the session App Shell. Affiliation ESI must
+// wait for a real request so Next does not abort the fetch at prerender end.
+async function loadFreshUserAffiliations(userId: string) {
+  await connection();
+  await refreshStaleAffiliationsForUser(userId);
+  return getUserAffiliations(userId);
+}
+
 function freshnessMapOf(
   syncStates: { corporationId: number; lastRefreshedAt: Date }[],
 ): Map<number, number> {
@@ -98,8 +83,7 @@ function freshnessMapOf(
  * owners for refresh.
  */
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
-  await refreshStaleAffiliationsForUser(userId);
-  const affiliations = await getUserAffiliations(userId);
+  const affiliations = await loadFreshUserAffiliations(userId);
   const corporationIds = memberCorpIds(affiliations, new Date());
   const [structuresByCorp, syncStates, sharings] = await Promise.all([
     getCorpStructures(corporationIds),
@@ -176,8 +160,7 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
  * the sharing state, and (when enabled) the shared structures joined with authored rigs.
  */
 export async function getCorpStructuresPageData(userId: string): Promise<CorpStructurePageView[]> {
-  await refreshStaleAffiliationsForUser(userId);
-  const affiliations = await getUserAffiliations(userId);
+  const affiliations = await loadFreshUserAffiliations(userId);
   const corporationIds = memberCorpIds(affiliations, new Date());
   if (corporationIds.length === 0) return [];
 

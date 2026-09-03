@@ -5,7 +5,7 @@ import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
-import type { MenuAnchor } from './menu';
+import type { DataAttributes, MenuAnchor, PositionerProps } from './menu';
 import { useOverlayPortalContainer } from './overlay-portal-container';
 import type { Tone } from './tones';
 
@@ -30,11 +30,7 @@ const popup = cva(cn('flex flex-col outline-none', panelSurface), {
   defaultVariants: { tone: 'neutral' },
 });
 
-type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
-type PopupProps = React.ComponentProps<typeof Base.Popup>;
-type DataAttributes = {
-  [key: `data-${string}`]: string | number | boolean | undefined;
-};
+export type PopupProps = React.ComponentProps<typeof Base.Popup>;
 
 /**
  * Renders a controlled, triggerless menu at a virtual pointer anchor; callers own

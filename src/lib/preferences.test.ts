@@ -20,8 +20,10 @@ function installLocalStorageShim() {
       store.set(k, String(v));
     },
   };
-  // @ts-expect-error — installing a partial window into globalThis for tests
-  globalThis.window = { localStorage: ls };
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage: ls },
+  });
 }
 
 // Capture the last `document.cookie =` assignment so writePreferenceCookie can be
@@ -64,10 +66,9 @@ const {
   writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
-  __TEST_ONLY__,
 } = await import('./preferences');
 
-const lsKey = (key: string) => __TEST_ONLY__.LS_PREFIX + key;
+const lsKey = (key: string) => `lgi:pref:${key}`;
 
 beforeEach(() => {
   window.localStorage.clear();

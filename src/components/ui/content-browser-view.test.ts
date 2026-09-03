@@ -7,54 +7,36 @@ import {
   titleForSlug,
 } from './content-browser-view';
 
-const mixedModel: ContentNavModel = {
-  items: [{ slug: 'intro', title: 'Introduction' }],
-  groups: [
-    {
-      slug: 'platform',
-      title: 'Platform',
-      items: [{ slug: 'vercel', title: 'Vercel' }],
-    },
+const flatModel: ContentNavModel = {
+  items: [
+    { slug: 'intro', title: 'Introduction' },
+    { slug: 'vercel', title: 'Vercel' },
   ],
 };
 
-test('landingContentSlug and titleForSlug resolve flat, grouped, and empty navigation', () => {
-  expect(landingContentSlug({ items: [{ slug: 'newest', title: 'Newest' }], groups: [] })).toBe(
-    'newest',
-  );
-  expect(
-    landingContentSlug({
-      items: [],
-      groups: [
-        {
-          slug: 'platform',
-          title: 'Platform',
-          items: [{ slug: 'vercel', title: 'Vercel' }],
-        },
-      ],
-    }),
-  ).toBe('vercel');
-  expect(landingContentSlug({ items: [], groups: [] })).toBeNull();
+test('landingContentSlug and titleForSlug resolve flat and empty navigation', () => {
+  expect(landingContentSlug({ items: [{ slug: 'newest', title: 'Newest' }] })).toBe('newest');
+  expect(landingContentSlug({ items: [] })).toBeNull();
 
-  expect(titleForSlug(mixedModel, 'intro')).toBe('Introduction');
-  expect(titleForSlug(mixedModel, 'vercel')).toBe('Vercel');
-  expect(titleForSlug(mixedModel, 'missing')).toBeNull();
-  expect(titleForSlug(mixedModel, null)).toBeNull();
+  expect(titleForSlug(flatModel, 'intro')).toBe('Introduction');
+  expect(titleForSlug(flatModel, 'vercel')).toBe('Vercel');
+  expect(titleForSlug(flatModel, 'missing')).toBeNull();
+  expect(titleForSlug(flatModel, null)).toBeNull();
 });
 
 test('deriveActiveContentSlug and contentBrowserHref keep landing and child routes honest', () => {
-  expect(deriveActiveContentSlug('/devlog', '/devlog', 'introduction')).toBe('introduction');
-  expect(deriveActiveContentSlug('/devlog/', '/devlog/', 'introduction')).toBe('introduction');
-  expect(deriveActiveContentSlug('/devlog/vercel', '/devlog', 'introduction')).toBe('vercel');
-  expect(deriveActiveContentSlug('/devlog/vercel/', '/devlog', 'introduction')).toBe('vercel');
+  expect(deriveActiveContentSlug('/changelog', '/changelog', 'v4.0')).toBe('v4.0');
+  expect(deriveActiveContentSlug('/changelog/', '/changelog/', 'v4.0')).toBe('v4.0');
+  expect(deriveActiveContentSlug('/changelog/v3.8', '/changelog', 'v4.0')).toBe('v3.8');
+  expect(deriveActiveContentSlug('/changelog/v3.8/', '/changelog', 'v4.0')).toBe('v3.8');
 
-  expect(deriveActiveContentSlug('/skills', '/devlog', 'introduction')).toBeNull();
-  expect(deriveActiveContentSlug('/devlog/a/b', '/devlog', 'introduction')).toBeNull();
-  expect(deriveActiveContentSlug('/', '/devlog', 'introduction')).toBeNull();
+  expect(deriveActiveContentSlug('/skills', '/changelog', 'v4.0')).toBeNull();
+  expect(deriveActiveContentSlug('/changelog/a/b', '/changelog', 'v4.0')).toBeNull();
+  expect(deriveActiveContentSlug('/', '/changelog', 'v4.0')).toBeNull();
 
   expect(deriveActiveContentSlug('/docs.v2/item', '/docs.v2', 'intro')).toBe('item');
   expect(deriveActiveContentSlug('/docsXv2/item', '/docs.v2', 'intro')).toBeNull();
 
-  expect(contentBrowserHref('/devlog/', 'introduction', 'introduction')).toBe('/devlog');
-  expect(contentBrowserHref('/devlog', 'vercel', 'introduction')).toBe('/devlog/vercel');
+  expect(contentBrowserHref('/changelog/', 'v4.0', 'v4.0')).toBe('/changelog');
+  expect(contentBrowserHref('/changelog', 'v3.8', 'v4.0')).toBe('/changelog/v3.8');
 });

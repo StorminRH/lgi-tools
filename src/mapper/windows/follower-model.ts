@@ -337,7 +337,7 @@ export function applyFollowerWrite(
   }
 }
 
-interface FollowerBaseline {
+export interface FollowerBaseline {
   readonly anchorId: string;
   readonly x: number;
   readonly y: number;
@@ -430,7 +430,7 @@ export function computeFollowerTransform(
   };
 }
 
-interface FollowerScheduler {
+export interface FollowerScheduler {
   readonly schedule: (callback: () => void) => number;
   readonly cancel: (handle: number) => void;
 }

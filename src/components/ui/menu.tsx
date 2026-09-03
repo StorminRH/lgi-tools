@@ -53,13 +53,13 @@ const popup = cva('flex flex-col outline-none', {
   defaultVariants: { tone: 'neutral', surface: 'solid' },
 });
 
-type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
+export type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
 /** Supported element and virtual-anchor shapes for positioning a menu popup. */
 export type MenuAnchor = PositionerProps['anchor'];
-type DataAttributes = {
+export type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
 };
-type MenuTriggerProps = DataAttributes & {
+export type MenuTriggerProps = DataAttributes & {
   ref?: React.Ref<HTMLButtonElement>;
 };
 

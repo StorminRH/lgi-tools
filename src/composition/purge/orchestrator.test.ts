@@ -47,12 +47,14 @@ vi.mock('@/composition/map-access-projection', () => ({
     updated: 0,
     deleted: 0,
     unchanged: 0,
+    outcome: 'applied',
   }),
   teardownMapAccessProjection: vi.fn().mockResolvedValue({
     inserted: 0,
     updated: 0,
     deleted: 0,
     unchanged: 0,
+    outcome: 'applied',
   }),
   purgeUserMapAccessProjection: vi.fn().mockResolvedValue({ deleted: 0 }),
 }));

@@ -1,5 +1,5 @@
 import { chainTombstoneState } from '@/data/maps/chain-contract';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 
 /** Editor mode for one connection, or null when nothing should open. */
 export type ConnectionEditorMode =

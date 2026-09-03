@@ -261,14 +261,13 @@ export async function ensureJumpEdge(
   } = {},
 ) {
   if ((await page.locator('.react-flow__edge').count()) > 0) return;
-  await convexRun('mapFixtures:placeJumpFixture', {
+  await convexRun('mapFixturePlace:placeJumpFixture', {
     mapId,
     fromSystemId,
     toSystemId,
     wormholeTypeCode: null,
     massState: null,
     shipSize: null,
-    eolAt: null,
   });
   await page.waitForFunction(
     () => document.querySelectorAll('.react-flow__edge').length >= 1,

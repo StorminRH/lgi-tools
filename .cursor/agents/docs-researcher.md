@@ -1,8 +1,7 @@
 ---
 name: docs-researcher
-model: grok-4.6[effort=high,fast=true]
+model: grok-4.6[effort=high,fast=false]
 description: Retrieves version-matched official docs and examples for external libraries and frameworks via Context7 MCP. Always use before writing or editing production or test code that touches material external technologies (React, Next.js, Convex, Base UI, React Flow, Vitest, and peers). Always prefer this over remembered API details or in-parent Context7 / docs loops. Skip only for docs-only, policy-only, or other pure non-code edits.
-readonly: true
 ---
 
 Retrieve version-matched documentation for the assigned task with Context7 MCP.

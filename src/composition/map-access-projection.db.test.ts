@@ -5,7 +5,8 @@ import {
   seedCharacter,
   seedEveAccount,
   seedUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
+import { archivedMapLifecycle } from '@/data/maps/lifecycle-contract';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { computeMapAccessClaims } from './map-access-projection';
 
@@ -117,8 +118,42 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
 
     await harness.db
       .update(maps)
-      .set({ archivedAt: new Date('2026-08-12T00:00:00.000Z') })
+      .set(archivedMapLifecycle(new Date('2026-08-12T00:00:00.000Z')))
       .where(eq(maps.id, mapId));
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([]);
+  });
+
+  it('emits no claims for a tombstoned map whose archived_at is null', async () => {
+    await seedUser(harness.db, 'creator');
+    await seedUser(harness.db, 'char-owner');
+    await seedCharacter(harness.db, 42, {
+      corporationId: 100,
+      affiliationRefreshedAt: new Date(),
+    });
+    await seedEveAccount(harness.db, {
+      id: 'acc-42',
+      characterId: 42,
+      userId: 'char-owner',
+    });
+
+    const mapId = '22222222-2222-4222-8222-222222222222';
+    const goneAt = new Date('2026-08-12T00:00:00.000Z');
+    await harness.db.insert(maps).values({
+      id: mapId,
+      userId: 'creator',
+      name: 'Gone Atlas',
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: goneAt,
+      archivedAt: null,
+      tombstonedAt: goneAt,
+    });
+    await harness.db.insert(mapAccess).values({
+      mapId,
+      ownerType: 'character',
+      ownerId: 42,
+      role: 'editor',
+    });
+
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([]);
   });
 });

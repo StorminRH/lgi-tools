@@ -25,14 +25,14 @@ import { requireSameOrigin } from '@/platform/auth/same-origin';
  * Fetch-Metadata/content-type provenance policy is deferred until a trusted sibling subdomain, a
  * new cookie-authenticated mutation class, or observed missing-provenance abuse justifies it.
  */
-type AuthorizationSuccess = { ok: true };
-type FailureResult = { ok: false; failure: AppFailure };
-type MaybePromise<T> = T | Promise<T>;
+export type AuthorizationSuccess = { ok: true };
+export type FailureResult = { ok: false; failure: AppFailure };
+export type MaybePromise<T> = T | Promise<T>;
 type AuthorizationFunction = () => Promise<AuthorizationSuccess | FailureResult>;
 type ParseFunction = (
   request: Request,
 ) => Promise<{ ok: true; data: unknown } | FailureResult>;
-type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
+export type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
 
 /**
  * Every mutation names the capability it serves. Required rather than optional so a new mutation
@@ -44,18 +44,18 @@ type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
  * a throttled surface would look idle rather than busy. It returns the Response rather than a
  * failure so each route keeps its own declared 429 shape.
  */
-interface CapabilityOption {
+export interface CapabilityOption {
   capability: CapabilityId;
   preflight?: () => Promise<Response | null>;
 }
 
-interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess>
+export interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess>
   extends CapabilityOption {
   authorize: () => Promise<AuthorizationResult<TAuthorization>>;
   handle: (authorization: TAuthorization) => MaybePromise<Response>;
 }
 
-interface BodyfulMutationOptions<TAuthorization extends AuthorizationSuccess, TBody>
+export interface BodyfulMutationOptions<TAuthorization extends AuthorizationSuccess, TBody>
   extends CapabilityOption {
   authorize: () => Promise<AuthorizationResult<TAuthorization>>;
   parse: (

@@ -14,12 +14,16 @@ from pathlib import Path
 
 
 from tools._lib.repository import ROOT
+from tools.lifecycle.count_app_facing import (
+    PROMOTE_BAR,
+    PROMOTE_TRIGGER,
+    try_app_facing_count,
+)
 
 DEFAULT_ROOT = ROOT
 CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
 PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
 AS_BUILT_SCHEMA_RELPATH = "docs/workflows/schema/session-as-built.md"
-AUDIT_PLAN_SCHEMA_RELPATH = "docs/workflows/schema/audit-plan.md"
 # Sessions in sub-versions at or above this floor require an as-built record
 # once their plan is Complete; earlier sessions predate the record species.
 AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
@@ -41,15 +45,8 @@ MARKER_VOCABULARY = {
 DELIVERY_UNITS = (
     "One agent session, one shared sub-version branch, one PR per session",
     "One agent session, one shared sub-version branch, one sub-version PR",
+    "One agent session, land each Ordered work step on development",
 )
-AUDIT_STATUSES = {
-    "approved",
-    "remediation required",
-    "remediation in progress",
-    "complete",
-}
-FINDING_CLASSES = {"floss", "campaign", "watch"}
-FINDING_STATUSES = {"open", "planned", "delivered", "verified", "watch"}
 CONTRACT_ID_SECTIONS = {
     "DEP": "Current context and dependencies",
     "DC": "Done conditions",
@@ -85,19 +82,6 @@ class RoadmapRow:
 
 
 @dataclass(frozen=True)
-class AuditFinding:
-    identifier: str
-    first_seen: int
-    classification: str
-    remediation: str
-    status: str
-
-    @property
-    def actionable(self) -> bool:
-        return self.classification in {"floss", "campaign"}
-
-
-@dataclass(frozen=True)
 class WorkflowDirective:
     action: str
     handler: str | None
@@ -122,17 +106,21 @@ class WorkflowDirective:
 
 
 LIFECYCLE_BRANCH_PREFIX = "lifecycle/"
+PROMOTE_INTERRUPT_STAGES = frozenset(
+    {
+        "contracts-needed",
+        "session-plan-needed",
+        "session-ready",
+        "archive-needed",
+    }
+)
 
 
 def lifecycle_branch(subversion: str) -> str:
-    """Return the deterministic lifecycle branch for a planned sub-version.
+    """Return the as-built Branch marker for a sub-version.
 
-    One stable branch carries a sub-version's planning and every session until
-    its final PR merges, e.g. ``lifecycle/3.10.0.4``; under a per-session
-    delivery unit it is recreated from origin/main after each intermediate
-    squash merge. The name is a pure function of the sub-version with no
-    runtime prefix or slug, so any session resolves the same branch and a
-    fresh clone can rediscover in-flight work.
+    Live work lands on ``development``. Frozen as-builts still record
+    ``lifecycle/<subversion>``.
     """
     return f"{LIFECYCLE_BRANCH_PREFIX}{subversion}"
 
@@ -642,7 +630,7 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
 
 
 def as_built_binds(subversion: str) -> bool:
-    """Return whether a completed session in this sub-version needs an as-built."""
+    """Return whether an as-built for this sub-version uses the bound schema."""
     return session_key(subversion) >= AS_BUILT_BINDING_FLOOR
 
 
@@ -763,66 +751,6 @@ def as_built_schema_violations(
     return violations
 
 
-def missing_as_built(
-    contracts: dict[str, tuple[str, Path]],
-    version: str,
-    docs: Path,
-    root: Path,
-) -> dict[str, object] | None:
-    """Return the first completed session whose as-built record is absent or invalid.
-
-    Sweeps every indexed session, not only the incomplete sub-version's, so a
-    final session whose roadmap row turned terminal in the same close-out still
-    has its record enforced.
-    """
-    ordered = sorted(
-        contracts.items(),
-        key=lambda item: tuple(int(part) for part in item[0].split(".")),
-    )
-    final_by_subversion = {subversion: session for session, (subversion, _) in ordered}
-    # Delivery is a sub-version choice. A later per-session split must not force
-    # edits to an earlier contract after that frozen prompt has been consumed.
-    per_session_subversions = {
-        subversion
-        for _, (subversion, contract) in ordered
-        if contract.is_file() and marker(contract, "Delivery unit") == DELIVERY_UNITS[0]
-    }
-    for session, (subversion, contract) in ordered:
-        if not as_built_binds(subversion):
-            continue
-        plan = docs / "session-plans" / version / f"{session}.md"
-        if not execution_complete(plan):
-            continue
-        as_built = docs / "session-as-built" / version / f"{session}.md"
-        if not as_built.is_file():
-            return {
-                "subversion": subversion,
-                "session": session,
-                "asBuilt": str(as_built.relative_to(root)),
-                "asBuiltViolations": [],
-                "reason": "The completed session has no as-built record.",
-            }
-        if not contract.is_file():
-            continue
-        violations = as_built_schema_violations(
-            as_built,
-            contract,
-            plan,
-            root,
-            per_session_delivery=subversion in per_session_subversions,
-            final_session=final_by_subversion[subversion],
-        )
-        if violations:
-            return {
-                "subversion": subversion,
-                "session": session,
-                "asBuilt": str(as_built.relative_to(root)),
-                "asBuiltViolations": violations,
-                "reason": "The as-built record does not conform to the canonical schema.",
-            }
-    return None
-
-
 def vocabulary_binds(version: str) -> bool:
     """Return whether active artifacts must satisfy the 3.9 marker schema."""
     major, minor = (int(part) for part in version.split(".", maxsplit=1))
@@ -845,18 +773,6 @@ def marker_value_error(
     if value in MARKER_VOCABULARY[label]:
         return None
     return f"{path.relative_to(root)}: invalid {label} value {value!r}"
-
-
-def table_field(path: Path, label: str) -> str | None:
-    if not path.is_file():
-        return None
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("|"):
-            continue
-        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
-        if len(cells) >= 2 and cells[0].casefold() == label.casefold():
-            return cells[1]
-    return None
 
 
 def status_is(path: Path, label: str, expected: str) -> bool:
@@ -918,77 +834,6 @@ def approved_session_plan(
     return True, "The approved session plan matches the current contract.", []
 
 
-def parse_audit_findings(path: Path) -> tuple[list[AuditFinding], list[str]]:
-    findings: list[AuditFinding] = []
-    errors: list[str] = []
-    seen: set[str] = set()
-    if not path.is_file():
-        return findings, errors
-
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("|"):
-            continue
-        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
-        if len(cells) != 7 or not re.fullmatch(r"AF-\d{3}", cells[0]):
-            continue
-        identifier = cells[0]
-        if identifier in seen:
-            errors.append(f"duplicate audit finding id {identifier}")
-            continue
-        seen.add(identifier)
-        try:
-            first_seen = int(cells[1])
-        except ValueError:
-            errors.append(f"audit finding {identifier} has invalid First seen cycle {cells[1]!r}")
-            continue
-        classification = cells[2].casefold()
-        remediation = cells[5]
-        status = cells[6].casefold()
-        if classification not in FINDING_CLASSES:
-            errors.append(f"audit finding {identifier} has invalid class {cells[2]!r}")
-            continue
-        if status not in FINDING_STATUSES:
-            errors.append(f"audit finding {identifier} has invalid status {cells[6]!r}")
-            continue
-        if classification == "watch" and status != "watch":
-            errors.append(f"Watch finding {identifier} must have status Watch")
-        if classification != "watch" and status == "watch":
-            errors.append(f"actionable finding {identifier} cannot have status Watch")
-        if status in {"planned", "delivered", "verified"} and remediation in {"", "—", "-"}:
-            errors.append(f"audit finding {identifier} is {cells[6]} without mapped remediation")
-        findings.append(AuditFinding(identifier, first_seen, classification, remediation, status))
-    return findings, errors
-
-
-def audit_contract(path: Path, root: Path) -> tuple[str | None, list[AuditFinding], list[str], str]:
-    docs = root / "docs"
-    errors: list[str] = []
-    if not path.is_file():
-        return None, [], errors, "No audit plan exists."
-    if (marker(path, "Audit mode") or "").casefold() != "version close":
-        return None, [], errors, "The audit plan is not a Version close plan."
-
-    schema = root / AUDIT_PLAN_SCHEMA_RELPATH
-    if not schema.is_file():
-        errors.append(f"missing canonical audit-plan schema: {AUDIT_PLAN_SCHEMA_RELPATH}")
-        return None, [], errors, "The canonical audit-plan schema is missing."
-
-    status = (marker(path, "Audit status") or "").casefold()
-    if status not in AUDIT_STATUSES:
-        errors.append(f"{path.relative_to(root)}: invalid or missing Audit status")
-
-    cycle = marker(path, "Audit cycle") or ""
-    if not cycle.isdigit() or int(cycle) < 1:
-        errors.append(f"{path.relative_to(root)}: Audit cycle must be a positive integer")
-    audited_ref = marker(path, "Audited ref") or ""
-    if not re.fullmatch(r"[0-9a-f]{40}", audited_ref):
-        errors.append(f"{path.relative_to(root)}: Audited ref must be a full lowercase commit SHA")
-
-    findings, finding_errors = parse_audit_findings(path)
-    errors.extend(f"{path.relative_to(root)}: {error}" for error in finding_errors)
-    return status or None, findings, errors, "The version-close audit plan is present and parseable."
-
-
 def invalid_state(common: dict[str, object], reason: str, errors: list[str]) -> tuple[dict[str, object], list[str]]:
     errors.append(reason)
     return {**common, "stage": "invalid", "reason": reason}, errors
@@ -1015,54 +860,8 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
         "masterPlan": str(roadmap.relative_to(root)),
         "contractIndex": str(contract_index.relative_to(root)),
     }
-    as_built_gap = missing_as_built(contracts, version, docs, root)
-    if as_built_gap is not None:
-        return {**common, "stage": "as-built-needed", **as_built_gap}, errors
-
-    audit_plan = docs / "version-audits" / version / "PLAN.md"
-    audit_status: str | None = None
-    findings: list[AuditFinding] = []
-
-    if audit_plan.is_file() and (marker(audit_plan, "Audit mode") or "").casefold() == "version close":
-        common["auditPlan"] = str(audit_plan.relative_to(root))
-        audit_status, findings, audit_errors, _ = audit_contract(audit_plan, root)
-        errors.extend(audit_errors)
-        if audit_errors:
-            return invalid_state(common, "The version-close audit metadata or finding ledger is invalid.", errors)
-        common["auditStatus"] = audit_status
-        common["auditCycle"] = int(marker(audit_plan, "Audit cycle") or "0")
-
-    open_actionable = [finding for finding in findings if finding.actionable and finding.status == "open"]
-    unresolved_actionable = [finding for finding in findings if finding.actionable and finding.status != "verified"]
-
-    if audit_status == "remediation in progress" and not unresolved_actionable:
-        return invalid_state(
-            common,
-            "Remediation in progress requires at least one Planned or Delivered actionable finding.",
-            errors,
-        )
-
     incomplete = next((row for row in rows if not row.terminal), None)
     if incomplete:
-        if audit_status == "remediation required":
-            return invalid_state(
-                common,
-                "The roadmap contains remediation rows while the audit still says Remediation required.",
-                errors,
-            )
-        if audit_status in {"approved", "complete"}:
-            return invalid_state(
-                common,
-                f"The roadmap is nonterminal while the version-close audit status is {audit_status.title()}.",
-                errors,
-            )
-        if audit_status == "remediation in progress" and open_actionable:
-            return invalid_state(
-                common,
-                "Remediation in progress cannot retain open actionable findings; map them before execution.",
-                errors,
-            )
-
         sessions = sorted(
             (
                 (session, contract)
@@ -1087,11 +886,26 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
             remaining.append((session, contract, plan))
 
         if not remaining:
-            return invalid_state(
-                common,
-                f"{roadmap.relative_to(root)}: {incomplete.subversion} is nonterminal but every indexed session plan is complete",
-                errors,
+            later_incomplete = any(
+                not row.terminal
+                and session_key(row.subversion) > session_key(incomplete.subversion)
+                for row in rows
             )
+            if later_incomplete:
+                return invalid_state(
+                    common,
+                    f"{roadmap.relative_to(root)}: {incomplete.subversion} is nonterminal but every indexed session plan is complete",
+                    errors,
+                )
+            return {
+                **common,
+                "stage": "archive-needed",
+                "subversion": incomplete.subversion,
+                "reason": (
+                    "The last session of the version is complete. "
+                    "Archive the master plan."
+                ),
+            }, errors
 
         session, contract, plan = remaining[0]
         if not contract.is_file():
@@ -1169,6 +983,11 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
                 "sessionPlan": str(plan.relative_to(root)),
                 "reason": plan_reason,
             }, errors
+        later_incomplete = any(
+            not row.terminal
+            and session_key(row.subversion) > session_key(incomplete.subversion)
+            for row in rows
+        )
         return {
             **common,
             "stage": "session-ready",
@@ -1177,89 +996,15 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
             "contract": str(contract.relative_to(root)),
             "sessionPlan": str(plan.relative_to(root)),
             "uxGate": ux_gate,
+            "finalSession": remaining[-1][0] == session and not later_incomplete,
             "reason": plan_reason,
         }, errors
 
-    if not audit_plan.is_file() or audit_status is None:
-        return {
-            **common,
-            "stage": "audit-plan-needed",
-            "auditPlan": str(audit_plan.relative_to(root)),
-            "reason": "All roadmap rows are terminal and no current approved version-close audit exists.",
-        }, errors
-
-    if audit_status == "approved":
-        if open_actionable:
-            return invalid_state(
-                common,
-                "An Approved audit cannot retain open actionable findings; mark Remediation required.",
-                errors,
-            )
-        return {
-            **common,
-            "stage": "audit-ready",
-            "auditPlan": str(audit_plan.relative_to(root)),
-            "reason": "The approved version-close audit is ready to run or resume.",
-        }, errors
-
-    if audit_status == "remediation required":
-        if not open_actionable:
-            return invalid_state(
-                common,
-                "Remediation required must identify at least one open Floss or Campaign finding.",
-                errors,
-            )
-        return {
-            **common,
-            "stage": "audit-remediation-plan-needed",
-            "auditPlan": str(audit_plan.relative_to(root)),
-            "reason": "The audit found actionable work that must extend the current version before archival.",
-        }, errors
-
-    if audit_status == "remediation in progress":
-        not_delivered = [finding for finding in unresolved_actionable if finding.status != "delivered"]
-        if not_delivered:
-            identifiers = ", ".join(finding.identifier for finding in not_delivered)
-            return invalid_state(
-                common,
-                f"The remediation roadmap is terminal but findings are not Delivered: {identifiers}.",
-                errors,
-            )
-        return {
-            **common,
-            "stage": "audit-restart-ready",
-            "auditPlan": str(audit_plan.relative_to(root)),
-            "reason": "All mapped remediation is delivered; restart the full audit against current main.",
-        }, errors
-
-    if audit_status == "complete":
-        if unresolved_actionable:
-            identifiers = ", ".join(finding.identifier for finding in unresolved_actionable)
-            return invalid_state(
-                common,
-                f"A Complete audit has unresolved actionable findings: {identifiers}.",
-                errors,
-            )
-        audited_ref = marker(audit_plan, "Audited ref")
-        # The baseline schema allows `Code ref` to carry an optional qualifier
-        # after the SHA, so compare the leading SHA rather than the whole cell.
-        baseline_cell = table_field(docs / "CODE_HEALTH_BASELINE.md", "Code ref") or ""
-        baseline_match = re.match(r"[0-9a-f]{40}", baseline_cell.strip().lstrip("`"))
-        baseline_ref = baseline_match.group(0) if baseline_match else None
-        if baseline_ref != audited_ref:
-            return invalid_state(
-                common,
-                "A Complete audit requires CODE_HEALTH_BASELINE.md to match the Audited ref.",
-                errors,
-            )
-        return {
-            **common,
-            "stage": "archive-needed",
-            "auditPlan": str(audit_plan.relative_to(root)),
-            "reason": "The clean version-close audit is complete and the active version bundle must be archived.",
-        }, errors
-
-    return invalid_state(common, "The version-close audit status is not recognized.", errors)
+    return {
+        **common,
+        "stage": "archive-needed",
+        "reason": "Every roadmap row is terminal. Archive the master plan.",
+    }, errors
 
 
 def directive_for(state: dict[str, object]) -> WorkflowDirective:
@@ -1267,6 +1012,22 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
     version = str(state.get("activeVersion", "the active version"))
     session = str(state.get("session", "the selected session"))
 
+    if stage == "promote-needed":
+        return WorkflowDirective(
+            action="Promote development onto staging",
+            handler="close-out",
+            mode="execute",
+            authority=(
+                "Promote only. Merge Origin development onto staging. "
+                "Do not cut a release or change Production."
+            ),
+            primary_artifact=str(state["masterPlan"]) if "masterPlan" in state else None,
+            pause=(
+                "After the promote, return to start-session for the next "
+                "Ordered work step or plan."
+            ),
+            branch="development",
+        )
     if stage == "master-plan-needed":
         return WorkflowDirective(
             action="Request product direction for the next master version",
@@ -1284,7 +1045,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the contract decomposition is approved.",
             primary_artifact=str(state["masterPlan"]),
             pause="Contract decomposition approval is required.",
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "contract-repair-needed":
         violations = "; ".join(str(item) for item in state.get("contractSchemaViolations", []))
@@ -1292,10 +1053,10 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             action=f"Repair contract {state['contract']} to the canonical schema: {violations}",
             handler=None,
             mode="report",
-            authority="Limited to restoring the named contract's required schema on the lifecycle branch.",
+            authority="Limited to restoring the named contract's required schema on development.",
             primary_artifact=str(state["contract"]),
             pause="Contract repair is required before the session can be planned or executed.",
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "session-plan-needed":
         return WorkflowDirective(
@@ -1305,7 +1066,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the session implementation plan is approved.",
             primary_artifact=str(state["contract"]),
             pause="Session-plan approval is required.",
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "session-ready":
         pause = (
@@ -1330,73 +1091,20 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             ),
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,
-            branch=lifecycle_branch(str(state["subversion"])),
-        )
-    if stage == "as-built-needed":
-        violations = "; ".join(str(item) for item in state.get("asBuiltViolations", []))
-        detail = f": {violations}" if violations else ""
-        return WorkflowDirective(
-            action=f"Restore a valid as-built record for completed session {session}{detail}",
-            handler=None,
-            mode="report",
-            authority=(
-                "Limited to authoring the named session's as-built record to the "
-                "canonical schema on the lifecycle branch."
-            ),
-            pause=(
-                "A valid as-built record is required before the lifecycle advances. "
-                "A digest mismatch means a frozen prompt changed after the record "
-                "sealed it: investigate and restore the prompt bytes rather than "
-                "re-stamping the record."
-            ),
-            primary_artifact=str(state["asBuilt"]),
-            branch=lifecycle_branch(str(state["subversion"])),
-        )
-    if stage == "audit-plan-needed":
-        return WorkflowDirective(
-            action=f"Plan the version-close audit for {version}",
-            handler="plan-version-audit",
-            mode="plan",
-            authority="Read-only until the version-audit plan is approved.",
-            primary_artifact=str(state["auditPlan"]),
-            pause="Version-audit-plan approval is required.",
-        )
-    if stage == "audit-ready":
-        return WorkflowDirective(
-            action=f"Run or resume audit cycle {state['auditCycle']} for {version}",
-            handler="version-audit",
-            mode="execute",
-            authority="Only approved audit-local changes are authorized; no merge or deployment is authorized.",
-            primary_artifact=str(state["auditPlan"]),
-            pause="Pause on actionable findings, a failed gate, or new external authority.",
-        )
-    if stage == "audit-remediation-plan-needed":
-        return WorkflowDirective(
-            action=f"Plan audit remediation for {version}",
-            handler="plan-audit-remediation",
-            mode="plan",
-            authority="Read-only until the remediation extension and contracts are approved.",
-            primary_artifact=str(state["auditPlan"]),
-            pause="Audit-remediation approval is required.",
-        )
-    if stage == "audit-restart-ready":
-        next_cycle = int(state["auditCycle"]) + 1
-        return WorkflowDirective(
-            action=f"Restart the complete version audit as cycle {next_cycle} for {version}",
-            handler="version-audit",
-            mode="execute",
-            authority="Only the approved full-audit restart and audit-local changes are authorized.",
-            primary_artifact=str(state["auditPlan"]),
-            pause="Pause on actionable findings, a failed gate, or new external authority.",
+            branch="development",
         )
     if stage == "archive-needed":
         return WorkflowDirective(
-            action=f"Archive the verified version {version} bundle",
-            handler="version-audit",
+            action=f"Archive the completed version {version} bundle",
+            handler="start-session",
             mode="execute",
-            authority="Only the verified archive transition is authorized.",
-            primary_artifact=str(state["auditPlan"]),
-            pause="Pause if any archive precondition no longer holds.",
+            authority="Archive the master plan, contracts, session plans, and as-builts.",
+            primary_artifact=str(state["masterPlan"]) if "masterPlan" in state else None,
+            pause=(
+                "After archive, the next Start Session waits on product "
+                "direction for the next master plan."
+            ),
+            branch="development",
         )
     if stage == "invalid":
         return WorkflowDirective(
@@ -1428,12 +1136,11 @@ def _run_git(root: Path, *args: str) -> str | None:
 def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     """Return non-blocking warnings from the current local git snapshot.
 
-    Execute directives check that the checkout is the deterministic lifecycle
-    branch the directive names, plan directives check worktree cleanliness, and
-    every state checks whether local main trails the existing origin/main ref.
-    Branch names carry no lifecycle meaning: an unexpected branch only warns and
-    never changes the resolved stage or authorizes a bypass. Missing git state
-    degrades to no warning.
+    Execute directives accept ``development`` or ``lifecycle/<session>-ow-<n>``.
+    Plan directives check worktree cleanliness. Every state checks whether
+    local ``development`` or ``main`` trails the matching origin ref. An
+    unexpected branch only warns and never changes the resolved stage.
+    Missing git state degrades to no warning.
     """
 
     if _run_git(root, "rev-parse", "--is-inside-work-tree") != "true":
@@ -1442,17 +1149,17 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     warnings: list[str] = []
     directive = state.get("directive")
     mode = directive.get("mode") if isinstance(directive, dict) else None
-    directive_branch = directive.get("branch") if isinstance(directive, dict) else None
     branch = _run_git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
 
-    if mode == "execute" and branch and isinstance(directive_branch, str):
-        if branch == "main":
+    if mode == "execute" and branch:
+        ow_branch = re.fullmatch(r"lifecycle/.+-ow-\d+", branch) is not None
+        if branch in {"main", "staging"}:
             warnings.append(
-                f"current branch is main; check out the {directive_branch} lifecycle branch"
+                f"current branch is {branch}; work from development or the OW lifecycle branch"
             )
-        elif branch != directive_branch:
+        elif branch != "development" and not ow_branch:
             warnings.append(
-                f"current branch {branch!r} is not the {directive_branch} lifecycle branch"
+                f"current branch {branch!r} is not development or an OW lifecycle branch"
             )
 
     if mode == "plan":
@@ -1460,23 +1167,52 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
         if worktree:
             warnings.append("plan-mode directive has a dirty worktree")
 
-    local_main = _run_git(root, "rev-parse", "--verify", "refs/heads/main")
-    origin_main = _run_git(root, "rev-parse", "--verify", "refs/remotes/origin/main")
-    if local_main and origin_main and local_main != origin_main:
-        behind_count = _run_git(
-            root,
-            "rev-list",
-            "--count",
-            "refs/heads/main..refs/remotes/origin/main",
-        )
-        if behind_count and behind_count.isdigit() and int(behind_count) > 0:
-            warnings.append(f"local main is behind origin/main by {behind_count} commit(s)")
+    for line in ("development", "main"):
+        local_ref = _run_git(root, "rev-parse", "--verify", f"refs/heads/{line}")
+        origin_ref = _run_git(root, "rev-parse", "--verify", f"refs/remotes/origin/{line}")
+        if local_ref and origin_ref and local_ref != origin_ref:
+            behind_count = _run_git(
+                root,
+                "rev-list",
+                "--count",
+                f"refs/heads/{line}..refs/remotes/origin/{line}",
+            )
+            if behind_count and behind_count.isdigit() and int(behind_count) > 0:
+                warnings.append(
+                    f"local {line} is behind origin/{line} by {behind_count} commit(s)"
+                )
 
     return warnings
 
 
-def resolve(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[str]]:
+def apply_promote_interrupt(
+    state: dict[str, object],
+    count: int | None,
+) -> dict[str, object]:
+    """Send building stages to promote when the app-facing pile hits 80."""
+    if count is None or count < PROMOTE_TRIGGER:
+        return state
+    if str(state.get("stage")) not in PROMOTE_INTERRUPT_STAGES:
+        return state
+    return {
+        **state,
+        "stage": "promote-needed",
+        "appFacing": count,
+        "reason": (
+            f"App-facing count versus staging is {count}/{PROMOTE_BAR}. "
+            "Promote development onto staging before more Ordered work or planning."
+        ),
+    }
+
+
+def resolve(
+    root: Path = DEFAULT_ROOT,
+    *,
+    app_facing: int | None = None,
+) -> tuple[dict[str, object], list[str]]:
     state, errors = resolve_state(root)
+    count = try_app_facing_count(root) if app_facing is None else app_facing
+    state = apply_promote_interrupt(state, count)
     directive = directive_for(state).as_dict(str(state["reason"]))
     # UX gate is directive input, not a new top-level payload field; keeping it
     # internal preserves the frozen default resolver output for UX gate: No.

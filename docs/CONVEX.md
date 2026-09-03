@@ -66,13 +66,13 @@ or aggregate components only after logs show real OCC retries.
 
 ## The sync engine
 
-Live ≤2-min data joins the existing engine (`convex/engine.ts`;
-`src/lib/sync-engine.ts`) through the 4-step registration seam: dataset +
-cadence in the schema union, `syncRef` to the internal sync action,
-generation-guarded apply, `useSyncSubject`. No feature-local presence,
-scheduler, or always-on sync. Heartbeats must not invalidate watched payload
-(`syncPresence` vs `syncSubjects`). Read constants from source; do not
-hardcode duplicates.
+Live ≤2-min data joins the existing engine (`convex/lib/engineCore.ts`
+registration + `convex/engine.ts` heartbeat; `src/lib/sync-engine.ts`)
+through the 4-step registration seam: dataset + cadence in the schema union,
+`syncRef` to the internal sync action, generation-guarded apply,
+`useSyncSubject`. No feature-local presence, scheduler, or always-on sync.
+Heartbeats must not invalidate watched payload (`syncPresence` vs
+`syncSubjects`). Read constants from source; do not hardcode duplicates.
 
 ## Secrets, env, and deploy
 
@@ -92,6 +92,9 @@ hardcode duplicates.
   (`resolveActiveCharacter` stays off this path; JWKS is process-cached).
 - **Env split.** `CONVEX_SERVICE_SECRET` in Convex env — never EVE credentials.
   Identity and token secrets stay Neon-side. `CONVEX_DEPLOY_KEY` in Vercel.
+  Staging Convex `SITE_URL` / `AUTH_ISSUER_URL` are `https://staging.lgi.tools`,
+  not `lgi.tools`. Vercel Preview `staging` uses a deploy key for
+  `proper-squid-200`, not the default production key and not a preview key.
 - **CSP:** Convex origin in `connect-src` only — https + wss, exact
   per-deployment origin, never `*.convex.cloud` (`src/proxy.ts`).
 

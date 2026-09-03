@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import { problemBodySchema } from '@/lib/problem';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
@@ -36,146 +36,106 @@ const jsonResponse = (body: unknown, status = 200) =>
 
 const init = { baseUrl: 'https://app.test', secret: 'service-secret' };
 
-afterEach(() => {
-  vi.resetAllMocks();
+beforeEach(() => {
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', '');
 });
 
-describe('serviceFetch', () => {
-  it('joins the deployment base URL with the endpoint path', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+afterEach(() => {
+  vi.resetAllMocks();
+  vi.unstubAllEnvs();
+});
 
-    await serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } });
+test('sends a JSON body request with bearer auth and returns the declared success arm', async () => {
+  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
 
-    expect(fetchWithTimeout).toHaveBeenCalledWith(
-      'https://app.test/api/internal/test-token',
-      expect.anything(),
-    );
+  const outcome = await serviceFetch(bodyEndpoint, {
+    ...init,
+    body: { userId: 'user-1' },
   });
 
-  it('sends the service secret as a Bearer credential with the JSON body', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+  expect(outcome).toEqual({ ok: true, status: 200, data: { accessToken: 'fresh' } });
+  expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer service-secret',
+    },
+    body: JSON.stringify({ userId: 'user-1' }),
+  });
+  expect(fetchWithTimeout.mock.calls[0]).toHaveLength(2);
+});
 
-    await serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } });
+test('omits the body for a request-less endpoint and attaches the Vercel bypass header when set', async () => {
+  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
 
-    expect(fetchWithTimeout).toHaveBeenCalledWith(
-      expect.any(String),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer service-secret',
-        },
-        body: JSON.stringify({ userId: 'user-1' }),
-      },
-    );
+  await serviceFetch(bodylessEndpoint, init);
+  expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status', {
+    method: 'GET',
+    headers: { Authorization: 'Bearer service-secret' },
   });
 
-  it('omits the body and Content-Type for a request-less endpoint', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+  fetchWithTimeout.mockClear();
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
+  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
 
-    await serviceFetch(bodylessEndpoint, init);
+  await serviceFetch(bodylessEndpoint, init);
+  expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status', {
+    method: 'GET',
+    headers: {
+      Authorization: 'Bearer service-secret',
+      'x-vercel-protection-bypass': 'bypass-secret',
+    },
+  });
+});
 
-    expect(fetchWithTimeout).toHaveBeenCalledWith(
-      'https://app.test/api/internal/test-status',
-      { method: 'GET', headers: { Authorization: 'Bearer service-secret' } },
-    );
+test('classifies API, protocol, and network failures without throwing', async () => {
+  fetchWithTimeout.mockResolvedValue(
+    jsonResponse(
+      problemBodySchema.parse({
+        type: 'https://lgi.tools/problems/not-found',
+        title: 'Not found',
+        status: 404,
+        code: 'not_found',
+        correlationId: 'correlation-id',
+      }),
+      404,
+    ),
+  );
+  await expect(
+    serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } }),
+  ).resolves.toMatchObject({ ok: false, kind: 'api', status: 404 });
+
+  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 42 }));
+  await expect(
+    serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } }),
+  ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 200 });
+
+  fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }, 502));
+  await expect(
+    serviceFetch(bodyEndpoint, { ...init, body: { userId: 'user-1' } }),
+  ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 502 });
+
+  const cause = new TypeError('Failed to fetch');
+  fetchWithTimeout.mockRejectedValue(cause);
+  await expect(serviceFetch(bodylessEndpoint, init)).resolves.toEqual({
+    ok: false,
+    kind: 'network',
+    aborted: false,
+    cause,
   });
 
-  it('leaves the shared outbound timeout default in place', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
-
-    await serviceFetch(bodylessEndpoint, init);
-
-    // No third argument — the caller never overrides the shared fail-fast
-    // timeout, which is the behavior the bare-fetch call sites had.
-    expect(fetchWithTimeout.mock.calls[0]).toHaveLength(2);
+  fetchWithTimeout.mockRejectedValue(new DOMException('signal timed out', 'AbortError'));
+  await expect(serviceFetch(bodylessEndpoint, init)).resolves.toMatchObject({
+    ok: false,
+    kind: 'network',
+    aborted: true,
   });
 
-  it('returns the validated success body through the declared arm', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
-
-    const outcome = await serviceFetch(bodyEndpoint, {
-      ...init,
-      body: { userId: 'user-1' },
-    });
-
-    expect(outcome).toEqual({ ok: true, status: 200, data: { accessToken: 'fresh' } });
-  });
-
-  it('returns a declared problem through its API arm', async () => {
-    fetchWithTimeout.mockResolvedValue(
-      jsonResponse(
-        problemBodySchema.parse({
-          type: 'https://lgi.tools/problems/not-found',
-          title: 'Not found',
-          status: 404,
-          code: 'not_found',
-          correlationId: 'correlation-id',
-        }),
-        404,
-      ),
-    );
-
-    const outcome = await serviceFetch(bodyEndpoint, {
-      ...init,
-      body: { userId: 'user-1' },
-    });
-
-    expect(outcome).toMatchObject({ ok: false, kind: 'api', status: 404 });
-  });
-
-  it('rejects a success body that fails the endpoint contract', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 42 }));
-
-    const outcome = await serviceFetch(bodyEndpoint, {
-      ...init,
-      body: { userId: 'user-1' },
-    });
-
-    expect(outcome).toMatchObject({ ok: false, kind: 'protocol', status: 200 });
-  });
-
-  it('rejects an undeclared status as protocol drift', async () => {
-    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }, 502));
-
-    const outcome = await serviceFetch(bodyEndpoint, {
-      ...init,
-      body: { userId: 'user-1' },
-    });
-
-    expect(outcome).toMatchObject({ ok: false, kind: 'protocol', status: 502 });
-  });
-
-  it('returns the network arm instead of throwing when the request rejects', async () => {
-    const cause = new TypeError('Failed to fetch');
-    fetchWithTimeout.mockRejectedValue(cause);
-
-    await expect(serviceFetch(bodylessEndpoint, init)).resolves.toEqual({
-      ok: false,
-      kind: 'network',
-      aborted: false,
-      cause,
-    });
-  });
-
-  it('flags an aborted request on the network arm', async () => {
-    fetchWithTimeout.mockRejectedValue(new DOMException('signal timed out', 'AbortError'));
-
-    await expect(serviceFetch(bodylessEndpoint, init)).resolves.toMatchObject({
-      ok: false,
-      kind: 'network',
-      aborted: true,
-    });
-  });
-
-  it('returns the network arm when the response body stream fails', async () => {
-    const response = jsonResponse({ accessToken: 'fresh' });
-    vi.spyOn(response, 'json').mockRejectedValue(new TypeError('stream failed'));
-    fetchWithTimeout.mockResolvedValue(response);
-
-    await expect(serviceFetch(bodylessEndpoint, init)).resolves.toMatchObject({
-      ok: false,
-      kind: 'network',
-    });
+  const response = jsonResponse({ accessToken: 'fresh' });
+  vi.spyOn(response, 'json').mockRejectedValue(new TypeError('stream failed'));
+  fetchWithTimeout.mockResolvedValue(response);
+  await expect(serviceFetch(bodylessEndpoint, init)).resolves.toMatchObject({
+    ok: false,
+    kind: 'network',
   });
 });

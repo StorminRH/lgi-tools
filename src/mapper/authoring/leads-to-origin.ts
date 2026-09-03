@@ -1,3 +1,6 @@
+import { isTombstoned } from '@/data/maps/chain-contract';
+import type { ConnectionTombstone } from '@/data/maps/connection-hallway';
+
 /** Select value prefix for another system already on this hallway. */
 const ORIGIN_LEAD_PREFIX = 'origin:';
 
@@ -38,9 +41,9 @@ export interface OriginLeadConnection {
   readonly connectionId: string;
   readonly fromSystemId: number;
   readonly toSystemId: number | null;
-  readonly fromSignatureId: string | null;
-  readonly toSignatureId: string | null;
-  readonly deletedAt: number | null;
+  readonly from: { readonly signatureId: string | null };
+  readonly to: { readonly signatureId: string | null };
+  readonly tombstone?: ConnectionTombstone;
 }
 
 function otherEndpoint(
@@ -68,7 +71,7 @@ export function originLeadCandidates(
   for (const connection of connections) {
     if (
       connection.connectionId === stubConnectionId
-      || connection.deletedAt != null
+      || isTombstoned(connection)
     ) {
       continue;
     }

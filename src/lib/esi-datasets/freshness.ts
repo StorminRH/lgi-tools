@@ -7,7 +7,7 @@
 import { ESI_DATASET_ENTRIES } from './entries';
 import { effectiveTtlMs } from './types';
 
-type StaticWindowEntry = Extract<
+export type StaticWindowEntry = Extract<
   (typeof ESI_DATASET_ENTRIES)[number],
   { freshnessModel: 'caller-ttl' | 'row-stale-after' }
 >;
@@ -17,7 +17,7 @@ type StaticWindowEntry = Extract<
  * caller-ttl and row-stale-after models, whose effective TTL is the entry's
  * verified upstream cache time or its recorded override.
  */
-type StaticWindowDatasetName = StaticWindowEntry['name'];
+export type StaticWindowDatasetName = StaticWindowEntry['name'];
 
 /**
  * A dataset's bound runtime staleness gate. `isStale` is pure and
@@ -25,7 +25,7 @@ type StaticWindowDatasetName = StaticWindowEntry['name'];
  * older than the entry-derived window. `ttlMs` exposes the same window for
  * write-time stale-after stamps and SQL cutoff arithmetic.
  */
-interface FreshnessGate {
+export interface FreshnessGate {
   readonly ttlMs: number;
   isStale(refreshedAt: Date | null, now: Date): boolean;
 }

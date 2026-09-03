@@ -8,7 +8,9 @@ import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc.setup';
+
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -17,6 +19,7 @@ const EDITOR = 'user-editor';
 const VIEWER = 'user-viewer';
 
 type Chain = TestConvex<typeof schema>;
+let nextRevision = 1;
 
 function asUser(t: Chain, userId: string) {
   return t.withIdentity({ subject: userId });
@@ -27,7 +30,24 @@ async function reconcile(
   mapId: string,
   claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
 ) {
-  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, { mapId, claims });
+  const result = await reconcileAt(t, mapId, claims, nextRevision);
+  nextRevision += 1;
+  const { outcome, ...counts } = result;
+  expect(outcome).toBe('applied');
+  return counts;
+}
+
+function reconcileAt(
+  t: Chain,
+  mapId: string,
+  claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
+  revision: number,
+) {
+  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+    mapId,
+    revision,
+    claims,
+  });
 }
 
 async function readClaims(t: Chain, mapId: string) {
@@ -45,7 +65,7 @@ async function readClaims(t: Chain, mapId: string) {
 }
 
 describe('reconcileMapClaims', () => {
-  it('writes a fresh claim set', async () => {
+  it('writes, no-ops an identical re-run, updates a role, and deletes by absence or empty roles', async () => {
     const t = convexTest(schema, modules);
     const counts = await reconcile(t, MAP_A, [
       { userId: OWNER, roles: ['admin'] },
@@ -57,106 +77,110 @@ describe('reconcileMapClaims', () => {
       { userId: EDITOR, roles: ['editor'], keys: ['_creationTime', '_id', 'mapId', 'roles', 'userId'] },
       { userId: OWNER, roles: ['admin'], keys: ['_creationTime', '_id', 'mapId', 'roles', 'userId'] },
     ]);
-  });
 
-  it('reports only unchanged with byte-stable documents on an identical re-run', async () => {
-    const t = convexTest(schema, modules);
+    const before = await readClaims(t, MAP_A);
+    expect(
+      await reconcile(t, MAP_A, [
+        { userId: OWNER, roles: ['admin'] },
+        { userId: EDITOR, roles: ['editor'] },
+      ]),
+    ).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 2 });
+    expect(await readClaims(t, MAP_A)).toEqual(before);
+
+    expect(
+      await reconcile(t, MAP_A, [
+        { userId: OWNER, roles: ['admin'] },
+        { userId: EDITOR, roles: ['viewer'] },
+      ]),
+    ).toEqual({ inserted: 0, updated: 1, deleted: 0, unchanged: 1 });
+    expect(await readClaims(t, MAP_A)).toMatchObject([
+      { userId: EDITOR, roles: ['viewer'] },
+      { userId: OWNER, roles: ['admin'] },
+    ]);
+
+    expect(
+      await reconcile(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]),
+    ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
+    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+
     await reconcile(t, MAP_A, [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
+    expect(
+      await reconcile(t, MAP_A, [
+        { userId: OWNER, roles: ['admin'] },
+        { userId: EDITOR, roles: [] },
+      ]),
+    ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
+    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+  });
+
+  it('rejects an older delivery and accepts an exact retry without rewriting', async () => {
+    const t = convexTest(schema, modules);
+    const current = await reconcileAt(
+      t,
+      MAP_A,
+      [{ userId: OWNER, roles: ['admin'] }],
+      20,
+    );
+    expect(current).toMatchObject({ outcome: 'applied', inserted: 1 });
     const before = await readClaims(t, MAP_A);
 
-    const counts = await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-
-    expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 2 });
+    await expect(reconcileAt(t, MAP_A, [], 19)).resolves.toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+      outcome: 'stale',
+    });
+    await expect(
+      reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 20),
+    ).resolves.toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+      outcome: 'duplicate',
+    });
     expect(await readClaims(t, MAP_A)).toEqual(before);
   });
 
-  it('updates a role change without touching other users', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['viewer'] },
-    ]);
-
-    const counts = await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-
-    expect(counts).toEqual({ inserted: 0, updated: 1, deleted: 0, unchanged: 1 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([
-      { userId: EDITOR, roles: ['editor'] },
-      { userId: OWNER, roles: ['admin'] },
-    ]);
-  });
-
-  it('removes a user absent from the desired set', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-
-    const counts = await reconcile(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-
-    expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
-  });
-
-  it('treats an empty-roles claim as absence and deletes any existing row', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-
-    const counts = await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: [] },
-    ]);
-
-    expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
-  });
-
-  it('teardown deletes every claim for the map and only that map', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-    await reconcile(t, MAP_B, [{ userId: VIEWER, roles: ['viewer'] }]);
-
-    const counts = await reconcile(t, MAP_A, []);
-
-    expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 2, unchanged: 0 });
-    expect(await readClaims(t, MAP_A)).toEqual([]);
-    expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
-  });
-
-  it('resynchronization restores the complete principal set after teardown', async () => {
+  it('tears down one map, leaves the other, and restores the full set on resync', async () => {
     const t = convexTest(schema, modules);
     const claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }> = [
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor', 'viewer'] },
     ];
     await reconcile(t, MAP_A, claims);
-    await reconcile(t, MAP_A, []);
+    await reconcile(t, MAP_B, [{ userId: VIEWER, roles: ['viewer'] }]);
 
-    const restored = await reconcile(t, MAP_A, claims);
-    expect(restored).toEqual({ inserted: 2, updated: 0, deleted: 0, unchanged: 0 });
+    expect(await reconcile(t, MAP_A, [])).toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 2,
+      unchanged: 0,
+    });
+    expect(await readClaims(t, MAP_A)).toEqual([]);
+    expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
+
+    expect(await reconcile(t, MAP_A, claims)).toEqual({
+      inserted: 2,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+    });
     expect(await readClaims(t, MAP_A)).toMatchObject([
       { userId: EDITOR, roles: ['editor', 'viewer'] },
       { userId: OWNER, roles: ['admin'] },
     ]);
-
-    const idempotent = await reconcile(t, MAP_A, claims);
-    expect(idempotent).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 2 });
+    expect(await reconcile(t, MAP_A, claims)).toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 2,
+    });
+    expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
   });
 
   it('repairs a seeded duplicate (mapId, userId) pair to exactly one row', async () => {
@@ -245,9 +269,6 @@ describe('purgeUserClaims', () => {
   });
 
   it("sweeps the user's mapTracking rows as the account-purge backstop", async () => {
-    // The dedicated best-effort /purge-location-tracking door can fail
-    // silently; this door must still clear the deleted account's tracking so
-    // forMap never serves a purged user's location to remaining members.
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
@@ -267,27 +288,6 @@ describe('purgeUserClaims', () => {
 });
 
 describe('gate returns projected roles', () => {
-  it('returns the projected role array after reconcileMapClaims', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: EDITOR, roles: ['editor', 'viewer'] }]);
-
-    const page = await asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-      mapId: MAP_A,
-      collection: 'systems',
-      cursor: null,
-    });
-    expect(page).toMatchObject({ page: [], isDone: true });
-
-    const principal = await t.run(async (ctx) => {
-      const claim = await ctx.db
-        .query('mapAccess')
-        .withIndex('by_map_user', (q) => q.eq('mapId', MAP_A).eq('userId', EDITOR))
-        .unique();
-      return claim?.roles;
-    });
-    expect(principal).toEqual(['editor', 'viewer']);
-  });
-
   it('normalizes a stored legacy owner claim to current admin authorization', async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) =>
@@ -302,35 +302,6 @@ describe('gate returns projected roles', () => {
       tryMapAccessForUser(ctx, MAP_A, OWNER, 'edit'),
     );
     expect(principal).toEqual({ userId: OWNER, roles: ['admin'] });
-  });
-
-  it('leaves every collaborative table except mapAccess empty for a fresh map', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-
-    const counts = await t.run(async (ctx) => ({
-      mapAccess: (await ctx.db.query('mapAccess').collect()).length,
-      mapSystems: (await ctx.db.query('mapSystems').collect()).length,
-      mapConnections: (await ctx.db.query('mapConnections').collect()).length,
-      mapJumpBookkeeping: (await ctx.db.query('mapJumpBookkeeping').collect()).length,
-      mapEvents: (await ctx.db.query('mapEvents').collect()).length,
-      mapSignatures: (await ctx.db.query('mapSignatures').collect()).length,
-      mapNotes: (await ctx.db.query('mapNotes').collect()).length,
-      mapSignatureActivity: (await ctx.db.query('mapSignatureActivity').collect()).length,
-      mapTracking: (await ctx.db.query('mapTracking').collect()).length,
-    }));
-
-    expect(counts).toEqual({
-      mapAccess: 1,
-      mapSystems: 0,
-      mapConnections: 0,
-      mapJumpBookkeeping: 0,
-      mapEvents: 0,
-      mapSignatures: 0,
-      mapNotes: 0,
-      mapSignatureActivity: 0,
-      mapTracking: 0,
-    });
   });
 });
 
@@ -380,15 +351,14 @@ describe('read-set cost', () => {
         await ctx.db.insert('mapSystems', { mapId: MAP_A, systemId: 30_000_000 + index });
       }
       for (let index = 0; index < 30; index += 1) {
-        await ctx.db.insert('mapConnections', {
+        await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: 30_000_000 + index,
           toSystemId: 30_000_100 + index,
           wormholeTypeCode: null,
           shipSize: null,
           massState: 'stable',
-          eolAt: null,
-        });
+        }));
       }
       for (let index = 0; index < 60; index += 1) {
         await ctx.db.insert('mapSignatures', {

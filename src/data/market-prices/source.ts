@@ -20,6 +20,7 @@ import {
   computeDepth,
   computeSide,
   computeRegionalDiscount,
+  filterBuyOrdersBelowSpreadFloor,
   isDiscountEligibleLocation,
   type OrderEntry,
   type RemoteStationBook,
@@ -27,22 +28,7 @@ import {
 import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';
 
-// The book math moved to book-math.ts (3.7.26.1) so tests and one-off
-// diagnosis scripts can import it without this module's ESI-gate graph;
-// re-exported here so existing consumers keep their import path.
 export { computeDepth, computeSide } from './book-math';
-
-// ESI source dispatcher. Above BULK_THRESHOLD types stale at once, the
-// region-dump path streams every order in The Forge and filters in memory.
-// Below the threshold, per-type calls are cheaper. Either way, a Fuzzwork
-// fallback covers ESI degradation — preserving the per-row staleness
-// contract so the next cron tick gets a fresh attempt.
-//
-// The Forge is the FETCH scope; Jita 4-4 is the PRICE scope (3.7.26.1).
-// Every stored figure — best/pct5/volume/depth, both sides — describes the
-// orders at JITA_44_STATION_ID only; the rest of the region dump feeds the
-// regional-discount fold and is then dropped. See constants.ts for the
-// buy-side ruling.
 
 // ESI's /markets/{region}/orders/ response item shape — only the fields
 // we actually use. Boundary schema: ESI sends more keys; z.object ignores
@@ -62,21 +48,12 @@ const esiOrdersSchema = z.array(esiOrderSchema);
 
 type EsiOrder = z.infer<typeof esiOrderSchema>;
 
-// Validate a parsed-JSON ESI orders body, throwing EsiContractError on a
-// shape mismatch so callers route to Fuzzwork exactly as they do for a 5xx.
 function parseEsiOrders(body: unknown): EsiOrder[] {
   const result = esiOrdersSchema.safeParse(body);
   if (!result.success) throw new EsiContractError();
   return result.data;
 }
 
-// Cheap pre-filter for the bulk region dump: skim a raw page down to the
-// wanted type set BEFORE Zod runs, so we validate only the handful of orders
-// we'll actually keep rather than every order on a ~400-600 page book (most of
-// which we discard anyway). A non-array body still throws EsiContractError, the
-// same routing-to-Fuzzwork signal parseEsiOrders gives. Page 1 keeps the full
-// parse as the boundary shape probe; tracked types are still fully validated
-// here (a malformed order for a wanted type survives the skim and trips Zod).
 function filterRawByWantedType(body: unknown, wanted: Set<number>): unknown[] {
   if (!Array.isArray(body)) throw new EsiContractError();
   return body.filter((o) => {
@@ -85,28 +62,12 @@ function filterRawByWantedType(body: unknown, wanted: Set<number>): unknown[] {
   });
 }
 
-// Per-type accumulation while streaming the dump: the hub book (both sides,
-// the stored price) plus each eligible remote station's sell book (the
-// regional-discount fold's input). Remote BUY orders are dropped at absorb
-// time — the ruled buy scope is hub-station-only, so they can never matter.
 interface OrderBucket {
   hubBuy: OrderEntry[];
   hubSell: OrderEntry[];
   remoteSell: Map<number, RemoteStationBook>;
 }
 
-// Bounded-concurrency worker pool. Workers pull from a shared index until
-// the input is exhausted. If any worker throws, a shared `cancelled` flag
-// short-circuits the other workers' next iteration — surviving workers
-// finish their current item and then exit cleanly, so we don't drain the
-// rest of the cursor against a known-failing endpoint. The first thrown
-// error is what surfaces to the caller via Promise.all rejection.
-//
-// Why the flag matters: the region-dump bulk path can have ~500 pages.
-// Without cancellation, a single 5xx on page 5 would leave (PAGE_CONCURRENCY
-// - 1) = 7 workers draining the remaining ~495 pages — each call burning
-// outbound bandwidth and ESI error budget toward the floor. The flag caps
-// post-throw dispatch at one extra item per surviving worker.
 async function runConcurrent<T>(
   items: T[],
   concurrency: number,
@@ -134,14 +95,6 @@ async function runConcurrent<T>(
   await Promise.all(workers);
 }
 
-// Funnel ESI orders into per-type buckets, ignoring types we didn't ask
-// about. Mutates `buckets` in place. The region-dump path calls this once
-// per page; the per-type path passes the whole response as one "page."
-//
-// Routing (3.7.26.1 hub scoping): orders at Jita 4-4 land in the hub book —
-// the stored price. Sell orders elsewhere accumulate per eligible remote
-// station for the regional-discount fold. Buy orders elsewhere are dropped
-// (hub-station-only by ruling; see constants.ts).
 function absorbOrders(
   orders: EsiOrder[],
   wanted: Set<number>,
@@ -166,8 +119,6 @@ function absorbOrders(
   }
 }
 
-// Accumulate one remote sell order onto its station's book. Ineligible
-// locations (player structures) never enter the fold's input.
 function absorbRemoteSell(
   bucket: OrderBucket,
   o: EsiOrder,
@@ -182,16 +133,13 @@ function absorbRemoteSell(
   book.orders.push(entry);
 }
 
-// Stored figures come from the HUB books only (the 3.7.26.1 price scope);
-// computeSide/computeDepth are unchanged — the pct5 walk stays Fuzzwork-
-// pinned, its input book is what shrank. The regional-discount fold runs
-// over what the scoping excluded.
 function bucketToRawPrice(
   typeId: number,
   bucket: OrderBucket,
 ): RawMarketPrice {
-  const buy = computeSide(bucket.hubBuy, 'desc');
   const sell = computeSide(bucket.hubSell, 'asc');
+  const hubBuy = filterBuyOrdersBelowSpreadFloor(bucket.hubBuy, sell.best);
+  const buy = computeSide(hubBuy, 'desc');
   return {
     typeId,
     bestBuy: buy.best,
@@ -200,7 +148,7 @@ function bucketToRawPrice(
     pct5Sell: sell.pct5,
     buyVolume: buy.volume,
     sellVolume: sell.volume,
-    buyDepth: computeDepth(bucket.hubBuy, 'desc', buy.best),
+    buyDepth: computeDepth(hubBuy, 'desc', buy.best),
     sellDepth: computeDepth(bucket.hubSell, 'asc', sell.best),
     regionalDiscount: computeRegionalDiscount(bucket.remoteSell, sell.best, {
       minPct: REGIONAL_DISCOUNT_MIN_PCT,
@@ -236,21 +184,12 @@ function perTypeUrl(typeId: number): string {
   return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?type_id=${typeId}&order_type=all`);
 }
 
-// Bulk path: stream every order page in The Forge, filter to the requested
-// type set in memory. Concurrent across pages with PAGE_CONCURRENCY cap.
-// Any 5xx or budget exhaustion aborts the bulk attempt — the dispatcher
-// catches and routes to Fuzzwork fallback.
 async function fetchViaEsiRegionDump(
   typeIds: number[],
 ): Promise<RawMarketPrice[]> {
   const wanted = new Set(typeIds);
   const buckets = new Map<number, OrderBucket>();
 
-  // First page synchronously to learn the page count. `esiFetch` only
-  // throws on 5xx / 420; 4xx passes through as a non-ok Response whose
-  // body is an error object, not an array. Guard explicitly so we throw
-  // `EsiServerError` (which the dispatcher catches and routes to Fuzzwork)
-  // instead of letting `absorbOrders` trip a TypeError on the non-array.
   const firstRes = await esiFetch(regionDumpPageUrl(1));
   if (!firstRes.ok) throw new EsiServerError(firstRes.status);
   const totalPages = Number(firstRes.headers.get('X-Pages') ?? '1');
@@ -271,10 +210,6 @@ async function fetchViaEsiRegionDump(
   return bucketsToRawPrices(typeIds, buckets);
 }
 
-// Per-type path: one ESI call per stale type, concurrent with
-// PER_TYPE_CONCURRENCY cap. Per-type failures route the affected type to
-// the Fuzzwork fallback batch at the end (best-effort). Budget exhaustion
-// short-circuits dispatch — remaining types route to Fuzzwork too.
 async function fetchViaEsiPerType(
   typeIds: number[],
 ): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
@@ -290,8 +225,6 @@ async function fetchViaEsiPerType(
     try {
       const res = await esiFetch(perTypeUrl(typeId));
       if (!res.ok) {
-        // 4xx — invalid type ID or similar. Route to Fuzzwork; if it also
-        // returns nothing, the row simply doesn't update (same as today).
         fallbackNeeded.push(typeId);
         return;
       }
@@ -305,8 +238,6 @@ async function fetchViaEsiPerType(
         fallbackNeeded.push(typeId);
         return;
       }
-      // EsiServerError, EsiContractError (malformed body), or any other
-      // transient — route to Fuzzwork.
       fallbackNeeded.push(typeId);
     }
   });
@@ -319,9 +250,6 @@ async function fetchViaEsiPerType(
   return { prices: results, budgetExhausted };
 }
 
-// One Fuzzwork round-trip for the affected types, with source rewritten
-// to 'fuzzwork-fallback' on the way out. Keeps source-fallback.ts itself
-// emitting the bare 'fuzzwork' literal so a future delete is clean.
 async function fallbackToFuzzwork(
   typeIds: number[],
 ): Promise<RawMarketPrice[]> {

@@ -7,7 +7,7 @@ import { readEnv, requireEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { withQueryTiming } from './timed-postgres';
 
-type Db = ReturnType<typeof drizzleHttp>;
+export type Db = ReturnType<typeof drizzleHttp>;
 type HttpClient = ReturnType<typeof neon>;
 
 /** Owned alias for the postgres-js client handle; downstream modules type against this, never the vendor package. */
@@ -16,9 +16,6 @@ export type Sql = ReturnType<typeof postgres>;
 /** Owned alias for a reserved direct connection held by advisory-lock holders; see `resolveLockConnectionUrl`. */
 export type ReservedConnection = Awaited<ReturnType<Sql['reserve']>>;
 
-// Upper bound on a single Neon HTTP query. Deliberately generous: it exists to
-// convert a hung request into a loud failure, never to clip a legitimately slow
-// statement — a cold-start wake or a cron batch upsert stays far below it.
 const NEON_HTTP_TIMEOUT_MS = 30_000;
 
 /**
@@ -30,11 +27,6 @@ const NEON_HTTP_TIMEOUT_MS = 30_000;
  */
 export const PG_CONNECT_TIMEOUT_SECONDS = 30;
 
-/**
- * Constructs a postgres-js client already wrapped for per-operation Neon timing. Both `postgres()`
- * construction sites go through here so neither can silently lose its measurement, and both stay
- * lazy so this module remains import-side-effect-free.
- */
 function timedPostgres(url: string, options: Parameters<typeof postgres>[1]): Sql {
   return withQueryTiming(postgres(url, options));
 }
@@ -98,7 +90,6 @@ export function isPooledHost(url: string): boolean {
   try {
     hostname = new URL(url).hostname;
   } catch {
-    // Don't surface the value — it carries credentials.
     throw new Error('Database connection string is not a valid URL.');
   }
   return hostname.includes('-pooler');
@@ -107,16 +98,22 @@ export function isPooledHost(url: string): boolean {
 /**
  * Resolves the connection string for session-scoped lock holders. Prefers the
  * direct (unpooled) endpoint and falls back to DATABASE_URL — which on local
- * Docker has no `-pooler`, so dev works without the extra var.
+ * Docker has no `-pooler`, so dev works without the extra var. Staging Preview
+ * sets LGI_DATABASE_URL_UNPOOLED so Neon Connect's production unpooled inject
+ * cannot win the lock path. Empty LGI overrides are missing. A pooled
+ * LGI_DATABASE_URL without LGI_DATABASE_URL_UNPOOLED still fails closed
+ * instead of falling through to Neon Connect's unpooled inject.
  *
  * Fail-closed: if the resolved URL is still a pooled host (unpooled var missing
  * in production), throw rather than silently run a lock that won't hold. The
  * request path never calls this, so this can't affect normal query throughput.
  */
-export function resolveLockConnectionUrl(
-  env: Record<string, string | undefined> = process.env,
-): string {
-  const url = env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL;
+export function resolveLockConnectionUrl(): string {
+  const url =
+    readEnv('LGI_DATABASE_URL_UNPOOLED') ??
+    readEnv('LGI_DATABASE_URL') ??
+    readEnv('DATABASE_URL_UNPOOLED') ??
+    readEnv('DATABASE_URL');
   if (!url) throw new Error('DATABASE_URL is not set');
   if (isPooledHost(url)) {
     throw new Error(
@@ -130,9 +127,6 @@ export function resolveLockConnectionUrl(
 
 function getDirectClient(): Sql {
   if (_directClient) return _directClient;
-  // max: 3 — one connection reserved for the advisory lock, headroom for the
-  // data ops the lock protects. Direct endpoints have a lower connection
-  // ceiling than the pooler and the lock holders (cron/CLI) are infrequent.
   _directClient = timedPostgres(resolveLockConnectionUrl(), {
     max: 3,
     connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,

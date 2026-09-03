@@ -7,9 +7,9 @@ export const DOMAIN_EVENT_TYPES = [
   'esi_budget_guard_exhausted',
 ] as const;
 
-type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
+export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
 
-interface DomainEventMetadataByType {
+export interface DomainEventMetadataByType {
   price_refresh_finished: {
     outcome: 'completed' | 'degraded';
     fetched: number;

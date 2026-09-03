@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 
-type HoverCrosshairProps = {
+export type HoverCrosshairProps = {
   open: boolean;
   /** Tooltip anchor in svg space (undefined until the first hover). */
   left: number | undefined;
@@ -36,7 +36,7 @@ export function HoverCrosshair({ open, left, top, y1, y2, color }: HoverCrosshai
   );
 }
 
-type HoverCaptureRectProps = {
+export type HoverCaptureRectProps = {
   x: number;
   y: number;
   width: number;

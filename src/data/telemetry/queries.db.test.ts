@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { characters } from '@/db/auth-schema';
 import {
   claimPublicEsiBudgetAlert,
@@ -172,29 +172,25 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
     ]);
     await seedDb.insert(usageLogs).values([
       {
-        id: 1,
         action: 'page_view',
         characterId: CHAR_OLD,
         timestamp: IN_RANGE,
         metadata: { path: '/sites', referrer: 'google.com', is_entry: 'true' },
       },
-      { id: 2, action: 'page_view', characterId: null, timestamp: IN_RANGE, metadata: { path: '/planner' } },
+      { action: 'page_view', characterId: null, timestamp: IN_RANGE, metadata: { path: '/planner' } },
       {
-        id: 3,
         action: 'terminal_search',
         characterId: CHAR_OLD,
         timestamp: IN_RANGE,
         metadata: { query: 'tritanium' },
       },
       {
-        id: 4,
         action: 'role_change',
         characterId: CHAR_OLD,
         timestamp: IN_RANGE,
         metadata: { actorCharacterId: CHAR_OLD, targetCharacterId: CHAR_NEW, from: 'USER', to: 'ADMIN' },
       },
       {
-        id: 5,
         action: 'cron_prices',
         characterId: null,
         timestamp: IN_RANGE,
@@ -209,43 +205,37 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         },
       },
       {
-        id: 6,
         action: 'price_source_degraded',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { caller: 'cron', budgetExhausted: true },
       },
       {
-        id: 7,
         action: 'cron_sde',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { outcome: 'refreshed', durationMs: 3000 },
       },
       {
-        id: 8,
         action: 'cron_gsc',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { outcome: 'synced', durationMs: 800 },
       },
-      { id: 9, action: 'auth_login', characterId: CHAR_OLD, timestamp: IN_RANGE, metadata: {} },
+      { action: 'auth_login', characterId: CHAR_OLD, timestamp: IN_RANGE, metadata: {} },
       {
-        id: 10,
         action: 'price_source_degraded',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { caller: 'on-demand', budgetExhausted: true },
       },
       {
-        id: 11,
         action: 'market_history_refresh',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { budgetExhausted: true },
       },
       {
-        id: 12,
         action: 'public_esi_budget_alerted',
         characterId: null,
         timestamp: IN_RANGE,
@@ -256,35 +246,30 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         },
       },
       {
-        id: 13,
         action: 'market_price_refresh',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { requested: 10, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 },
       },
       {
-        id: 14,
         action: 'market_history_refresh',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { requested: 10, freshEsi: 2, warmStored: 6, staleStored: 1, missing: 1 },
       },
       {
-        id: 15,
         action: 'market_price_write_behind',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { outcome: 'failed', attempted: 2, written: 0, durationMs: 25 },
       },
       {
-        id: 16,
         action: 'market_history_write_behind',
         characterId: null,
         timestamp: IN_RANGE,
         metadata: { outcome: 'partial', attempted: 2, written: 1, durationMs: 30 },
       },
       {
-        id: 17,
         action: 'owned_data_read',
         characterId: CHAR_OLD,
         timestamp: IN_RANGE,

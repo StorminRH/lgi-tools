@@ -348,8 +348,3 @@ export function reconcilePreferences(
   return { values, toSeed };
 }
 
-/**
- * Test-only preference internals exposed for deterministic storage and key-contract verification;
- * production code must not consume this object.
- */
-export const __TEST_ONLY__ = { LS_PREFIX };

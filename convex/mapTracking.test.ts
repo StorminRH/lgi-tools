@@ -3,10 +3,16 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules.setup';
+
+const tracking = {
+  setTracking: api.mapTrackingOptIn.setTracking,
+  forMap: api.mapTrackingLive.forMap,
+  coverage: api.mapTrackingLive.coverage,
+} as const;
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -16,6 +22,7 @@ const CHAR = 90_000_001;
 const CHAR_B = 90_000_002;
 
 type Chain = TestConvex<typeof schema>;
+let nextRevision = 1;
 
 function asUser(t: Chain, userId: string) {
   return t.withIdentity({ subject: userId });
@@ -26,7 +33,13 @@ async function grant(
   mapId: string,
   claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
 ) {
-  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, { mapId, claims });
+  const revision = nextRevision;
+  nextRevision += 1;
+  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+    mapId,
+    revision,
+    claims,
+  });
 }
 
 async function readTracking(t: Chain, mapId?: string) {
@@ -59,12 +72,12 @@ describe('mapTracking.setTracking', () => {
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await grant(t, MAP_B, [{ userId: OWNER, roles: ['admin'] }]);
 
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_B,
       characterId: CHAR,
       tracked: true,
@@ -75,7 +88,7 @@ describe('mapTracking.setTracking', () => {
       { mapId: MAP_B, userId: OWNER, characterId: CHAR },
     ]);
 
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: false,
@@ -90,12 +103,12 @@ describe('mapTracking.setTracking', () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
@@ -104,12 +117,12 @@ describe('mapTracking.setTracking', () => {
       { mapId: MAP_A, userId: OWNER, characterId: CHAR },
     ]);
 
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: false,
     });
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: false,
@@ -132,26 +145,24 @@ describe('mapTracking.setTracking', () => {
     });
 
     await expect(
-      caller.mutation(api.mapTracking.setTracking, {
+      caller.mutation(tracking.setTracking, {
         mapId: MAP_A,
         characterId: 92_000_000,
         tracked: true,
       }),
     ).rejects.toThrow(ConvexError);
 
-    // Re-opting an already-tracked character at the cap stays idempotent-ok.
-    await caller.mutation(api.mapTracking.setTracking, {
+    await caller.mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: 91_000_000,
       tracked: true,
     });
-    // Freeing one slot re-admits a new character.
-    await caller.mutation(api.mapTracking.setTracking, {
+    await caller.mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: 91_000_000,
       tracked: false,
     });
-    await caller.mutation(api.mapTracking.setTracking, {
+    await caller.mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: 92_000_000,
       tracked: true,
@@ -161,7 +172,7 @@ describe('mapTracking.setTracking', () => {
   it('refuses setTracking without a map-access claim', async () => {
     const t = convexTest(schema, modules);
     await expect(
-      asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      asUser(t, OWNER).mutation(tracking.setTracking, {
         mapId: MAP_A,
         characterId: CHAR,
         tracked: true,
@@ -170,7 +181,7 @@ describe('mapTracking.setTracking', () => {
   });
 });
 
-describe('mapTracking.forMap', () => {
+describe('mapTrackingLive.forMap', () => {
   it('joins tracking rows to location by (userId, characterId) and discloses nothing for a forged row', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
@@ -178,15 +189,12 @@ describe('mapTracking.forMap', () => {
       { userId: EDITOR, roles: ['editor'] },
     ]);
 
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
 
-    // Forged row: EDITOR's mapTracking names OWNER's character id. The join key
-    // is the row's own (userId, characterId), so it must not surface OWNER's
-    // location document.
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', {
         mapId: MAP_A,
@@ -209,7 +217,7 @@ describe('mapTracking.forMap', () => {
       });
     });
 
-    const result = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
+    const result = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
     const byUser = new Map(result.tracked.map((row) => [row.userId, row]));
 
     expect(result.ownTrackedCharacterIds).toEqual([CHAR]);
@@ -224,17 +232,17 @@ describe('mapTracking.forMap', () => {
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR_B,
       tracked: true,
     });
-    await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
+    await asUser(t, EDITOR).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
@@ -247,8 +255,13 @@ describe('mapTracking.forMap', () => {
       });
     });
 
-    const result = await asUser(t, OWNER).query(api.mapTracking.coverage, {
+    const overlay = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
+    const result = await asUser(t, OWNER).query(tracking.coverage, {
       mapId: MAP_A,
+      identities: overlay.tracked.map((row) => ({
+        userId: row.userId,
+        characterId: row.characterId,
+      })),
     });
     const byOwnerCharacter = new Map(
       result.coverage.map((entry) => [
@@ -264,7 +277,6 @@ describe('mapTracking.forMap', () => {
       [OWNER, CHAR],
       [OWNER, CHAR_B],
     ]);
-    const overlay = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
     const anyRow = overlay.tracked[0];
     expect(anyRow).toBeDefined();
     if (anyRow === undefined) throw new Error('expected a tracked overlay row');
@@ -274,16 +286,55 @@ describe('mapTracking.forMap', () => {
   it('answers coverage as an empty list without access (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    const result = await asUser(t, EDITOR).query(api.mapTracking.coverage, {
+    const result = await asUser(t, EDITOR).query(tracking.coverage, {
       mapId: MAP_A,
+      identities: [{ userId: OWNER, characterId: CHAR }],
     });
     expect(result.coverage).toEqual([]);
+  });
+
+  it('answers coverage only for identities tracked on the map', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationCovered', {
+        userId: OWNER,
+        characterId: CHAR,
+      });
+    });
+
+    const identities = [
+      { userId: OWNER, characterId: CHAR },
+      { userId: OWNER, characterId: CHAR_B },
+    ];
+    const untracked = await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A,
+      identities,
+    });
+    expect(untracked.coverage).toEqual([
+      { userId: OWNER, characterId: CHAR, covered: false },
+      { userId: OWNER, characterId: CHAR_B, covered: false },
+    ]);
+
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+    const tracked = await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A,
+      identities,
+    });
+    expect(tracked.coverage).toEqual([
+      { userId: OWNER, characterId: CHAR, covered: true },
+      { userId: OWNER, characterId: CHAR_B, covered: false },
+    ]);
   });
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
@@ -291,7 +342,7 @@ describe('mapTracking.forMap', () => {
 
     await grant(t, MAP_A, []);
 
-    const result = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
+    const result = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
     expect(result).toEqual({ tracked: [], ownTrackedCharacterIds: [] });
   });
 });
@@ -303,18 +354,17 @@ describe('mapTracking revocation cascade', () => {
       { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
-    await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
+    await asUser(t, EDITOR).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR_B,
       tracked: true,
     });
 
-    // Revoke EDITOR — OWNER's tracking must survive; EDITOR's must vanish.
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
     expect(await readTracking(t, MAP_A)).toEqual([
@@ -325,12 +375,11 @@ describe('mapTracking revocation cascade', () => {
   it('sweeps every mapTracking row on full map teardown (claims: [])', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
       tracked: true,
     });
-    // Orphan tracking with no claim — map purge must still clear it.
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', {
         mapId: MAP_A,

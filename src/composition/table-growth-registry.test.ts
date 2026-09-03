@@ -1,12 +1,12 @@
 import { getTableConfig, integer, pgTable, type PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
-import { reflectedSchemaTables } from '@/db/test-support/schema-reflection';
+import { reflectedSchemaTables } from '@/db/__tests__/support/schema-reflection';
+import { tableGrowthKey } from './__tests__/table-growth-census';
 import {
   DRIZZLE_MIGRATIONS_TABLE,
   TABLE_GROWTH_STORIES,
-  tableGrowthKey,
-} from './table-growth-registry';
+} from './__tests__/table-growth-registry';
 
 function duplicates(keys: readonly string[]): string[] {
   const seen = new Set<string>();

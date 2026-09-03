@@ -6,7 +6,7 @@
 // directory — the same source canvas labels already use — not from React Flow
 // node data.
 import { resolveSystemLabel, type SystemLabel } from '../chain/labels';
-import { useUniverseAssets } from '../chain/use-map-chain';
+import { useUniverseAssets } from '../chain/use-universe-assets';
 
 /**
  * Resolves one system's display label from the session directory.

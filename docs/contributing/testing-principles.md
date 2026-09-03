@@ -18,10 +18,10 @@ file over leaving `it.skip` / `describe.skip` residue.
 | --- | --- | --- |
 | Co-located `*.test.ts` / `*.test.mjs` (`pnpm test`) | Pure functions, view-models, schema/contract checks, handlers with local fakes, and Convex logic under `convex-test` / edge-runtime. Fast feedback; no browser. | The assertion needs a real browser, authenticated UX, or layout only a human can judge. |
 | Real-Postgres `*.db.test.ts` (`pnpm test`, local harness) | Behavior that depends on real SQL, transactions, advisory locks, or Neon-shaped constraints via `createDbTestHarness`. | Pure logic that never touches the DB — keep those in ordinary `*.test.ts`. Do not invent alternate DB harnesses. |
-| Playwright log-driven UX / tiny E2E (`pnpm ux-check`, `pnpm test:e2e`) | Changed user-facing routes during Ordered-work / pre-close-out UI gates, plus a very small number of authenticated happy-path smokes. See [end-to-end testing](./end-to-end-testing.md). Route sweeps and operator pause are the `ux-check` skill; durable probes live in `docs/ux-check/README.md`. | Visual approval, layout feel, edge cases, or anything Vitest can falsify. Not part of `pnpm verify`. |
+| Playwright log-driven UX / tiny E2E (`pnpm ux-check`, `pnpm test:e2e`) | Changed user-facing routes during Ordered work, plus a very small number of authenticated happy-path smokes. See [end-to-end testing](./end-to-end-testing.md). Route sweeps and operator pause are the `ux-check` skill; durable probes live in `docs/ux-check/README.md`. | Visual approval, layout feel, edge cases, or anything Vitest can falsify. Not part of the local test suite. |
 
 **Postgres:** call `createDbTestHarness` from
-`src/db/test-support/db-test-harness.ts` once at file top level. Import factories
+`src/db/__tests__/support/db-test-harness.ts` once at file top level. Import factories
 explicitly inside each test (or a per-test factory). Do not hide important
 arrange steps in shared hooks beyond what the harness owns.
 
@@ -66,9 +66,8 @@ arrange steps in shared hooks beyond what the harness owns.
 - Write tests so they can run offline: local fakes/fixtures over the public
   internet.
 - Keep the bar for adding tests high, especially slower DB and browser surfaces.
-- Real-Postgres suites stay `*.db.test.ts` with `createDbTestHarness`. Local
-  `pnpm verify` with the harness reachable is the gate of record for that layer
-  (CI skips DB suites today).
+- Real-Postgres suites stay `*.db.test.ts` with `createDbTestHarness`. Depot
+  `verify` on the Origin PR is the gate of record for that layer.
 - House registry / Fallow / ESI-dataset declaration suites are load-bearing
   gates — do not delete them as "cruft" without an explicit replacement.
 

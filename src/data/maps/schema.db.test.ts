@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createDbTestHarness,
   seedUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 import { getMapAccessSubject, getMapGrants } from './queries';
 import { mapAccess, maps } from './schema';
 
@@ -103,6 +103,24 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
         data_type: 'timestamp with time zone',
         is_nullable: 'YES',
       },
+      {
+        table_name: 'maps',
+        column_name: 'purge_claimed_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+      },
+      {
+        table_name: 'maps',
+        column_name: 'lifecycle_status',
+        data_type: 'USER-DEFINED',
+        is_nullable: 'NO',
+      },
+      {
+        table_name: 'maps',
+        column_name: 'lifecycle_entered_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'NO',
+      },
     ]);
 
     const constraints = await harness.sql<{
@@ -178,6 +196,23 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
       { ownerType: 'corporation', ownerId: 99, role: 'editor' },
     ]);
+  });
+
+  it('omits a tombstoned map from the access subject even when archived_at is null', async () => {
+    const mapId = randomUUID();
+    await seedUser(harness.db, 'tombstone-owner');
+    const goneAt = new Date('2026-08-12T00:00:00.000Z');
+    await harness.db.insert(maps).values({
+      id: mapId,
+      userId: 'tombstone-owner',
+      name: 'Gone Chain',
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: goneAt,
+      archivedAt: null,
+      tombstonedAt: goneAt,
+    });
+
+    await expect(getMapAccessSubject(mapId, harness.db)).resolves.toBeNull();
   });
 
   it('renames the legacy owner role without rewriting a seeded access row', async () => {

@@ -1,4 +1,3 @@
-/** Tracking overlay the home prompt reads from `mapTracking.forMap`. */
 export interface HomePromptTracking {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {
@@ -7,7 +6,6 @@ export interface HomePromptTracking {
   }[];
 }
 
-/** Coverage overlay the home prompt reads from `mapTracking.coverage`. */
 export interface HomePromptCoverage {
   readonly coverage: readonly {
     readonly characterId: number;

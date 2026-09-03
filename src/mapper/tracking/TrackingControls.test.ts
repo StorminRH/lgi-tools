@@ -47,8 +47,9 @@ vi.mock('@/data/convex/use-live-value', () => ({
 
 vi.mock('@/data/convex/api', () => ({
   api: {
-    mapChain: { watchMapAccess: 'map-access' },
-    mapTracking: { forMap: 'map-tracking', setTracking: 'set-tracking' },
+    mapChainAccess: { watchMapAccess: 'map-access' },
+    mapTrackingLive: { forMap: 'map-tracking' },
+    mapTrackingOptIn: { setTracking: 'set-tracking' },
   },
 }));
 

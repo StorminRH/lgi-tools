@@ -58,7 +58,7 @@ const site = (over: Partial<SiteDetail> = {}): SiteDetail => ({
 });
 
 describe('SiteCard', () => {
-  it('keeps catalogue collapse, extras, and glow; standalone is always expanded with no hover', () => {
+  it('keeps catalogue collapse and extras; standalone is always expanded', () => {
     const catalogue = renderToStaticMarkup(
       createElement(SiteCard, { site: site(), contentAlign: 'center' }),
     );
@@ -70,9 +70,6 @@ describe('SiteCard', () => {
     expect(catalogue).toContain('data-site-card-lightbox');
     expect(catalogue).toContain('data-lazy-site-details');
     expect(catalogue).not.toContain('data-site-details-body');
-    // Alignment must not own hover: centered catalogue still glows.
-    expect(catalogue).toContain('hover:border-card-glow-border');
-    expect(catalogue).toContain('hover:shadow-card-hover');
 
     const standalone = renderToStaticMarkup(
       createElement(SiteCard, {
@@ -90,17 +87,5 @@ describe('SiteCard', () => {
     expect(standalone).not.toContain('View full page');
     expect(standalone).not.toContain('data-site-card-lightbox');
     expect(standalone).not.toContain('data-lazy-site-details');
-    expect(standalone).not.toContain('hover:border-card-glow-border');
-    expect(standalone).not.toContain('hover:shadow-card-hover');
-
-    const standaloneStart = renderToStaticMarkup(
-      createElement(SiteCard, {
-        site: site(),
-        presentation: 'standalone',
-        contentAlign: 'start',
-      }),
-    );
-    expect(standaloneStart).not.toContain('hover:border-card-glow-border');
-    expect(standaloneStart).not.toContain('hover:shadow-card-hover');
   });
 });

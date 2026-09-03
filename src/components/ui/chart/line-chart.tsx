@@ -11,10 +11,10 @@ import { ChartCanvas } from './chart-canvas';
 import { HoverCrosshair, HoverCaptureRect } from './hover-layer';
 import { continuousHoverHandler } from './hover';
 
-type Margin = { top: number; right: number; bottom: number; left: number };
+export type Margin = { top: number; right: number; bottom: number; left: number };
 
 /** A d3/visx numeric scale, as the axis renderer consumes it. */
-type NumericScale = ((value: number) => number) & {
+export type NumericScale = ((value: number) => number) & {
   ticks: (count?: number) => number[];
   invert: (x: number) => number;
 };
@@ -23,13 +23,13 @@ type NumericScale = ((value: number) => number) & {
  * Display-ready line chart axis consumed by the shared visualization layer; callers keep all
  * numeric values in one consistent unit.
  */
-type LineChartAxis = (ctx: {
+export type LineChartAxis = (ctx: {
   xScale: NumericScale;
   yScale: NumericScale;
   xs: number[];
 }) => ReactNode;
 
-type LineChartProps<T extends SparklinePoint> = {
+export type LineChartProps<T extends SparklinePoint> = {
   data: T[];
   tone: SparklineTone;
   width: number;

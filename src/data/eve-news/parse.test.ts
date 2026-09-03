@@ -21,7 +21,7 @@ const FEED = `<?xml version="1.0" encoding="utf-8"?>
 </channel></rss>`;
 
 describe('parseEveRss', () => {
-  it('extracts title, link, category, and ISO pubDate', () => {
+  it('extracts title, link, first category, ISO pubDate, and decoded titles', () => {
     const items = parseEveRss(FEED);
     expect(items).toHaveLength(2);
     expect(items[0]).toEqual({
@@ -30,14 +30,7 @@ describe('parseEveRss', () => {
       publishedAt: '2026-06-19T15:00:00.000Z',
       category: 'community',
     });
-  });
-
-  it('takes the first category when an item has several', () => {
-    expect(parseEveRss(FEED)[0]!.category).toBe('community');
-  });
-
-  it('decodes single-encoded entities in titles', () => {
-    expect(parseEveRss(FEED)[1]!.title).toBe('Gallente Federation Day Gift & Special Offers');
+    expect(items[1]!.title).toBe('Gallente Federation Day Gift & Special Offers');
   });
 
   it('decodes CCP double-encoded entities (&amp;#39; -> apostrophe)', () => {

@@ -2,35 +2,28 @@ import type { OutcomeOf } from '@/transport/endpoint';
 import { feedbackEndpoint } from '../api-contract';
 import { isFeedbackCategory } from '../categories';
 
-/** Closed feedback submission state for idle, sending, success, and failure presentation. */
 export type SubmitState =
   | { kind: 'idle' }
   | { kind: 'submitting' }
   | { kind: 'success' }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string; field?: 'title' | 'message' };
 
-/** Canonical user-facing copy for feedback submissions that fail at the network boundary. */
 export const FEEDBACK_NETWORK_ERROR_MESSAGE =
   'Network error — your feedback did not send. Try again.';
 
-/**
- * Whether a submit should proceed: `busy` while one is already in flight (silent
- * no-op), `empty` for a blank message, `no_category` when none is chosen, else `ok`.
- */
 export function feedbackSubmitGate(
+  title: string,
   message: string,
   category: string,
   state: SubmitState,
-): 'busy' | 'empty' | 'no_category' | 'ok' {
+): 'busy' | 'empty_title' | 'empty' | 'no_category' | 'ok' {
   if (state.kind === 'submitting') return 'busy';
   if (!isFeedbackCategory(category)) return 'no_category';
+  if (title.trim().length === 0) return 'empty_title';
   if (message.trim().length === 0) return 'empty';
   return 'ok';
 }
 
-/**
- * The user-facing error line for a failed typed submit outcome.
- */
 export function feedbackErrorMessage(
   result: Exclude<OutcomeOf<typeof feedbackEndpoint>, { ok: true }>,
 ): string {

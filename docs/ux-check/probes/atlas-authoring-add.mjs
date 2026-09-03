@@ -28,7 +28,7 @@ export default {
 
     // If still blank (home not set), seed one system so the add menu can open.
     if ((await page.locator('[data-chain-node]').count()) === 0) {
-      await convexRun('mapFixtures:placeSystemFixture', {
+      await convexRun('mapFixturePlace:placeSystemFixture', {
         mapId,
         systemId: SEED_SYSTEM_ID,
       });

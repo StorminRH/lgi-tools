@@ -1,6 +1,11 @@
 import type { Id } from '@/data/convex/data-model';
-import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type {
+  ConnectionMassState,
+  WormholeDestinationHint,
+  WormholeLifeStage,
+  WormholeSizeClass,
+} from '@/data/eve-data/wormhole-contract';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { ConnectionFieldSetters } from './connection-fields';
 
 /** Existing connection mutation surface shared by every connection-field host. */
@@ -14,12 +19,12 @@ export interface ConnectionFieldAuthoringApi {
   readonly setConnectionShipSize: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
-    value: ConnectionEditorDetail['shipSize'];
+    value: WormholeSizeClass | null;
   }) => Promise<unknown>;
   readonly setConnectionMassState: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
-    value: ConnectionEditorDetail['massState'];
+    value: ConnectionMassState | null;
   }) => Promise<unknown>;
   readonly setConnectionDestinationHint: (args: {
     mapId: string;
@@ -37,7 +42,7 @@ export interface ConnectionFieldAuthoringApi {
   readonly setConnectionLifeStage: (args: {
     mapId: string;
     connection: ConnectionEditorDetail;
-    value: ConnectionEditorDetail['lifeStage'];
+    value: WormholeLifeStage | null;
   }) => Promise<unknown>;
   readonly linkStubToResolvedConnection: (args: {
     mapId: string;

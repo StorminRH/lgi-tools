@@ -16,7 +16,7 @@ import { auth } from './auth';
 import { getCurrentUserId } from './session';
 import { requireSameOrigin } from './same-origin';
 
-type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
+export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
 /** Typed session-check result returned before HTTP problem serialization. */
 export type SessionCheckResult =

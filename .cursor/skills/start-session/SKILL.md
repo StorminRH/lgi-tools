@@ -6,130 +6,253 @@ description: Resolve, dispatch, and run the next approved lifecycle action from 
 # Start a lifecycle session
 
 Use only when the operator invokes planned lifecycle work. The resolver owns
-lifecycle state and handler selection; this skill owns branch selection,
-pre-dispatch validation, dispatch, resumption, and return behavior.
+lifecycle state and handler selection. This skill owns branch selection,
+pre-dispatch validation, dispatch, resumption, land-on-development, and
+return behavior.
 
-Inputs: current `origin/main`, live roadmap/contract/plan state, the resolver
-directive, and a worktree whose local changes have an explicit disposition.
+`development` is the entry tip. Planning artifacts land there. Each Ordered
+work (OW) step uses one lifecycle branch, then lands on `development` and
+is cleaned.
+
+Inputs: current `origin/development`, live roadmap/contract/plan state, the
+resolver directive, and a worktree whose local changes have an explicit
+disposition.
 
 Output: one dispatched handler result followed by a fresh resolver directive,
-or a stop at the directive's named pause. Planning outcomes are terminal unless
-the operator approved a one-time bootstrap transition. When the handler is
-`start-session`, output is one Ordered work (OW) step plus `OW_HANDOFF` (or a
-pause/block), not the full session through close-out.
+or a stop at the directive's named pause. Planning outcomes are terminal
+unless the operator approved a one-time bootstrap transition. When the
+handler is `start-session`, output is one OW step landed on `development`
+plus `OW_HANDOFF`, or a pause/block. When the handler is `close-out`,
+dispatch that skill from `development` as a promote. After the promote,
+the next Start Session continues Ordered work, planning, or archive.
+When the resolver stage is `archive-needed`, archive the completed
+version from `development`.
 
 ## 1. Resolve and select the branch
 
+Done when the worktree is on the selected branch, the second resolver
+directive is the dispatch contract, and `preDispatchGate` passed.
+
 1. Run `python3 tools/cli.py lifecycle resolve --pretty` and report the
    directive's action, reason, authority, primary artifact, branch, and pause.
-   Do not infer a stage from the current branch.
+   The resolver names the stage.
 2. Stop when the worktree contains unexplained changes. Preserve authorized
-   work. In-progress lifecycle work is explained when the current branch is
-   the directive's lifecycle branch and the dirty files belong to that
-   session.
-3. Fetch `origin/main`, resolve the active sub-version from that ref, and use
-   the directive's exact `lifecycle/<sub-version>` branch.
-4. Resume and fast-forward that branch when it exists remotely; otherwise create
-   it from current `origin/main`.
-5. Rerun the resolver on the selected branch — that second directive is the
+   work. In-progress OW is explained when HEAD is this step's lifecycle
+   branch and the dirty files belong to that step. In-progress planning is
+   explained when the dirty files are that handler's artifact on
+   `development` or its short-lived branch.
+3. Fetch `origin/development` and `origin/staging`.
+4. Select the work branch from current `origin/development`:
+   - Handler `start-session` and stage `archive-needed`: stay on
+     `development`.
+   - Handler `start-session`: `lifecycle/<session>-ow-<n>` for the next
+     incomplete Ordered work step (`n` is 1-based). Create it from
+     `origin/development` when it is missing. Resume it when it still exists
+     and is not yet landed. A landed step has its commit on
+     `origin/development` and no leftover source branch; take the next
+     incomplete step.
+   - Handler `close-out`: stay on `development`.
+   - Planning and other handlers: persist on `development`, or on a
+     short-lived branch cut from `origin/development`. After approval, land
+     and clean onto `development`. The next OW branch is cut from that tip.
+5. Rerun the resolver on the selected branch. That second directive is the
    dispatch contract.
 6. Run its `preDispatchGate`. A recognized pre-PR, reconciled, or
-   version-opening release identity may proceed; every other failure blocks.
+   version-opening release identity may proceed. Every other failure blocks.
 
 ## 2. Dispatch
 
-1. If `handler` is null, stop at the named pause.
-2. Otherwise invoke only the named skill. Do not select a sibling or
-   reconstruct its steps here.
-3. Follow that skill in order. Honor the directive's authority and every
-   operator pause.
-4. Planning handlers stay read-only until approval, persist only their
-   canonical artifact afterward, rerun the resolver, and stop. Execution begins
-   with a fresh start-session unless the operator authorized a bootstrap
-   transition in the approved session plan.
+Done when the named handler has run to its own stop, or this skill has
+stopped at a null handler.
 
-## 3. Execute an approved session
+1. If `handler` is null, stop at the named pause.
+2. Otherwise invoke only the named skill. Follow that skill in order. Honor
+   the directive's authority and every operator pause.
+3. Planning handlers stay read-only until approval, persist only their
+   canonical artifact, land and clean that commit onto `development`,
+   rerun the resolver, and stop. Execution begins with a fresh start-session
+   unless the operator authorized a bootstrap transition in the approved
+   session plan.
+4. Handler `close-out` runs the process onto `staging` to `PROMOTED` or `BLOCKED`,
+   then stop. A `PROMOTED` return leaves `development` containing
+   `staging`. The next Start Session continues Ordered work, planning, or
+   archive.
+5. Stage `archive-needed` runs Archive a completed version, then stop.
+
+## 3. Land and clean
+
+Done when the named commit is on `origin/<line>`, this worktree is on that
+tip, and the source branch is gone from origin and this worktree.
+
+`<line>` is `development` for this skill. Close-out reuses this cleanup
+after its merge onto `staging` or `main`.
+
+1. Fetch `origin/<line>`. Rebase the source branch onto it when the line has
+   moved. Re-run the local test suite after a rebase that carries
+   implementation commits.
+2. Fast-forward `origin/<line>` to this commit
+   (`git push origin HEAD:<line>`).
+3. Check out `<line>` at that tip. Delete the source branch on origin and
+   locally (`git push origin --delete <source>` when it was pushed, then
+   `git branch -D <source>`). Leave `development`, `staging`, and `main`.
+
+A `development` land uses this push. An Origin draft uses the
+AGENTS.md freeze, `origin pr diff`, batch, and `dispatch` loop.
+`adversarial-review` runs on that draft. `close-out` owns promote
+and release.
+
+## 4. Execute an approved session
 
 When the handler is `start-session`, read only what is not already in
 context: this session's approved contract and plan, and prior as-builts in
 the active version (Successor notes and Final surfaces). Do not re-read
-auto-loaded agent guides. Open the master plan or baseline only when this
-session's contract or plan names them. Reconcile digests, prerequisites,
+auto-loaded agent guides. Open the master plan only when this
+session's contract or plan names it. Reconcile digests, prerequisites,
 interfaces, branch, and assumptions against live code. Correct mechanical
 drift in scope.
 
 The approved plan is the starting execution prompt, not an immutable script.
 Never return this session to `plan-session`, and never rewrite the contract.
 When live evidence invalidates a named plan interface or step, pause and
-discuss with the operator in plain English. Present the conflict and bounded
-alternatives, settle the replacement, continue under that direction, and record
-the divergence for the as-built. Do not invent a replacement, and
-do not default to backlog or deferral;
-those cuts are rare and operator-driven only.
+discuss with the operator in plain English. Invoke `unslop` on that talk.
+Present the conflict and bounded alternatives, settle the replacement,
+continue under that direction, and
+record the divergence for the as-built. Do not invent a replacement, and do
+not default to backlog or deferral. Those cuts are rare and operator-driven
+only.
 
-If the last Ordered work handoff (or the operator) already says Ordered work
-is complete and close-out should run, return `OW_HANDOFF` with the close-out
-handoff prompt below.
+If the resolver stage is `archive-needed`, run Archive a completed version
+and return `DISPATCHED`.
+
+If the last Ordered work handoff, or the operator, already says Ordered work
+is complete, return `OW_HANDOFF` with the last-OW handoff prompt below.
 
 Otherwise take the next incomplete Ordered work step from `### Ordered work`
 (1-based; absent a handoff prompt, start at step 1 unless the operator names
-a later step). Execute only that step plus any attached operator pause. The
-docs-researcher gate applies. When the contract or plan `UX gate` is Yes, the
-plan must include a dedicated Ordered work step that invokes `ux-check` and
-completes the operator pause before awaiting close-out. Close-out consumes
-that disposition. Maintain an in-context proof ledger with one result for
-every atomic proof row owned by that step.
+a later step). Execute only that step plus any attached operator pause.
+When the contract or plan `UX gate` is Yes, the plan must include a dedicated
+Ordered work step that invokes `ux-check` and completes the operator pause
+before the next Ordered work step or the last-OW handoff. Maintain an
+in-context proof ledger with one result for every atomic proof row owned by
+that step.
 
-After the step's focused proof, invoke `gate-runner` with those focused
-evidence commands, then:
+### Author
 
-```bash
-FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
-```
+Done when the step's code is written against a Documentation brief, a
+Repository map, and `typescript-best-practices`.
 
-Require a green Gate result packet for every command. Failures return
-`BLOCKED`. Do not launch `adversarial-review` here — that belongs to close-out.
+Before writing or editing code, launch `docs-researcher`, then `repo-mapper`.
+Name those agents and omit Task `model`. Generation waits on the
+Documentation brief and the Repository map. Then invoke
+`typescript-best-practices`. Then write. A docs-only or policy-only step
+skips this prelude.
 
-On green gates, launch a fresh `primitive-checker` and a fresh
-`holistic-reviewer` in parallel against this step's working-tree diff. Launch
-them the same way as `adversarial-review` §3: named `subagent_type`, omit Task
-`model` (do not pass `inherit` or a slug). On `FINDINGS`, fix, re-prove,
-re-run `gate-runner`, and re-launch both reviewers. On `CLEAN` from both (or every accepted finding
-corrected and re-reviewed clean), commit the verified OW scope
-(implementation and tests). Do not push from the OW chat. Do not rewrite the
-frozen session plan. Do not change `Execution status`. Do not start the next
-Ordered work step or close-out in this chat.
+### Prove, review, and land
+
+Done when the OW commit is on `origin/development`, the source lifecycle
+branch is gone, the local test suite was green after the last review, the
+handoff reports the app-facing count versus `staging`, and any visual look
+the plan or the land required has an operator disposition.
+
+1. After the step's focused proof, invoke `test-runner` with the local test
+   suite from AGENTS.md plus those focused evidence commands. Require
+   green test results for every command. Failures return `BLOCKED`.
+2. On a green suite, freeze the working tree. Launch a fresh
+   `structure-reviewer` and a fresh `behavior-reviewer` in parallel.
+   Brief: this step's working tree. Each reviewer reads the tree.
+   Launch them by those type names and omit Task `model`.
+3. After both reviewers return, run the local test suite again.
+4. On `FINDINGS`, one batch: triage, dedupe, fix. Run the local test
+   suite, re-launch both reviewers, and run the local test suite again.
+   Repeat until both return `CLEAN`, or every accepted finding is
+   corrected and re-reviewed clean, and the suite after that last
+   review is green.
+5. Commit the verified OW scope, implementation and tests. Leave the frozen
+   session plan untouched on every step except the last: on the last Ordered
+   work step, set `Execution status` to `Complete` in that land so the
+   resolver can plan the next session. Write no as-built here.
+6. Land and clean that commit onto `development`. Then run
+   `python3 tools/cli.py lifecycle count-app-facing`. That command
+   compares `origin/staging...origin/development` after this land, so
+   this step is in the number. Paste its `app-facing <n>/100` line into
+   the handoff. When it prints `promote is due`, the next Start Session
+   promotes `development` onto `staging`. Say that in the handoff.
+7. Pause for a visual look when the plan marked this step for one, or when
+   the land presents something the operator can see on `development`
+   (Preview, or laptop `pnpm dev` when they choose). That is about every
+   other step, and any time a visual exists. Record the disposition in the
+   handoff. It is the gate to the next Ordered work step. A backend-only
+   land continues without a look.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
 and next-agent notes live in that prompt, not in git. When more Ordered work
 remains:
 
 ```text
-Continue planned session <id> on `<branch>` via start-session.
+Continue planned session <id> via start-session. Next branch: `lifecycle/<id>-ow-<k+1>` from origin/development.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
-Completed OW 1..<k> (commit <sha>). Next: Ordered work step <k+1> — <title from plan>.
+Landed OW 1..<k> on development (<sha>). Source branch cleaned. App-facing vs staging: <n>/100.
+<Promote line when the count printed promote is due: Next Start Session promotes development onto staging.>
+Next: Ordered work step <k+1> — <title from plan>.
 Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None>.
-Do not replan; do not close-out; execute only that step, then gate-runner + primitive-checker + holistic-reviewer + commit + handoff.
+Execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land and clean onto development + handoff.
 ```
 
-When this was the last Ordered work step:
+When this was the last Ordered work step and the resolver `finalSession`
+flag is true, promote first when the count printed `promote is due`. Then
+run Archive a completed version in this chat, or in the Start Session after
+that promote. Use the archived handoff.
+
+When this was the last Ordered work step of a session that is not the
+version's last session:
 
 ```text
-Planned session <id> Ordered work is complete on `<branch>` (final OW commit <sha>).
+Planned session <id> Ordered work is complete. Last OW landed on development (<sha>). Source branch cleaned.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
-Run close-out in planned mode only (no further OW).
+App-facing vs staging: <n>/100.
+Return to start-session. When the count printed promote is due, that run
+promotes development onto staging, then the next session can be planned.
+When the count is still under 80, plan the next session.
 Next-agent notes: <gotchas, open operator dispositions, or None>.
 ```
 
-## 4. Stop and resume
+When the version was archived:
+
+```text
+Version <X.Y> archived to <archive dest>. Last OW landed on development (<sha>).
+Live master plan, contracts, session plans, and as-builts are removed.
+Next Start Session waits on product direction for the next master plan.
+Next-agent notes: <gotchas, open operator dispositions, or None>.
+```
+
+## 5. Archive a completed version
+
+Done when `verify-archive --phase post` is green and the live version
+sources are gone from `docs/`.
+
+1. Mark every remaining nonterminal `## Status` row `COMPLETE` on the
+   master plan.
+2. Run `python3 tools/cli.py lifecycle verify-archive --phase pre`.
+3. Copy the master plan, `docs/session-contracts/<X.Y>/`,
+   `docs/session-plans/<X.Y>/`, and `docs/session-as-built/<X.Y>/` when
+   that last directory exists, to
+   `<repo parent>/LGI Tools Document Archive/versions/<X.Y>/`.
+4. Run `python3 tools/cli.py lifecycle verify-archive --phase post`.
+5. Delete those live sources. Leave `docs/workflows/` in the repo.
+6. Land and clean that commit onto `development`.
+
+Promote at 80 app-facing files runs before this archive when both are due.
+
+## 6. Stop and resume
 
 Stop on a named operator gate, an unresolved in-session design discussion,
-failed mandatory check, unexplained worktree state, missing authority, or after
-a completed Ordered work step (`OW_HANDOFF`). On resumption, re-enter through
-this skill, select the same branch, rerun the resolver and pre-dispatch
-gate, and continue at the next incomplete Ordered work step only.
+failed mandatory check, unexplained worktree state, missing authority, or
+after a completed Ordered work step (`OW_HANDOFF`). On resumption, re-enter
+through this skill, select the same lifecycle branch when that step is not
+yet landed, rerun the resolver and pre-dispatch gate, and continue at the
+next incomplete Ordered work step only.
 
 ## Return
 
@@ -144,5 +267,6 @@ result in a code fence or prepend a second summary.
 - **Blocker:** <exact blocker or `None`>
 
 Exception — `OW_HANDOFF` only: after the four bullets, append exactly one
-fenced copy-paste handoff prompt (the non-final or last-OW template above).
-No other outcome may append chat content after the four bullets.
+fenced copy-paste handoff prompt (the mid-session, last-session, or
+archived template above). No other outcome may append chat content after
+the four bullets.

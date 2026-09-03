@@ -10,8 +10,9 @@ console, page errors, network). Write screenshots/traces under
 `docs/ux-check/captures/` on failure only. The operator reviews visual feel in
 their browser — never always-on screenshots or agent visual approval.
 
-Local aid only: not a `pnpm verify` or CI gate. Sweeps/probes exit non-zero on
-hard assertion/console/page failures; network findings still need disposition.
+Local aid only: not the local test suite or the standing Depot pipeline.
+Sweeps/probes exit non-zero on hard assertion/console/page failures; network
+findings still need disposition.
 
 Inputs: (1) complete change diff and affected user-facing routes; (2) running
 local stack that renders them truthfully; (3) durable open-state probe

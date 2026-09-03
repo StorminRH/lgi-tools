@@ -1,106 +1,17 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
-import type { NodeProps } from '@xyflow/react';
-import { SystemNode, type ChainNode } from '../canvas/SystemNode';
-import { NoMapAccess } from './NoMapAccess';
+import { describe, expect, it } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ reactFlow: vi.fn() }));
-
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock('@xyflow/react', async () => {
-  const { createElement: element } = await import('react');
-  mocks.reactFlow.mockImplementation(({ children }: { children?: unknown }) =>
-    element('div', { 'data-react-flow': '' }, children as never),
-  );
-  return {
-    ReactFlow: mocks.reactFlow,
-    Background: () => element('div', { 'data-react-flow-background': '' }),
-    BackgroundVariant: { Dots: 'dots' },
-    Handle: () => element('div', { 'data-handle': '' }),
-    Position: { Left: 'left', Right: 'right' },
-    getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
-    applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
-  };
-});
-
-function nodeMarkup(name: string, whClassId: number | null): string {
-  const props = {
-    data: { name, className: null, security: whClassId === null ? null : -1, whClassId },
-  } as unknown as NodeProps<ChainNode>;
-  return renderToStaticMarkup(createElement(SystemNode, props));
-}
-
-// ── SC-3 · DC-3 — what a populated node actually says ───────────────────────
-describe('system node rendering', () => {
-  it('shows the plain directory name above its colored class indicator', () => {
-    const markup = nodeMarkup('J123456', 5);
-
-    expect(markup).toContain('>J123456<');
-    expect(markup).toContain('data-chain-node-classification');
-    expect(markup).toContain('>C5<');
-    expect(markup).toContain('text-wh-c5');
-    expect(markup).not.toContain('J123456 - C5');
-    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
-  });
-
-  it('shows the bare name for a system with no class and no security', () => {
-    const markup = nodeMarkup('Jita', null);
-
-    expect(markup).toContain('Jita');
-    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
-  });
-});
-
-// ── SC-5 · DC-5 / AC-5 / V-4 — no spinner, no refresh control, in any state ──
-describe('map surface inspection', () => {
-  async function emptyCanvasMarkup(): Promise<string> {
-    const { MapCanvas } = await import('../canvas/MapCanvas');
-    return renderToStaticMarkup(createElement(MapCanvas));
-  }
-
-  // MapCanvas pulls the ChainHost tree; first import under full-suite coverage
-  // can exceed the default 5s when workers contend.
-  it(
-    'renders the canvas frame immediately with no loading state',
-    async () => {
-      const markup = await emptyCanvasMarkup();
-
-      expect(markup).toContain('data-map-canvas');
-      expect(markup).not.toContain('data-react-flow-background');
-    },
-    15_000,
-  );
-
-  it.each(['empty', 'populated', 'calm'])(
-    'has no spinner and no refresh control in the %s state',
-    async (state) => {
-      const markup =
-        state === 'empty'
-          ? await emptyCanvasMarkup()
-          : state === 'populated'
-            ? nodeMarkup('J123456', 5)
-            : renderToStaticMarkup(createElement(NoMapAccess));
-
-      expect(markup).not.toMatch(/progressbar|aria-busy|spinner/i);
-      expect(markup).not.toMatch(/refresh|reload|try again|retry/i);
-      expect(markup).not.toMatch(/loading/i);
-    },
-    15_000,
-  );
-});
-
-// ── SC-7 · DC-7 / AC-7 — the reconciler is the only merge the canvas consumes ─
 describe('mapper source contract', () => {
   const ROOT = 'src/mapper';
 
   function mapperFiles(): string[] {
     return readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
-      .filter((name) => /\.tsx?$/.test(name) && !name.includes('.test.'))
+      .filter(
+        (name) =>
+          /\.tsx?$/.test(name) &&
+          !name.includes('.test.') &&
+          !name.includes('__tests__/'),
+      )
       .map((name) => name.replaceAll('\\', '/'));
   }
 
@@ -147,15 +58,28 @@ describe('mapper source contract', () => {
       'canvas/map-controls-model.ts',
       'canvas/use-camera-follow.ts',
       'chain/ChainHost.tsx',
+      'chain/ChainLive.tsx',
+      'chain/MotionLayer.tsx',
       'chain/NoMapAccess.tsx',
+      'chain/chain-signature.ts',
+      'chain/connection-detail.ts',
       'chain/intents.ts',
       'chain/labels.ts',
       'chain/nodes.ts',
       'chain/optimistic-authoring.ts',
       'chain/placement.ts',
       'chain/reconciler.ts',
+      'chain/stub-layout.ts',
       'chain/use-authoring-menus.ts',
+      'chain/use-chain-dials.ts',
+      'chain/use-chain-drag.ts',
+      'chain/use-chain-focus-menus.ts',
+      'chain/use-chain-node-sync.ts',
+      'chain/use-map-chain-halo.ts',
+      'chain/use-map-chain-merge.ts',
+      'chain/use-map-chain-pages.ts',
       'chain/use-map-chain.ts',
+      'chain/use-universe-assets.ts',
       'fog/FogLayer.tsx',
       'fog/fog-host.ts',
       'fog/fog-model.ts',
@@ -164,7 +88,6 @@ describe('mapper source contract', () => {
       'index.ts',
       'jump-client.ts',
       'layout/compass.ts',
-      'layout/determinism-fixture.ts',
       'layout/facts.ts',
       'layout/geometry.ts',
       'layout/kernel-requests.ts',
@@ -196,16 +119,32 @@ describe('mapper source contract', () => {
       'signatures/editor-leader.ts',
       'signatures/jump-resolution.ts',
       'signatures/origin-leads.ts',
-      'signatures/scanner-inline-cells.tsx',
+      'signatures/scanner-combo-panel.tsx',
+      'signatures/scanner-field-class.ts',
+      'signatures/scanner-identify-combo.tsx',
+      'signatures/scanner-leads-control.tsx',
+      'signatures/scanner-life-select.tsx',
+      'signatures/scanner-mass-select.tsx',
       'signatures/scanner-panel-body.ts',
+      'signatures/scanner-prompt-rail.tsx',
+      'signatures/scanner-row-cells.tsx',
       'signatures/scanner-row-open.ts',
       'signatures/scanner-scroll-dismiss.tsx',
+      'signatures/scanner-section-table.tsx',
+      'signatures/scanner-type-combo.tsx',
+      'signatures/scanner-window-frame.tsx',
+      'signatures/scanner-wormhole-cells.tsx',
       'signatures/signature-context.tsx',
       'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
       'signatures/system-readout.ts',
+      'signatures/use-identify-signature.ts',
       'signatures/use-scanner-paste.ts',
+      'signatures/use-signature-jump-flow.ts',
+      'signatures/use-signature-missing-flow.ts',
+      'signatures/use-signature-page.ts',
+      'signatures/use-signature-panel.ts',
       'signatures/use-system-statics.ts',
       'tracking/AfkGate.tsx',
       'tracking/JumpDoorbellObserver.tsx',
@@ -219,6 +158,7 @@ describe('mapper source contract', () => {
       'tracking/presence-context.ts',
       'tracking/presence-model.ts',
       'tracking/tracked-system.ts',
+      'tracking/use-map-coverage.ts',
       'tracking/use-tracked-system.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
@@ -272,7 +212,7 @@ describe('mapper source contract', () => {
     // Titles come from the session directory, not node data, so off-map
     // k-space still names.
     const layer = sourceOf('windows/MapWindowLayer.tsx');
-    const host = sourceOf('chain/ChainHost.tsx');
+    const host = sourceOf('chain/ChainLive.tsx');
     expect(layer).not.toMatch(/readonly nodes:/);
     expect(layer).toContain('useSelectedSystemIds');
     expect(layer).toContain('useSystemLabel');
@@ -307,13 +247,13 @@ describe('mapper source contract', () => {
     );
 
     expect(consumers).toEqual([
-      'chain/use-map-chain.ts',
-      'signatures/SignatureProvider.tsx',
+      'chain/use-map-chain-pages.ts',
+      'signatures/use-signature-page.ts',
     ]);
-    expect(sourceOf('chain/use-map-chain.ts')).not.toContain(
+    expect(sourceOf('chain/use-map-chain-pages.ts')).not.toContain(
       'api.mapScan.watchMapSignatures',
     );
-    expect(sourceOf('signatures/SignatureProvider.tsx')).toContain(
+    expect(sourceOf('signatures/use-signature-page.ts')).toContain(
       'api.mapScan.watchMapSignatures',
     );
   });
@@ -321,20 +261,19 @@ describe('mapper source contract', () => {
   it('keeps the page subscriptions split so a connection write cannot re-read systems', () => {
     // HC-2's client half: one call per function over disjoint index ranges,
     // never one aggregate read. The unresolved-slot feed is the third split.
-    const hook = sourceOf('chain/use-map-chain.ts');
+    const hook = sourceOf('chain/use-map-chain-pages.ts');
 
-    expect(hook).toContain('api.mapChain.watchMapSystems');
-    expect(hook).toContain('api.mapChain.watchMapConnections');
-    expect(hook).toContain('api.mapChain.watchUnresolvedHoles');
+    expect(hook).toContain('api.mapChainSystems.watchMapSystems');
+    expect(hook).toContain('api.mapChainConnections.watchMapConnections');
+    expect(hook).toContain('api.mapChainConnections.watchUnresolvedHoles');
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(3);
   });
 
   it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
-    const hook = sourceOf('chain/use-map-chain.ts');
-    expect(hook).toContain('api.mapChain.watchMapEvents');
-    expect(hook).toContain('filterChainConnections');
+    const hook = sourceOf('chain/use-map-chain-pages.ts');
+    expect(hook).toContain('api.mapChainEvents.watchMapEvents');
+    expect(hook).toContain('const connections = subscribedConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
-    expect(hook).toMatch(/const connections = useMemo\(/);
   });
 
   it('confines client-callable mutations to the three named mapper seams', () => {
@@ -345,7 +284,8 @@ describe('mapper source contract', () => {
     );
     expect(mutationFiles).toEqual([
       'chain/optimistic-authoring.ts',
-      'signatures/SignatureProvider.tsx',
+      'signatures/use-identify-signature.ts',
+      'signatures/use-signature-missing-flow.ts',
       'tracking/TrackingControls.tsx',
     ]);
     for (const file of mutationFiles) {

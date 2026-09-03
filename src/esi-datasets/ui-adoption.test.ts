@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   deadAllowlistEntries,
   unexpectedFamilies,
-} from '@/composition/ui-adoption-census';
-import { uiAdoptionRegistry } from '@/composition/ui-adoption-registry';
+} from '@/composition/__tests__/ui-adoption-census';
+import { uiAdoptionRegistry } from '@/composition/__tests__/ui-adoption-registry';
 
 const SKIPPED_DIRECTORIES = new Set(['node_modules', '__fixtures__', '_generated', 'ui']);
 const SKIPPED_SUFFIXES = ['.test.ts', '.test.tsx', '.d.ts'];
@@ -93,6 +93,7 @@ describe('UI adoption CSS-family census', () => {
       'changelog-',
       'contact-',
       'content-browser',
+      'devlog-excerpt',
       'devlog-prose',
       'hero-wordmark',
       'industry-hint',

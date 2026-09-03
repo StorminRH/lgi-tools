@@ -1,3 +1,4 @@
+import { io } from 'next/cache';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AppHeaderShell } from '@/components/composition/AppHeaderShell';
@@ -12,8 +13,10 @@ import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 // client. Importing `register-all` here would only populate the server
 // instance of the registry, leaving the client's empty.
 
-/** Streams the short-stale Tranquility status read behind its own boundary. */
 async function NavServerStatus() {
+  // `stale: 30` is still prerender-eligible. Without `io()`, build HTML can
+  // bake one player count and request-time RSC another — React #418 on hydrate.
+  await io();
   return <ServerStatus status={await getNavServerStatus()} />;
 }
 
@@ -25,21 +28,6 @@ function NavServerStatusFallback() {
   );
 }
 
-/**
- * Application-shell header. Four-slot layout per the 2.9.1 wireframe:
- * bracket-stamp wordmark · global search · cross-tool nav strip · login
- * cluster. Renders the <header> element directly rather than wrapping a
- * shared header primitive because the four slots are unique to this surface.
- *
- * The Tranquility status chip is the header's only short-stale read
- * (`stale: 30` — below the 5-minute App Shell threshold), so it streams from
- * its own chip-shaped Suspense hole. Everything else here reads
- * `cacheLife('max')` data, keeping the header inside every route's App Shell
- * for instant soft navigation.
- *
- * Right-slot `shrink-0` on the login cluster is load-bearing — never let
- * search expansion or tool growth push it.
- */
 export async function AppHeader() {
   const siteIndex = await getSiteSearchIndex();
 

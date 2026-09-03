@@ -38,7 +38,7 @@ const CCP_SDE_LATEST_ZIP_URL = `${CCP_SDE_BASE}/eve-online-static-data-latest-js
 // number; ETag/Last-Modified supported, cached 5 min.
 const CCP_SDE_LATEST_MANIFEST_URL = `${CCP_SDE_BASE}/tranquility/latest.jsonl`;
 
-type SdeJsonlName =
+export type SdeJsonlName =
   | 'categories'
   | 'groups'
   | 'types'
@@ -296,7 +296,7 @@ export async function getRemoteSdeVersion(): Promise<string | null> {
 
 const FUZZWORK_BASE = 'https://www.fuzzwork.co.uk/dump/latest';
 
-type SdeDumpName =
+export type SdeDumpName =
   | 'invCategories'
   | 'invGroups'
   | 'invTypes'

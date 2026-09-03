@@ -4,7 +4,7 @@
 import { toast } from '@/components/ui/toast';
 import type { Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
-import type { ConnectionDetail } from '../chain/use-map-chain';
+import type { ConnectionDetail } from '../chain/connection-detail';
 import { postJumpRequest } from '../jump-client';
 import type { ConnectionFieldAuthoringApi } from '../authoring/connection-field-setters';
 import { announceSeverOutcome } from '../authoring/sever-toast';
@@ -173,7 +173,7 @@ export function connectionLifecycleActions(input: {
 }
 
 /** Tombstones one unresolved stub and offers the signature-restore undo. */
-export async function removeStubAndAnnounce(input: {
+async function removeStubAndAnnounce(input: {
   readonly mapId: string;
   readonly systemId: number;
   readonly signatureId: string;

@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
 import '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
@@ -40,13 +40,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     // rejected at the cheapest point. Unlinking is rare and deliberate — 10/min
     // is plenty for a human and stops scripted hammering of the unlink + token
     // deletion. Runs as the shell's preflight so a 429 is recorded.
-    preflight: async () => {
-      const limit = await checkRateLimit(request, {
-        name: 'account-unlink',
-        perMinute: 10,
-      });
-      return limit.ok ? null : problemResponse(limit.failure);
-    },
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'account-unlink', perMinute: 10 },
+      problemResponse,
+    ),
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,

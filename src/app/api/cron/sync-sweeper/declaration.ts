@@ -6,11 +6,6 @@ import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 import { isNoteworthySweep } from './noteworthy';
 
-/**
- * Declares the 15-minute sync watchdog as an idle-silent, lock-free route.
- * Healthy no-ops emit only the shell's boundary line; failures and re-armed
- * subjects are noteworthy and therefore write durable telemetry.
- */
 export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperResponse> = {
   name: 'cron:sync-sweeper',
   action: 'cron_sync_sweeper',
@@ -39,15 +34,12 @@ export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperRespons
   },
 };
 
-// The engine's sweep mutation owns these counts; this is the wire boundary
-// where they enter the cron route's telemetry.
 const sweepCountsSchema = z.object({
   dispatched: z.number().int().nonnegative(),
   retired: z.number().int().nonnegative(),
   deleted: z.number().int().nonnegative(),
 });
 
-/** Reads the sweep's declared counts, or null when the body is unreadable or drifted. */
 async function readSweepCounts(
   response: Response,
 ): Promise<z.infer<typeof sweepCountsSchema> | null> {
@@ -55,8 +47,6 @@ async function readSweepCounts(
     const parsed = sweepCountsSchema.safeParse(await response.json());
     return parsed.success ? parsed.data : null;
   } catch {
-    // A malformed or empty body is the same protocol drift as a wrong shape;
-    // it must not surface as the outer catch's transport-failure reason.
     return null;
   }
 }
@@ -109,8 +99,6 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
         durationMs: Date.now() - started,
       };
     }
-    // First-party service response, but still validated: a drifted body used to
-    // propagate silently into the telemetry counts.
     const counts = await readSweepCounts(response);
     if (counts === null) {
       return {

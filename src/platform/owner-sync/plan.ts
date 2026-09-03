@@ -2,7 +2,7 @@ import type { PersistVerdict } from './types';
 
 // The minimal conditional-read shape the planner branches on — the slice's own
 // ReadResult union (single or paged) is structurally one of these.
-type ReadResult =
+export type ReadResult =
   | { kind: 'fresh' }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };

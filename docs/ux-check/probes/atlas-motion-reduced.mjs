@@ -34,7 +34,7 @@ async function insertSystem(mapId, systemId) {
       'exec',
       'convex',
       'run',
-      'mapFixtures:placeSystemFixture',
+      'mapFixturePlace:placeSystemFixture',
       JSON.stringify({ mapId, systemId }),
     ],
     { timeout: 30_000 },

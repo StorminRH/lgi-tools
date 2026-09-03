@@ -1,14 +1,10 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The route removes a linked character and re-points the active one if needed.
-// Mock auth + the query layer so these exercise the last-character guard, the
-// re-point, and the error mapping without a DB or a real EVE call.
-
 const SESSION = {
   user: { id: 'eve-user-1' },
   session: {},
-  characterId: 100, // active character
+  characterId: 100,
   name: 'Alice',
   portraitUrl: 'a',
   role: 'USER' as const,
@@ -69,8 +65,6 @@ vi.mock('@/data/location-tracking/purge', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-// Real identity wiring: map-access-identity registers hooks; the route uses the
-// never-throw runner. Static import after mocks are hoisted.
 import { POST } from './route';
 
 function buildRequest(form: Record<string, string>): NextRequest {
@@ -113,41 +107,35 @@ describe('POST /api/account/characters/unlink', () => {
       updated: 0,
       deleted: 0,
       unchanged: 0,
+      outcome: 'applied',
     });
   });
 
-  it('returns 401 when there is no session', async () => {
+  it('refuses anonymous callers, the last character, and a character not linked to the caller', async () => {
     getSessionMock.mockResolvedValue(null);
-    const res = await POST(buildRequest({ characterId: '200' }));
-    expect(res.status).toBe(401);
-    expect(unlinkAccountMock).not.toHaveBeenCalled();
-  });
+    expect((await POST(buildRequest({ characterId: '200' }))).status).toBe(401);
 
-  it('refuses to unlink the only/last character', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue([{ characterId: 100 }]);
-    const res = await POST(buildRequest({ characterId: '100' }));
-    expect(res.status).toBe(303);
-    expect(locationOf(res)).toContain('error=last_character');
+    const last = await POST(buildRequest({ characterId: '100' }));
+    expect(last.status).toBe(303);
+    expect(locationOf(last)).toContain('error=last_character');
+
+    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    const notLinked = await POST(buildRequest({ characterId: '999' }));
+    expect(locationOf(notLinked)).toContain('error=not_linked');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
   });
 
-  it('refuses a character not linked to the caller', async () => {
+  it('unlinks and re-points only when the removed character was active', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    const res = await POST(buildRequest({ characterId: '999' }));
-    expect(locationOf(res)).toContain('error=not_linked');
-    expect(unlinkAccountMock).not.toHaveBeenCalled();
-  });
-
-  it('unlinks and re-points the active character to the oldest remaining one', async () => {
-    getSessionMock.mockResolvedValue(SESSION);
-    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100); // active = the char being unlinked
+    getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
-    const res = await POST(buildRequest({ characterId: '100' }));
-    expect(res.status).toBe(303);
-    expect(locationOf(res)).toBe('http://localhost:3000/characters');
+
+    const active = await POST(buildRequest({ characterId: '100' }));
+    expect(active.status).toBe(303);
+    expect(locationOf(active)).toBe('http://localhost:3000/characters');
     expect(unlinkAccountMock).toHaveBeenCalledWith({
       body: { providerId: 'eve', accountId: '100' },
       headers: expect.any(Headers),
@@ -156,15 +144,14 @@ describe('POST /api/account/characters/unlink', () => {
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-  });
 
-  it('does not re-point when unlinking a non-active character', async () => {
-    getSessionMock.mockResolvedValue(SESSION);
-    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100); // active = 100, unlinking 200
-    unlinkAccountMock.mockResolvedValue({ status: true });
-    const res = await POST(buildRequest({ characterId: '200' }));
-    expect(res.status).toBe(303);
+    unlinkAccountMock.mockClear();
+    repointActiveToOldestMock.mockClear();
+    getMapIdsWithCharacterGrantMock.mockClear();
+    teardownLocationTrackingMock.mockClear();
+    logUsageEventMock.mockClear();
+    const inactive = await POST(buildRequest({ characterId: '200' }));
+    expect(inactive.status).toBe(303);
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
   });
 

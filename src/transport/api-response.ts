@@ -11,7 +11,7 @@ import type {
   TextCodec,
 } from './endpoint';
 
-type ResponseArgsFor<TCodec extends ResponseCodec> =
+export type ResponseArgsFor<TCodec extends ResponseCodec> =
   TCodec extends ProblemCodec
     ? [failure: AppFailure]
     : TCodec extends JsonCodec<infer TBody>

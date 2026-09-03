@@ -1,19 +1,11 @@
-import { ESLint } from 'eslint';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
-const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+import { createEslintRail } from './__tests__/eslint-rail.mjs';
 
 describe('UI package import rail', () => {
-  const eslint = new ESLint({ cwd: repoRoot });
+  const { messagesFor } = createEslintRail(import.meta.url);
 
   async function restrictedImportMessages(filePath, packageName) {
-    const [result] = await eslint.lintText(`import '${packageName}';`, {
-      filePath,
-    });
-    return result.messages.filter(
-      (message) => message.ruleId === 'no-restricted-imports',
-    );
+    return messagesFor(filePath, `import '${packageName}';`, 'no-restricted-imports');
   }
 
   it.each([

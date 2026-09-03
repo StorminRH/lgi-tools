@@ -8,7 +8,7 @@ import {
   TEMPLATE_FIELD_KEYS,
 } from './template-manifest';
 import { planSnapshotV1Schema, snapshotFieldSchemas } from './template-snapshot';
-import { configureFull, makeApplyCtx, makeMockPlanner } from './template.fixtures';
+import { configureFull, makeApplyCtx, makeMockPlanner } from './__tests__/template.fixtures';
 
 // The template core, tested against a mock context whose setters mimic the
 // provider's public surface (including the #187 no-double-select guard) — the

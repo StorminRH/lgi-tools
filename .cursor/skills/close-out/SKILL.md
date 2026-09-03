@@ -1,207 +1,218 @@
 ---
 name: close-out
-description: Finish and ship completed work through required review, verification, pull-request delivery, conditional merge, and production proof. Assumes any required UX gate is already satisfied by a prior ux-check step. Use when the operator asks to wrap up, close out, ship, or merge ordinary work or an approved lifecycle session.
+description: Close out every merge onto staging or main. Always use when the operator asks to close out, or to merge onto staging or main.
 ---
 
 # Close out work
 
-Sole end-to-end ship path. Two modes — never infer mode from a branch prefix.
+One process. Destination is Origin `staging` or Origin `main`. Head is
+`development` onto `staging` and `staging` onto `main` unless the
+operator named another. A named feature head is fine.
 
-After merge, agent production proof is the repo's required runtime check, not a
-visual browser pass or bare HTTP check.
+## Process
 
-## Mode selection
+Done when the destination holds the head and the other integration
+line contains that tip.
 
-- **Planned** when `start-session` dispatched close-out with a valid
-  `session-ready`/`execute` directive on the lifecycle branch, or a dedicated
-  close-out chat after an Ordered work (OW) handoff that names planned mode,
-  the resolver still reports that session, and the plan's `Execution status` is
-  `Pending`. Owns version, roadmap, session-plan, and pending-fragment
-  absorption.
-- **Ordinary** on any direct "close out" / "ship it" that does not meet those
-  conditions. No resolver, no release-consistency, no edits to version
-  identity, public version headings, roadmap, or session execution state —
-  exactly one pending changelog fragment instead.
+Write this process as a todo list before naming the lines. One item
+per numbered step. Give the Depot wait its own item named
+`depot ci dispatch`. Keep that item in progress until `depot ci status`
+is green on that run. Done when the list exists and step 1 is in progress.
 
-Mid-session Ordered work resumes through `start-session`, not close-out.
-Close-out consumes prior `ux-check` evidence; it does not invoke `ux-check`.
-User-facing planned work uses a dedicated UX Ordered work step under
-`start-session` before awaiting close-out. Ordinary user-facing work needs
-that `ux-check` plus operator disposition before the implementation-review
-gate.
-
-Outputs — exactly one:
-
-- `SESSION_HANDOFF` — planned, more sessions remain; plan `Complete`, handoff
-  pointed, lifecycle branch pushed, no PR.
-- `MERGED` — review, verify, PR, merge, and production proof complete.
-- `BLOCKED` — named gate, scope conflict, failed check, or external-state
-  block.
-
-One active phase at a time. Attach real evidence before completing a phase.
-
-## 1. End-of-session review
-
-1. Fix in-scope problems on the branch. Prefer absorb here. Defer only on
-   explicit operator cut by opening a GitHub Issue titled
-   `[Backlog] <short what>` with body fields *what / why-deferred / size /
-   trigger*.
-2. Judgment review (record not-touched when irrelevant): scope leftover;
-   public-doc drift in README, CONTRIBUTING, SECURITY, `.github/`,
-   `.env.example`, and legal pages. Do not repeat `adversarial-review`.
-3. Verify on local dev. If Ordered work remains, `BLOCKED` — return to
-   `start-session`.
-
-## 2. Planned: session memory and the final-session fork
-
-Ordinary skips this section — go to **Implementation review gate**.
-
-One sub-version → one lifecycle branch → one PR unless indexed contracts say
-one PR per session.
-
-1. From contract index, master-plan row, and session plan: next session id or
-   `Final session`.
-2. Non-final under one-sub-version-PR: **Implementation review gate** without
-   filling PR `## Notes` → **Finalize and verify the current head** → plan
-   `Execution status: Complete`, as-built per
-  `docs/workflows/schema/session-as-built.md` (PR marker deferred to final),
-  lifecycle commit+push. Stop (`SESSION_HANDOFF`).
-3. Final session: continue only when the sub-version is cohesive as one PR.
-   Mark `Complete` during Implementation review gate finalization, before the
-   PR opens.
-4. Contract `UX gate: Yes` requires the dedicated UX Ordered work step already
-   recorded in the `ux-check` return (operator disposition). `No` skips.
-   Missing disposition → `BLOCKED` back to `start-session`.
-
-## 3. Implementation review gate
-
-Sole design-and-independent-review stage before full verify. Do not launch a
-second adversarial round after it.
-
-1. Invoke `adversarial-review` against `origin/main...HEAD` plus any
-   uncommitted patch. Keep the worktree stable. Contested items surface in
-   chat. Continue only with `PASS`.
-2. Finalize delivery records before gates and before opening a PR:
-   - **Ordinary:** one pending fragment in `content/changelog/pending/` per
-     `docs/workflows/schema/changelog-pending.md`. No version-identity /
-     version-heading / roadmap / session-status edits. PR `## Notes` is
-     filled when the PR opens.
-   - **Planned, own PR, non-final:** leave the release triplet untouched; plan
-     `Complete`; fill PR `## Notes` when the PR opens.
-   - **Planned, handoff, one-sub-version-PR:** skip delivery finalization and
-     PR `## Notes`.
-   - **Planned, final:** sync `origin/main`, absorb pending fragments into
-     `### vX.Y.N` per changelog-pending, delete consumed fragments, prepend via
-     `docs/workflows/schema/changelog-entry.md`, bump version identity,
-     terminal roadmap row, plan `Complete`, fill PR `## Notes` when the PR
-     opens.
-
-## 4. Finalize and verify the current head
-
-Single full verification checkpoint. Do not repeat at PR open when the head is
-unchanged.
-
-1. Diff still matches the reviewed subject plus corrections plus delivery
-   records. Screen scope and PII. Planned: expand each plan `SC-N` into an
-   in-context atomic proof ledger — every required observable. A passing
-   command or suite name is not proof. Missing observable → `BLOCKED`.
-   Never return this session to `plan-session`.
-2. Durable gotchas: planned work records them in the as-built Successor
-   notes. Ordinary work records them in the relevant nested `AGENTS.md`
-   landmine or canonical guide. Operator-cut scope is a GitHub Issue
-   (`[Backlog] …`).
-3. Cheap checks that can still edit: policy + `python3 tools/cli.py test`
-   after guide/skill/hook/policy changes; doc refs; pending-changelog checker;
-   baseline-claims / watch-trigger reporters; plan-named checkers. Planned also
-   runs release consistency. Fix before verify.
-4. Stop local long-running dev servers after review; clear stale build cache.
-5. Clean session-only ignored artifacts. Tracked guides/tools ship normally.
-6. Definition of done once:
-
-   ```bash
-   FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
-   ```
-
-7. Confirm the worktree still matches preflighted scope. Any application, test,
-   executable, dependency-manifest, lockfile, or verification-configuration
-   change after verify invalidates the checkpoint. Uncommitted OW
-   implementation after the last Ordered work step → `BLOCKED` back to
-   `start-session`.
-8. Commit and push (plain-English conventional style). Ordinary: all verified
-   scoped changes plus the pending fragment. Planned: remaining lifecycle-only
-   delta (plan status, as-built, release records).
-9. Planned non-final stops after handoff; final continues to the PR.
-
-## 5. The PR and external-review loop
-
-1. Reuse verify evidence when the head is unchanged since **Finalize and
-   verify the current head**.
-2. Open one **draft** PR to `main` (or reuse the open review-only PR). Headings
-   in order: `## What this does`, `## Why`, `## Notes`, `## Test plan`.
-   Planned: with the PR number known, author the as-built, commit, push while
-   still draft.
-3. Privacy-scrub title/body:
-
-   ```bash
-   python3 tools/cli.py delivery scrub-pr-body --check \
-     --body-file "$PR_BODY_FILE" \
-     --title "$PR_TITLE"
-   ```
-
-   Planned also
+1. Name the two lines. Fetch `origin/<head>` and
+   `origin/<destination>`. Work from the head tip. Uncommitted Ordered
+   work on `development` returns to `start-session`. start-session
+   `promote-needed` is this process onto `staging`. Done when the two
+   lines are named and, when the destination is `main`, the changelog
+   is on the head. Onto `main`, set `APP_VERSION` in
+   `src/config/app-version.ts` to the latest lifecycle identity already
+   on the head. Write the public changelog from the as-builts in
+   `<head>...main` per `docs/workflows/schema/changelog-entry.md`. The
+   overview is the as-built Delivered paragraphs, invoked through
+   `unslop`. The bullets are those records' `Added:` / `Changed:` /
+   `Fixed:` / `Removed:` lines, grouped in that order. Run
    `python3 tools/cli.py lifecycle check-release --check --expect reconciled`.
-   Re-scrub after publish. Confirm head/body/delivery/verify final, then
-   mark it ready for review exactly once.
-4. Drive ready PRs in batched rounds — never push mid-pass:
+   Land that commit on the head.
+2. Size gate. Run
+   `python3 tools/cli.py lifecycle count-app-facing --list --base origin/<destination> --head origin/<head>`.
+   Count is due at 80 versus `staging`. A smaller clean chunk is fine
+   when the operator asked for one. Reviewers run
+   `origin pr diff <N>` after the draft exists. When the destination
+   is `staging`, the `--list` is mirror isolation and a pile over 100
+   is `BLOCKED`. Split first. Destination `main` still runs the
+   count. It has no mirror and no file cap. Done when the count is
+   known and, for `staging`, under the cap.
+3. Run the local test suite through `test-runner` until it passes.
+   Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
+   `dupes`, and `health`, plus focused tests for the diff, are green
+   on the head.
+4. Open the Origin draft (`<head>` → destination) per **Origin PR**.
+   Done when that PR is draft and the change number is known.
+5. Comments. Invoke `no-comments` on that Origin change. It spawns
+   `comment-sicko`. Both write. Run the local test suite through
+   `test-runner`. Done when accepted deletions and in-scope fixes
+   are on the head and the suite is green.
+6. When the destination is `staging`, mirror per **Mirror**. Done when
+   the mirror PR is open ready and Greptile and CodeRabbit have been
+   requested. Destination `main` skips the mirror.
+7. Freeze and review. Invoke `adversarial-review` on that Origin
+   change. Brief is the change number. Every Cursor seat runs
+   `origin pr diff <N>`. Bugbot on open. Mirror bots when a mirror
+   exists. Done when every freeze seat has returned, Bugbot and
+   mirror review have finished posting, and the tree is still the
+   freeze head.
+8. One batch. Triage every finding from that settled window.
+   Dedupe. Accept or reject. Fix the accepted set on the head.
+   Note dispositions on the Origin PR. Run the local test suite.
+   Pause in chat with the reasoning when leaving a finding
+   unfixed. Done when every accepted finding is on the head, or
+   the operator has that pause, and the suite is green.
+9. When the destination is `staging`, author as-builts for the
+   work this PR delivers, per `docs/workflows/schema/session-as-built.md`.
+   One record per session in the range, and one for ordinary work
+   in the same PR. A session that still has work only on
+   `development` waits for a later close-out. The Delivered
+   outcome carries the player-facing bullets the changelog will
+   lift. Push the as-builts and any remaining mirror fixes to the
+   Origin draft. Run the local test suite on that head. Done when
+   those commits are on that PR and the suite is green.
+10. Dispatch per **Depot**. That command is the watch todo. Done
+    when the pipeline has settled (green or finished red).
+11. When Depot is red, one **Findings** cycle, then return to
+    step 10. Done when Depot is green.
+12. When the destination is `main`, merge per **Merge**. Resync
+    per **Resync**. Done when Origin `main` holds the head and
+    `staging` and `development` contain `main`. Return `RELEASED`.
+13. When the destination is `staging`, `origin pr thread list
+    --unresolved` empty. Merge per **Merge**. Close the mirror PR
+    unmerged. Done when Origin `staging` holds the head.
+14. Resync per **Resync**. Done when `development` contains
+    `staging`. Return `PROMOTED`.
 
-   ```bash
-   python3 tools/cli.py delivery poll-pr-gate \
-     "$PR_REPOSITORY" "$PR_NUMBER" review
-   ```
+Outputs. Exactly one:
 
-5. Collect all findings (Greptile, CodeRabbit, Bugbot). Advisory IDE review is
-   not the gate of record. **Fix** in-scope; **Justify** via `@greptileai`
-   (wait for the bot); **Defer** only on explicit operator cut → GitHub Issue
-   `[Backlog] …`. One push per round after invalidated evidence is green.
+- `PROMOTED`. Destination `staging`. Origin PR merged. Mirror PR closed
+  unmerged. `development` contains `staging`.
+- `RELEASED`. Destination `main`. Origin `main` holds the cut.
+  `staging` and `development` contain `main`.
+- `BLOCKED`. Named gate, oversize staging mirror, failed check, missing
+  destination, work already on the destination before this process
+  finished, or an Origin token that is not scoped for merge. The
+  Origin PR stays open.
 
-## 6. Merge (shared)
+## Origin PR
 
-1. Participating Greptile needs live 5/5; every Greptile/CodeRabbit thread
-   resolved. At least one participating reviewer with head-exact evidence.
-2. Gate of record: `python3 tools/cli.py delivery merge-clean-pr` — fail-closed.
-3. Unresolved finding rejected by the helper → escalate. Never resolve a thread
-   only to clear the gate.
+Done when the Origin PR is draft and the change number is known.
 
-## 7. After merge and production proof
+`origin pr create` defaults to draft. Leave it draft through reviews
+and fixes. Always pass `--head` and `--base`; after `test-runner`
+the checkout can be detached and inference misses.
+`origin pr create --head <head> --base <destination>`.
+Headings in order: `## What this does`,
+`## Why`, `## Notes`, `## Test plan`. Scrub title and body:
 
-1. Clean the local feature branch and any manual preview or ephemeral data
-   branch.
-2. Wait for the merge-SHA production deployment:
+```bash
+python3 tools/cli.py delivery scrub-pr-body --check \
+  --body-file "$PR_BODY_FILE" \
+  --title "$PR_TITLE"
+```
 
-   ```bash
-   python3 tools/cli.py delivery wait-prod-deploy <merge-sha>
-   ```
+Re-scrub after publish.
 
-   Fail closed on timeout, failed/inactive deploy, or when Production tip
-   moves to a different commit.
-3. Agent production proof is log-driven Playwright, not a visual pass. Browser
-   cache and origin-scoped bypass live in the `ux-check` skill. Always run
-   `pnpm verify:prod` (or `pnpm verify:site-routes -- <url>`).
-   Account-adjacent: also `pnpm ux-check <routes> --base-url=<prod-url>` with
-   operator `--cookie-jar` / `--storage-state`. Pass/fail from JSON.
-4. Ordinary: `MERGED`. Pending fragment is the only lifecycle record.
-   Planned: update from `origin/main`, run
-   `python3 tools/cli.py lifecycle resolve --pretty`, return to
-   `start-session`.
+## Depot
+
+Done when that Origin PR's dispatched pipeline is green.
+
+Dispatch once reviews are idle and the local suite is green on
+that head:
+`depot ci dispatch --repo stormin/lgi-tools --workflow test.yml --ref <head-branch> --org k2f4dzqwd4`.
+Watch with `depot ci status <run-id> --org k2f4dzqwd4` until it
+returns. That command is the watch todo. Keep the todo in
+progress until status is green. After `test-runner` the checkout
+can be detached, so pass the head branch explicitly. `origin pr
+checks` stays empty on dispatch.
+
+On red, diagnose then logs. The fix is a Findings cycle.
+
+## Findings
+
+Done when Depot is idle, one comment records the cycle, that
+comment's thread is resolved or the operator paused, and the mirror
+branch matches the Origin head when a mirror exists.
+
+A finding is a red Depot job, a mirror bot comment, or a review note
+on the Origin PR, including Bugbot. The first batch is step 8.
+A red dispatch is a new cycle on the same rule: diagnose, one
+batch, local suite, one `dispatch`.
+
+1. Collect every finding from that red run: Depot diagnose/logs
+   and any new review notes.
+2. One batch. One commit per fix is fine. Justify on the mirror PR
+   when a mirror finding is wrong. Defer only on an explicit
+   operator cut. Run the local test suite on the batch.
+3. One push to the Origin head. One re-push of the mirror branch
+   when a mirror exists. `refresh` if `view` still shows the
+   previous version.
+4. One Origin comment (`origin pr comment`) naming the version and
+   every finding's disposition. Origin assigns the thread id.
+5. Resolve that thread id when the cycle is the log. Another
+   cycle after the next settle if Depot is still red or new
+   review lands.
+
+Mirror comments start on GitHub. The Origin comment and its thread
+id are the log.
+
+## Mirror
+
+Done when the GitHub mirror PR holds only the size-gate paths at the
+current head SHA, is open ready, and both bots have been requested.
+
+GitHub PRs and branches are a manual mirror. Add a `github` remote to
+`https://github.com/StorminRH/lgi-tools.git` when it is missing. Push
+Origin `staging` to GitHub `staging` so the mirror base matches the
+already-reviewed line. Build `dump/<YYYY-MM-DD>-<shortsha>` from that
+base with only the isolated paths at the head SHA. Open the GitHub PR
+ready for review on `StorminRH/lgi-tools` (`dump/...` → `staging`) with
+`gh pr create` or the GitHub MCP. Request Greptile and CodeRabbit by
+hand.
+
+## Merge
+
+Done when the Origin PR is merged to its base line.
+
+`origin pr thread list --unresolved` is empty, or the operator
+paused. Merge with `origin pr merge <N>`. That merge is what
+moves the work onto the destination. It waits for this step.
+`--merge`, `--squash`, `--auto`, and `--branch` hit the same
+merge gate. A Cloud Agent token that is not scoped for merge
+returns `BLOCKED` with that error. Leave the Origin PR open.
+The operator reviews and merges, or upgrades the token. Delete
+leftover source branches. Leave `development`, `staging`, and
+`main`. Return after **Resync**.
+
+## Resync
+
+Done when the other integration line contains the destination tip.
+
+Fetch `origin/development`, `origin/staging`, and `origin/main`.
+
+Destination `staging`: update `origin/development` so it contains
+`origin/staging`. Fast-forward when development has no unique
+commits (`git push origin origin/staging:development`). Merge
+`staging` into `development` and push when it does. Done when
+`git merge-base --is-ancestor origin/staging origin/development`.
+Check out `development` at that tip.
+
+Destination `main`: the same onto `origin/main` for both `staging`
+and `development`. Done when both contain `origin/main`.
 
 ## Return
 
-Render this form in chat. Use exactly these four bullets. Do not wrap the
-result in a code fence or prepend a second summary.
+Render this form in chat as these four bullets.
 
-## Close-out: `SESSION_HANDOFF` | `MERGED` | `BLOCKED`
+## Close-out: `PROMOTED` | `RELEASED` | `BLOCKED`
 
-- **Subject:** <Ordinary or Planned>; session `<id>` or ordinary; head `<full SHA>`
+- **Subject:** `<destination>`; `<from>` → `<to>`; head `<full SHA>`
 - **Result:** <what completed; ≤2 sentences>
-- **Action:** <next step; PR URL or merge SHA when present>
+- **Action:** <next step; Origin PR URL or merge SHA when present>
 - **Blocker:** <exact blocker or `None`>

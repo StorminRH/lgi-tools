@@ -391,10 +391,8 @@ class VerdictTests(unittest.TestCase):
         payload = finalize_verdict(state, [], [])
         self.assertEqual("report", payload["verdict"])
         self.assertNotIn("Open one digest issue", payload["summary"])
-        self.assertIn(
-            "- **Action:** Hand the opened digest issue to resolve-update-watch",
-            payload["summary"],
-        )
+        self.assertIn("- **Action:** None", payload["summary"])
+        self.assertNotIn("resolve-update-watch", payload["summary"])
 
 
 class ScopeTests(unittest.TestCase):

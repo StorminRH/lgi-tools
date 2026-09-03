@@ -4,6 +4,7 @@ import type { CachedAffiliation } from '@/platform/auth/membership';
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
   getMapGrants: vi.fn(),
+  reserveMapAccessProjectionRevision: vi.fn(),
   getUserIdsOwningCharacters: vi.fn(),
   getUserIdsInCorporations: vi.fn(),
   getUserAffiliations: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/data/maps/queries', () => ({
   getMapAccessSubject: mocks.getMapAccessSubject,
   getMapGrants: mocks.getMapGrants,
+  reserveMapAccessProjectionRevision: mocks.reserveMapAccessProjectionRevision,
   getUserIdsOwningCharacters: mocks.getUserIdsOwningCharacters,
   getUserIdsInCorporations: mocks.getUserIdsInCorporations,
 }));
@@ -49,6 +51,9 @@ import {
   projectMapAccess,
   projectStagedMapAccess,
   ProjectionUnavailableError,
+  requireCurrentProjection,
+  purgeUserMapAccessProjection,
+  teardownMapAccessProjection,
 } from './map-access-projection';
 
 function affiliation(
@@ -82,6 +87,7 @@ beforeEach(() => {
     archivedAt: null,
   });
   mocks.getMapGrants.mockResolvedValue([]);
+  mocks.reserveMapAccessProjectionRevision.mockResolvedValue(41);
   mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map());
   mocks.getUserIdsInCorporations.mockResolvedValue(new Set());
   mocks.deriveConvexSiteUrl.mockReturnValue('http://127.0.0.1:3211');
@@ -196,24 +202,19 @@ describe('computeMapAccessClaims', () => {
     ]);
   });
 
-  it('returns an empty set for a missing map', async () => {
+  it('returns an empty set for a missing or archived map', async () => {
     mocks.getMapAccessSubject.mockResolvedValue(null);
     await expect(computeMapAccessClaims('missing')).resolves.toEqual([]);
-  });
 
-  it('returns an empty set for archived maps', async () => {
     mocks.getMapAccessSubject.mockResolvedValue({
       userId: 'creator',
       archivedAt: new Date('2026-08-12T00:00:00.000Z'),
     });
-
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([]);
     expect(mocks.getMapGrants).not.toHaveBeenCalled();
   });
 
   it('converges when a completed refresh leaves a biomassed character stale (404 omissions)', async () => {
-    // ESI 404-poisoned batch: refresh completed without transient failure, but the
-    // dead character's refreshedAt stays stale — corp roles fail closed, compute continues.
     mocks.getMapGrants.mockResolvedValue([
       { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
     ]);
@@ -265,7 +266,6 @@ describe('computeMapAccessClaims', () => {
       affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
     ]);
 
-    // Character principal still matches; only corp membership is fail-closed on staleness.
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
       { userId: 'stale', roles: ['viewer'] },
@@ -276,9 +276,16 @@ describe('computeMapAccessClaims', () => {
 describe('projectMapAccess transport', () => {
   it('posts the computed claim set and returns reconcile counts', async () => {
     mocks.fetchWithTimeout.mockResolvedValue(
-      new Response(JSON.stringify({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 }), {
-        status: 200,
-      }),
+      new Response(
+        JSON.stringify({
+          inserted: 1,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          outcome: 'applied',
+        }),
+        { status: 200 },
+      ),
     );
 
     await expect(projectMapAccess('map-1')).resolves.toEqual({
@@ -286,6 +293,7 @@ describe('projectMapAccess transport', () => {
       updated: 0,
       deleted: 0,
       unchanged: 0,
+      outcome: 'applied',
     });
     expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
       'http://127.0.0.1:3211/project-map-access',
@@ -296,15 +304,42 @@ describe('projectMapAccess transport', () => {
         }),
         body: JSON.stringify({
           mapId: 'map-1',
+          revision: 41,
           claims: [{ userId: 'creator', roles: ['admin'] }],
         }),
       }),
     );
   });
 
-  it('throws when the door answers non-2xx', async () => {
+  it('throws when the door, env, stale teardown, or drifted purge cannot apply', async () => {
     mocks.fetchWithTimeout.mockResolvedValue(new Response('nope', { status: 503 }));
     await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
+    mocks.readEnv.mockReturnValue(undefined);
+    await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+    mocks.readEnv.mockImplementation((name: string) =>
+      name === 'CONVEX_SERVICE_SECRET' ? 'svc-secret' : undefined,
+    );
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'http://127.0.0.1:3210');
+
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'stale',
+      }),
+    );
+    await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
+
+    mocks.fetchWithTimeout.mockResolvedValue(Response.json({ deleted: 'nope' }));
+    await expect(purgeUserMapAccessProjection('user-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
   });
 
   it('reconciles archived maps to an empty claim set during ordinary reprojection', async () => {
@@ -313,7 +348,13 @@ describe('projectMapAccess transport', () => {
       archivedAt: new Date('2026-08-12T00:00:00.000Z'),
     });
     mocks.fetchWithTimeout.mockResolvedValue(
-      Response.json({ inserted: 0, updated: 0, deleted: 1, unchanged: 0 }),
+      Response.json({
+        inserted: 0,
+        updated: 0,
+        deleted: 1,
+        unchanged: 0,
+        outcome: 'applied',
+      }),
     );
 
     await projectMapAccess('map-1');
@@ -321,7 +362,7 @@ describe('projectMapAccess transport', () => {
     expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
       'http://127.0.0.1:3211/project-map-access',
       expect.objectContaining({
-        body: JSON.stringify({ mapId: 'map-1', claims: [] }),
+        body: JSON.stringify({ mapId: 'map-1', revision: 41, claims: [] }),
       }),
     );
   });
@@ -332,7 +373,13 @@ describe('projectMapAccess transport', () => {
       archivedAt: new Date('2026-08-12T00:00:00.000Z'),
     });
     mocks.fetchWithTimeout.mockResolvedValue(
-      Response.json({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 }),
+      Response.json({
+        inserted: 1,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'applied',
+      }),
     );
 
     await projectStagedMapAccess('map-1');
@@ -342,16 +389,11 @@ describe('projectMapAccess transport', () => {
       expect.objectContaining({
         body: JSON.stringify({
           mapId: 'map-1',
+          revision: 41,
           claims: [{ userId: 'creator', roles: ['admin'] }],
         }),
       }),
     );
-  });
-
-  it('throws when Convex env is unset', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-    mocks.readEnv.mockReturnValue(undefined);
-    await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
   });
 
   it('does not deliver claims when computation finishes after cancellation', async () => {
@@ -369,5 +411,37 @@ describe('projectMapAccess transport', () => {
 
     await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
     expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
+  });
+});
+
+describe('requireCurrentProjection', () => {
+  const counts = {
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  };
+
+  it('returns applied and duplicate results', () => {
+    expect(requireCurrentProjection({ ...counts, outcome: 'applied' })).toEqual({
+      ...counts,
+      outcome: 'applied',
+    });
+    expect(requireCurrentProjection({ ...counts, outcome: 'duplicate' })).toEqual({
+      ...counts,
+      outcome: 'duplicate',
+    });
+  });
+
+  it('throws when a newer projection already won', () => {
+    try {
+      requireCurrentProjection({ ...counts, outcome: 'stale' });
+      expect.unreachable('expected stale projection to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProjectionUnavailableError);
+      expect(error).toEqual(
+        expect.objectContaining({ message: expect.stringMatching(/newer projection already won/) }),
+      );
+    }
   });
 });

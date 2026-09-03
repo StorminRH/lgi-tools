@@ -16,12 +16,12 @@ import {
 import { connectionEditorMode } from '../authoring/connection-editor-mode';
 import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import { originLeadOptions } from './origin-leads';
-import {
-  useUniverseAssets,
-  type ConnectionDetail,
-  type ConnectionEditorDetail,
-  type UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+import type {
+  ConnectionDetail,
+  ConnectionEditorDetail,
+  UnresolvedHoleSummary,
+} from '../chain/connection-detail';
+import { useUniverseAssets } from '../chain/use-universe-assets';
 import { SignatureEditor } from './SignatureEditor';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { destinationReadout } from './system-readout';
@@ -46,11 +46,9 @@ function editedConnection(
   );
 }
 
-/** Props for the live editor host. */
 export interface ActiveSignatureEditorProps {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'> | null;
-  /** Scanner row the leader should bracket; null falls back to fromSignatureId. */
   readonly anchorSignatureId?: string | null;
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
@@ -59,7 +57,6 @@ export interface ActiveSignatureEditorProps {
   readonly onClose: () => void;
 }
 
-/** Mounts the editor for the currently edited connection, or nothing. */
 export function ActiveSignatureEditor({
   mapId,
   connectionId,
@@ -85,8 +82,7 @@ export function ActiveSignatureEditor({
           connection.fromSystemId,
           connection.toSystemId,
           'from',
-          connection.fromDestinationSystemId,
-          connection.toDestinationSystemId,
+          connection.from,
         ),
     systemInfo,
   );
@@ -145,10 +141,10 @@ function ActiveSignatureEditorView({
     authoring,
     onDone: onClose,
     stub:
-      edited.toSystemId === null && edited.fromSignatureId !== null
+      edited.toSystemId === null && edited.from.signatureId !== null
         ? {
             systemId: edited.fromSystemId,
-            signatureId: edited.fromSignatureId,
+            signatureId: edited.from.signatureId,
           }
         : null,
   });

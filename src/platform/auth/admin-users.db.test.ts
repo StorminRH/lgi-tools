@@ -4,7 +4,7 @@ import {
   createDbTestHarness,
   seedEveAccount as insertEveAccount,
   seedUser as insertUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 import { getStoredActiveCharacterId } from './linked-characters';
 
 const hooks = vi.hoisted(() => ({

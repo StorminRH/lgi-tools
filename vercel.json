@@ -4,16 +4,14 @@
   "git": {
     "deploymentEnabled": {
       "main": true,
+      "development": false,
+      "staging": true,
       "**": false,
       "*": false,
       "*/*": false
     }
   },
   "crons": [
-    {
-      "path": "/api/cron/drain-esi-refresh-jobs",
-      "schedule": "*/15 * * * *"
-    },
     {
       "path": "/api/cron/refresh-affiliations",
       "schedule": "20 11 * * *"
@@ -41,10 +39,6 @@
     {
       "path": "/api/cron/purge-maps",
       "schedule": "10 10 * * *"
-    },
-    {
-      "path": "/api/cron/sync-sweeper",
-      "schedule": "*/15 * * * *"
     }
   ]
 }

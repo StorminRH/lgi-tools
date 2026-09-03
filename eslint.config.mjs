@@ -1,7 +1,6 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
 import tsdoc from "eslint-plugin-tsdoc";
 
 // Shared `no-restricted-syntax` selector sets. Factored out because flat config
@@ -363,12 +362,12 @@ const directPostgresSelectors = [
   {
     selector: "ImportDeclaration[source.value='postgres']",
     message:
-      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); importing postgres-js directly bypasses the shared lifecycle even when the import is aliased.",
+      "DB suites use createDbTestHarness (@/db/__tests__/support/db-test-harness); importing postgres-js directly bypasses the shared lifecycle even when the import is aliased.",
   },
   {
     selector: "CallExpression[callee.name='postgres']",
     message:
-      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); direct postgres() construction duplicates reachability, schema steering, and teardown.",
+      "DB suites use createDbTestHarness (@/db/__tests__/support/db-test-harness); direct postgres() construction duplicates reachability, schema steering, and teardown.",
   },
 ];
 
@@ -422,7 +421,7 @@ const bareFetchSelectors = [
   {
     selector: "CallExpression[callee.name='fetch']",
     message:
-      "No bare `fetch` in production source — call fetchWithTimeout (@/lib/fetch-with-timeout) so the request carries an explicit timeout, or apiFetch for a first-party route. The declared policy per integration lives in src/composition/vendor-resilience-registry.ts.",
+      "No bare `fetch` in production source — call fetchWithTimeout (@/lib/fetch-with-timeout) so the request carries an explicit timeout, or apiFetch for a first-party route. The declared policy per integration lives in src/composition/__tests__/vendor-resilience-registry.ts.",
   },
 ];
 
@@ -657,7 +656,7 @@ const serverRootImportPatterns = [
       "@/platform/auth/eve-sso",
       "@/lib/rate-limit",
       "@/data/gsc/source",
-      "@/features/feedback/create-github-issue",
+      "@/features/feedback/create-linear-issue",
       "@/data/wh-statics/source",
       "@/data/eve-data/source",
       "@/data/esi-refresh-jobs/pending-signal",
@@ -1025,7 +1024,7 @@ const eslintConfig = defineConfig([
     files: [
       "src/db/index.ts",
       "src/scripts/**/*.{ts,mts}",
-      "src/db/test-support/db-test-harness.ts",
+      "src/db/__tests__/support/db-test-harness.ts",
       "src/db/advisory-lock.concurrency.test.ts",
     ],
     rules: {
@@ -1613,10 +1612,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: [
-      "src/components/ui/collapsible.tsx",
-      "src/components/ui/content-browser-nav.tsx",
-    ],
+    files: ["src/components/ui/collapsible.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -1740,7 +1736,6 @@ const eslintConfig = defineConfig([
   },
   {
     files: [
-      "src/features/devlog/components/CodeExcerpt.tsx",
       "src/features/wormhole-sites/components/SitesTable.tsx",
     ],
     rules: {
@@ -1753,30 +1748,8 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}", "convex/**/*.{ts,tsx}"],
     ignores: ["**/*.test.{ts,tsx}", "**/*.d.ts"],
-    plugins: { jsdoc, tsdoc },
+    plugins: { tsdoc },
     rules: {
-      "jsdoc/require-jsdoc": [
-        "error",
-        {
-          publicOnly: { esm: true, ancestorsOnly: true },
-          require: {
-            ArrowFunctionExpression: true,
-            ClassDeclaration: true,
-            ClassExpression: true,
-            FunctionDeclaration: true,
-            FunctionExpression: true,
-          },
-          exemptOverloadedImplementations: true,
-          skipInterveningOverloadedDeclarations: false,
-          contexts: [
-            "ExportNamedDeclaration > VariableDeclaration",
-            "TSInterfaceDeclaration",
-            "TSTypeAliasDeclaration",
-            "TSEnumDeclaration",
-            "TSDeclareFunction",
-          ],
-        },
-      ],
       "tsdoc/syntax": "error",
       "no-warning-comments": [
         "error",

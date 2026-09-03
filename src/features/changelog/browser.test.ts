@@ -18,6 +18,7 @@ function master(
     subVersions: entryVersions.map((entryVersion) => ({
       version: entryVersion,
       date: '2026-07-12',
+      summary: [],
       groups: [],
     })),
   };
@@ -34,7 +35,6 @@ describe('changelog browser model', () => {
         { slug: 'v3.8', title: 'v3.8 — Undock Checklist' },
         { slug: 'v3.7', title: 'v3.7' },
       ],
-      groups: [],
     });
   });
 

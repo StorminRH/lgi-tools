@@ -5,7 +5,7 @@
 import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 
 /** The common port surface exposed by both current corporation-sync callers. */
-interface CorpSyncBase {
+export interface CorpSyncBase {
   now(): Date;
   listMembers(userId: string): Promise<EnumeratedOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
@@ -16,7 +16,7 @@ interface CorpSyncBase {
  * TOwner may add feature identity (corp jobs include userId), but every owner carries
  * corporationId so the builder can expose one stable OwnerSyncTarget.
  */
-interface CorpDatasetSpec<
+export interface CorpDatasetSpec<
   TOwner extends { corporationId: number },
   TState extends { lastRefreshedAt: Date | null },
   TSave,

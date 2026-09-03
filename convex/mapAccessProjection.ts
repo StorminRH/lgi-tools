@@ -1,10 +1,3 @@
-// The sole production writer of the projected mapAccess claim table.
-//
-// Neon remains the authority: every durable grant change computes a complete desired
-// claim set and posts it here. This module only converges storage to that stated set —
-// it never reads Neon, never invents grants, and never answers a durable authority
-// question. Teardown (claims: []) and resynchronization are the same idempotent
-// operation as a grant-change projection.
 import { v } from 'convex/values';
 import {
   canonicalizeMapRoles,
@@ -17,12 +10,10 @@ import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
   purgeTrackingForUserBatch,
-} from './mapTracking';
+} from './mapTrackingTeardown';
 
-/** Maximum claim rows one user-purge call deletes, bounding the transaction write budget. */
 export const MAP_ACCESS_PURGE_BATCH = 128;
 
-/** Counts returned by one full-state reconcile for evidence and idempotence proofs. */
 export interface ReconcileCounts {
   readonly inserted: number;
   readonly updated: number;
@@ -30,7 +21,10 @@ export interface ReconcileCounts {
   readonly unchanged: number;
 }
 
-/** Outcome of one bounded per-user claim purge, including exact continuation truth. */
+export type ReconcileResult = ReconcileCounts & {
+  readonly outcome: 'applied' | 'duplicate' | 'stale';
+};
+
 export interface UserClaimsPurgeResult {
   readonly deleted: number;
   readonly hasMore: boolean;
@@ -43,10 +37,6 @@ function rolesEqual(
   return left.length === right.length && left.every((role, index) => role === right[index]);
 }
 
-/**
- * Last-entry-wins desired claim map: roles are canonicalized, and empty roles
- * mean absence so they never create a ghost row.
- */
 function toDesiredClaims(
   claims: ReadonlyArray<{ readonly userId: string; readonly roles: readonly MapRole[] }>,
 ): Map<string, MapRole[]> {
@@ -78,15 +68,14 @@ async function applyDesiredUserClaim(
   roles: MapRole[],
   rows: Doc<'mapAccess'>[],
 ): Promise<Pick<ReconcileCounts, 'inserted' | 'updated' | 'deleted' | 'unchanged'>> {
-  if (rows.length === 0) {
+  const [keeper, ...duplicates] = rows;
+  if (keeper === undefined) {
     await ctx.db.insert('mapAccess', { mapId, userId, roles });
     return { inserted: 1, updated: 0, deleted: 0, unchanged: 0 };
   }
 
-  // rows.length > 0 was checked above; keeper is the first existing claim.
-  const keeper = rows[0]!;
   let deleted = 0;
-  for (const duplicate of rows.slice(1)) {
+  for (const duplicate of duplicates) {
     await ctx.db.delete(duplicate._id);
     deleted += 1;
   }
@@ -113,21 +102,10 @@ async function deleteClaimRows(
   return deleted;
 }
 
-/**
- * Converges the mapAccess table to exactly the stated claim set for one map:
- * inserts missing rows, replaces rows whose ordered roles differ, deletes rows
- * for absent users and every duplicate beyond the first, and skips identical
- * rows so an unchanged re-projection writes nothing. Guarantees exactly one
- * row per (mapId, userId) afterwards for ANY caller: the desired input is
- * last-entry-wins deduped by userId and each roles array is canonicalized
- * (unique values, MAP_ROLE_PRECEDENCE order) before compare/store, so a
- * repeated userId or unordered roles in one payload cannot create duplicates
- * or byte-different equal sets. Empty claims = full teardown for the map;
- * empty roles on a present userId also mean absence.
- */
 export const reconcileMapClaims = internalMutation({
   args: {
     mapId: v.string(),
+    revision: v.number(),
     claims: v.array(
       v.object({
         userId: v.string(),
@@ -135,7 +113,41 @@ export const reconcileMapClaims = internalMutation({
       }),
     ),
   },
-  handler: async (ctx, { mapId, claims }): Promise<ReconcileCounts> => {
+  returns: v.object({
+    inserted: v.number(),
+    updated: v.number(),
+    deleted: v.number(),
+    unchanged: v.number(),
+    outcome: v.union(
+      v.literal('applied'),
+      v.literal('duplicate'),
+      v.literal('stale'),
+    ),
+  }),
+  handler: async (ctx, { mapId, revision, claims }): Promise<ReconcileResult> => {
+    const watermark = await ctx.db
+      .query('mapAccessProjectionWatermarks')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .unique();
+    if (watermark !== null && revision < watermark.revision) {
+      return {
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'stale',
+      };
+    }
+    if (watermark?.revision === revision) {
+      return {
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'duplicate',
+      };
+    }
+
     const desired = toDesiredClaims(claims);
     const existing = await ctx.db
       .query('mapAccess')
@@ -158,13 +170,6 @@ export const reconcileMapClaims = internalMutation({
       unchanged += delta.unchanged;
     }
 
-    // Revocation cascade: drop tracking for every user leaving the claim set.
-    // Full map teardown (desired empty) also sweeps any orphaned tracking rows
-    // that never had a claim, so the map purge door empties mapTracking.
-    // Teardown's OTHER half lives in convex/http.ts: on claims.length === 0
-    // the map purge door also drains mapJumpBookkeeping in bounded batches
-    // (a drain cannot ride this single reconcile transaction). A new
-    // map-scoped table must be added to BOTH sweeps or named here.
     const revokedUserIds = [...byUser.keys()];
     deleted += await deleteClaimRows(ctx, byUser.values());
     if (desired.size === 0) {
@@ -174,7 +179,18 @@ export const reconcileMapClaims = internalMutation({
         await deleteTrackingForUser(ctx, mapId, userId);
       }
     }
-    return { inserted, updated, deleted, unchanged };
+    if (watermark === null) {
+      await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
+    } else {
+      await ctx.db.patch(watermark._id, { revision });
+    }
+    return {
+      inserted,
+      updated,
+      deleted,
+      unchanged,
+      outcome: 'applied',
+    };
   },
 });
 

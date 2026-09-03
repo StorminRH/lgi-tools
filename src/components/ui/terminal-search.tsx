@@ -21,9 +21,9 @@ import { scrollArea } from './scroll-area';
 import { deriveTerminalDropdown } from './terminal-search-view';
 import { eyebrow } from './type-roles';
 
-type ParseOk<Params> = { ok: true; params: Params };
-type ParseErr<Err> = { ok: false; error: Err };
-type ParseResult<Params, Err> = ParseOk<Params> | ParseErr<Err>;
+export type ParseOk<Params> = { ok: true; params: Params };
+export type ParseErr<Err> = { ok: false; error: Err };
+export type ParseResult<Params, Err> = ParseOk<Params> | ParseErr<Err>;
 
 /**
  * Caller contract for rendering terminal search; the component owns presentation while callers own

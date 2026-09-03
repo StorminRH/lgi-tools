@@ -102,7 +102,7 @@ export default {
         'exec',
         'convex',
         'run',
-        'mapFixtures:placeSystemFixture',
+        'mapFixturePlace:placeSystemFixture',
         JSON.stringify({ mapId, systemId: PROBE_ARRIVAL_SYSTEM_ID }),
       ],
       { timeout: 30_000 },

@@ -59,7 +59,7 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
    cp .env.example .env.local
    ```
 
-   For a no-auth local boot you can leave the EVE/GitHub-feedback/session/cron
+   For a no-auth local boot you can leave the EVE/Linear-feedback/session/cron
    variables blank — the app will run; login and feedback won't. To
    exercise the full surface:
    - Register a dev app at
@@ -109,12 +109,12 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
 | `pnpm build` | Production build — Vercel only, after merge; never run locally |
-| `pnpm verify` | Coverage-backed definition-of-done bundle: typecheck + lint + Vitest coverage + fallow |
+| `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + fallow. Not the land or merge gate. |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm lint` | ESLint |
-| `pnpm fallow` | Whole-repo static-analysis gate (dead code, duplication, boundaries, health) |
+| `pnpm fallow` | Whole-repo static-analysis gate (dead code, duplication, boundaries, health, coverage gaps) |
 | `pnpm db:migrate` | Apply Drizzle migrations against the local DB |
 | `pnpm db:generate` | Generate a new migration from schema changes |
 | `pnpm db:studio` | Open Drizzle Studio against the local DB |
@@ -145,23 +145,23 @@ boundaries, commit style, testing policy, etc.).
 
 ## Contributing
 
-Contributions are welcome. Before opening a PR:
+Contributions are welcome. Work lands on Origin `development`. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-1. Open an issue for anything non-trivial so we can agree on shape
-   before code is written.
-2. Branch off `main` and open a PR back into `main`.
-3. Run `pnpm verify` locally and confirm it passes — this bundles
-   typecheck, lint, one coverage-enabled Vitest suite, and the `fallow`
-   static-analysis gate. (CI runs
-   the same gates plus a route-classification presence check.)
+1. Agree on shape for anything non-trivial before writing code.
+2. Land on `development`. Promote is `development` → `staging`. Release
+   is `staging` → `main`.
+3. Before you land, run the local test suite in CONTRIBUTING
+   (typecheck, lint, Fallow, focused tests). A promote or release waits
+   on one Depot `dispatch` after reviews.
 4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
    plain English in the subject line, no file paths or function names.
 5. Be civil. Reviews are conversations.
 
-CI runs typecheck, lint, the coverage-enabled Vitest suite, and the `fallow` static-analysis
-gate on every PR; a red check blocks merge. Branch deploys are off by
-default — preview deploys are spun up manually on demand when a change needs
-live data the local Docker database can't provide.
+Depot runs typecheck, lint, the coverage suite with real Postgres, and
+Fallow when dispatched; `build` and `e2e` run on that same run. A red
+run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
+Production. A `development` Preview is manual.
 
 ## License
 

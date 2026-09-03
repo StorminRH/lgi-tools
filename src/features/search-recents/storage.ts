@@ -107,13 +107,6 @@ export function pushRecent(result: SearchResult): void {
   store.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
-/** Removes all browser-local search recents without affecting other preferences. */
-export function clearRecents(): void {
-  const store = safeStorage();
-  if (!store) return;
-  store.removeItem(STORAGE_KEY);
-}
-
 function readStored(): StoredRecent[] {
   const store = safeStorage();
   if (!store) return [];
@@ -133,12 +126,3 @@ function readStored(): StoredRecent[] {
 function isStoredRecent(value: unknown): value is StoredRecent {
   return storedRecentSchema.safeParse(value).success;
 }
-
-/**
- * Test-only preference internals exposed for deterministic storage and key-contract verification;
- * production code must not consume this object.
- */
-export const __TEST_ONLY__ = {
-  STORAGE_KEY,
-  MAX_RECENTS,
-};

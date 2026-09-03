@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readEnv, requireEnv } from './env';
+import { isHostedVercel, readEnv, requireEnv } from './env';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -19,6 +19,24 @@ describe('readEnv', () => {
   it("maps '' to undefined on a required (truthiness) variable", () => {
     vi.stubEnv('DATABASE_URL', '');
     expect(readEnv('DATABASE_URL')).toBeUndefined();
+  });
+
+  it('prefers a non-empty LGI_DATABASE_URL over DATABASE_URL', () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
+    vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
+    expect(readEnv('DATABASE_URL')).toBe('postgres://staging/db');
+  });
+
+  it('ignores an empty LGI_DATABASE_URL override', () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
+    vi.stubEnv('LGI_DATABASE_URL', '');
+    expect(readEnv('DATABASE_URL')).toBe('postgres://integration/db');
+  });
+
+  it('prefers a non-empty LGI_DATABASE_URL_UNPOOLED over DATABASE_URL_UNPOOLED', () => {
+    vi.stubEnv('DATABASE_URL_UNPOOLED', 'postgres://integration-direct/db');
+    vi.stubEnv('LGI_DATABASE_URL_UNPOOLED', 'postgres://staging-direct/db');
+    expect(readEnv('DATABASE_URL_UNPOOLED')).toBe('postgres://staging-direct/db');
   });
 
   it("passes '' through on a verbatim (nullish/comparison) variable", () => {
@@ -45,5 +63,29 @@ describe('requireEnv', () => {
   it('throws when set but empty', () => {
     vi.stubEnv('DATABASE_URL', '');
     expect(() => requireEnv('DATABASE_URL')).toThrowError('DATABASE_URL is not set');
+  });
+
+  it('returns LGI_DATABASE_URL when DATABASE_URL is empty', () => {
+    vi.stubEnv('DATABASE_URL', '');
+    vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
+    expect(requireEnv('DATABASE_URL')).toBe('postgres://staging/db');
+  });
+});
+
+describe('isHostedVercel', () => {
+  it('is true only for Vercel production and preview', () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    expect(isHostedVercel()).toBe(true);
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    expect(isHostedVercel()).toBe(true);
+  });
+
+  it('is false for local, CI, and vercel development', () => {
+    vi.stubEnv('VERCEL_ENV', undefined);
+    expect(isHostedVercel()).toBe(false);
+    vi.stubEnv('VERCEL_ENV', '');
+    expect(isHostedVercel()).toBe(false);
+    vi.stubEnv('VERCEL_ENV', 'development');
+    expect(isHostedVercel()).toBe(false);
   });
 });

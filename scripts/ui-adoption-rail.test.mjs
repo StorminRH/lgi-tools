@@ -1,9 +1,7 @@
-import { ESLint } from 'eslint';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { createEslintRail } from './__tests__/eslint-rail.mjs';
 
-const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-const eslint = new ESLint({ cwd: repoRoot });
+const { messagesFor, expectSyntax } = createEslintRail(import.meta.url);
 const productionProbe = 'src/features/industry-planner/ui-adoption-probe.tsx';
 const previewProbe = 'src/app/(site)/preview/ui-adoption-probe.tsx';
 
@@ -17,11 +15,6 @@ const exemptionHomes = [
     ['No raw <button>', 'No hand-built alert/status region'],
   ],
   ['src/components/ui/collapsible.tsx', '<details><summary>Open</summary></details>', 'No raw <details>'],
-  [
-    'src/components/ui/content-browser-nav.tsx',
-    '<details><summary>Group</summary></details>',
-    'No raw <details>',
-  ],
   [
     'src/components/ui/confirm-dialog.tsx',
     '<p role="alert">Problem</p>',
@@ -63,11 +56,6 @@ const exemptionHomes = [
     '<Button title="Disabled reason">Action</Button>',
     'No native title forwarded through Button',
   ]),
-  [
-    'src/features/devlog/components/CodeExcerpt.tsx',
-    '<details><summary>Code</summary></details>',
-    'No raw <details>',
-  ],
   [
     'src/features/wormhole-sites/components/SitesTable.tsx',
     '<details><summary>Site</summary></details>',
@@ -128,91 +116,59 @@ const tokenExemptionHomes = [
 ];
 
 async function restrictedMessages(filePath, code) {
-  const [result] = await eslint.lintText(code, { filePath });
-  return result.messages.filter((message) => message.ruleId === 'no-restricted-syntax');
+  return messagesFor(filePath, code, 'no-restricted-syntax');
 }
+
+const rejectRawButton = ['raw button', '<button type="button">Go</button>', 'No raw <button>'];
+const rejectVisibleInput = ['visible input', '<input type="text" />', 'No visible raw <input>'];
+const rejectTextarea = ['textarea', '<textarea />', 'No raw <textarea>'];
+const rejectTable = ['table', '<table><tbody /></table>', 'No raw <table>'];
+const rejectDetails = ['details', '<details><summary>Open</summary></details>', 'No raw <details>'];
+const rejectNativeTitle = ['native title', '<span title="Hint">Label</span>', 'No native title attribute'];
+const rejectButtonTitle = ['button title', '<Button title="Hint">Action</Button>', 'No native title forwarded through Button'];
+const rejectButtonRole = ['button role', '<div role="button" />', "No role='button'"];
+const rejectObjectButtonRole = ['object button role', "const props = { role: 'button' }; export default props;", "No object-authored role='button'"];
+const rejectPressedRole = ['pressed role', '<div aria-pressed />', 'No raw pressed-button semantics'];
+const rejectStatusRole = ['status role', '<span role="status" />', 'No hand-built alert/status region'];
+const rejectActionRecipe = ['action recipe constant', "const retryButtonClass = 'text-ui'; export default retryButtonClass;", 'No ad-hoc action or heading class constants'];
+const rejectUpperButtonRecipe = ['uppercase button recipe constant', "const STEP_BTN = 'text-ui'; export default STEP_BTN;", 'No ad-hoc action or heading class constants'];
+const rejectUpperBoxRecipe = ['uppercase box recipe constant', "const BOX_BTN = 'text-ui'; export default BOX_BTN;", 'No ad-hoc action or heading class constants'];
+const rejectUpperSectionRecipe = ['uppercase section recipe constant', "const SECTION_HEAD = 'text-ui'; export default SECTION_HEAD;", 'No ad-hoc action or heading class constants'];
+const rejectEmptyToken = ['empty-state token', "const className = 'text-empty'; export default className;", 'No empty-state token'];
+const rejectPillToken = ['pill token', "const className = 'bg-pill-green-bg'; export default className;", 'No pill/chip tone token'];
+const rejectProgressToken = ['progress token', "const className = 'progress-fill [--pct:50%]'; export default className;", 'No progress custom property'];
+const rejectLoadingToast = ['loading toast', "import { toast } from 'sonner'; toast.loading('Loading');", 'Do not call toast.loading directly'];
+const rejectRetiredFont = ['retired font role', "const className = 'font-mono'; export default className;", 'No retired font or tracking utility'];
+const rejectRetiredTracking = ['retired tracking step', "const className = `text-ui tracking-emphasis`; export default className;", 'No retired font or tracking utility'];
+const rejectVariantRetiredFont = ['variant-prefixed retired font role', "const className = 'md:hover:font-body'; export default className;", 'No retired font or tracking utility'];
 
 describe('UI adoption syntax rail', () => {
   it.each([
-    ['raw button', '<button type="button">Go</button>', 'No raw <button>'],
-    ['visible input', '<input type="text" />', 'No visible raw <input>'],
-    ['textarea', '<textarea />', 'No raw <textarea>'],
-    ['table', '<table><tbody /></table>', 'No raw <table>'],
-    ['details', '<details><summary>Open</summary></details>', 'No raw <details>'],
-    ['native title', '<span title="Hint">Label</span>', 'No native title attribute'],
-    [
-      'button title',
-      '<Button title="Hint">Action</Button>',
-      'No native title forwarded through Button',
-    ],
-    ['button role', '<div role="button" />', "No role='button'"],
-    [
-      'object button role',
-      "const props = { role: 'button' }; export default props;",
-      "No object-authored role='button'",
-    ],
-    ['pressed role', '<div aria-pressed />', 'No raw pressed-button semantics'],
-    ['status role', '<span role="status" />', 'No hand-built alert/status region'],
-    [
-      'action recipe constant',
-      "const retryButtonClass = 'text-ui'; export default retryButtonClass;",
-      'No ad-hoc action or heading class constants',
-    ],
-    [
-      'uppercase button recipe constant',
-      "const STEP_BTN = 'text-ui'; export default STEP_BTN;",
-      'No ad-hoc action or heading class constants',
-    ],
-    [
-      'uppercase box recipe constant',
-      "const BOX_BTN = 'text-ui'; export default BOX_BTN;",
-      'No ad-hoc action or heading class constants',
-    ],
-    [
-      'uppercase section recipe constant',
-      "const SECTION_HEAD = 'text-ui'; export default SECTION_HEAD;",
-      'No ad-hoc action or heading class constants',
-    ],
-    [
-      'empty-state token',
-      "const className = 'text-empty'; export default className;",
-      'No empty-state token',
-    ],
-    [
-      'pill token',
-      "const className = 'bg-pill-green-bg'; export default className;",
-      'No pill/chip tone token',
-    ],
-    [
-      'progress token',
-      "const className = 'progress-fill [--pct:50%]'; export default className;",
-      'No progress custom property',
-    ],
-    [
-      'loading toast',
-      "import { toast } from 'sonner'; toast.loading('Loading');",
-      'Do not call toast.loading directly',
-    ],
-    [
-      'retired font role',
-      "const className = 'font-mono'; export default className;",
-      'No retired font or tracking utility',
-    ],
-    [
-      'retired tracking step',
-      "const className = `text-ui tracking-emphasis`; export default className;",
-      'No retired font or tracking utility',
-    ],
-    [
-      'variant-prefixed retired font role',
-      "const className = 'md:hover:font-body'; export default className;",
-      'No retired font or tracking utility',
-    ],
+    rejectRawButton,
+    rejectVisibleInput,
+    rejectTextarea,
+    rejectTable,
+    rejectDetails,
+    rejectNativeTitle,
+    rejectButtonTitle,
+    rejectButtonRole,
+    rejectObjectButtonRole,
+    rejectPressedRole,
+    rejectStatusRole,
+    rejectActionRecipe,
+    rejectUpperButtonRecipe,
+    rejectUpperBoxRecipe,
+    rejectUpperSectionRecipe,
+    rejectEmptyToken,
+    rejectPillToken,
+    rejectProgressToken,
+    rejectLoadingToast,
+    rejectRetiredFont,
+    rejectRetiredTracking,
+    rejectVariantRetiredFont,
   ])('rejects %s in production and preview source', async (_name, code, message) => {
-    for (const filePath of [productionProbe, previewProbe]) {
-      const messages = await restrictedMessages(filePath, code);
-      expect(messages.some((entry) => entry.message.includes(message))).toBe(true);
-    }
+    await expectSyntax(productionProbe, code, message);
+    await expectSyntax(previewProbe, code, message);
   });
 
   it('accepts current type roles, current tracking, and similarly named CSS properties', async () => {

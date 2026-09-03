@@ -1,1 +1,1 @@
-"""Code-health and repository-measure tooling."""
+"""Env-example and related quality checks."""

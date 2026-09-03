@@ -28,14 +28,14 @@ import { continuousHoverHandler } from './chart/hover';
 
 type NumericScale = (value: number) => number;
 
-type EndLabel = {
+export type EndLabel = {
   valueText: string;
   deltaText: string | null;
   /** Pre-resolved delta colour (from tones, chosen in the app-layer wrapper). */
   deltaHex: string | null;
 };
 
-type AnnotatedDailyChartProps = {
+export type AnnotatedDailyChartProps = {
   points: { x: number; y: number }[];
   average: number[];
   labels: string[];

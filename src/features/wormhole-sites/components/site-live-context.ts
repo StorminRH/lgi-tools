@@ -42,5 +42,5 @@ export function useSiteLive(): SiteLiveValue {
 export function resourceLiveIsk(resource: SiteResource, live: SiteLiveValue): number | null {
   if (!resource.liveEligible || resource.typeId == null) return resource.effectiveIsk;
   const refreshed = live.priceOf(resource.typeId);
-  return liveIskFor(resource.units, refreshed?.pct5Buy ?? null) ?? resource.effectiveIsk;
+  return liveIskFor(resource.units, refreshed?.bestSell ?? null) ?? resource.effectiveIsk;
 }

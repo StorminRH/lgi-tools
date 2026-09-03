@@ -15,10 +15,8 @@ project, not the file-by-file details.
 ## Notes
 
 <!-- Constraints, deliberate non-changes, rollout/review context, or "None." -->
-<!-- Fixes #123 -->
 
 ## Test plan
 
 <!-- What did you run or verify? Write completed checks as past-tense evidence. -->
 
-- [ ] `pnpm verify` passes locally (typecheck + lint + coverage Vitest + fallow)

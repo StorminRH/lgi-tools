@@ -7,20 +7,12 @@ export type ContentNavItem = {
   title: string;
 };
 
-/** One titled content-navigation group with ordered document links ready for the shared browser sidebar. */
-type ContentNavGroup = {
-  slug: string;
-  title: string;
-  items: ContentNavItem[];
-};
-
 /**
  * Display-ready content nav model consumed by the shared visualization layer; callers keep all
  * numeric values in one consistent unit.
  */
 export type ContentNavModel = {
   items: ContentNavItem[];
-  groups: ContentNavGroup[];
 };
 
 function normalizeBasePath(basePath: `/${string}`): `/${string}` {
@@ -33,7 +25,7 @@ function normalizeBasePath(basePath: `/${string}`): `/${string}` {
  * navigation is empty.
  */
 export function landingContentSlug(model: ContentNavModel): string | null {
-  return model.items[0]?.slug ?? model.groups[0]?.items[0]?.slug ?? null;
+  return model.items[0]?.slug ?? null;
 }
 
 /**
@@ -42,13 +34,7 @@ export function landingContentSlug(model: ContentNavModel): string | null {
  */
 export function titleForSlug(model: ContentNavModel, slug: string | null): string | null {
   if (slug === null) return null;
-  const flat = model.items.find((item) => item.slug === slug);
-  if (flat) return flat.title;
-  for (const group of model.groups) {
-    const nested = group.items.find((item) => item.slug === slug);
-    if (nested) return nested.title;
-  }
-  return null;
+  return model.items.find((item) => item.slug === slug)?.title ?? null;
 }
 
 /** Builds the stable browser URL for a content slug, collapsing the landing document to the section root. */

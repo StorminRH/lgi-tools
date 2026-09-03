@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { coverageIndex } from './presence-model';
+import { useMapCoverage } from './use-map-coverage';
 import {
   trackedSystemTarget,
   type TrackedSystemTarget,
@@ -17,8 +18,8 @@ const LOADING_TARGET: TrackedSystemTarget = { kind: 'loading' };
  * persistent windows consume the result through their own policies.
  */
 export function useTrackedSystemTarget(mapId: string): TrackedSystemTarget {
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
+  const coverage = useMapCoverage(mapId, tracking);
   return useMemo(
     () =>
       tracking === undefined || coverage === undefined

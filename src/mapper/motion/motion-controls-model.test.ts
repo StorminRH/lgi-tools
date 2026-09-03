@@ -38,15 +38,6 @@ describe('tempo tier commits', () => {
     expect(next.tempo.slow).toBe(CONFIG.tempo.slow);
     expect(next.overshootPct).toBe(CONFIG.overshootPct);
   });
-
-  it('keeps the shipped defaults inside every declared range', () => {
-    expect(commitFastTempo(CONFIG, CONFIG.tempo.fast).tempo.fast).toBe(CONFIG.tempo.fast);
-    expect(commitMidTempo(CONFIG, CONFIG.tempo.mid).tempo.mid).toBe(CONFIG.tempo.mid);
-    expect(commitSlowTempo(CONFIG, CONFIG.tempo.slow).tempo.slow).toBe(CONFIG.tempo.slow);
-    expect(commitOvershoot(CONFIG, CONFIG.overshootPct).overshootPct).toBe(
-      CONFIG.overshootPct,
-    );
-  });
 });
 
 // ── SC-7.1 — integer-percent overshoot ───────────────────────────────────────

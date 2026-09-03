@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { onlineStatusPurgeContributor } from './purge';
 
-// The contributor reaches Convex over the bearer-gated .convex.site HTTP origin.
-// Drive it with real env (a .convex.cloud URL → deriveConvexSiteUrl resolves the
-// .convex.site origin) + a fetch spy, so these prove the POST shape and the
-// BEST-EFFORT swallow without a live deployment.
 const USER = 'eve-user-1';
 const CHAR = 90000001;
 
@@ -30,12 +26,9 @@ afterEach(() => {
 });
 
 describe('onlineStatusPurgeContributor', () => {
-  it('is a cache-tier contributor that claims no Neon table (its home lives in Convex)', () => {
+  it('purgeCharacter POSTs the one-character teardown to /purge-online with the bearer secret', async () => {
     expect(onlineStatusPurgeContributor.tier).toBe('cache');
     expect(onlineStatusPurgeContributor.claims).toEqual([]);
-  });
-
-  it('purgeCharacter POSTs the one-character teardown to /purge-online with the bearer secret', async () => {
     await onlineStatusPurgeContributor.purgeCharacter?.({
       kind: 'character',
       userId: USER,

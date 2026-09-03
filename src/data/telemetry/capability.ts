@@ -42,6 +42,38 @@ export type CapabilityFeature =
  */
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
+type CapabilitySpec = {
+  readonly [F in CapabilityFeature]?: {
+    readonly [K in CapabilityKind]?: readonly string[];
+  };
+};
+
+type CatalogueFromSpec<TSpec extends CapabilitySpec> = {
+  [F in keyof TSpec & CapabilityFeature]: {
+    [K in keyof TSpec[F] & CapabilityKind]: TSpec[F][K] extends readonly (infer O extends string)[]
+      ? { [Op in O as `${F}.${Op}`]: { feature: F; operation: Op; kind: K } }
+      : never;
+  }[keyof TSpec[F] & CapabilityKind];
+}[keyof TSpec & CapabilityFeature];
+
+function catalogueFromSpec<const TSpec extends CapabilitySpec>(spec: TSpec) {
+  const entries: [string, { feature: CapabilityFeature; operation: string; kind: CapabilityKind }][] =
+    [];
+  for (const [feature, kinds] of Object.entries(spec) as [
+    CapabilityFeature,
+    NonNullable<CapabilitySpec[CapabilityFeature]>,
+  ][]) {
+    for (const [kind, operations] of Object.entries(kinds) as [CapabilityKind, readonly string[]][]) {
+      for (const operation of operations) {
+        entries.push([`${feature}.${operation}`, { feature, operation, kind }]);
+      }
+    }
+  }
+  return Object.fromEntries(entries) as {
+    [E in CatalogueFromSpec<TSpec> as keyof E]: E[keyof E];
+  };
+}
+
 /**
  * Closed catalogue of the 50 instrumented operations: 25 mutations and one authenticated read
  * through `runMutationRoute`, 9 cron routes through `defineCronRoute`, 8 direct mutation routes
@@ -50,94 +82,17 @@ export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
-export const CAPABILITIES = {
-  // ── Mutation routes through `runMutationRoute` (25) ────────────────────
-  'account.switch-active-character': { feature: 'account', operation: 'switch-active-character', kind: 'mutation' },
-  'account.unlink-character': { feature: 'account', operation: 'unlink-character', kind: 'mutation' },
-  'account.purge-character': { feature: 'account', operation: 'purge-character', kind: 'mutation' },
-  'account.revoke-own-sessions': { feature: 'account', operation: 'revoke-own-sessions', kind: 'mutation' },
-  'account.save-preferences': { feature: 'account', operation: 'save-preferences', kind: 'mutation' },
-  'structures.set-corp-structure-rigs': {
-    feature: 'structures',
-    operation: 'set-corp-structure-rigs',
-    kind: 'mutation',
-  },
-  'structures.set-corp-structure-sharing': {
-    feature: 'structures',
-    operation: 'set-corp-structure-sharing',
-    kind: 'mutation',
-  },
-  'structures.create-custom-structure': {
-    feature: 'structures',
-    operation: 'create-custom-structure',
-    kind: 'mutation',
-  },
-  'structures.delete-custom-structure': {
-    feature: 'structures',
-    operation: 'delete-custom-structure',
-    kind: 'mutation',
-  },
-  'structures.set-custom-structure-pin': {
-    feature: 'structures',
-    operation: 'set-custom-structure-pin',
-    kind: 'mutation',
-  },
-  'structures.set-custom-structure-tax': {
-    feature: 'structures',
-    operation: 'set-custom-structure-tax',
-    kind: 'mutation',
-  },
-  'planner.create-saved-plan': { feature: 'planner', operation: 'create-saved-plan', kind: 'mutation' },
-  'planner.delete-saved-plan': { feature: 'planner', operation: 'delete-saved-plan', kind: 'mutation' },
-  'planner.rename-saved-plan': { feature: 'planner', operation: 'rename-saved-plan', kind: 'mutation' },
-  'planner.favorite-saved-plan': { feature: 'planner', operation: 'favorite-saved-plan', kind: 'mutation' },
-  'maps.create-map': { feature: 'maps', operation: 'create-map', kind: 'mutation' },
-  'maps.update-access': { feature: 'maps', operation: 'update-access', kind: 'mutation' },
-  'maps.delete-map': { feature: 'maps', operation: 'delete-map', kind: 'mutation' },
-  'maps.restore-map': { feature: 'maps', operation: 'restore-map', kind: 'mutation' },
-  'maps.request-map-purge': { feature: 'maps', operation: 'request-map-purge', kind: 'mutation' },
-  'maps.eliminate-signatures': { feature: 'maps', operation: 'eliminate-signatures', kind: 'mutation' },
-  'maps.resolve-jump': { feature: 'maps', operation: 'resolve-jump', kind: 'mutation' },
-  'sync.leave-location': { feature: 'sync', operation: 'leave-location', kind: 'mutation' },
-  'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },
-  'admin.revoke-user-sessions': { feature: 'admin', operation: 'revoke-user-sessions', kind: 'mutation' },
-
-  // ── Cron routes through `defineCronRoute` (9) ──────────────────────────
-  'cron.drain-esi-refresh-jobs': { feature: 'cron', operation: 'drain-esi-refresh-jobs', kind: 'cron' },
-  'cron.refresh-affiliations': { feature: 'cron', operation: 'refresh-affiliations', kind: 'cron' },
-  'cron.refresh-gsc': { feature: 'cron', operation: 'refresh-gsc', kind: 'cron' },
-  'cron.refresh-industry-indices': { feature: 'cron', operation: 'refresh-industry-indices', kind: 'cron' },
-  'cron.refresh-prices': { feature: 'cron', operation: 'refresh-prices', kind: 'cron' },
-  'cron.refresh-sde': { feature: 'cron', operation: 'refresh-sde', kind: 'cron' },
-  'cron.refresh-wh-statics': { feature: 'cron', operation: 'refresh-wh-statics', kind: 'cron' },
-  'cron.sync-sweeper': { feature: 'cron', operation: 'sync-sweeper', kind: 'cron' },
-  'cron.purge-maps': { feature: 'cron', operation: 'purge-maps', kind: 'cron' },
-
-  // ── Direct mutation routes outside the mutation shell (8) ──────────────
-  'account.delete-account': { feature: 'account', operation: 'delete-account', kind: 'mutation' },
-  'admin.reassign-character': { feature: 'admin', operation: 'reassign-character', kind: 'mutation' },
-  'admin.requeue-esi-job': { feature: 'admin', operation: 'requeue-esi-job', kind: 'mutation' },
-  'admin.set-user-role': { feature: 'admin', operation: 'set-user-role', kind: 'mutation' },
-  'admin.wh-statics-review': { feature: 'admin', operation: 'wh-statics-review', kind: 'mutation' },
-  'market.refresh-market-prices': { feature: 'market', operation: 'refresh-market-prices', kind: 'mutation' },
-  'market.refresh-market-history': { feature: 'market', operation: 'refresh-market-history', kind: 'mutation' },
-  'feedback.submit-feedback': { feature: 'feedback', operation: 'submit-feedback', kind: 'mutation' },
-
-  // ── POST-bodied tool reads (7) ─────────────────────────────────────────
-  'maps.search-characters': { feature: 'maps', operation: 'search-characters', kind: 'read' },
-  'planner.resolve-entity-names': { feature: 'planner', operation: 'resolve-entity-names', kind: 'read' },
-  'planner.resolve-build-location': { feature: 'planner', operation: 'resolve-build-location', kind: 'read' },
-  'planner.read-owned-assets': { feature: 'planner', operation: 'read-owned-assets', kind: 'read' },
-  'planner.read-owned-blueprints': { feature: 'planner', operation: 'read-owned-blueprints', kind: 'read' },
-  'planner.read-skill-levels': { feature: 'planner', operation: 'read-skill-levels', kind: 'read' },
-  'structures.parse-structure-fit': { feature: 'structures', operation: 'parse-structure-fit', kind: 'read' },
-
-  // ── Queued work (1) ────────────────────────────────────────────────────
-  'sync.process-esi-refresh-job': { feature: 'sync', operation: 'process-esi-refresh-job', kind: 'job' },
-} as const satisfies Record<
-  string,
-  { feature: CapabilityFeature; operation: string; kind: CapabilityKind }
->;
+export const CAPABILITIES = catalogueFromSpec({
+  account: { mutation: ['switch-active-character', 'unlink-character', 'purge-character', 'revoke-own-sessions', 'save-preferences', 'delete-account'] },
+  structures: { mutation: ['set-corp-structure-rigs', 'set-corp-structure-sharing', 'create-custom-structure', 'delete-custom-structure', 'set-custom-structure-pin', 'set-custom-structure-tax'], read: ['parse-structure-fit'] },
+  planner: { mutation: ['create-saved-plan', 'delete-saved-plan', 'rename-saved-plan', 'favorite-saved-plan'], read: ['resolve-entity-names', 'resolve-build-location', 'read-owned-assets', 'read-owned-blueprints', 'read-skill-levels'] },
+  maps: { mutation: ['create-map', 'update-access', 'delete-map', 'restore-map', 'request-map-purge', 'eliminate-signatures', 'resolve-jump'], read: ['search-characters'] },
+  admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'requeue-esi-job', 'set-user-role', 'wh-statics-review'] },
+  cron: { cron: ['drain-esi-refresh-jobs', 'refresh-affiliations', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'sync-sweeper', 'purge-maps'] },
+  market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },
+  feedback: { mutation: ['submit-feedback'] },
+  sync: { mutation: ['leave-location'], job: ['process-esi-refresh-job'] },
+});
 
 /** One instrumented operation's identity, used as the shells' required option. */
 export type CapabilityId = keyof typeof CAPABILITIES;

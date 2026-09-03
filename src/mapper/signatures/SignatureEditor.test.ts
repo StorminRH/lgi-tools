@@ -2,7 +2,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import { blankDoor } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { editorLeader } from './editor-leader';
 import { measureEditorLeader } from './ScannerAnchoredPanel';
 import { SignatureEditor } from './SignatureEditor';
@@ -26,33 +28,13 @@ vi.mock('@/components/ui/terminal-search', () => ({
   TerminalSearch: () => createElement('div', { 'data-terminal-search': '' }),
 }));
 
-const CONNECTION: ConnectionEditorDetail = {
+const CONNECTION: ConnectionEditorDetail = connectionEditorFixture({
   connectionId: 'connection-1' as Id<'mapConnections'>,
-  _creationTime: 1,
   fromSystemId: 31_000_001,
   toSystemId: null,
-  fromSignalPct: 100,
+  from: { ...blankDoor(), signatureId: 'ABC-123', signalPct: 100 },
   firstSeenAt: 1,
-  wormholeTypeCode: null,
-  typedSide: null,
-  massState: null,
-  shipSize: null,
-  lifeStage: null,
-  lifeStageObservedAt: null,
-  deathEarliestAt: null,
-  deathLatestAt: null,
-  deletedAt: null,
-  purgeAfter: null,
-  fromSignatureId: 'ABC-123',
-  toSignatureId: null,
-  fromDestinationHint: null,
-  toDestinationHint: null,
-  destinationProvenance: null,
-  pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-  observedMassKg: null,
-  observedMassAtStateKg: null,
-};
+});
 
 const SETTERS = {
   setWormholeType: vi.fn(),
@@ -80,24 +62,16 @@ function render(overrides: Partial<Parameters<typeof SignatureEditor>[0]> = {}) 
   );
 }
 
-it('parks one titled scanner-anchored window without resolution chrome', () => {
+it('parks one titled scanner-anchored window', () => {
   const markup = render();
   expect(markup).toContain('data-map-window="signature-editor"');
   expect(markup).toContain('data-map-window-placement="scanner-anchored"');
   expect(markup).toContain('Signature Editor');
   expect(markup).toContain('data-map-connection-fields');
-  // Not an edge-anchored follower any more — no canvas transform to ride.
   expect(markup).not.toContain('--map-window-transform');
-
-  for (const mode of ['edit', 'restore'] as const) {
-    const modeMarkup = render({ mode });
-    expect(modeMarkup).not.toContain('data-map-connection-resolution');
-    expect(modeMarkup).not.toContain('Auto-link');
-    expect(modeMarkup).not.toContain('data-map-jump-confirm');
-  }
 });
 
-it('editorLeader brackets the row, clamps landing, offsets origin, and refuses collapsed or mislaid panels', () => {
+it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when boxes exist', () => {
   const origin = { left: 0, top: 0 };
   const panel = { left: 200, right: 480, top: 40, bottom: 400 };
 
@@ -176,9 +150,7 @@ it('editorLeader brackets the row, clamps landing, offsets origin, and refuses c
       clip,
     }),
   ).toBeNull();
-});
 
-it('measureEditorLeader returns null without boxes and delegates when all three exist', () => {
   expect(measureEditorLeader(null, null, null)).toBeNull();
   const box = (rect: {
     left: number;
@@ -189,13 +161,16 @@ it('measureEditorLeader returns null without boxes and delegates when all three 
     getBoundingClientRect: () => rect as DOMRect,
   });
   const layer = box({ left: 0, right: 800, top: 0, bottom: 600 });
-  const panel = box({ left: 200, right: 480, top: 40, bottom: 400 });
+  const panelEl = box({ left: 200, right: 480, top: 40, bottom: 400 });
   const row = {
     ...box({ left: 10, right: 180, top: 100, bottom: 128 }),
     closest: () => null,
   };
-  const leader = measureEditorLeader(layer, panel, row);
-  expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
+  expect(measureEditorLeader(layer, panelEl, row)?.bracket).toEqual({
+    x: 183,
+    top: 100,
+    bottom: 128,
+  });
   const selectors: string[] = [];
   const clippedRow = {
     ...box({ left: 10, right: 180, top: 60, bottom: 120 }),
@@ -204,7 +179,7 @@ it('measureEditorLeader returns null without boxes and delegates when all three 
       return box({ left: 0, right: 200, top: 80, bottom: 200 });
     },
   };
-  expect(measureEditorLeader(layer, panel, clippedRow)?.bracket).toEqual({
+  expect(measureEditorLeader(layer, panelEl, clippedRow)?.bracket).toEqual({
     x: 183,
     top: 80,
     bottom: 120,

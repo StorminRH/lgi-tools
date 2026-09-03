@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { blankDoor } from '@/data/maps/connection-hallway';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import {
   applyScannerRowOpenAction,
   scannerRowOpenAction,
@@ -32,33 +34,17 @@ const WH: SignatureWindowRow = row({
   signatureId: 'WHL-001',
   group: 'Wormhole',
   name: 'B274',
-  connection: {
+  connection: connectionEditorFixture({
     connectionId: 'connection-1' as Id<'mapConnections'>,
     _creationTime: 2_000,
     fromSystemId: 1,
     toSystemId: null,
-    fromSignatureId: 'WHL-001',
-    toSignatureId: null,
-    fromSignalPct: 100,
-    firstSeenAt: 0,
-    wormholeTypeCode: 'B274',
-    typedSide: null,
-    massState: null,
+    from: { ...blankDoor(), typeCode: 'B274', signatureId: 'WHL-001', signalPct: 100 },
+    to: { ...blankDoor(), typeCode: 'K162' },
+    identity: { kind: 'typed', provenance: 'human' },
     shipSize: 'M',
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    fromDestinationHint: null,
-    toDestinationHint: null,
-    destinationProvenance: null,
-    pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-    observedMassKg: null,
-    observedMassAtStateKg: null,
-  },
+    firstSeenAt: 0,
+  }),
 });
 
 test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
@@ -131,7 +117,7 @@ test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
       : {
           ...WH.connection,
           toSystemId: 2,
-          toSignatureId: 'YXX-744',
+          to: { ...WH.connection.to, signatureId: 'YXX-744' },
         },
   };
   expect(scannerRowOpenAction(far, true)).toEqual({

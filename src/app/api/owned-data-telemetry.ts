@@ -4,7 +4,7 @@ import { emitCostMetric } from '@/data/telemetry/cost-metrics';
  * Public App Router data contract for owned data endpoint; fields are owned here so callers do not
  * depend on the module's internal representation.
  */
-type OwnedDataEndpoint =
+export type OwnedDataEndpoint =
   | '/api/account/skills'
   | '/api/account/industry-slots'
   | '/api/account/industry-jobs'
@@ -13,7 +13,7 @@ type OwnedDataEndpoint =
   | '/api/industry/owned-blueprints'
   | '/api/industry/owned-assets';
 
-interface MeasuredOwnedDataRead<T> {
+export interface MeasuredOwnedDataRead<T> {
   endpoint: OwnedDataEndpoint;
   requested?: number;
   read: () => Promise<T>;

@@ -36,13 +36,13 @@ const PIPELINE_MUTATIONS = [
 
 const DIRECT_MUTATIONS = [
   'account/delete/route.ts',
-  'admin/characters/reassign/route.ts',
-  'admin/role/route.ts',
   'feedback/route.ts',
 ] as const;
 
 const ADMIN_MUTATIONS = [
+  'admin/characters/reassign/route.ts',
   'admin/esi-jobs/retry/route.ts',
+  'admin/role/route.ts',
   'admin/wh-statics/route.ts',
 ] as const;
 
@@ -129,19 +129,18 @@ describe('same-origin mutation coverage', () => {
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
 
-    expect(PIPELINE_MUTATIONS).toHaveLength(26);
-    expect(DIRECT_MUTATIONS).toHaveLength(4);
-    expect(ADMIN_MUTATIONS).toHaveLength(2);
-    expect(Object.keys(EXEMPT_MUTATIONS)).toHaveLength(12);
     expect(new Set(classifiedRoutes).size).toBe(classifiedRoutes.length);
     expect(mutatingRoutes).toEqual(classifiedRoutes.sort());
   });
 
   it.each(PIPELINE_MUTATIONS)('%s uses the mutation pipeline', (route) => {
     const source = readFileSync(join(API_DIR, route), 'utf8');
-
-    expect(source).toContain("from '@/app/api/mutation-route';");
-    expect(source).toContain('runMutationRoute(request');
+    const usesMutationRoute =
+      source.includes("from '@/app/api/mutation-route';") && source.includes('runMutationRoute(request');
+    const usesLifecycleRoute =
+      source.includes("from '@/app/api/maps/lifecycle-route';") &&
+      source.includes('runMapLifecycleRoute(request');
+    expect(usesMutationRoute || usesLifecycleRoute).toBe(true);
   });
 
   it.each(DIRECT_MUTATIONS)('%s invokes the shared gate directly', (route) => {
@@ -158,10 +157,8 @@ describe('same-origin mutation coverage', () => {
     (route) => {
       const source = readFileSync(join(API_DIR, route), 'utf8');
 
-      expect(source).toContain(
-        "import { checkAdminMutation } from '@/platform/auth/route-guards';",
-      );
-      expect(source).toContain('const gate = await checkAdminMutation(request);');
+      expect(source).toContain("from '@/app/api/admin-mutation';");
+      expect(source).toContain('adminMutationGate(request)');
     },
   );
 
@@ -181,12 +178,20 @@ describe('same-origin mutation coverage', () => {
     },
   );
 
-  it('the mutation pipeline invokes the shared gate', () => {
-    const source = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
+  it('keeps the shared mutation, lifecycle, and admin gates wired', () => {
+    const mutation = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
+    const lifecycle = readFileSync(join(API_DIR, 'maps/lifecycle-route.ts'), 'utf8');
+    const admin = readFileSync(join(API_DIR, 'admin-mutation.ts'), 'utf8');
 
-    expect(source).toContain(
+    expect(mutation).toContain(
       "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
-    expect(source).toContain('const originCheck = requireSameOrigin(request);');
+    expect(mutation).toContain('const originCheck = requireSameOrigin(request);');
+    expect(lifecycle).toContain("from '@/app/api/mutation-route';");
+    expect(lifecycle).toContain('runMutationRoute(request');
+    expect(admin).toContain(
+      "import { checkAdminMutation, type SessionCheckResult } from '@/platform/auth/route-guards';",
+    );
+    expect(admin).toContain('const gate = await checkAdminMutation(request);');
   });
 });

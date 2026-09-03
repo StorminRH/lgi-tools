@@ -34,7 +34,7 @@ async function metrics(page) {
 
 export default {
   name: 'content-browser-scroll',
-  route: '/devlog/vercel',
+  route: '/changelog',
   viewports: ['desktop', 'mobile'],
   async run({ page, viewport, check, shot }) {
     if (viewport === 'mobile') {
@@ -51,7 +51,6 @@ export default {
     const initial = await metrics(page);
     check('desktop rail is sticky', initial.railPosition === 'sticky');
     check('desktop rail owns internal scrolling', initial.bodyOverflowY === 'auto' && initial.bodyOverscrollY === 'auto');
-    check('desktop rail content overflows', initial.bodyScrollHeight > initial.bodyClientHeight);
     check(
       'desktop rail advertises overflow with a stable visible scrollbar',
       initial.bodyScrollbarGutter === 'stable'
@@ -74,10 +73,16 @@ export default {
     check('tall rail sticks at the top inset', near(stuck.railTop, STICKY_INSET));
     check('stuck rail remains inside the viewport', stuck.railBottom <= stuck.viewportHeight - STICKY_INSET + TOLERANCE);
 
+    await page.setViewportSize({ width: 1100, height: 300 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(250);
+    const compact = await metrics(page);
+    check('compact rail content overflows', compact.bodyScrollHeight > compact.bodyClientHeight);
+
     const body = page.locator('[data-content-browser-rail-body]');
     await body.hover();
     const beforeInternal = await metrics(page);
-    await page.mouse.wheel(0, 500);
+    await page.mouse.wheel(0, 180);
     await page.waitForTimeout(250);
     const afterInternal = await metrics(page);
     check('wheel scrolls the rail body', afterInternal.bodyScrollTop > beforeInternal.bodyScrollTop);
@@ -97,26 +102,8 @@ export default {
     check('last navigation item is reachable', lastLinkVisible);
     const beforeChain = await metrics(page);
     await body.hover();
-    await page.mouse.wheel(0, 500);
+    await page.mouse.wheel(0, 180);
     await page.waitForTimeout(250);
     check('rail boundary chains scrolling to the page', (await metrics(page)).windowY > beforeChain.windowY);
-
-    await page.locator('[data-content-browser-nav-group]').evaluateAll((groups) => {
-      for (const group of groups) group.open = false;
-    });
-    await body.evaluate((element) => {
-      element.scrollTop = 0;
-    });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(250);
-    const shortInitial = await metrics(page);
-    check('collapsed rail fits without internal scrolling', shortInitial.bodyScrollHeight <= shortInitial.bodyClientHeight + TOLERANCE);
-    await page.evaluate(
-      ({ railTop, inset }) => window.scrollTo(0, railTop - inset + 80),
-      { railTop: shortInitial.railTop, inset: STICKY_INSET },
-    );
-    await page.waitForTimeout(250);
-    check('short rail pins after the header clears', near((await metrics(page)).railTop, STICKY_INSET));
-    await shot('desktop-short');
   },
 };

@@ -107,7 +107,7 @@ export type ProductRow = {
 // `materials` / `products` lists of `{ typeID, quantity }`, plus `time` — the
 // base seconds for ONE run (ME0/TE0, no skill/structure bonuses), read by the
 // planner's Build-time tile.
-type ActivityIO = {
+export type ActivityIO = {
   materials?: { typeID: number; quantity: number }[];
   products?: { typeID: number; quantity: number }[];
   time?: number;

@@ -59,7 +59,7 @@ describe('purgeMapChain', () => {
 });
 
 describe('purgeEligibleMaps', () => {
-  it('tombstones only after each clean collaborative sweep, then tears down access', async () => {
+  it('tombstones only after each clean collaborative sweep and current access fence', async () => {
     const order: string[] = [];
     const purgeChain = vi.fn(async (mapId: string) => {
       order.push(`purge:${mapId}`);
@@ -71,12 +71,18 @@ describe('purgeEligibleMaps', () => {
     });
     const teardownAccess = vi.fn(async (mapId: string) => {
       order.push(`teardown:${mapId}`);
-      return { inserted: 0, updated: 0, deleted: 0, unchanged: 0 };
+      return {
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'applied' as const,
+      };
     });
 
     await expect(
       purgeEligibleMaps({
-        listMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }, { id: 'map-b' }]),
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }, { id: 'map-b' }]),
         purgeChain,
         tombstoneMap,
         teardownAccess,
@@ -89,11 +95,11 @@ describe('purgeEligibleMaps', () => {
     });
     expect(order).toEqual([
       'purge:map-a',
-      'tombstone:map-a',
       'teardown:map-a',
+      'tombstone:map-a',
       'purge:map-b',
-      'tombstone:map-b',
       'teardown:map-b',
+      'tombstone:map-b',
     ]);
   });
 
@@ -102,7 +108,7 @@ describe('purgeEligibleMaps', () => {
     const tombstoneMap = vi.fn();
     await expect(
       purgeEligibleMaps({
-        listMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
         purgeChain: vi.fn().mockRejectedValue(failure),
         tombstoneMap,
       }),
@@ -110,20 +116,32 @@ describe('purgeEligibleMaps', () => {
     expect(tombstoneMap).not.toHaveBeenCalled();
   });
 
-  it('keeps a completed tombstone successful if redundant access teardown is unavailable', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('does not tombstone when the empty-claim fence is stale or unavailable', async () => {
+    const tombstoneMap = vi.fn();
     await expect(
       purgeEligibleMaps({
-        listMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
         purgeChain: vi.fn().mockResolvedValue({ deleted: 4, remaining: false }),
-        tombstoneMap: vi.fn().mockResolvedValue(true),
+        tombstoneMap,
+        teardownAccess: vi.fn().mockResolvedValue({
+          inserted: 0,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          outcome: 'stale' as const,
+        }),
+      }),
+    ).rejects.toBeInstanceOf(MapPurgeUnavailableError);
+    expect(tombstoneMap).not.toHaveBeenCalled();
+
+    await expect(
+      purgeEligibleMaps({
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
+        purgeChain: vi.fn().mockResolvedValue({ deleted: 4, remaining: false }),
+        tombstoneMap,
         teardownAccess: vi.fn().mockRejectedValue(new Error('offline')),
       }),
-    ).resolves.toEqual({
-      selected: 1,
-      tombstoned: 1,
-      deletedDocuments: 4,
-      projectionPending: 1,
-    });
+    ).rejects.toBeInstanceOf(MapPurgeUnavailableError);
+    expect(tombstoneMap).not.toHaveBeenCalled();
   });
 });

@@ -95,7 +95,7 @@ export default {
 
     const seededTransitionAt = Date.now();
     await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:seedTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -108,7 +108,7 @@ export default {
 
     // Coverage can expire on the tokenless probe engine — stamp immediately
     // before paste so the account-level paste gate sees honest coverage.
-    await convexRun('mapFixtures:seedTrackedLocationFixture', {
+    await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
       mapId,
       userId,
       characterId: CHARACTER_ID,

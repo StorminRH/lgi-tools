@@ -3,10 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import { blankDoor } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+} from '../chain/connection-detail';
 import { ActiveSignatureEditor } from './ActiveSignatureEditor';
 import { destinationReadout } from './system-readout';
 
@@ -14,7 +16,7 @@ const assets = vi.hoisted(() => ({
   systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
 }));
 
-vi.mock('../chain/use-map-chain', () => ({
+vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
 
@@ -59,45 +61,23 @@ const UNDO_MS = 24 * 60 * 60 * 1000;
 const RESOLVED_ID = 'resolved-1' as Id<'mapConnections'>;
 const STUB_ID = 'stub-1' as Id<'mapConnections'>;
 
-function base() {
-  return {
-    _creationTime: 1,
-    fromSystemId: 31_000_001,
-    fromSignalPct: null,
-    firstSeenAt: null,
-    wormholeTypeCode: null,
-    typedSide: null,
-    massState: null,
-    shipSize: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    fromSignatureId: null,
-    toSignatureId: null,
-    fromDestinationHint: null,
-    toDestinationHint: null,
-    destinationProvenance: null,
-    pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-    observedMassKg: null,
-    observedMassAtStateKg: null,
-  };
-}
-
 const RESOLVED: ConnectionDetail = {
-  ...base(),
-  connectionId: RESOLVED_ID,
+  ...connectionEditorFixture({
+    connectionId: RESOLVED_ID,
+    fromSystemId: 31_000_001,
+    toSystemId: 31_000_002,
+  }),
   toSystemId: 31_000_002,
 };
 
 const STUB: UnresolvedHoleSummary = {
-  ...base(),
-  connectionId: STUB_ID,
+  ...connectionEditorFixture({
+    connectionId: STUB_ID,
+    fromSystemId: 31_000_001,
+    toSystemId: null,
+    from: { ...blankDoor(), signatureId: 'ABC-123' },
+  }),
   toSystemId: null,
-  fromSignatureId: 'ABC-123',
 };
 
 function authoring() {
@@ -164,8 +144,7 @@ it('opens edit for resolved and unresolved holes, and mounts nothing until named
 it('restores inside the undo window, closes when the row left the feed, and keeps Leads to editable', () => {
   const dying: ConnectionDetail = {
     ...RESOLVED,
-    deletedAt: NOW - 1_000,
-    purgeAfter: NOW + UNDO_MS,
+    tombstone: { kind: 'removed', deletedAt: NOW - 1_000, purgeAfter: NOW + UNDO_MS },
   };
   const restore = render(RESOLVED_ID, { details: [dying] });
   expect(restore).toContain('data-map-connection-mode="restore"');
@@ -175,8 +154,7 @@ it('restores inside the undo window, closes when the row left the feed, and keep
   expect(render('missing' as Id<'mapConnections'>)).toBe('');
   const skeleton: ConnectionDetail = {
     ...RESOLVED,
-    deletedAt: NOW - 1_000,
-    purgeAfter: null,
+    tombstone: { kind: 'removed', deletedAt: NOW - 1_000, purgeAfter: null },
   };
   expect(render(RESOLVED_ID, { details: [skeleton] })).toBe('');
 

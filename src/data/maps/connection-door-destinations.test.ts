@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { blankDoor, blankHallway, leadsToFromHint, leadsToFromSystem } from './connection-hallway';
 import {
   absorbDoorKnowledge,
   absorbDoorLeadsNote,
@@ -8,6 +9,8 @@ import {
   uniqueCounterpartStub,
   winningTypeProvenance,
 } from './connection-door-destinations';
+
+const empty = blankHallway({ mapId: 'm', fromSystemId: 1, toSystemId: 2 });
 
 describe('connection door destinations', () => {
   it('crosses the two system IDs once both doors are known', () => {
@@ -22,31 +25,47 @@ describe('connection door destinations', () => {
     expect(keepTypedLeadsTo(20, 20)).toBe(20);
     expect(keepTypedLeadsTo(20, 30)).toBe(30);
     expect(keepTypedLeadsTo(null, 30)).toBe(30);
-    expect(doorLeadsTo(10, 20, 'from')).toBe(20);
-    expect(doorLeadsTo(10, 20, 'from', 30, null)).toBe(30);
-    expect(absorbDoorLeadsNote(undefined, undefined, 20)).toBeUndefined();
-    expect(absorbDoorLeadsNote(undefined, 20, 20)).toBeUndefined();
-    expect(absorbDoorLeadsNote(undefined, 30, 20)).toBe(30);
-    expect(absorbDoorLeadsNote(30, 40, 20)).toBe(30);
+    expect(doorLeadsTo(10, 20, 'from', blankDoor())).toBe(20);
+    expect(
+      doorLeadsTo(10, 20, 'from', { ...blankDoor(), leadsTo: leadsToFromSystem(30) }),
+    ).toBe(30);
+    expect(absorbDoorLeadsNote({ kind: 'unset' }, { kind: 'unset' }, 20)).toEqual({
+      kind: 'unset',
+    });
+    expect(absorbDoorLeadsNote({ kind: 'unset' }, leadsToFromSystem(20), 20)).toEqual({
+      kind: 'unset',
+    });
+    expect(absorbDoorLeadsNote({ kind: 'unset' }, leadsToFromSystem(30), 20)).toEqual({
+      kind: 'system',
+      systemId: 30,
+    });
+    expect(absorbDoorLeadsNote(leadsToFromSystem(30), leadsToFromSystem(40), 20)).toEqual({
+      kind: 'system',
+      systemId: 30,
+    });
   });
 
   it('joins a unique leftover stub and refuses to guess among several', () => {
-    const leftover = { _id: 'c3', toSystemId: null as number | null };
+    const leftover = {
+      _id: 'c3',
+      toSystemId: null as number | null,
+      tombstone: { kind: 'live' as const },
+    };
     expect(
       uniqueCounterpartStub(
-        [leftover, { _id: 'jump', toSystemId: 20 }],
+        [leftover, { _id: 'jump', toSystemId: 20, tombstone: { kind: 'live' as const } }],
         new Set(['jump']),
       ),
     ).toEqual(leftover);
     expect(
       uniqueCounterpartStub(
-        [leftover, { _id: 'other', toSystemId: null }],
+        [leftover, { _id: 'other', toSystemId: null, tombstone: { kind: 'live' as const } }],
         new Set(),
       ),
     ).toBeNull();
     expect(
       uniqueCounterpartStub(
-        [{ _id: 'dead', toSystemId: null, deletedAt: 1 }],
+        [{ _id: 'dead', toSystemId: null, tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: null } }],
         new Set(),
       ),
     ).toBeNull();
@@ -55,22 +74,19 @@ describe('connection door destinations', () => {
   it('writes the stub entrance onto the attached door and fills a blank exit', () => {
     expect(
       absorbDoorKnowledge(
+        empty,
         {
-          massState: null,
-          shipSize: null,
-          wormholeTypeCode: null,
-        },
-        {
+          ...empty,
+          from: { ...blankDoor(), typeCode: 'C247' },
+          identity: { kind: 'typed', provenance: 'human' },
           massState: 'stable',
           shipSize: 'M',
-          wormholeTypeCode: 'C247',
-          typedSide: 'from',
         },
         'from',
       ),
     ).toMatchObject({
-      fromWormholeTypeCode: 'C247',
-      toWormholeTypeCode: 'K162',
+      from: { typeCode: 'C247' },
+      to: { typeCode: 'K162' },
       massState: 'stable',
       shipSize: 'M',
     });
@@ -84,32 +100,30 @@ describe('connection door destinations', () => {
     expect(winningTypeProvenance('human', 'human')).toBeUndefined();
     expect(
       absorbDoorKnowledge(
-        { massState: null, shipSize: null, wormholeTypeCode: null },
+        empty,
         {
-          massState: null,
-          shipSize: null,
-          wormholeTypeCode: 'C247',
-          typeProvenance: 'human',
+          ...empty,
+          from: { ...blankDoor(), typeCode: 'C247' },
+          identity: { kind: 'typed', provenance: 'human' },
         },
         'from',
-      ),
-    ).toMatchObject({ typeProvenance: 'human' });
+      ).identity,
+    ).toEqual({ kind: 'typed', provenance: 'human' });
     expect(
       absorbDoorKnowledge(
         {
-          massState: null,
-          shipSize: null,
-          wormholeTypeCode: 'B274',
-          typeProvenance: 'human',
+          ...empty,
+          from: { ...blankDoor(), typeCode: 'B274' },
+          identity: { kind: 'typed', provenance: 'human' },
         },
         {
-          massState: null,
-          shipSize: null,
-          wormholeTypeCode: 'C247',
-          typeProvenance: 'assumed',
+          ...empty,
+          from: { ...blankDoor(), typeCode: 'C247' },
+          identity: { kind: 'typed', provenance: 'assumed' },
         },
         'from',
-      ).typeProvenance,
-    ).toBeUndefined();
+      ).identity,
+    ).toEqual({ kind: 'typed', provenance: 'human' });
+    expect(leadsToFromHint('unknown').kind).toBe('hint');
   });
 });

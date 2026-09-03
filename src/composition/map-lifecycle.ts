@@ -2,6 +2,7 @@ import { resolveMapPrincipals } from '@/composition/map-access';
 import {
   projectMapAccess,
   ProjectionUnavailableError,
+  requireCurrentProjection,
   teardownMapAccessProjection,
 } from '@/composition/map-access-projection';
 import type { MapLifecycleRequest } from '@/data/maps/api-contract';
@@ -11,11 +12,11 @@ import {
   restoreAuthorizedMap,
 } from '@/data/maps/lifecycle';
 
-type LifecycleResult =
+export type LifecycleResult =
   | { readonly ok: true; readonly projectionPending: boolean }
   | { readonly ok: false };
 
-interface MapLifecycleDependencies {
+export interface MapLifecycleDependencies {
   readonly resolvePrincipals?: typeof resolveMapPrincipals;
   readonly archiveMap?: typeof archiveAuthorizedMap;
   readonly restoreMap?: typeof restoreAuthorizedMap;
@@ -38,7 +39,9 @@ export async function deleteMapForUser(
   );
   if (!archived) return { ok: false };
   try {
-    await (dependencies.teardownAccess ?? teardownMapAccessProjection)(input.mapId);
+    requireCurrentProjection(
+      await (dependencies.teardownAccess ?? teardownMapAccessProjection)(input.mapId),
+    );
     return { ok: true, projectionPending: false };
   } catch (cause) {
     if (!(cause instanceof ProjectionUnavailableError)) throw cause;
@@ -64,7 +67,9 @@ export async function restoreMapForUser(
   );
   if (!restored) return { ok: false };
   try {
-    await (dependencies.projectAccess ?? projectMapAccess)(input.mapId);
+    requireCurrentProjection(
+      await (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
+    );
     return { ok: true, projectionPending: false };
   } catch (cause) {
     if (!(cause instanceof ProjectionUnavailableError)) throw cause;

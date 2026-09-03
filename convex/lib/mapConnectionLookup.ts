@@ -1,4 +1,3 @@
-// Shared ungated connection lookup for already-authorized Convex mutations.
 import { ConvexError } from 'convex/values';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';
@@ -7,7 +6,7 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 /** Maximum origin- or destination-side connections one scan transaction may inspect. */
 export const MAP_CONNECTION_SIGNATURE_SCAN_LIMIT = 128;
 
-type ConnectionScanOptions = {
+export type ConnectionScanOptions = {
   readonly limit?: number;
   readonly errorCode?: string;
   readonly errorDetail?: string;
@@ -87,6 +86,23 @@ export async function readTouchingConnections(
   return [...origin, ...inbound];
 }
 
+export async function hasTouchingConnection(
+  ctx: QueryCtx,
+  mapId: string,
+  systemId: number,
+): Promise<boolean> {
+  const origin = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_from', (q) => q.eq('mapId', mapId).eq('fromSystemId', systemId))
+    .first();
+  if (origin !== null) return true;
+  const inbound = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', systemId))
+    .first();
+  return inbound !== null;
+}
+
 /** Whether this system's door already carries the signature identity. */
 export function connectionOwnsLocalSignature(
   row: Doc<'mapConnections'>,
@@ -94,8 +110,8 @@ export function connectionOwnsLocalSignature(
   signatureId: string,
 ): boolean {
   return (
-    (row.fromSystemId === systemId && row.fromSignatureId === signatureId)
-    || (row.toSystemId === systemId && row.toSignatureId === signatureId)
+    (row.fromSystemId === systemId && row.from.signatureId === signatureId)
+    || (row.toSystemId === systemId && row.to.signatureId === signatureId)
   );
 }
 
@@ -110,7 +126,7 @@ export function findConnectionForSignature(
   rows: readonly Doc<'mapConnections'>[],
   signatureId: string,
 ): Doc<'mapConnections'> | undefined {
-  return rows.find((row) => row.fromSignatureId === signatureId);
+  return rows.find((row) => row.from.signatureId === signatureId);
 }
 
 /**

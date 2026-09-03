@@ -1,22 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import type { Doc } from '@/data/convex/data-model';
+import type { Doc, Id } from '@/data/convex/data-model';
+import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
-  accountedStubLayoutRows,
-  appendStubFacts,
   chainSignature,
-  connectionDetailsFromRows,
   factsFromSnapshot,
-  filterChainConnections,
   filterLivePages,
   layoutConfigKey,
   layoutPostKey,
-  normalizeMapAccess,
+} from './chain-signature';
+import {
+  connectionDetailsFromRows,
+  unresolvedHolesFromRows,
+} from './connection-detail';
+import {
+  accountedStubLayoutRows,
+  appendStubFacts,
   placedStubs,
   stubLayoutRows,
   stubLayoutSignature,
   stubPositionsFromLayout,
-  unresolvedHolesFromRows,
-} from './use-map-chain';
+} from './stub-layout';
+import { normalizeMapAccess } from './use-map-chain-pages';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
@@ -52,24 +57,29 @@ function connections(
   return { rows, complete };
 }
 
+function connectionDoc(
+  partial: Omit<Partial<Doc<'mapConnections'>>, '_id'> & { readonly _id: string },
+): Doc<'mapConnections'> {
+  const hallway = blankHallway({
+    mapId: partial.mapId ?? 'map-a',
+    fromSystemId: partial.fromSystemId ?? JITA,
+    toSystemId: partial.toSystemId === undefined ? null : partial.toSystemId,
+  });
+  return {
+    ...hallway,
+    ...partial,
+    _id: partial._id as Id<'mapConnections'>,
+    _creationTime: partial._creationTime ?? 1,
+  };
+}
+
 function unresolvedConnection(
   partial: Omit<Partial<Doc<'mapConnections'>>, '_id'> & { readonly _id: string },
 ): Doc<'mapConnections'> {
-  const { _id, ...fields } = partial;
-  return {
-    _id,
-    _creationTime: partial._creationTime ?? 1,
-    mapId: 'map-a',
-    fromSystemId: JITA,
+  return connectionDoc({
     toSystemId: null,
-    wormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    eolAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    ...fields,
-  } as Doc<'mapConnections'>;
+    ...partial,
+  });
 }
 
 const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
@@ -182,14 +192,20 @@ describe('factsFromSnapshot', () => {
 describe('unresolved wormhole layout facts', () => {
   it('places only scanned rows with live anchors and excludes a resolved-feed overlap', () => {
     const summaries = unresolvedHolesFromRows([
-      unresolvedConnection({ _id: 'c1', fromSignatureId: 'ABC-123' }),
+      unresolvedConnection({
+        _id: 'c1',
+        from: { ...blankDoor(), signatureId: 'ABC-123' },
+      }),
       unresolvedConnection({ _id: 'unscanned' }),
       unresolvedConnection({
         _id: 'off-map',
         fromSystemId: AMARR,
-        fromSignatureId: 'DEF-456',
+        from: { ...blankDoor(), signatureId: 'DEF-456' },
       }),
-      unresolvedConnection({ _id: 'resolved-overlap', fromSignatureId: 'GHI-789' }),
+      unresolvedConnection({
+        _id: 'resolved-overlap',
+        from: { ...blankDoor(), signatureId: 'GHI-789' },
+      }),
     ]);
     const scannedRows = stubLayoutRows(
       summaries,
@@ -201,7 +217,7 @@ describe('unresolved wormhole layout facts', () => {
     expect(scannedRows[0]).toMatchObject({
       connectionId: 'c1',
       fromSystemId: JITA,
-      fromSignatureId: 'ABC-123',
+      from: expect.objectContaining({ signatureId: 'ABC-123' }),
       layoutSystemId: -1,
     });
     const layoutRows = accountedStubLayoutRows([
@@ -248,10 +264,52 @@ describe('unresolved wormhole layout facts', () => {
     ).toEqual([]);
   });
 
+  it('allocates scanned layout ids over kept stubs so a skipped row cannot collide with a static', () => {
+    const scannedRows = stubLayoutRows(
+      unresolvedHolesFromRows([
+        unresolvedConnection({ _id: 'unscanned' }),
+        unresolvedConnection({
+          _id: 'kept',
+          from: { ...blankDoor(), signatureId: 'ABC-123' },
+        }),
+      ]),
+      [{ systemId: JITA }],
+      [],
+    );
+    expect(scannedRows).toEqual([
+      expect.objectContaining({ connectionId: 'kept', layoutSystemId: -1 }),
+    ]);
+    const layoutRows = accountedStubLayoutRows(
+      [
+        {
+          connectionId: 'kept',
+          fromSystemId: JITA,
+          signatureId: 'ABC-123',
+          wormholeTypeCode: null,
+          whClassId: null,
+        },
+        {
+          staticId: `${JITA}:C247:1`,
+          fromSystemId: JITA,
+          code: 'C247',
+          className: 'C3',
+          whClassId: 3,
+        },
+      ],
+      scannedRows,
+    );
+    expect(stubLayoutSignature(layoutRows)).toBe(
+      `kept:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
+    );
+  });
+
   it('fingerprints and places static ghosts beside selected scanned rows', () => {
     const scannedRows = stubLayoutRows(
       unresolvedHolesFromRows([
-        unresolvedConnection({ _id: 'scan-1', fromSignatureId: 'ABC-123' }),
+        unresolvedConnection({
+          _id: 'scan-1',
+          from: { ...blankDoor(), signatureId: 'ABC-123' },
+        }),
       ]),
       [{ systemId: JITA }],
       [],
@@ -404,21 +462,6 @@ describe('live-row filter upstream of chainSignature', () => {
     expect(filterLivePages(pages)).toBe(pages);
   });
 
-  it('keeps tombstoned connections as structural layout facts', () => {
-    const pages = {
-      rows: [
-        {
-          _id: 'c1',
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-          deletedAt: 42,
-          purgeAfter: null,
-        },
-      ],
-      complete: true,
-    };
-    expect(filterChainConnections(pages)).toBe(pages);
-  });
 });
 
 describe('client subscription projections', () => {
@@ -434,138 +477,107 @@ describe('client subscription projections', () => {
   });
 
   it('normalizes optional connection detail fields without dropping tombstones', () => {
-    const row = {
+    const row = connectionDoc({
       _id: 'c1',
       _creationTime: 10,
-      mapId: 'map-a',
       fromSystemId: JITA,
       toSystemId: AMARR,
-      wormholeTypeCode: null,
-      massState: null,
-      shipSize: null,
-      eolAt: null,
-      deletedAt: 20,
-      purgeAfter: 30,
-    } as Doc<'mapConnections'>;
-    const unresolved = {
-      ...row,
-      _id: 'stub-1',
-      toSystemId: null,
-      fromSignatureId: 'ABC-123',
-    } as Doc<'mapConnections'>;
-    const details = connectionDetailsFromRows([row, unresolved]);
-    expect(details.get(row._id)).toMatchObject({
-      connectionId: row._id,
-      _creationTime: 10,
-      fromSignalPct: null,
-      firstSeenAt: null,
-      lifeStage: null,
-      deathEarliestAt: null,
-      deathLatestAt: null,
-      deletedAt: 20,
-      purgeAfter: 30,
-      fromSignatureId: null,
-      fromDestinationHint: null,
-      destinationProvenance: null,
-      pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-      observedMassKg: null,
-      observedMassAtStateKg: null,
+      tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
     });
+    const unresolved = connectionDoc({
+      _id: 'stub-1',
+      _creationTime: 10,
+      fromSystemId: JITA,
+      toSystemId: null,
+      from: { ...blankDoor(), signatureId: 'ABC-123' },
+      tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
+    });
+    const details = connectionDetailsFromRows([row, unresolved]);
+    expect(details.get(row._id)).toEqual(
+      connectionEditorFixture({
+        connectionId: row._id,
+        _creationTime: 10,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
+      }),
+    );
     expect(details.has(unresolved._id)).toBe(false);
   });
 
   it('projects merged identity fields for the card and prompt consumers', () => {
-    const row = {
+    const row = connectionDoc({
       _id: 'c1',
       _creationTime: 10,
-      mapId: 'map-a',
       fromSystemId: JITA,
       toSystemId: AMARR,
-      wormholeTypeCode: 'K162',
-      massState: null,
-      shipSize: null,
-      eolAt: null,
-      deletedAt: null,
-      purgeAfter: null,
-      fromSignatureId: 'ABC-123',
-      fromDestinationHint: 'deadly',
-      destinationProvenance: 'assumed',
-      pendingCandidates: ['c1', 'stub-2'],
-      observedMassKg: 300_000_000,
-      observedMassAtStateKg: 100_000_000,
-    } as Doc<'mapConnections'>;
-    expect(connectionDetailsFromRows([row]).get(row._id)).toMatchObject({
-      fromSignatureId: 'ABC-123',
-      fromDestinationHint: 'deadly',
-      destinationProvenance: 'assumed',
-      pendingCandidates: ['c1', 'stub-2'],
-      pendingResolutionCharacterId: null,
+      from: {
+        typeCode: 'K162',
+        signatureId: 'ABC-123',
+        signalPct: null,
+        leadsTo: { kind: 'hint', hint: 'deadly' },
+      },
+      identity: { kind: 'typed', provenance: 'human' },
+      resolution: { kind: 'destination', provenance: 'assumed' },
       observedMassKg: 300_000_000,
       observedMassAtStateKg: 100_000_000,
     });
+    expect(connectionDetailsFromRows([row]).get(row._id)).toEqual(
+      connectionEditorFixture({
+        connectionId: row._id,
+        _creationTime: 10,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        from: {
+          typeCode: 'K162',
+          signatureId: 'ABC-123',
+          signalPct: null,
+          leadsTo: { kind: 'hint', hint: 'deadly' },
+        },
+        identity: { kind: 'typed', provenance: 'human' },
+        resolution: { kind: 'destination', provenance: 'assumed' },
+        observedMassKg: 300_000_000,
+        observedMassAtStateKg: 100_000_000,
+      }),
+    );
   });
 
   it('summarizes only live unresolved slots for the prompt feed', () => {
-    const base = {
-      _creationTime: 10,
-      mapId: 'map-a',
-      fromSystemId: JITA,
-      massState: null,
-      shipSize: null,
-      eolAt: null,
-      deletedAt: null,
-      purgeAfter: null,
-    };
     const rows = [
-      {
-        ...base,
+      connectionDoc({
         _id: 'stub-1',
-        toSystemId: null,
-        wormholeTypeCode: null,
-        fromSignatureId: 'ABC-123',
-      },
-      { ...base, _id: 'resolved', toSystemId: AMARR, wormholeTypeCode: 'B274' },
-      {
-        ...base,
-        _id: 'stub-dead',
-        toSystemId: null,
-        wormholeTypeCode: null,
-        deletedAt: 20,
-        purgeAfter: 30,
-      },
-    ] as Doc<'mapConnections'>[];
-    expect(unresolvedHolesFromRows(rows)).toEqual([
-      {
-        connectionId: 'stub-1',
         _creationTime: 10,
         fromSystemId: JITA,
         toSystemId: null,
-        fromSignatureId: 'ABC-123',
-        toSignatureId: null,
-        fromSignalPct: null,
-        firstSeenAt: null,
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        typedSide: null,
-        massState: null,
-        shipSize: null,
-        lifeStage: null,
-        lifeStageObservedAt: null,
-        deathEarliestAt: null,
-        deathLatestAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-        fromDestinationHint: null,
-        toDestinationHint: null,
-        fromDestinationSystemId: null,
-        toDestinationSystemId: null,
-        destinationProvenance: null,
-        pendingCandidates: null,
-        pendingResolutionCharacterId: null,
-        observedMassKg: null,
-        observedMassAtStateKg: null,
+        from: { ...blankDoor(), signatureId: 'ABC-123' },
+      }),
+      connectionDoc({
+        _id: 'resolved',
+        _creationTime: 10,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        from: { ...blankDoor(), typeCode: 'B274' },
+        to: { ...blankDoor(), typeCode: 'K162' },
+        identity: { kind: 'typed', provenance: 'human' },
+      }),
+      connectionDoc({
+        _id: 'stub-dead',
+        _creationTime: 10,
+        fromSystemId: JITA,
+        toSystemId: null,
+        tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
+      }),
+    ];
+    expect(unresolvedHolesFromRows(rows)).toEqual([
+      {
+        ...connectionEditorFixture({
+          connectionId: 'stub-1' as Id<'mapConnections'>,
+          _creationTime: 10,
+          fromSystemId: JITA,
+          toSystemId: null,
+          from: { ...blankDoor(), signatureId: 'ABC-123' },
+        }),
+        toSystemId: null,
       },
     ]);
   });

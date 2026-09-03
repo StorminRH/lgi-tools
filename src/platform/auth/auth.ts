@@ -1,17 +1,5 @@
 import 'server-only';
 
-// The Better Auth server instance — the spine of identity/authz (3.4.1a).
-//
-// Replaces the hand-rolled JWE-cookie + EVE PKCE flow with Better Auth on the
-// Drizzle/Neon adapter. EVE SSO is wired as a Generic OAuth provider; identity
-// comes from the verified access-token JWT (EVE has no userinfo endpoint), and
-// the user↔character link lives in the `account` row (providerId 'eve',
-// accountId = the character id). Admin is per-user (`user.role`).
-//
-// Module import stays side-effect-free (no DB, no network at construction — the
-// adapter wraps the lazy `db` Proxy). Env is read here but only consumed at
-// request time, mirroring the old lazy-key pattern.
-
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
@@ -29,7 +17,7 @@ import {
 } from './eve-sso';
 import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
-import { resolveActiveCharacter, upsertCharacterOnLogin } from './linked-characters';
+import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
 import { runAfterCharacterLinkChanged } from './identity-projection-hooks';
@@ -41,8 +29,6 @@ import { encryptAccountTokens } from './account-token-encryption';
 import { deriveSessionIdentity } from './session-identity';
 import type { CharacterRole } from './types';
 
-// Same authz rule as the legacy isAdmin(): env-driven superadmin (keyed on the
-// active character id) OR the DB-driven per-user ADMIN role.
 function computeIsAdmin(characterId: number | null, role: CharacterRole): boolean {
   if (role === 'ADMIN') return true;
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
@@ -54,8 +40,6 @@ const options = {
     provider: 'pg',
     schema: { user, session, account, verification, jwks },
   }),
-  // Reuse the existing 32-byte key as the Better Auth secret when a dedicated
-  // BETTER_AUTH_SECRET isn't set, so a local .env.local keeps working.
   secret: readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'),
   baseURL: readEnv('BETTER_AUTH_URL'),
   // Encrypt EVE tokens at rest (3.4.1b). They arrive PLAINTEXT here:
@@ -67,8 +51,6 @@ const options = {
     account: {
       create: {
         before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }),
-        // Fresh EVE account rows (first link / new user) never go through
-        // reassignCharacter; re-project maps that may grant this character access.
         after: async (acct) => {
           if (acct.providerId !== EVE_PROVIDER_ID) return;
           const characterId = Number(acct.accountId);
@@ -106,8 +88,6 @@ const options = {
   },
   user: {
     additionalFields: {
-      // Per-user admin role; the actual column is the character_role enum with a
-      // 'USER' default. input:false keeps it admin-controlled, never client-set.
       role: { type: 'string', required: false, defaultValue: 'USER', input: false },
       // The active/current character (3.4.2) — a linked character id. Better Auth
       // has no 'bigint' field TYPE, so it's typed 'number' with the separate
@@ -146,8 +126,6 @@ const options = {
           // EVE_SCOPES on their next sign-in — replacing an older, broader grant
           // with the minimal read-only set (3.7.1.1 pruned the request to four).
           prompt: 'consent',
-          // Refresh name/portrait from EVE on every sign-in (parity with the old
-          // upsert-on-login behaviour).
           overrideUserInfo: true,
           // EVE's token endpoint needs HTTP Basic auth, the PKCE verifier, AND a
           // descriptive User-Agent (CCP blocks UA-less traffic). We hand the whole
@@ -188,33 +166,13 @@ const options = {
             if (!tokens.accessToken) return null;
             const claims = await verifyEveJwt(tokens.accessToken);
             const character = claimsToCharacter(claims);
-            // Owner-hash identity gate (3.7.1.3): runs BEFORE Better Auth's own
-            // account lookup, so a transferred character (the JWT `owner` hash no
-            // longer matches the stored one) has the prior owner's footprint
-            // purged here — Better Auth then finds no account row and creates a
-            // fresh user for the new owner instead of signing them in as the old
-            // one. A matching or absent/legacy hash is a no-op/backfill.
             await getCharacterOwnerReconciler()(character.characterId, claims.owner);
-            // Absorb-on-proof (ACCOUNT.3): strictly AFTER the owner-hash gate
-            // (a transferred character is purged first, so absorb finds no row
-            // and the link proceeds fresh) and BEFORE Better Auth's own account
-            // lookup — a stray duplicate's row is already on the linking user
-            // when the callback compares userIds, so the refusal becomes a
-            // normal relink. Sign-ins carry no link state and never absorb.
             const { absorbed } = await absorbLinkedCharacterOnProof(character.characterId);
             if (absorbed) recordAbsorb(character.characterId);
-            await upsertCharacterOnLogin(character);
-            // Refresh this character's cached corp affiliation (3.7.3.2). Runs
-            // AFTER upsertCharacterOnLogin so the `characters` row exists even on
-            // a first link. Best-effort, fire-and-forget — an ESI call must never
-            // block or fail sign-in (refreshAffiliations also swallows its own
-            // errors); on-view + the nightly cron heal anything cut off here.
+            await upsertCharacterLoginIdentity(character);
             void refreshAffiliations([character.characterId]).catch((err) =>
               console.error('[auth] affiliation refresh failed', err),
             );
-            // Best-effort login telemetry — parity with the retired callback route
-            // (the admin dashboard's "Logins" metric reads `auth_login`). Fire-and-
-            // forget so it never blocks or fails sign-in.
             void logUsageEvent({
               action: 'auth_login',
               characterId: character.characterId,
@@ -245,7 +203,6 @@ const options = {
       jwt: {
         issuer: readEnv('BETTER_AUTH_URL'),
         audience: 'convex',
-        // Match the session cookie: mint once, trust until expiry or logout.
         expirationTime: '7d',
         // /token uses Better Auth's original getSession (not customSession), so
         // this path never runs Neon character enrichment.
@@ -270,15 +227,7 @@ export const auth = betterAuth({
   ...options,
   plugins: [
     ...options.plugins,
-    // Enrich the session with the legacy-shaped identity fields + the per-user
-    // isAdmin (computed server-side because superadmin reads an env var). Both
-    // the server shim (session.ts) and the client (useSession) read these.
     customSession(async ({ user: u, session: s }) => {
-      // Resolve the ACTIVE character (the one named by user.activeCharacterId, or
-      // the oldest linked account as a fallback) — one indexed lookup — then shape
-      // the enriched identity from it, so the header portrait/name always match the
-      // active selection independent of the `overrideUserInfo` churn that rewrites
-      // u.name/u.image to whichever character last signed in.
       const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
       return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
     }, options),

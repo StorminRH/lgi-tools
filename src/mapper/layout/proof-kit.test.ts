@@ -35,15 +35,10 @@ describe('mulberry32', () => {
 });
 
 describe('generateChain', () => {
-  it('is deterministic per corpus entry', () => {
-    for (const entry of PROOF_CORPUS) {
-      expect(generateChain(entry)).toEqual(generateChain(entry));
-    }
-  });
-
-  it('produces exactly the requested system count in ascending creation order', () => {
+  it('produces a deterministic count and ascending creation order per corpus entry', () => {
     for (const entry of PROOF_CORPUS) {
       const facts = generateChain(entry);
+      expect(facts).toEqual(generateChain(entry));
       expect(facts.systems).toHaveLength(entry.size);
       const ids = facts.systems.map((system) => system.systemId);
       expect([...ids].sort((a, b) => a - b)).toEqual(ids);

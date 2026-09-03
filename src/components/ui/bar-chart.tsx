@@ -28,7 +28,7 @@ export type BarDatum = { label: string; value: number };
 const formatNumber = (value: number): string => String(value);
 const identity = (label: string): string => label;
 
-type BarChartProps = {
+export type BarChartProps = {
   data: BarDatum[];
   tone?: SparklineTone;
   width?: number;

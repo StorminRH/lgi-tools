@@ -20,37 +20,35 @@ import { describe, expect, it } from 'vitest';
 import {
   ESI_INFRASTRUCTURE_TABLES,
   isEsiMirrorTable,
-} from '@/esi-datasets/checks';
+} from '@/esi-datasets/__tests__/checks';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   findIdentityFkLeaks,
   isUserDataTable,
-} from '@/platform/purge/coverage';
+} from '@/platform/purge/__tests__/coverage';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
-import {
-  TABLE_GROWTH_STORIES,
-  tableGrowthKey,
-} from '@/composition/table-growth-registry';
+import { tableGrowthKey } from '@/composition/__tests__/table-growth-census';
+import { TABLE_GROWTH_STORIES } from '@/composition/__tests__/table-growth-registry';
+import { describeDbInvariants } from '@/composition/__tests__/data-ownership-census';
 import {
   DATA_CLASS_DECISIONS,
   DATA_OWNERSHIP,
-  describeDbInvariants,
-} from '@/composition/data-ownership-registry';
+} from '@/composition/__tests__/data-ownership-registry';
 import {
   findUndeclaredCrossOwnerWrites,
   scanProductionWriteSites,
-} from '@/esi-datasets/write-sites';
+} from '@/esi-datasets/__tests__/write-sites';
 import {
   reflectedSchemaExports,
   reflectedSchemaTables,
-} from '@/db/test-support/schema-reflection';
+} from '@/db/__tests__/support/schema-reflection';
 
 const GROWTH_DECLARATION =
-  'growth story -> src/composition/table-growth-registry.ts';
-const PURGE_DECLARATION =
+  'growth story -> src/composition/__tests__/table-growth-registry.ts';
+  const PURGE_DECLARATION =
   'purge claim or retained entry -> the owning slice purge.ts';
-const ESI_DECLARATION =
-  'ESI mirror or infrastructure claim -> src/lib/esi-datasets/entries.ts or src/esi-datasets/checks.ts';
+  const ESI_DECLARATION =
+  'ESI mirror or infrastructure claim -> src/lib/esi-datasets/entries.ts or src/esi-datasets/__tests__/checks.ts';
 
 type DatasetDeclarationIndex = {
   growth: ReadonlySet<string>;
@@ -189,7 +187,7 @@ describe('dataset declaration index', () => {
 });
 
 const OWNERSHIP_DECLARATION =
-  'ownership, read contract, invariants, boundary, and data class -> src/composition/data-ownership-registry.ts';
+  'ownership, read contract, invariants, boundary, and data class -> src/composition/__tests__/data-ownership-registry.ts';
 
 const declaredOwnership = new Map(
   DATA_OWNERSHIP.map((entry) => [tableName(entry.table), entry] as const),
@@ -342,6 +340,6 @@ describe('cross-owner writes', () => {
     expect(findings[0]).toContain(seeded.file);
     expect(findings[0]).toContain('market_prices');
     expect(findings[0]).toContain('data/market-prices');
-    expect(findings[0]).toContain('src/composition/data-ownership-registry.ts');
+    expect(findings[0]).toContain('src/composition/__tests__/data-ownership-registry.ts');
   });
 });

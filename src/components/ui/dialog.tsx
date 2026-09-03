@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { Button } from './button';
 import { cn } from './cn';
 import { OverlayPortalContainerProvider } from './overlay-portal-container';
 import type { Tone } from './tones';
@@ -130,3 +131,34 @@ export const DialogTitle = Base.Title;
  * compose it only within this primitive family.
  */
 export const DialogDescription = Base.Description;
+
+export function DialogHeader({
+  titleId,
+  title,
+  description,
+  closeLabel,
+}: {
+  titleId: string;
+  title: ReactNode;
+  description: ReactNode;
+  closeLabel: string;
+}) {
+  return (
+    <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
+      <div className="flex flex-col gap-1">
+        <DialogTitle
+          id={titleId}
+          className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
+        >
+          {title}
+        </DialogTitle>
+        <DialogDescription className="font-ui text-ui text-muted">
+          {description}
+        </DialogDescription>
+      </div>
+      <DialogClose render={<Button variant="ghost" size="sm" />} aria-label={closeLabel}>
+        ×
+      </DialogClose>
+    </header>
+  );
+}

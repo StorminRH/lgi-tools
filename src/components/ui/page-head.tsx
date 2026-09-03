@@ -2,7 +2,7 @@ import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-type PageTitleSize = 'hero' | 'page' | 'compact';
+export type PageTitleSize = 'hero' | 'page' | 'compact';
 
 const pageTitle = cva(
   'font-display font-bold leading-none tracking-optical uppercase text-name',

@@ -14,6 +14,19 @@ vi.mock('@/components/ui/dialog', () => ({
     createElement('p', null, children),
   DialogTitle: ({ children }: { children: React.ReactNode }) =>
     createElement('h2', null, children),
+  DialogHeader: ({
+    title,
+    description,
+  }: {
+    title: React.ReactNode;
+    description: React.ReactNode;
+  }) =>
+    createElement(
+      'header',
+      null,
+      createElement('h2', null, title),
+      createElement('p', null, description),
+    ),
 }));
 vi.mock('@/components/ui/checkbox', () => ({
   Checkbox: ({ label }: { label: string }) =>

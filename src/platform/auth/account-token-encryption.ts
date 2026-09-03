@@ -5,7 +5,7 @@ import { TOKEN_CRYPTO_VERSION } from './token-crypto';
 // such a value so a re-login update never double-encrypts (idempotent).
 const CIPHERTEXT_PREFIX = `${TOKEN_CRYPTO_VERSION}:`;
 
-type PreparedAccountTokenWrite<T> = T & {
+export type PreparedAccountTokenWrite<T> = T & {
   refreshTokenInvalidGrantCount?: number;
   refreshTokenInvalidGrantFirstAt?: Date | null;
 };
