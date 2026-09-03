@@ -16,7 +16,6 @@ describe('dailyChartModel', () => {
       referenceLine: { value: 12, label: 'prior avg' },
       plotWidth: 200,
     });
-
     expect(model.yMax).toBe(30);
     expect(model.refValue).toBe(12);
     expect(model.lastAvg).toBe(13);

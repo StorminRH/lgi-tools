@@ -46,7 +46,6 @@ export function LiveCharacterCard({
   subtitle?: ReactNode;
   headerRight?: ReactNode;
   emptyRowsText: string;
-
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
   children?: ReactNode;
@@ -65,7 +64,6 @@ export function LiveCharacterCard({
     >
       {children}
     </LiveCharacterCardBody>
-
   );
 
   return (
@@ -85,7 +83,6 @@ export function LiveCharacterCard({
         >
           {grantedContent}
         </AccessGate>
-
       ) : (
         <>
           {character.needsReconnect && (
@@ -94,17 +91,13 @@ export function LiveCharacterCard({
               <a href="/characters" className="underline text-name">
                 reconnect it on the Characters page
               </a>{' '}
-
               to sync its {noun}.
             </Callout>
-
           )}
           {grantedContent}
         </>
-
       )}
     </Card>
-
   );
 }
 
@@ -129,13 +122,10 @@ function LiveCharacterCardHeader({
         <div className="font-display font-bold text-h3 text-name truncate">
           {character.name}
         </div>
-
         {subtitle}
       </div>
-
       {headerRight}
     </div>
-
   );
 }
 
@@ -170,7 +160,6 @@ function LiveCharacterCardBody({
             ? `Couldn't refresh — showing data as of ${formatUtcTime(lastSyncedAt)}.`
             : `Couldn't fetch this character's ${noun} yet.`}
         </Callout>
-
       )}
 
       <SectionHeader
@@ -184,15 +173,12 @@ function LiveCharacterCardBody({
 
       {!hasData ? (
         <EmptyState>{emptyDataText(character.needsReconnect, syncing)}</EmptyState>
-
       ) : isEmpty ? (
         <EmptyState>{emptyRowsText}</EmptyState>
-
       ) : (
         children
       )}
     </>
-
   );
 }
 

@@ -29,7 +29,6 @@ describe('AccessGate', () => {
     });
     expect(html).toContain('WHY-REASON');
     expect(html).toContain('GRANT-ACTION');
-
     expect(html).not.toContain('GATED-DATA');
   });
 

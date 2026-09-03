@@ -17,7 +17,6 @@ type NumericScale = (value: number) => number;
 export type EndLabel = {
   valueText: string;
   deltaText: string | null;
-
   deltaHex: string | null;
 };
 
@@ -79,7 +78,6 @@ function DailyBars({
         );
       })}
     </>
-
   );
 }
 
@@ -108,12 +106,9 @@ function DeployMarkers({
           strokeDasharray="2 3"
         >
           <title>{m.label}</title>
-
         </line>
-
       ))}
     </>
-
   );
 }
 
@@ -144,9 +139,7 @@ function ReferenceLine({
       <text x={left + 3} y={y - 3} className="fill-[var(--color-muted)] font-data text-micro">
         {reference.label}
       </text>
-
     </g>
-
   );
 }
 
@@ -186,7 +179,6 @@ function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: 
       >
         {endLabel.valueText}
       </text>
-
       {endLabel.deltaText && (
         <text
           x={x}
@@ -197,10 +189,8 @@ function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: 
         >
           {endLabel.deltaText}
         </text>
-
       )}
     </g>
-
   );
 }
 
@@ -229,10 +219,8 @@ function DailyXAxis({
         >
           {formatTick(labels[i] ?? '')}
         </text>
-
       ))}
     </>
-
   );
 }
 
@@ -240,13 +228,9 @@ function DailyTooltip({ datum, formatY }: { datum: DailyHoverPoint; formatY: (y:
   return (
     <>
       <span className="text-name">{formatY(datum.y)}</span>
-
       <span className="text-muted"> · {datum.label}</span>
-
       <span className="text-muted"> · 7d avg {formatY(Math.round(datum.avg))}</span>
-
     </>
-
   );
 }
 
@@ -359,6 +343,5 @@ export function AnnotatedDailyChart({
         onLeave={hover.hideTooltip}
       />
     </ChartCanvas>
-
   );
 }

@@ -7,8 +7,6 @@ export function SwitchCharacterForm({ characterId }: { characterId: number }) {
       <Button type="submit" variant="secondary" size="sm" className="whitespace-nowrap">
         Make active
       </Button>
-
     </form>
-
   );
 }

@@ -29,7 +29,6 @@ export function eveImageUrl(
   family: EveImageFamily,
   { src, width }: ImageLoaderProps,
 ): string {
-
   const url = new URL(src);
   url.searchParams.set('size', String(snapEveImageSize(family, width)));
   return url.toString();

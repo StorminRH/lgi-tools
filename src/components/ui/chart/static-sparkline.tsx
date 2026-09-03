@@ -26,7 +26,6 @@ export function StaticSparkline({
   const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
 
   const points = values.map((v, i) => {
-
     const norm = max === min ? 0.5 : (v - min) / (max - min);
     return { x: pad + i * stepX, y: pad + innerH - norm * innerH };
   });
@@ -56,6 +55,5 @@ export function StaticSparkline({
       )}
       <circle cx={end.x} cy={end.y} r={1.75} fill={stroke} />
     </svg>
-
   );
 }

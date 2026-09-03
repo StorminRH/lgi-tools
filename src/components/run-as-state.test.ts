@@ -28,7 +28,6 @@ const brokenAlt: BuildCharacter = { ...alt, characterId: 90000003, needsReconnec
 describe('runAsView', () => {
   it('reports loading while the session is still resolving', () => {
     expect(runAsView({ session: null, loading: true })).toEqual({ kind: 'loading' });
-
     expect(runAsView({ session, loading: true })).toEqual({ kind: 'loading' });
   });
 
@@ -120,7 +119,6 @@ describe('deriveRoster', () => {
 
   it('settles empty for anon without any fetch payload', () => {
     expect(deriveRoster({ loading: false, characterId: null }, null)).toEqual([]);
-
     expect(
       deriveRoster({ loading: false, characterId: null }, { characterId: 90000001, list }),
     ).toEqual([]);
@@ -134,7 +132,6 @@ describe('deriveRoster', () => {
 
   it('nulls until the matching fetch lands — a prior identity payload is never served', () => {
     expect(deriveRoster({ loading: false, characterId: 90000001 }, null)).toBeNull();
-
     expect(
       deriveRoster({ loading: false, characterId: 90000002 }, { characterId: 90000001, list }),
     ).toBeNull();

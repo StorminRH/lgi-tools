@@ -31,8 +31,6 @@ export function RoleToggleForm({
       >
         {view.label}
       </Button>
-
     </form>
-
   );
 }

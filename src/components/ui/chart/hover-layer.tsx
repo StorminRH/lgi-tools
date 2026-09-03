@@ -2,13 +2,10 @@ import type { MouseEvent } from 'react';
 
 export type HoverCrosshairProps = {
   open: boolean;
-
   left: number | undefined;
   top: number | undefined;
-
   y1: number;
   y2: number;
-
   color: string;
 };
 
@@ -28,7 +25,6 @@ export function HoverCrosshair({ open, left, top, y1, y2, color }: HoverCrosshai
       />
       <circle cx={left} cy={top} r={3} fill={color} />
     </g>
-
   );
 }
 

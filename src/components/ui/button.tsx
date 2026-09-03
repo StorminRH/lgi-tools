@@ -12,16 +12,12 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-
         primary:
           'bg-feedback-bg text-isk border border-isk-dim shadow-btn-bezel ' +
           'hover:bg-isk hover:text-isk-ink hover:border-isk',
-
         secondary:
           'border border-border-idle text-name shadow-btn-bezel hover:border-border-active',
-
         ghost: 'text-muted hover:text-isk',
-
         danger:
           'bg-pill-red-bg text-pill-red-text border border-pill-red-border shadow-btn-bezel ' +
           'hover:border-hostile',
@@ -47,7 +43,6 @@ export type BareButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant
 export function Button({
   variant,
   size,
-
   type = 'button',
   className,
   ...props

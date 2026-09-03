@@ -32,14 +32,10 @@ export type LineChartProps<T extends SparklinePoint> = {
   margin: Margin;
   className?: string;
   ariaLabel: string;
-
   computeYDomain: (ys: number[]) => [number, number];
-
   yNice?: boolean;
   fillOpacity: number;
-
   renderTooltip: (datum: T) => ReactNode;
-
   renderAxis?: LineChartAxis;
 };
 
@@ -135,6 +131,5 @@ export function LineChart<T extends SparklinePoint>({
         onLeave={hover.hideTooltip}
       />
     </ChartCanvas>
-
   );
 }

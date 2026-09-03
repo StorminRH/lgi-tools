@@ -27,7 +27,6 @@ function DismissBannerButton({ label, onDismiss }: { label: string; onDismiss?: 
     >
       ×
     </button>
-
   );
 }
 
@@ -62,9 +61,7 @@ export function Banner({
         )}
       />
       <div className="min-w-0 flex-1">{children}</div>
-
       <DismissBannerButton label={dismissLabel} onDismiss={onDismiss} />
     </div>
-
   );
 }

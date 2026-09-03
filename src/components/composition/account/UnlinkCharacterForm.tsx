@@ -20,8 +20,6 @@ export function UnlinkCharacterForm({
       >
         Unlink
       </Button>
-
     </form>
-
   );
 }

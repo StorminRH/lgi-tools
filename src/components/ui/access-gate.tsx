@@ -6,7 +6,6 @@ import { eyebrow } from './type-roles';
 
 const gateVariants = cva('font-ui border rounded-card px-3.5 py-3.5 flex flex-col gap-2.5', {
   variants: {
-
     tone: {
       neutral: 'bg-surface-raised text-text border-border-idle',
       green: 'bg-pill-green-bg text-isk border-isk-dim',
@@ -34,17 +33,11 @@ export function AccessGate({
   className,
   children,
 }: {
-
   blocked: boolean;
-
   reason: ReactNode;
-
   action: ReactNode;
-
   title?: ReactNode;
-
   tone?: Tone;
-
   className?: string;
   children: ReactNode;
 }) {
@@ -53,12 +46,8 @@ export function AccessGate({
   return (
     <div className={cn(gateVariants({ tone }), className)}>
       <div className={eyebrow({ tone: 'inherit', weight: 'semibold' })}>{title}</div>
-
       <p className="text-ui text-text leading-[1.55]">{reason}</p>
-
       <div className="flex items-center gap-2">{action}</div>
-
     </div>
-
   );
 }

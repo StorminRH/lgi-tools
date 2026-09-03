@@ -15,18 +15,12 @@ export interface DailyHoverPoint {
 }
 
 export interface DailyChartModel {
-
   xs: number[];
   values: number[];
-
   yMax: number;
-
   barW: number;
-
   refValue: number | null;
-
   lastAvg: number;
-
   hover: DailyHoverPoint[];
 }
 
@@ -47,7 +41,6 @@ export function dailyChartModel(input: {
   const xs = points.map((p) => p.x);
   const values = points.map((p) => p.y);
   const yMax = Math.max(...values, ...average, refValue ?? 0, 1);
-
   const slot = n > 1 ? plotWidth / (n - 1) : plotWidth;
   const barW = Math.max(1, Math.min(slot * 0.7, 26));
   const lastAvg = average[n - 1] ?? points[n - 1]!.y;

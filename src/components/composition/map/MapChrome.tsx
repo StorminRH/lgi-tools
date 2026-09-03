@@ -28,8 +28,6 @@ export function MapChrome({
   return (
     <div
       data-map-chrome
-      // z-dropdown: chrome controls (portrait, Atlas menu, search) must stay
-
       className="pointer-events-none absolute inset-0 z-dropdown"
     >
       <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
@@ -41,7 +39,6 @@ export function MapChrome({
               contextualSection={contextualSection}
             />
           </div>
-
         ) : null}
         <MapMenu
           corporations={corporations}
@@ -49,7 +46,6 @@ export function MapChrome({
           mapActionsAvailable={listingAvailable}
         />
       </div>
-
       <div
         ref={switcherFocusFallback}
         tabIndex={-1}
@@ -63,15 +59,12 @@ export function MapChrome({
           focusFallback={switcherFocusFallback}
         />
       </div>
-
       <div
         data-map-chrome-chips
         className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2"
       >
         <FeedbackButton compact embedded />
       </div>
-
     </div>
-
   );
 }

@@ -31,11 +31,8 @@ export function TypeIcon({
 }: {
   typeId: number;
   variant?: TypeIconVariant;
-
   size: number;
-
   alt?: string;
-
   mono?: string;
   className?: string;
 }) {
@@ -56,7 +53,6 @@ export function TypeIcon({
       >
         {text}
       </span>
-
     );
   }
 

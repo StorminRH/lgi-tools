@@ -21,10 +21,7 @@ export function Callout({
       <span className={`${eyebrow({ tone: 'callout', weight: 'semibold' })} shrink-0`}>
         {label}
       </span>
-
       <span>{children}</span>
-
     </div>
-
   );
 }

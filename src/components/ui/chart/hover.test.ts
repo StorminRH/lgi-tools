@@ -3,7 +3,6 @@ import type { MouseEvent } from 'react';
 import { continuousHoverHandler } from './hover';
 
 vi.mock('@visx/event', () => ({
-
   localPoint: (_el: unknown, _ev: unknown) => ({ x: 10, y: 0 }),
 }));
 

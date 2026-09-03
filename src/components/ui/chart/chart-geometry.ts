@@ -1,5 +1,4 @@
 export function extent(values: number[]): [number, number] {
-
   let min = values[0]!;
   let max = values[0]!;
   for (const v of values) {
@@ -45,6 +44,5 @@ export function continuousHoverTarget<T>(
 ): { datum: T; index: number } | null {
   const index = nearestIndex(xs, probeX);
   if (index < 0) return null;
-
   return { datum: data[index]!, index };
 }

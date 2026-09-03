@@ -22,9 +22,7 @@ export type BarChartProps = {
   width?: number;
   height?: number;
   className?: string;
-
   formatValue?: (v: number) => string;
-
   formatLabel?: (s: string) => string;
   ariaLabel?: string;
 };
@@ -57,7 +55,6 @@ export function BarChart({
     padding: 0.3,
   });
   const yScale = scaleLinear<number>({
-
     domain: [0, yMax === 0 ? 1 : yMax],
     range: [innerBottom, MARGIN.top],
     nice: true,
@@ -91,11 +88,8 @@ export function BarChart({
         datum && (
           <>
             <span className="text-name">{formatValue(datum.value)}</span>
-
             <span className="text-muted"> · {formatLabel(datum.label)}</span>
-
           </>
-
         )
       }
     >
@@ -123,8 +117,6 @@ export function BarChart({
             >
               {formatLabel(d.label)}
             </text>
-
-            {}
             <HoverCaptureRect
               x={bandX}
               y={MARGIN.top}
@@ -134,10 +126,8 @@ export function BarChart({
               onLeave={hover.hideTooltip}
             />
           </g>
-
         );
       })}
     </ChartCanvas>
-
   );
 }
