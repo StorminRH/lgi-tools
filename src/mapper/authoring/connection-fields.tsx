@@ -1,15 +1,5 @@
 'use client';
 
-// The Signature Editor's field body (4.0.4.3.2 operator ruling D-G).
-//
-// Player language throughout: the Mass and Reliable Lifetime vocabularies read
-// exactly as EVE's own in-space wording, while the stored vocabularies
-// (`stable/reduced/critical`, `under_1_day/…`) are untouched. The field ORDER
-// is part of the ruling — wormhole type (with its headerless stats block),
-// Size, Mass, Reliable Lifetime, Leads to, Delete — so the tests assert
-// position, not just presence.
-//
-// Pure of window/leader chrome so field wiring stays unit-testable.
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
@@ -60,7 +50,6 @@ import {
   type WormholeTypeParams,
 } from './wormhole-type-search';
 
-/** In-game mass wording over the unchanged stored shake-state vocabulary. */
 const MASS_LABELS: Record<ConnectionMassState, string> = {
   stable: 'More than 50% remaining',
   reduced: 'Less than 50% remaining',
@@ -80,7 +69,6 @@ const SIZE_ITEMS = [
   ...WORMHOLE_SIZE_CLASSES.map((value) => ({ value, label: value })),
 ];
 
-/** In-game lifetime wording over the unchanged stored life-stage vocabulary. */
 const LIFE_LABELS: Record<WormholeLifeStage, string> = {
   under_1_day: 'Less than 1 day remaining',
   under_4_hours: 'Less than 4 hours remaining',
@@ -112,58 +100,44 @@ const HINT_LABELS: Record<WormholeDestinationHint, string> = {
   drifter: 'Drifter',
 };
 
-/** Field-scoped setters the editor calls for one connection. */
 export interface ConnectionFieldSetters {
   readonly setWormholeType: (value: string | null) => void;
   readonly setShipSize: (value: WormholeSizeClass | null) => void;
   readonly setMassState: (value: ConnectionMassState | null) => void;
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
-  /** The one "Leads to" hint; the origin side is the editor's own viewpoint. */
+
   readonly setLeadsTo: (value: WormholeDestinationHint | null) => void;
-  /** Retargets or clears the resolved destination system. */
+
   readonly setDestination: (toSystemId: number | null) => void;
-  /** Attaches this stub to a known inbound line the operator picked. */
+
   readonly linkToOrigin: (resolvedConnectionId: string) => void;
 }
 
-/** One named origin system offered in Leads to while the far end is unknown. */
 export interface OriginLeadOption {
   readonly connectionId: string;
   readonly label: string;
   readonly systemId: number;
 }
 
-/** Props for the connection field form body. */
 export interface ConnectionFieldsProps {
   readonly connection: ConnectionEditorDetail;
   readonly codes: readonly string[];
   readonly preferredCodes?: readonly string[];
-  /** False while the codex is unloaded — the type field parses leniently. */
+
   readonly codexReady: boolean;
   readonly entry: WormholeCodexEntry | null;
   readonly setters: ConnectionFieldSetters;
   readonly now: number;
-  /** Restore-only mode freezes every field control and shows Restore. */
+
   readonly mode: 'edit' | 'restore';
-  /**
-   * The destination system's identity readout once the hole is resolved. The
-   * field stays editable — type a new system name to retarget, or clear it
-   * back to the class-hint dropdown.
-   */
+
   readonly destination?: SystemIdentityReadout | null;
   readonly onDelete?: () => void;
   readonly onRestore?: () => void;
-  /**
-   * Known inbound systems this unresolved stub may attach to. Empty once the
-   * hole already has a typed destination.
-   */
+
   readonly originLeads?: readonly OriginLeadOption[];
 }
 
-/**
- * Human-authored connection facts plus codex-driven intelligence, in the
- * ruling D-G order.
- */
 export function ConnectionFields({
   connection,
   codes,
@@ -192,6 +166,7 @@ export function ConnectionFields({
         >
           Severed connection — restore within the undo window.
         </p>
+
       ) : null}
       <TypeField
         connection={connection}
@@ -237,6 +212,7 @@ export function ConnectionFields({
         onRestore={onRestore}
       />
     </div>
+
   );
 }
 
@@ -282,6 +258,7 @@ function TypeField({
         />
       )}
     </ConnectionFieldGroup>
+
   );
 }
 
@@ -293,8 +270,7 @@ function CodexPanel({ entry }: { readonly entry: WormholeCodexEntry | null }) {
 
 function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
   return (
-    // Headerless (D-G): the block sits directly under the type it describes,
-    // so a "Codex" caption only repeated what the position already says.
+
     <div
       data-map-connection-codex
       className="flex w-full flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5 text-center"
@@ -310,6 +286,7 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
       />
       <CodexFact label="Size" value={facts.sizeClass} />
     </div>
+
   );
 }
 
@@ -344,7 +321,6 @@ function SizeField({
   );
 }
 
-/** Mass: the in-game shake report plus its one derived remaining-mass line. */
 function MassSection({
   connection,
   entry,
@@ -389,6 +365,7 @@ function MassSection({
         )}
       />
     </ConnectionFieldGroup>
+
   );
 }
 
@@ -403,7 +380,9 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
         >
           Remaining mass {display.label}
         </p>
+
       </Tooltip>
+
     );
   }
   if (display.kind === 'regenerates') {
@@ -414,12 +393,12 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
       >
         {display.label}
       </p>
+
     );
   }
   return null;
 }
 
-/** Reliable Lifetime: the in-game report plus its one derived countdown line. */
 function LifetimeSection({
   connection,
   entry,
@@ -455,6 +434,7 @@ function LifetimeSection({
         display={lifetimeRowDisplay(connection, entry, now)}
       />
     </ConnectionFieldGroup>
+
   );
 }
 
@@ -474,7 +454,9 @@ function LifetimeEstimateView({
         >
           Lifetime {display.label}
         </p>
+
       </Tooltip>
+
     );
   }
   if (display.kind === 'expired') {
@@ -486,17 +468,12 @@ function LifetimeEstimateView({
       >
         {display.label}
       </p>
+
     );
   }
   return null;
 }
 
-/**
- * Leads to: one field (D-G). While the far end is unknown it is the human
- * hint dropdown, plus any already-known inbound systems the operator can
- * attach this stub to. Once a destination is set the field stays a typed
- * system search so a wrong jump or return can be corrected in place.
- */
 function LeadsToField({
   connection,
   destination,
@@ -530,6 +507,7 @@ function LeadsToField({
           }
         />
       </ConnectionFieldGroup>
+
     );
   }
   if (destination !== null) {
@@ -553,6 +531,7 @@ function LeadsToField({
           errorLabel="Destination"
         />
       </ConnectionFieldGroup>
+
     );
   }
   const items = [
@@ -584,7 +563,6 @@ function LeadsToField({
   );
 }
 
-/** Accepts a bare system name or the identity readout ("J120924 - C2"). */
 export function parseDestinationSystem<P extends { system: { id: number } }>(
   parse: (input: string) => { ok: true; params: P } | { ok: false },
   input: string,
@@ -623,7 +601,9 @@ function ConnectionActions({
         >
           Delete
         </Button>
+
       </div>
+
     );
   }
   if (mode === 'restore' && onRestore !== undefined) {
@@ -637,7 +617,9 @@ function ConnectionActions({
         >
           Restore
         </Button>
+
       </div>
+
     );
   }
   return null;
@@ -653,10 +635,13 @@ function CodexFact({
   return (
     <div className="flex flex-col items-center gap-0.5 font-data text-micro">
       <span className="text-muted">{label}</span>
+
       <span data-map-codex-fact={label} className="text-name">
         {value}
       </span>
+
     </div>
+
   );
 }
 

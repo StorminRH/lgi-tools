@@ -12,7 +12,6 @@ import {
 } from '@/data/maps/connection-lifetime';
 import type { ConnectionDetail } from '../chain/connection-detail';
 
-/** Codex facts shown as a read-only panel for one typed wormhole. */
 export interface CodexPanelFacts {
   readonly totalMassKg: number;
   readonly maxJumpMassKg: number;
@@ -21,7 +20,6 @@ export interface CodexPanelFacts {
   readonly sizeClass: WormholeSizeClass;
 }
 
-/** Honest remaining-mass row: interval, regenerating annotation, or absent. */
 export type MassRowDisplay =
   | {
       readonly kind: 'range';
@@ -33,7 +31,6 @@ export type MassRowDisplay =
   | { readonly kind: 'regenerates'; readonly label: string }
   | { readonly kind: 'none' };
 
-/** Shared lifetime row derived from the persisted window or typed ceiling. */
 export type LifetimeRowDisplay =
   | { readonly kind: 'unset' }
   | {
@@ -50,12 +47,10 @@ export type LifetimeRowDisplay =
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** Whether the ship-size control must lock to a codex-derived size class. */
 export function isCodexSizeLocked(entry: WormholeCodexEntry | null): boolean {
   return entry !== null && entry.farSide === false;
 }
 
-/** Extracts the read-only codex panel facts, or null for K162 / missing / untyped. */
 export function codexPanelFacts(
   entry: WormholeCodexEntry | null,
 ): CodexPanelFacts | null {
@@ -69,7 +64,6 @@ export function codexPanelFacts(
   };
 }
 
-/** Formats a kilogram quantity with compact SI suffixes for the card. */
 export function formatKilograms(kg: number): string {
   const absolute = Math.abs(kg);
   if (absolute >= 1_000_000_000) {
@@ -84,7 +78,6 @@ export function formatKilograms(kg: number): string {
   return `${Math.round(kg)} kg`;
 }
 
-/** Formats a remaining-duration bound for the lifetime range readout. */
 export function formatDurationBound(ms: number): string {
   if (ms <= 0) return '0h';
   if (ms < HOUR_MS) {
@@ -96,11 +89,6 @@ export function formatDurationBound(ms: number): string {
   return `${Math.round(hours)}h`;
 }
 
-/**
- * Builds the mass estimate row from the shake-state interval minus observed
- * travel since the latest anchor. Always a range (or regenerates / none) —
- * never a single certain kilogram figure (HC-2).
- */
 export function massRowDisplay(
   entry: WormholeCodexEntry | null,
   massState: ConnectionMassState | null,
@@ -128,10 +116,6 @@ export function massRowDisplay(
   };
 }
 
-/**
- * Builds the lifetime readout from the shared death window, falling back to the
- * typed spawn ceiling when no life-stage report has been stored yet.
- */
 type LifetimeSource =
   | { readonly kind: 'expired' }
   | {
@@ -176,7 +160,6 @@ function lifetimeSource(
   return { kind: 'unset' };
 }
 
-/** Builds the lifetime readout from the stored death window or typed ceiling. */
 export function lifetimeRowDisplay(
   connection: LifetimeConnection,
   entry: WormholeCodexEntry | null,
@@ -201,10 +184,6 @@ export function lifetimeRowDisplay(
   return { kind: 'unset' };
 }
 
-/**
- * Remaining-life upper bound for compact surfaces. Same algebra as
- * `lifetimeRowDisplay`, without the range or ≤ prefix.
- */
 export function lifetimeUpperBoundLabel(
   connection: LifetimeConnection,
   entry: WormholeCodexEntry | null,

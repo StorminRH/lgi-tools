@@ -28,8 +28,7 @@ vi.mock('@/components/ui/select', () => ({
       'data-select': props.ariaLabel,
       'data-value': props.value,
       'data-options': props.items.map((item) => item.value).join(','),
-      // Ruling D-G is about the WORDS players read, so the option labels are
-      // part of the contract, not just the stored values.
+
       'data-labels': props.items.map((item) => item.label).join('|'),
     });
   },
@@ -162,7 +161,7 @@ it('renders the six ruling fields with in-game wording and no retired controls',
   expect(retired).not.toContain('Far side');
   expect(retired).not.toContain('Auto-link');
   expect(retired).not.toContain('data-map-connection-resolution');
-  // One Leads-to field, not two.
+
   expect(retired.split('data-select="Leads to"')).toHaveLength(2);
 });
 

@@ -108,9 +108,7 @@ const VENDOR_OWNER_RULES: readonly VendorOwnerRule[] = [
     name: 'upstash',
     matches: (specifier) =>
       specifier === '@upstash/redis' || specifier === '@upstash/ratelimit',
-    // src/lib/upstash.ts is the sole @upstash/redis value importer (it owns
-    // every client construction); src/lib/rate-limit.ts remains an owner for
-    // its @upstash/ratelimit value import alone.
+
     owners: ['src/lib/upstash.ts', 'src/lib/rate-limit.ts'],
   },
   {

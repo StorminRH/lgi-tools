@@ -7,7 +7,6 @@ export type PageMetadataInput = {
   absoluteTitle?: boolean;
 };
 
-/** Build page-specific metadata without inheriting the root's generic social copy. */
 export function buildPageMetadata({
   title,
   description,
