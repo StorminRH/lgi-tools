@@ -10,7 +10,7 @@ describe('deriveGscMultiples', () => {
     expect(cells.map((c) => c.title)).toEqual(['Clicks', 'Impressions', 'Avg position']);
     expect(cells[0]).toMatchObject({ value: '120', invert: false, delta: { pct: 20, direction: 'up' } });
     expect(cells[1]).toMatchObject({ value: '4,000', delta: { pct: -20, direction: 'down' } });
-    // Position fell 10.5 → 8.4 (an improvement); the cell inverts and is labelled.
+
     expect(cells[2]).toMatchObject({
       value: '8.4',
       invert: true,

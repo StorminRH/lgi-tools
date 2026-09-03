@@ -34,19 +34,16 @@ import { StatusRow } from './StatusRow';
 type Trend = ReturnType<typeof trendSeries>;
 type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
 
-// The is-anything-broken strip: one row per subsystem, reduced to a colored
-// dot + one-line readout. Status is anchored on "now" (latest run, current
-// staleness); the charts inside each row's collapsed details follow the
-// dashboard's selected range.
-
 function DetailBody({ children }: { children: ReactNode }) {
   return (
     <div className="border-t border-border-soft px-3.5 py-3 flex flex-col gap-4">{children}</div>
+
   );
 }
 
 function DetailCaption({ children }: { children: ReactNode }) {
   return <div className="font-data text-ui text-muted">{children}</div>;
+
 }
 
 function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
@@ -55,6 +52,7 @@ function ChartBlock({ label, children }: { label: string; children: ReactNode })
       <SectionHeader variant="sub" label={label} className="mb-2" />
       {children}
     </div>
+
   );
 }
 
@@ -79,6 +77,7 @@ function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
         getRowKey={(row) => row.outcome}
       />
     </ChartBlock>
+
   );
 }
 
@@ -94,6 +93,7 @@ function PriceCronDetail({
   return (
     <DetailBody>
       <DetailCaption>{refreshVolumeSummary(refreshVolume)}</DetailCaption>
+
       {refreshVolume.length > 0 && (
         <ChartBlock label="Rows fetched by day">
           <AdminTrendChart
@@ -103,6 +103,7 @@ function PriceCronDetail({
             ariaLabel="Rows fetched by day"
           />
         </ChartBlock>
+
       )}
       {priceOutcomes.length > 0 && (
         <ChartBlock label="Runs by outcome">
@@ -111,9 +112,11 @@ function PriceCronDetail({
             ariaLabel="Price-cron runs by outcome"
           />
         </ChartBlock>
+
       )}
       <DurationTable rows={priceOutcomes} />
     </DetailBody>
+
   );
 }
 
@@ -124,6 +127,7 @@ function SdeCronDetail({ sdeOutcomes }: { sdeOutcomes: CronOutcomeCount[] }) {
         <DetailCaption>
           No SDE cron runs in this range (it runs daily — pick a wider range to see history).
         </DetailCaption>
+
       ) : (
         <>
           <ChartBlock label="Runs by outcome">
@@ -132,10 +136,13 @@ function SdeCronDetail({ sdeOutcomes }: { sdeOutcomes: CronOutcomeCount[] }) {
               ariaLabel="SDE-cron runs by outcome"
             />
           </ChartBlock>
+
           <DurationTable rows={sdeOutcomes} />
         </>
+
       )}
     </DetailBody>
+
   );
 }
 
@@ -154,6 +161,7 @@ function GscSyncDetail({
         <DetailCaption>
           Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync Search Console data.
         </DetailCaption>
+
       ) : (
         <>
           <DetailCaption>
@@ -162,6 +170,7 @@ function GscSyncDetail({
               ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
               : 'never'}
           </DetailCaption>
+
           {gscOutcomes.length > 0 && (
             <ChartBlock label="Sync runs by outcome">
               <AdminBarChart
@@ -169,16 +178,16 @@ function GscSyncDetail({
                 ariaLabel="GSC sync runs by outcome"
               />
             </ChartBlock>
+
           )}
         </>
+
       )}
     </DetailBody>
+
   );
 }
 
-/**
- * Loads the current service, ingestion, and search-health summaries for the selected admin range.
- */
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
   const fetched = await loadSection('system-health', () =>
@@ -268,5 +277,6 @@ export async function StatusStrip({ range }: { range: DateRange }) {
 
       <StatusRow name="ESI source" status={esiStatus} />
     </Card>
+
   );
 }

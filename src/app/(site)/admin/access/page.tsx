@@ -34,27 +34,18 @@ import {
 
 const MAX_QUERY_LENGTH = 200;
 
-// How far back the audit table reaches. Role changes are rare; a fixed window
-// keeps the page free of the dashboard's range selector.
 const AUDIT_WINDOW_DAYS = 90;
 
-// Strip control chars + truncate. Returns undefined for empty / clearly
-// malformed input so the page falls back to the empty-q view.
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
   return cleaned.length === 0 ? undefined : cleaned;
 }
 
-// Build the Admins list shown above the search results. Admin is per-user;
-// includes the env superadmin synthetically (resolved from their character id to
-// the owning user) when their DB role isn't already ADMIN — otherwise they'd be
-// invisible on the page they have authority over.
 async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
   const dbAdmins = await listAdminUsers();
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  // Identify the superadmin by the USER that owns the env character id, not by a
-  // displayed character id: a pilot can now link several characters (3.4.2).
+
   const superUser =
     Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
   return mergeAdminRows(dbAdmins, superUser);
@@ -93,12 +84,16 @@ function AdminUserRow({
         >
           {user.name}
         </Link>
+
       }
       chips={
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
+
           <Chip tone={badge.tone}>{badge.label}</Chip>
+
         </span>
+
       }
       trailing={
         showToggle ? (
@@ -110,6 +105,7 @@ function AdminUserRow({
           />
         ) : (
           <span className="text-micro text-muted whitespace-nowrap italic">managed via env</span>
+
         )
       }
     />
@@ -128,9 +124,13 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       render: (row) => (
         <span className="flex items-center gap-1.5">
           <Pill tone={row.fromTone}>{row.fromLabel}</Pill>
+
           <span className="text-muted">→</span>
+
           <Pill tone={row.toTone}>{row.toLabel}</Pill>
+
         </span>
+
       ),
     },
   ] satisfies readonly StaticTableColumn<ReturnType<typeof deriveAuditRowView>>[];
@@ -143,6 +143,7 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       />
       {audit.length === 0 ? (
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
+
       ) : (
         <div className="px-3.5 py-2">
           <StaticTable
@@ -152,8 +153,10 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
             getRowKey={(row, index) => `${row.timestamp}-${index}`}
           />
         </div>
+
       )}
     </Card>
+
   );
 }
 
@@ -171,6 +174,7 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
       <Button type="submit" variant="secondary" className="text-isk">
         Search
       </Button>
+
       {query ? (
         <Link
           href="/admin/access"
@@ -178,8 +182,10 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
         >
           Clear
         </Link>
+
       ) : null}
     </form>
+
   );
 }
 
@@ -197,6 +203,7 @@ function AdminsCard({
       <SectionHeader size="md" label="Admins" hint={`${adminRows.length} with elevated access`} />
       {adminRows.length === 0 ? (
         <EmptyState>No admins currently configured.</EmptyState>
+
       ) : (
         adminRows.map(({ user, isSuperadmin }) => (
           <AdminUserRow
@@ -210,6 +217,7 @@ function AdminsCard({
         ))
       )}
     </Card>
+
   );
 }
 
@@ -231,6 +239,7 @@ function SearchResultsCard({
         <EmptyState>
           No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
         </EmptyState>
+
       ) : (
         nonAdminMatches.map((user) => (
           <AdminUserRow
@@ -244,12 +253,12 @@ function SearchResultsCard({
         ))
       )}
     </Card>
+
   );
 }
 
 async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
-  // Admin gate + viewer id come straight from the Better Auth session (the
-  // shared Session type deliberately doesn't carry userId).
+
   const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
@@ -275,6 +284,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
             {view.adminCount} admin{view.adminPlural}
             {view.querySuffix}
           </>
+
         }
         meta={
           <a
@@ -283,6 +293,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
           >
             ← Dashboard
           </a>
+
         }
       />
 
@@ -302,7 +313,9 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
 
         <RoleChangeAudit audit={audit} />
       </div>
+
     </>
+
   );
 }
 
@@ -310,10 +323,6 @@ function AccessLoading() {
   return <LoadingLabel />;
 }
 
-/**
- * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
- * fully request-time dynamic hole. Only the page container prerenders.
- */
 export default function AccessPage({
   searchParams,
 }: {
@@ -325,7 +334,10 @@ export default function AccessPage({
         <Suspense fallback={<AccessLoading />}>
           <AccessContent searchParams={searchParams} />
         </Suspense>
+
       </div>
+
     </PageShell>
+
   );
 }

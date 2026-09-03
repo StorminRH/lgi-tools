@@ -3,11 +3,6 @@ import { Collapsible } from '@/components/ui/collapsible';
 import { Dot } from '@/components/ui/dot';
 import type { StatusLevel, SubsystemStatus } from '@/data/telemetry/health-metrics';
 
-// One subsystem line in the status strip: colored dot + name + plain-English
-// headline, with the detail charts collapsed underneath (<details>, so no
-// client state). Green/amber/red are reserved for status here and on KPI
-// deltas; charts elsewhere stay blue.
-
 const DOT_TONE: Record<StatusLevel, 'green' | 'orange' | 'red' | 'neutral'> = {
   green: 'green',
   amber: 'orange',
@@ -15,9 +10,6 @@ const DOT_TONE: Record<StatusLevel, 'green' | 'orange' | 'red' | 'neutral'> = {
   neutral: 'neutral',
 };
 
-/**
- * Renders one labelled operational status with text and icon semantics in addition to its tone.
- */
 export function StatusRow({
   name,
   status,
@@ -31,7 +23,9 @@ export function StatusRow({
     <span className="flex items-center gap-3 min-w-0 flex-1 py-1">
       <Dot tone={DOT_TONE[status.level]} size="lg" />
       <span className="font-data text-ui text-name w-[110px] shrink-0">{name}</span>
+
       <span className="font-data text-ui text-muted truncate">{status.headline}</span>
+
       {children && (
         <span
           data-chevron
@@ -39,19 +33,23 @@ export function StatusRow({
         >
           ▾
         </span>
+
       )}
     </span>
+
   );
   if (!children) {
     return (
       <div className="border-b border-border-soft last:border-b-0 px-3.5 py-[7px]">
         {header}
       </div>
+
     );
   }
   return (
     <Collapsible header={header}>
       {children}
     </Collapsible>
+
   );
 }

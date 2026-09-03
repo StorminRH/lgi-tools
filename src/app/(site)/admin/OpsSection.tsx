@@ -60,6 +60,7 @@ function OpsCardFallback({ label }: { label: string }) {
       <SectionHeader size="md" label={label} hint="loading" />
       <LoadingLabel className="block px-3.5 py-6" />
     </Card>
+
   );
 }
 
@@ -92,6 +93,7 @@ function DetailBlock({ label, children }: { label: string; children: ReactNode }
       <SectionHeader variant="sub" label={label} className="mb-2" />
       {children}
     </div>
+
   );
 }
 
@@ -122,8 +124,11 @@ async function SliPanel({ range }: { range: DateRange }) {
       render: (row) => (
         <>
           <span className="block text-text">{row.label}</span>
+
           <span className="block text-micro text-muted">{row.responseAction}</span>
+
         </>
+
       ),
     },
     { key: 'value', label: 'Value', align: 'right', render: (row) => row.value, className: 'text-name' },
@@ -146,6 +151,7 @@ async function SliPanel({ range }: { range: DateRange }) {
         getRowKey={(row) => row.id}
       />
     </Card>
+
   );
 }
 
@@ -159,10 +165,12 @@ async function BudgetPanel() {
       <div className={view.level === 'red' ? 'px-3.5 py-2 text-ui text-tone-red' : 'px-3.5 py-2 text-ui text-isk'}>
         {view.headline}
       </div>
+
       {view.metrics.length > 0 && (
         <MetricsTable ariaLabel="ESI error budget metrics" rows={view.metrics} />
       )}
     </Card>
+
   );
 }
 
@@ -194,6 +202,7 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
       />
       {queue.empty ? (
         <EmptyState>No queued or retained refresh jobs.</EmptyState>
+
       ) : (
         <StaticTable
           ariaLabel="Deferred refresh queue"
@@ -205,23 +214,31 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
       <DetailBlock label={`Dead letters · ${dead.length}`}>
         {dead.length === 0 ? (
           <EmptyState>No dead-lettered refresh jobs.</EmptyState>
+
         ) : (
           <ul className="-mx-3.5 -mb-3">
             {dead.map((row) => (
               <li key={row.id} className="flex flex-col gap-2 border-t border-border-soft px-3.5 py-3 first:border-t-0 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <div className="text-ui text-text">{row.title}</div>
+
                   <div className="font-data text-micro text-muted break-all">
                     {row.failureClass} · {row.endpointClass} · {row.attempts} attempts · {row.timing}
                   </div>
+
                 </div>
+
                 <RetryJobForm jobId={row.id} range={rangeKey} />
               </li>
+
             ))}
           </ul>
+
         )}
       </DetailBlock>
+
     </Card>
+
   );
 }
 
@@ -259,6 +276,7 @@ async function CostPanel({ range }: { range: DateRange }) {
       />
       <EndpointUsage endpoints={view.endpoints} />
     </Card>
+
   );
 }
 
@@ -279,9 +297,13 @@ function PriceSourceHealth({
     <DetailBlock label="Price-source health">
       <div className="flex flex-col gap-2 text-ui text-muted">
         <div>{fallbackSummary(fallback)}</div>
+
         <div>{budgetSummary(budgetExhaustions)}</div>
+
         <div>{degradationCallerSummary(degradation)}</div>
+
       </div>
+
       {fallback.perDay.length > 0 && (
         <div className="mt-3">
           <AdminTrendChart
@@ -291,6 +313,7 @@ function PriceSourceHealth({
             ariaLabel="Fallback rate by day"
           />
         </div>
+
       )}
       {degradation.length > 0 && (
         <div className="mt-3">
@@ -299,8 +322,10 @@ function PriceSourceHealth({
             ariaLabel="Degradation events by caller"
           />
         </div>
+
       )}
     </DetailBlock>
+
   );
 }
 
@@ -313,10 +338,12 @@ function EndpointUsage({
     <DetailBlock label="Most-used owned-data endpoints">
       {endpoints.length === 0 ? (
         <EmptyState>No owned-data reads in this range.</EmptyState>
+
       ) : (
         <DistributionBars rows={endpoints} ariaLabel="Owned-data endpoint requests" />
       )}
     </DetailBlock>
+
   );
 }
 
@@ -328,44 +355,52 @@ async function EventPanel() {
       <SectionHeader size="md" label="Recent rail events" hint="latest 30" />
       {fetched.length === 0 ? (
         <EmptyState>No operational events recorded yet.</EmptyState>
+
       ) : (
         <ol>
           {fetched.map((event) => (
             <li key={event.id} className="border-b border-border-soft px-3.5 py-2 last:border-b-0">
               <div className="text-ui text-text">{summarizeDomainEvent(event)}</div>
+
               <div className="text-micro text-muted">
                 {event.occurredAt.toISOString().replace('T', ' ').slice(0, 19)} UTC
               </div>
+
             </li>
+
           ))}
         </ol>
+
       )}
     </Card>
+
   );
 }
 
-/**
- * Composes four independently suspended operations panels so one unavailable data source cannot
- * blank the full section.
- */
 export function OpsSection({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Suspense fallback={<OpsCardFallback label="Service indicators" />}>
         <SliPanel range={range} />
       </Suspense>
+
       <Suspense fallback={<OpsCardFallback label="ESI error budget" />}>
         <BudgetPanel />
       </Suspense>
+
       <Suspense fallback={<OpsCardFallback label="Deferred refresh queue" />}>
         <QueuePanel rangeKey={rangeKey} />
       </Suspense>
+
       <Suspense fallback={<OpsCardFallback label="ESI cost lens" />}>
         <CostPanel range={range} />
       </Suspense>
+
       <Suspense fallback={<OpsCardFallback label="Recent rail events" />}>
         <EventPanel />
       </Suspense>
+
     </div>
+
   );
 }

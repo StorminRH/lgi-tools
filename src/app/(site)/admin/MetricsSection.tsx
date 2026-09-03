@@ -11,28 +11,16 @@ import { buildMetricRows } from './metric-view';
 import { previousRange, type RangeKey } from '@/composition/admin-period';
 import { SectionUnavailable } from './SectionUnavailable';
 
-// The dashboard's headline metrics section. Each metric queries its current
-// window and the equal-length window before it, so the period-over-period delta
-// needs no new SQL; `all` has no previous window, so deltas are simply absent
-// there. The two GSC metrics also carry a zero-filled daily series for their
-// inline sparkline (search clicks/impressions are the only headline metrics with
-// a per-day series; page views and users are scalar totals only).
-
 const RANGE_NOUN: Record<Exclude<RangeKey, 'all'>, string> = {
   '7d': '7 days',
   '30d': '30 days',
   '90d': '90 days',
 };
 
-// Run a query only when its gate is on, else resolve to null — keeps the fan-out
-// a flat list instead of a wall of inline ternaries.
 function maybe<T>(cond: boolean, thunk: () => Promise<T>): Promise<T | null> {
   return cond ? thunk() : Promise.resolve(null);
 }
 
-// A GSC metric's recent-trend sparkline: zero-fill internal gaps across the
-// covered span (first→last synced day, never out to today — GSC lags a day or
-// two and trailing zeros would misread), then keep the last 28 days.
 function gscSparkline(trend: GscDailyPoint[], pick: (p: GscDailyPoint) => number): number[] {
   if (trend.length === 0) return [];
   const start = trend[0]!.day;
@@ -45,9 +33,6 @@ function gscSparkline(trend: GscDailyPoint[], pick: (p: GscDailyPoint) => number
   return filled.values.slice(-28);
 }
 
-// The clicks + impressions sparkline series together, or undefineds when there's
-// no GSC data — so a row's series is either absent or non-empty, and the table
-// cell needs a single truthiness check.
 function gscSparklines(trend: GscDailyPoint[] | null): {
   clicks: number[] | undefined;
   impressions: number[] | undefined;
@@ -63,10 +48,6 @@ function metricsHint(rangeKey: RangeKey): string {
   return rangeKey === 'all' ? 'all time' : `Δ vs previous ${RANGE_NOUN[rangeKey]}`;
 }
 
-/**
- * Renders the metrics section surface; this component owns local presentation and interaction
- * wiring while callers own domain data.
- */
 export async function MetricsSection({
   rangeKey,
   range,
