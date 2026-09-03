@@ -1,23 +1,9 @@
 'use client';
 
-// Browser-side Better Auth client. Used by the header (login/logout) and the
-// AuthProvider (useSession). baseURL is omitted so the client talks to the same
-// origin's /api/auth — correct for local, preview, and production alike.
-//
-// The `auth` import is TYPE-ONLY (erased at compile time): it gives the client
-// the custom-session field types (characterId/name/portraitUrl/role/isAdmin)
-// without pulling the server module — and its db/drizzle imports — into the
-// client bundle.
-
 import { customSessionClient, genericOAuthClient, jwtClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 import type { auth } from './auth';
 
-/**
- * Browser Better Auth client configured with the EVE OAuth provider and shared session contract.
- * `jwtClient` exposes the server `jwt` plugin's mint endpoint as `authClient.token()`, which the
- * Convex bridge calls when it has no usable JWT (first mint, expiry, or forceRefreshToken).
- */
 export const authClient = createAuthClient({
   plugins: [genericOAuthClient(), customSessionClient<typeof auth>(), jwtClient()],
 });
@@ -53,11 +39,6 @@ function base64UrlDecode(value: string): string {
   return Buffer.from(padded, 'base64').toString('utf8');
 }
 
-/**
- * Convex bridge JWT. Reuses a still-valid mint until `exp` unless Convex asks
- * for a forced refresh. Returns null when the caller is anonymous or the mint
- * fails — Convex's auth contract wants null rather than a rejection.
- */
 export async function fetchConvexAccessToken(opts?: {
   forceRefreshToken?: boolean;
 }): Promise<string | null> {

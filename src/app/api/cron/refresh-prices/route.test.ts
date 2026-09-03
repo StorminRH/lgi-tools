@@ -117,7 +117,6 @@ describe('GET /api/cron/refresh-prices', () => {
         budgetExhausted: false,
       }),
     });
-    // No degradation → no price_source_degraded event, no Discord alert.
     expect(logUsageEventMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ action: 'price_source_degraded' }),
     );

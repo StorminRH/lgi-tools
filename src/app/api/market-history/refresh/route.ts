@@ -7,36 +7,13 @@ import { getLiveHistory } from '@/data/market-history/refresh-on-view';
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { apiResponse } from '@/transport/api-response';
 
-// POST /api/market-history/refresh
-// Body: { typeIds: number[] }
-//
-// On-demand daily-history read. Consumed by the Industry Planner client when a
-// user opens a blueprint (the product type). Runs the stale-gated refresh-on-
-// view engine: serve warm types from the stored series, fetch only types past
-// their ESI Expires boundary, return the typed scoring inputs, and persist the
-// freshly fetched series behind the response. Inherits the prod bot-protection
-// Challenge Mode (non-browser callers get a 429 challenge) — accepted, the
-// consumer is the browser-side planner hook; no firewall bypass needed.
-//
-// Rate-limited per client IP; the threshold lives in the slice constants so
-// post-ship tuning is one config change.
-//
-// Degradation (ESI budget exhausted → some stale types kept their stored
-// series) is logged to runtime logs only; a telemetry action is deliberately
-// not added in 3.5.3a (history degradation is low-stakes — stored data is
-// served — and the shared ESI gate already governs the budget).
-// authz: public
-
 /**
  * History is one ESI call per stale type at concurrency 10; the on-view trigger
  * asks for a single product type. 60 bounds a hang well under the 300s default.
  */
 export const maxDuration = 60;
 
-/**
- * Handles POST requests for /api/market-history/refresh; this route owns its authorization,
- * boundary validation, and typed response mapping.
- */
+// authz: public
 export const POST = marketRefreshRoute(
   'market.refresh-market-history',
   refreshHistoryEndpoint,

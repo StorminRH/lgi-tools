@@ -20,12 +20,6 @@ export interface AffiliationRefreshOutcome {
   readonly transientFailure: boolean;
 }
 
-/**
- * Fetch fresh affiliations for these characters and write them to the Neon cache.
- * Surfaces whether any batch failed transiently so projection can refuse to
- * converge; login/link/cron callers use {@link refreshAffiliations} which only
- * needs the row count. Writes through {@link updateAffiliations}.
- */
 export async function refreshAffiliationsWithOutcome(
   characterIds: number[],
 ): Promise<AffiliationRefreshOutcome> {
@@ -52,11 +46,6 @@ export async function refreshAffiliations(characterIds: number[]): Promise<numbe
   return (await refreshAffiliationsWithOutcome(characterIds)).refreshed;
 }
 
-/**
- * Refresh every stale / never-refreshed affiliation among a user's linked
- * characters, returning both the upserted row count and whether any ESI batch
- * failed transiently.
- */
 export async function refreshStaleAffiliationsForUserWithOutcome(
   userId: string,
 ): Promise<AffiliationRefreshOutcome> {
@@ -80,12 +69,6 @@ export async function refreshStaleAffiliationsForUser(userId: string): Promise<n
   return (await refreshStaleAffiliationsForUserWithOutcome(userId)).refreshed;
 }
 
-/**
- * Is this user a current member of corporationId — i.e. does any of their linked
- * characters have a FRESH cached affiliation in that corp? Fail-closed (the 3.7.3.3
- * gate's core check). The gate refreshes stale affiliations before calling this so
- * its decision is on ≤1h-fresh data.
- */
 export async function isUserCurrentMemberOfCorp(
   userId: string,
   corporationId: number,
@@ -94,10 +77,6 @@ export async function isUserCurrentMemberOfCorp(
   return isMemberOfCorp(affiliations, corporationId, new Date());
 }
 
-/**
- * Is this specific character a current member of corporationId. The by-character
- * form for consumers that gate on one pilot rather than the whole user.
- */
 export async function isCharacterCurrentMemberOfCorp(
   characterId: number,
   corporationId: number,

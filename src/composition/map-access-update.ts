@@ -16,7 +16,6 @@ export interface MapAccessUpdateDependencies {
   readonly projectAccess?: ProjectAccess;
 }
 
-/** Closed result from one admin-authorized durable grant edit and re-projection. */
 export type MapAccessUpdateResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'forbidden' }
@@ -26,12 +25,6 @@ export type MapAccessUpdateResult =
       readonly cause: ProjectionUnavailableError;
     };
 
-/**
- * Resolves the caller's principals, atomically requires admin authority on an
- * active map while committing one set-shaped Neon grant change, then reconverges
- * the sole one-way Convex projection. Durable Neon truth remains authoritative
- * when projection is unavailable, so an identical retry heals it.
- */
 export async function applyMapAccessUpdate(
   userId: string,
   input: UpdateMapAccessRequest,

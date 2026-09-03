@@ -98,7 +98,6 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('omits types the engine returned no price for', async () => {
-    // Seed-miss + live-miss → absent from the map; the response simply skips it.
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [34, 99] }));
@@ -165,8 +164,6 @@ describe('POST /api/market-prices/refresh', () => {
   it('emits no degradation metric on a clean all-ESI read', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }));
-    // The route's own refresh metric plus the shell's capability record; a
-    // degradation row would be a third and must not appear on a clean read.
     expect(emitCostMetricMock).toHaveBeenCalledTimes(2);
     expect(emitCostMetricMock).not.toHaveBeenCalledWith(
       'price_source_degraded',

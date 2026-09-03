@@ -1,13 +1,11 @@
 import type { Session } from '../types';
 
-/** Client authentication context: session, admin flag, and loading hold. */
 export interface AuthState {
   session: Session | null;
   isAdmin: boolean;
   loading: boolean;
 }
 
-/** Slice of Better Auth `useSession().data` that the client snapshot reads. */
 export type AuthSessionData = {
   characterId: number | null;
   name: string;
@@ -19,11 +17,6 @@ export type AuthSessionData = {
 const HELD: AuthState = { session: null, isAdmin: false, loading: true };
 const SIGNED_OUT: AuthState = { session: null, isAdmin: false, loading: false };
 
-/**
- * Publishes a session only after the hydration hold has released and Better
- * Auth is no longer pending. Callers that branch on `session` alone therefore
- * cannot paint a different first tree than the server.
- */
 export function resolveAuthState(
   released: boolean,
   data: AuthSessionData,

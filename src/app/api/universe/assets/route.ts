@@ -7,9 +7,6 @@ import {
   withCacheControl,
 } from '@/transport/api-response';
 
-/**
- * Returns the current SDE build identifier so clients can address the matching immutable assets.
- */
 // authz: public
 // input: none
 export async function GET(): Promise<Response> {

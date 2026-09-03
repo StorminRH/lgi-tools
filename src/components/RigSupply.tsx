@@ -2,19 +2,6 @@
 
 import { Select, type SelectOption } from '@/components/ui/select';
 
-// Shared rig-slot control: N dropdowns, each picking a rig that fits the chosen
-// structure. Lives in the `shared` zone (src/components/*.tsx) so BOTH the custom-
-// structure builder (custom-structures slice) and the corp rig-completion editor
-// (owned-structures slice) consume it without a banned feature→feature import. It is
-// presentational over an opaque rig option list + controlled slot values; the parent
-// owns the structure context (which rigs fit, how many slots) and the slot state. The
-// builder's fit-paste box stays in the builder (it pre-fills the structure TYPE, a
-// builder-only concern); the corp editor has a fixed structure and just supplies rigs.
-
-/**
- * Renders the rig-supply selector and forwards the chosen supply mode; callers retain ownership of
- * planner recalculation.
- */
 export function RigSupply({
   validRigs,
   maxSlots,
@@ -22,10 +9,8 @@ export function RigSupply({
   onSlotsChange,
   disabled = false,
 }: {
-  // The rigs that fit the chosen structure (the parent applies the fit predicate).
   validRigs: { typeId: number; name: string }[];
   maxSlots: number;
-  // Current rig-slot values, length === maxSlots; a slot is a rig typeId or null.
   slots: (number | null)[];
   onSlotsChange: (next: (number | null)[]) => void;
   disabled?: boolean;

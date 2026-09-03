@@ -1,11 +1,3 @@
-// Off-database coverage for the indicator arithmetic.
-//
-// `sli-queries.db.test.ts` proves each indicator against real Postgres, but that
-// suite skips wherever no database is reachable — including CI — so the decision
-// logic here would otherwise be measured at zero coverage. These cases drive the
-// branches that matter and that a seeded database exercises only incidentally:
-// the empty window, a window made empty by exclusions, and a null or NaN
-// percentile. Each asserts a decision, not a line.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rows = vi.hoisted(() => ({ current: [] as Record<string, unknown>[] }));
@@ -57,14 +49,11 @@ describe('success-rate indicators', () => {
   });
 
   it('removes excluded outcomes from the mutation denominator', async () => {
-    // 10 mutations, 4 of them validation failures: the rate is 5 of 6, not 5 of 10.
     rows.current = [{ total: 10, succeeded: 5, excluded: 4 }];
     await expect(getMutationSuccessRate(RANGE)).resolves.toBeCloseTo(5 / 6, 5);
   });
 
   it('returns null when every recorded mutation was excluded', async () => {
-    // A window containing only rejected malformed requests has no service
-    // signal in it, so it must read as “nothing recorded”, not as 0%.
     rows.current = [{ total: 4, succeeded: 0, excluded: 4 }];
     await expect(getMutationSuccessRate(RANGE)).resolves.toBeNull();
   });
@@ -82,7 +71,6 @@ describe('getCriticalLatencyP95', () => {
   });
 
   it('returns null when the percentile is not a number', async () => {
-    // percentile_cont over an empty set maps through as NaN rather than null.
     rows.current = [{ p95: Number.NaN }];
     await expect(getCriticalLatencyP95(RANGE)).resolves.toBeNull();
   });

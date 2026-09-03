@@ -48,14 +48,10 @@ describe('visibleStructuresForSlot', () => {
 
   it('hides locked structures homed in OTHER systems once a system is picked', () => {
     expect(visibleStructuresForSlot(ALL, 30000142, null)).toEqual([corpJita, portable, pinnedJita]);
-    // A system where nothing is homed still offers every portable structure.
     expect(visibleStructuresForSlot(ALL, 31000001, null)).toEqual([portable]);
   });
 
   it('always retains the currently-selected structure so the select value never dangles', () => {
-    // The lock's own system data may still be loading (or its silent fetch
-    // failed) while the slot's previous system is the effective one — the
-    // just-picked structure must stay listed.
     expect(visibleStructuresForSlot(ALL, 30000142, corpBasgerin.id)).toEqual([
       corpJita,
       corpBasgerin,
@@ -92,7 +88,6 @@ describe('deduceLockedSystem', () => {
     expect(deduceLockedSystem(homelessLock, SYSTEMS, 30000142)).toEqual({
       lockedStructure: homelessLock,
       deducedSystem: null,
-      // The lock's own system still wins over the fallback, even unresolved.
       effectiveSystemId: 31000001,
     });
   });
@@ -135,8 +130,6 @@ describe('lockTransition', () => {
 
 describe('reactionRefineryCandidates', () => {
   it('keeps only reaction-hosting refineries, excluding the build structure', () => {
-    // pinnedJita is the only Refinery (groupId 1406); the rest are Engineering
-    // Complexes (1404) which don't host reactions.
     expect(reactionRefineryCandidates(ALL, null)).toEqual([pinnedJita]);
   });
 
@@ -160,13 +153,10 @@ describe('deriveReactionSlotView', () => {
     expect(view.deducedSystem).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
     expect(view.taxPct).toBe(2.5);
     expect(view.lockedTo).toBe('Taxed Tatara');
-    // Both Refineries in Jita are listed (pinnedJita + the taxed one).
     expect(view.refineries).toEqual([pinnedJita, taxed]);
   });
 
   it('excludes the build structure and non-refineries; null tax/name when nothing is locked', () => {
-    // corpJita (an Engineering Complex, 1404) is the build structure; the only
-    // refinery is pinnedJita, and with no reaction lock nothing is deduced.
     const view = deriveReactionSlotView(null, ALL, corpJita, SYSTEMS, null);
     expect(view.lockedRefinery).toBeNull();
     expect(view.deducedSystem).toBeNull();

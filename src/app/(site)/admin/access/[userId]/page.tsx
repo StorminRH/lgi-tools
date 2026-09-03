@@ -27,9 +27,6 @@ import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { deriveUserDetailView } from './user-detail-view';
 
-// Friendly copy for the codes the admin routes can redirect back with. An
-// unrecognised code falls to the generic message rather than echoing an internal
-// code at the admin.
 const ERROR_MESSAGES: Record<string, string> = {
   last_character:
     "That's the user's only character — unlinking it would strand the account. Reassign it instead.",
@@ -50,8 +47,6 @@ function CharacterAdminRow({
   character: LinkedCharacter;
   userId: string;
   isActive: boolean;
-  // The detail page is the acting admin's own account — reassign-to-self is a
-  // no-op, so the reassign control is disabled.
   isViewerSelf: boolean;
   isOnlyCharacter: boolean;
 }) {
@@ -137,8 +132,6 @@ async function UserDetailContent({
   params: Promise<{ userId: string }>;
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
-  // Admin gate + viewer id come straight from the Better Auth session (the
-  // shared Session type deliberately doesn't carry userId).
   const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
@@ -259,10 +252,6 @@ function DetailLoading() {
   );
 }
 
-/**
- * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
- * fully request-time dynamic hole. Only the page container prerenders.
- */
 export default function UserDetailPage({
   params,
   searchParams,

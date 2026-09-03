@@ -3,10 +3,6 @@ import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { apiResponse } from '@/transport/api-response';
 
-/**
- * Handles GET requests for /api/sites/[id]; this route owns its authorization, boundary
- * validation, and typed response mapping.
- */
 // authz: public
 // input: path
 export async function GET(

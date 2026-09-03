@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Button } from './button';
 
-// The primitive is a thin styled shell — the testable logic is the cva variant
-// map and the prop-forwarding contract. No DOM: calling the component returns a
-// React element whose props we inspect directly (the suite is node-env, no RTL).
-
 describe('Button', () => {
   it('defaults type to button, allows submit override, and distinguishes primary vs bare chrome', () => {
     const el = Button({ children: 'x' });

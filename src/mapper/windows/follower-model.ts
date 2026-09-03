@@ -1,7 +1,6 @@
 import { SYSTEM_DISC_SIZE } from '../canvas/SystemNode';
 import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
 
-/** The internal React Flow node fields the isolated follower is allowed to read. */
 export interface FollowerNode {
   readonly measured: {
     readonly width?: number;
@@ -10,19 +9,16 @@ export interface FollowerNode {
   readonly internals: {
     readonly positionAbsolute: { readonly x: number; readonly y: number };
   };
-  /** v12 declared frame dimensions — present from first render for chain nodes. */
   readonly width?: number;
   readonly height?: number;
 }
 
-/** The narrow installed-store shape kept private to the mapper window follower. */
 export interface FollowerState {
   readonly domNode: HTMLElement | null;
   readonly transform: readonly [number, number, number];
   readonly nodeLookup: ReadonlyMap<string, FollowerNode>;
 }
 
-/** Imperative store access used to avoid a React render for every pan or glide frame. */
 export interface NodeFollowerStore {
   readonly getState: () => FollowerState;
   readonly subscribe: (
@@ -30,19 +26,16 @@ export interface NodeFollowerStore {
   ) => () => void;
 }
 
-/** Screen/layer pixel size. */
 export interface ScreenSize {
   readonly width: number;
   readonly height: number;
 }
 
-/** Screen/layer pixel point. */
 export interface ScreenPoint {
   readonly x: number;
   readonly y: number;
 }
 
-/** One leader segment from the card rim to the disc rim. */
 export interface LeaderSegment {
   readonly x1: number;
   readonly y1: number;
@@ -50,38 +43,29 @@ export interface LeaderSegment {
   readonly y2: number;
 }
 
-/** What one follower frame writes through CSSOM. */
 export interface FollowerWrite {
   readonly transform: string;
   readonly leader: LeaderSegment | null;
 }
 
-/** Inset from the viewport edge so cards never kiss the chrome. */
 const CARD_VIEWPORT_PADDING = 16;
 
-/** Preferred gap between the anchor and the near card edge. */
 export const CARD_ANCHOR_GAP = 40;
 
-/** Which horizontal half of the anchor the card prefers to occupy. */
 export type CardAnchorSide = 'left' | 'right';
 
-/** Which 45° lift the leader prefers (screen y-down: up is negative y). */
 export type CardAnchorLift = 'up' | 'down';
 
-/** Minimum rim-to-rim distance before a leader line is drawn. */
 const LEADER_MIN_DISTANCE = 12;
 
-/** Fallback size matching the node-anchored `w-72 h-52` chrome before layout. */
 export const NODE_CARD_FALLBACK: ScreenSize = { width: 288, height: 208 };
 
-/** Fallback layer size when the React Flow host is absent or unmeasured. */
 const LAYER_SIZE_FALLBACK: ScreenSize = { width: 1440, height: 900 };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-/** Camera + measured card/layer frame shared by node and edge followers. */
 interface SharedFollowerFrame {
   readonly tx: number;
   readonly ty: number;
@@ -137,7 +121,6 @@ function anchoredFollowerWrite(
   };
 }
 
-/** Nearest point on the card rectangle to the anchor (for the leader root). */
 function nearestCardPoint(
   left: number,
   top: number,
@@ -158,10 +141,6 @@ function signY(lift: CardAnchorLift): number {
   return lift === 'up' ? -1 : 1;
 }
 
-/**
- * Where a 45° ray from `origin` first hits the card, or `null` when that
- * diagonal misses the rectangle (a clamped card sitting off the ray).
- */
 function diagonalCardHit(
   origin: ScreenPoint,
   side: CardAnchorSide,
@@ -191,7 +170,6 @@ function diagonalCardHit(
   return null;
 }
 
-/** Disc-rim point on the ray from `center` toward `toward`. */
 function discRimToward(
   center: ScreenPoint,
   toward: ScreenPoint,
@@ -227,16 +205,6 @@ function chooseLift(
   return { lift: first, leader: null };
 }
 
-/**
- * Places a card near an anchor in screen/layer space: prefer the open
- * horizontal half on first placement, then keep that side sticky so camera
- * pans push the card against the viewport instead of flipping it. Vertically
- * center on the anchor, then inset-clamp so the card stays readable.
- *
- * The leader leaves the system disc at 45° (sticky up/down) and ends on the
- * disc rim, the same clip chain edges use, so it never runs through the disc
- * or straight off the center.
- */
 export function placeAnchoredCard(input: {
   readonly anchor: ScreenPoint;
   readonly card: ScreenSize;
@@ -245,9 +213,7 @@ export function placeAnchoredCard(input: {
   readonly padding?: number;
   readonly leaderMinDistance?: number;
   readonly discRadius?: number;
-  /** Sticky side from a prior frame; omit to choose from the midline. */
   readonly side?: CardAnchorSide | null;
-  /** Sticky 45° lift from a prior frame; omit to prefer up, then down. */
   readonly lift?: CardAnchorLift | null;
 }): {
   readonly left: number;
@@ -265,9 +231,6 @@ export function placeAnchoredCard(input: {
   const side: CardAnchorSide =
     input.side ?? (anchor.x >= viewport.width / 2 ? 'left' : 'right');
   const preferLeft = side === 'left';
-  // A 45° ray from a vertically centered card hits the near vertical edge only
-  // when horizontal clearance is at most half the card height. Cap so max zoom
-  // cannot fall back to a horizontal nearest-edge segment.
   const clearance = Math.min(radius + gap, card.height / 2);
   let left = preferLeft
     ? anchor.x - clearance - card.width
@@ -291,7 +254,6 @@ export function placeAnchoredCard(input: {
   return { left, top, leader, side, lift: chosen.lift };
 }
 
-/** Measured card size, or the fallback when the element has not laid out yet. */
 function measureCardSize(
   element: HTMLElement,
   fallback: ScreenSize,
@@ -302,7 +264,6 @@ function measureCardSize(
   return { width, height };
 }
 
-/** Layer size from the React Flow host, with a safe fallback. */
 function measureLayerSize(domNode: HTMLElement | null): ScreenSize {
   if (domNode === null) return LAYER_SIZE_FALLBACK;
   const width = domNode.clientWidth;
@@ -311,7 +272,6 @@ function measureLayerSize(domNode: HTMLElement | null): ScreenSize {
   return { width, height };
 }
 
-/** Applies one follower frame to the card and optional leader line. */
 export function applyFollowerWrite(
   card: HTMLElement,
   leaderLine: SVGLineElement | null,
@@ -354,19 +314,11 @@ export interface FollowerBaseline {
   readonly lift: CardAnchorLift;
 }
 
-/** One follower decision; `null` means leave the DOM untouched. */
 export interface FollowerDecision {
   readonly write: FollowerWrite;
   readonly baseline: FollowerBaseline;
 }
 
-/**
- * Decides the node-anchored card transform from one installed-store snapshot.
- * A new anchor always writes once; unchanged facts write nothing. Anchor
- * center flows through `endpointFrame` / `frameCenter` — the same frame
- * owner edges and cameras use (declared dims cover the pre-measure window).
- * The leader clips to the disc rim at 45° rather than the frame center.
- */
 export function computeFollowerTransform(
   baseline: FollowerBaseline | null,
   anchorId: string,
@@ -389,7 +341,6 @@ export function computeFollowerTransform(
     },
     card,
     layer,
-    // Retargeting a new node picks a fresh side; same node keeps sticky side.
     baseline !== null && baseline.anchorId === anchorId ? baseline.side : null,
     baseline !== null && baseline.anchorId === anchorId ? baseline.lift : null,
     (SYSTEM_DISC_SIZE / 2) * zoom,
@@ -440,10 +391,6 @@ const BROWSER_SCHEDULER: FollowerScheduler = {
   cancel: (handle) => cancelAnimationFrame(handle),
 };
 
-/**
- * Observes box changes on one element. Injected in tests so a card/layer
- * resize can force a rewrite without a real ResizeObserver.
- */
 export type SizeObserver = (
   element: HTMLElement,
   onSize: () => void,
@@ -456,10 +403,6 @@ const BROWSER_SIZE_OBSERVER: SizeObserver = (element, onSize) => {
   return () => observer.disconnect();
 };
 
-/**
- * Shared rAF-coalesced store subscription for node and edge followers.
- * Arms synchronously so the card cannot paint at the layer origin.
- */
 function armFollower(
   store: NodeFollowerStore,
   evaluate: (state: FollowerState) => void,
@@ -489,10 +432,6 @@ function armFollower(
   };
 }
 
-/**
- * Store subscription plus card/layer size observation. Async card growth
- * (codex panel, restore copy) must reclamp without waiting for a pan.
- */
 function armSizedFollower(
   store: NodeFollowerStore,
   card: HTMLElement,
@@ -528,10 +467,6 @@ function armSizedFollower(
   };
 }
 
-/**
- * The shared arming loop node and edge followers ride: evaluate a per-frame
- * decision against the latest baseline, and write only when a decision lands.
- */
 function createDecidedFollower<Baseline>(
   store: NodeFollowerStore,
   card: HTMLElement,
@@ -567,10 +502,6 @@ function createDecidedFollower<Baseline>(
   );
 }
 
-/**
- * Applies a moving node's screen transform through CSSOM without subscribing React to hot state.
- * The returned disposer is idempotent and cancels both the store listener and queued frame.
- */
 export function createNodeFollower(
   store: NodeFollowerStore,
   anchorId: string,
@@ -600,4 +531,3 @@ export function createNodeFollower(
     observeSize,
   );
 }
-

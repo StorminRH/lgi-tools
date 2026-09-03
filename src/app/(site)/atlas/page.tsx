@@ -20,11 +20,6 @@ async function AtlasFromParams({
   return <AtlasBound mapSelected={atlasMapQueryPresent(params.map)} />;
 }
 
-/**
- * Renders Atlas inside the site frame. The landing catalogue streams through
- * the same PageHead shell as Industry and Sites; a selected map covers that
- * chrome with the full-viewport canvas.
- */
 export default function AtlasPage({
   searchParams,
 }: {

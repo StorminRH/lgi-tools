@@ -8,12 +8,9 @@ import { buildSkillsView, type AppliedTimeSkill, type SkillTimeBreakdown } from 
 import { formatBonusPct } from '../structure-bonus-view';
 import type { BlueprintStructure } from '../types';
 
-// EVE renders trained levels as roman numerals — match the in-game reading.
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
 const roman = (level: number) => ROMAN[level] ?? String(level);
 
-// One applied-skill line: name + trained level left, its own reduction right —
-// the TotalJobHover row idiom, so every skills panel reads the same way.
 function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
   return (
     <div className="flex items-baseline justify-between gap-3 font-data text-micro">
@@ -25,7 +22,6 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
   );
 }
 
-// Divider + compound total — the popover's bottom line, toned to its icon.
 function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: number; toneClass: string }) {
   return (
     <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-data text-micro">
@@ -35,8 +31,6 @@ function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: nu
   );
 }
 
-// One hourglass metric that opens its skills panel on hover/tap — the Popover
-// primitive (never a bare title attr), same panel format as the other hovers.
 function SkillMetric({
   label,
   icon,
@@ -63,22 +57,6 @@ function SkillMetric({
   );
 }
 
-// The build character's skills-applied readout (3.7.19.1), filling the hero
-// seam RIGHT of the Run-As frame that ACCOUNT.8 reserved for exactly this. One
-// hourglass metric per activity the plan contains (time-only lever ⇒ hourglass
-// only, no gem): manufacturing in the OWNED evb-bright tone, reactions in
-// REACTION PURPLE (Ryan-directed token) so the two read apart at a glance.
-// Hovering either opens its skills panel: the applied skills listed, the
-// compound total effect at the bottom.
-//
-// Absolutely positioned off the frame wrapper so it has ZERO layout footprint —
-// it spills into the band's reserved cluster gap and nothing reflows when it
-// appears (Ryan's spec: fit the existing space, shift nothing). Renders nothing
-// in EVERY degraded state (unset, pending roster, levels loading or fail-open,
-// nothing trained for the plan's activities) — the readout never claims an
-// effect the time figures don't carry.
-// The manufacturing hourglass metric + its skills panel (activity-wide skills
-// with a compound total, then the per-item T2 skills present in this plan).
 function MfgSkillMetric({
   characterName,
   breakdown,
@@ -116,7 +94,6 @@ function MfgSkillMetric({
   );
 }
 
-// The reaction hourglass metric (reaction purple) + its skills panel.
 function RxnSkillMetric({
   characterName,
   breakdown,
@@ -145,7 +122,6 @@ function RxnSkillMetric({
   );
 }
 
-/** Renders character skill levels and their time reduction for the active blueprint activity. */
 export function BuildSkillsIndicator({ structure }: { structure: BlueprintStructure }) {
   const { buildCharacter, skillTimeFactors, buildCharacterSkillLevels } = useBuildCharacter();
   const view = buildSkillsView(buildCharacter, skillTimeFactors.active, buildCharacterSkillLevels, structure);

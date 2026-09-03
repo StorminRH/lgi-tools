@@ -1,10 +1,6 @@
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 
-/**
- * Renders the 404 body shared by root and segment not-found files without
- * choosing an application chrome frame.
- */
 export function NotFoundContent() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-6 py-20 gap-8 text-center">

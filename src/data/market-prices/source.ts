@@ -30,12 +30,6 @@ import type { RawMarketPrice } from './types';
 
 export { computeDepth, computeSide } from './book-math';
 
-// ESI's /markets/{region}/orders/ response item shape — only the fields
-// we actually use. Boundary schema: ESI sends more keys; z.object ignores
-// the unknown ones, so an upstream addition can't break parsing, but a
-// changed/missing consumed field rejects the body at the boundary.
-// location_id routes hub vs remote (station ids and structure ids both fit
-// a JS number); system_id is carried onto remote books for the callout.
 const esiOrderSchema = z.object({
   type_id: z.number(),
   is_buy_order: z.boolean(),
@@ -84,7 +78,7 @@ async function runConcurrent<T>(
         const i = cursor++;
         if (i >= items.length) return;
         try {
-          await worker(items[i]!); // i < items.length guaranteed by the guard above
+          await worker(items[i]!);
         } catch (err) {
           cancelled = true;
           throw err;
@@ -158,10 +152,6 @@ function bucketToRawPrice(
   };
 }
 
-// Materialize a row per requested type ID, falling back to an empty bucket
-// when ESI returned no orders for that type. Matches Fuzzwork's behavior
-// of always emitting a row for every requested type (so stale_after
-// advances even for "no orders" types).
 function bucketsToRawPrices(
   typeIds: number[],
   buckets: Map<number, OrderBucket>,

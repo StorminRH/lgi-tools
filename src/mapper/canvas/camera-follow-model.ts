@@ -1,19 +1,8 @@
-// Pure camera-follow policy, kept apart from the hook so the framing rules are
-// unit-tested rather than browser-observed.
-//
-// 4.0.3.2 adds the easing half: every fit and focus carries the slow tier's
-// duration and the family's no-overshoot ease, bounds are computed from
-// reconciled kernel targets (never rendered arrays, which may be mid-glide),
-// a drag start aborts an in-flight transition, and a newer fit or focus
-// supersedes an older one. The installed viewport API never settles a
-// superseded transition's promise, so supersession is generation-tracked here
-// rather than awaited.
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { springFamily, type MotionConfig } from '../motion/motion-contract';
 import { endpointFrame, frameCenter } from './edge-geometry';
 
-/** System ids an intent batch would ask the camera to frame. */
 export function systemsNeedingFit(
   intents: readonly MapChainIntent[],
 ): readonly number[] {
@@ -24,14 +13,6 @@ export function systemsNeedingFit(
   );
 }
 
-/**
- * Whether React Flow already holds every node a fit would target.
- *
- * ChainHost commits reconciler positions in a passive effect, so the camera
- * hook must wait for those nodes before calling `fitView` — otherwise the
- * first framing (and follow refits) target the previous empty/stale set, and
- * the intent-identity guard never retries.
- */
 export function nodesReadyForFit(
   intents: readonly MapChainIntent[],
   nodeIds: ReadonlySet<number>,
@@ -60,23 +41,13 @@ export function shouldFitView(input: {
   return input.follow && !input.dragActive;
 }
 
-/** Hook action for one intent/node observation. */
 export type CameraFitAction = 'ignore' | 'wait' | 'skip' | 'fit';
 
-/** Whether the hook should consume the intent batch and/or call `fitView`. */
 export type CameraFitPlan = {
   readonly consume: boolean;
   readonly fit: boolean;
 };
 
-/**
- * Pure camera-fit decision for one effect tick.
- *
- * - `ignore`: same intent batch already consumed
- * - `wait`: fit is warranted but React Flow nodes are not ready yet
- * - `skip`: consume the batch without fitting
- * - `fit`: consume the batch and call `fitView`
- */
 export function decideCameraFit(input: {
   readonly intents: readonly MapChainIntent[];
   readonly previousIntents: readonly MapChainIntent[];
@@ -100,7 +71,6 @@ export function decideCameraFit(input: {
   return 'fit';
 }
 
-/** Maps a fit action onto the two ref updates the hook performs. */
 export function planCameraFit(action: CameraFitAction): CameraFitPlan {
   switch (action) {
     case 'ignore':
@@ -113,17 +83,11 @@ export function planCameraFit(action: CameraFitAction): CameraFitPlan {
   }
 }
 
-/** The duration/ease pair every camera move carries. */
 export interface CameraEase {
   readonly duration: number;
   readonly ease: (t: number) => number;
 }
 
-/**
- * The camera's easing: slow tier, no-overshoot spring variant (an
- * overshooting pan reads as a lunge). Reduced motion is the one zero-duration
- * path (DC-6).
- */
 export function cameraEaseOf(
   config: MotionConfig,
   reducedMotion: boolean,
@@ -134,7 +98,6 @@ export function cameraEaseOf(
   };
 }
 
-/** The rect shape the viewport's `fitBounds` accepts. */
 export interface CameraBounds {
   readonly x: number;
   readonly y: number;
@@ -142,34 +105,15 @@ export interface CameraBounds {
   readonly height: number;
 }
 
-/**
- * Cap for every camera fit. A single home-system disc is tiny in world space,
- * so fitting against the surface maxZoom (2.5) fills the screen. Operator G-1
- * wants the first framing closer to a reading overview than a close-up —
- * slightly above half the default viewport zoom. Large chains may still zoom
- * out below this; they just never zoom in past it.
- *
- * Note: `fitBounds`'s options do NOT accept maxZoom (store maxZoom wins). The
- * hook must call `getViewportForBounds` with this ceiling, then `setViewport`.
- */
 export const CAMERA_FIT_MAX_ZOOM = 0.75;
 
-/** Padding passed to `getViewportForBounds` for every camera fit. */
 export const CAMERA_FIT_PADDING = 0.15;
 
-/** The node frame box size camera math pads and centers with. */
 export interface NodeFrameSize {
   readonly width: number;
   readonly height: number;
 }
 
-/**
- * Fit bounds from reconciled kernel targets — deliberately NOT from rendered
- * node positions, so a fit issued during a mass glide frames the settled
- * chain rather than a mid-tween scatter. Positions are node top-left corners;
- * the widget frame (which carries the name header and widget slots inside its
- * bounds) pads the far edges.
- */
 export function chainBounds(
   systems: ReadonlyMap<number, PlacedSystem>,
   frame: NodeFrameSize,
@@ -193,17 +137,11 @@ export function chainBounds(
   };
 }
 
-/** One fit tick's whole decision: what to consume and where to fit. */
 export interface FitExecution {
   readonly consume: boolean;
-  /** `null` means no fit this tick (not warranted, not ready, or empty chain). */
   readonly bounds: CameraBounds | null;
 }
 
-/**
- * The complete per-tick fit decision the hook executes verbatim: the
- * consume/fit policy composed with bounds from reconciled targets.
- */
 export function decideFitExecution(input: {
   readonly intents: readonly MapChainIntent[];
   readonly previousIntents: readonly MapChainIntent[];
@@ -230,15 +168,10 @@ export function decideFitExecution(input: {
   };
 }
 
-/** Fit-tick outcome including the post-tick `framed` flag the hook stores. */
 export interface FitTickResult extends FitExecution {
   readonly framed: boolean;
 }
 
-/**
- * Viewport-gated fit tick: skip entirely until the pane has size, otherwise
- * run `decideFitExecution` and mark framed once a fit actually fires.
- */
 export function resolveFitTick(input: {
   readonly viewportReady: boolean;
   readonly intents: readonly MapChainIntent[];
@@ -260,20 +193,12 @@ export function resolveFitTick(input: {
   };
 }
 
-/** A click-to-focus action: center here, at exactly this zoom. */
 export interface FocusAction {
   readonly x: number;
   readonly y: number;
   readonly zoom: number;
 }
 
-/**
- * The click-to-focus decision: only when the setting is on, no drag is live,
- * and the clicked node resolved to a center point. The current viewport zoom
- * is carried explicitly because the installed `setCenter` otherwise lunges to
- * `maxZoom`. Focus is additive to selection — deciding it never consumes or
- * alters the click's selection behavior.
- */
 export function decideFocus(input: {
   readonly enabled: boolean;
   readonly dragActive: boolean;
@@ -284,7 +209,6 @@ export function decideFocus(input: {
   return { x: input.center.x, y: input.center.y, zoom: input.zoom };
 }
 
-/** A focus request the camera has not answered yet, or `null`. */
 export function newFocusRequest<Request extends { readonly token: number }>(
   request: Request | null,
   lastToken: number,
@@ -296,12 +220,6 @@ export function newFocusRequest<Request extends { readonly token: number }>(
   return request;
 }
 
-/**
- * The clicked node's frame center — where the disc sits — through
- * `edge-geometry`'s frame policy (measured wins, the declared frame size
- * covers a node whose measurement has not landed yet). `null` when the node
- * no longer exists.
- */
 export function focusCenter(
   node: {
     readonly x: number;
@@ -321,26 +239,17 @@ export function focusCenter(
   return box === null ? null : frameCenter(box);
 }
 
-/**
- * Generation-tracked camera transition state. The installed viewport promises
- * never settle when superseded, so completion is only honored for the
- * generation that started it; a newer flight or an abort bumps the
- * generation, orphaning the older completion.
- */
 export interface CameraFlight {
   readonly generation: number;
   readonly active: boolean;
 }
 
-/** No transition in flight. */
 export const IDLE_FLIGHT: CameraFlight = { generation: 0, active: false };
 
-/** A new fit or focus takes over: newer supersedes older (the generation bump). */
 export function beginFlight(flight: CameraFlight): CameraFlight {
   return { generation: flight.generation + 1, active: true };
 }
 
-/** A transition's own completion; a superseded generation changes nothing. */
 export function settleFlight(
   flight: CameraFlight,
   generation: number,
@@ -349,11 +258,6 @@ export function settleFlight(
   return { generation: flight.generation, active: false };
 }
 
-/**
- * Drag start: an in-flight transition is aborted — the viewport must not keep
- * panning under a live drag. Idle flights are untouched, so drags without a
- * camera move cost nothing.
- */
 export function abortFlightForDrag(flight: CameraFlight): CameraFlight {
   if (!flight.active) return flight;
   return { generation: flight.generation + 1, active: false };

@@ -6,30 +6,10 @@ import { applySpreadFloorToBuyFigures } from './book-math';
 import { JITA_44_STATION_ID } from './constants';
 import type { RawMarketPrice } from './types';
 
-// Fuzzwork fallback path. Retained as a circuit-breaker target for the ESI
-// source in source.ts: if ESI bulk returns 5xx or the per-type calls fail,
-// the dispatcher reaches into this file for one batch round-trip and rewrites
-// the source attribution to 'fuzzwork-fallback' on the way out.
-//
-// This file is intentionally self-contained — the dispatcher in source.ts is
-// the only consumer. When Fuzzwork is eventually retired, the entire file
-// (and source-fallback.test.ts) deletes cleanly.
 const FUZZWORK_AGGREGATES = 'https://market.fuzzwork.co.uk/aggregates/';
 
-// Comma-joined IDs go in the URL. 150 keeps the URL under ~1.1KB
-// even at 6-digit type IDs — well under the 2KB safe-URL threshold.
 const MAX_BATCH = 150;
 
-// Fuzzwork's aggregates response shape. Numbers come back as stringified
-// decimals — EXCEPT on a side with zero orders, where every field is a
-// plain numeric 0 (observed live on station-scoped aggregates, where empty
-// sides are common; 2026-07-10 parity probe). A union (not z.coerce, which
-// would stringify undefined and let a MISSING required field through as
-// "undefined") accepts both shapes while a dropped field still rejects the
-// body at the boundary; the finite refine keeps a present-but-invalid value
-// ("", "NaN", "Infinity") from flowing through `normalize()` into the price
-// columns. `parseVolume`/`normalize` parse the string form. The documented
-// per-side fields are all required, keyed by type ID.
 const fuzzworkFieldSchema = z
   .union([z.string(), z.number()])
   .transform(String)
@@ -37,7 +17,6 @@ const fuzzworkFieldSchema = z
     message: 'Expected a finite numeric aggregate field',
   });
 
-// Exported for testing.
 const fuzzworkSideSchema = z.object({
   weightedAverage: fuzzworkFieldSchema,
   max: fuzzworkFieldSchema,
@@ -49,7 +28,6 @@ const fuzzworkSideSchema = z.object({
   percentile: fuzzworkFieldSchema,
 });
 
-// Exported for testing.
 const fuzzworkPairSchema = z.object({
   buy: fuzzworkSideSchema,
   sell: fuzzworkSideSchema,
@@ -57,28 +35,10 @@ const fuzzworkPairSchema = z.object({
 
 const fuzzworkResponseSchema = z.record(z.string(), fuzzworkPairSchema);
 
-/**
- * One Fuzzwork order-book side aggregate with weighted, percentile, min, max, and volume values in
- * API units.
- */
 export type FuzzworkSide = z.infer<typeof fuzzworkSideSchema>;
-/** Fuzzwork buy and sell aggregates for one EVE type ID. */
 export type FuzzworkPair = z.infer<typeof fuzzworkPairSchema>;
 type FuzzworkResponse = z.infer<typeof fuzzworkResponseSchema>;
 
-/**
- * Fuzzwork volumes are decimal strings (e.g. "1234567.0"); truncate before
- * BigInt() so we don't blow up on the fractional part. Floor (not round)
- * matches the "this many units are actually for sale" intent.
- *
- * Scientific-notation fallback ("1.5e6") wasn't observed in any Fuzzwork
- * response when this slice was first written, but `BigInt("1.5e6")` throws
- * SyntaxError — one such row would fail the entire refresh batch. The
- * `Number(raw)` path floors correctly for any finite value and only loses
- * precision above Number.MAX_SAFE_INTEGER (~9 quadrillion), well past any
- * realistic Jita market volume.
- * Exported for testing.
- */
 export function parseVolume(raw: string): bigint {
   if (!raw) return BigInt(0);
   if (/[eE]/.test(raw)) {
@@ -91,16 +51,6 @@ export function parseVolume(raw: string): bigint {
   return BigInt(intPart || '0');
 }
 
-/**
- * Buy side: "best" is the *highest* bid (`max`). Sell side: "best"
- * is the *lowest* ask (`min`). Both percentiles read the 5% column.
- * `orderCount == 0` on either side → NULL for that side's columns.
- *
- * Source attribution is 'fuzzwork' here. The dispatcher in source.ts
- * rewrites to 'fuzzwork-fallback' when calling this as a circuit-breaker
- * target.
- * Exported for testing.
- */
 export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
   const buy = pair.buy;
   const sell = pair.sell;
@@ -123,8 +73,6 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
     pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
     buyVolume: floored.buyVolume,
     sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
-    // Fuzzwork serves aggregates, not an order book — no near-touch depth
-    // and no regional-discount fold.
     buyDepth: null,
     sellDepth: null,
     regionalDiscount: null,
@@ -133,10 +81,6 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
 }
 
 async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
-  // Station-scoped (3.7.26.1): both sources must describe the same Jita 4-4
-  // book, or prices would flap between semantics on every fallback. Their
-  // station buy aggregates are station-local bids — the same ruled buy scope
-  // as ours (verified in the 2026-07-10 parity probe).
   const url = `${FUZZWORK_AGGREGATES}?station=${JITA_44_STATION_ID}&types=${typeIds.join(',')}`;
   const res = await fetchWithTimeout(url, {
     headers: { 'User-Agent': OUTBOUND_USER_AGENT },
@@ -146,9 +90,6 @@ async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
       `Fuzzwork aggregates request failed: ${res.status} ${res.statusText}`,
     );
   }
-  // Validate at the boundary. A malformed body throws here the same way an
-  // HTTP error does above — Fuzzwork is the fallback target, so the throw
-  // propagates exactly as a Fuzzwork outage does today.
   const parsed = fuzzworkResponseSchema.safeParse(await res.json());
   if (!parsed.success) {
     throw new Error('Fuzzwork aggregates response failed boundary validation');
@@ -163,10 +104,6 @@ async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
   return out;
 }
 
-/**
- * Fetches buy and sell aggregates from Fuzzwork for a bounded type-ID batch and maps them to the
- * canonical price source contract.
- */
 export async function fetchPricesFromFuzzwork(
   typeIds: number[],
 ): Promise<RawMarketPrice[]> {

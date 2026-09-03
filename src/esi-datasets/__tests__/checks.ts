@@ -12,12 +12,6 @@ export type EsiDatasetCheckContext = {
   engineDatasets: ReadonlySet<string>;
 };
 
-/**
- * True when a Neon table carries an ESI-mirror freshness column
- * (`…_refreshed_at`, `stale_after`, or `fetched_at`). DB-free:
- * getTableConfig reads Drizzle metadata without opening a connection. This is
- * a safety net for the freshness-column pattern, not the full dataset census.
- */
 export function isEsiMirrorTable(table: PgTable): boolean {
   return getTableConfig(table).columns.some(
     (column) =>
@@ -27,11 +21,6 @@ export function isEsiMirrorTable(table: PgTable): boolean {
   );
 }
 
-/**
- * Returns reflected freshness tables neither claimed by a registry entry nor
- * declared as transport infrastructure. Kept as a pure set difference so the
- * gate's unregistered-mirror failure path is directly testable.
- */
 export function findUnregisteredMirrors(
   flagged: readonly string[],
   claimed: ReadonlySet<string>,
@@ -200,11 +189,6 @@ export function checkEntries(
   return entries.flatMap((entry) => entryFindings(entry, context));
 }
 
-/**
- * Durable Neon tables the mirror scan sees that are ESI transport
- * infrastructure rather than datasets. Explicit reasons keep these exclusions
- * auditable instead of silently subtracting them from reflection.
- */
 export const ESI_INFRASTRUCTURE_TABLES = [
   {
     table: 'esi_snapshots',
@@ -213,10 +197,6 @@ export const ESI_INFRASTRUCTURE_TABLES = [
   },
 ] as const;
 
-/**
- * ESI-fed homes outside Neon, invisible to Drizzle reflection, mapped to the
- * registry entry that owns their placement and freshness declaration.
- */
 export const CONVEX_ESI_HOMES = [
   { home: 'convex:characterLocation', entry: 'character_location' },
   { home: 'convex:characterLocationCovered', entry: 'character_location' },

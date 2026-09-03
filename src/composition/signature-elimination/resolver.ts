@@ -25,7 +25,6 @@ import {
   type EliminationWriteOutcome,
 } from './convex-door';
 
-/** Injectable cross-store seams for deterministic elimination proof. */
 export interface SignatureEliminationDependencies {
   readonly readEliminationEvidence: typeof readEliminationEvidence;
   readonly applyEliminationDeductions: typeof applyEliminationDeductions;
@@ -80,12 +79,10 @@ function quiet(): SignatureEliminationResponse {
   return { status: 'quiet' };
 }
 
-/** How one scanned row's identity stands once this pass has settled. */
 interface SettledIdentity {
   readonly whTypeCode: string | null;
   readonly provenance: ConnectionProvenance | null;
   readonly observationKey: string | null;
-  /** The row was linked into a resolved connection, which now owns its identity. */
   readonly migrated: boolean;
 }
 
@@ -94,11 +91,6 @@ function settleIdentity(
   deduction: EliminationDeduction | undefined,
   outcome: EliminationWriteOutcome | undefined,
 ): SettledIdentity {
-  // Only an applied write may introduce a key the evidence snapshot did not
-  // show. Every other outcome — `unchanged`, `protected`, and `stale` alike —
-  // logs exactly what this pass read: a lost race then cannot delete the
-  // winner's freshly logged row, and a row that vanished mid-pass keeps the
-  // identity it was observed with, which a later removal never falsifies.
   const applied = outcome?.outcome === 'applied' ? deduction : undefined;
   if (applied === undefined) {
     return {
@@ -114,13 +106,6 @@ function settleIdentity(
     : { whTypeCode: applied.typeCode, provenance: 'assumed', observationKey, migrated: false };
 }
 
-/**
- * Logs the identity every live scanned row of this system now carries, at its
- * own stored tier (ruling D-B). Deduced fills log as `assumed`, a person's
- * later correction rewrites the same per-hole key, and an identity that has
- * been vacated — cleared, retyped to K162, or migrated onto a resolved
- * connection that owns its own key — removes the row it left behind.
- */
 async function logIdentifications(
   database: AnyPgDb,
   systemId: number,
@@ -153,7 +138,6 @@ async function logIdentifications(
   await dependencies.reconcileWhObservations(database, { upserts, deleteKeys });
 }
 
-/** Runs one authenticated cross-store elimination pass and logs what it settles. */
 export async function resolveSignatureElimination(
   database: AnyPgDb,
   userId: string,
@@ -193,8 +177,6 @@ export async function resolveSignatureElimination(
         deductions,
       });
 
-  // Observation logging is independent of statics availability (ruling D-B):
-  // a person's typed identity must still enter the corpus when inference is off.
   if (codex !== null) {
     const byDeduction = new Map(deductions.map((entry) => [entry.signatureId, entry]));
     const byOutcome = new Map(outcomes.map((entry) => [entry.signatureId, entry]));
@@ -213,8 +195,6 @@ export async function resolveSignatureElimination(
         dependencies,
       );
     } catch (cause) {
-      // The map facts already landed; the corpus is a convergent follow-up that
-      // must never turn an applied deduction into a failed pass.
       dependencies.reportEmissionFailure(cause);
     }
   }

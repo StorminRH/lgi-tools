@@ -1,16 +1,3 @@
-// The on-view skill-queue refresh (MIGRATE.B.1; engine-backed since MIGRATE.D.2).
-// PURE orchestration: refreshSkillsForUser builds an OwnerSyncDescriptor from the
-// injected port (types.ts) + this slice's pure helpers and hands it to the shared
-// per-owner sync engine (src/platform/owner-sync). It imports no auth and no DB, so it
-// stays inside the feature boundary and is unit-tested with a fake port. The real
-// port is wired in src/composition/sync/skills-sync.ts. Skills is per-character only — one parallel
-// pass, no corp axis.
-//
-// The engine checks the staleness gate BEFORE any token vend or ESI call (a fresh
-// character does zero work). The dual-endpoint partial-304 merge is the only
-// skill-queue specific — it lives in planSkillsPersist below, which the engine treats
-// as an opaque save / stamp / skip verdict; refresh.test.ts pins the byte-identical
-// behaviour.
 import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
@@ -25,19 +12,11 @@ import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort, SkillsSaveHalv
 
 const SKILLS_FRESHNESS = freshnessGate('skills');
 
-/**
- * What a refresh should persist from the two endpoint reads. PURE + tested, so the
- * merge/304 logic stays out of the I/O orchestration. 'skip' = an ESI error or a
- * contract mismatch on a fresh half (keep stored data); 'stamp' = both halves 304
- * (bump freshness only); 'save' = persist the fresh half(s), a 304 half omitted (the
- * stored row already holds it).
- */
 export type SkillsPersistPlan =
   | { kind: 'save'; halves: SkillsSaveHalves }
   | { kind: 'stamp' }
   | { kind: 'skip'; code?: string };
 
-/** Builds the atomic skills and queue persistence plan from normalized ESI payloads. */
 export function planSkillsPersist(
   queueRead: SkillsEsiRead,
   skillsRead: SkillsEsiRead,
@@ -62,7 +41,6 @@ export function planSkillsPersist(
   return { kind: 'save', halves };
 }
 
-// The save payload the engine carries from fetchAndPlan to save (the fresh half(s)).
 interface SkillsSave {
   halves: SkillsSaveHalves;
 }
@@ -72,7 +50,6 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
     isStale: SKILLS_FRESHNESS.isStale,
     eligible: canSyncSkillQueue,
     fetchAndPlan: async (characterId, accessToken, state) => {
-      // Both endpoints in parallel, each replaying ITS OWN held etag.
       const [queueRead, skillsRead] = await Promise.all([
         port.readSkillQueue(characterId, accessToken, state?.queueEtag ?? null),
         port.readSkills(characterId, accessToken, state?.skillsEtag ?? null),
@@ -83,10 +60,6 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
   });
 }
 
-/**
- * Refreshes skills and queue data for every eligible linked character and returns the merged
- * roster projection.
- */
 export function refreshSkillsForUser(
   port: SkillsPort,
   userId: string,

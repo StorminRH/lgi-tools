@@ -5,10 +5,8 @@ import type {
   MapRole,
 } from '@/data/maps/access-contract';
 
-/** Whether the shared access editor is drafting creation grants or live map grants. */
 export type AccessEditorMode = 'create' | 'manage';
 
-/** One presentation-ready character or corporation that may receive map access. */
 export interface AccessPrincipalOption {
   readonly ownerType: MapAccessOwnerType;
   readonly ownerId: number;
@@ -16,7 +14,6 @@ export interface AccessPrincipalOption {
   readonly imageUrl?: string;
 }
 
-/** A selected principal whose role remains null until the operator chooses it. */
 export interface AccessGrantDraft extends AccessPrincipalOption {
   readonly role: MapRole | null;
 }
@@ -29,24 +26,20 @@ const MAP_ROLE_LABELS: Readonly<Record<MapRole, string>> = {
   admin: 'Admin',
 };
 
-/** User-facing plain-text label for one durable map role. */
 export function mapRoleLabel(role: MapRole): string {
   return MAP_ROLE_LABELS[role];
 }
 
-/** Closed role choices for each editor mode; no choice is implied by selection. */
 export function accessRolesForMode(mode: AccessEditorMode): readonly MapRole[] {
   return mode === 'create' ? CREATE_ROLES : MANAGE_ROLES;
 }
 
-/** Stable composite identity matching the durable unique grant key. */
 export function accessPrincipalKey(
   principal: Pick<AccessPrincipalOption, 'ownerType' | 'ownerId'>,
 ): string {
   return `${principal.ownerType}:${principal.ownerId}`;
 }
 
-/** Converts one corporation option into the shared principal presentation shape. */
 export function corporationAccessPrincipal(
   corporation: CorporationAccessOption,
 ): AccessPrincipalOption {
@@ -58,11 +51,6 @@ export function corporationAccessPrincipal(
   };
 }
 
-/**
- * Starts creation with the sole corporation selected when exactly one exists,
- * while deliberately leaving its role unchosen. Multiple or zero corporations
- * start private.
- */
 export function initialCreationAccessDrafts(
   corporations: readonly CorporationAccessOption[],
 ): AccessGrantDraft[] {
@@ -73,7 +61,6 @@ export function initialCreationAccessDrafts(
     : [{ ...corporationAccessPrincipal(corporation), role: null }];
 }
 
-/** Adds a principal once and never assigns an implicit access role. */
 export function addAccessPrincipal(
   drafts: readonly AccessGrantDraft[],
   principal: AccessPrincipalOption,
@@ -84,7 +71,6 @@ export function addAccessPrincipal(
     : [...drafts, { ...principal, role: null }];
 }
 
-/** Removes only the addressed principal from the controlled draft list. */
 export function removeAccessPrincipal(
   drafts: readonly AccessGrantDraft[],
   principal: Pick<AccessPrincipalOption, 'ownerType' | 'ownerId'>,
@@ -93,7 +79,6 @@ export function removeAccessPrincipal(
   return drafts.filter((draft) => accessPrincipalKey(draft) !== key);
 }
 
-/** Applies an explicit role only when that role belongs to the editor mode. */
 export function setAccessDraftRole(
   mode: AccessEditorMode,
   drafts: readonly AccessGrantDraft[],
@@ -107,7 +92,6 @@ export function setAccessDraftRole(
   );
 }
 
-/** Whether every selected principal has one explicit role valid for this mode. */
 export function accessDraftsComplete(
   mode: AccessEditorMode,
   drafts: readonly AccessGrantDraft[],
@@ -116,17 +100,11 @@ export function accessDraftsComplete(
   return drafts.every((draft) => draft.role !== null && roles.includes(draft.role));
 }
 
-/**
- * Converts a complete creation draft into the strict create endpoint shape.
- * Null means a selected principal still lacks a role; an empty array is valid
- * and intentionally creates a private map.
- */
 export function createMapGrantsFromDrafts(
   drafts: readonly AccessGrantDraft[],
 ): CreateMapRequest['grants'] | null {
   if (!accessDraftsComplete('create', drafts)) return null;
   return drafts.map((draft) => {
-    // Completeness above narrows the runtime state; creation also excludes admin.
     const role = draft.role as 'viewer' | 'editor';
     return {
       ownerType: draft.ownerType,
@@ -136,12 +114,10 @@ export function createMapGrantsFromDrafts(
   });
 }
 
-/** One validated creation draft or the exact correction the form should request. */
 export type PreparedMapCreation =
   | { readonly ok: true; readonly input: CreateMapRequest }
   | { readonly ok: false; readonly message: string };
 
-/** Validates and normalizes the controlled creation draft before transport begins. */
 export function prepareMapCreation(
   name: string,
   drafts: readonly AccessGrantDraft[],
@@ -164,7 +140,6 @@ export function prepareMapCreation(
   return { ok: true, input: { name: normalizedName, grants } };
 }
 
-/** Keeps a Base UI dismissal closed even while the prior result set still exists. */
 export function characterSearchPopupOpen(
   requestedOpen: boolean,
   availableResultCount: number,

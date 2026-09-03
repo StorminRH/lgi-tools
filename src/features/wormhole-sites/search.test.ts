@@ -10,8 +10,6 @@ const entry = (over: Partial<SiteSearchEntry> & { id: number; name: string }): S
   ...over,
 });
 
-// The sites matcher ignores the context (synchronous, zero-RPC); a minimal one
-// satisfies the SearchSource signature.
 const ctx = { session: null, isAdmin: false, recents: [] };
 
 describe('sitesSearchSource', () => {
@@ -33,7 +31,6 @@ describe('sitesSearchSource', () => {
   });
 
   it('breaks equal-score ties by class C1→C6 then primary ISK desc', async () => {
-    // Identical names → identical fuzzy score, so the class/ISK tiebreak decides.
     setSiteSearchIndex([
       entry({ id: 1, name: 'Vault', wormholeClass: 'C5', blueLootIsk: 999 }),
       entry({ id: 2, name: 'Vault', wormholeClass: 'C1', blueLootIsk: 1 }),
@@ -55,7 +52,7 @@ describe('sitesSearchSource', () => {
       }),
     ]);
     const [result] = await sitesSearchSource.search('Reservoir', ctx);
-    expect(result!.iconText).toBe('—'); // null class → em dash
+    expect(result!.iconText).toBe('—');
     expect(result!.sub).toContain('42');
   });
 });

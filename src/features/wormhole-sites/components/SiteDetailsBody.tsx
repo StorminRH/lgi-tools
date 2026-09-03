@@ -51,11 +51,6 @@ function NoWaveSection({ site, view }: { site: SiteDetail; view: SiteDetailsView
   );
 }
 
-/**
- * The expanded body for a wormhole site — everything that appears inside the
- * `<details>` element. Shared between the card view (SiteCard) and the table view
- * (SitesTable row), so both surfaces expose identical detail.
- */
 export function SiteDetailsBody({ site }: { site: SiteDetail }) {
   const view = deriveSiteDetailsView(site);
 

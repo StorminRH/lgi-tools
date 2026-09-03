@@ -14,7 +14,6 @@ const mapPurgeResponseSchema = z.strictObject({
   remaining: z.literal(false),
 });
 
-/** Thrown when the collaborative purge cannot prove a clean terminal state. */
 export class MapPurgeUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -22,7 +21,6 @@ export class MapPurgeUnavailableError extends Error {
   }
 }
 
-/** Drives the bearer-gated bounded Convex purge door for exactly one map. */
 export async function purgeMapChain(
   mapId: string,
 ): Promise<{ readonly deleted: number; readonly remaining: false }> {
@@ -42,11 +40,6 @@ export interface MapPurgeDependencies {
   readonly teardownAccess?: typeof teardownMapAccessProjection;
 }
 
-/**
- * Purges one bounded due-map set. Each row is tombstoned only after the
- * collaborative door proves no map-keyed rows remain and an empty-claim
- * projection fence is current.
- */
 export async function purgeEligibleMaps(
   dependencies: MapPurgeDependencies = {},
 ): Promise<{

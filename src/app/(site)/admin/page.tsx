@@ -21,12 +21,6 @@ import { StatusStrip } from './StatusStrip';
 import { TrafficSection } from './TrafficSection';
 import { UsersSection } from './UsersSection';
 
-// The owner's single-page dashboard: headline KPIs with period-over-period
-// deltas, an is-anything-broken status strip, traffic & SEO, and user
-// engagement — every metric exactly once, no tabs. Role management lives on
-// /admin/access. Charts stay on one blue accent; green/amber/red are reserved
-// for status dots and KPI deltas.
-
 function RangeSelector({ range }: { range: RangeKey }) {
   return (
     <SegmentedControl
@@ -147,10 +141,6 @@ function AdminLoading() {
   );
 }
 
-/**
- * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
- * fully request-time dynamic hole. Only the page container prerenders.
- */
 export default function AdminPage({
   searchParams,
 }: {

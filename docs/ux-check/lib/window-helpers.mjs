@@ -1,15 +1,10 @@
-/** Open the portrait/account menu and return its popup locator. */
 export async function openAtlasMenu(page) {
-  // Instant Navigations can keep a hidden site-header clone (`display: none`
-  // under the canvas frame) with a second trigger. Visibility filters that out,
-  // matching mapCanvas.
   await page.locator('[data-account-menu-trigger]').filter({ visible: true }).click();
   const popup = page.locator('[data-account-menu-popup]').filter({ visible: true });
   await popup.waitFor({ state: 'visible', timeout: 10_000 });
   return popup;
 }
 
-/** Close the portrait/account menu (Escape) and wait for it to leave. */
 export async function closeAtlasMenu(page) {
   await page.keyboard.press('Escape');
   await page
@@ -17,13 +12,6 @@ export async function closeAtlasMenu(page) {
     .waitFor({ state: 'hidden', timeout: 10_000 });
 }
 
-/**
- * Ensure one atlas map preference switch (page-settings section of the
- * portrait menu) matches the desired state; returns the resulting state.
- * Preferences are server-authoritative for the signed-in probe account, so
- * the shipped control is the reliable seam — localStorage seeding does not
- * survive the logged-in reconcile.
- */
 export async function setAtlasMapPreference(page, name, desired) {
   const popup = await openAtlasMenu(page);
   const control = popup.getByRole('switch', { name });
@@ -34,7 +22,6 @@ export async function setAtlasMapPreference(page, name, desired) {
   return result;
 }
 
-/** Turn off both camera-motion preferences in one menu round trip. */
 export async function calmAtlasCamera(page) {
   const homePrompt = page.locator('[data-map-home-prompt]');
   if (await homePrompt.isVisible().catch(() => false)) {
@@ -56,15 +43,9 @@ export async function calmAtlasCamera(page) {
 export const atlasWindowRoute = () =>
   process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas';
 
-/**
- * The live map canvas. Next can briefly keep a hidden Suspense clone
- * (`#S:0`) with a second React Flow tree; Playwright strict mode then fails
- * unscoped `.react-flow__*` queries. Visibility filters that clone out.
- */
 export const mapCanvas = (page) =>
   page.locator('[data-map-canvas]').filter({ visible: true });
 
-/** The map's sole React Flow wrapper on the visible canvas. */
 export const flowWrapper = (page) =>
   mapCanvas(page).locator('[data-testid="rf__wrapper"]');
 
@@ -93,8 +74,6 @@ export async function waitForWindowMap(page, minimumNodes = 2) {
     minimumNodes,
     { timeout: 60_000 },
   );
-  // Camera flights keep rewriting the viewport after mount; isolation probes
-  // compare transform identity and must wait for stillness with flights off.
   await calmAtlasCamera(page);
   await settleMapViewport(page);
 }
@@ -102,7 +81,6 @@ export async function waitForWindowMap(page, minimumNodes = 2) {
 export const viewportTransform = (page) =>
   flowViewport(page).evaluate((element) => element.style.transform);
 
-/** Wait until the visible React Flow viewport transform stops changing. */
 export async function settleMapViewport(page, { samples = 4, intervalMs = 150 } = {}) {
   let last = await viewportTransform(page);
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -159,11 +137,6 @@ export async function clickExposedPane(page) {
   return true;
 }
 
-/**
- * A node whose disc is actually under the pointer (not covered by chrome or
- * windows) and inside the viewport. Optional `excludeIds` skips systems such
- * as the chain root when opening the summary card.
- */
 export async function hittableNode(page, { excludeIds = [] } = {}) {
   const excluded = new Set(excludeIds.map(String));
   const discs = flowWrapper(page).locator('.map-node-disc');
@@ -196,10 +169,8 @@ export async function hittableNode(page, { excludeIds = [] } = {}) {
   return null;
 }
 
-/** Resolve the standing dock's root system id from the live node whose name matches the title. */
 export async function rootSystemTarget(page) {
   const dock = mapWindow(page, 'dock');
-  // Read textContent from the title node — header innerText is CSS-uppercased.
   const title = ((await dock.locator('h2').textContent()) ?? '').trim();
   const name = title.replace(/^Current system\s*·\s*/i, '').trim();
   if (name.length === 0) return null;
@@ -227,7 +198,6 @@ export async function openSummary(page) {
   return target;
 }
 
-/** Drag a node's disc; label/chrome grabs are not reliable for RF node drag. */
 export async function dragNodeDisc(page, target, delta = { x: 70, y: 40 }) {
   await setAtlasMapPreference(page, 'auto layout', false);
   const box = await target.disc.boundingBox();

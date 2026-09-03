@@ -1,18 +1,3 @@
-// Hidden-tab background tracking (4.0.4.2.3 SC-5, the folded PR #368
-// validation): with the page hidden and the virtual clock far past the old
-// 60-second window, fixture jumps still land and pilot presence still
-// updates; past the AFK threshold the FEED ITSELF pauses (heartbeat frames
-// stop on the Convex websocket — the primary observable) and the pin then
-// disappears. Composes the tracked-location fixtures with atlas-afk-gate's
-// virtual-clock + visibility-shadow technique.
-//
-// Fixture timestamps are split on purpose: `transitionObservedAt` uses REAL
-// time (the server's doorbell capture window compares against real now),
-// while `feedFreshAt` stamps subject continuity. Pin hide is a flip-only
-// coverage row, not a client age of lastFinishedAt.
-//
-// Requires authenticated storage state and a fresh empty UX_BG_MAP_ID map
-// (disposable, like the jump probe's map — the authored jump stays behind).
 import {
   backgroundTrackingMapId,
   backgroundTrackingRoute,
@@ -21,12 +6,11 @@ import {
 } from '../lib/authoring-helpers.mjs';
 import { settleMapViewport } from '../lib/window-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001; // Synthetic E2E pilot seeded in Neon.
-const ORIGIN_SYSTEM_ID = 31_001_677; // J113551 — C247 + N766 statics.
-const DESTINATION_SYSTEM_ID = 31_000_880; // J160650 — C3, behind the C247.
-const SHIP_TYPE_ID = 28_606; // Orca — legal through C247's cap.
+const CHARACTER_ID = 9_000_001;
+const ORIGIN_SYSTEM_ID = 31_001_677;
+const DESTINATION_SYSTEM_ID = 31_000_880;
+const SHIP_TYPE_ID = 28_606;
 
-// Shared between setup() and run(); reset in setup (single desktop viewport).
 let heartbeatFrames = 0;
 let sampleFrame = null;
 
@@ -89,7 +73,6 @@ async function waitForTopology(page, nodes, edges) {
   );
 }
 
-/** The badge inside one node's frame, by system id. */
 const badgeIn = (page, systemId) =>
   page.locator(`.react-flow__node[data-id="${systemId}"] [data-pilot-presence]`);
 
@@ -105,9 +88,6 @@ export default {
   async setup({ page }) {
     heartbeatFrames = 0;
     sampleFrame = null;
-    // Clock before navigation; WS listener before the Convex socket opens,
-    // with the frame handler attached synchronously (no await in between —
-    // buffered frames are lost forever otherwise).
     await page.clock.install();
     page.on('websocket', (ws) => {
       ws.on('framesent', ({ payload }) => {
@@ -132,7 +112,6 @@ export default {
     }
     await waitForEditableMap(page);
 
-    // ── Seed: pilot at the origin, feed fresh, one scanned C247 slot ────────
     const seed = await doorbellAfter(page, async () => {
       await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
@@ -170,7 +149,6 @@ export default {
       shipSize: 'L',
     });
 
-    // ── Hidden past the old 60s window: the jump still lands ────────────────
     const beatsBeforeHidden = heartbeatFrames;
     check('heartbeats flowed while visible', beatsBeforeHidden > 0);
     await setVisibility(page, 'hidden');
@@ -202,14 +180,7 @@ export default {
       && (await badgeIn(page, ORIGIN_SYSTEM_ID).count()) === 0,
     );
 
-    // SC-3.3: summary card shares SystemIntelligenceBody. Root selection is
-    // dock-only — open the non-root destination (where the pilot stands).
     await setVisibility(page, 'visible');
-    // The node wrapper is pointer-inert; only the 33px disc chrome is
-    // clickable. A normal locator click never becomes actionably "stable"
-    // across this hidden→visible camera transition, so settle the transform,
-    // prove the disc center is the live browser hit target, then send real
-    // pointer input at that freshly sampled point.
     const destDisc = page.locator(
       `.react-flow__node[data-id="${DESTINATION_SYSTEM_ID}"] .map-node-disc`,
     );
@@ -253,7 +224,6 @@ export default {
     );
     await setVisibility(page, 'hidden');
 
-    // ── Return jump: presence comes home; the dock row is live again ────────
     const returned = await doorbellAfter(page, async () => {
       await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
@@ -276,7 +246,6 @@ export default {
       && (await page.locator('[data-chain-node]').count()) === 2,
     );
 
-    // ── No pause before the AFK threshold ────────────────────────────────────
     const beatsMidHidden = heartbeatFrames;
     await page.clock.fastForward('00:30:00');
     await page.waitForTimeout(500);
@@ -285,7 +254,6 @@ export default {
       heartbeatFrames > beatsMidHidden,
     );
 
-    // ── Past the threshold: prompt, then the feed itself pauses ─────────────
     await page.clock.fastForward('00:31:00');
     const dialog = page.getByRole('dialog');
     await dialog.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
@@ -305,8 +273,6 @@ export default {
       heartbeatFrames === beatsAtPause,
     );
 
-    // Flip-only coverage drops when the feed is done; last-known stays for
-    // collapse. The pin join hides without touching the map document.
     await convexRun('mapFixtureTracking:clearTrackedCoverage', {
       userId,
       characterId: CHARACTER_ID,
@@ -317,7 +283,6 @@ export default {
       (await badgeIn(page, ORIGIN_SYSTEM_ID).count()) === 0,
     );
 
-    // ── Return + dismiss resumes the feed (headless flavor of the #368 item) ─
     await setVisibility(page, 'visible');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.waitForTimeout(1_000);

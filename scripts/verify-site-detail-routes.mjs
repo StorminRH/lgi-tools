@@ -1,13 +1,3 @@
-// Production-runtime regression probe for the carried invalid-site React #419
-// rider. Run against a Vercel preview, never a local production build:
-//   pnpm verify:site-routes -- https://deployment.example.vercel.app
-//   pnpm verify:site-routes -- https://… [--cookie-jar path] [--storage-state path]
-//
-// Prints one JSON report and exits non-zero unless /sites/100 is the expected
-// noindex 404, /sites/3 remains a normal indexable 200, and neither page emits
-// an uncaught page error or unexpected console error. Failure screenshots land
-// under docs/ux-check/captures/. Supports Vercel Protection Bypass via
-// VERCEL_AUTOMATION_BYPASS_SECRET.
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -120,7 +110,6 @@ try {
         await page.screenshot({ path: file, fullPage: true });
         failureArtifacts.push(rel(file));
       } catch {
-        // Best-effort diagnostic only.
       }
     }
 

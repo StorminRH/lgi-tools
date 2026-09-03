@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// nukeAccount's loop guards — the arms the real-Postgres twin
-// (account-purge.db.test.ts) cannot easily express: re-enumeration until empty
-// with a mid-nuke link, and the malformed-account-id skip that prevents an
-// infinite loop. The branch forks themselves run in the db suite.
 const { chain, state } = vi.hoisted(() => {
   const state = { results: [] as unknown[], calls: { delete: 0, update: 0 } };
   const chain: Record<string, unknown> = {
@@ -53,23 +49,22 @@ beforeEach(() => {
 describe('nukeAccount', () => {
   it('re-enumerates until empty, catching a character linked mid-nuke (no cascade orphan)', async () => {
     state.results = [
-      [{ accountId: String(CHAR) }], // pass 1: one linked
-      [{ accountId: String(OTHER) }], // pass 2: a newcomer linked during pass 1
-      [], // pass 3: empty → loop exits
-      undefined, // delete user row
+      [{ accountId: String(CHAR) }],
+      [{ accountId: String(OTHER) }],
+      [],
+      undefined,
     ];
     await nukeAccount(USER);
 
-    // The newcomer is swept too, so its character-keyed caches don't orphan.
     expect(revokeMock.mock.calls).toEqual([[CHAR], [OTHER]]);
-    expect(runPurgeMock).toHaveBeenCalledTimes(3); // 2 character purges + 1 user purge
+    expect(runPurgeMock).toHaveBeenCalledTimes(3);
     expect(state.calls.delete).toBe(1);
   });
 
   it('skips a malformed EVE account id instead of revoking NaN or repeating the loop', async () => {
     state.results = [
-      [{ accountId: 'not-a-character-id' }], // filtered before the nuke loop
-      undefined, // delete user row; its cascade removes the malformed account
+      [{ accountId: 'not-a-character-id' }],
+      undefined,
     ];
     await nukeAccount(USER);
 

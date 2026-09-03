@@ -26,8 +26,6 @@ describe('postLeaveSync', () => {
         tabId: 'tab-aaaa-bbbb',
       }),
     ).resolves.toEqual({ retired: true });
-    // One door call per leave; index the first recorded fetch only after
-    // that count is proven so a stray extra request cannot hide here.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/leave-sync');

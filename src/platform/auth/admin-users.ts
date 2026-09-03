@@ -11,11 +11,6 @@ import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-char
 import { account, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';
 
-/**
- * Admin-dashboard row: a user (the unit admin is granted on) joined to its
- * linked EVE character's display fields. characterId is null only if a user has
- * no EVE account, which shouldn't happen for a real pilot.
- */
 export interface AdminUser {
   userId: string;
   characterId: number | null;
@@ -32,7 +27,6 @@ const adminUserColumns = {
   characterId: account.accountId,
 };
 
-/** Maps a Better Auth user row to the privacy-bounded administrator view. */
 export function toAdminUser(row: {
   userId: string;
   name: string;
@@ -50,13 +44,6 @@ export function toAdminUser(row: {
   };
 }
 
-// Join the user to exactly ONE linked EVE account — their OLDEST — so a user who
-// has linked multiple characters (3.4.2) yields a single admin-list row instead
-// of one row per character. The NOT EXISTS keeps only the account with no earlier
-// sibling for the same user (created_at, id as the tiebreak). This also makes
-// getUserById's single-account pick deterministic. Oldest-first matches the
-// session resolver's fallback. getUserByCharacterId is unaffected — it queries
-// one specific character, not the fan-out join.
 function oldestEveAccountJoin() {
   const older = alias(account, 'older_eve_account');
   return and(
@@ -80,7 +67,6 @@ function oldestEveAccountJoin() {
   );
 }
 
-/** Lists administrator user views with linked-character counts for the access dashboard. */
 export async function listAdminUsers(): Promise<AdminUser[]> {
   const rows = await db
     .select(adminUserColumns)
@@ -92,7 +78,6 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return rows.map(toAdminUser);
 }
 
-/** Reads one administrator user view by ID and returns null when the user does not exist. */
 export async function getUserById(userId: string): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
@@ -104,10 +89,6 @@ export async function getUserById(userId: string): Promise<AdminUser | null> {
   return row ? toAdminUser(row) : null;
 }
 
-/**
- * Resolve the user that owns a given EVE character id — used to map the env
- * superadmin (a character id) onto the per-user model for the admin list.
- */
 export async function getUserByCharacterId(characterId: number): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
@@ -119,22 +100,8 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
   return row ? toAdminUser(row) : null;
 }
 
-/**
- * Cap on rows the admin name search displays. A 1-char query matches a large
- * fraction of the table, which only grows; bound the display and let the
- * dashboard hint when there's more. Exported so the UI can show "showing first N".
- */
 export const CHARACTER_SEARCH_LIMIT = 50;
 
-/**
- * Substring ILIKE search over a user's display name (their linked character's
- * name). Empty/whitespace-only queries short-circuit to [] so the dashboard's
- * empty-q view doesn't fetch the world. Fetches ONE row past the display cap as
- * a truncation probe: a caller that gets back CHARACTER_SEARCH_LIMIT + 1 rows
- * knows the result was cut off (vs a result that just happens to be exactly the
- * cap), so the "showing first N" hint can't false-positive on a naturally
- * cap-sized match set.
- */
 export async function searchUsersByLinkedCharacterName(query: string): Promise<AdminUser[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
@@ -150,10 +117,6 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
   return rows.map(toAdminUser);
 }
 
-/**
- * Flips a user's role. Returns null when no row matches (i.e. the caller passed
- * a userId that isn't in the table).
- */
 export async function setUserRole(
   userId: string,
   role: CharacterRole,
@@ -168,20 +131,6 @@ export async function setUserRole(
   return getUserById(userId);
 }
 
-// ---------------------------------------------------------------------------
-// Admin character management. These act on an ARBITRARY user (not the caller),
-// so they're direct DB writes rather than Better Auth API calls — auth.api
-// .unlinkAccount only ever targets the session's own user. Admin gating +
-// ownership checks live in the /api/admin/* route handlers; these helpers
-// assume already-validated inputs. The encrypted EVE tokens are columns on the
-// `account` row, so deleting/moving the row carries them with it.
-// ---------------------------------------------------------------------------
-
-/**
- * Remove one linked EVE character from a user (admin force-unlink). Returns
- * whether a row was actually deleted. Caller re-points the user's active
- * character if this was it (mirrors the self-service unlink route).
- */
 export async function deleteLinkedCharacter(
   userId: string,
   characterId: number,
@@ -191,17 +140,10 @@ export async function deleteLinkedCharacter(
     .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
     .returning({ id: account.id });
   if (deleted.length === 0) return false;
-  // Grants remain; re-project so the detached user loses character-derived claims.
   await runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
 
-/**
- * Force-logout: delete every session row for a user. Returns the count removed.
- * Note: with the session cookie cache on, an already-issued cookie can keep a
- * user "signed in" until it expires (cookieCache.maxAge) and getSession next
- * revalidates against the now-missing row — so revocation isn't instantaneous.
- */
 export async function revokeUserSessions(userId: string): Promise<number> {
   const deleted = await db
     .delete(session)
@@ -210,11 +152,6 @@ export async function revokeUserSessions(userId: string): Promise<number> {
   return deleted.length;
 }
 
-/**
- * Count of a user's currently-valid (non-expired) sessions — context for the
- * admin force-logout control. Expired rows are pruned lazily by Better Auth, so
- * filter them out here rather than counting stale rows.
- */
 export async function getActiveSessionCount(userId: string): Promise<number> {
   const rows = await db
     .select({ id: session.id })
@@ -223,18 +160,6 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
   return rows.length;
 }
 
-/**
- * Move a single linked character from one user onto another (admin reassign —
- * the one-click merge). The unique key is (providerId, accountId), so changing
- * only userId never conflicts. If the source user is left with no EVE accounts
- * the source `user` row is deleted (its sessions cascade) — an account-less
- * user can never be signed into again, so this is the natural completion of a
- * merge, not a separate destructive delete. If the source keeps other
- * characters, its active pointer is re-aimed when we moved the active one.
- * Writes are sequential (the request-path neon-http client is transaction-free);
- * the operation is admin-only and low-rate, so the brief non-atomic window is
- * acceptable — same trade-off the self-service unlink route already makes.
- */
 export async function reassignCharacter({
   characterId,
   fromUserId,
@@ -244,8 +169,6 @@ export async function reassignCharacter({
   fromUserId: string;
   toUserId: string;
 }): Promise<{ sourceDeleted: boolean }> {
-  // Pinned as-is for characterization: if this compare-and-swap moves zero rows,
-  // the survivor scan below can still delete an already-empty source user.
   await db
     .update(account)
     .set({ userId: toUserId, updatedAt: new Date() })
@@ -264,8 +187,6 @@ export async function reassignCharacter({
     .limit(1);
 
   if (!remaining) {
-    // Fully purge owned collaborative chains before the FK cascade removes
-    // their only durable map identity.
     await runBeforeUserDelete(fromUserId);
     await db.delete(user).where(eq(user.id, fromUserId));
     await runAfterCharacterLinkChanged({ userId: fromUserId, characterId });

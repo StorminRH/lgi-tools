@@ -1,9 +1,3 @@
-// Session 4.0.4.3.1 G-1: two authenticated clients watch the full scanner
-// lifecycle on a fresh disposable map — paste → re-paste (no churn) → per-kind
-// missing (dismiss, remove, undo) → guaranteed-statics accounting →
-// typed-code elimination + toast → real jump resolving one stub while the
-// other guaranteed static remains visible.
-// One-shot by design: the map keeps its rows, jump, and ledger for review.
 import {
   calmMapCamera,
   convexRun,
@@ -18,10 +12,10 @@ import {
 } from '../lib/doorbell-helpers.mjs';
 import { mapWindow } from '../lib/window-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001; // Synthetic E2E pilot seeded in Neon.
-const ORIGIN_SYSTEM_ID = 31_001_677; // J113551 — C247 + N766 statics.
-const DESTINATION_SYSTEM_ID = 31_000_880; // J160650 — C3, C247's destination class.
-const SHIP_TYPE_ID = 28_606; // Orca — legal through C247's mass cap.
+const CHARACTER_ID = 9_000_001;
+const ORIGIN_SYSTEM_ID = 31_001_677;
+const DESTINATION_SYSTEM_ID = 31_000_880;
+const SHIP_TYPE_ID = 28_606;
 
 const ROW = {
   cba: 'CBA-120\tCosmic Signature\tWormhole\t\t28.4%\t6.98 AU',
@@ -35,12 +29,6 @@ const FULL_SCAN = [ROW.cba, ROW.lxx, ROW.ihj, ROW.tfz, ROW.ear].join('\n');
 const SCAN_WITHOUT_EAR = [ROW.cba, ROW.lxx, ROW.ihj, ROW.tfz].join('\n');
 const SCAN_WITHOUT_LXX = [ROW.cba, ROW.ihj, ROW.tfz, ROW.ear].join('\n');
 
-/**
- * Dispatch a synthetic scanner paste at the page-level listener. The handler
- * reads event.clipboardData and only yields to editable targets, so a
- * DataTransfer-backed ClipboardEvent on document.body exercises the real path
- * and stays isolated per client (unlike the browser-wide real clipboard).
- */
 async function pasteScan(page, text) {
   await page.evaluate((payload) => {
     const data = new DataTransfer();
@@ -137,7 +125,6 @@ export default {
     await waitForEditableMap(second.page);
     await calmMapCamera(page);
 
-    // Track the pilot into the origin so paste has a verified target system.
     const seededTransitionAt = Date.now();
     await doorbellAfter(page, async () => {
       await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
@@ -149,11 +136,6 @@ export default {
         transitionObservedAt: seededTransitionAt,
       });
     });
-    // The live tokenless engine overwrites the synthetic pilot's coverage
-    // stamp within one ~30s cycle, and account-level paste requires a covered
-    // online pilot. Re-stamp (same transition epoch — no doorbell re-ring)
-    // before each later paste so the gate sees honest coverage, exactly as a
-    // real pilot's clean engine run would provide.
     const restampFreshness = () =>
       convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
@@ -176,17 +158,12 @@ export default {
       && await hasStubReadout(initialStaticStubs.nth(1), 'N766', 'C2'),
     );
 
-    // Paste 1: unidentified rows claim the already-drawn static holes first,
-    // so the canvas keeps two ghosts rather than double-counting four holes.
-    // Static/codex convergence can outlive the tokenless engine's first
-    // coverage sweep, so refresh the synthetic pilot immediately before the
-    // paste just as every later paste does.
     await restampFreshness();
     await pasteScan(page, FULL_SCAN);
     await Promise.all([
-      waitForSignatureRows(page, 5), // CBA, LXX, IHJ, EAR, plus TFZ anomaly.
+      waitForSignatureRows(page, 5),
       waitForSignatureRows(second.page, 5),
-      waitForTopology(page, 3, 2), // origin + two stubs, two provisional edges.
+      waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
     ]);
     check(
@@ -213,9 +190,6 @@ export default {
         .count()) === 2,
     );
 
-    // Re-paste the identical scan: no new rows, no new nodes, no churn.
-    // Coverage can expire between pastes on the tokenless probe engine — stamp
-    // again immediately before the identical re-paste, same as every other paste.
     await restampFreshness();
     await pasteScan(page, FULL_SCAN);
     await page.waitForTimeout(1_500);
@@ -226,7 +200,6 @@ export default {
       && (await page.locator('.react-flow__edge').count()) === 2,
     );
 
-    // Paste without EAR-696: per-kind missing flags it on the pasting client only.
     await restampFreshness();
     await pasteScan(page, SCAN_WITHOUT_EAR);
     const earRow = signatureRow(page, 'EAR-696');
@@ -251,7 +224,6 @@ export default {
       && (await missingPrompt().count()) === 0,
     );
 
-    // Flag it again, remove from the bulk prompt (no confirm dialog), then undo.
     await restampFreshness();
     await pasteScan(page, SCAN_WITHOUT_EAR);
     await earRow
@@ -280,8 +252,6 @@ export default {
     ]);
     check('undo restores the row on both clients', true);
 
-    // Type C247 on CBA-120 in the inline type cell. The one remaining unknown
-    // must eliminate to N766; only the acting client gets the transient toast.
     const typeInput = signatureRow(page, 'CBA-120').getByLabel('Type');
     await typeInput.waitFor({ state: 'visible', timeout: 10_000 });
     await typeInput.fill('C247');
@@ -317,8 +287,6 @@ export default {
       && (await signatureRowShows(page, 'LXX-844', 'C2')),
     );
 
-    // Remove the second, untyped hole via the same prompt Remove — its
-    // stub departs both clients through the one collapse pathway.
     await restampFreshness();
     await pasteScan(page, SCAN_WITHOUT_LXX);
     const lxxRow = signatureRow(page, 'LXX-844');
@@ -333,7 +301,7 @@ export default {
         state: 'detached',
         timeout: 15_000,
       }),
-      waitForTopology(page, 3, 2), // origin + C247 row + restored N766 static.
+      waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
     ]);
     check(
@@ -347,8 +315,6 @@ export default {
       ),
     );
 
-    // Jump through the typed hole: the stub resolves into the authored system
-    // on the same row — no duplicate, no leftover stub, no ambiguity prompt.
     const jump = await doorbellAfter(page, async () => {
       await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
@@ -366,8 +332,6 @@ export default {
       && ['authored', 'converged'].includes(jump?.outcome),
     );
     await Promise.all([
-      // Both identified systems carry their guaranteed open statics: the
-      // origin's N766 and the destination's U210.
       waitForTopology(page, 4, 3),
       waitForTopology(second.page, 4, 3),
     ]);
@@ -380,8 +344,6 @@ export default {
         .some((text) => text.includes('U210')),
     );
 
-    // A unique survivor resolves without a prompt; ambiguity alone asks the
-    // scanner-overlay question (4.0.4.3.2 ruling D-H).
     check(
       'unique survivor auto-resolves without a jump prompt',
       (await page.locator('[data-signature-jump-prompt]').count()) === 0,
@@ -392,8 +354,6 @@ export default {
       && (await page.locator('.react-flow__edge').count()) === 3,
     );
 
-    // The scanner window and dock follow the jumping pilot. Origin rows
-    // leave the scanner; destination intel is empty until someone pastes.
     const scannerText =
       (await page.locator('[data-signature-window]').textContent()) ?? '';
     check(

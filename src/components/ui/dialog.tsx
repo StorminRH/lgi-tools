@@ -13,31 +13,10 @@ import { cn } from './cn';
 import { OverlayPortalContainerProvider } from './overlay-portal-container';
 import type { Tone } from './tones';
 
-// The platform's one modal-overlay primitive — the idiomatic Base UI Dialog,
-// styled to the existing tone tokens. `modal` (Base UI's default) gives focus
-// trap, scroll lock, Escape, and outside-press dismiss for free; the enter/exit
-// scale+fade is CSS via Base UI's `data-[starting-style]`/`data-[ending-style]`
-// attributes (no keyframes, no hand-rolled phase machine — Base UI keeps the
-// popup mounted through the exit transition, then unmounts). Controlled: the
-// caller owns the `open` state, so the dialog can be opened by anything (a
-// sibling element, a programmatic trigger), not just a Base UI `Trigger`. Used by
-// the `/sites` card lightbox today; reusable anywhere a centred modal is wanted.
-
-/**
- * Closed presentation vocabulary for dialog tone; feature callers map domain meaning to these
- * abstract values before rendering.
- */
 export type DialogTone = Extract<Tone, 'neutral'>;
 
-/** Installed Base UI focus-return contract exposed through the house dialog wrapper. */
 export type DialogFocusTarget = ComponentProps<typeof Base.Popup>['finalFocus'];
 
-// Abstract tone → token classes (no raw hex). `neutral` is the raised-slate
-// surface (matches the shared Modal box). Centring uses fixed + translate (a
-// dialog isn't anchored, so no Positioner / `--transform-origin`); the scale
-// animates the standalone CSS `scale` property — hence `transition-[scale,...]`,
-// not `transition-[transform,...]` (Tailwind v4 emits `translate`/`scale` as
-// separate properties, so a constant centre-translate composes with the scale).
 const popup = cva(
   'fixed left-1/2 top-1/2 z-overlay -translate-x-1/2 -translate-y-1/2 outline-none ' +
     'transition-[scale,opacity] duration-panel ease-panel ' +
@@ -53,10 +32,6 @@ const popup = cva(
   },
 );
 
-/**
- * Renders the domain-neutral dialog with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
- */
 export function Dialog({
   open,
   onOpenChange,
@@ -67,28 +42,15 @@ export function Dialog({
   finalFocus,
   initialFocus,
 }: {
-  // Controlled open state. The caller owns it (and the close, via onOpenChange).
   open: boolean;
-  // Called on every open/close request — Escape, outside-press, and a Close
-  // button all funnel here. (Base UI's two-arg signature is collapsed to the
-  // boolean so `setOpen` can pass directly.)
   onOpenChange?: (open: boolean) => void;
-  // Accessible name for the dialog (an element id rendered inside the popup).
   labelledBy?: string;
   children: ReactNode;
   tone?: DialogTone;
-  // Extra classes merged onto the popup (sizing, feature look).
   className?: string;
-  // Where focus returns on close. Pass the opener when there's no Base UI
-  // Trigger to restore to (the default would guess "previously focused").
   finalFocus?: DialogFocusTarget;
-  // Where focus moves on open (default: first tabbable element, or the popup on
-  // touch to avoid the virtual keyboard).
   initialFocus?: RefObject<HTMLElement | null>;
 }) {
-  // Capture the popup element so nested floating portals (e.g. TerminalSearch
-  // suggestions) can mount inside this stacking context rather than under the
-  // body-level backdrop at z-dropdown < z-overlay.
   const [popupEl, setPopupEl] = useState<HTMLDivElement | null>(null);
 
   return (
@@ -97,11 +59,6 @@ export function Dialog({
         <Base.Backdrop className="fixed inset-0 z-overlay bg-black/60 backdrop-blur-sm transition-opacity duration-panel data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
         <Base.Popup
           ref={setPopupEl}
-          // Conditional spread, never a bare aria-labelledby={labelledBy}:
-          // Base UI's prop merge is Object.assign-shaped (rightmost wins,
-          // undefined overwrites), so an explicit undefined would clobber the
-          // titleElementId auto-wired from a rendered DialogTitle and the
-          // dialog would silently lose its accessible name.
           {...(labelledBy !== undefined ? { 'aria-labelledby': labelledBy } : {})}
           finalFocus={finalFocus}
           initialFocus={initialFocus}
@@ -116,20 +73,8 @@ export function Dialog({
   );
 }
 
-/**
- * Re-exported so consumers compose the dialog's close affordance through
- * `@/components/ui/dialog` without reaching for the raw Base UI import.
- */
 export const DialogClose = Base.Close;
-/**
- * Adopted Base UI dialog title part exposed through the single house wrapper; consumers compose it
- * only within this primitive family.
- */
 export const DialogTitle = Base.Title;
-/**
- * Adopted Base UI dialog description part exposed through the single house wrapper; consumers
- * compose it only within this primitive family.
- */
 export const DialogDescription = Base.Description;
 
 export function DialogHeader({

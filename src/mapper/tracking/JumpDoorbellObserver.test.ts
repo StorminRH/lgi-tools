@@ -22,8 +22,6 @@ describe('JumpDoorbellObserver', () => {
       createElement(JumpDoorbellObserver, { mapId: 'map-a' }),
     );
     expect(markup).toBe('');
-    // Same query + args as TrackingControls, so the Convex client dedupes the
-    // two subscriptions into one server watch.
     expect(mocks.liveValue).toHaveBeenCalledWith(
       expect.anything(),
       { mapId: 'map-a' },

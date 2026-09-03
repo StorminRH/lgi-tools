@@ -1,14 +1,6 @@
 import type { PillTone, ChipTone, DotTone } from '@/components/ui/tones';
 import type { SiteType, WormholeClass } from '../types';
 
-/**
- * Domain → UI tone mappings. The only file in the codebase where
- * "WEB is blue" or "C5 is red" lives. Components in `src/components/ui/`
- * stay domain-agnostic; this file translates wormhole concepts into the
- * primitive layer's abstract tones.
- */
-
-/** Authoritative mapping from wormhole class labels to abstract UI tones. */
 export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C1: 'green',
   C2: 'green-strong',
@@ -18,7 +10,6 @@ export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C6: 'purple',
 };
 
-/** Class tones narrowed to the shared pressable-chip palette. */
 export const CLASS_CHIP_TONE: Record<WormholeClass, ChipTone> = {
   C1: 'green',
   C2: 'green',
@@ -28,7 +19,6 @@ export const CLASS_CHIP_TONE: Record<WormholeClass, ChipTone> = {
   C6: 'purple',
 };
 
-/** Authoritative mapping from site families to abstract UI tones. */
 export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   combat: 'red-soft',
   ore:    'yellow',
@@ -37,7 +27,6 @@ export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   data:   'blue',
 };
 
-/** Site-family tones narrowed to the shared pressable-chip palette. */
 export const SITE_TYPE_CHIP_TONE: Record<SiteType, ChipTone> = {
   combat: 'red',
   ore: 'orange',
@@ -46,7 +35,6 @@ export const SITE_TYPE_CHIP_TONE: Record<SiteType, ChipTone> = {
   data: 'blue',
 };
 
-/** Site-family tones for filter-row status dots. */
 export const SITE_TYPE_DOT_TONE: Record<SiteType, DotTone> = {
   combat: 'red',
   ore: 'orange',
@@ -55,7 +43,6 @@ export const SITE_TYPE_DOT_TONE: Record<SiteType, DotTone> = {
   data: 'blue',
 };
 
-/** Authoritative user-facing labels for canonical site families. */
 export const SITE_TYPE_LABEL: Record<SiteType, string> = {
   combat: 'Combat',
   ore:    'Ore',
@@ -64,10 +51,8 @@ export const SITE_TYPE_LABEL: Record<SiteType, string> = {
   data:   'Data',
 };
 
-/** EWAR keys on Wave / Npc rows → chip color. */
 export type EwarKey = 'web' | 'scram' | 'neut' | 'rr';
 
-/** Authoritative mapping from EWAR kinds to abstract UI tones. */
 export const EWAR_TONE: Record<EwarKey, ChipTone> = {
   web:   'blue',
   scram: 'red',
@@ -75,7 +60,6 @@ export const EWAR_TONE: Record<EwarKey, ChipTone> = {
   rr:    'green',
 };
 
-/** Authoritative user-facing labels for EWAR kinds. */
 export const EWAR_LABEL: Record<EwarKey, string> = {
   web:   'WEB',
   scram: 'SCRAM',
@@ -83,15 +67,10 @@ export const EWAR_LABEL: Record<EwarKey, string> = {
   rr:    'RR',
 };
 
-/** Display order for EWAR chips/pills, matching the prototype: WEB, SCRAM, NEUT, RR. */
 export const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
-/** Trigger labels (free-text in DB) → trigger chip is always orange. */
 export const TRIGGER_CHIP_TONE: ChipTone = 'orange';
 
-/** Hackable-container site types → bullet-dot abstract tone. The Dot
- *  primitive itself only knows colors; this is where "relic = orange,
- *  data = blue" lives. */
 export const HACKING_DOT_TONE: Record<'relic' | 'data', DotTone> = {
   relic: 'orange',
   data:  'blue',

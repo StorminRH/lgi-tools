@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-// vitest runs in node by default — shim a minimal in-memory localStorage so the
-// codec (guarded on `typeof window`) operates. Same shape as
-// search-recents/storage.test.ts; a dynamic import after the shim guarantees the
-// module never loads against a missing window.
 function installLocalStorageShim() {
   const store = new Map<string, string>();
   const ls: Storage = {
@@ -26,9 +22,6 @@ function installLocalStorageShim() {
   });
 }
 
-// Capture the last `document.cookie =` assignment so writePreferenceCookie can be
-// asserted without a DOM. `location` defaults to http (no Secure flag); a test
-// overrides it to exercise the https branch.
 let lastCookieWrite = '';
 function installDocumentShim() {
   Object.defineProperty(globalThis, 'document', {
@@ -100,7 +93,7 @@ describe('peekLocalPreference', () => {
     writeLocalPreference(plannerBuildLocation, loc);
     expect(peekLocalPreference(plannerBuildLocation)).toEqual(loc);
     writeLocalPreference(plannerBuildLocation, null);
-    expect(peekLocalPreference(plannerBuildLocation)).toBeNull(); // present-and-null ≠ absent
+    expect(peekLocalPreference(plannerBuildLocation)).toBeNull();
   });
 
   it('keeps preference keys isolated', () => {
@@ -138,8 +131,6 @@ describe('validatePreferenceValue', () => {
   });
 });
 
-// The planner's build character (ACCOUNT.8): a nullable character id — null =
-// unset ⇒ the Run-As frame mirrors the live active character (store-explicit-only).
 describe('build-character def', () => {
   it('registers an ssr-readable nullable id defaulting to unset', () => {
     expect(plannerBuildCharacter.key).toBe('planner.buildCharacterId');
@@ -150,7 +141,7 @@ describe('build-character def', () => {
 
   it('validates the wire value at the server trust boundary', () => {
     expect(validatePreferenceValue('planner.buildCharacterId', 2114872920)).toBe(true);
-    expect(validatePreferenceValue('planner.buildCharacterId', null)).toBe(true); // the Default row's clear
+    expect(validatePreferenceValue('planner.buildCharacterId', null)).toBe(true);
     expect(validatePreferenceValue('planner.buildCharacterId', 0)).toBe(false);
     expect(validatePreferenceValue('planner.buildCharacterId', -1)).toBe(false);
     expect(validatePreferenceValue('planner.buildCharacterId', 1.5)).toBe(false);
@@ -161,7 +152,7 @@ describe('build-character def', () => {
     writeLocalPreference(plannerBuildCharacter, 90000001);
     expect(peekLocalPreference(plannerBuildCharacter)).toBe(90000001);
     writeLocalPreference(plannerBuildCharacter, null);
-    expect(peekLocalPreference(plannerBuildCharacter)).toBeNull(); // present-and-null ≠ absent
+    expect(peekLocalPreference(plannerBuildCharacter)).toBeNull();
   });
 });
 
@@ -181,8 +172,7 @@ describe('cookie codec', () => {
     expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
     expect(lastCookieWrite).toContain('Path=/');
     expect(lastCookieWrite).toContain('SameSite=Lax');
-    expect(lastCookieWrite).not.toContain('Secure'); // http in the shim
-    // round-trips back through the reader
+    expect(lastCookieWrite).not.toContain('Secure');
     const raw = lastCookieWrite.split(';')[0]!.split('=')[1];
     expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
   });
@@ -241,9 +231,6 @@ describe('reconcilePreferences', () => {
   });
 });
 
-// The per-surface strip dimmed sets (ACCOUNT.7): store-off-not-on — the stored
-// value is the DIMMED ids, so a key holding [] and an absent key both render
-// every character lit, and a newly linked alt defaults lit everywhere.
 describe('strip dimmed-set defs', () => {
   it('registers one ssr-readable def per strip surface with the [] lit-by-default fallback', () => {
     for (const id of STRIP_SURFACE_IDS) {

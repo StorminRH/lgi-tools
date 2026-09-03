@@ -24,7 +24,6 @@ import {
 
 const WORMHOLE_GROUP_ID = 988;
 const K162_CODE = FAR_SIDE_WORMHOLE_CODE;
-/** SDE type-name prefix; the captured code is validated by {@link isWormholeTypeCode}. */
 const WORMHOLE_TYPE_NAME = /^Wormhole (.+)$/;
 const KNOWN_QA_WORMHOLE_TYPES = new Map([
   [32_894, 'QA Wormhole A'],
@@ -42,7 +41,6 @@ const WORMHOLE_ATTRIBUTE_NAMES = {
 type WormholeAttributeName =
   (typeof WORMHOLE_ATTRIBUTE_NAMES)[keyof typeof WORMHOLE_ATTRIBUTE_NAMES];
 
-/** One persistent solar system's map identity, class, and raw security status. */
 export interface SystemDirectoryEntry {
   id: number;
   name: string;
@@ -50,23 +48,19 @@ export interface SystemDirectoryEntry {
   security: number | null;
 }
 
-/** One sorted stargate-adjacency row: a system ID followed by its sorted neighbour IDs. */
 export type AdjacencyEntry = [
   systemId: number,
   neighbours: number[],
 ];
 
-/** Wormhole jump-size vocabulary; owned by `./wormhole-contract` and re-exported for codex callers. */
 export type { WormholeSizeClass };
 
-/** The K162 catalogue row. SDE calls this far-side; Atlas comments say incoming K162. */
 export interface FarSideWormholeCodexEntry {
   code: typeof FAR_SIDE_WORMHOLE_CODE;
   typeId: number;
   farSide: true;
 }
 
-/** One named wormhole's complete SDE-derived mass, lifetime, size, and destination contract. */
 export interface TypedWormholeCodexEntry {
   code: string;
   typeId: number;
@@ -79,24 +73,20 @@ export interface TypedWormholeCodexEntry {
   targetClass: number;
 }
 
-/** One wormhole code in the client codex, including K162's explicit incoming shape. */
 export type WormholeCodexEntry =
   | FarSideWormholeCodexEntry
   | TypedWormholeCodexEntry;
 
-/** Version-stamped client system-directory asset. */
 export interface SystemDirectoryAsset {
   version: string;
   systems: SystemDirectoryEntry[];
 }
 
-/** Version-stamped client stargate-adjacency asset. */
 export interface AdjacencyAsset {
   version: string;
   adjacency: AdjacencyEntry[];
 }
 
-/** Version-stamped client wormhole-type codex asset. */
 export interface WormholeCodexAsset {
   version: string;
   types: WormholeCodexEntry[];
@@ -108,14 +98,12 @@ export interface WormholeTypeRow {
   attributes: unknown;
 }
 
-/** Projects and ID-sorts the system rows used by the versioned client directory. */
 export function buildSystemDirectory(
   rows: readonly SystemDirectoryEntry[],
 ): SystemDirectoryEntry[] {
   return rows.map((row) => ({ ...row })).sort((a, b) => a.id - b.id);
 }
 
-/** Groups, deduplicates, and sorts directed stargate rows into client adjacency entries. */
 export function buildAdjacencyGraph(
   rows: readonly { fromSystemId: number; toSystemId: number }[],
 ): AdjacencyEntry[] {
@@ -133,7 +121,6 @@ export function buildAdjacencyGraph(
     ]);
 }
 
-/** Resolves the required wormhole attribute IDs by name and rejects schema drift. */
 export function resolveWormholeAttributeIds(
   rows: readonly { id: number; name: string }[],
 ): Record<keyof typeof WORMHOLE_ATTRIBUTE_NAMES, number> {
@@ -151,7 +138,6 @@ export function resolveWormholeAttributeIds(
   ) as Record<keyof typeof WORMHOLE_ATTRIBUTE_NAMES, number>;
 }
 
-/** Builds and code-sorts the complete group-988 wormhole codex, including K162. */
 export function buildWormholeCodex(
   typeRows: readonly WormholeTypeRow[],
   attributeRows: readonly { id: number; name: string }[],
@@ -251,7 +237,6 @@ async function requireSdeVersion(database: AnyPgDb): Promise<string> {
   return version;
 }
 
-/** Reads one coherent version-stamped system directory from the shipped SDE mirror. */
 export async function readSystemDirectory(
   database: AnyPgDb,
 ): Promise<SystemDirectoryAsset> {
@@ -269,7 +254,6 @@ export async function readSystemDirectory(
   return { version, systems: buildSystemDirectory(systems) };
 }
 
-/** Reads one coherent version-stamped stargate adjacency graph from the shipped SDE mirror. */
 export async function readAdjacencyGraph(
   database: AnyPgDb,
 ): Promise<AdjacencyAsset> {
@@ -285,7 +269,6 @@ export async function readAdjacencyGraph(
   return { version, adjacency: buildAdjacencyGraph(jumps) };
 }
 
-/** Reads one coherent version-stamped group-988 wormhole codex from the shipped SDE mirror. */
 export async function readWormholeCodex(
   database: AnyPgDb,
 ): Promise<WormholeCodexAsset> {
@@ -313,7 +296,6 @@ export async function readWormholeCodex(
   };
 }
 
-/** Returns the tag-cached system-directory asset used by public route handlers. */
 export async function getSystemDirectory(): Promise<SystemDirectoryAsset> {
   'use cache';
   cacheLife('max');
@@ -321,7 +303,6 @@ export async function getSystemDirectory(): Promise<SystemDirectoryAsset> {
   return withColdStartRetry(() => readSystemDirectory(db));
 }
 
-/** Returns the tag-cached stargate-adjacency asset used by public route handlers. */
 export async function getAdjacencyGraph(): Promise<AdjacencyAsset> {
   'use cache';
   cacheLife('max');
@@ -329,7 +310,6 @@ export async function getAdjacencyGraph(): Promise<AdjacencyAsset> {
   return withColdStartRetry(() => readAdjacencyGraph(db));
 }
 
-/** Returns the tag-cached wormhole-type codex used by public route handlers. */
 export async function getWormholeCodex(): Promise<WormholeCodexAsset> {
   'use cache';
   cacheLife('max');

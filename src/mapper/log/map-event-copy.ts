@@ -1,7 +1,6 @@
 import type { Doc } from '@/data/convex/data-model';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 
-/** One newest-first ledger row from the shared map-events subscription. */
 export type MapEventRow = Doc<'mapEvents'>;
 
 function systemCount(event: MapEventRow): number {
@@ -12,7 +11,6 @@ function signatureIdCount(event: MapEventRow): number {
   return 'signatureIds' in event.payload ? event.payload.signatureIds.length : 0;
 }
 
-/** Human-readable event line for one despawn-ledger kind. */
 export function mapEventLabel(event: MapEventRow): string {
   switch (event.kind) {
     case 'connection_severed_retained':
@@ -40,7 +38,6 @@ export function mapEventLabel(event: MapEventRow): string {
   }
 }
 
-/** The editor action one restorable ledger row offers. */
 export type MapEventRestoreAction =
   | { readonly kind: 'branch'; readonly connectionId: string }
   | {
@@ -49,7 +46,6 @@ export type MapEventRestoreAction =
       readonly signatureIds: readonly string[];
     };
 
-/** Resolves the Restore action for one restorable ledger row. */
 export function mapEventRestoreAction(event: MapEventRow): MapEventRestoreAction {
   if ('signatureIds' in event.payload) {
     return {
@@ -61,10 +57,6 @@ export function mapEventRestoreAction(event: MapEventRow): MapEventRestoreAction
   return { kind: 'branch', connectionId: event.payload.connectionId };
 }
 
-/**
- * Whether a removal/sever row still sits inside the 24-hour undo window and
- * therefore may expose Restore for editors.
- */
 export function mapEventRestorable(event: MapEventRow, now: number): boolean {
   if (
     event.kind !== 'connection_severed_retained' &&
@@ -76,7 +68,6 @@ export function mapEventRestorable(event: MapEventRow, now: number): boolean {
   return event.at + MAP_CHAIN_UNDO_WINDOW_MS > now;
 }
 
-/** Compact local timestamp for the ledger line. */
 export function formatEventTime(at: number): string {
   return new Date(at).toLocaleString(undefined, {
     month: 'short',

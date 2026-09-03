@@ -8,7 +8,6 @@ import {
   waitForWindowMap,
 } from '../lib/window-helpers.mjs';
 
-/** Card offset from the node frame center — zoom-invariant under free placement. */
 const offset = async (node, card) => {
   const nodeBox = await node.boundingBox();
   const cardBox = await card.boundingBox();
@@ -38,13 +37,9 @@ export default {
     const card = mapWindow(page, 'summary');
     check('a non-root selection opens the summary card', target !== null && await card.isVisible());
     if (target === null) return;
-    // map-node-enter scales through overshoot (~map-motion-mid = 1000ms);
-    // wait for settle or the center-relative offset drifts with the box.
     await page.waitForTimeout(1100);
     const initial = await offset(target.node, card);
 
-    // Keep pans/zooms/drags modest so the card stays off the viewport clamp —
-    // clamp is correct follower behavior but would change the free-placement offset.
     const panePoint = await exposedPanePoint(page);
     if (panePoint === null) {
       throw new Error('No exposed pane point is available for pan and zoom proof');

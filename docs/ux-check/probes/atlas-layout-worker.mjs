@@ -1,6 +1,3 @@
-// SC-1.2: layout worker chunk is requested; no long-animation-frame attributes
-// a mapper layout module during a paced chain growth. Requires authenticated
-// storage state and UX_MAP_ID pointing at a live map with ≥20 nodes.
 export default {
   name: 'atlas-layout-worker',
   route: process.env.UX_MAP_ID
@@ -16,10 +13,6 @@ export default {
       return;
     }
 
-    // Playwright tracks real dedicated workers directly — chunk URL naming is
-    // bundler-private (Turbopack does not put "layout.worker" in the URL), so
-    // the page's worker list is the reliable signal that layout left the main
-    // thread.
     const workers = new Set(page.workers().map((worker) => worker.url()));
     page.on('worker', (worker) => workers.add(worker.url()));
 
@@ -46,7 +39,6 @@ export default {
       }
     });
 
-    // Wait for chain nodes to arrive from the live subscription / replay.
     await page.waitForFunction(
       () => document.querySelectorAll('[data-chain-node]').length >= 20,
       null,
@@ -74,8 +66,6 @@ export default {
           ),
         ),
       );
-      // Bundler-minified LoAF names make a "no layout module" pass vacuous when
-      // nothing carries script attribution at all — report that honestly.
       if (withScripts === 0) {
         check(
           `LoAF script attribution inconclusive (${frameReport.length} frames, 0 with script names; layout-module check skipped)`,

@@ -5,11 +5,6 @@ import type { Session } from '@/platform/auth/types';
 import { MapCanvas } from '@/mapper';
 import { MapTrackingMenu } from './MapTrackingMenu';
 
-/**
- * Covers the site chrome with the full-viewport map surface. Document scroll
- * is locked by `body:has([data-map-canvas-frame])` so Base UI dialogs keep
- * owning overlay scroll-lock.
- */
 export function AtlasCanvasFrame({ session }: { readonly session: Session | null }) {
   return (
     <div

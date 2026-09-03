@@ -1,14 +1,3 @@
-// Composes the full SDE pipeline: CSV ingest → tree resolver →
-// tracked-types seeding into market_prices. Lives at this layer rather
-// than inside either data slice because it's the only point that
-// touches both eve-data AND market-prices, and the design doc keeps
-// those two slices isolated from each other (Industry Planner math
-// will compose them similarly).
-//
-// Callers: src/scripts/ingest-sde-if-empty.ts (vercel-build),
-//          src/scripts/refresh-sde.ts (CLI recovery hook),
-//          src/app/api/cron/refresh-sde/route.ts (daily drift cron).
-
 import { sql } from 'drizzle-orm';
 import type { SdePipelineSummary } from '@/data/eve-data/api-contract';
 import { runIngest } from '@/data/eve-data/ingest';
@@ -19,13 +8,6 @@ import { listMissingTypeIds } from '@/data/market-prices/queries';
 import { marketPrices } from '@/data/market-prices/schema';
 import type { PostgresJsDb } from '@/lib/db-types';
 
-// Driver-CONCRETE (PostgresJsDb), not the shared dual-driver AnyPgDb: the
-// pipeline composes runIngest, which runs the TRUNCATE + bulk ingest in an
-// interactive transaction only postgres-js exposes. All three callers pass a
-// postgres-js `drizzle(client)`.
-
-
-/** Aggregate row counts produced by one SDE seed stage for operator reporting. */
 type SeedSummary = {
   tracked: number;
   missing: number;
@@ -62,14 +44,6 @@ async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
     source: 'esi',
   }));
 
-  // Batched insert keeps the parameter count under Postgres's 64k bind
-  // limit. 6,000 rows × 10 cols = 60k params — close to the wire. 1k
-  // rows × 10 cols = 10k params per call, well clear.
-  //
-  // Count via RETURNING rather than slice size — ON CONFLICT DO NOTHING
-  // can skip rows if a concurrent ingest sneaks past the advisory lock
-  // (rare but observable in logs would otherwise overcount and confuse
-  // debugging).
   const BATCH = 1000;
   let inserted = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -84,29 +58,15 @@ async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
   return { tracked: tracked.length, missing: missing.length, inserted };
 }
 
-/**
- * End-to-end SDE pipeline. Idempotent. Safe to call on every deploy;
- * the resolver short-circuits via `tree_resolver_hash` when nothing
- * upstream changed, and seeding `ON CONFLICT DO NOTHING` is a no-op
- * for rows that already exist.
- */
 export async function runSdePipeline(db: PostgresJsDb): Promise<SdePipelineSummary> {
   const start = Date.now();
   const ingest = await runIngest(db);
   const resolve = await resolveAllTrees(db);
   const seed = await seedTrackedTypes(db);
-  // Full station names come from ESI, so this runs after runIngest commits — its
-  // calls must not share a connection with an open ingest transaction. Best-
-  // effort: a failure leaves names null without failing the pipeline.
   const stationNames = await resolveNpcStationNames(db);
   return { ingest, resolve, seed, stationNames, durationMs: Date.now() - start };
 }
 
-/**
- * Convenience for callers that have a raw postgres-js client and want
- * to log a quick row-count summary post-pipeline (cron handler uses
- * this in its response body).
- */
 export async function summarizeMarketPricesRowCount(
   db: PostgresJsDb,
 ): Promise<{ total: number; priced: number }> {

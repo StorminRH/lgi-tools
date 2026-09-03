@@ -17,7 +17,6 @@ const ScannerScrollEpochContext = createContext<{
   readonly register: (open: boolean) => void;
 }>({ epoch: 0, bump: () => undefined, register: () => undefined });
 
-/** Bumps a generation counter when the scanner list scrolls so open popups can close. */
 export function ScannerScrollEpochProvider({
   children,
 }: {
@@ -43,12 +42,10 @@ export function ScannerScrollEpochProvider({
   );
 }
 
-/** Increments the scanner scroll generation. Call from the list scroller. */
 export function useScannerScrollBump(): () => void {
   return useContext(ScannerScrollEpochContext).bump;
 }
 
-/** Controlled popup open state that drops closed whenever the scanner list scrolls. */
 export function useCloseOnScannerScroll(): {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;

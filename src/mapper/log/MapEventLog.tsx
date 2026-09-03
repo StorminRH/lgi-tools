@@ -13,7 +13,6 @@ import {
   type MapEventRow,
 } from './map-event-copy';
 
-/** Props for the mapper-local bottom-edge despawn ledger. */
 export interface MapEventLogProps {
   readonly events: readonly MapEventRow[];
   readonly canEdit: boolean;
@@ -21,11 +20,6 @@ export interface MapEventLogProps {
   readonly onRestore: (action: MapEventRestoreAction) => void;
 }
 
-/**
- * Bottom-edge audit-log surface: Collapsible-composed newest-first ledger with
- * canEdit-gated Restore on in-window removal rows. Mapper-local until a second
- * consumer justifies promotion to `src/components/ui/`.
- */
 export function MapEventLog({
   events,
   canEdit,
@@ -39,9 +33,6 @@ export function MapEventLog({
       data-map-event-undoable={undoable || undefined}
       className="pointer-events-none absolute bottom-4 right-14 z-sticky flex justify-end"
     >
-      {/* Width lives on the collapsed header chip, not this container, so the
-          wider expanded rows region grows leftward inside the right-anchored
-          wrapper instead of overflowing past the viewport edge. */}
       <div
         className={cn(
           'pointer-events-auto rounded-card text-ui',
@@ -76,8 +67,6 @@ export function MapEventLog({
             </span>
           }
         >
-          {/* Focusable so keyboard-only viewers (no Restore buttons rendered)
-              can still scroll the bounded region with the arrow keys. */}
           <div
             data-map-event-log-rows
             tabIndex={0}

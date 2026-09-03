@@ -1,13 +1,5 @@
 'use client';
 
-// Optimistic local-store patches for the client-facing mapAuthoring mutations.
-//
-// Each hook wraps `useMutation(...).withOptimisticUpdate(...)` against the
-// exact chain subscriptions (`watchMapSystems` / `watchMapConnections`). A
-// rejection rolls the optimistic layer back automatically; confirmed inserts
-// reconcile through the same-merge endpoint-matched id-swap in the reconciler.
-// Pure patch helpers are exported so the optimistic shapes are unit-tested
-// without a live Convex client.
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
 import {
@@ -57,7 +49,6 @@ import type {
 } from '@/data/maps/connection-hallway';
 import type { ConnectionEditorDetail } from './connection-detail';
 
-/** One optimistic system page row — structural match for `watchMapSystems`. */
 export interface OptimisticSystemRow {
   readonly _id: string;
   readonly _creationTime: number;
@@ -67,24 +58,17 @@ export interface OptimisticSystemRow {
   readonly purgeAfter: number | null;
 }
 
-/** One optimistic connection page row — structural match for `watchMapConnections`. */
 export type OptimisticConnectionRow = ConnectionHallway & {
   readonly _id: string;
   readonly _creationTime: number;
 };
 
-/**
- * Prefix marking a client-only optimistic temp id. The reconciler's swap
- * suppression keys on this exact prefix — change both together.
- */
 export const OPTIMISTIC_ID_PREFIX = 'optimistic:';
 
-/** Builds a client-only temp document id for an optimistic insert. */
 export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string {
   return `${OPTIMISTIC_ID_PREFIX}${table}:${crypto.randomUUID()}`;
 }
 
-/** Whether any loaded systems page already carries a live row for `systemId`. */
 function insertOptimisticSystemIfAbsent(
   localStore: OptimisticLocalStore,
   mapId: string,
@@ -122,14 +106,12 @@ function liveSystemPresent(
   return false;
 }
 
-/** Optimistically inserts the first home system at the top of the systems pages. */
 export function optimisticSetHomeSystem(
   localStore: OptimisticLocalStore,
   args: { mapId: string; systemId: number },
   now = Date.now(),
 ): void {
   if (liveSystemPresent(localStore, args.mapId, args.systemId)) return;
-  // Skip when any live system already exists — server will refuse MAP_NOT_EMPTY.
   for (const { args: pageArgs, value } of localStore.getAllQueries(
     api.mapChainSystems.watchMapSystems,
   )) {
@@ -154,10 +136,6 @@ export function optimisticSetHomeSystem(
   });
 }
 
-/**
- * Optimistically inserts the destination system (when absent) and the
- * connection in one local update so the reveal is whole.
- */
 export function optimisticAddSystemFromNode(
   localStore: OptimisticLocalStore,
   args: { mapId: string; fromSystemId: number; toSystemId: number },
@@ -166,9 +144,6 @@ export function optimisticAddSystemFromNode(
   if (args.fromSystemId === args.toSystemId) return;
   if (!liveSystemPresent(localStore, args.mapId, args.fromSystemId)) return;
 
-  // Append — systems pages are ascending creation order and resolveRoot
-  // takes facts.systems[0]. Prepending would make the destination the
-  // transient root for the mutation round trip.
   insertOptimisticSystemIfAbsent(
     localStore,
     args.mapId,
@@ -206,7 +181,6 @@ export type ConnectionFieldPatch = Partial<
   >
 >;
 
-/** Same-list field edits. Leads-to notes stay on the existing row. */
 export function optimisticPatchConnection(
   localStore: OptimisticLocalStore,
   args: {
@@ -231,7 +205,6 @@ export function optimisticPatchConnection(
   );
 }
 
-/** Optimistically stamps only the cut edge; the server owns any branch set. */
 export function optimisticSeverConnection(
   localStore: OptimisticLocalStore,
   args: { mapId: string; connectionId: string },
@@ -244,7 +217,6 @@ export function optimisticSeverConnection(
   });
 }
 
-/** Finds one loaded connection's shared sever stamp. */
 function severStamp(
   localStore: OptimisticLocalStore,
   mapId: string,
@@ -262,7 +234,6 @@ function severStamp(
   return null;
 }
 
-/** Optimistically restores every loaded row carrying the cut's shared stamp. */
 export function optimisticRestoreSeveredBranch(
   localStore: OptimisticLocalStore,
   args: { mapId: string; connectionId: string },
@@ -289,7 +260,6 @@ export function optimisticRestoreSeveredBranch(
   );
 }
 
-/** Optimistically clears a connection tombstone. */
 function optimisticRestoreConnection(
   localStore: OptimisticLocalStore,
   args: { mapId: string; connectionId: string },
@@ -301,7 +271,6 @@ function optimisticRestoreConnection(
   });
 }
 
-/** Optimistically patches life stage and stamps observation time on change. */
 export function optimisticSetConnectionLifeStage(
   localStore: OptimisticLocalStore,
   args: {
@@ -326,7 +295,6 @@ export function optimisticSetConnectionLifeStage(
   });
 }
 
-/** Optimistically patches a type pick and its explicit lifetime proposal. */
 export function optimisticSetConnectionWormholeType(
   localStore: OptimisticLocalStore,
   args: {
@@ -371,7 +339,6 @@ export function optimisticSetConnectionWormholeType(
   );
 }
 
-/** Connection facts needed to form a stale-safe explicit window proposal. */
 export interface ConnectionWindowSource {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;
@@ -404,7 +371,6 @@ function namedTypeCode(connection: {
   return namedDoorType(hallwayDoorTypes(connection)).typeCode;
 }
 
-/** Explicit type-pick proposal: typed ceilings narrow; K162/unset preserve. */
 export function wormholeTypeWindowProposal(
   connection: ConnectionWindowSource,
   lifetimeMinutes: number | null,
@@ -416,8 +382,6 @@ export function wormholeTypeWindowProposal(
   ) {
     return storedWindow(connection);
   }
-  // Mirror the server's resolution: a typed span narrows a stored window and
-  // never widens it optimistically; an empty intersection resets to the span.
   const firstSeenAt = connection.firstSeenAt ?? connection._creationTime;
   return intersectOrReset(storedWindow(connection), {
     earliestAt: firstSeenAt,
@@ -425,7 +389,6 @@ export function wormholeTypeWindowProposal(
   });
 }
 
-/** Explicit life-stage proposal from the shared pure lifetime algebra. */
 export function lifeStageWindowProposal(
   value: WormholeLifeStage | null,
   observedAt: number,
@@ -455,7 +418,6 @@ async function nullOnRejection<Value>(
   return await promise.catch(() => null);
 }
 
-/** Reads lifetime only from a typed codex entry; K162 carries no ceiling. */
 export function lifetimeMinutesFromEntry(
   entry: WormholeCodexEntry | null,
 ): number | null {
@@ -464,7 +426,6 @@ export function lifetimeMinutesFromEntry(
   return entry.lifetimeMinutes;
 }
 
-/** Resolves typed lifetime without turning a codex outage into a rejection. */
 async function lifetimeMinutesFor(code: string | null): Promise<number | null> {
   if (code === null) return null;
   const codex = await nullOnRejection(loadWormholeCodex());
@@ -472,7 +433,6 @@ async function lifetimeMinutesFor(code: string | null): Promise<number | null> {
   return lifetimeMinutesFromEntry(codex.byCode(code));
 }
 
-/** Converts a mutation refusal into a calm optimistic rollback result. */
 export function swallowMutationRejection<Args, Result>(
   mutation: (args: Args) => Promise<Result>,
 ): (args: Args) => Promise<Result | undefined> {
@@ -524,7 +484,6 @@ function optimisticPatchDoorLeadsTo(
   );
 }
 
-/** Optimistic Leads-to note on one door. Does not spawn a system or move the line. */
 export function optimisticSetConnectionDestination(
   localStore: OptimisticLocalStore,
   args: {
@@ -542,7 +501,6 @@ export function optimisticSetConnectionDestination(
   });
 }
 
-/** Optimistic patch for one side's destination hint (null clears the field). */
 function optimisticSetConnectionDestinationHint(
   localStore: OptimisticLocalStore,
   args: {
@@ -560,7 +518,6 @@ function optimisticSetConnectionDestinationHint(
   });
 }
 
-/** Wires one field-scoped connection setter to a single-key optimistic patch. */
 function optimisticConnectionField(
   field: 'shipSize' | 'massState',
 ): (localStore: OptimisticLocalStore, args: ConnectionFieldArgs) => void {
@@ -573,13 +530,6 @@ function optimisticConnectionField(
   };
 }
 
-/**
- * Authoring mutations with optimistic local-store patches wired against the
- * chain subscriptions, including the collapse sever/undo/restore surface. The
- * internalized .1 single-row tombstone helpers are deliberately absent here.
- * Every mutation is wrapped in {@link swallowMutationRejection}: a server
- * refusal resolves to null and the optimistic patch rolls back reactively.
- */
 export function useChainAuthoringMutations() {
   const setHomeSystem = swallowMutationRejection(
     useMutation(api.mapAuthoringHome.setHomeSystem).withOptimisticUpdate(
@@ -636,8 +586,6 @@ export function useChainAuthoringMutations() {
       optimisticRestoreConnection,
     ),
   );
-  // Ledger undo for list/stub signature removals. No optimistic patch: the
-  // signature page is its own subscription outside the chain local store.
   const removeSignatures = swallowMutationRejection(
     useMutation(api.mapScan.removeSignatures),
   );

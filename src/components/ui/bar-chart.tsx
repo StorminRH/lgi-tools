@@ -11,18 +11,6 @@ import { ChartCanvas } from './chart/chart-canvas';
 import { ValueAxisGrid } from './chart/value-axis';
 import { HoverCaptureRect } from './chart/hover-layer';
 
-/**
- * Compact categorical bar chart — outcome distributions, a login-frequency
- * histogram, returning-vs-new, caller mix. Shares the frame / hover / value-axis
- * primitives in `./chart`; the categorical scale, bars, and per-bar hover are
- * bar-specific (`scaleBand` has no `.invert()`, so hover is captured per-bar
- * rather than by inverting an x probe).
- */
-
-/**
- * Display-ready bar datum consumed by the shared visualization layer; callers keep all numeric
- * values in one consistent unit.
- */
 export type BarDatum = { label: string; value: number };
 
 const formatNumber = (value: number): string => String(value);
@@ -34,24 +22,15 @@ export type BarChartProps = {
   width?: number;
   height?: number;
   className?: string;
-  /** Format the value for the tooltip (e.g. a count or percentage). */
   formatValue?: (v: number) => string;
-  /** Transform the category label for the axis + tooltip. */
   formatLabel?: (s: string) => string;
   ariaLabel?: string;
 };
 
-// Extra bottom room for the category labels under each bar; left room for the
-// value-axis tick labels.
 const MARGIN = { top: 8, right: 6, bottom: 20, left: 40 };
 
-// Value-axis tick count hint (d3 picks nearby round values).
 const Y_TICKS = 3;
 
-/**
- * Renders the domain-neutral bar chart from display-ready caller data; callers own units and
- * labels while this primitive owns geometry and interaction.
- */
 export function BarChart({
   data,
   tone = 'green',
@@ -76,15 +55,11 @@ export function BarChart({
     padding: 0.3,
   });
   const yScale = scaleLinear<number>({
-    // Bars grow from 0; a flat all-zero series still gets a sane axis. `nice`
-    // snaps the top tick to a round value so the axis labels read cleanly.
     domain: [0, yMax === 0 ? 1 : yMax],
     range: [innerBottom, MARGIN.top],
     nice: true,
   });
 
-  // Integer ticks only — every series this renders is a count, and a small
-  // domain would otherwise produce fractional ticks like 0.5.
   const yTickValues = yScale.ticks(Y_TICKS).filter((t) => Number.isInteger(t));
 
   const handleMove = (event: MouseEvent<SVGRectElement>, datum: BarDatum) => {
@@ -142,7 +117,6 @@ export function BarChart({
             >
               {formatLabel(d.label)}
             </text>
-            {/* Per-bar hover capture (full column); presentation attrs only. */}
             <HoverCaptureRect
               x={bandX}
               y={MARGIN.top}

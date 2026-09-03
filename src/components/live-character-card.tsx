@@ -1,15 +1,5 @@
 'use client';
 
-// Presentational chrome for the per-character panels (skill queue, industry jobs).
-// The Convex-reactive plumbing that once lived here — the session gate, the
-// engine-coupled sync/clock/name hook, and the per-tracker COLD/HOT merge hooks —
-// left with the trackers as each moved to a Neon stale-gated on-view read
-// (MIGRATE.B.1/B.2/B.3), and the onlineStatus canary retired with the portrait
-// dot (Convex now activates only on Atlas surfaces). What remains is the
-// pure card shell each feature feeds with already-resolved data + its own render
-// clock. This is the `shared` zone (`src/components/*.tsx`), the only layer permitted
-// to import features + data + ui + lib, so the two features compose it without
-// importing each other.
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { AccessGate } from '@/components/ui/access-gate';
@@ -20,10 +10,6 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { formatUtcTime } from '@/lib/format/time';
 import { emptyDataText, syncErrorMeta } from './live-character-sync';
 
-/**
- * Server-prop shape for one linked character: Neon truth (name/portrait/scope
- * health) joined client-side with the live projection.
- */
 export interface PanelCharacter {
   characterId: number;
   name: string;
@@ -31,12 +17,6 @@ export interface PanelCharacter {
   needsReconnect: boolean;
 }
 
-/**
- * The card shell for one character: portrait header (with feature-supplied
- * subtitle + header-right slot), the reconnect and sync-error callouts, the
- * "as of" section header, and the null / empty / rows tri-state. Rows are the
- * children; everything that differs per feature arrives as a prop.
- */
 export function LiveCharacterCard({
   character,
   syncError,
@@ -66,10 +46,6 @@ export function LiveCharacterCard({
   subtitle?: ReactNode;
   headerRight?: ReactNode;
   emptyRowsText: string;
-  // Opt-in per-character scope gate: when a panel supplies an in-place grant
-  // control (and its reason), a character that needs reconnecting blocks its own
-  // card behind that grant instead of the "reconnect on the Characters page"
-  // link. Panels that pass neither keep the link affordance unchanged.
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
   children?: ReactNode;
@@ -206,11 +182,6 @@ function LiveCharacterCardBody({
   );
 }
 
-/**
- * What a feature renders for one character once its live doc is in hand. The
- * panel owns the LiveCharacterCard shell; the feature supplies only what differs
- * per character — the empty test, the two header slots, and the rows.
- */
 export interface CharacterCardContent {
   isEmpty: boolean;
   subtitle?: ReactNode;

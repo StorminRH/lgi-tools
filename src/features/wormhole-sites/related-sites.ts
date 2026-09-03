@@ -13,12 +13,6 @@ function relationRank(current: SiteSearchEntry, candidate: SiteSearchEntry): num
   return 3;
 }
 
-/**
- * Picks a small, stable related-sites set from the deploy-cached catalogue.
- * Relevance is class/type based; ties rotate forward from the current site in
- * catalogue order so inbound links are distributed instead of concentrating on
- * the first few rows.
- */
 export function selectRelatedSites(
   catalogue: SiteSearchEntry[],
   currentId: number,

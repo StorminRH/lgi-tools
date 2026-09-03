@@ -1,10 +1,3 @@
-// Pure dial vocabulary for the map tuning panel.
-//
-// Commit-time clamping keeps the standing invariant `ringSpacing ≥ minSeparation`
-// from either direction. Presets resolve to `DIRECTION_PRESETS` so the panel
-// never grows a second owner of the heading vocabulary. The halo/fog groups
-// (4.0.4.2.3 OW4) are G-1 tuning dials over the pinned constants — the panel
-// is dev-only, so production always renders the pins.
 import type { FogConfig } from '../fog/fog-model';
 import type { HaloLimits } from '../halo/halo-model';
 import {
@@ -14,16 +7,12 @@ import {
   type WedgePolicy,
 } from '../layout/layout-contract';
 
-/** Ring spacing dial range (canvas units). */
 export const RING_SPACING_RANGE = { min: 140, max: 480, step: 10 } as const;
 
-/** Minimum separation dial range (canvas units). */
 export const MIN_SEPARATION_RANGE = { min: 80, max: 240, step: 10 } as const;
 
-/** Sibling fan dial range. */
 export const SIBLING_SPREAD_RANGE = { min: 1, max: 6, step: 1 } as const;
 
-/** Wedge posture options the segmented control exposes. */
 export const WEDGE_POLICY_OPTIONS: readonly {
   readonly value: WedgePolicy;
   readonly label: string;
@@ -32,7 +21,6 @@ export const WEDGE_POLICY_OPTIONS: readonly {
   { value: 'proportional', label: 'Proportional' },
 ];
 
-/** Direction preset options the segmented control exposes. */
 export const DIRECTION_PRESET_OPTIONS: readonly {
   readonly value: DirectionPresetId;
   readonly label: string;
@@ -43,10 +31,6 @@ export const DIRECTION_PRESET_OPTIONS: readonly {
   { value: 'rotated-45', label: 'Rotated 45°' },
 ];
 
-/**
- * Clamp a number into `[min, max]` and snap to `step` from `min`. Shared with
- * the motion dial model (`motion-controls-model.ts`), its second consumer.
- */
 export function clampStepped(
   value: number,
   min: number,
@@ -58,10 +42,6 @@ export function clampStepped(
   return min + steps * step;
 }
 
-/**
- * Commit a ring-spacing dial change: clamp to range, then lower `minSeparation`
- * to the new `ringSpacing` when needed so `ringSpacing ≥ minSeparation` still holds.
- */
 export function commitRingSpacing(
   config: LayoutConfig,
   next: number,
@@ -76,10 +56,6 @@ export function commitRingSpacing(
   return { ...config, ringSpacing, minSeparation };
 }
 
-/**
- * Commit a min-separation dial change: clamp to range, then raise ring spacing
- * when needed so `ringSpacing ≥ minSeparation` still holds.
- */
 export function commitMinSeparation(
   config: LayoutConfig,
   next: number,
@@ -94,7 +70,6 @@ export function commitMinSeparation(
   return { ...config, ringSpacing, minSeparation };
 }
 
-/** Commit a sibling-fan dial change. */
 export function commitSiblingSpread(
   config: LayoutConfig,
   next: number,
@@ -110,7 +85,6 @@ export function commitSiblingSpread(
   };
 }
 
-/** Commit a wedge-posture segmented change. */
 export function commitWedgePolicy(
   config: LayoutConfig,
   next: WedgePolicy,
@@ -118,7 +92,6 @@ export function commitWedgePolicy(
   return { ...config, wedgePolicy: next };
 }
 
-/** Commit a direction-order preset; resolves through `DIRECTION_PRESETS`. */
 export function commitDirectionPreset(
   config: LayoutConfig,
   preset: DirectionPresetId,
@@ -126,31 +99,24 @@ export function commitDirectionPreset(
   return { ...config, directionSequence: DIRECTION_PRESETS[preset] };
 }
 
-/** Halo drawn-ring depth dial range. */
 export const HALO_DRAWN_RINGS_RANGE = { min: 0, max: 4, step: 1 } as const;
 
-/** Halo fogged-ring depth dial range. */
 export const HALO_FOGGED_RINGS_RANGE = { min: 0, max: 2, step: 1 } as const;
 
-/** Halo per-exit system cap dial range. */
 export const HALO_PER_EXIT_RANGE = { min: 10, max: 120, step: 10 } as const;
 
-/** Halo aggregate system cap dial range. */
 export const HALO_TOTAL_RANGE = { min: 30, max: 300, step: 30 } as const;
 
-/** Commit a halo drawn-ring dial change. */
 export function commitHaloDrawnRings(limits: HaloLimits, next: number): HaloLimits {
   const range = HALO_DRAWN_RINGS_RANGE;
   return { ...limits, drawnRings: clampStepped(next, range.min, range.max, range.step) };
 }
 
-/** Commit a halo fogged-ring dial change. */
 export function commitHaloFoggedRings(limits: HaloLimits, next: number): HaloLimits {
   const range = HALO_FOGGED_RINGS_RANGE;
   return { ...limits, foggedRings: clampStepped(next, range.min, range.max, range.step) };
 }
 
-/** Commit a halo per-exit cap dial change. */
 export function commitHaloPerExitCap(limits: HaloLimits, next: number): HaloLimits {
   const range = HALO_PER_EXIT_RANGE;
   return {
@@ -159,7 +125,6 @@ export function commitHaloPerExitCap(limits: HaloLimits, next: number): HaloLimi
   };
 }
 
-/** Commit a halo aggregate cap dial change. */
 export function commitHaloTotalCap(limits: HaloLimits, next: number): HaloLimits {
   const range = HALO_TOTAL_RANGE;
   return {
@@ -168,16 +133,12 @@ export function commitHaloTotalCap(limits: HaloLimits, next: number): HaloLimits
   };
 }
 
-/** Fog reveal-radius dial range (world units). */
 export const FOG_REVEAL_RADIUS_RANGE = { min: 80, max: 320, step: 10 } as const;
 
-/** Fog corridor-radius dial range (world units). */
 export const FOG_STROKE_RADIUS_RANGE = { min: 20, max: 120, step: 4 } as const;
 
-/** Fog cloud-density dial range, in percent. */
 export const FOG_OPACITY_PCT_RANGE = { min: 40, max: 100, step: 5 } as const;
 
-/** Fog tier options the segmented control exposes. */
 export const FOG_TIER_OPTIONS: readonly {
   readonly value: FogConfig['tier'];
   readonly label: string;
@@ -186,19 +147,16 @@ export const FOG_TIER_OPTIONS: readonly {
   { value: 'static', label: 'Static' },
 ];
 
-/** Commit a fog reveal-radius dial change. */
 export function commitFogRevealRadius(config: FogConfig, next: number): FogConfig {
   const range = FOG_REVEAL_RADIUS_RANGE;
   return { ...config, revealRadius: clampStepped(next, range.min, range.max, range.step) };
 }
 
-/** Commit a fog corridor-radius dial change. */
 export function commitFogStrokeRadius(config: FogConfig, next: number): FogConfig {
   const range = FOG_STROKE_RADIUS_RANGE;
   return { ...config, strokeRadius: clampStepped(next, range.min, range.max, range.step) };
 }
 
-/** Commit a fog density dial change (percent in, fraction stored). */
 export function commitFogOpacityPct(config: FogConfig, next: number): FogConfig {
   const range = FOG_OPACITY_PCT_RANGE;
   return {
@@ -207,12 +165,10 @@ export function commitFogOpacityPct(config: FogConfig, next: number): FogConfig 
   };
 }
 
-/** Commit a fog tier segmented change. */
 export function commitFogTier(config: FogConfig, tier: FogConfig['tier']): FogConfig {
   return { ...config, tier };
 }
 
-/** Which preset matches the current direction sequence, if any. */
 export function directionPresetOf(
   config: LayoutConfig,
 ): DirectionPresetId | null {

@@ -8,7 +8,6 @@ import type {
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { ConnectionFieldSetters } from './connection-fields';
 
-/** Existing connection mutation surface shared by every connection-field host. */
 export interface ConnectionFieldAuthoringApi {
   readonly setConnectionWormholeType: (args: {
     mapId: string;
@@ -32,7 +31,6 @@ export interface ConnectionFieldAuthoringApi {
     side: 'from' | 'to';
     value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
-  /** Writes one door's Leads-to system note, or `null` to clear that note. */
   readonly setConnectionDestination: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
@@ -51,7 +49,6 @@ export interface ConnectionFieldAuthoringApi {
   }) => Promise<unknown>;
 }
 
-/** Binds the shipped connection field body to one existing connection row. */
 export function connectionFieldSetters(
   mapId: string,
   connection: ConnectionEditorDetail,
@@ -73,9 +70,6 @@ export function connectionFieldSetters(
     setLifeStage: (value) => {
       void authoring.setConnectionLifeStage({ mapId, connection, value });
     },
-    // One "Leads to" field (ruling D-G): the control speaks from the mouth
-    // it was opened on. The popup editor always passes the `from` end (the
-    // system whose scanner you opened).
     setLeadsTo: (value) => {
       void authoring.setConnectionDestinationHint({
         mapId,

@@ -8,7 +8,6 @@ import {
 } from '@/data/eve-data/universe-assets-client';
 import { loadSystemStatics } from '@/data/wh-statics/client';
 
-/** Codex and origin-statics facts shared by every connection-field host. */
 export interface WormholeEditorData {
   readonly codex: WormholeCodex | null;
   readonly codes: readonly string[];
@@ -17,7 +16,6 @@ export interface WormholeEditorData {
   readonly codexReady: boolean;
 }
 
-/** Session-memoized codex state shared by editors and row presentation. */
 export function useWormholeCodexData(code: string | null): {
   readonly codex: WormholeCodex | null;
   readonly codes: readonly string[];
@@ -34,8 +32,6 @@ export function useWormholeCodexData(code: string | null): {
         if (alive) setCodex(loaded);
       },
       () => {
-        // Degraded: the shared type field remains lenient and retries when the
-        // edited code changes, matching the existing connection-card behavior.
       },
     );
     return () => {
@@ -51,7 +47,6 @@ export function useWormholeCodexData(code: string | null): {
   };
 }
 
-/** Loads the shared type vocabulary plus one connection origin's preferred statics. */
 export function useWormholeEditorData(
   systemId: number,
   code: string | null,
@@ -71,8 +66,6 @@ export function useWormholeEditorData(
         if (alive) setStatics({ systemId, codes: statics });
       },
       () => {
-        // Degraded: an unavailable statics route means ordinary codex search,
-        // never a fabricated assertion that this system has no statics.
       },
     );
     return () => {

@@ -1,36 +1,16 @@
-// The presentation resolver (ACCOUNT.5, grown in ACCOUNT.6): turns a resolved
-// page-settings spec into renderable control models. Pure and React-free — the
-// ONE spec→controls resolution path, now with two views over the same
-// internals: the portrait menu's dynamic half (resolveMenuControls, placement
-// 'section') and the account settings page (resolvePageControls, placement
-// 'inline').
-//
-// A preference ref renders when its key resolves to a registered ENUM
-// preference (SegmentedControl — options from z.enum) or BOOLEAN preference
-// (Switch). Other shapes (e.g. the planner's build-location object) and
-// unknown keys drop out silently; anti-drift for unknown keys is the engine
-// test's job. A feature ref resolves by id for the PAGE only — the menu drops
-// it (D-3: no confirm-gated/destructive flow in the menu; the type already pins
-// feature refs to 'inline', the runtime skip is cast-defense).
-
 import { z } from 'zod';
 import { getPreferenceDef, type PreferenceDef } from '@/lib/preferences';
 import type { FeatureControlId } from './feature-controls';
 import type { PageSettingsSpec, SettingsControlRef } from './types';
 
-/** String preference row: display label, registered options, and owning definition. */
 export type EnumMenuControlModel = {
   kind: 'preference-enum';
   key: string;
-  // Display label derived from the key ('sites.detailMode' → 'detail mode');
-  // a per-key override registry stays a future growth with this derivation as
-  // its fallback.
   label: string;
   options: readonly string[];
   def: PreferenceDef<string>;
 };
 
-/** Boolean preference row: display label plus its owning registered definition. */
 export type BooleanMenuControlModel = {
   kind: 'preference-boolean';
   key: string;
@@ -38,23 +18,15 @@ export type BooleanMenuControlModel = {
   def: PreferenceDef<boolean>;
 };
 
-/** Display-ready page-menu control with stable identity, label, state, and controlled update behavior. */
 export type MenuControlModel = EnumMenuControlModel | BooleanMenuControlModel;
 
-/**
- * A feature-owned, server-backed control, resolved by id. The settings page
- * maps the id to that slice's component; the resolver stays data-only.
- */
 export type FeatureControlModel = {
   kind: 'feature';
   id: FeatureControlId;
 };
 
-/** Display-ready union of controls and actions that a page can publish to the shared menu. */
 export type PageControlModel = MenuControlModel | FeatureControlModel;
 
-// Refs at ONE placement. Explicit `order` sorts first (ascending); refs without
-// one follow in declaration order.
 function placedControls(
   spec: PageSettingsSpec,
   placement: SettingsControlRef['placement'],
@@ -85,7 +57,6 @@ function preferenceModel(ref: { key: string }): MenuControlModel | null {
       key: ref.key,
       label,
       options: def.schema.options as readonly string[],
-      // Safe: the schema is a string enum, so the def's value type is string.
       def: def as PreferenceDef<string>,
     };
   }
@@ -100,10 +71,6 @@ function preferenceModel(ref: { key: string }): MenuControlModel | null {
   return null;
 }
 
-/**
- * Resolves registered page controls into ordered menu models, omitting controls whose current
- * state makes them unavailable.
- */
 export function resolveMenuControls(spec: PageSettingsSpec | null): MenuControlModel[] {
   if (spec === null) return [];
   const models: MenuControlModel[] = [];
@@ -115,10 +82,6 @@ export function resolveMenuControls(spec: PageSettingsSpec | null): MenuControlM
   return models;
 }
 
-/**
- * Resolves the current route's page-settings declaration into display-ready controls using the
- * supplied preference and feature state.
- */
 export function resolvePageControls(spec: PageSettingsSpec | null): PageControlModel[] {
   if (spec === null) return [];
   const models: PageControlModel[] = [];

@@ -1,21 +1,5 @@
-// Boundary schemas + projection for the two ESI reads the skill-queue tracker
-// syncs (3.4.7; Neon-homed since MIGRATE.B.1). ESI is an external API, so its
-// bodies are Zod-validated here before anything is persisted; the projected
-// shapes are exactly what the character_skills row stores. Runtime-light by
-// design — zod only.
-//
-// Wire shapes verified against the live ESI OpenAPI spec
-// (esi.evetech.net/meta/openapi.json), 2026-06-11.
-// Entry keys stay snake_case: they are ESI's truth, stored verbatim.
 import { z } from 'zod';
 
-/**
- * GET /characters/\{id\}/skillqueue — only queue_position, skill_id, and
- * finished_level are required; the dates and SP fields are all absent when
- * the queue is paused.
- * Exported so the API contract (api-contract.ts) builds the wire response schema off
- * the same entry shape the projection produces — one source of truth for an entry.
- */
 export const skillQueueEntrySchema = z.object({
   skill_id: z.number().int(),
   queue_position: z.number().int(),
@@ -28,15 +12,8 @@ export const skillQueueEntrySchema = z.object({
 });
 const skillQueueBodySchema = z.array(skillQueueEntrySchema);
 
-/** One queued skill level with absolute start and finish timestamps and training position. */
 export type SkillQueueEntry = z.infer<typeof skillQueueEntrySchema>;
 
-// GET /characters/{id}/skills — headline totals plus the per-skill trained
-// levels (3.7.19.1: the planner's skills→time lever is the array's first
-// consumer). ACTIVE level, not trained: the game applies the alpha-capped
-// active level to industry jobs, so the stored map is what actually holds
-// in-game. The array is required in the ESI spec — its absence is a genuine
-// contract mismatch, handled by the null path below.
 const skillsBodySchema = z.object({
   total_sp: z.number(),
   unallocated_sp: z.number().optional(),
@@ -48,27 +25,18 @@ const skillsBodySchema = z.object({
   ),
 });
 
-/** Character skill totals containing learned skill points and known skill count. */
 export interface SkillTotals {
   totalSp: number;
   unallocatedSp?: number;
-  // skill type id (string key — JSON-native) → active_skill_level.
   levels: Record<string, number>;
 }
 
-// Both parsers return null on a shape mismatch — the syncing action records a
-// contract error for that character rather than retrying (a shape change
-// won't fix itself) or crashing the whole run.
-
-/** Validates and normalizes the ESI skill-queue payload into ordered entries with absolute timestamps. */
 export function parseSkillQueueBody(body: unknown): SkillQueueEntry[] | null {
   const parsed = skillQueueBodySchema.safeParse(body);
   if (!parsed.success) return null;
-  // ESI documents no ordering guarantee; the queue renders by position.
   return [...parsed.data].sort((a, b) => a.queue_position - b.queue_position);
 }
 
-/** Validates and normalizes the ESI character-skills payload into levels and totals. */
 export function parseSkillsBody(body: unknown): SkillTotals | null {
   const parsed = skillsBodySchema.safeParse(body);
   if (!parsed.success) return null;

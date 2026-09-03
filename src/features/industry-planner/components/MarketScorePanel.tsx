@@ -9,28 +9,11 @@ import type { BlueprintStructure } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG } from './kpi-tile';
 import { useMarketData } from './planner-contexts';
 
-// The Market Score KPI tile for the Cockpit — the "how sure can I sell this?"
-// liquidity axis beside net margin's "how much?". Numbers are PLAIN and
-// UNCOLORED (no tones, no confidence badge — that's a different, freshness-only
-// system): a single 0–100 score, a time-to-clear glance, and a "?" badge whose
-// hover reveals the full 3-signal breakdown. All the derived values come from
-// the pure marketScoreView; this shell only holds the mount clock.
-
-/** Renders market demand, spread, volume, and confidence signals derived by the market-score model. */
 export function MarketScorePanel({ structure }: { structure: BlueprintStructure }) {
   const { marketScore, marketHistory, seeded } = useMarketData();
 
-  // Staleness flag — a flag, never a score change (the composite stays keyed to
-  // latestDate). The clock starts null so the static prerender of this Client
-  // Component never reads the wall clock (Cache Components forbids Date.now() in
-  // a prerendered Client Component — same constraint PriceFreshness handles); the
-  // mount effect fills it in client-side, then a re-render reveals the flag.
   const [nowMs, setNowMs] = useState<number | null>(null);
   useEffect(() => {
-    // The clock is read in a timer callback, never in the synchronous effect
-    // body, so the static prerender never touches the wall clock and setState
-    // stays out of the effect body (same posture as PriceFreshness). One read is
-    // enough — staleness is coarse day buckets, and a reload refreshes the data.
     const id = setTimeout(() => setNowMs(Date.now()), 0);
     return () => clearTimeout(id);
   }, []);

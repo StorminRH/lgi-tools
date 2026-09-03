@@ -12,14 +12,6 @@ import {
   type HaloLimits,
 } from './halo-model';
 
-// A small deterministic k-space neighbourhood around exit 100:
-//
-//   ring 1: 1, 2        (gates from 100) — drawn when extent is on
-//   ring 2: 3 (via 1), 4 (via 2) — fogged when extent is on
-//   ring 3+: beyond that 1+1 extent (reachable only via deeper dials)
-//
-// Shipping pins are 0+0 (no rings). Neighbour lists are sorted, mirroring
-// the client asset's contract.
 const ADJACENCY = new Map<number, readonly number[]>([
   [100, [1, 2]],
   [101, [3]],
@@ -54,7 +46,6 @@ function inputFor(authored: readonly number[], overrides: Partial<HaloInput> = {
   };
 }
 
-/** Explicit on-extent used to prove the halo machinery still works while pins are off. */
 const RINGS_ON: HaloLimits = {
   drawnRings: 1,
   foggedRings: 1,
@@ -169,7 +160,6 @@ test('halo links claim first, omit fogged cross-links, and truncate at caps', ()
         },
       }),
     ).systems.map((system) => system.systemId),
-    // Ring order then sorted-neighbour order: 1, 2 (ring 1), then 3 (ring 2).
   ).toEqual([1, 2, 3]);
 
   expect(

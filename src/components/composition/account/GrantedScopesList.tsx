@@ -3,13 +3,6 @@ import { Chip } from '@/components/ui/chip';
 import { EntityRow } from '@/components/ui/row';
 import type { GrantedScope } from '@/platform/auth/scope-health';
 
-/**
- * Read-only readout of the scopes a character has actually granted (3.7.1.4).
- * Humble component: it receives an already-derived GrantedScope[] from the app
- * layer (page.tsx calls listGrantedScopes off the stored grant) and only renders
- * — no scope parsing, no scope-health import, no tokens. The revocation
- * deep-link is page-level (one CCP URL serves every character), so it isn't here.
- */
 export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): ReactNode {
   const hasLegacy = scopes.some((s) => s.status === 'legacy');
   return (

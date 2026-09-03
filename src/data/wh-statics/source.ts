@@ -7,7 +7,6 @@ import {
   WH_STATICS_FETCH_TIMEOUT_MS,
 } from './constants';
 
-/** Result of one conditional community-feed request. */
 export type StaticsFeedResult =
   | { readonly status: 'unchanged' }
   | {
@@ -18,11 +17,6 @@ export type StaticsFeedResult =
     }
   | { readonly status: 'unavailable'; readonly reason: string };
 
-/**
- * Asks anoik.is whether the statics feed changed since `knownEtag`, returning the
- * new body only when it did. An unreachable or erroring feed resolves to
- * `unavailable` because refresh failure must not affect the promoted serving copy.
- */
 export async function fetchStaticsFeed(
   knownEtag: string | null,
 ): Promise<StaticsFeedResult> {

@@ -8,13 +8,6 @@ import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
 import { checkAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
-/**
- * POST-only. Admin force-logout: deletes every session row for the target user,
- * pushing them to re-authenticate. With the session cookie cache on this isn't
- * instantaneous (an issued cookie lingers until it expires). Self is refused —
- * an admin logs themselves out via the normal sign-out, not this tool.
- * Independent gate — never trust a UI-level disable.
- */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {

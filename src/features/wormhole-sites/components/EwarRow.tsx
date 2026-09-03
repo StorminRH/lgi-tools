@@ -2,12 +2,6 @@ import { Chip } from '@/components/ui/chip';
 import { LabeledChipRow } from '@/components/ui/row';
 import { EWAR_LABEL, EWAR_ORDER, EWAR_TONE } from './wormhole-styles';
 
-/**
- * The four ewar fields on a Wave row are nullable integer NPC-counts; treat
- * anything \> 0 as "present" and render a chip for it.
- */
-
-/** Renders one site's electronic-warfare effects using canonical labels and semantic tones. */
 export function EwarRow({
   web,
   scram,

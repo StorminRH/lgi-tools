@@ -5,10 +5,6 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { scrollArea } from './scroll-area';
 
-/**
- * The edge-anchored sheet: a bottom drawer for small-screen composition a centred dialog cannot
- * serve. It is uncontrolled by construction so the real trigger owns focus movement and restore.
- */
 export function Drawer({
   title,
   trigger,
@@ -64,8 +60,4 @@ export function Drawer({
   );
 }
 
-/**
- * Adopted Base UI drawer close part exposed through the house wrapper so consumers close the
- * uncontrolled sheet without reaching into the package.
- */
 export const DrawerClose = Base.Close;

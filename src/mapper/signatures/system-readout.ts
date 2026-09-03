@@ -5,7 +5,6 @@ import {
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 import { resolveSystemLabel } from '../chain/labels';
 
-/** Resolves one destination through the mapper's shared identity-readout rule. */
 export function destinationReadout(
   toSystemId: number | null,
   systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,

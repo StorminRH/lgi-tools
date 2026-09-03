@@ -5,22 +5,15 @@ import {
 } from '@/data/eve-data/structures';
 import type { CorpStructurePageStructure, CorpStructurePageView } from './types';
 
-/**
- * Display-ready corp structure item state for owned structures; consumers can render it without
- * reconstructing storage or domain policy.
- */
 export type CorpStructureItemView = {
   typeName: string;
   displayName: string;
-  /** Rigs that physically fit this structure — the completion editor's options. */
   validRigs: StructureRigOption[];
   rigLabels: { key: number; label: string }[];
   taxLabel: string | null;
-  /** Whether the read-only view has anything to show (rigs or a tax). */
   hasDetails: boolean;
 };
 
-/** Everything a corp-structure row renders, resolved from the type/rig lookups. */
 export function deriveCorpStructureItemView(
   structure: CorpStructurePageStructure,
   opts: { structureTypes: StructureTypeOption[]; structureRigs: StructureRigOption[] },
@@ -41,22 +34,14 @@ export function deriveCorpStructureItemView(
   };
 }
 
-/**
- * Display-ready corp card state for owned structures; consumers can render it without
- * reconstructing storage or domain policy.
- */
 export type CorpCardView = {
-  /** Header hint: the manager's sharing state, or 'shared' for a member. */
   hint: string;
   showManagerNote: boolean;
-  /** The trailing sentence of the manager note (period vs the enable prompt). */
   managerBlurb: string;
-  /** Sharing on → show the structures block. */
   showStructures: boolean;
   isEmpty: boolean;
 };
 
-/** The per-corp card's header hint, manager note, and structures-block visibility. */
 export function deriveCorpCardView(corp: CorpStructurePageView): CorpCardView {
   return {
     hint: corp.isStationManager ? (corp.sharingEnabled ? 'sharing on' : 'sharing off') : 'shared',

@@ -27,22 +27,16 @@ import {
   type StaticsFeedResult,
 } from '@/data/wh-statics/source';
 
-/** Changed feed body retained between the pre-lock probe and locked snapshot write. */
 export type ChangedWhStaticsFeed = Extract<
   StaticsFeedResult,
   { status: 'changed' }
 >;
 
-/** One pre-lock probe: the feed response and the snapshot state it was read against. */
 export interface WhStaticsProbe {
   readonly feed: StaticsFeedResult;
   readonly baseline: WhStaticsProbeBaseline;
 }
 
-/**
- * Performs the shared conditional feed probe before any advisory lock is held,
- * retaining the snapshot baseline the response must still match to be recorded.
- */
 export async function probeWhStaticsRefresh(
   database: AnyPgDb,
 ): Promise<WhStaticsProbe> {
@@ -50,10 +44,6 @@ export async function probeWhStaticsRefresh(
   return { feed: await fetchStaticsFeed(baseline.etag), baseline };
 }
 
-/**
- * Validates, cross-checks, diffs, and records one changed feed while the caller
- * holds the shared refresh advisory lock.
- */
 export async function recordChangedWhStaticsFeed(
   database: PostgresJsDb,
   feed: ChangedWhStaticsFeed,
@@ -95,10 +85,6 @@ export async function recordChangedWhStaticsFeed(
   };
 }
 
-/**
- * Runs the on-demand refresh through the same probe and snapshot writer as the
- * cron, reserving the shared lock only when the feed changed.
- */
 export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult> {
   const probeDatabase = drizzle(directClient);
   const { feed, baseline } = await probeWhStaticsRefresh(probeDatabase);
@@ -115,17 +101,14 @@ export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult
   return outcome.busy ? { status: 'busy' } : outcome.result;
 }
 
-/** Promotes one reviewed snapshot through the slice's transactional writer. */
 export function promoteWhStaticsSnapshot(snapshotId: number) {
   return promoteSnapshot(drizzle(directClient), snapshotId);
 }
 
-/** Rejects one reviewed snapshot through the slice's transactional writer. */
 export function rejectWhStaticsSnapshot(snapshotId: number) {
   return rejectSnapshot(drizzle(directClient), snapshotId);
 }
 
-/** Returns the pending snapshot projection for the admin operator surface. */
 export function getWhStaticsOperatorReview() {
   return getPendingWhStaticsReview(db);
 }

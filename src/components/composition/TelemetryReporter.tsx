@@ -13,10 +13,6 @@ import {
 const VISITOR_KEY = 'lgi:visitor_id';
 const SESSION_FLAG_KEY = 'lgi:session_started';
 
-// Reads document.referrer and returns only the hostname when it points at a
-// different origin than the current page (the parse + same-origin check live in
-// {@link referrerHostFrom}). Errors are swallowed — a malformed referrer must
-// never break the page.
 function readReferrerHost(): string | null {
   try {
     const raw = typeof document !== 'undefined' ? document.referrer : '';
@@ -27,10 +23,6 @@ function readReferrerHost(): string | null {
   }
 }
 
-// Random per-browser UUID kept in localStorage. Lets the admin dashboard
-// distinguish a first-time lander from a returning page-hopper without
-// any fingerprinting. localStorage access is wrapped in try/catch so
-// private-browsing and SSR-prerender contexts can't throw.
 function getOrCreateVisitorId(): string | null {
   try {
     if (typeof window === 'undefined') return null;
@@ -44,9 +36,6 @@ function getOrCreateVisitorId(): string | null {
   }
 }
 
-// Returns true only on the very first page-view of the current tab
-// session. Subsequent events return false so the admin's Entry Pages
-// panel reports landing pages, not navigation targets within a session.
 function takeIsEntry(): boolean {
   try {
     if (typeof window === 'undefined') return false;
@@ -59,12 +48,6 @@ function takeIsEntry(): boolean {
   }
 }
 
-/**
- * Mounted once at the root layout. Watches the URL via Next.js navigation
- * hooks and POSTs a page_view event for every change. Failures are
- * swallowed by the server route — nothing to surface to the user either
- * way.
- */
 export function TelemetryReporter(): null {
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -1,9 +1,6 @@
 import { getStructureTypes, getTypeAttributesBatch } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
-// The available-structures wire shape is owned by the consuming slice (the
-// planner), the same consumer-owns-the-contract pattern as owned-blueprints —
-// so the planner never imports the custom-structures feature directly.
 import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
 import {
   buildAvailableStructures,
@@ -12,15 +9,6 @@ import {
 import { getCurrentUserId } from '@/platform/auth/session';
 import { apiResponse } from '@/transport/api-response';
 
-/**
- * GET /api/account/structures. The structures the caller can place a build in:
- * their CUSTOM structures (3.7.9.1.4) AND their corp's PULLED structures (3.7.9.1.5),
- * merged by the planner's pure assembler with no selector change — the source-agnostic
- * AvailableStructure (with `systemId`/`securityClass`) is the seam corp fills. Corp
- * structures appear only for sharing-enabled corps the caller is a member of (the
- * on-view seam scopes + filters). Each row carries its resolved structure + rig dogma
- * so the planner computes the bonus client-side. Anonymous callers get an empty list.
- */
 // authz: auth
 // input: none
 export async function GET(): Promise<Response> {
@@ -36,7 +24,6 @@ export async function GET(): Promise<Response> {
     return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
   }
 
-  // One batched dogma read across every structure + rig type referenced.
   const dogma = await getTypeAttributesBatch(collectDogmaTypeIds(custom, corp));
   const structures = buildAvailableStructures(custom, corp, structureTypes, dogma);
   return apiResponse(availableStructuresEndpoint, 200, { structures });

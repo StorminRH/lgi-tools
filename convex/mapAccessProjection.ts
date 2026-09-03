@@ -194,11 +194,6 @@ export const reconcileMapClaims = internalMutation({
   },
 });
 
-/**
- * Deletes one user's claims across all maps through by_user in batches of at
- * most 128, returning deleted and hasMore so the calling HTTP action can loop
- * to completion without an unbounded single-transaction scan.
- */
 export const purgeUserClaims = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }): Promise<UserClaimsPurgeResult> => {
@@ -212,11 +207,6 @@ export const purgeUserClaims = internalMutation({
       await ctx.db.delete(row._id);
     }
 
-    // Also sweep the user's mapTracking rows: the dedicated best-effort
-    // /purge-location-tracking door can fail silently, and a deleted account
-    // has no later sync or projection to reclaim its rows — without this,
-    // forMap would keep serving the purged user's last-known location to
-    // every remaining map member indefinitely.
     const tracking = await purgeTrackingForUserBatch(
       ctx,
       userId,

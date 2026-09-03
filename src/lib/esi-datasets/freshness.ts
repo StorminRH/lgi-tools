@@ -1,9 +1,3 @@
-// The registry leaf owns only freshness verdicts and windows. The three
-// trigger layers above it deliberately stay separate: market prices coalesce a
-// live fetch and degrade to a second source, market history gates on a persisted
-// response boundary, and owner sync uses a durable retry queue. Combining those
-// budget, retry, write, and concurrency policies would expose a flag-driven
-// temporal shell rather than hide one decision.
 import { ESI_DATASET_ENTRIES } from './entries';
 import { effectiveTtlMs } from './types';
 
@@ -12,19 +6,8 @@ export type StaticWindowEntry = Extract<
   { freshnessModel: 'caller-ttl' | 'row-stale-after' }
 >;
 
-/**
- * The names of registry datasets with a static staleness window: the
- * caller-ttl and row-stale-after models, whose effective TTL is the entry's
- * verified upstream cache time or its recorded override.
- */
 export type StaticWindowDatasetName = StaticWindowEntry['name'];
 
-/**
- * A dataset's bound runtime staleness gate. `isStale` is pure and
- * clock-injected: true when the owner was never refreshed or the refresh is
- * older than the entry-derived window. `ttlMs` exposes the same window for
- * write-time stale-after stamps and SQL cutoff arithmetic.
- */
 export interface FreshnessGate {
   readonly ttlMs: number;
   isStale(refreshedAt: Date | null, now: Date): boolean;
@@ -45,11 +28,6 @@ function entryNamed(name: StaticWindowDatasetName): StaticWindowEntry {
   return entry;
 }
 
-/**
- * Returns the staleness gate bound to one statically windowed registry entry.
- * Bound gates preserve the existing `(refreshedAt, now)` caller contract while
- * hiding entry lookup, freshness-model legality, and override resolution.
- */
 export function freshnessGate(name: StaticWindowDatasetName): FreshnessGate {
   const ttlMs = effectiveTtlMs(entryNamed(name));
   if (ttlMs === null) {
@@ -62,13 +40,6 @@ export function freshnessGate(name: StaticWindowDatasetName): FreshnessGate {
   };
 }
 
-/**
- * The serialized-clock face of the stale-after boundary verdict: true when a
- * row's persisted stale-after instant (epoch ms) has been reached at `nowMs`.
- * Owns the same inclusive `staleAfter <= now` comparison as
- * `isBoundaryStale`, which delegates here. Row existence stays the caller's
- * question — a missing row is an existence verdict, not a boundary one.
- */
 export function isBoundaryStaleMs(
   staleAfterMs: number,
   nowMs: number,
@@ -76,11 +47,6 @@ export function isBoundaryStaleMs(
   return staleAfterMs <= nowMs;
 }
 
-/**
- * Returns whether an expires-boundary dataset needs refresh. A missing row is
- * stale; a persisted boundary remains fresh only while it is strictly later
- * than the injected clock.
- */
 export function isBoundaryStale(
   staleAfter: Date | undefined,
   now: Date,

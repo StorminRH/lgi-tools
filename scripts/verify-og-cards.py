@@ -18,10 +18,8 @@ from urllib.error import HTTPError
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-
 EXPECTED_SIZE = (1200, 630)
-SITE_IDS = (100, 121, 130)  # combat, gas, ore in the local catalogue
-
+SITE_IDS = (100, 121, 130)
 
 class OpenGraphParser(HTMLParser):
     def __init__(self) -> None:
@@ -38,17 +36,14 @@ class OpenGraphParser(HTMLParser):
         if values.get("name") == "twitter:image":
             self.twitter_images.append(values)
 
-
 def fetch(url: str) -> tuple[int, str, bytes]:
     with urlopen(url, timeout=30) as response:
         return response.status, response.headers.get_content_type(), response.read()
-
 
 def png_size(data: bytes) -> tuple[int, int]:
     if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
         raise ValueError("response is not a PNG")
     return struct.unpack(">II", data[16:24])
-
 
 def metadata_image_paths(html: bytes) -> tuple[str, str, dict[str, str]]:
     parser = OpenGraphParser()
@@ -62,7 +57,6 @@ def metadata_image_paths(html: bytes) -> tuple[str, str, dict[str, str]]:
     return urlparse(image["content"]).path, urlparse(twitter_image["content"]).path, {
         meta.get("property", ""): meta.get("content", "") for meta in parser.images
     }
-
 
 def verify_page(base_url: str, page_path: str, expected_image_path: str) -> None:
     status, content_type, body = fetch(f"{base_url}{page_path}")
@@ -81,7 +75,6 @@ def verify_page(base_url: str, page_path: str, expected_image_path: str) -> None
         raise ValueError(f"{page_path}: unexpected metadata dimensions {width}x{height}")
     print(f"page {page_path}: 200 text/html -> {image_path} ({width}x{height})")
 
-
 def verify_image(base_url: str, image_path: str) -> None:
     status, content_type, body = fetch(f"{base_url}{image_path}")
     dimensions = png_size(body)
@@ -92,7 +85,6 @@ def verify_image(base_url: str, image_path: str) -> None:
         )
     print(f"image {image_path}: 200 image/png {dimensions[0]}x{dimensions[1]}")
 
-
 def verify_not_found(base_url: str, image_path: str) -> None:
     try:
         fetch(f"{base_url}{image_path}")
@@ -102,7 +94,6 @@ def verify_not_found(base_url: str, image_path: str) -> None:
             return
         raise
     raise ValueError(f"{image_path}: expected 404 for unknown site")
-
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -118,7 +109,6 @@ def main() -> None:
         verify_page(base_url, page_path, image_path)
         verify_image(base_url, image_path)
     verify_not_found(base_url, "/sites/999999/opengraph-image")
-
 
 if __name__ == "__main__":
     main()

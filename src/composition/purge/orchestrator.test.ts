@@ -1,9 +1,3 @@
-// Orchestrator ordering + contributor-coverage test. A recording mock of @/db (the
-// queries.owner.test.ts house pattern) captures the table behind every delete/update
-// the contributors issue, so we can assert tier ordering (credential → cache →
-// durable) and that the transfer scope touches exactly the credential tables — the
-// guarantee that keeps the byte-identical owner-purge oracle green. Running both
-// subject kinds across all tiers also exercises every contributor's teardown.
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,8 +22,6 @@ const { chain, recorded } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
-// Maps purge now captures affected map ids before deleting; unit tests that only
-// assert Neon delete order stub those reads empty so the mock db chain stays delete-only.
 vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
   return {
@@ -93,7 +85,6 @@ describe('runPurge orchestrator', () => {
       expect(seq).toContain(cacheTable);
     }
     expect(seq.indexOf('account')).toBeLessThan(seq.indexOf('character_skills'));
-    // A character purge never touches the per-user tables.
     expect(seq).not.toContain('corp_industry_jobs');
     expect(seq).not.toContain('user_preferences');
     expect(seq).not.toContain('custom_structures');

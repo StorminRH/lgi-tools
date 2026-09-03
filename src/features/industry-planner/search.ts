@@ -1,15 +1,5 @@
-// The Blueprints search source descriptor. Lazy: the registry memoizes the
-// dynamic import of ./blueprints-source so its matcher + fetched index only load
-// on the user's first matching keystroke, never in the initial bundle. The
-// composition search wiring manifest passes this to
-// registerLazySearchSource.
-
 import type { LazySearchSource } from '@/platform/search';
 
-/**
- * Global-search source for blueprints search source; it owns matching and result mapping while the
- * app layer owns registration.
- */
 export const blueprintsSearchSource: LazySearchSource = {
   id: 'blueprints',
   name: 'Blueprints',

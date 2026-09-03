@@ -27,13 +27,6 @@ export const forViewer = query({
     ),
 });
 
-/**
- * The action's read seam: which ETags to replay per character for the
- * conditional location and ship reads, plus the held online-probe state
- * (flag, ETag, cache window). ONE internalQuery — both tables read in the
- * same transaction, so the etag-beside-value invariants hold across a single
- * snapshot (two runQuery calls would each get their own).
- */
 export const heldState = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {

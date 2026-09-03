@@ -7,17 +7,14 @@ import {
 import type { AnyPgDb } from '@/lib/db-types';
 import { whObservations } from './schema';
 
-/** The complete privacy-safe input for one corrected-in-place D16 observation. */
 export interface WhObservationInput {
   readonly solarSystemId: number;
   readonly whTypeCode: string;
-  /** Every connection tier is admitted; `assumed` marks a machine deduction (D-B). */
   readonly provenance: ConnectionProvenance;
   readonly observedAt: Date;
   readonly dedupeKey: string;
 }
 
-/** One elimination-pass corpus reconcile: upserts plus vacated-key deletes. */
 export interface WhObservationReconcile {
   readonly upserts: readonly WhObservationInput[];
   readonly deleteKeys: readonly string[];
@@ -47,7 +44,6 @@ function assertObservationInput(input: WhObservationInput): void {
   }
 }
 
-/** Returns a new Date truncated to its UTC hour without mutating the caller's value. */
 function toObservationHour(value: Date): Date {
   const observedAt = new Date(value);
   if (Number.isNaN(observedAt.getTime())) {
@@ -57,12 +53,6 @@ function toObservationHour(value: Date): Date {
   return observedAt;
 }
 
-/**
- * Deletes the observation carrying a dedupe key. Used when a correction moves
- * a hole's identity onto a target the emission guard rejects (untyped, K162,
- * class-contradicted) — the previously emitted row would otherwise keep
- * asserting the vacated identity with no repair pathway. Absent key: no-op.
- */
 export async function deleteWhObservation(
   database: AnyPgDb,
   dedupeKey: string,
@@ -72,10 +62,6 @@ export async function deleteWhObservation(
     .where(eq(whObservations.dedupeKey, dedupeKey));
 }
 
-/**
- * Inserts one D16 observation or replaces its attributable facts when the same
- * per-hole-lifetime dedupe key is corrected later.
- */
 export async function insertWhObservation(
   database: AnyPgDb,
   input: WhObservationInput,
@@ -100,12 +86,6 @@ export async function insertWhObservation(
   return stored;
 }
 
-/**
- * Applies one elimination-pass corpus update as at most one multi-row upsert
- * and one keyed delete. Neon-http has no interactive transaction, so the two
- * statements stay independent round-trips; callers treat the corpus as
- * convergent follow-up work.
- */
 export async function reconcileWhObservations(
   database: AnyPgDb,
   reconcile: WhObservationReconcile,

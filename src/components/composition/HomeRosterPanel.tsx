@@ -1,15 +1,5 @@
 'use client';
 
-// The home page's logged-in left slot (P3b): the pilot's character roster with a
-// live skill-queue preview per character, plus an Add Character control. The live
-// data is the per-character skills read from /api/account/skills (MIGRATE.B.1 — the
-// queue moved off the live Convex engine onto a Neon stale-gated on-view read),
-// joined with the linked-character list (names/portraits, fetched from the account
-// endpoint). The current-training line counts down client-side from the active
-// entry's absolute finish_date (progress.ts) against a 30s clock — no reload, no
-// polling. A `demo` prop seeds the presentational cards directly for the dev/preview
-// ?demo review, bypassing auth + the fetch entirely. This is the `shared` zone, the
-// only layer permitted to compose features + data + ui + lib.
 import { type ReactNode, useEffect, useState } from 'react';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -23,10 +13,6 @@ import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/ro
 import { useSkillsLive } from '@/features/skill-queue/use-skills-live';
 import { apiFetch } from '@/transport/api-client';
 
-/**
- * Loads and renders the signed-in character roster, or renders supplied demo rows; account loading
- * and empty states remain contained in the panel.
- */
 export function HomeRosterPanel({ demo }: { demo?: RosterViewModel[] }) {
   return (
     <RosterFrame>{demo !== undefined ? <RosterList items={demo} /> : <LiveRoster />}</RosterFrame>
@@ -52,9 +38,6 @@ function RosterList({
   items: RosterViewModel[];
   reconnectAction?: ReactNode;
 }) {
-  // Mobile-width cards that tile rather than stretch: each card (and its skill
-  // bar) stays narrow, and up to three fit across the left column. The max-width
-  // caps it at ~3 columns on a wide desktop instead of sprawling further.
   return (
     <div className="grid max-w-[760px] grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-x-5 gap-y-4">
       {items.map((vm) => (
@@ -65,10 +48,6 @@ function RosterList({
 }
 
 function LiveRoster() {
-  // 'loading' until the roster fetch resolves; 'error' on a network rejection or
-  // a non-OK response (otherwise the panel would sit on the spinner forever with
-  // no recovery — and an empty-list fallback would wrongly read as "no characters
-  // linked" to a pilot who has some).
   const [state, setState] = useState<{ characters: PanelCharacter[] } | 'loading' | 'error'>(
     'loading',
   );

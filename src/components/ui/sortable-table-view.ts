@@ -1,10 +1,3 @@
-// Pure view model for the sortable-table header — the sort-direction toggle,
-// href building, and active/indicator decisions — so the primitive's header
-// row renders branch-free. Kept in a plain module (no React import) so it
-// unit-tests cleanly and imports only what it needs (a minimal column shape,
-// not the component's `SortableColumn<Row>`, which avoids an import cycle).
-
-/** The header-relevant slice of a column (a `SortableColumn<Row>` satisfies this). */
 export type SortHeaderColumn = {
   key: string;
   label: string;
@@ -12,23 +5,16 @@ export type SortHeaderColumn = {
   align?: 'left' | 'right';
 };
 
-/**
- * Display-ready sort header cell model consumed by the shared visualization layer; callers keep
- * all numeric values in one consistent unit.
- */
 export type SortHeaderCellModel = {
   key: string;
   label: string;
   alignClass: string;
   sortable: boolean;
-  /** Sort link target, or null for a non-sortable column. */
   href: string | null;
-  /** Active-column direction glyph, or null. */
   indicator: string | null;
   isActive: boolean;
 };
 
-/** Rebuild the query string with a new sort column + direction, dropping any prior sort params. */
 export function buildSortHref(
   basePath: string,
   currentParams: Record<string, string | undefined>,
@@ -48,11 +34,6 @@ export function buildSortHref(
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
-/**
- * The per-column header models: alignment, whether it's a sort link (and where
- * to), and the active-direction indicator. An already-active column toggles
- * direction; a fresh column takes its `defaultDirFor` (or 'desc').
- */
 export function deriveSortHeaderCells(opts: {
   columns: SortHeaderColumn[];
   sortKey: string | null;
@@ -75,7 +56,6 @@ export function deriveSortHeaderCells(opts: {
       return { key: col.key, label: col.label, alignClass, sortable, href: null, indicator: null, isActive };
     }
 
-    // Toggle direction if already-active; otherwise the column's default.
     const nextDir: 'asc' | 'desc' = isActive
       ? sortDir === 'asc'
         ? 'desc'

@@ -7,16 +7,12 @@ import { EntityRow } from '@/components/ui/row';
 import { eyebrow } from '@/components/ui/type-roles';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
-/** Static search and social metadata for the /contact route. */
 export const metadata = buildPageMetadata({
   title: 'Contact',
   description: 'Reach the developer of LGI.tools — bug reports, ideas, and data corrections.',
   canonical: '/contact',
 });
 
-// The maintainer's public identity, shown in the "In-game" panel. The portrait
-// is served by the EVE image server (a CSP-allowed host); names link to EVE Who.
-// All fixed values, so the page stays fully static.
 const MAINTAINER_CHARACTER_ID = 2123732314;
 const MAINTAINER_CHARACTER_NAME = 'Stormin Jr';
 const MAINTAINER_CORPS = [
@@ -25,10 +21,6 @@ const MAINTAINER_CORPS = [
 ];
 const CONTACT_EMAIL = 'lgi.tools@pm.me';
 
-/**
- * Renders the /contact route surface and owns its page-level composition, metadata boundary, and
- * fallback presentation.
- */
 export default function ContactPage() {
   return (
     <PageShell mode="reading">

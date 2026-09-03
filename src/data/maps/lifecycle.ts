@@ -20,20 +20,12 @@ import {
 import { MAP_DELETE_GRACE_MS } from './queries';
 import { maps } from './schema';
 
-/** Maximum due maps one daily sweep claims, bounding one function invocation. */
 const MAP_PURGE_MAPS_PER_RUN = 25;
 
-/**
- * Staged creations are born purge-queued for compensating recovery. Hold them
- * past the 20 s creation-projection deadline so the daily sweep cannot claim an
- * in-flight insert.
- */
 export const MAP_STAGED_PURGE_HOLD_MS = 30_000;
 
-/** Dedicated session advisory lock for the daily cross-store map purge. */
 export const ADVISORY_LOCK_MAP_PURGE = 8_273_619_019;
 
-/** One durable map selected for collaborative purge. */
 export interface PurgeableMap {
   readonly id: string;
 }
@@ -44,7 +36,6 @@ function oneAuthorizedRow(
   return mapAuthorizationRows(result).length === 1;
 }
 
-/** Atomically requires active-map admin authority and starts the undo window. */
 export async function archiveAuthorizedMap(
   userId: string,
   principals: MapPrincipals,
@@ -76,10 +67,6 @@ export async function archiveAuthorizedMap(
   return oneAuthorizedRow(result);
 }
 
-/**
- * Atomically requires archived-map admin authority inside grace and restores
- * the durable map only while no purge or tombstone has begun.
- */
 export async function restoreAuthorizedMap(
   userId: string,
   principals: MapPrincipals,
@@ -117,7 +104,6 @@ export async function restoreAuthorizedMap(
   return oneAuthorizedRow(result);
 }
 
-/** Creator-only fast-forward: queues an archived, in-grace map for the cron. */
 export async function requestAuthorizedMapPurge(
   userId: string,
   mapId: string,
@@ -164,12 +150,6 @@ function purgeEligibility(now: Date) {
   );
 }
 
-/**
- * Atomically claims one bounded, deterministic due set. The outer conditional
- * update arbitrates against publish and restore before any Convex deletion.
- * Existing claims are reclaimable because the route-level advisory lock leaves
- * no prior worker alive after its session ends.
- */
 export async function claimPurgeableMaps(
   now: Date = new Date(),
   limit = MAP_PURGE_MAPS_PER_RUN,

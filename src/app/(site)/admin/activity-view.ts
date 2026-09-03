@@ -3,24 +3,12 @@ import { movingAverage, weekOverWeekDelta, zeroFillDaily } from './aggregate';
 import type { Delta } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
 
-// Server-side derivation for the Activity chart (AnnotatedDailyChart): expand the
-// sparse daily counts to a continuous calendar series, add the 7-day moving
-// average, the prior-period reference line, weekend flags, deploy markers, and
-// the end label. Pure and testable; the client chart component re-derives none
-// of it. The moving-average window and the marker-density cap are the two tunable
-// constants.
-
 const MS_PER_DAY = 86_400_000;
 const MA_WINDOW = 7;
-// Beyond this many days a per-deploy marker line reads as noise, so drop markers.
 const MARKER_DENSITY_CAP = 120;
 
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
-/**
- * Public App Router data contract for activity chart data; fields are owned here so callers do not
- * depend on the module's internal representation.
- */
 export interface ActivityChartData extends DailyChartSeries {
   endValue: number;
   endDelta: Delta | null;
@@ -39,10 +27,6 @@ const EMPTY: ActivityChartData = {
   hasData: false,
 };
 
-/**
- * One marker per day: many sub-versions ship on the same date, so collapse them
- * (label = the single version, or "N deploys" when several land the same day).
- */
 function dedupeMarkersByDay(
   markers: { date: string; label: string }[],
 ): { date: string; label: string }[] {
@@ -58,10 +42,6 @@ function dedupeMarkersByDay(
   }));
 }
 
-/**
- * Derives activity view under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function deriveActivityView(input: {
   range: DateRange;
   dailyCounts: { day: string; totalEvents: number }[];
@@ -71,9 +51,6 @@ export function deriveActivityView(input: {
   const { range, dailyCounts, prevDailyCounts, markers } = input;
   if (dailyCounts.length === 0) return EMPTY;
 
-  // Fill the continuous span, but clamp the start to the first day with data so a
-  // wide range (`all`, whose floor predates launch) never fabricates pre-launch
-  // zeros; end at the range's `to` so the axis reaches "today".
   const rangeStart = isoDay(range.from);
   const firstDay = dailyCounts[0]!.day;
   const start = firstDay > rangeStart ? firstDay : rangeStart;
@@ -86,10 +63,6 @@ export function deriveActivityView(input: {
   const average = movingAverage(series.values, MA_WINDOW);
   const points = series.values.map((y, x) => ({ x, y }));
 
-  // Reference = the prior equal-length window's average daily events; suppressed
-  // (null) when that window holds no data — no misleading NaN/zero line. Divide
-  // by the prior window's own calendar length (= the range length), NOT the
-  // current filled series length, which can be clamped shorter than the range.
   const prevTotal = prevDailyCounts
     ? prevDailyCounts.reduce((sum, d) => sum + d.totalEvents, 0)
     : 0;
@@ -98,8 +71,6 @@ export function deriveActivityView(input: {
       ? { value: prevTotal / rangeDayCount(range), label: 'prior avg' }
       : null;
 
-  // Deploy markers → their ordinal index in the filled series (out-of-range days
-  // drop out); suppressed entirely on a dense (wide) range.
   const dayIndex = new Map(series.days.map((day, i) => [day, i]));
   const eventMarkers =
     series.days.length > MARKER_DENSITY_CAP
@@ -124,7 +95,6 @@ export function deriveActivityView(input: {
   };
 }
 
-/** Number of whole days in a range — for callers that need the window length. */
 export function rangeDayCount(range: DateRange): number {
   return Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / MS_PER_DAY));
 }

@@ -6,16 +6,6 @@ import { metricLabelColumn } from './metric-label-column';
 import { DeltaBadge } from './DeltaBadge';
 import type { MetricRow } from './metric-view';
 
-// The headline metrics as a real <table> — one row per metric, every answer
-// readable at rest: current value, per-day average, the period-over-period
-// delta (colour + ▲/▼ symbol), and an inline sparkline where a daily series
-// exists. Replaces the KpiCard grid. A11y floor: a genuine table with a header
-// row; the delta's direction is carried by the symbol as well as the colour.
-
-/**
- * Renders headline metrics as an accessible table, preserving each row's comparison direction and
- * optional range hint.
- */
 export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }) {
   const columns = [
     metricLabelColumn<MetricRow>(),

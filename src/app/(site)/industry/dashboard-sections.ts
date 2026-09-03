@@ -1,31 +1,6 @@
-// The /industry dashboard's section rank model (3.7.24): the order the four
-// section modules render in lives HERE as data, not in JSX order. Populated
-// sections render first in the preferred order; empty sections sink to the
-// bottom (as slim headers) keeping the same preferred order among themselves.
-// A section whose data hasn't settled yet ('pending') renders with the
-// populated group — optimistic, so nothing jumps until a section is CONFIRMED
-// empty. Pure of React so the ordering and the per-section status rules are
-// unit-tested directly.
-//
-// The `preferred` parameter is the seam for user-customizable section ordering
-// (a future page-settings spec would feed a persisted order here); the default
-// is the product-preferred order. Deliberately nothing more is built for that.
-
-/**
- * Canonical identifier used by App Router; consumers must not infer additional identity semantics
- * from its storage representation.
- */
 export type DashboardSectionId = 'recents' | 'saved' | 'active' | 'corp';
-/**
- * Closed set of externally meaningful App Router states; callers must handle every member instead
- * of inferring state from incidental fields.
- */
 export type SectionStatus = 'pending' | 'empty' | 'populated';
 
-/**
- * Canonical App Router policy for preferred section order; consumers derive behavior from this
- * single ordered definition.
- */
 export const PREFERRED_SECTION_ORDER: readonly DashboardSectionId[] = [
   'recents',
   'saved',
@@ -33,7 +8,6 @@ export const PREFERRED_SECTION_ORDER: readonly DashboardSectionId[] = [
   'corp',
 ];
 
-/** Derives sections under the App Router policy without transferring ownership of caller-provided inputs. */
 export function orderSections(
   status: Readonly<Record<DashboardSectionId, SectionStatus>>,
   preferred: readonly DashboardSectionId[] = PREFERRED_SECTION_ORDER,
@@ -44,20 +18,11 @@ export function orderSections(
   ];
 }
 
-/**
- * Recents reads localStorage after mount: null = not read yet (the static
- * shell / first paint), [] = read and empty.
- */
 export function recentsStatus(recent: readonly unknown[] | null): SectionStatus {
   if (recent === null) return 'pending';
   return recent.length > 0 ? 'populated' : 'empty';
 }
 
-/**
- * Templates settle from /api/account/saved-plans: an anonymous viewer gets
- * \{plans: []\} (empty → the sunk header carries the sign-in hint), and a failed
- * read sinks with the error line rather than holding a spinner slot open.
- */
 export function savedStatus(
   plans: readonly unknown[] | null,
   listFailed: boolean,
@@ -67,11 +32,6 @@ export function savedStatus(
   return plans.length > 0 ? 'populated' : 'empty';
 }
 
-/**
- * Active jobs: an empty roster means signed out / no linked character (the
- * on-view read returns no characters) — that sinks with the sign-in hint. A
- * populated roster with zero jobs sinks with the no-jobs line.
- */
 export function activeStatus(args: {
   loading: boolean;
   rosterSize: number;
@@ -82,11 +42,6 @@ export function activeStatus(args: {
   return 'populated';
 }
 
-/**
- * What a section renders given its settled status: whether its meta shows (only
- * when populated), the hint to show (only when confirmed-empty AND it has one),
- * and whether to render the body. Keeps the grid's render map branch-free.
- */
 export function deriveSectionRender(
   status: SectionStatus,
   hint: string | undefined,
@@ -99,33 +54,18 @@ export function deriveSectionRender(
   };
 }
 
-/**
- * The Active-jobs empty hint: an empty roster is signed-out / no linked
- * character (prompt sign-in); a populated roster with no jobs just says so.
- */
 export function activeJobsHint(rosterSize: number): string {
   return rosterSize === 0
     ? 'Sign in with EVE (top right) to track your industry jobs here.'
     : 'No industry jobs running.';
 }
 
-/**
- * The Corp-jobs empty hint: silent when there are no linked characters (the
- * Active section's sign-in hint already prompts — no double-prompt).
- */
 export function corpHint(hasLinkedCharacters: boolean): string | undefined {
   return hasLinkedCharacters
     ? 'No corporation industry jobs yet — they’ll appear here once a sync completes.'
     : undefined;
 }
 
-/**
- * Corp jobs carries two app-side gates ahead of the data read:
- *  - no linked characters → empty AND silent (the active section's sign-in
- *    hint already prompts; no double-prompt — today's `return null` behavior).
- *  - linked but no corp-eligible character → POPULATED: the scope-missing
- *    AccessGate is actionable content (the relink CTA) and must not sink.
- */
 export function corpStatus(args: {
   hasLinkedCharacters: boolean;
   eligibleCount: number;

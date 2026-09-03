@@ -73,7 +73,6 @@ function ProofContent({ state }: { state: ProofState }) {
   );
 }
 
-/** Exercises both browser-session asset loaders and reports a compact real-data proof. */
 export function UniverseAssetsProof() {
   const [state, setState] = useState<ProofState>({ status: 'loading' });
 

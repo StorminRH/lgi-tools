@@ -1,11 +1,6 @@
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { uniqueByUserCharacter } from './indexedQuery';
 
-/**
- * Flip-only present+online rows. A document exists only while the owner's
- * last location run covered this character. No bookkeeping fields — insert
- * or delete when the boolean changes, never on a per-run stamp.
- */
 export async function applyCoverageSet(
   ctx: MutationCtx,
   userId: string,
@@ -30,7 +25,6 @@ export async function applyCoverageSet(
   }
 }
 
-/** Tab-close / engine-cold: drop every coverage row for this owner. */
 export async function clearCoverageForUser(
   ctx: MutationCtx,
   userId: string,
@@ -42,7 +36,6 @@ export async function clearCoverageForUser(
   for (const doc of existing) await ctx.db.delete(doc._id);
 }
 
-/** Unique coverage row for one owner-character, or null when uncovered. */
 export async function findCoverage(
   ctx: QueryCtx | MutationCtx,
   userId: string,

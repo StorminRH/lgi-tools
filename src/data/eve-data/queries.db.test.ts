@@ -4,11 +4,6 @@ import { getBlueprintActivities, readShipMassByType } from './queries';
 import { eveTypes, industryBlueprints } from './schema';
 import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities';
 
-// Runs getBlueprintActivities against the local Docker Postgres so the parse is
-// proven end-to-end against the REAL stored JSONB shape (round-tripped through
-// the jsonb column), not just a hand-built object. Skips cleanly when no DB is
-// reachable (CI has no Postgres). The throwaway schema is dropped in afterAll.
-
 const harness = await createDbTestHarness({
   schema: 'test_eve_activities',
   tables: ['industry_blueprints', 'eve_types'],

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-/** Resolved column template plus which optional cells an EntityRow renders. */
 export type RowLayout = {
   colsClass: string;
   showLeading: boolean;
@@ -9,13 +8,6 @@ export type RowLayout = {
   showChipColumn: boolean;
 };
 
-/**
- * deriveRowLayout — the pure layout decision behind EntityRow: pick the grid
- * template (a caller `colsClass` wins, else the default gains a dedicated chip
- * column only when chips sit in their own trailing column) and report which
- * optional cells are present. Kept separate so the render shell stays
- * branch-free and this logic is unit-tested.
- */
 export function deriveRowLayout({
   leading,
   chips,

@@ -49,10 +49,7 @@ describe('generateChain', () => {
   it('exercises loops across the corpus and orphan phases at meaningful sizes', () => {
     const trees = PROOF_CORPUS.map((entry) => deriveChainTree(generateChain(entry)));
     expect(trees.some((tree) => tree.loopEdges.length > 0)).toBe(true);
-    // Late-connected orphans resolve, but a chain may end mid-phase; the corpus must include at
-    // least one chain that ends with a still-unconnected orphan to pin overflow-sector behavior.
     expect(trees.some((tree) => tree.orphans.length > 0)).toBe(true);
-    // Every generated connection endpoint is a generated system: the corpus never names unknowns.
     for (const entry of PROOF_CORPUS) {
       const facts = generateChain(entry);
       const known = new Set(facts.systems.map((system) => system.systemId));
@@ -74,8 +71,6 @@ describe('chainPrefix', () => {
       expect(included.has(edge.fromSystemId)).toBe(true);
       expect(included.has(edge.toSystemId)).toBe(true);
     }
-    // Step filtering, not endpoint filtering: a late orphan-resolution edge between two old
-    // systems must NOT leak into an earlier prefix, and the full-count prefix is the whole chain.
     const byStep = timeline.facts.connections.filter(
       (_edge, index) => (timeline.connectionSteps[index] ?? Number.POSITIVE_INFINITY) <= 20,
     );

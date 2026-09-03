@@ -20,7 +20,6 @@ import { siteClassSet } from '@/features/wormhole-sites/site-filter';
 import { buildPageMetadata } from '@/lib/page-metadata';
 import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
 
-/** Static search and social metadata for the /sites route. */
 export const metadata = buildPageMetadata({
   title: 'Wormhole Sites — Live Jita Loot & Resource Values',
   description:
@@ -63,9 +62,6 @@ async function SitesResultsFromCookie({
   return <SitesResults cards={cards} table={table} initialView={initialView} />;
 }
 
-// Cached catalogue region: structure and the hourly price seed are shared, so
-// the slow read never joins request time. PageHead and filter chrome render
-// before the saved-view result branch; URL sorting stays nested inside it.
 async function SitesCatalogue({
   searchParams,
 }: {
@@ -119,10 +115,6 @@ async function SitesCatalogue({
   );
 }
 
-/**
- * The cached catalogue carries stable chrome; the saved result mode and nested URL sort stream
- * from their smallest truthful request-time boundaries.
- */
 export default function SitesPage({
   searchParams,
 }: {

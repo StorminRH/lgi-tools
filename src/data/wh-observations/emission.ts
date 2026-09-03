@@ -5,27 +5,14 @@ import {
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { WhObservationInput } from './queries';
 
-/** Endpoint-local identity facts one D16 observation may be derived from. */
 export interface ObservationFacts {
-  /** The system whose side carries the attributable typed code. */
   readonly typedSystemId: number;
   readonly whTypeCode: string | null;
   readonly provenance: ConnectionProvenance | null;
   readonly dedupeKey: string | null;
-  /**
-   * Effective wormhole class behind the hole, or null while the far side is
-   * unknown — an unresolved scanned row has nothing to contradict.
-   */
   readonly destinationClassId: number | null;
 }
 
-/**
- * Decides the one observation an identified hole justifies, or null when the
- * facts are unattributable: untyped, far-side K162, outside the codex, or
- * class-contradicted by a known destination. Sole owner of the emission guard
- * for every channel, so a null answer is equally the signal to repair a row a
- * correction has vacated.
- */
 export function observationFor(
   facts: ObservationFacts,
   codex: readonly WormholeCodexEntry[],

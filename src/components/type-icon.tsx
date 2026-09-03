@@ -6,14 +6,6 @@ import type { EveImageFamily } from '@/lib/eve-image';
 import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 
-// Renders an item image from the EVE image server, with a graceful fallback.
-// It bakes in the `images.evetech.net` host and the server's rendition
-// variants (`icon`/`render` plus the `bp`/`bpc` blueprint renditions), so it's
-// EVE-specific — not a generic image element. It knows nothing about prices.
-// EveImage sends requests directly to CCP's discrete image sizes without using
-// Vercel's optimizer. On a 404 this swaps to a tone-styled monogram rather than
-// leaving a broken image.
-
 const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
   icon: 'type-icon',
   render: 'type-render',
@@ -21,10 +13,6 @@ const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
   bpc: 'type-bpc',
 };
 
-// The monogram fallback ignores image width/height attributes — so its box is
-// sized by a class. Keyed by the display sizes the
-// app actually uses; extend when a new size ships. Unknown sizes fall back to
-// the row-icon size.
 const FALLBACK_SIZE_CLASS: Record<number, string> = {
   22: 'size-icon-lg',
   26: 'w-[26px] h-[26px]',
@@ -33,10 +21,6 @@ const FALLBACK_SIZE_CLASS: Record<number, string> = {
   88: 'w-[88px] h-[88px]',
 };
 
-/**
- * Renders an EVE type icon, render, blueprint, or copy rendition and falls back to the provided
- * monogram when no usable image is available.
- */
 export function TypeIcon({
   typeId,
   variant = 'icon',
@@ -47,11 +31,8 @@ export function TypeIcon({
 }: {
   typeId: number;
   variant?: TypeIconVariant;
-  // Display size in px. The requested image size is derived from this.
   size: number;
-  // Accessible label; omit (or '') for a decorative icon sitting next to text.
   alt?: string;
-  // Two-char monogram override for the 404 fallback (else derived from alt).
   mono?: string;
   className?: string;
 }) {

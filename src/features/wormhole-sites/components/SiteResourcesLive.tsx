@@ -14,19 +14,6 @@ import {
   type SiteLiveValue,
 } from './site-live-context';
 
-// Live ore/gas pricing for one site. The provider wraps the WHOLE card (header
-// summary + expanded body) so the card's headline total and the per-resource
-// rows + footer all refresh from one engine call and flash together. Static site
-// data (waves, NPCs, loot) is untouched and stays in the prerendered shell.
-//
-// The refresh is gated to "on view": a zero-layout sentinel lives inside the
-// collapsed body, so the first time the card is opened AND scrolled into view it
-// calls `requestEnable` and the loop starts (one trigger covering card view,
-// table view, and the default-open detail page). Until then, and for anything
-// the engine can't price, every figure shows its server seed.
-
-// Derive the set of type IDs worth refreshing for a site (those whose rows can
-// actually take a live value).
 function eligibleTypeIdsOf(resources: SiteResource[]): number[] {
   return [
     ...new Set(
@@ -35,10 +22,6 @@ function eligibleTypeIdsOf(resources: SiteResource[]): number[] {
   ];
 }
 
-/**
- * Publishes site live state to descendants; the provider owns subscription and update lifecycle
- * while children consume it.
- */
 export function SiteLiveProvider({
   resources,
   children,
@@ -70,9 +53,6 @@ function LiveSiteTotal({ resources }: { resources: SiteResource[] }) {
   return <LivePrice value={formatIskHeader(total)} pending={pending} />;
 }
 
-// Zero-height marker placed at the top of the (collapsed-hidden) body. Fires the
-// provider's `requestEnable` the first time it's on screen — i.e. once the card
-// is opened and scrolled into view.
 function ViewSentinel() {
   const { requestEnable } = useSiteLive();
   const ref = useRef<HTMLDivElement>(null);
@@ -91,19 +71,10 @@ function ViewSentinel() {
   return <div ref={ref} aria-hidden className="h-0" />;
 }
 
-/**
- * The card's headline total, summed live from the same map the rows read. Shows
- * the server seed until the refresh lands, then flashes in the live sum.
- */
 export function SiteHeaderTotal({ resources }: { resources: SiteResource[] }) {
   return <LiveSiteTotal resources={resources} />;
 }
 
-/**
- * The expanded body's resource rows + footer. Renders the view sentinel that
- * arms the refresh, then the live rows and the live total. Consumes the context
- * from the SiteLiveProvider above it.
- */
 export function SiteResourcesLive({
   resources,
   siteType,
@@ -124,7 +95,6 @@ export function SiteResourcesLive({
   );
 }
 
-// The section total — same live sum as the header, rendered as the footer line.
 function LiveResourceFooter({
   resources,
   label,

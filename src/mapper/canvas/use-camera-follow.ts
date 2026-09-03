@@ -1,23 +1,5 @@
 'use client';
 
-// Eased camera fits and click-to-focus, driven by merge intents and the click
-// seam. The whole policy — one initial framing regardless of the toggle, then
-// follow-gated drag-suppressed refits, slow-tier easing, bounds from
-// reconciled targets, focus at preserved zoom, drag-start abort, and
-// newer-supersedes-older — lives in `camera-follow-model.ts`, where it is
-// unit-tested. Must mount inside `<ReactFlow>`.
-//
-// Node readiness is required before fitting: ChainHost syncs reconciler
-// positions in a parent effect, and child effects run first, so intents can
-// arrive a commit before the matching React Flow nodes exist. Waiting on the
-// live node-id set (without consuming the intent batch early) keeps the
-// one-time framing and follow refits aimed at the laid-out chain.
-//
-// The installed viewport API's animated calls return promises that NEVER
-// settle when a newer call supersedes them, so completion is generation-gated
-// through the flight model rather than awaited; the drag-start abort issues a
-// zero-duration `setViewport(getViewport())`, which halts the pan at the
-// current transform — a stop, not a jump.
 import { getViewportForBounds, useReactFlow, useStore } from '@xyflow/react';
 import { memo, useEffect, useRef } from 'react';
 import type { MapChainIntent } from '../chain/intents';
@@ -40,16 +22,11 @@ import {
 } from './camera-follow-model';
 import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
 
-/** The declared widget-frame box every camera pad and center derives from. */
 const SYSTEM_FRAME_SIZE = {
   width: SYSTEM_FRAME_WIDTH,
   height: SYSTEM_FRAME_HEIGHT,
 } as const;
 
-/**
- * Applies one fit: compute a viewport capped at CAMERA_FIT_MAX_ZOOM (fitBounds
- * ignores option maxZoom) and fly there under the generation-tracked flight.
- */
 function applyCappedFit(input: {
   readonly bounds: CameraBounds;
   readonly width: number;
@@ -86,7 +63,6 @@ function isViewportReady(
   return viewportInitialized && width > 0 && height > 0;
 }
 
-/** One fit-effect tick the hook runs verbatim. */
 function runCameraFitEffect(input: {
   readonly viewportInitialized: boolean;
   readonly width: number;
@@ -107,9 +83,6 @@ function runCameraFitEffect(input: {
   readonly framedRef: { current: boolean };
   readonly flightRef: { current: CameraFlight };
 }): void {
-  // Consume nothing until the viewport exists: an intent batch read before
-  // panZoom mounts would silently swallow the arrivals the one-time framing
-  // keys on. Unreachable in today's mount order, held as an invariant anyway.
   const tick = resolveFitTick({
     viewportReady: isViewportReady(
       input.viewportInitialized,
@@ -141,30 +114,23 @@ function runCameraFitEffect(input: {
   });
 }
 
-/** One node click the camera may answer; `token` makes each click distinct. */
 export interface CameraFocusRequest {
   readonly nodeId: string;
   readonly token: number;
 }
 
-/** Everything the camera host consumes. */
 interface CameraFollowProps {
   readonly intents: readonly MapChainIntent[];
   readonly follow: boolean;
   readonly dragging: ReadonlySet<number>;
-  /** Rendered node ids — the readiness gate, id-derived so drags don't churn it. */
   readonly nodeIds: ReadonlySet<number>;
-  /** Reconciled kernel targets — the bounds source (never rendered positions). */
   readonly systems: ChainState['systems'];
   readonly config: MotionConfig;
   readonly prefersReducedMotion: PrefersReducedMotion;
-  /** The click-to-focus seam; `null` until the first click. */
   readonly focusRequest: CameraFocusRequest | null;
-  /** The user's click-to-focus setting. */
   readonly focusEnabled: boolean;
 }
 
-/** Applies the tested fit, focus, and abort policies to the live viewport. */
 function useCameraFollow({
   intents,
   follow,
@@ -183,9 +149,6 @@ function useCameraFollow({
     getInternalNode,
     viewportInitialized,
   } = useReactFlow();
-  // fitBounds ignores option maxZoom and always uses the store ceiling (2.5),
-  // so lone home-system framing fills the screen. Read the pane size here and
-  // compute the viewport with CAMERA_FIT_MAX_ZOOM ourselves.
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
   const minZoom = useStore((state) => state.minZoom);
@@ -227,8 +190,6 @@ function useCameraFollow({
     minZoom,
   ]);
 
-  // Drag start aborts an in-flight transition: the viewport must not keep
-  // panning under a live drag (the follow-off ruling's reason, preserved).
   const dragActive = dragging.size > 0;
   useEffect(() => {
     if (!dragActive || !flightRef.current.active) return;
@@ -275,7 +236,6 @@ function useCameraFollow({
   ]);
 }
 
-/** The position/box facts `focusCenter` needs, from a React Flow internal node. */
 function internalNodeSummary(
   internal:
     | {
@@ -300,15 +260,9 @@ function internalNodeSummary(
   };
 }
 
-/** Host component so the follow hook can live in the React Flow children slot. */
 function CameraFollowHostComponent(props: CameraFollowProps) {
   useCameraFollow(props);
   return null;
 }
 
-/**
- * Memoized (drag hardening, IS-5): every prop is identity-stable across a
- * drag's per-frame renders (the id-derived node set above all), so the
- * camera's effects re-run on real policy inputs, not render churn.
- */
 export const CameraFollowHost = memo(CameraFollowHostComponent);

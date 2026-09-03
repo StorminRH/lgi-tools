@@ -23,23 +23,9 @@ import type { BlueprintStructure } from '../types';
 import { KpiHelp } from './kpi-tile';
 import { useBuildPlan, usePlannerConfig } from './planner-contexts';
 
-// The multibuy export (3.7.22.1): a click-popover panel in the build-plan header
-// that copies the in-game Multibuy shopping string. One Net toggle — Total (build
-// the checked chain from scratch, owned stock ignored) | Remaining (the same
-// minus owned) — plus per-tier scope checkboxes over the min-depth tier cut
-// (assignBuildTiers). Always net: both modes run the same cascade
-// (computeMultibuyDemand), fed the EXACT ME inputs of the shared ledger
-// (ledgerMeOpts), so the list can never disagree with the build plan. Read-only:
-// nothing here feeds back into pricing, times, or the displayed materials.
-
 const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
 
-/** Renders tier selection and the resulting EVE multibuy text without owning build consolidation. */
 export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) {
-  // The panel's scope state (net mode + unchecked tiers) is provider-owned
-  // since 3.7.23.1 (template state); Remaining stays the default for anyone
-  // with owned stock (effectiveMode falls back to Total when there is none —
-  // signed out, no scopes, or empty hangars).
   const {
     runs,
     multibuyMode: mode,
@@ -49,15 +35,9 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
   } = usePlannerConfig();
   const { ledgerMeOpts, ownedAssets } = useBuildPlan();
 
-  // Remaining needs owned stock to net. The overlay settles to an EMPTY map for
-  // a logged-out caller or one owning none of this plan's items (null = not
-  // settled yet) — in every no-stock case Remaining would equal Total, so it's
-  // disabled with a hint rather than offered as a distinction without one.
   const remainingAvailable = hasOwnedStock(ownedAssets);
   const effectiveMode: NetMode = remainingAvailable ? mode : 'Total';
 
-  // Every buildable's home tier (min occurrence depth) and the checkbox rows:
-  // one per tier that owns at least one buildable, with its type count.
   const tierOf = useMemo(() => assignBuildTiers(structure.tree), [structure.tree]);
   const tierRows = useMemo(() => tierRowsFromTierOf(tierOf), [tierOf]);
 

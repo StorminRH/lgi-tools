@@ -7,12 +7,6 @@ import {
 } from './build-pricing';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from './types';
 
-// A minimal two-material structure — enough to exercise the select+carry of
-// source + volume onto each MaterialCostRow (the math itself is covered by
-// industry-math/profitability.test.ts). The cost basis is now the batch walk
-// over `tree`; two raw leaves flatten to the same totals (no intermediate, so
-// whole-run == the quantities themselves — batch rounding is covered in
-// build-batch.test.ts).
 const STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 1,
   activityId: 1,
@@ -77,10 +71,6 @@ describe('assemblePricing', () => {
 });
 
 describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
-  // A tree with a forced batch so the bases genuinely diverge: the product
-  // needs 5 of intermediate X (made 10/run, 7 raw 34 per run). Batched charges
-  // the whole run (7 × 5 ISK = 35); marginal charges the consumed half run
-  // (3.5 × 5 = 17.5).
   const structure: BlueprintStructure = {
     ...STRUCTURE,
     tree: [
@@ -106,7 +96,6 @@ describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
     const pricing = assemblePricing(structure, priceOf, { basis: 'marginal' });
     expect(pricing.summary.basis).toBe('marginal');
     expect(pricing.summary.inputCost).toBeCloseTo(17.5, 9);
-    // Revenue is basis-independent; margin moves with the cost.
     const batched = assemblePricing(structure, priceOf);
     expect(pricing.summary.revenue).toBe(batched.summary.revenue);
   });
@@ -125,9 +114,6 @@ describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
   });
 });
 
-// A small build tree: product 999 (root) → intermediate 500 (buildable) → raw
-// 34; plus a raw 35 directly under the root. Two roots are exercised by the
-// dedup case below.
 const DISPLAY: Record<number, BuildNodeDisplay> = {
   999: { name: 'Widget', height: 2, isRaw: false, label: 'Frigate', tone: 'teal' },
   500: { name: 'Subassembly', height: 1, isRaw: false, label: 'Construction', tone: 'blue' },
@@ -191,15 +177,10 @@ describe('assemblePricing intermediate side-channel', () => {
     expect(pricing.intermediatePrices).toEqual([
       expect.objectContaining({ typeId: 500, bestBuy: 1_000, buyVolume: 30, source: 'esi' }),
     ]);
-    // Cost basis is the raws only (34 × 100 @ 5 + 35 × 50 @ 3 = 650).
     expect(pricing.summary.inputCost).toBe(650);
   });
 });
 
-// A manufacturing structure whose top job's direct ME0 inputs (buildTree[0]) are
-// the two raws, so the EIV base = {34×100, 35×50}. Adjusted prices below are a
-// distinct series from the market PRICES above (EIV ≠ build cost in general; they
-// coincide here only because the test numbers are reused).
 const NET_STRUCTURE: BlueprintStructure = {
   ...STRUCTURE,
   activityId: 1,
@@ -216,8 +197,6 @@ const NET_STRUCTURE: BlueprintStructure = {
   buildNodeDisplay: DISPLAY,
 };
 
-// PRICES + a sell price for the product, so revenue (and thus net margin) is
-// defined.
 const NET_PRICES: Record<number, PriceLite> = {
   ...PRICES,
   999: {
@@ -232,7 +211,7 @@ const NET_PRICES: Record<number, PriceLite> = {
   },
 };
 
-const ADJUSTED: Record<number, number> = { 34: 5, 35: 3 }; // EIV = 100·5 + 50·3 = 650
+const ADJUSTED: Record<number, number> = { 34: 5, 35: 3 };
 const adjustedOf = (id: number): number | null => ADJUSTED[id] ?? null;
 
 describe('assemblePricing net margin', () => {
@@ -249,20 +228,17 @@ describe('assemblePricing net margin', () => {
     const net = pricing.net!;
     expect(net.systemCostIndex).toBe(0.04);
     expect(net.jobFee.estimatedItemValue).toBe(650);
-    expect(net.jobFee.jobGrossCost).toBeCloseTo(26, 6); // 650 × 0.04
-    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6); // 650 × 0.0025
-    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6); // 650 × 0.04
+    expect(net.jobFee.jobGrossCost).toBeCloseTo(26, 6);
+    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6);
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6);
     expect(net.jobFee.total).toBeCloseTo(53.625, 6);
-    expect(net.sellSide.total).toBeCloseTo(105, 6); // 1000 × (0.075 + 0.03)
-    expect(net.netCost).toBeCloseTo(703.625, 6); // 650 build + 53.625 fee
-    expect(net.netMargin).toBeCloseTo(191.375, 6); // 1000 − 105 − 703.625
+    expect(net.sellSide.total).toBeCloseTo(105, 6);
+    expect(net.netCost).toBeCloseTo(703.625, 6);
+    expect(net.netMargin).toBeCloseTo(191.375, 6);
     expect(net.netMarginPct).toBeCloseTo(19.1375, 6);
   });
 
   it('returns null net for a reaction blueprint with only manufacturing fee keys (the gate safety)', () => {
-    // The 3.7.13.3 gate property: a reaction can never fee at the manufacturing
-    // index — without `fee.reaction`, a reaction blueprint stays gross-only
-    // exactly as before the seam went live.
     const reaction: BlueprintStructure = { ...NET_STRUCTURE, activityId: 11 };
     const pricing = assemblePricing(reaction, (t) => NET_PRICES[t], {
       fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 },
@@ -275,20 +251,20 @@ describe('assemblePricing net margin', () => {
     const pricing = assemblePricing(reaction, (t) => NET_PRICES[t], {
       fee: {
         adjustedPriceOf: adjustedOf,
-        systemCostIndex: 0.04, // mfg key present but must be IGNORED on the reaction branch
-        structureCostBonusPct: 5, // likewise — refineries carry no ISK cost bonus
+        systemCostIndex: 0.04,
+        structureCostBonusPct: 5,
         reaction: { systemCostIndex: 0.02 },
       },
     });
     const net = pricing.net!;
-    expect(net.systemCostIndex).toBe(0.02); // the REACTION system's index, not 0.04
+    expect(net.systemCostIndex).toBe(0.02);
     expect(net.jobFee.estimatedItemValue).toBe(650);
-    expect(net.jobFee.jobGrossCost).toBeCloseTo(13, 6); // 650 × 0.02, no bonus applied
-    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6); // 0.25% baseline (none entered)
-    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6); // 650 × 0.04 reaction SCC
+    expect(net.jobFee.jobGrossCost).toBeCloseTo(13, 6);
+    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6);
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6);
     expect(net.jobFee.total).toBeCloseTo(40.625, 6);
     expect(net.netCost).toBeCloseTo(690.625, 6);
-    expect(net.netMargin).toBeCloseTo(204.375, 6); // 1000 − 105 − 690.625
+    expect(net.netMargin).toBeCloseTo(204.375, 6);
     expect(net.netMarginPct).toBeCloseTo(20.4375, 6);
     expect(net.facilityTaxRate).toBe(0.0025);
     expect(net.facilityTaxAssumed).toBe(true);
@@ -318,11 +294,11 @@ describe('assemblePricing net margin', () => {
       },
     });
     const net = pricing.net!;
-    expect(net.jobFee.facilityTax).toBeCloseTo(6.5, 6); // 650 × 1%
-    expect(net.jobFee.jobGrossCost).toBeCloseTo(13, 6); // index term untouched by the tax
-    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6); // SCC untouched by the tax
+    expect(net.jobFee.facilityTax).toBeCloseTo(6.5, 6);
+    expect(net.jobFee.jobGrossCost).toBeCloseTo(13, 6);
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6);
     expect(net.jobFee.total).toBeCloseTo(45.5, 6);
-    expect(net.netMargin).toBeCloseTo(199.5, 6); // 1000 − 105 − (650 + 45.5)
+    expect(net.netMargin).toBeCloseTo(199.5, 6);
     expect(net.facilityTaxRate).toBe(0.01);
     expect(net.facilityTaxAssumed).toBe(false);
   });
@@ -332,9 +308,9 @@ describe('assemblePricing net margin', () => {
       fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04, facilityTaxPct: 1 },
     });
     const net = pricing.net!;
-    expect(net.jobFee.facilityTax).toBeCloseTo(6.5, 6); // 650 × 1% (was 1.625 at baseline)
-    expect(net.jobFee.jobGrossCost).toBeCloseTo(26, 6); // unchanged
-    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6); // unchanged
+    expect(net.jobFee.facilityTax).toBeCloseTo(6.5, 6);
+    expect(net.jobFee.jobGrossCost).toBeCloseTo(26, 6);
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6);
     expect(net.jobFee.total).toBeCloseTo(58.5, 6);
     expect(net.facilityTaxAssumed).toBe(false);
   });
@@ -344,11 +320,8 @@ describe('assemblePricing net margin', () => {
       fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04, facilityTaxPct: 0 },
     }).net!;
     expect(zero.jobFee.facilityTax).toBe(0);
-    expect(zero.facilityTaxAssumed).toBe(false); // a real rate, not "unknown"
+    expect(zero.facilityTaxAssumed).toBe(false);
 
-    // Entering the baseline value produces the identical fee numbers as never
-    // entering one — only the assumed flag differs (the byte-identity proof for
-    // the constructed-FeeRates path).
     const entered = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], {
       fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04, facilityTaxPct: 0.25 },
     }).net!;
@@ -366,11 +339,11 @@ describe('assemblePricing net margin', () => {
       runs: 2,
       fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 },
     });
-    expect(pricing.summary.inputCost).toBe(1_300); // 650 × 2
-    expect(pricing.summary.revenue).toBe(2_000); // 1000 × 1/run × 2 runs
+    expect(pricing.summary.inputCost).toBe(1_300);
+    expect(pricing.summary.revenue).toBe(2_000);
     const net = pricing.net!;
-    expect(net.jobFee.estimatedItemValue).toBe(1_300); // EIV × 2
-    expect(net.netMargin).toBeCloseTo(382.75, 6); // 191.375 × 2
+    expect(net.jobFee.estimatedItemValue).toBe(1_300);
+    expect(net.netMargin).toBeCloseTo(382.75, 6);
   });
 
   it('keeps facility + SCC but nulls the install-fee total and net when the index is absent', () => {
@@ -381,9 +354,9 @@ describe('assemblePricing net margin', () => {
     expect(net.jobFee.missingSystemCostIndex).toBe(true);
     expect(net.jobFee.jobGrossCost).toBeNull();
     expect(net.jobFee.total).toBeNull();
-    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6); // EIV-only, still known
+    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6);
     expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6);
-    expect(net.netMargin).toBeNull(); // can't complete without the index
+    expect(net.netMargin).toBeNull();
   });
 
   it('flags a missing adjusted price with a partial EIV rather than zeroing it', () => {
@@ -391,17 +364,11 @@ describe('assemblePricing net margin', () => {
       fee: { adjustedPriceOf: (id) => (id === 35 ? null : adjustedOf(id)), systemCostIndex: 0.04 },
     });
     const net = pricing.net!;
-    expect(net.jobFee.estimatedItemValue).toBe(500); // only 34 (100 × 5); 35 dropped
+    expect(net.jobFee.estimatedItemValue).toBe(500);
     expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([35]);
   });
 });
 
-// A REAL reaction anchor (3.7.13.3): the Fernite Carbide Reaction Formula
-// (blueprint 46206) exactly as the SDE stores it — product 16673 (Fernite
-// Carbide) × 10,000 per run from 5× Hydrogen Fuel Block (4246), 100× Fernite
-// Alloy (16656), 100× Crystallite Alloy (16660), no intermediates. Synthetic
-// ROUND prices (a distinct series per role, like the Rifter anchor) keep the
-// whole formula hand-checkable end to end through the reaction fee branch.
 const FERNITE_STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 46_206,
   activityId: 11,
@@ -457,7 +424,6 @@ const FERNITE_PRICES: Record<number, PriceLite> = {
   16_673: lite({ bestSell: 800 }),
 };
 
-// Adjusted prices — the EIV series, deliberately different from the buy prices.
 const FERNITE_ADJUSTED: Record<number, number> = { 4_246: 20_000, 16_656: 40_000, 16_660: 30_000 };
 
 describe('assemblePricing reaction worked example (Fernite Carbide)', () => {
@@ -465,24 +431,21 @@ describe('assemblePricing reaction worked example (Fernite Carbide)', () => {
     const pricing = assemblePricing(FERNITE_STRUCTURE, (t) => FERNITE_PRICES[t], {
       fee: {
         adjustedPriceOf: (id) => FERNITE_ADJUSTED[id] ?? null,
-        systemCostIndex: null, // no build location — a reaction page needs none
+        systemCostIndex: null,
         reaction: { systemCostIndex: 0.02 },
       },
     });
-    // Cost basis (best buy): 5×18,000 + 100×38,000 + 100×28,000 = 6,690,000.
     expect(pricing.summary.inputCost).toBe(6_690_000);
-    // Revenue: 10,000 units × 800 = 8,000,000.
     expect(pricing.summary.revenue).toBe(8_000_000);
     const net = pricing.net!;
-    // EIV: 5×20,000 + 100×40,000 + 100×30,000 = 7,100,000.
     expect(net.jobFee.estimatedItemValue).toBe(7_100_000);
-    expect(net.jobFee.jobGrossCost).toBeCloseTo(142_000, 6); // EIV × 0.02
-    expect(net.jobFee.facilityTax).toBeCloseTo(17_750, 6); // EIV × 0.0025 baseline
-    expect(net.jobFee.sccSurcharge).toBeCloseTo(284_000, 6); // EIV × 0.04 reaction SCC
+    expect(net.jobFee.jobGrossCost).toBeCloseTo(142_000, 6);
+    expect(net.jobFee.facilityTax).toBeCloseTo(17_750, 6);
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(284_000, 6);
     expect(net.jobFee.total).toBeCloseTo(443_750, 6);
-    expect(net.sellSide.total).toBeCloseTo(840_000, 6); // 8M × (0.075 + 0.03)
+    expect(net.sellSide.total).toBeCloseTo(840_000, 6);
     expect(net.netCost).toBeCloseTo(7_133_750, 6);
-    expect(net.netMargin).toBeCloseTo(26_250, 6); // 8M − 840,000 − 7,133,750
+    expect(net.netMargin).toBeCloseTo(26_250, 6);
     expect(net.netMarginPct).toBeCloseTo(0.328125, 6);
   });
 
@@ -495,24 +458,21 @@ describe('assemblePricing reaction worked example (Fernite Carbide)', () => {
       },
     });
     const net = pricing.net!;
-    expect(net.jobFee.facilityTax).toBeCloseTo(71_000, 6); // EIV × 1%
-    expect(net.jobFee.total).toBeCloseTo(497_000, 6); // only the tax line moved
-    expect(net.netMargin).toBeCloseTo(-27_000, 6); // the 53,250 ISK tax delta flips it
+    expect(net.jobFee.facilityTax).toBeCloseTo(71_000, 6);
+    expect(net.jobFee.total).toBeCloseTo(497_000, 6);
+    expect(net.netMargin).toBeCloseTo(-27_000, 6);
     expect(net.facilityTaxAssumed).toBe(false);
   });
 });
 
 describe('assemblePricing owned-ME overlay (3.7.5.2)', () => {
-  // NET_STRUCTURE's top blueprint is typeId 1; its two ME0 raw inputs are 34
-  // (×100) and 35 (×50). An owned ME10 on the top blueprint reduces them to
-  // ⌈100·0.9⌉ = 90 and ⌈50·0.9⌉ = 45.
   const meOf10 = (bp: number) => (bp === 1 ? 10 : undefined);
 
   it('reduces the cost-basis quantities + inputCost at the owned ME', () => {
     const owned = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { meOf: meOf10 });
     expect(owned.rows.find((r) => r.typeId === 34)?.quantity).toBe(90);
     expect(owned.rows.find((r) => r.typeId === 35)?.quantity).toBe(45);
-    expect(owned.summary.inputCost).toBe(585); // 90×5 + 45×3 (gross is 650)
+    expect(owned.summary.inputCost).toBe(585);
   });
 
   it('owning none of the build (meOf → undefined) is byte-identical to the no-meOf gross path', () => {
@@ -526,17 +486,13 @@ describe('assemblePricing owned-ME overlay (3.7.5.2)', () => {
     const fee = { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 };
     const grossNet = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { fee });
     const ownedNet = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { fee, meOf: meOf10 });
-    // EIV (install-fee basis) is defined at ME0, so it is unchanged…
     expect(ownedNet.net!.jobFee.estimatedItemValue).toBe(650);
     expect(ownedNet.net!.jobFee.estimatedItemValue).toBe(grossNet.net!.jobFee.estimatedItemValue);
-    // …while the build cost (what you buy) drops, so net cost reflects the saving.
     expect(ownedNet.summary.inputCost).toBe(585);
     expect(ownedNet.net!.netCost).toBeLessThan(grossNet.net!.netCost!);
   });
 });
 
-// Near-touch depth ladders for the product (3.5.3b). Plain {pct, cumVolume}
-// objects, matching DepthBand.
 const BUY_LADDER = [
   { pct: 0.5, cumVolume: 100 },
   { pct: 2, cumVolume: 600 },
@@ -560,9 +516,6 @@ describe('assemblePricing product depth (3.5.3b)', () => {
   });
 
   it('leaves the gross payload byte-identical whether or not depth is present', () => {
-    // The depth additions must not bust the cached gross seed: summary, rows,
-    // intermediates, and net are identical with and without product depth — only
-    // product.{buy,sell}Depth differs.
     const base = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
     const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
       t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
@@ -571,7 +524,6 @@ describe('assemblePricing product depth (3.5.3b)', () => {
     expect(withDepth.rows).toEqual(base.rows);
     expect(withDepth.intermediatePrices).toEqual(base.intermediatePrices);
     expect(withDepth.net).toEqual(base.net);
-    // The product object differs ONLY in the two depth fields.
     expect({ ...withDepth.product, buyDepth: null, sellDepth: null }).toEqual(base.product);
   });
 });
@@ -586,8 +538,6 @@ describe('assemblePricing product sell figures (3.7.25.1)', () => {
   });
 
   it('null pct5Sell (the Fuzzwork null-percentile shape) carries through as null', () => {
-    // NET_PRICES[999] pins pct5Sell: null — the badge no-ops on it by
-    // construction; nothing else in the payload reads the field.
     const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
     expect(pricing.product.pct5Sell).toBeNull();
   });

@@ -5,8 +5,6 @@ import { SiteHeaderTotal } from './SiteResourcesLive';
 import { SiteShipClasses } from './SiteShipClasses';
 import { deriveSiteCardHeaderView, type SiteCardHeaderView } from './site-card-header-view';
 
-// The headline value: the blue-loot ISK figure for wave-driven sites, or the
-// live resource total for gathering sites.
 function SiteCardValue({
   view,
   resources,
@@ -25,16 +23,6 @@ function SiteCardValue({
   );
 }
 
-/**
- * The card's collapsed-summary content: title · value, an optional sub-line, the
- * class/type/EWAR pills, and the NPC hull-class strip (the reads live in
- * {@link deriveSiteCardHeaderView}). Factored out of `SiteCard` so it renders
- * identically in the in-place `<summary>` and inside the lightbox overlay.
- * Directive-less: server-prerendered into the static shell when the summary
- * renders it, and client-bundled when the lightbox island renders it. `nameId`
- * labels the lightbox dialog — pass it only for the lightbox copy so the summary
- * copy doesn't emit a duplicate id.
- */
 export function SiteCardHeader({
   site,
   nameId,
@@ -42,7 +30,6 @@ export function SiteCardHeader({
 }: {
   site: SiteDetail;
   nameId?: string;
-  /** Map-dock embeds center the summary stack; catalogue cards stay start-aligned. */
   align?: 'start' | 'center';
 }) {
   const liveResources = displayableResources(site.resources);

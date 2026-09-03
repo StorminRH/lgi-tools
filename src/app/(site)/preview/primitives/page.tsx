@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getSession, isAdmin } from '@/platform/auth/session';
 import { PrimitivesDemo } from './PrimitivesDemo';
 
-/** Static search and social metadata for the /preview/primitives route. */
 export const metadata: Metadata = {
   title: 'UI Primitive Reference — LGI.tools',
   robots: { index: false },
@@ -19,10 +18,6 @@ async function AdminPrimitiveReference() {
   return <PrimitivesDemo />;
 }
 
-/**
- * Renders the /preview/primitives route surface and owns its page-level composition, metadata
- * boundary, and fallback presentation.
- */
 export default function PrimitiveReferencePage() {
   return (
     <PageShell mode="workspace">

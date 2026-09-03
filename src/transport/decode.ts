@@ -1,10 +1,3 @@
-// Shared response-decode core for first-party endpoint contracts (3.10.2.1.3).
-// Both executors — the browser client (api-client.ts) and the server-to-server
-// service client (platform/auth/service-client.ts) — turn a Response into the
-// same closed outcome through this module, so a declared status, a schema
-// violation, and an undeclared status mean exactly one thing repository-wide.
-// Callers own the typing via OutcomeOf; this module deliberately returns
-// `unknown` because it is contract-generic.
 import type { z } from 'zod';
 import { problemBodySchema } from '@/lib/problem';
 import type { EndpointContract, OutcomeOf } from './endpoint';
@@ -13,10 +6,6 @@ function protocolFailure(status: number, detail: string) {
   return { ok: false, kind: 'protocol' as const, status, detail };
 }
 
-// A caller's AbortController produces `AbortError`; the shared outbound timeout
-// in `fetchWithTimeout` (and `AbortSignal.timeout`) produces `TimeoutError`.
-// Both mean the request was cancelled rather than answered, so both set
-// `aborted` — otherwise a real timeout would report as an ordinary network fault.
 const ABORTED_ERROR_NAMES: ReadonlySet<string> = new Set(['AbortError', 'TimeoutError']);
 
 function isAbortError(cause: unknown): boolean {
@@ -29,11 +18,6 @@ function isAbortError(cause: unknown): boolean {
   );
 }
 
-/**
- * Builds the closed network-failure outcome for a transport-level rejection.
- * The return type is written out rather than inferred so it stays assignable
- * to every `OutcomeOf<TEndpoint>` network arm without a call-site assertion.
- */
 export function networkFailure(cause: unknown): {
   ok: false;
   kind: 'network';
@@ -70,14 +54,10 @@ function declaredOutcome(response: Response, body: unknown) {
     : { ok: false, kind: 'api' as const, status: response.status, error: body };
 }
 
-/** Decodes one endpoint response into its declared, protocol, or network outcome. */
 export async function decodeEndpointResponse<TEndpoint extends EndpointContract>(
   endpoint: TEndpoint,
   response: Response,
 ): Promise<OutcomeOf<TEndpoint>>;
-// The implementation is contract-generic, so it decodes against the runtime
-// codec map and hands the caller's declared outcome union back through the
-// signature above — the single untyped-to-typed transition in the transport.
 export async function decodeEndpointResponse(
   endpoint: EndpointContract,
   response: Response,

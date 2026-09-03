@@ -93,10 +93,6 @@ function PaginationItemControl({
   );
 }
 
-/**
- * Renders the domain-neutral pagination with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function Pagination({
   page,
   pageCount,

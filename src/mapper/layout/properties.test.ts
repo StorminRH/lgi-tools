@@ -1,6 +1,3 @@
-// Contract DC-4 (AC-3, V-1): generated chains lay out with no node overlap, and edge crossings
-// are confined to loop-closing connections. Both properties run over the full seeded corpus —
-// adversarial 2-to-60-system chains with loops, duplicate scans, and orphan phases.
 import { describe, expect, it } from 'vitest';
 import { compassKernel } from './compass';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from './layout-contract';
@@ -51,9 +48,6 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
   });
 
   it('keeps a multi-orphan cluster clear of the gate, including its own internal spacing', async () => {
-    // The corpus never parks two orphans at once, so the cluster's internal spacing is pinned
-    // here: a chain plus three parked orphans (one pair linked to each other — a drawn edge
-    // between unclassified systems) must clear minSeparation everywhere.
     const A = 31_000_001;
     const chain = facts(
       [A, 31_000_002, 31_000_003, 31_000_004, 31_000_005, 31_000_006],
@@ -70,9 +64,6 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
   });
 
   it('holds the overlap gate when the dials tighten below the compass defaults', async () => {
-    // Ring-1 capacity must derive from separation, not just the compass count: a hostile config
-    // (minSeparation near ringSpacing) forces root children past eight-slot ring 1 without
-    // overlap. This is the invariant 4.0.3.1.2's dials inherit.
     const A = 31_000_001;
     const children = [2, 3, 4, 5, 6, 7].map((n) => 31_000_000 + n);
     const star = facts(

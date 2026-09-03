@@ -10,19 +10,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { CONNECTION_PROVENANCES } from '@/data/eve-data/wormhole-contract';
 
-/** Drizzle owner of the provenance vocabulary shared with connection identity facts. */
 export const whObservationProvenanceEnum = pgEnum(
   'wh_observation_provenance',
   CONNECTION_PROVENANCES,
 );
 
-/**
- * Privacy-safe D16 observation corpus. The five fields deliberately exclude map, user,
- * character, and destination identity; one per-hole-lifetime key is corrected in place.
- * Every tier is admitted, including machine-deduced `assumed` rows (operator ruling
- * D-B): the stored tier is what lets a consumer weight or exclude them, so no check
- * constrains provenance. K162 exclusion and hour-coarse timestamps remain enforced.
- */
 export const whObservations = pgTable(
   'wh_observations',
   {

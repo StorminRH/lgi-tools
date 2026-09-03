@@ -133,8 +133,6 @@ it('opens edit for resolved and unresolved holes, and mounts nothing until named
   const stub = render(STUB_ID);
   expect(stub).toContain('data-map-window="signature-editor"');
   expect(stub).toContain('data-map-connection-mode="edit"');
-  // No destination yet: Leads to stays the human hint dropdown, plus the
-  // already-known inbound as a named origin pick rather than an auto-link.
   expect(stub).toContain('data-select="Leads to"');
   expect(stub).not.toContain('data-map-connection-leads-locked');
   expect(stub).toContain('origin:resolved-1');

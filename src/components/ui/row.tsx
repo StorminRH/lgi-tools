@@ -3,13 +3,6 @@ import { cn } from './cn';
 import { eyebrow } from './type-roles';
 import { deriveRowLayout } from './row-layout';
 
-/**
- * EntityRow — grid row (leading badge / name / optional chips / trailing stats).
- * Used for any "count × thing → stats" line. Tunable column template via
- * `colsClass` (a Tailwind `grid-cols-[…]` class — never an inline style, per
- * house style). When `chips` is provided the default columns add a
- * dedicated chip column so trailing stats stay aligned regardless of chip count.
- */
 export function EntityRow({
   leading,
   name,
@@ -25,8 +18,6 @@ export function EntityRow({
   trailing?: ReactNode;
   className?: string;
   colsClass?: string;
-  /** Render chips beside the name instead of in their own trailing column, so
-   *  the trailing stats keep a consistent right-aligned column across rows. */
   inlineChips?: boolean;
 }) {
   const layout = deriveRowLayout({ leading, chips, trailing, colsClass, inlineChips });
@@ -50,7 +41,6 @@ export function EntityRow({
   );
 }
 
-/** The name cell — chips beside the name when inlined, else the bare name. */
 function RowName({
   name,
   chips,
@@ -71,12 +61,6 @@ function RowName({
   );
 }
 
-/**
- * ResourceRow — two- or three-column row for any "thing → meta → value"
- * listing (ore deposits, gas clouds, hackable cans). The caller picks the
- * column template via `colsClass` (a Tailwind `grid-cols-[…]` class, never an
- * inline style); the primitive only owns spacing / divider / hover.
- */
 export function ResourceRow({
   name,
   meta,
@@ -107,7 +91,6 @@ export function ResourceRow({
   );
 }
 
-/** Small helper for the bare stat pieces inside an EntityRow's trailing slot. */
 export function Stat({
   children,
   className,
@@ -120,7 +103,6 @@ export function Stat({
   );
 }
 
-/** EWAR row — labeled chip strip between header and body. */
 export function LabeledChipRow({
   label,
   children,

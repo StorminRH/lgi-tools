@@ -1,8 +1,5 @@
 import 'server-only';
 
-// Pure EVE SSO helpers. Zero DB imports, zero `next/headers` imports.
-// HTTP + JWT verification + claim parsing only.
-
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
@@ -26,11 +23,6 @@ export {
   EVE_TOKEN_URL,
 } from './eve-sso-constants';
 
-// Boundary schema for the token-exchange envelope. The JWT *claims* are
-// cryptographically verified by jose; this wrapping envelope is not, so it
-// gets a boundary check. `access_token` is the only field we consume — it is
-// required and non-empty; the rest are present-but-lenient so a discarded
-// field changing shape can't fail an otherwise-valid login.
 const eveTokenResponseSchema = z.object({
   access_token: z.string().min(1),
   token_type: z.string().optional(),
@@ -38,18 +30,11 @@ const eveTokenResponseSchema = z.object({
   refresh_token: z.string().optional(),
 });
 
-// EVE returns an OAuth2 error envelope on a 400 — `{ error, error_description? }`.
-// We read it to tell a genuinely-dead token (`invalid_grant`) from a transient or
-// our-side 400, so only the former drops a pilot's custody.
 const eveTokenErrorSchema = z.object({
   error: z.string(),
   error_description: z.string().optional(),
 });
 
-// EVE's JWKS rotates rarely; `jose` caches the remote set per process.
-// jose v6 has no `timeoutDuration` option and the bare `{ headers }` arg is
-// legacy — the `[customFetch]` symbol is the supported extensibility hook, so
-// the timeout and the outbound identity header live together at this one site.
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | undefined;
 function jwks() {
   if (!jwksCache) {
@@ -64,10 +49,6 @@ function jwks() {
   return jwksCache;
 }
 
-// Shared request shape for both EVE token grants. EVE's token endpoint needs
-// HTTP Basic auth, the form content type, the Host header, AND a descriptive
-// User-Agent (CCP blocks UA-less traffic) — the authorization_code exchange and
-// the refresh_token grant differ only in the body, so they share this.
 function buildTokenRequestInit(
   body: URLSearchParams,
   clientId: string,
@@ -93,10 +74,6 @@ export interface ExchangeCodeInput {
   clientSecret: string;
 }
 
-/**
- * Exchanges one EVE OAuth authorization code using PKCE and returns the validated token response;
- * provider failures remain explicit.
- */
 export async function exchangeCodeForToken({
   code,
   codeVerifier,
@@ -119,9 +96,6 @@ export async function exchangeCodeForToken({
     throw new Error(`EVE token exchange failed (${res.status}): ${text}`);
   }
 
-  // Validate the envelope at the boundary. A malformed body throws here the
-  // same way an HTTP error does above; the callback turns that into a
-  // token_exchange_failed auth-error redirect.
   const parsed = eveTokenResponseSchema.safeParse(await res.json());
   if (!parsed.success) {
     throw new Error('EVE token response failed boundary validation');
@@ -135,12 +109,6 @@ export interface RefreshTokenInput {
   clientSecret: string;
 }
 
-/**
- * Outcome of a refresh-token grant. Distinguishing the three cases is the whole
- * point: `dead` means the refresh token is gone (the pilot must reconnect, so
- * the caller nulls custody); `retryable` means the response did not prove the
- * token dead, so custody is preserved and the caller surfaces a retryable error.
- */
 export type RefreshFailureClass =
   | 'invalid_grant'
   | 'timeout'
@@ -148,10 +116,6 @@ export type RefreshFailureClass =
   | 'provider_5xx'
   | 'unexpected';
 
-/**
- * EVE OAuth refresh verdict, preserving rotated credentials on success and classifying terminal
- * versus retryable failures.
- */
 export type RefreshResult =
   | { kind: 'ok'; access_token: string; refresh_token: string; expires_in: number }
   | { kind: 'dead'; failureClass: 'invalid_grant' }
@@ -166,11 +130,6 @@ function isTimeoutError(error: unknown): boolean {
   );
 }
 
-/**
- * Exchange a stored refresh token for a fresh access token. Pure HTTP — no DB,
- * no crypto; persistence + re-encryption live in eve-token-service.ts so this
- * stays unit-testable with a `fetch` spy, exactly like exchangeCodeForToken.
- */
 export async function refreshEveToken({
   refreshToken,
   clientId,
@@ -188,20 +147,12 @@ export async function refreshEveToken({
       buildTokenRequestInit(body, clientId, clientSecret),
     );
   } catch (error) {
-    // Network error or the fetch-with-timeout abort firing — transient. Never
-    // destroy custody on a blip.
     return {
       kind: 'retryable',
       failureClass: isTimeoutError(error) ? 'timeout' : 'connection',
     };
   }
 
-  // A 400 carries an OAuth error body. ONLY `invalid_grant` means the refresh
-  // token is genuinely dead (revoked / expired / already rotated away) and the
-  // pilot must re-authenticate. Any other 400 (e.g. `invalid_request`) — and a
-  // missing or non-JSON body — is treated as transient: never destroy custody on
-  // an ambiguous or our-side error. Any other non-2xx (5xx, rate limiting) is
-  // likewise transient.
   if (res.status === 400) {
     const errBody = eveTokenErrorSchema.safeParse(await res.json().catch(() => null));
     return errBody.success && errBody.data.error === 'invalid_grant'
@@ -219,9 +170,6 @@ export async function refreshEveToken({
   return {
     kind: 'ok',
     access_token: parsed.data.access_token,
-    // EVE rotates the refresh token and always returns one on this grant, but the
-    // envelope marks it optional — fall back to the submitted token so a response
-    // quirk can never drop custody. Likewise default the lifetime to EVE's 20 min.
     refresh_token: parsed.data.refresh_token ?? refreshToken,
     expires_in: parsed.data.expires_in ?? 1200,
   };
@@ -251,8 +199,6 @@ export async function revokeEveRefreshToken({
   clientId,
   clientSecret,
 }: RevokeTokenInput): Promise<{ ok: boolean }> {
-  // RFC 7009 revoke params: the token + its type hint. NOT the token endpoint's
-  // `grant_type`/`refresh_token` keys — the revoke endpoint takes `token`.
   const body = new URLSearchParams({
     token: refreshToken,
     token_type_hint: 'refresh_token',
@@ -265,15 +211,10 @@ export async function revokeEveRefreshToken({
     );
     return { ok: res.ok };
   } catch {
-    // Network error or the fetch-with-timeout abort firing — best-effort, swallow.
     return { ok: false };
   }
 }
 
-/**
- * Verifies an EVE access token's signature, issuer, audience, expiry, and subject against the
- * provider JWKS.
- */
 export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {
   const { payload } = await jwtVerify(accessToken, jwks(), {
     issuer: EVE_ISSUER,
@@ -288,10 +229,6 @@ export interface CharacterIdentity {
   portraitUrl: string;
 }
 
-/**
- * EVE encodes the character ID in the JWT `sub` as "CHARACTER:EVE:<numeric-id>".
- * We throw if the shape is unexpected — the caller turns that into a 4xx redirect.
- */
 export function claimsToCharacter(claims: EveJwtClaims): CharacterIdentity {
   const match = /^CHARACTER:EVE:(\d+)$/.exec(claims.sub);
   if (!match) {
@@ -311,7 +248,6 @@ export function claimsToCharacter(claims: EveJwtClaims): CharacterIdentity {
   };
 }
 
-/** Builds the canonical EVE character portrait URL for the requested character ID and supported pixel size. */
 export function portraitUrl(characterId: number, size: EveImageSize = 128): string {
   return characterPortraitUrl(characterId, size);
 }

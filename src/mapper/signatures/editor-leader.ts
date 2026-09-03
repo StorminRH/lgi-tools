@@ -1,12 +1,3 @@
-// Geometry for the Signature Editor's leader line and scanner-row bracket.
-//
-// Pure on purpose: the editor pop-out sits in screen space beside the scanner
-// dock (4.0.4.3.2 ruling D-G), so the only thing tying it to the row it was
-// opened from is this drawn cue. Everything that decides where the bracket and
-// line land lives here and is unit-tested; the component only measures rects
-// and paints what it is told.
-
-/** The measured client rectangle inputs this module needs. */
 export interface LeaderRect {
   readonly left: number;
   readonly right: number;
@@ -14,9 +5,7 @@ export interface LeaderRect {
   readonly bottom: number;
 }
 
-/** One drawn leader: a bracket beside the row and a line into the panel. */
 export interface EditorLeader {
-  /** Bracket spine x, and the row span it embraces (layer-local). */
   readonly bracket: { readonly x: number; readonly top: number; readonly bottom: number };
   readonly line: {
     readonly x1: number;
@@ -26,13 +15,10 @@ export interface EditorLeader {
   };
 }
 
-/** Gap between the row's right edge and the bracket spine. */
 const BRACKET_GAP_PX = 3;
 
-/** Shortest bracket drawn, so a squeezed row still reads as a bracket. */
 const MIN_BRACKET_PX = 10;
 
-/** How far inside the panel's own edges the leader may terminate. */
 const PANEL_INSET_PX = 8;
 
 function clamp(value: number, low: number, high: number): number {
@@ -40,23 +26,10 @@ function clamp(value: number, low: number, high: number): number {
   return Math.min(Math.max(value, low), high);
 }
 
-/**
- * Derives the bracket and leader line joining one scanner row to the editor
- * panel, or `null` when the cue would be a lie.
- *
- * It is a lie in exactly four cases: a collapsed row (an unmounted or
- * scrolled-away row measures zero height), a row that no longer intersects
- * the scanner clip, a panel that has not been laid out yet, and a panel
- * drawn left of its row — the editor is anchored to the right of the
- * scanner dock by construction, so a leftward line would point at nothing
- * the user can follow.
- */
 export function editorLeader(input: {
   readonly row: LeaderRect;
   readonly panel: LeaderRect;
-  /** The drawing layer's own client origin; output is layer-local. */
   readonly origin: { readonly left: number; readonly top: number };
-  /** Visible scanner list; the cue hides when the row leaves this rect. */
   readonly clip?: LeaderRect;
 }): EditorLeader | null {
   const { row, panel, origin, clip } = input;

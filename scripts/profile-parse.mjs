@@ -1,7 +1,3 @@
-// Pure, import-safe parsing and policy helpers for profile-sites-dev.mjs.
-// The entry script owns process lifecycle and I/O; this module owns the
-// machine-readable formats and abort verdicts so their boundaries stay tested.
-
 const KIB = 1024;
 const MIB = KIB ** 2;
 const GIB = KIB ** 3;

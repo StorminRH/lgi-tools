@@ -29,10 +29,6 @@ import {
   getBlueprintStructure,
 } from '@/features/industry-planner/queries';
 
-/**
- * Builds request-independent metadata for /industry/[id] from the route parameter and canonical
- * content source.
- */
 export async function generateMetadata({
   params,
 }: {
@@ -66,18 +62,9 @@ export async function generateMetadata({
   };
 }
 
-// All page content depends on the [id] param. With no generateStaticParams,
-// `params` is runtime data, so the whole planner streams from a <Suspense>
-// boundary (the page chrome below is the static shell). The structure read is
-// cached `'max'`, so the tree + hero chrome paint fast. The price read is
-// started here but NOT awaited — the promise is handed to PricingProvider,
-// which resolves it in its own isolated <Suspense> and fans the prices out to
-// the hero margin and every cascade row. So prices + confidence stream in
-// while the build structure never waits on them (the 3.0.5.1 lesson).
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const plannerTimer = startCostTimer();
   const { id: rawId } = await params;
-  // Require a bare digit string (see generateMetadata) — reject "12abc" → 404.
   const id = parseNumericRouteId(rawId);
   if (id === null) notFound();
 
@@ -103,10 +90,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     { name: 'Industry Planner', url: `${SITE_URL}/industry` },
     { name: structure.product.name, url: `${SITE_URL}/industry/${id}` },
   ]);
-  // Warm seed of the product's history-derived score inputs (cached), started
-  // in parallel and NOT awaited — handed to PricingProvider, which resolves it
-  // in its own <Suspense> and refreshes it on view. Off the hero/margin path,
-  // so it never delays the cost figures.
   const historyTimer = startCostTimer();
   const historyPromise = observeCostPromise(
     getMarketHistoryInputs([structure.product.typeId]),
@@ -115,10 +98,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     historyTimer,
   );
 
-  // The build-character preference's cookie mirror (ACCOUNT.8) — read here in
-  // the Suspense hole (never the static shell) and threaded as the hook's
-  // serverValue, so a hard reload renders the saved pick without flashing the
-  // active character while the preference GET resolves (the /skills strip idiom).
   const initialBuildCharacterId = readPreferenceCookieValue(
     (await cookies()).get(cookieNameFor(plannerBuildCharacter))?.value,
     plannerBuildCharacter,
@@ -133,9 +112,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
-      {/* Entity-detail pages self-title: they open content-first (no visible
-          PageHead), so the page title lives in this sr-only <h1> for a11y/SEO.
-          PageHead is the list/section header; the detail is its own surface. */}
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
@@ -149,8 +125,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         historyPromise={historyPromise}
         initialBuildCharacterId={initialBuildCharacterId}
       >
-        {/* The ?plan= replay slot — inside the provider (it drives the public
-            setters) and under the page Suspense (it reads searchParams). */}
         <TemplateLoader structure={structure} />
         <CockpitPlanner structure={structure} />
       </PricingProvider>
@@ -176,10 +150,6 @@ function PlannerSkeleton() {
   );
 }
 
-/**
- * Renders the /industry/[id] route surface and owns its page-level composition, metadata boundary,
- * and fallback presentation.
- */
 export default function BlueprintPlannerPage({
   params,
 }: {

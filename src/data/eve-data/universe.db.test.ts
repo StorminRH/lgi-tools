@@ -4,13 +4,6 @@ import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { emitUniverseNeon, type UniverseDataset } from './universe';
 import { eveNpcStations, eveSolarSystems } from './schema';
 
-// Proves the universe emit seam end-to-end against the local Docker Postgres: a
-// mixed K-space + J-space dataset emits, reads back with its wormhole class and
-// jump graph intact, every jump endpoint resolves to a system (FK integrity), and
-// a second emit is idempotent. Skips cleanly when no DB is reachable (CI has no
-// Postgres). The throwaway schema clones the live universe tables (LIKE …
-// INCLUDING ALL) so the test exercises the real column/PK shapes.
-
 const harness = await createDbTestHarness({
   schema: 'test_universe_emit',
   tables: [
@@ -23,8 +16,6 @@ const harness = await createDbTestHarness({
   ],
 });
 
-// A small slice of the real universe: Jita + a neighbour (K-space, a gate between
-// them), a regular C1 wormhole system, and Thera with an industry station.
 const DATASET: UniverseDataset = {
   regions: [
     { id: 10000002, name: 'The Forge' },

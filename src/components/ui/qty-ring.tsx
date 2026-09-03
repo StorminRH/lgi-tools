@@ -2,26 +2,10 @@ import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-// A circular progress ring with centred content (3.7.5.7). A faint full-circle track
-// with a progress arc over it; `progress` (0–1) fills the arc clockwise from 12
-// o'clock. Built for the build-plan QTY ring: the asset-acquisition tracker (3.7.7.2)
-// fills it as items are gathered (progress = owned ÷ needed), with the still-needed
-// count in the centre. Progress 0 shows just the empty track (the owns-none / unsynced
-// state). SVG geometry + token strokes only (house style); sized square by `className`.
-
-// The arc circle radius inside the 0–40 viewBox; the track + arc share it.
 const RADIUS = 17;
 
-/**
- * Closed presentation vocabulary for qty ring tone; feature callers map domain meaning to these
- * abstract values before rendering.
- */
 export type QtyRingTone = 'neutral' | 'isk';
 
-/**
- * Pure: the stroke-dasharray ("<filled> <circumference>") + circumference for a
- * progress fraction at a given radius. Progress is clamped to 0–1 (non-finite → 0).
- */
 export function ringDash(
   progress: number,
   radius: number,
@@ -38,10 +22,6 @@ const arc = cva('fill-none', {
   defaultVariants: { tone: 'neutral' },
 });
 
-/**
- * Renders the domain-neutral qty ring from display-ready caller data; callers own units and labels
- * while this primitive owns geometry and interaction.
- */
 export function QtyRing({
   progress,
   tone = 'neutral',
@@ -49,12 +29,9 @@ export function QtyRing({
   className,
   children,
 }: {
-  // 0–1; 0 shows just the track (the empty-ring placeholder).
   progress: number;
   tone?: QtyRingTone;
-  // Accessible name (the ring + its centred figure read as one image).
   label?: string;
-  // Square sizing lives at the call site.
   className?: string;
   children: ReactNode;
 }) {
@@ -65,8 +42,6 @@ export function QtyRing({
       role={label ? 'img' : undefined}
       aria-label={label}
     >
-      {/* Rotated −90° so the arc starts at the top; flipped vertically so it fills
-          counter-clockwise from there (the centred figure sits outside this svg). */}
       <svg viewBox="0 0 40 40" className="h-full w-full -rotate-90 -scale-y-100" aria-hidden>
         <circle cx="20" cy="20" r={RADIUS} className="fill-none stroke-border-soft" strokeWidth={2.5} />
         {progress > 0 && (

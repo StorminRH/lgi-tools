@@ -16,14 +16,12 @@ import {
   type SystemParams,
 } from '@/components/use-system-search';
 
-/** One open node context-menu placement. */
 export interface NodeMenuAnchor {
   readonly systemId: number;
   readonly clientX: number;
   readonly clientY: number;
 }
 
-/** Props for the node-bound add-connection menu and search dialog. */
 export interface NodeAddMenuProps {
   readonly mapId: string;
   readonly menu: NodeMenuAnchor | null;
@@ -31,10 +29,6 @@ export interface NodeAddMenuProps {
   readonly onAdd: (fromSystemId: number, toSystemId: number) => void;
 }
 
-/**
- * Pointer-anchored "Add connection…" menu plus a follow-up system search dialog.
- * Only the host opens the menu (from a node contextmenu event).
- */
 export function NodeAddMenu({
   mapId,
   menu,
@@ -45,8 +39,6 @@ export function NodeAddMenu({
   const [searchOpen, setSearchOpen] = useState(false);
   const [fromSystemId, setFromSystemId] = useState<number | null>(null);
   const titleId = useId();
-  // Dialog owns open-focus; without this the Close control (earlier in the
-  // tree) wins and the operator has to click the field before typing.
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const anchor: MenuAnchor | null =

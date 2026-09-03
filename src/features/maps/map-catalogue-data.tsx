@@ -10,7 +10,6 @@ import type {
   DeletedRestorableMapRow,
 } from '@/data/maps/queries';
 
-/** The one request-time Atlas map snapshot shared by chrome and the landing catalogue. */
 export interface MapCatalogueData {
   readonly maps: readonly AuthorizedMapRow[];
   readonly deletedMaps: readonly DeletedRestorableMapRow[];
@@ -21,7 +20,6 @@ export interface MapCatalogueData {
 
 const MapCatalogueDataContext = createContext<MapCatalogueData | null>(null);
 
-/** Makes the already-loaded Atlas map snapshot available to route-level feature UI. */
 export function MapCatalogueDataProvider({
   children = null,
   ...value
@@ -33,7 +31,6 @@ export function MapCatalogueDataProvider({
   );
 }
 
-/** Reads the request-time Atlas map snapshot inside the admitted map subtree. */
 export function useMapCatalogueData(): MapCatalogueData {
   const value = useContext(MapCatalogueDataContext);
   if (value === null) {

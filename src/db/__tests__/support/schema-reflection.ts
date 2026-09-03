@@ -8,18 +8,12 @@ const schemaLoaders = import.meta.glob([
   '../../../composition/drizzle-schema.ts',
 ]) as Record<string, () => Promise<unknown>>;
 
-// The glob keys are relative to this file, so they normalize against its own directory.
 const REFLECTION_DIR = 'src/db/__tests__/support';
 
 function normalizeGlobKey(key: string): string {
   return normalizeModulePath(`${REFLECTION_DIR}/${key}`);
 }
 
-/**
- * Reflects every Drizzle pgTable across all slice schema files, deduplicated by SQL table name, so
- * registry gates share one schema census. This test-only helper relies on Vite's import.meta.glob
- * and never ships at runtime.
- */
 export async function reflectedSchemaTables(): Promise<PgTable[]> {
   const schemaModules = await Promise.all(
     Object.values(schemaLoaders).map((load) => load()),
@@ -33,12 +27,6 @@ export async function reflectedSchemaTables(): Promise<PgTable[]> {
   return [...byName.values()];
 }
 
-/**
- * Maps every schema module path (repository-relative) to its exported table identifiers and their
- * SQL table names, so a source scanner can resolve an imported symbol to the table it writes. The
- * `src/composition/drizzle-schema.ts` barrel appears alongside the source modules with its `export *`
- * re-exports already resolved, so a write made through the barrel resolves like any other.
- */
 export async function reflectedSchemaExports(): Promise<Map<string, Map<string, string>>> {
   const modules = await Promise.all(
     Object.entries(schemaLoaders).map(

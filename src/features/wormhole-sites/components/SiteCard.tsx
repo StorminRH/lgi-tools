@@ -26,17 +26,6 @@ function CatalogueCardExtras({ site }: { site: SiteDetail }) {
   );
 }
 
-/**
- * Top-level card renderer for a single SiteDetail. Owns the card chrome and the
- * collapsed summary (the shared `SiteCardHeader`); the expanded body (EwarRow,
- * waves, resources) lives in `SiteDetailsBody` so the table view and the lightbox
- * render identical detail. Catalogue presentation keeps the `<details>` expand
- * and sibling lightbox; standalone presentation renders header + body inline —
- * always expanded, no collapse toggle, no hover glow — for `/sites/[id]` and
- * embedded viewers. Live ore/gas prices stream into the summary total and the
- * body from one `SiteLiveProvider`. Hover is owned by presentation, not
- * alignment (`contentAlign` only lays out the header).
- */
 export function SiteCard({
   site,
   className,
@@ -44,25 +33,19 @@ export function SiteCard({
   presentation = 'catalogue',
 }: {
   site: SiteDetail;
-  /** Extra surface classes — map embeds clear the nested solid card fill. */
   className?: string;
-  /** Map dock centers the summary stack; catalogue cards stay start-aligned. */
   contentAlign?: 'start' | 'center';
-  /** Standalone always-expanded presentation for the full page and embedded viewers. */
   presentation?: 'catalogue' | 'standalone';
 }) {
   const liveResources = displayableResources(site.resources);
   const centered = contentAlign === 'center';
   const standalone = presentation === 'standalone';
   const header = <SiteCardHeader site={site} align={contentAlign} />;
-  // Collapsible's summary already supplies `flex`; standalone's plain header needs it.
   const headerLayoutClassName = centered
     ? 'flex-col items-center gap-2 px-3 pb-3 pt-3 text-center'
     : 'flex-col items-stretch gap-2 px-[17px] pb-[13px] pt-[15px]';
 
   return (
-    // `data-site-card` is the lightbox's DOM hook (it walks from the summary up to
-    // this element, then down to the <details>); `font="ui"` states the prose role.
     <Card
       font="ui"
       hover={!standalone}

@@ -27,7 +27,6 @@ function mockResponse(
   headers: Record<string, string> = {},
   body: unknown = {},
 ): Response {
-  // 304 is a null-body status — the Response constructor rejects a body.
   if (status === 304) return new Response(null, { status, headers });
   return new Response(JSON.stringify(body), { status, headers });
 }
@@ -46,8 +45,6 @@ describe('esiFetch', () => {
   beforeEach(() => {
     mocks.markRecentBudgetExhaustion.mockClear();
     __resetEsiGateForTests();
-    // Pin the in-process scoreboard path even when a `vercel env pull` left
-    // Upstash credentials in the local env (rate-limit.test.ts precedent).
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -100,10 +97,6 @@ describe('esiFetch', () => {
   });
 
   it('passes the caller Authorization header through untouched alongside the default User-Agent', async () => {
-    // The OAuth seam (3.4.4 carry-forward, landed with its first consumer in
-    // 3.4.6): authenticated character reads hand the gate a bearer token via
-    // init.headers and rely on it reaching ESI verbatim, while the gate still
-    // applies its set-if-absent User-Agent default to the same request.
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
 
     await esiFetch(TEST_URL, {
@@ -132,7 +125,6 @@ describe('esiFetch', () => {
   });
 
   it('refuses to dispatch when the echoed remaining count is below the floor', async () => {
-    // Prime the shared echo below the floor via a previous response.
     fetchSpy.mockResolvedValueOnce(
       mockResponse(200, {
         'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR - 1),
@@ -144,14 +136,10 @@ describe('esiFetch', () => {
     expect(err).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((err as EsiBudgetExhaustedError).reason).toBe('error_budget');
     expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
-    // Refusal happened before fetch — still only one call recorded.
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
   it('refuses from the self-count alone when responses carry no error-limit headers', async () => {
-    // Routes under the new token-bucket limiter do not send the legacy
-    // headers, so the mirror must close on our own error tally. 100-error
-    // ceiling − 81 errors = 19 remaining < floor of 20.
     fetchSpy.mockResolvedValue(mockResponse(404));
     for (let i = 0; i < 81; i++) {
       await esiFetch(TEST_URL);
@@ -175,8 +163,6 @@ describe('esiFetch', () => {
   });
 
   it('throws on 420 and refuses subsequent calls regardless of header value', async () => {
-    // ESI sends 420 when the limit is tripped; the Remain header on that
-    // response may be stale, so the echo is forced to zero.
     fetchSpy.mockResolvedValueOnce(
       mockResponse(420, { 'X-ESI-Error-Limit-Remain': '50' }),
     );
@@ -231,7 +217,6 @@ describe('esiFetch', () => {
     });
     expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
 
-    // Same route (different query) refuses pre-dispatch...
     const blocked = await esiFetch(
       'https://esi.evetech.net/markets/10000002/orders/?type_id=35',
     ).catch((e: unknown) => e);
@@ -240,12 +225,10 @@ describe('esiFetch', () => {
     expect((blocked as EsiBudgetExhaustedError).retryAfterSeconds).toBe(30);
     expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledTimes(2);
 
-    // ...a different route still dispatches...
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
     const other = await esiFetch('https://esi.evetech.net/universe/types/34/');
     expect(other.status).toBe(200);
 
-    // ...and the block lifts after Retry-After.
     vi.advanceTimersByTime(31_000);
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
     const after = await esiFetch(TEST_URL);
@@ -261,10 +244,6 @@ describe('esiFetch', () => {
             ETag: '"abc"',
             'Content-Type': 'application/json',
             Expires: 'Wed, 11 Jun 2026 12:00:00 GMT',
-            // Only a fixed Content-Length makes a body cache-eligible now (real
-            // ESI sends one only on small fixed-length responses); '{"a":1}' is
-            // 7 bytes. Without it the chunked-no-CL guard would skip caching and
-            // there'd be no stored body for the 304 to revalidate against.
             'Content-Length': '7',
           },
           { a: 1 },
@@ -293,9 +272,6 @@ describe('esiFetch', () => {
     });
 
     it('never attaches If-None-Match to requests carrying Authorization', async () => {
-      // Content-Length makes this 200 cache-eligible so an ETag is actually
-      // stored; without it the chunked-no-CL guard skips caching and the
-      // assertion below would pass vacuously (no stored ETag to attach).
       fetchSpy.mockResolvedValueOnce(
         mockResponse(200, { ETag: '"abc"', 'Content-Length': '7' }, { a: 1 }),
       );
@@ -310,9 +286,6 @@ describe('esiFetch', () => {
     });
 
     it('does not cache a fixed-length body over the size cap', async () => {
-      // A fixed Content-Length over the cap is excluded by the pre-check before
-      // any read. (new Response(string) carries no Content-Length, so set it
-      // explicitly to exercise the CL-present > cap exclusion specifically.)
       const big = 'x'.repeat(BODY_CACHE_MAX_BYTES + 1);
       fetchSpy.mockResolvedValueOnce(
         new Response(big, {
@@ -332,13 +305,6 @@ describe('esiFetch', () => {
     });
 
     it('does not cache a chunked (no Content-Length) 200, leaving the body for the caller', async () => {
-      // ESI streams nearly every 200 chunked with no Content-Length. The gate
-      // must NOT read such a body for the cache — reading it via res.clone() is
-      // what intermittently consumed the CALLER's body (the 3.5.1b "Body has
-      // already been read" bug). The undici consumption race itself is not
-      // reproducible against mocked Responses (verified live), so this asserts
-      // the structural guarantee: a no-CL 200 is left uncached (no conditional
-      // request next time) and its body stays readable here.
       const body = { systems: [1, 2, 3] };
       fetchSpy.mockResolvedValueOnce(
         new Response(JSON.stringify(body), {
@@ -388,8 +354,6 @@ describe('esiFetch', () => {
   });
 
   describe('within-window cache serve', () => {
-    // A 200 carrying ETag + Content-Length + a future Expires: cache-eligible
-    // AND inside ESI's own freshness window. '{"a":1}' is 7 bytes.
     function primingResponse(): Response {
       return mockResponse(
         200,
@@ -405,15 +369,13 @@ describe('esiFetch', () => {
 
     it('serves the stored body with no dispatch while the Expires window is open', async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-06-25T01:00:00Z')); // 5 min before Expires
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
       fetchSpy.mockResolvedValueOnce(primingResponse());
 
       const first = await esiFetch(TEST_URL);
       expect(await first.json()).toEqual({ a: 1 });
       expect(fetchSpy).toHaveBeenCalledOnce();
 
-      // Second read, still inside the window: no outbound call, served from the
-      // cached body. Two within-window reads → exactly one ESI request.
       const second = await esiFetch(TEST_URL);
       expect(fetchSpy).toHaveBeenCalledOnce();
       expect(second.status).toBe(200);
@@ -428,7 +390,6 @@ describe('esiFetch', () => {
       await esiFetch(TEST_URL);
       expect(fetchSpy).toHaveBeenCalledOnce();
 
-      // Past the Expires (+ skew): the gate re-asks ESI, conditionally.
       vi.setSystemTime(new Date('2026-06-25T01:10:00Z'));
       fetchSpy.mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }));
       const second = await esiFetch(TEST_URL);
@@ -436,20 +397,16 @@ describe('esiFetch', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBe('"abc"');
       expect(second.status).toBe(200);
-      // The 304-reuse path, distinct from the no-dispatch window serve.
       expect(second.headers.get('x-lgi-esi-cache')).toBe('revalidated');
     });
 
     it('never serves an Authorization-carrying GET from the shared cache', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      // Prime the shared cache with an unauthenticated read inside the window.
       fetchSpy.mockResolvedValueOnce(primingResponse());
       await esiFetch(TEST_URL);
       expect(fetchSpy).toHaveBeenCalledOnce();
 
-      // Same URL, still inside the window, but carrying a bearer token: must
-      // dispatch every time and get ESI's own body, never the cached one.
       fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, { a: 2 }));
       const authed = await esiFetch(TEST_URL, {
         headers: { Authorization: 'Bearer token' },
@@ -464,7 +421,6 @@ describe('esiFetch', () => {
     it('falls through to a normal dispatch when the body was evicted mid-window', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-      // Future Expires (window open) but the body is gone from the scoreboard.
       const getCachedBody = vi.fn().mockResolvedValue(null);
       const fake: EsiScoreboard = {
         preDispatch: vi.fn().mockResolvedValue({
@@ -490,8 +446,8 @@ describe('esiFetch', () => {
       fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"abc"' }, { a: 9 }));
       const res = await esiFetch(TEST_URL);
 
-      expect(getCachedBody).toHaveBeenCalledTimes(1); // it tried the cache...
-      expect(fetchSpy).toHaveBeenCalledTimes(1); // ...then dispatched once
+      expect(getCachedBody).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBe('"abc"');
       expect(res.status).toBe(200);
       expect(res.headers.get('x-lgi-esi-cache')).toBeNull();
@@ -556,13 +512,11 @@ describe('esiFetch', () => {
       });
       expect(preDispatch).toHaveBeenCalledTimes(1);
 
-      // Within the 5s memo the scoreboard is not re-consulted.
       await expect(esiFetch(TEST_URL)).rejects.toMatchObject({
         reason: 'scoreboard_unavailable',
       });
       expect(preDispatch).toHaveBeenCalledTimes(1);
 
-      // After the memo expires it is consulted again; recovery is automatic.
       vi.advanceTimersByTime(5_001);
       preDispatch.mockResolvedValue({
         effectiveRemaining: 100,
@@ -582,9 +536,6 @@ describe('esiFetch', () => {
     });
 
     it("one instance's spend closes another instance's gate", async () => {
-      // Two fresh module instances simulate two Lambdas: each has private
-      // module state, both point at one scoreboard. With the old per-Lambda
-      // budget, instance B's first call would have dispatched blind.
       vi.resetModules();
       const scoreboardMod = await import('./scoreboard');
       const shared = scoreboardMod.resolveScoreboard();

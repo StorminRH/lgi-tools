@@ -3,10 +3,6 @@ import type { TypeLabel } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { toBuildTree } from './build-tree';
 
-// A small build: product (1, a Frigate) ← a manufactured component (2) made
-// from 100 of a mineral (99), a reaction output (3) made from a mineral (98),
-// and a direct raw (4). Component 2 is needed ×3; reaction 3 is needed ×5 but
-// yields 10/run, so it runs a fractional 0.5 — the marginal basis.
 function fixture() {
   const tree: TreeNode[] = [
     {
@@ -32,8 +28,8 @@ function fixture() {
     [99, { name: 'Tritanium', groupName: 'Mineral', categoryName: 'Material' }],
   ]);
   const activityByBlueprint = new Map<number, number>([
-    [1002, 1], // manufacturing
-    [1003, 11], // reaction
+    [1002, 1],
+    [1003, 11],
   ]);
   return { tree, labels, activityByBlueprint };
 }
@@ -57,24 +53,22 @@ describe('toBuildTree', () => {
     expect(root.typeId).toBe(1);
     expect(root.quantity).toBe(1);
     expect(root.inputs.map((n) => n.typeId).sort()).toEqual([2, 3, 4]);
-    expect(rootHeight).toBe(2); // one stage above its tallest input (the component / reaction at height 1)
+    expect(rootHeight).toBe(2);
   });
 
   it('multiplies quantities down by each parent run, on the marginal basis', () => {
     const root = build().buildTree[0]!;
     const byId = new Map(root.inputs.map((n) => [n.typeId, n]));
-    // Component ×3, each run takes 100 minerals → 300.
     expect(byId.get(2)!.inputs[0]!.quantity).toBe(300);
-    // Reaction needs 5 but yields 10/run → 0.5 runs × 4 moon goo = 2 (not a rounded-up 4).
     expect(byId.get(3)!.inputs[0]!.quantity).toBe(2);
   });
 
   it('labels every node from an in-game identifier — never an invented bucket', () => {
     const d = build().buildNodeDisplay;
-    expect(d[1]).toMatchObject({ label: 'Assault Frigate', tone: 'teal', isRaw: false, height: 2 }); // root: its group
-    expect(d[2]).toMatchObject({ label: 'Construction Components', tone: 'blue', isRaw: false }); // manufactured: SDE group
-    expect(d[3]).toMatchObject({ label: 'Reaction', tone: 'purple', isRaw: false }); // activity 11
-    expect(d[4]).toMatchObject({ label: 'Mineral', isRaw: true }); // raw: its real group, not a renamed bucket
+    expect(d[1]).toMatchObject({ label: 'Assault Frigate', tone: 'teal', isRaw: false, height: 2 });
+    expect(d[2]).toMatchObject({ label: 'Construction Components', tone: 'blue', isRaw: false });
+    expect(d[3]).toMatchObject({ label: 'Reaction', tone: 'purple', isRaw: false });
+    expect(d[4]).toMatchObject({ label: 'Mineral', isRaw: true });
     expect(d[99]).toMatchObject({ isRaw: true, height: 0 });
   });
 

@@ -46,7 +46,6 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
-/** Only primitive props survive onto a div; functions and objects would break static markup. */
 function serializable(props: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(props).filter(([, value]) => typeof value === 'number'),
@@ -58,7 +57,6 @@ async function renderCanvas(): Promise<string> {
   return renderToStaticMarkup(createElement(MapCanvas));
 }
 
-/** The unrendered element tree, so the boundary's remount key can be inspected. */
 async function canvasTree(): Promise<ReactElement> {
   const { MapCanvas } = await import('./MapCanvas');
   return MapCanvas() as ReactElement;
@@ -104,7 +102,6 @@ describe('MapCanvas', () => {
     expect(mocks.chainHost).toHaveBeenCalledTimes(1);
   });
 
-  // The null-client gate: `'skip'` alone is not enough because no provider exists above.
   it('renders the empty canvas and mounts no hook when no Convex deployment is configured', async () => {
     mocks.searchParams = new URLSearchParams('map=map-a');
     mocks.convexClient = null;
@@ -117,7 +114,6 @@ describe('MapCanvas', () => {
     expect(props.nodes).toEqual([]);
   });
 
-  // A map change must not carry the previous map's reconciled nodes or local placements over.
   it('keys the chain host by map id so a map change remounts it', async () => {
     mocks.searchParams = new URLSearchParams('map=map-a');
     const first = await canvasTree();
@@ -133,8 +129,6 @@ describe('MapCanvas', () => {
     expect(keyOf(second)).toBe('map-b');
   });
 
-  // The calm state is a live value now, so nothing in this path throws and no boundary is warranted;
-  // an unexpected error belongs to the map route's own error.tsx.
   it('wraps the host in no error boundary of its own', async () => {
     mocks.searchParams = new URLSearchParams('map=map-a');
 

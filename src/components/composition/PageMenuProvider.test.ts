@@ -2,17 +2,11 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// usePathname has no Next router in the node test env; mock it to null so the
-// provider resolves off its `pathname` prop (the admin/load-section precedent).
-// We render via react-dom/server — the house pattern (SitesFilterLayout.test.ts);
-// no DOM/testing-library needed.
 vi.mock('next/navigation', () => ({ usePathname: () => null }));
 
 import { PageMenuProvider, usePageSettings } from '@/components/composition/PageMenuProvider';
 import { __resetPageSettings, registerPageSettings } from '@/platform/page-settings';
 
-// Reads the slot and emits the resolved spec's route + control keys + strip, or
-// EMPTY when no spec governs the route.
 function Consumer() {
   const spec = usePageSettings();
   const text = spec
@@ -27,8 +21,6 @@ function renderAt(pathname: string): string {
   );
 }
 
-// Importing the provider runs its side-effect registration once; reset before
-// each test so only the test's own specs are registered.
 beforeEach(() => __resetPageSettings());
 
 describe('PageMenuProvider slot', () => {

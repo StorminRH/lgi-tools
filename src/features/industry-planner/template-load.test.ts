@@ -11,11 +11,6 @@ import {
 import { applyTemplate, captureTemplate } from './template-manifest';
 import { configureFull, makeApplyCtx, makeMockPlanner } from './__tests__/template.fixtures';
 
-// The loader core over the shared mock-planner harness. The manifest's own
-// suite already pins every per-field degrade arm; here the pins are the
-// loader-level decisions — the gate, row resolution, the blueprint guard,
-// note pass-through, toast copy, and the param strip.
-
 function rowFor(
   snapshot: Readonly<Record<string, unknown>>,
   over?: Partial<SavedPlanRow>,
@@ -75,9 +70,7 @@ describe('runTemplateLoad', () => {
     });
 
     expect(outcome).toMatchObject({ kind: 'applied', notes: [] });
-    // The loaded planner re-captures to the exact saved snapshot…
     expect(captureTemplate(target.ctx, 999)).toEqual(snap);
-    // …including the pref-backed system write-through (persist: true).
     expect(target.state.persistedBuildLocation).toEqual(snap.buildSystem);
   });
 
@@ -86,7 +79,6 @@ describe('runTemplateLoad', () => {
     configureFull(source.state);
     const snap = captureTemplate(source.ctx, 999);
 
-    // A target whose shared-structure list no longer contains either saved ref.
     const target = makeMockPlanner({ structures: [] });
     const outcome = await runTemplateLoad({
       planId: 'plan-1',
@@ -103,7 +95,6 @@ describe('runTemplateLoad', () => {
     ]);
     expect(target.state.selectedStructure).toBeNull();
     expect(target.state.reactionStructure).toBeNull();
-    // The rest of the template still landed.
     expect(target.state.runs).toBe(3);
   });
 
@@ -111,7 +102,6 @@ describe('runTemplateLoad', () => {
     const source = makeMockPlanner();
     configureFull(source.state);
     const snap = captureTemplate(source.ctx, 999);
-    // Corrupt the saved pair to the state the guarded setter forbids.
     snap.reactionStructure = { id: 'corp:1021', name: 'Sotiyo Prime' };
 
     const target = makeMockPlanner();
@@ -225,9 +215,7 @@ describe('urlStillOnPlan', () => {
   it('matches only the live URL that still carries this load', () => {
     expect(urlStillOnPlan('?plan=abc', 'abc')).toBe(true);
     expect(urlStillOnPlan('?runs=3&plan=abc', 'abc')).toBe(true);
-    // A newer load took the URL — the stale completion must stand down.
     expect(urlStillOnPlan('?plan=other', 'abc')).toBe(false);
-    // The param is gone (already consumed, or the user navigated away).
     expect(urlStillOnPlan('', 'abc')).toBe(false);
     expect(urlStillOnPlan('?runs=3', 'abc')).toBe(false);
   });

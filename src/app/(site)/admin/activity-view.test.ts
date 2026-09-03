@@ -33,9 +33,9 @@ describe('deriveActivityView', () => {
     expect(view.points.map((p) => p.y)).toEqual([10, 0, 20, 0, 0, 0, 5]);
     expect(view.weekend).toEqual([false, false, false, false, false, true, true]);
     expect(view.average[0]).toBe(10);
-    expect(view.average[2]).toBe(10); // (10 + 0 + 20) / 3
+    expect(view.average[2]).toBe(10);
     expect(view.endValue).toBe(5);
-    expect(view.endDelta).toBeNull(); // < 14 days
+    expect(view.endDelta).toBeNull();
   });
 
   it('reference line = prior-window average, suppressed when there is no prior data', () => {
@@ -45,7 +45,7 @@ describe('deriveActivityView', () => {
       prevDailyCounts: [{ day: '2026-06-29', totalEvents: 70 }],
       markers: [],
     });
-    expect(withPrior.referenceLine).toEqual({ value: 10, label: 'prior avg' }); // 70 / 7 days
+    expect(withPrior.referenceLine).toEqual({ value: 10, label: 'prior avg' });
 
     const emptyPrior = deriveActivityView({
       range,
@@ -57,8 +57,6 @@ describe('deriveActivityView', () => {
   });
 
   it('divides the prior total by the range length, not the clamped series length', () => {
-    // Data starts mid-range, so the filled series clamps to 4 days — but the prior
-    // window is a full 7 days, so the reference must divide 70 by 7 (=10), not 4.
     const view = deriveActivityView({
       range: { from: new Date('2026-07-06T00:00:00Z'), to: new Date('2026-07-13T00:00:00Z') },
       dailyCounts: [
@@ -68,7 +66,7 @@ describe('deriveActivityView', () => {
       prevDailyCounts: [{ day: '2026-06-30', totalEvents: 70 }],
       markers: [],
     });
-    expect(view.labels.length).toBe(4); // series clamped
+    expect(view.labels.length).toBe(4);
     expect(view.referenceLine).toEqual({ value: 10, label: 'prior avg' });
   });
 
@@ -84,7 +82,6 @@ describe('deriveActivityView', () => {
         { date: '2026-07-20', label: 'v3' },
       ],
     });
-    // A lone marker keeps its own label; same-day markers collapse to a count.
     expect(view.eventMarkers).toEqual([
       { x: 0, label: 'v0' },
       { x: 2, label: '2 deploys' },

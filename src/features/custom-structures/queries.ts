@@ -3,11 +3,6 @@ import { db } from '@/db';
 import { customStructures } from './schema';
 import type { CustomStructureRow } from './types';
 
-/**
- * The caller's saved custom structures, oldest first (stable display order). The
- * rows are scoped to one user by every query below — the user id always comes
- * from the session, never the request body.
- */
 export async function listCustomStructures(userId: string): Promise<CustomStructureRow[]> {
   const rows = await db
     .select({
@@ -31,7 +26,6 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
   }));
 }
 
-/** Counts custom planner structures owned by one user for quota enforcement. */
 export async function countCustomStructures(userId: string): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -40,10 +34,6 @@ export async function countCustomStructures(userId: string): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
-/**
- * Creates one user-owned custom structure after validating hull, rig compatibility, tax, name, and
- * per-user quota.
- */
 export async function createCustomStructure(
   userId: string,
   input: {
@@ -66,20 +56,12 @@ export async function createCustomStructure(
   });
 }
 
-/**
- * Ownership-scoped delete: the (userId, id) predicate makes a delete a no-op for
- * a row the caller doesn't own — there is no way to delete another user's row.
- */
 export async function deleteCustomStructure(userId: string, id: string): Promise<void> {
   await db
     .delete(customStructures)
     .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
 }
 
-/**
- * Ownership-scoped pin update (null = unpin) — the same no-op-for-unowned-rows
- * predicate as delete.
- */
 export async function setCustomStructurePin(
   userId: string,
   id: string,
@@ -91,10 +73,6 @@ export async function setCustomStructurePin(
     .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
 }
 
-/**
- * Ownership-scoped tax update (null = clear, back to the NPC-baseline
- * assumption) — the setCustomStructurePin twin.
- */
 export async function setCustomStructureTax(
   userId: string,
   id: string,

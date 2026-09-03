@@ -1,20 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { parseStructureFit, type ResolveTypeId } from './structure-fit-parse';
 
-// Verified real typeIDs (everef). The resolver intentionally also knows the two
-// service modules, to prove they're excluded by the parser, not by an absent name.
 const TYPES = new Map<string, number>([
   ['Azbel', 35826],
   ['Sotiyo', 35827],
   ['Standup L-Set Structure Manufacturing Efficiency I', 43720],
   ['Standup L-Set Equipment Manufacturing Efficiency I', 43721],
-  ['Standup Manufacturing Plant I', 35878], // service module — must be excluded
-  ['Standup Research Lab I', 35891], // service module — must be excluded
+  ['Standup Manufacturing Plant I', 35878],
+  ['Standup Research Lab I', 35891],
 ]);
 const resolve: ResolveTypeId = (name) => TYPES.get(name);
 
-// Grammar-faithful Azbel fit (CCP fitting spec): high slots, a rig, two service
-// modules, then a fighter after the double blank line.
 const AZBEL_FIT = `[Azbel, Cap Production]
 Standup Multirole Missile Launcher I
 Standup Multirole Missile Launcher I
@@ -31,8 +27,6 @@ Standup Equite II x6`;
 
 describe('parseStructureFit', () => {
   it('extracts the structure and only the rig from a full fit', () => {
-    // Launchers/cap battery ("Standup …" without "-Set "), service modules, and the
-    // fighter ("… x6") are all excluded; only the L-Set rig survives.
     expect(parseStructureFit(AZBEL_FIT, resolve)).toEqual({
       structureTypeId: 35826,
       rigTypeIds: [43720],

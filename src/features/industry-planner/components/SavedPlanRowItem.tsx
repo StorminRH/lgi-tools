@@ -1,10 +1,5 @@
 'use client';
 
-// One saved-template list row, shared by the planner's TemplatesMenu popover
-// and the /industry/templates manager page (moved out of TemplatesMenu in 3.7.24,
-// behavior unchanged). Load is the row's primary action (the name button); the
-// side actions are favorite, rename (inline edit), and the two-step delete —
-// ✕ arms the row into a red "confirm?" and only the second press deletes.
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +8,6 @@ import { blueprintImage } from '@/data/eve-data/type-images';
 import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
 import { savedPlanRowLabels } from '../saved-plans-view';
 
-/** Renders one saved-plan row with load, favorite, rename, and delete actions supplied by its controller. */
 export function SavedPlanRowItem({
   row,
   busy,
@@ -61,7 +55,6 @@ export function SavedPlanRowItem({
           }}
           onBlur={() => onCommitRename(draft)}
           aria-label={`Rename ${row.name}`}
-          // Entering the inline edit is an explicit user action; focus follows it.
           autoFocus
           size="sm"
           className="h-6 min-w-0 flex-1"

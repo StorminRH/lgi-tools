@@ -1,4 +1,3 @@
-// The two-dot basename keeps Convex deploy from treating this Vite helper as an entry.
 export const modules = import.meta.glob([
   '../auth.config.ts',
   '../characterLocationAccess.ts',

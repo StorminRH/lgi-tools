@@ -11,15 +11,6 @@ import { reassignCharacter } from '@/platform/auth/admin-users';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
-/**
- * POST-only. Admin reassign — move a character from a standalone/other account
- * onto the acting admin's own account in one click (no OAuth re-login). Used to
- * consolidate the pre-linking standalone accounts. The destination is fixed to
- * the caller (session.user.id). If the source account is left empty it's removed
- * (see reassignCharacter); otherwise its identity email is rebound to a surviving
- * character. Never trust the posted owner — we verify the character actually
- * belongs to `fromUserId` first.
- */
 // authz: admin
 export const POST = capabilityRoute('admin.reassign-character', handlePost);
 
@@ -76,7 +67,5 @@ async function handlePost(request: NextRequest): Promise<Response> {
     },
   }).catch((err) => console.error('[admin/characters/reassign] telemetry write failed', err));
 
-  // Land on the admin's own detail page so the moved character shows up under
-  // their account (the source page may no longer exist).
   return Response.redirect(new URL(`/admin/access/${toUserId}`, request.url), 303);
 }

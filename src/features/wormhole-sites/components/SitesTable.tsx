@@ -65,8 +65,6 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
       if (s.siteType === 'gas') {
         const range = gasClassRange(s.name);
         if (range) {
-          // Tone tracks the MIN class so the colour reads as "this is
-          // available from that class up". C1/C2 → green, C3 → orange, etc.
           return (
             <Pill tone={CLASS_TONE[range.min]} size="sm">{formatClassRange(range)}</Pill>
           );
@@ -77,7 +75,6 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   },
 ];
 
-/** Renders sortable wormhole-site catalogue rows and forwards sort state through URL-backed controls. */
 export function SitesTable({
   sites,
   sortKey,

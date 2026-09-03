@@ -1,9 +1,3 @@
-// The shared job-row markup for the personal jobs panel + the corp board. The two rows
-// build the identical grid (headline · runs/activity · countdown · status pill · optional
-// progress bar) and differ only in the bar tone (corp uses the EVE-industry-blue 'evb')
-// and an optional trailing footer (the corp runner attribution) — so the markup lives
-// here once. Feature-local: both consumers are industry-jobs components. The pure row
-// data comes from jobRowFrameData (job-view.ts).
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Pill } from '@/components/ui/pill';
@@ -12,7 +6,6 @@ import { EntityRow } from '@/components/ui/row';
 import { initials } from '@/lib/format/names';
 import type { JobRowFrameData } from '../job-view';
 
-/** Renders the shared status, activity, product, runs, and timing frame for one industry job. */
 export function JobRowFrame({
   headlineName,
   icon,

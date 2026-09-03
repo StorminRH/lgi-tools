@@ -9,14 +9,12 @@ function runBoundaryCheck(): string {
   const result = spawnSync(
     'npx',
     ['fallow', 'dead-code', '--boundary-violations'],
-    // Node-level bound on a hung scan — Vitest's timeout cannot kill the child.
     { encoding: 'utf8', timeout: 30_000 },
   );
   return `${result.stdout}${result.stderr}`;
 }
 
 describe('mapper boundary', () => {
-  // Two full repo scans through cold `npx` overrun the 5s default on CI runners.
   it('rejects a reachable feature-to-mapper import and restores the probe bytes', () => {
     const before = readFileSync(PROBE_PATH, 'utf8');
     let violation = '';

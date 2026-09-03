@@ -57,8 +57,6 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
     retired: null,
     deleted: null,
   };
-  // Literal read is build-inlined by Next; on Vercel it exists only in the
-  // build environment, never as a runtime server variable.
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (convexUrl === undefined || convexUrl === '') {
     return {

@@ -1,40 +1,19 @@
 import { computeDelta, type Delta } from '@/composition/admin-period';
 
-// The dashboard's headline metrics as MetricTable row view-models: current
-// value, per-day average over the window, a period-over-period delta (each
-// metric queries its current + equal-length prior window, so no new SQL), and
-// an optional daily series for the inline sparkline. This replaces the KpiCard
-// grid's buildKpiCards; the two-way share subs it used to print (referred %,
-// new-vs-returning) now render as StackedShareBars, and avg position moves to
-// the GSC small-multiples — so the table stays four clean columns.
-
-/**
- * Display-ready metric row produced by App Router; values retain their domain units and require no
- * additional query by the renderer.
- */
 export interface MetricRow {
   label: string;
-  /** Pre-formatted headline value for the current window ('—' when N/A). */
   value: string;
-  /** Pre-formatted per-day average, or null when there is no meaningful one. */
   avg: string | null;
   delta: Delta | null;
-  /** Daily series for the inline sparkline; absent when no per-day data exists. */
   series?: number[];
 }
 
-// Per-day average of a whole-count total over the window's calendar length,
-// formatted compactly: one decimal below 10/day, whole numbers above.
 function perDay(total: number, rangeDays: number): string | null {
   if (rangeDays <= 0) return null;
   const v = total / rangeDays;
   return v < 10 ? v.toFixed(1) : Math.round(v).toLocaleString();
 }
 
-/**
- * Derives metric rows under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function buildMetricRows(args: {
   rangeDays: number;
   pageViews: { referred: number; direct: number };

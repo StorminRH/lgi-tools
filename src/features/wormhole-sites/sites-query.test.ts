@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSitesQuery } from './sites-query';
 
-// The parser now consumes the request's URLSearchParams and reads exactly the
-// keys the endpoint's query schema declares; the 400 detail strings are
-// byte-identical to the hand-read signature they replaced.
 const query = (params: Record<string, string> = {}) => new URLSearchParams(params);
 
 describe('parseSitesQuery', () => {

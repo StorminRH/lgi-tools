@@ -3,7 +3,6 @@ import type { StructureRigOption, StructureTypeOption } from '@/data/eve-data/st
 import type { CorpStructureRow } from './types';
 import { validateCorpStructureRigs } from './rig-validation';
 
-// SDE groups: 1404 Engineering Complex, 1406 Refinery.
 const azbel: StructureTypeOption = { typeId: 35826, name: 'Azbel', groupId: 1404, rigSize: 3 };
 const TYPES = [azbel];
 

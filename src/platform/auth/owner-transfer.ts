@@ -29,8 +29,8 @@ export async function absorbLinkedCharacterOnProof(
 ): Promise<{ absorbed: boolean }> {
   try {
     const state = (await getOAuthState()) as { link?: { userId: string } } | null;
-    const link = state?.link; // present ONLY on link flows
-    if (!link) return { absorbed: false }; // sign-in: never absorb
+    const link = state?.link;
+    if (!link) return { absorbed: false };
 
     const [row] = await db
       .select({ userId: account.userId })
@@ -39,34 +39,21 @@ export async function absorbLinkedCharacterOnProof(
         accountMatch(characterId),
       )
       .limit(1);
-    if (!row) return { absorbed: false }; // fresh link — Better Auth creates it
-    if (row.userId === link.userId) return { absorbed: false }; // normal relink of your own character
+    if (!row) return { absorbed: false };
+    if (row.userId === link.userId) return { absorbed: false };
 
     const { sourceDeleted } = await reassignCharacter({
       characterId,
       fromUserId: row.userId,
       toUserId: link.userId,
     });
-    // The move is COMMITTED from here on. Cleanup and reporting failures must
-    // degrade individually — the outer catch must never see them, or a
-    // committed move would report no-absorb: the audit event dropped, the UI
-    // note suppressed, and the stale-email hazard silently left open.
     if (!sourceDeleted) {
-      // reassignCharacter skips the source identity-email rebind on the
-      // not-emptied fork; reconcileAfterCharacterRemoval is idempotent over the
-      // overlap (no delete — survivors remain; the active re-point already
-      // happened) and adds ONLY the email rebind, closing the findOAuthUser
-      // email-fallback hazard (a stale synthetic address could resurrect the
-      // stray account if the character's row is ever deleted later).
       try {
         await reconcileAfterCharacterRemoval(row.userId, characterId);
       } catch (err) {
         console.error('[auth] absorb source cleanup failed after the move committed', err);
       }
     }
-    // Audit trail — a disputed absorb must be investigable (and reversible via
-    // the admin reassign). Fire-and-forget like the auth_login event: telemetry
-    // must never block or fail the link.
     void logUsageEvent({
       action: 'auth_absorb',
       characterId,

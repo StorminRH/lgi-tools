@@ -59,9 +59,6 @@ function GrossNetToggle({
   );
 }
 
-// The input-cost basis pair (Raw|Item, 3.7.21.1) — same visual family as
-// GrossNetToggle. Both states are always available (no gating): Raw is the
-// whole-run buy list, Item the consumed bill.
 function RawItemToggle({
   basis,
   setBasis,
@@ -83,8 +80,6 @@ function RawItemToggle({
   );
 }
 
-// The Input-cost tile's "?" hover: both bases side by side, whichever view is
-// active, so the toggle never hides a number.
 function InputCostHelp({ bases }: { bases: { batched: number; marginal: number } | null }) {
   return (
     <KpiHelp label="How input cost is computed">
@@ -99,10 +94,6 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
   );
 }
 
-// The Input-cost tile (3.7.21.1): figure + Raw|Item toggle + the both-bases
-// popover. Self-contained on the pricing context so the KPI row stays a thin
-// composition; the toggle reflects the user's intent immediately while the
-// figure carries the summary's own basis stamp.
 function InputCostTile() {
   const { pricing, refreshing } = useMarketData();
   const { costBasis, setCostBasis } = usePlannerConfig();
@@ -125,11 +116,6 @@ function InputCostTile() {
   );
 }
 
-// The Sell·Jita opportunity callout (3.7.26.1): a cheaper sell book exists
-// outside Jita 4-4 and cleared the ingest gate. Renders only once the shared
-// system index resolves the name (system only, never a station) — an
-// OPPORTUNITY affordance, green against the amber thin-order warning beside
-// it; the two say different things and can show together.
 function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }) {
   const systemName = useSystemName(callout.systemId);
   if (!systemName) return null;
@@ -149,13 +135,6 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
   );
 }
 
-// The Sell·Jita tile (3.7.25.1): the revenue figure + the thin-order honesty
-// badge — when the product's lowest ask sits well under the volume-weighted
-// front of the book, the headline price is anchored by an order too small to
-// matter, and the badge says so. Since 3.7.26.1 the price is the Jita 4-4
-// book and the opportunity callout rides beside the badge (both can render).
-// Self-contained on the pricing context (the InputCostTile shape) so the KPI
-// row stays a thin composition; the verdicts are the pure mappers.
 function SellTile() {
   const { pricing, refreshing } = useMarketData();
   const view = sellTileView(pricing);
@@ -178,10 +157,6 @@ function SellTile() {
   );
 }
 
-// The Net-margin tile's "?" hover: the itemized install + sell fee breakdown the
-// retired Raw-ledger view used to show, restored read-only from the net path's
-// own figures. Shown only on the net path (a location picked), where the fees are
-// real. Logic lives in the pure buildFeeBreakdown; this is the humble shell.
 function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string | undefined }) {
   const fees = buildFeeBreakdown(net);
   const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
@@ -214,10 +189,6 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
   );
 }
 
-// The Total-job-time "?" hover: the per-job calculation. Each line is a buildable's
-// TE-adjusted per-run time × its batched run count = that job's total; the final
-// product leads, the components follow by descending total, and the lines sum to the
-// figure on the tile. The list scrolls for a deep build (a capital has dozens).
 function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
   return (
     <KpiHelp label="How total job time is calculated">
@@ -252,8 +223,6 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
   );
 }
 
-// The net-margin figure: the priced margin (toned) with its percent, or a
-// pricing-pending / unavailable placeholder before the estimate settles.
 function MarginFigure({
   view,
   summary,
@@ -276,9 +245,6 @@ function MarginFigure({
   );
 }
 
-// The net-margin tile: the Gross/Net toggle, the fee breakdown hover (net path
-// only), and the margin figure. All the source/label decisions come from the
-// pure cockpitMarginView.
 function NetMarginTile({
   view,
   pricing,
@@ -313,7 +279,6 @@ function NetMarginTile({
   );
 }
 
-// The Build-time tile: the final-job time figure + the per-lever hover.
 function BuildTimeTile({
   runs,
   buildTimes,
@@ -331,8 +296,6 @@ function BuildTimeTile({
           <KpiHelp label="How build time is estimated">
             <PopoverHeading>Build time — final job</PopoverHeading>
             <PopoverRow label="Runs">×{runs}</PopoverRow>
-            {/* No owned/manual qualifier on a non-zero value: topTe is the effective TE
-                and can come from a manual override, so the bare percentage is honest. */}
             <PopoverRow label="Time efficiency">
               {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
             </PopoverRow>
@@ -346,7 +309,6 @@ function BuildTimeTile({
   );
 }
 
-// The Total-job-time tile: the whole-tree sequential production figure + hover.
 function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
   return (
     <KpiTile>
@@ -356,12 +318,6 @@ function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
   );
 }
 
-/**
- * The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
- * market score (with "?" breakdown) · build time · total job time. All figures read
- * the live pricing store; the margin tile flips gross↔net and each figure flashes in
- * as prices land. The tiles are render shells over the pure cockpit-kpis-view.
- */
 export function CockpitKpis({
   structure,
   marginMode,
@@ -391,7 +347,6 @@ export function CockpitKpis({
     marginMode,
   );
 
-  // The Build-time hover's honest lever rows — pure + tested in time-lever-rows.ts.
   const leverRows = timeLeverRows({
     topBlueprintTypeId: structure.blueprintTypeId,
     buildCharacterName: buildCharacter?.name ?? null,

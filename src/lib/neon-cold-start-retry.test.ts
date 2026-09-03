@@ -13,8 +13,6 @@ function neonError(message: string, extras: ErrorExtras = {}): Error {
   return Object.assign(err, extras);
 }
 
-// The shape drizzle-orm wraps every query error in (`Failed query: ...` with
-// the driver error on `cause`).
 function drizzleWrapped(cause: Error): Error {
   return Object.assign(new Error('Failed query: select 1\nparams: '), { cause });
 }
@@ -38,7 +36,7 @@ describe('isNeonColdStartError', () => {
     ['SQL error code', neonError('relation "x" does not exist', { code: '42P01' })],
     ['unique violation', neonError('duplicate key', { code: '23505' })],
     ['bare fetch TypeError', new TypeError('fetch failed')],
-    ['plain error', new Error(COLD_START)], // right message, wrong name
+    ['plain error', new Error(COLD_START)],
     ['non-error', 'fetch failed'],
   ])('rejects %s', (_label, err) => {
     expect(isNeonColdStartError(err)).toBe(false);
@@ -51,10 +49,6 @@ describe('isNeonColdStartError', () => {
     expect(isNeonColdStartError(a)).toBe(false);
   });
 
-  // The per-query bound in src/db/index.ts aborts a hung fetch, and the driver
-  // wraps that abort with the same "Error connecting to database" prefix a real
-  // cold start uses. Retrying it would turn one bounded 30s wait into the full
-  // ~123s envelope, so the abort must be declined while the genuine wrap is not.
   describe('timeout-abort carve-out', () => {
     const abort = (): Error =>
       new DOMException('signal timed out', 'TimeoutError') as unknown as Error;
@@ -75,8 +69,6 @@ describe('isNeonColdStartError', () => {
       expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(true);
     });
 
-    // A linear `cause ?? sourceError` walk would take `cause` and never reach
-    // the timeout on `sourceError`, retrying a bounded abort as a cold start.
     it('finds the timeout when a non-timeout cause sits alongside it', () => {
       const wrapped = neonError(`Error connecting to database: ${abort()}`, {
         cause: new TypeError('some other detail'),
@@ -99,7 +91,6 @@ describe('isNeonColdStartError', () => {
       const b = neonError('inner');
       Object.assign(a, { cause: b, sourceError: b });
       Object.assign(b, { cause: a, sourceError: a });
-      // No timeout anywhere in the cycle, so the genuine cold-start match stands.
       expect(isNeonColdStartError(a)).toBe(true);
     });
   });
@@ -194,7 +185,6 @@ describe('withColdStartRetry', () => {
     const result = withColdStartRetry(read);
     const rejection = expect(result).rejects.toBe(errors[3]);
 
-    // Attempt 1 fails immediately; each retry waits 500/1000/2000 ms.
     await vi.advanceTimersByTimeAsync(0);
     expect(read).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(499);

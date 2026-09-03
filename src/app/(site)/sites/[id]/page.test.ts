@@ -100,7 +100,6 @@ test('site detail keeps params under Suspense then hosts the standalone card', a
     searchParams: Promise.resolve({}),
   });
   const shellHtml = renderToStaticMarkup(shell);
-  // Sync shell only — params-bound content streams inside Suspense.
   expect(shellHtml).toContain('Loading site');
   expect(shellHtml).toContain('max-w-[32rem]');
   expect(mocks.getPricedSiteDetail).not.toHaveBeenCalled();

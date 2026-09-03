@@ -1,11 +1,6 @@
 import type { ChangelogMaster } from '../parse';
 import { EntryCard } from './EntryCard';
 
-/**
- * A master version: a section heading (themed for new masters, a bare version
- * number for historical ones) over its sub-versions, each still drawn as a
- * timeline node by EntryCard.
- */
 export function MasterSection({ master }: { master: ChangelogMaster }) {
   return (
     <section className="mb-11 last:mb-0">

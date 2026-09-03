@@ -20,9 +20,7 @@ import sys
 
 from tools._lib.checker_common import Finding, run_checker
 
-
 LOCAL_PATTERNS = ".local/agent/pr-privacy-local-patterns.txt"
-
 
 @dataclass(frozen=True)
 class PatternRule:
@@ -30,7 +28,6 @@ class PatternRule:
 
     label: str
     pattern: re.Pattern[str]
-
 
 GENERIC_RULES = (
     PatternRule(
@@ -68,12 +65,10 @@ GENERIC_RULES = (
     ),
 )
 
-
 def _add_arguments(parser: argparse.ArgumentParser) -> None:
     """Register the candidate PR title and body-file inputs."""
     parser.add_argument("--body-file", type=Path, required=True)
     parser.add_argument("--title")
-
 
 def _git_value(root: Path, key: str) -> str:
     result = subprocess.run(
@@ -84,7 +79,6 @@ def _git_value(root: Path, key: str) -> str:
         check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else ""
-
 
 def _runtime_rules(
     root: Path,
@@ -119,7 +113,6 @@ def _runtime_rules(
         for value in unique
     ]
 
-
 def _local_rules(path: Path) -> tuple[list[PatternRule], list[Finding]]:
     """Load the optional local regex registry and report invalid entries."""
     if not path.is_file():
@@ -148,13 +141,11 @@ def _local_rules(path: Path) -> tuple[list[PatternRule], list[Finding]]:
         rules.append(PatternRule("local operator identifier", pattern))
     return rules, findings
 
-
 def _display_path(root: Path, path: Path) -> str:
     try:
         return path.relative_to(root).as_posix()
     except ValueError:
         return path.name
-
 
 def collect_findings(
     root: Path,
@@ -204,11 +195,9 @@ def collect_findings(
                 break
     return findings
 
-
 def main() -> int:
     """Run the PR privacy scrubber CLI."""
     return run_checker(collect_findings, add_arguments=_add_arguments)
-
 
 if __name__ == "__main__":
     sys.exit(main())

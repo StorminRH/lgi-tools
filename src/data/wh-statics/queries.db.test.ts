@@ -206,8 +206,6 @@ describe.skipIf(!harness.reachable)(
         crossCheck: AGREEMENT,
       });
 
-      // A refresh that probed before `newer` existed now tries to record an
-      // older feed body against the same baseline.
       await expect(
         recordSnapshot(harness.db, {
           feedVersion: '11',
@@ -354,8 +352,6 @@ describe.skipIf(!harness.reachable)(
       await expect(rejectSnapshot(harness.db, snapshotId)).rejects.toBeInstanceOf(
         WhStaticsSnapshotStateError,
       );
-      // The conditional ETag skips the rejected row, but the baseline id still
-      // tracks it so a genuinely concurrent write stays detectable.
       await expect(getSnapshotProbeBaseline(harness.db)).resolves.toEqual({
         etag: '"accepted"',
         latestSnapshotId: snapshotId,

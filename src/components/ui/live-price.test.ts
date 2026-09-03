@@ -173,10 +173,6 @@ describe('scheduleConfirmFlash', () => {
   });
 
   it('does not Illegal-invocation when window-like rAF requires its receiver', () => {
-    // Mirrors browser `window.requestAnimationFrame` — calling the extracted
-    // method without the window receiver throws TypeError: Illegal invocation.
-    // Production LivePrice binds through window the same way (module-private
-    // browserConfirmFlashScheduler); this exercises that public scheduler seam.
     const windowLike = {
       requestAnimationFrame(this: unknown, callback: FrameRequestCallback) {
         if (this !== windowLike) throw new TypeError('Illegal invocation');
@@ -206,7 +202,6 @@ describe('scheduleConfirmFlash', () => {
       };
       expect(() => scheduleConfirmFlash(host, bound)).not.toThrow();
       expect(host.classes.has('price-flash')).toBe(true);
-      // Bare method extraction still throws — documents why window binding exists.
       expect(() =>
         scheduleConfirmFlash(host, {
           requestAnimationFrame: windowLike.requestAnimationFrame,

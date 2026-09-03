@@ -20,9 +20,7 @@ describe('buildMetricRows', () => {
       'Search clicks',
       'Search impressions',
     ]);
-    // 900 views over 30 days = 30/day; delta vs prev 750 = +20%.
     expect(rows[0]).toMatchObject({ value: '900', avg: '30', delta: { pct: 20, direction: 'up' } });
-    // 60 users over 30 days = 2/day → one decimal below 10.
     expect(rows[1]?.avg).toBe('2.0');
   });
 

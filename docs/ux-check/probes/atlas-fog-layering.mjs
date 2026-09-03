@@ -1,18 +1,3 @@
-// Fog layering and occlusion (4.0.4.2.3 OW4, SC-3.2): on a fresh fixture map
-// with one authored k-space anchor, the fog canvas sits below the drawn
-// node/edge layers and above the backdrop (negative z-index inside the
-// viewport stacking context), is pointer-inert, and its painted alpha is
-// honest — cloud over fogged ring-3 systems and empty space, punched-out
-// reveals over drawn nodes and along fully-drawn edges. Ring-3 nodes are
-// invisible (opacity 0) and inert; a fogged-endpoint line draws only its
-// cut-off stub into the cloud. The settled fog registers zero animation
-// frames across an idle window (the no-standing-loop contract).
-//
-// Requires authenticated storage state and a fresh empty UX_FOG_MAP_ID map
-// (disposable: the authored anchor stays behind). Ops mirror atlas-halo:
-// insert a map row, stamp the pilot's affiliation, project access, then
-//   UX_FOG_MAP_ID=<id> node docs/ux-check/run-probes.mjs \
-//     --storage-state=docs/ux-check/captures/auth-storage.json atlas-fog-layering
 import {
   convexRun,
   fogMapId,
@@ -24,9 +9,8 @@ import {
   readRafCount,
 } from '../lib/motion-metrics.mjs';
 
-const ANCHOR_SYSTEM_ID = 30_000_142; // Jita — k-space, several gate neighbours.
+const ANCHOR_SYSTEM_ID = 30_000_142;
 
-/** Mirrors the pinned cut fraction (fog-model FOG_EDGE_CUT_FRACTION). */
 const FOG_EDGE_CUT_FRACTION = 0.55;
 
 const waitForHalo = (page) =>
@@ -48,7 +32,6 @@ const waitForFogPaint = (page) =>
     { timeout: 30_000 },
   );
 
-/** Structural facts about the fog canvas and its stacking. */
 const readFogStructure = (page) =>
   page.evaluate(() => {
     const canvas = document.querySelector('[data-map-fog]');
@@ -66,11 +49,6 @@ const readFogStructure = (page) =>
     };
   });
 
-/**
- * The painted cloud alpha (0..1) at world coordinates, read straight from
- * the canvas backing store — the honest observable behind "covered" versus
- * "revealed".
- */
 const sampleAlpha = (page, points) =>
   page.evaluate((worldPoints) => {
     const canvas = document.querySelector('[data-map-fog]');
@@ -86,7 +64,6 @@ const sampleAlpha = (page, points) =>
     });
   }, points);
 
-/** World frame rects (top-left + declared size) for interesting nodes. */
 const readNodeFrames = (page) =>
   page.evaluate(() => {
     const parse = (transform) => {
@@ -125,11 +102,6 @@ const center = (frame) => ({
   y: frame.y + frame.height / 2,
 });
 
-/**
- * The fogged-endpoint edge's drawn stub versus the full frame-clipped
- * segment, both computed in-page: the stub must span the cut fraction of the
- * full run, from the drawn side.
- */
 const readFogboundEdge = (page, foggedId) =>
   page.evaluate((fogged) => {
     const parse = (transform) => {
@@ -202,7 +174,6 @@ export default {
     }
     await waitForEditableMap(page);
 
-    // One authored k-space anchor; halo and fog are pure derivation.
     await convexRun('mapFixturePlace:placeSystemFixture', {
       mapId,
       systemId: ANCHOR_SYSTEM_ID,
@@ -211,7 +182,6 @@ export default {
     await waitForFogPaint(page);
     await page.waitForTimeout(1500);
 
-    // ── Stacking structure (fog below nodes/edges, above backdrop) ──────────
     const structure = await readFogStructure(page);
     check('the fog canvas is the direct ViewportPortal child', structure?.inPortal === true);
     check(
@@ -225,7 +195,6 @@ export default {
       structure?.pointerEvents === 'none',
     );
 
-    // ── Painted honesty: cloud where fogged, reveals where drawn ────────────
     const frames = await readNodeFrames(page);
     check(
       'authored, drawn-halo, and fogged nodes are all present',
@@ -261,8 +230,6 @@ export default {
     );
     check(`the cloud covers empty space (alpha ${farAlpha.toFixed(2)})`, farAlpha > 0.6);
 
-    // Corridor reveal along a fully-drawn line: sample the authored→drawn
-    // midpoint (the anchor's ring-1 neighbours are gate-linked to it).
     const corridor = await sampleAlpha(page, [
       {
         x: (authoredCenter.x + drawnCenter.x) / 2,
@@ -274,7 +241,6 @@ export default {
       corridor !== null && corridor[0] < 0.35,
     );
 
-    // ── Ring-3 occlusion: invisible and inert ───────────────────────────────
     check(
       `the fogged node renders invisible (opacity ${frames.foggedOpacity})`,
       frames.foggedOpacity === '0',
@@ -284,7 +250,6 @@ export default {
       frames.foggedPointerEvents === 'none',
     );
 
-    // ── Fogged-endpoint line cuts off into the cloud ────────────────────────
     const fogbound = await readFogboundEdge(page, frames.foggedId);
     check('a fogged-endpoint halo edge is rendered', fogbound !== null);
     if (fogbound !== null) {
@@ -295,7 +260,6 @@ export default {
       );
     }
 
-    // ── Non-interactive: a click over the cloud reaches the pane ────────────
     const hit = await page.evaluate((point) => {
       const canvas = document.querySelector('[data-map-fog]');
       const rect = canvas.getBoundingClientRect();
@@ -315,7 +279,6 @@ export default {
       hit.onPane === true && hit.isCanvas === false,
     );
 
-    // ── Settled fog schedules nothing (idle stillness with fog mounted) ─────
     await page.waitForTimeout(1200);
     const idleStart = await readRafCount(page);
     await page.waitForTimeout(2500);

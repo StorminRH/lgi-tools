@@ -1,6 +1,3 @@
-// SC-1 / SC-2 / SC-4 / SC-6: two-client live authoring demo —
-// home → add → edit → fan-out → revocation. Mutates the blank map under test;
-// re-projects access after the revocation step so the map stays usable.
 import {
   blankMapId,
   blankMapRoute,
@@ -14,7 +11,6 @@ import {
 } from '../lib/authoring-helpers.mjs';
 
 async function pickSelect(page, ariaLabel, optionName) {
-  // Open/choose via DOM events scoped to the Signature Editor pop-out.
   await page.waitForFunction(
     (label) =>
       document.querySelector(
@@ -67,9 +63,6 @@ export default {
     await waitForEditableMap(page);
     const home = page.locator('[data-map-home-prompt]');
     const startedBlank = (await home.count()) > 0;
-    // This probe authors a root + connection on the blank map, and no map
-    // drain API exists yet — a rerun fails closed here until the operator
-    // re-seeds or drains the UX_BLANK_MAP_ID map.
     check(
       'editor client starts on a blank map with the home prompt (re-seed or drain UX_BLANK_MAP_ID after each run)',
       startedBlank,
@@ -89,7 +82,6 @@ export default {
     await shot('two-clients-blank-home');
     await shot('two-clients-blank-home-b', { page: second.page });
 
-    // Home pick on client A → fan-out to client B.
     await pickSystemSearch(page, 'Search systems — type a name', 'jita', {
       root: page.locator('[data-map-home-prompt]'),
     });
@@ -114,7 +106,6 @@ export default {
     );
     await shot('two-clients-after-home');
 
-    // Add-from-node on client A → whole reveal on client B.
     await openAddConnectionMenu(page);
     await page.getByRole('menuitem', { name: 'Add connection…' }).click();
     await page.locator('[data-map-node-add-search]').waitFor({ state: 'visible', timeout: 10_000 });
@@ -144,10 +135,8 @@ export default {
     );
     await shot('two-clients-after-add');
 
-    // Edit connection fields on client A → live on client B.
     await calmMapCamera(page);
     await calmMapCamera(second.page);
-    // Let birth/camera settle so the edge midpoint (and card) are stable.
     await page.waitForTimeout(1600);
     await openFirstEdgeEditor(page);
     await pickSelect(page, 'Size', 'L');
@@ -155,7 +144,6 @@ export default {
     await pickSelect(page, 'Reliable Lifetime', 'Less than 1 day remaining');
     await page.waitForTimeout(800);
 
-    // Second client opens the same edge and observes the written values.
     await openFirstEdgeEditor(second.page);
     const sizeB = (await second.page.getByRole('combobox', { name: 'Size' }).textContent()) ?? '';
     const massB =
@@ -168,9 +156,6 @@ export default {
     await shot('two-clients-after-edit');
     await shot('two-clients-after-edit-b', { page: second.page });
 
-    // Revocation: tear down claims → affordances / access poof on both clients.
-    // The restore runs in `finally` so a failed wait, check, or screenshot can
-    // never leave the map revoked for later probes or operator review.
     try {
       await teardownMapAccess(mapId);
       await page.waitForFunction(
@@ -203,7 +188,6 @@ export default {
       );
       await shot('two-clients-after-revoke');
     } finally {
-      // Restore access so later probes / operator review can reopen the map.
       await restoreMapAccess(mapId);
     }
     await page.waitForTimeout(500);

@@ -19,7 +19,6 @@ import {
   restoreMap,
 } from './map-lifecycle-client';
 
-/** Creator-owned selected ids eligible for the one permanent-delete confirmation. */
 export function selectedCreatorMapIds(
   maps: readonly DeletedRestorableMapRow[],
   selected: ReadonlySet<string>,
@@ -29,7 +28,6 @@ export function selectedCreatorMapIds(
     .map((map) => map.id);
 }
 
-/** Applies one lifecycle action serially and stops at the first refusal. */
 export async function runMapLifecycleBatch(
   mapIds: Iterable<string>,
   action: (input: { readonly mapId: string }) => Promise<{ readonly ok: boolean }>,
@@ -42,7 +40,6 @@ export async function runMapLifecycleBatch(
   return { succeeded, complete: true };
 }
 
-/** Removes completed or no-longer-visible ids from controlled trash selection. */
 export function pruneTrashSelection(
   selected: ReadonlySet<string>,
   removeIds: Iterable<string>,
@@ -87,7 +84,6 @@ function TrashMapRows({
   ));
 }
 
-/** Controlled trash surface for multi-restore and creator-only purge requests. */
 export function TrashWindow({
   open,
   onOpenChange,

@@ -138,7 +138,6 @@ describe('jump resolution', () => {
       pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set(), systemInfo, OWN),
     ).toBeNull();
 
-    // Another pilot's assumed link stays invisible even when still pending.
     expect(
       pendingJumpResolution(
         details,

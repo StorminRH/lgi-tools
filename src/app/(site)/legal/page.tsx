@@ -8,7 +8,6 @@ import { eyebrow } from '@/components/ui/type-roles';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
-/** Static search and social metadata for the /legal route. */
 export const metadata = buildPageMetadata({
   title: 'Privacy',
   description:
@@ -16,9 +15,6 @@ export const metadata = buildPageMetadata({
   canonical: '/legal',
 });
 
-// Major-section heading inside the reading column — Barlow display, one tier
-// below the page H1, above the "// label" SectionLabel sub-heads.
-// One "// label" sub-head + its prose body — the reading column's repeated unit.
 function LegalSection({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <section className="mb-8">
@@ -28,10 +24,6 @@ function LegalSection({ label, children }: { label: ReactNode; children: ReactNo
   );
 }
 
-/**
- * Renders the /legal route surface and owns its page-level composition, metadata boundary, and
- * fallback presentation.
- */
 export default function LegalPage() {
   return (
     <PageShell mode="reading">

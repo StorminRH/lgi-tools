@@ -25,7 +25,6 @@ export { E2E_CHARACTER_ID, E2E_CHARACTER_NAME, E2E_USER_ID } from './identity';
 
 config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
-/** Absolute default path for writing seed output (`pnpm e2e:seed`). */
 export const DEFAULT_STORAGE_STATE_PATH = path.resolve(
   process.cwd(),
   DEFAULT_STORAGE_STATE_RELATIVE,
@@ -72,10 +71,6 @@ export type PlaywrightStorageState = {
   origins: [];
 };
 
-/**
- * Upserts the durable E2E pilot (user + EVE account + character profile) and
- * writes a Playwright `storageState` JSON with a correctly signed session cookie.
- */
 export async function seedE2eStorageState(
   outPath: string = DEFAULT_STORAGE_STATE_PATH,
   cookieDomain = 'localhost',
@@ -94,7 +89,6 @@ export async function seedE2eStorageState(
   }
 
   await helpers.deleteUser(E2E_USER_ID).catch(() => {
-    // First run — no prior e2e user.
   });
 
   const created = helpers.createUser({

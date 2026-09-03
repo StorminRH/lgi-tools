@@ -40,8 +40,6 @@ describe('readEnv', () => {
   });
 
   it("passes '' through on a verbatim (nullish/comparison) variable", () => {
-    // Parity with `process.env.BETTER_AUTH_SECRET ?? process.env.SESSION_SECRET`:
-    // a set-but-empty first var must keep winning the ?? chain.
     vi.stubEnv('BETTER_AUTH_SECRET', '');
     vi.stubEnv('SESSION_SECRET', 'fallback');
     expect(readEnv('BETTER_AUTH_SECRET')).toBe('');

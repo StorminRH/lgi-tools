@@ -25,11 +25,6 @@ export function registerIdentityProjectionHooks(next: IdentityProjectionHooks): 
   hooks = next;
 }
 
-/**
- * Runs before a user row is deleted because it has no remaining EVE accounts.
- * Required: deleting the durable row before its owned collaborative chains are
- * gone would strand unselectable personal data.
- */
 export async function runBeforeUserDelete(userId: string): Promise<void> {
   const action = hooks?.beforeUserDelete;
   if (action === undefined) {
@@ -38,11 +33,6 @@ export async function runBeforeUserDelete(userId: string): Promise<void> {
   await action(userId);
 }
 
-/**
- * Runs after a character account row is unlinked or moved between users.
- * `userId` is the user **losing** the character (source on reassign).
- * Best-effort: Neon identity work must not abort on a Convex outage.
- */
 export async function runAfterCharacterLinkChanged(args: {
   userId: string;
   characterId: number;

@@ -17,7 +17,7 @@ export function decorateAbsorbRedirect(
   if (response.status < 300 || response.status >= 400) return response;
   const location = response.headers.get('location');
   if (!location) return response;
-  const target = new URL(location, requestUrl); // Location may be relative
+  const target = new URL(location, requestUrl);
   if (target.searchParams.has('error')) return response;
   target.searchParams.set('absorbed', String(absorbedCharacterId));
   const headers = new Headers(response.headers);

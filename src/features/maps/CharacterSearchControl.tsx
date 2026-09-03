@@ -135,7 +135,6 @@ function useCharacterSearch(selectedKeys: ReadonlySet<string>) {
   };
 }
 
-/** Search transport/controller consumed by the otherwise transport-free access editor. */
 export function CharacterSearchControl({
   disabled = false,
   selectedPrincipals,

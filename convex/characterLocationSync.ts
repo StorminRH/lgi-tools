@@ -254,9 +254,6 @@ async function resolveOnlineProbe(
 
   const windowExpiresAt = resolveExpiresAt([read.expiresAt], ONLINE_FALLBACK_TTL_MS, Date.now());
   if (read.kind === 'unchanged') {
-    // A 304 should only arrive when we sent the held ETag; a 304 with no held
-    // state is a protocol violation from upstream — record it as a contract
-    // error for this character rather than failing the whole run.
     if (heldOnline === undefined) return 'contract_error';
     return {
       online: heldOnline.online,

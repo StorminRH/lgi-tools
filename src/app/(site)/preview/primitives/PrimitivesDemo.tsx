@@ -57,10 +57,6 @@ function DemoSection({
   );
 }
 
-/**
- * Renders the primitives demo surface; this component owns local presentation and interaction
- * wiring while callers own domain data.
- */
 export function PrimitivesDemo() {
   const [checks, setChecks] = useState({ gas: true, ore: true, shattered: false });
   const [basis, setBasis] = useState('sell');

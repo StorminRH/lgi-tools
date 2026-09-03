@@ -3,15 +3,6 @@ import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { classifyBuildNode } from './industry-styles';
 import type { BuildNode, BuildNodeDisplay } from './types';
 
-/**
- * Turn the materialised dependency tree into the phased build-sequence view:
- * a single root (the product) whose nested inputs descend through the build
- * stages down to raw leaves. Pure — given the tree plus its labels, heights,
- * and per-blueprint activities, it produces the nested nodes and a per-type
- * display side-map. Quantities are multiplied down by each parent's runs so a
- * node's quantity is the absolute units one run of the final product needs
- * (the same marginal basis as the flat-materials ledger).
- */
 export function toBuildTree(args: {
   tree: TreeNode[];
   labels: Map<number, TypeLabel>;
@@ -26,9 +17,6 @@ export function toBuildTree(args: {
   const { tree, labels, heights, activityByBlueprint, product } = args;
   const display: Record<number, BuildNodeDisplay> = {};
 
-  // Record a type's display once (per-type-stable, so the first wins). isRaw
-  // and the recipe are global properties of a type, so a shared component is
-  // described identically wherever it appears.
   const recordDisplay = (typeId: number, isRaw: boolean, activityId: number | undefined) => {
     if (display[typeId]) return;
     const l = labels.get(typeId);
@@ -61,9 +49,6 @@ export function toBuildTree(args: {
         : [];
       return {
         typeId: node.typeId,
-        // Exact (possibly fractional) units; rounding is a display concern. On
-        // the marginal basis a single end product's share of a batch input can
-        // be sub-unit — the renderer decides how to show that.
         quantity: absQty,
         inputs,
       };
@@ -74,8 +59,6 @@ export function toBuildTree(args: {
   }
 
   const rootInputs = walk(tree, 1);
-  // The product isn't a node inside its own tree, so its height is computed
-  // here: one stage above the tallest of its direct inputs.
   const rootHeight = 1 + Math.max(...tree.map((n) => heights.get(n.typeId) ?? 0));
   const rl = labels.get(product.typeId);
   const rootCls = classifyBuildNode({

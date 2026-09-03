@@ -1,13 +1,3 @@
-// Owned-assets composition layer (3.7.7.2). Lives here, above the slices, because
-// it is the only point that touches BOTH the auth slice (per-character token vend,
-// affiliation/scope reads) AND the owned-assets slice (the ESI→projection + Neon
-// storage) — a cross-slice join the feature boundary forbids inside either slice
-// (the sde-pipeline.ts pattern). This wires the real port the pure refresh
-// orchestration runs over, and exposes the on-view seam the planner's asset ledger
-// consumes: read the current owned-asset detail, fire a stale-gated write-behind
-// refresh behind the response (zero added latency, like the owned-blueprints seam).
-// A direct mirror of src/composition/sync/owned-blueprints-sync.ts; the shared auth + ESI port
-// wiring lives in owner-sync-port.ts (MIGRATE.D.2).
 import { after } from 'next/server';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { formatStationName } from '@/features/industry-planner/format-station-name';
@@ -30,9 +20,6 @@ import {
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
-// The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
-// own Neon read/save/stamp. Assets is a paginated read (readPagedEndpoint); the
-// aggregate-at-write summing lives in the slice's projection, not here.
 function makeOwnedAssetsPort(): OwnedAssetsPort {
   return {
     now: () => new Date(),
@@ -46,15 +33,6 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
   };
 }
 
-/**
- * The on-view seam: resolve the owned-asset detail for the requested types
- * immediately, and fire a stale-gated write-behind refresh behind the response. A
- * re-view inside the 1h window makes no asset ESI call (the refresh's per-owner
- * staleness gate is the dedup). Owner + NPC-station + solar-system names are
- * resolved server-side in ONE bounded /universe/names pass (day-cached, shared
- * across viewers); player structures / containers degrade to a generic label — no
- * read_structures scope is taken.
- */
 export async function getOwnedAssetDetailOnView(
   userId: string,
   requestedTypeIds: number[],
@@ -72,10 +50,6 @@ export async function getOwnedAssetDetailOnView(
   return buildOwnedAssetDetail(map, names, formatStationName);
 }
 
-/**
- * Refreshes owned assets for one owner through the shared owner-sync port, including raw snapshot
- * retention and stored-source fallback.
- */
 export async function runOwnedAssetsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

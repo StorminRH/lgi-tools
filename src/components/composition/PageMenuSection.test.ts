@@ -2,9 +2,6 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 
-// No Next router in the node test env; the provider resolves off its `pathname`
-// prop (the PageMenuProvider.test.ts pattern). usePreference tolerates the
-// missing PreferencesProvider — values fall back to each def's default.
 vi.mock('next/navigation', () => ({ usePathname: () => null }));
 
 import { PageMenuProvider } from '@/components/composition/PageMenuProvider';

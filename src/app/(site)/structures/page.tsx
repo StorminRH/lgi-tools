@@ -13,10 +13,6 @@ import { CustomStructureBuilder } from '@/features/custom-structures/components/
 import { listCustomStructures } from '@/features/custom-structures/queries';
 import { CorpStructureSection } from '@/features/owned-structures/components/CorpStructureSection';
 
-// Per-user, session-gated: the content (auth check, the saved-list read) is a
-// request-time dynamic hole, so only the page container prerenders. The SDE
-// picker options are deploy-static cached reads — composed in the same hole, so
-// the whole interactive builder hydrates once the gate resolves.
 async function StructuresContent() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
@@ -49,8 +45,6 @@ async function StructuresContent() {
 }
 
 function StructuresLoading() {
-  // One block only: the corp-sharing section is membership-conditional, so a
-  // phantom second card would shift more than it saves on most accounts.
   return (
     <div className="flex w-full flex-col gap-6">
       <Skeleton label="Loading structures" className="h-56 w-full rounded-card" />
@@ -58,10 +52,6 @@ function StructuresLoading() {
   );
 }
 
-/**
- * Renders the /structures route surface and owns its page-level composition, metadata boundary,
- * and fallback presentation. PageHead stays in the static shell; the session-gated builder streams.
- */
 export default function StructuresPage() {
   return (
     <PageShell mode="reading">

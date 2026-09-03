@@ -5,9 +5,6 @@ import { db as requestDb, type Sql } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
-// postgres-js cannot parameterize identifiers, so the lifecycle helpers use
-// `unsafe` strictly for that trusted DDL/reset boundary.
-
 const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 
 /**
@@ -23,21 +20,11 @@ export interface DbTestHarnessOptions {
   schema: string;
   tables: readonly string[];
   foreignKeys?: readonly DbForeignKey[];
-  /**
-   * Steer the request-path `db` proxy into the disposable schema. Required
-   * whenever the code under test imports `@/db` instead of accepting a DB.
-   */
   steerDbProxy?: boolean;
-  /** Additional environment values read by the code under test. */
   env?: Readonly<Record<string, string>>;
-  /**
-   * Optional per-test wipe. Delete clears tables in reverse declaration order;
-   * truncate clears the full set in one `TRUNCATE ... CASCADE` statement.
-   */
   resetBetweenTests?: 'delete' | 'truncate';
 }
 
-/** One foreign key to restore after cloning tables from the public schema. */
 export interface DbForeignKey {
   table: string;
   column: string;
@@ -46,17 +33,9 @@ export interface DbForeignKey {
   onDelete: 'cascade';
 }
 
-/**
- * Live handles for a suite whose harness reached Postgres. `sql` and `db` are
- * valid after the harness-owned `beforeAll`; reading either earlier or from a
- * skipped suite throws a pointed lifecycle error.
- */
 export interface DbTestHarness {
-  /** False when no Postgres answered; use it with `describe.skipIf`. */
   readonly reachable: boolean;
-  /** Admin postgres-js client whose search path points at the disposable schema. */
   readonly sql: Sql;
-  /** Drizzle instance over `sql`, used for seeds and direct assertions. */
   readonly db: PostgresJsDatabase;
 }
 
@@ -80,14 +59,6 @@ export async function probeHarnessDatabase(
   return { baseUrl, reachable };
 }
 
-/**
- * Own one real-Postgres suite's entire DB lifecycle. Call it once at test-file
- * top level: it probes `DATABASE_URL` or the local Docker default, registers
- * schema setup/reset/teardown hooks, and returns lazy handles. Disposable tables
- * clone the already-migrated local `public` schema, so run `pnpm db:migrate`
- * before the DB-backed suite. Unreachable local defaults skip cleanly instead of
- * failing collection. A set-but-dead `DATABASE_URL` throws.
- */
 export async function createDbTestHarness(
   options: DbTestHarnessOptions,
 ): Promise<DbTestHarness> {
@@ -144,10 +115,6 @@ export async function createDbTestHarness(
   };
 }
 
-/**
- * Insert one Better Auth user row with valid name and email defaults derived
- * from `id`; caller overrides win field by field.
- */
 export async function seedUser(
   database: PostgresJsDatabase,
   id: string,
@@ -161,11 +128,6 @@ export async function seedUser(
   });
 }
 
-/**
- * Insert one linked EVE account row for an existing user. The provider,
- * character account id, and timestamps use valid defaults; token and custody
- * scenarios supply their fields through `overrides`.
- */
 export async function seedEveAccount(
   database: PostgresJsDatabase,
   base: { id: string; characterId: number; userId: string },
@@ -183,11 +145,6 @@ export async function seedEveAccount(
   });
 }
 
-/**
- * Insert one character profile row with valid name and portrait defaults
- * derived from the numeric character id; scenario-specific fields are caller
- * owned through `overrides`.
- */
 export async function seedCharacter(
   database: PostgresJsDatabase,
   characterId: number,
@@ -242,12 +199,6 @@ function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string)
   }
 }
 
-/**
- * `LIKE ... INCLUDING ALL` copies serial `DEFAULT nextval('public.*_id_seq')`.
- * Explicit-id seeds then leave that shared sequence at 1, so the next default
- * insert collides on a fresh CI database. Give each cloned table its own
- * sequence in the disposable schema.
- */
 async function rebindClonedSerialDefaults(
   sql: Sql,
   schema: string,

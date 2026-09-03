@@ -9,13 +9,11 @@ import {
   type JumpResolutionModel,
 } from './jump-resolution';
 
-/** Props for the scanner-overlay ambiguous-jump prompt. */
 export interface SignatureJumpPromptProps {
   readonly resolution: JumpResolutionModel;
   readonly onPick: (candidate: JumpResolutionCandidate) => void;
 }
 
-/** Asks which exact matcher survivor carried one ambiguous jump. */
 export function SignatureJumpPrompt({
   resolution,
   onPick,

@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// A deterministic 32-byte key (base64) for the round-trip cases.
 const VALID_KEY = Buffer.alloc(32, 7).toString('base64');
 
-// The module caches the decoded key in module scope, so each test re-imports a
-// fresh copy after stubbing the env — that lets the key-validation cases swap in
-// a bad key without a stale cache shadowing it.
 async function load() {
   return import('./token-crypto');
 }

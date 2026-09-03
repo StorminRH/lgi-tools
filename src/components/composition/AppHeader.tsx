@@ -7,15 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
-// Note: the search-source side-effect registration (`register-all`) is done
-// from AppHeaderShell, which is the Client Component — Next.js's server +
-// client module graphs are separate, and the dropdown logic lives on the
-// client. Importing `register-all` here would only populate the server
-// instance of the registry, leaving the client's empty.
-
 async function NavServerStatus() {
-  // `stale: 30` is still prerender-eligible. Without `io()`, build HTML can
-  // bake one player count and request-time RSC another — React #418 on hydrate.
   await io();
   return <ServerStatus status={await getNavServerStatus()} />;
 }

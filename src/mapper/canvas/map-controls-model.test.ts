@@ -55,7 +55,6 @@ describe('map controls model', () => {
     }
   });
 
-  // ── OW4 — G-1 halo/fog tuning dials clamp to their ranges ──────────────────
   it('clamps halo dial commits into range', () => {
     expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, 9).drawnRings).toBe(4);
     expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, -1).drawnRings).toBe(0);
@@ -63,7 +62,6 @@ describe('map controls model', () => {
     expect(commitHaloPerExitCap(HALO_PINNED_LIMITS, 5).maxSystemsPerExit).toBe(10);
     expect(commitHaloPerExitCap(HALO_PINNED_LIMITS, 999).maxSystemsPerExit).toBe(120);
     expect(commitHaloTotalCap(HALO_PINNED_LIMITS, 1000).maxSystemsTotal).toBe(300);
-    // Untouched fields survive a commit unchanged.
     expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, 3)).toMatchObject({
       foggedRings: HALO_PINNED_LIMITS.foggedRings,
       maxSystemsPerExit: HALO_PINNED_LIMITS.maxSystemsPerExit,

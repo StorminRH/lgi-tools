@@ -53,10 +53,6 @@ type TableGrowthStory =
   | PurgeManagedGrowthStory
   | RetainedGrowthStory;
 
-/**
- * Schema-qualified Drizzle migrations table retained as an explicit infrastructure exemption in
- * the growth registry.
- */
 export const DRIZZLE_MIGRATIONS_TABLE = {
   schema: 'drizzle',
   name: '__drizzle_migrations',

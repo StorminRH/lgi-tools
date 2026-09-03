@@ -1,6 +1,3 @@
-// Session 4.0.4.3.3 G-1: /sites/[id] uses the standalone SiteCard presentation
-// (always expanded, no collapse, house reading measure). Catalogue id 49 is
-// Barren Perimeter Reservoir — the same site the atlas site-viewer probe opens.
 export default {
   name: 'sites-standalone-detail',
   route: '/sites/49',
@@ -10,8 +7,6 @@ export default {
     const card = page.locator('[data-site-card][data-presentation="standalone"]');
     await card.waitFor({ state: 'visible', timeout: 15_000 });
     check('standalone site card is visible', await card.isVisible());
-    // Wave cards may still use Collapsible internally; the site chrome itself
-    // must not wrap the header/body in a card-level <details>.
     check(
       'standalone card chrome has no card-level collapse toggle',
       (await card.locator(':scope > details[data-collapsible]').count()) === 0
@@ -43,7 +38,6 @@ export default {
         && measure.width <= 512 + 1,
     );
 
-    // RelatedSites stays full detail width by design — only the card is narrowed.
     const relatedHeading = page.getByRole('heading', { name: /related/i });
     check(
       'related sites section remains on the page outside the detail measure',

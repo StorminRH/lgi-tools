@@ -6,8 +6,6 @@ import type { OwnedAssetsPort } from './types';
 const NOW = new Date('2026-06-28T12:00:00Z');
 const CHAR_ASSETS_SCOPE = 'esi-assets.read_assets.v1';
 
-// A valid ESI asset element — item_id / is_singleton are present and must be
-// dropped by the projection, so the saved row never carries them.
 function esiAsset(typeId: number, quantity = 1000) {
   return {
     item_id: 9_999,
@@ -53,8 +51,6 @@ const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-2
 
 describe('refreshOwnedAssetsForUser — character path', () => {
   it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
-    // The "re-view within the 1h window makes NO ESI call" proof: a fresh owner
-    // never vends a token, never reads assets, never writes.
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => fresh()),
@@ -70,10 +66,9 @@ describe('refreshOwnedAssetsForUser — character path', () => {
   it('fetches and saves a stale owner, aggregating + dropping item_id via the projection', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
-      readSyncState: vi.fn(async () => null), // never synced → stale
+      readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
-          // Two stacks of the same type in the same hangar → one summed row.
           kind: 'fresh',
           items: [esiAsset(34, 1000), esiAsset(34, 500)],
           etags: ['"e1"'],
@@ -110,7 +105,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
   it('refreshes several stale character owners (the parallel pass saves each one)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
-      readSyncState: vi.fn(async () => null), // all stale
+      readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
           kind: 'fresh',
@@ -147,7 +142,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
     const members = [character(1, { corporationId: 5000 }), character(2, { corporationId: 5000 })];
     const port = makePort({
       listCharacters: vi.fn(async () => members),
-      readSyncState: vi.fn(async () => null), // stale
+      readSyncState: vi.fn(async () => null),
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Director'] : ['Accountant'])),
       read: vi.fn(
@@ -187,7 +182,7 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
   it('reads no corp roles when the corp is fresh (the corp staleness gate)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 })]),
-      readSyncState: vi.fn(async () => fresh()), // both char + corp owner fresh
+      readSyncState: vi.fn(async () => fresh()),
       readRoles: vi.fn(async () => ['Director']),
     });
 

@@ -7,9 +7,6 @@ import { chipVariants } from './chip';
 import { cn } from './cn';
 import type { ChipTone } from './tones';
 
-/**
- * Groups domain-neutral pressable chips as one named multi-select control.
- */
 export function ChipToggleGroup({
   value,
   onValueChange,
@@ -36,9 +33,6 @@ export function ChipToggleGroup({
   );
 }
 
-/**
- * Renders one keyboard- and touch-operable chip inside a ChipToggleGroup.
- */
 export function ChipToggle({
   tone,
   value,

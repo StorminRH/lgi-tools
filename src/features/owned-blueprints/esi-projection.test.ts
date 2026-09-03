@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseBlueprintsBody } from './esi-projection';
 
-// A blueprint ORIGINAL (BPO) as the live endpoint shapes it — including item_id,
-// the field the projection deliberately drops.
 const bpo = {
   item_id: 1039392583913,
   type_id: 1000,
@@ -14,7 +12,6 @@ const bpo = {
   runs: -1,
 };
 
-// A blueprint COPY (BPC): quantity -2, a finite remaining run count.
 const bpc = {
   item_id: 1039392583914,
   type_id: 587,
@@ -55,7 +52,6 @@ describe('parseBlueprintsBody', () => {
   });
 
   it('sorts canonically (by type_id then the rest) for a stable, reorder-proof array', () => {
-    // Fed high type_id first; the lower type_id must come out first.
     const out = parseBlueprintsBody([bpo, bpc]);
     expect(out?.map((b) => b.type_id)).toEqual([587, 1000]);
   });

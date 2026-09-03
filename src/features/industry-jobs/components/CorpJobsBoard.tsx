@@ -1,20 +1,5 @@
 'use client';
 
-// The corp industry-jobs section — the consumer surface for the corp dataset, now read
-// from Neon (MIGRATE.B.3) instead of the live Convex engine. Rendered beneath the
-// personal jobs on both the /jobs board and the /industry landing's Active-jobs section.
-// Each corp job is attributed to its installer (portrait + name) with the corporation's
-// logo as a badge; corp + installer names resolve client-side through /api/eve/names
-// (names live neither in Neon nor the SDE), while blueprint/product names ride the
-// on-view response. Data policy: auto-refresh on view (the stale-gated write-behind), no
-// manual refresh control; a completing job flips to ready CLIENT-SIDE at its end_date
-// (deriveJobStatus on the render clock — no scheduler).
-//
-// Two gates, computed app-side and passed in:
-//  - scope-missing (no linked character can vend a corp read) → an AccessGate invite to
-//    relink and grant the corp scopes.
-//  - role-insufficient (`needs_role`) → a distinct notice: granting more access can't fix
-//    an in-game role.
 import { type ReactNode, useMemo } from 'react';
 import { EveImage } from '@/components/eve-image';
 import { useEntityNames } from '@/components/use-entity-names';
@@ -34,14 +19,9 @@ import { JobRowFrame } from './JobRowFrame';
 
 export type CorpEntry = CorpJobsResponse['corporations'][number];
 
-/**
- * The scope-missing gate copy, exported so the /industry dashboard coordinator
- * (which composes the gate itself around the rank model) shows the same words.
- */
 export const CORP_ACCESS_REASON =
   "Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here.";
 
-/** Renders corporation industry jobs grouped by owner with access, loading, empty, and refresh states. */
 export function CorpJobsBoard({
   eligibleCharacterIds,
   hasLinkedCharacters,
@@ -49,12 +29,8 @@ export function CorpJobsBoard({
 }: {
   eligibleCharacterIds: number[];
   hasLinkedCharacters: boolean;
-  // The relink control, composed by the page (a feature can't import the auth
-  // button directly), shown inside the scope-missing AccessGate.
   reconnectAction: ReactNode;
 }) {
-  // No linked characters at all → the personal board already prompts "link a
-  // character"; the corp section stays silent rather than double-prompting.
   if (!hasLinkedCharacters) return null;
 
   return (
@@ -89,13 +65,6 @@ function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[]
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
-/**
- * The corp boards themselves, presentational over live data — rendered by the
- * self-fetching board above (/jobs) and by the /industry dashboard coordinator
- * (3.7.24), which owns its own useCorpJobsLive read + loading/empty states.
- * Corp + installer names resolve here through /api/eve/names regardless of
- * which surface mounts it.
- */
 export function CorpJobsList({
   corporations,
   names,
@@ -105,8 +74,6 @@ export function CorpJobsList({
   names: Record<string, string>;
   now: number;
 }) {
-  // Corporation + installer ids resolve through the shared /api/eve/names
-  // hook; unresolved ids are absent (the row falls back to a generic label).
   const entityNames = useEntityNames(
     useMemo(() => corpEntityIds(corporations, ENTITY_NAMES_MAX_IDS), [corporations]),
   );
@@ -134,7 +101,6 @@ interface CorpGroupBodyProps {
   now: number;
 }
 
-// The corp header (logo + name), and one notice card for the two gate states.
 function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
   return (
     <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
@@ -163,8 +129,6 @@ function CorpNotice({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-// The four render states of a corp group, keyed by its discriminant (config over a
-// branch ladder — keeps CorpGroup / CorpGroupBody trivial).
 const CORP_GROUP_BODY: Record<ReturnType<typeof corpGroupState>, (props: CorpGroupBodyProps) => ReactNode> = {
   'needs-role': () => (
     <CorpNotice label="Role needed">
@@ -252,10 +216,6 @@ function CorpJobRow({
   );
 }
 
-// Per-job runner attribution: the installer's portrait with the corporation's
-// logo as a small badge (bottom-left), then the runner + corp name. When the
-// installer id is absent (a legacy doc), the corp logo stands in as the avatar
-// with no badge.
 function JobRunner({
   portrait,
   name,

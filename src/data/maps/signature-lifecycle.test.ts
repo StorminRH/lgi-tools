@@ -18,7 +18,6 @@ describe('signature lifecycle decisions', () => {
     ])).toEqual([{ signatureId: 'SIG-002' }]);
     expect(signatureKind(existing[1]!)).toBe('signature');
 
-    // Filtered paste with no anomalies must not invent anomaly missing rows.
     expect(findMissingSignatures(
       [{ signatureId: 'ANO-001', kind: 'anomaly' }],
       [{ signatureId: 'SIG-001', kind: 'signature' }],

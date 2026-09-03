@@ -1,13 +1,5 @@
 'use client';
 
-// The /industry/templates manager island (3.7.24): every saved build template with
-// load / rename / favorite / two-step delete, over the same shared hook + row
-// the planner popover uses (one CRUD path — the existing endpoints; every
-// mutation applies the server's echoed, favorites-first list). Load navigates
-// to the template's own planner page with ?plan=, where TemplateLoader replays
-// it — the ONE load mechanism. Anonymous handling is fully client-side (the
-// page stays a static shell): the roster settles [] for an anonymous visitor
-// (null = still loading).
 import { useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,10 +9,6 @@ import { useManagedRowMenu } from '../use-managed-row-menu';
 import { useSavedPlans } from '../use-saved-plans';
 import { SavedPlanRows } from './SavedPlanRows';
 
-/**
- * Coordinates the saved-plan list UI, quota state, and destructive confirmations through the
- * saved-plans hook.
- */
 export function SavedPlansManager() {
   const roster = useAccountCharacters();
   const { plans, listFailed, busyId, refresh, renameRow, favoriteRow, deleteRow } =

@@ -22,8 +22,6 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
-// The guard's own 429 construction + IP keying are pinned in
-// src/lib/rate-limit.test.ts; here we only drive its ok/denied union.
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
@@ -60,8 +58,6 @@ describe('POST /api/telemetry', () => {
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/sites' } }));
     expect(res.status).toBe(204);
-    // The write is fire-and-forget — the 204 returns before it lands, so wait
-    // for the scheduled insert rather than asserting synchronously.
     await vi.waitFor(() =>
       expect(logUsageEventMock).toHaveBeenCalledWith({
         action: 'page_view',
@@ -86,9 +82,6 @@ describe('POST /api/telemetry', () => {
   });
 
   it('returns 204 and stays up when the write fails (fail-soft)', async () => {
-    // The insert can fail; the tracker must never break a user flow, so the
-    // 204 has already returned and the rejection is swallowed — logged so a
-    // genuine bug stays visible.
     getSessionCharacterIdMock.mockResolvedValue(CHARACTER_ID);
     logUsageEventMock.mockRejectedValue(new Error('Failed query: connection error'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -129,8 +122,6 @@ describe('POST /api/telemetry', () => {
 
   it('rejects server-only actions a client must not forge with 400', async () => {
     const { POST } = await importRoute();
-    // cron_prices is server-only (written by the price cron) — a client POST
-    // of it would pollute the health signal, so the public route must reject it.
     const res = await POST(buildRequest({ action: 'cron_prices' }));
     expect(res.status).toBe(400);
     expect(logUsageEventMock).not.toHaveBeenCalled();

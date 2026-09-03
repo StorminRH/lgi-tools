@@ -307,10 +307,6 @@ async function StaticsContent({
   );
 }
 
-/**
- * Admin-gated operator review screen with a prerendered shell and request-time
- * auth and database work isolated in one Suspense hole.
- */
 export default function StaticsPage({
   searchParams,
 }: {

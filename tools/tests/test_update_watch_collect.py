@@ -28,7 +28,6 @@ from tools.update_watch.update_watch_collect import (
     window_class,
 )
 
-
 def baseline_with(**overrides: object) -> dict:
     """Return a minimal valid baseline state, overridable per test."""
     baseline = {
@@ -56,7 +55,6 @@ def baseline_with(**overrides: object) -> dict:
     baseline.update(overrides)
     return baseline
 
-
 def state_with(**overrides: object) -> dict:
     """Return a minimal collect-state document, overridable per test."""
     state = {
@@ -69,7 +67,6 @@ def state_with(**overrides: object) -> dict:
     }
     state.update(overrides)
     return state
-
 
 class KeyGrammarTests(unittest.TestCase):
     def test_delta_keys_use_the_documented_grammar(self) -> None:
@@ -94,7 +91,6 @@ class KeyGrammarTests(unittest.TestCase):
         self.assertEqual(16, major_of("16.2.10"))
         with self.assertRaises(ValueError):
             major_of("v16.2.10")
-
 
 class ParsingTests(unittest.TestCase):
     def test_parse_baseline_requires_exactly_one_fence(self) -> None:
@@ -150,7 +146,6 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(["advisory:GHSA-a-b-c"], issues[0]["keys"])
 
-
 class WindowTests(unittest.TestCase):
     def test_same_day_and_later_items_are_in_window(self) -> None:
         self.assertEqual("in-window", window_class("2026-07-19", "2026-07-19"))
@@ -181,7 +176,6 @@ class WindowTests(unittest.TestCase):
             [delta["key"] for delta in deltas],
         )
         self.assertIn("backdated", deltas[0]["observed"])
-
 
 class DeltaTests(unittest.TestCase):
     def test_dependency_delta_only_above_acknowledged_major(self) -> None:
@@ -314,7 +308,6 @@ class DeltaTests(unittest.TestCase):
         self.assertEqual(1, len(failures))
         self.assertIn("unknown source", failures[0])
 
-
 class VerdictTests(unittest.TestCase):
     def test_clean_delta_run_reports(self) -> None:
         payload = finalize_verdict(state_with(), [], [])
@@ -355,8 +348,6 @@ class VerdictTests(unittest.TestCase):
         ]
         for failure in failure_classes:
             with self.subTest(failure=failure):
-                # Even a state with zero candidates refuses; it must not
-                # masquerade as a clean no-delta run.
                 state = state_with(
                     failures=[failure],
                     npmLatest={"clsx": {"version": "1.9.9", "major": 1}},
@@ -374,26 +365,20 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual([], payload["deltas"])
 
     def test_refused_summary_still_counts_pending_candidates(self) -> None:
-        # A failure clears the reportable set, but the operator still needs to
-        # see how many deltas were pending — the count must not read zero.
         state = state_with(failures=["watch:neon:https://neon.com/x: HTTP 500"])
         payload = finalize_verdict(state, [], [])
         self.assertEqual("refused", payload["verdict"])
         self.assertEqual([], payload["deltas"])
         self.assertIn("1 candidate, 0 suppressed.", payload["summary"])
-        # A refused run performed no outward write, so it must not advertise one.
         self.assertIn("- **Action:** None", payload["summary"])
 
     def test_report_summary_never_instructs_a_second_issue(self) -> None:
-        # The summary prints after the workflow's single outward write; an
-        # imperative "open one digest issue" here reads as a second digest.
         state = state_with()
         payload = finalize_verdict(state, [], [])
         self.assertEqual("report", payload["verdict"])
         self.assertNotIn("Open one digest issue", payload["summary"])
         self.assertIn("- **Action:** None", payload["summary"])
         self.assertNotIn("resolve-update-watch", payload["summary"])
-
 
 class ScopeTests(unittest.TestCase):
     def test_one_production_consumer_makes_the_advisory_production(self) -> None:
@@ -414,7 +399,6 @@ class ScopeTests(unittest.TestCase):
         self.assertEqual("unknown", classify_scope([".>mystery>x"], {"next"}, {"eslint"}))
         self.assertEqual("unknown", classify_scope([], {"next"}, {"eslint"}))
         self.assertEqual("unknown", classify_scope([".>eslint>x"], set(), set()))
-
 
 class RenderTests(unittest.TestCase):
     def _report_body(self) -> str:
@@ -457,16 +441,13 @@ class RenderTests(unittest.TestCase):
         self.assertIn("## Security advisories", body)
         self.assertIn("## Major versions", body)
         self.assertIn("## Service/EVE surface changes", body)
-        # The dedup key block and absorption note live in a collapsed footer.
         self.assertIn("Machine dedup keys and absorption steps", body)
         self.assertIn("Partial absorption keeps the window.", body)
-        # Sections render before the housekeeping key block.
         self.assertLess(body.index("## Security advisories"), body.index("## Major versions"))
         self.assertLess(
             body.index("## Service/EVE surface changes"),
             body.index(f"```{ 'update-watch-deltas' }"),
         )
-        # The key block still round-trips through the parser despite its <details> wrapper.
         self.assertEqual(
             ["advisory:GHSA-395f-4hp3-45gv", "dep-major:clsx:2", "service:neon:https://neon.com/docs/changelog/x"],
             parse_issue_keys(body),
@@ -476,13 +457,10 @@ class RenderTests(unittest.TestCase):
         body = self._report_body()
         self.assertIn("| `shell-quote` | high | `1.8.4` | `<=1.8.4` | `>=1.8.5` | development |", body)
         self.assertIn("[GHSA-395f-4hp3-45gv](https://github.com/advisories/GHSA-395f-4hp3-45gv)", body)
-        # The range is code-spanned, never HTML-escaped as the old prose form was.
         self.assertNotIn("&lt;", body)
 
     def test_untrusted_service_titles_are_flattened_into_the_link(self) -> None:
         body = self._report_body()
-        # The collapsible list is not a table, so the pipe stays literal, but the
-        # newline is flattened so an untrusted title cannot break out of its bullet.
         self.assertIn("[Pipe | and newline in the title]", body)
         self.assertNotIn("newline\nin the title", body)
 
@@ -490,7 +468,6 @@ class RenderTests(unittest.TestCase):
         body = self._report_body()
         self.assertIn("<details>", body)
         self.assertIn("<summary><strong>Neon</strong>", body)
-        # Human title is the link text; the raw URL is the target, not the label.
         self.assertIn(
             "[Pipe | and newline in the title](https://neon.com/docs/changelog/x)",
             body,
@@ -512,7 +489,6 @@ class RenderTests(unittest.TestCase):
             ],
             [],
         )
-        # Brackets in an untrusted title are escaped so they cannot close the link early.
         self.assertIn(
             "[\\[v1.0\\] release](https://neon.com/docs/changelog/v1)",
             render_issue_body(deltas),
@@ -534,7 +510,6 @@ class RenderTests(unittest.TestCase):
             [],
         )
         body = render_issue_body(deltas)
-        # The hostile close tag is HTML-escaped, so it cannot terminate the block.
         self.assertIn("sneaky &lt;/details&gt; here", body)
 
     def test_hostile_service_date_is_escaped_in_the_summary(self) -> None:
@@ -552,8 +527,6 @@ class RenderTests(unittest.TestCase):
             ],
             [],
         )
-        # The date lands in the HTML <summary> tag, so it is escaped like every
-        # other untrusted field.
         self.assertIn("2026-07-20&lt;/summary&gt;&lt;script&gt;", render_issue_body(deltas))
 
     def test_backslash_prefixed_bracket_title_stays_escaped(self) -> None:
@@ -571,15 +544,12 @@ class RenderTests(unittest.TestCase):
             ],
             [],
         )
-        # The backslash is doubled before the bracket is escaped, so the "]" cannot
-        # slip out and close the link.
         self.assertIn(r"[danger \\\] end](https://neon.com/x)", render_issue_body(deltas))
 
     def test_empty_sections_render_a_none_line(self) -> None:
         deltas = compute_deltas(
             state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}}), [], []
         )
-        # No candidates at all → all three sections show their empty message.
         body = render_issue_body(deltas)
         self.assertIn("No unacknowledged security advisories.", body)
         self.assertIn("No unacknowledged major-version deltas.", body)
@@ -600,7 +570,6 @@ class RenderTests(unittest.TestCase):
         self.assertEqual("refused", refused["verdict"])
         self.assertEqual("", refused["issueBody"])
 
-
 class RegistryTests(unittest.TestCase):
     def test_registry_covers_all_required_sources_once(self) -> None:
         names = [source.name for source in SOURCE_REGISTRY]
@@ -613,7 +582,6 @@ class RegistryTests(unittest.TestCase):
             {"EVE Developers blog", "EVE developer documentation"},
             {source.name for source in SOURCE_REGISTRY if source.section == "eveSurface"},
         )
-
 
 class FetchRetryTests(unittest.TestCase):
     def test_retries_transient_403_then_succeeds(self) -> None:
@@ -671,7 +639,6 @@ class FetchRetryTests(unittest.TestCase):
         self.assertEqual(404, ctx.exception.code)
         self.assertEqual(1, urlopen.call_count)
         sleep.assert_not_called()
-
 
 if __name__ == "__main__":
     unittest.main()

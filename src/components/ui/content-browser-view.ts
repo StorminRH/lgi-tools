@@ -1,16 +1,8 @@
-/**
- * One caller-supplied content nav item; its value is the stable control key and its label or
- * marker is presentation-ready.
- */
 export type ContentNavItem = {
   slug: string;
   title: string;
 };
 
-/**
- * Display-ready content nav model consumed by the shared visualization layer; callers keep all
- * numeric values in one consistent unit.
- */
 export type ContentNavModel = {
   items: ContentNavItem[];
 };
@@ -20,24 +12,15 @@ function normalizeBasePath(basePath: `/${string}`): `/${string}` {
   return basePath.replace(/\/+$/, '') as `/${string}`;
 }
 
-/**
- * Selects the canonical landing document slug from ordered content navigation, or null when the
- * navigation is empty.
- */
 export function landingContentSlug(model: ContentNavModel): string | null {
   return model.items[0]?.slug ?? null;
 }
 
-/**
- * Resolves the display title for one content slug, or null when the active route is not present in
- * the navigation model.
- */
 export function titleForSlug(model: ContentNavModel, slug: string | null): string | null {
   if (slug === null) return null;
   return model.items.find((item) => item.slug === slug)?.title ?? null;
 }
 
-/** Builds the stable browser URL for a content slug, collapsing the landing document to the section root. */
 export function contentBrowserHref(
   basePath: `/${string}`,
   slug: string,
@@ -48,10 +31,6 @@ export function contentBrowserHref(
   return base === '/' ? `/${slug}` : `${base}/${slug}`;
 }
 
-/**
- * Resolves the active content slug from route, landing, and available-document inputs without
- * producing a link to missing content.
- */
 export function deriveActiveContentSlug(
   pathname: string,
   basePath: `/${string}`,

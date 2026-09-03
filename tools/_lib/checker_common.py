@@ -17,9 +17,7 @@ from pathlib import Path
 
 from tools._lib.repository import ROOT
 
-
 _DEFAULT_ROOT = ROOT
-
 
 @dataclass(frozen=True)
 class Finding:
@@ -40,7 +38,6 @@ class Finding:
         """Return the stable file-and-line form consumed by the drift harness."""
         return f"{self.path}:{self.line}: {self.message}"
 
-
 def find_line(path: Path, needle: str) -> int:
     """Return the first 1-based line containing needle, or line 1 if absent."""
     if not path.is_file():
@@ -53,14 +50,12 @@ def find_line(path: Path, needle: str) -> int:
             return line_number
     return 1
 
-
 def _report(findings: Sequence[Finding]) -> dict[str, list[str]]:
     """Group findings into the JSON error and warning arrays used by every CLI."""
     return {
         "errors": [finding.render() for finding in findings if finding.severity == "error"],
         "warnings": [finding.render() for finding in findings if finding.severity == "warn"],
     }
-
 
 def run_checker(
     collect: (

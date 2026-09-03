@@ -1,9 +1,5 @@
-// Pure planning for the map replay: argument parsing and spawn-step
-// computation, kept apart from the executing script so the deferral and
-// degenerate-edge policy is unit-tested rather than dev-observed.
 import type { LayoutEdge, LayoutFacts } from '@/mapper/layout/layout-contract';
 
-/** Parsed replay CLI arguments. */
 export interface ReplayArgs {
   readonly mapId: string | null;
   readonly userId: string | null;
@@ -14,14 +10,8 @@ export interface ReplayArgs {
 
 const DEFAULT_INTERVAL_MS = 1500;
 
-/** Flags that consume the following argv token as their value. */
 const VALUE_FLAGS = new Set(['--map', '--user', '--chain', '--interval-ms']);
 
-/**
- * Parses replay argv; `null` means show usage. The pnpm-forwarded `--`
- * separator is skipped, `--loop` is a bare flag, and every other token must be
- * a known value flag followed by its value.
- */
 export function parseReplayArgs(argv: readonly string[]): ReplayArgs | null {
   const values = new Map<string, string>();
   let loop = false;
@@ -54,46 +44,25 @@ export function parseReplayArgs(argv: readonly string[]): ReplayArgs | null {
   return wellFormed ? { mapId, userId, chainSeed, intervalMs, loop } : null;
 }
 
-/** One jump of the replay: a system placement plus the connections that land with it. */
 export interface SpawnStep {
   readonly systemId: number;
-  /**
-   * Deferred edges that became placeable because this system landed. Ordinary
-   * scans — they must not steal the discovering jump from a current-step edge.
-   */
   readonly drainedConnections: readonly LayoutEdge[];
-  /** Edges scanned at this step (discovering jump, loops, orphan resolves). */
   readonly connections: readonly LayoutEdge[];
-  /** Self-loop edges the live entity contract forbids; logged and skipped. */
   readonly skippedSelfLoops: readonly LayoutEdge[];
-  /** Edges held back this step because an endpoint has not spawned yet. */
   readonly newlyDeferred: readonly LayoutEdge[];
 }
 
-/** The full spawn plan plus any edges that never became placeable. */
 export interface SpawnPlan {
   readonly steps: readonly SpawnStep[];
   readonly unplaceable: readonly LayoutEdge[];
 }
 
-/**
- * The discovering connection for one spawn step: prefer a current-step edge
- * that touches the system, and only fall back to a drained deferred edge when
- * that deferred edge is the jump that finally revealed it.
- */
 export function attachingEdgeOf(step: SpawnStep): LayoutEdge | undefined {
   const touches = (edge: LayoutEdge): boolean =>
     edge.fromSystemId === step.systemId || edge.toSystemId === step.systemId;
   return step.connections.find(touches) ?? step.drainedConnections.find(touches);
 }
 
-/**
- * Computes the ordered spawn plan for one corpus timeline: the proof corpus
- * deliberately contains degenerate edges the kernel must tolerate but the live
- * entity contract forbids or defers — a self-loop is skipped outright
- * (`SELF_LOOP_CONNECTION` server-side) and a connection whose endpoint has not
- * spawned yet is held until that system lands (`UNKNOWN_ENDPOINT` otherwise).
- */
 export function planSpawnSteps(
   facts: LayoutFacts,
   connectionSteps: readonly number[],

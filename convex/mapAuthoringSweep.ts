@@ -140,4 +140,3 @@ export const collapseExpiredConnections = internalMutation({
   args: {},
   handler: async (ctx) => await sweepExpiredCeilings(ctx, Date.now()),
 });
-

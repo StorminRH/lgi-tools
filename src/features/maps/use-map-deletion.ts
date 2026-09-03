@@ -5,10 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { deleteMap, mapLifecycleFailureMessage } from './map-lifecycle-client';
 import { mapDeletionHref } from './map-navigation';
 
-/**
- * Runs the reversible map-delete write and retargets the Atlas URL when the
- * deleted map was the current selection.
- */
 export function useMapDeletion() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,8 +26,6 @@ export function useMapDeletion() {
       router.refresh();
       return;
     }
-    // SearchParams-only push reuses the map layout snapshot; refresh re-fetches
-    // the catalogue and trash after the current map leaves the URL.
     router.push(href);
     router.refresh();
   }

@@ -33,7 +33,6 @@ import {
 } from './access-editor-model';
 import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
 
-/** Props for the controlled shared map-access management door. */
 export interface MapAccessDialogProps {
   readonly mapId: string;
   readonly mapName: string;
@@ -48,7 +47,6 @@ function initialDrafts(grants: readonly MapAccessGrantOption[]): AccessGrantDraf
   return grants.map((grant) => ({ ...grant }));
 }
 
-/** Stable identity for one authoritative server grant snapshot. */
 export function mapAccessGrantRevision(
   grants: readonly MapAccessGrantOption[],
 ): string {
@@ -61,10 +59,6 @@ export function mapAccessGrantRevision(
   );
 }
 
-/**
- * Replaces persisted drafts with a refreshed authoritative snapshot while
- * retaining only principals whose unsaved role is still deliberately blank.
- */
 export function reconcileAccessGrantDrafts(
   serverGrants: readonly MapAccessGrantOption[],
   currentDrafts: readonly AccessGrantDraft[],
@@ -133,10 +127,6 @@ function useAccessGrantEditor(
   return { grants, busyKey, error, commitRole, revoke, addPrincipal };
 }
 
-/**
- * Manages one map's delegated grants through the existing transport-free
- * editor and the sole Neon-then-projection mutation route.
- */
 export function MapAccessDialog({
   mapId,
   mapName,

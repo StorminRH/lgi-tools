@@ -9,7 +9,6 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/** Authenticates one map-admin grant edit and reconverges its access projection. */
 // authz: auth
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {

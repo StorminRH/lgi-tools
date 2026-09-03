@@ -1,12 +1,3 @@
-// Shared tone vocabulary. Any feature's domain → UI mapping picks from this
-// set. Primitive components (Pill, Chip, Dot) and feature-styles modules
-// (wormhole-styles, future industry-styles, …) all import their tone types
-// from here so the palette has one home.
-
-/**
- * Closed presentation vocabulary for tone; feature callers map domain meaning to these abstract
- * values before rendering.
- */
 export type Tone =
   | 'neutral'
   | 'green'
@@ -21,22 +12,12 @@ export type Tone =
   | 'teal'
   | 'blue';
 
-/** Pill consumes the full Tone vocabulary. */
 export type PillTone = Tone;
 
-/**
- * Chip is a deliberate subset — EWAR / status chips use the saturated
- * families only.
- */
 export type ChipTone = Extract<Tone, 'blue' | 'red' | 'purple' | 'green' | 'orange'>;
 
-/** Dot tones cover the shared cool, warm, success, failure, and neutral status vocabulary. */
 export type DotTone = Extract<Tone, 'orange' | 'blue' | 'green' | 'red' | 'neutral'>;
 
-/**
- * Tone → hex, for SVG fills/strokes where colour is a presentation attribute,
- * not a class (charts, the build-flow graph). Mirrors the Pill text colours.
- */
 export const toneHex: Record<Tone, string> = {
   neutral: '#6a7a8a',
   green: '#3dd68c',
@@ -52,11 +33,6 @@ export const toneHex: Record<Tone, string> = {
   blue: '#3399cc',
 };
 
-/**
- * Text-only tone for inline values like DPS tier labels. Returns a Tailwind
- * className that sets text color from the shared palette tokens defined in
- * globals.css. Use for primitives that render bare text (not Pill / Chip).
- */
 export function toneTextClass(tone: Extract<Tone, 'green' | 'orange' | 'red'>): string {
   switch (tone) {
     case 'green':

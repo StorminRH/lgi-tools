@@ -25,14 +25,6 @@ import {
 } from '../corp-structure-view';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '../types';
 
-/**
- * The corp-structures section of the /structures page. For each member corp: the
- * shared structures with, for a Station_Manager, a per-structure rig-completion
- * editor (ESI doesn't expose fitted rigs). A non-Station_Manager member sees the
- * shared structures read-only; a corp that isn't shared and where the viewer isn't
- * a manager shows nothing. The sharing consent toggle itself lives on the account
- * settings page (ACCOUNT.6 — its one home); managers get a pointer there.
- */
 export function CorpStructureSection({
   corps,
   structureTypes,
@@ -42,7 +34,6 @@ export function CorpStructureSection({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
-  // A non-manager of an un-shared corp has nothing to show.
   const visible = corps.filter((c) => c.isStationManager || c.sharingEnabled);
   if (visible.length === 0) return null;
 
@@ -103,7 +94,6 @@ function CorpCard({
   );
 }
 
-// Read-only rig + tax pills for a member (non-manager) view.
 function CorpStructureReadonlyDetails({ view }: { view: CorpStructureItemView }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -166,9 +156,6 @@ function CorpStructureRigEditor({
   validRigs: StructureRigOption[];
 }) {
   const [slots, setSlots] = useState<(number | null)[]>(() => slotsFrom(structure.rigTypeIds));
-  // The owner-set facility tax (3.7.13.3), edited beside the rigs — kept as the
-  // raw input string until save. Empty = never entered: the planner then assumes
-  // the 0.25% NPC baseline (labeled as assumed in the fee breakdown).
   const [taxDraft, setTaxDraft] = useState(taxDraftFromStored(structure.taxPct));
   const [busy, setBusy] = useState(false);
 
@@ -185,17 +172,12 @@ function CorpStructureRigEditor({
         corporationId,
         structureId: structure.structureId,
         rigTypeIds: slots.filter((x): x is number => x !== null),
-        // Explicit, never omitted: this editor always shows the full completion,
-        // so an empty field is a deliberate clear (the tri-state's undefined is
-        // for rig-only callers that must not clobber a stored tax).
         taxPct: tax.value,
       },
       cache: 'no-store',
     });
     setBusy(false);
     if (res.ok) {
-      // Adopt the echoed stored value so the field reflects the authoritative
-      // state (normalizes drafts like "01.50" and can't drift from the save).
       setTaxDraft(taxDraftFromStored(res.data.taxPct));
       toast.success('Structure details saved');
     } else {

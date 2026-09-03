@@ -4,10 +4,6 @@ import { EVE_NEWS_LIMIT, EVE_NEWS_RSS_URL, EVE_NEWS_TAG } from './constants';
 import { parseEveRss } from './parse';
 import type { EveNewsItem } from './types';
 
-// An empty result (feed failure, or a genuinely empty feed) revalidates within
-// minutes so the card self-heals fast; a healthy read keeps the sub-day
-// 'hours' profile inline below (cacheLife's string and object overloads don't
-// union, so the two branches stay separate calls).
 const EMPTY_NEWS_CACHE = { stale: 30, revalidate: 300, expire: 3600 };
 
 /**

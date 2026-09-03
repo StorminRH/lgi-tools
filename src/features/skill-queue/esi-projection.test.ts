@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSkillQueueBody, parseSkillsBody } from './esi-projection';
 
-// Shapes mirror the live ESI spec (see esi-projection.ts header).
 const fullEntry = {
   skill_id: 3339,
   queue_position: 0,

@@ -26,9 +26,6 @@ import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/link
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
 
-// Friendly copy for the failure codes the link callback (Better Auth) and the
-// unlink route can redirect back with. Whitelisted — an unrecognised code falls
-// to the generic message rather than echoing a raw internal code at the pilot.
 const ERROR_MESSAGES: Record<string, string> = {
   account_already_linked_to_different_user: 'That character is already linked to another account.',
   last_character: "You can't unlink your only character.",
@@ -68,15 +65,9 @@ function CharacterRow({
   isActive: boolean;
   isOnlyCharacter: boolean;
 }) {
-  // Health rollup, health-chip copy, and the granted-scope list — all derived off
-  // the already-loaded grant string (no tokens, no new query).
   const view = deriveCharacterRowView(character);
 
   return (
-    // The group owns the divider so the row and its granted-scope disclosure read
-    // as one unit: EntityRow drops its own top border (the group's serves), and
-    // the Collapsible drops its bottom border (the next group's top border, or the
-    // footer's, separates). `cn` is tailwind-merge, so the overrides win.
     <div className="border-t border-border-soft">
       <EntityRow
         className="border-t-0"
@@ -163,8 +154,6 @@ async function CharactersContent({
 }: {
   searchParams: Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
 }) {
-  // Session-gated (any signed-in pilot), NOT admin-gated. The active character
-  // comes straight off the enriched session.
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect('/?auth_error=login_required');
@@ -176,11 +165,6 @@ async function CharactersContent({
   ]);
   const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
   const isOnlyCharacter = characters.length <= 1;
-  // The absorb-on-proof success note (ACCOUNT.3): the auth route appends
-  // ?absorbed=<characterId> to the link-success redirect when "Add character"
-  // merged a stray duplicate account. Resolved against the just-loaded roster —
-  // which doubles as the whitelist: a stale or forged id doesn't resolve, so
-  // nothing renders (the ERROR_MESSAGES fail-closed stance).
   const absorbedCharacter = deriveAbsorbedCharacter(rawAbsorbed, characters);
 
   return (
@@ -234,8 +218,6 @@ async function CharactersContent({
 }
 
 function CharactersLoading() {
-  // Roster card plus the always-rendered danger-zone card, so completion does
-  // not shift the page by the danger zone's height.
   return (
     <div className="flex w-full flex-col gap-6">
       <CharacterPanelSkeleton label="Loading linked characters" />
@@ -244,11 +226,6 @@ function CharactersLoading() {
   );
 }
 
-/**
- * Per-user, session-gated: PageHead stays in the static shell; the auth check,
- * redirect, and DB reads stream from a request-time hole with a content-shaped
- * skeleton so soft navigations are instant.
- */
 export default function CharactersPage({
   searchParams,
 }: {

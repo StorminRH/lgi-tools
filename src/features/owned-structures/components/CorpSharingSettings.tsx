@@ -9,29 +9,12 @@ import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import { setCorpStructureSharingEndpoint } from '../api-contract';
 
-// The corp structure-sharing consent control (3.7.9), relocated from /structures
-// to the account settings page (ACCOUNT.6) — the toggle's ONE home. The contract
-// is unchanged: default off; only a Station_Manager sees it (the page's server
-// fetch filters to manager corps, so this island renders for no one else);
-// enabling lets the next on-view refresh pull the corp's structures; disabling
-// wipes them (rows + sync state + authored rigs), so it confirms first. The
-// island takes server-resolved corps in and fires the same mutation out — the
-// gate/wipe live in the data layer behind the same endpoint.
-
-/**
- * Display-ready sharing corp state for owned structures; consumers can render it without
- * reconstructing storage or domain policy.
- */
 export type SharingCorpView = {
   corporationId: number;
   corporationName: string;
   sharingEnabled: boolean;
 };
 
-/**
- * Renders corporation structure-sharing controls and forwards optimistic sharing updates to the
- * owning settings action.
- */
 export function CorpSharingSettings({ corps }: { corps: SharingCorpView[] }) {
   return (
     <Card>
@@ -74,7 +57,6 @@ function SharingRow({ corp }: { corp: SharingCorpView }) {
     }
   }
 
-  // Enabling is one click; disabling wipes the catalogue, so it confirms first.
   function onToggle(next: boolean) {
     if (next) void applySharing(true);
     else setConfirmOpen(true);

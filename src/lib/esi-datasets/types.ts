@@ -15,10 +15,6 @@ export type EsiUpstream =
   | { kind: 'google-gsc' }
   | { kind: 'anoik-statics' };
 
-/**
- * The rules an entry may carry a waiver against. A waiver names exactly one
- * rule: recorded debt rather than a blanket exception.
- */
 export type EsiGateRuleId =
   | 'convex-cache-bound'
   | 'global-cron-names-route'
@@ -84,26 +80,11 @@ export type LiveDataset = EsiDatasetCommon & {
   collaborative?: boolean;
 };
 
-/**
- * One declaration per externally fed dataset: where it lives, how fresh it
- * must be, and who refreshes it. The shape discriminant pairs each placement
- * with its legal freshness model and owner reference. World references remain
- * names so this leaf imports nothing; the junction validator cross-checks them
- * against live tables, routes, queue handles, entry points, and engine keys.
- */
 export type EsiDatasetEntry =
   | GlobalCronDataset
   | PersonalOnViewDataset
   | LiveDataset;
 
-/**
- * Returns the dataset's effective static staleness window in milliseconds:
- * the declared override when present, otherwise the verified upstream ESI
- * cache time. Expires-boundary and cron-cadence models return null because
- * their row or schedule owns freshness instead of a fixed TTL. Engine-cadence
- * returns the upstream window so the junction gate can verify its cadence
- * floor; runtime callers do not consume it as a staleness TTL.
- */
 export function effectiveTtlMs(entry: EsiDatasetEntry): number | null {
   if (
     entry.freshnessModel === 'expires-boundary'

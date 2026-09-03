@@ -1,9 +1,3 @@
-/**
- * The audited exception and CSS-family baseline for primitive adoption.
- *
- * Lint rejects new bypasses immediately; the census binds those syntactic rails
- * to the exact surviving found-set so an exemption cannot widen silently.
- */
 export const uiAdoptionRegistry = {
   rawButtons: [
     {

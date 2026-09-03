@@ -1,10 +1,3 @@
-// CI presence check (no build required): every route-defining file under
-// src/app has a classification entry in scripts/route-classification.json, and
-// every classification entry still has a file. The full render-MODE assert
-// (assert-route-classification.mjs) needs a `next build` and runs at deploy;
-// this lighter check catches an added/removed route that forgot the JSON in
-// plain CI, where the build doesn't run. Route keys are derived to match Next's
-// App Router paths, including route groups that are omitted from served URLs.
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { diffRoutes, discoveredKeys, isRouteFile } from './route-presence.mjs';

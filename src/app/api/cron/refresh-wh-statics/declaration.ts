@@ -9,16 +9,11 @@ import type { CronRefreshWhStaticsResponse } from '@/data/wh-statics/api-contrac
 import { ADVISORY_LOCK_WH_STATICS_REFRESH } from '@/data/wh-statics/constants';
 import type { WhStaticsProbeBaseline } from '@/data/wh-statics/queries';
 
-/** Changed feed state passed from the pre-lock probe into locked cron work. */
 export interface WhStaticsPreLock {
   readonly feed: ChangedWhStaticsFeed;
   readonly baseline: WhStaticsProbeBaseline;
 }
 
-/**
- * Declares the weekly statics refresh. Unchanged and unavailable feeds finish
- * before lock reservation; only a changed body reaches the snapshot writer.
- */
 export const refreshWhStaticsDeclaration: CronRouteDeclaration<
   CronRefreshWhStaticsResponse,
   WhStaticsPreLock
@@ -63,8 +58,6 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
     if (reserved === undefined) {
       throw new Error('Statics refresh reached work without a reserved lock connection.');
     }
-    // The shell holds the advisory lock on its reserved session while the
-    // transactional snapshot write uses the shared direct postgres-js pool.
     const result = await recordChangedWhStaticsFeed(
       drizzle(client),
       feed,

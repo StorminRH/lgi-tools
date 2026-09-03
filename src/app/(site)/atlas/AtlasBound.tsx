@@ -26,11 +26,6 @@ const EMPTY_MAP_CHROME: MapChromeData = {
   grantsByMapId: {},
 };
 
-/**
- * Loads the atlas scanner catalogue without taking down an authorized map.
- * Prefers the hourly priced index; falls back to the deploy-static catalogue,
- * then to an empty seed (site-row affordances stay off until the next success).
- */
 async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
   try {
     return await getScannerSiteIndex();
@@ -70,19 +65,6 @@ function atlasAccountSession(gate: SessionCheckResult | null): Session | null {
   };
 }
 
-/**
- * Resolves the signed-in map listing, then the site-framed catalogue or the
- * full-viewport canvas. The parent site layout already owns header and footer.
- *
- * Signed-out visitors stay on the catalogue, including a shared `?map=` URL,
- * so the site header login remains reachable. The canvas covers that chrome
- * and omits AccountMenu when session is null. A thrown session check fails
- * closed to an unavailable listing rather than escaping: `error.tsx` covers a
- * segment's children, not its own layout, so an escaping throw here would
- * reach Next.js's built-in error page instead of the map's recovery surface.
- * `unstable_rethrow` still lets framework control-flow signals through,
- * matching `loadSection`'s boundary.
- */
 export async function AtlasBound({
   mapSelected,
 }: {

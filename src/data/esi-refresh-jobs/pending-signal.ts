@@ -1,9 +1,6 @@
 import { resolveUpstashClient, type UpstashRedis } from '@/lib/upstash';
 
 const PENDING_WORK_KEY = 'lgi:esi-refresh:next-due';
-// These are optimization hints over a durable Neon queue, so a slow Redis must
-// never hold up the enqueue or drain that owns the real state. Zero retries:
-// the next successful drain or the daily heal repairs a lost hint.
 const SIGNAL_TIMEOUT_MS = 2000;
 const SIGNAL_RETRIES = 0;
 const WRITE_IF_LOWER_LUA = `
@@ -23,12 +20,6 @@ function resolveRedis(): UpstashRedis | null {
   });
 }
 
-/**
- * Lowers the pending-work signal to `dueAt` if it is earlier than the stored
- * value, so concurrent enqueues can only pull the next wake time forward.
- * Missing Redis configuration and write failures are swallowed because the
- * daily Neon-backed heal run bounds a lost hint to about 24 hours.
- */
 export async function advancePendingWorkSignal(dueAt: Date): Promise<void> {
   const redis = resolveRedis();
   if (!redis) return;
@@ -37,15 +28,9 @@ export async function advancePendingWorkSignal(dueAt: Date): Promise<void> {
       String(dueAt.getTime()),
     ]);
   } catch {
-    // This is an optimization hint; durable queue state remains authoritative.
   }
 }
 
-/**
- * Replaces the signal with the post-drain residual truth: the earliest live
- * `nextAttemptAt`, or clears it when the queue holds no live jobs. Missing
- * Redis configuration and write failures leave the durable queue authoritative.
- */
 export async function writeBackPendingWorkSignal(
   earliest: Date | null,
 ): Promise<void> {
@@ -58,15 +43,9 @@ export async function writeBackPendingWorkSignal(
       await redis.set(PENDING_WORK_KEY, earliest.getTime());
     }
   } catch {
-    // The next successful drain or daily heal repairs a stale or missing hint.
   }
 }
 
-/**
- * Answers the drain's pre-Neon idle question from Redis alone: `due` when the
- * stored next-due time has arrived, `idle` when no job is due, and `unknown`
- * when Redis is unconfigured, unreachable, or contains an invalid value.
- */
 export async function readPendingWorkSignal(
   now: Date,
 ): Promise<'due' | 'idle' | 'unknown'> {

@@ -1,13 +1,3 @@
-// run-probes.mjs — the one probe runner for docs/ux-check.
-// Owns browser lifecycle, console/pageerror/CSP/network collection, noise
-// policy, failure-only screenshots, report.json, and the pass/fail exit gate.
-// A probe is a definition module in docs/ux-check/probes/ (see README for the
-// format); definitions receive everything through ctx and import nothing from
-// here. Default gates on every probe: zero style-src CSP violations and zero
-// unfiltered console/page errors. Never waits on networkidle: the Convex
-// websocket keeps the network busy forever. Proactive `shot()` is a no-op —
-// screenshots land only when a viewport run fails.
-
 import { instant as nextInstant } from '@next/playwright';
 import { chromium, firefox, webkit, devices } from 'playwright';
 import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
@@ -30,8 +20,6 @@ const ENGINES = {
   firefox,
   webkit,
 };
-// Local Convex websocket / HMR noise only — do not match every console line
-// that merely contains "Convex" (real ConvexError must still fail the probe).
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
@@ -276,10 +264,8 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     console.log(`    ${passed ? '✓' : '✗'} ${label}`);
     return passed;
   };
-  // Proactive shots are retired — keep the API so probes do not crash.
   const shot = async () => null;
 
-  /** Opens an additional authenticated (or anonymous) context for multi-client probes. */
   const createContext = async ({
     storageState = opts.storageState,
     engineName = opts.engine,
@@ -291,8 +277,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     }
     const secondaryBrowser =
       engineName === opts.engine ? browser : await launcher.launch();
-    // Same requiresAuth rule as the primary context: never hand a signed-in
-    // secondary session to a probe that did not declare it needs one.
     const secondaryContext = await secondaryBrowser.newContext({
       ...contextOptions(viewportName, definition.reducedMotion),
       ...(definition.requiresAuth && storageState ? { storageState } : {}),
@@ -322,9 +306,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
         `${definition.name} requires auth: run pnpm e2e:seed and pass --storage-state=docs/ux-check/captures/auth-storage.json (or UX_STORAGE_STATE / UX_COOKIE_JAR / --cookie-jar)`,
       );
     }
-    // Auth state applies only to probes that declare they need it: a probe
-    // asserting the logged-out gate must never inherit a signed-in session
-    // just because one was supplied for its siblings.
     context = await browser.newContext({
       ...contextOptions(viewport, definition.reducedMotion),
       ...(definition.requiresAuth && opts.storageState
@@ -338,10 +319,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     page = await context.newPage();
     diagnostics = watchPage(page, definition.allowConsole);
     await installCspCollector(page);
-    // Next 16.3 Instant Navigations helper: scopes assertions to the App Shell /
-    // prefetched UI while holding back dynamic streams. Prefer soft <Link>
-    // navigations; pass { baseURL: baseUrl } when page.goto is the first hop.
-    // Requires next dev (or exposeTestingApiInProductionBuild). Warm-cache assumed.
     const instant = (fn, options) =>
       nextInstant(page, fn, { baseURL: baseUrl, ...options });
     const ctx = {
@@ -401,7 +378,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
           result.screenshots.push(relative);
           console.log(`    failure artifact: ${relative}`);
         } catch {
-          // Best-effort diagnostic only.
         }
       }
     }
@@ -449,13 +425,6 @@ function printSummary(results) {
   );
 }
 
-/**
- * Headed one-time login capture: opens the site, waits for the operator to
- * complete EVE SSO, then saves the authenticated storage state and exits.
- * Completion is detected by Better Auth's own session endpoint answering
- * non-null — cookie names are not a signal, because anonymous visitors carry
- * session-named cookies too. No terminal interaction is needed.
- */
 async function captureStorageState(opts) {
   if (!(await waitForServer(opts.baseUrl))) {
     throw new Error(`dev server at ${opts.baseUrl} did not respond; start pnpm dev first`);
@@ -469,9 +438,6 @@ async function captureStorageState(opts) {
     console.log('Log in through EVE SSO in the opened browser…');
     const deadline = Date.now() + 10 * 60_000;
     for (;;) {
-      // context.request shares the context's cookies, and polling an API URL
-      // never races the page's own SSO redirects. Require HTTP success and a
-      // user record — a non-2xx JSON error body is also non-null.
       const session = await context.request
         .get(sessionUrl)
         .then(async (response) => {

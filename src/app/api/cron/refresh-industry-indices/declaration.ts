@@ -4,10 +4,6 @@ import { ADVISORY_LOCK_INDUSTRY_INDICES } from '@/data/industry-indices/constant
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 
-/**
- * Declares the daily cost-index and adjusted-price refresh as one lock-guarded
- * batch; its partial dataset outcomes remain visible in every-run telemetry.
- */
 export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefreshIndustryIndicesResponse> = {
   name: 'cron:industry-indices',
   action: 'cron_industry_indices',
@@ -22,8 +18,6 @@ export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefresh
     busyBody: () => ({ status: 'busy' }),
   },
   work: async ({ client }) => {
-    // The shell holds the advisory lock on its reserved connection while ESI
-    // fetches and chunked upserts use the shared direct pool.
     const summary = await refreshIndustryIndices(drizzle(client));
 
     return {

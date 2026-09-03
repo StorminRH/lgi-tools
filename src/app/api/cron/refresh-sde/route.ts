@@ -21,10 +21,6 @@ type SdePreLockState = Parameters<typeof refreshSdeDeclaration.work>[1];
  */
 export const maxDuration = 300;
 
-/**
- * Runs the declared SDE version check and refresh; accepts only cron bearer
- * auth and consumes no body or query parameters.
- */
 // authz: cron
 // input: none
 export const GET = defineCronRoute<CronRefreshSdeResponse, SdePreLockState>(

@@ -35,10 +35,6 @@ function CogGlyph() {
   );
 }
 
-/**
- * Renders the selected map name as Atlas's top-center switcher and opens the
- * shared access-management door for maps where the listing reports admin.
- */
 export function MapSwitcher({
   maps,
   corporations,

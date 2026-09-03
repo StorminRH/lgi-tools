@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// after() normally defers to post-response; the mock records + invokes it so a test can
-// assert the write-behind was scheduled AND ran.
 const afterCalls: Array<() => void> = [];
 vi.mock('next/server', () => ({
   after: (fn: () => void) => {
@@ -10,7 +8,6 @@ vi.mock('next/server', () => ({
   },
 }));
 
-// getTypeNames resolves the SDE name map; capture the ids it was asked for.
 const getTypeNamesArgs: number[][] = [];
 vi.mock('@/data/eve-data/queries', () => ({
   getTypeNames: vi.fn(async (ids: number[]) => {
@@ -19,7 +16,6 @@ vi.mock('@/data/eve-data/queries', () => ({
   }),
 }));
 
-// listLinkedCharacters enumerates a user's characters (readCharacterOwners' first step).
 const linkedByUser: Record<string, Array<{ characterId: number }>> = {};
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(async (userId: string) => linkedByUser[userId] ?? []),
@@ -64,7 +60,6 @@ describe('readCharacterOwners', () => {
       return new Map(ids.map((id) => [id, { n: id }]));
     });
     const readState = vi.fn(async (id: number) => {
-      // If the data read has begun but not resolved when state reads start, they overlap.
       if (dataStarted) stateStartedBeforeDataResolved = true;
       return { lastRefreshedAt: id === 1 ? new Date('2026-06-28T10:00:00Z') : null };
     });
@@ -101,12 +96,10 @@ describe('getLiveDatasetOnView', () => {
           ],
           data: new Map([
             [10, { ids: [100, 200] }],
-            // 20 has no cached data (never synced) → row.data is null.
           ]),
         }),
         refresh,
         makeRow: (owner, data) => ({ key: owner.id, data }),
-        // 100 appears twice across rows → must be deduped in the name pass.
         nameIds: (rows) => rows.flatMap((row) => row.data?.ids ?? []).concat(100),
       },
     );
@@ -115,10 +108,8 @@ describe('getLiveDatasetOnView', () => {
       { key: 10, data: { ids: [100, 200] } },
       { key: 20, data: null },
     ]);
-    // Refresh scheduled via after() and (per the mock) invoked.
     expect(afterCalls).toHaveLength(1);
     expect(refresh).toHaveBeenCalledWith('u1');
-    // Name ids deduped before the SDE pass.
     expect(getTypeNamesArgs).toHaveLength(1);
     expect([...getTypeNamesArgs[0]!].sort((a, b) => a - b)).toEqual([100, 200]);
     expect(result.names).toEqual({ '100': 'Type #100', '200': 'Type #200' });

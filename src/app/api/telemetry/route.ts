@@ -11,21 +11,8 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-// Hard cap on serialised metadata to keep one bad payload from filling the
-// table. 2KB is generous for page-view + search shapes; rejecting larger
-// payloads keeps a misbehaving client from running away.
 const MAX_METADATA_BYTES = 2048;
 
-/**
- * Silent first-party tracker. Accepts JSON \{ action, metadata? \} and returns
- * 204. Shape is validated synchronously (400 before any write) so a
- * misconfigured client surfaces in the network tab. A per-IP rate limit (the
- * only public write path that was missing one) bounds a scripted flood that
- * would skew the analytics this table feeds. The characterId comes from the
- * Better Auth session lookup, and the row is written fire-and-forget — the
- * beacon's caller ignores the response, so we never block the 204 on the
- * insert, matching every other logUsageEvent caller.
- */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, telemetryRequestSchema);
@@ -34,9 +21,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const safeMetadata = parsed.data.metadata ?? {};
-  // Byte-cap is a separate concern from shape validation; Zod can't bound
-  // a JSON.stringify length without a refine, and the refine would force
-  // double-serialising. Leave it as a post-parse check.
   if (parsed.data.metadata !== undefined) {
     const serialised = JSON.stringify(safeMetadata);
     if (new TextEncoder().encode(serialised).length > MAX_METADATA_BYTES) {
@@ -56,10 +40,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     return apiResponse(telemetryEndpoint, 429, limit.failure);
   }
 
-  // Fire-and-forget: read the id from the session and write the row without
-  // blocking the response. Telemetry must never break a user flow, so any
-  // failure is swallowed (logged so a genuine bug stays visible) and the 204
-  // returns immediately regardless.
   void getSessionCharacterId()
     .then((characterId) =>
       logUsageEvent({

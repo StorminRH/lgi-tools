@@ -1,9 +1,3 @@
-// SC-2.2 / SC-2.3 / V-4: a forced re-layout (dial commit) glides its movers
-// with every edge endpoint tracking its node's disc rim on every sampled
-// frame (halo fog stubs keep only the visible end on a disc), and the
-// in-page frame-time series across the glide measurement window holds the
-// dev-mode budget at the 50–60 node ceiling. Requires authenticated storage
-// state and UX_MAP_ID pointing at a replayed 50–60 node chain.
 import {
   frameStats,
   installMotionMetrics,
@@ -15,16 +9,10 @@ import {
 } from '../lib/motion-metrics.mjs';
 import { readNodePositions } from '../lib/read-node-positions.mjs';
 
-/** Widget-frame fallbacks mirrored from SystemNode declared dimensions. */
 const FRAME_WIDTH = 150;
 const FRAME_HEIGHT = 110;
-/** Visible disc radius; edges clip here, not at the transparent frame box. */
 const DISC_RADIUS = 27.5;
 
-/**
- * Distance from an edge endpoint to one node's disc rim (0 = on the rim).
- * Matches `endpointFrame` / `frameSegment` clipping: lines exit at the disc.
- */
 function discRimError(endpoint, node) {
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : FRAME_WIDTH;
   const height =
@@ -34,7 +22,6 @@ function discRimError(endpoint, node) {
   return Math.abs(Math.hypot(endpoint.x - cx, endpoint.y - cy) - DISC_RADIUS);
 }
 
-/** True when some node's disc rim carries this endpoint. */
 function onSomeDisc(endpoint, nodes, tolerance) {
   return nodes.some(
     (node) =>
@@ -44,10 +31,6 @@ function onSomeDisc(endpoint, nodes, tolerance) {
   );
 }
 
-/**
- * Full disc-to-disc edges keep both ends on a rim; fog stubs (halo edges
- * into ring-3) keep only the visible end on a disc and cut short.
- */
 function edgeTracksFrames(edge, nodes, tolerance) {
   const startOn = onSomeDisc({ x: edge.x1, y: edge.y1 }, nodes, tolerance);
   const endOn = onSomeDisc({ x: edge.x2, y: edge.y2 }, nodes, tolerance);
@@ -82,7 +65,6 @@ export default {
     const nodeCount = await page.locator('.react-flow__node').count();
     check(`a production-like chain is rendered (${nodeCount} nodes)`, nodeCount >= 40);
 
-    // Open the layout dial group and force a re-layout through a real commit.
     await page.getByText('Layout dials').click();
     const before = await readNodePositions(page);
     const beforeById = new Map(before.map((node) => [String(node.id), node]));
@@ -90,7 +72,6 @@ export default {
     await startFrameCapture(page);
     await startGeometrySample(page);
     await page.getByRole('button', { name: 'Increase Ring spacing' }).click();
-    // Worker layout + merge + the mid-tier glide, plus tail.
     await page.waitForTimeout(2500);
     const geometry = await stopGeometrySample(page);
     const deltas = await stopFrameCapture(page);
@@ -108,8 +89,6 @@ export default {
       .map((node) => String(node.id));
     check(`the dial commit moved nodes (${movers.length} movers)`, movers.length >= 1);
 
-    // In-window witness: sampled frames where a mover sits strictly between
-    // its origin and its target.
     const moverSet = new Set(movers);
     const betweenFrames = geometry.filter((frame) =>
       frame.nodes.some((node) => {
@@ -127,9 +106,6 @@ export default {
       betweenFrames.length >= 5,
     );
 
-    // Edge tracking: on EVERY sampled frame, each parsed edge follows
-    // disc-rim clipping (both ends on a rim, or a halo fog stub with the
-    // visible end on a disc). A desynchronized edge strands an endpoint.
     let checkedEdges = 0;
     const desynchronized = geometry.some((frame) =>
       frame.edges.some((edge) => {

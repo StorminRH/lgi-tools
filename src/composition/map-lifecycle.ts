@@ -25,7 +25,6 @@ export interface MapLifecycleDependencies {
   readonly teardownAccess?: typeof teardownMapAccessProjection;
 }
 
-/** Archives one admin-authorized map, then tears down its live projection. */
 export async function deleteMapForUser(
   userId: string,
   input: MapLifecycleRequest,
@@ -53,7 +52,6 @@ export async function deleteMapForUser(
   }
 }
 
-/** Restores one in-grace admin-authorized map, then rebuilds its live projection. */
 export async function restoreMapForUser(
   userId: string,
   input: MapLifecycleRequest,
@@ -81,7 +79,6 @@ export async function restoreMapForUser(
   }
 }
 
-/** Queues one creator-owned archived map for the next scheduled purge. */
 export async function requestMapPurgeForUser(
   userId: string,
   input: MapLifecycleRequest,

@@ -1,7 +1,6 @@
 import { chainTombstoneState } from '@/data/maps/chain-contract';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 
-/** Editor mode for one connection, or null when nothing should open. */
 export type ConnectionEditorMode =
   | {
       readonly connection: ConnectionEditorDetail;
@@ -9,10 +8,6 @@ export type ConnectionEditorMode =
     }
   | null;
 
-/**
- * Derives whether a connection may open the Signature Editor, and in which
- * mode. Skeleton ties and missing rows return null so the host closes.
- */
 export function connectionEditorMode(
   connection: ConnectionEditorDetail | null | undefined,
   now: number,

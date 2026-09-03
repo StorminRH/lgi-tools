@@ -12,7 +12,6 @@ from unittest.mock import patch
 from tools._lib.repository import ROOT
 from tools import cli
 
-
 class CliTests(unittest.TestCase):
     def test_help_lists_public_groups(self) -> None:
         text = cli.usage()
@@ -78,7 +77,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("collect", result.stdout)
         self.assertIn("finalize", result.stdout)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,17 +1,3 @@
-// Neon storage for owned assets (3.7.7.1) — the Neon-native home for the
-// character AND corporation owned-asset reads. The assets endpoints cache 3600s
-// at ESI with no time-flip, so by the placement-by-temperature rule
-// (docs/CONVEX.md) they are slow, per-owner data: Neon + a stale-gated on-view
-// refresh, not the live engine. This is the second Neon slow-data slice and a
-// direct mirror of the owned-blueprints template (MIGRATE.0).
-//
-// Two tables, the same metadata + payload split as owned blueprints:
-//   - owned_assets      — the per-type/per-location owned quantity (replace-all per owner)
-//   - owned_asset_syncs — one row per owner: the staleness stamp + held etags
-//
-// The owner axis collapses character + corporation into a single discriminated
-// pair: owner_type ∈ {character, corporation}, owner_id the character or
-// corporation id.
 import {
   bigint,
   bigserial,
@@ -26,18 +12,8 @@ import {
 import { ownerSyncStateColumns } from '@/lib/db-columns';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
 
-/**
- * Postgres enum driven from a TS `as const` (the one-source-of-truth invariant).
- * Its own enum, not the owned-blueprints one — features don't share, and a
- * feature → feature import would be a boundary violation.
- */
 export const OWNED_ASSET_OWNER_TYPES = ['character', 'corporation'] as const;
-/** Closed personal or corporation owner kinds for persisted assets. */
 export type OwnedAssetOwnerType = (typeof OWNED_ASSET_OWNER_TYPES)[number];
-/**
- * Drizzle schema owner for owned asset owner type enum; migrations, queries, retention, and purge
- * claims derive from this single declaration.
- */
 export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_ASSET_OWNER_TYPES);
 
 /**
@@ -77,13 +53,6 @@ export const ownedAssets = pgTable(
     typeId: integer('type_id').notNull(),
     quantity: bigint('quantity', { mode: 'number' }).notNull(),
     locationId: bigint('location_id', { mode: 'number' }).notNull(),
-    // ESI types both of these as large, CCP-extended enums (Hangar/CorpSAG1…,
-    // station/solar_system/item/other). Stored verbatim as strings so a new flag
-    // or location type never fails the boundary parse. location_type is stored
-    // (though the held-by readout that needs it lands in 3.7.7.2) because it is
-    // what disambiguates location_id — the same numeric id is a station, a
-    // structure, or a container item depending on it; deferring it would force a
-    // second migration + a full re-sync next session.
     locationFlag: text('location_flag').notNull(),
     locationType: text('location_type').notNull(),
     snapshotId: bigint('snapshot_id', { mode: 'number' }).references(() => esiSnapshots.id),
@@ -101,14 +70,6 @@ export const ownedAssets = pgTable(
   ],
 );
 
-/**
- * Per-owner sync state — separate from the data rows so an owner with ZERO
- * assets still records "checked at T" (otherwise an empty result would look
- * un-synced and refetch on every view). `last_refreshed_at` is the staleness gate
- * the on-view refresh reads; `page_etags` are the per-page ETags replayed on the
- * next refresh so an unchanged owner returns a 304 and skips the row rewrite (the
- * gate's own ETag cache is unauthenticated-only, so an authed reader holds them).
- */
 export const ownedAssetSyncs = pgTable(
   'owned_asset_syncs',
   ownerSyncStateColumns(ownedAssetOwnerTypeEnum),

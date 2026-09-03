@@ -21,12 +21,8 @@ import {
 
 const NOW = 1_750_000_000_000;
 
-// A representative narrow window for the pure helpers (the retired
-// onlineStatus dataset's 60s visible-tab shape — the helpers are window-
-// agnostic, so any value exercises them).
 const ONLINE_COLD_MS = 60_000;
 
-// A presence doc seen (and visible) at the given instant.
 const seenAt = (lastSeenAt: number) => ({ lastSeenAt, lastVisibleAt: lastSeenAt });
 
 test('dataset registration pins live-read cadence and rejects retired literals', () => {
@@ -75,7 +71,6 @@ test('classifyDueSubject decides delete / retire / skip / dispatch as one table'
   expect(classifyDueSubject(seenAt(NOW - RETENTION_MS - 1), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
     'delete',
   );
-  // Exactly at the retention edge retires, not deletes (strict >, like the old sweep).
   expect(classifyDueSubject(seenAt(NOW - RETENTION_MS), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
     'retire',
   );

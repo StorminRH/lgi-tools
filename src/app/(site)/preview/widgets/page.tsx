@@ -6,15 +6,11 @@ import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 import { SiteCardWidget } from '@/features/wormhole-sites/widget';
 import { UniverseAssetsProof } from './universe-assets-proof';
 
-/** Static metadata for the internal D15 widget isolation surface. */
 export const metadata: Metadata = {
   title: 'Widget Reference — LGI.tools',
   robots: { index: false },
 };
 
-/**
- * Renders the first D15 feature widget inside two representative host-owned window boxes.
- */
 export default async function WidgetReferencePage() {
   const [site] = await getSiteSearchIndex();
   if (site === undefined) notFound();

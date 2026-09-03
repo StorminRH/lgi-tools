@@ -60,7 +60,6 @@ test('AFK lifecycle: hide, prompt, pause, refocus, and dismiss', () => {
   expect(isAfkPromptOpen(paused)).toBe(true);
   expect(isAfkPaused(paused)).toBe(true);
 
-  // Refocus keeps the prompt; dismissal is the only recovery.
   expect(
     onAfkVisibilityChange(prompting, true, NOW + CONFIG.hiddenAfterMs + 1_000),
   ).toBe(prompting);
@@ -85,10 +84,8 @@ test('AFK config overrides and server backstop ordering', () => {
   };
   expect(afkConfigFromOverrides(undefined, undefined)).toEqual(production);
   expect(afkConfigFromOverrides('', 'soon')).toEqual(production);
-  // Zero/negative would mean an instant prompt — refused.
   expect(afkConfigFromOverrides('0', '-5')).toEqual(production);
 
-  // Sole falsifier: engine must not go cold before the client AFK UI can prompt.
   const clientStopsAt = AFK_HIDDEN_AFTER_MS + AFK_PROMPT_TIMEOUT_MS;
   expect(HIDDEN_PRESENCE_MAX_MS - clientStopsAt).toBeGreaterThanOrEqual(10 * 60_000);
 });

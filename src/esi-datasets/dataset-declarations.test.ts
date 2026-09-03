@@ -1,12 +1,3 @@
-// DATASET DECLARATION INDEX — Keep was selected over Combine. Combining would
-// leave all three registry vocabularies in place and add a manifest plus its
-// applicability matrix (5 concepts, none removed); the three consumers would
-// each read only one section (P8). Keeping the 3 existing concepts preserves
-// their separate privacy, retention, and placement owners while this test
-// provides the one-stop checklist: sanctioned key shape -> purge claim/retain
-// -> growth story -> ESI entry or infrastructure claim when externally fed.
-// The membership overlap with sibling gates is deliberate: those gates own
-// registry semantics, while this index owns the complete new-dataset checklist.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import {
   getTableConfig,
@@ -294,17 +285,12 @@ describe('row-level security absence', () => {
   });
 });
 
-// The four cross-owner writes that exist today, pinned by file and table. Without
-// this positive assertion a scanner that silently stopped resolving symbols would
-// report zero undeclared writes and pass.
 const KNOWN_CROSS_OWNER_WRITES = [
   'src/composition/account-lifecycle/account-purge.ts::user',
   'src/composition/account-lifecycle/owner-transfer.ts::account',
   'src/composition/pipelines/esi-snapshot-retention.ts::esi_snapshots',
   'src/composition/pipelines/sde-pipeline.ts::market_prices',
 ];
-// A floor, not a target: the live scan finds 81 sites, so a collapse to a handful
-// fails here even when nothing is undeclared.
 const MINIMUM_DETECTED_WRITE_SITES = 70;
 
 const sites = scanProductionWriteSites('src', await reflectedSchemaExports());

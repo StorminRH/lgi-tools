@@ -9,8 +9,6 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { PG_CONNECT_TIMEOUT_SECONDS } from '@/db';
 
-// DDL runs under the schema-owner credential (DATABASE_MIGRATION_URL), falling
-// back to DATABASE_URL where the runtime and owner role are still one identity.
 const databaseUrl = resolveMigrationUrl({
   DATABASE_MIGRATION_URL: readEnv('DATABASE_MIGRATION_URL'),
   DATABASE_URL: readEnv('DATABASE_URL'),

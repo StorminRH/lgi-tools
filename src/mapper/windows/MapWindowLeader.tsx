@@ -4,16 +4,11 @@ import { forwardRef, useImperativeHandle, useRef } from 'react';
 import type { FollowerWrite } from './follower-model';
 import { applyFollowerWrite } from './follower-model';
 
-/** Imperative seam the follower uses to paint the green leader without React. */
 export interface MapWindowLeaderHandle {
   readonly apply: (card: HTMLElement, payload: FollowerWrite) => void;
   readonly hide: () => void;
 }
 
-/**
- * Screen-space green leader from an anchored card to its disc rim. Hidden
- * until the follower reports a segment long enough to need the cue.
- */
 export const MapWindowLeader = forwardRef<MapWindowLeaderHandle>(
   function MapWindowLeader(_props, forwardedRef) {
     const lineRef = useRef<SVGLineElement | null>(null);

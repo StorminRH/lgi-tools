@@ -3,17 +3,12 @@ import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import { mapAccess, maps } from './schema';
 
-/** Normalizes Drizzle execute results across Neon HTTP and postgres-js. */
 export function mapAuthorizationRows(
   result: Awaited<ReturnType<AnyPgDb['execute']>>,
 ) {
   return Array.isArray(result) ? result : result.rows;
 }
 
-/**
- * Selects requested maps while atomically proving creator or matching-admin
- * authority under the caller-supplied lifecycle state predicate.
- */
 export function authorizedAdminMapsSelection(
   userId: string,
   principals: MapPrincipals,

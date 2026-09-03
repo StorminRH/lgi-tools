@@ -10,18 +10,15 @@ import type {
   WormholeCodexEntry,
 } from './universe-assets';
 
-/** Session-loaded system directory and stargate graph exposed through typed lookups. */
 export interface UniverseAssets {
   version: string;
   systemInfo(id: number): SystemDirectoryEntry | null;
   neighbours(id: number): readonly number[];
 }
 
-/** Session-loaded wormhole type codex exposed through a code lookup. */
 export interface WormholeCodex {
   version: string;
   byCode(code: string): WormholeCodexEntry | null;
-  /** Sorted type codes (including K162) for type-ahead search. */
   codes(): readonly string[];
 }
 
@@ -90,10 +87,6 @@ async function fetchWormholeCodex(
     if ('status' in result && result.status === 404) return null;
     throw new Error(`wormhole codex ${failureLabel(result)}`);
   }
-  // The SDE ships multiple typeIds that share one code (e.g. C729 × 27) with
-  // identical dogma. Keep every typeId→code pair available via the wire
-  // payload for statics/lineage, but collapse the typeahead vocabulary to one
-  // entry per code (lowest typeId wins for byCode).
   const typeByCode = new Map<string, (typeof result.data.types)[number]>();
   for (const entry of result.data.types) {
     const existing = typeByCode.get(entry.code);
@@ -139,7 +132,6 @@ async function loadWormholeCodexFresh(): Promise<WormholeCodex> {
   return codex;
 }
 
-/** Loads and memoizes the system directory plus adjacency graph once per browser session. */
 export function loadUniverseAssets(): Promise<UniverseAssets> {
   if (universeAssetsPromise === null) {
     universeAssetsPromise = loadUniverseAssetsFresh().catch((error: unknown) => {
@@ -150,7 +142,6 @@ export function loadUniverseAssets(): Promise<UniverseAssets> {
   return universeAssetsPromise;
 }
 
-/** Loads and memoizes the wormhole codex once per browser session. */
 export function loadWormholeCodex(): Promise<WormholeCodex> {
   if (wormholeCodexPromise === null) {
     wormholeCodexPromise = loadWormholeCodexFresh().catch((error: unknown) => {

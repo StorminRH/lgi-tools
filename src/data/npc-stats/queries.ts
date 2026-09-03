@@ -1,18 +1,7 @@
-// Public query API for npc-stats. Pulls raw SDE attributes out of the
-// `type_dogma` table (via getTypeAttributesBatch) and runs the formulas in
-// math.ts. Mission /
-// incursion / abyssal NPC features can call this with their typeIds the same
-// way wormhole-sites does.
-
 import { getTypeAttributesBatch } from '@/data/eve-data/queries';
 import { composeCombatStats, missileTypeIdFor } from './math';
 import type { CombatStats } from './types';
 
-/**
- * One round-trip pulls every sleeper's attrs, a second pulls the distinct
- * missile attrs. Hot path for listSiteDetails(), which fetches dozens of NPCs
- * at once.
- */
 export async function getCombatStatsBatch(
   typeIds: number[],
 ): Promise<Map<number, CombatStats>> {

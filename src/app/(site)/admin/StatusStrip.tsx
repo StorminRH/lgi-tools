@@ -34,11 +34,6 @@ import { StatusRow } from './StatusRow';
 type Trend = ReturnType<typeof trendSeries>;
 type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
 
-// The is-anything-broken strip: one row per subsystem, reduced to a colored
-// dot + one-line readout. Status is anchored on "now" (latest run, current
-// staleness); the charts inside each row's collapsed details follow the
-// dashboard's selected range.
-
 function DetailBody({ children }: { children: ReactNode }) {
   return (
     <div className="border-t border-border-soft px-3.5 py-3 flex flex-col gap-4">{children}</div>
@@ -176,9 +171,6 @@ function GscSyncDetail({
   );
 }
 
-/**
- * Loads the current service, ingestion, and search-health summaries for the selected admin range.
- */
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
   const fetched = await loadSection('system-health', () =>

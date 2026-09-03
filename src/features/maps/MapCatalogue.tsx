@@ -32,14 +32,12 @@ import {
 import { mapSelectionHref } from './map-navigation';
 import { useMapDeletion } from './use-map-deletion';
 
-/** One self-hiding catalogue section derived without changing listing order. */
 export interface MapCatalogueSection {
   readonly id: 'created' | 'corporation' | 'direct';
   readonly label: 'Your maps' | 'Corporation maps' | 'Shared with you';
   readonly maps: readonly AuthorizedMapRow[];
 }
 
-/** Partitions the exact authorized listing into its three exclusive provenance sections. */
 export function mapCatalogueSections(
   maps: readonly AuthorizedMapRow[],
 ): readonly MapCatalogueSection[] {
@@ -333,8 +331,6 @@ function useMapCatalogueDialogs(data: MapCatalogueData) {
   const { maps, corporations, listingAvailable } = data;
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // Create/trash stay keyed to listing availability only. Including admin map
-  // ids would close TrashWindow on restore refresh, unlike the Atlas-menu door.
   const authorityKey = mapDialogAuthorityKey(listingAvailable, []);
   const [storedDialogs, setStoredDialogs] = useState(() =>
     closedMapDialogs(authorityKey),
@@ -495,7 +491,6 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
   );
 }
 
-/** Renders the metadata-only Atlas landing as a site-framed catalogue. */
 export function MapCatalogue() {
   const data = useMapCatalogueData();
   return <MapCatalogueContent data={data} />;

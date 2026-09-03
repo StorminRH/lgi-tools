@@ -324,9 +324,6 @@ describe('ESI dataset registry live gate', () => {
       .filter((entry) => entry.store === 'convex')
       .map((entry) => entry.name)
       .sort();
-    // One entry may own several Convex homes (character_location owns the
-    // payload table and its held online-probe table) — dedupe before the
-    // bidirectional comparison.
     const mappedEntries = [...new Set(CONVEX_ESI_HOMES.map((home) => home.entry))].sort();
 
     expect(mappedEntries).toEqual(convexEntries);

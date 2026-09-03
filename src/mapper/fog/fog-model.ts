@@ -1,54 +1,24 @@
-// The pure half of the fog-of-war layer (4.0.4.2.3 OW4): reveal membership,
-// the open/close timeline, the drag wake, and the cover/backing math the
-// canvas host executes verbatim.
-//
-// Everything here derives from the motion layer's presentation output — the
-// same arrays `ChainSurface` renders — so fog can never disagree with the
-// drawn canvas: a node the canvas shows gets a reveal, a ghost keeps its
-// reveal for exactly its exit window, and a fogged-ring node contributes
-// nothing (its cloud cover IS the absence of a reveal). Nothing here reads
-// Convex or writes anywhere (HC-1); identical presentation yields identical
-// fog on every client (DC-2).
 import type { ChainNode } from '../canvas/SystemNode';
 import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/SystemNode';
 import { frameCenter } from '../canvas/edge-geometry';
 import type { ChainEdge } from '../chain/nodes';
 import { springFamily, type MotionConfig } from '../motion/motion-contract';
 
-/**
- * Reveal radius around one drawn node's frame center, in world units. Pinned
- * constant tuned at the G-1 gate; no runtime configuration surface (operator
- * direction, plan PD-2 — the dev dial panel tunes it during the gate only).
- */
 const FOG_REVEAL_RADIUS = 280;
 
-/** Corridor half-width of the reveal stroke along a fully-drawn edge. */
 const FOG_STROKE_RADIUS = 120;
 
-/** Cloud density over the covered canvas; see `FOG_REVEAL_RADIUS`. */
 const FOG_OPACITY = 0.95;
 
-/**
- * Where a fogged-endpoint line cuts off, as a fraction of the drawn-to-fogged
- * segment: the visible stub runs into the cloud and ends well short of the
- * invisible endpoint, so the line reads as entering the fog.
- */
 export const FOG_EDGE_CUT_FRACTION = 0.55;
 
-/** Live fog dial state for the G-1 tuning gate; production ships the pins. */
 export interface FogConfig {
   readonly revealRadius: number;
   readonly strokeRadius: number;
-  /** Cloud density in [0, 1]. */
   readonly opacity: number;
-  /**
-   * `dynamic` plays the smoke open/close/wake timeline; `static` is the
-   * pinned degradation tier — reveals snap, edges stay smoky, zero animation.
-   */
   readonly tier: 'dynamic' | 'static';
 }
 
-/** The pinned defaults the dial panel starts from. */
 export const DEFAULT_FOG_CONFIG: FogConfig = {
   revealRadius: FOG_REVEAL_RADIUS,
   strokeRadius: FOG_STROKE_RADIUS,
@@ -56,10 +26,8 @@ export const DEFAULT_FOG_CONFIG: FogConfig = {
   tier: 'dynamic',
 };
 
-/** One reveal's motion standing, mirrored from the presentation vocabulary. */
 export type FogPhase = 'steady' | 'entering' | 'departing';
 
-/** A disc reveal hugging one drawn node. */
 export interface FogDisc {
   readonly key: string;
   readonly x: number;
@@ -68,7 +36,6 @@ export interface FogDisc {
   readonly heavy: boolean;
 }
 
-/** A corridor reveal along one fully-drawn edge, frame center to center. */
 export interface FogStroke {
   readonly key: string;
   readonly x1: number;
@@ -79,13 +46,11 @@ export interface FogStroke {
   readonly heavy: boolean;
 }
 
-/** The reveal membership one presentation commit demands. */
 export interface FogRevealSet {
   readonly discs: readonly FogDisc[];
   readonly strokes: readonly FogStroke[];
 }
 
-/** A node's disc center through the shared frame policy owner. */
 function nodeCenter(node: ChainNode): { readonly x: number; readonly y: number } {
   return frameCenter({
     x: node.position.x,
@@ -95,20 +60,12 @@ function nodeCenter(node: ChainNode): { readonly x: number; readonly y: number }
   });
 }
 
-/** A node's fog phase from its motion presentation. */
 function nodePhase(node: ChainNode): { readonly phase: FogPhase; readonly heavy: boolean } {
   const motion = node.data.motion;
   if (motion === undefined) return { phase: 'steady', heavy: false };
   return { phase: motion.phase, heavy: motion.heavy === true };
 }
 
-/**
- * Reveal membership from one presentation commit: a disc for every non-fogged
- * rendered node (ghosts included, so a despawn's reveal closes on the ghost
- * timeline), and a corridor stroke only for an edge both of whose endpoints
- * carry discs — a fogged-endpoint line gets no stroke, so it visibly runs
- * into the cloud (SC-3.2).
- */
 export function deriveFogReveals(
   nodes: readonly ChainNode[],
   edges: readonly ChainEdge[],
@@ -143,26 +100,15 @@ export function deriveFogReveals(
   return { discs, strokes };
 }
 
-/** The clock/easing plan one timeline advance consumes. */
 export interface FogTiming {
-  /** Reveal open window — the motion mid tier, so fog opens with births. */
   readonly openMs: number;
-  /** Reveal close window — the mid tier again, matching ordinary exits. */
   readonly closeMs: number;
-  /** Heavy-collapse close window — the slow tier, matching heavy ghosts. */
   readonly heavyCloseMs: number;
-  /** Drag-wake stamp lifetime. */
   readonly wakeMs: number;
   readonly ease: (t: number) => number;
   readonly reducedMotion: boolean;
 }
 
-/**
- * Fog timing from live dial state: reveals ride the same tempo tiers the
- * motion layer plays, with the settle (no-overshoot) ease — an overshooting
- * reveal radius would wobble the cloud. Reduced motion keeps the windows but
- * flattens to linear opacity easing with no smoke dynamics (DC-6's shape).
- */
 export function fogTimingOf(config: MotionConfig, reducedMotion: boolean): FogTiming {
   return {
     openMs: config.tempo.mid,
@@ -174,34 +120,25 @@ export function fogTimingOf(config: MotionConfig, reducedMotion: boolean): FogTi
   };
 }
 
-/** One tracked reveal's animation standing. */
 export interface FogTimelineEntry {
-  /** The last observed geometry, kept so a vanished reveal can close in place. */
   readonly reveal: FogDisc | FogStroke;
   readonly mode: 'opening' | 'open' | 'closing';
-  /** When `mode` began. */
   readonly since: number;
-  /** Strength when `mode` began. */
   readonly from: number;
   readonly heavy: boolean;
 }
 
-/** The whole timeline between two advances. */
 export type FogTimeline = ReadonlyMap<string, FogTimelineEntry>;
 
-/** The empty timeline — the state before the first advance. */
 export const EMPTY_FOG_TIMELINE: FogTimeline = new Map();
 
-/** One paintable disc stamp. */
 export interface FogPaintDisc {
   readonly key: string;
   readonly x: number;
   readonly y: number;
-  /** Reveal strength in (0, 1]: radius and alpha scale for the painter. */
   readonly strength: number;
 }
 
-/** One paintable corridor stamp. */
 export interface FogPaintStroke {
   readonly key: string;
   readonly x1: number;
@@ -211,16 +148,13 @@ export interface FogPaintStroke {
   readonly strength: number;
 }
 
-/** One advanced frame: the next timeline plus what the painter stamps. */
 export interface FogFrame {
   readonly timeline: FogTimeline;
   readonly discs: readonly FogPaintDisc[];
   readonly strokes: readonly FogPaintStroke[];
-  /** True while any reveal is mid-open or mid-close — keep the frame loop. */
   readonly animating: boolean;
 }
 
-/** An entry's strength at `now`, and whether its window is still running. */
 function entryStrength(
   entry: FogTimelineEntry,
   now: number,
@@ -242,7 +176,6 @@ function entryStrength(
   return { strength, running: t < 1 };
 }
 
-/** The entry one observed reveal becomes, given its previous standing. */
 function nextEntry(
   previous: FogTimelineEntry | undefined,
   reveal: FogDisc | FogStroke,
@@ -254,8 +187,6 @@ function nextEntry(
     if (reveal.phase === 'departing') {
       return { reveal, mode: 'closing', since: now, from: 1, heavy: reveal.heavy };
     }
-    // The first observed batch snaps its steady reveals open — a mounted map
-    // is not a birth; an actual birth (entering) animates even then.
     if (initial && reveal.phase === 'steady') {
       return { reveal, mode: 'open', since: now, from: 1, heavy: false };
     }
@@ -267,7 +198,6 @@ function nextEntry(
     return { reveal, mode: 'closing', since: now, from: current.strength, heavy: reveal.heavy };
   }
   if (previous.mode === 'closing') {
-    // Reopening (a departure superseded mid-close): ramp back up from here.
     return { reveal, mode: 'opening', since: now, from: current.strength, heavy: false };
   }
   if (previous.mode === 'opening' && !current.running) {
@@ -276,7 +206,6 @@ function nextEntry(
   return { ...previous, reveal };
 }
 
-/** Appends one entry's stamp (nothing when fully closed). */
 function appendStamp(
   entry: FogTimelineEntry,
   strength: number,
@@ -299,14 +228,6 @@ function appendStamp(
   }
 }
 
-/**
- * Advances the fog timeline one frame: observed reveals open (or close, for
- * departing ghosts) on the motion windows, vanished reveals close in place
- * from their last geometry, and fully-closed entries drop. The returned
- * `animating` flag is the host's whole scheduling contract — false means the
- * fog is settled and no further frame may be scheduled (the idle map stays
- * still).
- */
 export function advanceFogTimeline(
   previous: FogTimeline,
   reveals: FogRevealSet,
@@ -350,11 +271,6 @@ export function advanceFogTimeline(
   return { timeline, discs, strokes, animating };
 }
 
-/**
- * The static degradation tier: every observed reveal stamps at full strength
- * instantly, departures simply vanish, and nothing ever animates. This is the
- * pinned budget/G-1 fallback, not an error path.
- */
 export function snapFogFrame(reveals: FogRevealSet, now: number): FogFrame {
   const timeline = new Map<string, FogTimelineEntry>();
   const discs: FogPaintDisc[] = [];
@@ -370,41 +286,32 @@ export function snapFogFrame(reveals: FogRevealSet, now: number): FogFrame {
   return { timeline, discs, strokes, animating: false };
 }
 
-/** World distance between wake stamps dropped along a moving disc's path. */
 export const FOG_WAKE_SPACING = 26;
 
-/** Most wake points one disc may hold — bounds a fast, long drag. */
 const FOG_WAKE_MAX_POINTS = 24;
 
-/** One fading stamp a moving reveal left behind. */
 export interface FogWakePoint {
   readonly x: number;
   readonly y: number;
   readonly at: number;
 }
 
-/** Per-disc wake bookkeeping between advances. */
 export interface FogWakeTrail {
   readonly lastX: number;
   readonly lastY: number;
   readonly points: readonly FogWakePoint[];
 }
 
-/** The whole wake state. */
 export type FogWakeState = ReadonlyMap<string, FogWakeTrail>;
 
-/** The empty wake — also what the static tier and reduced motion feed back. */
 export const EMPTY_FOG_WAKE: FogWakeState = new Map();
 
-/** One advanced wake frame. */
 export interface FogWakeFrame {
   readonly state: FogWakeState;
-  /** Fading stamps, painter-ready (strength decays over the wake window). */
   readonly stamps: readonly FogPaintDisc[];
   readonly animating: boolean;
 }
 
-/** Wake points sampled along one movement delta at the stamp spacing. */
 function wakeSamples(trail: FogWakeTrail, x: number, y: number, now: number): FogWakePoint[] {
   const dx = x - trail.lastX;
   const dy = y - trail.lastY;
@@ -418,13 +325,6 @@ function wakeSamples(trail: FogWakeTrail, x: number, y: number, now: number): Fo
   return samples;
 }
 
-/**
- * Advances the drag wake: a disc that moved since the last frame drops fading
- * stamps along its path (fog closes behind it as they expire — the smoke
- * wake), stationary discs shed expired points, and discs no longer present
- * fade out their remaining trail. The host skips this entirely under reduced
- * motion and on the static tier.
- */
 export function advanceFogWake(
   previous: FogWakeState,
   discs: readonly FogPaintDisc[],
@@ -452,7 +352,6 @@ export function advanceFogWake(
     state.set(disc.key, { lastX: disc.x, lastY: disc.y, points: grown });
     stamp(disc.key, grown);
   }
-  // A disc no longer present fades out whatever trail it left behind.
   for (const [key, trail] of previous) {
     if (state.has(key)) continue;
     const remaining = prune(trail.points);
@@ -465,34 +364,24 @@ export function advanceFogWake(
   return { state, stamps, animating };
 }
 
-/** The timeline+wake pair one frame advances together. */
 export interface FogFrameState {
   readonly timeline: FogTimeline;
   readonly wake: FogWakeState;
 }
 
-/** The state before the first frame. */
 export const EMPTY_FOG_FRAME_STATE: FogFrameState = {
   timeline: EMPTY_FOG_TIMELINE,
   wake: EMPTY_FOG_WAKE,
 };
 
-/** One whole frame advance: next state plus everything the painter consumes. */
 export interface FogFrameAdvance {
   readonly state: FogFrameState;
   readonly frame: FogFrame;
   readonly wakeStamps: readonly FogPaintDisc[];
-  /** True while anything is mid-animation — the host's scheduling contract. */
   readonly animating: boolean;
-  /** Reduced motion: the painter animates alpha only, never smoke radius. */
   readonly alphaOnly: boolean;
 }
 
-/**
- * Advances one fog frame under the configured tier: the static degradation
- * tier snaps and never animates; the dynamic tier runs the open/close
- * timeline and (outside reduced motion) the drag wake.
- */
 export function advanceFogFrame(
   previous: FogFrameState,
   reveals: FogRevealSet,

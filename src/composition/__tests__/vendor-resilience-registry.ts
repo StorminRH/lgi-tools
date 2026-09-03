@@ -1,8 +1,3 @@
-/**
- * Closed set of external integrations this app talks to. Adding a vendor means adding its policy
- * here; the census rejects a declared wrapper that does not exist and a construction site that no
- * declared wrapper owns.
- */
 export type VendorIntegrationId =
   | 'eve-esi'
   | 'eve-sso'
@@ -21,11 +16,6 @@ export type VendorIntegrationId =
   | 'ccp-image-cdn'
   | 'anoik-statics';
 
-/**
- * One integration's declared resilience policy — the eight recorded facts. `wrapper` names the
- * module and exported symbol every call must route through, which the census resolves against the
- * real tree.
- */
 export interface VendorResiliencePolicy {
   wrapper: { module: string; symbol: string };
   timeout: string;
@@ -37,16 +27,11 @@ export interface VendorResiliencePolicy {
   telemetryFields: string;
 }
 
-/**
- * An integration with no programmatic call surface records that fact instead of a fabricated
- * policy, so an empty policy can never be mistaken for an unaudited one.
- */
 export interface NoProgrammaticSurface {
   noProgrammaticSurface: true;
   fact: string;
 }
 
-/** One registry entry: a declared policy, or the recorded absence of any call surface. */
 export type VendorResilienceEntry = VendorResiliencePolicy | NoProgrammaticSurface;
 
 function policy(entry: VendorResiliencePolicy): VendorResiliencePolicy {

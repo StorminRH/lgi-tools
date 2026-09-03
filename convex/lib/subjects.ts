@@ -1,29 +1,10 @@
-// The engine's subject and presence lookups, shared with the canary's
-// applySyncResults (generation guard) and forViewer (run-state wire). Pure
-// read helpers only: no Convex function exports, so nothing here lands on the
-// deployed API surface. The presence write (an upsert) stays inline in the
-// heartbeat handler — this module is read-only by design.
-//
-// The `dataset` param is the STORED schema literal (StoredDataset). Today that is
-// onlineStatus | characterLocation; the schema union is designed to hold a SUPERSET
-// of the active registry while a dataset is being retired (the drain-window pattern
-// in docs/CONVEX.md), and these lookups stay typed off the stored union so they can
-// still find/clean a retiring dataset's leftover rows during that window.
 import type { WithoutSystemFields } from 'convex/server';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader } from '../_generated/server';
 import { uniqueByUserDataset } from './indexedQuery';
 
-// The dataset values that can be STORED — the schema's dataset union (a superset of
-// the active SyncDataset during a future drain window).
 export type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
-/**
- * The canonical freshly-created idle subject row — one shape shared by every
- * creator (the engine's first-beat insert and the mapFixtures probe seam), so
- * a new syncSubjects column cannot drift silently between hand-copied
- * literals. Pure value construction; the callers own the actual insert.
- */
 export function newIdleSubject(
   dataset: StoredDataset,
   userId: string,
@@ -46,10 +27,6 @@ export function newIdleSubject(
   };
 }
 
-/**
- * Reads the unique subject row for one stored dataset and user; returns null when the subject has
- * not been created.
- */
 export function getSyncSubject(
   db: DatabaseReader,
   dataset: StoredDataset,
@@ -58,10 +35,6 @@ export function getSyncSubject(
   return uniqueByUserDataset(db, 'syncSubjects', dataset, userId);
 }
 
-/**
- * Reads the unique presence row for one stored dataset and user; returns null when no heartbeat
- * has been recorded.
- */
 export function getPresence(
   db: DatabaseReader,
   dataset: StoredDataset,

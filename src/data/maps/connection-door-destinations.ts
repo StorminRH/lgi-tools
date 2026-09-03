@@ -1,6 +1,3 @@
-// One hallway, two mouths. You are in a system looking at one hole. Leads-to
-// defaults to the other system on that hallway. A typed system that is not
-// that other system stays on this mouth. A class note is not a typed system.
 import type {
   ConnectionMassState,
   ConnectionProvenance,
@@ -26,7 +23,6 @@ import {
   lifetimeStage,
 } from '@/data/maps/connection-hallway';
 
-/** The other system's id on this hallway, or null until both systems are known. */
 export function doorDestination(
   fromSystemId: number,
   toSystemId: number | null,
@@ -36,11 +32,6 @@ export function doorDestination(
   return side === 'from' ? toSystemId : fromSystemId;
 }
 
-/**
- * Leads-to on this hole. A typed system that is not the other system is
- * kept (a typo stays a typo). Otherwise show the other system. Class notes
- * are not passed in here.
- */
 export function keepTypedLeadsTo(
   otherLocation: number | null,
   typedSystem: number | null | undefined,
@@ -62,11 +53,6 @@ export function doorLeadsTo(
   );
 }
 
-/**
- * When folding this hole onto the surviving hallway, keep a mismatched typed
- * system on this mouth. Do not invent an override when the mouth only had a
- * class note or matched the other system.
- */
 export function absorbDoorLeadsNote(
   surviving: DoorLeadsTo,
   stub: DoorLeadsTo,
@@ -106,10 +92,6 @@ const TYPE_PROVENANCE_RANK: Record<ConnectionProvenance, number> = {
   'jump-verified': 4,
 };
 
-/**
- * Stronger type provenance wins. Never downgrade a human, confirmed, or
- * jump-verified mark on the surviving row.
- */
 export function winningTypeProvenance(
   surviving: ConnectionProvenance | null | undefined,
   stub: ConnectionProvenance | null | undefined,
@@ -124,10 +106,6 @@ function provenanceOf(identity: ConnectionIdentity): ConnectionProvenance | null
   return identity.kind === 'typed' ? identity.provenance : null;
 }
 
-/**
- * The one unresolved origin stub in a system, or null when none or more than
- * one remain. Atlas does not guess which hole is the other door.
- */
 export function uniqueCounterpartStub<
   T extends {
     readonly _id: string;
@@ -144,7 +122,6 @@ export function uniqueCounterpartStub<
   return stubs.length === 1 ? stubs[0]! : null;
 }
 
-/** Copies only unset hallway facts from a stub that is about to be deleted. */
 export function absorbDoorKnowledge(
   surviving: DoorKnowledgeHallway,
   stub: DoorKnowledgeHallway,

@@ -1,9 +1,5 @@
 import type { SiteDetail } from './types';
 
-// Abbreviated ISK for the meta description prose. Kept local (not the shared
-// lib formatters) because the SEO copy wants this exact shape — a trailing
-// " ISK" and this precision — and drifting it would change every page's
-// description text.
 function formatIsk(value: number): string {
   if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B ISK`;
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M ISK`;
@@ -19,12 +15,6 @@ const SITE_TYPE_LABEL: Record<string, string> = {
   data: 'Data',
 };
 
-/**
- * Unique, descriptive meta description per site — built from the site's own
- * data so no two of the 69 pages share a generic snippet. Resource sites lead
- * with their harvestables and live value; wave-driven sites lead with loot +
- * waves.
- */
 export function buildSiteDescription(
   site: SiteDetail,
   typeLabel: string,
@@ -50,11 +40,6 @@ export function buildSiteDescription(
   return `${site.name} is a ${kind} in Eve Online wormhole space. Live Jita prices on ${resourceText}${totalText}, updated hourly.`;
 }
 
-/**
- * Page `<title>` + meta description for a site detail page. The title reads
- * "Name — Class Type" (falling back to "Name — Type", and gas sites without a
- * stored class read "Wormhole Gas").
- */
 export function deriveSiteMeta(site: SiteDetail): {
   typeLabel: string;
   classLabel: string | null;

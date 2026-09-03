@@ -2,20 +2,8 @@ import { MANUFACTURING_ACTIVITY_ID } from './build-pricing';
 import { REACTION_ACTIVITY } from './structure-bonus';
 import type { BlueprintPricing, NetMarginView } from './types';
 
-// Shared margin selection for the Cockpit — the one place the KPI margin tile
-// decides which cost basis (gross vs net) is in play. Pure (no React); the
-// component feeds it the live store's values.
-
-/** Closed planner margin basis selecting raw-material or built-input cost. */
 export type MarginMode = 'gross' | 'net';
 
-/**
- * The net-margin view to use, honoring the user's gross/net preference. Net is
- * available for a manufacturing blueprint with a build location picked, or a
- * reaction blueprint with a reaction fee source (3.7.13.3 — its own reaction
- * system, or a build-slot refinery). The caller passes the activity-matched
- * `hasFeeSource` so this stays free of the pricing-store hook.
- */
 export function selectNet(
   pricing: BlueprintPricing | null,
   activityId: number,

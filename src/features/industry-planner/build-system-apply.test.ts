@@ -56,9 +56,6 @@ describe('createBuildSystemApplier', () => {
   });
 
   it('a later apply supersedes an in-flight one — last request wins even when the slow fetch resolves', async () => {
-    // The first fetch resolves only AFTER the second apply has completed, and
-    // resolves successfully (no abort-throw) — the generation check alone must
-    // reject its data.
     let releaseFirst!: (data: BuildLocationData) => void;
     const first = new Promise<BuildLocationData>((resolve) => {
       releaseFirst = resolve;
@@ -74,14 +71,12 @@ describe('createBuildSystemApplier', () => {
     const fast = apply(AMARR, { persist: true });
     await expect(fast).resolves.toEqual({ status: 'applied', data: DATA });
 
-    // The superseding apply aborted the first controller.
     expect(seen[0]?.aborted).toBe(true);
     expect(seen[1]?.aborted).toBe(false);
 
     releaseFirst(DATA);
     await expect(slow).resolves.toEqual({ status: 'superseded' });
 
-    // Only the winner ever touched state or the preference.
     expect(deps.onApplied).toHaveBeenCalledOnce();
     expect(deps.onApplied).toHaveBeenCalledWith(AMARR, DATA);
     expect(deps.onPersist).toHaveBeenCalledOnce();
@@ -100,7 +95,6 @@ describe('createBuildSystemApplier', () => {
 
     const slow = apply(JITA, { persist: false });
     await apply(AMARR, { persist: false });
-    // The aborted fetch surfaces as a rejection (the fetch() contract).
     rejectFirst(new DOMException('aborted', 'AbortError'));
     await expect(slow).resolves.toEqual({ status: 'superseded' });
   });

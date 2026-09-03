@@ -1,20 +1,3 @@
-// Per-operation Neon timing for the postgres-js driver.
-//
-// The neon-http driver is instrumented globally through `neonConfig.fetchFunction`,
-// but postgres-js exposes no query-completion hook, so its cost is measured by
-// wrapping the client handle itself. Without this, `dependencies.neon` would be
-// empty for advisory-lock work (which runs on a `ReservedConnection` that bypasses
-// a wrapper on the client alone), for cron `ctx.client` statements, and across the
-// entire documented local stack, where `.env.example` sets
-// `LOCAL_DB_DRIVER=postgres-js`.
-//
-// The two seams are disjoint by construction — the neon-http client is never built
-// by the postgres-js factory and the postgres-js clients never reach
-// `fetchFunction` — so no path double-counts.
-//
-// This module deliberately does not import the `postgres` package: the vendor rail
-// makes `src/db/index.ts` the sole construction owner, so the caller constructs the
-// client and this wraps the handle it gets back.
 import { addDependencyTiming } from '@/lib/dependency-timing';
 
 const OBSERVED = Symbol('db.query-timed');
@@ -74,11 +57,6 @@ function timedReserve(reserve: AnyFunction): AnyFunction {
   };
 }
 
-/**
- * Wraps a transaction opener so statements run against the transaction handle are timed.
- * The envelope promise itself is deliberately not observed: it spans every statement inside the
- * transaction, so counting it would double-count the work its own callback already reports.
- */
 function timedTransaction(open: AnyFunction): AnyFunction {
   return (...args: unknown[]): unknown =>
     open(
@@ -91,12 +69,6 @@ function timedTransaction(open: AnyFunction): AnyFunction {
     );
 }
 
-/**
- * Returns a handle that records every statement's elapsed milliseconds against the active
- * operation, delegating all behavior to the real client. Reserved connections and transaction
- * handles are wrapped as they are handed out, so lock-guarded and transactional work is measured
- * on the same footing as a plain query.
- */
 export function withQueryTiming<T extends object>(client: T): T {
   return new Proxy(client, {
     apply(target, thisArg, args) {
@@ -106,8 +78,6 @@ export function withQueryTiming<T extends object>(client: T): T {
       const value = Reflect.get(target, prop) as unknown;
       if (typeof value !== 'function') return value;
       const method = value.bind(target) as AnyFunction;
-      // Connection lifecycle, not statement cost. `end()` drains the pool and
-      // would dominate a run's p95 if it were counted as query time.
       if (LIFECYCLE_METHODS.has(prop)) return method;
       if (prop === 'reserve') return timedReserve(method);
       if (prop === 'begin' || prop === 'savepoint') return timedTransaction(method);

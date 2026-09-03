@@ -4,15 +4,6 @@ import { NumberField } from '@base-ui/react/number-field';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-/**
- * A compact −/[value]/+ integer stepper with a typeable middle field, on Base UI's
- * NumberField. Domain-agnostic: the caller owns the value and is handed each
- * committed number through `onChange`. NumberField owns the editing model — you can
- * clear and retype mid-edit, valid input commits as you type, and on blur it formats
- * and CLAMPS to [min, max] (empty blur snaps to `min`). Both buttons clamp, so they
- * no-op at the bounds rather than overshoot. `max` omitted = no upper bound (the
- * runs case). Integer-only via a zero-fraction format; Alt-/Shift-step stay whole.
- */
 export function Stepper({
   value,
   onChange,
@@ -30,11 +21,6 @@ export function Stepper({
   onChange: (n: number) => void;
   min?: number;
   max?: number;
-  /**
-   * Button/arrow increment (default 1). A caller whose domain quantizes commits
-   * to a coarser grid must pass that grid here, or every button press is undone
-   * by its own commit rounding.
-   */
   step?: number;
   ariaLabel: string;
   variant?: 'default' | 'inline';
@@ -52,15 +38,9 @@ export function Stepper({
   return (
     <NumberField.Root
       value={value}
-      // Live-commit typed and stepped numbers, but SKIP the transient null Base UI
-      // emits while the field is being cleared — coercing that to min here would
-      // repopulate the field before the user types a replacement (breaking the
-      // clear-and-retype flow).
       onValueChange={(next) => {
         if (next !== null) onChange(next);
       }}
-      // On blur/commit an empty field settles to the floor; a committed number passes
-      // straight through. (Only commit — never a mid-edit change — reaches here.)
       onValueCommitted={(next) => onChange(next ?? min)}
       min={min}
       max={max}

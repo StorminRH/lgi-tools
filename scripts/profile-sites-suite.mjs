@@ -1,12 +1,3 @@
-// Counterbalanced six-run `/sites` development profile suite.
-//
-// Run: pnpm --silent profile:sites-suite
-//
-// Each run starts from a clean `.next`, invokes the existing bounded profiler,
-// and records either normal or explicitly sampled mode. Stdout is exactly one
-// suite JSON document; profiler diagnostics remain on stderr. The same suite
-// document is written under docs/ux-check/profiles/.
-
 import { spawn } from 'node:child_process';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';

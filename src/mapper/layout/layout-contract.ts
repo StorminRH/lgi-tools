@@ -1,82 +1,28 @@
-// The deterministic layout seam — the only vocabulary 4.0.3.1.2's worker and dials may consume.
-//
-// CONTRACT (session 4.0.3.1.1, decision PD-1): the kernel is a pure function of synchronized facts
-// plus a code-constant config. The kernel behind this seam is the only position-computing
-// authority in the mapper's layout story, and the input type structurally excludes everything
-// contract HC-2 forbids: no current positions, no lock state, no caller state, no clock, no
-// randomness. Purity by type beats purity by discipline — an engine literally cannot read what it
-// must not see.
-//
-// The kernel is async because its production home is 4.0.3.1.2's worker boundary — a worker call
-// is a promise however the geometry inside is computed; the compass engine's core stays a
-// synchronous pure function wrapped at the seam.
 import type { ChainPosition } from '../chain/intents';
 
-/** One undirected edge in the layout vocabulary, in the orientation the facts delivered it. */
 export interface LayoutEdge {
   readonly fromSystemId: number;
   readonly toSystemId: number;
 }
 
-/**
- * The synchronized graph facts — the only inputs that may influence shared layout (contract HC-2).
- *
- * Array order is synchronized creation order; array position IS the order, so no timestamps or
- * sequence numbers travel here. A root override must itself be synchronized state: when the set-root
- * affordance ships it becomes a synchronized map property, never local state.
- */
 export interface LayoutFacts {
   readonly systems: readonly { readonly systemId: number }[];
   readonly connections: readonly LayoutEdge[];
-  /** Optional synchronized root override; ignored when it names no present system. */
   readonly rootSystemId?: number;
 }
 
-/**
- * How siblings divide their parent's wedge.
- *
- * - `fixed-slot`: each child occupies a slot determined only by its creation index, so adding a
- *   sibling moves nothing that already exists.
- * - `proportional`: siblings re-spread evenly across the wedge, so a sector fill moves exactly the
- *   affected sibling group (and the subtrees riding on those siblings).
- */
 export type WedgePolicy = 'fixed-slot' | 'proportional';
 
-/**
- * The structural margin applied over `minSeparation` wherever spacing is derived from it (ring
- * bucket arcs, overflow-cluster spacing), so the no-overlap gate is cleared with room to spare
- * rather than met exactly on a float boundary.
- */
 export const SEPARATION_MARGIN = 1.05;
 
-/**
- * The kernel's tuning knobs. Every knob is a code constant identical on every client this session —
- * 4.0.3.1.2 turns them into operator dials. Knobs must stay deterministic values; no knob may carry
- * caller state. Standing invariant for the dial session: `ringSpacing` must stay ≥ `minSeparation`,
- * because separation between adjacent rings IS `ringSpacing` — a smaller value defeats the
- * no-overlap gate no matter what the buckets do.
- */
 export interface LayoutConfig {
-  /** Radial distance between adjacent depth rings, in canvas units. Must be ≥ `minSeparation`. */
   readonly ringSpacing: number;
-  /** Minimum center-to-center distance between any two nodes; the no-overlap hard-gate constant. */
   readonly minSeparation: number;
-  /** How siblings divide their parent's wedge; the spawn-movement posture. */
   readonly wedgePolicy: WedgePolicy;
-  /**
-   * How many angular slots apart siblings ideally fan from their parent's heading. Higher values
-   * spread branches into a starrier, wider picture; 1 packs them tight. A fan multiplier, not a
-   * guarantee — placement still resolves collisions and crossings.
-   */
   readonly siblingSpread: number;
-  /**
-   * Compass headings (radians, clockwise from north in canvas coordinates) that root subtrees claim
-   * in creation order. Also fixes the overflow sector's heading for parked orphans.
-   */
   readonly directionSequence: readonly number[];
 }
 
-/** North, east, south, west, then the diagonals — the order root subtrees claim compass sectors. */
 const COMPASS_HEADINGS: readonly number[] = [
   0,
   Math.PI / 2,
@@ -88,7 +34,6 @@ const COMPASS_HEADINGS: readonly number[] = [
   (7 * Math.PI) / 4,
 ];
 
-/** Cardinal-only headings. */
 const CARDINAL_HEADINGS: readonly number[] = [
   0,
   Math.PI / 2,
@@ -96,7 +41,6 @@ const CARDINAL_HEADINGS: readonly number[] = [
   (3 * Math.PI) / 2,
 ];
 
-/** Diagonals first, then cardinals. */
 const DIAGONALS_FIRST_HEADINGS: readonly number[] = [
   Math.PI / 4,
   (3 * Math.PI) / 4,
@@ -108,7 +52,6 @@ const DIAGONALS_FIRST_HEADINGS: readonly number[] = [
   (3 * Math.PI) / 2,
 ];
 
-/** Compass-8 rotated 45° (diagonals as the primary axes). */
 const ROTATED_45_HEADINGS: readonly number[] = [
   Math.PI / 4,
   (3 * Math.PI) / 4,
@@ -120,7 +63,6 @@ const ROTATED_45_HEADINGS: readonly number[] = [
   0,
 ];
 
-/** Named direction-order presets the tuning panel may select — sole owner of the heading vocabulary. */
 export const DIRECTION_PRESETS = {
   'compass-8': COMPASS_HEADINGS,
   'cardinal-4': CARDINAL_HEADINGS,
@@ -128,16 +70,8 @@ export const DIRECTION_PRESETS = {
   'rotated-45': ROTATED_45_HEADINGS,
 } as const;
 
-/** Keys of `DIRECTION_PRESETS`. */
 export type DirectionPresetId = keyof typeof DIRECTION_PRESETS;
 
-/**
- * The shipping configuration — operator-ratified compass dials (2026-08-14):
- * ring 170, separation 120, fan 1, fixed-slot, compass-8. `fixed-slot` is the
- * production wedge posture: each child occupies a creation-index slot, so
- * adding a sibling moves nothing that already exists. Ring and separation
- * stepped out after the 25% node scale so discs keep a little air between them.
- */
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   ringSpacing: 170,
   minSeparation: 120,
@@ -146,16 +80,6 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   directionSequence: COMPASS_HEADINGS,
 };
 
-/**
- * The pure seam (contract HC-1): facts in, one position per input system out.
- *
- * Deterministic — no randomness, clock, or caller state; identical facts and config yield
- * byte-identical positions on every JS engine. Cross-engine identity is closed by
- * `trig.ts` (deterministic sin/cos via a fixed minimax polynomial; distance via
- * correctly-rounded `Math.sqrt`), pinned by the committed digest fixture. Async because the
- * production seam is the worker boundary; rejection is an engine failure, never a production
- * control path.
- */
 export type LayoutKernel = (
   facts: LayoutFacts,
   config?: LayoutConfig,

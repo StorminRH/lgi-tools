@@ -18,7 +18,6 @@ import {
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 
-/** One signature-window row, independent of its Convex storage owner. */
 export interface SignatureWindowRow {
   readonly key: string;
   readonly systemId: number;
@@ -28,24 +27,18 @@ export interface SignatureWindowRow {
   readonly name: string | null;
   readonly signalPct: number | null;
   readonly firstSeenAt: number;
-  /** Shared editor row after a wormhole signature has migrated. */
   readonly connection: ConnectionEditorDetail | null;
-  /** Which endpoint this row is projected from; omitted for list-owned rows. */
   readonly endpoint?: 'from' | 'to';
-  /** Destination class derived from the typed wormhole code. */
   readonly className: string | null;
 }
 
-/** Connection fields needed to keep migrated wormholes in the signature list. */
 export type ConnectionSignatureInput = ConnectionEditorDetail;
 
-/** Counts displayed in the tabs and System Info summary. */
 export interface SignatureCounts {
   readonly signatures: number;
   readonly anomalies: number;
 }
 
-/** Result of classifying one page-level paste before any side effect runs. */
 export type ScannerPasteDecision =
   | { readonly kind: 'apply'; readonly systemId: number; readonly rows: readonly ScannedRow[] }
   | { readonly kind: 'reject'; readonly rejectCount: number }
@@ -115,11 +108,6 @@ function connectionRowsForScanner(
   ].filter((projected) => projected !== null);
 }
 
-/**
- * Merges list-owned rows with migrated wormhole rows, preferring the durable
- * connection during a transient migration overlap. A linked hole appears on
- * both endpoint systems.
- */
 export function buildSignatureRows(
   signatures: readonly Doc<'mapSignatures'>[],
   connections: readonly ConnectionSignatureInput[],
@@ -142,7 +130,6 @@ export function buildSignatureRows(
   );
 }
 
-/** Presentation buckets for the scanner (not stored SigGroup values). */
 const SCANNER_SECTION_ORDER = [
   'unknown',
   'wormholes',
@@ -151,10 +138,8 @@ const SCANNER_SECTION_ORDER = [
   'hacking',
 ] as const;
 
-/** One scanner presentation section. */
 export type ScannerSectionId = (typeof SCANNER_SECTION_ORDER)[number];
 
-/** Visible section titles in scanner order. */
 const SCANNER_SECTION_TITLES: Readonly<Record<ScannerSectionId, string>> = {
   unknown: 'Unknown',
   wormholes: 'Wormholes',
@@ -163,14 +148,12 @@ const SCANNER_SECTION_TITLES: Readonly<Record<ScannerSectionId, string>> = {
   hacking: 'Hacking',
 };
 
-/** One non-empty scanner section with its rows. */
 export interface ScannerSection {
   readonly id: ScannerSectionId;
   readonly title: string;
   readonly rows: readonly SignatureWindowRow[];
 }
 
-/** Short Type-column labels for stored scanner groups. */
 const GROUP_TYPE_LABELS: Readonly<Record<SigGroup, string>> = {
   Wormhole: 'Wormhole',
   'Combat Site': 'Combat',
@@ -180,12 +163,10 @@ const GROUP_TYPE_LABELS: Readonly<Record<SigGroup, string>> = {
   'Relic Site': 'Relic',
 };
 
-/** Short Type-column label for one stored group, or null when unidentified. */
 export function scannerGroupTypeLabel(group: SigGroup | null): string | null {
   return group === null ? null : (GROUP_TYPE_LABELS[group] ?? null);
 }
 
-/** Maps a stored signature group onto a scanner section. */
 export function scannerSectionForGroup(
   group: SigGroup | null,
 ): ScannerSectionId {
@@ -203,13 +184,10 @@ export function scannerSectionForGroup(
     case 'Relic Site':
       return 'hacking';
     default:
-      // Schema-legal but non-vocabulary strings (legacy lowercase fixtures)
-      // render as unidentified rather than crashing the section bucketing.
       return 'unknown';
   }
 }
 
-/** Rows for one system and tab, in stable scanner-ID order. */
 export function filterSignatureRows(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,
@@ -219,11 +197,6 @@ export function filterSignatureRows(
   return rows.filter((row) => row.systemId === systemId && row.kind === kind);
 }
 
-/**
- * Buckets one system's scanner rows into non-empty presentation sections
- * (Unknown first). Anomalies share the Combat / Harvestables / Hacking
- * buckets with signatures of the same stored group.
- */
 export function groupSignatureSections(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,
@@ -249,10 +222,6 @@ export function groupSignatureSections(
   return sections;
 }
 
-/**
- * Scanner Size cell: typed non-K162 codex size class, else stored ship size,
- * else an honest placeholder.
- */
 export function scannerWormholeSize(
   connection: Pick<ConnectionEditorDetail, 'shipSize'> | null,
   entry: WormholeCodexEntry | null,
@@ -263,10 +232,6 @@ export function scannerWormholeSize(
   return connection?.shipSize ?? '—';
 }
 
-/**
- * Scanner Lifetime cell: same remaining-lifetime readout as the connection
- * editor (death-window range, typed SDE ceiling, or unset).
- */
 export function scannerWormholeLifetime(
   connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
   entry: WormholeCodexEntry | null,
@@ -277,7 +242,6 @@ export function scannerWormholeLifetime(
   return display.kind === 'unset' ? '—' : display.label;
 }
 
-/** Scanner Life cell: remaining-life upper bound, or an honest placeholder. */
 export function scannerLifeUpperBound(
   connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
   entry: WormholeCodexEntry | null,
@@ -287,7 +251,6 @@ export function scannerLifeUpperBound(
   return lifetimeUpperBoundLabel(connection, entry, now) ?? '—';
 }
 
-/** Counts one system's signatures and anomalies. */
 export function signatureCounts(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,
@@ -303,7 +266,6 @@ export function signatureCounts(
   return { signatures, anomalies };
 }
 
-/** Human-readable age from one shared client clock. */
 export function formatSignatureAge(firstSeenAt: number, now: number): string {
   const minutes = Math.max(0, Math.floor((now - firstSeenAt) / 60_000));
   if (minutes < 1) return '<1m';
@@ -313,7 +275,6 @@ export function formatSignatureAge(firstSeenAt: number, now: number): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-/** Whether a document paste target owns normal text insertion. */
 export function isEditablePasteTarget(target: EventTarget | null): boolean {
   if (typeof Element === 'undefined') return false;
   return target instanceof Element && target.matches(
@@ -321,10 +282,6 @@ export function isEditablePasteTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** Classifies scanner-shaped clipboard text without applying or reporting it.
- * Window routing (`persistentWindowSystemId`) is a separate consumer of the
- * same tracked-system target.
- */
 export function scannerPasteDecision(
   text: string,
   canEdit: boolean,
@@ -342,7 +299,6 @@ export function scannerPasteDecision(
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
 
-/** Toast copy for a non-apply scanner paste decision. */
 export function scannerPasteRefusalToast(
   decision: Exclude<ScannerPasteDecision, { kind: 'apply' }>,
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {

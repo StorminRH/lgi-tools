@@ -23,7 +23,6 @@ function row(date: string, volume: number, average = 10): HistoryDailyRow {
   };
 }
 
-// `n` consecutive days ending at `end` (inclusive), each with the same volume.
 function consecutive(end: string, n: number, volume: number, average = 10): HistoryDailyRow[] {
   const endDay = Math.floor(Date.parse(`${end}T00:00:00Z`) / 86_400_000);
   const out: HistoryDailyRow[] = [];
@@ -36,16 +35,13 @@ function consecutive(end: string, n: number, volume: number, average = 10): Hist
 
 describe('averageDailyVolume', () => {
   it('divides total window volume by the window CALENDAR length (zero-days pull it down)', () => {
-    const rows = consecutive('2026-06-10', 3, 100); // 3 traded days
-    // window 3 ends at asOf: all 3 days present → 300 / 3 = 100.
+    const rows = consecutive('2026-06-10', 3, 100);
     expect(averageDailyVolume(rows, 3, '2026-06-10')).toBe(100);
-    // window 7: same 300 units spread over 7 calendar days → 300 / 7.
     expect(averageDailyVolume(rows, 7, '2026-06-10')).toBeCloseTo(300 / 7, 6);
   });
 
   it('excludes rows outside the trailing window', () => {
     const rows = [row('2026-06-01', 999), ...consecutive('2026-06-10', 2, 50)];
-    // window 3 = [2026-06-08, 2026-06-10]: only the two 50s count → 100 / 3.
     expect(averageDailyVolume(rows, 3, '2026-06-10')).toBeCloseTo(100 / 3, 6);
   });
 
@@ -57,8 +53,6 @@ describe('averageDailyVolume', () => {
 
 describe('volumeCoefficientOfVariation', () => {
   it('zero-fills traded-nothing days so sporadic demand reads as inconsistent', () => {
-    // window 4, two days @ 100, two absent (0). mean = 200/4 = 50.
-    // var = [2·(100-50)² + 2·(0-50)²]/4 = [2·2500 + 2·2500]/4 = 2500 → sd 50 → CV 1.0
     const rows = consecutive('2026-06-10', 2, 100);
     expect(volumeCoefficientOfVariation(rows, 4, '2026-06-10')).toBeCloseTo(1.0, 6);
   });
@@ -75,7 +69,6 @@ describe('volumeCoefficientOfVariation', () => {
 
 describe('priceVolatility', () => {
   it('is the coefficient of variation of daily average prices over traded days', () => {
-    // prices 8, 10, 12 → mean 10, var = (4+0+4)/3 = 8/3, sd = √(8/3), CV = sd/10.
     const rows = [
       row('2026-06-08', 10, 8),
       row('2026-06-09', 10, 10),
@@ -104,7 +97,6 @@ describe('computeHistoryInputs', () => {
     expect(inputs.typeId).toBe(34);
     expect(inputs.latestDate).toBe('2026-06-10');
     expect(inputs.averageDailyVolume.map((w) => w.days)).toEqual([...HISTORY_ADV_WINDOWS]);
-    // 30 steady days → ADV over the 7- and 30-day windows is the daily volume.
     expect(inputs.averageDailyVolume.find((w) => w.days === 7)?.adv).toBe(100);
     expect(inputs.averageDailyVolume.find((w) => w.days === 30)?.adv).toBe(100);
     expect(inputs.volumeCv).toBe(0);

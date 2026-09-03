@@ -7,15 +7,13 @@ import {
   type MarketScoreInputs,
 } from './market-score';
 
-// A fully-liquid baseline: a tiny batch against deep, steady, stable demand —
-// every sub-signal near its max. Individual tests override one field at a time.
 const LIQUID: MarketScoreInputs = {
   outputUnits: 10,
-  adv: 100_000, // a day clears the batch many times over
-  sellWallUnits: 0, // no wall ahead
+  adv: 100_000,
+  sellWallUnits: 0,
   instantDumpUnits: 5_000,
-  priceVolatility: 0, // rock-steady price
-  volumeCv: 0, // trades the same volume every day
+  priceVolatility: 0,
+  volumeCv: 0,
 };
 
 describe('computeMarketScore — liquidity (time-to-clear)', () => {
@@ -27,14 +25,13 @@ describe('computeMarketScore — liquidity (time-to-clear)', () => {
   });
 
   it('degrades as the batch grows (quantity-relative)', () => {
-    const small = computeMarketScore({ ...LIQUID, outputUnits: 100_000 }); // ~1 day
-    const huge = computeMarketScore({ ...LIQUID, outputUnits: 1_500_000 }); // ~15 days
+    const small = computeMarketScore({ ...LIQUID, outputUnits: 100_000 });
+    const huge = computeMarketScore({ ...LIQUID, outputUnits: 1_500_000 });
     expect(huge.liquidity.score!).toBeLessThan(small.liquidity.score!);
     expect(huge.score!).toBeLessThan(small.score!);
   });
 
   it('counts the sell-side wall plus the batch against ADV', () => {
-    // adv 1000/day, batch 5000 (5 days) + wall 10000 (10 days) = 15 days to clear.
     const s = computeMarketScore({
       ...LIQUID,
       adv: 1_000,
@@ -52,7 +49,7 @@ describe('computeMarketScore — liquidity (time-to-clear)', () => {
     const s = computeMarketScore({
       ...LIQUID,
       adv: 1,
-      outputUnits: CLEAR_DAYS_MAX + 100, // well over a month of volume
+      outputUnits: CLEAR_DAYS_MAX + 100,
     });
     expect(s.liquidity.score).toBe(0);
   });
@@ -66,7 +63,7 @@ describe('computeMarketScore — liquidity (time-to-clear)', () => {
     });
     expect(s.liquidity.wallKnown).toBe(false);
     expect(s.liquidity.sellWallDays).toBeNull();
-    expect(s.liquidity.timeToClearDays).toBeCloseTo(5, 6); // batch only
+    expect(s.liquidity.timeToClearDays).toBeCloseTo(5, 6);
     expect(s.liquidity.score).not.toBeNull();
   });
 
@@ -98,13 +95,12 @@ describe('computeMarketScore — stability & consistency', () => {
 
 describe('computeMarketScore — weakest-link composition', () => {
   it('floors the final score when one KNOWN signal is zero', () => {
-    // Liquidity and consistency maxed; price volatility past the cap → stability 0.
     const s = computeMarketScore({
       ...LIQUID,
       priceVolatility: STABILITY_CV_MAX + 0.2,
     });
     expect(s.stability.score).toBe(0);
-    expect(s.score).toBe(0); // the weakest link caps the total
+    expect(s.score).toBe(0);
     expect(s.knownCount).toBe(3);
   });
 
@@ -115,13 +111,11 @@ describe('computeMarketScore — weakest-link composition', () => {
   });
 
   it('is a geometric mean, not an arithmetic average (penalizes imbalance)', () => {
-    // One weak signal among strong ones: the geometric mean sits well below the
-    // weighted arithmetic mean of the same sub-scores.
     const s = computeMarketScore({
       ...LIQUID,
-      outputUnits: 3 * 100_000, // liquidity ≈ 0.9 (3 days of 30)
-      priceVolatility: STABILITY_CV_MAX * 0.1, // stability ≈ 0.9
-      volumeCv: CONSISTENCY_CV_MAX * 0.9, // consistency ≈ 0.1
+      outputUnits: 3 * 100_000,
+      priceVolatility: STABILITY_CV_MAX * 0.1,
+      volumeCv: CONSISTENCY_CV_MAX * 0.9,
     });
     const arithmetic =
       (0.5 * s.liquidity.score! + 0.25 * s.stability.score! + 0.25 * s.consistency.score!) * 100;
@@ -131,10 +125,9 @@ describe('computeMarketScore — weakest-link composition', () => {
 
 describe('computeMarketScore — honest degradation', () => {
   it('excludes an unknown signal without flooring or fabricating', () => {
-    // Stability unknown (<2 priced days); the other two maxed → full score from 2.
     const s = computeMarketScore({ ...LIQUID, priceVolatility: null });
     expect(s.stability.score).toBeNull();
-    expect(s.score).toBe(100); // unknown is excluded, NOT treated as zero
+    expect(s.score).toBe(100);
     expect(s.knownCount).toBe(2);
   });
 
@@ -154,9 +147,9 @@ describe('computeMarketScore — honest degradation', () => {
   it('scores from a single known signal alone', () => {
     const s = computeMarketScore({
       ...LIQUID,
-      adv: null, // liquidity unknown
-      volumeCv: null, // consistency unknown
-      priceVolatility: 0, // stability = 1
+      adv: null,
+      volumeCv: null,
+      priceVolatility: 0,
     });
     expect(s.knownCount).toBe(1);
     expect(s.score).toBe(100);

@@ -1,13 +1,3 @@
-// Real `industry_blueprints.activities` blobs captured read-only from the local
-// SDE Docker DB (psql, 2026-06-25), kept VERBATIM — including CCP's raw `typeID`
-// key (capital D), which the parser normalizes to `typeId`. Shared by the pure
-// parser test and the real-Postgres query test so both assert against the same
-// genuine stored shapes.
-
-/**
- * 681 — a T1 module blueprint: manufacturing + copying + research, NO invention.
- * Manufacturing carries no skills; copy/research carry only `time`.
- */
 export const MFG_681 = {
   copying: { time: 480 },
   manufacturing: {
@@ -19,10 +9,6 @@ export const MFG_681 = {
   research_material: { time: 210 },
 };
 
-/**
- * 683 — carries invention (skills + a product with probability + datacore
- * materials) alongside manufacturing (with one skill), copying, and research.
- */
 export const INV_683 = {
   copying: { time: 4800 },
   invention: {
@@ -53,7 +39,6 @@ export const INV_683 = {
   research_material: { time: 2100 },
 };
 
-/** 46175 — a reaction formula: a single `reaction` activity. */
 export const RXN_46175 = {
   reaction: {
     time: 10800,

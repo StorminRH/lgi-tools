@@ -1,10 +1,3 @@
-// The single collaborative authorization gate (decision D5). Every public map function's FIRST call
-// is requireMapAccess; there is deliberately no second access path into a chain table.
-//
-// It is not a second authority. Neon's resolveMatchedMapRoles remains the rule; this gate only reads
-// the projected claim that rule produced and applies the SAME shared capability record, so the two
-// runtimes cannot drift on what a role may do. Session 4.0.2.2.2 owns the projection writer, so
-// until it lands a production map has no claim row and every call here fails closed.
 import { ConvexError } from 'convex/values';
 import {
   canonicalizeMapRoles,
@@ -14,7 +7,6 @@ import {
 } from '@/data/maps/access-contract';
 import type { QueryCtx } from '../_generated/server';
 
-/** The authorized caller a gated handler may act for. */
 export interface MapPrincipal {
   readonly userId: string;
   readonly roles: readonly MapRole[];
@@ -106,7 +98,6 @@ export async function requireMapAccessForUser(
   return principal;
 }
 
-/** Value-returning explicit-user access check for one consistent evidence query. */
 export async function tryMapAccessForUser(
   ctx: QueryCtx,
   mapId: string,
@@ -116,7 +107,6 @@ export async function tryMapAccessForUser(
   return await resolveMapPrincipal(ctx, mapId, userId, requiredCapability);
 }
 
-/** The single claim lookup and capability check both entry points share. */
 async function resolveMapPrincipal(
   ctx: QueryCtx,
   mapId: string,
@@ -132,9 +122,6 @@ async function resolveMapPrincipal(
     return null;
   }
 
-  // Claims written before the 4.0.4.4 expand/contract deployment may still
-  // store `owner`. Normalize at the single read seam so no caller observes the
-  // legacy vocabulary while the delivery resync converges storage to `admin`.
   const roles = canonicalizeMapRoles(
     claim.roles.map((role) => (role === 'owner' ? 'admin' : role)),
   );

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from './fetch-with-timeout';
 
-// A fetch mock that never settles on its own, only via its abort signal —
-// so the only way the promise rejects is an abort. Mirrors real fetch by
-// rejecting up front when the signal arrives already aborted.
 function abortAwareFetch() {
   return vi.fn(
     (_input: unknown, init?: RequestInit) =>
@@ -40,8 +37,6 @@ describe('fetchWithTimeout', () => {
   });
 
   it('rejects with a TimeoutError once the timeout elapses', async () => {
-    // Real (tiny) timeout: a short real delay proves the timer actually fires
-    // end to end, with no fake-timer plumbing to drift from the real thing.
     fetchSpy.mockImplementation(abortAwareFetch());
 
     await expect(fetchWithTimeout('https://example.test/', undefined, 5)).rejects.toMatchObject({
@@ -57,8 +52,6 @@ describe('fetchWithTimeout', () => {
   });
 
   it('honors a caller-provided signal alongside the timeout', async () => {
-    // jose's customFetch hook forwards jose's own init, which may carry a
-    // cancellation signal — aborting it must still abort the request.
     fetchSpy.mockImplementation(abortAwareFetch());
     const controller = new AbortController();
 

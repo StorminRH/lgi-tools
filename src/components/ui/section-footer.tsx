@@ -1,9 +1,5 @@
 import type { ReactNode } from 'react';
 
-/**
- * Renders the domain-neutral section footer with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function SectionFooter({
   label,
   value,

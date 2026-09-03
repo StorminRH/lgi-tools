@@ -4,28 +4,16 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { rateLimitedFailure } from "@/lib/failure";
 import { allowUnconfiguredUpstash, createUpstashClient, resolveUpstashRest } from "@/lib/upstash";
 
-// Shared sliding-window rate limiter backed by Upstash Redis. Stateless
-// across Vercel serverless invocations (in-process counters don't survive
-// scale-out, so we cannot use a Map here).
-//
-// One limiter instance per `name` is memoised — recreating Ratelimit on
-// every call would still work but allocates a new internal cache each
-// time. The Upstash SDK is connectionless (REST under the hood), so module
-// state is safe across serverless cold starts.
-
-/** Allowed rate-limit verdict carrying the remaining request count for the active window. */
 export interface RateLimitOk {
   ok: true;
   remaining: number;
 }
 
-/** Denied rate-limit verdict carrying the retry delay in whole seconds. */
 export interface RateLimitDenied {
   ok: false;
   retryAfter: number;
 }
 
-/** Closed rate-limit result requiring callers to handle allowed and denied outcomes explicitly. */
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
 export interface RateLimitOptions {
@@ -36,10 +24,6 @@ export interface RateLimitOptions {
 const limiters = new Map<string, Ratelimit>();
 let warnedAboutMissingEnv = false;
 
-// This limiter sits on the request path, so a Redis outage must surface fast
-// rather than stall the invocation toward the 300s platform limit. One retry
-// covers a transient non-abort network error; a timeout abort rethrows
-// immediately by SDK design, so the total wait stays near the bound.
 const RATE_LIMIT_REDIS_TIMEOUT_MS = 2000;
 const RATE_LIMIT_REDIS_RETRIES = 1;
 
@@ -65,27 +49,12 @@ function getLimiter(
   return limiter;
 }
 
-/**
- * Returns `{ ok: true }` when the caller is under the limit and
- * `{ ok: false, retryAfter }` when they're over it. `retryAfter` is in
- * seconds, matching the `Retry-After` HTTP header units.
- *
- * In development without Upstash env vars configured, returns ok with
- * Infinity remaining and warns once per process — so `pnpm dev` stays
- * unblocked without an account. In production / preview, missing env vars
- * throw (fail-closed: a misconfigured deploy should 500 once and get
- * fixed, not ship an unlimited endpoint silently).
- */
 export async function rateLimit(
   identifier: string,
   options: RateLimitOptions,
 ): Promise<RateLimitResult> {
   const upstash = resolveUpstashRest();
   if (!upstash) {
-    // Non-production (dev, test) bypasses cleanly so `pnpm dev` and
-    // vitest don't require an Upstash account. Production fails closed:
-    // a misconfigured deploy should 500 once and get fixed, never ship
-    // an unlimited endpoint silently.
     if (allowUnconfiguredUpstash()) {
       if (!warnedAboutMissingEnv && process.env.NODE_ENV === "development") {
         console.warn(
@@ -102,9 +71,6 @@ export async function rateLimit(
 
   const limiter = getLimiter(options, upstash);
   const result = await limiter.limit(identifier);
-  // `analytics: true` makes `pending` a real promise that performs the
-  // analytics write; awaiting it inside the request lifecycle ensures
-  // the data actually lands before the serverless invocation finishes.
   await result.pending;
 
   if (result.success) {
@@ -118,12 +84,10 @@ export async function rateLimit(
   return { ok: false, retryAfter };
 }
 
-/** Typed rate-limit core result carrying an application failure instead of an HTTP response. */
 export type CheckRateLimitResult =
   | { ok: true }
   | { ok: false; failure: ReturnType<typeof rateLimitedFailure> };
 
-/** Checks one request's named rate-limit bucket without constructing an HTTP response. */
 export async function checkRateLimit(
   request: Request,
   options: RateLimitOptions,

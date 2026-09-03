@@ -3,11 +3,6 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import tsdoc from "eslint-plugin-tsdoc";
 
-// Shared `no-restricted-syntax` selector sets. Factored out because flat config
-// REPLACES (does not merge) a rule's options for each matching file — so a
-// per-file exemption that lifts one ban must re-list every ban it still wants.
-// Keeping the CSP selectors in one const lets the tones.ts / preview-sandbox
-// exemptions re-state them verbatim with no drift.
 const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
@@ -32,15 +27,6 @@ const rawHtmlSelectors = [
 
 const cspSelectors = [...inlineStyleSelectors, ...rawHtmlSelectors];
 
-// Raw color literals belong in the token layer (the `@theme` block in
-// globals.css and tones.ts), not hardcoded at call sites. Two shapes: a hex
-// anywhere inside a Tailwind arbitrary value — `bg-[#1e2c3a]`, but also one
-// embedded mid-value like `shadow-[0_0_4px_#dd4444]` (`\[[^\]]*#…` matches the
-// hex wherever it sits in the `[…]` chunk, in a className or cva/clsx string —
-// a TemplateElement when interpolated); and a whole-string hex constant like an
-// SVG `fill="#0d0f14"`. tones.ts (the JS source for SVG fills) and the
-// preview sandbox are exempted below. 3.3.9 routed every call-site color
-// into a `--color-*` token; this keeps them there.
 const hexColorSelectors = [
   {
     selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
@@ -59,8 +45,6 @@ const hexColorSelectors = [
   },
 ];
 
-// Alpha colors follow the same boundary as hex colors, but have only one
-// sanctioned home: the globals.css token layer.
 const rgbaColorSelectors = [
   {
     selector: "Literal[value=/rgba\\s*\\(/]",
@@ -74,17 +58,6 @@ const rgbaColorSelectors = [
   },
 ];
 
-// Type-scale enforcement (3.8.2.1): raw bracketed pixel font sizes belong on the
-// named ladder — the `--text-*` scale in globals.css `@theme` (micro, label, ui,
-// body, lead, h3, stat, h2, display, hero). Mirrors the hex-color ban: a plain className
-// Literal and an interpolated (cva/clsx/cn) TemplateElement. The regex matches only
-// a bracketed numeric px/rem/em value, so it never fires on clamp() or var()
-// arbitrary values, width brackets, or leading utilities. Deliberately NOT added to
-// the base "**/*.{ts,tsx}" block, so test files (arbitrary-value fixtures) fall
-// through to it exempt; the preview sandbox is exempted below. A justified one-off
-// opts out with an inline eslint-disable-next-line no-restricted-syntax comment.
-// (Prose here avoids literal bracket class tokens — Tailwind's content scanner
-// reads this file and would try to compile them.)
 const textSizeSelectors = [
   {
     selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
@@ -98,10 +71,6 @@ const textSizeSelectors = [
   },
 ];
 
-// Retired type-role utilities compile to no CSS after their theme keys disappear,
-// which would otherwise leave a silent inheritance bug. Match complete class
-// tokens only so CSS custom-property references such as var(--font-body) remain
-// legal evidence in tests and documentation helpers.
 const legacyTypeRoleSelectors = [
   {
     selector:
@@ -117,14 +86,6 @@ const legacyTypeRoleSelectors = [
   },
 ];
 
-// Radius-scale enforcement (3.8.2.2): raw bracketed pixel radii belong on the two
-// named tokens — `--radius-ctl` / `--radius-card` in globals.css `@theme` (surfaced
-// as `rounded-ctl` / `rounded-card`). Mirrors the type-scale ban: a plain className
-// Literal and an interpolated (cva/clsx/cn) TemplateElement, matching only a
-// bracketed numeric px/rem/em value — so it never fires on `rounded-full` or a
-// `rounded-[var(…)]`. The two sub-4px inner indicators (the switch thumb, the
-// checkbox fill) opt out with an inline eslint-disable-next-line. (Prose here stays
-// unbracketed — Tailwind's content scanner reads this file.)
 const roundedSizeSelectors = [
   {
     selector: "Literal[value=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
@@ -138,13 +99,6 @@ const roundedSizeSelectors = [
   },
 ];
 
-// Component-system enforcement (3.8.2.2): styled form fields live on the shared
-// primitives, not hand-rolled. A raw <select> is fully banned — the Select
-// primitive (components/ui/select.tsx, 3.8.2.3) is a Base UI overlay, so nothing in
-// the tree renders a native <select> and the ban carries no exemption. An
-// `inputClass`-style constant is the ad-hoc field string the Input/Select/Textarea
-// primitives replaced. Test files fall through exempt (they ride the src/** block,
-// which ignores tests).
 const selectElementSelectors = [
   {
     selector: "JSXOpeningElement[name.name='select']",
@@ -160,11 +114,6 @@ const inputClassSelectors = [
   },
 ];
 
-// UI-adoption enforcement (3.10.4.1): production call sites consume the shared
-// primitive layer instead of re-implementing its HTML, ARIA, recipes, or
-// primitive-owned styling tokens. The few necessary raw-element owners and
-// recorded exceptions use exact flat-config blocks below; the adoption rail
-// test proves each lifted selector while keeping a neighboring ban active.
 const rawButtonSelector = {
   selector: "JSXOpeningElement[name.name='button']",
   message:
@@ -325,14 +274,6 @@ const uiAdoptionSelectors = [
   ...uiTokenSelectors,
 ];
 
-// Typed-API-call enforcement (3.4.T): a literal fetch('/api/…') bypasses the
-// shared contracts, so client code must go through apiFetch with the owning
-// slice's endpoint object instead. The selectors match only a string/template
-// literal as fetch's FIRST argument — api-client.ts itself fetches a variable
-// (`endpoint.path`) and sendBeacon isn't `fetch`, so no exemptions are needed.
-// Known gaps (an /api path held in a variable; a `${base}/api/…` template) are
-// accepted: the route-side convention test (api-contracts.test.ts) still
-// guarantees a contract exists, and review covers the call site.
 const apiFetchSelectors = [
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.value=/^\/api\//]`,
@@ -344,10 +285,6 @@ const apiFetchSelectors = [
     message:
       "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
-  // An inline object literal as apiFetch's first argument bypasses the
-  // declared-endpoint convention (it typechecks against EndpointContract).
-  // Endpoints are declared once in the owning slice's api-contract.ts through
-  // defineEndpoint and passed by name.
   {
     selector: "CallExpression[callee.name='apiFetch'] > ObjectExpression:first-child",
     message:
@@ -355,9 +292,6 @@ const apiFetchSelectors = [
   },
 ];
 
-// Real-Postgres suites use the lifecycle-owning test harness instead of
-// constructing a second client or embedding credentials/schema steering. The
-// harness module itself is outside the `*.db.test.ts` rail below.
 const directPostgresSelectors = [
   {
     selector: "ImportDeclaration[source.value='postgres']",
@@ -384,15 +318,6 @@ const postgresConnectionStringSelectors = [
   },
 ];
 
-// ESI gate enforcement (3.4.5): CCP's error limit is per-IP and shared across
-// every ESI call the app makes — one un-gated call burns budget the shared
-// scoreboard can't see, and overrunning the limit is a permanent IP-wide ban.
-// Banning the host literal outside src/platform/esi means the only way to target
-// ESI is the gate's own exports (esiUrl + esiFetch). Scoped to the API host
-// exactly: images.evetech.net (the EVE image server) stays legitimately used
-// across the UI. Test files are exempt (they mock with host URLs); the gate
-// slice itself is exempted below. A hand-assembled host string would slip
-// through — accepted, same altitude as the other syntactic bans here.
 const esiHostSelectors = [
   {
     selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
@@ -406,17 +331,6 @@ const esiHostSelectors = [
   },
 ];
 
-// Vendor-call resilience rail (3.10.2.4): every outbound HTTP call routes
-// through a wrapper that attaches an explicit timeout, so a bare `fetch` in
-// production source is banned outside the two transport owners
-// (src/lib/fetch-with-timeout.ts and src/transport/api-client.ts, exempted
-// below). Without a bound, one hung upstream stalls a serverless invocation
-// toward the 300s platform limit instead of failing into the degradation path
-// the caller already has. Same altitude as the apiFetch/ESI-host selectors
-// above: an indirected call (`globalThis.fetch`, or a fetch held in a variable)
-// slips through — accepted, because the vendor-resilience census pins the
-// production found-set as well. Test files ride the base block and stay exempt,
-// since they stub `fetch` freely.
 const bareFetchSelectors = [
   {
     selector: "CallExpression[callee.name='fetch']",
@@ -425,13 +339,6 @@ const bareFetchSelectors = [
   },
 ];
 
-// EVE SSO host ownership (3.10.2.4): mirrors the ESI host ban above. Banning the
-// literal outside its owners means the only way to target EVE SSO is through the
-// constants module and the bounded wrapper that consumes it. Three sanctioned
-// owners are exempted below: the constants module, eve-sso.ts (which sets the
-// literal Host header), and src/proxy.ts (whose CSP `connect-src` names the host
-// in a header source list, not a vendor call — the runtime Fallow zone cannot
-// import `platform`, so deriving it from the constants is unavailable).
 const ssoHostSelectors = [
   {
     selector: String.raw`Literal[value=/login\.eveonline\.com/]`,
@@ -445,10 +352,6 @@ const ssoHostSelectors = [
   },
 ];
 
-// EVE type-image rendition ownership (3.9.3.2): callers state intent through
-// the resolver instead of choosing CCP endpoint variants at render sites. Both
-// JSX props and descriptor object literals are covered; the resolver module and
-// its characterization test are the only sanctioned owners below.
 const imageVariantSelectors = [
   {
     selector: 'JSXAttribute[name.name="variant"][value.value=/^(icon|render|bp|bpc)$/]',
@@ -462,14 +365,6 @@ const imageVariantSelectors = [
   },
 ];
 
-// Typed-env enforcement (3.4.T): server code reads env through the validated
-// registry in src/lib/env.ts, never process.env directly. Exempted by the
-// selector itself: NODE_ENV (bundler-inlined, must stay a direct read) and
-// NEXT_PUBLIC_* (client env — Next's build-time inlining needs the literal
-// static read). A bare `process.env` pass-through (an injectable test
-// parameter like `env = process.env`) is not a per-variable read and doesn't
-// match. env.ts itself is file-exempted below; test files are excluded (they
-// stub env directly).
 const processEnvSelectors = [
   {
     selector:
@@ -479,11 +374,6 @@ const processEnvSelectors = [
   },
 ];
 
-// Dataset freshness windows belong to the ESI dataset registry. A suffix
-// narrow enough to avoid unrelated timeouts and cache durations catches the
-// duplicated per-feature constants this rail replaces. The registry leaf is
-// exempted below so it remains the one legal owner if a named value is ever
-// needed there.
 const datasetTtlSelectors = [
   {
     selector: "VariableDeclarator[id.name=/_TTL_MS$/]",
@@ -492,11 +382,6 @@ const datasetTtlSelectors = [
   },
 ];
 
-// UI-library import rail (3.9.2.9, PL-012): feature and app code consume
-// Base UI and sonner only through the wrap-once library in
-// src/components/ui/. Factored like the selector families above because
-// flat-config rule options REPLACE per matching file — every block that
-// re-states no-restricted-imports must re-list the bans it keeps.
 const baseUiWrapperFiles = [
   "src/components/ui/checkbox.tsx",
   "src/components/ui/combobox.tsx",
@@ -525,7 +410,6 @@ const baseUiImportPatterns = [
   },
 ];
 
-// The pre-1.0 package name; never a valid dependency in this repo.
 const deprecatedBaseUiImportPatterns = [
   {
     group: ["@base-ui-components/react", "@base-ui-components/react/*"],
@@ -542,11 +426,6 @@ const sonnerImportPatterns = [
   },
 ];
 
-// The two rails every source block keeps regardless of which vendor exemption it
-// carries. Factored out for the same reason as the selector families above:
-// flat-config rule options REPLACE per matching file, and the vendor rail below
-// adds enough exemption blocks that an inline copy in each one would be the
-// likeliest place for a ban to be dropped silently.
 const nextImageImportPaths = [
   {
     name: "next/image",
@@ -576,16 +455,6 @@ const crossCuttingImportPatterns = [
   ...reactFlowImportPatterns,
 ];
 
-// Vendor package ownership (3.10.2.4): each integration's SDK is importable only
-// by the module that owns its declared resilience policy, so no call site can
-// bypass the wrapper and its explicit timeout. Declared per vendor rather than as
-// one blob so an exemption block can lift exactly one and re-list the rest.
-//
-// Type imports are covered deliberately — the core rule does not distinguish
-// them, and the owned aliases (`Sql`/`ReservedConnection` from @/db,
-// `UpstashRedis` from @/lib/upstash) mean a consumer never needs the package to
-// type a field. A blanket `allowTypeImports` escape would be exactly the fuzzy
-// exception this rail exists to prevent.
 const upstashRedisImportPatterns = [
   {
     group: ["@upstash/redis"],
@@ -715,15 +584,8 @@ function primitiveSyntaxSelectorsExcept(...exemptions) {
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Recognize the leading-underscore convention as "intentionally unused".
-  // Lets handlers declare framework-required parameters they don't read
-  // (e.g. NextRequest in a GET that only redirects) and lets destructuring
-  // peel fields off with `{ waveId: _waveId, ...rest }` without warnings.
   {
     rules: {
-      // EveImage is the only rendered-image seam. The shared wrapper keeps
-      // next/image's layout/loading behavior while its custom loader sends EVE
-      // requests directly to CCP (never Vercel's optimizer).
       "@next/next/no-img-element": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -735,10 +597,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Keep the billed Next image optimizer structurally unreachable from feature
-  // code. The one ignored module owns both allowed paths: CCP's custom loader
-  // and explicit unoptimized delivery for the local EVE SSO asset. This is a
-  // dedicated rule block, so it cannot replace any no-restricted-syntax bans.
   {
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: [
@@ -765,10 +623,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Client-addressable modules retain the shared import rails and additionally
-  // reject every declared server root. App-local client directives are closed
-  // by the transitive filesystem test because flat globs cannot distinguish
-  // server and client modules under src/app.
   {
     files: [
       "src/components/**/*.{ts,tsx,mts}",
@@ -798,8 +652,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The mapper is the only React Flow package owner. It keeps every other
-  // shared, vendor, component, and client/server import rail.
   {
     files: ["src/mapper/**/*.{ts,tsx,mts}"],
     rules: {
@@ -821,8 +673,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // EveImage owns the one permitted next/image import but keeps every other
-  // client import rail from the overlapping block above.
   {
     files: ["src/components/eve-image.tsx"],
     rules: {
@@ -841,8 +691,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Base UI wrappers retain package access but remain subject to every other
-  // import rail, including sonner exclusivity.
   {
     files: baseUiWrapperFiles,
     rules: {
@@ -863,7 +711,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // toast.tsx is the sole sonner owner; Base UI remains restricted here.
   {
     files: ["src/components/ui/toast.tsx"],
     rules: {
@@ -884,8 +731,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The ESI dataset leaf remains subject to the next/image boundary, but may
-  // own internal freshness modules without tripping the consumer import rail.
   {
     files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
     rules: {
@@ -906,9 +751,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Cron route declarations reach auth, advisory locks, the direct DB client,
-  // and durable outcome telemetry only through defineCronRoute. Keep the
-  // existing next/image boundary in this replacement block as well.
   {
     files: ["src/app/api/cron/**"],
     rules: {
@@ -953,22 +795,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Convex had no import rail before 3.10.2.4; its isolate can reach the same
-  // vendors, so it gets the vendor rail in a block of its own. The generated
-  // client is globally ignored and Convex is outside every UI/server-root rail,
-  // so the vendor patterns are the only bans this block carries.
   {
     files: ["convex/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [...vendorImportPatterns] }],
     },
   },
-  // --- Vendor rail exemptions (3.10.2.4). Each block below is the declared home
-  // for exactly one vendor and re-lists every other ban it keeps, because
-  // flat-config rule options REPLACE rather than merge. Each is an enumerated
-  // file or directory with a stated reason, never a pattern-shaped escape.
-  //
-  // @/lib/upstash owns every Upstash Redis client construction.
   {
     files: ["src/lib/upstash.ts"],
     rules: {
@@ -991,8 +823,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // @/lib/rate-limit owns the sliding-window limiter; its Redis client comes
-  // from the factory, so the @upstash/redis ban still applies here.
   {
     files: ["src/lib/rate-limit.ts"],
     rules: {
@@ -1015,11 +845,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // @/db owns both database drivers and their bounds; the src/scripts CLI band
-  // runs outside the Next runtime and constructs its own short-lived clients.
-  // The DB test harness owns disposable-schema steering for the real-Postgres
-  // suites, and the concurrency suite deliberately opens two competing
-  // connections to prove advisory-lock serialization.
   {
     files: [
       "src/db/index.ts",
@@ -1047,13 +872,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // @/platform/auth owns the Better Auth instance, its adapter, and the EVE
-  // token wiring; the auth catch-all route mounts its handler, the industry
-  // helper narrows a BetterAuthError, and its co-located suite exercises the
-  // same surfaces. The auth route is globbed as its directory because its real
-  // path is `[...all]/route.ts`, and a literal bracket segment reads as a
-  // minimatch character class rather than as itself; that directory holds only
-  // the catch-all route and its co-located suite.
   {
     files: [
       "src/platform/auth/**/*.{ts,tsx,mts}",
@@ -1081,11 +899,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // @/data/convex owns the browser Convex client and its hooks. This slice is
-  // client-addressable — `use-sync-subject.ts` is matched by the `use-*` glob in
-  // the client block above — so this replacement MUST re-list
-  // serverRootImportPatterns; without it the hook would silently lose its
-  // server-root protection while lint stayed green.
   {
     files: ["src/data/convex/**/*.{ts,tsx}"],
     rules: {
@@ -1109,7 +922,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // @/data/gsc owns the Google auth client and its token-fetch bound.
   {
     files: ["src/data/gsc/**/*.ts"],
     rules: {
@@ -1132,16 +944,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The client-addressable vendor homes. These sit in the client-addressable
-  // block above, so their exemptions MUST re-list serverRootImportPatterns —
-  // dropping it here would silently let a client module import a server root.
-  // Split by vendor rather than grouped: one block lifting both better-auth and
-  // convex/react for all of them would let the auth client import Convex and the
-  // Convex provider import Better Auth, which is wider than each home owns.
-  //
-  // The auth client and its providers own Better Auth's client surface only;
-  // convex/react stays banned here so this grant cannot quietly create a second
-  // Convex consumer.
   {
     files: [
       "src/platform/auth/auth-client.ts",
@@ -1168,9 +970,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The Convex provider is the one file that legitimately needs both: it
-  // composes Better Auth identity into the Convex client. Ordered after the
-  // block above so its narrower grant wins.
   {
     files: ["src/platform/auth/components/ConvexClientProvider.tsx"],
     rules: {
@@ -1193,18 +992,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // CSP + color tokens: two families of `no-restricted-syntax` bans share one
-  // block (the rule's options REPLACE across matching files, so they can't be
-  // split into two `**/*.{ts,tsx}` objects without one wiping the other).
-  //   • CSP / house style — inline `style="…"` is lint-banned as house style
-  //     (Tailwind + CSSOM preferred); it is CSP-permitted since OOB.1.1, not a
-  //     CSP violation. The dangerouslySetInnerHTML / raw-innerHTML bans (3.0.4.6)
-  //     keep the "no raw-HTML sinks" property that makes
-  //     `script-src 'self' 'unsafe-inline'` safe. The `.ts`/`.tsx` glob also
-  //     catches a direct `el.innerHTML = …` in a plain helper.
-  //   • Color tokens (3.3.9) — raw hex must live in the token layer, not at call
-  //     sites. tones.ts and the preview sandbox are exempted just below.
-  // See CONTRIBUTING.md (Security & CSP / Color tokens).
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
@@ -1217,9 +1004,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Dataset-window declarations are a src/ registry concern. Keep the rail on
-  // source tests too, without applying it to Convex's separate response-Expires
-  // fallback policy through the repository-wide base block.
   {
     files: ["src/**/*.test.{ts,tsx}"],
     ignores: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
@@ -1235,9 +1019,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Real-Postgres suites retain the base syntax rails and add the DB-harness
-  // boundary. Flat-config rule options replace rather than merge, so this block
-  // must re-list every selector family inherited from the base test config.
   {
     files: ["src/**/*.db.test.ts"],
     rules: {
@@ -1254,11 +1035,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Typed env applies to production src code only: test files stub process.env
-  // directly (vi.stubEnv and friends), and env.ts is the one module that reads
-  // process.env by design. Both keep every other ban via the base block above.
-  // The ESI host ban rides along here for the same reason: production src
-  // only, tests mock with host URLs.
   {
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/lib/env.ts"],
@@ -1284,9 +1060,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The ESI gate slice is the sanctioned home for the ESI host literal — the
-  // whole point of the ban is to funnel consumers here. Re-state every other
-  // ban without the host selectors (replace semantics).
   {
     files: ["src/platform/esi/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}"],
@@ -1311,8 +1084,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // env.ts is exempt from the process.env ban, not from the dataset-window
-  // ownership rail.
   {
     files: ["src/lib/env.ts"],
     rules: {
@@ -1336,9 +1107,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // tones.ts is the sanctioned home for raw color literals — `toneHex` is the
-  // JS source for SVG fills. Re-state every other ban without the hex selectors
-  // so only the color rule is lifted here (replace semantics).
   {
     files: ["src/components/ui/tones.ts"],
     rules: {
@@ -1362,8 +1130,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Preview pages may intentionally try off-palette hex one-offs, but alpha
-  // colors still use the shared token layer. Re-state every other ban.
   {
     files: ["src/app/(site)/preview/**/*.{ts,tsx}"],
     rules: {
@@ -1385,10 +1151,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Satori requires JSX style objects in generated Open Graph image routes.
-  // Lift only that selector, only for the framework's opengraph-image file
-  // convention, and re-state every other production-source restriction because
-  // flat-config rule options replace rather than merge.
   {
     files: ["src/app/**/opengraph-image.{ts,tsx}"],
     rules: {
@@ -1413,8 +1175,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The registry leaf is the one legal owner of dataset windows. Re-state
-  // every production-source syntax rail except the dataset TTL selector.
   {
     files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}"],
@@ -1439,8 +1199,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Tests inside the registry leaf retain the common syntax rails while
-  // sharing the leaf's dataset-TTL exemption.
   {
     files: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
     rules: {
@@ -1454,8 +1212,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The resolver owns rendition literals. Re-state every production-source
-  // syntax rail except the image-variant selectors (flat-config replacement).
   {
     files: ["src/data/eve-data/type-images.ts"],
     rules: {
@@ -1479,8 +1235,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The co-located resolver test constructs expected descriptors and keeps all
-  // other source-test rails while sharing the owner's rendition exemption.
   {
     files: ["src/data/eve-data/type-images.test.ts"],
     rules: {
@@ -1494,10 +1248,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Convex production modules had no syntax rail beyond the repository-wide base
-  // block. They can call out of the isolate, so they take the bare-fetch and SSO
-  // host bans, re-listing the base families this block replaces. Deliberately no
-  // process.env ban: Convex reads its own environment directly, unlike src/.
   {
     files: ["convex/**/*.{ts,tsx}"],
     ignores: ["**/*.test.{ts,tsx}"],
@@ -1513,10 +1263,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The two sanctioned outbound-HTTP owners: fetch-with-timeout.ts IS the bound,
-  // and api-client.ts is the typed first-party transport (its own call is a
-  // variable path, so the apiFetch selectors never fired on it). Every other
-  // production-source ban is re-listed.
   {
     files: ["src/lib/fetch-with-timeout.ts", "src/transport/api-client.ts"],
     rules: {
@@ -1540,10 +1286,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The three sanctioned EVE SSO host owners: the constants module that declares
-  // every endpoint, the bounded wrapper that sets the literal Host header, and
-  // the proxy's CSP connect-src source list. Every other production-source ban is
-  // re-listed, including the bare-fetch rail.
   {
     files: [
       "src/platform/auth/eve-sso-constants.ts",
@@ -1571,8 +1313,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Primitive modules are the sanctioned owners of their own styling tokens.
-  // They retain every element and semantic adoption rail by default.
   {
     files: ["src/components/ui/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/components/ui/tones.ts"],
@@ -1583,8 +1323,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Exact UI-adoption owner seams. Each block lifts only the selector family
-  // the named component owns and re-states every neighboring syntax rail.
   {
     files: [
       "src/components/ui/banner.tsx",
@@ -1758,20 +1496,13 @@ const eslintConfig = defineConfig([
     },
   },
 
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Tracked workflow and product docs are prose, not lint source.
     "docs/**",
-    // Gitignored local-only harness state, including worktrees under
-    // .claude/worktrees/** (a full repo copy whose prefixed paths bypass the
-    // per-file exemptions below — e.g. tones.ts, the preview sandbox).
     ".claude/**",
-    // Convex generated code (committed for CI typecheck, regenerated on deploy).
     "convex/_generated/**",
   ]),
 ]);

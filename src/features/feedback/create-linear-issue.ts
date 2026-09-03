@@ -33,12 +33,6 @@ function isLinearIssueCreateSuccess(payload: unknown): boolean {
   return payload.data.issueCreate.success === true;
 }
 
-/**
- * Creates one Linear issue. Returns the raw Response so the route can map
- * non-2xx to `linear_failed`. Linear GraphQL still returns HTTP 200 when
- * `errors` is present or `success` is false; those are rewritten to 502.
- * Callers must 503 when `LINEAR_API_KEY` is unset before invoking this.
- */
 export async function createFeedbackLinearIssue({
   title,
   message,

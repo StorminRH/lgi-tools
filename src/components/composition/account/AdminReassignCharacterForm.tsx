@@ -3,12 +3,6 @@
 import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 
-/**
- * Admin reassign control — moves a character onto the acting admin's own account
- * (the destination is fixed server-side to the caller). Pure HTML form with a
- * confirm() gate (bundled client JS — CSP-safe). `disabled` is set when viewing
- * your own account, where a move would be a no-op.
- */
 export function AdminReassignCharacterForm({
   characterId,
   characterName,

@@ -3,10 +3,6 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { esiRefreshJobs } from './schema';
 
-/**
- * Personal-data purge contributor for esi refresh jobs purge contributor; this data slice owns
- * deleting its user and character keyed rows.
- */
 export const esiRefreshJobsPurgeContributor: PurgeContributor = {
   name: 'esi-refresh-jobs',
   tier: 'cache',

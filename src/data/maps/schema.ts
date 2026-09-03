@@ -18,8 +18,6 @@ import {
 } from './access-contract';
 import { MAP_LIFECYCLE_STATUSES } from './lifecycle-contract';
 
-// The role vocabulary itself lives in the pure ./access-contract owner so the Convex gate can share
-// it without importing Drizzle. This module remains its Postgres home and public re-export.
 export {
   MAP_ACCESS_OWNER_TYPES,
   MAP_ROLES,
@@ -27,10 +25,8 @@ export {
   type MapRole,
 };
 
-/** Drizzle owner of the persisted map-role enum. */
 export const mapRoleEnum = pgEnum('map_role', MAP_ROLES);
 
-/** Drizzle owner of the persisted map-grant principal enum. */
 export const mapAccessOwnerTypeEnum = pgEnum(
   'map_access_owner_type',
   MAP_ACCESS_OWNER_TYPES,
@@ -72,10 +68,6 @@ export const maps = pgTable(
   (table) => [index('maps_user_id_idx').on(table.userId)],
 );
 
-/**
- * One delegated role per map and character or corporation principal.
- * `maps.user_id`, not an owner grant, remains authoritative for map creation ownership.
- */
 export const mapAccess = pgTable(
   'map_access',
   {

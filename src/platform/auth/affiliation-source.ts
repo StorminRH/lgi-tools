@@ -1,30 +1,11 @@
-// The corp-affiliation ESI read (3.7.3.2). PUBLIC bulk endpoint — POST a
-// character-id array, get each character's corp/alliance/faction back — so it
-// goes through the shared gate as a BARE `esiFetch` with no Authorization header
-// (NOT readEsi, which forces a Bearer header and bypasses the shared budget).
-// Verified against the live ESI swagger: POST /characters/affiliation/, no scope,
-// minItems 1 / maxItems 1000, x-client-cache-ttl 3600.
-//
-// POST is not ETag/window-cacheable in the gate (isEtagEligible is GET-only), so
-// each call dispatches — but the gate still enforces the shared per-IP budget,
-// and the Neon affiliation cache (TTL ≈ 1h) is what actually absorbs reads, so
-// these calls stay rare. Versionless via esiUrl(path) + the gate's pinned
-// X-Compatibility-Date header.
 import { z } from 'zod';
 import { chunk, dedupe } from '@/lib/array';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 
-// ESI's per-request id cap (maxItems). One bulk call covers up to 1000 chars.
 const AFFILIATION_BATCH_MAX = 1000;
 
-// Local Playwright seed (`e2e/identity.ts` `E2E_CHARACTER_ID`). ESI 400s this
-// id as "Invalid character ID", and a mixed batch then fail-closes the whole
-// refresh. Production never seeds this character; skip it only in `next dev`.
 const LOCAL_SYNTHETIC_CHARACTER_ID = 9_000_001;
 
-// Boundary schema — corp id is required, alliance/faction are present only when
-// the corp is in an alliance/militia. z.object ignores unknown keys, so an
-// upstream field addition can't break parsing.
 const affiliationEntrySchema = z.object({
   character_id: z.number(),
   corporation_id: z.number(),
@@ -33,10 +14,6 @@ const affiliationEntrySchema = z.object({
 });
 const affiliationResponseSchema = z.array(affiliationEntrySchema);
 
-/**
- * Display-ready affiliation row produced by auth; values retain their domain units and require no
- * additional query by the renderer.
- */
 export interface AffiliationRow {
   characterId: number;
   corporationId: number;
@@ -44,12 +21,6 @@ export interface AffiliationRow {
   factionId: number | null;
 }
 
-/**
- * Aggregate ESI affiliation fetch outcome. A single-id 404 is definitive (the
- * character no longer exists). Multi-id 404s are bisected so live characters in
- * the same batch still refresh; thrown/5xx/budget refusals and unreadable bodies
- * are transient.
- */
 export interface AffiliationFetchResult {
   readonly rows: AffiliationRow[];
   readonly transientFailure: boolean;
@@ -83,9 +54,6 @@ function mergeBatchOutcomes(left: BatchOutcome, right: BatchOutcome): BatchOutco
   return { kind: 'completedWithOmissions' };
 }
 
-// One bulk POST for up to 1000 ids. Classifies ESI outcomes so callers can tell
-// a definitive deleted-id 404 from a retryable outage. ESI 404s the whole batch
-// when ANY id is deleted — bisect until single-id omissions are isolated.
 async function fetchAffiliationBatch(batch: number[]): Promise<BatchOutcome> {
   let res: Response;
   try {
@@ -113,15 +81,6 @@ async function fetchAffiliationBatch(batch: number[]): Promise<BatchOutcome> {
   return { kind: 'ok', rows: parsed.data.map(toAffiliationRow) };
 }
 
-/**
- * Fetch affiliations for the given characters. Each batch is independent: a
- * definitive deleted-id 404 contributes no row for that id (and is bisected out
- * of mixed batches) without marking the aggregate transient; a 5xx/budget
- * refusal or unreadable body sets `transientFailure` so projection can refuse
- * to converge on a silently shrunken set. In `NODE_ENV === 'development'` only,
- * the local synthetic E2E character is omitted before dispatch so a seeded
- * fake id cannot 400 a mixed batch; production still sends every id.
- */
 export async function fetchAffiliations(
   characterIds: number[],
 ): Promise<AffiliationFetchResult> {

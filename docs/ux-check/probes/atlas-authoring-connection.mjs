@@ -1,5 +1,3 @@
-// SC-6.1: the Signature Editor pop-out and its ruling D-G field controls.
-// Seeds a disposable jump when the map has no edges yet.
 import {
   authoringMapId,
   authoringRoute,
@@ -68,12 +66,9 @@ export default {
         && (await page.getByRole('combobox', { name: 'Far side leads to' }).count()) === 0,
     );
 
-    // Fresh fixture jumps land with null massState ("Unset"); a map reused
-    // after the two-client demo may already carry an observed value.
     const stability = page.getByRole('combobox', { name: 'Mass' });
     const stabilityText = (await stability.textContent()) ?? '';
     const looksUnset = /unset/i.test(stabilityText) || stabilityText.trim() === '';
-    // In-game wording (ruling D-G) over the unchanged stored vocabulary.
     const looksObserved = /remaining/i.test(stabilityText);
     check(
       'mass select shows unset or an observed in-game mass report',

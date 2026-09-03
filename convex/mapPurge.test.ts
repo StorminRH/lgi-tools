@@ -9,7 +9,6 @@ import { MAP_PURGE_BATCH, MAP_PURGE_TABLES } from './mapPurge';
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
 
-
 function schemaMapTables(): string[] {
   const source = readFileSync(resolve(process.cwd(), 'convex/schema.ts'), 'utf8');
   return [...source.matchAll(/^  (\w+): defineTable\(\{([\s\S]*?)^  \}\)/gm)]

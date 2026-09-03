@@ -1,6 +1,3 @@
-/**
- * Renders the shared three-line menu glyph without owning trigger behavior.
- */
 export function HamburgerGlyph() {
   return (
     <svg

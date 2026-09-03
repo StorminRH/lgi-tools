@@ -10,7 +10,6 @@ import {
   withCacheControl,
 } from '@/transport/api-response';
 
-/** Serves the immutable wormhole codex only when its payload version matches the URL. */
 // authz: public
 // input: path
 export async function GET(

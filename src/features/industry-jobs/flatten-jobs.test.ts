@@ -16,8 +16,6 @@ function job(
 }
 
 describe('flattenJobs', () => {
-  // Pins the table's ordering byte-identically to the pre-extraction inline
-  // sort: end_date ascending, job_id tie-break; null boards contribute nothing.
   it('flattens boards soonest-done first with job_id tie-break', () => {
     const boards = [
       {

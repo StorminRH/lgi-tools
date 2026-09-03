@@ -1,10 +1,3 @@
-// One character row in the home roster: a round portrait + name, total/free SP,
-// and a single "training now" line (active skill + time-remaining + progress
-// bar, a paused pill, or an idle/unsynced note). Compact and background-less so
-// the rows float on the page like the hero. Presentational — it branches on the
-// prebuilt view model, plus an optional `reconnectAction` slot the live panel
-// supplies for a character that needs reauth. The ?demo seed passes no slot, so
-// it renders the same static pill it always did.
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -36,15 +29,11 @@ function PauseGlyph() {
   );
 }
 
-/** Renders one character's skill-queue summary, portrait, connection health, and navigation action. */
 export function RosterCard({
   vm,
   reconnectAction,
 }: {
   vm: RosterViewModel;
-  // Interactive reauth control for a character that needs reconnecting, composed
-  // by the live panel (the home roster). Omitted by the ?demo seed, which falls
-  // back to the static "Reconnect" pill.
   reconnectAction?: ReactNode;
 }) {
   return (
@@ -89,8 +78,6 @@ function TrainingLine({ vm }: { vm: RosterViewModel }) {
   return <ActiveOrPausedLine vm={vm} training={t} />;
 }
 
-// The paused / actively-training states — both render the same skill label, differing in
-// the leading glyph and the paused pill vs the countdown + progress bar.
 function ActiveOrPausedLine({
   vm,
   training,

@@ -1,7 +1,3 @@
-/**
- * Whether a live `canEdit` change should fire the quiet rights-transition toast.
- * First answer (`previous === undefined`) is mount, not a transition.
- */
 export function shouldToastRightsTransition(
   previous: boolean | undefined,
   next: boolean | undefined,

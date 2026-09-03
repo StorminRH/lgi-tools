@@ -9,10 +9,6 @@ import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
 import { swallow } from '@/transport/cron';
 
-/**
- * Declares the nightly price backstop as a deliberately lock-free batch; its
- * refresh, degradation event, alert, and cache invalidation remain route-owned.
- */
 export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesResponse> = {
   name: 'cron:prices',
   action: 'cron_prices',

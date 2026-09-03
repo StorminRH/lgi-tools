@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { resolveMenuControls, resolvePageControls } from './controls';
 import type { PageSettingsSpec, SettingsControlRef } from './types';
 
-// Spec literals + the REAL lib defs (sitesView / sitesDetailMode /
-// plannerBuildLocation) — no feature import; the resolver's contract is
-// key-based, so the literals stand in for any feature's spec.
-
 function spec(controls: PageSettingsSpec['controls']): PageSettingsSpec {
   return { route: '/sites', controls };
 }
@@ -30,11 +26,9 @@ describe('resolveMenuControls', () => {
       kind: 'preference-enum',
       options: ['lightbox', 'expand'],
     });
-    // The preceding equality assertion guarantees both indexed models exist.
     expect(enums[0]!.def.key).toBe('sites.view');
     expect(enums.map((m) => m.label)).toEqual(['view', 'detail mode']);
 
-    // Only section-placed refs belong to the menu.
     expect(
       resolveMenuControls(
         spec([
@@ -44,7 +38,6 @@ describe('resolveMenuControls', () => {
       ).map((m) => m.key),
     ).toEqual(['sites.detailMode']);
 
-    // Unknown keys and non-enum/non-boolean prefs drop silently.
     expect(
       resolveMenuControls(
         spec([
@@ -77,7 +70,6 @@ describe('resolveMenuControls', () => {
       'camera follow',
       'click focus',
     ]);
-    // Explicit order first; ties break by declaration position.
     expect(
       resolveMenuControls(
         spec([
@@ -95,8 +87,6 @@ describe('resolveMenuControls', () => {
       ).map((m) => m.key),
     ).toEqual(['sites.view', 'sites.detailMode']);
 
-    // D-3: the menu hosts no feature control (type pins features to inline;
-    // the cast exercises the runtime skip that backstops it).
     const featureAtSection = {
       kind: 'feature',
       id: 'corp-structure-sharing',
@@ -116,7 +106,6 @@ describe('resolvePageControls', () => {
 
     const models = resolvePageControls(spec([{ key: 'sites.view', placement: 'inline' }]));
     expect(models).toHaveLength(1);
-    // The preceding length assertion guarantees the first indexed model exists.
     const model = models[0]!;
     expect(model.kind).toBe('preference-enum');
     if (model.kind === 'preference-enum') {
@@ -131,7 +120,6 @@ describe('resolvePageControls', () => {
       ),
     ).toEqual([{ kind: 'feature', id: 'corp-structure-sharing' }]);
 
-    // Only inline-placed refs belong to the page.
     expect(
       resolvePageControls(
         spec([

@@ -22,16 +22,6 @@ import { authClient } from '@/platform/auth/auth-client';
 import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '@/platform/auth/confirm-gate';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
-/**
- * The /characters "Danger zone" (ACCOUNT.2.2) — the destructive account controls,
- * quarantined below the roster and kept visually apart from the reversible Unlink
- * (which stays on the roster). It hosts a per-character Purge (the new scrub +
- * EVE-revoke action, distinct from unlink), an account Delete (strongest confirm),
- * and Log-out-everywhere. All three sit behind confirm gates; the decision logic
- * lives in tested helpers (account-actions / confirm-gate), this file is the shell.
- * A single D-5 lightbox is shown when any purge empties the account or a delete
- * succeeds.
- */
 export function AccountDangerZone({
   characters,
 }: {
@@ -97,12 +87,6 @@ export function AccountDangerZone({
   );
 }
 
-// The shared confirm-gate plumbing for a destructive control: the gate phase, the
-// open/busy derivations, an error flag, and a `run` that fires a confirmed action
-// (dispatch confirm → await → fail+toast on a `{kind:'error'}` outcome, leaving the
-// dialog open for retry). The control owns what success means. Returns only plain
-// values + callbacks — the trigger ref / label id stay in the component (the React
-// Compiler treats a hook that returns a ref as ref-tainting every member access).
 function useConfirmGate() {
   const [phase, dispatch] = useReducer(confirmGateReducer, INITIAL_CONFIRM_PHASE);
   const [errored, setErrored] = useState(false);
@@ -138,7 +122,6 @@ function useConfirmGate() {
   };
 }
 
-// A red destructive trigger button (Purge / Delete) that opens its gate's dialog.
 function DangerButton({
   triggerRef,
   onClick,
@@ -184,15 +167,13 @@ function PurgeCharacterControl({
       `Could not purge ${characterName}`,
     );
     if (outcome.kind === 'emptied') {
-      gate.reset(); // close this dialog; the D-5 lightbox takes over
+      gate.reset();
       onEmptied();
     } else if (outcome.kind === 'stayed') {
-      // The account still has other characters — refresh the roster in place.
       gate.reset();
       toast.success(`${characterName}’s data was purged`);
       router.refresh();
     }
-    // 'error' is handled inside gate.run (dialog stays open for retry).
   }
 
   return (
@@ -238,7 +219,6 @@ function LogoutEverywhereControl() {
       'Could not sign out everywhere',
     );
     if (outcome.kind === 'done') {
-      // Revoke killed this session too — clear the local cookie, then land home signed out.
       const target = redirectTargetFor(outcome) ?? '/';
       void authClient.signOut().finally(() => {
         window.location.href = target;

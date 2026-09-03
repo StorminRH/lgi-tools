@@ -1,4 +1,3 @@
-/** Every movement outcome consumed by the map-side jump workflow. */
 export type MovementVerdict =
   | 'stationary'
   | 'same-system-state'
@@ -6,7 +5,6 @@ export type MovementVerdict =
   | 'hole-crossing'
   | 're-anchor';
 
-/** Consecutive location facts needed to classify one observed transition. */
 export interface MovementFacts {
   readonly fromSolarSystemId: number | null;
   readonly toSolarSystemId: number;
@@ -15,16 +13,11 @@ export interface MovementFacts {
   readonly sameSystemStateChange: boolean;
 }
 
-/** Injected SDE geography used without coupling the classifier to an asset loader. */
 export interface MovementGeography {
   readonly gateLinked: (fromSolarSystemId: number, toSolarSystemId: number) => boolean;
   readonly isWormholeSpace: (solarSystemId: number) => boolean;
 }
 
-/**
- * Classifies one location transition without retaining history or performing I/O.
- * Discontinuous samples re-anchor before any topology decision is trusted.
- */
 export function classifyMovement(
   facts: MovementFacts,
   geography: MovementGeography,

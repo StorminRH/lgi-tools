@@ -1,15 +1,5 @@
 'use client';
 
-// Client filter layout for /sites (handoff §4). Owns the multi-select filter
-// state — Class chips + Type rows — plus the Cards/Table view toggle, and
-// renders the persistent left rail beside the results. The priced site cards
-// and the sortable table are rendered SERVER-side (live prices, collapsible
-// detail) and handed in as nodes: the card grid filters by rendering only the
-// matching card nodes (grouped into type sections); the table — a single server
-// node — is filtered by toggling row visibility in an effect. Counts and the
-// "N of M" meta derive from the lightweight per-site metadata, so they stay
-// live as the selection changes. No URL/searchParams for the filters: the page
-// stays static and the selection survives the table's sort navigations.
 import {
   createContext,
   useContext,
@@ -50,17 +40,12 @@ const VIEW_OPTIONS = [
   { value: 'table', label: 'Table' },
 ] as const;
 
-/** Catalogue filter metadata listing available site types, classes, and result counts. */
 export interface SiteFilterMeta {
   id: number;
   type: SiteType;
   clsSet: WormholeClass[];
 }
 
-/**
- * One caller-supplied site card item; its value is the stable control key and its label or marker
- * is presentation-ready.
- */
 export interface SiteCardItem {
   meta: SiteFilterMeta;
   node: ReactNode;
@@ -80,10 +65,6 @@ function useSitesFilter(): SitesFilterState {
   return value;
 }
 
-/**
- * Owns the static catalogue chrome and filter state while a request-time child selects the saved
- * result view.
- */
 export function SitesFilterLayout({
   sites,
   total,
@@ -97,8 +78,6 @@ export function SitesFilterLayout({
 
   const matches = (m: SiteFilterMeta) => matchesFilter(m, { cls, types });
   const filteredCount = sites.filter(matches).length;
-  // Type counts recompute against the class selection (not the type selection),
-  // so each row shows how many sites that type would add at the current classes.
   const typeCount = (t: SiteType) =>
     sites.filter((site) => site.type === t && matchesClassFilter(site.clsSet, cls)).length;
 
@@ -193,9 +172,6 @@ export function SitesFilterLayout({
   );
 }
 
-/**
- * Selects and filters the catalogue result mode after the server supplies the saved initial view.
- */
 export function SitesResults({
   cards,
   table,
@@ -203,8 +179,6 @@ export function SitesResults({
 }: {
   cards: SiteCardItem[];
   table: ReactNode;
-  // The server-read view cookie seeds the first result paint without a
-  // cards↔table flip. Class and Type filters remain ephemeral.
   initialView: 'cards' | 'table';
 }) {
   const { cls, types, reset } = useSitesFilter();
@@ -214,8 +188,6 @@ export function SitesResults({
   const matches = (meta: SiteFilterMeta) => matchesFilter(meta, { cls, types });
   const filteredCount = cards.filter((card) => matches(card.meta)).length;
 
-  // Apply the filter to the server-rendered table rows. No dep array: re-runs
-  // after every render, including after a sort navigation swaps the rows.
   useEffect(() => {
     const root = tableRef.current;
     if (!root) return;

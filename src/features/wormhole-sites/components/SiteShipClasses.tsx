@@ -3,13 +3,6 @@ import { SLEEPER_CLASS_LABEL } from '../sleeper-classes';
 import type { SiteDetail } from '../types';
 import { ShipClassIcon } from './ShipClassIcon';
 
-/**
- * The collapsed card's at-a-glance NPC hull-class mix: the red overview glyph
- * for each class present, with its label and total count. Derived from the
- * already-loaded wave/NPC tree (no fetch), so it stays in the static card
- * summary while the full per-NPC detail remains in the lazily-mounted body.
- * Renders nothing for sites with no Sleeper presence (pure ore/gas).
- */
 export function SiteShipClasses({ site }: { site: SiteDetail }) {
   const classes = summariseSiteShipClasses(site);
   if (classes.length === 0) return null;

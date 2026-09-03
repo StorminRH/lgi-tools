@@ -2,9 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const redisCtorSpy = vi.fn();
 
-// The factory is the only module that constructs the vendor client, so the
-// vendor package is mocked at its import site. Class form because the factory
-// invokes it with `new`.
 vi.mock('@upstash/redis', () => ({
   Redis: class MockRedis {
     constructor(opts: unknown) {
@@ -81,8 +78,6 @@ describe('createUpstashClient', () => {
       retries: 0,
     });
 
-    // The SDK deserializes unless the option is explicitly false, so omitting
-    // the field must not silently disable it.
     expect(lastConfig().automaticDeserialization).toBeUndefined();
   });
 
@@ -114,7 +109,6 @@ describe('createUpstashClient', () => {
     const { signal } = lastConfig();
     const first = signal();
     const second = signal();
-    // A shared signal would abort every later request once the first timed out.
     expect(first).not.toBe(second);
     expect(first.aborted).toBe(false);
 

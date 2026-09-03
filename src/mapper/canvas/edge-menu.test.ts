@@ -223,7 +223,6 @@ it('opens the Signature Editor on Edit and severs through the shipped undo pathw
   });
   expect(closeEditor).toHaveBeenCalledOnce();
 
-  // The announced undo is the shipped branch restore, not a second rule.
   const call = announce.mock.calls[0]?.[0] as { onUndo: () => void };
   call.onUndo();
   expect(api.restoreSeveredBranch).toHaveBeenCalledWith({

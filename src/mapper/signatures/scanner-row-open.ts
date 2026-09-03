@@ -2,10 +2,6 @@ import { siteIdForSiteName } from '@/features/wormhole-sites/site-name-lookup';
 import type { Id } from '@/data/convex/data-model';
 import type { SignatureWindowRow } from './signature-model';
 
-/**
- * What a scanner row click opens: a connection edit, a read-only site view,
- * or nothing. Unresolved rows identify from the inline Name combobox.
- */
 export type ScannerRowOpenAction =
   | {
       readonly kind: 'connection';
@@ -19,7 +15,6 @@ export type ScannerRowOpenAction =
     }
   | null;
 
-/** Host callbacks that apply a resolved scanner-row open action. */
 export interface ScannerRowOpenHandlers {
   readonly openEditor: (
     connectionId: Id<'mapConnections'>,
@@ -28,13 +23,6 @@ export interface ScannerRowOpenHandlers {
   readonly openSite: (siteId: number, signatureId: string) => void;
 }
 
-/**
- * Resolves the click action for one scanner row. Catalogue-matched site rows
- * (combat, gas, ore, data, relic) open for any viewer; connection edit stays
- * canEdit-gated.
- * Pass a reactive `resolveSiteId` from {@link useSiteCatalogue} on the atlas
- * so first paint matches the layout-seeded index.
- */
 export function scannerRowOpenAction(
   row: SignatureWindowRow,
   canEdit: boolean,
@@ -62,7 +50,6 @@ export function scannerRowOpenAction(
   return null;
 }
 
-/** Whether the row shows the hover-open affordance and is clickable. */
 export function scannerRowShowsOpenAffordance(
   row: SignatureWindowRow,
   canEdit: boolean,
@@ -71,10 +58,6 @@ export function scannerRowShowsOpenAffordance(
   return scannerRowOpenAction(row, canEdit, resolveSiteId) !== null;
 }
 
-/**
- * Applies a resolved row-open action through the scanner window's host
- * callbacks. Null actions are ignored.
- */
 export function applyScannerRowOpenAction(
   action: ScannerRowOpenAction,
   handlers: ScannerRowOpenHandlers,

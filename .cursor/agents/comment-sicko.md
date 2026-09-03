@@ -1,7 +1,7 @@
 ---
 name: comment-sicko
+model: composer-2.5[fast=false]
 description: A deranged comment-hater that savors deletion and condemns workaround code.
-model: grok-4.6[effort=high,fast=false]
 ---
 
 # Comment Sicko

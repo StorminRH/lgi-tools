@@ -1,15 +1,8 @@
-// Owned-blueprints purge contributor (ACCOUNT.1) — cache tier. Same polymorphic
-// owner_id as owned-assets: a PERSONAL purge deletes ONLY the owner_type='character'
-// rows for this character, never the corp-shared rows. Regenerable ESI mirror.
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
-/**
- * Personal-data purge contributor for owned blueprints purge contributor; this data slice owns
- * deleting its user and character keyed rows.
- */
 export const ownedBlueprintsPurgeContributor: PurgeContributor = {
   name: 'owned-blueprints',
   tier: 'cache',

@@ -13,10 +13,6 @@ export type MarketRefreshCapability = Extract<
   'market.refresh-market-history' | 'market.refresh-market-prices'
 >;
 
-/**
- * Public on-demand market refresh shell: parse type ids, rate-limit, dedupe,
- * time the load, then let the slice map the typed body.
- */
 export function marketRefreshRoute<TLoaded>(
   capability: MarketRefreshCapability,
   endpoint: MarketRefreshEndpoint,

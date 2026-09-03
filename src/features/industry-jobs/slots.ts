@@ -1,53 +1,21 @@
-// Industry slot capacity + usage math for the /industry header readout
-// (3.7.24). Per character, per activity, EVE grants 1 base job slot plus one
-// per trained level of two skills — verified against the SDE (type_dogma
-// attributes + the skills' own descriptions, "1 additional … job per level"),
-// EveRef's dogma-attributes (450 manufacturingSlotBonus, 471
-// laboratorySlotsBonus, 2661 reactionSlotBonus — each value 1), and EVE Uni
-// (Research: base 1, max 11; Invention: Laboratory Operation / Advanced
-// Laboratory Operation "govern how many concurrent science jobs" — research,
-// copying, AND invention all draw from the science pool).
-//
-// USED counts a job against its INSTALLER — how the game charges slots — so a
-// character's usage is their personal board plus any corp jobs they installed.
-// Pure of React; the component is a shell over these functions.
 import type { IndustryJob, JobStatus } from './esi-projection';
 import { type JobCategory, jobCategory } from './industry-jobs-styles';
 
-/** Manufacturing slots: 1 + Mass Production + Advanced Mass Production. */
 const MASS_PRODUCTION_SKILL_ID = 3387;
-/** Canonical EVE skill identifier for advanced mass production. */
 const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
-/**
- * Science slots (research/copy/invention): 1 + Laboratory Operation +
- * Advanced Laboratory Operation.
- */
 const LABORATORY_OPERATION_SKILL_ID = 3406;
-/** Canonical EVE skill identifier for advanced laboratory operation. */
 const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
-/** Reaction slots: 1 + Mass Reactions + Advanced Mass Reactions. */
 const MASS_REACTIONS_SKILL_ID = 45748;
-/** Canonical EVE skill identifier for advanced mass reactions. */
 const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
 
-/**
- * Closed, canonically ordered set of slot categories; consumers derive validation, unions, and
- * iteration from this one list.
- */
 const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
 
-/** Maximum concurrent personal industry jobs by activity, derived from character skills. */
 export interface SlotCapacity {
   manufacturing: number;
   science: number;
   reactions: number;
 }
 
-/**
- * A character with no synced skill levels (null — never synced, or pre-0039
- * row) fails OPEN to the base 1/1/1; a present map simply missing a skill key
- * legitimately means rank 0. Natural maximum is 11 per activity (1 + 5 + 5).
- */
 export function slotCapacity(levels: Record<string, number> | null): SlotCapacity {
   const rank = (skillId: number) => levels?.[String(skillId)] ?? 0;
   return {
@@ -59,11 +27,6 @@ export function slotCapacity(levels: Record<string, number> | null): SlotCapacit
   };
 }
 
-/**
- * active | paused | ready hold their slot; delivered/cancelled/reverted free
- * it. Invariant under deriveJobStatus — it only maps active → ready, and both
- * occupy — so raw and derived statuses answer identically.
- */
 export function jobOccupiesSlot(status: JobStatus): boolean {
   return status === 'active' || status === 'paused' || status === 'ready';
 }
@@ -93,39 +56,13 @@ export function countUsedSlots(
   return used;
 }
 
-/** Used industry slots by activity for one character or merged viewer. */
 export interface SlotUsage {
   used: number;
   total: number;
 }
 
-/**
- * Display-ready slot meta model consumed by the shared visualization layer; callers keep all
- * numeric values in one consistent unit.
- */
 export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 
-/**
- * The header readout's view-model: null while any feed is still loading or
- * when no characters qualify (signed out / none linked — the readout renders
- * nothing, never errors); otherwise used/total per activity summed across the
- * characters whose jobs the gauge can actually see. The slots endpoint
- * returns every linked character, but the job boards don't: a character is in
- * the gauge when their PERSONAL board is readable (`eligibleCharacterIds`) OR
- * they installed a VISIBLE corp job (corp boards are corporation-scoped — one
- * eligible reader surfaces every member's jobs, so an installer can be
- * readable there while lacking the personal-jobs scope; dropping them would
- * leave the header counting fewer used slots than the corp section right
- * below it shows). Only a corp job still OCCUPYING a slot admits its
- * installer — a delivered/cancelled one frees the slot and counts nothing,
- * so it must not add its installer's capacity either. A character with
- * neither stays out — counting capacity with no visible jobs would
- * under-report usage. For a corp-only installer
- * the personal board stays unreadable, so their personal jobs (if any) still
- * can't be counted — visible-jobs coverage is the invariant, not
- * omniscience. Capacity comes from the slots endpoint (base 1/1/1 for a
- * character with no synced skills).
- */
 export function slotMetaTotals(args: {
   loading: boolean;
   eligibleCharacterIds: readonly number[];

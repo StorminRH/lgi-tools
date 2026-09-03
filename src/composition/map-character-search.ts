@@ -80,7 +80,6 @@ async function searchExactName(search: string): Promise<SearchCharactersResponse
   return { mode: 'exact', results };
 }
 
-/** Searches EVE characters through one owned scoped token, or exact public resolution when absent. */
 export async function searchMapCharacters(
   userId: string,
   search: string,

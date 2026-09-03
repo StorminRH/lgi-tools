@@ -1,15 +1,5 @@
 'use client';
 
-// The skill-queue island. Receives the signed-in pilot's linked characters as server
-// props (names, portraits, scope health — Neon truth at render time) and fetches each
-// one's trained totals + training queue from /api/account/skills on view (MIGRATE.B.1
-// — the queue moved off the live Convex engine onto a Neon stale-gated on-view read).
-// The queue's live progress and completion are derived CLIENT-SIDE from each entry's
-// absolute finish_date (progress.ts) against a 30s render clock, so a finishing skill
-// flips to done with no reload and no polling; the on-view fetch reconciles only the
-// queue's shape. The per-character card shell (portrait header, reconnect/as-of
-// callouts, null/empty/rows tristate) is the shared LiveCharacterCard; this slice
-// supplies the row + summary.
 import type { ReactNode } from 'react';
 import { syncEligibleIds } from '@/components/character-strip-model';
 import { CharacterStripSection } from '@/components/character-strip-section';
@@ -31,7 +21,6 @@ import { entryRowModel, type QueueHeader, queueCardModel } from '../queue-view';
 import type { CharacterSkillData } from '../types';
 import { useSkillsLive } from '../use-skills-live';
 
-/** Renders a character's current and queued skills with progress, totals, and refresh state. */
 export function SkillQueuePanel({
   characters,
   reconnectAction,
@@ -40,12 +29,8 @@ export function SkillQueuePanel({
   initialDimmed,
 }: {
   characters: PanelCharacter[];
-  // The in-place scope-grant control + its reason, composed by the page (app
-  // layer) and forwarded to each per-character card's gate.
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
-  // The page's spec.strip declaration (D-7 opt-in) + the cookie-read dimmed set
-  // for the first paint. Absent = no strip, no filtering — today's render.
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
@@ -86,8 +71,6 @@ function LiveQueues({
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
-  // The sync ids derive from the FULL list — dimming is a render filter only
-  // (view-only pin): a dimmed character keeps its on-view refresh.
   const eligibleIds = syncEligibleIds(characters);
   const { skillsByCharacter, names, now, loading } = useSkillsLive(eligibleIds);
 
@@ -132,9 +115,6 @@ function LiveQueues({
   );
 }
 
-// One character's queue-card content: the SP subtitle, the "queue ends in" / paused
-// header slot, and the per-entry rows. The decisions live in queueCardModel (tested);
-// this shell wires them into the card-content slots.
 function renderQueueCard(
   data: CharacterSkillData | null,
   names: Record<string, string>,

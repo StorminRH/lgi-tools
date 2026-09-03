@@ -1,5 +1,3 @@
-// SC-7.3 / SC-1.7 / SC-8.1: header create control → dialog → compass interstitial
-// (minimum ~5 s) → set-home prompt. Mutates: one new private map per run.
 export default {
   name: 'atlas-map-create',
   route: '/atlas',

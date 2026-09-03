@@ -53,11 +53,6 @@ function BooleanSettingsRow({ model }: { model: BooleanMenuControlModel }) {
   );
 }
 
-/**
- * The account settings page's preference row — the page-styled twin of the
- * portrait menu's ControlRow (PageMenuSection), reading the same
- * PreferencesProvider state so every surface binding a key stays in sync live.
- */
 export function SettingsControlRow({ model }: { model: MenuControlModel }) {
   if (model.kind === 'preference-boolean') {
     return <BooleanSettingsRow model={model} />;

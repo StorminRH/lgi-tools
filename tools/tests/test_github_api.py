@@ -8,7 +8,6 @@ import unittest
 from tools.delivery import github_api
 from tools.delivery.github_api import get_all, next_path
 
-
 class NextPathTest(unittest.TestCase):
     def test_reads_the_next_relation_out_of_a_link_header(self) -> None:
         header = (
@@ -26,7 +25,6 @@ class NextPathTest(unittest.TestCase):
         self.assertIsNone(
             next_path('<https://api.github.com/x?page=1>; rel="prev"'),
         )
-
 
 class GetAllTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -70,7 +68,6 @@ class GetAllTest(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             get_all("/c", "t")
-
 
 if __name__ == "__main__":
     unittest.main()

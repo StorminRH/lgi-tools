@@ -1,30 +1,16 @@
-/** Better Auth provider id for EVE SSO. Re-exported from the shared lib owner. */
 export { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 
-/** Canonical EVE OAuth authorization endpoint. */
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
-/** Canonical EVE OAuth token exchange and refresh endpoint. */
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
 /** CCP's published OAuth2 token-revocation endpoint (RFC 7009). */
 export const EVE_REVOKE_URL = 'https://login.eveonline.com/v2/oauth/revoke';
-/** Canonical EVE JWKS endpoint used to verify access-token signatures. */
 export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
-/** Required issuer claim for verified EVE access tokens. */
 export const EVE_ISSUER = 'https://login.eveonline.com';
-/** Required audience claim for verified EVE access tokens. */
 export const EVE_AUDIENCE = 'EVE Online';
-/** ESI scope that unlocks authenticated character typeahead search. */
 export const EVE_CHARACTER_SEARCH_SCOPE = 'esi-search.search_structures.v1';
 
-/**
- * EVE's account-level dashboard where a pilot reviews and revokes third-party app access.
- */
 export const EVE_AUTHORIZED_APPS_URL = 'https://developers.eveonline.com/authorized-apps';
 
-/**
- * Exact read-only EVE scope set consumed by shipped features. Additions remain a deliberate,
- * batched decision verified against EVE's live scope vocabulary.
- */
 export const EVE_SCOPES = [
   'publicData',
   'esi-skills.read_skills.v1',

@@ -3,11 +3,6 @@ import { Collapsible } from '@/components/ui/collapsible';
 import { Dot } from '@/components/ui/dot';
 import type { StatusLevel, SubsystemStatus } from '@/data/telemetry/health-metrics';
 
-// One subsystem line in the status strip: colored dot + name + plain-English
-// headline, with the detail charts collapsed underneath (<details>, so no
-// client state). Green/amber/red are reserved for status here and on KPI
-// deltas; charts elsewhere stay blue.
-
 const DOT_TONE: Record<StatusLevel, 'green' | 'orange' | 'red' | 'neutral'> = {
   green: 'green',
   amber: 'orange',
@@ -15,9 +10,6 @@ const DOT_TONE: Record<StatusLevel, 'green' | 'orange' | 'red' | 'neutral'> = {
   neutral: 'neutral',
 };
 
-/**
- * Renders one labelled operational status with text and icon semantics in addition to its tone.
- */
 export function StatusRow({
   name,
   status,

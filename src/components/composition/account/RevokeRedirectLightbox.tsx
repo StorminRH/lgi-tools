@@ -6,18 +6,8 @@ import { Button } from '@/components/ui/button';
 import { authClient } from '@/platform/auth/auth-client';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 
-// The D-5 redirect lightbox. Shown ONLY when a destructive action emptied the
-// account — a last-character purge or a full delete — never on a one-of-many purge
-// (the server already per-token-revoked just that character; the siblings' EVE
-// grant is untouched). Because the user row is gone server-side, the session is
-// invalid: this counts down, clears the local cookie via signOut, then hands the
-// browser off to EVE's authorized-apps page so the pilot can confirm the grant is
-// gone and lands signed out. Non-dismissable (no onOpenChange) — the account is
-// already gone, there's nothing to return to.
-
 const REDIRECT_SECONDS = 10;
 
-/** Explains an EVE authorization revocation redirect and returns the user to account reconnection controls. */
 export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   const labelId = useId();
   const [seconds, setSeconds] = useState(REDIRECT_SECONDS);
@@ -26,8 +16,6 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   function handoff() {
     if (handedOff.current) return;
     handedOff.current = true;
-    // Clear the orphaned local cookie, then hard-navigate (the LoginButton idiom)
-    // so cached server output that referenced the now-gone session is dropped.
     void authClient.signOut().finally(() => {
       window.location.href = EVE_AUTHORIZED_APPS_URL;
     });

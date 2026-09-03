@@ -1,19 +1,5 @@
 'use client';
 
-// The system intelligence body shared by the node summary card and the
-// click-through dock (which is pointer-inert — everything here stays
-// non-interactive text). The MapWindow header owns the one system name plus
-// its colored class/security accessory; this body begins with scanner facts,
-// then a minimal two-column friendlies readout: pilot name left, one
-// single-word status right, nothing more. Sections are keyed
-// (`data-intel-section`) so future
-// widget readouts (gas, anomalies) append as sibling sections without
-// restructuring.
-//
-// Identity facts come from the session directory (off-map k-space still
-// names); presence comes from the shared context; pilot names resolve
-// through the shared /api/eve/names hook, with row assembly in the tested
-// presence model.
 import { cn } from '@/components/ui/cn';
 import { useEntityNames } from '@/components/use-entity-names';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
@@ -28,7 +14,6 @@ import { useSystemLabel } from './use-system-label';
 
 const NO_PILOTS: readonly never[] = [];
 
-/** This system's friendlies rows, names resolved and statuses derived. */
 function useFriendlyRows(systemId: number): readonly FriendlyRowModel[] {
   const presence = useSystemPresence(systemId);
   const pilots = presence?.pilots ?? NO_PILOTS;
@@ -41,7 +26,6 @@ const STATUS_CLASS: Record<PresenceStatusWord, string> = {
   Docked: 'text-text',
 };
 
-/** Colored class/security detail appended to a MapWindow's plain system title. */
 export function SystemTitleAccessory({
   systemId,
 }: {
@@ -111,7 +95,6 @@ function FriendliesSection({ rows }: { readonly rows: readonly FriendlyRowModel[
   );
 }
 
-/** Shared body for the dock and node summary — scanner counts and friendlies below the title. */
 export function SystemIntelligenceBody({ systemId }: { readonly systemId: number }) {
   const rows = useFriendlyRows(systemId);
   return (

@@ -1,18 +1,5 @@
 'use client';
 
-// The tracker panels' shared participation chrome (ACCOUNT.7): the character
-// strip, the sync-status caption, the all-hidden notice, and the view-only
-// render filter, behind one seam. Both tracker features (skill queue, industry
-// jobs) compose it — the real second consumer that earns the primitive — so the
-// strip cluster lives once instead of template-cloning across the panels.
-//
-// One usePreference binding drives the strip AND the filter. Without a strip
-// declaration the sentinel def reads as [] and nothing strip-related renders —
-// children receive the untouched character list (today's render exactly). The
-// sync ids are NOT derived here on purpose: panels compute them from the full
-// list (character-strip-model's syncEligibleIds) before this filter exists in
-// the tree, so dimming provably never touches the fetch.
-
 import type { ReactNode } from 'react';
 import { CharacterStrip } from '@/components/character-strip';
 import { deriveStripView, stripPreferenceBinding } from '@/components/character-strip-view';
@@ -23,10 +10,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 
-/**
- * Connects a page-settings character-strip declaration to roster and online state, then renders
- * its loading, empty, or populated section.
- */
 export function CharacterStripSection({
   characters,
   strip,
@@ -35,8 +18,6 @@ export function CharacterStripSection({
   children,
 }: {
   characters: PanelCharacter[];
-  // The page's spec.strip declaration (D-7 opt-in) + the cookie-read dimmed set
-  // for the first paint. Absent = no strip, no filtering.
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
   loading: boolean;

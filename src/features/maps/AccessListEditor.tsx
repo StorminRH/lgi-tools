@@ -50,7 +50,6 @@ function PrincipalImage({ principal }: { principal: AccessPrincipalOption }) {
   );
 }
 
-/** Props for the transport-free character/corporation grant editor. */
 export interface AccessListEditorProps {
   readonly mode: AccessEditorMode;
   readonly currentGrants: readonly AccessGrantDraft[];
@@ -62,11 +61,6 @@ export interface AccessListEditorProps {
   readonly disabled?: boolean;
 }
 
-/**
- * Shared transport-free access editor for creation, switcher, and catalogue
- * doors. Every selected principal remains incomplete until a role is explicit;
- * the map creator is never synthesized as a revocable grant.
- */
 export function AccessListEditor({
   mode,
   currentGrants,

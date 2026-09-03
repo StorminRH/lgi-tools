@@ -1,25 +1,11 @@
 import { bigint, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
-/**
- * Closed, canonically ordered set of site types; consumers derive validation, unions, and
- * iteration from this one list.
- */
 export const SITE_TYPES = ['combat', 'gas', 'ore', 'relic', 'data'] as const;
-/** Closed canonical wormhole-site families persisted by the catalogue schema. */
 export type SiteType = typeof SITE_TYPES[number];
 
-/**
- * Closed, canonically ordered set of wormhole classes; consumers derive validation, unions, and
- * iteration from this one list.
- */
 export const WORMHOLE_CLASSES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'] as const;
-/** Closed supported wormhole class labels, including the frigate-only qualifier. */
 export type WormholeClass = typeof WORMHOLE_CLASSES[number];
 
-/**
- * Raw labels from the Sheet's row-2 col-B "signature label".
- * Kept distinct from `site_type` because the Sheet's wording is its own source of truth.
- */
 export const SIGNATURE_LABELS = [
   'Anomaly',
   'Relic Signature',
@@ -27,13 +13,8 @@ export const SIGNATURE_LABELS = [
   'Gas Signature',
   'Ore Signature',
 ] as const;
-/** Display label for a site's cosmic signature type. */
 export type SignatureLabel = typeof SIGNATURE_LABELS[number];
 
-/**
- * Observed trigger column values across all tabs. Stored as free text, not locked to a
- * Postgres enum.
- */
 export const TRIGGER_LABELS = [
   'Trigger',
   'Opt',
@@ -42,37 +23,18 @@ export const TRIGGER_LABELS = [
   'Opt?',
   'Trigger on Attack',
 ] as const;
-/** Display label describing what advances or spawns the next site wave. */
 export type TriggerLabel = typeof TRIGGER_LABELS[number];
 
-/**
- * Closed, canonically ordered set of sleeper class codes; consumers derive validation, unions, and
- * iteration from this one list.
- */
 export const SLEEPER_CLASS_CODES = ['F', 'C', 'B', 'T'] as const;
-/** Closed NPC hull-class codes used by wormhole-site source data. */
 export type SleeperClassCode = typeof SLEEPER_CLASS_CODES[number];
 
-/** Narrow a raw class string (e.g. an NPC's stored code) to a known hull class. */
 export function isSleeperClassCode(code: string): code is SleeperClassCode {
   return (SLEEPER_CLASS_CODES as readonly string[]).includes(code);
 }
 
-/**
- * Drizzle schema owner for site type enum; migrations, queries, retention, and purge claims derive
- * from this single declaration.
- */
 export const siteTypeEnum = pgEnum('site_type', SITE_TYPES);
-/**
- * Drizzle schema owner for wormhole class enum; migrations, queries, retention, and purge claims
- * derive from this single declaration.
- */
 export const wormholeClassEnum = pgEnum('wormhole_class', WORMHOLE_CLASSES);
 
-/**
- * Drizzle schema owner for sites; migrations, queries, retention, and purge claims derive from
- * this single declaration.
- */
 export const sites = pgTable(
   'sites',
   {
@@ -93,11 +55,6 @@ export const sites = pgTable(
   }),
 );
 
-/**
- * Wave aggregates (DPS / alpha / EHP totals, EWAR counts) are recomputed
- * live in queries.ts via the npc-stats summariseWave helper as of 2.7.1.
- * The columns that used to cache them are dropped in drizzle/0009.
- */
 export const waves = pgTable(
   'waves',
   {
@@ -113,12 +70,6 @@ export const waves = pgTable(
   }),
 );
 
-/**
- * Per-NPC combat stats (dps, alpha, ehp, scram, web, neut, rrep, sig, speed,
- * distance, velocity) are computed live from raw EVE SDE attributes via
- * src/data/npc-stats as of 2.7.1. The columns that used to cache them are
- * dropped in drizzle/0009. `type_id` is the new join key.
- */
 export const npcs = pgTable(
   'npcs',
   {
@@ -138,10 +89,6 @@ export const npcs = pgTable(
   }),
 );
 
-/**
- * Drizzle schema owner for site resources; migrations, queries, retention, and purge claims derive
- * from this single declaration.
- */
 export const siteResources = pgTable(
   'site_resources',
   {
@@ -156,9 +103,6 @@ export const siteResources = pgTable(
     volumeM3: bigint('volume_m3', { mode: 'number' }),
     iskPerM3: integer('isk_per_m3'),
     totalIsk: bigint('total_isk', { mode: 'number' }),
-    // Resolved at sheet-ingest time via a strict resource-name → SDE type
-    // alias map. NULL when the sheet name isn't in the map — the row then
-    // renders its sheet totalIsk unchanged (the fallback).
     typeId: integer('type_id'),
   },
   (t) => ({
@@ -166,12 +110,6 @@ export const siteResources = pgTable(
   }),
 );
 
-/**
- * Escalation spawns — C5/C6 specials (Drifter Response/Recon BS, Upgraded
- * Avenger). One row per escalation type. These don't belong on the
- * wave/npc tables because their spawn rules and HP-by-layer breakdown
- * are unique. Resists stored as 0–100 integers; web stored signed.
- */
 export const escalations = pgTable('escalations', {
   id: serial('id').primaryKey(),
   name: text('name').notNull().unique(),
@@ -205,7 +143,3 @@ export const escalations = pgTable('escalations', {
   rrep: integer('rrep'),
 });
 
-// `sleeperArchetypes` was dropped in drizzle/0009. Combat stats are now
-// computed live in src/data/npc-stats from raw EVE SDE attributes. The
-// historical archetype snapshot lives on as the input fixture for
-// src/data/npc-stats/math.test.ts (see src/data/npc-stats/__fixtures__/).

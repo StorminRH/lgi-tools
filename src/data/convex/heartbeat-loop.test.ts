@@ -55,7 +55,6 @@ describe('startHeartbeatLoop', () => {
     const f = makeHost(true);
     startHeartbeatLoop(f.host, 20_000);
     f.setVisible(false);
-    // No visibilitychange handling needed on hide — the timer just keeps going.
     f.fireInterval();
     f.fireInterval();
     expect(f.beats.slice(1)).toEqual([
@@ -68,15 +67,13 @@ describe('startHeartbeatLoop', () => {
     const f = makeHost(true);
     const loop = startHeartbeatLoop(f.host, 20_000);
     f.setVisible(false);
-    loop.onVisibilityChange(); // hide: nothing happens
+    loop.onVisibilityChange();
     expect(f.beats).toHaveLength(1);
     expect(f.timers[0]!.cancelled).toBe(false);
 
     f.setVisible(true);
     loop.onVisibilityChange();
     expect(f.beats[1]).toEqual({ reason: 'visible', visible: true });
-    // The original timer was replaced so the next interval beat is a full
-    // period after the visible beat, not mid-phase.
     expect(f.timers[0]!.cancelled).toBe(true);
     f.fireInterval();
     expect(f.beats[2]).toEqual({ reason: 'interval', visible: true });
@@ -85,7 +82,7 @@ describe('startHeartbeatLoop', () => {
   it('stop cancels the live timer, including one created by a re-phase', () => {
     const f = makeHost(true);
     const loop = startHeartbeatLoop(f.host, 20_000);
-    loop.onVisibilityChange(); // visible → re-phase created timer #2
+    loop.onVisibilityChange();
     loop.stop();
     expect(f.timers.every((t) => t.cancelled)).toBe(true);
   });

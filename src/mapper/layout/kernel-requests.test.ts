@@ -50,7 +50,6 @@ describe('kernel request sequencing', () => {
     expect(failed.postedKey).toBeNull();
     expect(failed.latestPostedId).toBe(posted.requestId);
 
-    // The next change with the same key can retry.
     const retry = postRequest(failed, 'sig#0');
     expect(retry.kind).toBe('posted');
   });

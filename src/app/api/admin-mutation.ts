@@ -3,10 +3,6 @@ import { problemResponse } from '@/transport/api-response';
 
 export type AdminSession = Extract<SessionCheckResult, { ok: true }>['session'];
 
-/**
- * Admin form-mutation gate for routes that stay outside `runMutationRoute`.
- * Maps the shared admin + same-origin check to a problem response.
- */
 export async function adminMutationGate(
   request: Request,
 ): Promise<{ ok: true; session: AdminSession } | { ok: false; response: Response }> {

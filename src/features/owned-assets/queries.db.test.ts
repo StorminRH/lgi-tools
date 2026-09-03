@@ -6,19 +6,6 @@ import { readOwnerSyncState, saveOwnedAssets } from './queries';
 import { ownedAssets } from './schema';
 import type { OwnedAsset } from './esi-projection';
 
-// Proves the owned_assets natural-key unique index (migration 0050) against the
-// REAL local Docker Postgres. The load-bearing claim is a concurrency one that a
-// mocked driver cannot prove: the replace-all refresh runs delete → insert →
-// stamp with NO transaction (the request path is neon-http), so two refreshes for
-// one owner can interleave and double the ledger the industry planner sums. The
-// unique index is the only atomic guard available, and saveOwnedAssets coalesces
-// the loser's unique violation into 'superseded' rather than failing the refresh.
-//
-// Run `pnpm db:migrate` first: the harness clones the migrated public schema with
-// `LIKE ... INCLUDING ALL`, so an un-migrated database would clone a table with no
-// constraint and these tests would silently prove nothing. Skips cleanly when no
-// Postgres answers. next/cache is mocked so revalidateTag is a no-op outside a
-// request scope.
 vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
@@ -59,7 +46,6 @@ function assetRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** Rows this owner has COMMITTED, read on a connection separate from any open transaction. */
 async function committedRowCount(): Promise<number> {
   const rows = await harness.db
     .select({ id: ownedAssets.id })
@@ -89,9 +75,6 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
   it('rejects a direct duplicate of the natural key as a unique violation', async () => {
     await saveOwnedAssets(owner, [asset()], []);
 
-    // Asserted through the shared classifier rather than a literal error shape:
-    // Drizzle wraps the driver error, and the classifier unwrapping that chain
-    // correctly is exactly what the 'superseded' coalesce depends on.
     const error = await harness.db
       .insert(ownedAssets)
       .values(assetRow({ quantity: 999 }))
@@ -122,14 +105,8 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
   });
 
   it('coalesces a refresh that loses the insert race to superseded, stamping nothing', async () => {
-    // The baseline exists so the loser has something to delete and a sync stamp we
-    // can watch. It deliberately uses a DIFFERENT natural key (type 35) from the one
-    // the race is fought over (type 34): a baseline sharing the contested key would
-    // make the winner's own insert collide with the committed baseline instead, which
-    // is a different scenario entirely.
     await saveOwnedAssets(owner, [asset({ type_id: 35 })], ['"winner"']);
 
-    // A concurrent refresh that has inserted the contested key but not yet committed.
     let signalInserted!: () => void;
     let releaseWinner!: () => void;
     const winnerHasInserted = new Promise<void>((resolve) => {
@@ -149,20 +126,14 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
       await winnerMayCommit;
     });
 
-    // Barrier, not a sleep: the winner provably holds the contested key before the
-    // loser starts, so the loser cannot win this race by scheduling luck.
     await winnerHasInserted;
 
     const loser = saveOwnedAssets(owner, [asset()], ['"loser"']);
-    // The loser's DELETE removes the committed baseline but cannot see the winner's
-    // uncommitted row; once the committed set is empty its INSERT has been issued and
-    // is blocked on the winner's key.
     await waitFor(async () => (await committedRowCount()) === 0);
     releaseWinner();
     await winner;
 
     expect(await loser).toBe('superseded');
-    // The winner's row is the single survivor, and the loser stamped nothing.
     expect(await committedRowCount()).toBe(1);
     expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"winner"']);
   });

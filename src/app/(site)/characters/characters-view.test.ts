@@ -16,9 +16,6 @@ const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({
 });
 
 test('deriveCharacterRowView reports healthy, disconnected, and missing-scope reconnect labels', () => {
-  // The healthy negative: falsifies the view's wiring into deriveCharacterHealth
-  // (scope-health.test.ts owns the comparator itself). Scopes arrive REVERSED so
-  // an order-sensitive comparison regression fails here too.
   const healthy = deriveCharacterRowView({
     scope: [...EVE_SCOPES].reverse().join(','),
     hasRefreshToken: true,

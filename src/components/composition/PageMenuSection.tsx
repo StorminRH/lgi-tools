@@ -1,26 +1,5 @@
 'use client';
 
-// The portrait menu's DYNAMIC half (ACCOUNT.5): the current route's
-// page-settings section, read from the ACCOUNT.4 slot (usePageSettings — the one
-// resolution path) and rendered as live preference controls. Enum prefs use
-// SegmentedControl; boolean prefs use the house Base UI Switch. Routes with no
-// spec (or no renderable section controls) render NOTHING — no empty-state
-// filler, no dangling divider.
-//
-// The rows are NON-item popup content (the nav-menu-login precedent), so
-// selecting a value deliberately does not close the menu — adjust, watch the
-// page change behind, adjust again. Every binding of a preference key shares
-// PreferencesProvider state, so the /sites on-page toggles and these rows stay
-// in sync live.
-//
-// Shared zone on purpose: it bridges the page-settings layer to the auth
-// feature's menu without either importing the other. (The ACCOUNT.7 character
-// strip deliberately does NOT mount here — it renders on the page surface
-// itself, inside each strip-declaring panel, where the server-derived
-// per-surface character list lives; this menu half renders preference controls
-// only.) No usePathname and no Suspense here — PageMenuProvider already
-// isolates the request-time read (the #182 lesson).
-
 import type { ReactNode } from 'react';
 import { usePageSettings } from '@/components/composition/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
@@ -34,8 +13,6 @@ import {
   type MenuControlModel,
 } from '@/platform/page-settings/controls';
 
-// One label recipe for every row kind; the variants supply only their
-// control. Own components so usePreference is never called inside a map.
 function ControlRowFrame({
   label,
   children,
@@ -86,10 +63,6 @@ function ControlRow({ model }: { model: MenuControlModel }) {
   return <EnumControlRow model={model} />;
 }
 
-/**
- * Renders the current page's registered controls and actions, preserving their declared order and
- * controlled-state callbacks.
- */
 export function PageMenuSection() {
   const spec = usePageSettings();
   const models = resolveMenuControls(spec);

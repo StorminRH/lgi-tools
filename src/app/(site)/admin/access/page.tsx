@@ -34,27 +34,17 @@ import {
 
 const MAX_QUERY_LENGTH = 200;
 
-// How far back the audit table reaches. Role changes are rare; a fixed window
-// keeps the page free of the dashboard's range selector.
 const AUDIT_WINDOW_DAYS = 90;
 
-// Strip control chars + truncate. Returns undefined for empty / clearly
-// malformed input so the page falls back to the empty-q view.
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
   return cleaned.length === 0 ? undefined : cleaned;
 }
 
-// Build the Admins list shown above the search results. Admin is per-user;
-// includes the env superadmin synthetically (resolved from their character id to
-// the owning user) when their DB role isn't already ADMIN — otherwise they'd be
-// invisible on the page they have authority over.
 async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
   const dbAdmins = await listAdminUsers();
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  // Identify the superadmin by the USER that owns the env character id, not by a
-  // displayed character id: a pilot can now link several characters (3.4.2).
   const superUser =
     Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
   return mergeAdminRows(dbAdmins, superUser);
@@ -248,8 +238,6 @@ function SearchResultsCard({
 }
 
 async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
-  // Admin gate + viewer id come straight from the Better Auth session (the
-  // shared Session type deliberately doesn't carry userId).
   const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
@@ -310,10 +298,6 @@ function AccessLoading() {
   return <LoadingLabel />;
 }
 
-/**
- * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
- * fully request-time dynamic hole. Only the page container prerenders.
- */
 export default function AccessPage({
   searchParams,
 }: {

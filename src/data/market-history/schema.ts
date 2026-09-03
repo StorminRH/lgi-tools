@@ -9,17 +9,6 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
-// Per-type daily market history for The Forge (3.5.3a) — the inputs the 3.5.3b
-// Market Score's demand/price-stability signals read. Global, slow data (CCP
-// recomputes once daily): Neon-side, refreshed on view, NOT in Convex
-// (placement-by-temperature). Pure number space — no FK to eve-data, keyed by
-// raw CCP type IDs, the same decoupling as market_prices / industry_indices.
-
-/**
- * One row per (type, day). `date` is stored in string mode ("YYYY-MM-DD") to
- * match ESI's day key exactly with no timezone ambiguity. A day with no trades
- * has no row, so a calendar gap means "zero demand that day".
- */
 export const marketHistory = pgTable(
   'market_history',
   {
@@ -32,8 +21,6 @@ export const marketHistory = pgTable(
     orderCount: integer('order_count').notNull(),
   },
   (t) => ({
-    // The composite PK's leading type_id column also serves the batch
-    // "history for types […]" read, so no separate index is needed.
     pk: primaryKey({ columns: [t.typeId, t.date] }),
   }),
 );

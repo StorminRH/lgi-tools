@@ -9,7 +9,6 @@ import schema from '../schema';
 import { modules } from '../__tests__/modules.setup';
 import { connectionInsert } from '../__tests__/connection-doc.setup';
 
-
 const NOW = 1_800_000_000_000;
 const MAP_ID = 'map-cleanup';
 const ROOT = 31_000_001;

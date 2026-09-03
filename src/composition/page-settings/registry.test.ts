@@ -66,9 +66,6 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
     const declared = PAGE_SETTINGS_SPECS.flatMap((spec) =>
       spec.strip !== undefined ? [spec.strip.surfaceId] : [],
     );
-    // Bidirectional: every declared strip persists to a registered preference
-    // key, and every registered strip surface is declared by exactly one spec —
-    // a def with no declaring spec is dead config, a duplicate is a drift bug.
     for (const surfaceId of declared) {
       expect(PREFERENCE_KEYS).toContain(stripDimmedKey(surfaceId));
     }

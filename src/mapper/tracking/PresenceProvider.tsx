@@ -8,7 +8,6 @@ import { MapPresenceContext } from './presence-context';
 import { derivePresenceFromPayload } from './presence-model';
 import { useMapCoverage } from './use-map-coverage';
 
-/** Hosts presence derivation + the AFK gate for everything under the canvas shell. */
 export function MapPresenceProvider({
   mapId,
   children,

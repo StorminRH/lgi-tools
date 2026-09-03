@@ -1,8 +1,3 @@
-/**
- * CLI: seed Better Auth E2E pilot + write Playwright storage state.
- *   pnpm e2e:seed
- *   pnpm e2e:seed -- --out=path/to/auth-storage.json
- */
 import {
   DEFAULT_STORAGE_STATE_PATH,
   seedE2eStorageState,
@@ -15,7 +10,6 @@ async function main() {
   }
   const written = await seedE2eStorageState(outPath);
   console.log(`✓ E2E auth storage state → ${written}`);
-  // Better Auth / DB handles can keep the event loop alive after CLI work finishes.
   process.exit(0);
 }
 

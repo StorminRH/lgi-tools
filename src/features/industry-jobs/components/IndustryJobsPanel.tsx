@@ -1,14 +1,5 @@
 'use client';
 
-// The industry-jobs island (MIGRATE.B.2). Receives the signed-in pilot's linked
-// characters as server props (names, portraits, scope health — Neon truth at render
-// time) and fetches each one's active job board from /api/account/industry-jobs on view
-// (the board moved off the live Convex engine onto a Neon stale-gated on-view read). Each
-// job's live "ready" + countdown is derived CLIENT-SIDE from its absolute end_date
-// (job-state.ts) against a 30s render clock, so a finishing job flips to ready with no
-// reload and no scheduler; the on-view fetch reconciles only the board's EXISTENCE. The
-// per-character card shell (portrait header, reconnect/as-of callouts, null/empty/rows
-// tristate) is the shared LiveCharacterCard; this slice supplies the row + summary.
 import { syncEligibleIds } from '@/components/character-strip-model';
 import { CharacterStripSection } from '@/components/character-strip-section';
 import {
@@ -26,15 +17,12 @@ import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
-/** Composes personal industry job state, slot summary, and reconnect affordances for one character. */
 export function IndustryJobsPanel({
   characters,
   strip,
   initialDimmed,
 }: {
   characters: PanelCharacter[];
-  // The page's spec.strip declaration (D-7 opt-in) + the cookie-read dimmed set
-  // for the first paint. Absent = no strip, no filtering — today's render.
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
@@ -63,8 +51,6 @@ function LiveJobs({
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
-  // The sync ids derive from the FULL list — dimming is a render filter only
-  // (view-only pin): a dimmed character keeps its on-view refresh.
   const eligibleIds = syncEligibleIds(characters);
   const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
 
@@ -107,9 +93,6 @@ function LiveJobs({
   );
 }
 
-// One character's jobs-card content: the jobs-count subtitle, the "next done in" header
-// slot, and the per-job rows. The decisions live in jobsCardModel (tested); this shell
-// only wires them into the card-content slots.
 function renderJobsCard(
   data: CharacterJobsData | null,
   names: Record<string, string>,

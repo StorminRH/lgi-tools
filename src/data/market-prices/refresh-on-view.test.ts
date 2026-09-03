@@ -63,8 +63,6 @@ function seed(typeId: number): MarketPrice {
   };
 }
 
-// fetchPricesFromSource is called once per type with a length-1 array. Route
-// each call to the per-id response configured for the test.
 function sourceByTypeId(
   byId: Record<number, { prices: RawMarketPrice[]; budgetExhausted?: boolean }>,
   opts?: { throwFor?: number[] },
@@ -96,7 +94,7 @@ describe('getLivePrices', () => {
 
     const row = prices.get(34)!;
     expect(row.source).toBe('esi');
-    expect(row.bestBuy).toBe(10); // live, not the seed's 1
+    expect(row.bestBuy).toBe(10);
     expect(row.staleAfter.getTime() - row.updatedAt.getTime()).toBe(
       MARKET_PRICE_WINDOW_MS,
     );
@@ -134,13 +132,13 @@ describe('getLivePrices', () => {
     getPricesMock.mockResolvedValue(new Map([[35, seed(35)]]));
     sourceByTypeId({
       34: { prices: [raw(34, 'esi')] },
-      35: { prices: [] }, // seed-only — not persisted
+      35: { prices: [] },
     });
 
     await getLivePrices([34, 35]);
 
     expect(afterMock).toHaveBeenCalledTimes(1);
-    await afterMock.mock.calls[0]![0](); // run the scheduled callback
+    await afterMock.mock.calls[0]![0]();
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
     const persisted = persistPricesMock.mock.calls[0]![1] as RawMarketPrice[];
     expect(persisted.map((r) => r.typeId)).toEqual([34]);

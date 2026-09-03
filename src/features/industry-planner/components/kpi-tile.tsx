@@ -3,17 +3,9 @@ import { cn } from '@/components/ui/cn';
 import { Popover } from '@/components/ui/popover';
 import { Card } from '@/components/ui/card';
 
-// Shared chrome for the Cockpit KPI tile row (`.kpi` in the handoff). A bordered
-// section-bg panel with a uniform border (no per-tile accent) sized to its
-// content — the label sits at the top with the figure directly beneath it. Lives
-// in its own module so both CockpitKpis and the (score) MarketScorePanel can use
-// it without a circular import (CockpitKpis renders MarketScorePanel).
-
-/** Shared numeric typography classes for cockpit KPI figures. */
 export const KPI_FIG = 'mt-2.5 font-data text-stat font-semibold leading-[1.02] tabular-nums';
 const KPI_LABEL = 'text-label font-semibold uppercase tracking-wide text-muted';
 
-/** Renders one cockpit KPI value, comparison, confidence, and supporting hint. */
 export function KpiTile({
   span2,
   children,
@@ -33,11 +25,6 @@ export function KpiTile({
   );
 }
 
-/**
- * The "?" help affordance in a KPI tile header: a small dot whose hover (or
- * focus) reveals an explanation panel. Shared by the Market Score, Build time,
- * and Net margin tiles so the trigger chrome is defined once.
- */
 export function KpiHelp({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Popover
@@ -50,11 +37,6 @@ export function KpiHelp({ label, children }: { label: string; children: ReactNod
   );
 }
 
-/**
- * The fixed-height label row keeps every sibling figure on one internal plane,
- * including labels that wrap beside controls. KPI_FIG's own margin is the only
- * gap beneath that shared row.
- */
 export function KpiHead({ label, right }: { label: string; right?: ReactNode }) {
   return (
     <div className="flex h-8 items-center justify-between gap-1.5">
@@ -64,12 +46,6 @@ export function KpiHead({ label, right }: { label: string; right?: ReactNode }) 
   );
 }
 
-/**
- * A plain value tile (Input cost / Sell / Build time). Net margin and Market Score
- * compose KpiTile directly because they carry extra controls. `right` rides the
- * label row (KpiHead's existing slot) for a small affordance like a
- * data-quality badge.
- */
 export function SimpleTile({
   label,
   value,

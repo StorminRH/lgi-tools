@@ -1,14 +1,3 @@
-// Session 4.0.4.3.3 G-1 / SC-5.3: a named catalogue site row opens the shared
-// scanner-anchored site viewer (standalone card + bracket), and Escape /
-// outside-click dismiss it. Unmatched / unnamed rows stay inert.
-//
-// Requires authenticated storage state and a fresh empty UX_SITE_VIEWER_MAP_ID
-// map (disposable: the pasted site row stays behind). Ops mirror other
-// one-shot atlas gates: insert a map row, stamp the pilot's affiliation,
-// project access, then
-//   UX_SITE_VIEWER_MAP_ID=<id> node docs/ux-check/run-probes.mjs \
-//     --storage-state=docs/ux-check/captures/auth-storage.json \
-//     atlas-signature-viewer
 import {
   calmMapCamera,
   convexRun,
@@ -22,13 +11,12 @@ import {
   waitForTopology,
 } from '../lib/doorbell-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001; // Synthetic E2E pilot seeded in Neon.
-const ORIGIN_SYSTEM_ID = 31_001_677; // J113551 — C247 + N766 statics.
-const SHIP_TYPE_ID = 28_606; // Orca — legal through C247's mass cap.
+const CHARACTER_ID = 9_000_001;
+const ORIGIN_SYSTEM_ID = 31_001_677;
+const SHIP_TYPE_ID = 28_606;
 
 const SITE_NAME = 'Barren Perimeter Reservoir';
 const SITE_SIGNATURE_ID = 'IHJ-610';
-// Named but absent from the deploy-static catalogue — no site affordance.
 const UNMATCHED_NAME = 'Sansha Hideout';
 const UNMATCHED_SIGNATURE_ID = 'CBT-001';
 
@@ -106,8 +94,6 @@ export default {
     });
     await waitForTopology(page, 3, 2);
 
-    // Coverage can expire on the tokenless probe engine — stamp immediately
-    // before paste so the account-level paste gate sees honest coverage.
     await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
       mapId,
       userId,
@@ -154,8 +140,6 @@ export default {
         && (await viewer.count()) === 1
         && (await card.count()) === 1,
     );
-    // Wave cards may still use Collapsible internally; the site chrome itself
-    // must not wrap the header/body in a card-level <details>.
     check(
       'standalone card chrome is expanded without a card-level collapse',
       (await card.locator(':scope > details[data-collapsible]').count()) === 0
@@ -179,8 +163,6 @@ export default {
     );
 
     await openSiteViewer(page);
-    // Click the live map pane — outside the scanner-anchored card — so the
-    // document pointerdown/up dismiss path fires as a real user gesture.
     await page.locator('.react-flow__pane').click({
       position: { x: 24, y: 24 },
       timeout: 10_000,

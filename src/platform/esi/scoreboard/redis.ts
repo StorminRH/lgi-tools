@@ -25,11 +25,7 @@ import {
   type PreDispatchState,
 } from './types';
 
-// Hard timeout on every Redis REST call — the scoreboard sits on the go/no-go
-// path of every ESI call and must fail fast, not stall it.
 const REDIS_TIMEOUT_MS = 1500;
-// Zero retries: a retry would spend another caller's request budget on a
-// scoreboard read whose fallback is already cheap.
 const REDIS_RETRIES = 0;
 
 type Pipeline = ReturnType<UpstashRedis['pipeline']>;
@@ -41,8 +37,6 @@ function queueBudgetReads(pipeline: Pipeline, minute: number): void {
 }
 
 function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'source'> {
-  // Sum the current and previous minute buckets: CCP's fixed 60s window has
-  // an unknown phase, and two buckets are a strict conservative superset.
   const selfCount =
     (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
   const echo = parseStoredInt(rows[2] ?? null);
@@ -53,8 +47,6 @@ function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'sourc
   };
 }
 
-// Upstash Redis (REST over plain fetch, so it runs anywhere the gate runs —
-// Vercel functions today, Convex actions later). The shared, real scoreboard.
 class RedisScoreboard implements EsiScoreboard {
   private readonly redis: UpstashRedis;
 
@@ -62,8 +54,6 @@ class RedisScoreboard implements EsiScoreboard {
     this.redis = createUpstashClient({
       url,
       token,
-      // Stored values are raw strings (JSON we encode ourselves, body text);
-      // the SDK's default JSON round-trip would corrupt them.
       automaticDeserialization: false,
       timeoutMs: REDIS_TIMEOUT_MS,
       retries: REDIS_RETRIES,
@@ -79,7 +69,6 @@ class RedisScoreboard implements EsiScoreboard {
     const rows = await pipeline.exec<(string | null)[]>();
 
     const budget = budgetFromRows(rows);
-    // The block value is its expiry as epoch seconds; surface time remaining.
     const blockExpiry = parseStoredInt(rows[3] ?? null);
     const blockRemaining =
       blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
@@ -104,8 +93,6 @@ class RedisScoreboard implements EsiScoreboard {
 
   async report(report: EsiReport): Promise<void> {
     const pipeline = this.redis.pipeline();
-    // Run every concern (no short-circuit) so each gets its chance to queue,
-    // then dispatch only when at least one write was actually enqueued.
     const queued = [
       this.queueErrorCount(pipeline, report),
       this.queueErrorEcho(pipeline, report),
@@ -116,10 +103,6 @@ class RedisScoreboard implements EsiScoreboard {
     if (queued.some(Boolean)) await pipeline.exec();
   }
 
-  // Self-count every non-2xx/3xx we observe, regardless of which header
-  // system the response carried. The docs leave it ambiguous whether errors
-  // on token-bucket routes still deplete the per-IP error limit; over-
-  // counting costs an early fallback, under-counting risks the ban.
   private queueErrorCount(pipeline: Pipeline, report: EsiReport): boolean {
     if (report.status < 400) return false;
     const key = keyErrorCount(epochMinute());
@@ -130,7 +113,6 @@ class RedisScoreboard implements EsiScoreboard {
 
   private queueErrorEcho(pipeline: Pipeline, report: EsiReport): boolean {
     if (report.status === 420) {
-      // The Remain header arrives stale on 420s — force the echo to zero.
       pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [
         '0',
         String(echoTtl(report.errorLimitReset)),
@@ -200,15 +182,10 @@ class RedisScoreboard implements EsiScoreboard {
   }
 }
 
-/**
- * Creates the Redis-backed ESI scoreboard that atomically coordinates shared dispatch budgets and
- * ETag cache state.
- */
 export function createRedisScoreboard(url: string, token: string): EsiScoreboard {
   return new RedisScoreboard(url, token);
 }
 
-/** Reads a point-in-time ESI budget snapshot from Redis without mutating dispatch state. */
 export function readRedisBudgetSnapshot(
   scoreboard: EsiScoreboard,
 ): Promise<EsiBudgetSnapshot> {

@@ -1,5 +1,3 @@
-// SC-4 / SC-8.1: delete from the landing card hides the map, trash restore
-// returns it with no prompt. Mutates: one disposable map per run.
 export default {
   name: 'atlas-map-lifecycle',
   route: '/atlas',

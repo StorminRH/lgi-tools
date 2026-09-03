@@ -1,12 +1,5 @@
 'use client';
 
-// The /industry dashboard's live Active-jobs table (MIGRATE.B.2), presentational
-// since 3.7.24: the dashboard coordinator owns the jobs read (useJobsLive → the
-// Neon stale-gated on-view read), the section chrome, and the loading/empty
-// states — this renders the unified cross-character table it is handed. Each
-// job's live "ready" + progress derives client-side from its absolute end_date
-// against the render clock — a finishing job flips to ready with no reload and
-// no scheduler.
 import { TypeIcon } from '@/components/type-icon';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -17,7 +10,6 @@ import { jobActivityPill } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
 import { activeJobStatusText, formatEndDate, jobRowModel } from '../job-view';
 
-/** Renders active personal jobs with progress and completion timing from normalized job rows. */
 export function IndustryActiveJobs({
   jobs,
   names,

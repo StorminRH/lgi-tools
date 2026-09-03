@@ -22,14 +22,11 @@ from tools.lifecycle.resolve_development_state import (
     parse_contract_index,
 )
 
-
 _POLICY_MANIFEST = Path("tools/policy/policy-manifest.json")
-
 
 def _relative(root: Path, path: Path) -> str:
     """Return a stable repo-relative path for a finding."""
     return path.relative_to(root).as_posix()
-
 
 def _procedure_policy_findings(root: Path) -> list[Finding]:
     """Check lifecycle schema files for required section wording."""
@@ -86,7 +83,6 @@ def _procedure_policy_findings(root: Path) -> list[Finding]:
             position += match.end()
     return findings
 
-
 def _execution_evidence_findings(
     root: Path,
     roadmap: Path,
@@ -140,7 +136,6 @@ def _execution_evidence_findings(
             )
     return findings
 
-
 def collect_findings(root: Path) -> list[Finding]:
     """Collect every cross-artifact contradiction and snapshot-timing warning."""
     findings = _procedure_policy_findings(root)
@@ -156,11 +151,9 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_execution_evidence_findings(root, roadmap, rows, contract_index))
     return findings
 
-
 def main() -> int:
     """Run the lifecycle-evidence checker CLI."""
     return run_checker(collect_findings)
-
 
 if __name__ == "__main__":
     sys.exit(main())

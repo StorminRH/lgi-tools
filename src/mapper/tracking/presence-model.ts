@@ -1,7 +1,5 @@
-/** The single-word status vocabulary the intelligence body renders. */
 export type PresenceStatusWord = 'Docked' | 'In space';
 
-/** The location half of one `forMap` tracked row, as presence consumes it. */
 export interface TrackedLocationSnapshot {
   readonly solarSystemId: number;
   readonly stationId: number | null;
@@ -11,44 +9,32 @@ export interface TrackedLocationSnapshot {
   readonly observedAt: number;
 }
 
-/** One `forMap` tracked row, structurally (the model never imports Convex). */
 export interface TrackedPresenceRow {
   readonly userId: string;
   readonly characterId: number;
   readonly location: TrackedLocationSnapshot | null;
 }
 
-/** One pilot's derived presence inside a system. */
 export interface PresencePilot {
   readonly characterId: number;
   readonly shipTypeId: number | null;
   readonly docked: boolean;
-  /** Last observed movement (transition time; falls back to last change). */
   readonly lastMovementAt: number;
 }
 
-/** Everyone present in one system, sorted by character id. */
 export interface SystemPresence {
   readonly pilots: readonly PresencePilot[];
 }
 
-/** Inputs for one presence derivation pass. */
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
-  /** Per-owner-character covered flag; missing/false means hidden. */
   readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
 }
 
-/** Prefers the most recently moved duplicate of one character. */
 function betterPilot(a: PresencePilot, b: PresencePilot): PresencePilot {
   return b.lastMovementAt > a.lastMovementAt ? b : a;
 }
 
-/**
- * Derives per-system pilot presence from `forMap` rows. Rows without a joined
- * location contribute nothing; uncovered rows stay off the map even when
- * last-known location remains.
- */
 export function derivePresence(input: PresenceInput): ReadonlyMap<number, SystemPresence> {
   const byCharacter = new Map<number, { systemId: number; pilot: PresencePilot }>();
 
@@ -82,13 +68,11 @@ export function derivePresence(input: PresenceInput): ReadonlyMap<number, System
   return presence;
 }
 
-/** The `forMap` payload shape presence consumes (undefined while loading). */
 export interface TrackingPayload {
   readonly tracked: readonly TrackedPresenceRow[];
   readonly ownTrackedCharacterIds: readonly number[];
 }
 
-/** The `coverage` payload shape presence consumes (undefined while loading). */
 export interface CoveragePayload {
   readonly coverage: readonly {
     userId: string;
@@ -111,10 +95,6 @@ export function holdDefined<T>(
   return next !== undefined ? next : previous;
 }
 
-/**
- * Coverage args from a loaded `forMap` payload. Sorted so a location tick
- * (same identities, new location facts) keeps one subscription.
- */
 export function coverageQueryArgs(
   mapId: string,
   tracking: TrackingPayload | undefined,
@@ -132,11 +112,6 @@ export function coverageQueryArgs(
   };
 }
 
-/**
- * Indexes the coverage payload by owner then character id. An unloaded
- * payload yields an empty index, which hides everyone — the honest verdict
- * while the coverage subscription is still cold.
- */
 export function coverageIndex(
   payload: CoveragePayload | undefined,
 ): ReadonlyMap<string, ReadonlyMap<number, boolean>> {
@@ -149,11 +124,6 @@ export function coverageIndex(
   return index;
 }
 
-/**
- * Presence from possibly-unloaded `forMap` + `coverage` payloads — the
- * provider's memo body, kept pure and tested so the component seam stays
- * branch-free.
- */
 export function derivePresenceFromPayload(
   payload: TrackingPayload | undefined,
   coverage: CoveragePayload | undefined,
@@ -164,22 +134,16 @@ export function derivePresenceFromPayload(
   });
 }
 
-/** The one status word a pilot row displays: where they are, not whether. */
 export function presenceStatusWord(pilot: PresencePilot): PresenceStatusWord {
   return pilot.docked ? 'Docked' : 'In space';
 }
 
-/** One rendered friendlies row: resolved label + the single status word. */
 export interface FriendlyRowModel {
   readonly characterId: number;
   readonly label: string;
   readonly word: PresenceStatusWord;
 }
 
-/**
- * Rows for the intelligence body's friendlies readout: entity names win,
- * the bare character id is the honest fallback while a name is cold.
- */
 export function friendlyRows(
   pilots: readonly PresencePilot[],
   names: Record<string, string>,

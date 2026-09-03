@@ -25,7 +25,6 @@ function row(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
   };
 }
 
-// Minimal insert chain: insert().values().onConflictDoUpdate() → resolved.
 function fakeDb() {
   const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
   const values = vi.fn(() => ({ onConflictDoUpdate }));
@@ -66,9 +65,6 @@ describe('refreshPrices — source mix (3.0.10 O-1)', () => {
 
 describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', () => {
   it('writes null for a raw missing regionalDiscount — a pre-3.7.26.1 cached payload', async () => {
-    // The on-view coalescing cache serves RawMarketPrice objects serialized
-    // before the field existed for ~60s after a deploy. Drizzle rejects
-    // `undefined` in a multi-row insert, so the write boundary must normalize.
     const stale = row(1, 'esi') as unknown as Record<string, unknown>;
     delete stale.regionalDiscount;
     const db = fakeDb();
@@ -103,15 +99,11 @@ describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', 
     expect(summary).toMatchObject({ requested: 0, fetched: 0, written: 0, budgetExhausted: false });
   });
 
-  // Regression guard: a full-set refresh (~6k types × 12 cols) once sent a
-  // single insert over Postgres's 65,535 bind-parameter limit. persistPrices
-  // now chunks at 1,000 rows; verify a large batch splits into ≤1,000-row
-  // inserts and still reports every row written.
   it('chunks a large batch into ≤1,000-row inserts', async () => {
     const db = fakeDb();
     const rows = Array.from({ length: 2500 }, (_, i) => row(i + 1, 'esi'));
     const summary = await persistPrices(db as never, rows);
-    expect(db.insert).toHaveBeenCalledTimes(3); // 1000 + 1000 + 500
+    expect(db.insert).toHaveBeenCalledTimes(3);
     expect(summary.written).toBe(2500);
   });
 

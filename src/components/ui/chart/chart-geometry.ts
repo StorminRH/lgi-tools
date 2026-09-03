@@ -1,13 +1,4 @@
-// Pure geometry helpers shared by the chart primitives (Sparkline, TrendChart,
-// BarChart). No React, no visx — just the number crunching, so it unit-tests
-// cleanly and the chart shells stay presentation-only. `Sparkline` /
-// `TrendChart` re-export the ones their existing tests pin, so those imports
-// keep resolving from `./sparkline` / `./trend-chart`.
-
-/** Min/max of a non-empty list, in one pass. */
 export function extent(values: number[]): [number, number] {
-  // Documented for a non-empty list; on an empty array this preserves the prior
-  // behaviour (min/max stay undefined, returned as the [number, number] cast).
   let min = values[0]!;
   let max = values[0]!;
   for (const v of values) {
@@ -17,17 +8,12 @@ export function extent(values: number[]): [number, number] {
   return [min, max];
 }
 
-/**
- * Domain for the value axis with a little headroom so the line never rides the
- * top/bottom edge, and a flat series still gets a non-degenerate range.
- */
 export function paddedDomain(values: number[]): [number, number] {
   const [min, max] = extent(values);
   const pad = (max - min) * 0.1 || Math.abs(max) * 0.1 || 1;
   return [min - pad, max + pad];
 }
 
-/** Index of the datum whose x is closest to the probe x (linear scan; series are short). */
 export function nearestIndex(xs: number[], x: number): number {
   let best = -1;
   let bestDist = Infinity;
@@ -41,10 +27,6 @@ export function nearestIndex(xs: number[], x: number): number {
   return best;
 }
 
-/**
- * Up to `max` evenly spaced indices into a series of `count` points, always
- * including the first and last.
- */
 export function tickIndices(count: number, max: number): number[] {
   if (count <= 0) return [];
   if (max <= 1 || count === 1) return [0];
@@ -55,11 +37,6 @@ export function tickIndices(count: number, max: number): number[] {
   return [...new Set(indices)];
 }
 
-/**
- * Resolve a continuous-x hover to the nearest datum. `probeX` is the inverted
- * pointer position in data space; returns the closest datum and its index, or
- * null for an empty series. The chart shells feed the result to the tooltip.
- */
 export function continuousHoverTarget<T>(
   xs: number[],
   probeX: number,
@@ -67,6 +44,5 @@ export function continuousHoverTarget<T>(
 ): { datum: T; index: number } | null {
   const index = nearestIndex(xs, probeX);
   if (index < 0) return null;
-  // `data` is parallel to `xs`, which nearestIndex just bounded, so index is valid.
   return { datum: data[index]!, index };
 }

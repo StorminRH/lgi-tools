@@ -5,9 +5,6 @@ import { useEffect } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 
-/**
- * Renders a viewport-filling recovery surface for unhandled atlas-route errors.
- */
 export default function AtlasError({
   error,
   unstable_retry,

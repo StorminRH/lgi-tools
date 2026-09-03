@@ -402,4 +402,3 @@ export const restoreSeveredBranch = mutation({
       runBranchRestore(ctx, { mapId, connectionId, actor }),
     ),
 });
-

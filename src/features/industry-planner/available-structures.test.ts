@@ -96,14 +96,10 @@ describe('buildAvailableStructures', () => {
       securityClass: 'high',
       taxPct: 0.5,
     });
-    // An un-doged rig resolves to an empty attrs object, never a hole.
     expect(rows[0]!.rigAttrs).toEqual([{ '2593': -2 }, {}]);
   });
 
   it('falls back a nameless corp structure to its type name', () => {
-    // The final `Structure <id>` arm is defensive-only: knownTypeIds and the
-    // name map derive from the same rows, so a row past the gate always has a
-    // type name. Assert the reachable fallback.
     const [byType] = buildAvailableStructures([], [corp({ name: null })], STRUCTURE_TYPES, DOGMA);
     expect(byType!.name).toBe('Athanor');
   });

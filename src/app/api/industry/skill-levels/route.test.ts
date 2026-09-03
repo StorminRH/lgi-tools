@@ -2,11 +2,6 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 
-// The route serves the selected build character's trained levels. Mock the
-// session + the composition read so these exercise the validation arms and the
-// fail-open contract (every degraded arm answers levels:null, never an error)
-// without a DB.
-
 const getCurrentUserIdMock = vi.fn();
 const getSkillLevelsForCharacterOnViewMock = vi.fn();
 const measureOwnedDataReadMock = vi.fn();

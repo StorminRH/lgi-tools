@@ -6,14 +6,6 @@ import { getEveNews } from '@/data/eve-news/queries';
 import type { EveNewsItem } from '@/data/eve-news/types';
 import { formatUtcDate } from '@/lib/format/time';
 
-/**
- * The shared EVE news card — identical for anonymous and signed-in visitors.
- * Degradation lives INSIDE getEveNews (a feed failure is cached as an empty
- * list on a short-lived profile — see the accessor), so this card renders
- * whatever the cache holds and an empty list gets the empty state. Headlines
- * are rendered as plain JSX text (auto-escaped) and link out to eveonline.com —
- * never raw feed HTML (`dangerouslySetInnerHTML` is lint-banned under the CSP).
- */
 export async function HomeNewsCard() {
   const items: EveNewsItem[] = await getEveNews();
 

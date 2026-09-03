@@ -1,8 +1,3 @@
-// The fog canvas host's whole per-frame decision path, kept apart from the
-// React component so it is unit-tested rather than browser-observed (the
-// `FogLayer.tsx` component owns only refs, effects, and scheduling, each at
-// trivial branch depth). Every browser dependency arrives injected through
-// `FogTickIo`, mirroring the motion layer's pure-model/thin-host split.
 import {
   advanceFogFrame,
   EMPTY_FOG_FRAME_STATE,
@@ -19,7 +14,6 @@ import {
   type FogViewportState,
 } from './fog-painter';
 
-/** The canvas surface the host mutates; HTMLCanvasElement satisfies it. */
 export interface FogCanvasTarget {
   width: number;
   height: number;
@@ -28,13 +22,10 @@ export interface FogCanvasTarget {
   };
 }
 
-/** Everything one tick reads from the browser, injected for testability. */
 export interface FogTickIo {
   readonly canvas: FogCanvasTarget | null;
   readonly context: FogPaintContext | null;
-  /** Rasterizes the brush sprite once; `null` when 2D contexts are absent. */
   readonly createBrush: () => CanvasImageSource | null;
-  /** Resolves the fog color token; `null` while unresolved. */
   readonly readColor: () => string | null;
   readonly viewport: FogViewportState;
   readonly devicePixelRatio: number;
@@ -42,26 +33,22 @@ export interface FogTickIo {
   readonly now: number;
 }
 
-/** The presentation inputs the component last committed. */
 export interface FogTickInputs {
   readonly reveals: FogRevealSet;
   readonly motion: MotionConfig;
   readonly config: FogConfig;
 }
 
-/** Mutable per-mount state the tick owns; never React state. */
 export interface FogHostRuntime {
   frameState: FogFrameState;
   placement: FogPlacement | null;
   brush: CanvasImageSource | null;
 }
 
-/** A fresh runtime for one mount. */
 export function createFogHostRuntime(): FogHostRuntime {
   return { frameState: EMPTY_FOG_FRAME_STATE, placement: null, brush: null };
 }
 
-/** Repositions and resizes the canvas onto a newly claimed placement. */
 function applyPlacement(canvas: FogCanvasTarget, placement: FogPlacement): void {
   const { cover, scale } = placement;
   canvas.width = Math.max(1, Math.round(cover.width * scale));
@@ -72,12 +59,6 @@ function applyPlacement(canvas: FogCanvasTarget, placement: FogPlacement): void 
   canvas.style.setProperty('height', `${cover.height}px`);
 }
 
-/**
- * Runs one fog frame: advance the timeline/wake, settle the canvas placement,
- * paint, and report whether another frame must be scheduled. The advance
- * always commits (so time never replays), while paint quietly skips when the
- * pane, brush, or color is not ready — the next input change retries.
- */
 export function runFogTick(
   runtime: FogHostRuntime,
   io: FogTickIo,

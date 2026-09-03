@@ -37,10 +37,6 @@ function useCopyFeedback(value: string) {
   };
 }
 
-/**
- * Renders the domain-neutral copy button with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function CopyButton({
   value,
   displayValue,

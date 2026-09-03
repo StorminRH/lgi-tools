@@ -10,10 +10,6 @@ export type SitemapInputs = {
   changelog: { slug: string; updated: string }[];
 };
 
-/**
- * Derives sitemap entries under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function buildSitemapEntries({
   sites,
   changelog,
@@ -50,11 +46,6 @@ export function buildSitemapEntries({
   return [...staticRoutes, ...siteRoutes, ...changelogRoutes];
 }
 
-/**
- * The catalogue and repo content only change on deploy, so the sitemap is
- * cached into the prerendered shell and the build ID invalidates it — no
- * request-time reads. `use cache` can't sit directly on the route export.
- */
 export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   'use cache';
   cacheLife('max');

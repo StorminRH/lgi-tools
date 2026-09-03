@@ -106,7 +106,6 @@ function CreationInterstitial({
   );
 }
 
-/** Props for the controlled Atlas map-creation dialog. */
 export interface MapCreationDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -288,11 +287,6 @@ function CreationForm({
   );
 }
 
-/**
- * Creates one map through the existing atomic route, keeps the compass visible
- * for at least five seconds, and hands the successful map to the keyed Atlas
- * host through a push navigation.
- */
 export function MapCreationDialog({
   open,
   onOpenChange,

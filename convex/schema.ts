@@ -50,9 +50,6 @@ export default defineSchema({
     userId: v.string(),
     characterId: v.number(),
     online: v.boolean(),
-    // Held for the conditional read; only ever stored beside the `online` value a
-    // 304 would confirm. ESI's 304 never repeats the ETag, so the action echoes
-    // the held one across an unchanged read.
     etag: v.union(v.string(), v.null()),
   })
     .index('by_user', ['userId'])
@@ -139,9 +136,6 @@ export default defineSchema({
   })
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId'])
-    // Expiry-only cleanup ranges this oldest-first. Convex orders null below
-    // every number, so an active (null) row cannot enter a `> null` range and
-    // survives every cleanup call by construction.
     .index('by_purge_after', ['purgeAfter']),
 
   mapNotes: defineTable({
@@ -199,8 +193,6 @@ export default defineSchema({
     userId: v.string(),
     characterId: v.number(),
     online: v.boolean(),
-    // Held for the conditional read; ESI's 304 never repeats the ETag, so the
-    // action echoes the held one across an unchanged read.
     etagOnline: v.union(v.string(), v.null()),
     onlineExpiresAt: v.number(),
   })

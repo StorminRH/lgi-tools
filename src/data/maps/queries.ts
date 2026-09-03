@@ -34,10 +34,8 @@ import {
   mapAuthorizationRows,
 } from './authorization-sql';
 
-/** Thirty-day undo window shared by restorable-list reads and the later purge owner. */
 export const MAP_DELETE_GRACE_MS = 30 * 24 * 60 * 60 * 1_000;
 
-/** One explicitly selected delegated grant written during map creation. */
 export interface CreateMapGrant {
   readonly ownerType: MapAccessOwnerType;
   readonly ownerId: number;
@@ -78,13 +76,11 @@ export type MapGrantChange =
       };
     };
 
-/** How the current viewer reaches one authorized map. */
 export type MapAuthorizationProvenance =
   | { readonly kind: 'created' }
   | { readonly kind: 'corporation'; readonly corporationIds: readonly number[] }
   | { readonly kind: 'direct'; readonly characterIds: readonly number[] };
 
-/** Durable metadata returned by the single authorized-map listing owner. */
 export interface AuthorizedMapRow {
   readonly id: string;
   readonly name: string;
@@ -94,12 +90,10 @@ export interface AuthorizedMapRow {
   readonly provenance: MapAuthorizationProvenance;
 }
 
-/** One archived map the caller may still restore during grace. */
 export interface DeletedRestorableMapRow extends AuthorizedMapRow {
   readonly archivedAt: Date;
 }
 
-/** One delegated grant paired with its owning map for batched management reads. */
 export interface MapGrantRow extends MapGrant {
   readonly mapId: string;
 }
@@ -272,12 +266,6 @@ function materializeAuthorizedMaps(
     .sort(compareAuthorizedMaps);
 }
 
-/**
- * Atomically inserts one hidden, purge-queued map and its explicitly selected
- * grants in a single PostgreSQL statement that works through both Neon HTTP
- * and the local postgres-js fallback. Projection success publishes the row;
- * a failed delete safely leaves it invisible for the durable purge owner.
- */
 export async function createMapAtomic(
   userId: string,
   name: string,
@@ -361,11 +349,6 @@ export async function compensateFailedMapCreation(
   throw new Error('Map creation compensation found neither its row nor a purge claim.');
 }
 
-/**
- * One Neon-only authorized listing for the catalogue and switcher. It returns
- * creator, corporation, and direct-character provenance without consulting
- * the collaborative access projection.
- */
 export async function listAuthorizedMapsForPrincipals(
   userId: string,
   principals: MapPrincipals,
@@ -382,10 +365,6 @@ export async function listAuthorizedMapsForPrincipals(
   );
 }
 
-/**
- * One Neon-only listing of archived, untombstoned maps the caller may restore
- * as admin during the thirty-day grace window.
- */
 export async function listDeletedRestorableMapsForPrincipals(
   userId: string,
   principals: MapPrincipals,
@@ -411,7 +390,6 @@ export async function listDeletedRestorableMapsForPrincipals(
   );
 }
 
-/** Creator and archive state needed by the composed authorization gate. */
 export interface MapAccessSubject {
   readonly userId: string;
   readonly archivedAt: Date | null;
@@ -429,7 +407,6 @@ export async function getMapAccessSubject(
   return row ?? null;
 }
 
-/** Reads every delegated grant for one map in the shape consumed by `resolveMapRole`. */
 export async function getMapGrants(
   mapId: string,
   database: AnyPgDb = db,
@@ -444,10 +421,6 @@ export async function getMapGrants(
     .where(eq(mapAccess.mapId, mapId));
 }
 
-/**
- * Reads delegated grants for requested active maps only while this statement
- * independently confirms the caller's current creator/admin authority.
- */
 export async function getAuthorizedMapGrantsForMaps(
   userId: string,
   principals: MapPrincipals,
@@ -560,11 +533,6 @@ async function applyAuthorizedMapGrantRevoke(
   return mapAuthorizationRows(result)[0]?.authorized === true;
 }
 
-/**
- * Atomically requires admin authority on one active map and applies one
- * idempotent grant upsert or exact revocation. The caller owns the required
- * post-commit full-state projection and must not project when this returns false.
- */
 export function applyAuthorizedMapGrantChange(
   userId: string,
   principals: MapPrincipals,
@@ -577,11 +545,6 @@ export function applyAuthorizedMapGrantChange(
     : applyAuthorizedMapGrantRevoke(userId, principals, mapId, change, database);
 }
 
-/**
- * Resolves EVE-provider account owners for the given character ids in one batched
- * select. Non-EVE provider rows are ignored. Empty input returns an empty map
- * without querying.
- */
 export async function getUserIdsOwningCharacters(
   characterIds: number[],
   database: AnyPgDb = db,
@@ -612,13 +575,6 @@ export async function getUserIdsOwningCharacters(
   return owners;
 }
 
-/**
- * Resolves every Better Auth user that currently has a linked character whose
- * cached corporation id is in the given set. Empty input returns an empty set
- * without querying. Character ids are selected first, then owners resolve
- * through the text-keyed EVE account lookup so non-numeric non-EVE account ids
- * never enter a bigint cast.
- */
 export async function getUserIdsInCorporations(
   corporationIds: number[],
   database: AnyPgDb = db,
@@ -637,11 +593,6 @@ export async function getUserIdsInCorporations(
   return new Set(owners.values());
 }
 
-/**
- * Distinct map ids that hold a corporation grant for one of the given corporation
- * ids. Used by character purge to capture corp-derived projections before the
- * durable grant rows disappear.
- */
 export async function getMapIdsWithCorporationGrants(
   corporationIds: number[],
   database: AnyPgDb = db,
@@ -660,9 +611,6 @@ export async function getMapIdsWithCorporationGrants(
   return rows.map((row) => row.mapId);
 }
 
-/**
- * Distinct map ids that hold a direct character grant for the given character.
- */
 export async function getMapIdsWithCharacterGrant(
   characterId: number,
   database: AnyPgDb = db,
@@ -679,7 +627,6 @@ export async function getMapIdsWithCharacterGrant(
   return rows.map((row) => row.mapId);
 }
 
-/** Owned map ids for one creator, captured before a user purge deletes them. */
 export async function getOwnedMapIds(
   userId: string,
   database: AnyPgDb = db,
@@ -691,7 +638,6 @@ export async function getOwnedMapIds(
   return rows.map((row) => row.id);
 }
 
-/** Cached corporation id for one character profile, or null when absent/unknown. */
 export async function getCharacterCorporationId(
   characterId: number,
   database: AnyPgDb = db,

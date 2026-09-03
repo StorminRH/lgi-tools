@@ -12,8 +12,6 @@ export interface ProblemBody {
   retryAfterSeconds?: number;
 }
 
-// Extension members are rejected by design because client and server deploy together.
-/** Structural client-side parser for the stable HTTP problem body. */
 export const problemBodySchema: z.ZodType<ProblemBody, ProblemBody> = z.strictObject({
   type: z.string(),
   title: z.string(),
@@ -24,7 +22,6 @@ export const problemBodySchema: z.ZodType<ProblemBody, ProblemBody> = z.strictOb
   retryAfterSeconds: z.number().int().positive().optional(),
 });
 
-/** Default HTTP status for every application-failure category. */
 export const CATEGORY_STATUS = {
   validation: 400,
   unauthenticated: 401,
@@ -63,7 +60,6 @@ function assertValidRetryAfterSeconds(retryAfterSeconds: number | undefined): vo
   }
 }
 
-/** Builds the safe problem body without serializing internal causes. */
 export function problemBody(failure: AppFailure, correlationId: string): ProblemBody {
   assertValidRetryAfterSeconds(failure.retryAfterSeconds);
   return {
@@ -79,7 +75,6 @@ export function problemBody(failure: AppFailure, correlationId: string): Problem
   };
 }
 
-/** Serializes a problem body with the sole problem content type and retry header owner. */
 export function serializeProblem(body: ProblemBody): Response {
   return new Response(JSON.stringify(body), {
     status: body.status,

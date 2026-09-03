@@ -8,8 +8,6 @@ const summarizeMarketPricesRowCountMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const revalidateTagMock = vi.fn();
 
-// Reserved-connection stub: a tagged-template fn (the lock SQL) carrying a
-// `.release()`. `lockGot` flips the advisory-lock acquisition per test.
 let lockGot = true;
 const reservedTag = vi.fn(() => Promise.resolve([{ got: lockGot }]));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,7 +102,7 @@ describe('GET /api/cron/refresh-sde', () => {
 
   it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
-    getRemoteSdeVersionMock.mockResolvedValue(null); // Fuzzwork HEAD failed
+    getRemoteSdeVersionMock.mockResolvedValue(null);
     const { GET } = await importRoute();
     const res = await GET(authedRequest());
     expect((await res.json()).status).toBe('remote-unreachable');
@@ -112,13 +110,12 @@ describe('GET /api/cron/refresh-sde', () => {
       action: 'cron_sde',
       metadata: expect.objectContaining({ outcome: 'remote-unreachable' }),
     });
-    // No lock attempt on the doomed-download guard path.
     expect(reserveMock).not.toHaveBeenCalled();
   });
 
   it('records a busy skip as cron_sde/busy when the lock is held (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
-    getRemoteSdeVersionMock.mockResolvedValue('2026-05-08'); // drift
+    getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
     lockGot = false;
     const { GET } = await importRoute();
     const res = await GET(authedRequest());
@@ -132,7 +129,7 @@ describe('GET /api/cron/refresh-sde', () => {
 
   it('records a re-ingest as cron_sde/reingested with the pipeline summary (O-2)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
-    getRemoteSdeVersionMock.mockResolvedValue('2026-05-08'); // drift
+    getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
     lockGot = true;
     runSdePipelineMock.mockResolvedValue(PIPELINE_SUMMARY);
     const { GET } = await importRoute();
