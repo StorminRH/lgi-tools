@@ -11,21 +11,11 @@ import type {
   OwnerSyncTarget,
 } from './types';
 
-// The token-resolution outcome for one owner, before the fetch: a usable token, a
-// graceful gate state (no role-holder), or a transient skip.
 type TokenOutcome =
   | { kind: 'token'; accessToken: string }
   | { kind: 'needs_role' }
   | { kind: 'skip'; retryable: boolean };
 
-/**
- * Run one user's per-owner sync: the character pass THEN the corp pass, in series at
- * the top level (a character is both a char-owner and a corp member, so serialising
- * the passes avoids vending the same token concurrently). Within each pass the owners
- * are independent and refresh in parallel. Each owner reports a structured outcome;
- * budget deferrals may additionally enqueue through the optional callback. A
- * character-only slice supplies no corpAxis; a corp-only slice supplies no characterAxis.
- */
 export async function runOwnerSync<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   userId: string,
@@ -53,8 +43,6 @@ function targetMatches(candidate: OwnerSyncTarget, requested: OwnerSyncTarget | 
   );
 }
 
-// Character owners: each scope-eligible character syncs its OWN data with its own
-// token — in parallel, since the characters are independent.
 async function runCharacterPass<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   axis: OwnerAxis<TOwner>,
@@ -77,9 +65,6 @@ async function runCharacterPass<TOwner, TState, TSave>(
   );
 }
 
-// Corporation owners: group the user's corp-eligible characters by their cached corp
-// and sync each corp ONCE. Corps are independent (a character belongs to one corp, so
-// no member token is vended by two corps at once), so they refresh in parallel.
 async function runCorpPass<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   axis: CorpOwnerAxis<TOwner>,
@@ -113,8 +98,6 @@ async function runCorpPass<TOwner, TState, TSave>(
   );
 }
 
-// One owner, gated by staleness. resolveToken (a character's own vend, or a corp
-// Director resolution) runs ONLY when the owner is stale — so a fresh owner never
 // vends a token or hits ESI. The whole sequence is best-effort per owner.
 async function syncOwner<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
@@ -124,9 +107,7 @@ async function syncOwner<TOwner, TState, TSave>(
 ): Promise<OwnerSyncResult> {
   const target = descriptor.identityOf(owner);
   try {
-    // Consent gate, FIRST — before the state read, the staleness check, and any vend.
-    // A descriptor that opts out (returns false) is skipped with zero I/O: no readState,
-    // no token vend, no roles read, no fetch. Absent ⇒ always proceed (every other slice).
+
     if (descriptor.precondition !== undefined && !(await descriptor.precondition(owner))) {
       return { kind: 'failed_permanent', target, code: 'precondition_failed' };
     }
@@ -182,11 +163,6 @@ async function resolveCharacterToken<TOwner, TState, TSave>(
     : { kind: 'token', accessToken };
 }
 
-// Vend each member's token and read its in-game roles (in parallel — distinct
-// characters), build candidates, then pick + classify a Director. A member that
-// can't be vended or whose roles can't be read contributes no candidate; no
-// candidates at all → skip (transient), candidates but no role-holder → needs_role,
-// a role-holder → its token.
 async function resolveCorpToken<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   axis: CorpOwnerAxis<TOwner>,

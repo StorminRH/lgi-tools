@@ -23,7 +23,7 @@ const toResult = (item: Item, match: FuzzyMatch): SearchResult =>
 describe('rankFuzzyResults', () => {
   it('keeps only the matches, best-first', () => {
     const out = rankFuzzyResults(items, 'trit', (i) => i.label, toResult);
-    expect(out.map((r) => r.id)).toEqual(['a', 'c']); // Pyerite drops; both "Trit…" ranked
+    expect(out.map((r) => r.id)).toEqual(['a', 'c']);
     expect(out.every((r) => Array.isArray((r as SearchResult).matchIndices))).toBe(true);
   });
 
@@ -37,8 +37,7 @@ describe('rankFuzzyResults', () => {
   });
 
   it('ranks strictly by match score, not input order', () => {
-    // An exact/stronger match must sort ahead of a weaker one regardless of
-    // where it sits in the source list.
+
     const shuffled: Item[] = [
       { id: 'weak', label: 'T-x-r-i-t' },
       { id: 'strong', label: 'Trit' },

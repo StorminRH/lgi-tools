@@ -118,7 +118,7 @@ describe('search registry', () => {
       id: 'fast',
       name: 'Fast',
       async search() {
-        // If sources were sequential, the slow one would already be done.
+
         expect(slowResolved).toBe(false);
         return [ROW('f', 'fast')];
       },
@@ -223,19 +223,11 @@ describe('registerLazySearchSource', () => {
     });
     registerLazySearchSource({ id: 'lazy', name: 'Lazy', load });
 
-    // Silence the searchAll console.warn for the first failing call so
-    // it doesn't pollute test output. The behavior we care about is
-    // that the rejected load promise gets cleared and the next
-    // keystroke retries.
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // First call: lazy load rejects. searchAll drops the source for this
-    // keystroke and returns the other sources' results (empty here since
-    // it's the only source registered) — NOT a top-level rejection.
     const firstOut = await searchAll('a', makeCtx());
     expect(firstOut).toEqual([]);
 
-    // Second call: load is retried (the rejected promise was cleared).
     const secondOut = await searchAll('a', makeCtx());
     expect(load).toHaveBeenCalledTimes(2);
     expect(secondOut).toHaveLength(1);
@@ -245,9 +237,7 @@ describe('registerLazySearchSource', () => {
   });
 
   it('does not warn when a source rejects with AbortError', async () => {
-    // Sim a lazy source that gets cancelled mid-flight: it throws
-    // AbortError, but the parent signal is not yet aborted at the
-    // searchAll level (e.g. an internal source-level abort).
+
     registerSearchSource({
       id: 'cancelled-lazy',
       name: 'CancelledLazy',
@@ -373,9 +363,7 @@ describe('searchAll scoping', () => {
   });
 
   it('attributes a failure to the right source under scope', async () => {
-    // Regression guard for the warn's array indexing: with only the second
-    // source in scope, the settled array covers just the filtered subset —
-    // indexing the full registry would blame 'Good' for 'Broken's failure.
+
     registerSearchSource(makeSource('Good', [ROW('g', 'a-good')]));
     registerSearchSource({
       id: 'broken',

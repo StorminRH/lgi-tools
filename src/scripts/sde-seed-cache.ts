@@ -17,7 +17,6 @@ export const SDE_SEED_TABLES = [
   'eve_data_meta',
 ] as const;
 
-/** Source files whose contents change the rows a seed dump must represent. */
 export const SDE_SEED_SOURCE_FILES = [
   'src/data/eve-data/coerce.ts',
   'src/data/eve-data/constants.ts',
@@ -28,7 +27,6 @@ export const SDE_SEED_SOURCE_FILES = [
   'src/data/eve-data/universe.ts',
 ] as const;
 
-/** Dump-format token hashed with the table list so a restore key cannot reuse an old layout. */
 export const SDE_SEED_DUMP_FORMAT = 'pg-dump-Fc-data-only-v1';
 
 const DUMP_PREFIX = 'sde-';
@@ -41,7 +39,6 @@ export type SdeSeedArgs = {
   forceIngest: boolean;
 };
 
-/** Host Postgres target the sidecar publishes; docker talks to 127.0.0.1. */
 export type SdeSeedPgTarget = {
   user: string;
   password: string;
@@ -49,17 +46,12 @@ export type SdeSeedPgTarget = {
   port: string;
 };
 
-/** `docker run` invocation; `PGPASSWORD` is forwarded, not placed on argv. */
 export type DockerPgCommand = {
   file: string;
   args: string[];
   env: { PGPASSWORD: string };
 };
 
-/**
- * Parses `--cache-dir` / `--force`. An env fallback fills cacheDir when the
- * flag is omitted so the workflow can set `SDE_SEED_CACHE_DIR`.
- */
 export function parseSdeSeedArgs(
   argv: readonly string[],
   cacheDirEnv?: string,
@@ -90,7 +82,6 @@ export function parseSdeSeedArgs(
   return { cacheDir, forceIngest };
 }
 
-/** SHA-256 prefix of dump format, table list, and ingest sources. */
 export function hashSdeSeedSources(
   contents: Readonly<Record<string, string>>,
   identity: {
@@ -118,12 +109,10 @@ export function hashSdeSeedSources(
   return hash.digest('hex').slice(0, 12);
 }
 
-/** Dump file name keyed by CCP build + ingest-source hash. */
 export function sdeSeedDumpFileName(version: string, sourceHash: string): string {
   return `${DUMP_PREFIX}${version}-${sourceHash}${DUMP_SUFFIX}`;
 }
 
-/** Host path for the versioned dump on the cache disk. */
 export function sdeSeedDumpPath(
   cacheDir: string,
   version: string,
@@ -132,10 +121,6 @@ export function sdeSeedDumpPath(
   return join(cacheDir, sdeSeedDumpFileName(version, sourceHash));
 }
 
-/**
- * Restore only when the cache disk has a dump for this CCP build and ingest
- * source. Missing version, missing disk, or `--force` ingest from CCP.
- */
 export function resolveSdeSeedAction(input: {
   cacheDir: string | null;
   remoteVersion: string | null;
@@ -149,7 +134,6 @@ export function resolveSdeSeedAction(input: {
   return 'restore';
 }
 
-/** Resolved CLI + dump identity the CI entry executes. */
 export type PreparedSdeSeed =
   | {
       action: 'restore';
@@ -164,10 +148,6 @@ export type PreparedSdeSeed =
       sourceHash: string;
     };
 
-/**
- * Builds the seed plan from argv, the CCP manifest, and whether the versioned
- * dump is already on the cache disk.
- */
 export function prepareSdeSeedRun(input: {
   argv: readonly string[];
   cacheDirEnv: string | undefined;
@@ -206,10 +186,6 @@ export function prepareSdeSeedRun(input: {
   };
 }
 
-/**
- * Reads user/password/database/port from a Postgres URL. Host is always the
- * published sidecar on loopback when docker uses `--network host`.
- */
 export function parseSdeSeedPgTarget(databaseUrl: string): SdeSeedPgTarget {
   const url = new URL(databaseUrl);
   const database = url.pathname.replace(/^\//, '').split('/')[0] ?? '';
@@ -255,7 +231,6 @@ function tableFlags(): string[] {
   return SDE_SEED_TABLES.flatMap((table) => ['-t', `public.${table}`]);
 }
 
-/** `docker run` that writes a custom-format data-only dump onto the cache disk. */
 export function buildSdeDumpDockerCommand(
   cacheDir: string,
   dumpFileName: string,
@@ -277,7 +252,6 @@ export function buildSdeDumpDockerCommand(
   };
 }
 
-/** `docker run` that restores a data-only dump into the empty migrated sidecar. */
 export function buildSdeRestoreDockerCommand(
   cacheDir: string,
   dumpFileName: string,
@@ -299,7 +273,6 @@ export function buildSdeRestoreDockerCommand(
   };
 }
 
-/** `ANALYZE` list for the restored SDE tables (planner stats after pg_restore). */
 export function sdeSeedAnalyzeSql(): string {
   return `ANALYZE ${SDE_SEED_TABLES.join(', ')}`;
 }

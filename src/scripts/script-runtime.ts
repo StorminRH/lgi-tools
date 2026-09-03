@@ -2,10 +2,6 @@ import postgres from 'postgres';
 import { readEnv } from '@/lib/env';
 import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl, type Sql } from '@/db';
 
-/**
- * Opens the unpooled lock client for a deploy-time bootstrap, or exits 0 when
- * the database URL or lock endpoint is missing so the build can continue.
- */
 export function requireSoftFailLockClient(
   missingDatabaseMessage: string,
   lockFailurePrefix: string,
@@ -25,10 +21,6 @@ export function requireSoftFailLockClient(
   }
 }
 
-/**
- * Runs a database maintenance script with standardized success and failure reporting, closing the
- * database connection before returning an exit code.
- */
 export function runScript(
   main: () => Promise<void>,
   options: { client: Sql; softFail?: boolean },
@@ -41,8 +33,7 @@ export function runScript(
     .catch(async (err) => {
       console.error(err);
       await options.client.end().catch(() => undefined);
-      // Soft failure (deploy bootstraps): the build continues. Hard failure
-      // (manual tools): surface a non-zero exit.
+
       process.exit(options.softFail ? 0 : 1);
     });
 }

@@ -115,7 +115,7 @@ function holdMs(intervalMs: number): number {
 }
 
 function parseConnectionId(output: string, path: string): string {
-  // Convex CLI may emit progress lines before the JSON id; take the last line.
+
   const lastLine = output.split('\n').at(-1)?.trim() ?? '';
   try {
     const parsed: unknown = JSON.parse(lastLine);

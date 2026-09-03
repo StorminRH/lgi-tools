@@ -1,9 +1,3 @@
-// Dev/tooling CLI: project or tear down one map's Convex access claims.
-// Used by atlas authoring ux-check probes (revocation demo) and operators.
-//
-// Usage:
-//   pnpm map:project-access -- project <mapId>
-//   pnpm map:project-access -- teardown <mapId>
 import { config } from 'dotenv';
 import {
   projectMapAccess,

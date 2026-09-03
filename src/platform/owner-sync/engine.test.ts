@@ -16,7 +16,6 @@ const owner = (characterId: number, extra: Partial<EnumeratedOwner> = {}): Enume
   ...extra,
 });
 
-// A corp axis whose Director gate admits a member iff its readRoles returns the role.
 const corpAxis = (
   readRoles: CorpOwnerAxis<string>['readRoles'],
 ): CorpOwnerAxis<string> => ({

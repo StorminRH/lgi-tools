@@ -1,18 +1,3 @@
-// Deploy-time auth backfill (3.4.1a). Runs on every `pnpm vercel-build`, after
-// migrate. For each existing `characters` row it creates the Better Auth `user`
-// + `account` link the new auth model needs, so pilots who signed up under the
-// old custom auth keep their access (admin role copied up to the user).
-//
-// Idempotent: keyed on the account (the canonical user↔character link), so a
-// re-run — or a pilot who logged in via Better Auth between deploys — is a
-// no-op. Runs on every forked preview Neon branch too (fresh branch → no
-// characters → no-op; populated branch → backfills once).
-//
-// Reversible: drops only into the new tables; `characters`/`usage_logs` are
-// untouched, so rolling back is just dropping the four Better Auth tables.
-//
-// Failures are SOFT — the build continues. (Same posture as ingest-sde-if-empty.)
-
 import { config } from 'dotenv';
 import { readEnv } from '@/lib/env';
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
@@ -25,8 +10,7 @@ const client = requireSoftFailLockClient(
   'Skipping auth backfill (DATABASE_URL is not set).',
   'Skipping auth backfill (build continues):',
 );
-// Distinct from the SDE ingest lock (8273619013) — guards against two preview
-// builds racing the same branch DB. Session-scoped; released in finally.
+
 const LOCK_KEY_NUM = 8419273051;
 
 interface CharacterRow {
@@ -38,10 +22,6 @@ interface CharacterRow {
   updated_at: Date;
 }
 
-// Links each pre-Better-Auth `characters` row to a new user + account, under
-// the caller's held advisory lock. Idempotent — the account is the canonical
-// link, so an already-migrated character (prior run or a Better Auth login) is
-// skipped.
 async function backfillUnderLock(reserved: ReservedConnection): Promise<void> {
   const chars = await reserved<CharacterRow[]>`
     SELECT character_id, name, portrait_url, role, created_at, updated_at FROM characters
@@ -59,8 +39,7 @@ async function backfillUnderLock(reserved: ReservedConnection): Promise<void> {
     if (existing.length > 0) continue;
 
     const userId = `eve-user-${characterId}`;
-    // Deterministic ids + ON CONFLICT DO NOTHING make a crash between the two
-    // inserts self-healing on re-run (user already there → account follows).
+
     await reserved`
       INSERT INTO "user" (id, name, email, email_verified, image, role, created_at, updated_at)
       VALUES (
@@ -101,5 +80,4 @@ async function main() {
   }
 }
 
-// Soft-fail: a failed backfill must not fail the build (per the header).
 runScript(main, { client, softFail: true });
