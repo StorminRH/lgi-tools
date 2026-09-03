@@ -2,14 +2,6 @@ import { systemsEndpoint } from '@/data/eve-data/api-contract';
 import { getSystemSearchIndex } from '@/data/eve-data/queries';
 import { apiResponse } from '@/transport/api-response';
 
-/**
- * GET /api/industry/systems
- * No user input — returns the full cached universe system index (every
- * persistent solar system: K-space, Pochven, J-space) that feeds the lazy
- * systems search source; the build-location pickers and the structure-pin
- * control query it via searchAll(['systems']) and match client-side.
- * (Validation invariant: no input to validate.)
- */
 // authz: public
 // input: none
 export async function GET(): Promise<Response> {

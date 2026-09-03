@@ -10,18 +10,6 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST /api/industry/skill-levels
- * Body: \{ characterId \}
- *
- * The selected build character's trained ACTIVE skill levels for the planner's
- * skills→time lever (3.7.19.1), read from the skills tracker's Neon store with
- * the same stale-gated on-view write-behind refresh as the skills page. The
- * character must be one of the caller's linked characters (the user id comes
- * from the session, never the body). Every degraded arm — anonymous caller,
- * someone else's character, never-synced or pre-column row — answers
- * `levels: null` (200): the planner fails open to the no-skill baseline.
- */
 // authz: auth
 export const POST = capabilityRoute('planner.read-skill-levels', handlePost);
 
