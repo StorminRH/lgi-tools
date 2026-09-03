@@ -80,7 +80,7 @@ function SignedInCluster({
           onClick={() => {
 
             void authClient.signOut().finally(() => {
-
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
               window.location.href = '/';
             });
           }}
