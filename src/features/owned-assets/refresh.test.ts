@@ -6,8 +6,6 @@ import type { OwnedAssetsPort } from './types';
 const NOW = new Date('2026-06-28T12:00:00Z');
 const CHAR_ASSETS_SCOPE = 'esi-assets.read_assets.v1';
 
-// A valid ESI asset element — item_id / is_singleton are present and must be
-
 function esiAsset(typeId: number, quantity = 1000) {
   return {
     item_id: 9_999,

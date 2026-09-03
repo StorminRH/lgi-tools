@@ -6,8 +6,6 @@ import type { OwnedBlueprintsPort } from './types';
 const NOW = new Date('2026-06-27T12:00:00Z');
 const CHAR_BP_SCOPE = 'esi-characters.read_blueprints.v1';
 
-// A valid ESI blueprint element — item_id is present and must be dropped by the
-
 function esiBlueprint(typeId: number) {
   return {
     type_id: typeId,

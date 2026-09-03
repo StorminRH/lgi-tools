@@ -1,4 +1,3 @@
-// corp-shared rows a personal purge must never touch. Regenerable ESI mirror.
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
