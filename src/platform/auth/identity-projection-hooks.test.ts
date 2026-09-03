@@ -12,9 +12,7 @@ describe('createIdentityProjectionRunners', () => {
       runners.runAfterCharacterLinkChanged({ userId: 'user-1', characterId: 100 }),
     ).resolves.toBeUndefined();
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[identity-projection] afterCharacterLinkChanged skipped for user-1:100: action unregistered',
-    );
+    expect(errorSpy).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 

@@ -28,11 +28,12 @@ export function createIdentityProjectionRunners(
       characterId: number;
     }): Promise<void> {
       const action = hooks.afterCharacterLinkChanged;
+      if (action === undefined) return;
       await bestEffort(
         'identity-projection',
         'afterCharacterLinkChanged',
         `${args.userId}:${args.characterId}`,
-        action === undefined ? undefined : () => action(args),
+        () => action(args),
       );
     },
   };
