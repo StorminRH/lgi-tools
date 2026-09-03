@@ -42,6 +42,7 @@ function PageControl({
       <a href={hrefForPage(target)} aria-current={state.ariaCurrent} className={classes}>
         {text}
       </a>
+
     );
   }
   return (
@@ -54,11 +55,13 @@ function PageControl({
     >
       {text}
     </button>
+
   );
 }
 
 function PaginationEdge({ enabled, ...props }: PageControlProps & { enabled: boolean }) {
   if (!enabled) return <span className={cn(itemClass, 'opacity-40')}>{props.text}</span>;
+
   return <PageControl {...props} />;
 }
 
@@ -80,6 +83,7 @@ function PaginationItemControl({
       <span key={`ellipsis-${index}`} className="px-1 text-faint" aria-hidden>
         …
       </span>
+
     );
   }
   return (
@@ -93,10 +97,6 @@ function PaginationItemControl({
   );
 }
 
-/**
- * Renders the domain-neutral pagination with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function Pagination({
   page,
   pageCount,
@@ -147,6 +147,8 @@ export function Pagination({
       <span className="ml-2 font-ui text-label text-faint">
         {total} rows · {pageSize}/page
       </span>
+
     </nav>
+
   );
 }

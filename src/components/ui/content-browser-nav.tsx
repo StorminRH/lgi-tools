@@ -24,10 +24,7 @@ function ContentItemLink({
   activeSlug: string | null;
 }) {
   const active = item.slug === activeSlug;
-  // Partial Prefetching (Next 16.3) reuses one App Shell per route, so the old
-  // "prefetch every slug in one burst" cost no longer applies. Leave the Link
-  // default so soft navigations get the shared shell; document bodies stream
-  // from Suspense around `params`.
+
   return (
     <Link
       href={contentBrowserHref(basePath, item.slug, landingSlug)}
@@ -37,13 +34,10 @@ function ContentItemLink({
     >
       {item.title}
     </Link>
+
   );
 }
 
-/**
- * Renders the domain-neutral content browser nav tree with house behavior and tokens; callers own
- * semantic meaning and content while this primitive owns presentation.
- */
 export function ContentBrowserNavTree({
   basePath,
   navigationLabel,
@@ -63,16 +57,15 @@ export function ContentBrowserNavTree({
               activeSlug={activeSlug}
             />
           </li>
+
         ))}
       </ul>
+
     </nav>
+
   );
 }
 
-/**
- * Renders the domain-neutral content browser nav with house behavior and tokens; callers own
- * semantic meaning and content while this primitive owns presentation.
- */
 export function ContentBrowserNav(props: ContentBrowserNavProps) {
   const pathname = usePathname();
   return (

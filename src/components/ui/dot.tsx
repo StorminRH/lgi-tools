@@ -29,10 +29,6 @@ const dotVariants = cva('inline-block rounded-full shrink-0', {
   defaultVariants: { size: 'md' },
 });
 
-/**
- * Renders the domain-neutral dot with house behavior and tokens; callers own semantic meaning and
- * content while this primitive owns presentation.
- */
 export function Dot({
   tone,
   size = 'md',

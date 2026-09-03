@@ -13,10 +13,6 @@ import { scrollArea } from './scroll-area';
 export type { ContentNavModel } from './content-browser-view';
 export { landingContentSlug } from './content-browser-view';
 
-/**
- * Renders the domain-neutral content browser with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function ContentBrowser({
   basePath,
   railLabel,
@@ -38,6 +34,7 @@ export function ContentBrowser({
       <span className="shrink-0 font-ui text-label font-semibold tracking-label uppercase text-faint">
         {railLabel}
       </span>
+
       <Suspense
         fallback={
           <span
@@ -52,10 +49,13 @@ export function ContentBrowser({
           model={model}
         />
       </Suspense>
+
       <span className="shrink-0 text-label text-muted" aria-hidden="true">
         ↑
       </span>
+
     </span>
+
   );
   return (
     <div
@@ -72,9 +72,13 @@ export function ContentBrowser({
             <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
               <ContentBrowserNav {...navProps} />
             </Suspense>
+
           </ContentBrowserDrawerNavigation>
+
         </Drawer>
+
       </div>
+
       <div
         data-content-browser-rail
         className="hidden min-w-0 lg:sticky lg:top-6 lg:block"
@@ -89,9 +93,14 @@ export function ContentBrowser({
           <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
             <ContentBrowserNav {...navProps} />
           </Suspense>
+
         </div>
+
       </div>
+
       <div className="min-w-0">{children}</div>
+
     </div>
+
   );
 }

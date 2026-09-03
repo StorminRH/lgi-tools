@@ -1,11 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-/**
- * A pure-HTML <details>/<summary> collapsible. No client component
- * required — browsers toggle open/closed natively, the chevron rotates
- * via a CSS rule in globals.css (`details[open] [data-chevron]`).
- */
 export function Collapsible({
   header,
   children,
@@ -33,7 +28,10 @@ export function Collapsible({
       >
         {header}
       </summary>
+
       <div>{children}</div>
+
     </details>
+
   );
 }
