@@ -15,8 +15,6 @@ describe('lastNDaysRange', () => {
   });
 });
 
-// expression. The JSON key is a bind param that Drizzle re-numbers per clause, so
-
 describe('topByMetadataKey GROUP BY shape', () => {
   const range = {
     from: new Date('2026-05-01T00:00:00Z'),
