@@ -12,7 +12,6 @@ from tools.delivery import wait_prod_deploy as w
 SHA = "f56b2722acd10bc160a0a686b4249621516888c8"
 OTHER = "a1f2dfda4d5cfcb676569daa2aa4af9e4e113b78"
 
-
 def deployment(sha: str, deployment_id: int = 1, created_at: str = "2026-08-11T23:34:24Z") -> dict[str, Any]:
     return {
         "id": deployment_id,
@@ -20,7 +19,6 @@ def deployment(sha: str, deployment_id: int = 1, created_at: str = "2026-08-11T2
         "environment": "Production",
         "created_at": created_at,
     }
-
 
 def status(
     state: str,
@@ -36,7 +34,6 @@ def status(
         "environment_url": url,
         "target_url": url,
     }
-
 
 class EvaluateProdDeploy(unittest.TestCase):
     def test_waiting_when_no_deployment(self) -> None:
@@ -85,7 +82,6 @@ class EvaluateProdDeploy(unittest.TestCase):
         self.assertIn("success", detail)
 
     def test_newest_status_wins_not_list_order(self) -> None:
-        # Older success listed first; newer failure must win.
         phase, detail = w.evaluate_prod_deploy(
             SHA,
             [deployment(SHA)],
@@ -108,7 +104,6 @@ class EvaluateProdDeploy(unittest.TestCase):
         self.assertEqual(phase, "failed")
         self.assertIn("tip moved", detail)
 
-
 class NewestHelpers(unittest.TestCase):
     def test_newest_by_created_prefers_later_timestamp(self) -> None:
         older = deployment(SHA, 1, "2026-08-11T20:00:00Z")
@@ -118,7 +113,6 @@ class NewestHelpers(unittest.TestCase):
     def test_deployment_url_reads_environment_url(self) -> None:
         url = w.deployment_url([status("success", url="https://example.vercel.app")])
         self.assertEqual(url, "https://example.vercel.app")
-
 
 class PollUntilReady(unittest.TestCase):
     def test_rejects_short_sha(self) -> None:
@@ -137,7 +131,6 @@ class PollUntilReady(unittest.TestCase):
 
         def fake_deployments(token: str, *, sha: str | None, environment: str) -> list[dict[str, Any]]:
             del token, environment
-            # First full poll has no SHA deploy yet; later polls succeed.
             if sha is not None and loops["n"] == 0:
                 return []
             return [deployment(SHA)]
@@ -169,7 +162,6 @@ class PollUntilReady(unittest.TestCase):
         ticks = {"n": 0}
 
         def fake_now() -> float:
-            # 1: deadline base, 2: enter loop, 3+: past deadline.
             ticks["n"] += 1
             return 0.0 if ticks["n"] <= 2 else 100.0
 
@@ -186,7 +178,6 @@ class PollUntilReady(unittest.TestCase):
                     token_factory=lambda: "token",
                     now=fake_now,
                 )
-
 
 if __name__ == "__main__":
     unittest.main()

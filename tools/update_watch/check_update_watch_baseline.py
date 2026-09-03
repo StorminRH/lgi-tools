@@ -24,11 +24,9 @@ from urllib.parse import urlsplit
 from tools._lib.checker_common import Finding, find_line, run_checker
 from tools.update_watch.update_watch_collect import BASELINE_PATH, ID_RULES, SOURCE_REGISTRY, parse_baseline
 
-
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _GHSA_PATTERN = re.compile(r"^GHSA(-[a-z0-9]{4}){3}$")
 _APPLIES_TO_PATTERN = re.compile(r"^.+@.+$")
-
 
 def _package_dependency_names(root: Path) -> tuple[set[str] | None, list[Finding]]:
     """Return the exact union of dependencies and devDependencies, or findings."""
@@ -43,7 +41,6 @@ def _package_dependency_names(root: Path) -> tuple[set[str] | None, list[Finding
         set(package.get("dependencies", {})) | set(package.get("devDependencies", {})),
         [],
     )
-
 
 def _check_dependencies(
     baseline: dict, expected: set[str], path: Path, findings: list[Finding]
@@ -85,7 +82,6 @@ def _check_dependencies(
                 )
             )
 
-
 def _check_advisories(baseline: dict, path: Path, findings: list[Finding]) -> None:
     """Require well-formed advisory acknowledgements with observed applicability."""
     advisories = baseline.get("acknowledgedAdvisories")
@@ -116,7 +112,6 @@ def _check_advisories(baseline: dict, path: Path, findings: list[Finding]) -> No
                     "error",
                 )
             )
-
 
 def _check_sources(baseline: dict, path: Path, findings: list[Finding]) -> None:
     """Require every registry source exactly once with exact domains and valid fields."""
@@ -209,7 +204,6 @@ def _check_sources(baseline: dict, path: Path, findings: list[Finding]) -> None:
                     )
                 )
 
-
 def collect_findings(root: Path) -> list[Finding]:
     """Report every baseline schema, completeness, and registry-lock violation."""
     path = root / BASELINE_PATH
@@ -229,11 +223,9 @@ def collect_findings(root: Path) -> list[Finding]:
     _check_sources(baseline, path, findings)
     return findings
 
-
 def main() -> int:
     """Run the update-watch baseline checker CLI."""
     return run_checker(collect_findings)
-
 
 if __name__ == "__main__":
     sys.exit(main())

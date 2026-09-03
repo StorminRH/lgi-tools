@@ -13,9 +13,6 @@ import unittest
 
 from tools.delivery.scrub_pr_body import PatternRule, _runtime_rules, collect_findings
 
-
-
-
 class PrivacyFixture:
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -44,7 +41,6 @@ class PrivacyFixture:
             finding.render()
             for finding in collect_findings(self.root, args, runtime_rules=rules)
         ]
-
 
 class ScrubPrBodyTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -133,7 +129,6 @@ class ScrubPrBodyTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(1, result.returncode)
-
 
 if __name__ == "__main__":
     unittest.main()

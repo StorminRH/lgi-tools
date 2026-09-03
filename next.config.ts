@@ -1,21 +1,15 @@
 import type { NextConfig } from "next";
 
-// Static security headers applied to every response (page routes + API
-// routes). The `Content-Security-Policy` itself is set by proxy.ts — a basic
-// origin-locked policy since 3.0.4.6 (no per-request nonce); everything below
-// is safe to bake in once at config time.
 const SECURITY_HEADERS = [
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
   },
-  // Defence-in-depth alongside CSP's `frame-ancestors 'none'` — legacy
-  // browsers without CSP-level3 still honour this.
+
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Locks down feature policy for surfaces we never use and opts out of
-  // FLoC interest cohorts.
+
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
@@ -23,25 +17,13 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
-  // Cache Components (Next 16): enables the stable `use cache` directive and
-  // makes Partial Prerendering the default — routes prerender a static shell
-  // and stream genuinely per-request data from `<Suspense>` holes. This is what
-  // takes the site off the all-dynamic path, now that the nonce CSP that blocked
-  // static rendering is gone (3.0.4.6). It also drives `use cache`/`cacheLife`/
-  // `cacheTag`; do not reintroduce a script nonce without re-checking this.
+
   cacheComponents: true,
-  // Instant Navigations (Next 16.3): prefetch one reusable App Shell per route
-  // instead of a full per-link payload. Requires cacheComponents. Instant Insights
-  // validates Page/Default segments in next dev by default.
+
   partialPrefetching: true,
-  // CCP's official third-party image server. Serves character portraits today
-  // (used by the login chip and admin dashboard) and will serve type icons,
-  // blueprint art, and ship renders for the 3.1 Industry Planner visual pass.
+
   images: {
-    // Every rendered image is fixed-size today. Keep Next's 1x/2x candidates
-    // on CCP's supported ladder so the custom EveImage loader can pass each
-    // requested width through exactly; unsupported defaults such as 48/96
-    // would need snapping and trigger Next's missing-loader-width warning.
+
     imageSizes: [32, 64, 128, 256, 512],
     remotePatterns: [
       {
@@ -60,9 +42,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // 3.4.2 consolidated the tabbed usage report into the /admin dashboard.
-      // Non-permanent so browsers don't cache the hop forever; query params
-      // (?range=) forward automatically, so old bookmarks keep their range.
+
       {
         source: "/admin/usage",
         destination: "/admin",

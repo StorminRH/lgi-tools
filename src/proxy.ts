@@ -4,12 +4,6 @@ import { SITE_URL } from "@/config/site-url";
 import { isPublishedWormholeSiteId } from "@/features/wormhole-sites/catalogue-boundary";
 import { parseNumericRouteId } from "@/transport/route-id";
 
-// The one host that should ever be indexed. Every other host that reaches the
-// app — preview/branch aliases, a stray `www`, or the production `*.vercel.app`
-// alias — gets `X-Robots-Tag: noindex` below. Today Vercel Deployment
-// Protection already 401s those aliases at the edge (before this runs), but
-// that's a dashboard toggle; stamping the header here is the code-level
-// guarantee that they can never be indexed even if protection is turned off.
 const CANONICAL_HOST = new URL(SITE_URL).host;
 
 function isUnpublishedDirectSitePath(pathname: string): boolean {
@@ -20,18 +14,6 @@ function isUnpublishedDirectSitePath(pathname: string): boolean {
   return id === null || !isPublishedWormholeSiteId(id);
 }
 
-// The Convex backend origin for connect-src (3.4.3). A literal NEXT_PUBLIC_*
-// read is inlined into this bundle at BUILD time (define-env covers the
-// node/edge server targets, verified in next@16.2.6) — which is required: on
-// Vercel the value exists ONLY in the build env, injected per deployment by
-// `pnpm exec convex deploy --cmd-url-env-var-name`, so prod and every preview get
-// their exact backend origin (https for the initial handshake, wss for the
-// reactive websocket). Deliberately NOT a `*.convex.cloud` wildcard — that
-// would admit every Convex customer's backend as a connect target. Unset
-// (a Convex-less local build) leaves the policy byte-identical to before.
-// Scheme-aware (3.4.7): a deployed https backend yields the same https+wss
-// pair as before, while a LOCAL Convex dev deployment (http://127.0.0.1:3210)
-// needs http+ws or the dev websocket is CSP-blocked.
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const CONVEX_CONNECT_SRC = (() => {
   if (!CONVEX_URL) return "";
@@ -40,41 +22,9 @@ const CONVEX_CONNECT_SRC = (() => {
   return ` ${url.origin} ${wsScheme}//${url.host}`;
 })();
 
-/**
- * Applies request security and publication policy: unpublished direct site
- * paths become 404/noindex responses, every matched response receives CSP, and
- * non-canonical hosts receive noindex.
- *
- * Through 3.0.4.5 the CSP used a fresh
- * per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
- * forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
- * conversion-track enabler — for a basic origin-locked policy: scripts load
- * from our own origin (`'self'`), with `'unsafe-inline'` admitting the inline
- * RSC flight-data scripts that hydration needs. OOB.1.1 then widened `style-src`
- * to `'self' 'unsafe-inline'` as well, so inline `style="…"` attributes are now
- * permitted in every environment (see the dev-relaxation note below).
- *
- * Why `'unsafe-inline'` and not a stricter form: every App Router page emits
- * inline `self.__next_f.push(...)` scripts that `'self'` alone can't bless, and
- * the nonce that used to bless them is what we're removing. Subresource
- * Integrity doesn't help — it signs only external script files, never inline
- * content (re-confirmed empirically in 3.0.4.6). This keeps origin-level XSS protection
- * (no third-party script hosts, no object/base/frame vectors) while dropping the
- * per-request mechanism that fought the stack. The header is still emitted from
- * proxy.ts per request; relocating/caching it is a later conversion-track step.
- *
- * Static security headers (HSTS, X-Frame-Options, etc.) live in next.config.ts
- * so they apply to API responses too.
- */
 export function proxy(request: NextRequest): NextResponse {
   const isDev = process.env.NODE_ENV === "development";
 
-  // Dev-only relaxation: `'unsafe-eval'` on script-src (React rebuilds
-  // server-side error stacks via eval in dev). `style-src` now carries
-  // `'unsafe-inline'` in every environment (OOB.1.1), so inline `style="…"`
-  // attributes are no longer dropped in production — the 3.0.4.4 inline-style
-  // lint rule is kept as house style (Tailwind + CSSOM stay the default), not as
-  // a CSP requirement.
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
@@ -98,10 +48,6 @@ export function proxy(request: NextRequest): NextResponse {
     : NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
 
-  // Unpublished site paths and anything that isn't positively the canonical
-  // host must never be indexed — see CANONICAL_HOST above. Fail closed: an
-  // absent/unknown Host (never the case for a real HTTP/1.1 request) is treated
-  // as non-canonical too, so only valid routes on lgi.tools stay indexable.
   const host = request.headers.get("host");
   if (isUnpublishedSite || !host || host !== CANONICAL_HOST) {
     response.headers.set("X-Robots-Tag", "noindex");
@@ -109,12 +55,6 @@ export function proxy(request: NextRequest): NextResponse {
   return response;
 }
 
-/**
- * Skip API routes (JSON responses don't need CSP), Next.js static + image
- * optimizer paths, the tab icons, and prefetch requests. Prefetches re-use the
- * initial document's CSP header, so adding it per-prefetch would only burn CPU.
- * Same pattern recommended in the Next 16 CSP guide.
- */
 export const config = {
   matcher: [
     {
