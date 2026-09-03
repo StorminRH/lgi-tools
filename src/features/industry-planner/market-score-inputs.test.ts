@@ -87,7 +87,6 @@ describe('toMarketScoreInputs', () => {
 });
 
 describe('daysSinceHistoryDate / STALENESS_FLAG_DAYS', () => {
-
   const NOW = Date.parse('2026-06-14T12:00:00Z');
 
   it('is null when the latest trade date is absent (honest unknown)', () => {
@@ -154,9 +153,7 @@ describe('marketScoreView', () => {
 
   it('shows the score once seeded, and a placeholder before it settles', () => {
     expect(marketScoreView(makeScore({ score: 72 }), false, null, null).scoreDisplay).toBe('72');
-
     expect(marketScoreView(makeScore({ score: null }), false, null, null).scoreDisplay).toBe('…');
-
     expect(marketScoreView(makeScore({ score: null }), true, null, null).scoreDisplay).toBe('—');
   });
 
@@ -176,7 +173,6 @@ describe('marketScoreView', () => {
   });
 
   it('flags staleness with an age label + note once the history is old enough', () => {
-
     const now = STALENESS_FLAG_DAYS * day + Date.parse('2026-01-01T00:00:00Z');
     const view = marketScoreView(makeScore({ score: 50 }), true, { latestDate: '2026-01-01' }, now);
     expect(view.staleAge).toBe('2w');

@@ -22,7 +22,6 @@ export interface QtyRingView {
 export function qtyRingView(name: string, qty: number, ownedQty?: number): QtyRingView {
   const progress = ownedQty !== undefined && qty > 0 ? Math.min(ownedQty / qty, 1) : 0;
   const remaining = Math.max(0, qty - (ownedQty ?? 0));
-
   const complete = ownedQty !== undefined && qty > 0 && remaining === 0;
   const ringLabel =
     ownedQty === undefined

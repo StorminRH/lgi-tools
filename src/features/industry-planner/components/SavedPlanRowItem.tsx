@@ -56,7 +56,6 @@ export function SavedPlanRowItem({
           }}
           onBlur={() => onCommitRename(draft)}
           aria-label={`Rename ${row.name}`}
-
           autoFocus
           size="sm"
           className="h-6 min-w-0 flex-1"

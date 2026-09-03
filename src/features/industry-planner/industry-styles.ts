@@ -137,7 +137,6 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
 }
 
 const REACTION_ACTIVITY_ID = 11;
-
 export const REACTION_NODE_LABEL = 'Reaction';
 
 export interface NodeLabel {
@@ -166,7 +165,6 @@ export function classifyBuildNode(args: {
 }
 
 const THIN_LIQUIDITY_UNITS = 100;
-
 const HIGH_CONFIDENCE_SHARE = 0.75;
 const MEDIUM_CONFIDENCE_SHARE = 0.4;
 
@@ -212,7 +210,6 @@ export function sellAnchorConfidence(product: {
   pct5Sell: number | null | undefined;
 }): RowConfidence | null {
   const { bestSell, pct5Sell } = product;
-
   if (bestSell == null || pct5Sell == null || pct5Sell <= 0) return null;
   if (bestSell / pct5Sell >= THIN_SELL_ANCHOR_RATIO) return null;
   return { level: 'medium', reasons: ['Price anchored by a thin order'] };

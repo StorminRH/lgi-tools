@@ -70,7 +70,6 @@ describe('aggregateConfidence', () => {
   });
 
   it('stays high with a small share of problems, surfacing the counts', () => {
-
     const rows = [
       ...Array.from({ length: 8 }, () => liveRow()),
       liveRow({ staleAfterMs: STALE }),
@@ -172,7 +171,6 @@ describe('sellAnchorConfidence', () => {
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
     });
-
     expect(sellAnchorConfidence({ bestSell: 21_200_000, pct5Sell: 230_000_000 })).toEqual({
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
@@ -183,7 +181,6 @@ describe('sellAnchorConfidence', () => {
     expect(sellAnchorConfidence({ bestSell: null, pct5Sell: 100 })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: null })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 0 })).toBeNull();
-
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: undefined })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: undefined, pct5Sell: 100 })).toBeNull();
   });

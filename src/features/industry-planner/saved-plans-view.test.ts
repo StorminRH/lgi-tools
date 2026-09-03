@@ -82,7 +82,6 @@ describe('savedEmptyLine', () => {
 describe('savedPlansViewState', () => {
   it('is blank while the first list read is still in flight', () => {
     expect(savedPlansViewState(null, null, false)).toEqual({ kind: 'blank' });
-
     expect(savedPlansViewState([], null, false)).toEqual({ kind: 'blank' });
   });
 

@@ -41,7 +41,6 @@ function ReactionSystemRow({
   return (
     <div className={HERO_LOCATION_ROW_CLASS}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
-
       {lockedTo ? (
         deducedSystem ? (
           <SelectedSystemBox name={deducedSystem.name} security={deducedSystem.security} locked={lockedTo} />
@@ -53,9 +52,7 @@ function ReactionSystemRow({
             )}
           >
             <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
-
           </div>
-
         )
       ) : reactionSystem ? (
         <SelectedSystemBox
@@ -76,10 +73,8 @@ function ReactionSystemRow({
             errorLabel="System"
           />
         </div>
-
       )}
     </div>
-
   );
 }
 
@@ -121,13 +116,10 @@ export function ReactionStructureSelect() {
   );
   return (
     <div className={HERO_LOCATION_GROUP_CLASS}>
-      {}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Reactions</span>
-
         <StructureBonusReadout readout={reactionStructureReadout} taxPct={taxPct} />
       </div>
-
       <ReactionSystemRow
         lockedTo={lockedTo}
         deducedSystem={deducedSystem}
@@ -136,7 +128,6 @@ export function ReactionStructureSelect() {
       />
       <div className={HERO_LOCATION_ROW_CLASS}>
         <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
-
         <Select
           value={facilityValueFor(reactionStructure, null)}
           onValueChange={(v) => {
@@ -156,8 +147,6 @@ export function ReactionStructureSelect() {
           className={cn('h-[30px]', HERO_LOCATION_CONTROL_WELL_CLASS)}
         />
       </div>
-
     </div>
-
   );
 }

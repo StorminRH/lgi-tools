@@ -98,7 +98,6 @@ function PricingSeeder({
 }) {
   const resolved = use(pricingPromise);
   useEffect(() => {
-
     const t = setTimeout(() => onSeed(resolved), 0);
     return () => clearTimeout(t);
   }, [resolved, onSeed]);
@@ -468,7 +467,6 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     },
     [priceSnapshot],
   );
-
   useEffect(() => {
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
@@ -621,7 +619,6 @@ export function PricingProvider({
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
   historyPromise: Promise<MarketHistoryInputs[]>;
-
   initialBuildCharacterId: number | null;
   children: ReactNode;
 }) {

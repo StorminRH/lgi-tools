@@ -13,7 +13,6 @@ export interface NodeCardView {
 
 export function nodeCardView(args: {
   onSelect?: () => void;
-
   icon?: EveImageDescriptor;
   typeId: number;
   selected: boolean;

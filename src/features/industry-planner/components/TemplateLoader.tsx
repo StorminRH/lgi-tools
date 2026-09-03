@@ -23,10 +23,8 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
   const ctx = useTemplatePlanner();
   const preferencesReady = usePreferencesReady();
   const planId = useSearchParams().get('plan');
-
   const [timedOutAttempt, setTimedOutAttempt] = useState(0);
   const attemptRef = useRef(0);
-
   const startedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -53,7 +51,6 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
       timedOut: timedOutAttempt === attemptRef.current,
     });
     if (!open) return;
-
     startedRef.current = planId;
     void runTemplateLoad({
       planId,
@@ -68,7 +65,6 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
       },
       apply: (snapshot) => applyTemplate({ ctx, structure, fetchedStations: null }, snapshot),
     }).then((outcome) => {
-
       if (!urlStillOnPlan(window.location.search, planId)) return;
       const view = loadToastFor(outcome);
       const show =
@@ -78,7 +74,6 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
         description: view.description,
         duration: view.duration,
       });
-
       window.history.replaceState(
         null,
         '',

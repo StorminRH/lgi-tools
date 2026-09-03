@@ -29,7 +29,6 @@ export interface SelectedLocation {
   systemId: number;
   systemName: string;
   security: number | null;
-
   stations: IndustryStationView[];
   costIndices: { manufacturing: number | null; reaction: number | null };
   adjustedPrices: Map<number, number>;
@@ -48,27 +47,19 @@ export interface SelectedReactionSystem {
 
 export interface MarketDataValue {
   pricing: BlueprintPricing | null;
-
   seeded: boolean;
-
   refreshing: boolean;
-
   marketHistory: Map<number, MarketHistoryInputs>;
-
   marketScore: MarketScore;
 }
 
 export interface PlannerConfigValue {
-
   runs: number;
   setRuns: (runs: number) => void;
-
   costBasis: 'batched' | 'marginal';
   setCostBasis: (basis: 'batched' | 'marginal') => void;
-
   marginMode: MarginMode;
   setMarginMode: (mode: MarginMode) => void;
-
   multibuyMode: NetMode;
   setMultibuyMode: (mode: NetMode) => void;
   multibuyUncheckedTiers: ReadonlySet<number>;
@@ -76,80 +67,51 @@ export interface PlannerConfigValue {
 }
 
 export interface BuildSetupValue {
-
   location: SelectedLocation | null;
-
   setLocation: (location: SelectedLocation | null) => void;
-
   station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
-
   applyBuildSystem: (
     sys: BuildSystemRef,
     opts: { persist: boolean },
   ) => Promise<ApplySystemOutcome>;
-
   clearBuildLocation: () => void;
-
   savedBuildLocation: BuildSystemRef | null;
-
   availableStructures: AvailableStructure[] | null;
-
   selectedStructure: AvailableStructure | null;
   setSelectedStructure: (structure: AvailableStructure | null) => void;
-
   reactionStructure: AvailableStructure | null;
   setReactionStructure: (structure: AvailableStructure | null) => void;
   reactionSystem: SelectedReactionSystem | null;
   setReactionSystem: (system: SelectedReactionSystem | null) => void;
-
   structureFactors: StructureFactors;
-
   buildStructureReadout: StructureReadout;
   reactionStructureReadout: StructureReadout;
-
   reactionNetAvailable: boolean;
 }
 
 export interface BuildCharacterValue {
-
   buildCharacter: BuildCharacter | null;
-
   buildCharacterPending: boolean;
-
   buildCharacters: BuildCharacter[] | null;
-
   setBuildCharacter: (id: number | null) => void;
-
   buildCharacterSkillLevels: Record<string, number> | null;
-
   skillTimeFactors: SkillTimeFactors;
 }
 
 export interface BuildPlanValue {
-
   ownedMe: Map<number, number> | null;
-
   ownedDetail: Map<number, OwnedComponentDetail> | null;
-
   ownedAssets: Map<number, OwnedAssetEntry> | null;
-
   ownedTe: Map<number, number> | null;
-
   meOverrides: Map<number, number>;
-
   setMeOverride: (blueprintTypeId: number, me: number) => void;
   resetMeOverride: (blueprintTypeId: number) => void;
-
   teOverrides: Map<number, number>;
-
   setTeOverride: (blueprintTypeId: number, te: number) => void;
   resetTeOverride: (blueprintTypeId: number) => void;
-
   ledger: BatchLedger;
-
   ledgerMeOpts: MeOptions;
-
   buildTimes: BuildTimes;
 }
 

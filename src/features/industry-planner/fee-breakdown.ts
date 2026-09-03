@@ -2,7 +2,6 @@ import type { NetMarginView } from './types';
 
 export interface FeeLine {
   label: string;
-
   value: number | null;
 }
 

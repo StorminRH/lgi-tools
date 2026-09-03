@@ -3,7 +3,6 @@ import type { BlueprintPricing } from './types';
 
 export function initialPriceMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   const map = new Map<number, PriceLite>();
-
   for (const r of pricing.rows) {
     map.set(r.typeId, {
       bestBuy: r.unitBuy,
@@ -41,7 +40,6 @@ export function initialPriceMap(pricing: BlueprintPricing): Map<number, PriceLit
     sellVolume: null,
     buyDepth: pricing.product.buyDepth,
     sellDepth: pricing.product.sellDepth,
-
     regionalDiscount: pricing.product.regionalDiscount ?? null,
     source: null,
     staleAfterMs: pricing.product.staleAfterMs,

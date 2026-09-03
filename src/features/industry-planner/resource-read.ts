@@ -20,7 +20,6 @@ export function createResourceRead<T>(deps: {
       try {
         data = await deps.read(activeController.signal);
       } catch {
-
         return;
       } finally {
         if (run === generation) controller = null;

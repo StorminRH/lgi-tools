@@ -76,7 +76,6 @@ describe('buildFeeBreakdown', () => {
     const b = buildFeeBreakdown(
       net({ systemCostIndex: null, jobGrossCost: null, total: null, missingSystemCostIndex: true }),
     );
-
     expect(b.install[0]).toEqual({ label: 'System cost', value: null });
     expect(b.installTotal).toBeNull();
   });

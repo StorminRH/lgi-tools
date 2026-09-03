@@ -117,19 +117,15 @@ export async function getBlueprintStructure(
   'use cache';
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
-
   return withColdStartRetry(async () => {
-
     const chosen = await getBlueprintOutput(blueprintId);
     if (!chosen) return null;
 
     const treeResult = await getBlueprintTree(blueprintId);
     const tree = treeResult?.treeJson ?? [];
-
     const rawTypeIds = collectRawTypeIds(tree);
 
     const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
-
     const blueprintIds = collectBlueprintIds(tree);
     const [labels, activityByBlueprint, activityTimeMap, nodeTimeSkills] = await Promise.all([
       getTypeLabels(labelIds),
@@ -138,10 +134,8 @@ export async function getBlueprintStructure(
       nodeTimeSkillsFor([blueprintId, ...blueprintIds]),
     ]);
     const topJobSeconds = activityTimeMap.get(blueprintId) ?? null;
-
     const nodeJobSeconds: Record<number, number> = {};
     for (const [bp, secs] of activityTimeMap) nodeJobSeconds[bp] = secs;
-
     const nodeActivityByBlueprint: Record<number, number> = { [blueprintId]: chosen.activityId };
     for (const [bp, act] of activityByBlueprint) nodeActivityByBlueprint[bp] = act;
     const materialNames: Record<number, string> = {};
@@ -190,7 +184,6 @@ export async function getBlueprintPricing(
 ): Promise<BlueprintPricing | null> {
   'use cache';
   cacheLife('hours');
-
   cacheTag(PRICES_FRESHNESS_TAG, BLUEPRINT_STRUCTURE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId);

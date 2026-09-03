@@ -29,12 +29,10 @@ export function createPriceSnapshot(): PriceSnapshot {
       }
       return {
         seeded: true,
-
         settle: (current) => current ?? initialPricing,
       };
     },
     applyBatch(batch) {
-
       livePrices = batch;
     },
     lookup(typeId) {
