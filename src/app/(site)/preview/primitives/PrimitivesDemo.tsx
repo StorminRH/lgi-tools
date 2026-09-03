@@ -50,17 +50,17 @@ function DemoSection({
         <h2 className="text-label tracking-wide uppercase text-isk-sub">
           {index} · {title}
         </h2>
+
         <p className="mt-1 max-w-[760px] text-label leading-relaxed text-faint">{why}</p>
+
       </div>
+
       {children}
     </section>
+
   );
 }
 
-/**
- * Renders the primitives demo surface; this component owns local presentation and interaction
- * wiring while callers own domain data.
- */
 export function PrimitivesDemo() {
   const [checks, setChecks] = useState({ gas: true, ore: true, shattered: false });
   const [basis, setBasis] = useState('sell');
@@ -93,16 +93,20 @@ export function PrimitivesDemo() {
           <Field label="Structure name" hint="Shown in the build-location picker">
             <Input defaultValue="Sotiyo — Deklein" />
           </Field>
+
           <Field label="ESI callback URL" error="Must start with https://">
             <Input defaultValue="htp://lgi.tools/api" className="border-tone-red" />
           </Field>
+
           <Field label="Feedback" hint="Markdown not supported · 500 char max">
             <Textarea
               rows={3}
               defaultValue="The industry planner saved me 40M ISK on a Praxis batch."
             />
           </Field>
+
         </div>
+
       </DemoSection>
 
       <DemoSection
@@ -125,8 +129,10 @@ export function PrimitivesDemo() {
                 />
                 {label}
               </label>
+
             ))}
           </div>
+
           <RadioGroup
             label="Price basis"
             value={basis}
@@ -138,6 +144,7 @@ export function PrimitivesDemo() {
             ]}
           />
         </div>
+
       </DemoSection>
 
       <DemoSection
@@ -174,6 +181,7 @@ export function PrimitivesDemo() {
             ]}
           />
         </Card>
+
       </DemoSection>
 
       <DemoSection
@@ -188,7 +196,9 @@ export function PrimitivesDemo() {
           >
             Price confidence
           </Button>
+
         </Tooltip>
+
       </DemoSection>
 
       <DemoSection
@@ -199,10 +209,13 @@ export function PrimitivesDemo() {
         <div className="flex flex-wrap items-center gap-4">
           <span className="text-ui text-muted">
             Focus search <Kbd>⌘</Kbd><Kbd>K</Kbd> · close <Kbd>esc</Kbd>
+
           </span>
+
           <CopyButton value="312,400,000 ISK" />
           <CopyButton value="J115405" />
         </div>
+
       </DemoSection>
 
       <DemoSection
@@ -217,14 +230,18 @@ export function PrimitivesDemo() {
                 <Skeleton className={`h-3 ${left}`} />
                 <Skeleton className={`h-3 ${right}`} />
               </div>
+
             ))}
           </Card>
+
           <Card className="flex flex-col gap-2.5 p-4">
             <Skeleton className="h-3 w-1/3" />
             <Skeleton className="h-6 w-3/5" />
             <Skeleton className="h-16 w-full" />
           </Card>
+
         </div>
+
       </DemoSection>
 
       <DemoSection
@@ -236,16 +253,22 @@ export function PrimitivesDemo() {
           {bannerVisible ? (
             <Banner tone="info" onDismiss={() => setBannerVisible(false)}>
               <strong className="font-medium text-name">v3.8 deployed</strong> — the UI system is ready.
+
             </Banner>
+
           ) : (
             <Button variant="ghost" size="sm" onClick={() => setBannerVisible(true)} className="self-start">
               Restore info banner
             </Button>
+
           )}
           <Banner tone="warn">
             <strong className="font-medium text-name">ESI degraded</strong> — prices may be stale up to 3h.
+
           </Banner>
+
         </div>
+
       </DemoSection>
 
       <DemoSection
@@ -264,6 +287,7 @@ export function PrimitivesDemo() {
         <Button ref={confirmTriggerRef} variant="danger" size="sm" onClick={() => setConfirmOpen(true)} className="self-start">
           Preview confirmation
         </Button>
+
         <ConfirmDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
@@ -288,9 +312,13 @@ export function PrimitivesDemo() {
           label="Wormhole site types"
         >
           <ChipToggle value="gas" tone="orange"><Dot tone="orange" size="sm" /> Gas</ChipToggle>
+
           <ChipToggle value="ore" tone="blue"><Dot tone="blue" size="sm" /> Ore</ChipToggle>
+
           <ChipToggle value="relic" tone="green"><Dot tone="green" size="sm" /> Relic</ChipToggle>
+
         </ChipToggleGroup>
+
       </DemoSection>
 
       <DemoSection
@@ -305,6 +333,7 @@ export function PrimitivesDemo() {
             onChange={setEfficiency}
             variant="inline"
             trailing={<span className="text-faint">ME</span>}
+
           />
           <Card className="overflow-hidden">
             <StaticTable
@@ -317,7 +346,9 @@ export function PrimitivesDemo() {
               getRowKey={(row) => row.material}
             />
           </Card>
+
         </div>
+
       </DemoSection>
 
       <DemoSection
@@ -342,7 +373,9 @@ export function PrimitivesDemo() {
           >
             Refresh sample
           </Button>
+
         </Card>
+
       </DemoSection>
 
       <DemoSection
@@ -353,10 +386,16 @@ export function PrimitivesDemo() {
         <Card className="p-5">
           <Prose>
             <h2>Data use</h2>
+
             <p>LGI.tools stores only the account and ESI data needed to provide the requested tools.</p>
+
           </Prose>
+
         </Card>
+
       </DemoSection>
+
     </div>
+
   );
 }

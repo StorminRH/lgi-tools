@@ -1,13 +1,6 @@
 import { BetterAuthError } from 'better-auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// #2 regression guard (3.6.7b ledger): /industry is a PUBLIC page, so the
-// request-time session read must fail OPEN to the signed-out jobs state — but
-// only SILENTLY for the expected auth-env-absent case (a BetterAuthError on a
-// Vercel preview). Any other failure (e.g. a real Neon outage for a signed-in
-// pilot) must be logged before degrading, never swallowed into the empty state.
-// Mock the auth instance + query layer so these run without a DB.
-
 const getSessionMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 
@@ -21,8 +14,6 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-// Static import — mocks above are hoisted; scope-health + sync-eligibility stay
-// real (pure), so the happy path exercises the genuine eligibility filter.
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
 
 const CORP_SCOPES =
@@ -108,9 +99,9 @@ describe('corpJobsAccess', () => {
     getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
     listLinkedCharactersMock.mockResolvedValue([
       { characterId: 100, scope: CORP_SCOPES, hasRefreshToken: true },
-      // Holds the scopes but no live token → can't vend a read.
+
       { characterId: 200, scope: CORP_SCOPES, hasRefreshToken: false },
-      // Token but missing the corp scopes → not eligible.
+
       { characterId: 300, scope: 'esi-industry.read_character_jobs.v1', hasRefreshToken: true },
     ]);
     expect(await corpJobsAccess()).toEqual({

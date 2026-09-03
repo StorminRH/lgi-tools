@@ -8,7 +8,6 @@ import { eyebrow } from '@/components/ui/type-roles';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
-/** Static search and social metadata for the /legal route. */
 export const metadata = buildPageMetadata({
   title: 'Privacy',
   description:
@@ -16,22 +15,17 @@ export const metadata = buildPageMetadata({
   canonical: '/legal',
 });
 
-// Major-section heading inside the reading column — Barlow display, one tier
-// below the page H1, above the "// label" SectionLabel sub-heads.
-// One "// label" sub-head + its prose body — the reading column's repeated unit.
 function LegalSection({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <section className="mb-8">
       <SectionLabel className="mb-cluster">{label}</SectionLabel>
+
       {children}
     </section>
+
   );
 }
 
-/**
- * Renders the /legal route surface and owns its page-level composition, metadata boundary, and
- * fallback presentation.
- */
 export default function LegalPage() {
   return (
     <PageShell mode="reading">
@@ -41,13 +35,16 @@ export default function LegalPage() {
         meta={
           <span className={eyebrow()}>
             Last updated <b className="text-name font-semibold">25 Aug 2026</b>
+
           </span>
+
         }
       />
 
       <div className="pb-16">
         <Prose>
           <h2 className="mb-3 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">Site Usage</h2>
+
           <p className="mb-7">What the site records about your visit.</p>
 
           <LegalSection label="In-house telemetry">
@@ -59,8 +56,10 @@ export default function LegalPage() {
               <a href="https://neon.com" target="_blank" rel="noopener noreferrer">
                 Neon
               </a>{' '}
+
               database on a 180-day retention schedule and is shown on the LGI.tools admin dashboard.
             </p>
+
           </LegalSection>
 
           <LegalSection label="Performance & rate limiting">
@@ -71,12 +70,15 @@ export default function LegalPage() {
               <a href="https://upstash.com" target="_blank" rel="noopener noreferrer">
                 Upstash Redis
               </a>{' '}
+
               to enforce limits and record whether requests were allowed or blocked. The IP address
               is not added to our in-house usage log.
             </p>
+
             <p>
               We also measure page performance anonymously to find and fix slow pages.
             </p>
+
           </LegalSection>
 
           <LegalSection label="Cookies & local storage">
@@ -87,11 +89,13 @@ export default function LegalPage() {
               visitor again. When you log in, the site also uses a session cookie to keep you signed
               in.
             </p>
+
           </LegalSection>
 
           <h2 className="mb-3 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">
             EVE Data
           </h2>
+
           <p className="mb-7">
             What signing in shares, why the site needs it, and what control you keep.
           </p>
@@ -107,22 +111,29 @@ export default function LegalPage() {
                 >
                   EVE SSO
                 </a>
+
               </strong>
+
               , EVE tells us who your character is, and you grant LGI.tools access to some of your EVE
               character data. EVE lists the requested scopes on its consent screen. You can review
               the granted scopes afterward on your EVE account&apos;s{' '}
               <a href={EVE_AUTHORIZED_APPS_URL} target="_blank" rel="noopener noreferrer">
                 Authorized Applications page
               </a>
+
               . The <Link href="/characters">Characters page</Link> also shows what each linked
+
               character has granted.
             </p>
+
           </LegalSection>
 
           <LegalSection label="You stay in control">
             <p>
               You control your data. The <strong>Purge</strong> control on your{' '}
+
               <Link href="/characters">Characters page</Link>{' '}
+
               deletes the private EVE data stored for one character and removes LGI.tools access to
               it. Deleting your entire account removes the account, its sessions and linked
               characters, along with the rest of any account-specific data. Public or
@@ -131,6 +142,7 @@ export default function LegalPage() {
               of that corp and you delete your character from LGI.tools, there is an audit record
               saved for that corporation showing you had access at one point.
             </p>
+
           </LegalSection>
 
           <LegalSection label="Corporation audit records">
@@ -140,6 +152,7 @@ export default function LegalPage() {
               allow-or-deny result, and the reason. They let LGI.tools investigate and verify past
               access decisions; they are not used for analytics.
             </p>
+
           </LegalSection>
 
           <LegalSection label="Character transfer detection">
@@ -153,6 +166,7 @@ export default function LegalPage() {
               >
                 Character Bazaar
               </a>
+
               . If it has, we remove the previous owner&apos;s account link and stored credentials
               before the login completes. The new pilot is then treated as a different LGI.tools user
               and cannot enter the previous pilot&apos;s account. Corporation access is checked
@@ -160,6 +174,7 @@ export default function LegalPage() {
               membership, and roles, so the new pilot does not inherit the previous owner&apos;s
               corporation access.
             </p>
+
           </LegalSection>
 
           <LegalSection label="Community data credits">
@@ -168,6 +183,7 @@ export default function LegalPage() {
               <a href="https://anoik.is" target="_blank" rel="noopener noreferrer">
                 anoik.is
               </a>
+
               . Before a snapshot can be promoted, LGI.tools cross-checks it
               against the MIT-licensed Pathfinder lineage data published by{' '}
               <a
@@ -177,8 +193,10 @@ export default function LegalPage() {
               >
                 exodus4d
               </a>
+
               .
             </p>
+
           </LegalSection>
 
           <h2 className="mb-7 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">
@@ -197,13 +215,16 @@ export default function LegalPage() {
               >
                 EVE&apos;s official APIs
               </a>{' '}
+
               to operate, so those services process only the data necessary to deliver and protect
               the site.
             </p>
+
             <p>
               There is no advertising anywhere on LGI.tools: no ad networks, no cross-site tracking,
               and no device fingerprinting.
             </p>
+
           </LegalSection>
 
           <LegalSection label="Open-source licensing">
@@ -216,6 +237,7 @@ export default function LegalPage() {
               >
                 MIT License
               </a>
+
               , with full source at{' '}
               <a
                 href="https://github.com/StorminRH/lgi-tools"
@@ -224,27 +246,36 @@ export default function LegalPage() {
               >
                 github.com/StorminRH/lgi-tools
               </a>
+
               , so every claim on this page is auditable.
             </p>
+
           </LegalSection>
 
           <div className="legal-note">
             <p>
               <b>EVE Online</b> and the EVE logo are registered trademarks of Fenris Creations
+
               (formerly CCP hf, rebranded 2026-05-06). All artwork, screenshots, characters,
               vehicles, storylines, world facts, and other recognizable features of the intellectual
               property relating to these trademarks are likewise the intellectual property of Fenris
               Creations.
             </p>
+
             <p>
               LGI.tools is an independent third-party tool built by EVE Online players for EVE Online
               players. It is not affiliated with, endorsed by, or sponsored by Fenris Creations. All
               EVE Online-related content here is used under Fenris Creations&apos; third-party
               developer license.
             </p>
+
           </div>
+
         </Prose>
+
       </div>
+
     </PageShell>
+
   );
 }

@@ -1,15 +1,5 @@
 'use client';
 
-// The /industry dashboard's ranked section grid (3.7.24). This coordinator —
-// composition layer above the industry-planner and industry-jobs slices, which
-// may not import each other — owns all four sections' data state: it calls the
-// SAME hooks/reads each section used before (recents localStorage, the saved
-// plans list, the personal + corp jobs on-view reads — data paths unchanged),
-// derives each section's populated/empty status, and renders the sections in
-// the rank model's order (dashboard-sections.ts): populated first in preferred
-// order, confirmed-empty sunk to the bottom as slim headers with a one-line
-// hint. Sections are keyed by id, so a reorder moves DOM nodes — the data
-// lives up here and nothing refetches.
 import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo } from 'react';
 import { AccessGate } from '@/components/ui/access-gate';
@@ -43,16 +33,13 @@ import {
 interface SectionCell {
   label: string;
   meta?: ReactNode;
-  // Rendered under the label when populated/pending; empty sections render
-  // `hint` (or nothing) instead — the sunk slim-header form.
+
   body: ReactNode;
   hint?: string;
 }
 
 const countBadge = 'text-evb-bright font-semibold';
 
-// One section: its label + meta, then either the sunk one-line hint (confirmed
-// empty) or the body. The populated/empty/hint decision is `deriveSectionRender`.
 function DashboardSection({ status, cell }: { status: SectionStatus; cell: SectionCell }) {
   const render = deriveSectionRender(status, cell.hint);
   return (
@@ -60,9 +47,12 @@ function DashboardSection({ status, cell }: { status: SectionStatus; cell: Secti
       <SectionLabel className="mb-cluster" meta={render.meta ? cell.meta : undefined}>
         {cell.label}
       </SectionLabel>
+
       {render.hint !== null && <p className="text-ui text-muted">{render.hint}</p>}
+
       {render.body && cell.body}
     </section>
+
   );
 }
 
@@ -71,6 +61,7 @@ function RecentsPanel({ recent }: { recent: ReturnType<typeof useRecentBlueprint
     <Card className="overflow-hidden">
       {recent === null ? <EmptyState> </EmptyState> : <RecentBlueprintRows recent={recent} />}
     </Card>
+
   );
 }
 
@@ -85,6 +76,7 @@ function TemplatesPanel({
     <Card className="overflow-hidden">
       {plans === null ? <EmptyState> </EmptyState> : <SavedBuildTiles plans={tiles} />}
     </Card>
+
   );
 }
 
@@ -103,9 +95,6 @@ function ActiveJobsPanel({
   return <IndustryActiveJobs jobs={jobs} names={names} now={now} />;
 }
 
-// The corp cell's populated/pending body: the scope-missing AccessGate (an
-// actionable relink CTA — ranked populated so it never sinks), the loading
-// label, or the corp boards over the coordinator's own live read.
 function CorpSectionBody({
   eligibleCount,
   loading,
@@ -126,16 +115,13 @@ function CorpSectionBody({
       <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
         {null}
       </AccessGate>
+
     );
   }
   if (loading) return <LoadingLabel label="Loading…" />;
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
-/**
- * Renders the industry dashboard grid surface; this component owns local presentation and
- * interaction wiring while callers own domain data.
- */
 export function IndustryDashboardGrid({
   characterIds,
   corpEligibleCharacterIds,
@@ -152,7 +138,6 @@ export function IndustryDashboardGrid({
   const jobsLive = useJobsLive(characterIds);
   const corpLive = useCorpJobsLive(corpEligibleCharacterIds);
 
-  // One list fetch on mount (the popover consumer fetches on open instead).
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -190,14 +175,18 @@ export function IndustryDashboardGrid({
       >
         → all templates ({allPlans.length})
       </Link>
+
     ) : undefined;
 
   const activeMeta =
     jobs.length > 0 ? (
       <span className="text-label tracking-label uppercase text-muted">
         <b className={countBadge}>{counts.complete}</b> complete ·{' '}
+
         <b className={countBadge}>{counts.inProgress}</b> in progress
+
       </span>
+
     ) : undefined;
 
   const cells: Record<DashboardSectionId, SectionCell> = {
@@ -247,5 +236,6 @@ export function IndustryDashboardGrid({
         <DashboardSection key={id} status={status[id]} cell={cells[id]} />
       ))}
     </div>
+
   );
 }

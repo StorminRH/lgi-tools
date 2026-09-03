@@ -5,10 +5,6 @@ import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-s
 import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
 import type { SiteDetail, SiteType } from '@/features/wormhole-sites/types';
 
-/**
- * Internal visual reference for the site cards — not a user-facing route, so
- * keep it out of the index.
- */
 export const metadata: Metadata = { robots: { index: false } };
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
@@ -21,10 +17,6 @@ function bySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
   return groups;
 }
 
-/**
- * Renders the /preview/cards route surface and owns its page-level composition, metadata boundary,
- * and fallback presentation.
- */
 export default function PreviewCardsPage() {
   const groups = bySection(MOCK_SITES);
 
@@ -35,9 +27,11 @@ export default function PreviewCardsPage() {
         <div className="font-display font-bold text-[22px] text-name tracking-copy uppercase mb-1">
           Site Card Reference
         </div>
+
         <div className="text-[10px] text-[#2a4050] tracking-wide uppercase">
           All wormhole site types · A1 blue-gray theme · Mock data
         </div>
+
       </header>
 
       {SECTION_ORDER.map((type, i) => {
@@ -49,17 +43,23 @@ export default function PreviewCardsPage() {
               <span className="text-[9px] font-semibold tracking-eyebrow uppercase text-[#2a4050] whitespace-nowrap">
                 {SITE_TYPE_LABEL[type]} Sites
               </span>
+
               <div className="flex-1 h-px bg-border-soft" />
             </div>
+
             <div className="grid items-start gap-4 grid-cols-[repeat(auto-fill,minmax(340px,1fr))]">
               {sites.map((site) => (
                 <SiteCard key={site.id} site={site} />
               ))}
             </div>
+
           </section>
+
         );
       })}
       </div>
+
     </PageShell>
+
   );
 }

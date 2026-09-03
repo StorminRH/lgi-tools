@@ -12,7 +12,6 @@ import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySl
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
 import { IndustryDashboardGrid } from './IndustryDashboardGrid';
 
-/** Static search and social metadata for the /industry route. */
 export const metadata: Metadata = {
   title: 'Industry Planner',
   description:
@@ -28,10 +27,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Request-time region: reads the session + linked characters (both cache()-
-// deduped with the header's SlotMeta read) so the client section grid knows
-// which characters to keep synced and whether the corp gates apply. Signed-out
-// renders with no ids; the grid's sections then settle to their empty states.
 async function DashboardSections() {
   const [characterIds, corp] = await Promise.all([activeJobCharacterIds(), corpJobsAccess()]);
   return (
@@ -50,10 +45,6 @@ async function DashboardSections() {
   );
 }
 
-// The header's used/total slot readout reads the same per-character ids +
-// corp gates the section grid does (both cache()-deduped within the request),
-// so the header meta is its own small request-time <Suspense> hole feeding the
-// client island.
 async function SlotMeta() {
   const [characterIds, corp] = await Promise.all([activeJobCharacterIds(), corpJobsAccess()]);
   return (
@@ -64,9 +55,6 @@ async function SlotMeta() {
   );
 }
 
-// The prerendered stand-in for the section grid: the four sections in the
-// preferred order, quiet placeholders where the data lands. The client grid
-// re-ranks once section data settles (empties sink as slim headers).
 function DashboardSkeleton() {
   return (
     <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
@@ -80,6 +68,7 @@ function DashboardSkeleton() {
       ).map(([label, kind]) => (
         <section key={label}>
           <SectionLabel className="mb-cluster">{label}</SectionLabel>
+
           <Card className="overflow-hidden" aria-label={`Loading ${label.toLowerCase()}`}>
             <div className="flex items-center gap-3 px-3.5 py-3">
               {kind === 'loading' ? (
@@ -89,22 +78,19 @@ function DashboardSkeleton() {
                 <Skeleton className={kind === 'panel' ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
                 <Skeleton className="h-2.5 w-1/3" />
               </div>
+
             </div>
+
           </Card>
+
         </section>
+
       ))}
     </div>
+
   );
 }
 
-/**
- * Static shell — header and typed hint prerender, plus the section-grid
- * skeleton as the <Suspense> fallback. The session + linked-character read is
- * ONE request-time hole feeding the client section grid (IndustryDashboardGrid),
- * which owns recents (localStorage), templates (/api/account/saved-plans),
- * and the personal + corp job boards (the existing Neon stale-gated on-view
- * reads) — and ranks populated sections above empty ones.
- */
 export default function IndustryDashboardPage() {
   return (
     <PageShell mode="workspace">
@@ -116,6 +102,7 @@ export default function IndustryDashboardPage() {
           <Suspense fallback={null}>
             <SlotMeta />
           </Suspense>
+
         }
       />
 
@@ -125,7 +112,10 @@ export default function IndustryDashboardPage() {
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardSections />
         </Suspense>
+
       </div>
+
     </PageShell>
+
   );
 }

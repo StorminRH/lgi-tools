@@ -17,18 +17,14 @@ import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
 
 async function JobsContent() {
-  // Session-gated (any signed-in pilot), the /characters precedent: signed
-  // out lands on the homepage with the login notice. The hole reads the
-  // session + the linked-character list per request; the job data itself
-  // arrives client-side over the Convex websocket.
+
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect('/?auth_error=login_required');
   }
 
   const characters = await listLinkedCharacters(session.user.id);
-  // Which characters can vend a corp read (scope + token), composed app-side from
-  // the auth deriver + the corp scope set (a feature can't import the other's).
+
   const corpEligibleCharacterIds = characters
     .filter((character) =>
       canSyncCorpIndustryJobs({
@@ -41,10 +37,6 @@ async function JobsContent() {
     )
     .map((character) => character.characterId);
 
-  // The strip's dimmed set, read from its ssrReadable cookie mirror inside the
-  // hole (the /sites initialView idiom) so a reload's first paint already hides
-  // dimmed cards. The strip governs only the personal panel — the corp board is
-  // corporation-keyed, no per-character participation there.
   const stripDef = stripDimmedDef(jobsPageSettings.strip.surfaceId);
   const initialDimmed = readPreferenceCookieValue(
     (await cookies()).get(cookieNameFor(stripDef))?.value,
@@ -70,6 +62,7 @@ async function JobsContent() {
         }
       />
     </div>
+
   );
 }
 
@@ -79,17 +72,10 @@ function JobsLoading() {
       <CharacterPanelSkeleton label="Loading personal jobs" />
       <CharacterPanelSkeleton rows={1} label="Loading corporation jobs" />
     </div>
+
   );
 }
 
-/**
- * Live industry jobs across the pilot's linked characters (3.4.8) — the
- * second Convex tracker, and the first with a scheduled transition: a job
- * flips to ready at its end date with the page open. The page container
- * prerenders as the static shell; the session + character-list read is a
- * request-time dynamic hole, and the job boards stream in reactively from
- * Convex inside the client island.
- */
 export default function JobsPage() {
   return (
     <PageShell mode="reading">
@@ -102,7 +88,10 @@ export default function JobsPage() {
         <Suspense fallback={<JobsLoading />}>
           <JobsContent />
         </Suspense>
+
       </div>
+
     </PageShell>
+
   );
 }
