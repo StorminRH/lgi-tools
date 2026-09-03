@@ -1,19 +1,3 @@
-// Committed cross-process determinism pins for the shipped engine (contract DC-2, proof SC-2.2).
-
-/**
- * FNV-1a position digests of the compass kernel's layout of each corpus chain under
- * `DEFAULT_LAYOUT_CONFIG`, generated in a separate process from the suites that assert against
- * them. If any engine change moves any node by any amount, the digest changes and the determinism
- * suite names the drifted chain — regenerate deliberately and account for the movement in the
- * change's record.
- *
- * Regenerated 2026-08-01 for the deterministic-math swap (session 4.0.3.1.2 step 1),
- * 2026-08-02 for the G-1 dial ratification (ring 300, separation 150, fan 3,
- * proportional, compass-8), 2026-08-14 for the operator's compass retune
- * (ring 150, separation 110, fan 1, fixed-slot, compass-8), and again
- * 2026-08-14 after the 25% node scale (ring 170, separation 120) baked into
- * `DEFAULT_LAYOUT_CONFIG`.
- */
 export const DETERMINISM_DIGESTS: Readonly<Record<string, string>> = {
   'seed11-n2': '002a343919047aa6',
   'seed12-n5': '9b67ca8318d86a58',

@@ -100,7 +100,6 @@ describe('runFogTick', () => {
 
     const again = runFogTick(runtime, tickIo(canvas, ctx), INPUTS);
 
-    // The first (mount) batch snaps open — settled, no further frame.
     expect(again).toBe(false);
     expect(runtime.placement).not.toBeNull();
     expect(canvas.width).toBeGreaterThan(0);
@@ -116,7 +115,7 @@ describe('runFogTick', () => {
     const { ctx } = stubContext();
     runFogTick(runtime, tickIo(canvas, ctx), INPUTS);
     const placement = runtime.placement;
-    canvas.width = -1; // sentinel: applyPlacement would overwrite it
+    canvas.width = -1;
 
     runFogTick(runtime, tickIo(canvas, ctx), INPUTS);
     expect(runtime.placement?.cover).toBe(placement?.cover);
@@ -137,7 +136,7 @@ describe('runFogTick', () => {
     );
     expect(ops).toHaveLength(0);
     expect(again).toBe(false);
-    // The advance still committed: the mount batch is now the open baseline.
+
     expect(runtime.frameState.timeline.size).toBeGreaterThan(0);
   });
 
