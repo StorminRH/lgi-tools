@@ -6,10 +6,6 @@ import {
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import type { CustomStructureRow } from './types';
 
-/**
- * The chosen structure, the rigs that fit it, and whether the form can save —
- * the top derivations the builder shell would otherwise carry inline.
- */
 export function deriveBuilderView(opts: {
   structureTypeId: number | null;
   structureTypes: StructureTypeOption[];
@@ -27,11 +23,6 @@ export function deriveBuilderView(opts: {
   return { structure, validRigs, canSave };
 }
 
-/**
- * Validate the save preconditions and narrow the structure id in one step: a
- * chosen type, a non-blank name, and not busy. Returns the trimmed name +
- * non-null id, or null when not ready (so the save handler stays a single guard).
- */
 export function readyBuildInput(
   structureTypeId: number | null,
   name: string,
@@ -41,7 +32,6 @@ export function readyBuildInput(
   return { structureTypeId, name: name.trim() };
 }
 
-/** The create-structure request body from the validated form state. */
 export function buildCreateStructurePayload(opts: {
   structureTypeId: number;
   name: string;
@@ -64,21 +54,14 @@ export function buildCreateStructurePayload(opts: {
   };
 }
 
-/** Whether a pasted fit can be read: some non-blank text, and not already busy. */
 export function canReadFit(paste: string, busy: boolean): boolean {
   return paste.trim() !== '' && !busy;
 }
 
-/** Fill the fixed rig slots from a parsed fit's rig list (missing → empty slot). */
 export function slotsFromParsedFit(rigTypeIds: number[], slotIndices: number[]): (number | null)[] {
   return slotIndices.map((i) => rigTypeIds[i] ?? null);
 }
 
-/**
- * The name to keep after reading a fit: the user's current name if they typed
- * one, else the parsed structure's type name (or empty). Setting it
- * unconditionally to this is a no-op when the name is unchanged.
- */
 export function resolveFitName(
   current: string,
   parsedTypeId: number,
@@ -87,16 +70,11 @@ export function resolveFitName(
   return current.trim() ? current : typeName.get(parsedTypeId) ?? '';
 }
 
-/** The pin's display name from the loaded universe index; the raw id is the fallback. */
 function pinLabel(systemId: number, systems: SystemSearchEntry[]): string {
   const sys = systems.find((s) => s.id === systemId);
   return sys ? `${sys.name} ${formatSec(sys.security)}` : `System ${systemId}`;
 }
 
-/**
- * Display-ready saved structure row state for custom structures; consumers can render it without
- * reconstructing storage or domain policy.
- */
 export type SavedStructureRowView = {
   name: string;
   typeLabel: string;
@@ -107,7 +85,6 @@ export type SavedStructureRowView = {
   taxLabel: string | null;
 };
 
-/** Everything a saved-structure row renders, resolved from lookups. */
 export function deriveSavedRowView(
   row: CustomStructureRow,
   opts: {

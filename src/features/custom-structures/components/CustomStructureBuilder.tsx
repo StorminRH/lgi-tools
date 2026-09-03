@@ -48,21 +48,15 @@ import type { CustomStructureRow } from '../types';
 
 const slotIndices = Array.from({ length: MAX_CUSTOM_STRUCTURE_RIGS }, (_, i) => i);
 
-// The structure family label shown beside each type in the picker (the SDE group,
-// not a "role" — a Citadel hosts manufacturing rigs but carries no role bonus).
 const STRUCTURE_GROUP_LABEL: Record<number, string> = {
   [SDE_ENGINEERING_COMPLEX_GROUP_ID]: 'Engineering Complex',
   [SDE_REFINERY_GROUP_ID]: 'Refinery',
   [SDE_CITADEL_GROUP_ID]: 'Citadel',
 };
 
-// The system-search parse/suggest pair from `useSystemSearch`, forwarded to the
-// TerminalSearch inputs in the pin fields.
 type SystemParse = (input: string) => { ok: true; params: SystemParams } | { ok: false; error: SystemErr };
 type SystemSuggest = (input: string) => Promise<string[]>;
 
-// The optional system pin for the structure being built: shows a cleared Pill
-// once chosen, else the system search.
 function PinField({
   pin,
   parse,
@@ -109,8 +103,6 @@ function PinField({
     </div>
   );
 }
-
-// Pills summarising a saved structure: its rigs (or "no rigs"), pin, and tax.
 function StructureMetaPills({ view }: { view: SavedStructureRowView }) {
   return (
     <>
@@ -126,8 +118,6 @@ function StructureMetaPills({ view }: { view: SavedStructureRowView }) {
   );
 }
 
-// Inline facility-tax editor for a saved structure. Setting an empty value clears
-// the tax back to never-entered (the 0.25% NPC-baseline assumption).
 function InlineTaxEditor({
   name,
   draft,
@@ -212,7 +202,9 @@ function SavedStructureRow({
   return (
     <Card as="li" className="flex flex-wrap items-center gap-2 px-3 py-2">
       <span className="font-data text-ui text-text">{view.name}</span>
+
       <Pill tone="neutral">{view.typeLabel}</Pill>
+
       <StructureMetaPills view={view} />
       <span className="ml-auto flex items-center gap-3">
         <Button
@@ -234,6 +226,7 @@ function SavedStructureRow({
           >
             Unpin
           </Button>
+
         ) : (
           <Button
             variant="bare"
@@ -244,6 +237,7 @@ function SavedStructureRow({
           >
             Pin…
           </Button>
+
         )}
         <Button
           variant="bare"
@@ -254,7 +248,9 @@ function SavedStructureRow({
         >
           Delete
         </Button>
+
       </span>
+
       {showPinPicker && (
         <div className="w-full max-w-[320px]">
           <TerminalSearch<SystemParams, SystemErr>
@@ -268,6 +264,7 @@ function SavedStructureRow({
             errorLabel="System"
           />
         </div>
+
       )}
       {showTaxEditor && (
         <InlineTaxEditor
@@ -280,6 +277,7 @@ function SavedStructureRow({
         />
       )}
     </Card>
+
   );
 }
 
@@ -293,12 +291,10 @@ function StructureTypeSelect({
   onChange: (id: number | null) => void;
 }) {
   return (
-    // A plain <div>, NOT a <label>: Base UI's Select renders its trigger button as
-    // the first labelable element, so a wrapping <label> forwards clicks on this
-    // heading (and its whitespace) to the trigger and springs the dropdown open.
-    // The Select is self-labelled via `ariaLabel`, so no association is lost.
+
     <div className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-wide text-muted">Structure type</span>
+
       <Select
         value={value == null ? '' : String(value)}
         onValueChange={(v) => onChange(v === '' ? null : Number(v))}
@@ -313,6 +309,7 @@ function StructureTypeSelect({
         className="w-full max-w-[320px]"
       />
     </div>
+
   );
 }
 
@@ -351,6 +348,7 @@ function SavedStructuresList({
 }) {
   if (structures.length === 0) {
     return <EmptyState>No custom structures yet — build one above.</EmptyState>;
+
   }
   return (
     <ul className="flex flex-col gap-1.5">
@@ -375,6 +373,7 @@ function SavedStructuresList({
         />
       ))}
     </ul>
+
   );
 }
 
@@ -390,13 +389,10 @@ function useCustomStructureDraft(
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The optional system pin for the structure being built (null = portable),
-  // and the saved row currently showing an inline pin picker.
+
   const [pin, setPin] = useState<SystemSearchEntry | null>(null);
   const [pinningId, setPinningId] = useState<string | null>(null);
-  // The optional facility tax for the structure being built (3.7.13.3, kept as
-  // the raw input string until save), and the saved row currently showing the
-  // inline tax editor + its draft.
+
   const [taxDraft, setTaxDraft] = useState('');
   const [taxingId, setTaxingId] = useState<string | null>(null);
   const [rowTaxDraft, setRowTaxDraft] = useState('');
@@ -441,7 +437,6 @@ function useCustomStructureDraft(
   };
 }
 
-/** Renders the controlled custom-structure editor for hull, rigs, tax, name, and saved facility actions. */
 export function CustomStructureBuilder({
   structureTypes,
   structureRigs,
@@ -463,7 +458,7 @@ export function CustomStructureBuilder({
 
   function chooseStructure(id: number | null) {
     draft.setStructureTypeId(id);
-    // A new structure type may invalidate the fitted rigs — clear them.
+
     draft.setRigSlots(slotIndices.map(() => null));
     draft.setError(null);
   }
@@ -538,8 +533,7 @@ export function CustomStructureBuilder({
     const res = await apiFetch(setCustomStructurePinEndpoint, { body: { id, systemId }, cache: 'no-store' });
     draft.setBusy(false);
     if (!res.ok) {
-      // The inline picker stays open for a retry — without this the failed
-      // attempt would be indistinguishable from a slow one.
+
       draft.setError('Could not update the pin — try again.');
       return;
     }
@@ -547,7 +541,6 @@ export function CustomStructureBuilder({
     draft.setPinningId(null);
   }
 
-  // Set or clear (null) a saved structure's facility tax — the onSetPin twin.
   async function onSetTax(id: string, taxPct: number | null) {
     if (draft.busy) return;
     draft.setBusy(true);
@@ -574,8 +567,6 @@ export function CustomStructureBuilder({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        {/* Field owns the textarea label association without wrapping the whole row,
-            so clicks do not leak into the separate actions below. */}
         <Field
           label="Paste an in-game structure fit (optional)"
           hint="Use the in-game Copy to Clipboard format."
@@ -589,6 +580,7 @@ export function CustomStructureBuilder({
             className="leading-[1.5]"
           />
         </Field>
+
         <div className="flex flex-col gap-1">
           <Button
             variant="bare"
@@ -599,8 +591,8 @@ export function CustomStructureBuilder({
           >
             Read fit →
           </Button>
-        </div>
 
+        </div>
         <StructureTypeSelect value={draft.structureTypeId} types={structureTypes} onChange={chooseStructure} />
 
         {structure && (
@@ -615,6 +607,7 @@ export function CustomStructureBuilder({
 
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">Name</span>
+
           <Input
             type="text"
             value={draft.name}
@@ -626,11 +619,9 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        {/* The optional system pin: a pinned structure appears only in that
-            system's build list and locks the planner to it on select; leaving
-            this empty saves a portable structure (shown everywhere). */}
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">Pin to system (optional)</span>
+
           <PinField
             pin={draft.pin}
             parse={draft.parse}
@@ -640,9 +631,6 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        {/* The optional facility tax (3.7.13.3): the owner-set rate this imagined
-            structure would charge. Empty = never entered — the planner assumes
-            the 0.25% NPC baseline (labeled as assumed in the fee breakdown). */}
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">
             Facility tax % (optional)
@@ -661,16 +649,17 @@ export function CustomStructureBuilder({
         </div>
 
         {draft.error && <Banner tone="warn">{draft.error}</Banner>}
-
         <Button variant="primary" onClick={onSave} disabled={!canSave} className="self-start">
           Save structure
         </Button>
+
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-soft pt-4">
         <span className="text-label uppercase tracking-wide text-muted">
           Your structures ({draft.structures.length})
         </span>
+
         <SavedStructuresList
           structures={draft.structures}
           view={(s) => deriveSavedRowView(s, {
@@ -693,6 +682,8 @@ export function CustomStructureBuilder({
           onError={draft.setError}
         />
       </div>
+
     </div>
+
   );
 }

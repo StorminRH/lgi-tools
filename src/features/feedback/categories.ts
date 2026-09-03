@@ -44,10 +44,6 @@ export function buildFeedbackIssueTitle(title: string): string {
   return title.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Markdown body for a feedback Linear issue. Character name only (no id);
- * page path and app version for context.
- */
 export function buildFeedbackIssueBody({
   message,
   path,

@@ -12,16 +12,14 @@ function job(overrides: Partial<IndustryJob>): IndustryJob {
     product_type_id: 587,
     runs: 10,
     status: 'active',
-    start_date: '2026-06-12T00:00:00Z', // 12h ago
-    end_date: '2026-06-13T00:00:00Z', // 12h ahead
+    start_date: '2026-06-12T00:00:00Z',
+    end_date: '2026-06-13T00:00:00Z',
     ...overrides,
   };
 }
 
 describe('deriveJobStatus', () => {
   it("marks an 'active' job ready once its end date passes, despite ESI's lazy status", () => {
-    // The lazy-status gotcha: a fresh ESI read keeps reporting 'active'
-    // until the job is delivered — completion is timestamp math here.
     expect(deriveJobStatus('active', '2026-06-12T11:00:00Z', NOW)).toBe('ready');
   });
 

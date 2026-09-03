@@ -27,9 +27,5 @@ export const customStructures = pgTable('custom_structures', {
   structureTypeId: integer('structure_type_id').notNull(),
   rigTypeIds: jsonb('rig_type_ids').$type<number[]>().notNull().default([]),
   systemId: integer('system_id'),
-  // Owner-imagined facility tax PERCENT (0–10, decimals; 3.7.13.3). Null = never
-  // entered — the fee path then assumes the 0.25% NPC baseline. One field serves
-  // portable and pinned alike: the pin fixes WHERE (the cost-index system), the
-  // tax stays a property of the imagined structure.
   taxPct: doublePrecision('tax_pct'),
 });

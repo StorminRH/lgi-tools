@@ -71,8 +71,6 @@ function FeedbackMeta({
   );
 }
 
-// Category select — caption + Select (not Field/label: Select is self-labelled
-// via ariaLabel; a wrapping label would steal clicks onto the trigger).
 function FeedbackCategoryField({
   category,
   disabled,
