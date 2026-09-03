@@ -18,10 +18,6 @@ import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { useBuildCharacter, useBuildPlan, usePlannerConfig } from './planner-contexts';
 import { ReactionStructureSelect } from './ReactionStructureSelect';
 
-// The Run-As frame's context subscriber (the HeroSteppers pattern — HeroCard
-// itself stays context-free so the whole band doesn't re-render per price
-// batch). Threads the build-character selection between the pricing context and
-// the shared-zone frame.
 function RunAsSelector() {
   const { buildCharacter, buildCharacterPending, buildCharacters, setBuildCharacter } =
     useBuildCharacter();
@@ -35,9 +31,6 @@ function RunAsSelector() {
   );
 }
 
-// One stacked stepper row: a mono label (with the row's gem/hourglass glyph
-// directly after it) + its control. Shared by ME, TE and Runs so the three read
-// as a single vertical group of identical boxed controls.
 function StepperRow({
   label,
   icon,
@@ -62,19 +55,16 @@ function StepperRow({
           <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
             {icon}
           </span>
+
         )}
       </span>
+
       {children}
     </div>
+
   );
 }
 
-// ME / TE / Runs stacked vertically, all three in the SAME boxed −/[value]/+
-// control (the Runs Stepper's look — the hero rework's one-control-family rule;
-// no effect on any computed ME/TE/cost value). The gem/hourglass live beside the
-// ME/TE labels, toned by the blueprint's owned/manual state. ME/TE are
-// manufacturing-only (a reaction can't be researched), matching the always-on
-// per-node adjusters.
 function HeroSteppers({
   blueprintTypeId,
   isManufacturing,
@@ -113,6 +103,7 @@ function HeroSteppers({
             boxed
           />
         </StepperRow>
+
       )}
       {isManufacturing && (
         <StepperRow
@@ -130,6 +121,7 @@ function HeroSteppers({
             boxed
           />
         </StepperRow>
+
       )}
       <StepperRow label="Runs">
         <Stepper
@@ -140,21 +132,12 @@ function HeroSteppers({
           reserveTrailing
         />
       </StepperRow>
+
     </div>
+
   );
 }
 
-/**
- * The consolidated hero card: ONE equal-height plane of elements — the item
- * render in a square frame (the building-character frame's exact twin), the
- * stacked ME/TE/Runs boxed steppers, the square Run-As frame, and the two
- * location groups side by side (Manufacturing, then Reactions; each a
- * fixed-size System search over a Station select, bonus readout beside the
- * header). The item's identity lives ABOVE the card (PlannerHead: centered
- * name + the category/activity/per-run chips), so the card carries no title.
- * Every cluster centers on the same 108px plane so nothing shifts as picks
- * land; the band wraps cleanly on narrow viewports.
- */
 export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
 
@@ -165,9 +148,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
         'px-[18px] py-4',
       )}
     >
-      {/* The item render's boxed square. The building-character column shares
-          its 108px width so the two brackets the steppers sit between stay on
-          one plane (the character side is borderless by design). */}
+      {}
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-ctl border border-border p-2">
         <TypeIcon
           {...heroImage(structure.blueprintTypeId)}
@@ -179,23 +160,19 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
 
       <HeroSteppers blueprintTypeId={structure.blueprintTypeId} isManufacturing={isManufacturing} />
 
-      {/* The building character. The gap right of the frame is the Phase-3
-          modification-icon seam: the skills→time indicator fills it now
-          (absolutely positioned — zero footprint, nothing reflows), and the
-          standings lever's icons join it later — don't crowd it otherwise. */}
+      {}
       <div className="relative flex shrink-0">
         <RunAsSelector />
         <BuildSkillsIndicator structure={structure} />
       </div>
 
-      {/* The two location groups side by side, always shown (a reaction root
-          builds in a refinery too). The routing derives roles — a lone
-          refinery does everything; adding a build structure takes over just
-          the manufacturing nodes. */}
+      {}
       <div className="flex min-w-0 w-full flex-wrap gap-x-6 gap-y-3 sm:ml-auto sm:w-auto">
         <BuildLocationSelector />
         <ReactionStructureSelect />
       </div>
+
     </Card>
+
   );
 }

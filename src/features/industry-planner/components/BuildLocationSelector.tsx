@@ -35,9 +35,6 @@ import {
   type SystemSearch,
 } from '@/components/use-system-search';
 
-// The "build at" structure's readout: the compact gem/hourglass percents for what
-// it hosts (manufacturing, plus reactions when it's a lone refinery), or a prompt
-// when a custom structure is picked but no build system supplies the security yet.
 function StructureReadout({
   selectedStructure,
   readout,
@@ -46,32 +43,21 @@ function StructureReadout({
   readout: StructureReadoutBonus;
 }) {
   if (!selectedStructure) return null;
-  // No bonus on either activity ⇒ no security known yet (a custom structure with no
-  // build system). Keyed on the bonuses, NOT on `!location`: a corp structure
-  // (3.7.9.1.5) carries its own security and shows a bonus with no planner location.
+
   if (readout.mfg === null && readout.rxn === null) {
     return (
       <Tooltip content="Select a build system to apply this structure's bonus">
         <span tabIndex={0} className="min-w-0 truncate text-micro text-muted">
           Select a system to apply its bonus
         </span>
+
       </Tooltip>
+
     );
   }
   return <StructureBonusReadout readout={readout} taxPct={selectedStructure.taxPct} />;
 }
 
-// The "build at" facility dropdown, per-source segmented (3.7.13.2): the
-// caller's corp structures (locked to their own system), custom structures
-// (portable everywhere unless pinned), and, once a system is picked, that
-// system's NPC stations — one list, mutually exclusive (you build in one
-// place). The parent hands in the already-segmented visible list. A structure
-// applies its bonus (scaled to the system's security); an NPC station is
-// display-only. For a LOCKED structure (corp, or a pinned custom) the
-// onChange deduces-and-locks the build location to the structure's own system
-// (it carries `systemId`). The permanent last entry routes to the structure
-// builder — the single on-ramp (the old empty-state link is gone). Reactions
-// are handled by the separate "react at" refinery slot (3.7.12.2).
 function BuildFacilitySelect({
   structures,
   stations,
@@ -84,9 +70,7 @@ function BuildFacilitySelect({
   stations: IndustryStationView[];
   selectedStructure: AvailableStructure | null;
   station: { id: number } | null;
-  // The parent owns structure selection: it sets the structure AND, for a
-  // locked structure, deduces-and-locks the build system (this child stays a
-  // humble select). It also owns the bonus readout slot below this row.
+
   onSelectStructure: (structure: AvailableStructure | null) => void;
   setStation: (stationId: number | null, stationName: string | null) => void;
 }) {
@@ -99,7 +83,7 @@ function BuildFacilitySelect({
     }
     if (sel.kind === 'structure') {
       onSelectStructure(structureById(structures, sel.id));
-      setStation(null, null); // mutually exclusive — a structure isn't an NPC station
+      setStation(null, null);
       return;
     }
     if (sel.kind === 'station') {
@@ -113,8 +97,8 @@ function BuildFacilitySelect({
   return (
     <div className={cn(HERO_LOCATION_ROW_CLASS, 'flex-wrap')}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
-      {/* Fluid well width on narrow viewports; caps at 260px on wider screens so
-          the hero plane does not shift as labels change. */}
+
+      {}
       <Select
         value={facilityValueFor(selectedStructure, station)}
         onValueChange={onChange}
@@ -138,13 +122,10 @@ function BuildFacilitySelect({
         className={cn('h-[30px]', HERO_LOCATION_CONTROL_WELL_CLASS)}
       />
     </div>
+
   );
 }
 
-// A locked structure's system box: its deduced system (shown from the index
-// before the cost-index fetch returns) or an "unavailable" placeholder while the
-// index hasn't loaded that system yet. No Clear while locked — the Station
-// dropdown is the single source of truth for where the build happens.
 function LockedSystemBox({
   deducedSystem,
   lockedName,
@@ -163,12 +144,12 @@ function LockedSystemBox({
       )}
     >
       <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
+
     </div>
+
   );
 }
 
-// The unlocked system control: the picked system (clearable) or the search box,
-// with the fetch-failed hint below the box.
 function PickedOrSearchSystem({
   location,
   clearBuildLocation,
@@ -205,16 +186,13 @@ function PickedOrSearchSystem({
         <div className={cn('mt-1 text-micro', toneTextClass('red'))}>
           Couldn&apos;t load that system — try again.
         </div>
+
       )}
     </div>
+
   );
 }
 
-// The build SYSTEM control (drives the cost index + the security a custom
-// structure's rigs scale against). Every state — search box, picked, locked,
-// unavailable — renders at the SAME fixed 260×30 box the station select uses,
-// so picking or clearing a system never shifts the hero's plane. A locked
-// structure deduce-locks its own system (its box wins over the picker).
 function BuildSystemControl({
   lockedStructure,
   deducedSystem,
@@ -237,6 +215,7 @@ function BuildSystemControl({
   return (
     <div className={HERO_LOCATION_ROW_CLASS}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
+
       {lockedStructure ? (
         <LockedSystemBox deducedSystem={deducedSystem} lockedName={lockedStructure.name} />
       ) : (
@@ -250,24 +229,10 @@ function BuildSystemControl({
         />
       )}
     </div>
+
   );
 }
 
-// The build-system / station picker. Reuses the generic <TerminalSearch> for
-// the system search — suggestions dispatch the scoped systems source through
-// the search engine (the whole universe, fuzzy-ranked), Enter resolves exactly
-// over the same memoized index — and renders a per-station refinement once a
-// system is picked. Picking a system loads its stations + cost indices +
-// adjusted prices and flips the hero/ledger to net margin; clearing returns to
-// gross. The station choice is display/future-score only — the fee math is
-// system + structure-driven (the per-system cost index, and the structure's
-// owner-set facility tax with the 0.25% NPC baseline assumed when unset), so an
-// NPC station pick never changes the numbers.
-
-/**
- * Renders controlled NPC, custom, and corporation build-location choices and forwards the selected
- * facility without calculating bonuses.
- */
 export function BuildLocationSelector() {
   const {
     location,
@@ -283,14 +248,9 @@ export function BuildLocationSelector() {
     savedBuildLocation,
   } = useBuildSetup();
   const { systems, parse, suggest } = useSystemSearch();
-  // Surfaced when a build-location fetch fails (non-OK or network) so a pick that
-  // can't load doesn't silently leave the picker empty. Superseded applies (a
-  // faster later pick) stay silent — only a real failure surfaces.
+
   const [fetchError, setFetchError] = useState(false);
 
-  // The fetch + seed + persist machinery lives on the provider (applyBuildSystem,
-  // 3.7.23.1 — one generation counter across every caller); this component only
-  // decides persist semantics per transition and surfaces submit failures.
   const onSubmit = useCallback(
     ({ system }: SystemParams) => {
       setFetchError(false);
@@ -301,16 +261,6 @@ export function BuildLocationSelector() {
     [applyBuildSystem],
   );
 
-  // Structure selection (lifted from the facility select). A LOCKED structure
-  // (corp, or a pinned custom) carries its own system, so picking one DEDUCES
-  // that system and LOCKS the build location to it — the location is seeded
-  // SYNCHRONOUSLY from the index entry so the bonus and the segmented list bind
-  // to the locked system immediately, then the fetch fills stations/indices
-  // (silent, persist:false — a deduced system must not overwrite the user's
-  // saved build location). A pick whose system isn't in the index yet
-  // ('lock-unresolved') keeps the structure selected and the location as-is.
-  // Leaving a lock for a portable/station/none pick restores the user's saved
-  // system (or clears). A portable custom pick never touches the system.
   const onSelectStructure = useCallback(
     (structure: AvailableStructure | null) => {
       const transition = lockTransition(selectedStructure, structure, systems);
@@ -334,16 +284,15 @@ export function BuildLocationSelector() {
   );
 
   return (
-    // Fluid group width on narrow viewports; caps at 332px so a long readout
-    // cannot widen the hero plane on desktop.
+
     <div className={HERO_LOCATION_GROUP_CLASS}>
-      {/* The group header carries the bonus readout (or the pick-a-system
-          prompt) on its own fixed-height line, right of the title — beside the
-          controls it would push them; below them it would stretch the group. */}
+      {}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Manufacturing</span>
+
         <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
       </div>
+
       <BuildSystemControl
         lockedStructure={lockedStructure}
         deducedSystem={deducedSystem}
@@ -365,5 +314,6 @@ export function BuildLocationSelector() {
         />
       )}
     </div>
+
   );
 }
