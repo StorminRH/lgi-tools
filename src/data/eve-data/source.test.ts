@@ -10,16 +10,9 @@ import {
   parseSdeBuildNumber,
 } from './source';
 
-// Mirrors source.ts' hardcoded cache locations. The download helpers
-// short-circuit on existsSync, and Vercel reuses /tmp across warm Lambdas — so a
-// stale file from a prior run would skip the fetch and break the header
-// assertions. Clean both dirs before AND after each case.
 const CACHE_DIR = join(tmpdir(), 'lgi-sde');
 const JSONL_CACHE_DIR = join(tmpdir(), 'lgi-sde-jsonl');
 
-// A real (tiny) web ReadableStream so Readable.fromWeb + the pipeline complete
-// and the tmp file renames to dest. Fresh per call: a stream body is single-
-// consumption, so downloadDumps' fan-out needs a new Response each time.
 function streamingResponse(): Response {
   return new Response(new Blob([Uint8Array.of(0x42)]).stream(), { status: 200 });
 }
@@ -42,8 +35,6 @@ describe('eve-data source outbound headers', () => {
   it('sends the outbound User-Agent on the CCP SDE JSONL zip download', async () => {
     fetchSpy.mockImplementation(async () => streamingResponse());
 
-    // The fake (single-byte) body is not a valid zip, so extraction throws —
-    // we only assert the download request carried the right URL + User-Agent.
     await expect(downloadSdeJsonl()).rejects.toThrow();
 
     expect(fetchSpy).toHaveBeenCalled();
@@ -67,7 +58,7 @@ describe('eve-data source outbound headers', () => {
     expect(version).toBe('3374020');
     const [input, init] = fetchSpy.mock.calls[0];
     expect(String(input)).toContain('tranquility/latest.jsonl');
-    // GET now (no method override), not the old Fuzzwork HEAD probe.
+
     expect(init?.method ?? 'GET').toBe('GET');
     expect(new Headers(init?.headers).get('User-Agent')).toBe(
       OUTBOUND_USER_AGENT,
@@ -79,8 +70,6 @@ describe('eve-data source outbound headers', () => {
     expect(await getRemoteSdeVersion()).toBeNull();
   });
 
-  // Fuzzwork CSV download is parked but still present (backs CSV ingest until
-  // 3.3.2b); its User-Agent contract still holds.
   it('sends the outbound User-Agent on the legacy Fuzzwork dump download', async () => {
     fetchSpy.mockImplementation(async () => streamingResponse());
 

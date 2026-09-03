@@ -28,10 +28,6 @@ function idempotencyKey(input: EnqueueEsiRefreshJobInput): string {
   ].join('|');
 }
 
-/**
- * Coalesces one owner and dataset into the durable refresh queue, preserving an earlier due time
- * and reviving retryable terminal state when required.
- */
 export async function enqueueEsiRefreshJob(
   input: EnqueueEsiRefreshJobInput,
   now = new Date(),
@@ -84,10 +80,6 @@ export async function enqueueEsiRefreshJob(
   return existing[0].id;
 }
 
-/**
- * Returns the post-drain live queue truth: how many jobs are already due and
- * the earliest `nextAttemptAt`, or null when no live job remains.
- */
 export async function getEsiRefreshQueueResidual(
   now = new Date(),
   database: AnyPgDb = db,
@@ -109,10 +101,6 @@ export async function getEsiRefreshQueueResidual(
   };
 }
 
-/**
- * Returns jobs stranded in running state beyond the stale threshold to retryable state before a
- * new drain claims work.
- */
 export async function recoverStaleRunningJobs(
   cutoff: Date,
   now = new Date(),
@@ -158,7 +146,6 @@ export async function recoverStaleRunningJobs(
   };
 }
 
-/** Atomically claims one bounded due-job batch with row locking and stamps each attempt's running state. */
 export async function claimDueEsiRefreshJobs(
   limit: number,
   now = new Date(),
@@ -200,7 +187,6 @@ export async function claimDueEsiRefreshJobs(
   return claimed;
 }
 
-/** Returns queue counts grouped by dataset and status for the operations dashboard. */
 export async function getEsiRefreshQueueStats(): Promise<EsiRefreshQueueStat[]> {
   const oldestCreatedAt = sql`min(${esiRefreshJobs.createdAt})`.mapWith(
     esiRefreshJobs.createdAt,
@@ -221,7 +207,6 @@ export async function getEsiRefreshQueueStats(): Promise<EsiRefreshQueueStat[]> 
   }));
 }
 
-/** Lists dead-lettered refresh jobs newest first using privacy-safe owner labels for operator review. */
 export async function listDeadLetteredJobs(limit: number): Promise<DeadLetterRow[]> {
   return await db
     .select({
@@ -242,18 +227,12 @@ export async function listDeadLetteredJobs(limit: number): Promise<DeadLetterRow
     .limit(limit);
 }
 
-/**
- * Moves one dead-lettered job back to pending when it still exists and is eligible; returns a
- * closed missing, conflict, or requeued outcome.
- */
 export async function requeueDeadLetteredJob(
   id: number,
   now = new Date(),
 ): Promise<RequeueDeadLetterOutcome> {
   try {
-    // One statement keeps classification and mutation atomic on both request
-    // drivers. The production neon-http driver does not support callback
-    // transactions; the partial unique index remains the final race authority.
+
     const nowIso = now.toISOString();
     const result = await db.execute<{ outcome: RequeueDeadLetterOutcome['outcome'] }>(sql`
       with target as (
@@ -310,7 +289,6 @@ async function finishJob(
     .where(eq(esiRefreshJobs.id, id));
 }
 
-/** Transitions one claimed refresh job to succeeded and clears retry and error state. */
 export function markEsiRefreshJobSucceeded(id: number, now = new Date()): Promise<void> {
   return finishJob(
     id,
@@ -320,7 +298,6 @@ export function markEsiRefreshJobSucceeded(id: number, now = new Date()): Promis
   );
 }
 
-/** Returns one claimed job to pending at its budget-provided due time without consuming a retry attempt. */
 export function markEsiRefreshJobDeferred(
   id: number,
   error: EnqueueEsiRefreshJobInput['error'],
@@ -341,7 +318,6 @@ export function markEsiRefreshJobDeferred(
   );
 }
 
-/** Schedules one claimed job for its next bounded retry and records the privacy-safe failure reason. */
 export function markEsiRefreshJobRetryable(
   id: number,
   attemptCount: number,
@@ -357,7 +333,6 @@ export function markEsiRefreshJobRetryable(
   );
 }
 
-/** Marks one claimed job permanently failed when retry cannot repair its owner or dataset condition. */
 export function markEsiRefreshJobPermanent(
   id: number,
   code: string,
@@ -371,10 +346,6 @@ export function markEsiRefreshJobPermanent(
   );
 }
 
-/**
- * Transitions one exhausted claimed job to dead-lettered state and records its terminal
- * privacy-safe reason.
- */
 export function markEsiRefreshJobDeadLettered(
   id: number,
   attemptCount: number,
@@ -389,10 +360,6 @@ export function markEsiRefreshJobDeadLettered(
   );
 }
 
-/**
- * Deletes terminal refresh jobs older than the retention window while leaving pending and running
- * work untouched.
- */
 export async function pruneEsiRefreshJobs(
   database: AnyPgDb,
   retentionDays = ESI_REFRESH_JOB_RETENTION_DAYS,

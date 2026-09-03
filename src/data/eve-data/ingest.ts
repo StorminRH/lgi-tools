@@ -20,7 +20,6 @@ import {
 import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
 import { emitUniverseNeon, parseUniverse } from './universe';
 
-/** Absolute SDE row counts written by the ingest run, grouped by source entity. */
 export type IngestSummary = {
   categoriesWritten: number;
   groupsWritten: number;
@@ -37,20 +36,12 @@ export type IngestSummary = {
   durationMs: number;
 };
 
-/** SDE ingest controls for source paths, batching, and optional injected database or progress ports. */
 export type IngestOptions = {
   keepCache?: boolean;
 };
 
 const BATCH_SIZE = 500;
 
-// Field coercion helpers (intOrNull / numOrNull / strOrNull / boolOf /
-// localizedEn) live in ./coerce so the universe parser can share them without
-// either parser importing the other.
-
-// Generic streaming pipeline: JSONL file → one parsed object per line → batched
-// insert. `types.jsonl` is ~149 MB / 52k lines, so we read line-by-line via
-// readline and never buffer the whole file.
 async function streamInsert<T extends Record<string, unknown>>(
   path: string,
   mapRow: (row: Record<string, unknown>) => T | null,
@@ -83,10 +74,6 @@ async function streamInsert<T extends Record<string, unknown>>(
   return total;
 }
 
-/**
- * Streams the downloaded SDE JSONL files into normalized tables under the ingest lock and returns
- * absolute row counts.
- */
 export async function runIngest(
   db: PostgresJsDb,
   opts: IngestOptions = {},
@@ -94,10 +81,6 @@ export async function runIngest(
   const start = Date.now();
   const paths: SdeJsonlPaths = await downloadSdeJsonl();
 
-  // Parse the universe files into the in-memory dataset BEFORE opening the
-  // transaction: parsing is CPU-bound and touches no DB, so it must not hold a
-  // pinned connection / open transaction. (The download above already happened
-  // outside any transaction, per the no-network-in-tx invariant.)
   const universe = await parseUniverse(paths);
 
   const summary: IngestSummary = {
@@ -118,10 +101,7 @@ export async function runIngest(
 
   try {
     await db.transaction(async (tx) => {
-      // FK-safe wipe: types → groups → categories, then refill in reverse.
-      // typeDogma + attribute types stand alone. industry_blueprints and the
-      // resolver-computed tables (trees/flat_materials) cascade off the same
-      // wipe — trees/flat_materials reference industry_blueprints.
+
       await tx.execute(
         sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}, ${industryBlueprints}, ${typeDogma}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
       );
@@ -229,8 +209,7 @@ export async function runIngest(
           const typeId = intOrNull(r._key);
           const list = r.dogmaAttributes;
           if (typeId === null || !Array.isArray(list)) return null;
-          // Fold CCP's `[{attributeID, value}]` into `{ [attributeId]: value }`,
-          // the shape getTypeAttributesBatch reads back.
+
           const attributes: Record<string, number> = {};
           for (const a of list) {
             const attrId = intOrNull((a as Record<string, unknown>).attributeID);
@@ -245,10 +224,6 @@ export async function runIngest(
         },
       );
 
-      // Blueprints: CCP's whole nested `activities` object is stored verbatim as
-      // JSONB. The resolver/planner read just the manufacturing + reaction keys
-      // out of it (see ACTIVITY_NAME_TO_ID); invention/copying/research ride
-      // along untouched.
       summary.blueprintsWritten = await streamInsert(
         paths.blueprints,
         (r) => {
@@ -263,10 +238,6 @@ export async function runIngest(
         },
       );
 
-      // Universe (regions/constellations/systems/jumps/stations) — wipe + refill
-      // its own tables from the pre-parsed dataset, inside this same
-      // transaction. Self-contained: those tables are FK-independent of the
-      // type/blueprint tables wiped above.
       const universeSummary = await emitUniverseNeon(tx, universe);
       summary.regionsWritten = universeSummary.regionsWritten;
       summary.constellationsWritten = universeSummary.constellationsWritten;
