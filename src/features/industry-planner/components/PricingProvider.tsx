@@ -89,19 +89,6 @@ import {
   type SelectedStation,
 } from './planner-contexts';
 
-// The planner's single live-pricing store. It owns what `CostPanel` used to:
-// the price snapshot seeded from the server, the client clock, and the
-// on-demand refresh that tops up stale/missing rows through
-// /api/market-prices/refresh. The difference from 3.1.1 is that it's a
-// provider, not a panel — the hero margin, every cascade row's confidence
-// badge, and the cost ledger all read the same store, so a single streamed
-// price read fans out to all of them while the structure stays in the static
-// shell. Prices arrive via an un-awaited promise the server hands down (see
-// PricingSeeder), so the cascade structure never waits on the price read.
-
-// Resolves the streamed pricing promise (the only component that waits on the
-// price read) and seeds the store, then renders nothing. Isolated under its own
-// <Suspense fallback={null}> so the wait never blocks the hero/cascade.
 function PricingSeeder({
   pricingPromise,
   onSeed,
@@ -111,19 +98,12 @@ function PricingSeeder({
 }) {
   const resolved = use(pricingPromise);
   useEffect(() => {
-    // Defer via a 0ms timer so setState isn't called synchronously from the
-    // effect body (the established Cache-Components-safe shape). Always reports
-    // the result — including null — so the store can settle into an
-    // "unavailable" state rather than loading forever.
     const t = setTimeout(() => onSeed(resolved), 0);
     return () => clearTimeout(t);
   }, [resolved, onSeed]);
   return null;
 }
 
-// Resolves the streamed history seed (warm score inputs) and hands it to the
-// store, then renders nothing — its own <Suspense fallback={null}> so the wait
-// never blocks the hero/cascade. Same deferred-setState shape as PricingSeeder.
 function HistorySeeder({
   historyPromise,
   onSeed,
@@ -139,9 +119,6 @@ function HistorySeeder({
   return null;
 }
 
-// Shared what-if override setters for ME and TE: `set` clamps + writes a fresh map
-// (a new identity so the recompute dep fires); `reset` drops the entry. Same shape,
-// only the clamp (the cap) differs between the two.
 function useOverrideSetters(
   setOverrides: Dispatch<SetStateAction<Map<number, number>>>,
   clamp: (n: number) => number,
@@ -490,11 +467,6 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     },
     [priceSnapshot],
   );
-  // Recompute when runs, location, owned-ME, or a manual override changes —
-  // independent of the one-shot refresh loop. Reads the latest pricing via a
-  // ref (not a dep) so it never loops on its own setPricing. Guarded on a
-  // settled non-null seed, and deferred via a 0ms timer so setState is not
-  // called synchronously from the effect body.
   useEffect(() => {
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
@@ -637,10 +609,6 @@ function usePlannerLedger(
   };
 }
 
-/**
- * Publishes pricing state to descendants; the provider owns subscription and update lifecycle
- * while children consume it.
- */
 export function PricingProvider({
   structure,
   pricingPromise,
@@ -651,9 +619,6 @@ export function PricingProvider({
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
   historyPromise: Promise<MarketHistoryInputs[]>;
-  // The build-character preference's cookie value, read in the page's Suspense
-  // hole (the ssrReadable idiom) so a hard reload never flashes the active
-  // character while the server preference GET resolves.
   initialBuildCharacterId: number | null;
   children: ReactNode;
 }) {
@@ -846,9 +811,12 @@ export function PricingProvider({
       <Suspense fallback={null}>
         <PricingSeeder pricingPromise={pricingPromise} onSeed={clock.seed} />
       </Suspense>
+
       <Suspense fallback={null}>
         <HistorySeeder historyPromise={historyPromise} onSeed={market.mergeHistory} />
       </Suspense>
+
     </PlannerContextProviders>
+
   );
 }

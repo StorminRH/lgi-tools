@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { buildFeeBreakdown } from './fee-breakdown';
 import type { NetMarginView } from './types';
 
-// Spread over the base so an explicit `null` override survives (a `?? default`
-// would silently collapse it back, which is the exact case under test).
 function net(overrides: {
   systemCostIndex?: number | null;
   jobGrossCost?: number | null;
@@ -78,7 +76,6 @@ describe('buildFeeBreakdown', () => {
     const b = buildFeeBreakdown(
       net({ systemCostIndex: null, jobGrossCost: null, total: null, missingSystemCostIndex: true }),
     );
-    // The "—" rendered for these nulls is the only signal needed (no footnote).
     expect(b.install[0]).toEqual({ label: 'System cost', value: null });
     expect(b.installTotal).toBeNull();
   });

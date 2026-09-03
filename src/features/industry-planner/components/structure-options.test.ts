@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { AvailableStructure } from '../types';
 import { structureOptionGroups } from './structure-options';
 
-// Only id/source/name are read; the rest of AvailableStructure is fixture noise.
 function structure(id: string, source: 'corp' | 'custom', name: string): AvailableStructure {
   return { id, source, name } as unknown as AvailableStructure;
 }

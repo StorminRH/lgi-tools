@@ -20,14 +20,6 @@ import { structureOptionGroups } from './structure-options';
 import { StructureBonusReadout } from './structure-bonus-readout';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
-// The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
-// Manufacturing group's row beside it, so the reaction side has its own independent
-// system at all times, pickable before or after the refinery. It supplies the
-// security the refinery's reaction rigs scale against, and for a REACTION
-// blueprint it also keys the provider's reaction build-location fetch (3.7.13.3)
-// so the top job fees against this system's reaction index. `lockedTo` carries a locked
-// refinery's name when its home system deduce-locks the row. Every state renders
-// at the same fixed 260×30 box, so picking never shifts the hero's plane.
 function ReactionSystemRow({
   lockedTo,
   deducedSystem,
@@ -86,17 +78,6 @@ function ReactionSystemRow({
   );
 }
 
-/**
- * The reaction location group (3.7.12.2) — the SECOND of the two always-visible
- * location groups, stacked below the build group and mirroring its shape: a system row
- * ("React at") over a facility row ("Refinery"), both shown at all times. It offers
- * the caller's refineries (custom + corp) EXCEPT the one already picked as the build
- * structure (no double-select), per-source segmented against the row's system
- * (3.7.13.2: a locked refinery — corp or pinned custom — shows only in its own
- * system's list). Reactions build here; a lone refinery here also does the
- * manufacturing chain (the smart routing in structureFactorsFor). A locked refinery
- * deduce-locks its own system; a portable one scales against the row's picked system.
- */
 export function ReactionStructureSelect() {
   const {
     availableStructures,
@@ -110,19 +91,6 @@ export function ReactionStructureSelect() {
   const { systems } = useSystemSearch();
   const router = useRouter();
 
-  // Picking a refinery: a LOCKED refinery (corp, or a pinned custom) carries its
-  // home system — deduce-and-lock it (synchronous: the row is security-only, no
-  // fetch). A portable (or cleared) pick keeps a USER-picked system (so
-  // system-first and refinery-first both work), but drops a system the OUTGOING
-  // locked refinery had deduced — that one was never the user's choice, and
-  // leaving it would render a ghost pick beside an empty refinery select.
-  // Picking a refinery: a LOCKED refinery (corp, or a pinned custom) carries its
-  // home system — deduce-and-lock it (synchronous: the row is security-only, no
-  // fetch). A portable (or cleared) pick keeps a USER-picked system (so
-  // system-first and refinery-first both work), but drops a system the OUTGOING
-  // locked refinery had deduced — a ghost pick beside an empty refinery select.
-  // The shared lockTransition classifies the change; the reaction slot dispatches
-  // its own setter (lock → the deduced system; unlock/unresolved → clear it).
   const onSelectRefinery = useCallback(
     (structure: AvailableStructure | null) => {
       const transition = lockTransition(reactionStructure, structure, systems);
@@ -139,8 +107,6 @@ export function ReactionStructureSelect() {
 
   if (availableStructures === null) return null;
 
-  // Refineries only, excluding the build structure (no double-select), then
-  // segmented against the row's effective system (a lock's own system wins).
   const { deducedSystem, refineries, taxPct, lockedTo } = deriveReactionSlotView(
     reactionStructure,
     availableStructures,
@@ -150,8 +116,6 @@ export function ReactionStructureSelect() {
   );
   return (
     <div className={HERO_LOCATION_GROUP_CLASS}>
-      {/* The group header carries the bonus readout on its own fixed-height
-          line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Reactions</span>
         <StructureBonusReadout readout={reactionStructureReadout} taxPct={taxPct} />

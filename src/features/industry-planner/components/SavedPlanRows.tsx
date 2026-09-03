@@ -1,16 +1,10 @@
 'use client';
 
-// The saved-template row list, shared by the planner's TemplatesMenu popover and
-// the /industry/templates manager page (each supplies its own <ul> chrome, this
-// owns the identical row wiring so the two can't drift): load navigates to the
-// template's planner page with ?plan=, and the favorite / rename / two-step
-// delete route through the shared row menu.
 import { useRouter } from 'next/navigation';
 import type { SavedPlanRow } from '../api-contract';
 import type { ManagedRowMenu } from '../use-managed-row-menu';
 import { SavedPlanRowItem } from './SavedPlanRowItem';
 
-/** Renders the ordered saved-plan collection and empty state without owning persistence. */
 export function SavedPlanRows({
   plans,
   busyId,
@@ -40,5 +34,6 @@ export function SavedPlanRows({
         />
       ))}
     </>
+
   );
 }

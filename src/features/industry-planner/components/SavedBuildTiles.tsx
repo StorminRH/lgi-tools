@@ -1,13 +1,7 @@
-// The dashboard's Saved-builds rows (3.7.24): each saved template as an
-// IndustryRow linking to its own planner page with ?plan= — the ONE template
-// load mechanism (TemplateLoader on the target page replays it; a tile carries
-// zero loader logic). The list arrives pre-cut and server-ordered (favorites
-// first, then recency) — no sorting here.
 import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SavedPlanRow } from '../api-contract';
 import { IndustryRow } from './IndustryRow';
 
-/** Renders the bounded favorite and recent saved-plan tiles for the industry dashboard. */
 export function SavedBuildTiles({ plans }: { plans: SavedPlanRow[] }) {
   return (
     <>
@@ -22,5 +16,6 @@ export function SavedBuildTiles({ plans }: { plans: SavedPlanRow[] }) {
         />
       ))}
     </>
+
   );
 }

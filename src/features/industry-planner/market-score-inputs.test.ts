@@ -25,7 +25,6 @@ const HISTORY: MarketHistoryInputs = {
   latestDate: '2026-06-13',
 };
 
-// A full 5-band ladder [0.5,1,2,5,10]% with rising cumulative volume.
 const LADDER: DepthBand[] = [
   { pct: 0.5, cumVolume: 100 },
   { pct: 1, cumVolume: 250 },
@@ -37,7 +36,7 @@ const LADDER: DepthBand[] = [
 describe('toMarketScoreInputs', () => {
   it('anchors the score on the 30-day ADV window', () => {
     const i = toMarketScoreInputs({ outputUnits: 100, history: HISTORY, buyDepth: null, sellDepth: null });
-    expect(i.adv).toBe(8_000); // the 30d ADV window, not 7d or 90d
+    expect(i.adv).toBe(8_000);
   });
 
   it('reads the sell-wall from the sell-side band and instant-dump from the buy-side band', () => {
@@ -47,8 +46,8 @@ describe('toMarketScoreInputs', () => {
       buyDepth: LADDER,
       sellDepth: LADDER,
     });
-    expect(i.sellWallUnits).toBe(LADDER.find((b) => b.pct === SELL_WALL_BAND_PCT)!.cumVolume); // 1500
-    expect(i.instantDumpUnits).toBe(LADDER.find((b) => b.pct === INSTANT_DUMP_BAND_PCT)!.cumVolume); // 600
+    expect(i.sellWallUnits).toBe(LADDER.find((b) => b.pct === SELL_WALL_BAND_PCT)!.cumVolume);
+    expect(i.instantDumpUnits).toBe(LADDER.find((b) => b.pct === INSTANT_DUMP_BAND_PCT)!.cumVolume);
   });
 
   it('passes through volatility and volume CV', () => {
@@ -72,9 +71,9 @@ describe('toMarketScoreInputs', () => {
   it('returns null for a missing window or a missing band', () => {
     const thinHistory: MarketHistoryInputs = {
       ...HISTORY,
-      averageDailyVolume: [{ days: 7, adv: 9_000 }], // no 30d window
+      averageDailyVolume: [{ days: 7, adv: 9_000 }],
     };
-    const shortLadder: DepthBand[] = [{ pct: 0.5, cumVolume: 100 }]; // no 5%/2% band
+    const shortLadder: DepthBand[] = [{ pct: 0.5, cumVolume: 100 }];
     const i = toMarketScoreInputs({
       outputUnits: 100,
       history: thinHistory,
@@ -88,7 +87,6 @@ describe('toMarketScoreInputs', () => {
 });
 
 describe('daysSinceHistoryDate / STALENESS_FLAG_DAYS', () => {
-  // Fixed client clock at noon UTC so the day floor lands on 2026-06-14 cleanly.
   const NOW = Date.parse('2026-06-14T12:00:00Z');
 
   it('is null when the latest trade date is absent (honest unknown)', () => {
@@ -105,18 +103,17 @@ describe('daysSinceHistoryDate / STALENESS_FLAG_DAYS', () => {
   });
 
   it('counts whole UTC days back to the latest trade', () => {
-    expect(daysSinceHistoryDate('2026-06-13', NOW)).toBe(1); // fresh: ended yesterday
-    expect(daysSinceHistoryDate('2026-05-31', NOW)).toBe(14); // exactly the threshold
+    expect(daysSinceHistoryDate('2026-06-13', NOW)).toBe(1);
+    expect(daysSinceHistoryDate('2026-05-31', NOW)).toBe(14);
   });
 
   it('grows large for months-old history (the stale case the flag catches)', () => {
     expect(daysSinceHistoryDate('2025-07-07', NOW)).toBeGreaterThan(STALENESS_FLAG_DAYS);
-    expect(daysSinceHistoryDate('2026-05-31', NOW)).toBeGreaterThanOrEqual(STALENESS_FLAG_DAYS); // 14d
-    expect(daysSinceHistoryDate('2026-06-01', NOW)).toBeLessThan(STALENESS_FLAG_DAYS); // 13d
+    expect(daysSinceHistoryDate('2026-05-31', NOW)).toBeGreaterThanOrEqual(STALENESS_FLAG_DAYS);
+    expect(daysSinceHistoryDate('2026-06-01', NOW)).toBeLessThan(STALENESS_FLAG_DAYS);
   });
 });
 
-// Minimal MarketScore for the view/signal tests — only the fields these read.
 function makeScore(over: {
   score?: number | null;
   timeToClearDays?: number | null;
@@ -156,9 +153,7 @@ describe('marketScoreView', () => {
 
   it('shows the score once seeded, and a placeholder before it settles', () => {
     expect(marketScoreView(makeScore({ score: 72 }), false, null, null).scoreDisplay).toBe('72');
-    // Not seeded and score still null → the '…' placeholder, not '—'.
     expect(marketScoreView(makeScore({ score: null }), false, null, null).scoreDisplay).toBe('…');
-    // Seeded with a genuinely-unknown score → the em dash.
     expect(marketScoreView(makeScore({ score: null }), true, null, null).scoreDisplay).toBe('—');
   });
 
@@ -178,8 +173,6 @@ describe('marketScoreView', () => {
   });
 
   it('flags staleness with an age label + note once the history is old enough', () => {
-    // At exactly 14 days the age label buckets to weeks ('2w'); a 5-day-old
-    // history under the threshold flags nothing (checked below).
     const now = STALENESS_FLAG_DAYS * day + Date.parse('2026-01-01T00:00:00Z');
     const view = marketScoreView(makeScore({ score: 50 }), true, { latestDate: '2026-01-01' }, now);
     expect(view.staleAge).toBe('2w');

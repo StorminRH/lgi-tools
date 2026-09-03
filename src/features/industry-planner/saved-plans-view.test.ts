@@ -82,17 +82,16 @@ describe('savedEmptyLine', () => {
 describe('savedPlansViewState', () => {
   it('is blank while the first list read is still in flight', () => {
     expect(savedPlansViewState(null, null, false)).toEqual({ kind: 'blank' });
-    // Settled-empty but the roster hasn't settled yet → still blank (avoids a flash).
     expect(savedPlansViewState([], null, false)).toEqual({ kind: 'blank' });
   });
 
   it('is empty (with a cause line) for failed / signed-out / settled-empty lists', () => {
-    expect(savedPlansViewState([], [], true).kind).toBe('empty'); // listFailed
+    expect(savedPlansViewState([], [], true).kind).toBe('empty');
     expect(savedPlansViewState([], [], false)).toEqual({
       kind: 'empty',
-      line: 'Sign in to save build templates', // signed out (roster [])
+      line: 'Sign in to save build templates',
     });
-    expect(savedPlansViewState([], [{ id: 'c' }], false).kind).toBe('empty'); // settled empty, signed in
+    expect(savedPlansViewState([], [{ id: 'c' }], false).kind).toBe('empty');
   });
 
   it('is a list when there are plans', () => {

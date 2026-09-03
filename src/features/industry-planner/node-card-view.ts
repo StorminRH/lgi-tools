@@ -1,35 +1,18 @@
-// The build-plan node card's shell derivation (extracted from NodeCard so the
-// interactivity + class-state decisions are unit-tested and the component stays
-// a render shell): whether the card drills (has an onSelect), the icon rendition
-// to show, the a11y props for an interactive card, and the tone/state classes.
-
 import { cn } from '@/components/ui/cn';
 import { itemImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
 import { RELATED_NODE_ROW_CLASS } from './industry-styles';
 
-// A `min-h` floor keeps every card the same height whatever its name length; the
-// icon + ring centre on the same line — the uniformity the layout is for.
 const CARD =
   'flex min-h-[72px] items-center gap-2.5 border-t border-border-soft first:border-t-0 px-3 py-2.5 text-left transition-opacity';
 
-/**
- * Display-ready node card state for industry planner; consumers can render it without
- * reconstructing storage or domain policy.
- */
 export interface NodeCardView {
   interactive: boolean;
   iconDesc: EveImageDescriptor;
   className: string;
 }
 
-/**
- * Derives the complete display model for one build node from production, pricing, asset, and
- * override state.
- */
 export function nodeCardView(args: {
   onSelect?: () => void;
-  // The rendition the icon should show; absent → the item's own `icon` (the
-  // default that keeps every non-planner consumer byte-identical to today).
   icon?: EveImageDescriptor;
   typeId: number;
   selected: boolean;

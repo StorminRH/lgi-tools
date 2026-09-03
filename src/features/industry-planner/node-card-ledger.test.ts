@@ -3,7 +3,6 @@ import { assetLedgerView, ownedLedgerRow, qtyRingView, ringQty } from './node-ca
 
 describe('ownedLedgerRow', () => {
   it('splits owned and remaining quantity + ISK at the blended unit price', () => {
-    // unit price = 1,000,000 / 1000 = 1000 ISK/unit
     const { owned, remaining } = ownedLedgerRow(1000, 250, 1_000_000);
     expect(owned).toEqual({ qty: '250', isk: '250.0K' });
     expect(remaining).toEqual({ qty: '750', isk: '750.0K' });
