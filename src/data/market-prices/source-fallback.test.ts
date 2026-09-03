@@ -49,7 +49,7 @@ describe('parseVolume', () => {
   });
 
   it('handles scientific notation without throwing', () => {
-    // BigInt("1.5e6") would throw SyntaxError; we floor via Number() instead.
+
     expect(parseVolume('1.5e6')).toBe(BigInt(1_500_000));
     expect(parseVolume('2E3')).toBe(BigInt(2_000));
   });
@@ -127,8 +127,7 @@ describe('normalize', () => {
   });
 
   it('attributes the source as "fuzzwork" before the dispatcher rewrites it', () => {
-    // source-fallback.ts always emits 'fuzzwork'; the dispatcher in source.ts
-    // rewrites to 'fuzzwork-fallback' when calling this file as a fallback.
+
     const raw = normalize(34, pair({ orderCount: '1' }, { orderCount: '1' }));
     expect(raw.source).toBe('fuzzwork');
   });
@@ -157,8 +156,7 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('requests the Jita 4-4 STATION aggregate, not the region (3.7.26.1)', async () => {
-    // Both sources must describe the same hub book — a region-scoped fallback
-    // would flap every stored figure back to Forge semantics on ESI outages.
+
     fetchSpy.mockResolvedValueOnce(new Response('{}', { status: 200 }));
 
     await fetchPricesFromFuzzwork([34, 35]);
@@ -169,10 +167,7 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('accepts numeric fields on a zero-order side (station-scoped shape)', async () => {
-    // Observed live: a side with no orders comes back as plain numeric 0s
-    // instead of the documented strings — common on station aggregates where
-    // one side is often empty. The boundary must coerce, not reject, or one
-    // such type fails the whole fallback batch.
+
     fetchSpy.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -187,13 +182,12 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
 
     const rows = await fetchPricesFromFuzzwork([34]);
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.bestBuy).toBeNull(); // orderCount 0 → side nulled
+    expect(rows[0]!.bestBuy).toBeNull();
     expect(rows[0]!.bestSell).toBe(5.5);
   });
 
   it('rejects a present-but-invalid numeric field ("NaN") at the boundary', async () => {
-    // A field that exists but doesn't hold a finite number must fail the
-    // batch, not persist NaN/Infinity into the price columns.
+
     const sell: Record<string, string> = {
       weightedAverage: '5.5', max: 'NaN', min: '5.5', stddev: '0', median: '5.5',
       volume: '100', orderCount: '3', percentile: '5.5',
@@ -206,9 +200,7 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('still rejects a side with a MISSING required field at the boundary', async () => {
-    // The numeric tolerance must not swallow absence: a dropped field (here
-    // sell.orderCount) means the response shape changed — reject the batch
-    // rather than persisting a side misread as empty or malformed.
+
     const sell: Record<string, string> = {
       weightedAverage: '5.5', max: '6', min: '5.5', stddev: '0', median: '5.5',
       volume: '100', percentile: '5.5',
@@ -221,8 +213,7 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('rejects a malformed aggregates body at the boundary', async () => {
-    // 200 OK but a pair is the wrong shape — the boundary schema rejects it,
-    // throwing the same way a Fuzzwork HTTP error does today.
+
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ '34': { buy: 'not-a-side' } }), {
         status: 200,

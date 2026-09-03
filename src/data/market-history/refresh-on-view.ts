@@ -10,25 +10,13 @@ import { getHistoryMeta, getStoredHistory } from './queries';
 import { fetchHistoryFromSource } from './source';
 import type { MarketHistoryInputs } from './types';
 
-// Refresh-on-view engine for daily market history (3.5.3a). Mirrors the
-// market-prices on-view machinery but INVERTS its fetch policy: history changes
-// once daily, so this is stale-gated — it reads the stored per-type freshness
-// first and only calls ESI for types past their stale_after (the ESI Expires
-// boundary). A second view within the TTL makes no source call.
-//
-// Threads degradation facts out in its return value and never imports telemetry
-// (data ⊥ telemetry stays sealed); the route handler emits.
-
-/** Market-history degradation details explaining fallback source and staleness to callers. */
 export interface HistoryDegradation {
-  // Types whose live fetch succeeded this call (0 when all were warm).
+
   fetched: number;
-  // ESI error budget was hit, forcing some stale types to keep their stored
-  // series — the one degradation fact the inputs can't convey on their own.
+
   budgetExhausted: boolean;
 }
 
-/** Privacy-safe market-history refresh measurements including calls, rows, and elapsed milliseconds. */
 export interface LiveHistoryMetrics {
   requested: number;
   freshEsi: number;
@@ -37,7 +25,6 @@ export interface LiveHistoryMetrics {
   missing: number;
 }
 
-/** Closed history write-behind outcome distinguishing persisted, deferred, and failed storage. */
 export interface HistoryWriteBehindResult {
   outcome: 'succeeded' | 'partial' | 'failed';
   attempted: number;
@@ -56,23 +43,13 @@ function notifyWriteBehind(
   }
 }
 
-/**
- * Complete refresh-on-view market-history result combining data, source, degradation, metrics, and
- * write-behind state.
- */
 export interface LiveHistoryResult {
-  // Freshest inputs per type: freshly fetched where stale, the stored series
-  // otherwise. Types with neither are absent (caller treats as "no history").
+
   inputs: Map<number, MarketHistoryInputs>;
   degraded: HistoryDegradation;
   metrics: LiveHistoryMetrics;
 }
 
-/**
- * On-view read. Serves warm types from the stored rows untouched, fetches only
- * stale/missing types from ESI, returns the freshest inputs, and persists the
- * freshly fetched series as the new seed behind the response (never blocking it).
- */
 export async function getLiveHistory(
   typeIds: number[],
   onWriteBehind?: (result: HistoryWriteBehindResult) => void,
@@ -101,8 +78,6 @@ export async function getLiveHistory(
   degraded.budgetExhausted = budgetExhausted;
   degraded.fetched = results.length;
 
-  // Freshly fetched rows win; stored rows seed warm types and back-fill any
-  // stale type whose fetch failed.
   const freshByType = new Map(results.map((r) => [r.typeId, r.rows]));
   const staleSet = new Set(staleIds);
   const stored = await getStoredHistory(ids);
@@ -119,10 +94,6 @@ export async function getLiveHistory(
     }
   }
 
-  // Write-behind: persist the freshly fetched series after the response is sent
-  // (`after` extends the invocation so the upsert lands before the function
-  // freezes) and bust the cached seed tag so the next page load reads it fresh.
-  // A failure here must never surface.
   if (results.length > 0) {
     after(async () => {
       const startedAt = Date.now();

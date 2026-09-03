@@ -6,7 +6,6 @@ import {
 } from './constants';
 import type { DepthBand, RegionalDiscount } from './types';
 
-/** One market order-book entry with price in ISK and remaining volume in units. */
 export interface OrderEntry {
   price: number;
   volume: bigint;
@@ -54,29 +53,6 @@ export interface RemoteStationBook {
   orders: OrderEntry[];
 }
 
-/**
- * Best + 5%-percentile for one side of the book.
- *
- * `best` is the DUST-FILTERED touch (3.7.25.1): the lowest ask / highest bid
- * with real volume behind it. The sorted book is walked front-to-back and the
- * best is the price of the order at which cumulative volume first reaches
- * ceil(side volume / BEST_DUST_VOLUME_DIVISOR) (0.1%, min 1 unit) — so a
- * healthy front order (carrying the threshold alone) keeps the raw touch
- * byte-identically, while a 1-unit sliver anchoring a deep book is skipped.
- * Applies to BOTH sides: on the buy side it filters sliver highball bids the
- * same way (a volume filter, never a pct5 clamp — pct5_buy is wall-diluted
- * and provably wrong as a guard; see the hardening report §2.2).
- *
- * `pct5` — the volume-weighted average price of the cheapest 5% of side
- * volume (Fuzzwork's definition; we match it so the stored percentile
- * does not flap when the source swaps). It is UNTOUCHED by the dust filter
- * and still walks from the raw front of the book. Buy side sorts descending
- * (best bid first); sell side sorts ascending (best ask first). Empty side
- * returns nulls; zero-volume side returns the raw touch for both.
- *
- * Exported for testing — the math is delicate enough that a direct
- * regression test is worth the extra surface.
- */
 export function computeSide(
   orders: OrderEntry[],
   direction: 'asc' | 'desc',
@@ -107,10 +83,6 @@ export function computeSide(
     }
   }
 
-  // Threshold = ceil(5% of total volume) — bigint math truncates by
-  // default, which on small volumes rounds the threshold down to zero;
-  // bump up by one when there's any remainder so a single tiny order
-  // still gets sampled.
   const fivePct = totalVolume * BigInt(5);
   const threshold =
     fivePct % BigInt(100) === BigInt(0)
@@ -149,11 +121,6 @@ export function computeDepth(
   return DEPTH_BANDS_PCT.map((pct, i) => ({ pct, cumVolume: sums[i] ?? 0 }));
 }
 
-/**
- * Whether a remote sell book may anchor a regional-discount callout: NPC
- * stations only (see NPC_STATION_ID_CEILING — structures can be ACL-gated,
- * and the calibration set had no structure candidates).
- */
 export function isDiscountEligibleLocation(locationId: number): boolean {
   return locationId < NPC_STATION_ID_CEILING;
 }
