@@ -11,14 +11,6 @@ import {
 import { account } from '@/db/auth-schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
-// Proves the token-vend compare-and-swap against the REAL local Docker Postgres
-// (postgres-js): the conditional `WHERE refresh_token = <ciphertext as read>` is
-// the load-bearing claim, and a mocked rowCount can't prove it actually matches
-// 0 rows under genuine concurrency. Covers the orderings the design hinges on:
-// rotation winning over a first strike, a confirming NULL landing before the
-// winner's write (whose IS NULL arm must repair it), and re-auth replacing the
-// token mid-vend without being clobbered. Skips cleanly when no DB is reachable.
-
 const CHAR_ID = 90000007;
 const KEY = Buffer.alloc(32, 7).toString('base64');
 const harness = await createDbTestHarness({
@@ -92,8 +84,6 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
   it('two concurrent vends rotate the token exactly once and never destroy custody', async () => {
     await seedAccount('RT0', 'old-access', past());
 
-    // First submission of a given token wins (200 + rotated); any later submission
-    // of the SAME token is rejected invalid_grant — the invalidating-rotation regime.
     const consumed = new Set<string>();
     fetchSpy.mockImplementation(async (_url: unknown, init?: unknown) => {
       const token = refreshTokenIn(init);
@@ -113,13 +103,12 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
     ]);
 
     const row = await readAccount();
-    // Custody survives and exactly one rotation persisted — never NULL, never double.
+
     expect(row.refreshToken).not.toBeNull();
     expect(decryptToken(row.refreshToken as string)).toBe('RT1');
     expect(row.refreshTokenInvalidGrantCount).toBe(0);
     expect(row.refreshTokenInvalidGrantFirstAt).toBeNull();
-    // At least the winner got a usable token (the loser is ok-via-reflect or a
-    // transient reauth depending on which write committed first).
+
     expect([r1.kind, r2.kind]).toContain('ok');
   });
 
@@ -147,12 +136,11 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
       entered += 1;
       if (entered === 2) bothEntered();
       if (n === 0) {
-        // Loser: only confirm invalid_grant once BOTH vends have read strike 1,
-        // so the winner is guaranteed to hold RT0 when it writes.
+
         await both;
         return new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 });
       }
-      // Winner: held until the loser has committed its NULL.
+
       await winnerGate;
       return new Response(
         JSON.stringify({ access_token: 'win-access', refresh_token: 'RT1', expires_in: 1200 }),
@@ -170,7 +158,7 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
 
     const row = await readAccount();
     expect(row.refreshToken).not.toBeNull();
-    // The winner's IS NULL arm repaired the confirming loser's null.
+
     expect(decryptToken(row.refreshToken as string)).toBe('RT1');
     expect(row.refreshTokenInvalidGrantCount).toBe(0);
     expect(row.refreshTokenInvalidGrantFirstAt).toBeNull();
@@ -206,7 +194,7 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
       signalEntered = r;
     });
     fetchSpy.mockImplementation(async () => {
-      signalEntered(); // the vend has read RT0 and is now at the EVE call
+      signalEntered();
       await gate;
       return new Response(
         JSON.stringify({ access_token: 'vend-access', refresh_token: 'RT_vend', expires_in: 1200 }),
@@ -215,7 +203,7 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
     });
 
     const vend = getFreshAccessTokenForCharacter(CHAR_ID);
-    await entered; // guarantee the vend read RT0 before the re-auth replaces it
+    await entered;
     await harness.db
       .update(account)
       .set({
@@ -228,7 +216,7 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
     const result = await vend;
 
     const row = await readAccount();
-    // The re-auth's token survives — the in-flight vend matched 0 rows and reflected.
+
     expect(decryptToken(row.refreshToken as string)).toBe('RT_new');
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'reauth-access' });
   });

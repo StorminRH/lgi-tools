@@ -1,8 +1,3 @@
-// The eve-token contract is the wire boundary the Convex actions layer
-// (3.4.3, top-level convex/) type-imports. These tests pin the Convex-facing
-// shapes so an edit is a deliberate contract change, and the runtime cases
-// double as proof the module loads in a plain Node environment with no
-// server-only transitive imports — exactly how convex/ will consume it.
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   eveCharactersEndpoint,

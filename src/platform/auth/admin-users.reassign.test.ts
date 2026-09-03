@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// reassignCharacter's branch decision — delete the emptied source user, or keep
-// it when it still owns other characters. The Drizzle calls are stubbed with a
-// chainable thenable: every builder method returns the same object, and awaiting
-// it resolves the next queued result (FIFO, one per `await` the helper runs).
-// Built inside vi.hoisted so the (hoisted) vi.mock factory can reference it.
 const { chain, state } = vi.hoisted(() => {
   const state = {
     results: [] as unknown[],
@@ -52,8 +47,7 @@ beforeEach(() => {
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-    // awaits: move account → select-remaining (empty) → beforeUserDelete → delete user
-    // → afterCharacterLinkChanged.
+
     state.results = [undefined, [], undefined];
     const out = await reassignCharacter({
       characterId: 100,

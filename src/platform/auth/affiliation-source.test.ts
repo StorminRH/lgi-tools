@@ -2,9 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { fetchAffiliations } from './affiliation-source';
 
-// Drive the REAL gate (so the real esiFetch + error classes are exercised, with
-// no mock-boundary instanceof pitfalls): a permissive scoreboard lets calls
-// dispatch to a stubbed global fetch; 'unavailable' makes the gate fail closed.
 const permissiveScoreboard = {
   async preDispatch() {
     return { effectiveRemaining: 1000, blockedRetryAfter: null, etag: null };
@@ -56,13 +53,13 @@ describe('fetchAffiliations', () => {
       ]),
     );
 
-    const result = await fetchAffiliations([101, 102, 101]); // 101 duplicated
+    const result = await fetchAffiliations([101, 102, 101]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toContain('/characters/affiliation/');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body)).toEqual([101, 102]); // deduped, order preserved
+    expect(JSON.parse(init.body)).toEqual([101, 102]);
     expect(result).toEqual({
       rows: [
         { characterId: 101, corporationId: 2000, allianceId: 99, factionId: 500 },
@@ -78,14 +75,13 @@ describe('fetchAffiliations', () => {
 
     await fetchAffiliations(ids);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2); // ceil(1500 / 1000)
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toHaveLength(1000);
     expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toHaveLength(500);
   });
 
   it('bisects a mixed 404 batch so live characters still refresh', async () => {
-    // ESI 404s the whole POST when any id is deleted. Bisect until the dead id
-    // is isolated and the live sibling returns a row.
+
     fetchMock.mockImplementation(async (_url: unknown, init: { body: string }) => {
       const ids = JSON.parse(init.body) as number[];
       if (ids.includes(101) && ids.includes(102)) {
@@ -117,7 +113,7 @@ describe('fetchAffiliations', () => {
   });
 
   it('marks a budget refusal as transient without throwing', async () => {
-    __setScoreboardForTests('unavailable'); // gate fails closed → esiFetch throws budget
+    __setScoreboardForTests('unavailable');
     await expect(fetchAffiliations([101])).resolves.toEqual({
       rows: [],
       transientFailure: true,

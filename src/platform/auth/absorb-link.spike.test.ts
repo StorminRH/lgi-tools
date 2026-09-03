@@ -1,18 +1,3 @@
-// The ACCOUNT.3 interception spike, kept as the permanent Better-Auth-bump
-// regression pin. Absorb-on-proof pre-empts the generic-oauth callback's
-// already-linked refusal from inside our own getUserInfo: parseState has
-// already published the OAuth state (link.userId = the session user who
-// initiated /oauth2/link) into Better Auth's request-scoped store, so
-// getUserInfo can read it via getOAuthState() and move the stray account row
-// onto the linking user BEFORE the callback's own lookup — which then sees a
-// same-user row and completes as a normal relink (token update + success
-// redirect). This file drives the REAL better-auth pipeline (memory adapter,
-// stub provider, HTTP through auth.handler) and pins every property the absorb
-// relies on: the refusal baseline, the pre-empt-becomes-relink conversion, the
-// single-use state row, the sign-in/link discrimination, the state-cookie
-// binding, and that a client body can never smuggle a link into the state.
-// If a Better Auth upgrade changes any of these semantics, this file fails
-// loudly — re-verify the absorb path before shipping that bump.
 import { describe, expect, it } from 'vitest';
 import { betterAuth } from 'better-auth';
 import { memoryAdapter } from 'better-auth/adapters/memory';
@@ -36,11 +21,6 @@ type SessionRow = { userId: string };
 const BASE = 'http://localhost:3000/api/auth';
 const STRAY_CHARACTER = '111';
 
-// A minimal real better-auth instance: user A owns the stray character's
-// account row; emailAndPassword exists purely to mint user B's session; the
-// stub provider skips the network (getToken/getUserInfo are app-supplied for
-// EVE in production too). `absorb` toggles the getUserInfo pre-empt on/off so
-// the baseline refusal and the absorb conversion are pinned side by side.
 function makeHarness({ absorb }: { absorb: boolean }) {
   const now = new Date();
   const db = {
@@ -98,7 +78,7 @@ function makeHarness({ absorb }: { absorb: boolean }) {
                   const state = (await getOAuthState()) as {
                     link?: { userId: string };
                   } | null;
-                  const link = state?.link; // present ONLY on link flows
+                  const link = state?.link;
                   if (link) {
                     const row = db.account.find(
                       (a) => a.providerId === 'eve' && a.accountId === STRAY_CHARACTER,
@@ -106,7 +86,7 @@ function makeHarness({ absorb }: { absorb: boolean }) {
                     if (row && row.userId !== link.userId) row.userId = link.userId;
                   }
                 } catch {
-                  // degrade to no-absorb — the refusal is the fallback
+
                 }
               }
               return {
@@ -242,9 +222,9 @@ describe('absorb-on-proof interception (Better Auth 1.6.x pipeline)', () => {
     expect(target.searchParams.get('error')).toBeNull();
 
     const row = strayRow(db);
-    expect(row.userId).toBe(userB); // moved onto the linking user
-    expect(row.id).toBe('acct-a'); // the SAME row, not a duplicate
-    expect(row.accessToken).toBe('new-at'); // relink token update landed on it
+    expect(row.userId).toBe(userB);
+    expect(row.id).toBe('acct-a');
+    expect(row.accessToken).toBe('new-at');
     expect(row.scope).toContain('scope-a');
   });
 
@@ -260,7 +240,7 @@ describe('absorb-on-proof interception (Better Auth 1.6.x pipeline)', () => {
     const replay = await callback(auth, state, cookies);
     const error = redirectTarget(replay).searchParams.get('error');
     expect(error).toMatch(/^(state_mismatch|please_restart_the_process)$/);
-    expect(strayRow(db).userId).toBe(userB); // replay changed nothing
+    expect(strayRow(db).userId).toBe(userB);
   });
 
   it('(d) sign-in never absorbs: no link in state, the existing owner just signs in', async () => {
@@ -279,7 +259,7 @@ describe('absorb-on-proof interception (Better Auth 1.6.x pipeline)', () => {
     const { sessionCookie } = await signUpUserB(auth);
     const { state } = await startLink(auth, sessionCookie);
 
-    const res = await callback(auth, state, sessionCookie); // state cookie withheld
+    const res = await callback(auth, state, sessionCookie);
     const error = redirectTarget(res).searchParams.get('error');
     expect(error).toMatch(/^(state_mismatch|state_security_mismatch)$/);
     expect(strayRow(db).userId).toBe('user-a');
@@ -293,7 +273,7 @@ describe('absorb-on-proof interception (Better Auth 1.6.x pipeline)', () => {
 
     const res = await callback(auth, state, stateCookie);
     expect(redirectTarget(res).searchParams.get('error')).toBeNull();
-    expect(strayRow(db).userId).toBe('user-a'); // the forged link never reached the state
+    expect(strayRow(db).userId).toBe('user-a');
     expect(db.session.some((s) => s.userId === 'user-a')).toBe(true);
   });
 });
