@@ -20,10 +20,8 @@ function SettingsRowFrame({
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-ui text-text">{label}</span>
-
       {children}
     </div>
-
   );
 }
 
@@ -38,7 +36,6 @@ function EnumSettingsRow({ model }: { model: EnumMenuControlModel }) {
         label={model.label}
       />
     </SettingsRowFrame>
-
   );
 }
 
@@ -53,7 +50,6 @@ function BooleanSettingsRow({ model }: { model: BooleanMenuControlModel }) {
         tone="neutral"
       />
     </SettingsRowFrame>
-
   );
 }
 

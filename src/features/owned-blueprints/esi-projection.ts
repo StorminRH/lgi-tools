@@ -7,7 +7,6 @@ const ownedBlueprintSchema = z.object({
   runs: z.number().int(),
   quantity: z.number().int(),
   location_id: z.number().int(),
-
   location_flag: z.string(),
 });
 const ownedBlueprintsBodySchema = z.array(ownedBlueprintSchema);

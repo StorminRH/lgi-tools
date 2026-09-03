@@ -28,7 +28,6 @@ export const entityNamesRequestSchema = z.object({
 const entityNamesResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
-
 export type SdePipelineSummary = {
   ingest: IngestSummary;
   resolve: ResolveSummary;
@@ -72,7 +71,6 @@ export const systemSearchEntrySchema = z.object({
 const systemsResponseSchema = z.object({
   systems: z.array(systemSearchEntrySchema),
 });
-
 export const systemsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/industry/systems',

@@ -67,13 +67,11 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess, TB
   request: Request,
   options: BodyfulMutationOptions<TAuthorization, TBody>,
 ): Promise<Response>;
-
 export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
   request: Request,
   options: BodylessMutationOptions<TAuthorization>,
 ): Promise<Response>;
 export function runMutationRoute(request: Request, options: unknown): Promise<Response> {
-
   const runtime = options as RuntimeMutationOptions;
   return runCapabilityRoute(runtime.capability, () => runStages(request, runtime));
 }

@@ -176,7 +176,6 @@ test('paintFog lays cloud, erases reveals, scales by strength, and restores cont
     (entry) => entry.op === 'composite' && entry.args[0] === 'destination-out',
   );
   expect(fillIndex).toBeLessThan(eraseIndex);
-
   expect(log.filter((entry) => entry.op === 'drawImage').length).toBe(2 + 6 + 1);
 
   const dynamic = recordingContext();

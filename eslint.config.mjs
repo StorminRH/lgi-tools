@@ -285,7 +285,6 @@ const apiFetchSelectors = [
     message:
       "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
-
   {
     selector: "CallExpression[callee.name='apiFetch'] > ObjectExpression:first-child",
     message:
@@ -585,10 +584,8 @@ function primitiveSyntaxSelectorsExcept(...exemptions) {
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-
   {
     rules: {
-
       "@next/next/no-img-element": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -600,7 +597,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: [
@@ -627,7 +623,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: [
       "src/components/**/*.{ts,tsx,mts}",
@@ -657,7 +652,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/mapper/**/*.{ts,tsx,mts}"],
     rules: {
@@ -679,7 +673,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/components/eve-image.tsx"],
     rules: {
@@ -698,7 +691,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: baseUiWrapperFiles,
     rules: {
@@ -719,7 +711,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/components/ui/toast.tsx"],
     rules: {
@@ -740,7 +731,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
     rules: {
@@ -761,7 +751,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/app/api/cron/**"],
     rules: {
@@ -806,14 +795,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["convex/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [...vendorImportPatterns] }],
     },
   },
-
   {
     files: ["src/lib/upstash.ts"],
     rules: {
@@ -836,7 +823,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/lib/rate-limit.ts"],
     rules: {
@@ -859,7 +845,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: [
       "src/db/index.ts",
@@ -914,7 +899,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/data/convex/**/*.{ts,tsx}"],
     rules: {
@@ -938,7 +922,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/data/gsc/**/*.ts"],
     rules: {
@@ -961,7 +944,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: [
       "src/platform/auth/auth-client.ts",
@@ -988,7 +970,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/platform/auth/components/ConvexClientProvider.tsx"],
     rules: {
@@ -1011,7 +992,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
@@ -1024,7 +1004,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/**/*.test.{ts,tsx}"],
     ignores: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
@@ -1040,7 +1019,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/**/*.db.test.ts"],
     rules: {
@@ -1057,7 +1035,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/lib/env.ts"],
@@ -1083,7 +1060,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/platform/esi/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}"],
@@ -1108,7 +1084,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/lib/env.ts"],
     rules: {
@@ -1132,7 +1107,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/components/ui/tones.ts"],
     rules: {
@@ -1156,7 +1130,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/app/(site)/preview/**/*.{ts,tsx}"],
     rules: {
@@ -1178,7 +1151,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/app/**/opengraph-image.{ts,tsx}"],
     rules: {
@@ -1203,7 +1175,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}"],
@@ -1228,7 +1199,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
     rules: {
@@ -1242,7 +1212,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/data/eve-data/type-images.ts"],
     rules: {
@@ -1266,7 +1235,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/data/eve-data/type-images.test.ts"],
     rules: {
@@ -1280,7 +1248,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["convex/**/*.{ts,tsx}"],
     ignores: ["**/*.test.{ts,tsx}"],
@@ -1296,7 +1263,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/lib/fetch-with-timeout.ts", "src/transport/api-client.ts"],
     rules: {
@@ -1320,7 +1286,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: [
       "src/platform/auth/eve-sso-constants.ts",
@@ -1348,7 +1313,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: ["src/components/ui/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/components/ui/tones.ts"],
@@ -1359,7 +1323,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-
   {
     files: [
       "src/components/ui/banner.tsx",
@@ -1534,16 +1497,12 @@ const eslintConfig = defineConfig([
   },
 
   globalIgnores([
-
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
-
     "docs/**",
-
     ".claude/**",
-
     "convex/_generated/**",
   ]),
 ]);

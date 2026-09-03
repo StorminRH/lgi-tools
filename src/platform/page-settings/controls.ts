@@ -6,7 +6,6 @@ import type { PageSettingsSpec, SettingsControlRef } from './types';
 export type EnumMenuControlModel = {
   kind: 'preference-enum';
   key: string;
-
   label: string;
   options: readonly string[];
   def: PreferenceDef<string>;
@@ -58,7 +57,6 @@ function preferenceModel(ref: { key: string }): MenuControlModel | null {
       key: ref.key,
       label,
       options: def.schema.options as readonly string[],
-
       def: def as PreferenceDef<string>,
     };
   }

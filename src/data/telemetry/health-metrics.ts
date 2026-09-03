@@ -6,9 +6,7 @@ import type {
 } from './types';
 
 export const PRICES_HEALTHY_OUTCOMES = ['refreshed', 'skipped'] as const;
-
 export const SDE_HEALTHY_OUTCOMES = ['up-to-date', 'reingested'] as const;
-
 export const SDE_NEUTRAL_OUTCOMES = ['busy'] as const;
 
 export interface LoginFrequencyBucket {
@@ -73,9 +71,7 @@ export interface SubsystemStatus {
 }
 
 const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
-
 const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
-
 const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
 
 const STALE_AMBER_FACTOR = 1.25;
@@ -92,15 +88,11 @@ export function formatAgo(then: Date, now: Date): string {
 }
 
 export interface CronStatusInput {
-
   lastRun: { timestamp: Date; outcome: string | null } | null;
-
   outcomes: CronOutcomeCount[];
   healthy: readonly string[];
   neutral?: readonly string[];
-
   degraded?: readonly string[];
-
   expectedEveryHours: number;
   now: Date;
 }
@@ -155,7 +147,6 @@ export interface GscStatusInput {
   configured: boolean;
   lastRun: { timestamp: Date; outcome: string | null } | null;
   outcomes: CronOutcomeCount[];
-
   lastSyncedAt: Date | null;
   now: Date;
 }

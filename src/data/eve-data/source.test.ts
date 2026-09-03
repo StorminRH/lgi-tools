@@ -58,7 +58,6 @@ describe('eve-data source outbound headers', () => {
     expect(version).toBe('3374020');
     const [input, init] = fetchSpy.mock.calls[0];
     expect(String(input)).toContain('tranquility/latest.jsonl');
-
     expect(init?.method ?? 'GET').toBe('GET');
     expect(new Headers(init?.headers).get('User-Agent')).toBe(
       OUTBOUND_USER_AGENT,

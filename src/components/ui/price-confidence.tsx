@@ -17,9 +17,7 @@ export function PriceConfidence({
   className,
 }: {
   level: ConfidenceLevel;
-
   reasons?: string[];
-
   label?: string;
   className?: string;
 }) {
@@ -42,15 +40,11 @@ export function PriceConfidence({
       triggerClassName={cn('price-confidence', `price-confidence--${level}`, className)}
     >
       <PopoverHeading>{name}</PopoverHeading>
-
       <ul className="flex flex-col gap-1 font-ui text-body leading-snug text-muted">
         {reasons.map((reason) => (
           <li key={reason}>{reason}</li>
-
         ))}
       </ul>
-
     </Popover>
-
   );
 }

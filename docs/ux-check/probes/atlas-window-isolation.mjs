@@ -22,7 +22,6 @@ export default {
       return;
     }
     await waitForWindowMap(page);
-
     const dock = mapWindow(page, 'dock');
     check(
       'the readout stays docked (no floating mode)',

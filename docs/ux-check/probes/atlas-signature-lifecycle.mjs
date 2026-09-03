@@ -136,7 +136,6 @@ export default {
         transitionObservedAt: seededTransitionAt,
       });
     });
-
     const restampFreshness = () =>
       convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
@@ -333,7 +332,6 @@ export default {
       && ['authored', 'converged'].includes(jump?.outcome),
     );
     await Promise.all([
-
       waitForTopology(page, 4, 3),
       waitForTopology(second.page, 4, 3),
     ]);

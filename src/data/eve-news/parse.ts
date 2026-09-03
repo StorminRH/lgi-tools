@@ -51,13 +51,11 @@ export function parseEveRss(xml: string): EveNewsItem[] {
 
   const items: EveNewsItem[] = [];
   for (const match of xml.matchAll(ITEM_RE)) {
-
     const block = match[1] ?? '';
     const title = firstTag(block, 'title');
     const link = firstTag(block, 'link');
     if (!title || !link) continue;
     const url = cleanText(link);
-
     if (!/^https?:\/\//i.test(url)) continue;
     const category = firstTag(block, 'category');
     items.push({

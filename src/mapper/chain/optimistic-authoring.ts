@@ -112,7 +112,6 @@ export function optimisticSetHomeSystem(
   now = Date.now(),
 ): void {
   if (liveSystemPresent(localStore, args.mapId, args.systemId)) return;
-
   for (const { args: pageArgs, value } of localStore.getAllQueries(
     api.mapChainSystems.watchMapSystems,
   )) {
@@ -383,7 +382,6 @@ export function wormholeTypeWindowProposal(
   ) {
     return storedWindow(connection);
   }
-
   const firstSeenAt = connection.firstSeenAt ?? connection._creationTime;
   return intersectOrReset(storedWindow(connection), {
     earliestAt: firstSeenAt,
@@ -588,7 +586,6 @@ export function useChainAuthoringMutations() {
       optimisticRestoreConnection,
     ),
   );
-
   const removeSignatures = swallowMutationRejection(
     useMutation(api.mapScan.removeSignatures),
   );

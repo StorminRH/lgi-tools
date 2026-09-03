@@ -47,7 +47,6 @@ const station = (
   solarSystemID: number,
   operationID: number,
 ) => ({ _key: id, solarSystemID, operationID, typeID: 1531, ownerID: 1000035 });
-
 const stargate = (id: number, fromSys: number, toSys: number) => ({
   _key: id,
   solarSystemID: fromSys,
@@ -83,7 +82,6 @@ describe('resolveIndustryServiceIds', () => {
 });
 
 describe('buildUniverseDataset', () => {
-
   const raw: RawUniverseFiles = {
     services: SERVICES,
     regions: [
@@ -137,7 +135,6 @@ describe('buildUniverseDataset', () => {
       10000002, 10000099, 11000001, 11000031, 11000033,
     ]);
     expect(dataset.constellations.map((c) => c.id)).not.toContain(22000001);
-
     expect(sysById.has(31000007)).toBe(true);
     expect(sysById.has(31000005)).toBe(true);
     expect(sysById.has(32000001)).toBe(false);
@@ -162,7 +159,6 @@ describe('buildUniverseDataset', () => {
   });
 
   it('builds a deduped, FK-safe system jump graph', () => {
-
     expect(dataset.jumps).toEqual([
       { fromSystemId: 30000142, toSystemId: 30009999 },
       { fromSystemId: 30009999, toSystemId: 30000142 },
@@ -188,19 +184,16 @@ describe('buildUniverseDataset', () => {
 
   it('stamps capability booleans from the station\'s operation', () => {
     const byId = new Map(dataset.stations.map((s) => [s.id, s]));
-
     expect(byId.get(60003760)).toMatchObject({
       manufacturingCapable: true,
       researchCapable: false,
       industryCapable: true,
     });
-
     expect(byId.get(60003761)).toMatchObject({
       manufacturingCapable: false,
       researchCapable: true,
       industryCapable: true,
     });
-
     expect(byId.get(60003762)).toMatchObject({
       manufacturingCapable: false,
       researchCapable: false,
@@ -209,7 +202,6 @@ describe('buildUniverseDataset', () => {
   });
 
   it('leaves K-space rows byte-identical when J-space inputs are added', () => {
-
     const isK = (regionId: number) => regionId < 11_000_000;
     const kRegionIds = new Set(
       raw.regions.map((r) => r._key as number).filter(isK),

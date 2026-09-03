@@ -32,7 +32,6 @@ function CogGlyph() {
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
     </svg>
-
   );
 }
 
@@ -82,11 +81,8 @@ export function MapSwitcher({
         trigger={
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate">{selected.name}</span>
-
             <span aria-hidden className="font-data text-label text-faint">⌄</span>
-
           </span>
-
         }
         triggerProps={{
           ref: triggerRef,
@@ -117,9 +113,7 @@ export function MapSwitcher({
               }}
             >
               <span className="truncate">{map.name}</span>
-
             </MenuItem>
-
             {map.role === 'admin' ? (
               <MenuItem
                 closeOnClick
@@ -135,15 +129,12 @@ export function MapSwitcher({
               >
                 <CogGlyph />
               </MenuItem>
-
             ) : (
               <span aria-hidden />
             )}
           </div>
-
         ))}
       </Menu>
-
       {dialogs.editingMapId !== null ? (
         <MapAccessDialog
           key={dialogs.editingMapId}
@@ -167,6 +158,5 @@ export function MapSwitcher({
         />
       ) : null}
     </>
-
   );
 }

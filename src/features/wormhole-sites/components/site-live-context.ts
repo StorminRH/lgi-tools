@@ -8,7 +8,6 @@ import type { SiteResource } from '../types';
 export interface SiteLiveValue {
   priceOf: (typeId: number) => RefreshedPrice | undefined;
   isPending: (typeId: number) => boolean;
-
   requestEnable: () => void;
 }
 

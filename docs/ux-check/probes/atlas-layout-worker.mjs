@@ -66,7 +66,6 @@ export default {
           ),
         ),
       );
-
       if (withScripts === 0) {
         check(
           `LoAF script attribution inconclusive (${frameReport.length} frames, 0 with script names; layout-module check skipped)`,

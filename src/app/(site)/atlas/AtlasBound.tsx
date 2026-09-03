@@ -104,8 +104,6 @@ export async function AtlasBound({
       >
         {showCanvas ? <AtlasCanvasFrame session={session} /> : <MapCatalogue />}
       </MapCatalogueDataProvider>
-
     </SiteCatalogueProvider>
-
   );
 }

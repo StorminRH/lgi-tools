@@ -48,22 +48,18 @@ export function AccountMenu({
       <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/characters" />}>
         Manage characters
       </MenuLinkItem>
-
       <MenuItem className={menuRow} onClick={() => startCharacterLink()}>
         Add character
       </MenuItem>
-
       <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/settings" />}>
         Account settings
       </MenuLinkItem>
-
       <PageMenuSection />
       {contextualSection}
       <MenuSeparator className={menuSeparator} />
       <MenuItem
         className={menuRow}
         onClick={() => {
-
           void authClient.signOut().finally(() => {
             reloadDocumentHome();
           });
@@ -71,8 +67,6 @@ export function AccountMenu({
       >
         Log out
       </MenuItem>
-
     </Menu>
-
   );
 }

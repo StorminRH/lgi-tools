@@ -26,8 +26,6 @@ export function PageShell({
       >
         {children}
       </div>
-
     </div>
-
   );
 }

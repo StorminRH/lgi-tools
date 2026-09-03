@@ -95,11 +95,8 @@ export const siteDetailSchema = z.object({
 });
 
 export type Npc = z.infer<typeof npcSchema>;
-
 export type Wave = z.infer<typeof waveSchema>;
-
 export type SiteResource = z.infer<typeof siteResourceSchema>;
-
 export type SiteDetail = z.infer<typeof siteDetailSchema>;
 
 const POSTGRES_SERIAL_MAX = 2_147_483_647;

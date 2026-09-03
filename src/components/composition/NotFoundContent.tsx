@@ -8,23 +8,18 @@ export function NotFoundContent() {
         <div className="font-data text-label text-muted tracking-eyebrow uppercase">
           404 · Signature lost
         </div>
-
         <h1 className="font-display font-bold text-hero leading-none tracking-copy uppercase text-name">
           Nothing on D-Scan
         </h1>
-
         <p className="text-body text-text leading-relaxed">
           The page you&apos;re looking for isn&apos;t in this system&apos;s overview. The
           link may be stale, or you may have wandered off the star map.
         </p>
-
       </div>
 
       <Link href="/" className={buttonVariants()}>
         Warp to home
       </Link>
-
     </div>
-
   );
 }

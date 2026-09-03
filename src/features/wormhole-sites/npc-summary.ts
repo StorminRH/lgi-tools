@@ -4,7 +4,6 @@ import type { SiteDetail } from './types';
 
 export interface ShipClassSummary {
   code: SleeperClassCode;
-
   count: number;
 }
 

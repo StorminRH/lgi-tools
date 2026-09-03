@@ -17,7 +17,6 @@ function PlayGlyph() {
     <svg width="7" height="8" viewBox="0 0 7 8" aria-hidden className="fill-isk shrink-0">
       <path d="M0 0l7 4-7 4z" />
     </svg>
-
   );
 }
 
@@ -27,7 +26,6 @@ function PauseGlyph() {
       <rect x="0" width="2" height="8" />
       <rect x="4" width="2" height="8" />
     </svg>
-
   );
 }
 
@@ -36,7 +34,6 @@ export function RosterCard({
   reconnectAction,
 }: {
   vm: RosterViewModel;
-
   reconnectAction?: ReactNode;
 }) {
   return (
@@ -47,46 +44,36 @@ export function RosterCard({
           <span className="font-display font-bold text-h3 leading-tight text-name truncate">
             {vm.name}
           </span>
-
           {vm.needsReconnect &&
             (reconnectAction ?? <Pill tone="orange">Reconnect</Pill>)}
-
         </div>
-
         <SpLine vm={vm} />
         <TrainingLine vm={vm} />
       </div>
-
     </div>
-
   );
 }
 
 function SpLine({ vm }: { vm: RosterViewModel }) {
   if (vm.totalSp === null) {
     return <div className="font-data text-micro leading-tight text-muted">{rosterSpFallback(vm)}</div>;
-
   }
   const free = rosterFreeSp(vm);
   return (
     <div className="font-data text-micro leading-tight text-muted">
       {formatQuantity(vm.totalSp)} SP
       {free !== null && <span className="text-isk"> · {formatQuantity(free)} free</span>}
-
     </div>
-
   );
 }
 
 function TrainingLine({ vm }: { vm: RosterViewModel }) {
   if (!vm.hasData) {
     return <EmptyState>No queue synced yet</EmptyState>;
-
   }
   const t = vm.training;
   if (t.kind === 'empty' || t.kind === 'complete') {
     return <div className="mt-1 text-micro text-muted">{idleTrainingText(t.kind)}</div>;
-
   }
   return <ActiveOrPausedLine vm={vm} training={t} />;
 }
@@ -102,9 +89,7 @@ function ActiveOrPausedLine({
     <span className="text-name truncate flex-1 min-w-0">
       {vm.currentSkillName ?? `Skill #${training.skillId}`}{' '}
       <span className="text-muted">{romanLevel(training.level)}</span>
-
     </span>
-
   );
 
   if (training.kind === 'paused') {
@@ -113,9 +98,7 @@ function ActiveOrPausedLine({
         <PauseGlyph />
         {skillLabel}
         <Pill tone="orange">Paused</Pill>
-
       </div>
-
     );
   }
 
@@ -126,15 +109,11 @@ function ActiveOrPausedLine({
         {skillLabel}
         {vm.remainingLabel !== null && (
           <span className="font-data text-micro text-muted shrink-0">{vm.remainingLabel}</span>
-
         )}
       </div>
-
       <div className="mt-1">
         <ProgressBar pct={training.pct} tone="evb" />
       </div>
-
     </div>
-
   );
 }

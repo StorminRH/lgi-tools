@@ -17,12 +17,10 @@ import {
 } from './constants';
 
 export const esiRefreshDatasetEnum = pgEnum('esi_refresh_dataset', ESI_REFRESH_DATASETS);
-
 export const esiRefreshJobStatusEnum = pgEnum(
   'esi_refresh_job_status',
   ESI_REFRESH_JOB_STATUSES,
 );
-
 export const esiRefreshOwnerTypeEnum = pgEnum(
   'esi_refresh_owner_type',
   ESI_REFRESH_OWNER_TYPES,

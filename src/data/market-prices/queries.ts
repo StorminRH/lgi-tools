@@ -29,7 +29,6 @@ export async function getPrices(
     .from(marketPrices)
     .where(inArray(marketPrices.typeId, typeIds));
   const out = new Map<number, MarketPrice>();
-
   for (const r of rows) out.set(r.typeId, { ...r, source: r.source as PriceSource });
   return out;
 }

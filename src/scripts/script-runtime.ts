@@ -33,7 +33,6 @@ export function runScript(
     .catch(async (err) => {
       console.error(err);
       await options.client.end().catch(() => undefined);
-
       process.exit(options.softFail ? 0 : 1);
     });
 }

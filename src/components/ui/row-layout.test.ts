@@ -3,7 +3,6 @@ import { deriveRowLayout } from './row-layout';
 
 describe('deriveRowLayout', () => {
   it('selects the template and cell flags from chip placement and slot presence', () => {
-
     const chipColumn = deriveRowLayout({ chips: 'x', inlineChips: false });
     const noChips = deriveRowLayout({ inlineChips: false });
     const inline = deriveRowLayout({ chips: 'x', inlineChips: true });
@@ -11,7 +10,6 @@ describe('deriveRowLayout', () => {
     expect(noChips.showChipColumn).toBe(false);
     expect(inline.showChipColumn).toBe(false);
     expect(inline.showInlineChips).toBe(true);
-
     expect(chipColumn.colsClass).toBe('grid-cols-[26px_minmax(0,1fr)_auto_auto]');
     expect(noChips.colsClass).toBe('grid-cols-[26px_minmax(0,1fr)_auto]');
     expect(inline.colsClass).toBe(noChips.colsClass);

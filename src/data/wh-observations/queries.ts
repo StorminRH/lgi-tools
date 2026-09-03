@@ -10,7 +10,6 @@ import { whObservations } from './schema';
 export interface WhObservationInput {
   readonly solarSystemId: number;
   readonly whTypeCode: string;
-
   readonly provenance: ConnectionProvenance;
   readonly observedAt: Date;
   readonly dedupeKey: string;

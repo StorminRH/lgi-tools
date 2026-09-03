@@ -45,7 +45,6 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
 
   it('disable WIPES the corp structures, sync state, and authored rigs (off ⇒ gone)', async () => {
     const corp = 9003;
-
     await harness.db.insert(corpStructureSharing).values({ corporationId: corp, enabled: true, setBy: 7 });
     await harness.db.insert(corpStructures).values({
       corporationId: corp,
@@ -73,7 +72,6 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
   it('authored completions SURVIVE the full-replace pull (saveCorpStructures never clobbers them)', async () => {
     const corp = 9004;
     await setCorpStructureSharing(corp, true, 11);
-
     await harness.db.insert(corpStructures).values({
       corporationId: corp,
       structureId: 600002,
@@ -83,7 +81,6 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
       name: 'Raitaru B (old)',
     });
     await upsertCorpStructureRigs(corp, 600002, [37178, 37180], 1.5);
-
     await saveCorpStructures(corp, [], ['"e1"']);
 
     const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
@@ -106,24 +103,20 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
   it('taxPct is tri-state: a rig-only save leaves the stored tax, null clears it, a number sets it', async () => {
     const corp = 9007;
     await setCorpStructureSharing(corp, true, 11);
-
     await upsertCorpStructureRigs(corp, 600005, [37178], 2.5);
     await upsertCorpStructureRigs(corp, 600005, [37180]);
     expect((await getCorpStructureRigs([corp])).get(600005)).toEqual({
       rigTypeIds: [37180],
       taxPct: 2.5,
     });
-
     await upsertCorpStructureRigs(corp, 600005, [37180], 0);
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBe(0);
-
     await upsertCorpStructureRigs(corp, 600005, [37180], null);
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBeNull();
   });
 
   it('saveCorpStructures no-ops when sharing is disabled (the resurrection guard)', async () => {
     const corp = 9006;
-
     await saveCorpStructures(corp, [{ structure_id: 600004, type_id: 35825, system_id: 30000142, name: 'Ghost' }], []);
     const rows = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(rows).toHaveLength(0);

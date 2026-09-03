@@ -99,9 +99,7 @@ describe('corpJobsAccess', () => {
     getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
     listLinkedCharactersMock.mockResolvedValue([
       { characterId: 100, scope: CORP_SCOPES, hasRefreshToken: true },
-
       { characterId: 200, scope: CORP_SCOPES, hasRefreshToken: false },
-
       { characterId: 300, scope: 'esi-industry.read_character_jobs.v1', hasRefreshToken: true },
     ]);
     expect(await corpJobsAccess()).toEqual({

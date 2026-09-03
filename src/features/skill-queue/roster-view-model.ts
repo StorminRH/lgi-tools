@@ -14,14 +14,11 @@ export interface RosterViewModel {
   name: string;
   portraitUrl: string;
   needsReconnect: boolean;
-
   hasData: boolean;
   totalSp: number | null;
   unallocatedSp: number | null;
   training: CurrentTraining;
-
   currentSkillName: string | null;
-
   remainingLabel: string | null;
 }
 

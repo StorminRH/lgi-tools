@@ -1,5 +1,4 @@
 export const SYNC_DATASETS = ['characterLocation'] as const;
-
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
 export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
@@ -19,17 +18,13 @@ export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
  */
 export type SyncDatasetConfig = {
   cadenceFloorMs: number;
-
   coldAfterMs: number;
   tokenGroup: string;
-
   chainOnSuccess?: boolean;
-
   rateKeyScope?: 'group' | 'subject';
 };
 
 export const SYNC_DATASET_CONFIG: Record<SyncDataset, SyncDatasetConfig> = {
-
   characterLocation: {
     cadenceFloorMs: 5_000,
     coldAfterMs: 5 * 60_000,

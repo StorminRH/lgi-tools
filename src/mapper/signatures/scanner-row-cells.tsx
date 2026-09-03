@@ -71,11 +71,8 @@ export function IdCell({
       <span className="whitespace-nowrap text-isk tabular-nums">
         {row.signatureId}
         <span className="sr-only">{` Age ${formatSignatureAge(row.firstSeenAt, now)}`}</span>
-
       </span>
-
     </Tooltip>
-
   );
 }
 
@@ -90,7 +87,6 @@ export function NameCell({ row }: { readonly row: SignatureWindowRow }) {
     >
       {signatureName(row)}
     </span>
-
   );
 }
 
@@ -103,7 +99,6 @@ export function SiteTypeCell({ row }: { readonly row: SignatureWindowRow }) {
     >
       {label ?? '—'}
     </span>
-
   );
 }
 
@@ -129,7 +124,6 @@ function SignatureRowContent({
     columnsClassName,
   );
   if (!interactive) return <div className={className}>{children}</div>;
-
   return (
     <Button
       variant="bare"
@@ -137,10 +131,8 @@ function SignatureRowContent({
       onClick={(event) => openRowActionsAtStart(event.currentTarget, onOpenActions)}
     >
       <span className="sr-only">{rowActionPrefix(row, canEdit, resolveSiteId)} </span>
-
       {children}
     </Button>
-
   );
 }
 
@@ -188,8 +180,6 @@ export function SignatureRow({
       >
         {cells}
       </SignatureRowContent>
-
     </li>
-
   );
 }

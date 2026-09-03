@@ -25,7 +25,6 @@ describe('tempo tier commits', () => {
   ] as const)('clamps the %s tier to its range and step', (_tier, commit, range, read) => {
     expect(read(commit(CONFIG, range.min - 999))).toBe(range.min);
     expect(read(commit(CONFIG, range.max + 999))).toBe(range.max);
-
     const offGrid = range.min + range.step + Math.floor(range.step / 3);
     expect((read(commit(CONFIG, offGrid)) - range.min) % range.step).toBe(0);
   });
@@ -65,7 +64,6 @@ describe('flavor commits', () => {
   });
 
   it('commits flavor and weight without touching the tempo', () => {
-
     const flavored = commitEdgeFlavor(CONFIG, 'fade-with-child');
     expect(flavored.edgeFlavor).toBe('fade-with-child');
     expect(flavored.tempo).toEqual(CONFIG.tempo);

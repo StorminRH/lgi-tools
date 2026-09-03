@@ -7,7 +7,6 @@ export function SiteMetaStrip({
 }: {
   source: string;
   lastPriceUpdate: Date | null;
-
   now?: number;
 }) {
   return (
@@ -16,23 +15,16 @@ export function SiteMetaStrip({
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Source
         </span>
-
         <span className="text-name font-data">{source}</span>
-
       </div>
-
       <div className="flex items-baseline gap-2">
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Last price update
         </span>
-
         <span className="text-name font-data">
           {formatRelativeTime(lastPriceUpdate, now)}
         </span>
-
       </div>
-
     </div>
-
   );
 }

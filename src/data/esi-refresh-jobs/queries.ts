@@ -232,7 +232,6 @@ export async function requeueDeadLetteredJob(
   now = new Date(),
 ): Promise<RequeueDeadLetterOutcome> {
   try {
-
     const nowIso = now.toISOString();
     const result = await db.execute<{ outcome: RequeueDeadLetterOutcome['outcome'] }>(sql`
       with target as (

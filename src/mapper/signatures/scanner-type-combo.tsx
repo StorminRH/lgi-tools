@@ -138,10 +138,8 @@ export function ScannerTypeCombo({
           >
             {className}
           </span>
-
         ) : null}
       </div>
-
       <ScannerComboPanel
         groups={panelGroups}
         itemValues={items}
@@ -149,6 +147,5 @@ export function ScannerTypeCombo({
         footer={browsing ? 'Type to search other holes…' : null}
       />
     </Combobox.Root>
-
   );
 }

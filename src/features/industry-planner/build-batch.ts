@@ -38,9 +38,7 @@ export function collectRawTypeIds(tree: TreeNode[]): number[] {
 }
 
 export interface BatchLedger {
-
   raws: Map<number, number>;
-
   builds: Map<
     number,
     { runs: number; batch: number; me: number; blueprintTypeId: number; required: number }
@@ -49,7 +47,6 @@ export interface BatchLedger {
 
 export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLedger {
   const recipes = flattenRecipes(tree);
-
   const ledger = new Map<number, { required: number; runs: number }>();
   const raws = new Map<number, number>();
 
@@ -78,7 +75,6 @@ export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLe
   const builds: BatchLedger['builds'] = new Map();
   for (const [typeId, entry] of ledger) {
     const recipe = recipes.get(typeId)!;
-
     builds.set(typeId, {
       runs: entry.runs,
       batch: recipe.batch,
@@ -103,7 +99,6 @@ export function computeBatchMaterials(
 export interface MeOptions {
   meOf: (blueprintTypeId: number) => number | undefined;
   topBlueprintTypeId: number;
-
   structureMeFactorOf?: (blueprintTypeId: number) => number;
 }
 
@@ -174,7 +169,6 @@ export function computeBatchLedgerWithMe(
     const recipe = recipes.get(typeId)!;
     const required = demand.get(typeId) ?? 0;
     const runs = recipe.batch > 0 ? Math.ceil(required / recipe.batch) : 0;
-
     const me = opts.meOf(recipe.blueprintTypeId) ?? 0;
     builds.set(typeId, { runs, batch: recipe.batch, me, blueprintTypeId: recipe.blueprintTypeId, required });
     const structureMult = structureFactorOf(recipe.blueprintTypeId);
@@ -233,9 +227,7 @@ function meFactor(me: number): number {
 }
 
 export interface MultibuyOptions {
-
   buildSet: Set<number>;
-
   ownedOf?: (typeId: number) => number;
 }
 
@@ -280,11 +272,9 @@ export function computeMultibuyDemand(
 
   const buy = new Map<number, number>();
   for (const typeId of ordered) {
-
     const net = Math.max(0, (demand.get(typeId) ?? 0) - ownedOf(typeId));
     if (net <= 0) continue;
     if (!opts.buildSet.has(typeId)) {
-
       buy.set(typeId, net);
       continue;
     }
@@ -310,7 +300,6 @@ export function chainActualsFrom(
   const walk = (typeId: number, runs: number, relativeDepth: number) => {
     const recipe = recipes.get(typeId);
     if (!recipe) return;
-
     const factor = meFactor(ledger.builds.get(typeId)?.me ?? 0);
     const depth = relativeDepth + 1;
     let level = actuals.get(depth);

@@ -16,7 +16,6 @@ const CLASS_TEXT_BY_ID = new Map<number, string>([
   [9, 'NS'],
   [12, 'Thera'],
   [13, 'C13'],
-
   [14, 'Drifter'],
   [15, 'Drifter'],
   [16, 'Drifter'],
@@ -32,9 +31,7 @@ export function systemClassText(whClassId: number | null): string | null {
 
 export interface SystemIdentityFacts {
   readonly name: string;
-
   readonly security: number | null;
-
   readonly whClassId: number | null;
 }
 
@@ -84,7 +81,6 @@ export function systemDestinationClassReadout(
 const HINT_BUCKET_READOUT: Partial<
   Record<WormholeDestinationHint, SystemClassificationReadout>
 > = {
-
   unknown: { label: 'C1–C3', tone: 'text-wh-c2' },
   dangerous: { label: 'C4–C5', tone: 'text-wh-c4' },
 };

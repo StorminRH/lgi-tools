@@ -15,15 +15,12 @@ export type TerminalSearchProps<Params, Err> = {
   initialValue: string;
   placeholder?: string;
   parse: (input: string) => ParseResult<Params, Err>;
-
   suggest: (input: string) => string[] | Promise<string[]>;
   errorMessage: (error: Err) => string;
   onSubmit: (params: Params, raw: string) => void;
   onClear: () => void;
   errorLabel?: string;
-
   hint?: string;
-
   inputRef?: Ref<HTMLInputElement>;
 };
 
@@ -44,7 +41,6 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
   const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<Err | null>(null);
   const inputId = useId();
-
   const highlightedRef = useRef<string | null>(null);
 
   const [suggestions, setSuggestions] = useState<{ query: string; items: string[] }>({
@@ -79,7 +75,6 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
       setError(null);
       onSubmit(result.params, trimmed);
     } else {
-
       const err = result.error;
       if ((err as { kind: string }).kind === ('empty' as EmptyKind)) {
         setError(null);
@@ -97,21 +92,18 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
       <label htmlFor={inputId} className="sr-only">
         {placeholder ?? 'Filter'}
       </label>
-
       <Combobox.Root
         items={visibleSuggestions}
         value={value}
         onValueChange={(next: string) => {
           setValue(next);
           setError(null);
-
           highlightedRef.current = null;
         }}
         onItemHighlighted={(v: string | undefined) => {
           highlightedRef.current = v ?? null;
         }}
         onOpenChange={(open: boolean) => {
-
           if (!open) highlightedRef.current = null;
         }}
         filter={null}
@@ -128,7 +120,6 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           autoComplete="off"
           className="h-[30px] w-full"
           onKeyDown={(e) => {
-
             if (e.key === 'Enter' && highlightedRef.current === null) {
               e.preventDefault();
               submitParsedString(value);
@@ -153,18 +144,14 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
                 >
                   {s}
                 </Combobox.Item>
-
               ))}
             </Combobox.List>
-
           </Combobox.Panel>
-
         )}
       </Combobox.Root>
 
       <SearchFooter error={error} hint={hint} errorLabel={errorLabel} errorMessage={errorMessage} />
     </div>
-
   );
 }
 
@@ -184,17 +171,13 @@ function SearchFooter<Err extends { kind: string }>({
       {error && (
         <div className="mt-2">
           <Callout label={errorLabel}>{errorMessage(error)}</Callout>
-
         </div>
-
       )}
       {!error && hint && (
         <div className={eyebrow({ className: 'mt-1' })}>
           {hint}
         </div>
-
       )}
     </>
-
   );
 }

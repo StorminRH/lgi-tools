@@ -105,7 +105,6 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
   });
 
   it('coalesces a refresh that loses the insert race to superseded, stamping nothing', async () => {
-
     await saveOwnedAssets(owner, [asset({ type_id: 35 })], ['"winner"']);
 
     let signalInserted!: () => void;
@@ -130,13 +129,11 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
     await winnerHasInserted;
 
     const loser = saveOwnedAssets(owner, [asset()], ['"loser"']);
-
     await waitFor(async () => (await committedRowCount()) === 0);
     releaseWinner();
     await winner;
 
     expect(await loser).toBe('superseded');
-
     expect(await committedRowCount()).toBe(1);
     expect((await readOwnerSyncState(owner))?.pageEtags).toEqual(['"winner"']);
   });

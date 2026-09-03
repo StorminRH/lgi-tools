@@ -13,7 +13,6 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
 
   if (!resourceValueEligible(resource)) {
     return <span className="font-data">{formatIsk(resourceLiveIsk(resource, live))}</span>;
-
   }
 
   const pending = live.isPending(resource.typeId as number);
@@ -35,7 +34,6 @@ export function SiteResourceRow({
         <Dot tone={view.dotTone} />
         {resource.resourceName}
       </>
-
     ) : (
       resource.resourceName
     );
@@ -45,7 +43,6 @@ export function SiteResourceRow({
       colsClass={view.colsClass}
       name={name}
       meta={view.meta ? <span className="font-data">{view.meta}</span> : undefined}
-
       value={<ResourceValue resource={resource} />}
     />
   );

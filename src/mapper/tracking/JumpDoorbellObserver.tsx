@@ -11,7 +11,6 @@ import {
 } from './doorbell-model';
 
 export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
-
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const memoryRef = useRef<Map<number, DoorbellMemoryEntry> | null>(null);
   if (memoryRef.current === null) memoryRef.current = new Map();

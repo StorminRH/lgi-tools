@@ -10,7 +10,6 @@ export function LinkCharacterButton({
 }: {
   label?: string;
   emphasis?: 'primary' | 'reconnect';
-
   callbackURL?: string;
 }) {
   return (
@@ -24,6 +23,5 @@ export function LinkCharacterButton({
     >
       {label}
     </Button>
-
   );
 }

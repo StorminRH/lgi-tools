@@ -118,7 +118,6 @@ describe('signature elimination composition', () => {
   });
 
   it('corrects a human override in place and removes vacated or migrated keys', async () => {
-
     h.readEliminationEvidence.mockResolvedValueOnce({
       canEdit: true,
       signatures: [signature({
@@ -182,7 +181,6 @@ describe('signature elimination composition', () => {
   });
 
   it('keeps snapshot honesty across protected and stale races', async () => {
-
     h.applyEliminationDeductions.mockResolvedValueOnce([
       { signatureId: 'AAA-111', outcome: 'protected', observationKey: 'hole-key' },
     ]);

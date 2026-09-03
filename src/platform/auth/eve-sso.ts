@@ -147,7 +147,6 @@ export async function refreshEveToken({
       buildTokenRequestInit(body, clientId, clientSecret),
     );
   } catch (error) {
-
     return {
       kind: 'retryable',
       failureClass: isTimeoutError(error) ? 'timeout' : 'connection',
@@ -171,7 +170,6 @@ export async function refreshEveToken({
   return {
     kind: 'ok',
     access_token: parsed.data.access_token,
-
     refresh_token: parsed.data.refresh_token ?? refreshToken,
     expires_in: parsed.data.expires_in ?? 1200,
   };
@@ -213,7 +211,6 @@ export async function revokeEveRefreshToken({
     );
     return { ok: res.ok };
   } catch {
-
     return { ok: false };
   }
 }

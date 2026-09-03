@@ -139,10 +139,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
             onOpenActions={openRowActions}
           />
         </div>
-
       </div>
-
     </ScannerLivePricesProvider>
-
   );
 }

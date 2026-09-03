@@ -39,7 +39,6 @@ export default {
     const clickPoint = await openAddConnectionMenu(page);
     const menuItem = page.getByRole('menuitem', { name: 'Add connection…' });
     const menuBox = await menuItem.boundingBox();
-
     const nearPointer =
       clickPoint !== null
       && menuBox !== null

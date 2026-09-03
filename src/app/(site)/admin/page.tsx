@@ -51,10 +51,8 @@ function SectionFallback() {
           <Skeleton className={row === 1 ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
           <Skeleton className="h-3 w-16" />
         </div>
-
       ))}
     </Card>
-
   );
 }
 
@@ -77,7 +75,6 @@ async function AdminContent({
       <div className="print-only mb-1 font-data text-label tracking-wide uppercase text-muted">
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
-
       <PageHead
         size="compact"
         crumb="admin"
@@ -86,7 +83,6 @@ async function AdminContent({
           <span className="font-data">
             {formatIsoDay(range.from)} → {formatIsoDay(range.to)}
           </span>
-
         }
         meta={
           <div className="flex items-center gap-3">
@@ -97,10 +93,8 @@ async function AdminContent({
             >
               Access →
             </Link>
-
             <PrintButton />
           </div>
-
         }
       />
 
@@ -111,44 +105,33 @@ async function AdminContent({
 
         <section>
           <GroupHeading>System health</GroupHeading>
-
           <Suspense fallback={<SectionFallback />}>
             <StatusStrip range={range} />
           </Suspense>
-
         </section>
 
         <section>
           <GroupHeading>ESI &amp; ops</GroupHeading>
-
           <Suspense fallback={<SectionFallback />}>
             <OpsSection rangeKey={rangeKey} range={range} />
           </Suspense>
-
         </section>
 
         <section>
           <GroupHeading>Traffic &amp; SEO</GroupHeading>
-
           <Suspense fallback={<SectionFallback />}>
             <TrafficSection rangeKey={rangeKey} range={range} />
           </Suspense>
-
         </section>
 
         <section>
           <GroupHeading>Users</GroupHeading>
-
           <Suspense fallback={<SectionFallback />}>
             <UsersSection range={range} />
           </Suspense>
-
         </section>
-
       </div>
-
     </>
-
   );
 }
 
@@ -169,10 +152,7 @@ export default function AdminPage({
         <Suspense fallback={<AdminLoading />}>
           <AdminContent searchParams={searchParams} />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

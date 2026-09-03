@@ -32,7 +32,6 @@ export const ALL_ACTIVITY_NAMES = [
   'invention',
   'reaction',
 ] as const;
-
 export type ActivityName = (typeof ALL_ACTIVITY_NAMES)[number];
 
 export const ACTIVITY_ID_LABEL: Record<number, string> = {
@@ -67,23 +66,18 @@ export const REFERENCE_BLUEPRINT_TYPE_IDS = [691, 24699, 23758] as const;
 export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
 
 export const SDE_META_KEY_VERSION = 'sde_version';
-
 export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 
 export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
 
 export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404;
-
 export const SDE_REFINERY_GROUP_ID = 1406;
-
 export const SDE_CITADEL_GROUP_ID = 1657;
-
 export const SDE_INDUSTRY_STRUCTURE_GROUP_IDS = [
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
   SDE_REFINERY_GROUP_ID,
   SDE_CITADEL_GROUP_ID,
 ] as const;
-
 export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
 
 /**
@@ -99,11 +93,8 @@ export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
  * must not be edited this session.
  */
 export const STRUCTURE_RIG_SIZE_ATTR = 1547;
-
 export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const;
-
 export const RIG_MFG_MATERIAL_ATTR = 2594;
-
 export const RIG_REACTION_TIME_ATTR = 2713;
 
 export const DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL = 1982;

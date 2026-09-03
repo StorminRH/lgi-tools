@@ -16,7 +16,6 @@ function isStructureFlag(flag: string): boolean {
   return flag === 'Hangar' || flag === 'Deliveries' || flag.startsWith('Corp');
 }
 function isShipFlag(flag: string): boolean {
-
   return /Slot\d+$/.test(flag) || /(?:Hold|Bay)$/.test(flag) || /.Hangar$/.test(flag) || flag === 'Cargo';
 }
 

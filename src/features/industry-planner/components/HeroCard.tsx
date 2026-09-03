@@ -55,13 +55,10 @@ function StepperRow({
           <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
             {icon}
           </span>
-
         )}
       </span>
-
       {children}
     </div>
-
   );
 }
 
@@ -103,7 +100,6 @@ function HeroSteppers({
             boxed
           />
         </StepperRow>
-
       )}
       {isManufacturing && (
         <StepperRow
@@ -121,7 +117,6 @@ function HeroSteppers({
             boxed
           />
         </StepperRow>
-
       )}
       <StepperRow label="Runs">
         <Stepper
@@ -132,9 +127,7 @@ function HeroSteppers({
           reserveTrailing
         />
       </StepperRow>
-
     </div>
-
   );
 }
 
@@ -168,8 +161,6 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
         <BuildLocationSelector />
         <ReactionStructureSelect />
       </div>
-
     </Card>
-
   );
 }

@@ -36,9 +36,7 @@ export interface EndpointContract<
   path: string;
   request: TRequest;
   responses: TResponses;
-
   query?: z.ZodObject;
-
   params?: z.ZodObject;
 }
 
@@ -169,7 +167,6 @@ export function endpointUrl<const TEndpoint extends EndpointContract>(
   endpoint: TEndpoint,
   input: UrlInputOf<TEndpoint>,
 ): string;
-
 export function endpointUrl(
   endpoint: EndpointContract,
   input: { params?: Record<string, string | number>; query?: Record<string, unknown> },

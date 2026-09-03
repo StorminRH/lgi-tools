@@ -25,5 +25,4 @@ export function MapPresenceProvider({
   const value = useMemo(() => ({ presence, afk }), [presence, afk]);
 
   return <MapPresenceContext value={value}>{children}</MapPresenceContext>;
-
 }

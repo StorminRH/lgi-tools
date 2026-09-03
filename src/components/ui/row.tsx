@@ -18,7 +18,6 @@ export function EntityRow({
   trailing?: ReactNode;
   className?: string;
   colsClass?: string;
-
   inlineChips?: boolean;
 }) {
   const layout = deriveRowLayout({ leading, chips, trailing, colsClass, inlineChips });
@@ -31,18 +30,14 @@ export function EntityRow({
       )}
     >
       {layout.showLeading && <span className="text-label text-muted">{leading}</span>}
-
       <RowName name={name} chips={chips} inline={layout.showInlineChips} />
       {layout.showTrailing && (
         <span className="flex items-center gap-2 shrink-0 justify-end">{trailing}</span>
-
       )}
       {layout.showChipColumn && (
         <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
-
       )}
     </div>
-
   );
 }
 
@@ -57,16 +52,12 @@ function RowName({
 }) {
   if (!inline) {
     return <span className="text-name truncate leading-[1.5]">{name}</span>;
-
   }
   return (
     <span className="flex items-center gap-2 min-w-0">
       <span className="text-name truncate leading-[1.5]">{name}</span>
-
       <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
-
     </span>
-
   );
 }
 
@@ -92,15 +83,11 @@ export function ResourceRow({
       )}
     >
       <span className="text-name text-ui flex items-center gap-[6px]">{name}</span>
-
       {meta !== undefined && <span className="text-label text-muted whitespace-nowrap">{meta}</span>}
-
       {value !== undefined && (
         <span className="text-ui text-isk whitespace-nowrap font-medium">{value}</span>
-
       )}
     </div>
-
   );
 }
 
@@ -113,7 +100,6 @@ export function Stat({
 }) {
   return (
     <span className={cn('text-label text-muted whitespace-nowrap', className)}>{children}</span>
-
   );
 }
 
@@ -127,9 +113,7 @@ export function LabeledChipRow({
   return (
     <div className="px-3.5 py-[5px] border-b border-border-soft bg-bg flex items-center gap-[7px] flex-wrap">
       <span className={eyebrow()}>{label}</span>
-
       {children}
     </div>
-
   );
 }

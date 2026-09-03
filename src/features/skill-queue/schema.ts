@@ -6,7 +6,6 @@ export const characterSkills = pgTable('character_skills', {
   totalSp: bigint('total_sp', { mode: 'number' }).notNull(),
   unallocatedSp: bigint('unallocated_sp', { mode: 'number' }),
   queue: jsonb('queue').$type<SkillQueueEntry[]>().notNull().default([]),
-
   skillLevels: jsonb('skill_levels').$type<Record<string, number>>(),
 });
 

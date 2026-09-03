@@ -46,7 +46,6 @@ type WaveRow = {
 function mergeNpc(base: NpcRow, stats: CombatStats | undefined): Npc {
   const { waveId: _waveId, typeId: _typeId, ...rest } = base;
   if (!stats) {
-
     return { ...rest, scram: null, web: null, neut: null, rrep: null,
       sig: null, speed: null, distance: null, velocity: null,
       dps: null, alpha: null, ehp: null };
@@ -140,10 +139,8 @@ export async function listSites(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteListItem[]> {
-
   'use cache';
   cacheLife('max');
-
   const conditions = [
     filters.type ? eq(sites.siteType, filters.type) : undefined,
   ].filter((c) => c !== undefined);
@@ -183,12 +180,9 @@ export async function listSiteDetails(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteDetail[]> {
-
   'use cache';
   cacheLife('max');
-
   return withColdStartRetry(async () => {
-
     const conditions = [
       filters.type ? eq(sites.siteType, filters.type) : undefined,
     ].filter((c) => c !== undefined);
@@ -289,7 +283,6 @@ export type SiteSearchEntry = {
   wormholeClass: WormholeClass | null;
   blueLootIsk: number | null;
   resourceValueIsk: number | null;
-
   liveRecipes?: readonly SiteLiveRecipe[];
 };
 
@@ -337,10 +330,8 @@ export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
 }
 
 async function getSiteDetail(id: number): Promise<SiteDetail | null> {
-
   'use cache';
   cacheLife('max');
-
   return withColdStartRetry(async () => {
     const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
     if (!site) return null;
@@ -407,7 +398,6 @@ export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
   const raw = await listSiteDetails({});
-
   return withColdStartRetry(() => overlayLivePrices(raw));
 }
 
@@ -417,7 +407,6 @@ export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null
   cacheTag(PRICES_FRESHNESS_TAG);
   const raw = await getSiteDetail(id);
   if (!raw) return null;
-
   const [priced] = await withColdStartRetry(() => overlayLivePrices([raw]));
   return priced ?? null;
 }

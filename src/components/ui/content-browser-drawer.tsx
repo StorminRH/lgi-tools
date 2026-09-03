@@ -21,7 +21,6 @@ export function ContentBrowserChapterTitle({
     <span data-content-drawer-current-title className="min-w-0 flex-1 truncate text-left text-nav text-text">
       {titleForSlug(model, slug)}
     </span>
-
   );
 }
 
@@ -60,8 +59,6 @@ export function ContentBrowserDrawerNavigation({ children }: { children: ReactNo
       >
         Close contents
       </DrawerClose>
-
     </div>
-
   );
 }

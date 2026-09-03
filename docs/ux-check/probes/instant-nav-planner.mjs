@@ -12,7 +12,6 @@ export default {
       const shell = page.locator('[data-page-shell]');
       check('planner shell mounts in the static shell', await shell.isVisible());
       const skeleton = page.getByRole('status', { name: /loading blueprint/i });
-
       const title = page.locator('h1.sr-only, [data-page-shell] h1').first();
       const hasSkeleton = (await skeleton.count()) > 0;
       const hasTitle = (await title.count()) > 0;

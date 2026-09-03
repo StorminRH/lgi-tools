@@ -2,7 +2,6 @@ import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './typ
 
 export interface CharacterSyncBase<TState> {
   now(): Date;
-
   listCharacters(userId: string): Promise<Array<Omit<EnumeratedOwner, 'corporationId'>>>;
   vendToken(characterId: number): Promise<string | null>;
   readSyncState(characterId: number): Promise<TState | null>;
@@ -10,17 +9,13 @@ export interface CharacterSyncBase<TState> {
 }
 
 export interface CharacterDatasetSpec<TState, TSave> {
-
   isStale(lastRefreshedAt: Date | null, now: Date): boolean;
-
   eligible(owner: EnumeratedOwner): boolean;
-
   fetchAndPlan(
     characterId: number,
     accessToken: string,
     state: TState | null,
   ): Promise<PersistVerdict<TSave>>;
-
   save(characterId: number, payload: TSave): Promise<void>;
 }
 
@@ -30,7 +25,6 @@ export function makeCharacterDescriptor<TState extends { lastRefreshedAt: Date |
 ): OwnerSyncDescriptor<number, TState, TSave> {
   return {
     now: () => base.now(),
-
     enumerate: async (userId) =>
       (await base.listCharacters(userId)).map((character) => ({ ...character, corporationId: null })),
     identityOf: (characterId) => ({ ownerType: 'character', ownerId: characterId }),

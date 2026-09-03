@@ -7,7 +7,6 @@ export type WindowPlacement =
   | { readonly kind: 'docked-bottom-left' }
   | {
       readonly kind: 'scanner-anchored';
-
       readonly measure?: ScannerAnchoredMeasure;
     }
   | { readonly kind: 'node-anchored'; readonly systemId: number };
@@ -15,7 +14,6 @@ export type WindowPlacement =
 export type MapWindowId = 'dock' | 'summary';
 
 export interface SurfaceInputs {
-
   readonly dockSystemId: number | null;
   readonly selectedIds: readonly number[];
   readonly boxSelectActive: boolean;
@@ -92,7 +90,6 @@ export function outsideDismissAction(input: {
   readonly insideCard: boolean;
   readonly insideOpenPopup: boolean;
   readonly popupOpen: boolean;
-
   readonly isClick: boolean;
 }): WindowKeydownAction {
   if (

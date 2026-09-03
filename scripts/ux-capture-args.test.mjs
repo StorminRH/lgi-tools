@@ -73,7 +73,6 @@ describe('ux-capture args helpers', () => {
     ['/', 'home'],
     ['', 'home'],
     ['/sites/30002', 'sites-30002'],
-
     ['/sites/[id]', 'sites-id-'],
     ['/a/b', 'a-b'],
     ['/industry/templates/', 'industry-templates'],
@@ -86,7 +85,6 @@ describe('ux-capture args helpers', () => {
       { route: '/sites', slug: 'sites' },
       { route: '/industry', slug: 'industry' },
     ]);
-
     expect(assignSlugs(['/a/b', '/a-b', '/a/b/'])).toEqual([
       { route: '/a/b', slug: 'a-b' },
       { route: '/a-b', slug: 'a-b-2' },

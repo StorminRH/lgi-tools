@@ -63,7 +63,6 @@ export async function runSdePipeline(db: PostgresJsDb): Promise<SdePipelineSumma
   const ingest = await runIngest(db);
   const resolve = await resolveAllTrees(db);
   const seed = await seedTrackedTypes(db);
-
   const stationNames = await resolveNpcStationNames(db);
   return { ingest, resolve, seed, stationNames, durationMs: Date.now() - start };
 }

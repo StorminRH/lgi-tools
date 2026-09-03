@@ -29,7 +29,6 @@ const SYSTEM_ID_BASE = 31_000_000;
 
 export interface ChainTimeline {
   readonly facts: LayoutFacts;
-
   readonly connectionSteps: readonly number[];
 }
 
@@ -58,11 +57,9 @@ function randomAttached(growth: ChainGrowth): number {
 
 function spawnStep(growth: ChainGrowth, step: number, systemId: number): void {
   if (growth.rand() < 0.08) {
-
     growth.orphans.push(systemId);
     return;
   }
-
   const recent = growth.attached[growth.attached.length - 1] ?? SYSTEM_ID_BASE + 1;
   const parent = growth.rand() < 0.5 ? recent : randomAttached(growth);
   scanConnection(growth, step, parent, systemId);
@@ -78,7 +75,6 @@ function maybeCloseLoop(growth: ChainGrowth, step: number): void {
 function maybeResolveOrphan(growth: ChainGrowth, step: number): void {
   if (growth.rand() < 0.3 && growth.orphans.length > 0) {
     const orphan = growth.orphans.shift();
-
     if (orphan !== undefined) {
       scanConnection(growth, step, randomAttached(growth), orphan);
       growth.attached.push(orphan);
@@ -157,9 +153,7 @@ export function movedSystems(
 }
 
 export interface CrossingReport {
-
   readonly treeTreeCrossings: number;
-
   readonly loopCrossings: number;
 }
 
@@ -182,7 +176,6 @@ function layoutSegments(
     if (from === undefined || to === undefined || edge.fromSystemId === edge.toSystemId) {
       continue;
     }
-
     if (tree.parents.get(edge.toSystemId) === edge.fromSystemId && !treeSlotUsed.has(edge.toSystemId)) {
       treeSlotUsed.add(edge.toSystemId);
       segments.push({ from, to, loop: false });

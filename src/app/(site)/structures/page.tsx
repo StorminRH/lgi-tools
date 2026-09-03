@@ -37,22 +37,18 @@ async function StructuresContent() {
             initial={saved}
           />
         </div>
-
       </Card>
 
       <CorpStructureSection corps={corps} structureTypes={structureTypes} structureRigs={structureRigs} />
     </div>
-
   );
 }
 
 function StructuresLoading() {
-
   return (
     <div className="flex w-full flex-col gap-6">
       <Skeleton label="Loading structures" className="h-56 w-full rounded-card" />
     </div>
-
   );
 }
 
@@ -68,10 +64,7 @@ export default function StructuresPage() {
         <Suspense fallback={<StructuresLoading />}>
           <StructuresContent />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

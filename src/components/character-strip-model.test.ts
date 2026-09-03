@@ -68,7 +68,6 @@ describe('toggleDimmed', () => {
 describe('syncEligibleIds (the fetch derivation — dimming must not touch it)', () => {
   it('matches the panels’ pre-strip inline derivation: connected characters, in order', () => {
     const characters = [healthy(1), locked(2), healthy(3)];
-
     const legacy = characters.filter((c) => !c.needsReconnect).map((c) => c.characterId);
     expect(syncEligibleIds(characters)).toEqual(legacy);
     expect(syncEligibleIds(characters)).toEqual([1, 3]);

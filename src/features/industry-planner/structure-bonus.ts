@@ -9,7 +9,6 @@ const ATTR = {
   engCostBonus: 2601,
   engTimeBonus: 2602,
   reactionTimeBonus: 2721,
-
   rigMfgTime: 2593,
   rigMfgMaterial: 2594,
   rigMfgCost: 2595,
@@ -21,9 +20,7 @@ const ATTR = {
 } as const;
 
 export const MANUFACTURING_ACTIVITY = 1;
-
 export const REACTION_ACTIVITY = 11;
-
 export type IndustryActivityId = typeof MANUFACTURING_ACTIVITY | typeof REACTION_ACTIVITY;
 
 export interface StructureBonus {
@@ -33,9 +30,7 @@ export interface StructureBonus {
 }
 
 export interface StructureBonusInput {
-
   structureAttrs: AttrMap;
-
   rigAttrs: AttrMap[];
   securityClass: SecurityClass;
   activityId: IndustryActivityId;
@@ -74,7 +69,6 @@ export function computeStructureBonus(input: StructureBonusInput): StructureBonu
   const { structureAttrs, rigAttrs, securityClass, activityId } = input;
 
   if (activityId === REACTION_ACTIVITY) {
-
     const te = reductionPct(
       val(structureAttrs, ATTR.reactionTimeBonus, 1),
       rigAttrs,

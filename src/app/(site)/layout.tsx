@@ -6,5 +6,4 @@ export default function SiteLayout({
   children: React.ReactNode;
 }>) {
   return <SiteFrame>{children}</SiteFrame>;
-
 }

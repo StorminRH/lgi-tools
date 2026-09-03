@@ -29,7 +29,6 @@ export function parseStructureFit(
 
   const firstIdx = lines.findIndex((l) => l.trim().length > 0);
   if (firstIdx === -1) return null;
-
   const structureName = parseHeaderName(lines[firstIdx]!.trim());
   if (structureName === null) return null;
   const structureTypeId = resolveTypeId(structureName);

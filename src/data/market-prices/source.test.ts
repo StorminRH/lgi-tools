@@ -28,7 +28,6 @@ interface SyntheticOrder {
   is_buy_order: boolean;
   price: number;
   volume_remain: number;
-
   location_id?: number;
   system_id?: number;
 }
@@ -80,7 +79,6 @@ describe('computeSide', () => {
   });
 
   it('sell side: pct5 is the volume-weighted average of the cheapest 5%', () => {
-
     const orders = [
       { price: 5.5, volume: BigInt(50) },
       { price: 5.6, volume: BigInt(200) },
@@ -94,7 +92,6 @@ describe('computeSide', () => {
   });
 
   it('buy side: pct5 is the volume-weighted average of the most-expensive 5%', () => {
-
     const orders = [
       { price: 5.2, volume: BigInt(100) },
       { price: 5.1, volume: BigInt(500) },
@@ -115,7 +112,6 @@ describe('computeSide', () => {
   });
 
   it('matches Fuzzwork-style pct5 for a Tritanium-shaped orderbook', () => {
-
     const orders = [
       { price: 2.8, volume: BigInt(50_000_000) },
       { price: 2.85, volume: BigInt(120_000_000) },
@@ -125,14 +121,12 @@ describe('computeSide', () => {
     ];
     const res = computeSide(orders, 'asc');
     expect(res.best).toBe(2.8);
-
     expect(res.pct5).toBeGreaterThan(2.9);
     expect(res.pct5).toBeLessThan(2.95);
   });
 
   describe('dust-filtered best', () => {
     it('sell side: skips a run of 1-unit sliver asks and lands on the real book front', () => {
-
       const orders = [
         { price: 90.0, volume: BigInt(1) },
         { price: 90.01, volume: BigInt(1) },
@@ -144,14 +138,12 @@ describe('computeSide', () => {
       ];
       const res = computeSide(orders, 'asc');
       expect(res.best).toBe(100);
-
       const expectedPct5 = (90.0 + 90.01 + 90.02 + 90.03 + 90.04 + 396 * 100) / 401;
       expect(res.pct5).toBeCloseTo(expectedPct5, 6);
       expect(res.volume).toBe(BigInt(8_005));
     });
 
     it('sell side: corrects a mid-gap single sliver (Ishtar-shaped)', () => {
-
       const orders = [
         { price: 94.4, volume: BigInt(1) },
         { price: 100, volume: BigInt(300) },
@@ -162,7 +154,6 @@ describe('computeSide', () => {
     });
 
     it('buy side: skips a 1-unit sliver highball bid over a real wall', () => {
-
       const orders = [
         { price: 120, volume: BigInt(1) },
         { price: 100, volume: BigInt(1_500) },
@@ -173,7 +164,6 @@ describe('computeSide', () => {
     });
 
     it('keeps the raw touch on a small book where dust cannot be told from real', () => {
-
       const orders = [
         { price: 50, volume: BigInt(1) },
         { price: 60, volume: BigInt(300) },
@@ -185,7 +175,6 @@ describe('computeSide', () => {
 });
 
 describe('computeDepth', () => {
-
   const bandPct = (d: NonNullable<ReturnType<typeof computeDepth>>, pct: number) =>
     d.find((b) => b.pct === pct)!.cumVolume;
 
@@ -195,7 +184,6 @@ describe('computeDepth', () => {
   });
 
   it('sell side: accumulates volume within each band above the best ask', () => {
-
     const orders = [
       { price: 100, volume: BigInt(10) },
       { price: 100.4, volume: BigInt(5) },
@@ -212,7 +200,6 @@ describe('computeDepth', () => {
   });
 
   it('buy side: accumulates volume within each band below the best bid', () => {
-
     const orders = [
       { price: 100, volume: BigInt(10) },
       { price: 99.6, volume: BigInt(5) },
@@ -228,7 +215,6 @@ describe('computeDepth', () => {
   });
 
   it('is robust to a tiny 0.01-ISK top-of-book spoof (buy side)', () => {
-
     const real = [
       { price: 99.99, volume: BigInt(500) },
       { price: 99.95, volume: BigInt(500) },
@@ -240,41 +226,33 @@ describe('computeDepth', () => {
 
     expect(bandPct(attacked, 0.5)).toBe(1001);
     expect(bandPct(honest, 0.5)).toBe(1000);
-
     expect(bandPct(attacked, 0.5)).toBeGreaterThan(900);
   });
 
   it('anchored to the dust-filtered best, the ladder captures the real book a sliver anchor excluded', () => {
-
     const orders = [
       { price: 90, volume: BigInt(1) },
       { price: 100, volume: BigInt(3_000) },
       { price: 100.4, volume: BigInt(5_000) },
     ];
-
     const sliverAnchored = computeDepth(orders, 'asc', 90)!;
     expect(bandPct(sliverAnchored, 10)).toBe(1);
 
     const hardenedBest = computeSide(orders, 'asc').best;
     expect(hardenedBest).toBe(100);
     const hardened = computeDepth(orders, 'asc', hardenedBest)!;
-
     expect(bandPct(hardened, 0.5)).toBe(8_001);
     expect(bandPct(hardened, 10)).toBe(8_001);
   });
 
   it('under-states (never over-states) depth under a far-out whale order', () => {
-
     const real = [
       { price: 100, volume: BigInt(500) },
       { price: 99.5, volume: BigInt(500) },
     ];
-
     const whale = [{ price: 200, volume: BigInt(10_000_000) }, ...real];
     const d = computeDepth(whale, 'desc', 200)!;
-
     expect(bandPct(d, 10)).toBe(10_000_000);
-
     expect(bandPct(d, 0.5)).toBe(10_000_000);
   });
 });
@@ -339,16 +317,13 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
 
     expect(result).toHaveLength(5);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
-
     expect(budgetExhausted).toBe(true);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledOnce();
-
     const calledWith = vi.mocked(fetchPricesFromFuzzwork).mock.calls[0]![0];
     expect([...calledWith].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('routes a malformed ESI body to Fuzzwork fallback (per-type path)', async () => {
-
     vi.mocked(esiFetch).mockImplementation(async (url) => {
       const id = Number(/type_id=(\d+)/.exec(url)![1]);
       if (id === 77) {
@@ -393,7 +368,6 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
 });
 
 describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () => {
-
   function bulkTypeIds(): number[] {
     return Array.from({ length: BULK_THRESHOLD + 20 }, (_, i) => 1000 + i);
   }
@@ -440,7 +414,6 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     expect(r1001.sellVolume).toBe(BigInt(55));
 
     expect(result.find((r) => r.typeId === 9999)).toBeUndefined();
-
     const r1050 = result.find((r) => r.typeId === 1050)!;
     expect(r1050.bestBuy).toBeNull();
     expect(r1050.bestSell).toBeNull();
@@ -457,7 +430,6 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
 
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
-
     expect(budgetExhausted).toBe(false);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
   });
@@ -477,15 +449,12 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
   });
 
   it('stops dispatching new region-dump pages after one worker fails', async () => {
-
     let calls = 0;
     vi.mocked(esiFetch).mockImplementation(async (url) => {
       calls++;
       if (url.includes('page=1') && !url.includes('page=10')) {
-
         return ordersResponse([], '100');
       }
-
       throw new EsiServerError(503);
     });
     vi.mocked(fetchPricesFromFuzzwork).mockImplementation(async (ids) =>
@@ -496,12 +465,10 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     const { prices: result } = await fetchPricesFromSource(ids);
 
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
-
     expect(calls).toBeLessThanOrEqual(20);
   });
 
   it('falls back to Fuzzwork when ESI bulk returns a malformed 200 body', async () => {
-
     vi.mocked(esiFetch).mockResolvedValue(
       new Response(JSON.stringify({ error: 'nope' }), {
         status: 200,
@@ -521,7 +488,6 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
   });
 
   it('keeps streaming when a later page carries a malformed UNTRACKED order', async () => {
-
     vi.mocked(esiFetch).mockImplementation(async (url) => {
       const page = Number(/page=(\d+)/.exec(url)?.[1] ?? '1');
       if (page === 1) {
@@ -530,7 +496,6 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
           '2',
         );
       }
-
       return new Response(
         JSON.stringify([
           {
@@ -557,7 +522,6 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
   });
 
   it('falls back to Fuzzwork when ESI bulk returns a 4xx (non-array body)', async () => {
-
     vi.mocked(esiFetch).mockResolvedValue(
       new Response(JSON.stringify({ error: 'Bad Request' }), {
         status: 400,
@@ -582,7 +546,6 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
   const NIYABAINEN_SYSTEM = 30000143;
 
   it('prices from the Jita 4-4 book only and surfaces the remote book as a discount', async () => {
-
     vi.mocked(esiFetch).mockResolvedValue(
       ordersResponse([
         { type_id: 42, is_buy_order: false, price: 255_000, volume_remain: 5_000 },
@@ -608,7 +571,6 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
   });
 
   it('drops remote BUY orders entirely — the ruled hub-station-only scope', async () => {
-
     vi.mocked(esiFetch).mockResolvedValue(
       ordersResponse([
         { type_id: 42, is_buy_order: true, price: 100, volume_remain: 50 },
@@ -641,7 +603,6 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
   });
 
   it('stores null when no remote opportunity clears the gate — the byte-identical anchor', async () => {
-
     vi.mocked(esiFetch).mockResolvedValue(
       ordersResponse([
         { type_id: 42, is_buy_order: false, price: 1_000, volume_remain: 500 },
@@ -653,7 +614,6 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
   });
 
   it('an item with only remote sell orders goes null-priced with no discount', async () => {
-
     vi.mocked(esiFetch).mockResolvedValue(
       ordersResponse([
         {

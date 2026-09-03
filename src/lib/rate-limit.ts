@@ -55,7 +55,6 @@ export async function rateLimit(
 ): Promise<RateLimitResult> {
   const upstash = resolveUpstashRest();
   if (!upstash) {
-
     if (allowUnconfiguredUpstash()) {
       if (!warnedAboutMissingEnv && process.env.NODE_ENV === "development") {
         console.warn(
@@ -72,7 +71,6 @@ export async function rateLimit(
 
   const limiter = getLimiter(options, upstash);
   const result = await limiter.limit(identifier);
-
   await result.pending;
 
   if (result.success) {

@@ -6,9 +6,7 @@ import {
 } from './constants';
 
 export type ActivitySkill = { typeId: number; level: number };
-
 export type ActivityMaterial = { typeId: number; quantity: number };
-
 export type ActivityProduct = {
   typeId: number;
   quantity: number;
@@ -27,7 +25,6 @@ export type BlueprintActivity = {
 export type BlueprintActivitySet = BlueprintActivity[];
 
 function asObject(raw: unknown): Record<string, unknown> | null {
-
   return raw !== null && typeof raw === 'object' && !Array.isArray(raw)
     ? (raw as Record<string, unknown>)
     : null;
@@ -61,7 +58,6 @@ function parseProducts(raw: unknown): ActivityProduct[] {
     const typeId = intOrNull(e.typeID);
     const quantity = intOrNull(e.quantity);
     if (typeId === null || quantity === null) return null;
-
     const probability = numOrNull(e.probability);
     return probability === null ? { typeId, quantity } : { typeId, quantity, probability };
   });

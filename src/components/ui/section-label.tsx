@@ -25,12 +25,9 @@ export function SectionLabel({
         })}
       >
         {prefix && <span className="text-isk tracking-normal">{'//'}</span>}
-
         {children}
       </span>
-
       {meta}
     </div>
-
   );
 }

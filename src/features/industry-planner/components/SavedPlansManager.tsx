@@ -24,18 +24,14 @@ export function SavedPlansManager() {
     return (
       <Card>
         <EmptyState> </EmptyState>
-
       </Card>
-
     );
   }
   if (state.kind === 'empty') {
     return (
       <Card>
         <EmptyState>{state.line}</EmptyState>
-
       </Card>
-
     );
   }
 
@@ -44,8 +40,6 @@ export function SavedPlansManager() {
       <ul className="flex flex-col gap-1.5 p-3.5">
         <SavedPlanRows plans={plans ?? []} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
       </ul>
-
     </Card>
-
   );
 }

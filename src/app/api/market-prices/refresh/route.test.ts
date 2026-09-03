@@ -98,7 +98,6 @@ describe('POST /api/market-prices/refresh', () => {
   });
 
   it('omits types the engine returned no price for', async () => {
-
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [34, 99] }));
@@ -165,7 +164,6 @@ describe('POST /api/market-prices/refresh', () => {
   it('emits no degradation metric on a clean all-ESI read', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }));
-
     expect(emitCostMetricMock).toHaveBeenCalledTimes(2);
     expect(emitCostMetricMock).not.toHaveBeenCalledWith(
       'price_source_degraded',

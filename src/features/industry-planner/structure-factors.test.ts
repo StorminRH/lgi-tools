@@ -26,7 +26,6 @@ const make = (over: Partial<AvailableStructure>): AvailableStructure => ({
   taxPct: null,
   ...over,
 });
-
 const ec = (over: Partial<AvailableStructure>) =>
   make({ id: 'ec', name: 'Azbel', groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID, ...over });
 const refinery = (over: Partial<AvailableStructure>) =>
@@ -37,7 +36,6 @@ const citadel = (over: Partial<AvailableStructure>) =>
 const NODE_ACTIVITY = { 100: MANUFACTURING_ACTIVITY, 200: REACTION_ACTIVITY };
 
 const ME_RIG = { 2594: -2, 2593: -20, 2595: 0, 2355: 1.0, 2356: 1.9, 2357: 2.1 };
-
 const REACTOR_RIG = { 2713: -20, 2356: 1.0, 2357: 1.1 };
 
 describe('structureFactorsFor — activity mapping of the one selected structure', () => {
@@ -68,14 +66,12 @@ describe('structureFactorsFor — activity mapping of the one selected structure
   });
 
   it('a Citadel + a manufacturing rig bonuses manufacturing nodes (rig only, no role)', () => {
-
     const f = structureFactorsFor({
       selectedStructure: citadel({ structureAttrs: {}, rigAttrs: [ME_RIG] }),
       locationSecurity: 0.5,
       nodeActivityByBlueprint: NODE_ACTIVITY,
     });
     expect(f.active).toBe(true);
-
     expect(f.structureMeFactorOf(100)).toBeCloseTo(0.98, 6);
     expect(f.structureTeFactorOf(100)).toBeCloseTo(0.8, 6);
     expect(f.structureCostBonusPct).toBe(0);
@@ -85,18 +81,14 @@ describe('structureFactorsFor — activity mapping of the one selected structure
   });
 
   it('one Tatara fitted with both a mfg rig and a reaction rig bonuses BOTH node types', () => {
-
     const f = structureFactorsFor({
       selectedStructure: refinery({ structureAttrs: { 2721: 0.75 }, rigAttrs: [ME_RIG, REACTOR_RIG] }),
       locationSecurity: 0.0,
       nodeActivityByBlueprint: NODE_ACTIVITY,
     });
     expect(f.active).toBe(true);
-
     expect(f.structureMeFactorOf(100)).toBeCloseTo(0.958, 6);
-
     expect(f.structureTeFactorOf(100)).toBeCloseTo(0.58, 6);
-
     expect(f.structureTeFactorOf(200)).toBeCloseTo(0.585, 6);
     expect(f.structureMeFactorOf(200)).toBe(1);
     expect(f.manufacturingBonus).not.toBeNull();
@@ -151,7 +143,6 @@ describe('structureFactorsFor — security from the build system scales rigs', (
       locationSecurity: 0.0,
       nodeActivityByBlueprint: NODE_ACTIVITY,
     });
-
     expect(f.structureMeFactorOf(100)).toBeCloseTo(0.94842, 6);
   });
 
@@ -161,7 +152,6 @@ describe('structureFactorsFor — security from the build system scales rigs', (
       locationSecurity: 0.5,
       nodeActivityByBlueprint: NODE_ACTIVITY,
     });
-
     expect(f.structureMeFactorOf(100)).toBeCloseTo(0.9702, 6);
   });
 
@@ -169,9 +159,7 @@ describe('structureFactorsFor — security from the build system scales rigs', (
     const sel = refinery({ structureAttrs: { 2721: 0.75 }, rigAttrs: [REACTOR_RIG] });
     const hi = structureFactorsFor({ selectedStructure: sel, locationSecurity: 0.5, nodeActivityByBlueprint: NODE_ACTIVITY });
     const nul = structureFactorsFor({ selectedStructure: sel, locationSecurity: 0.0, nodeActivityByBlueprint: NODE_ACTIVITY });
-
     expect(hi.structureTeFactorOf(200)).toBeCloseTo(0.75, 6);
-
     expect(nul.structureTeFactorOf(200)).toBeCloseTo(0.585, 6);
   });
 });
@@ -189,7 +177,6 @@ describe('structureFactorsFor — smart two-structure routing', () => {
   const reactionRefinery = refinery({ id: 'rf-b', structureAttrs: { 2721: 0.75 } });
 
   it('is byte-identical to the single-structure path when no reaction refinery is given', () => {
-
     for (const build of [ecBuild, refinery({ structureAttrs: { 2721: 0.75 } }), citadel({ rigAttrs: [ME_RIG] })]) {
       const base = { selectedStructure: build, locationSecurity: 0.0, nodeActivityByBlueprint: NODE_ACTIVITY };
       const omitted = structureFactorsFor(base);
@@ -218,7 +205,6 @@ describe('structureFactorsFor — smart two-structure routing', () => {
 
   it('a lone refinery does the WHOLE chain (reactions AND manufacturing), in either slot', () => {
     const lone = refinery({ structureAttrs: { 2721: 0.75 }, rigAttrs: [ME_RIG] });
-
     const asBuild = structureFactorsFor({
       selectedStructure: lone,
       locationSecurity: 0.0,
@@ -226,7 +212,6 @@ describe('structureFactorsFor — smart two-structure routing', () => {
     });
     expect(asBuild.structureMeFactorOf(100)).toBeCloseTo(0.958, 6);
     expect(asBuild.structureTeFactorOf(200)).toBeCloseTo(0.75, 6);
-
     const asReaction = structureFactorsFor({
       selectedStructure: null,
       locationSecurity: null,
@@ -239,7 +224,6 @@ describe('structureFactorsFor — smart two-structure routing', () => {
   });
 
   it("scales the refinery's reaction rig against the refinery's OWN system security", () => {
-
     const f = structureFactorsFor({
       selectedStructure: ecBuild,
       locationSecurity: 0.5,
@@ -247,7 +231,6 @@ describe('structureFactorsFor — smart two-structure routing', () => {
       reactionSecurity: 0.0,
       nodeActivityByBlueprint: NODE_ACTIVITY,
     });
-
     expect(f.structureTeFactorOf(200)).toBeCloseTo(0.585, 6);
   });
 
@@ -330,7 +313,6 @@ describe('composeFeeInputs', () => {
 
   it('returns undefined with no fee source (the gross-only path)', () => {
     expect(compose({})).toBeUndefined();
-
     expect(compose({ reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID }) })).toBeUndefined();
   });
 

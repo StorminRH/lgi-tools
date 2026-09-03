@@ -118,7 +118,6 @@ describe('POST /api/account/saved-plans', () => {
   });
 
   it('rolls the insert back when a concurrent save breaches the cap', async () => {
-
     h.countSavedPlansMock
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER + 1);

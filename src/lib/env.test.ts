@@ -40,7 +40,6 @@ describe('readEnv', () => {
   });
 
   it("passes '' through on a verbatim (nullish/comparison) variable", () => {
-
     vi.stubEnv('BETTER_AUTH_SECRET', '');
     vi.stubEnv('SESSION_SECRET', 'fallback');
     expect(readEnv('BETTER_AUTH_SECRET')).toBe('');

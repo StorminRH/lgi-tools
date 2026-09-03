@@ -13,9 +13,7 @@ export function HomeLeftColumn({ anonHero }: { anonHero: ReactNode }) {
         <HeroBanner />
         <HomeRosterPanel />
       </div>
-
     );
   }
   return <>{anonHero}</>;
-
 }

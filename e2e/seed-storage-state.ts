@@ -10,7 +10,6 @@ async function main() {
   }
   const written = await seedE2eStorageState(outPath);
   console.log(`✓ E2E auth storage state → ${written}`);
-
   process.exit(0);
 }
 

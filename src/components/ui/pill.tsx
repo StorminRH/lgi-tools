@@ -44,5 +44,4 @@ export function Pill({
   className?: string;
 }) {
   return <span className={cn(pillVariants({ tone, size }), className)}>{children}</span>;
-
 }

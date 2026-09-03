@@ -51,14 +51,12 @@ export function MapEventLog({
               >
                 Audit Log
               </span>
-
               <span
                 data-map-event-log-count
                 className="font-data text-micro text-muted"
               >
                 Events - {events.length}
               </span>
-
               <span
                 data-chevron
                 aria-hidden
@@ -66,9 +64,7 @@ export function MapEventLog({
               >
                 ▾
               </span>
-
             </span>
-
           }
         >
           <div
@@ -85,7 +81,6 @@ export function MapEventLog({
               >
                 No map events yet.
               </p>
-
             ) : (
               events.map((event) => (
                 <EventRow
@@ -98,13 +93,9 @@ export function MapEventLog({
               ))
             )}
           </div>
-
         </Collapsible>
-
       </div>
-
     </div>
-
   );
 }
 
@@ -128,16 +119,12 @@ function EventRow({
     >
       <div className="min-w-0 flex-1">
         <div className="text-muted">{formatEventTime(event.at)}</div>
-
         <div className="text-name">
           <span className="text-isk">{event.actor}</span>
-
           {' · '}
           {mapEventLabel(event)}
         </div>
-
       </div>
-
       {restorable ? (
         <Button
           variant="ghost"
@@ -148,9 +135,7 @@ function EventRow({
         >
           Restore
         </Button>
-
       ) : null}
     </div>
-
   );
 }

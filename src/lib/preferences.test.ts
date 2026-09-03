@@ -173,7 +173,6 @@ describe('cookie codec', () => {
     expect(lastCookieWrite).toContain('Path=/');
     expect(lastCookieWrite).toContain('SameSite=Lax');
     expect(lastCookieWrite).not.toContain('Secure');
-
     const raw = lastCookieWrite.split(';')[0]!.split('=')[1];
     expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
   });

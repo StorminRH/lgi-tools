@@ -7,9 +7,7 @@ import { eyebrow } from './type-roles';
 export interface SortableColumn<Row> {
   key: string;
   label: string;
-
   sortable?: boolean;
-
   align?: 'left' | 'right';
   render: (row: Row) => ReactNode;
 }
@@ -18,28 +16,21 @@ export interface RenderRowArg<Row> {
   row: Row;
   cells: ReactNode;
   key: string | number;
-
   gridColsClass: string;
 }
 
 export interface Props<Row> {
   columns: SortableColumn<Row>[];
   rows: Row[];
-
   gridColsClass: string;
-
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
-
   basePath: string;
   currentParams: Record<string, string | undefined>;
-
   sortParam?: string;
   dirParam?: string;
-
   defaultDirFor?: (columnKey: string) => 'asc' | 'desc';
   getRowKey: (row: Row) => string | number;
-
   renderRow?: (arg: RenderRowArg<Row>) => ReactNode;
   emptyState?: ReactNode;
 }
@@ -55,7 +46,6 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       >
         {cell.label}
       </span>
-
     );
   }
 
@@ -73,11 +63,8 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       )}
     >
       <span>{cell.label}</span>
-
       {cell.indicator && <span className="text-isk">{cell.indicator}</span>}
-
     </Link>
-
   );
 }
 
@@ -118,7 +105,6 @@ export function SortableTable<Row>({
         <SortHeaderCell key={cell.key} cell={cell} />
       ))}
     </div>
-
   );
 
   const renderCells = (row: Row) => (
@@ -133,27 +119,22 @@ export function SortableTable<Row>({
         >
           {col.render(row)}
         </div>
-
       ))}
     </>
-
   );
 
   return (
-
     <div className="overflow-x-auto">
       <div className="sortable-table border border-border bg-section min-w-[640px]">
         {renderHeader()}
         {rows.length === 0 ? (
           <div className="px-3 py-6 text-center text-muted text-ui">{emptyState ?? 'No rows.'}</div>
-
         ) : (
           rows.map((row) => {
             const key = getRowKey(row);
             const cells = renderCells(row);
             if (renderRow) {
               return <Fragment key={key}>{renderRow({ row, cells, key, gridColsClass })}</Fragment>;
-
             }
             return (
               <div
@@ -165,13 +146,10 @@ export function SortableTable<Row>({
               >
                 {cells}
               </div>
-
             );
           })
         )}
       </div>
-
     </div>
-
   );
 }

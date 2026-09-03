@@ -64,7 +64,6 @@ export function SiteCatalogueProvider({
     <SiteCatalogueContext.Provider value={lookups}>
       {children}
     </SiteCatalogueContext.Provider>
-
   );
 }
 

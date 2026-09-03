@@ -29,10 +29,8 @@ export function SkillQueuePanel({
   initialDimmed,
 }: {
   characters: PanelCharacter[];
-
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
-
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
@@ -44,12 +42,9 @@ export function SkillQueuePanel({
           <a href="/characters" className="underline text-name">
             link one on the Characters page
           </a>{' '}
-
           to see live skill queues.
         </EmptyState>
-
       </Card>
-
     );
   }
   return (
@@ -76,7 +71,6 @@ function LiveQueues({
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
-
   const eligibleIds = syncEligibleIds(characters);
   const { skillsByCharacter, names, now, loading } = useSkillsLive(eligibleIds);
 
@@ -113,14 +107,11 @@ function LiveQueues({
               >
                 {rows}
               </LiveCharacterCard>
-
             );
           })
         }
       </CharacterStripSection>
-
     </div>
-
   );
 }
 
@@ -134,7 +125,6 @@ function renderQueueCard(
     isEmpty: model.isEmpty,
     subtitle: model.subtitle !== null && (
       <div className="text-micro text-muted tracking-copy">{model.subtitle}</div>
-
     ),
     headerRight: model.header !== null && <QueueHeaderSlot header={model.header} />,
     rows:
@@ -156,11 +146,9 @@ function QueueHeaderSlot({ header }: { header: NonNullable<QueueHeader> }) {
       <span className="shrink-0 font-data text-micro tracking-copy text-muted">
         queue ends in {formatRemaining(header.ms)}
       </span>
-
     );
   }
   return <Pill tone="orange">Paused</Pill>;
-
 }
 
 function QueueEntryRow({
@@ -182,16 +170,12 @@ function QueueEntryRow({
           <span className="font-data">
             {name ?? `Skill #${entry.skill_id}`}{' '}
             <span className="text-muted">{romanLevel(entry.finished_level)}</span>
-
           </span>
-
         }
         chips={<Pill tone={model.meta.tone}>{model.meta.label}</Pill>}
-
         trailing={
           model.remainingMs !== null ? (
             <span className="font-data">{formatRemaining(model.remainingMs)}</span>
-
           ) : (
             ''
           )
@@ -201,9 +185,7 @@ function QueueEntryRow({
         <div className="mt-[4px]">
           <ProgressBar pct={model.pct} />
         </div>
-
       )}
     </div>
-
   );
 }

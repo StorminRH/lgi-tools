@@ -20,12 +20,9 @@ function CatalogueCardExtras({ site }: { site: SiteDetail }) {
         >
           View full page →
         </Link>
-
       </div>
-
       <SiteCardLightbox site={site} />
     </>
-
   );
 }
 
@@ -36,24 +33,19 @@ export function SiteCard({
   presentation = 'catalogue',
 }: {
   site: SiteDetail;
-
   className?: string;
-
   contentAlign?: 'start' | 'center';
-
   presentation?: 'catalogue' | 'standalone';
 }) {
   const liveResources = displayableResources(site.resources);
   const centered = contentAlign === 'center';
   const standalone = presentation === 'standalone';
   const header = <SiteCardHeader site={site} align={contentAlign} />;
-
   const headerLayoutClassName = centered
     ? 'flex-col items-center gap-2 px-3 pb-3 pt-3 text-center'
     : 'flex-col items-stretch gap-2 px-[17px] pb-[13px] pt-[15px]';
 
   return (
-
     <Card
       font="ui"
       hover={!standalone}
@@ -65,10 +57,8 @@ export function SiteCard({
         {standalone ? (
           <>
             <div className={cn('flex', headerLayoutClassName)}>{header}</div>
-
             <SiteDetailsBody site={site} />
           </>
-
         ) : (
           <>
             <Collapsible
@@ -78,14 +68,10 @@ export function SiteCard({
             >
               <LazySiteDetails site={site} zoom />
             </Collapsible>
-
             <CatalogueCardExtras site={site} />
           </>
-
         )}
       </SiteLiveProvider>
-
     </Card>
-
   );
 }

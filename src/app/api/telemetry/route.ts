@@ -21,7 +21,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const safeMetadata = parsed.data.metadata ?? {};
-
   if (parsed.data.metadata !== undefined) {
     const serialised = JSON.stringify(safeMetadata);
     if (new TextEncoder().encode(serialised).length > MAX_METADATA_BYTES) {

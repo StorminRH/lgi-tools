@@ -23,7 +23,6 @@ const retained = new Set(
 
 describe('purge registry gate', () => {
   it('flags the expected user/character/owner-keyed tables (sanity on the scan)', () => {
-
     expect([...flagged].sort()).toEqual(
       [
         'account',

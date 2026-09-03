@@ -15,7 +15,6 @@ async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetMapInput[]> {
   'use cache';
   cacheLife('hours');
   cacheTag(ownedAssetsTag(owner));
-
   const rows = await db
     .select({
       typeId: ownedAssets.typeId,

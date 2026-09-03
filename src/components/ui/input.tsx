@@ -3,7 +3,6 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
 export const fieldVariants = cva(
-
   'bg-bg-deep border border-border-soft shadow-field-inset rounded-ctl field-own-focus',
   {
     variants: {
@@ -14,7 +13,6 @@ export const fieldVariants = cva(
 );
 
 export const fieldText = 'text-ui font-data text-text placeholder:text-muted';
-
 export const focusWell = 'focus-within:border-isk-sub focus-within:shadow-field-focus';
 const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
@@ -33,12 +31,10 @@ export function Input({
         <span aria-hidden className="select-none font-data text-ui text-isk">
           {'>'}
         </span>
-
       ) : null}
       <input className={cn(fieldText, innerControl)} {...props} />
       {trailing}
     </div>
-
   );
 }
 

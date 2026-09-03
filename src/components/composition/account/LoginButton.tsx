@@ -18,7 +18,6 @@ function AdminChip({ show }: { show: boolean }) {
     <a href="/admin" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
       Admin
     </a>
-
   );
 }
 
@@ -40,7 +39,6 @@ function SignedOutButton() {
         className="h-8 w-auto"
       />
     </button>
-
   );
 }
 
@@ -71,14 +69,11 @@ function SignedInCluster({
               preload
             />
           </a>
-
         </Tooltip>
-
         <Button
           variant="bare"
           type="button"
           onClick={() => {
-
             void authClient.signOut().finally(() => {
               reloadDocumentHome();
             });
@@ -87,9 +82,7 @@ function SignedInCluster({
         >
           Log out
         </Button>
-
       </div>
-
     );
   }
 
@@ -98,7 +91,6 @@ function SignedInCluster({
       <AdminChip show={showAdminLink} />
       <AccountMenu session={session} />
     </div>
-
   );
 }
 
@@ -110,7 +102,6 @@ export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' })
       <div className="flex items-center gap-3">
         <Skeleton label="Loading account" className="size-8 rounded-full" />
       </div>
-
     );
   }
 

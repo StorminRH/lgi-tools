@@ -50,7 +50,6 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
     isStale: SKILLS_FRESHNESS.isStale,
     eligible: canSyncSkillQueue,
     fetchAndPlan: async (characterId, accessToken, state) => {
-
       const [queueRead, skillsRead] = await Promise.all([
         port.readSkillQueue(characterId, accessToken, state?.queueEtag ?? null),
         port.readSkills(characterId, accessToken, state?.skillsEtag ?? null),

@@ -65,24 +65,17 @@ export function NavigationMenu({
   tone = 'neutral',
   className,
 }: {
-
   children: ReactNode;
-
   label: string;
   tone?: NavigationMenuTone;
-
   className?: string;
 }) {
   return (
-
     <Base.Root aria-label={label} className={cn('flex', className)}>
       <Base.List className={list({ tone })}>{children}</Base.List>
-
     </Base.Root>
-
   );
 }
 
 export const NavigationMenuItem = Base.Item;
-
 export const NavigationMenuLink = Base.Link;

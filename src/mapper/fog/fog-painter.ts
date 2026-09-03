@@ -97,7 +97,6 @@ function latticeNoise(lattice: readonly number[], u: number, v: number): number 
   const y1 = Math.min(BRUSH_NOISE_CELLS - 1, y0 + 1);
   const fx = smooth(x - x0);
   const fy = smooth(y - y0);
-
   const at = (cx: number, cy: number) => lattice[cy * BRUSH_NOISE_CELLS + cx]!;
   const top = at(x0, y0) + (at(x1, y0) - at(x0, y0)) * fx;
   const bottom = at(x0, y1) + (at(x1, y1) - at(x0, y1)) * fx;
@@ -116,9 +115,7 @@ export function fogBrushAlpha(size: number, seed: number): Uint8ClampedArray {
     for (let px = 0; px < size; px += 1) {
       const r = Math.hypot(px + 0.5 - half, py + 0.5 - half) / half;
       if (r >= 1) continue;
-
       const falloff = r <= 0.55 ? 1 : 1 - smooth((r - 0.55) / 0.45);
-
       const band = Math.max(0, 1 - Math.abs(r - 0.75) / 0.35);
       const noise = latticeNoise(lattice, px / size, py / size);
       const value = falloff + (noise - 0.5) * 0.7 * band;
@@ -188,18 +185,14 @@ export interface FogPaintContext {
 
 export interface FogPaintInput {
   readonly cover: FogRect;
-
   readonly scale: number;
-
   readonly color: string;
-
   readonly opacity: number;
   readonly frame: FogFrame;
   readonly wakeStamps: readonly FogPaintDisc[];
   readonly revealRadius: number;
   readonly strokeRadius: number;
   readonly brush: CanvasImageSource;
-
   readonly alphaOnly: boolean;
 }
 

@@ -11,33 +11,25 @@ export function MasterSection({ master }: { master: ChangelogMaster }) {
         >
           v{master.version}
         </span>
-
         {master.title && (
           <>
             <span className="hidden font-display text-h2 font-semibold leading-[1.2] text-muted sm:inline" aria-hidden="true">
               —
             </span>
-
             <span className="font-display text-h2 font-semibold leading-[1.2] tracking-optical text-isk">{master.title}</span>
-
           </>
-
         )}
       </div>
-
       {master.summary.length > 0 && (
         <div className="-mt-2 mb-[26px] flex max-w-[72ch] flex-col gap-[0.7em]">
           {master.summary.map((para, i) => (
             <p key={i} className="m-0 text-pretty text-body leading-[1.65] tracking-optical text-text">{para}</p>
-
           ))}
         </div>
-
       )}
       {master.subVersions.map((entry) => (
         <EntryCard key={`${entry.version}-${entry.date}`} entry={entry} />
       ))}
     </section>
-
   );
 }

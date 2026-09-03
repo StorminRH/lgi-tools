@@ -207,7 +207,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('Life');
     expect(html).toContain('Destination');
     expect(html).not.toContain('>Leads<');
-
     expect(html).toContain('data-signature-class');
     expect(html).toContain('>HS<');
     expect(html).toContain('Est. ISK');
@@ -316,7 +315,6 @@ describe('SignatureWindow component prompt and filter states', () => {
       {
         id: 49,
         name: 'Barren Perimeter Reservoir',
-
         estIsk: 28_100_000,
         liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
       },
@@ -341,7 +339,6 @@ describe('SignatureWindow component prompt and filter states', () => {
         onOpenSite: vi.fn(),
       }),
     );
-
     expect(html.match(/sr-only">View site /g)?.length).toBe(3);
     expect(html).toContain('Barren Perimeter Reservoir');
     expect(html).toContain('Sansha Hideout');
@@ -352,7 +349,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('28.1M');
     expect(html).toContain('12.0M');
     expect(html).toContain('data-price-state="settled"');
-
     expect(html.match(/data-price-state="/g)?.length).toBe(1);
     expect(html).not.toContain('aria-label="View site');
     expect(html).toContain('Mass WHL-001');

@@ -33,7 +33,6 @@ import {
   type BlueprintOutput,
   type BlueprintSearchRow,
 } from './blueprint-shaping';
-
 export type { BlueprintOutput, BlueprintSearchRow };
 import type { SystemSearchEntry } from './systems-search';
 import {
@@ -137,7 +136,6 @@ export async function getTypeAttributesBatch(
     .from(typeDogma)
     .where(inArray(typeDogma.typeId, typeIds));
   for (const r of rows) {
-
     result.set(r.typeId, r.attributes as AttrMap);
   }
   return result;
@@ -223,7 +221,6 @@ export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
 export async function getBlueprintOutput(
   blueprintId: number,
 ): Promise<BlueprintOutput | null> {
-
   const [row] = await db
     .select({ activities: industryBlueprints.activities })
     .from(industryBlueprints)
@@ -287,7 +284,6 @@ export async function solarSystemExists(systemId: number): Promise<boolean> {
 
 export type IndustryStation = {
   id: number;
-
   name: string | null;
   operationName: string;
   manufacturingCapable: boolean;

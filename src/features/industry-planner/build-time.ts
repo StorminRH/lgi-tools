@@ -17,13 +17,9 @@ export interface BuildTimeLine {
 }
 
 export interface BuildTimes {
-
   topJob: string | null;
-
   totalProduction: string | null;
-
   topTe: number;
-
   breakdown: BuildTimeLine[];
 }
 
@@ -36,9 +32,7 @@ export function computeBuildTimes(args: {
   builds: Map<number, { runs: number; blueprintTypeId: number }>;
   teOf: (blueprintTypeId: number) => number | undefined;
   nameOf: (typeId: number) => string;
-
   structureTeFactorOf?: (blueprintTypeId: number) => number;
-
   skillTimeFactorOf?: (blueprintTypeId: number) => number;
 }): BuildTimes {
   const { topBlueprintTypeId, topProductTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf, nameOf } =

@@ -1,5 +1,4 @@
 export const SECURITY_CLASSES = ['high', 'low', 'null', 'wormhole'] as const;
-
 export type SecurityClass = (typeof SECURITY_CLASSES)[number];
 
 export function systemSecurityClass(

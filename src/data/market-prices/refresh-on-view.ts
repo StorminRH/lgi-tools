@@ -51,7 +51,6 @@ function notifyWriteBehind(
 }
 
 export interface LivePricesResult {
-
   prices: Map<number, MarketPrice>;
   degraded: LivePricesDegradation;
   metrics: LivePricesMetrics;
@@ -119,7 +118,6 @@ export async function getLivePrices(
         cacheHit: !consumeFreshPriceResolution(result.resolutionId),
       };
     } catch {
-
       return {
         raw: null as RawMarketPrice | null,
         budgetExhausted: false,
@@ -137,7 +135,6 @@ export async function getLivePrices(
   const freshRaws: RawMarketPrice[] = [];
 
   ids.forEach((id, i) => {
-
     const { raw, budgetExhausted, cacheHit } = live[i]!;
     if (budgetExhausted) degraded.budgetExhausted = true;
     if (raw) {
@@ -148,7 +145,6 @@ export async function getLivePrices(
       else if (raw.source === 'esi') metrics.esiCount++;
       else metrics.fuzzworkFallbackCount++;
       freshRaws.push(raw);
-
       prices.set(id, { ...raw, updatedAt: now, staleAfter });
     } else {
       const seeded = seed.get(id);

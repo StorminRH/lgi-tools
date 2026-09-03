@@ -8,24 +8,18 @@ export interface ConsolidatedItem {
   label: string;
   tone: Tone;
   isRaw: boolean;
-
   quantity: number;
-
   hasChildren: boolean;
 }
 
 export interface ConsolidatedTier {
-
   depth: number;
   items: ConsolidatedItem[];
 }
 
 export interface ConsolidatedBuild {
-
   tiers: ConsolidatedTier[];
-
   descendants: Map<number, Set<number>>;
-
   childrenOf: Map<number, Set<number>>;
 }
 
@@ -33,7 +27,6 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
   const { buildTree, buildNodeDisplay } = structure;
 
   const childrenOf = new Map<number, Set<number>>();
-
   const byDepth = new Map<number, Map<number, number>>();
 
   const walk = (node: BuildNode, depth: number) => {
@@ -89,7 +82,6 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
       depth,
       items: [...byDepth.get(depth)!.entries()]
         .map(([typeId, qty]) => toItem(typeId, qty))
-
         .sort(
           (a, b) =>
             Number(a.isRaw) - Number(b.isRaw) ||
@@ -122,7 +114,6 @@ export function scaleTiersToBatched(
   tiers: ConsolidatedTier[],
   ledger: BatchLedger,
 ): ConsolidatedTier[] {
-
   const marginalTotal = new Map<number, number>();
   for (const tier of tiers) {
     for (const item of tier.items) {
@@ -140,7 +131,6 @@ export function scaleTiersToBatched(
     depth: tier.depth,
     items: tier.items.map((item) => {
       const mt = marginalTotal.get(item.typeId) ?? 0;
-
       const quantity = mt > 0 ? (item.quantity / mt) * batchedTotalOf(item) : 0;
       return { ...item, quantity };
     }),

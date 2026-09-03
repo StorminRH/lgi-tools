@@ -20,7 +20,6 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
     busyBody: () => ({ status: 'busy' }),
   },
   work: async () => {
-
     const staleIds = await listStaleLinkedCharacterIds();
     const refreshed = await refreshAffiliations(staleIds);
 

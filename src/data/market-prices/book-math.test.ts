@@ -22,7 +22,6 @@ function books(
 
 describe('computeRegionalDiscount', () => {
   it('surfaces a genuine remote discount with its system and surviving units', () => {
-
     const remote = books([60000004, 30000143, [[28_000, 19], [300_000, 5]]]);
     const d = computeRegionalDiscount(remote, 255_000, GATE)!;
     expect(d).toEqual({
@@ -35,7 +34,6 @@ describe('computeRegionalDiscount', () => {
   });
 
   it('does NOT fire on a backwater sliver ladder — the per-station dust walk holds', () => {
-
     const remote = books([60000004, 30000143, [
       [75, 1], [76, 1], [77, 1], [78, 1], [79, 1],
       [600, 5_000],
@@ -44,19 +42,16 @@ describe('computeRegionalDiscount', () => {
   });
 
   it('does NOT fire when the discount is under the pct gate', () => {
-
     const remote = books([60000004, 30000143, [[90, 5_000]]]);
     expect(computeRegionalDiscount(remote, 100, GATE)).toBeNull();
   });
 
   it('does NOT fire when surviving units are under the unit gate', () => {
-
     const remote = books([60000004, 30000143, [[50, 9], [200, 10_000]]]);
     expect(computeRegionalDiscount(remote, 100, GATE)).toBeNull();
   });
 
   it('counts only units priced at-or-under the hub best as surviving', () => {
-
     const remote = books([60000004, 30000143, [[50, 12], [150, 3_000]]]);
     const d = computeRegionalDiscount(remote, 100, GATE)!;
     expect(d.units).toBe(12);
@@ -166,7 +161,6 @@ describe('isDiscountEligibleLocation', () => {
   it('accepts NPC stations and rejects player structures', () => {
     expect(isDiscountEligibleLocation(60003760)).toBe(true);
     expect(isDiscountEligibleLocation(60000004)).toBe(true);
-
     expect(isDiscountEligibleLocation(1_035_466_617_946)).toBe(false);
   });
 });

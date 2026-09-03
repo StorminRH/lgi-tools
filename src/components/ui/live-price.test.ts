@@ -173,7 +173,6 @@ describe('scheduleConfirmFlash', () => {
   });
 
   it('does not Illegal-invocation when window-like rAF requires its receiver', () => {
-
     const windowLike = {
       requestAnimationFrame(this: unknown, callback: FrameRequestCallback) {
         if (this !== windowLike) throw new TypeError('Illegal invocation');
@@ -203,7 +202,6 @@ describe('scheduleConfirmFlash', () => {
       };
       expect(() => scheduleConfirmFlash(host, bound)).not.toThrow();
       expect(host.classes.has('price-flash')).toBe(true);
-
       expect(() =>
         scheduleConfirmFlash(host, {
           requestAnimationFrame: windowLike.requestAnimationFrame,

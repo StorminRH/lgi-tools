@@ -15,15 +15,11 @@ export function hostsReactions(groupId: number): boolean {
 }
 
 export interface StructureFactors {
-
   structureMeFactorOf: (blueprintTypeId: number) => number;
   structureTeFactorOf: (blueprintTypeId: number) => number;
-
   structureCostBonusPct: number;
-
   manufacturingBonus: StructureBonus | null;
   reactionBonus: StructureBonus | null;
-
   active: boolean;
 }
 
@@ -42,7 +38,6 @@ function securityClassFor(
 ): ReturnType<typeof systemSecurityClass> | null {
   if (structure.securityClass !== null) return structure.securityClass;
   if (systemSecurity === null) return null;
-
   return systemSecurityClass(systemSecurity, null);
 }
 
@@ -71,26 +66,20 @@ function routeHosts(
   mfgFromReactionSlot: boolean;
   reactionFromBuildSlot: boolean;
 } {
-
   const mfgHost = buildStructure ?? reactionStructure;
-
   const buildIsRefinery = !!buildStructure && hostsReactions(buildStructure.groupId);
   const reactionHost = reactionStructure ?? (buildIsRefinery ? buildStructure : null);
   return {
     mfgHost,
     reactionHost,
-
     mfgFromReactionSlot: !buildStructure && !!reactionStructure,
-
     reactionFromBuildSlot: !reactionStructure && buildIsRefinery,
   };
 }
 
 export function structureFactorsFor(args: {
-
   selectedStructure: AvailableStructure | null;
   locationSecurity: number | null;
-
   reactionStructure?: AvailableStructure | null;
   reactionSecurity?: number | null;
   nodeActivityByBlueprint: Record<number, number>;
@@ -100,7 +89,6 @@ export function structureFactorsFor(args: {
   const reactionSecurity = args.reactionSecurity ?? null;
 
   const { mfgHost, reactionHost } = routeHosts(selectedStructure, reactionStructure);
-
   const mfgSecurity = selectedStructure ? locationSecurity : reactionSecurity;
   const reactionHostSecurity = reactionStructure ? reactionSecurity : locationSecurity;
   const manufacturingBonus = bonusFor(mfgHost, MANUFACTURING_ACTIVITY, mfgSecurity);
@@ -109,19 +97,16 @@ export function structureFactorsFor(args: {
 
   const activityOf = (bp: number) => nodeActivityByBlueprint[bp];
   return {
-
     structureMeFactorOf: (bp) =>
       activityOf(bp) === MANUFACTURING_ACTIVITY && manufacturingBonus
         ? 1 - manufacturingBonus.me / 100
         : 1,
-
     structureTeFactorOf: (bp) => {
       const activity = activityOf(bp);
       if (activity === MANUFACTURING_ACTIVITY && manufacturingBonus) return 1 - manufacturingBonus.te / 100;
       if (activity === REACTION_ACTIVITY && reactionBonus) return 1 - reactionBonus.te / 100;
       return 1;
     },
-
     structureCostBonusPct: manufacturingBonus?.costBonus ?? 0,
     manufacturingBonus,
     reactionBonus,

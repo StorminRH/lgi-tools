@@ -1,7 +1,6 @@
 import type { CachedEtagMeta } from './types';
 
 const ECHO_TTL_MAX_SECONDS = 90;
-
 const DEFAULT_RETRY_AFTER_SECONDS = 60;
 const RETRY_AFTER_MAX_SECONDS = 3600;
 
@@ -34,26 +33,20 @@ export function resolveRetryAfter(retryAfter: number | null): number {
 export function keyErrorCount(minute: number): string {
   return `${KEY_PREFIX}:err:count:${minute}`;
 }
-
 export const KEY_ERROR_ECHO = `${KEY_PREFIX}:err:echo`;
-
 export function keyBlock(path: string): string {
   return `${KEY_PREFIX}:rl:block:${path}`;
 }
-
 export function keyGroup(group: string): string {
   return `${KEY_PREFIX}:rl:group:${group}`;
 }
-
 function urlPathAndQuery(url: string): string {
   const parsed = new URL(url);
   return `${parsed.pathname}${parsed.search}`;
 }
-
 export function keyEtagMeta(url: string): string {
   return `${KEY_PREFIX}:etag:meta:${urlPathAndQuery(url)}`;
 }
-
 export function keyEtagBody(url: string): string {
   return `${KEY_PREFIX}:etag:body:${urlPathAndQuery(url)}`;
 }
@@ -87,7 +80,6 @@ export function parseStoredMeta(value: string | null): CachedEtagMeta | null {
       };
     }
   } catch {
-
   }
   return null;
 }

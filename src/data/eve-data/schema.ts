@@ -213,7 +213,6 @@ export const eveNpcStations = pgTable(
       .references(() => eveStationOperations.id, { onDelete: 'restrict' }),
     typeId: integer('type_id').notNull(),
     ownerId: integer('owner_id').notNull(),
-
     name: text('name'),
     manufacturingCapable: boolean('manufacturing_capable').notNull(),
     researchCapable: boolean('research_capable').notNull(),

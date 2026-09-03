@@ -12,11 +12,9 @@ export async function HomeNewsCard() {
   return (
     <section>
       <SectionLabel className="mb-cluster">EVE News</SectionLabel>
-
       <Card>
         {items.length === 0 ? (
           <EmptyState>EVE news is unavailable right now — check back shortly.</EmptyState>
-
         ) : (
           <ul>
             {items.map((item) => (
@@ -31,11 +29,8 @@ export async function HomeNewsCard() {
                     <span className="text-ui text-name leading-[1.45] group-hover:text-isk transition-colors">
                       {item.title}
                     </span>
-
                     {item.category ? <Pill tone="blue">{item.category}</Pill> : null}
-
                   </div>
-
                   {item.publishedAt ? (
                     <time
                       dateTime={item.publishedAt}
@@ -43,19 +38,13 @@ export async function HomeNewsCard() {
                     >
                       {formatUtcDate(item.publishedAt)}
                     </time>
-
                   ) : null}
                 </a>
-
               </li>
-
             ))}
           </ul>
-
         )}
       </Card>
-
     </section>
-
   );
 }

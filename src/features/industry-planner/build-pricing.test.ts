@@ -71,7 +71,6 @@ describe('assemblePricing', () => {
 });
 
 describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
-
   const structure: BlueprintStructure = {
     ...STRUCTURE,
     tree: [
@@ -97,7 +96,6 @@ describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
     const pricing = assemblePricing(structure, priceOf, { basis: 'marginal' });
     expect(pricing.summary.basis).toBe('marginal');
     expect(pricing.summary.inputCost).toBeCloseTo(17.5, 9);
-
     const batched = assemblePricing(structure, priceOf);
     expect(pricing.summary.revenue).toBe(batched.summary.revenue);
   });
@@ -179,7 +177,6 @@ describe('assemblePricing intermediate side-channel', () => {
     expect(pricing.intermediatePrices).toEqual([
       expect.objectContaining({ typeId: 500, bestBuy: 1_000, buyVolume: 30, source: 'esi' }),
     ]);
-
     expect(pricing.summary.inputCost).toBe(650);
   });
 });
@@ -242,7 +239,6 @@ describe('assemblePricing net margin', () => {
   });
 
   it('returns null net for a reaction blueprint with only manufacturing fee keys (the gate safety)', () => {
-
     const reaction: BlueprintStructure = { ...NET_STRUCTURE, activityId: 11 };
     const pricing = assemblePricing(reaction, (t) => NET_PRICES[t], {
       fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 },
@@ -439,12 +435,9 @@ describe('assemblePricing reaction worked example (Fernite Carbide)', () => {
         reaction: { systemCostIndex: 0.02 },
       },
     });
-
     expect(pricing.summary.inputCost).toBe(6_690_000);
-
     expect(pricing.summary.revenue).toBe(8_000_000);
     const net = pricing.net!;
-
     expect(net.jobFee.estimatedItemValue).toBe(7_100_000);
     expect(net.jobFee.jobGrossCost).toBeCloseTo(142_000, 6);
     expect(net.jobFee.facilityTax).toBeCloseTo(17_750, 6);
@@ -473,7 +466,6 @@ describe('assemblePricing reaction worked example (Fernite Carbide)', () => {
 });
 
 describe('assemblePricing owned-ME overlay (3.7.5.2)', () => {
-
   const meOf10 = (bp: number) => (bp === 1 ? 10 : undefined);
 
   it('reduces the cost-basis quantities + inputCost at the owned ME', () => {
@@ -494,10 +486,8 @@ describe('assemblePricing owned-ME overlay (3.7.5.2)', () => {
     const fee = { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 };
     const grossNet = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { fee });
     const ownedNet = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { fee, meOf: meOf10 });
-
     expect(ownedNet.net!.jobFee.estimatedItemValue).toBe(650);
     expect(ownedNet.net!.jobFee.estimatedItemValue).toBe(grossNet.net!.jobFee.estimatedItemValue);
-
     expect(ownedNet.summary.inputCost).toBe(585);
     expect(ownedNet.net!.netCost).toBeLessThan(grossNet.net!.netCost!);
   });
@@ -526,7 +516,6 @@ describe('assemblePricing product depth (3.5.3b)', () => {
   });
 
   it('leaves the gross payload byte-identical whether or not depth is present', () => {
-
     const base = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
     const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
       t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
@@ -535,7 +524,6 @@ describe('assemblePricing product depth (3.5.3b)', () => {
     expect(withDepth.rows).toEqual(base.rows);
     expect(withDepth.intermediatePrices).toEqual(base.intermediatePrices);
     expect(withDepth.net).toEqual(base.net);
-
     expect({ ...withDepth.product, buyDepth: null, sellDepth: null }).toEqual(base.product);
   });
 });
@@ -550,7 +538,6 @@ describe('assemblePricing product sell figures (3.7.25.1)', () => {
   });
 
   it('null pct5Sell (the Fuzzwork null-percentile shape) carries through as null', () => {
-
     const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
     expect(pricing.product.pct5Sell).toBeNull();
   });

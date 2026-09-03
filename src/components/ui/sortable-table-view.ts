@@ -10,9 +10,7 @@ export type SortHeaderCellModel = {
   label: string;
   alignClass: string;
   sortable: boolean;
-
   href: string | null;
-
   indicator: string | null;
   isActive: boolean;
 };

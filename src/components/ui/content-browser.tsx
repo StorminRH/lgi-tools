@@ -34,7 +34,6 @@ export function ContentBrowser({
       <span className="shrink-0 font-ui text-label font-semibold tracking-label uppercase text-faint">
         {railLabel}
       </span>
-
       <Suspense
         fallback={
           <span
@@ -49,13 +48,10 @@ export function ContentBrowser({
           model={model}
         />
       </Suspense>
-
       <span className="shrink-0 text-label text-muted" aria-hidden="true">
         ↑
       </span>
-
     </span>
-
   );
   return (
     <div
@@ -72,13 +68,9 @@ export function ContentBrowser({
             <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
               <ContentBrowserNav {...navProps} />
             </Suspense>
-
           </ContentBrowserDrawerNavigation>
-
         </Drawer>
-
       </div>
-
       <div
         data-content-browser-rail
         className="hidden min-w-0 lg:sticky lg:top-6 lg:block"
@@ -93,14 +85,9 @@ export function ContentBrowser({
           <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
             <ContentBrowserNav {...navProps} />
           </Suspense>
-
         </div>
-
       </div>
-
       <div className="min-w-0">{children}</div>
-
     </div>
-
   );
 }

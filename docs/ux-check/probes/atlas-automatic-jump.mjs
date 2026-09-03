@@ -87,7 +87,6 @@ export default {
       });
     });
     await Promise.all([
-
       waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
     ]);
@@ -195,7 +194,6 @@ export default {
       && ['authored', 'converged'].includes(verified?.outcome),
     );
     await Promise.all([
-
       waitForTopology(page, 4, 3),
       waitForTopology(second.page, 4, 3),
     ]);
@@ -207,7 +205,6 @@ export default {
       && (await second.page.locator('[data-chain-node]').count()) === 4
       && (await page.locator('.react-flow__edge').count()) === 3
       && (await second.page.locator('.react-flow__edge').count()) === 3
-
       && postJumpStubTexts.some((text) => text.includes('U210'))
       && (await second.page.locator('[data-chain-node-static-stub]').allTextContents())
         .some((text) => text.includes('U210')),
@@ -271,10 +268,8 @@ export default {
       && ['authored', 'converged'].includes(ambiguous?.outcome),
     );
     await Promise.all([
-
       waitForTopology(page, 7, 6),
       waitForTopology(second.page, 7, 6),
-
       page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
       second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
     ]);

@@ -18,9 +18,7 @@ export default async function ChangelogLayout({ children }: { children: ReactNod
         meta={
           <span className={eyebrow()}>
             Current <b className="text-isk font-semibold">v{APP_VERSION}</b>
-
           </span>
-
         }
       />
       <ContentBrowser
@@ -32,8 +30,6 @@ export default async function ChangelogLayout({ children }: { children: ReactNod
       >
         {children}
       </ContentBrowser>
-
     </PageShell>
-
   );
 }

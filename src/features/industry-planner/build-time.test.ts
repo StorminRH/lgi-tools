@@ -36,7 +36,6 @@ describe('computeBuildTimes', () => {
   it('topJob is byte-identical to the pre-TE final-job figure at TE0', () => {
     expect(computeBuildTimes({ ...base, topJobSeconds: 240_000, runs: 1 }).topJob).toBe('2d 18h');
     expect(computeBuildTimes({ ...base, topJobSeconds: 6_000, runs: 3 }).topJob).toBe('5h');
-
     expect(computeBuildTimes({ ...base, topJobSeconds: 6_000, runs: 2.9 }).topJob).toBe('3h 20m');
   });
 
@@ -58,7 +57,6 @@ describe('computeBuildTimes', () => {
   });
 
   it('sums every intermediate onto the final job, counting the top exactly once', () => {
-
     const r = computeBuildTimes({
       ...base,
       topJobSeconds: 18_000,
@@ -91,7 +89,6 @@ describe('computeBuildTimes', () => {
       builds: ledger([[200, { runs: 2, blueprintTypeId: 5 }]]),
       teOf: (bp) => (bp === 5 ? 20 : undefined),
     });
-
     expect(r.totalProduction).toBe('8h');
     expect(r.topJob).toBeNull();
   });
@@ -105,7 +102,6 @@ describe('computeBuildTimes', () => {
       builds: ledger([[200, { runs: 1, blueprintTypeId: 5 }]]),
       structureTeFactorOf: () => 0.9,
     });
-
     expect(r.topJob).toBe('4h 30m');
     expect(r.totalProduction).toBe('9h');
   });
@@ -125,7 +121,6 @@ describe('computeBuildTimes', () => {
   });
 
   it('is byte-identical when the skill time factor is omitted or 1 — the unset build-character anchor', () => {
-
     const args = {
       ...base,
       topJobSeconds: 18_000,
@@ -138,13 +133,11 @@ describe('computeBuildTimes', () => {
     const omitted = computeBuildTimes(args);
     const identity = computeBuildTimes({ ...args, skillTimeFactorOf: () => 1 });
     expect(identity).toEqual(omitted);
-
     expect(omitted.topJob).toBe('8h 6m');
     expect(omitted.totalProduction).toBe('21h 36m');
   });
 
   it('applies the build-character skill time factor to the top job and intermediates (hand-computed anchor)', () => {
-
     const skillsOnly = computeBuildTimes({
       ...base,
       topJobSeconds: 18_000,
@@ -165,11 +158,9 @@ describe('computeBuildTimes', () => {
     });
     const top = r.breakdown[0]!;
     expect(top.perRunSeconds).toBeCloseTo(9_418.68, 6);
-
     const node = r.breakdown[1]!;
     expect(node.perRunSeconds).toBeCloseTo(12_960, 6);
     expect(node.totalSeconds).toBeCloseTo(25_920, 6);
-
     expect(r.topJob).toBe('2h 36m');
   });
 

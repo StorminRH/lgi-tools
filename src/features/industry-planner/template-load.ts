@@ -36,7 +36,6 @@ export interface TemplateLoadToast {
   type: 'success' | 'info' | 'error';
   message: string;
   description?: string;
-
   duration: number;
 }
 

@@ -43,7 +43,6 @@ export function cockpitMarginView(
     margin,
     marginPct,
     sign,
-
     feeSystemName: isReaction && reactionSystem ? reactionSystem.systemName : location?.systemName,
     marginLabel: showNet ? 'Net margin' : 'Gross margin',
   };

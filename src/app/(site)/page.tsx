@@ -13,7 +13,6 @@ export const metadata = buildPageMetadata({
   title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
   description:
     'Browse Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free tools for wormhole pilots.',
-
   canonical: '/',
   absoluteTitle: true,
 });
@@ -64,9 +63,7 @@ async function AuthErrorNotice({
   return (
     <div className="w-full max-w-[640px] mb-8">
       <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
-
     </div>
-
   );
 }
 
@@ -83,10 +80,8 @@ async function RosterDemo({
       <p className="text-label uppercase tracking-wide text-muted mb-3">
         Demo · sample data
       </p>
-
       <HomeRosterPanel demo={roster} />
     </div>
-
   );
 }
 
@@ -101,13 +96,10 @@ export default function Home({
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
       </Suspense>
-
       <Suspense fallback={null}>
         <RosterDemo searchParams={searchParams} />
       </Suspense>
-
       <HomeDashboard />
     </PageShell>
-
   );
 }

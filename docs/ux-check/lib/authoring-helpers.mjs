@@ -97,7 +97,6 @@ export async function pickSystemSearch(page, placeholder, query, { root } = {}) 
 export async function openAddConnectionMenu(page) {
   const node = page.locator('[data-chain-node]').first();
   await node.waitFor({ state: 'visible', timeout: 60_000 });
-
   await node.scrollIntoViewIfNeeded();
   const box = await node.boundingBox();
   await node.click({ button: 'right' });

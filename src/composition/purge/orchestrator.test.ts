@@ -85,7 +85,6 @@ describe('runPurge orchestrator', () => {
       expect(seq).toContain(cacheTable);
     }
     expect(seq.indexOf('account')).toBeLessThan(seq.indexOf('character_skills'));
-
     expect(seq).not.toContain('corp_industry_jobs');
     expect(seq).not.toContain('user_preferences');
     expect(seq).not.toContain('custom_structures');

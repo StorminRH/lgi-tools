@@ -11,7 +11,6 @@ import {
 } from '../lib/authoring-helpers.mjs';
 
 async function pickSelect(page, ariaLabel, optionName) {
-
   await page.waitForFunction(
     (label) =>
       document.querySelector(
@@ -64,7 +63,6 @@ export default {
     await waitForEditableMap(page);
     const home = page.locator('[data-map-home-prompt]');
     const startedBlank = (await home.count()) > 0;
-
     check(
       'editor client starts on a blank map with the home prompt (re-seed or drain UX_BLANK_MAP_ID after each run)',
       startedBlank,
@@ -139,7 +137,6 @@ export default {
 
     await calmMapCamera(page);
     await calmMapCamera(second.page);
-
     await page.waitForTimeout(1600);
     await openFirstEdgeEditor(page);
     await pickSelect(page, 'Size', 'L');
@@ -191,7 +188,6 @@ export default {
       );
       await shot('two-clients-after-revoke');
     } finally {
-
       await restoreMapAccess(mapId);
     }
     await page.waitForTimeout(500);

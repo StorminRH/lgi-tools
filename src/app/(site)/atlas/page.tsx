@@ -29,6 +29,5 @@ export default function AtlasPage({
     <Suspense fallback={<AtlasLandingFallback />}>
       <AtlasFromParams searchParams={searchParams} />
     </Suspense>
-
   );
 }

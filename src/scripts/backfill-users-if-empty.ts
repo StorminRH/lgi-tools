@@ -10,7 +10,6 @@ const client = requireSoftFailLockClient(
   'Skipping auth backfill (DATABASE_URL is not set).',
   'Skipping auth backfill (build continues):',
 );
-
 const LOCK_KEY_NUM = 8419273051;
 
 interface CharacterRow {
@@ -39,7 +38,6 @@ async function backfillUnderLock(reserved: ReservedConnection): Promise<void> {
     if (existing.length > 0) continue;
 
     const userId = `eve-user-${characterId}`;
-
     await reserved`
       INSERT INTO "user" (id, name, email, email_verified, image, role, created_at, updated_at)
       VALUES (

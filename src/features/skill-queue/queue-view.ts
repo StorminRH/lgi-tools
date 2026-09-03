@@ -44,7 +44,6 @@ export interface EntryRowModel {
   status: EntryStatus;
   pct: number;
   meta: { label: string; tone: Tone };
-
   remainingMs: number | null;
   showBar: boolean;
 }

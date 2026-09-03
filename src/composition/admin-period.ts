@@ -1,7 +1,6 @@
 import type { DateRange } from '@/data/telemetry/types';
 
 export const RANGES = ['7d', '30d', '90d', 'all'] as const;
-
 export type RangeKey = (typeof RANGES)[number];
 
 export const ALL_TIME_FROM = new Date('2025-01-01T00:00:00Z');
@@ -24,7 +23,6 @@ export function previousRange(key: RangeKey, range: DateRange): DateRange | null
 }
 
 export interface Delta {
-
   pct: number | null;
   direction: 'up' | 'down' | 'flat';
 }

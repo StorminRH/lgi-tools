@@ -76,12 +76,10 @@ function TrackingControlsView({
       <div className={menuSectionLabel} aria-hidden="true">
         Tracking
       </div>
-
       {characters.length === 0 ? (
         <span className="px-3 pb-2 font-data text-micro text-muted">
           No linked characters
         </span>
-
       ) : (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
           {characters.map((character) => {
@@ -97,7 +95,6 @@ function TrackingControlsView({
                 label={character.name}
                 aria-label={`${checked ? 'Stop tracking' : 'Track'} ${character.name}`}
                 data-tracking-character-id={character.characterId}
-
                 className="box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-transparent p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none"
               >
                 <CharacterPortrait
@@ -108,13 +105,10 @@ function TrackingControlsView({
                   className="block"
                 />
               </MenuCheckboxItem>
-
             );
           })}
         </div>
-
       )}
     </div>
-
   );
 }

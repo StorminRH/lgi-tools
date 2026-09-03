@@ -38,7 +38,6 @@ export default {
     if ((await card.locator('[data-map-connection-codex]').count()) === 0) {
       const typeInput = page.getByPlaceholder('Type code — e.g. B274 or K162');
       await typeInput.click();
-
       await typeInput.fill('B');
       await page.waitForFunction(
         () =>

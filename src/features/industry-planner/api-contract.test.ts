@@ -16,7 +16,6 @@ import type {
 
 describe('industry-planner contract', () => {
   it('pins the wire entry to BlueprintIndexEntry exactly (both directions)', () => {
-
     expectTypeOf<z.infer<typeof blueprintIndexEntrySchema>>().toEqualTypeOf<BlueprintIndexEntry>();
   });
 
@@ -30,7 +29,6 @@ describe('industry-planner contract', () => {
   });
 
   it('carries a nullable taxPct on the available structure (schema ⇄ type)', () => {
-
     expectTypeOf<z.infer<typeof availableStructureSchema>['taxPct']>().toEqualTypeOf<
       number | null
     >();

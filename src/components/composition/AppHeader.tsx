@@ -8,7 +8,6 @@ import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 async function NavServerStatus() {
-
   await io();
   return <ServerStatus status={await getNavServerStatus()} />;
 }
@@ -18,7 +17,6 @@ function NavServerStatusFallback() {
     <span className="flex h-full items-center px-3">
       <Skeleton label="Loading server status" className="h-3 w-20" />
     </span>
-
   );
 }
 
@@ -33,27 +31,19 @@ export async function AppHeader() {
           className="font-data font-extrabold text-lead tracking-copy uppercase text-name inline-flex items-center"
         >
           <span className="text-isk">[</span>
-
           <span className="px-[2px]">LGI</span>
-
           <span className="text-isk">]</span>
-
           <span className="text-muted font-normal">.tools</span>
-
         </Link>
-
       </div>
-
       <AppHeaderShell
         siteIndex={siteIndex}
         serverStatusSlot={
           <Suspense fallback={<NavServerStatusFallback />}>
             <NavServerStatus />
           </Suspense>
-
         }
       />
     </header>
-
   );
 }

@@ -44,9 +44,7 @@ function DevSampleBanner({
         {' '}
         (LGI_SITES_SAMPLE=1)
       </Banner>
-
     </div>
-
   );
 }
 
@@ -81,7 +79,6 @@ async function SitesCatalogue({
       <UrlSync key={site.id} basePath="/sites" entityId={site.id}>
         <SiteCard site={site} />
       </UrlSync>
-
     ),
   }));
 
@@ -96,7 +93,6 @@ async function SitesCatalogue({
     >
       <SitesTableFromUrl sites={sites} searchParams={searchParams} />
     </Suspense>
-
   );
   const fallback = (
     <div className="pt-[34px]">
@@ -105,7 +101,6 @@ async function SitesCatalogue({
         className="h-[720px] w-full rounded-card"
       />
     </div>
-
   );
 
   return (
@@ -115,11 +110,8 @@ async function SitesCatalogue({
         <Suspense fallback={fallback}>
           <SitesResultsFromCookie cards={cards} table={table} />
         </Suspense>
-
       </SitesFilterLayout>
-
     </>
-
   );
 }
 
@@ -132,6 +124,5 @@ export default function SitesPage({
     <PageShell mode="workspace">
       <SitesCatalogue searchParams={searchParams} />
     </PageShell>
-
   );
 }

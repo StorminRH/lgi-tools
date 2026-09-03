@@ -9,16 +9,13 @@ import type { AttrMap } from './types';
 export type StructureTypeOption = {
   typeId: number;
   name: string;
-
   groupId: number;
-
   rigSize: number | null;
 };
 
 export type StructureRigOption = {
   typeId: number;
   name: string;
-
   canFitGroups: number[];
   rigSize: number | null;
 };

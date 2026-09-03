@@ -1,7 +1,6 @@
 import { resolveUpstashClient, type UpstashRedis } from '@/lib/upstash';
 
 const PENDING_WORK_KEY = 'lgi:esi-refresh:next-due';
-
 const SIGNAL_TIMEOUT_MS = 2000;
 const SIGNAL_RETRIES = 0;
 const WRITE_IF_LOWER_LUA = `
@@ -29,7 +28,6 @@ export async function advancePendingWorkSignal(dueAt: Date): Promise<void> {
       String(dueAt.getTime()),
     ]);
   } catch {
-
   }
 }
 
@@ -45,7 +43,6 @@ export async function writeBackPendingWorkSignal(
       await redis.set(PENDING_WORK_KEY, earliest.getTime());
     }
   } catch {
-
   }
 }
 

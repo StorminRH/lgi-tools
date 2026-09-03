@@ -37,7 +37,6 @@ describe('fetchWithTimeout', () => {
   });
 
   it('rejects with a TimeoutError once the timeout elapses', async () => {
-
     fetchSpy.mockImplementation(abortAwareFetch());
 
     await expect(fetchWithTimeout('https://example.test/', undefined, 5)).rejects.toMatchObject({
@@ -53,7 +52,6 @@ describe('fetchWithTimeout', () => {
   });
 
   it('honors a caller-provided signal alongside the timeout', async () => {
-
     fetchSpy.mockImplementation(abortAwareFetch());
     const controller = new AbortController();
 

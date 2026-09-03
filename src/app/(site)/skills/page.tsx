@@ -14,20 +14,17 @@ import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
 
 async function SkillsContent() {
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect('/?auth_error=login_required');
   }
 
   const characters = await listLinkedCharacters(session.user.id);
-
   const stripDef = stripDimmedDef(skillsPageSettings.strip.surfaceId);
   const initialDimmed = readPreferenceCookieValue(
     (await cookies()).get(cookieNameFor(stripDef))?.value,
     stripDef,
   );
-
   return (
     <SkillQueuePanel
       characters={characters.map((character) => toPanelCharacter(character, canSyncSkillQueue))}
@@ -58,12 +55,8 @@ export default function SkillsPage() {
           <Suspense fallback={<SkillsLoading />}>
             <SkillsContent />
           </Suspense>
-
         </div>
-
       </div>
-
     </PageShell>
-
   );
 }

@@ -118,7 +118,6 @@ describe('search registry', () => {
       id: 'fast',
       name: 'Fast',
       async search() {
-
         expect(slowResolved).toBe(false);
         return [ROW('f', 'fast')];
       },
@@ -237,7 +236,6 @@ describe('registerLazySearchSource', () => {
   });
 
   it('does not warn when a source rejects with AbortError', async () => {
-
     registerSearchSource({
       id: 'cancelled-lazy',
       name: 'CancelledLazy',
@@ -363,7 +361,6 @@ describe('searchAll scoping', () => {
   });
 
   it('attributes a failure to the right source under scope', async () => {
-
     registerSearchSource(makeSource('Good', [ROW('g', 'a-good')]));
     registerSearchSource({
       id: 'broken',

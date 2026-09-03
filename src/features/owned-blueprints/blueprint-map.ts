@@ -5,7 +5,6 @@ export interface OwnedBlueprintSummary {
   te: number;
   runs: number;
   owned: number;
-
   ownerType: OwnedBlueprintOwnerType;
   ownerId: number;
   locationId: number;

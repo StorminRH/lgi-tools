@@ -7,7 +7,6 @@ import type {
 } from './schema';
 
 export class UnknownCodexStaticError extends Error {
-
   constructor(code: string) {
     super(`Wormhole codex has no type for static code ${code}`);
     this.name = 'UnknownCodexStaticError';
@@ -15,7 +14,6 @@ export class UnknownCodexStaticError extends Error {
 }
 
 export class UnknownLineageTypeError extends Error {
-
   constructor(typeId: number) {
     super(`Wormhole codex has no code for Pathfinder type ${typeId}`);
     this.name = 'UnknownLineageTypeError';

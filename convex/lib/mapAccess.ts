@@ -1,5 +1,3 @@
-
-
 import { ConvexError } from 'convex/values';
 import {
   canonicalizeMapRoles,
@@ -123,9 +121,6 @@ async function resolveMapPrincipal(
   if (claim === null) {
     return null;
   }
-
-
-
 
   const roles = canonicalizeMapRoles(
     claim.roles.map((role) => (role === 'owner' ? 'admin' : role)),

@@ -18,7 +18,6 @@ vi.mock('@/db/advisory-lock', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
-
 vi.mock('next/server', () => ({
   connection: (...args: unknown[]) => connectionMock(...args),
   after: (fn: () => unknown) => fn(),
@@ -475,7 +474,6 @@ describe('defineCronRoute capability recording', () => {
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test' },
       work: async (ctx) => {
-
         await ctx.client.reserve();
         return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
       },

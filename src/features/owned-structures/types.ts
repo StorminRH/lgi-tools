@@ -57,24 +57,16 @@ export type CorpStructuresReadResult =
  */
 export interface CorpStructuresPort {
   now(): Date;
-
   isSharingEnabled(corporationId: number): Promise<boolean>;
-
   listMembers(userId: string): Promise<RefreshCorpMember[]>;
-
   vendToken(characterId: number): Promise<string | null>;
-
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-
   readStructures(
     corporationId: number,
     accessToken: string,
     heldEtags: string[],
   ): Promise<CorpStructuresReadResult>;
-
   readSyncState(corporationId: number): Promise<CorpStructuresSyncState | null>;
-
   saveStructures(corporationId: number, rows: ParsedCorpStructure[], etags: string[]): Promise<void>;
-
   stampFresh(corporationId: number): Promise<void>;
 }

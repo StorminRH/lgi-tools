@@ -49,7 +49,6 @@ function accountMenuLocator(page: Page) {
   if (EXPECT_SYNTHETIC_PILOT) {
     return page.getByRole('button', { name: `${E2E_CHARACTER_NAME} — account menu` });
   }
-
   return page.getByRole('button', { name: /— account menu$/ });
 }
 
@@ -69,7 +68,6 @@ test.describe('authenticated smoke', () => {
 
     await page.goto('/');
     await expectAuthenticatedSession(page);
-
     await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 

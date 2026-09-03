@@ -71,7 +71,6 @@ test('classifyDueSubject decides delete / retire / skip / dispatch as one table'
   expect(classifyDueSubject(seenAt(NOW - RETENTION_MS - 1), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
     'delete',
   );
-
   expect(classifyDueSubject(seenAt(NOW - RETENTION_MS), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
     'retire',
   );

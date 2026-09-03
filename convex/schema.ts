@@ -50,7 +50,6 @@ export default defineSchema({
     userId: v.string(),
     characterId: v.number(),
     online: v.boolean(),
-
     etag: v.union(v.string(), v.null()),
   })
     .index('by_user', ['userId'])
@@ -137,7 +136,6 @@ export default defineSchema({
   })
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId'])
-
     .index('by_purge_after', ['purgeAfter']),
 
   mapNotes: defineTable({
@@ -195,7 +193,6 @@ export default defineSchema({
     userId: v.string(),
     characterId: v.number(),
     online: v.boolean(),
-
     etagOnline: v.union(v.string(), v.null()),
     onlineExpiresAt: v.number(),
   })

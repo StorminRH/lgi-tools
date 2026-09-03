@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
-
   selectRows: [] as Record<string, unknown>[],
   rereadRows: null as Record<string, unknown>[] | null,
   selectCount: 0,
-
   updateReturning: [{ id: 'acc1' }] as { id: string }[],
   updateSpy: vi.fn(),
   refreshEveTokenMock: vi.fn(),
@@ -137,13 +135,11 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'ok',
       accessToken: 'new-access',
     });
-
     expect(h.refreshEveTokenMock).toHaveBeenCalledWith({
       refreshToken: 'old-refresh',
       clientId: 'client-id',
       clientSecret: 'client-secret',
     });
-
     const persisted = h.updateSpy.mock.calls[0]![0] as { accessToken: string; refreshToken: string };
     expect(persisted.refreshToken.startsWith('v1:')).toBe(true);
     expect(persisted.accessToken.startsWith('v1:')).toBe(true);
@@ -330,7 +326,6 @@ describe('getFreshAccessTokenForCharacter', () => {
     ];
 
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
-
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
     expect(h.emitDomainEventMock).not.toHaveBeenCalled();
@@ -480,7 +475,6 @@ describe('getFreshAccessTokenForCharacter', () => {
     ];
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
-
     expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
   });
 

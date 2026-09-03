@@ -22,9 +22,7 @@ export function EwarRow({
         <Chip key={k} tone={EWAR_TONE[k]}>
           {EWAR_LABEL[k]}
         </Chip>
-
       ))}
     </LabeledChipRow>
-
   );
 }

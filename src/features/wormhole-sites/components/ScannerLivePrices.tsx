@@ -53,7 +53,6 @@ export function ScannerLivePricesProvider({
     <ScannerLivePricesEngine key={typeIdKey} typeIds={typeIds}>
       {children}
     </ScannerLivePricesEngine>
-
   );
 }
 
@@ -77,7 +76,6 @@ function ScannerLivePricesEngine({
     <ScannerLiveContext.Provider value={value}>
       {children}
     </ScannerLiveContext.Provider>
-
   );
 }
 
@@ -86,7 +84,6 @@ export function ScannerEstIskCell({
   live,
 }: {
   readonly siteName: string | null;
-
   readonly live: boolean;
 }) {
   const scannerLive = useScannerLive();
@@ -121,7 +118,6 @@ export function ScannerEstIskCell({
         className={total === null ? 'text-muted' : 'text-isk'}
       />
     </span>
-
   );
 }
 
@@ -136,6 +132,5 @@ function StaticEstIsk({ isk }: { readonly isk: number | null }) {
     >
       {formatIskShort(isk)}
     </span>
-
   );
 }

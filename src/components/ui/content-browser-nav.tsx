@@ -24,7 +24,6 @@ function ContentItemLink({
   activeSlug: string | null;
 }) {
   const active = item.slug === activeSlug;
-
   return (
     <Link
       href={contentBrowserHref(basePath, item.slug, landingSlug)}
@@ -34,7 +33,6 @@ function ContentItemLink({
     >
       {item.title}
     </Link>
-
   );
 }
 
@@ -57,12 +55,9 @@ export function ContentBrowserNavTree({
               activeSlug={activeSlug}
             />
           </li>
-
         ))}
       </ul>
-
     </nav>
-
   );
 }
 

@@ -58,7 +58,6 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
     if (reserved === undefined) {
       throw new Error('Statics refresh reached work without a reserved lock connection.');
     }
-
     const result = await recordChangedWhStaticsFeed(
       drizzle(client),
       feed,

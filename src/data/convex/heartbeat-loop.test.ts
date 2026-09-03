@@ -55,7 +55,6 @@ describe('startHeartbeatLoop', () => {
     const f = makeHost(true);
     startHeartbeatLoop(f.host, 20_000);
     f.setVisible(false);
-
     f.fireInterval();
     f.fireInterval();
     expect(f.beats.slice(1)).toEqual([
@@ -75,7 +74,6 @@ describe('startHeartbeatLoop', () => {
     f.setVisible(true);
     loop.onVisibilityChange();
     expect(f.beats[1]).toEqual({ reason: 'visible', visible: true });
-
     expect(f.timers[0]!.cancelled).toBe(true);
     f.fireInterval();
     expect(f.beats[2]).toEqual({ reason: 'interval', visible: true });

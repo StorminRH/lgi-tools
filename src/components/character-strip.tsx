@@ -36,12 +36,10 @@ export function CharacterStrip({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-label tracking-wide uppercase text-muted">Tracking</span>
-
       <div className="flex items-center gap-1.5">
         {characters.map((character) => {
           const state = stripState(character, dimmedIds);
           const isLocked = state === 'locked';
-
           const actionLabel = isLocked
             ? `Reconnect ${character.name} to track`
             : state === 'dimmed'
@@ -71,13 +69,10 @@ export function CharacterStrip({
                   src={character.portraitUrl}
                 />
               </Button>
-
             </Tooltip>
-
           );
         })}
       </div>
-
       {anyLocked && (
         <Button
           variant="secondary"
@@ -87,9 +82,7 @@ export function CharacterStrip({
         >
           Reconnect to track
         </Button>
-
       )}
     </div>
-
   );
 }

@@ -10,7 +10,6 @@ import { useEffect } from 'react';
 
 export interface DrainedPages<Row> {
   readonly rows: readonly Row[];
-
   readonly complete: boolean;
 }
 

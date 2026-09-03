@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import { skillLevelsEndpoint } from './api-contract';
@@ -19,7 +18,6 @@ export function useBuildCharacterSkillLevels(
     let ignore = false;
     let reconcileTimer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
-
     const settle = (levels: Record<string, number> | null, isReconcile: boolean) => {
       setFetched({ characterId, levels });
       if (!isReconcile && levels === null) {

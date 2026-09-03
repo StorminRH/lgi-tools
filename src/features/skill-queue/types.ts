@@ -28,7 +28,6 @@ export interface SkillsSaveHalves {
   skills?: {
     totalSp: number;
     unallocatedSp?: number;
-
     levels: Record<string, number>;
     etag: string | null;
   };
@@ -36,17 +35,11 @@ export interface SkillsSaveHalves {
 
 export interface SkillsPort {
   now(): Date;
-
   listCharacters(userId: string): Promise<RefreshCharacter[]>;
-
   vendToken(characterId: number): Promise<string | null>;
-
   readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
   readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
-
   readSyncState(characterId: number): Promise<CharacterSkillSyncState | null>;
-
   saveSkills(characterId: number, halves: SkillsSaveHalves): Promise<void>;
-
   stampFresh(characterId: number): Promise<void>;
 }

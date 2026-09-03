@@ -79,7 +79,6 @@ export function CopyButton({
       )}
     >
       <span className="select-text tabular-nums text-isk">{displayValue ?? value}</span>
-
       <button
         type="button"
         disabled={disabled}
@@ -93,12 +92,9 @@ export function CopyButton({
       >
         {labels[state]}
       </button>
-
       <span className="sr-only" role="status" aria-live="polite">
         {announcements[state]}
       </span>
-
     </span>
-
   );
 }

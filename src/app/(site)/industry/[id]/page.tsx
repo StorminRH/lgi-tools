@@ -65,7 +65,6 @@ export async function generateMetadata({
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const plannerTimer = startCostTimer();
   const { id: rawId } = await params;
-
   const id = parseNumericRouteId(rawId);
   if (id === null) notFound();
 
@@ -91,7 +90,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     { name: 'Industry Planner', url: `${SITE_URL}/industry` },
     { name: structure.product.name, url: `${SITE_URL}/industry/${id}` },
   ]);
-
   const historyTimer = startCostTimer();
   const historyPromise = observeCostPromise(
     getMarketHistoryInputs([structure.product.typeId]),
@@ -115,7 +113,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
-
       <RecordRecentBlueprint
         typeId={id}
         productTypeId={structure.product.typeId}
@@ -131,9 +128,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         <TemplateLoader structure={structure} />
         <CockpitPlanner structure={structure} />
       </PricingProvider>
-
     </div>
-
   );
 }
 
@@ -145,16 +140,13 @@ function PlannerSkeleton() {
         <Skeleton aria-hidden="true" className="h-44 w-full" />
         <Skeleton aria-hidden="true" className="h-44 w-full" />
       </div>
-
       <div className="grid grid-cols-2 gap-3 split:grid-cols-6">
         {Array.from({ length: 6 }, (_, index) => (
           <Skeleton key={index} aria-hidden="true" className="h-24 w-full" />
         ))}
       </div>
-
       <Skeleton aria-hidden="true" className="h-64 w-full" />
     </div>
-
   );
 }
 
@@ -169,10 +161,7 @@ export default function BlueprintPlannerPage({
         <Suspense fallback={<PlannerSkeleton />}>
           <PlannerContent params={params} />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

@@ -27,7 +27,6 @@ function mockResponse(
   headers: Record<string, string> = {},
   body: unknown = {},
 ): Response {
-
   if (status === 304) return new Response(null, { status, headers });
   return new Response(JSON.stringify(body), { status, headers });
 }
@@ -46,7 +45,6 @@ describe('esiFetch', () => {
   beforeEach(() => {
     mocks.markRecentBudgetExhaustion.mockClear();
     __resetEsiGateForTests();
-
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -99,7 +97,6 @@ describe('esiFetch', () => {
   });
 
   it('passes the caller Authorization header through untouched alongside the default User-Agent', async () => {
-
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
 
     await esiFetch(TEST_URL, {
@@ -128,7 +125,6 @@ describe('esiFetch', () => {
   });
 
   it('refuses to dispatch when the echoed remaining count is below the floor', async () => {
-
     fetchSpy.mockResolvedValueOnce(
       mockResponse(200, {
         'X-ESI-Error-Limit-Remain': String(ESI_BUDGET_FLOOR - 1),
@@ -140,12 +136,10 @@ describe('esiFetch', () => {
     expect(err).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((err as EsiBudgetExhaustedError).reason).toBe('error_budget');
     expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
-
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
   it('refuses from the self-count alone when responses carry no error-limit headers', async () => {
-
     fetchSpy.mockResolvedValue(mockResponse(404));
     for (let i = 0; i < 81; i++) {
       await esiFetch(TEST_URL);
@@ -169,7 +163,6 @@ describe('esiFetch', () => {
   });
 
   it('throws on 420 and refuses subsequent calls regardless of header value', async () => {
-
     fetchSpy.mockResolvedValueOnce(
       mockResponse(420, { 'X-ESI-Error-Limit-Remain': '50' }),
     );
@@ -251,7 +244,6 @@ describe('esiFetch', () => {
             ETag: '"abc"',
             'Content-Type': 'application/json',
             Expires: 'Wed, 11 Jun 2026 12:00:00 GMT',
-
             'Content-Length': '7',
           },
           { a: 1 },
@@ -280,7 +272,6 @@ describe('esiFetch', () => {
     });
 
     it('never attaches If-None-Match to requests carrying Authorization', async () => {
-
       fetchSpy.mockResolvedValueOnce(
         mockResponse(200, { ETag: '"abc"', 'Content-Length': '7' }, { a: 1 }),
       );
@@ -295,7 +286,6 @@ describe('esiFetch', () => {
     });
 
     it('does not cache a fixed-length body over the size cap', async () => {
-
       const big = 'x'.repeat(BODY_CACHE_MAX_BYTES + 1);
       fetchSpy.mockResolvedValueOnce(
         new Response(big, {
@@ -315,7 +305,6 @@ describe('esiFetch', () => {
     });
 
     it('does not cache a chunked (no Content-Length) 200, leaving the body for the caller', async () => {
-
       const body = { systems: [1, 2, 3] };
       fetchSpy.mockResolvedValueOnce(
         new Response(JSON.stringify(body), {
@@ -365,7 +354,6 @@ describe('esiFetch', () => {
   });
 
   describe('within-window cache serve', () => {
-
     function primingResponse(): Response {
       return mockResponse(
         200,
@@ -409,14 +397,12 @@ describe('esiFetch', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBe('"abc"');
       expect(second.status).toBe(200);
-
       expect(second.headers.get('x-lgi-esi-cache')).toBe('revalidated');
     });
 
     it('never serves an Authorization-carrying GET from the shared cache', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-
       fetchSpy.mockResolvedValueOnce(primingResponse());
       await esiFetch(TEST_URL);
       expect(fetchSpy).toHaveBeenCalledOnce();
@@ -435,7 +421,6 @@ describe('esiFetch', () => {
     it('falls through to a normal dispatch when the body was evicted mid-window', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
-
       const getCachedBody = vi.fn().mockResolvedValue(null);
       const fake: EsiScoreboard = {
         preDispatch: vi.fn().mockResolvedValue({
@@ -551,7 +536,6 @@ describe('esiFetch', () => {
     });
 
     it("one instance's spend closes another instance's gate", async () => {
-
       vi.resetModules();
       const scoreboardMod = await import('./scoreboard');
       const shared = scoreboardMod.resolveScoreboard();

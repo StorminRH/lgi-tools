@@ -12,11 +12,8 @@ export const Root = Autocomplete.Root;
 export const Field = forwardRef<
   HTMLInputElement,
   FieldSize & {
-
     prompt?: ReactNode;
-
     trailing?: ReactNode;
-
     className?: string;
   } & Omit<ComponentProps<'input'>, 'size'>
 >(function Field({ prompt, trailing, size, className, ...inputProps }, ref) {
@@ -32,7 +29,6 @@ export const Field = forwardRef<
       />
       {trailing}
     </Autocomplete.InputGroup>
-
   );
 });
 
@@ -47,18 +43,14 @@ export function Panel({
   align?: 'start' | 'center' | 'end';
   children: ReactNode;
 }) {
-
   const overlayContainer = useOverlayPortalContainer();
 
   return (
     <Autocomplete.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
       <Autocomplete.Positioner side="bottom" align={align} sideOffset={sideOffset} className="z-dropdown">
         <Autocomplete.Popup className={cn(dropdownPanel, className)}>{children}</Autocomplete.Popup>
-
       </Autocomplete.Positioner>
-
     </Autocomplete.Portal>
-
   );
 }
 

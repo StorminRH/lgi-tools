@@ -49,7 +49,6 @@ describe('parseVolume', () => {
   });
 
   it('handles scientific notation without throwing', () => {
-
     expect(parseVolume('1.5e6')).toBe(BigInt(1_500_000));
     expect(parseVolume('2E3')).toBe(BigInt(2_000));
   });
@@ -127,7 +126,6 @@ describe('normalize', () => {
   });
 
   it('attributes the source as "fuzzwork" before the dispatcher rewrites it', () => {
-
     const raw = normalize(34, pair({ orderCount: '1' }, { orderCount: '1' }));
     expect(raw.source).toBe('fuzzwork');
   });
@@ -156,7 +154,6 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('requests the Jita 4-4 STATION aggregate, not the region (3.7.26.1)', async () => {
-
     fetchSpy.mockResolvedValueOnce(new Response('{}', { status: 200 }));
 
     await fetchPricesFromFuzzwork([34, 35]);
@@ -167,7 +164,6 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('accepts numeric fields on a zero-order side (station-scoped shape)', async () => {
-
     fetchSpy.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -187,7 +183,6 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('rejects a present-but-invalid numeric field ("NaN") at the boundary', async () => {
-
     const sell: Record<string, string> = {
       weightedAverage: '5.5', max: 'NaN', min: '5.5', stddev: '0', median: '5.5',
       volume: '100', orderCount: '3', percentile: '5.5',
@@ -200,7 +195,6 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('still rejects a side with a MISSING required field at the boundary', async () => {
-
     const sell: Record<string, string> = {
       weightedAverage: '5.5', max: '6', min: '5.5', stddev: '0', median: '5.5',
       volume: '100', percentile: '5.5',
@@ -213,7 +207,6 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
   });
 
   it('rejects a malformed aggregates body at the boundary', async () => {
-
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ '34': { buy: 'not-a-side' } }), {
         status: 200,

@@ -30,8 +30,6 @@ export default function BuildTemplatesPage() {
       <div className="pb-16">
         <SavedPlansManager />
       </div>
-
     </PageShell>
-
   );
 }

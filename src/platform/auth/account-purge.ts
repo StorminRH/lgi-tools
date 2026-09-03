@@ -18,7 +18,6 @@ export async function reconcileAfterCharacterRemoval(
 
   const [firstRemaining] = remaining;
   if (firstRemaining === undefined) {
-
     await runBeforeUserDelete(userId);
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };

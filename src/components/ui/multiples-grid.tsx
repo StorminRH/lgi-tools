@@ -17,7 +17,6 @@ export function MultiplesGrid({
     <div className={`grid grid-cols-1 ${columnClasses[columns]} gap-px bg-border-soft`}>
       {children}
     </div>
-
   );
 }
 
@@ -37,18 +36,12 @@ export function MultiplesCell({
   return (
     <div className="bg-bg px-3 py-3 flex flex-col gap-1.5">
       <div className={eyebrow({ emphasis: 'strong' })}>{title}</div>
-
       <div className="flex items-baseline gap-2">
         <span className="font-data text-lead text-name tabular-nums">{value}</span>
-
         {delta}
       </div>
-
       {note && <div className="font-data text-micro text-muted">{note}</div>}
-
       <div className="mt-1">{children}</div>
-
     </div>
-
   );
 }

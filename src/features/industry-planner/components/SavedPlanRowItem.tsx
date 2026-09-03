@@ -44,7 +44,6 @@ export function SavedPlanRowItem({
       >
         {labels.favoriteGlyph}
       </Button>
-
       {editing ? (
         <Input
           type="text"
@@ -72,13 +71,10 @@ export function SavedPlanRowItem({
           <span className="truncate font-data text-ui text-text transition-colors group-hover/load:text-isk">
             {row.name}
           </span>
-
           <span className="ml-auto shrink-0 truncate font-data text-micro text-faint">
             {row.productName}
           </span>
-
         </Button>
-
       )}
       <Button
         variant="bare"
@@ -90,7 +86,6 @@ export function SavedPlanRowItem({
       >
         ✎
       </Button>
-
       <Button
         variant="bare"
         type="button"
@@ -100,10 +95,7 @@ export function SavedPlanRowItem({
         className={`cursor-pointer text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.deleteClass}`}
       >
         {armed ? <span className="text-ui">confirm?</span> : '✕'}
-
       </Button>
-
     </li>
-
   );
 }

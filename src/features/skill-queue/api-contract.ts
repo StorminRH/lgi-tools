@@ -16,7 +16,6 @@ const viewerSkillsSchema = z.object({
 
 const skillsResponseSchema = z.object({
   characters: z.array(viewerSkillsSchema),
-
   names: z.record(z.string(), z.string()),
 });
 

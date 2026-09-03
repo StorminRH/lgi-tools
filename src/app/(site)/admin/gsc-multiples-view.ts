@@ -29,7 +29,6 @@ export function deriveGscMultiples(input: {
     {
       title: 'Avg position',
       value: totals.position.toFixed(1),
-
       delta: computeDelta(totals.position, prevTotals?.position ?? null),
       invert: true,
       note: 'lower = better',

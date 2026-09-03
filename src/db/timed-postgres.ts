@@ -78,7 +78,6 @@ export function withQueryTiming<T extends object>(client: T): T {
       const value = Reflect.get(target, prop) as unknown;
       if (typeof value !== 'function') return value;
       const method = value.bind(target) as AnyFunction;
-
       if (LIFECYCLE_METHODS.has(prop)) return method;
       if (prop === 'reserve') return timedReserve(method);
       if (prop === 'begin' || prop === 'savepoint') return timedTransaction(method);

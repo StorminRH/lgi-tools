@@ -31,7 +31,6 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-
   const result = await loadNumericRouteEntity(params, loadSite);
   if (!result) notFound();
   const { id, entity: site } = result;
@@ -75,15 +74,11 @@ function DeepLinkMetaView({
         >
           ← Return to full list
         </Link>
-
       </div>
-
       <div className="w-full mb-4">
         <SiteMetaStrip source={source} lastPriceUpdate={lastPriceUpdate} />
       </div>
-
     </>
-
   );
 }
 
@@ -118,7 +113,6 @@ function SiteDetailFallback() {
       <Skeleton aria-hidden="true" className="h-10 w-full max-w-[32rem]" />
       <Skeleton aria-hidden="true" className="h-64 w-full max-w-[32rem]" />
     </div>
-
   );
 }
 
@@ -130,7 +124,6 @@ export async function SiteDetailContent({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id: rawId } = await params;
-
   const id = parseNumericRouteId(rawId);
   if (id === null) notFound();
 
@@ -148,7 +141,6 @@ export async function SiteDetailContent({
     <>
       <JsonLd data={breadcrumbJsonLd} />
       <h1 className="sr-only">{site.name}</h1>
-
       <Suspense
         fallback={
           <DeepLinkMetaView
@@ -160,17 +152,13 @@ export async function SiteDetailContent({
       >
         <SiteDeepLinkMeta source={site.sourceTab} searchParams={searchParams} />
       </Suspense>
-
       <div className="w-full">
         <div className="mx-auto w-full max-w-[32rem]">
           <SiteCard site={site} presentation="standalone" />
         </div>
-
         <RelatedSites sites={relatedSites} />
       </div>
-
     </>
-
   );
 }
 
@@ -187,10 +175,7 @@ export default function SiteDetailPage({
         <Suspense fallback={<SiteDetailFallback />}>
           <SiteDetailContent params={params} searchParams={searchParams} />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

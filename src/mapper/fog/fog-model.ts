@@ -15,9 +15,7 @@ export const FOG_EDGE_CUT_FRACTION = 0.55;
 export interface FogConfig {
   readonly revealRadius: number;
   readonly strokeRadius: number;
-
   readonly opacity: number;
-
   readonly tier: 'dynamic' | 'static';
 }
 
@@ -103,13 +101,9 @@ export function deriveFogReveals(
 }
 
 export interface FogTiming {
-
   readonly openMs: number;
-
   readonly closeMs: number;
-
   readonly heavyCloseMs: number;
-
   readonly wakeMs: number;
   readonly ease: (t: number) => number;
   readonly reducedMotion: boolean;
@@ -127,12 +121,9 @@ export function fogTimingOf(config: MotionConfig, reducedMotion: boolean): FogTi
 }
 
 export interface FogTimelineEntry {
-
   readonly reveal: FogDisc | FogStroke;
   readonly mode: 'opening' | 'open' | 'closing';
-
   readonly since: number;
-
   readonly from: number;
   readonly heavy: boolean;
 }
@@ -145,7 +136,6 @@ export interface FogPaintDisc {
   readonly key: string;
   readonly x: number;
   readonly y: number;
-
   readonly strength: number;
 }
 
@@ -162,7 +152,6 @@ export interface FogFrame {
   readonly timeline: FogTimeline;
   readonly discs: readonly FogPaintDisc[];
   readonly strokes: readonly FogPaintStroke[];
-
   readonly animating: boolean;
 }
 
@@ -198,7 +187,6 @@ function nextEntry(
     if (reveal.phase === 'departing') {
       return { reveal, mode: 'closing', since: now, from: 1, heavy: reveal.heavy };
     }
-
     if (initial && reveal.phase === 'steady') {
       return { reveal, mode: 'open', since: now, from: 1, heavy: false };
     }
@@ -210,7 +198,6 @@ function nextEntry(
     return { reveal, mode: 'closing', since: now, from: current.strength, heavy: reveal.heavy };
   }
   if (previous.mode === 'closing') {
-
     return { reveal, mode: 'opening', since: now, from: current.strength, heavy: false };
   }
   if (previous.mode === 'opening' && !current.running) {
@@ -321,7 +308,6 @@ export const EMPTY_FOG_WAKE: FogWakeState = new Map();
 
 export interface FogWakeFrame {
   readonly state: FogWakeState;
-
   readonly stamps: readonly FogPaintDisc[];
   readonly animating: boolean;
 }
@@ -366,7 +352,6 @@ export function advanceFogWake(
     state.set(disc.key, { lastX: disc.x, lastY: disc.y, points: grown });
     stamp(disc.key, grown);
   }
-
   for (const [key, trail] of previous) {
     if (state.has(key)) continue;
     const remaining = prune(trail.points);
@@ -393,9 +378,7 @@ export interface FogFrameAdvance {
   readonly state: FogFrameState;
   readonly frame: FogFrame;
   readonly wakeStamps: readonly FogPaintDisc[];
-
   readonly animating: boolean;
-
   readonly alphaOnly: boolean;
 }
 

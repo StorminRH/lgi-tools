@@ -68,7 +68,6 @@ function TierRow({
   onSelect,
 }: {
   item: ConsolidatedItem;
-
   icon: ReturnType<typeof nodeImage>;
   qty: number;
   value: number | null;
@@ -153,13 +152,9 @@ function TierColumn({
 }: {
   tier: ConsolidatedTier;
   unitPriceOf: Map<number, number | null>;
-
   iconFor: (typeId: number) => ReturnType<typeof nodeImage>;
-
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
-
   detailFor: (typeId: number) => OwnedComponentDetail | undefined;
-
   ownedAssetFor: (typeId: number) => OwnedAssetEntry | undefined;
   focus: Focus | null;
   inChain: Set<number> | null;
@@ -167,14 +162,12 @@ function TierColumn({
   refreshing: boolean;
   onToggle: (depth: number, item: ConsolidatedItem) => void;
 }) {
-
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
     <div className="min-w-0">
       <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
-
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
         <LivePrice
           value={formatIsk(subtotal)}
@@ -182,7 +175,6 @@ function TierColumn({
           className="text-ui font-semibold tracking-normal text-isk"
         />
       </div>
-
       <Card>
         {rows.map((row) => (
           <TierRowSlot
@@ -197,9 +189,7 @@ function TierColumn({
           />
         ))}
       </Card>
-
     </div>
-
   );
 }
 
@@ -209,7 +199,6 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
       <span className="text-ui text-muted">
         Consolidated · by tier · click a ▸ component to trace its sub-tree
       </span>
-
     );
   }
   return (
@@ -222,14 +211,10 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
       >
         ✕ Clear
       </Button>
-
       <span>
         Tracing <span className="text-name">{focus.name}</span> down its chain
-
       </span>
-
     </span>
-
   );
 }
 
@@ -257,7 +242,6 @@ function RawLedgerToggle({
       )}
     >
       <span>Raw ledger</span>
-
       <LivePrice
         value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
         pending={refreshing}
@@ -266,9 +250,7 @@ function RawLedgerToggle({
       <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>
         ▾
       </span>
-
     </Button>
-
   );
 }
 
@@ -285,17 +267,13 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     teOverrides,
     setTeOverride,
     resetTeOverride,
-
     ledger,
   } = useBuildPlan();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
-
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
-
   const iconFor = (typeId: number) => nodeImage(blueprintOf(typeId), typeId);
-
   const efficiencyFor = (typeId: number, name: string): NodeEfficiency | undefined => {
     const bp = blueprintOf(typeId);
     if (!isEfficiencyEligible(bp, structure.buildNodeDisplay[typeId]?.label)) {
@@ -319,16 +297,12 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
       ),
     };
   };
-
   const detailFor = (typeId: number) => {
     const bp = blueprintOf(typeId);
     return bp !== undefined ? ownedDetail?.get(bp) : undefined;
   };
-
   const ownedAssetFor = (typeId: number): OwnedAssetEntry | undefined => ownedAssets?.get(typeId);
-
   const batchedTiers = useMemo(() => scaleTiersToBatched(tiers, ledger), [tiers, ledger]);
-
   const chainActuals = useMemo(
     () => (focus ? chainActualsFrom(structure.tree, focus.typeId, ledger) : null),
     [focus, structure.tree, ledger],
@@ -352,13 +326,10 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     return (
       <div className="mt-7">
         <SectionLabel>Build plan</SectionLabel>
-
         <p className="mt-3 text-ui text-muted">
           No build breakdown — this blueprint has no resolved inputs yet.
         </p>
-
       </div>
-
     );
   }
 
@@ -369,10 +340,8 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
       <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
           <SectionLabel>Build plan</SectionLabel>
-
           <TraceMeta focus={focus} onClear={() => setFocus(null)} />
         </div>
-
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
           <MultibuyPanel structure={structure} />
           <RawLedgerToggle
@@ -382,7 +351,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             onToggle={() => setLedgerOpen((o) => !o)}
           />
         </div>
-
       </div>
 
       {ledgerOpen && (
@@ -393,7 +361,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             refreshing={refreshing}
           />
         </div>
-
       )}
 
       <div
@@ -420,8 +387,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
           />
         ))}
       </div>
-
     </div>
-
   );
 }

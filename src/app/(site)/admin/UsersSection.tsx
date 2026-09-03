@@ -42,11 +42,9 @@ export async function UsersSection({ range }: { range: DateRange }) {
             ariaLabel="New versus returning signed-in users"
           />
         </div>
-
       )}
       {loginCounts.length === 0 ? (
         <EmptyState>No sign-ins in this range.</EmptyState>
-
       ) : (
         <div className="pt-1">
           <SectionHeader variant="sub" label="Users by login count" className="px-3.5 py-2" />
@@ -57,17 +55,13 @@ export async function UsersSection({ range }: { range: DateRange }) {
             ariaLabel="Users by login count"
           />
         </div>
-
       )}
       <div className="px-3.5 py-2 border-t border-border-soft text-ui text-muted">
         Admin roles and the role-change audit live on{' '}
         <Link href="/admin/access" className="text-isk hover:text-name transition-colors">
           Access →
         </Link>
-
       </div>
-
     </Card>
-
   );
 }

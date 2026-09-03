@@ -21,7 +21,6 @@ export type ScannerPanelTarget =
   | {
       readonly kind: 'connection';
       readonly connectionId: Id<'mapConnections'>;
-
       readonly signatureId: string | null;
     }
   | {

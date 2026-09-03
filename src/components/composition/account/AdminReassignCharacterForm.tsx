@@ -43,12 +43,9 @@ export function AdminReassignCharacterForm({
       >
         Reassign to me
       </Button>
-
       <span id={disabledReasonId} className="sr-only">
         This character is already on your account.
       </span>
-
     </form>
-
   );
 }

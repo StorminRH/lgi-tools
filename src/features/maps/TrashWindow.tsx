@@ -62,7 +62,6 @@ function TrashMapRows({
 }) {
   if (maps.length === 0) {
     return <p className="font-ui text-ui text-muted">Trash is empty.</p>;
-
   }
   return maps.map((map) => (
     <label
@@ -78,13 +77,10 @@ function TrashMapRows({
       <span className="min-w-0 flex-1 truncate font-ui text-ui text-name">
         {map.name}
       </span>
-
       <span className="font-data text-micro text-muted">
         {map.provenance.kind === 'created' ? 'Created by you' : 'Admin access'}
       </span>
-
     </label>
-
   ));
 }
 
@@ -178,7 +174,6 @@ export function TrashWindow({
             onCheckedChange={setChecked}
           />
           {error !== null ? <Banner tone="warn">{error}</Banner> : null}
-
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-border-soft px-4 py-3">
@@ -190,12 +185,10 @@ export function TrashWindow({
           >
             Permanently delete
           </Button>
-
           <div className="flex items-center gap-2.5">
             <DialogClose render={<Button variant="secondary" size="sm" />} disabled={busy !== null}>
               Done
             </DialogClose>
-
             <Button
               variant="primary"
               size="sm"
@@ -204,11 +197,8 @@ export function TrashWindow({
             >
               {busy === 'restore' ? 'Restoring…' : 'Restore'}
             </Button>
-
           </div>
-
         </footer>
-
       </Dialog>
 
       <ConfirmDialog
@@ -223,6 +213,5 @@ export function TrashWindow({
         onConfirm={() => void purgeSelected()}
       />
     </>
-
   );
 }

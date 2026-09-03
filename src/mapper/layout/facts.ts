@@ -1,17 +1,11 @@
 import type { LayoutEdge, LayoutFacts } from './layout-contract';
 
 export interface ChainTree {
-
   readonly rootSystemId: number | null;
-
   readonly parents: ReadonlyMap<number, number>;
-
   readonly childrenInOrder: ReadonlyMap<number, readonly number[]>;
-
   readonly attachmentOrder: readonly number[];
-
   readonly loopEdges: readonly LayoutEdge[];
-
   readonly orphans: readonly number[];
 }
 
@@ -54,7 +48,6 @@ function examineEdge(state: Derivation, index: number, edge: LayoutEdge): boolea
   const fromAttached = state.attached.has(edge.fromSystemId);
   const toAttached = state.attached.has(edge.toSystemId);
   if (fromAttached && toAttached) {
-
     state.classified.add(index);
     state.loopEdges.push({ fromSystemId: edge.fromSystemId, toSystemId: edge.toSystemId });
     return false;
@@ -82,9 +75,7 @@ function drainPending(state: Derivation, facts: LayoutFacts, pending: number[]):
       if (edge !== undefined && examineEdge(state, index, edge)) attachedInPass = true;
     }
   }
-
   for (let i = pending.length - 1; i >= 0; i -= 1) {
-
     const index = pending[i];
     if (index !== undefined && state.classified.has(index)) pending.splice(i, 1);
   }

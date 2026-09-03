@@ -39,7 +39,6 @@ export function ScannerComboPanel({
     >
       {itemValues.length === 0 ? (
         <p className="px-2.5 py-2 font-ui text-label text-muted">No match</p>
-
       ) : null}
       <Combobox.List>
         {groups.map((group) =>
@@ -50,7 +49,6 @@ export function ScannerComboPanel({
             >
               {showLabels ? (
                 <Combobox.GroupLabel>{group.label}</Combobox.GroupLabel>
-
               ) : null}
               {group.items.map((item) => (
                 <Combobox.Item
@@ -61,24 +59,18 @@ export function ScannerComboPanel({
                   {item.text}
                   {item.meta !== '' ? (
                     <span className="text-muted">{item.meta}</span>
-
                   ) : null}
                 </Combobox.Item>
-
               ))}
             </Combobox.Group>
-
           ),
         )}
       </Combobox.List>
-
       {footer !== null ? (
         <p className="px-2.5 pb-1.5 pt-1 font-ui text-label text-muted">
           {footer}
         </p>
-
       ) : null}
     </Combobox.Panel>
-
   );
 }

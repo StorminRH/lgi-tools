@@ -14,9 +14,7 @@ export interface CombatStats {
     shield: number;
     armor: number;
     structure: number;
-
     ehp: number;
-
     shieldRes: { em: number; exp: number; kin: number; therm: number };
     armorRes: { em: number; exp: number; kin: number; therm: number };
   };

@@ -43,16 +43,13 @@ function StructureReadout({
   readout: StructureReadoutBonus;
 }) {
   if (!selectedStructure) return null;
-
   if (readout.mfg === null && readout.rxn === null) {
     return (
       <Tooltip content="Select a build system to apply this structure's bonus">
         <span tabIndex={0} className="min-w-0 truncate text-micro text-muted">
           Select a system to apply its bonus
         </span>
-
       </Tooltip>
-
     );
   }
   return <StructureBonusReadout readout={readout} taxPct={selectedStructure.taxPct} />;
@@ -70,7 +67,6 @@ function BuildFacilitySelect({
   stations: IndustryStationView[];
   selectedStructure: AvailableStructure | null;
   station: { id: number } | null;
-
   onSelectStructure: (structure: AvailableStructure | null) => void;
   setStation: (stationId: number | null, stationName: string | null) => void;
 }) {
@@ -97,7 +93,6 @@ function BuildFacilitySelect({
   return (
     <div className={cn(HERO_LOCATION_ROW_CLASS, 'flex-wrap')}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
-
       <Select
         value={facilityValueFor(selectedStructure, station)}
         onValueChange={onChange}
@@ -121,7 +116,6 @@ function BuildFacilitySelect({
         className={cn('h-[30px]', HERO_LOCATION_CONTROL_WELL_CLASS)}
       />
     </div>
-
   );
 }
 
@@ -143,9 +137,7 @@ function LockedSystemBox({
       )}
     >
       <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
-
     </div>
-
   );
 }
 
@@ -185,10 +177,8 @@ function PickedOrSearchSystem({
         <div className={cn('mt-1 text-micro', toneTextClass('red'))}>
           Couldn&apos;t load that system — try again.
         </div>
-
       )}
     </div>
-
   );
 }
 
@@ -214,7 +204,6 @@ function BuildSystemControl({
   return (
     <div className={HERO_LOCATION_ROW_CLASS}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
-
       {lockedStructure ? (
         <LockedSystemBox deducedSystem={deducedSystem} lockedName={lockedStructure.name} />
       ) : (
@@ -228,7 +217,6 @@ function BuildSystemControl({
         />
       )}
     </div>
-
   );
 }
 
@@ -247,7 +235,6 @@ export function BuildLocationSelector() {
     savedBuildLocation,
   } = useBuildSetup();
   const { systems, parse, suggest } = useSystemSearch();
-
   const [fetchError, setFetchError] = useState(false);
 
   const onSubmit = useCallback(
@@ -283,14 +270,11 @@ export function BuildLocationSelector() {
   );
 
   return (
-
     <div className={HERO_LOCATION_GROUP_CLASS}>
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Manufacturing</span>
-
         <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
       </div>
-
       <BuildSystemControl
         lockedStructure={lockedStructure}
         deducedSystem={deducedSystem}
@@ -312,6 +296,5 @@ export function BuildLocationSelector() {
         />
       )}
     </div>
-
   );
 }

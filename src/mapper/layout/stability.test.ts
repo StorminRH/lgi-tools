@@ -49,7 +49,6 @@ describe('leaf adds under the fixed-slot posture', () => {
   });
 
   it('growing a corpus-scale chain by one leaf moves no existing node', async () => {
-
     const base: (readonly [number, number])[] = [
       [A, B], [B, C], [C, D], [B, E],
       [A, 31_000_006], [31_000_006, 31_000_007], [31_000_007, 31_000_008],
@@ -67,7 +66,6 @@ describe('leaf adds under the fixed-slot posture', () => {
 
 describe('corpus-wide growth under the fixed-slot posture', () => {
   it('replays every corpus chain spawn by spawn: no attached node ever moves', async () => {
-
     for (const entry of PROOF_CORPUS) {
       const full = generateChainTimeline(entry);
       let beforeFacts = chainPrefix(full, 1);
@@ -95,7 +93,6 @@ describe('corpus-wide growth under the fixed-slot posture', () => {
 
 describe('sector fills', () => {
   it('filling a sector under the fixed-slot posture moves nothing at all', async () => {
-
     const before = await compassKernel(facts([A, B, C, E], [[A, B], [B, C], [C, E]]), FIXED_SLOT);
     const after = await compassKernel(
       facts([A, B, C, E, D], [[A, B], [B, C], [C, E], [B, D]]),
@@ -110,7 +107,6 @@ describe('sector fills', () => {
       facts([A, B, C, D], [[A, B], [B, C], [B, D]]),
       PROPORTIONAL,
     );
-
     expect(movedSystems(before, after)).toEqual([C]);
   });
 
@@ -123,7 +119,6 @@ describe('sector fills', () => {
       facts([A, B, C, E, D], [[A, B], [B, C], [C, E], [B, D]]),
       PROPORTIONAL,
     );
-
     expect(movedSystems(before, after)).toEqual([C, E]);
   });
 

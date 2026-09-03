@@ -28,7 +28,6 @@ export const blueprintIndexEntrySchema = z.object({
 const blueprintsResponseSchema = z.object({
   blueprints: z.array(blueprintIndexEntrySchema),
 });
-
 export const blueprintsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/industry/blueprints',
@@ -61,7 +60,6 @@ export const buildLocationResponseSchema = z.object({
     z.object({ typeId: z.number(), adjustedPrice: z.number() }),
   ),
 }) satisfies z.ZodType<BuildLocationData>;
-
 export const buildLocationEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/industry/build-location',
@@ -137,10 +135,8 @@ export const skillLevelsRequestSchema = z.object({
 });
 
 const skillLevelsResponseSchema = z.object({
-
   levels: z.record(z.string(), z.number()).nullable(),
 });
-
 export const skillLevelsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/industry/skill-levels',
@@ -171,7 +167,6 @@ export const availableStructuresResponseSchema = z.object({
 });
 
 export type AvailableStructure = z.infer<typeof availableStructureSchema>;
-
 export type AvailableStructuresResponse = z.infer<typeof availableStructuresResponseSchema>;
 
 export const availableStructuresEndpoint = defineEndpoint({
@@ -184,9 +179,7 @@ export const availableStructuresEndpoint = defineEndpoint({
 });
 
 export const MAX_SAVED_PLAN_NAME_LEN = 80;
-
 export const MAX_SAVED_PLANS_PER_USER = 50;
-
 const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
 
 const savedPlanId = z.string().min(1).max(100);
@@ -200,16 +193,13 @@ const savedPlanRowSchema = z.object({
   productTypeId: z.number(),
   productName: z.string(),
   snapshot: planSnapshotWireSchema,
-
   updatedAt: z.string(),
 });
-
 export type SavedPlanRow = z.infer<typeof savedPlanRowSchema>;
 
 const savedPlansResponseSchema = z.object({
   plans: z.array(savedPlanRowSchema),
 });
-
 export const savedPlansEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/saved-plans',
@@ -226,7 +216,6 @@ export const createSavedPlanRequestSchema = z.object({
     'snapshot too large',
   ),
 });
-
 export const createSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans',
@@ -244,7 +233,6 @@ export const renameSavedPlanRequestSchema = z.object({
   id: savedPlanId,
   name: savedPlanName,
 });
-
 export const renameSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans/rename',
@@ -261,7 +249,6 @@ export const favoriteSavedPlanRequestSchema = z.object({
   id: savedPlanId,
   favorite: z.boolean(),
 });
-
 export const favoriteSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans/favorite',
@@ -277,7 +264,6 @@ export const favoriteSavedPlanEndpoint = defineEndpoint({
 export const deleteSavedPlanRequestSchema = z.object({
   id: savedPlanId,
 });
-
 export const deleteSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans/delete',

@@ -58,7 +58,6 @@ describe('POST /api/telemetry', () => {
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/sites' } }));
     expect(res.status).toBe(204);
-
     await vi.waitFor(() =>
       expect(logUsageEventMock).toHaveBeenCalledWith({
         action: 'page_view',
@@ -83,7 +82,6 @@ describe('POST /api/telemetry', () => {
   });
 
   it('returns 204 and stays up when the write fails (fail-soft)', async () => {
-
     getSessionCharacterIdMock.mockResolvedValue(CHARACTER_ID);
     logUsageEventMock.mockRejectedValue(new Error('Failed query: connection error'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -124,7 +122,6 @@ describe('POST /api/telemetry', () => {
 
   it('rejects server-only actions a client must not forge with 400', async () => {
     const { POST } = await importRoute();
-
     const res = await POST(buildRequest({ action: 'cron_prices' }));
     expect(res.status).toBe(400);
     expect(logUsageEventMock).not.toHaveBeenCalled();

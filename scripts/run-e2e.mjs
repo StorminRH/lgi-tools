@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { spawnSync } from 'node:child_process';
 import { remoteSkipSeedError } from './run-e2e-guard.mjs';
 

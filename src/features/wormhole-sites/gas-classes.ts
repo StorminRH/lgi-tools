@@ -10,7 +10,6 @@ const CLASS_ORDER: Record<WormholeClass, number> = {
 };
 
 export function gasClassRange(name: string): ClassRange | null {
-
   if (name.includes('Perimeter')) return { min: 'C1', max: 'C6' };
   if (name.includes('Frontier'))  return { min: 'C3', max: 'C6' };
   if (name.includes('Core'))      return { min: 'C5', max: 'C6' };

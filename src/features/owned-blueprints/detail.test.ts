@@ -33,10 +33,8 @@ describe('collectDetailNameIds', () => {
       [200, summary({ ownerType: 'corporation', ownerId: 99, locationId: 1_036_000_000_001 })],
       [300, summary({ ownerId: 5, locationId: 60003760 })],
     ]);
-
     const ids = collectDetailNameIds(map, [100, 200, 300, 999]);
     expect([...ids].sort((a, b) => a - b)).toEqual([5, 99, 60003760]);
-
     expect(ids).not.toContain(1_036_000_000_001);
   });
 

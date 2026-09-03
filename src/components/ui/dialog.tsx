@@ -42,22 +42,15 @@ export function Dialog({
   finalFocus,
   initialFocus,
 }: {
-
   open: boolean;
-
   onOpenChange?: (open: boolean) => void;
-
   labelledBy?: string;
   children: ReactNode;
   tone?: DialogTone;
-
   className?: string;
-
   finalFocus?: DialogFocusTarget;
-
   initialFocus?: RefObject<HTMLElement | null>;
 }) {
-
   const [popupEl, setPopupEl] = useState<HTMLDivElement | null>(null);
 
   return (
@@ -66,7 +59,6 @@ export function Dialog({
         <Base.Backdrop className="fixed inset-0 z-overlay bg-black/60 backdrop-blur-sm transition-opacity duration-panel data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
         <Base.Popup
           ref={setPopupEl}
-
           {...(labelledBy !== undefined ? { 'aria-labelledby': labelledBy } : {})}
           finalFocus={finalFocus}
           initialFocus={initialFocus}
@@ -75,20 +67,14 @@ export function Dialog({
           <OverlayPortalContainerProvider container={popupEl}>
             {children}
           </OverlayPortalContainerProvider>
-
         </Base.Popup>
-
       </Base.Portal>
-
     </Base.Root>
-
   );
 }
 
 export const DialogClose = Base.Close;
-
 export const DialogTitle = Base.Title;
-
 export const DialogDescription = Base.Description;
 
 export function DialogHeader({
@@ -111,18 +97,13 @@ export function DialogHeader({
         >
           {title}
         </DialogTitle>
-
         <DialogDescription className="font-ui text-ui text-muted">
           {description}
         </DialogDescription>
-
       </div>
-
       <DialogClose render={<Button variant="ghost" size="sm" />} aria-label={closeLabel}>
         ×
       </DialogClose>
-
     </header>
-
   );
 }

@@ -11,7 +11,6 @@ import {
 } from './tween-model';
 
 const PLAN = tweenPlanOf(DEFAULT_MOTION_CONFIG, false);
-
 const HEAVY_PLAN = tweenPlanOf(
   { ...DEFAULT_MOTION_CONFIG, collapseWeight: 'heavy' },
   false,
@@ -40,13 +39,11 @@ describe('appear path', () => {
 
     expect(state.tweens.size).toBe(0);
     expect(state.entering.has(31)).toBe(true);
-
     const frame = stepMotion(state, 1000, EASE, NONE);
     expect(frame.displacements.size).toBe(0);
   });
 
   it('covers initial load and live insertion with the same vocabulary', () => {
-
     const batch = [appeared(1), appeared(2), appeared(3)];
     const state = adoptIntents(createMotionState(), batch, 0, PLAN);
 
@@ -101,13 +98,11 @@ describe('move path', () => {
     const tween = state.tweens.get(31);
     expect(tween?.from.x).toBeCloseTo(midpoint, 6);
     expect(tween?.to).toEqual({ x: -40, y: 0 });
-
     const frame = stepMotion(state, PLAN.moveMs / 2, EASE, NONE);
     expect(frame.displacements.get(31)?.x).toBeCloseTo(midpoint, 6);
   });
 
   it('relocates instantly — no tween — when the move lands inside the birth window', () => {
-
     let state = adoptIntents(createMotionState(), [appeared(31)], 0, PLAN);
     state = adoptIntents(
       state,
@@ -207,7 +202,6 @@ describe('drag path', () => {
     const frame = stepMotion(state, PLAN.moveMs / 2, EASE, new Set([31]));
     expect(frame.displacements.has(31)).toBe(false);
     expect(frame.displacements.has(32)).toBe(true);
-
     const after = stepMotion(frame.state, PLAN.moveMs * 0.75, EASE, NONE);
     expect(after.displacements.has(31)).toBe(false);
   });
@@ -257,7 +251,6 @@ describe('departure path', () => {
   });
 
   it('weighs a wormhole collapse — system and connection departing together — as heavy', () => {
-
     const collapse = [
       departed(31),
       { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent,
@@ -281,7 +274,6 @@ describe('departure path', () => {
   });
 
   it('keeps a bare system removal ordinary, and everything ordinary at the shipped default', () => {
-
     const single = adoptIntents(createMotionState(), [departed(31)], 0, HEAVY_PLAN);
     expect(single.ghosts.get(31)?.heavy).toBe(false);
 

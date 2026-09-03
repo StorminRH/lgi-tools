@@ -8,7 +8,6 @@ export const recentsSearchSource: SearchSource = {
   showOnEmpty: true,
   async search(query, ctx) {
     if (query.length === 0) {
-
       return ctx.recents.map<SearchResult>((r) => ({ ...r, matchIndices: [] }));
     }
 

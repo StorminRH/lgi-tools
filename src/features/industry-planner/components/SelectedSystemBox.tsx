@@ -25,7 +25,6 @@ export function SelectedSystemBox({
       <span className="min-w-0 truncate font-data text-ui text-tone-blue">
         {name} {formatSec(security)}
       </span>
-
       {locked ? (
         <Tooltip content={`Locked to ${locked}`}>
           <span
@@ -34,9 +33,7 @@ export function SelectedSystemBox({
           >
             locked
           </span>
-
         </Tooltip>
-
       ) : onClear ? (
         <Button
           variant="bare"
@@ -46,9 +43,7 @@ export function SelectedSystemBox({
         >
           Clear
         </Button>
-
       ) : null}
     </div>
-
   );
 }

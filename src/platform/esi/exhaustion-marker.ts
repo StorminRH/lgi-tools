@@ -15,7 +15,6 @@ function resolveRedis(): UpstashRedis | null {
 export function markRecentBudgetExhaustion(): void {
   const redis = resolveRedis();
   if (!redis) return;
-
   void redis
     .set(RECENT_EXHAUSTION_KEY, 1, {
       ex: RECENT_EXHAUSTION_TTL_SECONDS,

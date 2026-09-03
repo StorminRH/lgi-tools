@@ -17,6 +17,5 @@ export function AtlasCanvasFrame({ session }: { readonly session: Session | null
       />
       <MapCanvas />
     </div>
-
   );
 }

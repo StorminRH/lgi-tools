@@ -53,13 +53,11 @@ describe('toOwnedBlueprintMap', () => {
   it('prefers a BPO (infinite runs = -1) over a BPC on a same-ME/TE tie, regardless of order', () => {
     const bpc = row(34, 10, 20, 30, { ownerType: 'corporation', ownerId: 9 });
     const bpo = row(34, 10, 20, -1, { ownerType: 'character', ownerId: 1 });
-
     expect(toOwnedBlueprintMap([bpc, bpo]).get(34)).toMatchObject({ runs: -1, ownerType: 'character', ownerId: 1 });
     expect(toOwnedBlueprintMap([bpo, bpc]).get(34)).toMatchObject({ runs: -1, ownerType: 'character', ownerId: 1 });
   });
 
   it('records the winning copy owner + location, not the first-seen copy', () => {
-
     const map = toOwnedBlueprintMap([
       row(34, 5, 0, -1, { ownerType: 'character', ownerId: 100 }, { locationId: 60003760, locationFlag: 'Hangar' }),
       row(34, 10, 0, 30, { ownerType: 'corporation', ownerId: 200 }, { locationId: 1_036_000_000_001, locationFlag: 'CorpSAG1' }),
@@ -74,7 +72,6 @@ describe('toOwnedBlueprintMap', () => {
   });
 
   it('does not let a later non-winning copy steal the recorded owner + location', () => {
-
     const map = toOwnedBlueprintMap([
       row(34, 10, 0, 30, { ownerType: 'character', ownerId: 1 }, { locationId: 60003760, locationFlag: 'Hangar' }),
       row(34, 5, 0, -1, { ownerType: 'corporation', ownerId: 999 }, { locationId: 1_036_000_000_002, locationFlag: 'CorpSAG2' }),

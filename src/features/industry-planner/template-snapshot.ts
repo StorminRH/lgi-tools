@@ -21,13 +21,11 @@ export const snapshotFieldSchemas = {
   buildStructure: structureRefSchema.nullable(),
   reactionSystem: systemRefSchema.nullable(),
   reactionStructure: structureRefSchema.nullable(),
-
   meOverrides: z.array(z.tuple([z.number().int().positive(), z.number().int().min(0).max(MAX_ME)])),
   teOverrides: z.array(z.tuple([z.number().int().positive(), z.number().int().min(0).max(MAX_TE)])),
   costBasis: z.enum(['batched', 'marginal']),
   marginMode: z.enum(['gross', 'net']),
   multibuyMode: z.enum(['Total', 'Remaining']),
-
   multibuyUncheckedTiers: z.array(z.number().int().min(1)),
 } as const;
 
@@ -45,5 +43,4 @@ export const planSnapshotWireSchema = z.looseObject({
   v: z.literal(1),
   blueprintTypeId: z.number().int().positive(),
 });
-
 export type PlanSnapshotWire = z.infer<typeof planSnapshotWireSchema>;

@@ -19,7 +19,6 @@ export interface UniverseAssets {
 export interface WormholeCodex {
   version: string;
   byCode(code: string): WormholeCodexEntry | null;
-
   codes(): readonly string[];
 }
 
@@ -88,7 +87,6 @@ async function fetchWormholeCodex(
     if ('status' in result && result.status === 404) return null;
     throw new Error(`wormhole codex ${failureLabel(result)}`);
   }
-
   const typeByCode = new Map<string, (typeof result.data.types)[number]>();
   for (const entry of result.data.types) {
     const existing = typeByCode.get(entry.code);

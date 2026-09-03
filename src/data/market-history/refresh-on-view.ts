@@ -11,9 +11,7 @@ import { fetchHistoryFromSource } from './source';
 import type { MarketHistoryInputs } from './types';
 
 export interface HistoryDegradation {
-
   fetched: number;
-
   budgetExhausted: boolean;
 }
 
@@ -44,7 +42,6 @@ function notifyWriteBehind(
 }
 
 export interface LiveHistoryResult {
-
   inputs: Map<number, MarketHistoryInputs>;
   degraded: HistoryDegradation;
   metrics: LiveHistoryMetrics;

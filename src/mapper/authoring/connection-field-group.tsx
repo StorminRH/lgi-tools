@@ -24,16 +24,12 @@ export function ConnectionFieldGroup({
   readonly children: ReactNode;
 }) {
   return (
-
     <div className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
       <span className="font-data text-label uppercase tracking-label text-isk">
         {label}
       </span>
-
       <div className="flex w-full flex-col gap-1">{children}</div>
-
     </div>
-
   );
 }
 
@@ -48,17 +44,14 @@ export function FieldReadout({
     <span {...{ [attr]: '' }} className={READOUT_CLASS}>
       {text}
     </span>
-
   );
 }
 
 export interface OptionalSelectFieldProps {
   readonly label: string;
   readonly ariaLabel: string;
-
   readonly items: readonly { readonly value: string; readonly label: string }[];
   readonly value: string | null;
-
   readonly readOnly: boolean;
   readonly readoutAttr: string;
   readonly readoutText: string;
@@ -89,6 +82,5 @@ export function OptionalSelectField({
         />
       )}
     </ConnectionFieldGroup>
-
   );
 }

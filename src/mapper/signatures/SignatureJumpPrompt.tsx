@@ -34,10 +34,8 @@ export function SignatureJumpPrompt({
         >
           {resolution.destination.label}
         </span>{' '}
-
         — Which signature did you jump through?
       </p>
-
       <div className="flex flex-col gap-1">
         {resolution.candidates.map((candidate) => (
           <Button
@@ -49,11 +47,8 @@ export function SignatureJumpPrompt({
           >
             {jumpCandidateLabel(candidate)}
           </Button>
-
         ))}
       </div>
-
     </div>
-
   );
 }

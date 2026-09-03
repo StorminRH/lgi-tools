@@ -33,10 +33,8 @@ function TemplatesListState({
   }
   if (plans.length === 0) {
     return <p className="text-micro leading-snug text-muted">{emptyLine}</p>;
-
   }
   return <ul className={`${scrollArea} flex max-h-[264px] flex-col gap-1.5 overflow-y-auto`}>{children}</ul>;
-
 }
 
 export function TemplatesMenu({
@@ -100,9 +98,7 @@ export function TemplatesMenu({
         <>
           Templates
           <span className="inline-block text-micro text-muted">▾</span>
-
         </>
-
       }
     >
       <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
@@ -131,14 +127,11 @@ export function TemplatesMenu({
         >
           Save
         </Button>
-
       </div>
 
       <TemplatesListState plans={plans} emptyLine={emptyLine}>
         <SavedPlanRows plans={plans ?? []} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
       </TemplatesListState>
-
     </Popover>
-
   );
 }

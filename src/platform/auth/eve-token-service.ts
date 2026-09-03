@@ -14,7 +14,6 @@ import { account } from '@/db/auth-schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
 const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
-
 export const INVALID_GRANT_CONFIRMATION_GRACE_MS = 5 * 60 * 1000;
 
 const TOKEN_REFRESH_FAILURE_ACTIONS = {
@@ -93,7 +92,6 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
   }
   const access = decryptToken(row.accessToken);
   if (access === null) return { kind: 'reauth_required' };
-
   if (row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS) {
     return { kind: 'reauth_required' };
   }
@@ -203,7 +201,6 @@ export async function revokeCharacterToken(characterId: number): Promise<void> {
       clientSecret: requireEnv('EVE_CLIENT_SECRET'),
     });
   } catch (err) {
-
     console.error('[eve-token] revoke failed', err);
   }
 }

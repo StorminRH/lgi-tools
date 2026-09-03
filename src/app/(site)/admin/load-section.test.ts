@@ -29,14 +29,12 @@ describe('loadSection', () => {
     });
 
     expect(result).toBe(SECTION_LOAD_FAILED);
-
     expect(rethrow).toHaveBeenCalledWith(err);
     expect(consoleError).toHaveBeenCalledWith('[admin] users section unavailable', err);
   });
 
   it('re-throws a framework control-flow signal instead of swallowing it', async () => {
     const signal = new Error('NEXT_REDIRECT');
-
     rethrow.mockImplementation((err: unknown) => {
       throw err;
     });
@@ -47,7 +45,6 @@ describe('loadSection', () => {
         throw signal;
       }),
     ).rejects.toBe(signal);
-
     expect(consoleError).not.toHaveBeenCalled();
   });
 });

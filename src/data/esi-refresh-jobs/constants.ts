@@ -26,13 +26,9 @@ export const LIVE_ESI_REFRESH_JOB_STATUSES = [
 ] as const;
 
 export const ESI_REFRESH_JOB_RETENTION_DAYS = 7;
-
 export const ESI_REFRESH_JOB_BATCH_SIZE = 5;
-
 export const ESI_REFRESH_JOB_MAX_ATTEMPTS = 5;
-
 export const ESI_REFRESH_STALE_RUNNING_MS = 10 * 60 * 1000;
-
 export const ESI_REFRESH_RETRY_DELAYS_MS = [
   15 * 60 * 1000,
   60 * 60 * 1000,

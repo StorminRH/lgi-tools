@@ -53,15 +53,12 @@ const COMMANDS: CommandEntry[] = [
     href: '/',
     iconText: '⏏',
     onSelect: () => {
-
       void authClient
         .signOut()
         .then(({ error }) => {
           if (!error) reloadDocumentHome();
-
         })
         .catch(() => {
-
         });
     },
     visible: (ctx) => ctx.session !== null,
@@ -73,9 +70,7 @@ const COMMANDS: CommandEntry[] = [
     href: '/',
     iconText: '↪',
     onSelect: () => {
-
       void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' }).catch(() => {
-
       });
     },
     visible: (ctx) => ctx.session === null,
@@ -98,7 +93,6 @@ export const commandsSearchSource: SearchSource = {
         sub: cmd.sub,
         href: cmd.href,
         iconText: cmd.iconText,
-
         iconTone: 'neutral',
         matchIndices: match.matchIndices,
         onSelect: cmd.onSelect,

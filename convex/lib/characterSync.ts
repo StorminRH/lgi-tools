@@ -1,5 +1,3 @@
-
-
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import { v } from 'convex/values';
 import {
@@ -101,7 +99,6 @@ export function resolveExpiresAt(
 
 export interface SubjectStamp {
   enumeratedCharacterIds: number[];
-
   coveredCharacterIds?: number[];
   lastError: string | null;
   rlGroup: string | null;
@@ -120,8 +117,6 @@ export async function stampSyncSubject(
   await ctx.db.patch(subjectId, {
     minExpiresAt: minCacheWindow(windows),
     syncedCharacterIds: stamp.enumeratedCharacterIds,
-
-
     ...(stamp.coveredCharacterIds !== undefined
       ? { coveredCharacterIds: stamp.coveredCharacterIds }
       : {}),

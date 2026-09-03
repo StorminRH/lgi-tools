@@ -10,13 +10,11 @@ export interface AuthoringMenus {
   readonly nodeMenu: NodeMenuAnchor | null;
   readonly edgeMenu: EdgeMenuAnchor | null;
   readonly panelTarget: ScannerPanelTarget;
-
   readonly openNodeMenu: (anchor: NodeMenuAnchor) => void;
   readonly openEdgeMenu: (anchor: EdgeMenuAnchor) => void;
   readonly closeNodeMenu: () => void;
   readonly closeEdgeMenu: () => void;
   readonly setPanelTarget: (target: ScannerPanelTarget) => void;
-
   readonly setEditingConnectionId: (
     connectionId: Id<'mapConnections'> | null,
   ) => void;
@@ -33,7 +31,6 @@ export function useAuthoringMenus(canEdit: boolean | undefined): AuthoringMenus 
     if (canEdit !== true) {
       setNodeMenu(null);
       setEdgeMenu(null);
-
       if (panelTarget?.kind === 'connection') setPanelTarget(null);
     }
   }

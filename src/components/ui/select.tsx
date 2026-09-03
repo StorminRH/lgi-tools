@@ -11,13 +11,10 @@ import { scrollArea } from './scroll-area';
 export type SelectOption = {
   value: string;
   label: ReactNode;
-
   triggerLabel?: ReactNode;
   disabled?: boolean;
 };
-
 export type SelectOptionGroup = { group: string; options: readonly SelectOption[] };
-
 export type SelectItems = readonly (SelectOption | SelectOptionGroup)[];
 
 function isGroup(entry: SelectOption | SelectOptionGroup): entry is SelectOptionGroup {
@@ -60,19 +57,15 @@ function Option({
       <Base.ItemText className={cn(centered && 'text-center')}>
         {option.label}
       </Base.ItemText>
-
       <Base.ItemIndicator
         className={cn(
           'shrink-0 text-isk',
-
           centered && 'pointer-events-none absolute end-2.5',
         )}
       >
         ✓
       </Base.ItemIndicator>
-
     </Base.Item>
-
   );
 }
 
@@ -89,26 +82,18 @@ export function Select({
   onOpenChange,
   caret = true,
 }: FieldSize & {
-
   value: string;
   onValueChange: (value: string) => void;
-
   items: SelectItems;
-
   ariaLabel: string;
   disabled?: boolean;
-
   className?: string;
-
   align?: SelectAlign;
-
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-
   caret?: boolean;
 }) {
   const centered = align === 'center';
-
   const overlayContainer = useOverlayPortalContainer();
   return (
     <Base.Root
@@ -138,7 +123,6 @@ export function Select({
           className={cn(
             fieldText,
             'min-w-0 truncate',
-
             centered ? 'w-full px-6 text-center' : 'flex-1',
           )}
         />
@@ -146,17 +130,14 @@ export function Select({
           <Base.Icon
             className={cn(
               'shrink-0 text-muted',
-
               centered &&
                 'pointer-events-none absolute end-2 top-1/2 -translate-y-1/2',
             )}
           >
             ▾
           </Base.Icon>
-
         ) : null}
       </Base.Trigger>
-
       <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
         <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-dropdown">
           <Base.Popup
@@ -165,7 +146,6 @@ export function Select({
               dropdownPanel,
               scrollArea,
               'max-h-80 overflow-y-auto',
-
               centered && '!pl-[15px]',
             )}
           >
@@ -181,17 +161,14 @@ export function Select({
                     >
                       {entry.group}
                     </Base.GroupLabel>
-
                     {entry.options.map((option) => (
                       <Option
                         key={option.value}
                         option={option}
                         align={align}
                       />
-
                     ))}
                   </Base.Group>
-
                 ) : (
                   <Option
                     key={entry.value}
@@ -201,14 +178,9 @@ export function Select({
                 ),
               )}
             </Base.List>
-
           </Base.Popup>
-
         </Base.Positioner>
-
       </Base.Portal>
-
     </Base.Root>
-
   );
 }

@@ -56,7 +56,6 @@ function WidgetContent({ state }: { state: WidgetState }) {
       <Banner tone="warn" className="m-auto">
         This wormhole site could not be loaded.
       </Banner>
-
     );
   }
   return (
@@ -68,7 +67,6 @@ function WidgetContent({ state }: { state: WidgetState }) {
         className="border-0 bg-transparent shadow-none"
       />
     </div>
-
   );
 }
 
@@ -108,6 +106,5 @@ export function SiteCardWidget({
     >
       <WidgetContent state={visibleState} />
     </section>
-
   );
 }

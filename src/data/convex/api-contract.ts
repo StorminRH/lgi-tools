@@ -4,7 +4,6 @@ import { defineEndpoint, emptyBody, problem } from '@/transport/endpoint';
 export interface CronSyncSweeperResponse {
   status: 'swept' | 'skipped' | 'failed';
   reason?: string;
-
   dispatched: number | null;
   retired: number | null;
   deleted: number | null;

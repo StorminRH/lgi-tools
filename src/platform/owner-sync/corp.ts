@@ -12,17 +12,12 @@ export interface CorpDatasetSpec<
   TState extends { lastRefreshedAt: Date | null },
   TSave,
 > {
-
   ownerOf(userId: string, corporationId: number): TOwner;
-
   eligible(owner: EnumeratedOwner): boolean;
-
   requiredRoles: readonly string[];
   isStale(lastRefreshedAt: Date | null, now: Date): boolean;
-
   precondition?(owner: TOwner): Promise<boolean>;
   readState(owner: TOwner): Promise<TState | null>;
-
   fetchAndPlan(
     owner: TOwner,
     accessToken: string,
@@ -30,7 +25,6 @@ export interface CorpDatasetSpec<
   ): Promise<PersistVerdict<TSave>>;
   save(owner: TOwner, payload: TSave): Promise<void>;
   stampFresh(owner: TOwner): Promise<void>;
-
   saveGateState?(owner: TOwner): Promise<void>;
 }
 

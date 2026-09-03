@@ -13,7 +13,6 @@ import { parseFormBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.switch-active-character',
-
     preflight: async () => {
       const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
       return limit.ok ? null : problemResponse(limit.failure);
@@ -26,7 +25,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       () => validationFailure('invalid_form_field', 'Invalid character'),
     ),
     handle: async ({ session }, { characterId }) => {
-
       if (!(await accountBelongsToUser(session.user.id, characterId))) {
         return problemResponse(
           validationFailure(

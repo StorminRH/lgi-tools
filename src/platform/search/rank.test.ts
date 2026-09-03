@@ -37,7 +37,6 @@ describe('rankFuzzyResults', () => {
   });
 
   it('ranks strictly by match score, not input order', () => {
-
     const shuffled: Item[] = [
       { id: 'weak', label: 'T-x-r-i-t' },
       { id: 'strong', label: 'Trit' },

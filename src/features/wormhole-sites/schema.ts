@@ -1,11 +1,9 @@
 import { bigint, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const SITE_TYPES = ['combat', 'gas', 'ore', 'relic', 'data'] as const;
-
 export type SiteType = typeof SITE_TYPES[number];
 
 export const WORMHOLE_CLASSES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'] as const;
-
 export type WormholeClass = typeof WORMHOLE_CLASSES[number];
 
 export const SIGNATURE_LABELS = [
@@ -15,7 +13,6 @@ export const SIGNATURE_LABELS = [
   'Gas Signature',
   'Ore Signature',
 ] as const;
-
 export type SignatureLabel = typeof SIGNATURE_LABELS[number];
 
 export const TRIGGER_LABELS = [
@@ -26,11 +23,9 @@ export const TRIGGER_LABELS = [
   'Opt?',
   'Trigger on Attack',
 ] as const;
-
 export type TriggerLabel = typeof TRIGGER_LABELS[number];
 
 export const SLEEPER_CLASS_CODES = ['F', 'C', 'B', 'T'] as const;
-
 export type SleeperClassCode = typeof SLEEPER_CLASS_CODES[number];
 
 export function isSleeperClassCode(code: string): code is SleeperClassCode {
@@ -38,7 +33,6 @@ export function isSleeperClassCode(code: string): code is SleeperClassCode {
 }
 
 export const siteTypeEnum = pgEnum('site_type', SITE_TYPES);
-
 export const wormholeClassEnum = pgEnum('wormhole_class', WORMHOLE_CLASSES);
 
 export const sites = pgTable(
@@ -109,7 +103,6 @@ export const siteResources = pgTable(
     volumeM3: bigint('volume_m3', { mode: 'number' }),
     iskPerM3: integer('isk_per_m3'),
     totalIsk: bigint('total_isk', { mode: 'number' }),
-
     typeId: integer('type_id'),
   },
   (t) => ({

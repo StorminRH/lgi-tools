@@ -49,13 +49,11 @@ describe('success-rate indicators', () => {
   });
 
   it('removes excluded outcomes from the mutation denominator', async () => {
-
     rows.current = [{ total: 10, succeeded: 5, excluded: 4 }];
     await expect(getMutationSuccessRate(RANGE)).resolves.toBeCloseTo(5 / 6, 5);
   });
 
   it('returns null when every recorded mutation was excluded', async () => {
-
     rows.current = [{ total: 4, succeeded: 0, excluded: 4 }];
     await expect(getMutationSuccessRate(RANGE)).resolves.toBeNull();
   });
@@ -73,7 +71,6 @@ describe('getCriticalLatencyP95', () => {
   });
 
   it('returns null when the percentile is not a number', async () => {
-
     rows.current = [{ p95: Number.NaN }];
     await expect(getCriticalLatencyP95(RANGE)).resolves.toBeNull();
   });

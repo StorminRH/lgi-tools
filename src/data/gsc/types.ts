@@ -45,12 +45,10 @@ export type GscDimension = 'total' | 'query' | 'page';
 
 export interface GscSyncSummary {
   status: 'synced' | 'partial' | 'skipped' | 'failed';
-
   reason?: string;
   searchRows: number;
   sitemaps: number;
   urlsInspected: number;
-
   errors: string[];
   durationMs: number;
 }

@@ -9,7 +9,6 @@ export interface FollowerNode {
   readonly internals: {
     readonly positionAbsolute: { readonly x: number; readonly y: number };
   };
-
   readonly width?: number;
   readonly height?: number;
 }
@@ -214,9 +213,7 @@ export function placeAnchoredCard(input: {
   readonly padding?: number;
   readonly leaderMinDistance?: number;
   readonly discRadius?: number;
-
   readonly side?: CardAnchorSide | null;
-
   readonly lift?: CardAnchorLift | null;
 }): {
   readonly left: number;
@@ -234,7 +231,6 @@ export function placeAnchoredCard(input: {
   const side: CardAnchorSide =
     input.side ?? (anchor.x >= viewport.width / 2 ? 'left' : 'right');
   const preferLeft = side === 'left';
-
   const clearance = Math.min(radius + gap, card.height / 2);
   let left = preferLeft
     ? anchor.x - clearance - card.width
@@ -345,7 +341,6 @@ export function computeFollowerTransform(
     },
     card,
     layer,
-
     baseline !== null && baseline.anchorId === anchorId ? baseline.side : null,
     baseline !== null && baseline.anchorId === anchorId ? baseline.lift : null,
     (SYSTEM_DISC_SIZE / 2) * zoom,

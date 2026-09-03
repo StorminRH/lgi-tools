@@ -11,7 +11,6 @@ import { readNodePositions } from '../lib/read-node-positions.mjs';
 
 const FRAME_WIDTH = 150;
 const FRAME_HEIGHT = 110;
-
 const DISC_RADIUS = 27.5;
 
 function discRimError(endpoint, node) {
@@ -73,7 +72,6 @@ export default {
     await startFrameCapture(page);
     await startGeometrySample(page);
     await page.getByRole('button', { name: 'Increase Ring spacing' }).click();
-
     await page.waitForTimeout(2500);
     const geometry = await stopGeometrySample(page);
     const deltas = await stopFrameCapture(page);

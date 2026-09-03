@@ -9,13 +9,9 @@ export interface OwnerRow {
 }
 
 export interface LiveDatasetView<TData, TRow> {
-
   read(userId: string): Promise<{ owners: OwnerRow[]; data: Map<number, TData> }>;
-
   refresh(userId: string): void | Promise<unknown>;
-
   makeRow(owner: OwnerRow, data: TData | null): TRow;
-
   nameIds(rows: TRow[]): Iterable<number>;
 }
 

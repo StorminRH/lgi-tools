@@ -2,9 +2,7 @@ export type AfkPhase = 'active' | 'prompting' | 'paused';
 
 export interface AfkState {
   readonly phase: AfkPhase;
-
   readonly hiddenSince: number | null;
-
   readonly promptedAt: number | null;
 }
 

@@ -10,7 +10,6 @@ export interface ShareLayoutPart extends ShareSegment {
   x: number;
   w: number;
   pct: number;
-
   labelX: number;
   labelAnchor: 'start' | 'middle' | 'end';
 }
@@ -65,7 +64,6 @@ export function StackedShareBar({
           key={`bar-${part.label}`}
           x={part.x}
           y={0}
-
           width={Math.max(0, part.w - (i < last ? 1.5 : 0))}
           height={barH}
           fill={toneHex[part.tone]}
@@ -83,9 +81,7 @@ export function StackedShareBar({
         >
           {part.label} {part.value.toLocaleString()} · {Math.round(part.pct)}%
         </text>
-
       ))}
     </svg>
-
   );
 }

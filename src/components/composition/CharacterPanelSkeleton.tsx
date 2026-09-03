@@ -20,12 +20,9 @@ export function CharacterPanelSkeleton({
             <Skeleton aria-hidden="true" className="h-3 w-36 max-w-full" />
             <Skeleton aria-hidden="true" className="h-2.5 w-24 max-w-full" />
           </div>
-
           <Skeleton aria-hidden="true" className="h-6 w-24" />
         </div>
-
       ))}
     </Card>
-
   );
 }

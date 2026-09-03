@@ -50,42 +50,33 @@ function CollapsedDetailHeader({ label }: { label: string }) {
       <span className="text-label uppercase tracking-wide text-muted">
         {label}
       </span>
-
       <span
         data-chevron
         className="text-micro text-muted transition-transform inline-block shrink-0"
       >
         ▾
       </span>
-
     </>
-
   );
 }
 
 function GscTermRow({ term, max, total }: { term: GscTermStat; max: number; total: number }) {
   const pct = max === 0 ? 0 : Math.max(2, Math.round((term.clicks / max) * 100));
-
   const share = total > 0 ? Math.round((term.clicks / total) * 100) : null;
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
         <span className="font-data text-ui text-text break-all">{term.key}</span>
-
         <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
           {term.clicks.toLocaleString()} clk{share === null ? '' : ` · ${share}%`}
         </span>
-
       </div>
-
       <ProgressBar pct={pct} />
       <div className="mt-1 font-data text-micro text-muted tabular-nums">
         {term.impressions.toLocaleString()} impr · {(term.ctr * 100).toFixed(1)}% CTR · pos{' '}
         {term.position.toFixed(1)}
       </div>
-
     </div>
-
   );
 }
 
@@ -94,13 +85,10 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
         <span className="font-data text-ui text-text break-all">{sitemap.path}</span>
-
         <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
           {sitemap.indexed.toLocaleString()} / {sitemap.submitted.toLocaleString()} indexed
         </span>
-
       </div>
-
       <div className="font-data text-micro text-muted">
         {sitemap.submitted === 0
           ? 'no URLs submitted'
@@ -109,9 +97,7 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
         {sitemap.lastDownloaded ? ` · crawled ${formatIsoDay(sitemap.lastDownloaded)}` : ''}
         {sitemap.isPending ? ' · pending' : ''}
       </div>
-
     </div>
-
   );
 }
 
@@ -123,9 +109,7 @@ function GscNotConnectedCard({ label }: { label: string }) {
         Not connected — set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync
         search-visibility data.
       </EmptyState>
-
     </Card>
-
   );
 }
 
@@ -135,7 +119,6 @@ function GscCardFallback({ label }: { label: string }) {
       <SectionHeader size="md" label={label} hint="Google Search Console" />
       <LoadingLabel className="block px-3.5 py-6" />
     </Card>
-
   );
 }
 
@@ -149,7 +132,6 @@ function GscPerformanceDetail({
   view: ReturnType<typeof deriveGscPerformanceView>;
   cells: ReturnType<typeof deriveGscMultiples>;
   topPages: GscTermStat[];
-
   totalClicks: number;
   sitemaps: GscSitemapStatus[];
 }) {
@@ -175,14 +157,11 @@ function GscPerformanceDetail({
               ariaLabel={`${cell.title} by day`}
             />
           </MultiplesCell>
-
         ))}
       </MultiplesGrid>
-
       <SectionHeader variant="sub" label="Top pages in search" className="border-y border-border-soft px-3.5 py-2" />
       {topPages.length === 0 ? (
         <EmptyState>No search-landing pages in this range.</EmptyState>
-
       ) : (
         topPages.map((p) => (
           <GscTermRow key={p.key} term={p} max={view.topPagesMax} total={totalClicks} />
@@ -191,12 +170,10 @@ function GscPerformanceDetail({
       <SectionHeader variant="sub" label="Indexing & sitemap" className="border-b border-border-soft px-3.5 py-2" />
       {sitemaps.length === 0 ? (
         <EmptyState>No sitemap data synced yet.</EmptyState>
-
       ) : (
         sitemaps.map((s) => <GscSitemapRow key={s.path} sitemap={s} />)
       )}
     </>
-
   );
 }
 
@@ -219,7 +196,6 @@ function GscPerformanceCardBody({
       <div className="px-3.5 py-2 text-ui text-muted border-b border-border-soft">
         Google data lags ~2–3 days · last synced {view.asOf}
       </div>
-
       {view.hasTrend ? (
         <GscPerformanceDetail
           view={view}
@@ -230,10 +206,8 @@ function GscPerformanceCardBody({
         />
       ) : (
         <EmptyState>No Search Console data synced yet for this range.</EmptyState>
-
       )}
     </Card>
-
   );
 }
 
@@ -284,19 +258,15 @@ async function GscTopQueriesCard({ range }: { range: DateRange }) {
       <SectionHeader size="md" label="Top search queries" hint="Google Search Console" />
       {topQueries.length === 0 ? (
         <EmptyState>No search queries in this range.</EmptyState>
-
       ) : (
-
         topQueries.map((q) => <GscTermRow key={q.key} term={q} max={max} total={totals.clicks} />)
       )}
     </Card>
-
   );
 }
 
 function BarList({ data, empty, ariaLabel }: { data: BarRows; empty: string; ariaLabel: string }) {
   if (data.length === 0) return <EmptyState>{empty}</EmptyState>;
-
   return <DistributionBars rows={data} ariaLabel={ariaLabel} />;
 }
 
@@ -312,11 +282,9 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
             <span className="font-data text-lead text-name tabular-nums">
               {activity.endValue.toLocaleString()}
             </span>
-
             <span className="text-micro text-muted uppercase tracking-wide">
               latest day
             </span>
-
             {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}
           </div>
           <div className="px-3.5 py-3 overflow-x-auto">
@@ -333,12 +301,9 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
               ariaLabel="Events per day with a 7-day average and prior-period reference"
             />
           </div>
-
         </>
-
       )}
     </Card>
-
   );
 }
 
@@ -350,7 +315,6 @@ export async function TrafficSection({
   range: DateRange;
 }) {
   const prev = previousRange(rangeKey, range);
-
   const markers = await loadDeployMarkers();
 
   const fetched = await loadSection('traffic', () =>
@@ -399,7 +363,6 @@ export async function TrafficSection({
         <Suspense fallback={<GscCardFallback label="Top search queries" />}>
           <GscTopQueriesCard range={range} />
         </Suspense>
-
       </div>
 
       <Suspense fallback={<GscCardFallback label="Index coverage" />}>
@@ -423,7 +386,6 @@ export async function TrafficSection({
               ariaLabel="Referred versus direct page views"
             />
           </div>
-
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border-soft">
           <div className="bg-bg">
@@ -434,7 +396,6 @@ export async function TrafficSection({
               ariaLabel="Top referrers by page views"
             />
           </div>
-
           <div className="bg-bg">
             <SectionHeader variant="sub" label="Top entry pages" className="border-b border-border-soft px-3.5 py-2" />
             <BarList
@@ -443,9 +404,7 @@ export async function TrafficSection({
               ariaLabel="Top entry pages by sessions"
             />
           </div>
-
         </div>
-
         <Collapsible header={<CollapsedDetailHeader label="Product usage · terminal searches" />}>
           <div className="border-t border-border-soft">
             <BarList
@@ -454,12 +413,8 @@ export async function TrafficSection({
               ariaLabel="Top terminal searches"
             />
           </div>
-
         </Collapsible>
-
       </Card>
-
     </div>
-
   );
 }

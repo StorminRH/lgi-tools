@@ -25,7 +25,6 @@ export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
     const loop = startHeartbeatLoop(
       {
         isVisible: () => document.visibilityState === 'visible',
-
         beat: (reason, visible) =>
           void heartbeat({
             dataset,

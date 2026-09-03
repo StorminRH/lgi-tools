@@ -57,7 +57,6 @@ describe('deriveActivityView', () => {
   });
 
   it('divides the prior total by the range length, not the clamped series length', () => {
-
     const view = deriveActivityView({
       range: { from: new Date('2026-07-06T00:00:00Z'), to: new Date('2026-07-13T00:00:00Z') },
       dailyCounts: [
@@ -83,7 +82,6 @@ describe('deriveActivityView', () => {
         { date: '2026-07-20', label: 'v3' },
       ],
     });
-
     expect(view.eventMarkers).toEqual([
       { x: 0, label: 'v0' },
       { x: 2, label: '2 deploys' },

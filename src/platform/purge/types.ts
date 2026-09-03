@@ -7,7 +7,6 @@ export type PurgeSubject =
   | { readonly kind: 'user'; readonly userId: string };
 
 export type PurgeCharacterSubject = Extract<PurgeSubject, { kind: 'character' }>;
-
 export type PurgeUserSubject = Extract<PurgeSubject, { kind: 'user' }>;
 
 export interface RetainedTable {
@@ -18,10 +17,8 @@ export interface RetainedTable {
 export interface PurgeContributor {
   readonly name: string;
   readonly tier: PurgeTier;
-
   readonly claims: readonly PgTable[];
   readonly retained?: readonly RetainedTable[];
-
   purgeCharacter?(subject: PurgeCharacterSubject): Promise<void>;
   purgeUser?(subject: PurgeUserSubject): Promise<void>;
 }

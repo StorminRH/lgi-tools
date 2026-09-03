@@ -92,7 +92,6 @@ export function makeMockPlanner(opts?: {
     get selectedStructure() {
       return state.selectedStructure;
     },
-
     setSelectedStructure(s: TestStructure | null) {
       state.selectedStructure = s;
       if (s && state.reactionStructure && state.reactionStructure.id === s.id) {

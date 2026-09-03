@@ -2,16 +2,12 @@ import { z } from 'zod';
 
 const LS_PREFIX = 'lgi:pref:';
 const COOKIE_PREFIX = 'lgi_pref_';
-
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export interface PreferenceDef<T> {
-
   readonly key: string;
-
   readonly schema: z.ZodType<T>;
   readonly fallback: T;
-
   readonly ssrReadable: boolean;
 }
 
@@ -85,7 +81,6 @@ export const atlasClickFocus = define<boolean>(
 );
 
 export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
-
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
 export function stripDimmedKey(surfaceId: string): string {
@@ -159,7 +154,6 @@ export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
   try {
     store.setItem(LS_PREFIX + def.key, JSON.stringify(value));
   } catch {
-
   }
 }
 

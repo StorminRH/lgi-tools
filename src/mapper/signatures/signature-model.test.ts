@@ -336,7 +336,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       systemId: SYSTEM,
       signatureId: 'LEG-001',
       kind: 'signature',
-
       group: 'wormhole' as SignatureWindowRow['group'],
       name: null,
       signalPct: null,
@@ -450,7 +449,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteDecision('ordinary clipboard text', true, READY)).toBeNull();
     expect(scannerPasteDecision(valid, false, READY)).toEqual({ kind: 'read-only' });
     expect(scannerPasteDecision(valid, true, NONE)).toEqual({ kind: 'untracked' });
-
     expect(scannerPasteDecision(valid, true, { kind: 'loading' })).toEqual({
       kind: 'loading',
     });

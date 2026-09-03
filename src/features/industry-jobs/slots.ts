@@ -2,15 +2,10 @@ import type { IndustryJob, JobStatus } from './esi-projection';
 import { type JobCategory, jobCategory } from './industry-jobs-styles';
 
 const MASS_PRODUCTION_SKILL_ID = 3387;
-
 const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
-
 const LABORATORY_OPERATION_SKILL_ID = 3406;
-
 const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
-
 const MASS_REACTIONS_SKILL_ID = 45748;
-
 const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
 
 const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];

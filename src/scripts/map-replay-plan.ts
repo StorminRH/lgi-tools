@@ -46,13 +46,9 @@ export function parseReplayArgs(argv: readonly string[]): ReplayArgs | null {
 
 export interface SpawnStep {
   readonly systemId: number;
-
   readonly drainedConnections: readonly LayoutEdge[];
-
   readonly connections: readonly LayoutEdge[];
-
   readonly skippedSelfLoops: readonly LayoutEdge[];
-
   readonly newlyDeferred: readonly LayoutEdge[];
 }
 

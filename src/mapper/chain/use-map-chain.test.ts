@@ -386,11 +386,9 @@ describe('layout-then-merge posted-key guard', () => {
   it('includes the halo fingerprint so a halo membership change re-posts', () => {
     const signature = chainSignature(systems([JITA]), connections([]));
     const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-
     expect(layoutPostKey(signature, configKey, 0, '#')).not.toBe(
       layoutPostKey(signature, configKey, 0, `${JITA + 1}:1:0#`),
     );
-
     expect(layoutPostKey(signature, configKey, 0)).toBe(
       layoutPostKey(signature, configKey, 0),
     );

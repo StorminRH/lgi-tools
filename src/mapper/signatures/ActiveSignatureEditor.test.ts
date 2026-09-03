@@ -133,7 +133,6 @@ it('opens edit for resolved and unresolved holes, and mounts nothing until named
   const stub = render(STUB_ID);
   expect(stub).toContain('data-map-window="signature-editor"');
   expect(stub).toContain('data-map-connection-mode="edit"');
-
   expect(stub).toContain('data-select="Leads to"');
   expect(stub).not.toContain('data-map-connection-leads-locked');
   expect(stub).toContain('origin:resolved-1');

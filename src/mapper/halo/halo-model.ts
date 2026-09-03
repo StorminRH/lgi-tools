@@ -13,9 +13,7 @@ const HALO_MAX_SYSTEMS_TOTAL = 150;
 
 export interface HaloSystem {
   readonly systemId: number;
-
   readonly ring: number;
-
   readonly fogged: boolean;
 }
 
@@ -57,13 +55,9 @@ export const HALO_PINNED_LIMITS: HaloLimits = {
 };
 
 export interface HaloInput {
-
   readonly authoredSystems: readonly { readonly systemId: number; readonly order: number }[];
-
   readonly neighbours: (id: number) => readonly number[];
-
   readonly securityClassOf: (id: number) => SecurityClass | undefined;
-
   readonly limits?: HaloLimits;
 }
 

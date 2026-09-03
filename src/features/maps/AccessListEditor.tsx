@@ -96,13 +96,10 @@ export function AccessListEditor({
           >
             Corporations
           </h3>
-
           <p className="font-ui text-label text-faint">
             Select from your current corporations, then choose access explicitly.
           </p>
-
         </div>
-
         {corporations.length > 0 ? (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {corporations.map((corporation) => {
@@ -133,16 +130,12 @@ export function AccessListEditor({
                   <span className="min-w-0 truncate font-ui text-ui text-text">
                     {corporation.name}
                   </span>
-
                 </div>
-
               );
             })}
           </div>
-
         ) : (
           <p className="font-ui text-ui text-muted">No linked corporations available.</p>
-
         )}
       </section>
 
@@ -155,10 +148,8 @@ export function AccessListEditor({
         >
           Access list
         </h3>
-
         {currentGrants.length === 0 ? (
           <p className="font-ui text-ui text-muted">Private — no delegated access.</p>
-
         ) : (
           <div className="flex flex-col gap-2">
             {currentGrants.map((grant) => (
@@ -171,15 +162,11 @@ export function AccessListEditor({
                   <PrincipalImage principal={grant} />
                   <div className="min-w-0">
                     <p className="truncate font-ui text-ui text-text">{grant.name}</p>
-
                     <p className="font-ui text-label capitalize text-faint">
                       {grant.ownerType}
                     </p>
-
                   </div>
-
                 </div>
-
                 <RadioGroup
                   label={`Access for ${grant.name}`}
                   options={options}
@@ -196,12 +183,9 @@ export function AccessListEditor({
                 >
                   {mode === 'manage' ? 'Revoke' : 'Remove'}
                 </Button>
-
               </div>
-
             ))}
           </div>
-
         )}
       </section>
 
@@ -225,6 +209,5 @@ export function AccessListEditor({
         }}
       />
     </div>
-
   );
 }

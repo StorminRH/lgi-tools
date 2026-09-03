@@ -13,17 +13,14 @@ interface StructuresSave {
 
 function makeDescriptor(port: CorpStructuresPort) {
   return makeCorpDescriptor<CorpOwner, CorpStructuresSyncState, StructuresSave>(port, {
-
     ownerOf: (_userId, corporationId) => ({ corporationId }),
     eligible: (owner) => canSyncCorpStructures(owner),
     requiredRoles: CORP_STRUCTURES_REQUIRED_ROLES,
-
     precondition: (owner) => port.isSharingEnabled(owner.corporationId),
     isStale: STRUCTURES_FRESHNESS.isStale,
     readState: (owner) => port.readSyncState(owner.corporationId),
     fetchAndPlan: async (owner, accessToken, state) => {
       const read = await port.readStructures(owner.corporationId, accessToken, state?.pageEtags ?? []);
-
       return planRead(read, (fresh) => {
         const rows = parseCorpStructuresBody(fresh.items);
         return rows === null ? null : { rows, etags: fresh.etags };
@@ -31,7 +28,6 @@ function makeDescriptor(port: CorpStructuresPort) {
     },
     save: (owner, payload) => port.saveStructures(owner.corporationId, payload.rows, payload.etags),
     stampFresh: (owner) => port.stampFresh(owner.corporationId),
-
   });
 }
 

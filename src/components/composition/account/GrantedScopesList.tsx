@@ -14,20 +14,15 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
           name={
             <span className="min-w-0">
             <span className="block truncate font-data text-ui text-name">{scope.id}</span>
-
             {scope.gloss ? (
               <span className="block text-micro text-muted">{scope.gloss}</span>
-
             ) : null}
             </span>
-
           }
           trailing={scope.status === 'active' ? (
             <Chip tone="green">Active</Chip>
-
           ) : (
             <Chip tone="orange">Legacy</Chip>
-
           )}
         />
       ))}
@@ -35,9 +30,7 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
         <div className="px-3.5 py-2 border-t border-border-soft text-micro text-muted">
           Legacy — granted earlier, no longer used; safe to revoke.
         </div>
-
       ) : null}
     </div>
-
   );
 }

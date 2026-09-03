@@ -42,7 +42,6 @@ export function useNpcNameColScope(ref: RefObject<HTMLDivElement | null>): void 
     const measure = () => {
       const root = ref.current;
       if (!root || cancelled) return;
-
       root.style.setProperty('--npc-name-col', 'max-content');
       const rows = [...root.querySelectorAll<HTMLElement>('[data-npc-name]')].map(readNpcRow);
       const width = deriveNpcNameColWidth(rows);

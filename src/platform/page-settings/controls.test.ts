@@ -26,7 +26,6 @@ describe('resolveMenuControls', () => {
       kind: 'preference-enum',
       options: ['lightbox', 'expand'],
     });
-
     expect(enums[0]!.def.key).toBe('sites.view');
     expect(enums.map((m) => m.label)).toEqual(['view', 'detail mode']);
 
@@ -71,7 +70,6 @@ describe('resolveMenuControls', () => {
       'camera follow',
       'click focus',
     ]);
-
     expect(
       resolveMenuControls(
         spec([
@@ -108,7 +106,6 @@ describe('resolvePageControls', () => {
 
     const models = resolvePageControls(spec([{ key: 'sites.view', placement: 'inline' }]));
     expect(models).toHaveLength(1);
-
     const model = models[0]!;
     expect(model.kind).toBe('preference-enum');
     if (model.kind === 'preference-enum') {

@@ -25,9 +25,7 @@ describe('topByMetadataKey GROUP BY shape', () => {
     const { sql, params } = topByMetadataKeyToSQL('referrer', 'page_view', range, 10);
 
     expect(sql.toLowerCase()).toMatch(/group by 1\b/);
-
     expect(sql.toLowerCase()).not.toMatch(/group by[^,]*->>/);
-
     expect(params.filter((p) => p === 'referrer')).toHaveLength(2);
   });
 });

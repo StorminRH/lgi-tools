@@ -17,7 +17,6 @@ const SHIP_TYPE_ID = 28_606;
 
 const SITE_NAME = 'Barren Perimeter Reservoir';
 const SITE_SIGNATURE_ID = 'IHJ-610';
-
 const UNMATCHED_NAME = 'Sansha Hideout';
 const UNMATCHED_SIGNATURE_ID = 'CBT-001';
 
@@ -141,7 +140,6 @@ export default {
         && (await viewer.count()) === 1
         && (await card.count()) === 1,
     );
-
     check(
       'standalone card chrome is expanded without a card-level collapse',
       (await card.locator(':scope > details[data-collapsible]').count()) === 0
@@ -165,7 +163,6 @@ export default {
     );
 
     await openSiteViewer(page);
-
     await page.locator('.react-flow__pane').click({
       position: { x: 24, y: 24 },
       timeout: 10_000,

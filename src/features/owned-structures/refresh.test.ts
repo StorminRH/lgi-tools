@@ -46,7 +46,6 @@ const freshState = () => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), p
 
 describe('refreshCorpStructuresForUser', () => {
   it('makes no vend, roles read, or ESI call when the corp is fresh (the shared staleness gate)', async () => {
-
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => freshState()),
@@ -61,7 +60,6 @@ describe('refreshCorpStructuresForUser', () => {
   });
 
   it('dispatches nothing for a corp that has not opted in to sharing (the consent gate)', async () => {
-
     const port = makePort({
       isSharingEnabled: vi.fn(async () => false),
       listMembers: vi.fn(async () => [member(1)]),
@@ -97,9 +95,7 @@ describe('refreshCorpStructuresForUser', () => {
 
     expect(port.readStructures).toHaveBeenCalledWith(5000, 'token-2', []);
     const save = vi.mocked(port.saveStructures).mock.calls[0]!;
-
     expect(save[0]).toBe(5000);
-
     expect(save[1]).toEqual([
       { structure_id: 1001, type_id: 35832, system_id: 30000142, name: 'Struct 1001' },
       { structure_id: 1002, type_id: 35832, system_id: 30000142, name: 'Struct 1002' },

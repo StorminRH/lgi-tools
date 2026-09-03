@@ -30,7 +30,6 @@ const transitionEvidenceSchema = z.strictObject({
     .nullable(),
   lastProcessedTransitionAt: z.number().finite().nullable(),
   originLive: z.boolean(),
-
   scannedTypeCodes: z.array(z.string().min(1)),
   candidates: z.array(
     z.strictObject({

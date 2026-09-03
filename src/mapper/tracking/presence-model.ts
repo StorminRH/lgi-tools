@@ -19,7 +19,6 @@ export interface PresencePilot {
   readonly characterId: number;
   readonly shipTypeId: number | null;
   readonly docked: boolean;
-
   readonly lastMovementAt: number;
 }
 
@@ -29,7 +28,6 @@ export interface SystemPresence {
 
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
-
   readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
 }
 

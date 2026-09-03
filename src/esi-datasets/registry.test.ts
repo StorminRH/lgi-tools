@@ -324,7 +324,6 @@ describe('ESI dataset registry live gate', () => {
       .filter((entry) => entry.store === 'convex')
       .map((entry) => entry.name)
       .sort();
-
     const mappedEntries = [...new Set(CONVEX_ESI_HOMES.map((home) => home.entry))].sort();
 
     expect(mappedEntries).toEqual(convexEntries);

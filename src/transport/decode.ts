@@ -58,7 +58,6 @@ export async function decodeEndpointResponse<TEndpoint extends EndpointContract>
   endpoint: TEndpoint,
   response: Response,
 ): Promise<OutcomeOf<TEndpoint>>;
-
 export async function decodeEndpointResponse(
   endpoint: EndpointContract,
   response: Response,

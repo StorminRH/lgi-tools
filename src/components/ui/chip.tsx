@@ -28,11 +28,9 @@ export function Chip({
   children,
   className,
 }: {
-
   tone: ChipTone;
   children: ReactNode;
   className?: string;
 }) {
   return <span className={cn(chipVariants({ tone }), className)}>{children}</span>;
-
 }

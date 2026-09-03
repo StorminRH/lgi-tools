@@ -24,7 +24,6 @@ function NavMenuItems() {
             >
               {item.label}
             </span>
-
           );
         }
 
@@ -38,11 +37,9 @@ function NavMenuItems() {
           >
             {item.label}
           </MenuLinkItem>
-
         );
       })}
     </>
-
   );
 }
 
@@ -60,13 +57,10 @@ export function NavMenu() {
       <Suspense fallback={null}>
         <NavMenuItems />
       </Suspense>
-
       <PageMenuSection />
       <div data-nav-login-footer className="flex border-t border-border px-4 py-3">
         <LoginButton variant="flat" />
       </div>
-
     </Menu>
-
   );
 }

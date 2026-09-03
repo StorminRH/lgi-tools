@@ -81,7 +81,6 @@ export function createUpstashClient(config: UpstashClientConfig): UpstashRedis {
       url: config.url,
       token: config.token,
       automaticDeserialization: config.automaticDeserialization,
-
       signal: () => timeoutSignal(config.timeoutMs),
       retry: { retries: config.retries },
     }),

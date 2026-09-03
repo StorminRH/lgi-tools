@@ -53,14 +53,11 @@ export function isAdoptedPopupOpen(): boolean {
 interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
-
   readonly titleAccessory?: ReactNode;
   readonly placement: WindowPlacement;
   readonly stackIndex: number;
   readonly onClose: () => void;
-
   readonly showCloseButton?: boolean;
-
   readonly showHeader?: boolean;
   /**
    * `panel` is the frosted interactive card chrome. `overlay` is a
@@ -93,17 +90,14 @@ function placementClassName(
   overlay: boolean,
 ): string | false {
   if (placement.kind === 'docked') {
-
     return overlay
       ? 'left-4 top-4 h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
       : 'left-4 top-4 bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
   if (placement.kind === 'docked-bottom-left') {
-
     return MAP_SCANNER_DOCK_CLASS;
   }
   if (placement.kind === 'scanner-anchored') {
-
     return placement.measure === 'site'
       ? MAP_SCANNER_SITE_VIEWER_CLASS
       : MAP_SCANNER_EDITOR_CLASS;
@@ -150,7 +144,6 @@ function WindowHeader({
         {title}
         {titleAccessory}
       </h2>
-
       {showCloseButton ? (
         <Button
           variant="bare"
@@ -160,10 +153,8 @@ function WindowHeader({
         >
           ×
         </Button>
-
       ) : null}
     </header>
-
   );
 }
 
@@ -199,7 +190,6 @@ function windowBodyClass(
       ? 'px-2.5 pb-2 pt-0.5 text-left'
       : scannerDock
         ? null
-
         : 'py-2 pl-[22px] pr-3',
   );
 }
@@ -274,9 +264,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         >
           {children}
         </div>
-
       </section>
-
     );
   },
 );

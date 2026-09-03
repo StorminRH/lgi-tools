@@ -169,7 +169,6 @@ describe('departure derivation', () => {
     expect(ghost?.draggable).toBe(false);
     expect(ghost?.selectable).toBe(false);
     expect(ghost?.className).toBe('map-ghost');
-
     expect(ghost?.style).toEqual({ pointerEvents: 'none' });
   });
 
@@ -201,7 +200,6 @@ describe('departure derivation', () => {
   });
 
   it('ghosts a departing edge from the previous-merge memory — truth has already dropped it', () => {
-
     const treeParents = new Map([[32, 31]]);
     const before = truthOf(
       [node(31, 0, 0), node(32, 100, 0)],
@@ -214,7 +212,6 @@ describe('departure derivation', () => {
       { kind: 'connection-departed', connectionId: 'c1' },
       { kind: 'system-departed', systemId: 32 },
     ];
-
     const postMerge = truthOf([node(31, 0, 0), node(32, 100, 0)], [], treeParents);
     host = consumeMerge(host, {
       ...mergeInput(postMerge, collapse, 0),

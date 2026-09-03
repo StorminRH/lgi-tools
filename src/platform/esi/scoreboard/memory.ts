@@ -70,7 +70,6 @@ class MemoryScoreboard implements EsiScoreboard {
 
     if (report.status >= 400) {
       this.errorCounts.set(minute, (this.errorCounts.get(minute) ?? 0) + 1);
-
       for (const key of this.errorCounts.keys()) {
         if (key < minute - 1) this.errorCounts.delete(key);
       }

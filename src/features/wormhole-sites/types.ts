@@ -1,7 +1,6 @@
 import type { SiteType, WormholeClass } from './schema';
 
 export type { SiteType, WormholeClass };
-
 export type { Npc, SiteDetail, SiteResource, Wave } from './api-contract';
 
 export interface SiteListItem {

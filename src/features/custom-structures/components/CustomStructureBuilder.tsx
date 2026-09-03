@@ -202,9 +202,7 @@ function SavedStructureRow({
   return (
     <Card as="li" className="flex flex-wrap items-center gap-2 px-3 py-2">
       <span className="font-data text-ui text-text">{view.name}</span>
-
       <Pill tone="neutral">{view.typeLabel}</Pill>
-
       <StructureMetaPills view={view} />
       <span className="ml-auto flex items-center gap-3">
         <Button
@@ -226,7 +224,6 @@ function SavedStructureRow({
           >
             Unpin
           </Button>
-
         ) : (
           <Button
             variant="bare"
@@ -237,7 +234,6 @@ function SavedStructureRow({
           >
             Pin…
           </Button>
-
         )}
         <Button
           variant="bare"
@@ -248,9 +244,7 @@ function SavedStructureRow({
         >
           Delete
         </Button>
-
       </span>
-
       {showPinPicker && (
         <div className="w-full max-w-[320px]">
           <TerminalSearch<SystemParams, SystemErr>
@@ -264,7 +258,6 @@ function SavedStructureRow({
             errorLabel="System"
           />
         </div>
-
       )}
       {showTaxEditor && (
         <InlineTaxEditor
@@ -277,7 +270,6 @@ function SavedStructureRow({
         />
       )}
     </Card>
-
   );
 }
 
@@ -291,10 +283,8 @@ function StructureTypeSelect({
   onChange: (id: number | null) => void;
 }) {
   return (
-
     <div className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-wide text-muted">Structure type</span>
-
       <Select
         value={value == null ? '' : String(value)}
         onValueChange={(v) => onChange(v === '' ? null : Number(v))}
@@ -309,7 +299,6 @@ function StructureTypeSelect({
         className="w-full max-w-[320px]"
       />
     </div>
-
   );
 }
 
@@ -348,7 +337,6 @@ function SavedStructuresList({
 }) {
   if (structures.length === 0) {
     return <EmptyState>No custom structures yet — build one above.</EmptyState>;
-
   }
   return (
     <ul className="flex flex-col gap-1.5">
@@ -373,7 +361,6 @@ function SavedStructuresList({
         />
       ))}
     </ul>
-
   );
 }
 
@@ -389,10 +376,8 @@ function useCustomStructureDraft(
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [pin, setPin] = useState<SystemSearchEntry | null>(null);
   const [pinningId, setPinningId] = useState<string | null>(null);
-
   const [taxDraft, setTaxDraft] = useState('');
   const [taxingId, setTaxingId] = useState<string | null>(null);
   const [rowTaxDraft, setRowTaxDraft] = useState('');
@@ -458,7 +443,6 @@ export function CustomStructureBuilder({
 
   function chooseStructure(id: number | null) {
     draft.setStructureTypeId(id);
-
     draft.setRigSlots(slotIndices.map(() => null));
     draft.setError(null);
   }
@@ -533,7 +517,6 @@ export function CustomStructureBuilder({
     const res = await apiFetch(setCustomStructurePinEndpoint, { body: { id, systemId }, cache: 'no-store' });
     draft.setBusy(false);
     if (!res.ok) {
-
       draft.setError('Could not update the pin — try again.');
       return;
     }
@@ -580,7 +563,6 @@ export function CustomStructureBuilder({
             className="leading-[1.5]"
           />
         </Field>
-
         <div className="flex flex-col gap-1">
           <Button
             variant="bare"
@@ -607,7 +589,6 @@ export function CustomStructureBuilder({
 
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">Name</span>
-
           <Input
             type="text"
             value={draft.name}
@@ -621,7 +602,6 @@ export function CustomStructureBuilder({
 
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">Pin to system (optional)</span>
-
           <PinField
             pin={draft.pin}
             parse={draft.parse}
@@ -652,14 +632,12 @@ export function CustomStructureBuilder({
         <Button variant="primary" onClick={onSave} disabled={!canSave} className="self-start">
           Save structure
         </Button>
-
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-soft pt-4">
         <span className="text-label uppercase tracking-wide text-muted">
           Your structures ({draft.structures.length})
         </span>
-
         <SavedStructuresList
           structures={draft.structures}
           view={(s) => deriveSavedRowView(s, {
@@ -682,8 +660,6 @@ export function CustomStructureBuilder({
           onError={draft.setError}
         />
       </div>
-
     </div>
-
   );
 }

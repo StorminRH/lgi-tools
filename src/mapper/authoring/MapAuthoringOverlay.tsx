@@ -23,7 +23,6 @@ export function MapAuthoringOverlay({
   events,
   authoring,
 }: MapAuthoringOverlayProps) {
-
   const [tickNow, setTickNow] = useState(connectionPresentationNow);
   useEffect(() => {
     const timer = window.setInterval(

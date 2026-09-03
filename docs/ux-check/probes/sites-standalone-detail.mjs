@@ -7,7 +7,6 @@ export default {
     const card = page.locator('[data-site-card][data-presentation="standalone"]');
     await card.waitFor({ state: 'visible', timeout: 15_000 });
     check('standalone site card is visible', await card.isVisible());
-
     check(
       'standalone card chrome has no card-level collapse toggle',
       (await card.locator(':scope > details[data-collapsible]').count()) === 0

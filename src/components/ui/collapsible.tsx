@@ -28,10 +28,7 @@ export function Collapsible({
       >
         {header}
       </summary>
-
       <div>{children}</div>
-
     </details>
-
   );
 }

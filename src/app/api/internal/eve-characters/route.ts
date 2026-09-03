@@ -14,6 +14,7 @@ import { readJsonBody } from '@/transport/route-body';
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 // authz: service
+// rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 export async function POST(req: Request): Promise<Response> {
   const auth = await checkBearerSecret(req, 'CONVEX_SERVICE_SECRET');
   if (!auth.ok) return apiResponse(eveCharactersEndpoint, auth.failure.code === 'not_configured' ? 500 : 401, auth.failure);

@@ -16,7 +16,6 @@ export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }
       label: 'Δ',
       align: 'right',
       render: (row) => row.delta ? <DeltaBadge delta={row.delta} /> : <span className="text-muted">—</span>,
-
     },
     {
       key: 'trend',
@@ -28,9 +27,7 @@ export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }
         <span className="inline-flex align-middle">
           <StaticSparkline values={row.series} ariaLabel={`${row.label} recent trend`} />
         </span>
-
       ) : <span className="text-muted">—</span>,
-
     },
   ] satisfies readonly StaticTableColumn<MetricRow>[];
   return (
@@ -44,8 +41,6 @@ export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }
           getRowKey={(row) => row.label}
         />
       </div>
-
     </Card>
-
   );
 }

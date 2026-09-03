@@ -11,10 +11,8 @@ export function HomeDashboard() {
         <HomeLeftColumn anonHero={<HomeHero />} />
         <HomeLiveStats />
       </section>
-
       <HomeFeatureCards />
       <HomeNewsCard />
     </div>
-
   );
 }

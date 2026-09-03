@@ -7,7 +7,6 @@ describe('ISK formatters', () => {
     expect(formatIsk(2_345_000)).toBe('2.35M');
     expect(formatIsk(2_345)).toBe('2.3K');
     expect(formatIsk(42)).toBe('42.00');
-
     expect(formatIsk(null)).toBe('—');
     expect(formatIsk(Number.NaN)).toBe('—');
 

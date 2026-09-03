@@ -21,7 +21,6 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
       <span data-site-name className="truncate text-name">
         {s.name}
       </span>
-
     ),
   },
   {
@@ -31,7 +30,6 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
       <Pill tone={SITE_TYPE_TONE[s.siteType]} size="sm">
         {SITE_TYPE_LABEL[s.siteType]}
       </Pill>
-
     ),
   },
   {
@@ -39,14 +37,12 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
     label: 'ISK',
     align: 'right',
     render: (s) => <span className="tabular-nums">{formatIskShort(primarySiteIsk(s))}</span>,
-
   },
   {
     key: 'blueLoot',
     label: 'Blue loot',
     align: 'right',
     render: (s) => <span className="tabular-nums text-muted">{formatIskShort(s.blueLootIsk)}</span>,
-
   },
   {
     key: 'scrams',
@@ -56,7 +52,6 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
       const total = siteScramTotal(s);
       return (
         <span className={`tabular-nums ${total === 0 ? 'text-muted' : ''}`}>{total === 0 ? '—' : total}</span>
-
       );
     },
   },
@@ -66,20 +61,16 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
     render: (s) => {
       if (s.wormholeClass) {
         return <Pill tone={CLASS_TONE[s.wormholeClass]} size="sm">{s.wormholeClass}</Pill>;
-
       }
       if (s.siteType === 'gas') {
         const range = gasClassRange(s.name);
         if (range) {
-
           return (
             <Pill tone={CLASS_TONE[range.min]} size="sm">{formatClassRange(range)}</Pill>
-
           );
         }
       }
       return <span className="text-muted">—</span>;
-
     },
   },
 ];
@@ -130,18 +121,13 @@ export function SitesTable({
             >
               {cells}
             </summary>
-
             <SiteLiveProvider resources={displayableResources(row.resources)}>
               <div className="sites-table-expanded">
                 <LazySiteDetails site={row} />
               </div>
-
             </SiteLiveProvider>
-
           </details>
-
         </UrlSync>
-
       )}
     />
   );

@@ -43,7 +43,6 @@ describe('SiteCardHeader', () => {
     expect(dock).toContain('Forgotten Perimeter Coronation Platform');
     expect(dock).toContain('data-site-ship-classes');
     expect(catalogue).toContain('Forgotten Perimeter Coronation Platform');
-
     expect(dock).toContain('justify-center');
     expect(catalogue).not.toContain('justify-center');
   });

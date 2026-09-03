@@ -70,9 +70,7 @@ describe('runTemplateLoad', () => {
     });
 
     expect(outcome).toMatchObject({ kind: 'applied', notes: [] });
-
     expect(captureTemplate(target.ctx, 999)).toEqual(snap);
-
     expect(target.state.persistedBuildLocation).toEqual(snap.buildSystem);
   });
 
@@ -97,7 +95,6 @@ describe('runTemplateLoad', () => {
     ]);
     expect(target.state.selectedStructure).toBeNull();
     expect(target.state.reactionStructure).toBeNull();
-
     expect(target.state.runs).toBe(3);
   });
 
@@ -105,7 +102,6 @@ describe('runTemplateLoad', () => {
     const source = makeMockPlanner();
     configureFull(source.state);
     const snap = captureTemplate(source.ctx, 999);
-
     snap.reactionStructure = { id: 'corp:1021', name: 'Sotiyo Prime' };
 
     const target = makeMockPlanner();
@@ -219,9 +215,7 @@ describe('urlStillOnPlan', () => {
   it('matches only the live URL that still carries this load', () => {
     expect(urlStillOnPlan('?plan=abc', 'abc')).toBe(true);
     expect(urlStillOnPlan('?runs=3&plan=abc', 'abc')).toBe(true);
-
     expect(urlStillOnPlan('?plan=other', 'abc')).toBe(false);
-
     expect(urlStillOnPlan('', 'abc')).toBe(false);
     expect(urlStillOnPlan('?runs=3', 'abc')).toBe(false);
   });

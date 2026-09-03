@@ -35,8 +35,6 @@ export function AdminUnlinkCharacterForm({
       >
         Unlink
       </Button>
-
     </form>
-
   );
 }

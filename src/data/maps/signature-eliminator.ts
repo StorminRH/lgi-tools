@@ -9,9 +9,7 @@ export interface EliminationSignature {
 
 export interface EliminationConnection {
   readonly connectionId: string;
-
   readonly wormholeTypeCode: string | null;
-
   readonly linkedSignature: boolean;
 }
 
@@ -31,7 +29,6 @@ export type EliminationDeduction = AssumedDeduction & (
   | { readonly typeCode: string }
   | {
       readonly connectionId: string;
-
       readonly expectedTypeCode: string | null;
     }
 );
@@ -112,7 +109,6 @@ function connectionAdmits(
   connection: EliminationConnection,
   typeCode: string,
 ): boolean {
-
   return connection.wormholeTypeCode === typeCode;
 }
 
@@ -129,7 +125,6 @@ function competingSignatures(
   slots: StaticSlots,
 ): number {
   return signatures.filter((signature) => {
-
     if (signature.wormholeTypeCode === null) return true;
     const code = fixedType(signature);
     return code !== null

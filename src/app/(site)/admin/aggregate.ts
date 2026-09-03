@@ -17,11 +17,8 @@ export function isWeekend(date: string): boolean {
 }
 
 export interface DailySeries {
-
   days: string[];
-
   values: number[];
-
   weekend: boolean[];
 }
 

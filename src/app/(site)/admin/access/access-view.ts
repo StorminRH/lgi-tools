@@ -62,7 +62,6 @@ export function deriveAccessView(opts: {
   resultsHint: string;
 } {
   const adminUserIds = new Set(opts.adminRows.map((r) => r.user.userId));
-
   const searchTruncated = opts.searchResults.length > CHARACTER_SEARCH_LIMIT;
   const nonAdminMatches = opts.searchResults
     .slice(0, CHARACTER_SEARCH_LIMIT)

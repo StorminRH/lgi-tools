@@ -47,7 +47,6 @@ function CharacterAdminRow({
   character: LinkedCharacter;
   userId: string;
   isActive: boolean;
-
   isViewerSelf: boolean;
   isOnlyCharacter: boolean;
 }) {
@@ -76,19 +75,14 @@ function CharacterAdminRow({
       chips={
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {character.characterId}</Pill>
-
           <Pill tone="neutral">linked {formatDate(character.linkedAt)}</Pill>
-
           {isActive ? <Chip tone="green">Active</Chip> : null}
-
           {health.needsReconnect ? (
             <Chip tone="orange" className="normal-case">
               {character.hasRefreshToken ? 'Missing scopes' : 'Disconnected'}
             </Chip>
-
           ) : null}
         </span>
-
       }
       trailing={
         <span className="flex items-center gap-2 justify-end">
@@ -105,7 +99,6 @@ function CharacterAdminRow({
             disabled={isOnlyCharacter}
           />
         </span>
-
       }
     />
   );
@@ -117,24 +110,18 @@ function NotFound() {
       <div className="w-full max-w-[760px]">
         <PageHead size="compact" crumb="access" title="User not found" />
       </div>
-
       <div className="w-full max-w-[760px]">
         <Card>
           <EmptyState>No account matches that id.</EmptyState>
-
         </Card>
-
         <Link
           href="/admin/access"
           className={cn(buttonVariants({ variant: 'secondary' }), 'mt-4 text-muted hover:text-text')}
         >
           ← Access
         </Link>
-
       </div>
-
     </>
-
   );
 }
 
@@ -145,7 +132,6 @@ async function UserDetailContent({
   params: Promise<{ userId: string }>;
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
-
   const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
@@ -192,37 +178,28 @@ async function UserDetailContent({
               <PageTitle size="compact" className="mb-1 truncate">
                 {targetUser.name}
               </PageTitle>
-
               <span className="flex items-center gap-[6px]">
                 <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
-
                 {view.identityChips.map((chip) => (
                   <Chip key={chip.label} tone={chip.tone}>
                     {chip.label}
                   </Chip>
-
                 ))}
               </span>
-
             </div>
-
           </div>
-
           <Link
             href="/admin/access"
             className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text shrink-0')}
           >
             ← Access
           </Link>
-
         </div>
-
       </header>
 
       <div className="w-full max-w-[760px] flex flex-col gap-6">
         {error ? (
           <Callout label="Heads up">{error}</Callout>
-
         ) : null}
 
         <Card>
@@ -233,7 +210,6 @@ async function UserDetailContent({
           />
           {characters.length === 0 ? (
             <EmptyState>No characters linked to this account.</EmptyState>
-
           ) : (
             characters.map((character) => (
               <CharacterAdminRow
@@ -258,20 +234,15 @@ async function UserDetailContent({
             <span className="text-ui text-muted">
               Revoke all sign-ins for this account. May take a few minutes to fully apply.
             </span>
-
             <AdminForceLogoutForm
               userId={userId}
               userName={targetUser.name}
               disabled={view.forceLogoutDisabled}
             />
           </div>
-
         </Card>
-
       </div>
-
     </>
-
   );
 }
 
@@ -294,10 +265,7 @@ export default function UserDetailPage({
         <Suspense fallback={<DetailLoading />}>
           <UserDetailContent params={params} searchParams={searchParams} />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

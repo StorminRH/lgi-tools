@@ -18,7 +18,6 @@ export const toolsSearchSource: SearchSource = {
         sub: tool.description,
         href: tool.href ?? '#',
         iconText: tool.abbr,
-
         iconTone: 'green',
         matchIndices: match.matchIndices,
         disabled: tool.href === null,

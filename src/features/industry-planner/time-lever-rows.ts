@@ -11,7 +11,6 @@ export function timeLeverRows(args: {
   const skillFactor = skillTimeFactors.skillTimeFactorOf(topBlueprintTypeId);
   const structureFactor = structureTeFactorOf(topBlueprintTypeId);
   return {
-
     skills:
       skillTimeFactors.active && buildCharacterName !== null && skillFactor < 1
         ? `${reduction(skillFactor)} (${buildCharacterName})`

@@ -30,13 +30,10 @@ function useAuthForConvex() {
 }
 
 export function ConvexClientProvider({ children }: { children: React.ReactNode }) {
-
   if (convexClient === null) return <>{children}</>;
-
   return (
     <ConvexProviderWithAuth client={convexClient} useAuth={useAuthForConvex}>
       {children}
     </ConvexProviderWithAuth>
-
   );
 }

@@ -1,4 +1,3 @@
-
 export const modules = import.meta.glob([
   '../auth.config.ts',
   '../characterLocationAccess.ts',

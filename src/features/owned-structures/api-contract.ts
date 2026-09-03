@@ -38,12 +38,10 @@ export const setCorpStructureSharingRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   enabled: z.boolean(),
 });
-
 const corpStructureSharingResponseSchema = z.object({
   corporationId: z.number(),
   enabled: z.boolean(),
 });
-
 export const setCorpStructureSharingEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/corp-structures/sharing',
@@ -57,23 +55,18 @@ export const setCorpStructureSharingEndpoint = defineEndpoint({
 });
 
 const PG_INT4_MAX = 2_147_483_647;
-
 export const MAX_CORP_STRUCTURE_RIGS = 3;
-
 export const setCorpStructureRigsRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   structureId: z.number().int().positive(),
   rigTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_CORP_STRUCTURE_RIGS),
-
   taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
-
 const corpStructureRigsResponseSchema = z.object({
   structureId: z.number(),
   rigTypeIds: z.array(z.number()),
   taxPct: z.number().nullable(),
 });
-
 export const setCorpStructureRigsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/corp-structures/rigs',

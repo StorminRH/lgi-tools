@@ -30,7 +30,6 @@ export async function apiFetch<const TEndpoint extends EndpointContract>(
   ...args: EndpointCallArgs<TEndpoint>
 ): Promise<OutcomeOf<TEndpoint>> {
   const [init] = args;
-
   const url = init === undefined ? endpoint.path : endpointUrl(endpoint, init);
 
   let response: Response;
@@ -52,7 +51,6 @@ function requestInit(
   init: (CallInit & { body?: unknown; params?: unknown; query?: unknown }) | undefined,
 ): RequestInit {
   if (init === undefined) return {};
-
   const { body, params: _params, query: _query, ...rest } = init;
   return {
     ...(endpoint.request === null

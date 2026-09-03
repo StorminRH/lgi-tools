@@ -24,7 +24,6 @@ import {
 
 const WORMHOLE_GROUP_ID = 988;
 const K162_CODE = FAR_SIDE_WORMHOLE_CODE;
-
 const WORMHOLE_TYPE_NAME = /^Wormhole (.+)$/;
 const KNOWN_QA_WORMHOLE_TYPES = new Map([
   [32_894, 'QA Wormhole A'],

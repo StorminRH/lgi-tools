@@ -26,7 +26,6 @@ describe('postLeaveSync', () => {
         tabId: 'tab-aaaa-bbbb',
       }),
     ).resolves.toEqual({ retired: true });
-
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/leave-sync');

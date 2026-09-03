@@ -15,7 +15,6 @@ export function OverlayPortalContainerProvider({
     <OverlayPortalContainerContext.Provider value={container}>
       {children}
     </OverlayPortalContainerContext.Provider>
-
   );
 }
 

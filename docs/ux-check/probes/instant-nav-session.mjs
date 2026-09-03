@@ -24,7 +24,6 @@ export default {
           route.title.test(text),
         );
       });
-
       await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(200);
     }

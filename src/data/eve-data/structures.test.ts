@@ -37,7 +37,6 @@ describe('isIndustryRig', () => {
   });
 
   it('rejects optimization rigs that carry time/cost but no material reduction', () => {
-
     expect(isIndustryRig(copyOptimization)).toBe(false);
   });
 
@@ -100,7 +99,6 @@ describe('rigFitsStructure', () => {
 describe('shapeStructureRigs', () => {
   it('keeps only industry rigs, reading canFitGroups + rigSize, name-sorted', () => {
     const rows = [
-
       {
         id: 43920,
         name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
@@ -112,13 +110,11 @@ describe('shapeStructureRigs', () => {
           1300: 1657,
         } as AttrMap,
       },
-
       {
         id: 99999,
         name: 'Standup L-Set Copy Optimization',
         attributes: { [STRUCTURE_RIG_SIZE_ATTR]: 3, [RIG_MFG_MATERIAL_ATTR]: 0 } as AttrMap,
       },
-
       {
         id: 46640,
         name: 'Standup M-Set Reactor Efficiency I',
@@ -130,7 +126,6 @@ describe('shapeStructureRigs', () => {
       },
     ];
     expect(shapeStructureRigs(rows)).toEqual([
-
       {
         typeId: 43920,
         name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
@@ -151,7 +146,6 @@ describe('shapeStructureRigs', () => {
       {
         id: 1,
         name: 'Rig',
-
         attributes: { [RIG_MFG_MATERIAL_ATTR]: -1, 1298: 1406 } as AttrMap,
       },
     ]);

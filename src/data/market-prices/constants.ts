@@ -5,7 +5,6 @@ export const JITA_44_STATION_ID = 60003760;
 export const NPC_STATION_ID_CEILING = 1e9;
 
 export const REGIONAL_DISCOUNT_MIN_PCT = 15;
-
 export const REGIONAL_DISCOUNT_MIN_UNITS = 10;
 
 export const BULK_THRESHOLD = 100;

@@ -44,7 +44,6 @@ export function useMotion(
   const [host, setHost] = useState<MotionHostState>(() =>
     createHostState(intents, truth.edges),
   );
-
   const plan = useMemo(() => tweenPlanOf(config, false), [config]);
   const reducedPlan = useMemo(() => tweenPlanOf(config, true), [config]);
 
@@ -98,7 +97,6 @@ export function useMotion(
         seams.prefersReducedMotion(),
       );
       if (step.changed) {
-
         setHost(step.next);
         return;
       }

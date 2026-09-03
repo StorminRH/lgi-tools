@@ -23,9 +23,7 @@ import {
 } from '@/lib/preferences';
 
 interface PreferencesContextValue {
-
   values: Map<string, unknown>;
-
   ready: boolean;
   set: <T>(def: PreferenceDef<T>, value: T) => void;
 }
@@ -103,7 +101,6 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const ctx = useMemo<PreferencesContextValue>(() => ({ values, ready, set }), [values, ready, set]);
 
   return <PreferencesContext.Provider value={ctx}>{children}</PreferencesContext.Provider>;
-
 }
 
 export function usePreference<T>(
@@ -119,7 +116,6 @@ export function usePreference<T>(
   } else {
     value = opts?.serverValue ?? def.fallback;
   }
-
   const set = ctx?.set;
   const setValue = useCallback((next: T) => set?.(def, next), [set, def]);
   return [value, setValue] as const;

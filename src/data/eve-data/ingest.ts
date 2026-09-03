@@ -101,7 +101,6 @@ export async function runIngest(
 
   try {
     await db.transaction(async (tx) => {
-
       await tx.execute(
         sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}, ${industryBlueprints}, ${typeDogma}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
       );
@@ -209,7 +208,6 @@ export async function runIngest(
           const typeId = intOrNull(r._key);
           const list = r.dogmaAttributes;
           if (typeId === null || !Array.isArray(list)) return null;
-
           const attributes: Record<string, number> = {};
           for (const a of list) {
             const attrId = intOrNull((a as Record<string, unknown>).attributeID);

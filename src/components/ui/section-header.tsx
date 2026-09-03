@@ -34,10 +34,7 @@ export function SectionHeader({
       )}
     >
       <span>{label}</span>
-
       {hint && <span className={`${hintSizing} font-normal text-muted`}>{hint}</span>}
-
     </div>
-
   );
 }

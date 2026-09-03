@@ -29,7 +29,6 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   'use cache';
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
-
   return withColdStartRetry(() => getPricesFreshness(db));
 }
 

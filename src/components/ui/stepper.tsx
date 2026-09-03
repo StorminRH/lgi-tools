@@ -21,7 +21,6 @@ export function Stepper({
   onChange: (n: number) => void;
   min?: number;
   max?: number;
-
   step?: number;
   ariaLabel: string;
   variant?: 'default' | 'inline';
@@ -39,11 +38,9 @@ export function Stepper({
   return (
     <NumberField.Root
       value={value}
-
       onValueChange={(next) => {
         if (next !== null) onChange(next);
       }}
-
       onValueCommitted={(next) => onChange(next ?? min)}
       min={min}
       max={max}
@@ -62,10 +59,8 @@ export function Stepper({
         <span className="inline-flex w-3.5 shrink-0 items-center justify-center">
           {trailing}
         </span>
-
       )}
     </NumberField.Root>
-
   );
 }
 
@@ -90,7 +85,6 @@ function stepperField({
       <NumberField.Decrement aria-label={`Decrease ${ariaLabel}`} className={btn}>
         {inline ? '▼' : '–'}
       </NumberField.Decrement>
-
       <NumberField.Input
         aria-label={ariaLabel}
         className={cn(
@@ -104,8 +98,6 @@ function stepperField({
       <NumberField.Increment aria-label={`Increase ${ariaLabel}`} className={btn}>
         {inline ? '▲' : '+'}
       </NumberField.Increment>
-
     </NumberField.Group>
-
   );
 }

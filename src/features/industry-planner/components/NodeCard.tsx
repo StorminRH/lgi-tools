@@ -28,21 +28,15 @@ function LedgerCells({ cell }: { cell: LedgerCell | null }) {
     return (
       <>
         <span className="text-right text-name">{cell.qty}</span>
-
         <span className="text-right text-isk">{cell.isk}</span>
-
       </>
-
     );
   }
   return (
     <>
       <span className="text-right text-faint">—</span>
-
       <span className="text-right text-faint">—</span>
-
     </>
-
   );
 }
 
@@ -51,19 +45,13 @@ function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | nu
   return (
     <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-data text-ui tabular-nums">
       <span className="text-muted">Total Needed</span>
-
       <span className="text-right text-name">{view.neededQty}</span>
-
       <span className="text-right text-isk">{view.neededIsk}</span>
-
       <span className="text-muted">Total Owned</span>
-
       <LedgerCells cell={view.owned} />
       <span className="text-muted">Total Remaining</span>
-
       <LedgerCells cell={view.remaining} />
     </div>
-
   );
 }
 
@@ -72,18 +60,13 @@ function HoldingLine({ holding }: { holding: AssetHolding }) {
     <div className="flex items-baseline justify-between gap-3 font-data text-ui">
       <span className="min-w-0">
         <span className="text-name">{holding.ownerName}</span>
-
         <span className="block text-micro tracking-copy text-muted">
           {holding.locationName}
           {holding.locationFlag ? ` · ${holding.locationFlag}` : ''}
         </span>
-
       </span>
-
       <span className="shrink-0 tabular-nums text-faint">{formatQuantity(holding.quantity)}</span>
-
     </div>
-
   );
 }
 
@@ -100,7 +83,6 @@ function RingCheck() {
     >
       <path d="M5 13l4 4L19 7" />
     </svg>
-
   );
 }
 
@@ -115,11 +97,9 @@ function HeldByList({ heldBy }: { heldBy?: AssetHolding[] }) {
           />
         ))}
       </>
-
     );
   }
   return <EmptyState>No holdings tracked yet</EmptyState>;
-
 }
 
 function QtyRingCell({
@@ -132,14 +112,11 @@ function QtyRingCell({
   name: string;
   qty: number;
   value: number | null;
-
   ownedQty?: number;
-
   heldBy?: AssetHolding[];
 }) {
   const view = qtyRingView(name, qty, ownedQty);
   return (
-
     <span className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <Popover
         label={`${name} — asset tracking`}
@@ -152,25 +129,18 @@ function QtyRingCell({
               <RingCheck />
             ) : (
               <span className="font-data text-ui tabular-nums text-name">{ringQty(view.remaining)}</span>
-
             )}
           </QtyRing>
-
         }
       >
         <PopoverHeading>Asset Tracking</PopoverHeading>
-
         <div className="flex flex-col gap-1">
           <div className="text-label uppercase tracking-wide text-muted">Item held by</div>
-
           <HeldByList heldBy={heldBy} />
         </div>
-
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />
       </Popover>
-
     </span>
-
   );
 }
 
@@ -180,11 +150,9 @@ function BuildableIcon({
   efficiency,
   detail,
 }: {
-
   icon: EveImageDescriptor;
   name: string;
   efficiency: NodeEfficiency;
-
   detail: OwnedComponentDetail | undefined;
 }) {
   return (
@@ -201,13 +169,10 @@ function BuildableIcon({
         trigger={<TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />}
       >
         <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>
-
         {efficiency.adjusters}
         {detail && <ProvenanceRows detail={detail} />}
       </Popover>
-
     </span>
-
   );
 }
 
@@ -228,23 +193,18 @@ export function NodeCard({
   onSelect,
 }: {
   typeId: number;
-
   icon?: EveImageDescriptor;
   name: string;
   label: string;
   qty: number;
   value: number | null;
-
   efficiency?: NodeEfficiency;
-
   detail?: OwnedComponentDetail;
-
   ownedQty?: number;
   heldBy?: AssetHolding[];
   selected: boolean;
   related: boolean;
   faded: boolean;
-
   onSelect?: () => void;
 }) {
   const view = nodeCardView({ onSelect, icon, typeId, selected, related, faded });
@@ -269,26 +229,19 @@ export function NodeCard({
           <span className={cn(FRAME, 'border-transparent')}>
             <TypeIcon {...view.iconDesc} size={30} mono={name.slice(0, 2)} />
           </span>
-
         )}
       </span>
-
       <div className="relative z-10 pointer-events-none flex min-w-0 flex-1 flex-col gap-px">
         <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
           {name}
         </span>
-
         <span className="truncate font-data text-label uppercase tracking-label text-muted">
           {label}
         </span>
-
       </div>
-
       <span className="relative z-10 pointer-events-none [&_button]:pointer-events-auto">
         <QtyRingCell name={name} qty={qty} value={value} ownedQty={ownedQty} heldBy={heldBy} />
       </span>
-
     </div>
-
   );
 }

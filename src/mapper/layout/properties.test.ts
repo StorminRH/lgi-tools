@@ -48,7 +48,6 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
   });
 
   it('keeps a multi-orphan cluster clear of the gate, including its own internal spacing', async () => {
-
     const A = 31_000_001;
     const chain = facts(
       [A, 31_000_002, 31_000_003, 31_000_004, 31_000_005, 31_000_006],
@@ -65,7 +64,6 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
   });
 
   it('holds the overlap gate when the dials tighten below the compass defaults', async () => {
-
     const A = 31_000_001;
     const children = [2, 3, 4, 5, 6, 7].map((n) => 31_000_000 + n);
     const star = facts(

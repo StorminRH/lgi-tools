@@ -53,7 +53,6 @@ export function volumeCoefficientOfVariation(
   const { inWindow, total } = w;
   const mean = total / windowDays;
   if (mean === 0) return null;
-
   let sumSq = 0;
   for (const r of inWindow) {
     const d = Number(r.volume) - mean;

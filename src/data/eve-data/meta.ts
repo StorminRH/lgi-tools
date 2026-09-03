@@ -28,7 +28,6 @@ export async function getCachedSdeVersion(): Promise<{
       .from(eveDataMeta)
       .where(eq(eveDataMeta.key, SDE_META_KEY_VERSION))
       .limit(1);
-
     if (!row) return { version: null, ingestedAt: null };
     return { version: row.value, ingestedAt: row.updatedAt };
   });

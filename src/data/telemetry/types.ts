@@ -12,7 +12,6 @@ export type ServerUsageAction =
   | 'admin_esi_job_requeued'
   | 'feedback_submitted'
   | 'cross_origin_mutation'
-
   | 'price_source_degraded'
   | 'market_price_refresh'
   | 'market_price_write_behind'
@@ -41,7 +40,6 @@ export type ServerUsageAction =
   | 'account_purge'
   | 'auth_absorb'
   | 'capability_outcome';
-
 export type UsageAction = (typeof CLIENT_USAGE_ACTIONS)[number] | ServerUsageAction;
 
 export interface DateRange {

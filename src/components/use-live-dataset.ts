@@ -6,16 +6,13 @@ import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { shouldReconcile } from '@/lib/live-dataset';
 
 const TICK_MS = 30_000;
-
 const RECONCILE_DELAY_MS = 4_000;
 
 export function useLiveDataset<TResponse, TKey extends string | boolean>(
   endpoint: EndpointContract<null, { 200: JsonCodec<TResponse> }> & {
     method: 'GET';
   },
-
   coldKey: TKey,
-
   isCold: (response: TResponse, key: TKey) => boolean,
 ): { response: TResponse | null; now: number; loading: boolean } {
   const [response, setResponse] = useState<TResponse | null>(null);
@@ -29,7 +26,6 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
       const result = await apiFetch(endpoint);
       if (cancelled || !result.ok) return;
       setResponse(result.data);
-
       if (shouldReconcile(reconciled, result.data, coldKey, isCold)) {
         reconciled = true;
         timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);

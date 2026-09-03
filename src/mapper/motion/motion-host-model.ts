@@ -34,7 +34,6 @@ export interface MotionHostState {
   readonly displacements: ReadonlyMap<number, ChainPosition>;
   readonly ghostNodes: ReadonlyMap<number, ChainNode>;
   readonly ghostEdges: ReadonlyMap<string, ChainEdge>;
-
   readonly knownEdges: ReadonlyMap<string, ChainEdge>;
 }
 
@@ -103,7 +102,6 @@ function captureGhostNodes(
       draggable: false,
       selectable: false,
       className: 'map-ghost',
-
       style: { pointerEvents: 'none' },
       data: { ...node.data, motion: { phase: 'departing', heavy: ghost.heavy } },
     });
@@ -214,7 +212,6 @@ export function edgeMotionFor(
   if (edge.data.loop || flavor === 'fade-with-child') {
     return { phase, flavor: 'fade', reverse: false, heavy };
   }
-
   const reverse = treeParents.get(Number(edge.source)) === Number(edge.target);
   return { phase, flavor: 'grow', reverse, heavy };
 }
@@ -233,7 +230,6 @@ function deriveNode(
   host: MotionHostState,
   dragging: ReadonlySet<number>,
 ): ChainNode {
-
   if (node.data.stub !== undefined) return node;
   const systemId = Number(node.id);
   if (dragging.has(systemId)) return node;

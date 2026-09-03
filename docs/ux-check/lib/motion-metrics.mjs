@@ -20,7 +20,6 @@ export async function installMotionMetrics(page) {
         for (const entry of list.getEntries()) metrics.loaf.push(entry.duration);
       }).observe({ type: 'long-animation-frame', buffered: true });
     } catch {
-
     }
 
     const parseTranslate = (transform) => {

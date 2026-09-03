@@ -91,7 +91,6 @@ describe('isNeonColdStartError', () => {
       const b = neonError('inner');
       Object.assign(a, { cause: b, sourceError: b });
       Object.assign(b, { cause: a, sourceError: a });
-
       expect(isNeonColdStartError(a)).toBe(true);
     });
   });

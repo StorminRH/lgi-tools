@@ -25,10 +25,8 @@ export const corpStructures = pgTable(
     typeId: integer('type_id').notNull(),
     systemId: integer('system_id').notNull(),
     securityClass: securityClassEnum('security_class').notNull(),
-
     name: text('name'),
   },
-
   (t) => [primaryKey({ columns: [t.corporationId, t.structureId] })],
 );
 
@@ -75,7 +73,6 @@ export const corpStructureRigs = pgTable(
     corporationId: bigint('corporation_id', { mode: 'number' }).notNull(),
     structureId: bigint('structure_id', { mode: 'number' }).notNull(),
     rigTypeIds: jsonb('rig_type_ids').$type<number[]>().default([]).notNull(),
-
     taxPct: doublePrecision('tax_pct'),
     setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
   },

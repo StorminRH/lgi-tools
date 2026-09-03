@@ -23,7 +23,6 @@ export type ConfirmFlashHost = {
 export type ConfirmFlashScheduler = {
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;
-
   prefersReducedMotion: () => boolean;
 };
 
@@ -112,6 +111,5 @@ export function LivePrice({
     >
       {value}
     </span>
-
   );
 }

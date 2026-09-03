@@ -28,14 +28,12 @@ const skillsBodySchema = z.object({
 export interface SkillTotals {
   totalSp: number;
   unallocatedSp?: number;
-
   levels: Record<string, number>;
 }
 
 export function parseSkillQueueBody(body: unknown): SkillQueueEntry[] | null {
   const parsed = skillQueueBodySchema.safeParse(body);
   if (!parsed.success) return null;
-
   return [...parsed.data].sort((a, b) => a.queue_position - b.queue_position);
 }
 

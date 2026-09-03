@@ -17,7 +17,6 @@ export interface BlueprintProduct {
   typeId: number;
   name: string;
   quantityPerRun: number;
-
   renderable: boolean;
 }
 
@@ -44,24 +43,16 @@ export interface BlueprintStructure {
   blueprintTypeId: number;
   activityId: number;
   product: BlueprintProduct;
-
   tree: TreeNode[];
-
   buildTree: BuildNode[];
   buildNodeDisplay: Record<number, BuildNodeDisplay>;
   rootHeight: number;
-
   materialCategory: Record<number, string>;
   materialCategories: MaterialCategoryMeta[];
-
   materialNames: Record<number, string>;
-
   topJobSeconds: number | null;
-
   nodeJobSeconds: Record<number, number>;
-
   nodeActivityByBlueprint: Record<number, number>;
-
   nodeTimeSkills: Record<
     number,
     { skillTypeId: number; skillName: string; timePctPerLevel: number }[]
@@ -77,11 +68,9 @@ export interface MaterialCostRow {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
-
   buyVolume: number | null;
   sellVolume: number | null;
   source: PriceSource | null;
-
   staleAfterMs: number | null;
 }
 
@@ -108,7 +97,6 @@ export interface IndustryStationView {
 export interface BuildLocationData {
   stations: IndustryStationView[];
   costIndices: { manufacturing: number | null; reaction: number | null };
-
   adjustedPrices: { typeId: number; adjustedPrice: number }[];
 }
 
@@ -116,9 +104,7 @@ export interface NetMarginView {
   netMargin: number | null;
   netMarginPct: number | null;
   netCost: number | null;
-
   systemCostIndex: number | null;
-
   facilityTaxRate: number;
   facilityTaxAssumed: boolean;
   jobFee: {
@@ -135,35 +121,27 @@ export interface NetMarginView {
 
 export interface BlueprintPricing {
   rows: MaterialCostRow[];
-
   intermediatePrices: IntermediatePrice[];
   product: {
     typeId: number;
     name: string;
     quantityPerRun: number;
     bestSell: number | null;
-
     pct5Sell: number | null;
     staleAfterMs: number | null;
-
     buyDepth: DepthBand[] | null;
     sellDepth: DepthBand[] | null;
-
     regionalDiscount: RegionalDiscount | null;
   };
   summary: {
-
     basis: 'batched' | 'marginal';
-
     bases: { batched: number; marginal: number };
     inputCost: number;
     revenue: number | null;
     margin: number | null;
     marginPct: number | null;
-
     incomplete: boolean;
   };
-
   net: NetMarginView | null;
 }
 

@@ -36,7 +36,6 @@ function getJwt(): JWT {
     email: client_email,
     key: private_key,
     scopes: [GSC_SCOPE],
-
     transporterOptions: { timeout: OUTBOUND_FETCH_TIMEOUT_MS },
   });
   return _jwt;

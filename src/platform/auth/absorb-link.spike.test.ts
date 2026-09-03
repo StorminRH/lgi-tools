@@ -86,7 +86,6 @@ function makeHarness({ absorb }: { absorb: boolean }) {
                     if (row && row.userId !== link.userId) row.userId = link.userId;
                   }
                 } catch {
-
                 }
               }
               return {

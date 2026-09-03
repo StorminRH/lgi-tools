@@ -73,11 +73,9 @@ function useEditorLeader(
   useLayoutEffect(() => {
     measure();
     window.addEventListener('resize', measure);
-
     document.addEventListener('scroll', measure, true);
     const panel = panelRef.current;
     let observer: ResizeObserver | null = null;
-
     if (panel !== null && typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(measure);
       observer.observe(panel);
@@ -119,7 +117,6 @@ function useOutsideDismiss(
     };
 
     const handlePointerDown = (event: PointerEvent) => {
-
       const action = outsideDismissAction({
         ...containment(event.target),
         isClick: true,
@@ -195,21 +192,16 @@ function EditorLeaderLine({ leader }: { readonly leader: EditorLeader | null }) 
         className="stroke-isk"
       />
     </svg>
-
   );
 }
 
 export interface ScannerAnchoredPanelProps {
-
   readonly signatureId: string | null;
   readonly windowId: string;
   readonly title: string;
   readonly onClose: () => void;
-
   readonly measure?: ScannerAnchoredMeasure;
-
   readonly showCloseButton?: boolean;
-
   readonly layerProps?: Record<string, string | undefined>;
   readonly children: ReactNode;
 }
@@ -249,8 +241,6 @@ export function ScannerAnchoredPanel({
       >
         {children}
       </MapWindow>
-
     </div>
-
   );
 }

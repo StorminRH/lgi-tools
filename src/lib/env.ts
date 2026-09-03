@@ -5,7 +5,6 @@ const verbatim = z.string();
 
 const REQUIRED_ENV = {
   DATABASE_URL: required,
-
   LGI_DATABASE_URL: required,
   LGI_DATABASE_URL_UNPOOLED: required,
   EVE_CLIENT_ID: required,
@@ -13,7 +12,6 @@ const REQUIRED_ENV = {
   EVE_TOKEN_ENCRYPTION_KEY: required,
   ESI_SNAPSHOT_ENCRYPTION_KEY: required,
   CONVEX_SERVICE_SECRET: required,
-
   VERCEL_AUTOMATION_BYPASS_SECRET: required,
   CRON_SECRET: required,
   LINEAR_API_KEY: required,
@@ -31,7 +29,6 @@ const VERBATIM_ENV = {
   SESSION_SECRET: verbatim,
   BETTER_AUTH_URL: verbatim,
   SUPERADMIN_CHARACTER_ID: verbatim,
-
   KV_REST_API_URL: verbatim,
   KV_REST_API_TOKEN: verbatim,
   UPSTASH_REDIS_REST_URL: verbatim,
@@ -39,7 +36,6 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   VERCEL_URL: verbatim,
-
   VERCEL_GIT_COMMIT_REF: verbatim,
   VERCEL_TARGET_ENV: verbatim,
   LGI_PREVIEW_LINE: verbatim,
@@ -52,7 +48,6 @@ const VERBATIM_ENV = {
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };
 
 export type RequiredEnvName = keyof typeof REQUIRED_ENV;
-
 export type ServerEnvName = RequiredEnvName | keyof typeof VERBATIM_ENV;
 
 export function readEnv(name: ServerEnvName): string | undefined {

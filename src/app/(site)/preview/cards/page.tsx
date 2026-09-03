@@ -27,11 +27,9 @@ export default function PreviewCardsPage() {
         <div className="font-display font-bold text-[22px] text-name tracking-copy uppercase mb-1">
           Site Card Reference
         </div>
-
         <div className="text-[10px] text-[#2a4050] tracking-wide uppercase">
           All wormhole site types · A1 blue-gray theme · Mock data
         </div>
-
       </header>
 
       {SECTION_ORDER.map((type, i) => {
@@ -43,23 +41,17 @@ export default function PreviewCardsPage() {
               <span className="text-[9px] font-semibold tracking-eyebrow uppercase text-[#2a4050] whitespace-nowrap">
                 {SITE_TYPE_LABEL[type]} Sites
               </span>
-
               <div className="flex-1 h-px bg-border-soft" />
             </div>
-
             <div className="grid items-start gap-4 grid-cols-[repeat(auto-fill,minmax(340px,1fr))]">
               {sites.map((site) => (
                 <SiteCard key={site.id} site={site} />
               ))}
             </div>
-
           </section>
-
         );
       })}
       </div>
-
     </PageShell>
-
   );
 }

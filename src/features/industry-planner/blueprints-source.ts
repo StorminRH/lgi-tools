@@ -11,7 +11,6 @@ let indexPromise: Promise<BlueprintIndexEntry[]> | null = null;
 
 function loadIndex(): Promise<BlueprintIndexEntry[]> {
   if (!indexPromise) {
-
     indexPromise = apiFetch(blueprintsEndpoint)
       .then((result) => {
         if (!result.ok) {
@@ -33,7 +32,6 @@ export const blueprintsSource: SearchSource = {
   name: 'Blueprints',
   limit: 6,
   async search(query, ctx) {
-
     if (query.length === 0) return [];
 
     const index = await loadIndex();
@@ -50,7 +48,6 @@ export const blueprintsSource: SearchSource = {
         sub: 'Blueprint',
         href: `/industry/${entry.blueprintTypeId}`,
         icon: blueprintImage(entry.blueprintTypeId),
-
         typeId: entry.productTypeId,
         matchIndices: match.matchIndices,
       }),

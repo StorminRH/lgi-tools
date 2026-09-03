@@ -8,8 +8,8 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
+import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ChainNode } from '../canvas/SystemNode';
 import { createNodeFollower, type NodeFollowerStore } from './follower-model';
 import { isAdoptedPopupOpen, MapWindow } from './MapWindow';
@@ -29,10 +29,6 @@ import {
   SystemTitleAccessory,
 } from './SystemIntelligenceBody';
 import { useSystemLabel } from './use-system-label';
-
-const subscribeMounted = () => () => undefined;
-const clientMountedSnapshot = () => true;
-const serverMountedSnapshot = () => false;
 
 function sameStack(a: readonly MapWindowId[], b: readonly MapWindowId[]): boolean {
   return a.length === b.length && a.every((id, index) => id === b[index]);
@@ -160,12 +156,10 @@ function DockSurface({
       stackIndex={stackIndex}
       showCloseButton={false}
       onClose={() => undefined}
-
       onActivate={() => undefined}
     >
       <SystemIntelligenceBody systemId={dockSystemId} />
     </MapWindow>
-
   );
 }
 
@@ -199,22 +193,16 @@ function SummarySurface({
     >
       <SystemIntelligenceBody systemId={summaryId} />
     </MapWindow>
-
   );
 }
 
 export interface MapWindowLayerProps {
-
   readonly dockSystemId: number | null;
   readonly onDeselect: () => void;
 }
 
 export function MapWindowLayer(props: MapWindowLayerProps) {
-  const mounted = useSyncExternalStore(
-    subscribeMounted,
-    clientMountedSnapshot,
-    serverMountedSnapshot,
-  );
+  const mounted = useClientCommitted();
   if (!mounted) {
     return (
       <div
@@ -276,6 +264,5 @@ function MountedMapWindowLayer({
         onActivate={() => activate('summary')}
       />
     </div>
-
   );
 }

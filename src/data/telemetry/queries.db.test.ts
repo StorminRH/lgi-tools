@@ -298,7 +298,6 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
 });
 
 describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability rows', () => {
-
   const NEUTRALITY_RANGE = {
     from: new Date('2021-05-01T00:00:00Z'),
     to: new Date('2021-05-08T00:00:00Z'),

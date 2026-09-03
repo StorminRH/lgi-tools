@@ -121,7 +121,6 @@ export default {
       const pointerX = startX + Math.sin(angle) * 60;
       const pointerY = startY + (Math.cos(angle) - 1) * 45;
       await page.mouse.move(pointerX, pointerY);
-
       await page.evaluate(
         () =>
           new Promise((resolve) => {
@@ -130,7 +129,6 @@ export default {
       );
       const box = await node.boundingBox();
       if (box === null) continue;
-
       const deviation = Math.hypot(
         box.x - baseline.x - (pointerX - startX),
         box.y - baseline.y - (pointerY - startY),

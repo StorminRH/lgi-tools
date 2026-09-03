@@ -65,7 +65,6 @@ describe('spring family', () => {
 
   it('overshoots exactly once and settles without ringing', () => {
     const { ease } = springFamily(20);
-
     let peakIndex = 0;
     const samples = Array.from({ length: 401 }, (_, i) => ease(i / 400));
     samples.forEach((value, index) => {
@@ -118,7 +117,6 @@ describe('motion css properties', () => {
   });
 
   it('keeps the stylesheet pre-hydration fallbacks pinned to the ratified defaults', () => {
-
     const stylesheet = readFileSync('src/app/globals.css', 'utf8');
     const scope = /\[data-map-motion-scope\]\s*\{([^}]*)\}/.exec(stylesheet);
 

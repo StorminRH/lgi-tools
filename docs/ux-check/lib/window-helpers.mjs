@@ -1,5 +1,4 @@
 export async function openAtlasMenu(page) {
-
   await page.locator('[data-account-menu-trigger]').filter({ visible: true }).click();
   const popup = page.locator('[data-account-menu-popup]').filter({ visible: true });
   await popup.waitFor({ state: 'visible', timeout: 10_000 });
@@ -75,7 +74,6 @@ export async function waitForWindowMap(page, minimumNodes = 2) {
     minimumNodes,
     { timeout: 60_000 },
   );
-
   await calmAtlasCamera(page);
   await settleMapViewport(page);
 }
@@ -173,7 +171,6 @@ export async function hittableNode(page, { excludeIds = [] } = {}) {
 
 export async function rootSystemTarget(page) {
   const dock = mapWindow(page, 'dock');
-
   const title = ((await dock.locator('h2').textContent()) ?? '').trim();
   const name = title.replace(/^Current system\s*·\s*/i, '').trim();
   if (name.length === 0) return null;

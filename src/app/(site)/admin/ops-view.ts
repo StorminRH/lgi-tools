@@ -188,14 +188,12 @@ export function deriveJobBacklog(stats: EsiRefreshQueueStat[]): JobBacklog {
       .filter((stat) => statuses.includes(stat.status))
       .reduce((total, stat) => total + stat.count, 0);
   return {
-
     pending: countFor(LIVE_ESI_REFRESH_JOB_STATUSES),
     deadLettered: countFor(['dead_lettered']),
   };
 }
 
 function formatSliValue(unit: SliUnit, value: SliValue): string {
-
   if (value === null) return '—';
   if (unit === 'count') {
     const backlog = value as JobBacklog;

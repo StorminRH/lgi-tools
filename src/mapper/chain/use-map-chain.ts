@@ -16,36 +16,23 @@ import { useMapChainMerge } from './use-map-chain-merge';
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
 
 export interface MapChain {
-
   readonly access: MapAccessState;
-
   readonly canEdit: boolean | undefined;
-
   readonly systemsComplete: boolean;
-
   readonly liveSystemCount: number;
-
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
-
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
-
   readonly events: readonly Doc<'mapEvents'>[];
-
   readonly connectionPresentationNow: number;
   readonly state: ChainState;
   readonly intents: readonly MapChainIntent[];
   readonly labelOf: (systemId: number) => SystemLabel;
   readonly treeParents: ReadonlyMap<number, number>;
   readonly rootSystemId: number | null;
-
   readonly halo: PlacedHalo;
-
   readonly stubs: readonly PlacedStub[];
-
   readonly neighboursOf: (systemId: number) => readonly number[];
-
   readonly pinPlacement: (systemId: number, position: ChainPosition) => void;
-
   readonly releasePlacements: () => void;
 }
 

@@ -21,7 +21,6 @@ export const marketHistory = pgTable(
     orderCount: integer('order_count').notNull(),
   },
   (t) => ({
-
     pk: primaryKey({ columns: [t.typeId, t.date] }),
   }),
 );

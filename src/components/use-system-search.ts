@@ -5,7 +5,6 @@ import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } fr
 import { searchAll } from '@/platform/search';
 
 export type SystemParams = { system: SystemSearchEntry };
-
 export type SystemErr = { kind: 'not_found' };
 
 export interface SystemSearch {
@@ -26,7 +25,6 @@ const SYSTEM_NAME_RETRY_MS = 15_000;
 
 export function useSystemName(systemId: number | null): string | null {
   const [systems, setSystems] = useState<SystemSearchEntry[] | null>(() => getLoadedSystems());
-
   const [attempt, setAttempt] = useState(0);
   const wanted = systemId !== null && systems === null;
   useEffect(() => {
@@ -49,11 +47,8 @@ export function useSystemName(systemId: number | null): string | null {
 }
 
 export function useSystemSearch(): SystemSearch {
-
   const [systems, setSystems] = useState<SystemSearchEntry[]>(() => getLoadedSystems() ?? []);
-
   const healedRef = useRef(getLoadedSystems() !== null);
-
   const ctrlRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -66,7 +61,6 @@ export function useSystemSearch(): SystemSearch {
         }
       })
       .catch(() => {
-
       });
     return () => {
       alive = false;

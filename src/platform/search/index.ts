@@ -19,37 +19,27 @@ export type SearchResult = {
   href: string;
   iconText?: string;
   iconTone?: string;
-
   icon?: SearchImageDescriptor;
-
   typeId?: number;
-
   originKind?: string;
-
   matchIndices?: number[];
-
   onSelect?: (router: AppRouterInstance) => void;
-
   disabled?: boolean;
 };
 
 export type SearchContext = {
   session: SearchSession | null;
-
   isAdmin: boolean;
   recents: SearchResult[];
-
   signal?: AbortSignal;
 };
 
 export type SearchSource = {
-
   id: string;
   name: string;
   search: (query: string, ctx: SearchContext) => Promise<SearchResult[]>;
   limit?: number;
   showOnEmpty?: boolean;
-
   excludeFromDefaultScope?: boolean;
 };
 
@@ -65,7 +55,6 @@ export type LazySearchSource = {
 const sources: SearchSource[] = [];
 
 export function registerSearchSource(source: SearchSource): void {
-
   if (sources.some((s) => s.id === source.id)) {
     console.error(`registerSearchSource: duplicate source id "${source.id}"`);
   }
@@ -76,7 +65,6 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
   let loadPromise: Promise<SearchSource> | null = null;
 
   registerSearchSource({
-
     id: meta.id,
     name: meta.name,
     limit: meta.limit,
@@ -84,7 +72,6 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
     excludeFromDefaultScope: meta.excludeFromDefaultScope,
     async search(query, ctx) {
       if (!loadPromise) {
-
         loadPromise = meta.load().catch((err) => {
           loadPromise = null;
           throw err;
@@ -139,10 +126,8 @@ export async function searchAll(
     if (r.status === 'fulfilled') {
       if (r.value.results.length > 0) out.push(r.value);
     } else {
-
       const isAbort = r.reason instanceof DOMException && r.reason.name === 'AbortError';
       if (!isAbort) {
-
         console.warn(`searchAll: source "${active[i]!.name}" failed`, r.reason);
       }
     }

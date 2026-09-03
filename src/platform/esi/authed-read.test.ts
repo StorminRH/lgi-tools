@@ -23,7 +23,6 @@ describe('readEsiAuthed', () => {
 
   beforeEach(() => {
     __resetEsiGateForTests();
-
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -171,7 +170,6 @@ describe('readEsiPagedAuthed', () => {
     expect(read.items).toEqual([{ type_id: 1 }, { type_id: 2 }]);
     expect(read.responseHeaders.map((headers) => headers.page)).toEqual([1, 2]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-
     expect(String(fetchSpy.mock.calls[1][0])).toContain('page=2');
   });
 

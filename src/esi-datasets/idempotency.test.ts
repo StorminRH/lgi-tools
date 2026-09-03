@@ -83,7 +83,6 @@ describe('idempotency registry', () => {
     for (const cronPath of vercelCronPaths) {
       expect(declared.has(cronPath), `no entry for cron ${cronPath}`).toBe(true);
     }
-
     for (const cronPath of declared) {
       expect(vercelCronPaths).toContain(cronPath);
     }
@@ -109,7 +108,6 @@ describe('idempotency registry', () => {
     for (const route of routes) {
       expect(declared.has(route), `no idempotency entry for ${route}`).toBe(true);
     }
-
     expect(routeEntries).toHaveLength(routes.length);
   });
 
@@ -131,7 +129,6 @@ describe('idempotency registry', () => {
   it('keeps the LGI-06 revocation outbox cited but unowned', () => {
     const lgi06 = IDEMPOTENCY_REGISTRY.find((entry) => entry.id.startsWith('LGI-06'));
     expect(lgi06?.verdict).toBe('coordinated-elsewhere');
-
     expect(lgi06?.module).toBeUndefined();
     expect(lgi06?.route).toBeUndefined();
   });
@@ -150,7 +147,6 @@ describe('idempotency registry verdicts', () => {
   });
 
   it('records an empty at-risk set as the terminal outcome', () => {
-
     const atRisk = IDEMPOTENCY_REGISTRY.filter(
       (entry) => (entry.verdict as string) === 'at-risk',
     );
@@ -183,7 +179,6 @@ describe('idempotency registry verdicts', () => {
       (entry: IdempotencyEntry) => entry.id === 'queue/enqueue',
     );
     expect(enqueue?.evidence).toMatch(/esi_refresh_jobs_live_key_unique/);
-
     const schema = readFileSync(
       path.join(ROOT, 'src/data/esi-refresh-jobs/schema.ts'),
       'utf8',
@@ -206,7 +201,6 @@ describe('idempotency registry verdicts', () => {
 
   it('rests the route verdicts on the absence of a retry in the API client', () => {
     const client = readFileSync(path.join(ROOT, 'src/transport/api-client.ts'), 'utf8');
-
     expect(client).not.toMatch(/\bretry\b|\bretries\b|attempt\s*<|backoff/i);
     for (const entry of routeEntries) {
       expect(entry.redeliverySource).toMatch(/no retry/i);

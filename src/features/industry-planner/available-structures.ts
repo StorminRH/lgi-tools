@@ -56,12 +56,10 @@ export function buildAvailableStructures(
 ): AvailableStructure[] {
   const knownTypeIds = new Set(structureTypes.map((t) => t.typeId));
   const typeNameById = new Map(structureTypes.map((t) => [t.typeId, t.name]));
-
   const groupIdByType = new Map(structureTypes.map((t) => [t.typeId, t.groupId]));
 
   const structures: AvailableStructure[] = [];
   for (const c of custom) {
-
     if (!knownTypeIds.has(c.structureTypeId)) continue;
     structures.push({
       id: c.id,
@@ -69,7 +67,6 @@ export function buildAvailableStructures(
       name: c.name,
       structureTypeId: c.structureTypeId,
       groupId: resolveGroupId(groupIdByType, c.structureTypeId),
-
       systemId: c.systemId,
       structureAttrs: dogma.get(c.structureTypeId) ?? {},
       rigAttrs: c.rigTypeIds.map((r) => dogma.get(r) ?? {}),
@@ -80,14 +77,11 @@ export function buildAvailableStructures(
   for (const s of corp) {
     if (!knownTypeIds.has(s.typeId)) continue;
     structures.push({
-
       id: `corp:${s.structureId}`,
       source: 'corp',
-
       name: s.name ?? typeNameById.get(s.typeId) ?? `Structure ${s.structureId}`,
       structureTypeId: s.typeId,
       groupId: resolveGroupId(groupIdByType, s.typeId),
-
       systemId: s.systemId,
       structureAttrs: dogma.get(s.typeId) ?? {},
       rigAttrs: s.rigTypeIds.map((r) => dogma.get(r) ?? {}),

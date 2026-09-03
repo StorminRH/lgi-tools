@@ -16,21 +16,16 @@ export interface RefreshedPrice {
   pct5Sell: number | null;
   buyVolume: number | null;
   sellVolume: number | null;
-
   buyDepth: DepthBand[] | null;
   sellDepth: DepthBand[] | null;
-
   regionalDiscount: RegionalDiscount | null;
   source: PriceSource;
   staleAfterMs: number;
 }
 
 export interface RefreshOnViewResult {
-
   prices: Map<number, RefreshedPrice>;
-
   isPending: (typeId: number) => boolean;
-
   refreshing: boolean;
 }
 
@@ -100,11 +95,9 @@ export function useRefreshOnView(
           }
         }
       } catch {
-
       } finally {
         if (!controller.signal.aborted) {
           setRefreshing(false);
-
           setPending(new Set());
         }
       }

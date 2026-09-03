@@ -61,7 +61,6 @@ describe('deriveChainTree root resolution', () => {
 
 describe('deriveChainTree attachment and classification', () => {
   it('pinned single-pass diamond: immediate attachment feeds later edges in the same pass', () => {
-
     const tree = deriveChainTree(facts([A, B, C], [[A, C], [B, C], [A, B]]));
     expect(tree.rootSystemId).toBe(A);
     expect(tree.parents.get(C)).toBe(A);
@@ -70,7 +69,6 @@ describe('deriveChainTree attachment and classification', () => {
   });
 
   it('pinned multi-pass: a skipped edge attaches on a later pass and stays a tree edge', () => {
-
     const tree = deriveChainTree(facts([A, B, C], [[B, C], [A, B]]));
     expect(tree.parents.get(B)).toBe(A);
     expect(tree.parents.get(C)).toBe(B);
@@ -95,7 +93,6 @@ describe('deriveChainTree attachment and classification', () => {
   });
 
   it('classifies self edges as loop-closing, including one arriving before its system attaches', () => {
-
     const tree = deriveChainTree(facts([A, B], [[B, B], [A, B]]));
     expect(tree.parents.get(B)).toBe(A);
     expect(tree.loopEdges).toEqual([{ fromSystemId: B, toSystemId: B }]);
@@ -113,7 +110,6 @@ describe('deriveChainTree attachment and classification', () => {
 
 describe('deriveChainTree growth stability (operator-settled replay, 2026-08-01)', () => {
   it('appending a leaf edge never reorders existing attachments, even in blocked histories', () => {
-
     const before = deriveChainTree(facts([A, B, C], [[B, C], [A, B]]));
     const after = deriveChainTree(facts([A, B, C, D], [[B, C], [A, B], [B, D]]));
     expect(before.attachmentOrder).toEqual([A, B, C]);
@@ -154,7 +150,6 @@ describe('deriveChainTree orphans and unknown endpoints', () => {
   });
 
   it('keeps a disconnected pair orphaned even when linked to each other', () => {
-
     const tree = deriveChainTree(facts([A, C, D], [[C, D]]));
     expect(tree.orphans).toEqual([C, D]);
     expect(tree.loopEdges).toEqual([]);

@@ -110,7 +110,6 @@ describe('GET /api/cron/refresh-sde', () => {
       action: 'cron_sde',
       metadata: expect.objectContaining({ outcome: 'remote-unreachable' }),
     });
-
     expect(reserveMock).not.toHaveBeenCalled();
   });
 

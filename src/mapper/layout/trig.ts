@@ -1,11 +1,8 @@
 import type { ChainPosition } from '../chain/intents';
 
 const PI = 3.141592653589793;
-
 const HALF_PI = 1.5707963267948966;
-
 const QUARTER_PI = 0.7853981633974483;
-
 const TWO_PI = 6.283185307179586;
 
 const SIN_C1 = -1.66666666666666324348e-1;

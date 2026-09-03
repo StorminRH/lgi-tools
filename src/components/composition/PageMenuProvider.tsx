@@ -33,7 +33,6 @@ export function PageMenuProvider({
   pathname,
   children,
 }: {
-
   pathname?: string;
   children?: ReactNode;
 }) {
@@ -50,11 +49,9 @@ export function PageMenuProvider({
         <Suspense fallback={null}>
           <LivePathnameWatcher onResolve={setLive} />
         </Suspense>
-
       ) : null}
       {children}
     </PageMenuContext.Provider>
-
   );
 }
 

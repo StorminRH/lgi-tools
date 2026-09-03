@@ -79,7 +79,6 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     if (remoteVersion) {
       await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
     }
-
     revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
 

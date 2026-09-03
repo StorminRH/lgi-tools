@@ -37,7 +37,6 @@ export default {
     const card = mapWindow(page, 'summary');
     check('a non-root selection opens the summary card', target !== null && await card.isVisible());
     if (target === null) return;
-
     await page.waitForTimeout(1100);
     const initial = await offset(target.node, card);
 

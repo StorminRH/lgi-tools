@@ -156,7 +156,6 @@ function processJob(job: EsiRefreshJob, now: Date): Promise<ProcessJobOutcome> {
       });
       return outcome;
     } catch (error) {
-
       recordCapabilityOutcome('sync.process-esi-refresh-job', {
         ...capabilityResultForError(error),
         durationMs: performance.now() - startedAt,

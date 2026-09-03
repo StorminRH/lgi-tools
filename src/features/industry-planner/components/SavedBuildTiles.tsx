@@ -16,6 +16,5 @@ export function SavedBuildTiles({ plans }: { plans: SavedPlanRow[] }) {
         />
       ))}
     </>
-
   );
 }

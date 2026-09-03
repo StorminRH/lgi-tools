@@ -33,7 +33,6 @@ import {
 interface SectionCell {
   label: string;
   meta?: ReactNode;
-
   body: ReactNode;
   hint?: string;
 }
@@ -47,12 +46,9 @@ function DashboardSection({ status, cell }: { status: SectionStatus; cell: Secti
       <SectionLabel className="mb-cluster" meta={render.meta ? cell.meta : undefined}>
         {cell.label}
       </SectionLabel>
-
       {render.hint !== null && <p className="text-ui text-muted">{render.hint}</p>}
-
       {render.body && cell.body}
     </section>
-
   );
 }
 
@@ -61,7 +57,6 @@ function RecentsPanel({ recent }: { recent: ReturnType<typeof useRecentBlueprint
     <Card className="overflow-hidden">
       {recent === null ? <EmptyState> </EmptyState> : <RecentBlueprintRows recent={recent} />}
     </Card>
-
   );
 }
 
@@ -76,7 +71,6 @@ function TemplatesPanel({
     <Card className="overflow-hidden">
       {plans === null ? <EmptyState> </EmptyState> : <SavedBuildTiles plans={tiles} />}
     </Card>
-
   );
 }
 
@@ -115,7 +109,6 @@ function CorpSectionBody({
       <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
         {null}
       </AccessGate>
-
     );
   }
   if (loading) return <LoadingLabel label="Loading…" />;
@@ -175,18 +168,14 @@ export function IndustryDashboardGrid({
       >
         → all templates ({allPlans.length})
       </Link>
-
     ) : undefined;
 
   const activeMeta =
     jobs.length > 0 ? (
       <span className="text-label tracking-label uppercase text-muted">
         <b className={countBadge}>{counts.complete}</b> complete ·{' '}
-
         <b className={countBadge}>{counts.inProgress}</b> in progress
-
       </span>
-
     ) : undefined;
 
   const cells: Record<DashboardSectionId, SectionCell> = {
@@ -236,6 +225,5 @@ export function IndustryDashboardGrid({
         <DashboardSection key={id} status={status[id]} cell={cells[id]} />
       ))}
     </div>
-
   );
 }

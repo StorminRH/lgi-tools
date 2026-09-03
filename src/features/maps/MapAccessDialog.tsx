@@ -159,13 +159,10 @@ export function MapAccessDialog({
           >
             Manage {mapName}
           </DialogTitle>
-
           <DialogDescription className="font-ui text-ui text-muted">
             Grant, change, or revoke delegated access. The map creator is not a grant row.
           </DialogDescription>
-
         </div>
-
         <DialogClose
           render={<Button variant="ghost" size="sm" />}
           aria-label="Close map access"
@@ -173,7 +170,6 @@ export function MapAccessDialog({
         >
           ×
         </DialogClose>
-
       </header>
 
       <div className="flex flex-col gap-4 px-4 py-4">
@@ -194,7 +190,6 @@ export function MapAccessDialog({
           }
         />
         {error !== null ? <Banner tone="warn">{error}</Banner> : null}
-
       </div>
 
       <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
@@ -204,10 +199,7 @@ export function MapAccessDialog({
         >
           Done
         </DialogClose>
-
       </footer>
-
     </Dialog>
-
   );
 }

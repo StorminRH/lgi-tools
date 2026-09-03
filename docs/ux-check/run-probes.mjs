@@ -20,7 +20,6 @@ const ENGINES = {
   firefox,
   webkit,
 };
-
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
@@ -265,7 +264,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     console.log(`    ${passed ? '✓' : '✗'} ${label}`);
     return passed;
   };
-
   const shot = async () => null;
 
   const createContext = async ({
@@ -279,7 +277,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     }
     const secondaryBrowser =
       engineName === opts.engine ? browser : await launcher.launch();
-
     const secondaryContext = await secondaryBrowser.newContext({
       ...contextOptions(viewportName, definition.reducedMotion),
       ...(definition.requiresAuth && storageState ? { storageState } : {}),
@@ -309,7 +306,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
         `${definition.name} requires auth: run pnpm e2e:seed and pass --storage-state=docs/ux-check/captures/auth-storage.json (or UX_STORAGE_STATE / UX_COOKIE_JAR / --cookie-jar)`,
       );
     }
-
     context = await browser.newContext({
       ...contextOptions(viewport, definition.reducedMotion),
       ...(definition.requiresAuth && opts.storageState
@@ -323,7 +319,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     page = await context.newPage();
     diagnostics = watchPage(page, definition.allowConsole);
     await installCspCollector(page);
-
     const instant = (fn, options) =>
       nextInstant(page, fn, { baseURL: baseUrl, ...options });
     const ctx = {
@@ -383,7 +378,6 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
           result.screenshots.push(relative);
           console.log(`    failure artifact: ${relative}`);
         } catch {
-
         }
       }
     }
@@ -444,7 +438,6 @@ async function captureStorageState(opts) {
     console.log('Log in through EVE SSO in the opened browser…');
     const deadline = Date.now() + 10 * 60_000;
     for (;;) {
-
       const session = await context.request
         .get(sessionUrl)
         .then(async (response) => {

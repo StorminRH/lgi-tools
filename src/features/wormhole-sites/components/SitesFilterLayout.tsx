@@ -78,7 +78,6 @@ export function SitesFilterLayout({
 
   const matches = (m: SiteFilterMeta) => matchesFilter(m, { cls, types });
   const filteredCount = sites.filter(matches).length;
-
   const typeCount = (t: SiteType) =>
     sites.filter((site) => site.type === t && matchesClassFilter(site.clsSet, cls)).length;
 
@@ -96,16 +95,11 @@ export function SitesFilterLayout({
           <>
             <span className={eyebrow()} aria-live="polite">
               <b className="text-name font-semibold">{filteredCount}</b> of {total} sites
-
             </span>
-
             <span className={eyebrow()}>
               jita <b className="text-isk font-semibold">live</b>
-
             </span>
-
           </>
-
         }
       />
 
@@ -115,7 +109,6 @@ export function SitesFilterLayout({
             <div className="flex flex-col gap-5">
               <div>
                 <span className="text-label uppercase tracking-wide text-muted">Class</span>
-
                 <ChipToggleGroup
                   label="Filter by class"
                   value={cls}
@@ -132,15 +125,12 @@ export function SitesFilterLayout({
                     >
                       {c}
                     </ChipToggle>
-
                   ))}
                 </ChipToggleGroup>
-
               </div>
 
               <div>
                 <span className="text-label uppercase tracking-wide text-muted">Type</span>
-
                 <ChipToggleGroup
                   label="Filter by site type"
                   value={types}
@@ -162,34 +152,23 @@ export function SitesFilterLayout({
                           types.includes(t) ? 'opacity-100' : 'opacity-[0.45]'
                         }`}
                       />
-
                       <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
-
                       <span className="text-faint">{typeCount(t)}</span>
-
                     </ChipToggle>
-
                   ))}
                 </ChipToggleGroup>
-
               </div>
 
               <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
                 reset filters
               </Button>
-
             </div>
-
           </Card>
 
           <div>{children}</div>
-
         </div>
-
       </div>
-
     </SitesFilterContext.Provider>
-
   );
 }
 
@@ -200,7 +179,6 @@ export function SitesResults({
 }: {
   cards: SiteCardItem[];
   table: ReactNode;
-
   initialView: 'cards' | 'table';
 }) {
   const { cls, types, reset } = useSitesFilter();
@@ -254,9 +232,7 @@ export function SitesResults({
           >
             reset filters
           </Button>
-
         </EmptyState>
-
       ) : view === 'cards' ? (
         SECTION_ORDER.map((type) => {
           const sectionCards = cards.filter(
@@ -269,23 +245,17 @@ export function SitesResults({
                 <span className="text-label font-semibold tracking-eyebrow uppercase text-muted whitespace-nowrap">
                   {SITE_TYPE_LABEL[type]} Sites
                 </span>
-
                 <div className="flex-1 h-px bg-border" />
               </div>
-
               <div className="grid items-start gap-4 split:grid-cols-2">
                 {sectionCards.map((card) => card.node)}
               </div>
-
             </section>
-
           );
         })
       ) : (
         <div ref={tableRef}>{table}</div>
-
       )}
     </>
-
   );
 }

@@ -28,7 +28,6 @@ export function MapCatalogueDataProvider({
     <MapCatalogueDataContext.Provider value={value}>
       {children}
     </MapCatalogueDataContext.Provider>
-
   );
 }
 

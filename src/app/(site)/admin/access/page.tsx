@@ -45,7 +45,6 @@ function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
 async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
   const dbAdmins = await listAdminUsers();
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-
   const superUser =
     Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
   return mergeAdminRows(dbAdmins, superUser);
@@ -84,16 +83,12 @@ function AdminUserRow({
         >
           {user.name}
         </Link>
-
       }
       chips={
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
-
           <Chip tone={badge.tone}>{badge.label}</Chip>
-
         </span>
-
       }
       trailing={
         showToggle ? (
@@ -105,7 +100,6 @@ function AdminUserRow({
           />
         ) : (
           <span className="text-micro text-muted whitespace-nowrap italic">managed via env</span>
-
         )
       }
     />
@@ -124,13 +118,9 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       render: (row) => (
         <span className="flex items-center gap-1.5">
           <Pill tone={row.fromTone}>{row.fromLabel}</Pill>
-
           <span className="text-muted">→</span>
-
           <Pill tone={row.toTone}>{row.toLabel}</Pill>
-
         </span>
-
       ),
     },
   ] satisfies readonly StaticTableColumn<ReturnType<typeof deriveAuditRowView>>[];
@@ -143,7 +133,6 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       />
       {audit.length === 0 ? (
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
-
       ) : (
         <div className="px-3.5 py-2">
           <StaticTable
@@ -153,10 +142,8 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
             getRowKey={(row, index) => `${row.timestamp}-${index}`}
           />
         </div>
-
       )}
     </Card>
-
   );
 }
 
@@ -174,7 +161,6 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
       <Button type="submit" variant="secondary" className="text-isk">
         Search
       </Button>
-
       {query ? (
         <Link
           href="/admin/access"
@@ -182,10 +168,8 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
         >
           Clear
         </Link>
-
       ) : null}
     </form>
-
   );
 }
 
@@ -203,7 +187,6 @@ function AdminsCard({
       <SectionHeader size="md" label="Admins" hint={`${adminRows.length} with elevated access`} />
       {adminRows.length === 0 ? (
         <EmptyState>No admins currently configured.</EmptyState>
-
       ) : (
         adminRows.map(({ user, isSuperadmin }) => (
           <AdminUserRow
@@ -217,7 +200,6 @@ function AdminsCard({
         ))
       )}
     </Card>
-
   );
 }
 
@@ -239,7 +221,6 @@ function SearchResultsCard({
         <EmptyState>
           No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
         </EmptyState>
-
       ) : (
         nonAdminMatches.map((user) => (
           <AdminUserRow
@@ -253,12 +234,10 @@ function SearchResultsCard({
         ))
       )}
     </Card>
-
   );
 }
 
 async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
-
   const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
@@ -284,7 +263,6 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
             {view.adminCount} admin{view.adminPlural}
             {view.querySuffix}
           </>
-
         }
         meta={
           <a
@@ -293,7 +271,6 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
           >
             ← Dashboard
           </a>
-
         }
       />
 
@@ -313,9 +290,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
 
         <RoleChangeAudit audit={audit} />
       </div>
-
     </>
-
   );
 }
 
@@ -334,10 +309,7 @@ export default function AccessPage({
         <Suspense fallback={<AccessLoading />}>
           <AccessContent searchParams={searchParams} />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

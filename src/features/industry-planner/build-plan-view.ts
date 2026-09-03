@@ -8,7 +8,6 @@ export interface BuildFocus {
 
 export interface TierRowView {
   item: ConsolidatedItem;
-
   qty: number;
   value: number | null;
   selected: boolean;

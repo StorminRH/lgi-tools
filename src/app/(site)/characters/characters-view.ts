@@ -3,9 +3,7 @@ import { deriveCharacterHealth, type GrantedScope, listGrantedScopes } from '@/p
 
 export type CharacterRowView = {
   needsReconnect: boolean;
-
   healthLabel: string | null;
-
   scopes: GrantedScope[];
 };
 

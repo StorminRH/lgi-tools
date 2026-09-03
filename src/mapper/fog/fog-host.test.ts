@@ -136,7 +136,6 @@ describe('runFogTick', () => {
     );
     expect(ops).toHaveLength(0);
     expect(again).toBe(false);
-
     expect(runtime.frameState.timeline.size).toBeGreaterThan(0);
   });
 

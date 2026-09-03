@@ -64,12 +64,9 @@ export function StaticTable<Row>({
             >
               {column.label}
             </th>
-
           ))}
         </tr>
-
       </thead>
-
       <tbody>
         {rows.map((row, index) => (
           <tr key={getRowKey(row, index)} className="border-b border-border-soft last:border-b-0">
@@ -86,15 +83,11 @@ export function StaticTable<Row>({
                 >
                   {column.render(row)}
                 </Cell>
-
               );
             })}
           </tr>
-
         ))}
       </tbody>
-
     </table>
-
   );
 }

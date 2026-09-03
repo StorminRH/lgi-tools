@@ -3,9 +3,7 @@ import { toneHex } from '@/components/ui/tones';
 import { socialCardFonts } from './_social-card/fonts';
 
 export const alt = 'LGI.tools — Eve Online tools for wormhole pilots';
-
 export const size = { width: 1200, height: 630 };
-
 export const contentType = 'image/png';
 
 export default async function Image() {
@@ -36,11 +34,8 @@ export default async function Image() {
         }}
       >
         <span>[</span>
-
         <span>LGI.tools</span>
-
         <span>]</span>
-
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -56,7 +51,6 @@ export default async function Image() {
         >
           Eve Online tools
         </div>
-
         <div
           style={{
             display: 'flex',
@@ -67,7 +61,6 @@ export default async function Image() {
         >
           WORMHOLE SITES · LIVE PRICES · INDUSTRY PLANNING
         </div>
-
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
@@ -75,11 +68,8 @@ export default async function Image() {
         <div style={{ color: toneHex.neutral, fontSize: 20, letterSpacing: 2 }}>
           LO-GANG INDUSTRIES
         </div>
-
       </div>
-
     </div>,
-
     { ...size, fonts },
   );
 }

@@ -21,12 +21,8 @@ export function PageFooter({
       )}
     >
       <div className="flex-1 min-w-0">{left}</div>
-
       {center && <div className="shrink-0">{center}</div>}
-
       <div className="flex-1 min-w-0 text-right">{right}</div>
-
     </footer>
-
   );
 }

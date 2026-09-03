@@ -6,20 +6,16 @@ export function DeltaBadge({ delta, invert = false }: { delta: Delta; invert?: b
   const view = deriveDeltaBadge(delta, invert);
   if (view.kind === 'new') {
     return <span className="font-data text-ui text-isk">new</span>;
-
   }
   if (view.kind === 'none') {
     return <span className="font-data text-ui text-muted">—</span>;
-
   }
   if (view.kind === 'flat') {
     return <span className="font-data text-ui text-muted tabular-nums">±0%</span>;
-
   }
   return (
     <span className={cn('font-data text-ui tabular-nums', view.cls)}>
       {view.arrow} {view.pct}%
     </span>
-
   );
 }

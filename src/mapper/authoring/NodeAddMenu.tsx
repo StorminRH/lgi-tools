@@ -39,7 +39,6 @@ export function NodeAddMenu({
   const [searchOpen, setSearchOpen] = useState(false);
   const [fromSystemId, setFromSystemId] = useState<number | null>(null);
   const titleId = useId();
-
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const anchor: MenuAnchor | null =
@@ -64,9 +63,7 @@ export function NodeAddMenu({
         >
           Add connection…
         </MenuItem>
-
       </PointerMenu>
-
       <Dialog
         open={searchOpen}
         onOpenChange={setSearchOpen}
@@ -82,18 +79,14 @@ export function NodeAddMenu({
             >
               Add connection
             </DialogTitle>
-
             <DialogClose className="font-ui text-nav text-muted hover:text-name">
               ×
             </DialogClose>
-
           </div>
-
           <p className="font-ui text-ui leading-relaxed text-muted">
             Pick a destination system. Loops back to systems already on the map
             are allowed.
           </p>
-
           <TerminalSearch<SystemParams, SystemErr>
             initialValue=""
             placeholder="Destination system — type a name"
@@ -111,10 +104,7 @@ export function NodeAddMenu({
             errorLabel="System"
           />
         </div>
-
       </Dialog>
-
     </>
-
   );
 }

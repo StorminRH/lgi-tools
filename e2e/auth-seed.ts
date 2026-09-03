@@ -89,7 +89,6 @@ export async function seedE2eStorageState(
   }
 
   await helpers.deleteUser(E2E_USER_ID).catch(() => {
-
   });
 
   const created = helpers.createUser({

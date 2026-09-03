@@ -14,6 +14,5 @@ export function RecentBlueprintRows({ recent }: { recent: RecentBlueprint[] }) {
         />
       ))}
     </>
-
   );
 }

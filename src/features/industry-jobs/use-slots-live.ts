@@ -6,7 +6,6 @@ import type { OutcomeOf } from '@/transport/endpoint';
 import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
 
 const RECONCILE_DELAY_MS = 5_000;
-
 const MAX_RECONCILE_ATTEMPTS = 24;
 
 function anyUnsynced(characters: ViewerSlots[]): boolean {
@@ -22,7 +21,6 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function load(): Promise<void> {
-
       const result = await apiFetch(industrySlotsEndpoint).catch(() => null);
       if (!cancelled) onResult(result);
     }

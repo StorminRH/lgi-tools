@@ -13,12 +13,10 @@ import {
 import { echoOutcome, type SavedPlansEchoResult } from './saved-plans-view';
 
 export interface SavedPlansState {
-
   plans: SavedPlanRow[] | null;
   listFailed: boolean;
   busyId: string | null;
   refresh: () => void;
-
   applyEcho: (
     res: SavedPlansEchoResult | null,
     errorFor: (status: number) => string,
@@ -32,7 +30,6 @@ export function useSavedPlans(): SavedPlansState {
   const [plans, setPlans] = useState<SavedPlanRow[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-
   const echoSeq = useRef(0);
 
   const refresh = useCallback(() => {

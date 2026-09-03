@@ -64,24 +64,19 @@ function ActionForm({
       <Button type="submit" variant={variant} disabled={disabled}>
         {label}
       </Button>
-
     </form>
-
   );
 }
 
 function NumberList({ values }: { values: readonly number[] }) {
   return values.length === 0 ? (
     <p className="font-ui text-ui text-muted">None.</p>
-
   ) : (
     <ul className="max-h-64 space-y-1 overflow-y-auto font-data text-ui text-text">
       {values.map((value) => (
         <li key={value}>{value}</li>
-
       ))}
     </ul>
-
   );
 }
 
@@ -92,17 +87,14 @@ function SystemCodeList({
 }) {
   return systems.length === 0 ? (
     <p className="font-ui text-ui text-muted">None.</p>
-
   ) : (
     <ul className="max-h-64 space-y-1 overflow-y-auto font-data text-ui text-text">
       {systems.map((system) => (
         <li key={system.systemId}>
           {system.systemId}: {system.codes.join(', ') || 'none'}
         </li>
-
       ))}
     </ul>
-
   );
 }
 
@@ -119,7 +111,6 @@ function DifferenceDetails({
         <span className="font-ui text-ui text-text">
           Complete assignment difference ({difference.totalDifferences})
         </span>
-
       }
     >
       <div className="grid gap-5 px-4 py-4 md:grid-cols-2">
@@ -127,24 +118,18 @@ function DifferenceDetails({
           <h3 className="mb-2 font-ui text-ui text-muted">
             Systems added, with the codes they gain
           </h3>
-
           <SystemCodeList systems={difference.systemsAdded} />
         </div>
-
         <div>
           <h3 className="mb-2 font-ui text-ui text-muted">
             Systems removed, with the codes they lose
           </h3>
-
           <SystemCodeList systems={difference.systemsRemoved} />
         </div>
-
         <div className="md:col-span-2">
           <h3 className="mb-2 font-ui text-ui text-muted">Systems changed</h3>
-
           {difference.systemsChanged.length === 0 ? (
             <p className="font-ui text-ui text-muted">None.</p>
-
           ) : (
             <ul className="max-h-80 space-y-1 overflow-y-auto font-data text-ui text-text">
               {difference.systemsChanged.map((entry) => (
@@ -152,35 +137,24 @@ function DifferenceDetails({
                   {entry.systemId}: {entry.before.join(', ') || 'none'} →{' '}
                   {entry.after.join(', ') || 'none'}
                 </li>
-
               ))}
             </ul>
-
           )}
         </div>
-
         <div>
           <h3 className="mb-2 font-ui text-ui text-muted">Codes added</h3>
-
           <p className="font-data text-ui text-text">
             {difference.codesAdded.join(', ') || 'None.'}
           </p>
-
         </div>
-
         <div>
           <h3 className="mb-2 font-ui text-ui text-muted">Codes removed</h3>
-
           <p className="font-data text-ui text-text">
             {difference.codesRemoved.join(', ') || 'None.'}
           </p>
-
         </div>
-
       </div>
-
     </Collapsible>
-
   );
 }
 
@@ -201,7 +175,6 @@ function LineageDetails({
             crossCheck.feedOnlySystems.length}{' '}
           structural differences)
         </span>
-
       }
     >
       <div className="grid gap-5 px-4 py-4 md:grid-cols-2">
@@ -209,26 +182,20 @@ function LineageDetails({
           <h3 className="mb-2 font-ui text-ui text-muted">
             Lineage-only systems
           </h3>
-
           <NumberList values={crossCheck.lineageOnlySystems} />
         </div>
-
         <div>
           <h3 className="mb-2 font-ui text-ui text-muted">
             Feed-only systems
           </h3>
-
           <NumberList values={crossCheck.feedOnlySystems} />
         </div>
-
         <div className="md:col-span-2">
           <h3 className="mb-2 font-ui text-ui text-muted">
             Code-set disagreements
           </h3>
-
           {crossCheck.disagreements.length === 0 ? (
             <p className="font-ui text-ui text-muted">None.</p>
-
           ) : (
             <ul className="max-h-80 space-y-1 overflow-y-auto font-data text-ui text-text">
               {crossCheck.disagreements.map((entry) => (
@@ -236,17 +203,12 @@ function LineageDetails({
                   {entry.systemId}: feed {entry.feedCodes.join(', ') || 'none'};
                   lineage {entry.lineageCodes.join(', ') || 'none'}
                 </li>
-
               ))}
             </ul>
-
           )}
         </div>
-
       </div>
-
     </Collapsible>
-
   );
 }
 
@@ -262,40 +224,26 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 py-4 font-data text-ui md:grid-cols-4">
         <div>
           <dt className="text-muted">Systems added</dt>
-
           <dd className="text-text">{difference.systemsAdded.length}</dd>
-
         </div>
-
         <div>
           <dt className="text-muted">Systems removed</dt>
-
           <dd className="text-text">{difference.systemsRemoved.length}</dd>
-
         </div>
-
         <div>
           <dt className="text-muted">Systems changed</dt>
-
           <dd className="text-text">{difference.systemsChanged.length}</dd>
-
         </div>
-
         <div>
           <dt className="text-muted">Lineage disagreements</dt>
-
           <dd className="text-text">{crossCheck.disagreements.length}</dd>
-
         </div>
-
       </dl>
-
       <p className="border-t border-border-soft px-4 py-3 font-ui text-ui text-muted">
         Independent lineage agrees across{' '}
         {crossCheck.agreedSystems.toLocaleString()} systems. Inspect every
         structural difference before promoting.
       </p>
-
       <DifferenceDetails snapshot={snapshot} />
       <LineageDetails snapshot={snapshot} />
       <div className="flex flex-wrap gap-2 border-t border-border-soft px-4 py-3">
@@ -317,9 +265,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
           variant="danger"
         />
       </div>
-
     </Card>
-
   );
 }
 
@@ -342,29 +288,22 @@ async function StaticsContent({
         <Card className="px-4 py-3 font-ui text-ui text-muted">
           {promotedSubtitle(promoted.version, promoted.systems.length)}
         </Card>
-
         {outcome ? (
           <Card className="px-4 py-3 font-ui text-ui text-muted">{outcome}</Card>
-
         ) : null}
         <div className="flex justify-end">
           <ActionForm action="refresh" label="Check feed now" />
         </div>
-
         {snapshot ? (
           <ReviewSummary snapshot={snapshot} />
         ) : (
           <Card>
             <SectionHeader size="md" label="Pending review" />
             <EmptyState>No statics snapshot is waiting for review.</EmptyState>
-
           </Card>
-
         )}
       </div>
-
     </>
-
   );
 }
 
@@ -391,7 +330,6 @@ export default function StaticsPage({
             >
               ← Dashboard
             </Link>
-
           }
         />
         <Suspense
@@ -404,10 +342,7 @@ export default function StaticsPage({
         >
           <StaticsContent searchParams={searchParams} />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

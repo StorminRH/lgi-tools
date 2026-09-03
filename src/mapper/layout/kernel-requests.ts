@@ -1,9 +1,6 @@
 export interface KernelRequestState {
-
   readonly nextRequestId: number;
-
   readonly postedKey: string | null;
-
   readonly latestPostedId: number | null;
 }
 

@@ -46,9 +46,7 @@ export function SystemTitleAccessory({
       >
         {classification.label}
       </span>
-
     </span>
-
   );
 }
 
@@ -59,13 +57,10 @@ function SignatureSummary({ systemId }: { readonly systemId: number }) {
       <p className="font-data text-label uppercase tracking-label text-isk">
         Scanner
       </p>
-
       <p className="font-data text-micro text-muted">
         {counts.signatures} signatures · {counts.anomalies} anomalies
       </p>
-
     </section>
-
   );
 }
 
@@ -76,16 +71,13 @@ function FriendlyRow({ row }: { readonly row: FriendlyRowModel }) {
       className="flex items-baseline justify-between gap-3"
     >
       <span className="truncate font-data text-ui text-name">{row.label}</span>
-
       <span
         data-presence-status={row.word}
         className={cn('shrink-0 font-data text-ui', STATUS_CLASS[row.word])}
       >
         {row.word}
       </span>
-
     </li>
-
   );
 }
 
@@ -94,15 +86,12 @@ function FriendliesSection({ rows }: { readonly rows: readonly FriendlyRowModel[
   return (
     <section data-intel-section="friendlies" className="flex flex-col gap-1">
       <p className="font-data text-label uppercase tracking-label text-isk">Friendlies</p>
-
       <ul className="flex flex-col gap-0.5">
         {rows.map((row) => (
           <FriendlyRow key={row.characterId} row={row} />
         ))}
       </ul>
-
     </section>
-
   );
 }
 
@@ -113,6 +102,5 @@ export function SystemIntelligenceBody({ systemId }: { readonly systemId: number
       <SignatureSummary systemId={systemId} />
       <FriendliesSection rows={rows} />
     </div>
-
   );
 }

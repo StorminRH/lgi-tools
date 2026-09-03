@@ -14,6 +14,5 @@ export function planRead<TRead extends ReadResult, TSave extends object>(
   if (read.kind === 'error') return mapError?.(read.code) ?? { kind: 'skip', code: read.code };
   const payload = onFresh(read as Extract<TRead, { kind: 'fresh' }>);
   if (payload === null) return { kind: 'skip', code: 'contract_error' };
-
   return { ...payload, kind: 'save' };
 }

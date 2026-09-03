@@ -55,20 +55,14 @@ export function RadioGroup({
           >
             <Radio.Indicator className="h-2 w-2 rounded-full bg-isk" />
           </Radio.Root>
-
           <span className="flex flex-col gap-0.5">
             <span>{option.label}</span>
-
             {option.description ? (
               <span className="text-label text-faint">{option.description}</span>
-
             ) : null}
           </span>
-
         </label>
-
       ))}
     </BaseGroup>
-
   );
 }

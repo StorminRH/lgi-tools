@@ -1,9 +1,6 @@
 export type OwnerReconcileAction =
-
   | 'noop'
-
   | 'backfill'
-
   | 'purge';
 
 export function classifyOwnerReconcile(

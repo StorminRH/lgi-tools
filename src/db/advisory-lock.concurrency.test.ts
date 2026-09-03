@@ -7,7 +7,6 @@ const HAS_DB = Boolean(process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE
 const TEST_LOCK_KEY = 918273645;
 
 describe.skipIf(!HAS_DB)('advisory lock serialization (direct connection)', () => {
-
   let client: ReturnType<typeof postgres>;
 
   beforeAll(() => {
@@ -29,7 +28,6 @@ describe.skipIf(!HAS_DB)('advisory lock serialization (direct connection)', () =
       const winners = [ra!.got, rb!.got].filter(Boolean);
       expect(winners).toHaveLength(1);
     } finally {
-
       await a`SELECT pg_advisory_unlock(${TEST_LOCK_KEY})`;
       await b`SELECT pg_advisory_unlock(${TEST_LOCK_KEY})`;
       a.release();

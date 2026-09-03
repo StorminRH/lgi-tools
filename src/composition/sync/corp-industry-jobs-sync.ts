@@ -43,7 +43,6 @@ export interface ViewerCorpJobsResult {
 
 export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCorpJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
-
     read: async (uid) => {
       const syncStates = await listCorpJobSyncStates(uid);
       const owners: OwnerRow[] = syncStates.map((state) => ({

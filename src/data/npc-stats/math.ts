@@ -2,22 +2,18 @@ import type { AttrMap } from '@/data/eve-data/types';
 import type { CombatStats, DamageBreakdown, WaveTotals } from './types';
 
 const ATTR = {
-
   rateOfFire: 51,
   turretDamageMult: 64,
   damageEm: 114,
   damageTherm: 116,
   damageKin: 117,
   damageExp: 118,
-
   missileTypeId: 507,
   missileRateOfFire: 506,
   missileDamageMult: 212,
-
   structureHp: 9,
   shieldHp: 263,
   armorHp: 265,
-
   shieldResEm: 271,
   shieldResExp: 272,
   shieldResKin: 273,
@@ -26,14 +22,12 @@ const ATTR = {
   armorResExp: 268,
   armorResKin: 269,
   armorResTherm: 270,
-
   webSpeedFactor: 20,
   warpScramCount: 105,
   neutAmount: 97,
   neutDuration: 98,
   rrepAmount: 1455,
   rrepDuration: 1454,
-
   maxVelocity: 37,
   sigRadius: 552,
   orbitDistance: 416,
@@ -94,14 +88,12 @@ function computeMissileDps(
   missileAttrs: AttrMap | null,
 ): { dps: DamageBreakdown; alpha: DamageBreakdown } {
   if (!missileAttrs) return { dps: ZERO_DAMAGE, alpha: ZERO_DAMAGE };
-
   if (val(sleeperAttrs, ATTR.maxVelocity) <= 0) {
     return { dps: ZERO_DAMAGE, alpha: ZERO_DAMAGE };
   }
   const mult = val(sleeperAttrs, ATTR.missileDamageMult);
   const rofMs = val(sleeperAttrs, ATTR.missileRateOfFire);
   if (mult <= 0 || rofMs <= 0) return { dps: ZERO_DAMAGE, alpha: ZERO_DAMAGE };
-
   const alpha = scaleDamage(damageQuad(missileAttrs), mult);
   const dps = divideDamage(alpha, rofMs / 1000);
   return { dps, alpha };
@@ -124,7 +116,6 @@ function resistsToPct(passes: ResistArray): {
   kin: number;
   therm: number;
 } {
-
   return {
     em: Math.round((1 - passes[0]) * 100),
     exp: Math.round((1 - passes[1]) * 100),
@@ -155,7 +146,6 @@ function computeHp(attrs: AttrMap): CombatStats['hp'] {
   const shieldHp = val(attrs, ATTR.shieldHp);
   const armorHp = val(attrs, ATTR.armorHp);
   const structureHp = val(attrs, ATTR.structureHp);
-
   const shieldPasses = shieldHp > 0 ? shieldResistsArray(attrs, 1) : NO_RESIST_PASSES;
   const armorPasses = armorHp > 0 ? armorResistsArray(attrs, 1) : NO_RESIST_PASSES;
 

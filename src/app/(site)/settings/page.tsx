@@ -34,9 +34,7 @@ function SettingsSections({ view }: { view: SettingsView }) {
               <SettingsControlRow key={model.key} model={model} />
             ))}
           </div>
-
         </Card>
-
       ) : null}
 
       {view.featureSections.map((section) => (
@@ -45,10 +43,8 @@ function SettingsSections({ view }: { view: SettingsView }) {
 
       {view.isEmpty ? (
         <EmptyState>Nothing to configure yet.</EmptyState>
-
       ) : null}
     </>
-
   );
 }
 
@@ -68,17 +64,14 @@ async function SettingsContent() {
     <div className="flex w-full flex-col gap-6">
       <SettingsSections view={view} />
     </div>
-
   );
 }
 
 function SettingsLoading() {
-
   return (
     <div className="flex w-full flex-col gap-6">
       <Skeleton label="Loading account settings" className="h-40 w-full rounded-card" />
     </div>
-
   );
 }
 
@@ -94,10 +87,7 @@ export default function SettingsPage() {
         <Suspense fallback={<SettingsLoading />}>
           <SettingsContent />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

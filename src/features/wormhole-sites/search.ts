@@ -10,7 +10,6 @@ let SITE_INDEX: SiteSearchEntry[] = [];
 
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
-
   setSiteNameIndex(
     entries.map((entry) => ({
       id: entry.id,

@@ -16,21 +16,16 @@ export interface PricedFigures {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
-
   buyVolume: bigint | null;
   sellVolume: bigint | null;
-
   buyDepth: DepthBand[] | null;
   sellDepth: DepthBand[] | null;
-
   regionalDiscount: RegionalDiscount | null;
-
   source: PriceSource;
 }
 
 export interface MarketPrice extends PricedFigures {
   updatedAt: Date;
-
   staleAfter: Date;
 }
 

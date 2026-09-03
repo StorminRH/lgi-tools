@@ -56,7 +56,6 @@ describe('createBuildSystemApplier', () => {
   });
 
   it('a later apply supersedes an in-flight one — last request wins even when the slow fetch resolves', async () => {
-
     let releaseFirst!: (data: BuildLocationData) => void;
     const first = new Promise<BuildLocationData>((resolve) => {
       releaseFirst = resolve;
@@ -96,7 +95,6 @@ describe('createBuildSystemApplier', () => {
 
     const slow = apply(JITA, { persist: false });
     await apply(AMARR, { persist: false });
-
     rejectFirst(new DOMException('aborted', 'AbortError'));
     await expect(slow).resolves.toEqual({ status: 'superseded' });
   });

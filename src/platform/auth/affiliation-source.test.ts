@@ -81,7 +81,6 @@ describe('fetchAffiliations', () => {
   });
 
   it('bisects a mixed 404 batch so live characters still refresh', async () => {
-
     fetchMock.mockImplementation(async (_url: unknown, init: { body: string }) => {
       const ids = JSON.parse(init.body) as number[];
       if (ids.includes(101) && ids.includes(102)) {

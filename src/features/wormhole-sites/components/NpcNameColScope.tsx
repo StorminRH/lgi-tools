@@ -11,6 +11,5 @@ export function NpcNameColScope({ children }: { children: ReactNode }) {
     <div ref={ref} className="contents">
       {children}
     </div>
-
   );
 }

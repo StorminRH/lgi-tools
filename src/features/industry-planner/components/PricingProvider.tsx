@@ -811,12 +811,9 @@ export function PricingProvider({
       <Suspense fallback={null}>
         <PricingSeeder pricingPromise={pricingPromise} onSeed={clock.seed} />
       </Suspense>
-
       <Suspense fallback={null}>
         <HistorySeeder historyPromise={historyPromise} onSeed={market.mergeHistory} />
       </Suspense>
-
     </PlannerContextProviders>
-
   );
 }

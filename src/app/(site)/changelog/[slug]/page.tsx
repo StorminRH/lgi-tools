@@ -49,7 +49,6 @@ async function ChangelogMaster({ params }: { params: Promise<{ slug: string }> }
     <div className="max-w-[820px]">
       <MasterSection master={document.master} />
     </div>
-
   );
 }
 
@@ -61,7 +60,6 @@ function ChangelogMasterFallback() {
       <Skeleton aria-hidden="true" className="h-4 w-5/6" />
       <Skeleton aria-hidden="true" className="h-48 w-full" />
     </div>
-
   );
 }
 
@@ -74,6 +72,5 @@ export default function ChangelogMasterPage({
     <Suspense fallback={<ChangelogMasterFallback />}>
       <ChangelogMaster params={params} />
     </Suspense>
-
   );
 }

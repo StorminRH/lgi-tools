@@ -119,7 +119,6 @@ describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
       });
 
       it('omni EHP', () => {
-
         const tolerance = arch.name.startsWith('Drifter') ? 10 : 0;
         expect(Math.abs(Math.round(stats.hp.ehp) - arch.ehp)).toBeLessThanOrEqual(tolerance);
       });
@@ -132,14 +131,11 @@ describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
       });
 
       it('EWAR amounts and counts', () => {
-
         expect(stats.ewar.scram).toBe(arch.scram);
         expect(stats.ewar.web).toBe(arch.web);
         expect(stats.ewar.neutAmount).toBe(arch.neutAmount);
         expect(stats.ewar.rrepAmount).toBe(arch.rrepAmount);
-
         if (arch.typeId === 37472) {
-
           expect(stats.ewar.neutCount).toBe(Math.floor(arch.neutAmount / 10));
         } else {
           expect(stats.ewar.neutCount).toBe(arch.neutCount);

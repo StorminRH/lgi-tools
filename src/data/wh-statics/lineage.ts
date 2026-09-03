@@ -11,7 +11,6 @@ export interface PathfinderStaticRow {
 }
 
 export class PathfinderLineageError extends Error {
-
   constructor(message: string) {
     super(message);
     this.name = 'PathfinderLineageError';

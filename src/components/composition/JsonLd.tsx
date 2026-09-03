@@ -3,6 +3,5 @@ export function JsonLd({ data }: { data: Record<string, unknown> }) {
     <script type="application/ld+json">
       {JSON.stringify(data).replace(/</g, '\\u003c')}
     </script>
-
   );
 }

@@ -7,9 +7,7 @@ import type {
 import type { esiRefreshJobs } from './schema';
 
 export type EsiRefreshDataset = (typeof ESI_REFRESH_DATASETS)[number];
-
 export type EsiRefreshJobStatus = (typeof ESI_REFRESH_JOB_STATUSES)[number];
-
 export type EsiRefreshJob = typeof esiRefreshJobs.$inferSelect;
 
 export interface EsiRefreshQueueStat {

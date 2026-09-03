@@ -61,7 +61,6 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
       observedAt: new Date('2026-08-06T14:00:00.000Z'),
       dedupeKey: 'vacated-key',
     });
-
     await deleteWhObservation(harness.db, 'vacated-key');
     expect(await harness.db.select().from(whObservations)).toHaveLength(0);
     await expect(
@@ -151,7 +150,6 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
   });
 
   it('keeps the K162 and hour-coarse checks the migration did not drop', async () => {
-
     await expect(harness.sql`
       INSERT INTO ${harness.sql(SCHEMA)}.wh_observations
         (solar_system_id, wh_type_code, provenance, observed_at, dedupe_key)

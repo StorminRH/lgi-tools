@@ -65,7 +65,6 @@ describe('refreshPrices — source mix (3.0.10 O-1)', () => {
 
 describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', () => {
   it('writes null for a raw missing regionalDiscount — a pre-3.7.26.1 cached payload', async () => {
-
     const stale = row(1, 'esi') as unknown as Record<string, unknown>;
     delete stale.regionalDiscount;
     const db = fakeDb();

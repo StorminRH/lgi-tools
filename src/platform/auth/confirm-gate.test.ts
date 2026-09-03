@@ -12,7 +12,6 @@ function run(events: ConfirmEvent[], from: ConfirmPhase = INITIAL_CONFIRM_PHASE)
 
 describe('confirmGateReducer', () => {
   it('opens to confirming without running, and only confirm from that phase starts the call', () => {
-
     expect(run([{ type: 'request' }])).toBe('confirming');
     expect(run([{ type: 'request' }, { type: 'request' }])).toBe('confirming');
     expect(run([{ type: 'request' }, { type: 'confirm' }])).toBe('running');

@@ -27,11 +27,8 @@ export interface SignatureWindowRow {
   readonly name: string | null;
   readonly signalPct: number | null;
   readonly firstSeenAt: number;
-
   readonly connection: ConnectionEditorDetail | null;
-
   readonly endpoint?: 'from' | 'to';
-
   readonly className: string | null;
 }
 
@@ -187,7 +184,6 @@ export function scannerSectionForGroup(
     case 'Relic Site':
       return 'hacking';
     default:
-
       return 'unknown';
   }
 }

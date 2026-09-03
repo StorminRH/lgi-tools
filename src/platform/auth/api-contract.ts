@@ -17,7 +17,6 @@ const eveTokenResponseSchema = z.object({
   accessToken: z.string(),
   expiresAt: z.number().int().positive(),
 });
-
 export type EveTokenOkResponse = z.infer<typeof eveTokenResponseSchema>;
 
 export const eveTokenEndpoint = defineEndpoint({
@@ -44,13 +43,11 @@ const eveCharacterEntrySchema = z.object({
   name: z.string(),
   hasRefreshToken: z.boolean(),
   missingScopes: z.array(z.string()),
-
   corporationId: z.number().int().positive().nullable(),
 });
 const eveCharactersResponseSchema = z.object({
   characters: z.array(eveCharacterEntrySchema),
 });
-
 export type EveCharactersResponse = z.infer<typeof eveCharactersResponseSchema>;
 
 export const eveCharactersEndpoint = defineEndpoint({
@@ -78,7 +75,6 @@ export const unlinkCharacterFormSchema = z.object({
 });
 
 export const ADMIN_ACCESS_QUERY_MAX_LENGTH = 200;
-
 export const adminRoleFormSchema = z.object({
   userId: userIdField,
   nextRole: z.enum(CHARACTER_ROLES),
@@ -108,9 +104,7 @@ const accountCharacterSchema = z.object({
 const accountCharactersResponseSchema = z.object({
   characters: z.array(accountCharacterSchema),
 });
-
 export type AccountCharactersResponse = z.infer<typeof accountCharactersResponseSchema>;
-
 export const accountCharactersEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/characters',
@@ -123,9 +117,7 @@ export const accountCharactersEndpoint = defineEndpoint({
 export const purgeCharacterRequestSchema = z.object({
   characterId: z.number().int().positive(),
 });
-
 const purgeCharacterResponseSchema = z.object({ accountEmptied: z.boolean() });
-
 export const purgeCharacterEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/purge-character',
@@ -140,7 +132,6 @@ export const purgeCharacterEndpoint = defineEndpoint({
 });
 
 const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
-
 export const accountDeleteEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/delete',
@@ -154,7 +145,6 @@ export const accountDeleteEndpoint = defineEndpoint({
 });
 
 const sessionsRevokeResponseSchema = z.object({ revoked: z.number() });
-
 export const sessionsRevokeEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/sessions/revoke',

@@ -3,21 +3,14 @@ import { formatBonusPct } from './structure-bonus-view';
 import type { BlueprintStructure } from './types';
 
 export const INDUSTRY_SKILL_ID = 3380;
-
 const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
-
 export const ADVANCED_INDUSTRY_SKILL_ID = 3388;
-
 const ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL = -3;
-
 export const REACTIONS_SKILL_ID = 45746;
-
 const REACTIONS_TIME_PCT_PER_LEVEL = -4;
 
 export interface SkillTimeFactors {
-
   skillTimeFactorOf: (blueprintTypeId: number) => number;
-
   active: boolean;
 }
 
@@ -100,7 +93,6 @@ export function skillTimeFactorsFor(args: {
   if (levels === null) return NO_SKILL_FACTORS;
 
   const levelOf = (skillTypeId: number): number => levels[String(skillTypeId)] ?? 0;
-
   const manufacturingFactor =
     term(INDUSTRY_TIME_PCT_PER_LEVEL, levelOf(INDUSTRY_SKILL_ID)) *
     term(ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL, levelOf(ADVANCED_INDUSTRY_SKILL_ID));

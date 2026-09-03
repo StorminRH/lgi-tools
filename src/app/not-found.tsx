@@ -11,6 +11,5 @@ export default function NotFound() {
     <SiteFrame>
       <NotFoundContent />
     </SiteFrame>
-
   );
 }

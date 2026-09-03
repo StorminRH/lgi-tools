@@ -16,10 +16,8 @@ export interface Ghost {
 
 export interface MotionState {
   readonly tweens: ReadonlyMap<number, Tween>;
-
   readonly entering: ReadonlyMap<number, number>;
   readonly ghosts: ReadonlyMap<number, Ghost>;
-
   readonly edgeEntering: ReadonlyMap<string, number>;
   readonly edgeGhosts: ReadonlyMap<string, Ghost>;
 }
@@ -89,7 +87,6 @@ export function adoptIntents(
   for (const intent of intents) {
     switch (intent.kind) {
       case 'system-appeared':
-
         entering.set(intent.systemId, now + plan.birthMs);
         ghosts.delete(intent.systemId);
         tweens.delete(intent.systemId);
@@ -129,7 +126,6 @@ function adoptMove(
     return;
   }
   const current = tweens.get(intent.systemId);
-
   const from =
     current === undefined ? intent.from : displacedAt(current, now, plan.ease);
   if (samePosition(from, intent.to)) {
@@ -164,11 +160,8 @@ export function finishAllTweens(state: MotionState): MotionState {
 
 export interface MotionFrame {
   readonly state: MotionState;
-
   readonly displacements: ReadonlyMap<number, ChainPosition>;
-
   readonly active: boolean;
-
   readonly changed: boolean;
 }
 
@@ -184,12 +177,10 @@ export function stepMotion(
 
   for (const [systemId, tween] of state.tweens) {
     if (draggingIds.has(systemId)) {
-
       changed = true;
       continue;
     }
     if (now - tween.startedAt >= tween.durationMs) {
-
       changed = true;
       continue;
     }

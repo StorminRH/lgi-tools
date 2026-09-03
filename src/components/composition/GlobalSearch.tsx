@@ -73,7 +73,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
 
   const items = useMemo(() => flattenSections(sections), [sections]);
   const hasResults = sections.length > 0;
-
   const open = active && hasResults;
 
   function fireResult(result: SearchResult) {
@@ -116,7 +115,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           aria-label="Search"
           className="nav-search w-[480px] max-lg:w-full"
           prompt={<span className="shrink-0 font-data text-ui font-bold text-isk">&gt;</span>}
-
           trailing={<SearchHints active={active} />}
           type="text"
           spellCheck={false}
@@ -134,40 +132,30 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                 <Combobox.Group key={section.name}>
                   <Combobox.GroupLabel>
                     <span>{section.name}</span>
-
                     {section.name === 'Sites' && section.results.length > 0 && (
                       <span className="font-normal text-muted">
                         {section.results.length} match{section.results.length === 1 ? '' : 'es'}
                       </span>
-
                     )}
                   </Combobox.GroupLabel>
-
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-1">
                     {section.results.map((row) => (
                       <SearchRow key={row.id} row={row} fireResult={fireResult} />
                     ))}
                   </div>
-
                 </Combobox.Group>
-
               ))}
             </Combobox.List>
-
             <SearchFooter />
           </Combobox.Panel>
-
         )}
       </Combobox.Root>
-
     </div>
-
   );
 }
 
 function SearchHints({ active }: { active: boolean }) {
   return <Kbd>{active ? 'esc' : '⌘K'}</Kbd>;
-
 }
 
 function SearchRowIcon({ row }: { row: SearchResult }) {
@@ -190,7 +178,6 @@ function SearchRowIcon({ row }: { row: SearchResult }) {
     >
       {row.iconText}
     </span>
-
   );
 }
 
@@ -217,19 +204,14 @@ function SearchRow({
         <span className="truncate font-data text-ui text-name">
           {renderLabel(row.label, row.matchIndices)}
         </span>
-
         {row.sub && (
           <span className="truncate font-data text-label uppercase tracking-[0.07em] text-muted">
             {row.sub}
           </span>
-
         )}
       </span>
-
       <span className="shrink-0 text-ui text-isk opacity-0 group-data-[highlighted]:opacity-100">↵</span>
-
     </Combobox.Item>
-
   );
 }
 
@@ -241,14 +223,11 @@ function renderLabel(label: string, indices?: number[]) {
           <span key={i} className="font-semibold text-isk">
             {run.text}
           </span>
-
         ) : (
           <Fragment key={i}>{run.text}</Fragment>
-
         ),
       )}
     </>
-
   );
 }
 
@@ -257,19 +236,12 @@ function SearchFooter() {
     <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-label text-faint">
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
-
       </span>
-
       <span className="flex gap-1">
         <Kbd>↑↓</Kbd>
-
         <Kbd>↵</Kbd>
-
         <Kbd>esc</Kbd>
-
       </span>
-
     </div>
-
   );
 }

@@ -48,7 +48,6 @@ export default {
       null,
       { timeout: 60_000 },
     );
-
     await page.waitForTimeout(1600);
 
     const initialBirths = await readBirths(page);

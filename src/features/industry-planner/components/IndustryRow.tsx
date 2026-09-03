@@ -32,30 +32,23 @@ export function IndustryRow({
         <Chip tone="green" className="size-[26px] justify-center p-0 font-data text-ui font-extrabold">
           {initials(name)}
         </Chip>
-
       )}
         name={<span className="min-w-0">
         <span className="flex min-w-0 items-center gap-1.5 text-ui font-semibold text-name">
           <span className="truncate">{name}</span>
-
           {fav && (
             <span className="shrink-0 text-label text-isk" aria-label="Favorite">
               ★
             </span>
-
           )}
         </span>
-
         {group && (
           <span className="block text-micro text-muted mt-0.5 tracking-copy truncate">
             {group}
           </span>
-
         )}
       </span>}
-
       />
     </Link>
-
   );
 }

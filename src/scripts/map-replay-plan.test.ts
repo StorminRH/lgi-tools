@@ -93,7 +93,6 @@ describe('spawn planning', () => {
     const step = plan.steps[2];
     expect(step?.drainedConnections).toEqual([{ fromSystemId: A, toSystemId: C }]);
     expect(step?.connections).toEqual([{ fromSystemId: B, toSystemId: C }]);
-
     expect(step && attachingEdgeOf(step)).toEqual({ fromSystemId: B, toSystemId: C });
   });
 

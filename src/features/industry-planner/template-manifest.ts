@@ -11,7 +11,6 @@ export type TemplateStructureView = Pick<
 export interface ApplyCtx {
   ctx: TemplatePlannerState;
   structure: TemplateStructureView;
-
   fetchedStations: { id: number }[] | null;
 }
 
@@ -19,7 +18,6 @@ type TemplateFields = { [K in TemplateFieldKey]: PlanSnapshotV1[K] };
 
 interface TemplateField<K extends TemplateFieldKey> {
   schema: z.ZodType<TemplateFields[K]>;
-
   fallback: TemplateFields[K];
   capture: (ctx: TemplatePlannerState) => TemplateFields[K];
   apply: (a: ApplyCtx, value: TemplateFields[K]) => string | null | Promise<string | null>;
@@ -64,7 +62,6 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
   buildCharacterId: {
     schema: snapshotFieldSchemas.buildCharacterId,
     fallback: null,
-
     capture: (ctx) => ctx.buildCharacter?.characterId ?? null,
     apply: (a, value) => {
       if (value === null) {
@@ -103,7 +100,6 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
     schema: snapshotFieldSchemas.reactionSystem,
     fallback: null,
     capture: (ctx) => (ctx.reactionSystem ? { ...ctx.reactionSystem } : null),
-
     apply: (a, value) => {
       a.ctx.setReactionSystem(value);
       return null;
@@ -146,7 +142,6 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
     schema: snapshotFieldSchemas.costBasis,
     fallback: 'marginal',
     capture: (ctx) => ctx.costBasis,
-
     apply: (a, value) => {
       a.ctx.setCostBasis(value);
       return null;
@@ -174,7 +169,6 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
     schema: snapshotFieldSchemas.multibuyUncheckedTiers,
     fallback: [],
     capture: (ctx) => [...ctx.multibuyUncheckedTiers].sort((x, y) => x - y),
-
     apply: (a, value) => {
       a.ctx.setMultibuyUncheckedTiers(new Set(value));
       return null;
@@ -191,7 +185,6 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
             security: ctx.location.security,
           }
         : null,
-
     apply: async (a, value) => {
       a.fetchedStations = null;
       if (value === null) {
@@ -207,7 +200,6 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
         a.ctx.clearBuildLocation();
         return `Build system "${value.systemName}" couldn't load — cleared`;
       }
-
       return null;
     },
   },

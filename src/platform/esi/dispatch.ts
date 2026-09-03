@@ -20,7 +20,6 @@ import {
 } from './scoreboard';
 
 export interface EsiFetchOptions {
-
   interactive?: boolean;
 }
 
@@ -69,12 +68,10 @@ function parseIntHeader(headers: Headers, name: string): number | null {
 }
 
 function buildHeaders(init?: RequestInit, etag?: string | null): Headers {
-
   const headers = new Headers(init?.headers);
   if (!headers.has('User-Agent')) {
     headers.set('User-Agent', OUTBOUND_USER_AGENT);
   }
-
   headers.set('X-Compatibility-Date', ESI_COMPATIBILITY_DATE);
   if (etag != null) {
     headers.set('If-None-Match', etag);
@@ -134,7 +131,6 @@ function synthesizeRevalidated(
   if (!headers.has('Expires') && meta.expires !== null) {
     headers.set('Expires', meta.expires);
   }
-
   headers.delete('Content-Length');
   headers.set('x-lgi-esi-cache', 'revalidated');
   return new Response(body, { status: 200, statusText: 'OK', headers });

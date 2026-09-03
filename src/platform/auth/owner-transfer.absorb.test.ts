@@ -6,7 +6,6 @@ const { chain, state } = vi.hoisted(() => {
     calls: { delete: 0, update: 0 },
   };
   const chain: Record<string, unknown> = {
-
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
       const next = state.results.shift();
       if (next instanceof Error) reject(next);
@@ -39,7 +38,6 @@ vi.mock('better-auth/api', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
-
 vi.mock('./identity-projection-hooks', () => ({
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
@@ -86,7 +84,6 @@ describe('absorbLinkedCharacterOnProof', () => {
 
   it('still reports the absorb when source cleanup fails after the move committed', async () => {
     oauthState.value = { link: { userId: 'user-b' } };
-
     state.results = [
       [{ userId: 'stray' }],
       undefined,

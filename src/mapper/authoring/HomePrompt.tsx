@@ -59,7 +59,6 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
         >
           Set your home system
         </DialogTitle>
-
         <TerminalSearch<SystemParams, SystemErr>
           initialValue=""
           placeholder="Search systems — type a name"
@@ -81,7 +80,6 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
             <span className="font-ui text-micro text-muted">
               Track a character in space
             </span>
-
             <div className="flex flex-wrap items-center gap-2">
               {characters.map((character) => {
                 const pressed = trackedIds.has(character.characterId);
@@ -113,15 +111,11 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
                       size={32}
                       src={character.portraitUrl}
                     />
-
                   </Button>
-
                 );
               })}
             </div>
-
           </div>
-
         ) : null}
         <CurrentSystemControl
           current={current}
@@ -133,9 +127,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
           }}
         />
       </div>
-
     </Dialog>
-
   );
 }
 
@@ -161,7 +153,6 @@ function CurrentSystemControl({
       >
         Start tracking
       </Button>
-
     );
   }
 
@@ -180,16 +171,12 @@ function CurrentSystemControl({
       }}
     >
       <span className="font-ui text-nav">Use current system</span>
-
       {ready && currentSystemName !== null ? (
         <span className="font-data text-micro text-muted">{currentSystemName}</span>
-
       ) : null}
       {current.kind === 'offline' ? (
         <span className="font-data text-micro text-muted">Character is offline</span>
-
       ) : null}
     </Button>
-
   );
 }

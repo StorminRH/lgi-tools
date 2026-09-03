@@ -58,7 +58,6 @@ describe('cn', () => {
     expect(a).toContain('shadow-red-500');
 
     expect(cn('shadow-card-edge', 'shadow-dd')).toBe('shadow-dd');
-
     expect(cn('shadow-field-inset', 'shadow-none')).toBe('shadow-none');
   });
 

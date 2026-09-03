@@ -30,7 +30,6 @@ export function snapEveImageSize(
   const sizes = FAMILY_SIZES[family];
   const snapped = sizes.find((size) => size >= requestedWidth);
   if (snapped !== undefined) return snapped;
-
   return EVE_IMAGE_SIZES.at(-1)!;
 }
 

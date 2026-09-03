@@ -16,7 +16,6 @@ export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: n
   let resolved = 0;
   for (let i = 0; i < ids.length; i += ESI_UNIVERSE_NAMES_POST_MAX) {
     const batch = ids.slice(i, i + ESI_UNIVERSE_NAMES_POST_MAX);
-
     try {
       const named = await fetchStationNames(batch);
       if (named.length === 0) continue;
@@ -48,7 +47,6 @@ async function fetchStationNames(ids: number[]): Promise<{ id: number; name: str
   });
   if (!res.ok) throw new Error(`ESI /universe/names/ ${res.status}`);
   const data = (await res.json()) as { category: string; id: number; name: string }[];
-
   return data
     .filter((d) => d.category === 'station' && typeof d.name === 'string')
     .map((d) => ({ id: d.id, name: d.name }));

@@ -47,7 +47,6 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
       <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         {group.label}
         <span className="text-faint">· {group.rows.length}</span>
-
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
         <LivePrice
           value={formatIsk(group.total)}
@@ -55,7 +54,6 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
           className="text-ui font-semibold tracking-normal text-isk"
         />
       </div>
-
       <Card>
         {group.rows.map((row) => (
           <EntityRow
@@ -67,31 +65,24 @@ function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshin
               <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
                 {row.name}
               </span>
-
               <span className="truncate font-data text-label uppercase tracking-label text-muted">
                 {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
               </span>
-
             </div>}
-
             trailing={<span className="flex flex-col items-end gap-px text-right">
               <span className="whitespace-nowrap font-data text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}
               </span>
-
               <LivePrice
                 value={row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
                 pending={refreshing}
                 className="whitespace-nowrap text-ui text-text"
               />
             </span>}
-
           />
         ))}
       </Card>
-
     </div>
-
   );
 }
 
@@ -108,7 +99,6 @@ export function CockpitRawLedger({
 
   if (groups.length === 0) {
     return <EmptyState>No priced raw materials yet.</EmptyState>;
-
   }
 
   return (
@@ -117,6 +107,5 @@ export function CockpitRawLedger({
         <CategoryColumn key={g.label} group={g} refreshing={refreshing} />
       ))}
     </div>
-
   );
 }

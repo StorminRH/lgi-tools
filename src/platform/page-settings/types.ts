@@ -22,12 +22,8 @@ export type CharacterStripSpec = {
 };
 
 export type PageSettingsSpec = {
-
   route: string;
-
   controls?: SettingsControlRef[];
-
   strip?: CharacterStripSpec;
-
   title?: string;
 };

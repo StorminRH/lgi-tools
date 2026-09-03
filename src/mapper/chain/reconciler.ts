@@ -114,7 +114,6 @@ function placeSystems(
     const existing = previous.systems.get(systemId);
 
     if (existing === undefined) {
-
       const position = proposals.get(systemId) ?? ORIGIN;
       systems.set(systemId, { systemId, position, placementSource: 'assigner' });
       appeared.push({ kind: 'system-appeared', systemId, position });

@@ -61,7 +61,6 @@ function sectionCells(
             <NameCell row={row} />
           )}
         </>
-
       );
     case 'wormholes':
       return wormholeCells(row, ctx);
@@ -72,7 +71,6 @@ function sectionCells(
           <NameCell row={row} />
           <ScannerEstIskCell siteName={row.name} live={false} />
         </>
-
       );
     case 'harvestables':
       return (
@@ -82,7 +80,6 @@ function sectionCells(
           <NameCell row={row} />
           <ScannerEstIskCell siteName={row.name} live />
         </>
-
       );
     case 'hacking':
       return (
@@ -91,7 +88,6 @@ function sectionCells(
           <SiteTypeCell row={row} />
           <NameCell row={row} />
         </>
-
       );
   }
 }
@@ -130,10 +126,8 @@ function ColumnHeader({
         <span key={label} className="w-full text-center">
           {label}
         </span>
-
       ))}
     </div>
-
   );
 }
 
@@ -178,20 +172,16 @@ function ScannerSectionBlock({
             >
               ▾
             </span>
-
             <span className="font-ui text-label font-semibold uppercase tracking-label text-muted">
               {section.title}
             </span>
-
             <span
               data-scanner-section-count
               className="ml-auto rounded-ctl bg-bg-deep px-1.5 font-ui text-micro text-muted"
             >
               {section.rows.length}
             </span>
-
           </span>
-
         }
       >
         <div data-scanner-section-body className="flex flex-col pb-1">
@@ -231,13 +221,9 @@ function ScannerSectionBlock({
               );
             })}
           </ul>
-
         </div>
-
       </Collapsible>
-
     </section>
-
   );
 }
 
@@ -249,7 +235,6 @@ function ScannerRowsLoading() {
     >
       Reading scanner rows…
     </p>
-
   );
 }
 
@@ -309,6 +294,5 @@ export function ScannerSections({
         />
       ))}
     </div>
-
   );
 }

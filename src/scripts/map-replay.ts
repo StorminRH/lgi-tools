@@ -115,7 +115,6 @@ function holdMs(intervalMs: number): number {
 }
 
 function parseConnectionId(output: string, path: string): string {
-
   const lastLine = output.split('\n').at(-1)?.trim() ?? '';
   try {
     const parsed: unknown = JSON.parse(lastLine);

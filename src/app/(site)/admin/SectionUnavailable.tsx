@@ -10,8 +10,6 @@ export function SectionUnavailable({ label }: { label: string }) {
         This section couldn’t load — the rest of the dashboard is unaffected.
         Reload to try again.
       </EmptyState>
-
     </Card>
-
   );
 }

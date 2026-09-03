@@ -31,7 +31,6 @@ export async function listRecentDomainEvents(limit: number): Promise<DomainEvent
     .from(domainEvents)
     .orderBy(desc(domainEvents.occurredAt), desc(domainEvents.id))
     .limit(limit);
-
   return rows as DomainEventRow[];
 }
 

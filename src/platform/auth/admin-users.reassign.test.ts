@@ -47,7 +47,6 @@ beforeEach(() => {
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-
     state.results = [undefined, [], undefined];
     const out = await reassignCharacter({
       characterId: 100,

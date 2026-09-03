@@ -199,7 +199,6 @@ describe('syncGsc', () => {
     const saved = keys.map((k) => process.env[k]);
     for (const k of keys) delete process.env[k];
     try {
-
       const summary = await syncGsc({} as unknown as Parameters<typeof syncGsc>[0], []);
       expect(summary.status).toBe('skipped');
       expect(summary.reason).toBe('not_configured');

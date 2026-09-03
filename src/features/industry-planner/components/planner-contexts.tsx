@@ -192,14 +192,9 @@ export function PlannerContextProviders({
         <BuildSetupContext.Provider value={buildSetup}>
           <BuildCharacterContext.Provider value={buildCharacter}>
             <BuildPlanContext.Provider value={buildPlan}>{children}</BuildPlanContext.Provider>
-
           </BuildCharacterContext.Provider>
-
         </BuildSetupContext.Provider>
-
       </PlannerConfigContext.Provider>
-
     </MarketDataContext.Provider>
-
   );
 }

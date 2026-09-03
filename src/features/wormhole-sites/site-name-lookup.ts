@@ -14,7 +14,6 @@ export function siteNameIndexKeys(name: string): readonly string[] {
 export type SiteLiveRecipe = {
   readonly typeId: number;
   readonly units: number;
-
   readonly seedIsk: number | null;
 };
 
@@ -29,9 +28,7 @@ let BY_NAME: ReadonlyMap<string, SiteNameRecord> = new Map();
 export type SiteNameIndexEntry = {
   readonly id: number;
   readonly name: string;
-
   readonly estIsk?: number | null;
-
   readonly liveRecipes?: readonly SiteLiveRecipe[];
 };
 

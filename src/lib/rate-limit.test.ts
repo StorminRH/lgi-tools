@@ -114,7 +114,6 @@ describe('rateLimit', () => {
   });
 
   it('bypasses the limiter in development when env vars are unset', async () => {
-
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');

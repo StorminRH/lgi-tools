@@ -31,9 +31,7 @@ export default function ContactPage() {
         meta={
           <span className={eyebrow()}>
             Replies usually within <b className="text-name font-semibold">a day or two</b>
-
           </span>
-
         }
       />
 
@@ -41,25 +39,20 @@ export default function ContactPage() {
         <p className="mb-[26px] max-w-[640px] text-pretty text-body leading-[1.72] tracking-optical text-text">
           Found a bug, have data that looks wrong, or want a tool added? Email{' '}
           <b>Lo-Gang Industries</b>{' '}directly, or open a GitHub issue for anything you&apos;d like
-
           tracked.
         </p>
 
         <div className="grid items-stretch gap-4 md:grid-cols-2">
           <Card>
             <SectionLabel className="mb-cluster px-3.5 pt-3.5">Get in touch</SectionLabel>
-
             <EntityRow
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Email"
               name={
                 <span className="font-data text-ui text-text">
                 <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-
                 <span className="mt-1 block text-micro text-muted">Bug reports, ideas, and data corrections</span>
-
               </span>
-
               }
             />
             <EntityRow
@@ -74,11 +67,8 @@ export default function ContactPage() {
                 >
                   github.com/StorminRH/lgi-tools
                 </a>
-
                 <span className="mt-1 block text-micro text-muted">Open an issue or pull request</span>
-
               </span>
-
               }
             />
             <EntityRow
@@ -88,16 +78,13 @@ export default function ContactPage() {
                 <span className="text-ui text-text">
                 Coming soon
                 <span className="mt-1 block text-micro text-muted">A community server is in the works</span>
-
               </span>
-
               }
             />
           </Card>
 
           <Card>
             <SectionLabel className="mb-cluster px-3.5 pt-3.5">In-game</SectionLabel>
-
             <EntityRow
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Character"
@@ -117,13 +104,9 @@ export default function ContactPage() {
                     >
                       {MAINTAINER_CHARACTER_NAME}
                     </a>
-
                     <span className="mt-0.5 text-micro text-muted">EVE mail welcome</span>
-
                   </span>
-
                 </span>
-
               }
             />
             <EntityRow
@@ -142,12 +125,9 @@ export default function ContactPage() {
                     >
                       {corp.name}
                     </a>
-
                   </span>
-
                 ))}
               </span>
-
               }
             />
             <EntityRow
@@ -159,18 +139,12 @@ export default function ContactPage() {
                 <span className="mt-1 block text-micro text-muted">
                   Keeps the lights on — send to the Lo-Gang corp wallet
                 </span>
-
               </span>
-
               }
             />
           </Card>
-
         </div>
-
       </div>
-
     </PageShell>
-
   );
 }

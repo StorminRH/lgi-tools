@@ -60,7 +60,6 @@ describe('consolidateBuild', () => {
   });
 
   it('sorts within a tier by type then name', () => {
-
     expect(tiers[1]!.items.map((i) => i.typeId)).toEqual([8, 9]);
   });
 
@@ -74,7 +73,6 @@ describe('consolidateBuild', () => {
     expect([...(childrenOf.get(1) ?? [])].sort()).toEqual([2, 3, 9]);
     expect([...(childrenOf.get(2) ?? [])].sort()).toEqual([8, 9]);
     expect([...(childrenOf.get(3) ?? [])].sort()).toEqual([9]);
-
     expect([...(childrenOf.get(9) ?? [])]).toEqual([]);
   });
 });
@@ -103,7 +101,6 @@ describe('chainLevelsFrom', () => {
 });
 
 describe('scaleTiersToBatched', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -117,7 +114,6 @@ describe('scaleTiersToBatched', () => {
     200: { name: 'Raw R', height: 0, isRaw: true, label: 'Mineral', tone: 'neutral' },
     999: { name: 'Product', height: 2, isRaw: false, label: 'Ship', tone: 'teal' },
   };
-
   const structure = {
     buildNodeDisplay: display,
     buildTree: [
@@ -144,7 +140,6 @@ describe('scaleTiersToBatched', () => {
     scaled.find((t) => t.depth === depth)?.items.find((i) => i.typeId === typeId)?.quantity;
 
   it('shows a buildable as its whole-run produced batch (runs × yield)', () => {
-
     expect(cell(1, 100)).toBe(10);
   });
 
@@ -156,7 +151,6 @@ describe('scaleTiersToBatched', () => {
 });
 
 describe('scaleTiersToBatched — multi-depth raw sums to the batch total', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -200,7 +194,6 @@ describe('scaleTiersToBatched — multi-depth raw sums to the batch total', () =
 });
 
 describe('scaleTiersToBatched — follows an ME-reduced ledger', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,

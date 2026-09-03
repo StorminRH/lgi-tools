@@ -20,7 +20,6 @@ const FOG_BRUSH_SIZE = 256;
 const FOG_BRUSH_SEED = 0x4c47_49;
 
 export interface FogLayerProps {
-
   readonly nodes: readonly ChainNode[];
   readonly edges: readonly ChainEdge[];
   readonly motion: MotionConfig;
@@ -59,7 +58,6 @@ export function FogLayer({ nodes, edges, motion, config }: FogLayerProps) {
     <ViewportPortal>
       <canvas ref={canvasRef} data-map-fog aria-hidden className="map-fog" />
     </ViewportPortal>
-
   );
 }
 
@@ -74,7 +72,6 @@ function useFogHost({
   const runtimeRef = useRef(createFogHostRuntime());
   const reveals = useMemo(() => deriveFogReveals(nodes, edges), [nodes, edges]);
   const inputsRef = useRef({ reveals, motion, config });
-
   const schedule = useFogScheduler(canvasRef, runtimeRef, inputsRef, store);
 
   useEffect(() => {

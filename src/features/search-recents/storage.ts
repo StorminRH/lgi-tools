@@ -93,7 +93,6 @@ function readStored(): StoredRecent[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-
     return parsed.filter(isStoredRecent).filter(rendersIcon);
   } catch {
     return [];

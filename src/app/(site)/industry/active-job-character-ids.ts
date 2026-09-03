@@ -19,11 +19,8 @@ const linkedJobCharacters = cache(async (): Promise<LinkedCharacter[]> => {
     if (!session) return [];
     return await listLinkedCharacters(session.user.id);
   } catch (err) {
-
     unstable_rethrow(err);
-
     if (err instanceof BetterAuthError && !authEnvConfigured()) return [];
-
     console.error(
       '[industry/active-job-character-ids] failed to resolve linked characters',
       err,

@@ -27,7 +27,6 @@ export function Drawer({
       >
         {trigger}
       </Base.Trigger>
-
       <Base.Portal>
         <Base.Backdrop
           data-drawer-backdrop
@@ -52,18 +51,12 @@ export function Drawer({
               <Base.Title className="mb-3 font-ui text-h3 font-semibold text-name">
                 {title}
               </Base.Title>
-
               {children}
             </Base.Content>
-
           </Base.Popup>
-
         </Base.Viewport>
-
       </Base.Portal>
-
     </Base.Root>
-
   );
 }
 

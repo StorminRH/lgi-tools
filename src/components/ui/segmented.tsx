@@ -68,7 +68,6 @@ export function SegmentedControl({
   options: readonly SegmentedOption[];
   value: string;
   onChange?: (value: string) => void;
-
   label: string;
   tone?: SegmentedTone;
   density?: 'default' | 'compact';
@@ -87,10 +86,8 @@ export function SegmentedControl({
           >
             {option.label}
           </a>
-
         ))}
       </div>
-
     );
   }
 
@@ -113,9 +110,7 @@ export function SegmentedControl({
         >
           {option.label}
         </Toggle>
-
       ))}
     </ToggleGroup>
-
   );
 }

@@ -257,7 +257,6 @@ export const ESI_DATASET_ENTRIES = [
     refreshOwner: { kind: 'engine', dataset: 'characterLocation' },
     upstream: {
       kind: 'esi',
-
       specPaths: [
         '/characters/{character_id}/location/',
         '/characters/{character_id}/ship/',

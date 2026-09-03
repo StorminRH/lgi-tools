@@ -21,7 +21,6 @@ function asMap(rows: { typeId: number; quantity: number }[]): Record<number, num
 }
 
 describe('computeBatchMaterials — batch rounding', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -36,13 +35,11 @@ describe('computeBatchMaterials — batch rounding', () => {
   });
 
   it('scales by requestedRuns, still whole-run', () => {
-
     expect(asMap(computeBatchMaterials(tree, 3))).toEqual({ 200: 14 });
   });
 });
 
 describe('computeBatchLedger — raws + buildable run-counts from one walk', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -72,7 +69,6 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
 });
 
 describe('computeBatchMaterials — shared sub-component', () => {
-
   const sub = (): TreeNode => ({
     typeId: 200,
     quantity: 300,
@@ -100,7 +96,6 @@ describe('computeBatchMaterials — shared sub-component', () => {
 });
 
 describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
-
   const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
   const totals = asMap(computeBatchMaterials(legion));
 
@@ -114,7 +109,6 @@ describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
 });
 
 describe('chainActualsFrom — focused build consumes marginal, not batched', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 10,
@@ -149,7 +143,6 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
 });
 
 describe('chainActualsFrom — ME-aware marginal cascade', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 10,
@@ -184,7 +177,6 @@ describe('chainActualsFrom — ME-aware marginal cascade', () => {
 });
 
 describe('computeBatchMaterialsWithMe — byte-identical to ME0 when nothing is owned', () => {
-
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
 
   for (const [name, tree] of fixtures) {
@@ -213,7 +205,6 @@ describe('computeBatchMaterialsWithMe — byte-identical to ME0 when nothing is 
 });
 
 describe('computeBatchMaterialsWithMe — EVE material-efficiency formula', () => {
-
   const oneLevel = (baseQty: number): TreeNode[] => [{ typeId: 1, quantity: baseQty, inputs: [] }];
   const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
 
@@ -235,7 +226,6 @@ describe('computeBatchMaterialsWithMe — EVE material-efficiency formula', () =
 });
 
 describe('computeBatchMaterialsWithMe — aggregate-then-ceil (non-linearity guard)', () => {
-
   const child = (): TreeNode => ({
     typeId: 200,
     quantity: 1,
@@ -254,7 +244,6 @@ describe('computeBatchMaterialsWithMe — aggregate-then-ceil (non-linearity gua
 });
 
 describe('computeBatchLedgerWithMe — per-layer ME independence', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 10,
@@ -289,7 +278,6 @@ describe('computeBatchLedgerWithMe — per-layer ME independence', () => {
 });
 
 describe('computeBatchLedgerWithMe — cascade + reaction ME0', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 200,
@@ -315,7 +303,6 @@ describe('computeBatchLedgerWithMe — cascade + reaction ME0', () => {
 });
 
 describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', () => {
-
   const oneLevel = (baseQty: number): TreeNode[] => [{ typeId: 1, quantity: baseQty, inputs: [] }];
   const noBpMe = (mult: number) => ({
     meOf: () => undefined,
@@ -324,12 +311,10 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
   });
 
   it('reduces a node by the structure factor, rounded once', () => {
-
     expect(asMap(computeBatchMaterialsWithMe(oneLevel(200), 1, noBpMe(0.95)))).toEqual({ 1: 190 });
   });
 
   it('composes blueprint ME and the structure as ONE round (no double-ceil)', () => {
-
     const opts = {
       meOf: (bp: number) => (bp === 9000 ? 1 : undefined),
       topBlueprintTypeId: 9000,
@@ -339,7 +324,6 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
   });
 
   it('honours the ≥1-per-run floor under a structure factor', () => {
-
     expect(asMap(computeBatchMaterialsWithMe(oneLevel(1), 100, noBpMe(0.95)))).toEqual({ 1: 100 });
   });
 
@@ -351,7 +335,6 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
   });
 
   it('applies per node — a reaction child kept at factor 1 draws its raws unreduced', () => {
-
     const tree: TreeNode[] = [
       {
         typeId: 200,
@@ -371,7 +354,6 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
 });
 
 describe('computeMarginalMaterials — fractional (Item) basis', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -390,7 +372,6 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   });
 
   it('sums shared-component demand once (no double count)', () => {
-
     const sub = (): TreeNode => ({
       typeId: 200,
       quantity: 300,
@@ -405,14 +386,12 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   });
 
   it('applies owned ME as a LINEAR factor (no floor: 100 runs × qty 1 @ ME10 → 90)', () => {
-
     const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 1, inputs: [] }];
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
     expect(asMap(computeMarginalMaterials(oneLevel, 100, me10))).toEqual({ 1: 90 });
   });
 
   it('cascades a parent’s ME fractionally to its children', () => {
-
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
     const only = computeMarginalMaterials(tree, 1, me10)[0]!;
     expect(only.typeId).toBe(200);
@@ -420,7 +399,6 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   });
 
   it('composes the structure factor linearly with ME', () => {
-
     const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 200, inputs: [] }];
     const opts = {
       meOf: (bp: number) => (bp === 9000 ? 10 : undefined),
@@ -439,7 +417,6 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
 });
 
 describe('computeMarginalMaterials — resolver flat-materials cross-check', () => {
-
   const flat = flatMaterialsFixture as unknown as Record<
     string,
     { blueprintTypeId: number; outputTypeId: number; materials: Record<string, number> }
@@ -459,7 +436,6 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
           expect(Math.abs(Math.round(quantity) - pinned), `type ${typeId}`).toBeLessThanOrEqual(1);
         }
       }
-
       const computedIds = new Set(computed.map((m) => m.typeId));
       for (const key of Object.keys(expected)) {
         expect(computedIds.has(Number(key)), `fixture type ${key} absent from walk`).toBe(true);
@@ -476,7 +452,6 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
 });
 
 describe('BatchLedger.required — surplus identity', () => {
-
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
 
   for (const [name, tree] of fixtures) {
@@ -492,7 +467,6 @@ describe('BatchLedger.required — surplus identity', () => {
 });
 
 describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)', () => {
-
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
   const flat = flatMaterialsFixture as unknown as Record<string, { blueprintTypeId: number }>;
 
@@ -501,7 +475,6 @@ describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)
       it(`${name} @ ${runs} run(s): all-build, no owned ≡ computeBatchLedgerWithMe.raws`, () => {
         const meVariants = [
           NO_OWNED,
-
           { meOf: (bp: number) => bp % 11, topBlueprintTypeId: flat[name]!.blueprintTypeId },
         ];
         for (const opts of meVariants) {
@@ -539,7 +512,6 @@ describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)
 });
 
 describe('computeMultibuyDemand — bought intermediates terminate the cascade (MECE)', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -562,7 +534,6 @@ describe('computeMultibuyDemand — bought intermediates terminate the cascade (
   });
 
   it('a checked type nothing demands drops out (bought parent starves it)', () => {
-
     const nested: TreeNode[] = [
       {
         typeId: 100,
@@ -585,7 +556,6 @@ describe('computeMultibuyDemand — bought intermediates terminate the cascade (
 });
 
 describe('computeMultibuyDemand — multi-depth demand aggregates once', () => {
-
   const c = (qty: number): TreeNode => ({
     typeId: 200,
     quantity: qty,
@@ -616,7 +586,6 @@ describe('computeMultibuyDemand — multi-depth demand aggregates once', () => {
 });
 
 describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', () => {
-
   const archon = (treesFixture as Record<string, TreeNode[]>).Archon!;
   const base = computeBatchLedgerWithMe(archon, 1, NO_OWNED);
   const FUEL_BLOCK = 4247;
@@ -627,19 +596,16 @@ describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', 
     buildSet.delete(FUEL_BLOCK);
     const buy = computeMultibuyDemand(archon, 1, NO_OWNED, { buildSet });
     expect(buy.get(FUEL_BLOCK)).toBe(base.builds.get(FUEL_BLOCK)!.required);
-
     for (const [typeId, qty] of buy) {
       if (typeId === FUEL_BLOCK) continue;
       expect(qty, `raw ${typeId}`).toBeLessThanOrEqual(base.raws.get(typeId) ?? 0);
     }
-
     const shrank = [...base.raws].some(([typeId, qty]) => (buy.get(typeId) ?? 0) < qty);
     expect(shrank).toBe(true);
   });
 });
 
 describe('computeMultibuyDemand — Remaining (owned subtraction, one code path)', () => {
-
   const tree: TreeNode[] = [
     {
       typeId: 100,
@@ -651,7 +617,6 @@ describe('computeMultibuyDemand — Remaining (owned subtraction, one code path)
   const all = { buildSet: new Set([100]) };
 
   it('an owned intermediate reduces its runs THROUGH the ceil (7 owned: 2 → 1 run)', () => {
-
     const buy = computeMultibuyDemand(tree, 3, NO_OWNED, {
       ...all,
       ownedOf: (id) => (id === 100 ? 7 : 0),

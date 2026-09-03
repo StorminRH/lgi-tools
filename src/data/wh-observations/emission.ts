@@ -6,12 +6,10 @@ import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { WhObservationInput } from './queries';
 
 export interface ObservationFacts {
-
   readonly typedSystemId: number;
   readonly whTypeCode: string | null;
   readonly provenance: ConnectionProvenance | null;
   readonly dedupeKey: string | null;
-
   readonly destinationClassId: number | null;
 }
 

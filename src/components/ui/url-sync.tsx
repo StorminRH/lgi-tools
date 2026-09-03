@@ -11,7 +11,6 @@ export function UrlSync({
 }: {
   basePath: string;
   entityId: number | string;
-
   className?: string;
   children: ReactNode;
 }) {
@@ -36,5 +35,4 @@ export function UrlSync({
   }, [basePath, entityId]);
 
   return <div ref={ref} className={className}>{children}</div>;
-
 }

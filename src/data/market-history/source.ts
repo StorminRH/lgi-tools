@@ -86,7 +86,6 @@ export async function fetchHistoryFromSource(
         budgetExhausted = true;
         return;
       }
-
     }
   });
 

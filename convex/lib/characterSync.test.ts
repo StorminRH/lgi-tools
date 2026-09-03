@@ -90,8 +90,6 @@ describe('vendCharacterToken', () => {
   });
 
   it('maps a drifted success body to unavailable instead of vending garbage', async () => {
-
-
     stubFetch(Response.json({ token: 'wrong-field' }));
 
     await expect(vendCharacterToken(ENV, 'user-1', 90000001)).resolves.toEqual({
@@ -148,8 +146,6 @@ describe('fetchEnumeratedCharacters', () => {
   });
 
   it('throws on a drifted success body instead of propagating garbage', async () => {
-
-
     stubFetch(Response.json({ characters: [{ characterId: 'not-a-number' }] }));
 
     await expect(fetchEnumeratedCharacters(ENV, 'user-1')).rejects.toThrowError(

@@ -1,7 +1,6 @@
 import { getStructureTypes, getTypeAttributesBatch } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
-
 import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
 import {
   buildAvailableStructures,

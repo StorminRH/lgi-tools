@@ -7,9 +7,7 @@ export interface DistributionInput {
 }
 
 export interface DistributionBar extends DistributionInput {
-
   sharePct: number;
-
   fillPct: number;
 }
 
@@ -23,7 +21,6 @@ export function distributionBars(
   return ordered.map((r) => ({
     ...r,
     sharePct: total === 0 ? 0 : (r.count / total) * 100,
-
     fillPct: max === 0 ? 0 : Math.max(2, (r.count / max) * 100),
   }));
 }
@@ -50,18 +47,13 @@ export function DistributionBars({
         <li key={bar.key} className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
           <div className="flex items-center justify-between mb-1">
             <span className="font-data text-ui text-text break-all">{bar.label}</span>
-
             <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
               {formatCount(bar.count)} · {shareLabel(bar.sharePct)}
             </span>
-
           </div>
-
           <ProgressBar pct={bar.fillPct} />
         </li>
-
       ))}
     </ul>
-
   );
 }

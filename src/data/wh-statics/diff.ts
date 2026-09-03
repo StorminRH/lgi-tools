@@ -47,7 +47,6 @@ export function diffStatics(
     const before = promotedBySystem.get(systemId);
     const after = incomingBySystem.get(systemId);
     if (before === undefined) {
-
       systemsAdded.push({ systemId, codes: sortedCodes(after!) });
     } else if (after === undefined) {
       systemsRemoved.push({ systemId, codes: sortedCodes(before) });

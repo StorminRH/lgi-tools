@@ -25,9 +25,7 @@ export interface FogCanvasTarget {
 export interface FogTickIo {
   readonly canvas: FogCanvasTarget | null;
   readonly context: FogPaintContext | null;
-
   readonly createBrush: () => CanvasImageSource | null;
-
   readonly readColor: () => string | null;
   readonly viewport: FogViewportState;
   readonly devicePixelRatio: number;

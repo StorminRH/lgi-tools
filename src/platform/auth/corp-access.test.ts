@@ -68,7 +68,6 @@ describe('decideCorpAccess', () => {
   });
 
   it('refreshes a stale affiliation before deciding, then allows on the fresh re-read', async () => {
-
     getUserAffiliationsMock
       .mockResolvedValueOnce([rowFor(101, 2000, STALE)])
       .mockResolvedValueOnce([rowFor(101, 2000, FRESH)]);
@@ -80,12 +79,10 @@ describe('decideCorpAccess', () => {
     const decision = await decideCorpAccess({ userId: 'u1', corporationId: 2000 });
 
     expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
-
     expect(decision).toEqual({ allowed: true, reason: 'member', characterId: 101 });
   });
 
   it('fails closed when a refresh cannot reach ESI: never-refreshed data stays a deny', async () => {
-
     getUserAffiliationsMock.mockResolvedValue([rowFor(101, 2000, null)]);
     fetchAffiliationsMock.mockRejectedValue(new Error('ESI unreachable'));
 
@@ -93,7 +90,6 @@ describe('decideCorpAccess', () => {
 
     expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
     expect(decision).toEqual({ allowed: false, reason: 'not_member', characterId: null });
-
     expect(recordCorpAccessDecisionMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', corporationId: 2000, allowed: false }),
     );

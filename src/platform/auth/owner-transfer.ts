@@ -47,16 +47,13 @@ export async function absorbLinkedCharacterOnProof(
       fromUserId: row.userId,
       toUserId: link.userId,
     });
-
     if (!sourceDeleted) {
-
       try {
         await reconcileAfterCharacterRemoval(row.userId, characterId);
       } catch (err) {
         console.error('[auth] absorb source cleanup failed after the move committed', err);
       }
     }
-
     void logUsageEvent({
       action: 'auth_absorb',
       characterId,

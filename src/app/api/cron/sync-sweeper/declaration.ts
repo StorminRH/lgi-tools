@@ -57,7 +57,6 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
     retired: null,
     deleted: null,
   };
-
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (convexUrl === undefined || convexUrl === '') {
     return {

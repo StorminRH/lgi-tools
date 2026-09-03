@@ -15,11 +15,8 @@ import {
 } from './pilot-path';
 
 export interface OutboundArrowProviderProps {
-
   readonly drawnSystemIds: ReadonlySet<number>;
-
   readonly edges: readonly ChainEdge[];
-
   readonly neighboursOf: (systemId: number) => readonly number[];
   readonly children: ReactNode;
 }
@@ -31,7 +28,6 @@ export function OutboundArrowProvider({
   children,
 }: OutboundArrowProviderProps) {
   const presence = useContext(MapPresenceContext)?.presence;
-
   const pilotKey = useMemo(() => {
     if (presence === undefined || presence.size === 0) return '';
     return arrowPilotKey(
@@ -51,10 +47,8 @@ export function OutboundArrowProvider({
       neighbours: neighboursOf,
       edgeIdOfPair: edgeIdOfPairIndex(edges),
     });
-
     return derived.size === 0 ? EMPTY_OUTBOUND_ARROWS : derived;
   }, [pilotKey, drawnSystemIds, edges, neighboursOf]);
 
   return <OutboundArrowContext value={arrows}>{children}</OutboundArrowContext>;
-
 }

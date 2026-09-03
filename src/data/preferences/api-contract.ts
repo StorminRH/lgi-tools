@@ -12,7 +12,6 @@ const preferenceKeySchema = z.enum(PREFERENCE_KEYS as unknown as [string, ...str
 const getPreferencesResponseSchema = z.object({
   preferences: z.array(z.object({ key: z.string(), value: z.unknown() })),
 });
-
 export type GetPreferencesResponse = z.infer<typeof getPreferencesResponseSchema>;
 
 export const getPreferencesEndpoint = defineEndpoint({

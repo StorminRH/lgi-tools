@@ -26,9 +26,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
               >
                 {item.label}
               </span>
-
             </NavigationMenuItem>
-
           );
         }
 
@@ -42,13 +40,10 @@ function NavStrip({ pathname }: { pathname: string | null }) {
             >
               {item.label}
             </NavigationMenuLink>
-
           </NavigationMenuItem>
-
         );
       })}
     </NavigationMenu>
-
   );
 }
 
@@ -62,6 +57,5 @@ export function NavTools() {
     <Suspense fallback={<NavStrip pathname={null} />}>
       <ActiveNavStrip />
     </Suspense>
-
   );
 }

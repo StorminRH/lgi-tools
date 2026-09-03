@@ -3,7 +3,6 @@ import { isRenderableCategory, jobImage, nodeImage } from './type-images';
 
 describe('nodeImage', () => {
   it('renders a buildable/reaction node as the producing type in the `bp` rendition', () => {
-
     expect(nodeImage(1186, 1185)).toEqual({ typeId: 1186, variant: 'bp' });
     expect(nodeImage(46175, 16666)).toEqual({ typeId: 46175, variant: 'bp' });
   });

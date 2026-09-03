@@ -103,12 +103,10 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
     ]);
 
     const row = await readAccount();
-
     expect(row.refreshToken).not.toBeNull();
     expect(decryptToken(row.refreshToken as string)).toBe('RT1');
     expect(row.refreshTokenInvalidGrantCount).toBe(0);
     expect(row.refreshTokenInvalidGrantFirstAt).toBeNull();
-
     expect([r1.kind, r2.kind]).toContain('ok');
   });
 
@@ -136,11 +134,9 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
       entered += 1;
       if (entered === 2) bothEntered();
       if (n === 0) {
-
         await both;
         return new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 });
       }
-
       await winnerGate;
       return new Response(
         JSON.stringify({ access_token: 'win-access', refresh_token: 'RT1', expires_in: 1200 }),
@@ -158,7 +154,6 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
 
     const row = await readAccount();
     expect(row.refreshToken).not.toBeNull();
-
     expect(decryptToken(row.refreshToken as string)).toBe('RT1');
     expect(row.refreshTokenInvalidGrantCount).toBe(0);
     expect(row.refreshTokenInvalidGrantFirstAt).toBeNull();
@@ -216,7 +211,6 @@ describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres 
     const result = await vend;
 
     const row = await readAccount();
-
     expect(decryptToken(row.refreshToken as string)).toBe('RT_new');
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'reauth-access' });
   });

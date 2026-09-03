@@ -6,7 +6,6 @@ export interface LeaderRect {
 }
 
 export interface EditorLeader {
-
   readonly bracket: { readonly x: number; readonly top: number; readonly bottom: number };
   readonly line: {
     readonly x1: number;
@@ -30,9 +29,7 @@ function clamp(value: number, low: number, high: number): number {
 export function editorLeader(input: {
   readonly row: LeaderRect;
   readonly panel: LeaderRect;
-
   readonly origin: { readonly left: number; readonly top: number };
-
   readonly clip?: LeaderRect;
 }): EditorLeader | null {
   const { row, panel, origin, clip } = input;

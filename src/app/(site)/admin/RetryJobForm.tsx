@@ -9,8 +9,6 @@ export function RetryJobForm({ jobId, range }: { jobId: number; range: RangeKey 
       <Button type="submit" variant="secondary" size="sm" className="text-isk">
         Retry
       </Button>
-
     </form>
-
   );
 }

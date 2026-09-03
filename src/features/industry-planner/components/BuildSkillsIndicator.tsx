@@ -17,11 +17,8 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
       <span className="truncate text-muted">
         {skill.name} {roman(skill.level)}
       </span>
-
       <span className="shrink-0 tabular-nums text-text">−{formatBonusPct(skill.reductionPct)}</span>
-
     </div>
-
   );
 }
 
@@ -29,11 +26,8 @@ function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: nu
   return (
     <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-data text-micro">
       <span className="uppercase tracking-wide text-muted">{label}</span>
-
       <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
-
     </div>
-
   );
 }
 
@@ -55,13 +49,11 @@ function SkillMetric({
         <span aria-hidden className="inline-flex h-3.5 w-3.5 shrink-0">
           {icon}
         </span>
-
       }
       triggerClassName={`inline-flex size-5 cursor-pointer items-center justify-center rounded-ctl border border-current/35 bg-surface-sunk transition-colors hover:bg-row-active focus-visible:ring-1 focus-visible:ring-current ${toneClass}`}
     >
       {children}
     </Popover>
-
   );
 }
 
@@ -79,7 +71,6 @@ function MfgSkillMetric({
       toneClass="text-evb-bright"
     >
       <PopoverHeading>{characterName} — manufacturing</PopoverHeading>
-
       {breakdown.manufacturing.skills.length > 0 && (
         <div className="flex flex-col gap-1">
           {breakdown.manufacturing.skills.map((skill) => (
@@ -87,24 +78,19 @@ function MfgSkillMetric({
           ))}
           <TotalLine label="All mfg jobs" totalPct={breakdown.manufacturing.totalPct} toneClass="text-evb-bright" />
         </div>
-
       )}
       {breakdown.perItem.length > 0 && (
         <div className="flex flex-col gap-1">
           <div className="text-label uppercase tracking-wide text-faint">Per-item</div>
-
           {breakdown.perItem.map((skill) => (
             <SkillLine key={skill.name} skill={skill} />
           ))}
           <p className="text-micro leading-snug tracking-copy text-faint">
             Applied on top of the total, only to jobs requiring the skill.
           </p>
-
         </div>
-
       )}
     </SkillMetric>
-
   );
 }
 
@@ -122,7 +108,6 @@ function RxnSkillMetric({
       toneClass="text-[var(--color-reaction-purple)]"
     >
       <PopoverHeading>{characterName} — reactions</PopoverHeading>
-
       <div className="flex flex-col gap-1">
         {breakdown.reaction.skills.map((skill) => (
           <SkillLine key={skill.name} skill={skill} />
@@ -133,9 +118,7 @@ function RxnSkillMetric({
           toneClass="text-[var(--color-reaction-purple)]"
         />
       </div>
-
     </SkillMetric>
-
   );
 }
 
@@ -150,6 +133,5 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
       )}
       {view.showRxn && <RxnSkillMetric characterName={view.characterName} breakdown={view.breakdown} />}
     </div>
-
   );
 }

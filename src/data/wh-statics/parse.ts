@@ -28,7 +28,6 @@ export interface ParsedStaticsFeed {
 }
 
 export class UnknownStaticCodeError extends Error {
-
   constructor(systemName: string, code: string) {
     super(`System ${systemName} lists unknown wormhole code ${code}`);
     this.name = 'UnknownStaticCodeError';

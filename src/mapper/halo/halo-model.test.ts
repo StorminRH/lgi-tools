@@ -160,7 +160,6 @@ test('halo links claim first, omit fogged cross-links, and truncate at caps', ()
         },
       }),
     ).systems.map((system) => system.systemId),
-
   ).toEqual([1, 2, 3]);
 
   expect(

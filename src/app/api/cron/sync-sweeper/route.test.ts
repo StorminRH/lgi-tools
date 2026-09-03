@@ -79,7 +79,6 @@ describe('GET /api/cron/sync-sweeper', () => {
     expect(body.status).toBe('failed');
     expect(body.reason).toBe('unrecognized_convex_url');
     expect(h.fetchMock).not.toHaveBeenCalled();
-
     expect(h.logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sync_sweeper',
       metadata: expect.objectContaining({ status: 'failed', reason: 'unrecognized_convex_url' }),
@@ -106,7 +105,6 @@ describe('GET /api/cron/sync-sweeper', () => {
   });
 
   it('fails when the sweep response drifts from its declared counts', async () => {
-
     h.fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -154,7 +152,6 @@ describe('GET /api/cron/sync-sweeper', () => {
       method: 'POST',
       headers: { authorization: 'Bearer svc-secret' },
     });
-
     expect(h.reserveMock).not.toHaveBeenCalled();
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();

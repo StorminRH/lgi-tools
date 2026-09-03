@@ -12,7 +12,6 @@ export interface RefreshSummary {
   fetched: number;
   written: number;
   durationMs: number;
-
   esiCount: number;
   fuzzworkFallbackCount: number;
   budgetExhausted: boolean;
@@ -80,7 +79,6 @@ export async function persistPrices(
     sellVolume: r.sellVolume,
     buyDepth: r.buyDepth,
     sellDepth: r.sellDepth,
-
     regionalDiscount: r.regionalDiscount ?? null,
     updatedAt,
     staleAfter,

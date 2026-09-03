@@ -6,9 +6,7 @@ import { refreshHistoryEndpoint } from './api-contract';
 import type { MarketHistoryInputs } from './types';
 
 export interface HistoryOnViewResult {
-
   inputs: Map<number, MarketHistoryInputs>;
-
   refreshing: boolean;
 }
 
@@ -53,7 +51,6 @@ export function useRefreshHistoryOnView(
           onResultRef.current?.(map);
         }
       } catch {
-
       } finally {
         if (!controller.signal.aborted) setRefreshing(false);
       }

@@ -105,7 +105,6 @@ export function createMapGrantsFromDrafts(
 ): CreateMapRequest['grants'] | null {
   if (!accessDraftsComplete('create', drafts)) return null;
   return drafts.map((draft) => {
-
     const role = draft.role as 'viewer' | 'editor';
     return {
       ownerType: draft.ownerType,

@@ -106,7 +106,6 @@ class BucketRegistry {
           best = candidate;
         }
       }
-
     }
     if (best !== null) {
       this.take(best);
@@ -163,7 +162,6 @@ class BucketRegistry {
         if (claimed !== null) return claimed;
       }
     }
-
     return { ring: idealRing + MAX_PROBE_RINGS, angle: normalizeAngle(idealAngle) };
   }
 }
@@ -196,7 +194,6 @@ function layoutTree(tree: ChainTree, config: LayoutConfig): Map<number, ChainPos
   const sequence = config.directionSequence;
   for (const [index, systemId] of tree.attachmentOrder.entries()) {
     if (index === 0) continue;
-
     const parent = tree.parents.get(systemId);
     const parentSpot = parent === undefined ? undefined : spots.get(parent);
     const parentPosition = parent === undefined ? undefined : positions.get(parent);

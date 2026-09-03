@@ -42,7 +42,6 @@ export function SiteLiveProvider({
   );
 
   return <SiteLiveContext.Provider value={value}>{children}</SiteLiveContext.Provider>;
-
 }
 
 function LiveSiteTotal({ resources }: { resources: SiteResource[] }) {
@@ -93,7 +92,6 @@ export function SiteResourcesLive({
       ))}
       <LiveResourceFooter resources={resources} label={footerLabel} />
     </>
-
   );
 }
 

@@ -22,17 +22,11 @@ export type JobsEsiRead =
 
 export interface JobsPort {
   now(): Date;
-
   listCharacters(userId: string): Promise<RefreshCharacter[]>;
-
   vendToken(characterId: number): Promise<string | null>;
-
   readJobs(characterId: number, accessToken: string, heldEtag: string | null): Promise<JobsEsiRead>;
-
   readSyncState(characterId: number): Promise<CharacterJobsSyncState | null>;
-
   saveJobs(characterId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
-
   stampFresh(characterId: number): Promise<void>;
 }
 
@@ -57,20 +51,12 @@ export interface CorpJobsSyncState {
  */
 export interface CorpJobsPort {
   now(): Date;
-
   listMembers(userId: string): Promise<RefreshCorpMember[]>;
-
   vendToken(characterId: number): Promise<string | null>;
-
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-
   readJobs(corporationId: number, accessToken: string, heldEtag: string | null): Promise<JobsEsiRead>;
-
   readSyncState(userId: string, corporationId: number): Promise<CorpJobsSyncState | null>;
-
   saveJobs(userId: string, corporationId: number, jobs: IndustryJob[], etag: string | null): Promise<void>;
-
   saveNeedsRole(userId: string, corporationId: number): Promise<void>;
-
   stampFresh(userId: string, corporationId: number): Promise<void>;
 }

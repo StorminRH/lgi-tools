@@ -88,7 +88,6 @@ export default {
   async setup({ page }) {
     heartbeatFrames = 0;
     sampleFrame = null;
-
     await page.clock.install();
     page.on('websocket', (ws) => {
       ws.on('framesent', ({ payload }) => {
@@ -182,7 +181,6 @@ export default {
     );
 
     await setVisibility(page, 'visible');
-
     const destDisc = page.locator(
       `.react-flow__node[data-id="${DESTINATION_SYSTEM_ID}"] .map-node-disc`,
     );

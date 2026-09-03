@@ -1,18 +1,15 @@
 'use client';
 
-import { createContext, useContext, useSyncExternalStore } from 'react';
+import { createContext, useContext } from 'react';
+import { useClientCommitted } from '@/lib/use-client-committed';
 import { authClient } from '../auth-client';
 import { resolveAuthState, type AuthState } from './auth-state';
 
 const AuthContext = createContext<AuthState | null>(null);
 
-function subscribeNever() {
-  return () => {};
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
-  const clientCommitted = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const clientCommitted = useClientCommitted();
 
   const state = resolveAuthState(clientCommitted, data ?? null, isPending);
 

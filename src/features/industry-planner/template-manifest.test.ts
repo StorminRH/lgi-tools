@@ -18,7 +18,6 @@ describe('captureTemplate', () => {
     expect(() => planSnapshotV1Schema.parse(snap)).not.toThrow();
     expect(snap.v).toBe(1);
     expect(snap.blueprintTypeId).toBe(999);
-
     expect(snap.meOverrides).toEqual([
       [111, 5],
       [999, 10],
@@ -59,7 +58,6 @@ describe('applyTemplate round-trip', () => {
     const notes = await applyTemplate(makeApplyCtx(target.ctx), snap);
     expect(notes).toEqual([]);
     expect(captureTemplate(target.ctx, 999)).toEqual(snap);
-
     expect(target.state.persistedBuildLocation).toEqual(snap.buildSystem);
   });
 
@@ -76,7 +74,6 @@ describe('applyTemplate round-trip', () => {
 });
 
 describe('applyTemplate per-field fail-open degrades', () => {
-
   async function degradeCase(
     mutate: (snap: ReturnType<typeof captureTemplate>) => void,
     target = makeMockPlanner(),
@@ -95,7 +92,6 @@ describe('applyTemplate per-field fail-open degrades', () => {
     });
     expect(notes).toEqual(['Build structure "Vanished Sotiyo" is gone or no longer shared — cleared']);
     expect(target.state.selectedStructure).toBeNull();
-
     expect(target.state.runs).toBe(3);
     expect(target.state.reactionStructure?.id).toBe('custom-uuid-1');
     expect(target.state.location?.systemId).toBe(30000142);
@@ -107,7 +103,6 @@ describe('applyTemplate per-field fail-open degrades', () => {
     });
     expect(notes).toEqual(['Reaction structure "Deleted Athanor" is gone or no longer shared — cleared']);
     expect(target.state.reactionStructure).toBeNull();
-
     expect(target.state.reactionSystem?.systemId).toBe(30002187);
     expect(target.state.selectedStructure?.id).toBe('corp:1021');
   });
@@ -132,7 +127,6 @@ describe('applyTemplate per-field fail-open degrades', () => {
     ]);
     expect(target.state.location).toBeNull();
     expect(target.state.station).toBeNull();
-
     expect(target.state.selectedStructure?.id).toBe('corp:1021');
     expect(target.state.costBasis).toBe('batched');
   });
@@ -221,13 +215,11 @@ describe('classification gates', () => {
 
   it('every snapshot-classified setter names a real manifest field (the runtime mirror of the tsc pin)', () => {
     const fieldKeys = new Set<string>(TEMPLATE_FIELD_KEYS);
-
     const classifications = Object.entries(SETTER_CLASSIFICATION) as [string, string][];
     const bad = classifications.filter(
       ([, cls]) => cls !== 'derived-or-account' && cls !== 'exempt' && !fieldKeys.has(cls),
     );
     expect(bad).toEqual([]);
-
     const reachable = new Set(classifications.map(([, cls]) => cls));
     const unreachable = TEMPLATE_FIELD_KEYS.filter((k) => !reachable.has(k));
     expect(unreachable).toEqual([]);

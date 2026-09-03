@@ -36,12 +36,9 @@ export function AdminForceLogoutForm({
       >
         Force logout
       </Button>
-
       <span id={disabledReasonId} className="sr-only">
         Use the normal sign-out for your own session.
       </span>
-
     </form>
-
   );
 }

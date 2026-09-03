@@ -69,7 +69,6 @@ export default {
     const stability = page.getByRole('combobox', { name: 'Mass' });
     const stabilityText = (await stability.textContent()) ?? '';
     const looksUnset = /unset/i.test(stabilityText) || stabilityText.trim() === '';
-
     const looksObserved = /remaining/i.test(stabilityText);
     check(
       'mass select shows unset or an observed in-game mass report',

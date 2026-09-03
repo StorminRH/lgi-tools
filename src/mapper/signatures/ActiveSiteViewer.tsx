@@ -30,6 +30,5 @@ export function ActiveSiteViewer({
         className="min-h-0 w-max max-w-full flex-1"
       />
     </ScannerAnchoredPanel>
-
   );
 }

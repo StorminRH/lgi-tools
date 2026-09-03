@@ -10,6 +10,5 @@ export function HamburgerGlyph() {
       <line x1="2" y1="9" x2="16" y2="9" />
       <line x1="2" y1="13" x2="16" y2="13" />
     </svg>
-
   );
 }

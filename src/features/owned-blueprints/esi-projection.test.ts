@@ -52,7 +52,6 @@ describe('parseBlueprintsBody', () => {
   });
 
   it('sorts canonically (by type_id then the rest) for a stable, reorder-proof array', () => {
-
     const out = parseBlueprintsBody([bpo, bpc]);
     expect(out?.map((b) => b.type_id)).toEqual([587, 1000]);
   });

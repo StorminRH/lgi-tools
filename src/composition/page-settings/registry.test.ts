@@ -66,7 +66,6 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
     const declared = PAGE_SETTINGS_SPECS.flatMap((spec) =>
       spec.strip !== undefined ? [spec.strip.surfaceId] : [],
     );
-
     for (const surfaceId of declared) {
       expect(PREFERENCE_KEYS).toContain(stripDimmedKey(surfaceId));
     }

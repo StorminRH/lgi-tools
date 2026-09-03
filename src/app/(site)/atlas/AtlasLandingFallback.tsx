@@ -6,6 +6,5 @@ export function AtlasLandingFallback() {
     <PageShell mode="workspace">
       <PageHead size="hero" crumb="atlas" title="Atlas" />
     </PageShell>
-
   );
 }

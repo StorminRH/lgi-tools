@@ -49,9 +49,7 @@ describe('generateChain', () => {
   it('exercises loops across the corpus and orphan phases at meaningful sizes', () => {
     const trees = PROOF_CORPUS.map((entry) => deriveChainTree(generateChain(entry)));
     expect(trees.some((tree) => tree.loopEdges.length > 0)).toBe(true);
-
     expect(trees.some((tree) => tree.orphans.length > 0)).toBe(true);
-
     for (const entry of PROOF_CORPUS) {
       const facts = generateChain(entry);
       const known = new Set(facts.systems.map((system) => system.systemId));
@@ -73,7 +71,6 @@ describe('chainPrefix', () => {
       expect(included.has(edge.fromSystemId)).toBe(true);
       expect(included.has(edge.toSystemId)).toBe(true);
     }
-
     const byStep = timeline.facts.connections.filter(
       (_edge, index) => (timeline.connectionSteps[index] ?? Number.POSITIVE_INFINITY) <= 20,
     );

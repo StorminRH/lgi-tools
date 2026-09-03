@@ -53,7 +53,6 @@ const h = vi.hoisted(() => {
         const next = live ? Number(entry.value) + 1 : 1;
         store.set(cmd[1], {
           value: String(next),
-
           expiresAt: live ? entry.expiresAt : null,
         });
         return next;
@@ -133,7 +132,6 @@ import {
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 const BLOCK_KEY = 'lgi:esi:rl:block:/markets/{n}/orders';
 const ECHO_KEY = 'lgi:esi:err:echo';
-
 const ETAG_META_KEY = 'lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34';
 const ETAG_BODY_KEY = 'lgi:esi:etag:body:/markets/10000002/orders/?type_id=34';
 
@@ -163,7 +161,6 @@ function seed(key: string, value: string): void {
 }
 
 function redisScoreboard(): EsiScoreboard {
-
   vi.stubEnv('KV_REST_API_URL', 'https://example.upstash.io');
   vi.stubEnv('KV_REST_API_TOKEN', 'token');
   const sb = resolveScoreboard();
@@ -214,7 +211,6 @@ describe('RedisScoreboard', () => {
     seed(ECHO_KEY, '70');
 
     const state = await sb.preDispatch(TEST_URL, false);
-
     expect(state.effectiveRemaining).toBe(60);
 
     seed(ECHO_KEY, '50');
@@ -248,7 +244,6 @@ describe('RedisScoreboard', () => {
 
   it('surfaces the seconds remaining on an active Retry-After block', async () => {
     const sb = redisScoreboard();
-
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) + 30));
     const state = await sb.preDispatch(TEST_URL, false);
     expect(state.blockedRetryAfter).toBe(30);
@@ -283,7 +278,6 @@ describe('RedisScoreboard', () => {
   });
 
   it('still counts errors that carry token-bucket headers (conservative rule)', async () => {
-
     const sb = redisScoreboard();
     await sb.report(
       makeReport({
@@ -330,7 +324,6 @@ describe('RedisScoreboard', () => {
     );
     expect(h.store.get(ECHO_KEY)?.value).toBe('0');
     expect(h.store.get(ECHO_KEY)?.expiresAt).toBe(Date.now() + 30_000);
-
     expect(h.store.get(`lgi:esi:err:count:${currentMinute()}`)?.value).toBe('1');
   });
 

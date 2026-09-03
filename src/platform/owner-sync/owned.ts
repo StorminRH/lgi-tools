@@ -9,39 +9,26 @@ export type PagedOwnerReadResult =
 
 export interface OwnedDatasetPort<TRow> {
   now(): Date;
-
   listCharacters(userId: string): Promise<EnumeratedOwner[]>;
-
   vendToken(characterId: number): Promise<string | null>;
-
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-
   read(basePath: string, accessToken: string, heldEtags: string[]): Promise<PagedOwnerReadResult>;
-
   readSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null>;
-
   save(
     owner: OwnerKey,
     rows: TRow[],
     etags: string[],
     source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders },
   ): Promise<void>;
-
   stampFresh(owner: OwnerKey): Promise<void>;
 }
 
 export interface OwnedDatasetSpec<TRow> {
-
   resource: string;
-
   isStale(lastRefreshedAt: Date | null, now: Date): boolean;
-
   eligibleCharacter(owner: EnumeratedOwner): boolean;
-
   eligibleCorp(owner: EnumeratedOwner): boolean;
-
   requiredRoles: readonly string[];
-
   parse(items: unknown[]): TRow[] | null;
 }
 

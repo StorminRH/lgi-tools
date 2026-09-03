@@ -31,7 +31,6 @@ const popup = cva('flex flex-col outline-none', {
 });
 
 export type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
-
 export type MenuAnchor = PositionerProps['anchor'];
 export type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
@@ -56,29 +55,19 @@ export function Menu({
   popupProps,
   className,
 }: {
-
   trigger: ReactNode;
-
   children: ReactNode;
-
   label: string;
   tone?: MenuTone;
-
   surface?: 'solid' | 'frosted';
   side?: PositionerProps['side'];
   align?: PositionerProps['align'];
   sideOffset?: PositionerProps['sideOffset'];
-
   anchor?: MenuAnchor;
-
   modal?: boolean;
-
   triggerClassName?: string;
-
   triggerProps?: MenuTriggerProps;
-
   popupProps?: DataAttributes;
-
   className?: string;
 }) {
   return (
@@ -86,7 +75,6 @@ export function Menu({
       <Base.Trigger {...triggerProps} type="button" aria-label={label} className={triggerClassName}>
         {trigger}
       </Base.Trigger>
-
       <Base.Portal>
         <Base.Positioner
           side={side}
@@ -102,28 +90,20 @@ export function Menu({
           >
             {children}
           </Base.Popup>
-
         </Base.Positioner>
-
       </Base.Portal>
-
     </Base.Root>
-
   );
 }
 
 export const MenuLinkItem = Base.LinkItem;
 
 export const MenuItem = Base.Item;
-
 export const MenuCheckboxItem = Base.CheckboxItem;
-
 export const MenuSeparator = Base.Separator;
 
 export const MenuRadioGroup = Base.RadioGroup;
-
 export const MenuRadioItem = Base.RadioItem;
-
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;
 
 export { menuControlRow, menuRow, menuSection, menuSectionLabel, menuSeparator };

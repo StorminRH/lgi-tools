@@ -2,7 +2,6 @@ import { EVE_SCOPES } from './eve-sso';
 
 export interface CharacterHealth {
   needsReconnect: boolean;
-
   missingScopes: string[];
 }
 
@@ -49,7 +48,6 @@ export function deriveCharacterHealth(input: {
 export type GrantedScope = { id: string; gloss?: string; status: 'active' | 'legacy' };
 
 const SCOPE_GLOSS: Record<string, string> = {
-
   publicData: 'Read your public character info',
   'esi-skills.read_skills.v1': 'Read your trained skills',
   'esi-skills.read_skillqueue.v1': 'Read your skill queue',
@@ -59,7 +57,6 @@ const SCOPE_GLOSS: Record<string, string> = {
   'esi-location.read_online.v1': 'Read your online status',
   'esi-location.read_location.v1': 'Read your current location',
   'esi-location.read_ship_type.v1': 'Read your current ship type',
-
   'esi-planets.manage_planets.v1': 'Manage your planetary colonies',
   'esi-characters.read_standings.v1': 'Read your standings',
   'esi-clones.read_implants.v1': 'Read your active implants',

@@ -15,15 +15,12 @@ export default defineConfig({
       'src/**/*.test.ts',
       'convex/**/*.test.ts',
       'scripts/**/*.test.mjs',
-
       'e2e/**/*.test.ts',
     ],
     coverage: {
-
       provider: 'istanbul',
       reporter: ['text', 'json'],
       reportsDirectory: './coverage',
-
       exclude: [...coverageConfigDefaults.exclude, 'convex/_generated/**'],
     },
   },

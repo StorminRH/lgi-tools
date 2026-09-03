@@ -16,7 +16,6 @@ const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({
 });
 
 test('deriveCharacterRowView reports healthy, disconnected, and missing-scope reconnect labels', () => {
-
   const healthy = deriveCharacterRowView({
     scope: [...EVE_SCOPES].reverse().join(','),
     hasRefreshToken: true,

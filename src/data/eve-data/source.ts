@@ -27,7 +27,6 @@ export type SdeJsonlName =
   | 'dogmaAttributes'
   | 'typeDogma'
   | 'blueprints'
-
   | 'mapRegions'
   | 'mapConstellations'
   | 'mapSolarSystems'
@@ -174,7 +173,6 @@ export async function downloadSdeJsonl(): Promise<SdeJsonlPaths> {
   try {
     await extractEntries(zipPath, paths);
   } finally {
-
     await unlink(zipPath).catch(() => undefined);
   }
   return paths;
@@ -268,7 +266,6 @@ async function downloadOne(name: SdeDumpName): Promise<string> {
   if (!res.ok || !res.body) {
     throw new Error(`Fetch failed for ${name}: ${res.status} ${res.statusText}`);
   }
-
   await streamToFileAtomic(res.body, dest);
   return dest;
 }

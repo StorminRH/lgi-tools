@@ -18,7 +18,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, setCorpStructureSharingRequestSchema),
     handle: async ({ userId }, { corporationId, enabled }) => {
-
       const stationManager = await stationManagerGate(userId, corporationId);
       if (!stationManager.ok) {
         return apiResponse(setCorpStructureSharingEndpoint, 403, stationManager.failure);

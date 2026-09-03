@@ -39,7 +39,6 @@ export function ScannerScrollEpochProvider({
     <ScannerScrollEpochContext.Provider value={value}>
       {children}
     </ScannerScrollEpochContext.Provider>
-
   );
 }
 

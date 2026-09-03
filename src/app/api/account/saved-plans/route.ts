@@ -60,7 +60,6 @@ export async function POST(request: NextRequest): Promise<Response> {
         productName: structure.product.name,
         snapshot: body.snapshot,
       });
-
       if ((await countSavedPlans(userId)) > MAX_SAVED_PLANS_PER_USER) {
         await deleteSavedPlan(userId, id);
         return apiResponse(

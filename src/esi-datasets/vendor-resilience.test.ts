@@ -197,19 +197,16 @@ describe('vendor client construction sites', () => {
     const source = readFileSync('src/db/index.ts', 'utf8');
     expect(source).toContain('neonConfig.fetchFunction');
     expect(source).toContain('NEON_HTTP_TIMEOUT_MS = 30_000');
-
     expect(source.indexOf('function getClient')).toBeLessThan(
       source.indexOf('neonConfig.fetchFunction ='),
     );
   });
 
   it('keeps the Neon client a single consumer so the driver global stays bounded', () => {
-
     expect(filesMatching(/(?<![\w.])neon\([^)]/)).toEqual(['src/db/index.ts']);
   });
 
   it('routes outbound HTTP only through the two sanctioned transport modules', () => {
-
     const callers = filesMatching(/(?<![\w.'"])fetch\(/);
     expect(callers).toEqual(['src/lib/fetch-with-timeout.ts', 'src/transport/api-client.ts']);
   });
@@ -227,7 +224,6 @@ describe('agent tooling outbound calls', () => {
     };
     walk('tools');
     pythonFiles.sort();
-
     expect(pythonFiles.length).toBeGreaterThan(0);
 
     const calls: string[] = [];

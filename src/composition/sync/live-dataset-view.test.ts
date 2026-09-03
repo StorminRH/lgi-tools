@@ -60,7 +60,6 @@ describe('readCharacterOwners', () => {
       return new Map(ids.map((id) => [id, { n: id }]));
     });
     const readState = vi.fn(async (id: number) => {
-
       if (dataStarted) stateStartedBeforeDataResolved = true;
       return { lastRefreshedAt: id === 1 ? new Date('2026-06-28T10:00:00Z') : null };
     });
@@ -97,12 +96,10 @@ describe('getLiveDatasetOnView', () => {
           ],
           data: new Map([
             [10, { ids: [100, 200] }],
-
           ]),
         }),
         refresh,
         makeRow: (owner, data) => ({ key: owner.id, data }),
-
         nameIds: (rows) => rows.flatMap((row) => row.data?.ids ?? []).concat(100),
       },
     );
@@ -111,10 +108,8 @@ describe('getLiveDatasetOnView', () => {
       { key: 10, data: { ids: [100, 200] } },
       { key: 20, data: null },
     ]);
-
     expect(afterCalls).toHaveLength(1);
     expect(refresh).toHaveBeenCalledWith('u1');
-
     expect(getTypeNamesArgs).toHaveLength(1);
     expect([...getTypeNamesArgs[0]!].sort((a, b) => a - b)).toEqual([100, 200]);
     expect(result.names).toEqual({ '100': 'Type #100', '200': 'Type #200' });

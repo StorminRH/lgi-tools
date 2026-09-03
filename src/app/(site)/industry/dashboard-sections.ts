@@ -1,5 +1,4 @@
 export type DashboardSectionId = 'recents' | 'saved' | 'active' | 'corp';
-
 export type SectionStatus = 'pending' | 'empty' | 'populated';
 
 export const PREFERRED_SECTION_ORDER: readonly DashboardSectionId[] = [

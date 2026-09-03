@@ -41,7 +41,6 @@ export function PointerMenu({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-
   anchor: MenuAnchor | null;
   children: ReactNode;
   label: string;
@@ -54,7 +53,6 @@ export function PointerMenu({
   finalFocus?: PopupProps['finalFocus'];
   className?: string;
 }) {
-
   const overlayContainer = useOverlayPortalContainer();
   return (
     <Base.Root open={open} onOpenChange={onOpenChange} modal={modal}>
@@ -74,13 +72,9 @@ export function PointerMenu({
           >
             {children}
           </Base.Popup>
-
         </Base.Positioner>
-
       </Base.Portal>
-
     </Base.Root>
-
   );
 }
 

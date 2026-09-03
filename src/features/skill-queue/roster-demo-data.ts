@@ -26,7 +26,6 @@ function demoChars(now: number): DemoChar[] {
   const iso = (offsetMs: number) => new Date(now + offsetMs).toISOString();
   return [
     {
-
       panel: { characterId: 91012740, name: 'Stormin Jr', portraitUrl: demoPortrait(91012740), needsReconnect: false },
       live: {
         data: {
@@ -46,7 +45,6 @@ function demoChars(now: number): DemoChar[] {
       },
     },
     {
-
       panel: { characterId: 92034512, name: 'Karaka Haginen', portraitUrl: demoPortrait(92034512), needsReconnect: false },
       live: {
         data: {
@@ -63,7 +61,6 @@ function demoChars(now: number): DemoChar[] {
       },
     },
     {
-
       panel: { characterId: 95465499, name: 'Nimrots Sarikusa', portraitUrl: demoPortrait(95465499), needsReconnect: false },
       live: {
         data: {
@@ -81,12 +78,10 @@ function demoChars(now: number): DemoChar[] {
       },
     },
     {
-
       panel: { characterId: 93115006, name: 'Soren Galtier', portraitUrl: demoPortrait(93115006), needsReconnect: false },
       live: { data: { totalSp: 71_660_000, entries: [] }, lastSyncedAt: now - 12 * 60_000, syncError: null },
     },
     {
-
       panel: { characterId: 90400056, name: 'Freddy Confeti', portraitUrl: demoPortrait(90400056), needsReconnect: true },
       live: undefined,
     },

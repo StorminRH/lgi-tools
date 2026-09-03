@@ -32,32 +32,22 @@ function PlannerHead({
           <Link href="/industry" className="hover:text-isk">
             industry
           </Link>
-
         </span>
-
         <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
       </div>
-
       <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-optical text-name">
         {name}
       </h1>
-
       <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 text-label uppercase tracking-label text-muted">
         {group && <span>{group}</span>}
-
         <Pill tone="blue">{activity}</Pill>
-
         <Pill tone="neutral">{perRun} per Run</Pill>
-
       </div>
-
     </header>
-
   );
 }
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-
   const { marginMode, setMarginMode } = usePlannerConfig();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
 
@@ -74,6 +64,5 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
       <CockpitBuildPlan structure={structure} />
     </>
-
   );
 }

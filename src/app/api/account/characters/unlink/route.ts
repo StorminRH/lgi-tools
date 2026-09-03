@@ -28,7 +28,6 @@ function redirectWithError(request: NextRequest, code: string): Response {
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.unlink-character',
-
     preflight: rateLimitPreflight(
       request,
       { name: 'account-unlink', perMinute: 10 },
@@ -46,7 +45,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (!linked.some((c) => c.characterId === characterId)) {
         return redirectWithError(request, 'not_linked');
       }
-
       if (linked.length <= 1) {
         return redirectWithError(request, 'last_character');
       }

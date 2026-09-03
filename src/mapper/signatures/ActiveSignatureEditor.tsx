@@ -148,7 +148,6 @@ function ActiveSignatureEditorView({
       destination={destination}
       originLeads={originLeads}
       setters={connectionFieldSetters(mapId, edited, authoring, (value) => {
-
         if (isResolvedConnection(edited)) {
           void applyWormholeType({ mapId, connection: edited, value, authoring });
           return;

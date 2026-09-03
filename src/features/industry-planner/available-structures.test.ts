@@ -96,12 +96,10 @@ describe('buildAvailableStructures', () => {
       securityClass: 'high',
       taxPct: 0.5,
     });
-
     expect(rows[0]!.rigAttrs).toEqual([{ '2593': -2 }, {}]);
   });
 
   it('falls back a nameless corp structure to its type name', () => {
-
     const [byType] = buildAvailableStructures([], [corp({ name: null })], STRUCTURE_TYPES, DOGMA);
     expect(byType!.name).toBe('Athanor');
   });

@@ -31,7 +31,6 @@ describe('sitesSearchSource', () => {
   });
 
   it('breaks equal-score ties by class C1→C6 then primary ISK desc', async () => {
-
     setSiteSearchIndex([
       entry({ id: 1, name: 'Vault', wormholeClass: 'C5', blueLootIsk: 999 }),
       entry({ id: 2, name: 'Vault', wormholeClass: 'C1', blueLootIsk: 1 }),

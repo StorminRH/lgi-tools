@@ -291,7 +291,6 @@ const KNOWN_CROSS_OWNER_WRITES = [
   'src/composition/pipelines/esi-snapshot-retention.ts::esi_snapshots',
   'src/composition/pipelines/sde-pipeline.ts::market_prices',
 ];
-
 const MINIMUM_DETECTED_WRITE_SITES = 70;
 
 const sites = scanProductionWriteSites('src', await reflectedSchemaExports());

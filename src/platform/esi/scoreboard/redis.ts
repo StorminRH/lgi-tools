@@ -26,7 +26,6 @@ import {
 } from './types';
 
 const REDIS_TIMEOUT_MS = 1500;
-
 const REDIS_RETRIES = 0;
 
 type Pipeline = ReturnType<UpstashRedis['pipeline']>;
@@ -38,7 +37,6 @@ function queueBudgetReads(pipeline: Pipeline, minute: number): void {
 }
 
 function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'source'> {
-
   const selfCount =
     (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
   const echo = parseStoredInt(rows[2] ?? null);
@@ -56,7 +54,6 @@ class RedisScoreboard implements EsiScoreboard {
     this.redis = createUpstashClient({
       url,
       token,
-
       automaticDeserialization: false,
       timeoutMs: REDIS_TIMEOUT_MS,
       retries: REDIS_RETRIES,
@@ -72,7 +69,6 @@ class RedisScoreboard implements EsiScoreboard {
     const rows = await pipeline.exec<(string | null)[]>();
 
     const budget = budgetFromRows(rows);
-
     const blockExpiry = parseStoredInt(rows[3] ?? null);
     const blockRemaining =
       blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
@@ -97,7 +93,6 @@ class RedisScoreboard implements EsiScoreboard {
 
   async report(report: EsiReport): Promise<void> {
     const pipeline = this.redis.pipeline();
-
     const queued = [
       this.queueErrorCount(pipeline, report),
       this.queueErrorEcho(pipeline, report),
@@ -118,7 +113,6 @@ class RedisScoreboard implements EsiScoreboard {
 
   private queueErrorEcho(pipeline: Pipeline, report: EsiReport): boolean {
     if (report.status === 420) {
-
       pipeline.eval(WRITE_IF_LOWER_LUA, [KEY_ERROR_ECHO], [
         '0',
         String(echoTtl(report.errorLimitReset)),

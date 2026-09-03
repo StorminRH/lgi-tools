@@ -20,7 +20,6 @@ export function useManagedRowMenu<Row extends { id: string }>(mutations: {
   return {
     editingId,
     armedDeleteId,
-
     startRename: (id) => {
       setArmedDeleteId(null);
       setEditingId(id);
@@ -29,7 +28,6 @@ export function useManagedRowMenu<Row extends { id: string }>(mutations: {
       setEditingId(null);
       mutations.rename(row, draft);
     },
-
     requestDelete: (row) => {
       if (armedDeleteId !== row.id) {
         setArmedDeleteId(row.id);

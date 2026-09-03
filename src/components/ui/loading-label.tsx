@@ -12,6 +12,5 @@ export function LoadingLabel({
     <span className={cn(eyebrow(), className)}>
       {label}
     </span>
-
   );
 }

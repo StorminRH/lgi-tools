@@ -26,7 +26,6 @@ async function main() {
     const map = await getPrices(mode.ids);
     const readback = mode.ids.map((id) => map.get(id) ?? { typeId: id, missing: true });
     console.log('Read-back via getPrices:');
-
     console.log(
       JSON.stringify(readback, (_key, value) => (typeof value === 'bigint' ? Number(value) : value), 2),
     );

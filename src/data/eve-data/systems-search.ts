@@ -67,7 +67,6 @@ export const systemsSource: SearchSource = {
   limit: 10,
   excludeFromDefaultScope: true,
   async search(query, ctx) {
-
     if (query.length === 0) return [];
 
     const index = await loadSystems();

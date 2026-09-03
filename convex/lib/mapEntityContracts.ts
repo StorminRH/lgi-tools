@@ -1,5 +1,3 @@
-
-
 import { ConvexError, v } from 'convex/values';
 import {
   CONNECTION_PROVENANCES,
@@ -22,11 +20,8 @@ import {
 } from '@/data/maps/scan-parse';
 
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
-
 export { WORMHOLE_LIFE_STAGES, type WormholeLifeStage };
-
 export { WORMHOLE_DESTINATION_HINTS, type WormholeDestinationHint };
-
 export { CONNECTION_PROVENANCES, type ConnectionProvenance };
 
 export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;

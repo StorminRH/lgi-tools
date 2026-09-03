@@ -15,7 +15,6 @@ export {
   EsiContractError,
   ESI_BUDGET_FLOOR,
 } from './errors';
-
 export { __resetEsiGateForTests, __setScoreboardForTests } from './dispatch';
 export type { EsiFetchOptions } from './dispatch';
 

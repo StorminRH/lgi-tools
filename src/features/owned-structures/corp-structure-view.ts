@@ -8,11 +8,9 @@ import type { CorpStructurePageStructure, CorpStructurePageView } from './types'
 export type CorpStructureItemView = {
   typeName: string;
   displayName: string;
-
   validRigs: StructureRigOption[];
   rigLabels: { key: number; label: string }[];
   taxLabel: string | null;
-
   hasDetails: boolean;
 };
 
@@ -37,12 +35,9 @@ export function deriveCorpStructureItemView(
 }
 
 export type CorpCardView = {
-
   hint: string;
   showManagerNote: boolean;
-
   managerBlurb: string;
-
   showStructures: boolean;
   isEmpty: boolean;
 };

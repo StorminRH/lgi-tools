@@ -149,6 +149,5 @@ export function ScannerIdentifyCombo({
         footer={browsing ? 'Type to search other holes…' : null}
       />
     </Combobox.Root>
-
   );
 }

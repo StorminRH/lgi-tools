@@ -12,11 +12,8 @@ export type ApplySystemOutcome =
   | { status: 'superseded' };
 
 export function createBuildSystemApplier(deps: {
-
   fetchLocation: (systemId: number, signal: AbortSignal) => Promise<BuildLocationData | null>;
-
   onApplied: (sys: BuildSystemRef, data: BuildLocationData) => void;
-
   onPersist: (sys: BuildSystemRef) => void;
 }): (sys: BuildSystemRef, opts: { persist: boolean }) => Promise<ApplySystemOutcome> {
   let gen = 0;
@@ -28,14 +25,12 @@ export function createBuildSystemApplier(deps: {
     ctrl = myCtrl;
     try {
       const data = await deps.fetchLocation(sys.systemId, myCtrl.signal);
-
       if (myGen !== gen) return { status: 'superseded' };
       if (data === null) return { status: 'failed' };
       deps.onApplied(sys, data);
       if (opts.persist) deps.onPersist(sys);
       return { status: 'applied', data };
     } catch {
-
       return { status: myCtrl.signal.aborted ? 'superseded' : 'failed' };
     }
   };

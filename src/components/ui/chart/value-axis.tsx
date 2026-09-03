@@ -1,9 +1,6 @@
 export type ValueAxisGridProps = {
-
   ticks: number[];
-
   y: (value: number) => number;
-
   left: number;
   right: number;
   format: (value: number) => string;
@@ -31,11 +28,8 @@ export function ValueAxisGrid({ ticks, y, left, right, format }: ValueAxisGridPr
           >
             {format(t)}
           </text>
-
         </g>
-
       ))}
     </>
-
   );
 }

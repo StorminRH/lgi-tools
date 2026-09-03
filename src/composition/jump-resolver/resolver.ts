@@ -165,7 +165,6 @@ function isWormholeSpace(
   systemId: number,
 ): boolean {
   const facts = systemFacts(systems, systemId);
-
   return (
     facts !== null
     && systemSecurityClass(facts.securityStatus, facts.wormholeClassId) === 'wormhole'
@@ -261,7 +260,6 @@ async function eliminateAfterCommit(
         { mapId, systemId },
       );
     } catch (cause) {
-
       dependencies.reportEliminationFailure(cause);
     }
   }
@@ -360,7 +358,6 @@ async function resolveDoorbell(
     return retry('convex-resolve');
   }
   if (resolved.status === 'stale') {
-
     return RETRYABLE_STALE_REASONS.has(resolved.reason)
       ? retry(resolved.reason)
       : resolved;
@@ -375,7 +372,6 @@ async function resolveDoorbell(
     resolved.emission,
     dependencies,
   );
-
   const tier = resolved.emission.destinationProvenance;
   const emitted = tier === null
     ? false
@@ -421,7 +417,6 @@ async function resolveConfirmation(
   try {
     emitted = await emitObservation(database, emission, provenance, dependencies);
     if (!emitted && emission.observationKey !== null) {
-
       await dependencies.deleteWhObservation(database, emission.observationKey);
     }
   } catch (cause) {
@@ -460,7 +455,6 @@ async function resolveTypedHole(
       dependencies,
     );
     if (!emitted && evidence.connection.observationKey !== null) {
-
       await dependencies.deleteWhObservation(
         database,
         evidence.connection.observationKey,

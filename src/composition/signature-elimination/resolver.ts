@@ -83,7 +83,6 @@ interface SettledIdentity {
   readonly whTypeCode: string | null;
   readonly provenance: ConnectionProvenance | null;
   readonly observationKey: string | null;
-
   readonly migrated: boolean;
 }
 
@@ -92,7 +91,6 @@ function settleIdentity(
   deduction: EliminationDeduction | undefined,
   outcome: EliminationWriteOutcome | undefined,
 ): SettledIdentity {
-
   const applied = outcome?.outcome === 'applied' ? deduction : undefined;
   if (applied === undefined) {
     return {
@@ -197,7 +195,6 @@ export async function resolveSignatureElimination(
         dependencies,
       );
     } catch (cause) {
-
       dependencies.reportEmissionFailure(cause);
     }
   }

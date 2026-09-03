@@ -109,7 +109,6 @@ describe('createUpstashClient', () => {
     const { signal } = lastConfig();
     const first = signal();
     const second = signal();
-
     expect(first).not.toBe(second);
     expect(first.aborted).toBe(false);
 

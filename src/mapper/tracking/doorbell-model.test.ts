@@ -151,7 +151,6 @@ describe('ringPendingTransitions', () => {
     expect(retryRing).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP + 1);
 
     const overlapMemory = new Map<number, DoorbellMemoryEntry>();
-
     const releases: Array<(value: JumpResolverResponse | null) => void> = [];
     const overlapRing = vi.fn(
       () =>
@@ -160,7 +159,6 @@ describe('ringPendingTransitions', () => {
         }),
     );
     const firstPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
-
     const secondPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
     for (const release of releases) {
       release(response('processed'));

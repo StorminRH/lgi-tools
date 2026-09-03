@@ -144,7 +144,6 @@ function categoryForStatus(status: number): FailureCategory {
   const matched = FAILURE_CATEGORIES.find(
     (category) => CATEGORY_STATUS[category] === status,
   );
-
   if (matched === undefined) return status === 502 ? 'dependency_unavailable' : 'unexpected';
   return matched;
 }

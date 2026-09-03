@@ -15,7 +15,6 @@ describe('reduced-motion coverage', () => {
 
   it.each(LOOPING_CLASSES)('statically renders .%s under reduced motion', (className) => {
     expect(css).toContain(`.${className}`);
-
     const ruleRe = new RegExp(
       String.raw`@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.${className}\b[^{]*\{[^}]*animation:\s*none`,
     );

@@ -58,11 +58,9 @@ export function Tabs({
           >
             {tab.label}
           </Base.Tab>
-
         ))}
         <Base.Indicator className="absolute -bottom-px left-0 h-0.5 w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)] bg-isk transition-[width,translate] duration-fast motion-reduce:transition-none" />
       </Base.List>
-
       {tabs.map((tab) => (
         <Base.Panel
           key={tab.value}
@@ -74,9 +72,7 @@ export function Tabs({
         >
           {tab.content}
         </Base.Panel>
-
       ))}
     </Base.Root>
-
   );
 }

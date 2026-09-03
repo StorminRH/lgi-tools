@@ -69,7 +69,6 @@ export interface PromotedStatics {
 }
 
 export class WhStaticsSnapshotStateError extends Error {
-
   constructor(
     readonly snapshotId: number,
     readonly status: WhStaticsSnapshotStatus | 'missing',
@@ -80,7 +79,6 @@ export class WhStaticsSnapshotStateError extends Error {
 }
 
 export class WhStaticsEmptySnapshotError extends Error {
-
   constructor(readonly snapshotId: number) {
     super(`Statics snapshot ${snapshotId} has no assignments to promote`);
     this.name = 'WhStaticsEmptySnapshotError';
@@ -161,7 +159,6 @@ function settledByLatestSnapshot(
   if (isSameObservation(latest, input.etag, digest)) {
     return { recorded: 'duplicate', snapshotId: latest.id };
   }
-
   const observed = input.baseline.latestSnapshotId ?? 0;
   if (latest.id > observed) {
     return { recorded: 'stale', snapshotId: latest.id };

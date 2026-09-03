@@ -21,11 +21,9 @@ interface LoadingToastContextValue {
 const LoadingToastContext = createContext<LoadingToastContextValue | null>(null);
 
 const SYNC_TOAST_ID = 'lgi-sync';
-
 const SYNC_DONE_MS = 500;
 
 export function LoadingToastProvider({ children }: { children: ReactNode }) {
-
   const tokens = useRef<Set<string>>(new Set());
   const [count, setCount] = useState(0);
 
@@ -50,7 +48,6 @@ export function LoadingToastProvider({ children }: { children: ReactNode }) {
     <LoadingToastContext.Provider value={ctx}>
       {children}
     </LoadingToastContext.Provider>
-
   );
 }
 

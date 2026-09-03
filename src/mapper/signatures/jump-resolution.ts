@@ -15,7 +15,6 @@ export interface JumpResolutionCandidate {
   readonly connectionId: Id<'mapConnections'>;
   readonly signatureId: string | null;
   readonly wormholeTypeCode: string | null;
-
   readonly isCurrent: boolean;
 }
 
@@ -58,7 +57,6 @@ export function jumpResolutionCandidates(
       continue;
     }
     const hole = unresolvedHoles.find((row) => row.connectionId === candidateId);
-
     if (hole === undefined) return null;
     candidates.push({
       connectionId: hole.connectionId,

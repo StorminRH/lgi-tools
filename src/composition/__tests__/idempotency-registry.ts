@@ -19,16 +19,11 @@ export type IdempotencyWorkKind =
 export interface IdempotencyEntry {
   id: string;
   workKind: IdempotencyWorkKind;
-
   redeliverySource: string;
   verdict: IdempotencyVerdict;
-
   evidence: string;
-
   module?: string;
-
   cronPath?: string;
-
   route?: string;
   vendor?: VendorIntegrationId;
 }

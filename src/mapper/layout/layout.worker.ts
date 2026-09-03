@@ -36,7 +36,6 @@ self.onmessage = (event: MessageEvent<LayoutWorkerRequest>) => {
     };
     self.postMessage(response);
   };
-
   try {
     void compassKernel(facts, config).then((positions) => {
       const response: LayoutWorkerSuccess = { kind: 'ok', requestId, positions };

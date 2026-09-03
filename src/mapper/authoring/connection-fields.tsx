@@ -105,11 +105,8 @@ export interface ConnectionFieldSetters {
   readonly setShipSize: (value: WormholeSizeClass | null) => void;
   readonly setMassState: (value: ConnectionMassState | null) => void;
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
-
   readonly setLeadsTo: (value: WormholeDestinationHint | null) => void;
-
   readonly setDestination: (toSystemId: number | null) => void;
-
   readonly linkToOrigin: (resolvedConnectionId: string) => void;
 }
 
@@ -123,18 +120,14 @@ export interface ConnectionFieldsProps {
   readonly connection: ConnectionEditorDetail;
   readonly codes: readonly string[];
   readonly preferredCodes?: readonly string[];
-
   readonly codexReady: boolean;
   readonly entry: WormholeCodexEntry | null;
   readonly setters: ConnectionFieldSetters;
   readonly now: number;
-
   readonly mode: 'edit' | 'restore';
-
   readonly destination?: SystemIdentityReadout | null;
   readonly onDelete?: () => void;
   readonly onRestore?: () => void;
-
   readonly originLeads?: readonly OriginLeadOption[];
 }
 
@@ -166,7 +159,6 @@ export function ConnectionFields({
         >
           Severed connection — restore within the undo window.
         </p>
-
       ) : null}
       <TypeField
         connection={connection}
@@ -212,7 +204,6 @@ export function ConnectionFields({
         onRestore={onRestore}
       />
     </div>
-
   );
 }
 
@@ -258,7 +249,6 @@ function TypeField({
         />
       )}
     </ConnectionFieldGroup>
-
   );
 }
 
@@ -270,7 +260,6 @@ function CodexPanel({ entry }: { readonly entry: WormholeCodexEntry | null }) {
 
 function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
   return (
-
     <div
       data-map-connection-codex
       className="flex w-full flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5 text-center"
@@ -286,7 +275,6 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
       />
       <CodexFact label="Size" value={facts.sizeClass} />
     </div>
-
   );
 }
 
@@ -365,7 +353,6 @@ function MassSection({
         )}
       />
     </ConnectionFieldGroup>
-
   );
 }
 
@@ -380,9 +367,7 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
         >
           Remaining mass {display.label}
         </p>
-
       </Tooltip>
-
     );
   }
   if (display.kind === 'regenerates') {
@@ -393,7 +378,6 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
       >
         {display.label}
       </p>
-
     );
   }
   return null;
@@ -434,7 +418,6 @@ function LifetimeSection({
         display={lifetimeRowDisplay(connection, entry, now)}
       />
     </ConnectionFieldGroup>
-
   );
 }
 
@@ -454,9 +437,7 @@ function LifetimeEstimateView({
         >
           Lifetime {display.label}
         </p>
-
       </Tooltip>
-
     );
   }
   if (display.kind === 'expired') {
@@ -468,7 +449,6 @@ function LifetimeEstimateView({
       >
         {display.label}
       </p>
-
     );
   }
   return null;
@@ -507,7 +487,6 @@ function LeadsToField({
           }
         />
       </ConnectionFieldGroup>
-
     );
   }
   if (destination !== null) {
@@ -531,7 +510,6 @@ function LeadsToField({
           errorLabel="Destination"
         />
       </ConnectionFieldGroup>
-
     );
   }
   const items = [
@@ -601,9 +579,7 @@ function ConnectionActions({
         >
           Delete
         </Button>
-
       </div>
-
     );
   }
   if (mode === 'restore' && onRestore !== undefined) {
@@ -617,9 +593,7 @@ function ConnectionActions({
         >
           Restore
         </Button>
-
       </div>
-
     );
   }
   return null;
@@ -635,13 +609,10 @@ function CodexFact({
   return (
     <div className="flex flex-col items-center gap-0.5 font-data text-micro">
       <span className="text-muted">{label}</span>
-
       <span data-map-codex-fact={label} className="text-name">
         {value}
       </span>
-
     </div>
-
   );
 }
 

@@ -10,7 +10,6 @@ export function FeedbackButton({
   embedded = false,
 }: {
   compact?: boolean;
-
   embedded?: boolean;
 }) {
   const { session, loading } = useAuth();
@@ -33,7 +32,6 @@ export function FeedbackButton({
       >
         {compact ? '?' : 'Feedback'}
       </Button>
-
       <FeedbackModal
         key={formKey}
         open={open}
@@ -42,6 +40,5 @@ export function FeedbackButton({
         loading={loading}
       />
     </>
-
   );
 }

@@ -12,14 +12,11 @@ import { ScannerAnchoredPanel } from './ScannerAnchoredPanel';
 
 export interface SignatureEditorProps {
   readonly connection: ConnectionEditorDetail;
-
   readonly anchorSignatureId?: string | null;
   readonly setters: ConnectionFieldSetters;
   readonly now: number;
   readonly mode: 'edit' | 'restore';
-
   readonly destination: SystemIdentityReadout | null;
-
   readonly originLeads?: readonly OriginLeadOption[];
   readonly onDelete: () => void;
   readonly onRestore: () => void;
@@ -66,6 +63,5 @@ export function SignatureEditor({
         onRestore={onRestore}
       />
     </ScannerAnchoredPanel>
-
   );
 }

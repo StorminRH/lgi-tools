@@ -20,10 +20,8 @@ export const marketPrices = pgTable(
     pct5Sell: doublePrecision('pct5_sell'),
     buyVolume: bigint('buy_volume', { mode: 'bigint' }),
     sellVolume: bigint('sell_volume', { mode: 'bigint' }),
-
     buyDepth: jsonb('buy_depth').$type<DepthBand[]>(),
     sellDepth: jsonb('sell_depth').$type<DepthBand[]>(),
-
     regionalDiscount: jsonb('regional_discount').$type<RegionalDiscount>(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
     staleAfter: timestamp('stale_after', { withTimezone: true }).notNull(),

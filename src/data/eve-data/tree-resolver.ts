@@ -54,7 +54,6 @@ export type ResolveSummary = {
 };
 
 export type Material = { typeId: number; quantity: number };
-
 export type Indexes = {
   blueprintMaterials: Map<number, Material[]>;
   productToBlueprint: Map<number, { blueprintTypeId: number; quantityPerRun: number }>;
@@ -65,7 +64,6 @@ export type MaterialRow = {
   materialTypeId: number;
   quantity: number;
 };
-
 export type ProductRow = {
   blueprintTypeId: number;
   productTypeId: number;

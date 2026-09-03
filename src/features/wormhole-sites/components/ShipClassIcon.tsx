@@ -9,7 +9,6 @@ const CLASS_GLYPH: Record<SleeperClassCode, ReactNode> = {
       <polyline points="3,7.5 8,4 13,7.5" />
       <polyline points="3,11.5 8,8 13,11.5" />
     </>
-
   ),
   B: (
     <>
@@ -17,7 +16,6 @@ const CLASS_GLYPH: Record<SleeperClassCode, ReactNode> = {
       <polyline points="3,9 8,6 13,9" />
       <polyline points="3,12 8,9 13,12" />
     </>
-
   ),
   T: <rect x="3.5" y="3.5" width="9" height="9" />,
 };
@@ -47,6 +45,5 @@ export function ShipClassIcon({
     >
       {CLASS_GLYPH[code]}
     </svg>
-
   );
 }

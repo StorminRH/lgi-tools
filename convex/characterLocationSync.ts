@@ -254,9 +254,6 @@ async function resolveOnlineProbe(
 
   const windowExpiresAt = resolveExpiresAt([read.expiresAt], ONLINE_FALLBACK_TTL_MS, Date.now());
   if (read.kind === 'unchanged') {
-
-
-
     if (heldOnline === undefined) return 'contract_error';
     return {
       online: heldOnline.online,

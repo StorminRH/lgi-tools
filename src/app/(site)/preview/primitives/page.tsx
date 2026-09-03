@@ -30,8 +30,6 @@ export default function PrimitiveReferencePage() {
       <Suspense fallback={<Skeleton className="h-64 w-full" label="Loading primitive reference" />}>
         <AdminPrimitiveReference />
       </Suspense>
-
     </PageShell>
-
   );
 }

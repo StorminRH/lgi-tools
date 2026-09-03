@@ -2,12 +2,9 @@ import { computeDelta, type Delta } from '@/composition/admin-period';
 
 export interface MetricRow {
   label: string;
-
   value: string;
-
   avg: string | null;
   delta: Delta | null;
-
   series?: number[];
 }
 

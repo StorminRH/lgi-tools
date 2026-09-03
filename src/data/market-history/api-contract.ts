@@ -26,7 +26,6 @@ export const wireHistoryInputsSchema = z.object({
 const refreshHistoryResponseSchema = z.object({
   inputs: z.array(wireHistoryInputsSchema),
 });
-
 export const refreshHistoryEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/market-history/refresh',

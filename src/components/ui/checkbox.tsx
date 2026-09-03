@@ -49,7 +49,6 @@ export function Checkbox({
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-
   label: string;
   tone?: CheckboxTone;
   disabled?: boolean;
@@ -65,6 +64,5 @@ export function Checkbox({
     >
       <Base.Indicator className={fill({ tone })} />
     </Base.Root>
-
   );
 }

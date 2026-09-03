@@ -29,28 +29,20 @@ export function NpcRow({ npc }: { npc: Npc }) {
         <ShipClassIcon code={npc.sleeperClassCode} size={18} />
         {npc.quantity}×
       </span>
-
       <span data-npc-name className="text-name truncate min-w-0 leading-[1.5]">
         {npc.sleeperName}
       </span>
-
       <span className="flex items-center gap-[4px]">
         {ewars.map((k) => (
           <Chip key={k} tone={EWAR_TONE[k]}>
             {k === 'neut' && npc.neut ? `NEUT ${npc.neut}` : EWAR_LABEL[k]}
           </Chip>
-
         ))}
         {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>{npc.triggerLabel}</Chip>}
-
       </span>
-
       <span className="justify-self-end">
         {npc.dps != null && <Stat className="text-text font-semibold">{npc.dps} DPS</Stat>}
-
       </span>
-
     </div>
-
   );
 }

@@ -16,7 +16,6 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   function handoff() {
     if (handedOff.current) return;
     handedOff.current = true;
-
     void authClient.signOut().finally(() => {
       window.location.href = EVE_AUTHORIZED_APPS_URL;
     });
@@ -38,15 +37,12 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
         <p id={labelId} className="text-label uppercase tracking-wide text-tone-red">
           Account data removed
         </p>
-
         <p className="text-body leading-relaxed text-text">
           Your data has been cleared and LGI.tools can no longer access your EVE data. We’re sending
           you to EVE’s authorized-apps page so you can confirm the access is gone — you’ll land here
           signed out.
         </p>
-
         <p className="text-ui text-muted">Redirecting in {seconds}s…</p>
-
         <Button
           variant="bare"
           type="button"
@@ -55,10 +51,7 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
         >
           Go now
         </Button>
-
       </div>
-
     </Dialog>
-
   );
 }

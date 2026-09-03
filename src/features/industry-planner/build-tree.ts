@@ -49,7 +49,6 @@ export function toBuildTree(args: {
         : [];
       return {
         typeId: node.typeId,
-
         quantity: absQty,
         inputs,
       };
@@ -60,7 +59,6 @@ export function toBuildTree(args: {
   }
 
   const rootInputs = walk(tree, 1);
-
   const rootHeight = 1 + Math.max(...tree.map((n) => heights.get(n.typeId) ?? 0));
   const rl = labels.get(product.typeId);
   const rootCls = classifyBuildNode({

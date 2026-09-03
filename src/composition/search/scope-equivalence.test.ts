@@ -6,7 +6,6 @@ const { BP_FIXTURE, SYSTEMS_FIXTURE } = vi.hoisted(() => ({
     { blueprintTypeId: 691, productTypeId: 587, name: 'Rifter Blueprint' },
     { blueprintTypeId: 3888, productTypeId: 3841, name: 'Large Shield Extender II Blueprint' },
   ],
-
   SYSTEMS_FIXTURE: [
     { id: 30000142, name: 'Jita', security: 0.9 },
     { id: 30000144, name: 'Perimeter', security: 0.9 },
@@ -93,7 +92,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-
   const calls = [...warnSpy.mock.calls];
   warnSpy.mockRestore();
   expect(calls).toEqual([]);
@@ -410,12 +408,10 @@ describe('scoped queries against the real manifest', () => {
   });
 
   it('pins the manifest: every registered id listed, unique, in registration order', () => {
-
     expect(listRegisteredSources().map((s) => s.id)).toEqual([...REGISTERED_SOURCE_IDS]);
   });
 
   it('a full-scope run after scoped queries still sees every source', async () => {
-
     const out = await searchAll('in', admin());
     expect(out.map((s) => s.name)).toEqual(['Recent', 'Sites', 'Blueprints', 'Tools', 'Commands']);
   });
@@ -423,9 +419,7 @@ describe('scoped queries against the real manifest', () => {
 
 describe('default-scope-excluded sources (systems)', () => {
   it('a default-scope run never consults the excluded source', async () => {
-
     expect(await searchAll('jita', signedOut())).toEqual([]);
-
     const names = (await searchAll('perimeter', signedOut())).map((s) => s.name);
     expect(names).toEqual(['Sites']);
   });
@@ -441,7 +435,6 @@ describe('default-scope-excluded sources (systems)', () => {
             id: 'system:30000142',
             label: 'Jita',
             sub: '0.9',
-
             href: '#',
             matchIndices: [0, 1, 2, 3],
           },
@@ -456,7 +449,6 @@ describe('default-scope-excluded sources (systems)', () => {
   });
 
   it('pins the flag on the registered systems source', () => {
-
     const systems = listRegisteredSources().find((s) => s.id === 'systems');
     expect(systems?.excludeFromDefaultScope).toBe(true);
   });

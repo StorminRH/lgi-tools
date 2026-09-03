@@ -67,7 +67,6 @@ describe('inspectUrl', () => {
     await inspectUrl('https://lgi.tools/sites/3');
 
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
-
     expect(authState.options?.transporterOptions).toEqual({ timeout: 10_000 });
   });
 

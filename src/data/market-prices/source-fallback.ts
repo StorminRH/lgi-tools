@@ -36,7 +36,6 @@ const fuzzworkPairSchema = z.object({
 const fuzzworkResponseSchema = z.record(z.string(), fuzzworkPairSchema);
 
 export type FuzzworkSide = z.infer<typeof fuzzworkSideSchema>;
-
 export type FuzzworkPair = z.infer<typeof fuzzworkPairSchema>;
 type FuzzworkResponse = z.infer<typeof fuzzworkResponseSchema>;
 
@@ -74,7 +73,6 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
     pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
     buyVolume: floored.buyVolume,
     sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
-
     buyDepth: null,
     sellDepth: null,
     regionalDiscount: null,
@@ -83,7 +81,6 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
 }
 
 async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
-
   const url = `${FUZZWORK_AGGREGATES}?station=${JITA_44_STATION_ID}&types=${typeIds.join(',')}`;
   const res = await fetchWithTimeout(url, {
     headers: { 'User-Agent': OUTBOUND_USER_AGENT },
@@ -93,7 +90,6 @@ async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
       `Fuzzwork aggregates request failed: ${res.status} ${res.statusText}`,
     );
   }
-
   const parsed = fuzzworkResponseSchema.safeParse(await res.json());
   if (!parsed.success) {
     throw new Error('Fuzzwork aggregates response failed boundary validation');

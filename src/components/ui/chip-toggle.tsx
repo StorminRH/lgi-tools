@@ -30,7 +30,6 @@ export function ChipToggleGroup({
     >
       {children}
     </ToggleGroup>
-
   );
 }
 
@@ -69,6 +68,5 @@ export function ChipToggle({
     >
       {children}
     </Toggle>
-
   );
 }

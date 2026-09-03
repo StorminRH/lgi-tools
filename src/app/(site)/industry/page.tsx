@@ -68,7 +68,6 @@ function DashboardSkeleton() {
       ).map(([label, kind]) => (
         <section key={label}>
           <SectionLabel className="mb-cluster">{label}</SectionLabel>
-
           <Card className="overflow-hidden" aria-label={`Loading ${label.toLowerCase()}`}>
             <div className="flex items-center gap-3 px-3.5 py-3">
               {kind === 'loading' ? (
@@ -78,16 +77,11 @@ function DashboardSkeleton() {
                 <Skeleton className={kind === 'panel' ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
                 <Skeleton className="h-2.5 w-1/3" />
               </div>
-
             </div>
-
           </Card>
-
         </section>
-
       ))}
     </div>
-
   );
 }
 
@@ -102,7 +96,6 @@ export default function IndustryDashboardPage() {
           <Suspense fallback={null}>
             <SlotMeta />
           </Suspense>
-
         }
       />
 
@@ -112,10 +105,7 @@ export default function IndustryDashboardPage() {
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardSections />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

@@ -246,7 +246,6 @@ export async function getBuildLocation(
   blueprintId: number,
 ): Promise<BuildLocationData> {
   const structure = await getBlueprintStructure(blueprintId);
-
   const baseTypeIds = dedupe(
     structure?.buildTree[0]?.inputs.map((i) => i.typeId) ?? [],
   );

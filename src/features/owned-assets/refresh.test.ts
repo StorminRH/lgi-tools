@@ -51,7 +51,6 @@ const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-2
 
 describe('refreshOwnedAssetsForUser — character path', () => {
   it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
-
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => fresh()),
@@ -70,7 +69,6 @@ describe('refreshOwnedAssetsForUser — character path', () => {
       readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
-
           kind: 'fresh',
           items: [esiAsset(34, 1000), esiAsset(34, 500)],
           etags: ['"e1"'],

@@ -11,18 +11,13 @@ export interface ScannedStubHole {
 }
 
 export interface ConnectionStubHole {
-
   readonly wormholeTypeCode: string | null;
-
   readonly linkedSignature: boolean;
 }
 
 export interface StubPlan {
-
   readonly staticStubs: readonly StaticStubSlot[];
-
   readonly signatureStubIds: readonly string[];
-
   readonly unknownCount: number;
 }
 
@@ -30,7 +25,6 @@ export interface StubAccountingInput {
   readonly statics: readonly StaticStubSlot[];
   readonly signatures: readonly ScannedStubHole[];
   readonly connections: readonly ConnectionStubHole[];
-
   readonly isRoot: boolean;
 }
 

@@ -5,7 +5,6 @@ export const VIEWPORTS = {
   hd: { width: 1366, height: 768 },
   desktop: { width: 1440, height: 900 },
   wide: { width: 1920, height: 1080 },
-
   zoom200: { width: 640, height: 450 },
 };
 
@@ -27,7 +26,6 @@ function applyFlag(opts, key, value) {
 export function parseArgs(argv) {
   const routes = [];
   const opts = {
-
     baseUrl: process.env.UX_BASE_URL ?? 'http://localhost:3000',
     viewports: ['desktop', 'mobile'],
     settle: 1500,

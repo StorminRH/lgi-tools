@@ -34,7 +34,6 @@ export async function HomeLiveStats() {
             <Dot tone="green" />
             Updated on demand
           </span>
-
         }
       >
         Live data
@@ -54,7 +53,6 @@ export async function HomeLiveStats() {
               <dt className="order-2 font-data text-label uppercase tracking-label text-muted">
                 {stat.label}
               </dt>
-
               <dd
                 className={cn(
                   'order-1 font-data font-semibold text-name tabular-nums',
@@ -63,9 +61,7 @@ export async function HomeLiveStats() {
               >
                 {stat.value}
               </dd>
-
             </div>
-
           ))}
         </dl>
 
@@ -73,21 +69,14 @@ export async function HomeLiveStats() {
           <span className="font-data text-label uppercase tracking-wide text-muted">
             EVE SDE
           </span>
-
           <span className="text-right font-data text-micro text-muted">
             <span className="text-name">{sde.version ?? '—'}</span>
-
             {sde.ingestedAt ? (
               <span className="text-muted"> · ingested {formatUtcDate(sde.ingestedAt)}</span>
-
             ) : null}
           </span>
-
         </div>
-
       </Card>
-
     </section>
-
   );
 }

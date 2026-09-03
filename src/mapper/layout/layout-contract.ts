@@ -8,7 +8,6 @@ export interface LayoutEdge {
 export interface LayoutFacts {
   readonly systems: readonly { readonly systemId: number }[];
   readonly connections: readonly LayoutEdge[];
-
   readonly rootSystemId?: number;
 }
 
@@ -17,15 +16,10 @@ export type WedgePolicy = 'fixed-slot' | 'proportional';
 export const SEPARATION_MARGIN = 1.05;
 
 export interface LayoutConfig {
-
   readonly ringSpacing: number;
-
   readonly minSeparation: number;
-
   readonly wedgePolicy: WedgePolicy;
-
   readonly siblingSpread: number;
-
   readonly directionSequence: readonly number[];
 }
 

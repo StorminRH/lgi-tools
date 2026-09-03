@@ -48,12 +48,10 @@ describe('visibleStructuresForSlot', () => {
 
   it('hides locked structures homed in OTHER systems once a system is picked', () => {
     expect(visibleStructuresForSlot(ALL, 30000142, null)).toEqual([corpJita, portable, pinnedJita]);
-
     expect(visibleStructuresForSlot(ALL, 31000001, null)).toEqual([portable]);
   });
 
   it('always retains the currently-selected structure so the select value never dangles', () => {
-
     expect(visibleStructuresForSlot(ALL, 30000142, corpBasgerin.id)).toEqual([
       corpJita,
       corpBasgerin,
@@ -90,7 +88,6 @@ describe('deduceLockedSystem', () => {
     expect(deduceLockedSystem(homelessLock, SYSTEMS, 30000142)).toEqual({
       lockedStructure: homelessLock,
       deducedSystem: null,
-
       effectiveSystemId: 31000001,
     });
   });
@@ -133,7 +130,6 @@ describe('lockTransition', () => {
 
 describe('reactionRefineryCandidates', () => {
   it('keeps only reaction-hosting refineries, excluding the build structure', () => {
-
     expect(reactionRefineryCandidates(ALL, null)).toEqual([pinnedJita]);
   });
 
@@ -157,12 +153,10 @@ describe('deriveReactionSlotView', () => {
     expect(view.deducedSystem).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
     expect(view.taxPct).toBe(2.5);
     expect(view.lockedTo).toBe('Taxed Tatara');
-
     expect(view.refineries).toEqual([pinnedJita, taxed]);
   });
 
   it('excludes the build structure and non-refineries; null tax/name when nothing is locked', () => {
-
     const view = deriveReactionSlotView(null, ALL, corpJita, SYSTEMS, null);
     expect(view.lockedRefinery).toBeNull();
     expect(view.deducedSystem).toBeNull();

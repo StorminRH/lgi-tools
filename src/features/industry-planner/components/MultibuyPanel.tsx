@@ -26,7 +26,6 @@ import { useBuildPlan, usePlannerConfig } from './planner-contexts';
 const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
 
 export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) {
-
   const {
     runs,
     multibuyMode: mode,
@@ -82,31 +81,24 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
         <>
           Multibuy
           <span className="inline-block text-micro text-muted">▾</span>
-
         </>
-
       }
     >
       <div className="flex items-center justify-between">
         <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
           Multibuy export
         </span>
-
         <KpiHelp label="What the multibuy export copies">
           <p className="text-body leading-snug text-muted">
             Check the tiers you&rsquo;ll build yourself.
           </p>
-
           <PopoverRow label="Total">
             the full shopping list, owned stock ignored
           </PopoverRow>
-
           <PopoverRow label="Remaining">
             the same list minus what your linked characters already own
           </PopoverRow>
-
         </KpiHelp>
-
       </div>
 
       <SegmentedControl
@@ -123,7 +115,6 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
         <p className="text-micro leading-snug text-muted">
           No owned stock found for this plan — sign in with linked assets to use Remaining.
         </p>
-
       )}
 
       <div className="flex flex-col gap-1.5">
@@ -135,11 +126,8 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
               label={`Build tier ${depth}`}
             />
             <span className="text-ui text-text">Tier {depth}</span>
-
             <span className="text-micro text-faint">· {pluralCount(count, 'type', 'types')}</span>
-
           </label>
-
         ))}
       </div>
 
@@ -155,10 +143,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
         <span className="font-data text-micro tabular-nums text-muted">
           {effectiveMode}
         </span>
-
       </div>
-
     </Popover>
-
   );
 }

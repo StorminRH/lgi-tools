@@ -352,7 +352,6 @@ describe.skipIf(!harness.reachable)(
       await expect(rejectSnapshot(harness.db, snapshotId)).rejects.toBeInstanceOf(
         WhStaticsSnapshotStateError,
       );
-
       await expect(getSnapshotProbeBaseline(harness.db)).resolves.toEqual({
         etag: '"accepted"',
         latestSnapshotId: snapshotId,

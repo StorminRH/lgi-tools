@@ -1,6 +1,5 @@
 const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 500;
-
 const MAX_CHAIN_DEPTH = 10;
 
 export interface NeonColdStartMetric {

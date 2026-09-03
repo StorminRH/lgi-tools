@@ -88,7 +88,6 @@ export default {
   settle: 2500,
   async setup({ page }) {
     mutationPaths = [];
-
     page.on('websocket', (ws) => {
       ws.on('framesent', ({ payload }) => collectMutations(payload));
     });

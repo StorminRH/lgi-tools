@@ -22,7 +22,6 @@ describe('JumpDoorbellObserver', () => {
       createElement(JumpDoorbellObserver, { mapId: 'map-a' }),
     );
     expect(markup).toBe('');
-
     expect(mocks.liveValue).toHaveBeenCalledWith(
       expect.anything(),
       { mapId: 'map-a' },

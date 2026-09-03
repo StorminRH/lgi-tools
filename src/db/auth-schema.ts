@@ -21,7 +21,6 @@ export const characters = pgTable('characters', {
   portraitUrl: text('portrait_url').notNull(),
   role: characterRoleEnum('role').default('USER').notNull(),
   preferences: jsonb('preferences').$type<Record<string, unknown>>().default({}).notNull(),
-
   corporationId: bigint('corporation_id', { mode: 'number' }),
   allianceId: bigint('alliance_id', { mode: 'number' }),
   factionId: bigint('faction_id', { mode: 'number' }),
@@ -37,9 +36,7 @@ export const user = pgTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
-
   role: characterRoleEnum('role').default('USER').notNull(),
-
   activeCharacterId: bigint('active_character_id', { mode: 'number' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -81,7 +78,6 @@ export const account = pgTable(
       .notNull(),
     refreshTokenInvalidGrantFirstAt: timestamp('refresh_token_invalid_grant_first_at'),
     scope: text('scope'),
-
     ownerHash: text('owner_hash'),
     password: text('password'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -89,7 +85,6 @@ export const account = pgTable(
   },
   (table) => [
     index('account_user_id_idx').on(table.userId),
-
     uniqueIndex('account_provider_account_idx').on(table.providerId, table.accountId),
   ],
 );
@@ -135,9 +130,7 @@ export const corpAccessAudit = pgTable(
     reason: text('reason').notNull(),
   },
   (t) => [
-
     index('corp_access_audit_corp_decided_idx').on(t.corporationId, t.decidedAt.desc()),
-
     index('corp_access_audit_allowed_decided_idx').on(t.allowed, t.decidedAt.desc()),
   ],
 );

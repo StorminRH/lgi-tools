@@ -106,7 +106,6 @@ async function syncOwner<TOwner, TState, TSave>(
 ): Promise<OwnerSyncResult> {
   const target = descriptor.identityOf(owner);
   try {
-
     if (descriptor.precondition !== undefined && !(await descriptor.precondition(owner))) {
       return { kind: 'failed_permanent', target, code: 'precondition_failed' };
     }

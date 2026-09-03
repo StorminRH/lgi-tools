@@ -23,16 +23,12 @@ export function CharacterPortrait({
   loading,
   preload = false,
 }: {
-
   characterId?: number;
   name: string;
   size: PortraitSize;
-
   src?: string;
   className?: string;
-
   loading?: 'lazy' | 'eager';
-
   preload?: boolean;
 }) {
   const imageSrc = src ?? (characterId !== undefined ? characterPortraitUrl(characterId, 128) : '');
@@ -52,6 +48,5 @@ export function CharacterPortrait({
         className="size-full rounded-full border border-border-idle object-cover"
       />
     </span>
-
   );
 }

@@ -18,7 +18,6 @@ export function CharacterStripSection({
   children,
 }: {
   characters: PanelCharacter[];
-
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
   loading: boolean;
@@ -40,21 +39,16 @@ export function CharacterStripSection({
           <LoadingLabel label={view.syncCaption} />
         ) : (
           <span className="text-label tracking-wide uppercase text-muted">{view.syncCaption}</span>
-
         )}
       </div>
-
       {view.showEmptyNotice && (
         <Card>
           <EmptyState>
             Every character is hidden here — tap a portrait above to show one.
           </EmptyState>
-
         </Card>
-
       )}
       {children(view.visible)}
     </>
-
   );
 }

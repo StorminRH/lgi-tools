@@ -9,7 +9,6 @@ describe('distributionBars', () => {
       { key: 'c', label: '/c', count: 20 },
     ]);
     expect(bars.map((b) => b.key)).toEqual(['b', 'a', 'c']);
-
     expect(bars[0]).toMatchObject({ sharePct: 60, fillPct: 100 });
     expect(bars[1]!.sharePct).toBe(20);
     expect(Math.round(bars[1]!.fillPct)).toBe(33);

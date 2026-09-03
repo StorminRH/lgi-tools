@@ -15,7 +15,6 @@ export function encryptAccountTokens<
     refreshToken?: string | null;
   },
 >(data: T, encrypt: (plaintext: string) => string): PreparedAccountTokenWrite<T> {
-
   if (data.providerId != null && data.providerId !== EVE_PROVIDER_ID) return data;
   const out: PreparedAccountTokenWrite<T> = { ...data };
   if (

@@ -7,7 +7,6 @@ const API_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(API_DIR, '..', '..', '..');
 
 const MARKER_RE = /^[ \t]*\/\/[ \t]*authz:[ \t]*([a-z]+)[ \t]*$/gm;
-
 const VALID_CLASSES = new Set(['public', 'auth', 'admin', 'cron', 'service']);
 
 function findRouteFiles(dir: string): string[] {

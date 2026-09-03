@@ -140,7 +140,6 @@ export async function deleteLinkedCharacter(
     .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
     .returning({ id: account.id });
   if (deleted.length === 0) return false;
-
   await runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
@@ -170,7 +169,6 @@ export async function reassignCharacter({
   fromUserId: string;
   toUserId: string;
 }): Promise<{ sourceDeleted: boolean }> {
-
   await db
     .update(account)
     .set({ userId: toUserId, updatedAt: new Date() })
@@ -189,7 +187,6 @@ export async function reassignCharacter({
     .limit(1);
 
   if (!remaining) {
-
     await runBeforeUserDelete(fromUserId);
     await db.delete(user).where(eq(user.id, fromUserId));
     await runAfterCharacterLinkChanged({ userId: fromUserId, characterId });

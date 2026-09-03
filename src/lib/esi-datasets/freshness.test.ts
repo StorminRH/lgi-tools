@@ -8,7 +8,6 @@ import {
 type StaticWindowDatasetName = Parameters<typeof freshnessGate>[0];
 
 const NOW = new Date('2026-07-17T12:00:00Z');
-
 const STATIC_WINDOWS = [
   ['skills', 120_000],
   ['character_industry_jobs', 300_000],

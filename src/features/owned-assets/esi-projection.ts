@@ -1,11 +1,9 @@
 import { z } from 'zod';
 
 const ownedAssetSchema = z.object({
-
   type_id: z.number().int().positive(),
   quantity: z.number().int().positive(),
   location_id: z.number().int().positive(),
-
   location_flag: z.string(),
   location_type: z.string(),
 });

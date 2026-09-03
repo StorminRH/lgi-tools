@@ -22,7 +22,6 @@ export function KpiTile({
     >
       {children}
     </Card>
-
   );
 }
 
@@ -35,7 +34,6 @@ export function KpiHelp({ label, children }: { label: string; children: ReactNod
     >
       {children}
     </Popover>
-
   );
 }
 
@@ -43,10 +41,8 @@ export function KpiHead({ label, right }: { label: string; right?: ReactNode }) 
   return (
     <div className="flex h-8 items-center justify-between gap-1.5">
       <span className={KPI_LABEL}>{label}</span>
-
       {right}
     </div>
-
   );
 }
 
@@ -65,8 +61,6 @@ export function SimpleTile({
     <KpiTile>
       <KpiHead label={label} right={right} />
       <div className={cn(KPI_FIG, valueClass)}>{value}</div>
-
     </KpiTile>
-
   );
 }

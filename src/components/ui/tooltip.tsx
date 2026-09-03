@@ -41,14 +41,9 @@ export function Tooltip({
               {content}
               <Base.Arrow className="fill-border-active" />
             </Base.Popup>
-
           </Base.Positioner>
-
         </Base.Portal>
-
       </Base.Root>
-
     </Base.Provider>
-
   );
 }

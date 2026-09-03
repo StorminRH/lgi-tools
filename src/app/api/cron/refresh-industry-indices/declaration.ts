@@ -18,7 +18,6 @@ export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefresh
     busyBody: () => ({ status: 'busy' }),
   },
   work: async ({ client }) => {
-
     const summary = await refreshIndustryIndices(drizzle(client));
 
     return {

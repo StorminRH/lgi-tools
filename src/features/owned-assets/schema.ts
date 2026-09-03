@@ -13,9 +13,7 @@ import { ownerSyncStateColumns } from '@/lib/db-columns';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
 
 export const OWNED_ASSET_OWNER_TYPES = ['character', 'corporation'] as const;
-
 export type OwnedAssetOwnerType = (typeof OWNED_ASSET_OWNER_TYPES)[number];
-
 export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_ASSET_OWNER_TYPES);
 
 /**
@@ -55,7 +53,6 @@ export const ownedAssets = pgTable(
     typeId: integer('type_id').notNull(),
     quantity: bigint('quantity', { mode: 'number' }).notNull(),
     locationId: bigint('location_id', { mode: 'number' }).notNull(),
-
     locationFlag: text('location_flag').notNull(),
     locationType: text('location_type').notNull(),
     snapshotId: bigint('snapshot_id', { mode: 'number' }).references(() => esiSnapshots.id),

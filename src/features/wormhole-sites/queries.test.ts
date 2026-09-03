@@ -304,7 +304,6 @@ describe('listSiteDetails', () => {
       id: 102,
       scram: 0,
       web: 0,
-
       neut: -0,
       rrep: 4,
       dps: 5,

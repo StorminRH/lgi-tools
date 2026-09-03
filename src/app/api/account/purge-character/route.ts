@@ -19,7 +19,6 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.purge-character',
-
     preflight: rateLimitPreflight(
       request,
       { name: 'account-purge-character', perMinute: 10 },
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest): Promise<Response> {
           };
     },
     handle: async ({ session }, { characterId }) => {
-
       if (!(await accountBelongsToUser(session.user.id, characterId))) {
         return apiResponse(
           purgeCharacterEndpoint,

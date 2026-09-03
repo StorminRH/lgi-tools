@@ -35,16 +35,12 @@ export interface PriceLite {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
-
   buyVolume: number | null;
   sellVolume: number | null;
-
   buyDepth?: DepthBand[] | null;
   sellDepth?: DepthBand[] | null;
-
   regionalDiscount?: RegionalDiscount | null;
   source: PriceSource | null;
-
   staleAfterMs: number | null;
 }
 
@@ -120,9 +116,7 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
 export const MANUFACTURING_ACTIVITY_ID = 1;
 
 export interface AssembleOptions {
-
   runs?: number;
-
   fee?: {
     adjustedPriceOf: AdjustedPriceOf;
     systemCostIndex: number | null;
@@ -133,11 +127,8 @@ export interface AssembleOptions {
       facilityTaxPct?: number | null;
     };
   };
-
   meOf?: (blueprintTypeId: number) => number | undefined;
-
   structureMeFactorOf?: (blueprintTypeId: number) => number;
-
   basis?: 'batched' | 'marginal';
 }
 
@@ -167,13 +158,10 @@ function computeNet(
       facilityTax: effectiveFacilityTaxRate(enteredTaxPct),
       sccSurcharge: REACTION_SCC_SURCHARGE,
     };
-
     structureCostBonusPct = 0;
   } else {
-
     return null;
   }
-
   const baseMaterials = (structure.buildTree[0]?.inputs ?? []).map((i) => ({
     typeId: i.typeId,
     quantity: i.quantity * runs,
@@ -223,7 +211,6 @@ function resolveCostBills(
     ? computeBatchMaterialsWithMe(structure.tree, runs, meOpts)
     : computeBatchMaterials(structure.tree, runs);
   const rowsCost = computeBuildCost(batchedMaterials, buyOf);
-
   const marginalCost = computeBuildCost(
     computeMarginalMaterials(structure.tree, runs, meOpts),
     buyOf,
@@ -251,7 +238,6 @@ export function assemblePricing(
 
   const { basis, rowsCost, buildCost, bases } = resolveCostBills(structure, runs, opts, buyOf);
   const productPrice = priceOf(structure.product.typeId);
-
   const outputUnits = structure.product.quantityPerRun * runs;
   const margin = computeMargin({
     buildCost: buildCost.total,

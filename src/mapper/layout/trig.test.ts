@@ -27,7 +27,6 @@ describe('detSin / detCos', () => {
   });
 
   it('stays within the documented accuracy bound of the host transcendental functions', () => {
-
     const { sin: refSin, cos: refCos } = Math;
     for (let i = 0; i < 360; i += 1) {
       const angle = (i * Math.PI) / 180;
@@ -40,7 +39,6 @@ describe('detSin / detCos', () => {
     for (const angle of [0, 0.3, 1.1, Math.PI, 4.2, -1.7]) {
       const s = detSin(angle);
       const c = detCos(angle);
-
       expect(Math.abs(s * s + c * c - 1)).toBeLessThan(1e-15);
     }
   });

@@ -5,7 +5,6 @@ import type { DateRange } from '@/data/telemetry/types';
 
 const MS_PER_DAY = 86_400_000;
 const MA_WINDOW = 7;
-
 const MARKER_DENSITY_CAP = 120;
 
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);

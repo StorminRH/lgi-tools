@@ -9,10 +9,8 @@ export function RigSupply({
   onSlotsChange,
   disabled = false,
 }: {
-
   validRigs: { typeId: number; name: string }[];
   maxSlots: number;
-
   slots: (number | null)[];
   onSlotsChange: (next: (number | null)[]) => void;
   disabled?: boolean;
@@ -24,7 +22,6 @@ export function RigSupply({
       <span className="text-label uppercase tracking-wide text-muted">
         Rigs ({validRigs.length} fit this structure)
       </span>
-
       <div className="flex flex-col gap-1.5">
         {slotIndices.map((i) => {
           const slot = slots[i];
@@ -45,8 +42,6 @@ export function RigSupply({
           );
         })}
       </div>
-
     </div>
-
   );
 }

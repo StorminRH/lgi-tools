@@ -5,7 +5,6 @@ import type { Delta } from '@/composition/admin-period';
 export interface EndLabelDisplay {
   valueText: string;
   deltaText: string | null;
-
   deltaHex: string | null;
 }
 

@@ -116,7 +116,6 @@ describe('decodeEndpointResponse', () => {
   });
 
   it('rejects a body on an empty-codec status', async () => {
-
     await expect(
       decodeEndpointResponse(emptyWireEndpoint, new Response('unexpected', { status: 200 })),
     ).resolves.toEqual({
@@ -187,7 +186,6 @@ describe('networkFailure', () => {
   });
 
   it('flags the shared outbound timeout as aborted, not as a network fault', () => {
-
     const timedOut = new DOMException('signal timed out', 'TimeoutError');
 
     expect(networkFailure(timedOut)).toMatchObject({ aborted: true, cause: timedOut });

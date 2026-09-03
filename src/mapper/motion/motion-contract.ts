@@ -8,16 +8,13 @@ export type MotionPhase = 'entering' | 'departing';
 
 export type NodeMotion = {
   readonly phase: MotionPhase;
-
   readonly heavy?: boolean;
 };
 
 export type EdgeMotion = {
   readonly phase: MotionPhase;
   readonly flavor: 'fade' | 'grow';
-
   readonly reverse: boolean;
-
   readonly heavy: boolean;
 };
 
@@ -27,7 +24,6 @@ export type CollapseWeight = 'ordinary' | 'heavy';
 
 export interface MotionConfig {
   readonly tempo: MotionTempo;
-
   readonly overshootPct: number;
   readonly edgeFlavor: EdgeFlavor;
   readonly collapseWeight: CollapseWeight;
@@ -41,9 +37,7 @@ export const DEFAULT_MOTION_CONFIG: MotionConfig = {
 };
 
 export interface SpringFamily {
-
   readonly ease: (t: number) => number;
-
   readonly cssLinear: string;
 }
 

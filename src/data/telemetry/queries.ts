@@ -184,7 +184,6 @@ export async function getRoleChangeAudit(
   range: DateRange,
   limit = 50,
 ): Promise<RoleChangeAuditEntry[]> {
-
   const actor = sql<number | null>`(${usageLogs.metadata} ->> 'actorCharacterId')::bigint`;
   const target = sql<number | null>`(${usageLogs.metadata} ->> 'targetCharacterId')::bigint`;
   const fromRole = sql<string | null>`${usageLogs.metadata} ->> 'from'`;
@@ -421,7 +420,6 @@ export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNe
         and(
           inRange(range),
           eq(usageLogs.action, 'auth_login'),
-
           // Date.toString(), which Postgres can't parse.
           lt(characters.createdAt, range.from),
         ),

@@ -2,9 +2,7 @@ import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } 
 import { ownerSyncStateColumns } from '@/lib/db-columns';
 
 export const OWNED_BLUEPRINT_OWNER_TYPES = ['character', 'corporation'] as const;
-
 export type OwnedBlueprintOwnerType = (typeof OWNED_BLUEPRINT_OWNER_TYPES)[number];
-
 export const ownedBlueprintOwnerTypeEnum = pgEnum(
   'owned_blueprint_owner_type',
   OWNED_BLUEPRINT_OWNER_TYPES,
@@ -32,7 +30,6 @@ export const ownedBlueprints = pgTable(
     typeId: integer('type_id').notNull(),
     materialEfficiency: integer('material_efficiency').notNull(),
     timeEfficiency: integer('time_efficiency').notNull(),
-
     runs: integer('runs').notNull(),
     quantity: integer('quantity').notNull(),
     locationId: bigint('location_id', { mode: 'number' }).notNull(),

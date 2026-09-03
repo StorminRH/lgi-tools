@@ -34,7 +34,6 @@ export function CorpStructureSection({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
-
   const visible = corps.filter((c) => c.isStationManager || c.sharingEnabled);
   if (visible.length === 0) return null;
 
@@ -44,10 +43,8 @@ export function CorpStructureSection({
         <div key={corp.corporationId} className="mt-4 w-full max-w-[760px]">
           <CorpCard corp={corp} structureTypes={structureTypes} structureRigs={structureRigs} />
         </div>
-
       ))}
     </>
-
   );
 }
 
@@ -71,16 +68,13 @@ function CorpCard({
             <Link href="/settings" className="text-name underline hover:text-text">
               Account settings
             </Link>
-
             {view.managerBlurb}
           </p>
-
         )}
 
         {view.showStructures &&
           (view.isEmpty ? (
             <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
-
           ) : (
             <ul className="flex flex-col gap-2.5">
               {corp.structures.map((s) => (
@@ -94,12 +88,9 @@ function CorpCard({
                 />
               ))}
             </ul>
-
           ))}
       </div>
-
     </Card>
-
   );
 }
 
@@ -110,12 +101,9 @@ function CorpStructureReadonlyDetails({ view }: { view: CorpStructureItemView })
         <Pill key={r.key} tone="blue">
           {r.label}
         </Pill>
-
       ))}
       {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
-
     </div>
-
   );
 }
 
@@ -138,11 +126,8 @@ function CorpStructureItem({
     <Card as="li" className="flex flex-col gap-2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-data text-ui text-text">{view.displayName}</span>
-
         <Pill tone="neutral">{view.typeName}</Pill>
-
       </div>
-
       {canEdit ? (
         <CorpStructureRigEditor
           corporationId={corporationId}
@@ -153,10 +138,8 @@ function CorpStructureItem({
         <CorpStructureReadonlyDetails view={view} />
       ) : (
         <span className="text-micro text-muted">no rigs recorded</span>
-
       )}
     </Card>
-
   );
 }
 
@@ -173,7 +156,6 @@ function CorpStructureRigEditor({
   validRigs: StructureRigOption[];
 }) {
   const [slots, setSlots] = useState<(number | null)[]>(() => slotsFrom(structure.rigTypeIds));
-
   const [taxDraft, setTaxDraft] = useState(taxDraftFromStored(structure.taxPct));
   const [busy, setBusy] = useState(false);
 
@@ -190,14 +172,12 @@ function CorpStructureRigEditor({
         corporationId,
         structureId: structure.structureId,
         rigTypeIds: slots.filter((x): x is number => x !== null),
-
         taxPct: tax.value,
       },
       cache: 'no-store',
     });
     setBusy(false);
     if (res.ok) {
-
       setTaxDraft(taxDraftFromStored(res.data.taxPct));
       toast.success('Structure details saved');
     } else {
@@ -216,7 +196,6 @@ function CorpStructureRigEditor({
       />
       <label className="flex items-center gap-2">
         <span className="text-label uppercase tracking-wide text-muted">Facility tax %</span>
-
         <Input
           type="number"
           min={0}
@@ -230,12 +209,9 @@ function CorpStructureRigEditor({
           className="w-[180px]"
         />
       </label>
-
       <Button variant="primary" onClick={onSave} disabled={busy} className="self-start">
         Save details
       </Button>
-
     </div>
-
   );
 }

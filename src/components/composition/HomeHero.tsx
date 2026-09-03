@@ -9,8 +9,6 @@ export function HomeHero() {
         site database with live Jita loot prices, and a manufacturing
         profitability planner.
       </p>
-
     </div>
-
   );
 }

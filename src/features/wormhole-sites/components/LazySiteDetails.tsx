@@ -10,7 +10,6 @@ export function LazySiteDetails({
   zoom = false,
 }: {
   site: SiteDetail;
-
   zoom?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -20,7 +19,6 @@ export function LazySiteDetails({
     if (open) return;
     const details = ref.current?.closest('details');
     if (!details) return;
-
     if (details.open) {
       setOpen(true);
       return;
@@ -36,6 +34,5 @@ export function LazySiteDetails({
     <div ref={ref} data-lazy-details className={zoom ? 'sites-detail-zoom' : 'contents'}>
       {open ? <SiteDetailsBody site={site} /> : null}
     </div>
-
   );
 }

@@ -23,10 +23,8 @@ function ControlRowFrame({
   return (
     <div className={menuControlRow}>
       <span className="text-label">{label}</span>
-
       {children}
     </div>
-
   );
 }
 
@@ -41,7 +39,6 @@ function EnumControlRow({ model }: { model: EnumMenuControlModel }) {
         label={model.label}
       />
     </ControlRowFrame>
-
   );
 }
 
@@ -56,7 +53,6 @@ function BooleanControlRow({ model }: { model: BooleanMenuControlModel }) {
         tone="neutral"
       />
     </ControlRowFrame>
-
   );
 }
 
@@ -78,11 +74,9 @@ export function PageMenuSection() {
       <div className={menuSectionLabel} aria-hidden="true">
         {title}
       </div>
-
       {models.map((model) => (
         <ControlRow key={model.key} model={model} />
       ))}
     </div>
-
   );
 }

@@ -14,7 +14,6 @@ class FakeQuery implements PromiseLike<unknown> {
     onOk?: ((value: unknown) => A | PromiseLike<A>) | null,
     onErr?: ((reason: unknown) => B | PromiseLike<B>) | null,
   ): Promise<A | B> {
-
     if (this.settled === undefined) {
       this.executed += 1;
       this.settled = this.settle();
@@ -135,7 +134,6 @@ describe('withQueryTiming', () => {
     const sql = withQueryTiming(fakeClient());
     await sql();
     expect(recorded).toEqual([]);
-
     expect(() => addDependencyTiming('neon', 1)).not.toThrow();
   });
 });

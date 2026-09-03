@@ -21,7 +21,6 @@ export default {
   requiresAuth: true,
   settle: 2500,
   async setup({ page }) {
-
     await page.clock.install();
   },
   async run({ page, check, shot }) {
@@ -48,7 +47,6 @@ export default {
     await shot('afk-prompt');
 
     await page.clock.fastForward('00:06:00');
-
     const pausedCopy = page.getByText('location tracking is paused', { exact: false });
     await pausedCopy.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
     check('unanswered prompt flips to the paused copy', (await pausedCopy.count()) > 0);

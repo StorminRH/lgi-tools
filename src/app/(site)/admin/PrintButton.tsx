@@ -11,6 +11,5 @@ export function PrintButton() {
     >
       Print report
     </Button>
-
   );
 }

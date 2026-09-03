@@ -84,7 +84,6 @@ test('AFK config overrides and server backstop ordering', () => {
   };
   expect(afkConfigFromOverrides(undefined, undefined)).toEqual(production);
   expect(afkConfigFromOverrides('', 'soon')).toEqual(production);
-
   expect(afkConfigFromOverrides('0', '-5')).toEqual(production);
 
   const clientStopsAt = AFK_HIDDEN_AFTER_MS + AFK_PROMPT_TIMEOUT_MS;

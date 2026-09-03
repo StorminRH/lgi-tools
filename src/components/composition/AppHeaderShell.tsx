@@ -32,16 +32,13 @@ export function AppHeaderShell({
       >
         {serverStatusSlot}
       </div>
-
       <div
         data-account-slot
         className="flex shrink-0 items-center border-l border-border px-3 max-lg:hidden"
       >
         <LoginButton />
       </div>
-
       <NavMenu />
     </>
-
   );
 }

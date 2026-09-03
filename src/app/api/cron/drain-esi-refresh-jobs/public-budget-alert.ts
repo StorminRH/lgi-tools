@@ -9,7 +9,6 @@ import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/aler
 import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
 
 const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
-
 const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
 
 export type PublicBudgetAlertResult =

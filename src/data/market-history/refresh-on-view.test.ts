@@ -69,9 +69,7 @@ describe('getLiveHistory — stale gate', () => {
 
     expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
     expect(degraded.fetched).toBe(1);
-
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
-
     expect(afterMock).toHaveBeenCalledOnce();
     await afterMock.mock.calls[0]![0]();
     expect(persistHistoryMock).toHaveBeenCalledOnce();
@@ -126,7 +124,6 @@ describe('getLiveHistory — stale gate', () => {
 
     const { inputs, degraded, metrics } = await getLiveHistory([34]);
     expect(degraded.budgetExhausted).toBe(true);
-
     expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
     expect(metrics.staleStored).toBe(1);
     expect(afterMock).not.toHaveBeenCalled();

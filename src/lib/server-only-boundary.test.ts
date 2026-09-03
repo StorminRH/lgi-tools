@@ -108,7 +108,6 @@ const VENDOR_OWNER_RULES: readonly VendorOwnerRule[] = [
     name: 'upstash',
     matches: (specifier) =>
       specifier === '@upstash/redis' || specifier === '@upstash/ratelimit',
-
     owners: ['src/lib/upstash.ts', 'src/lib/rate-limit.ts'],
   },
   {

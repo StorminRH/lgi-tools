@@ -24,7 +24,6 @@ export function IndustryTypedHint() {
   const [shown, setShown] = useState(reduced ? HINT.length : 0);
 
   useEffect(() => {
-
     if (reduced) {
       const t = setTimeout(() => setShown(HINT.length), 0);
       return () => clearTimeout(t);
@@ -48,9 +47,7 @@ export function IndustryTypedHint() {
       onClick={focusNavSearch}
     >
       <span className="shrink-0 text-ui font-bold text-isk">{'>'}</span>
-
       <span className="whitespace-normal text-text transition-colors hover:text-name sm:whitespace-nowrap">{HINT.slice(0, shown)}</span>
-
       <span className="industry-cur h-3.5 w-[7px] shrink-0 bg-isk" aria-hidden="true" />
       <Kbd
         className={
@@ -59,8 +56,6 @@ export function IndustryTypedHint() {
       >
         ⌘K
       </Kbd>
-
     </Button>
-
   );
 }

@@ -34,7 +34,6 @@ export const wirePriceSchema = z.object({
   sellVolume: z.string().nullable(),
   buyDepth: z.array(wireDepthBandSchema).nullable(),
   sellDepth: z.array(wireDepthBandSchema).nullable(),
-
   regionalDiscount: wireRegionalDiscountSchema.nullable().optional(),
   updatedAt: z.string(),
   staleAfter: z.string(),
@@ -42,7 +41,6 @@ export const wirePriceSchema = z.object({
 });
 
 const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceSchema) });
-
 export const refreshPricesEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/market-prices/refresh',

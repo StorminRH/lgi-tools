@@ -16,8 +16,6 @@ export function ServerStatus({ status }: { status: ServerStatusValue }) {
         <StatusDot state={status.state} />
         {label}
       </Pill>
-
     </span>
-
   );
 }

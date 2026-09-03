@@ -7,9 +7,7 @@ import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-soci
 import { parseNumericRouteId } from '@/transport/route-id';
 
 export const alt = 'LGI.tools wormhole site overview';
-
 export const size = { width: 1200, height: 630 };
-
 export const contentType = 'image/png';
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
@@ -47,9 +45,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         }}
       >
         <span>[ LGI.tools ]</span>
-
         <span style={{ color: toneHex.neutral }}>WORMHOLE SITE INTELLIGENCE</span>
-
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -64,7 +60,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         >
           {card.classification}
         </div>
-
         <div
           style={{
             display: 'flex',
@@ -79,7 +74,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         >
           {card.name}
         </div>
-
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -87,21 +81,15 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ display: 'flex', color: toneHex.neutral, fontSize: 18, letterSpacing: 2 }}>
             {card.valueCaption}
           </div>
-
           <div style={{ display: 'flex', color: toneHex.green, fontSize: 44 }}>
             {card.value}
           </div>
-
         </div>
-
         <div style={{ display: 'flex', color: toneHex.neutral, fontSize: 18, letterSpacing: 2 }}>
           LO-GANG INDUSTRIES
         </div>
-
       </div>
-
     </div>,
-
     { ...size, fonts },
   );
 }

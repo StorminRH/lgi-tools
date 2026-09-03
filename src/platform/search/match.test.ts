@@ -15,9 +15,7 @@ describe('fuzzyMatch', () => {
     const out = fuzzyMatch('ffrd', 'Forgotten Frontier Recursive Depot');
     expect(out).not.toBeNull();
     if (out === null) throw new Error('expected initials-style subsequence match');
-
     const target = 'Forgotten Frontier Recursive Depot';
-
     expect(out.matchIndices).toHaveLength(4);
     const chars = out.matchIndices.map((i) => target[i]?.toLowerCase());
     expect(chars).toEqual(['f', 'f', 'r', 'd']);

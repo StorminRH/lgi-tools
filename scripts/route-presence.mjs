@@ -1,12 +1,10 @@
 import path from 'node:path';
-
 import { normalizeMetadataRoute } from 'next/dist/lib/metadata/get-metadata-route.js';
 
 const ROUTE_FILE = /^(page|route)\.(tsx?|jsx?)$/;
 const SITEMAP_FILE = /^sitemap\.(tsx?|jsx?)$/;
 const ROBOTS_FILE = /^robots\.(tsx?|jsx?)$/;
 const SOCIAL_IMAGE_FILE = /^(opengraph-image|twitter-image)\.(tsx?|jsx?)$/;
-
 const STATIC_ICON_FILE = /^icon\d?\.(ico|jpg|jpeg|png|svg)$/;
 
 export function isRouteFile(base) {
@@ -30,13 +28,11 @@ function routeKey(relPosix) {
   if (ROBOTS_FILE.test(base)) return `${prefix}/robots.txt`;
   const socialImage = base.match(SOCIAL_IMAGE_FILE);
   if (socialImage) {
-
     const built = normalizeMetadataRoute(
       `/${[...parts, socialImage[1]].join('/')}`,
     ).replace(/\/route$/, '');
     return `/${withoutGroups(built.split('/').filter(Boolean)).join('/')}`;
   }
-
   if (STATIC_ICON_FILE.test(base)) return `${prefix}/${base}`;
   return prefix === '' ? '/' : prefix;
 }

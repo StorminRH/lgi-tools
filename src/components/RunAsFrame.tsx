@@ -26,7 +26,6 @@ const HEADING = (
   <span className="whitespace-nowrap text-label uppercase tracking-wide text-muted">
     Build character
   </span>
-
 );
 
 function InertRunAsFrame({ loading }: { loading: boolean }) {
@@ -47,14 +46,10 @@ function InertRunAsFrame({ loading }: { loading: boolean }) {
           >
             —
           </span>
-
           <span className="text-label uppercase tracking-wide text-muted">Sign in</span>
-
         </>
-
       )}
     </div>
-
   );
 }
 
@@ -70,16 +65,12 @@ function RunAsCharacterItems({ characters }: { characters: BuildCharacter[] | nu
         >
           <CharacterPortrait characterId={c.characterId} name={c.name} src={c.portraitUrl} size={28} />
           <span className="truncate">{c.name}</span>
-
           <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
             ✓
           </MenuRadioItemIndicator>
-
         </MenuRadioItem>
-
       ))}
     </>
-
   );
 }
 
@@ -117,15 +108,11 @@ export function RunAsFrame({
           />
           <span className="flex max-w-full items-center gap-1 font-data text-label uppercase tracking-label text-muted">
             <span className="truncate">{view.name}</span>
-
             <span aria-hidden className="text-micro leading-none">
               ▾
             </span>
-
           </span>
-
         </>
-
       }
       triggerClassName={`${FRAME_CLASSES} cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80`}
       className="min-w-60"
@@ -138,18 +125,13 @@ export function RunAsFrame({
       >
         <MenuRadioItem value={0} closeOnClick className={menuRow}>
           <span className="truncate">Default (active character)</span>
-
           <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
             ✓
           </MenuRadioItemIndicator>
-
         </MenuRadioItem>
-
         <MenuSeparator className={menuSeparator} />
         <RunAsCharacterItems characters={buildCharacters} />
       </MenuRadioGroup>
-
     </Menu>
-
   );
 }

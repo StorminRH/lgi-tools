@@ -5,9 +5,7 @@ export type Tool = {
   matchPrefix?: string;
   description?: string;
   navDisabled?: boolean;
-
   navHidden?: boolean;
-
 };
 
 export const TOOLS: Tool[] = [
@@ -38,7 +36,6 @@ export const TOOLS: Tool[] = [
     href: '/skills',
     matchPrefix: '/skills',
     description: 'Live · /skills',
-
     navHidden: true,
   },
   {
@@ -47,7 +44,6 @@ export const TOOLS: Tool[] = [
     href: '/jobs',
     matchPrefix: '/jobs',
     description: 'Live · /jobs',
-
     navHidden: true,
   },
   {
@@ -56,7 +52,6 @@ export const TOOLS: Tool[] = [
     href: '/structures',
     matchPrefix: '/structures',
     description: 'Live · /structures',
-
     navHidden: true,
   },
 ];

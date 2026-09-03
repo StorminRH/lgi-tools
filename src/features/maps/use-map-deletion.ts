@@ -26,7 +26,6 @@ export function useMapDeletion() {
       router.refresh();
       return;
     }
-
     router.push(href);
     router.refresh();
   }

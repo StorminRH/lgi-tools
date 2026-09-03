@@ -47,7 +47,6 @@ export const gscUrlInspection = pgTable(
   {
     inspectionDate: date('inspection_date').notNull(),
     url: text('url').notNull(),
-
     sitemapUrlCount: integer('sitemap_url_count'),
     verdict: text('verdict'),
     coverageState: text('coverage_state'),

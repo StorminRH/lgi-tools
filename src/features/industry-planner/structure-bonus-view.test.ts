@@ -25,7 +25,6 @@ describe('formatBonusPct', () => {
 describe('structureBonusRows', () => {
   it('is empty when there is no bonus and no tax', () => {
     expect(structureBonusRows({ mfg: null, rxn: null })).toEqual([]);
-
     expect(structureBonusRows({ mfg: bonus({}), rxn: null })).toEqual([]);
   });
 
@@ -56,7 +55,6 @@ describe('structureBonusRows', () => {
   it('appends the tax row whenever a tax is entered, including a real 0%', () => {
     expect(structureBonusRows({ mfg: null, rxn: null }, 2.5)).toEqual([{ kind: 'tax', taxPct: 2.5 }]);
     expect(structureBonusRows({ mfg: null, rxn: null }, 0)).toEqual([{ kind: 'tax', taxPct: 0 }]);
-
     expect(structureBonusRows({ mfg: null, rxn: null }, null)).toEqual([]);
   });
 });

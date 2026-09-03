@@ -17,14 +17,12 @@ import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
 
 async function JobsContent() {
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect('/?auth_error=login_required');
   }
 
   const characters = await listLinkedCharacters(session.user.id);
-
   const corpEligibleCharacterIds = characters
     .filter((character) =>
       canSyncCorpIndustryJobs({
@@ -62,7 +60,6 @@ async function JobsContent() {
         }
       />
     </div>
-
   );
 }
 
@@ -72,7 +69,6 @@ function JobsLoading() {
       <CharacterPanelSkeleton label="Loading personal jobs" />
       <CharacterPanelSkeleton rows={1} label="Loading corporation jobs" />
     </div>
-
   );
 }
 
@@ -88,10 +84,7 @@ export default function JobsPage() {
         <Suspense fallback={<JobsLoading />}>
           <JobsContent />
         </Suspense>
-
       </div>
-
     </PageShell>
-
   );
 }

@@ -103,7 +103,6 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
       assigner,
     );
     const departed = reconcileChain(first.state, snapshot([A, C]), NO_DRAG, assigner);
-
     reconcileChain(departed.state, snapshot([A, C, B]), NO_DRAG, assigner);
     expect(consultations[2]).toEqual([A, C, B]);
   });
@@ -122,7 +121,6 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
       NO_DRAG,
       assigner,
     );
-
     const second = reconcileChain(
       first.state,
       snapshot(
@@ -136,7 +134,6 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
       NO_DRAG,
       assigner,
     );
-
     reconcileChain(
       second.state,
       snapshot(
@@ -222,7 +219,6 @@ describe('reconcileChain driven by kernel-produced positions', () => {
   });
 
   it('emits exact system-moved intents when a new kernel result repositions a node', async () => {
-
     const before = await compassKernel(factsOf([A, B, C], [[A, B], [B, C]]), PROPORTIONAL);
     const after = await compassKernel(
       factsOf([A, B, C, D], [[A, B], [B, C], [B, D]]),

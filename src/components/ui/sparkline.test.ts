@@ -17,12 +17,10 @@ describe('extent', () => {
 
 describe('paddedDomain', () => {
   it('adds 10% headroom on both ends of a real range', () => {
-
     expect(paddedDomain([0, 50, 100])).toEqual([-10, 110]);
   });
 
   it('gives a flat series a non-degenerate domain', () => {
-
     expect(paddedDomain([50, 50, 50])).toEqual([45, 55]);
   });
 
@@ -45,7 +43,6 @@ describe('nearestIndex', () => {
   });
 
   it('returns the lower index on a tie', () => {
-
     expect(nearestIndex(xs, 15)).toBe(1);
   });
 

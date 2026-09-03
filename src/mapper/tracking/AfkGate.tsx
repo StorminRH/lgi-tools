@@ -70,22 +70,16 @@ export function AfkDialog({ afk }: { readonly afk: AfkGateState }) {
       >
         Still mapping?
       </DialogTitle>
-
       <div className="flex flex-col gap-3 px-4 py-4" data-afk-dialog>
         <DialogDescription className="font-ui text-ui leading-relaxed text-text">
           {afk.paused
             ? 'It looked like you were AFK, so location tracking is paused. Continue to resume.'
             : 'It looks like you might be AFK. Tracking pauses in a few minutes unless you continue.'}
         </DialogDescription>
-
       </div>
-
       <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
         <DialogClose render={<Button variant="primary" size="sm" />}>Continue</DialogClose>
-
       </footer>
-
     </Dialog>
-
   );
 }

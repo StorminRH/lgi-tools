@@ -63,7 +63,6 @@ export async function getMarketHistoryInputs(
   'use cache';
   cacheLife('hours');
   for (const id of typeIds) cacheTag(historyTag(id));
-
   const stored = await withColdStartRetry(() => getStoredHistory(typeIds));
   const out: MarketHistoryInputs[] = [];
   for (const id of typeIds) {

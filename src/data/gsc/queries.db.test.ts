@@ -100,7 +100,6 @@ const cases: QueryCase[] = [
     name: 'getLastSyncedAt',
     run: () => getLastSyncedAt(),
     check: (r) => {
-
       expect(r).toBeInstanceOf(Date);
       expect((r as Date).getTime()).toBe(SYNCED_AT.getTime());
     },
@@ -222,7 +221,6 @@ describe.skipIf(!harness.reachable)('admin GSC analytics queries execute against
   });
 
   it('getLastSyncedAt returns null when nothing has synced', async () => {
-
     await harness.db.delete(gscSearchAnalytics);
     expect(await getLastSyncedAt()).toBeNull();
   });

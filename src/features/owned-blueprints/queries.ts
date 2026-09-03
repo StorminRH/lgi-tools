@@ -14,7 +14,6 @@ async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintMapInput
   'use cache';
   cacheLife('hours');
   cacheTag(ownedBlueprintsTag(owner));
-
   const rows = await db
     .select({
       typeId: ownedBlueprints.typeId,

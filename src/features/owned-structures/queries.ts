@@ -86,7 +86,6 @@ export async function saveCorpStructures(
   rows: ParsedCorpStructure[],
   etags: string[],
 ): Promise<void> {
-
   if (!(await isCorpStructureSharingEnabled(corporationId))) return;
   const now = new Date();
   const securityByStructure = await deriveSecurityClasses(rows);

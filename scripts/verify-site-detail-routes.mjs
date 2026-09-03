@@ -110,7 +110,6 @@ try {
         await page.screenshot({ path: file, fullPage: true });
         failureArtifacts.push(rel(file));
       } catch {
-
       }
     }
 

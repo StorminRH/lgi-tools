@@ -4,7 +4,6 @@ export type EntryStatus = 'done' | 'training' | 'pending' | 'paused';
 
 export interface EntryProgress {
   status: EntryStatus;
-
   pct: number;
 }
 
@@ -24,7 +23,6 @@ export function entryProgress(entry: SkillQueueEntry, now: number): EntryProgres
   const start = entry.start_date !== undefined ? Date.parse(entry.start_date) : null;
   const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;
   if (start === null || finish === null || !Number.isFinite(start) || !Number.isFinite(finish)) {
-
     return { status: 'paused', pct: spPct(entry, 0) ?? 0 };
   }
   if (finish <= now) return { status: 'done', pct: 100 };
@@ -38,9 +36,7 @@ export function entryProgress(entry: SkillQueueEntry, now: number): EntryProgres
 
 export interface QueueSummary {
   kind: 'empty' | 'paused' | 'active' | 'complete';
-
   doneCount: number;
-
   finishesAt: number | null;
 }
 
@@ -65,7 +61,6 @@ export function summarizeQueue(entries: SkillQueueEntry[], now: number): QueueSu
 }
 
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
-
 export function romanLevel(level: number): string {
   return ROMAN[level] ?? String(level);
 }
@@ -85,10 +80,8 @@ export function currentTraining(entries: SkillQueueEntry[], now: number): Curren
     if (status === 'paused') {
       return { kind: 'paused', skillId: entry.skill_id, level: entry.finished_level, pct };
     }
-
     const finishesAt = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : NaN;
     return { kind: 'training', skillId: entry.skill_id, level: entry.finished_level, pct, finishesAt };
   }
-
   return { kind: 'complete' };
 }

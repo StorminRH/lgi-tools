@@ -97,9 +97,7 @@ export function connectionLifecycleActions(input: {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;
   readonly authoring: ConnectionAuthoringApi;
-
   readonly onDone: () => void;
-
   readonly stub?: {
     readonly systemId: number;
     readonly signatureId: string;

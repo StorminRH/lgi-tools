@@ -43,7 +43,6 @@ export const MapWindowLeader = forwardRef<MapWindowLeaderHandle>(
           visibility="hidden"
         />
       </svg>
-
     );
   },
 );

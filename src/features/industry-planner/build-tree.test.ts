@@ -59,9 +59,7 @@ describe('toBuildTree', () => {
   it('multiplies quantities down by each parent run, on the marginal basis', () => {
     const root = build().buildTree[0]!;
     const byId = new Map(root.inputs.map((n) => [n.typeId, n]));
-
     expect(byId.get(2)!.inputs[0]!.quantity).toBe(300);
-
     expect(byId.get(3)!.inputs[0]!.quantity).toBe(2);
   });
 

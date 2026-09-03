@@ -344,7 +344,6 @@ describe('queued-job capability recording', () => {
   });
 
   it('records a final-attempt failure at the declared attempt ceiling', async () => {
-
     mocks.claim.mockResolvedValue([job(1, 'skills', 4)]);
     mocks.runSkills.mockResolvedValue({ kind: 'failed_retryable', code: 'timeout' });
 
@@ -384,7 +383,6 @@ describe('queued-job capability recording', () => {
   });
 
   it('records a thrown job before the drain swallows it', async () => {
-
     mocks.claim.mockResolvedValue([job(1, 'skills')]);
     mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
     mocks.markSucceeded.mockRejectedValueOnce(new Error('neon unavailable'));

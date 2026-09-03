@@ -3,16 +3,13 @@ import { pairKey } from '../lib/pair-key';
 export const PILOT_PATH_MAX_JUMPS = 15;
 
 export interface PilotPathInput {
-
   readonly drawnSystemIds: ReadonlySet<number>;
   readonly pilotSystemId: number;
-
   readonly neighbours: (id: number) => readonly number[];
 }
 
 interface PathScan {
   readonly seen: Set<number>;
-
   readonly cameFrom: Map<number, number>;
 }
 
@@ -47,11 +44,9 @@ function reconstructPath(
   pilotSystemId: number,
 ): readonly number[] {
   const path = [pilotSystemId];
-
   let cursor = scan.cameFrom.get(pilotSystemId)!;
   while (!drawnSystemIds.has(cursor)) {
     path.push(cursor);
-
     cursor = scan.cameFrom.get(cursor)!;
   }
   path.push(cursor);
@@ -72,24 +67,19 @@ export function derivePilotPath(input: PilotPathInput): readonly number[] | null
 }
 
 export interface OutboundArrow {
-
   readonly towardSystemId: number;
-
   readonly live: boolean;
 }
 
 export interface ArrowPilotSystem {
   readonly systemId: number;
-
   readonly live: boolean;
 }
 
 export interface OutboundArrowInput {
-
   readonly pilotSystems: readonly ArrowPilotSystem[];
   readonly drawnSystemIds: ReadonlySet<number>;
   readonly neighbours: (id: number) => readonly number[];
-
   readonly edgeIdOfPair: (a: number, b: number) => string | null;
 }
 
@@ -137,7 +127,6 @@ export function deriveOutboundArrows(
     const path = reconstructPath(scan, input.drawnSystemIds, pilotSystemId);
     const mount = mountFor(path, input.edgeIdOfPair);
     if (mount === null) continue;
-
     const live = offMapLive.get(pilotSystemId)!;
     const existing = arrows.get(mount.edgeId);
     if (existing === undefined) {
@@ -170,7 +159,6 @@ export function edgeIdOfPairIndex(
   for (const edge of edges) {
     const source = Number(edge.source);
     const target = Number(edge.target);
-
     if (!Number.isFinite(source) || !Number.isFinite(target)) continue;
     const key = pairKey(source, target);
     if (!byPair.has(key)) byPair.set(key, edge.id);

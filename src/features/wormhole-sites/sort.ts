@@ -12,7 +12,6 @@ const SORTABLE_KEYS = [
 ] as const;
 
 export type SortableKey = (typeof SORTABLE_KEYS)[number];
-
 export type SortDir = 'asc' | 'desc';
 
 const TYPE_ORDER: Record<SiteDetail['siteType'], number> = {
@@ -54,7 +53,6 @@ function valueFor(s: SiteDetail, key: SortableKey): string | number | null {
     case 'scrams':   return siteScramTotal(s);
     case 'class': {
       if (s.wormholeClass) return CLASS_ORDER[s.wormholeClass];
-
       if (s.siteType === 'gas') {
         const range = gasClassRange(s.name);
         if (range) return CLASS_ORDER[range.min];

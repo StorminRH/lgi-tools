@@ -113,14 +113,12 @@ export async function readEsiPagedAuthed(
   heldEtags: string[],
   rl?: RlSnapshot,
 ): Promise<EsiPagedRead> {
-
   const first = await fetchPage(basePath, 1, heldEtags[0] ?? null, accessToken, rl);
   if (first.kind === 'error') return first;
   const pageCount = Math.max(1, first.xPages);
 
   if (pageCount === 1) {
     if (first.kind === 'unchanged') {
-
       if (heldEtags.length === 1) return { kind: 'unchanged', expiresAt: first.expiresAt };
       return finalizeFresh([await fetchPage(basePath, 1, null, accessToken, rl)]);
     }
@@ -142,7 +140,6 @@ function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
   let allEtags = true;
   for (const page of pages) {
     if (page.kind === 'error') return page;
-
     if (page.kind === 'unchanged') return { kind: 'error', code: 'esi_unexpected_not_modified' };
     if (!Array.isArray(page.body)) return { kind: 'error', code: 'contract_error' };
     items.push(...page.body);

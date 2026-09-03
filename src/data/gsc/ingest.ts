@@ -256,7 +256,6 @@ async function syncSearchAnalytics(
   syncedAt: Date,
 ): Promise<SurfaceResult> {
   try {
-
     const perPull = await Promise.all(
       SEARCH_PULLS.map(async (pull) =>
         searchRowsToRecords(

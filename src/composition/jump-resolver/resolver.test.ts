@@ -92,7 +92,6 @@ function transitionEvidence(
     },
     lastProcessedTransitionAt: null,
     originLive: true,
-
     scannedTypeCodes: (input.candidates ?? [])
       .map((candidate) => candidate.wormholeTypeCode)
       .filter((code): code is string => code !== null),
@@ -191,7 +190,6 @@ describe('jump resolver composition', () => {
   });
 
   it('authors a J-space crossing with the seeded ship mass', async () => {
-
     h.authorJump.mockResolvedValueOnce({
       status: 'authored',
       emission: {
@@ -277,7 +275,6 @@ describe('jump resolver composition', () => {
       }),
     );
     h.readSystemStaticsForSystem.mockResolvedValueOnce([]);
-
     h.authorJump.mockResolvedValueOnce({
       status: 'authored',
       emission: { ...emission, destinationProvenance: 'assumed' },
@@ -288,7 +285,6 @@ describe('jump resolver composition', () => {
       { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
       dependencies,
     );
-
     expect(h.insertWhObservation).toHaveBeenCalledTimes(1);
     expect(h.insertWhObservation).toHaveBeenCalledWith(
       database,
@@ -404,12 +400,10 @@ describe('jump resolver composition', () => {
       emitted: false,
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
-
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
   });
 
   it('emission follows the stored provenance of a converged pair, never the matcher verdict', async () => {
-
     h.readTransitionEvidence.mockResolvedValueOnce(
       transitionEvidence({
         candidates: [{ id: 'connection-9', wormholeTypeCode: 'C247', sizeClass: 'L' }],

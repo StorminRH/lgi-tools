@@ -16,7 +16,6 @@ import { apiFetch } from '@/transport/api-client';
 export function HomeRosterPanel({ demo }: { demo?: RosterViewModel[] }) {
   return (
     <RosterFrame>{demo !== undefined ? <RosterList items={demo} /> : <LiveRoster />}</RosterFrame>
-
   );
 }
 
@@ -24,14 +23,11 @@ function RosterFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3 pt-2">
       <SectionLabel>Your characters</SectionLabel>
-
       {children}
       <div>
         <LinkCharacterButton label="Add character" callbackURL="/" />
       </div>
-
     </div>
-
   );
 }
 
@@ -42,19 +38,16 @@ function RosterList({
   items: RosterViewModel[];
   reconnectAction?: ReactNode;
 }) {
-
   return (
     <div className="grid max-w-[760px] grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-x-5 gap-y-4">
       {items.map((vm) => (
         <RosterCard key={vm.characterId} vm={vm} reconnectAction={reconnectAction} />
       ))}
     </div>
-
   );
 }
 
 function LiveRoster() {
-
   const [state, setState] = useState<{ characters: PanelCharacter[] } | 'loading' | 'error'>(
     'loading',
   );
@@ -81,7 +74,6 @@ function LiveRoster() {
       <Banner tone="warn">
         Could not load your characters — reload the page to try again.
       </Banner>
-
     );
   }
   if (state.characters.length === 0) {
@@ -89,7 +81,6 @@ function LiveRoster() {
       <EmptyState>
         No characters linked yet — add one below to see its skill queue here.
       </EmptyState>
-
     );
   }
   return <LiveRosterCards characters={state.characters} />;

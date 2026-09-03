@@ -11,7 +11,6 @@ import {
 } from './eve-sso';
 
 describe('EVE_SCOPES', () => {
-
   it('matches the verified least-privilege EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
       'publicData',
@@ -33,7 +32,6 @@ describe('EVE_SCOPES', () => {
   });
 
   it('requests ZERO write scope (read-only by construction)', () => {
-
     for (const scope of EVE_SCOPES) {
       const readOnly =
         scope === 'publicData' ||
@@ -147,7 +145,6 @@ describe('exchangeCodeForToken outbound headers', () => {
   });
 
   it('rejects a token envelope missing access_token at the boundary', async () => {
-
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ token_type: 'Bearer', expires_in: 1199 }), {
         status: 200,
@@ -206,7 +203,6 @@ describe('refreshEveToken', () => {
     const [, init] = fetchSpy.mock.calls[0];
     expect(new Headers(init?.headers).get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
     expect(init?.signal).toBeInstanceOf(AbortSignal);
-
     expect(init?.body).toContain('grant_type=refresh_token');
     expect(init?.body).toContain('refresh_token=a%2Bb%2Fc');
   });

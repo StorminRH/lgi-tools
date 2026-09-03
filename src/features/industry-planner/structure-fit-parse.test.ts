@@ -22,11 +22,11 @@ Standup L-Set Structure Manufacturing Efficiency I
 Standup Manufacturing Plant I
 Standup Research Lab I
 
+
 Standup Equite II x6`;
 
 describe('parseStructureFit', () => {
   it('extracts the structure and only the rig from a full fit', () => {
-
     expect(parseStructureFit(AZBEL_FIT, resolve)).toEqual({
       structureTypeId: 35826,
       rigTypeIds: [43720],
