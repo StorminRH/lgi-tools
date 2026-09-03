@@ -1,9 +1,3 @@
-// POST /api/eve/names
-// Bulk entity-id → name resolution for characters + corporations (3.7.3.4),
-// resolved through the one ESI gate's /universe/names. The merged active-jobs
-// board resolves installer + corporation names here at view time, so entity
-// names never live in Convex. Per-request by nature (client-posted ids).
-// authz: public
 import {
   entityNamesEndpoint,
   entityNamesRequestSchema,
@@ -13,10 +7,6 @@ import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * Handles POST requests for /api/eve/names; this route owns its authorization, boundary
- * validation, and typed response mapping.
- */
 export const POST = capabilityRoute('planner.resolve-entity-names', handlePost);
 
 async function handlePost(req: Request): Promise<Response> {

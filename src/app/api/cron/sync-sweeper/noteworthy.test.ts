@@ -2,9 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { CronSyncSweeperResponse } from '@/data/convex/api-contract';
 import { isNoteworthySweep } from './noteworthy';
 
-// A healthy 15-min sweep is a no-op and must NOT write a durable row (that
-// INSERT is the sole idle Neon compute-waker); only a re-arm (dispatched > 0)
-// or a failure earns the row.
 function summary(over: Partial<CronSyncSweeperResponse>): CronSyncSweeperResponse {
   return { status: 'swept', dispatched: 0, retired: 0, deleted: 0, durationMs: 1, ...over };
 }

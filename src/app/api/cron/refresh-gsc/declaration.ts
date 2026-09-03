@@ -29,11 +29,6 @@ import {
 import { pruneExpiredVerifications } from '@/platform/auth/verification-retention';
 import { swallow } from '@/transport/cron';
 
-/**
- * Declares the daily GSC sync and its piggybacked retention sweep as one
- * lock-guarded batch. Each prune is isolated and runs before upstream work so
- * an external outage cannot suspend unrelated retention policies.
- */
 export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse> = {
   name: 'cron:gsc',
   action: 'cron_gsc',

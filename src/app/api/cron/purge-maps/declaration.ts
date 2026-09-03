@@ -3,7 +3,6 @@ import { purgeEligibleMaps } from '@/composition/map-purge';
 import { ADVISORY_LOCK_MAP_PURGE } from '@/data/maps/lifecycle';
 import type { CronPurgeMapsResponse } from '@/data/maps/api-contract';
 
-/** Declares the locked daily cross-store map purge and durable tombstone sweep. */
 export const purgeMapsDeclaration: CronRouteDeclaration<CronPurgeMapsResponse> = {
   name: 'cron:purge-maps',
   action: 'cron_map_purge',

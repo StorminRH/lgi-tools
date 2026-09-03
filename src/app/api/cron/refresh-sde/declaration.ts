@@ -20,11 +20,6 @@ export type SdePreLock = {
   remoteVersion: string | null;
 };
 
-/**
- * Declares the daily SDE refresh with its version check before lock
- * reservation, so up-to-date and manifest-unreachable runs do not pin a
- * connection while every daily outcome remains durable.
- */
 export const refreshSdeDeclaration: CronRouteDeclaration<
   CronRefreshSdeResponse,
   SdePreLock
@@ -63,8 +58,6 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
       };
     }
 
-    // A known local version plus an unreachable manifest is not actionable;
-    // avoid both the lock and a doomed pipeline download until the next tick.
     if (storedVersion !== null && remoteVersion === null) {
       return {
         done: {
@@ -86,8 +79,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
     if (remoteVersion) {
       await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
     }
-    // Re-ingest rebuilds blueprint trees and flat materials without a deploy,
-    // so the planner/search cache needs an explicit post-refresh invalidation.
+
     revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
 

@@ -6,11 +6,6 @@ import {
 } from '@/data/telemetry/capability';
 import { withCorrelationScope } from '@/transport/correlation';
 
-/**
- * Wraps one route handler as a named capability, producing the handler a route exports directly.
- * The direct mutation routes and POST-bodied tool reads that deliberately sit outside the mutation
- * shell use this; `runMutationRoute` wraps its own stage ordering in `runCapabilityRoute` below.
- */
 export function capabilityRoute<TRequest extends Request>(
   capability: CapabilityId,
   handler: (request: TRequest) => Promise<Response>,
@@ -18,13 +13,6 @@ export function capabilityRoute<TRequest extends Request>(
   return (request) => runCapabilityRoute(capability, () => handler(request));
 }
 
-/**
- * Runs one route's work as a named capability: opens the correlation scope the response builders
- * and dependency seams write into, times the run, and records exactly one outcome on the way out.
- *
- * The record is scheduled after the response, so this never extends what the user waits for, and a
- * thrown handler is recorded before the error is rethrown so the platform response is unchanged.
- */
 export function runCapabilityRoute(
   capability: CapabilityId,
   work: () => Promise<Response>,

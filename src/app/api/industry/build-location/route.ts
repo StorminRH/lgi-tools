@@ -8,16 +8,6 @@ import { getBuildLocation } from '@/features/industry-planner/queries';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST /api/industry/build-location
- * Body: \{ systemId, blueprintId \}
- *
- * Per-pick build-location read for the planner's net-margin path: the system's
- * industry-capable NPC stations + its cost indices + the CCP adjusted prices for
- * the blueprint's direct base materials (the EIV basis). All internal indexed DB
- * reads, no external calls — fetched only when the user picks a build system.
- */
-// authz: public
 export const POST = capabilityRoute('planner.resolve-build-location', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

@@ -1,10 +1,3 @@
-// Deterministic repository sweeps closing the two gaps ESLint's selectors leave
-// open on first-party transport: a same-origin URL assembled in a template
-// literal, and a response body asserted into a type instead of validated.
-//
-// These live as tests rather than lint rules because they must cover `src/` and
-// `convex/` in one place; extending the ESLint overrides into the Convex tree
-// would duplicate the same ban in two grammars.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,27 +8,10 @@ const SRC_DIR = join(API_DIR, '..', '..');
 const REPO_ROOT = join(SRC_DIR, '..');
 const CONVEX_DIR = join(REPO_ROOT, 'convex');
 
-/**
- * A first-party URL built inside a template literal. Both executors fetch a
- * variable (`endpoint.path`, `baseUrl + endpoint.path`), never an interpolated
- * `/api/` string, so the live tree passes with no allowlist and any future
- * match is a genuine contract bypass.
- */
 const TEMPLATE_FETCH_RE = /\b(?:fetch|fetchWithTimeout)\s*\(\s*`[^`]*\/api\//g;
 
-/**
- * A response body asserted into a type. Bare `as unknown` is the sanctioned
- * widening idiom and is excluded because it claims nothing about the shape —
- * but only when nothing follows it, so the `as unknown as T` double assertion
- * (the obvious way around a ban on `as T`) is still rejected.
- */
 const RESPONSE_ASSERTION_RE = /\.json\(\)\s*\)?\s+as\s+(?!unknown\s*(?:[;,)\]]|$))/gm;
 
-/**
- * External, untrusted upstreams whose bodies still require a direct assertion:
- * the station-name resolver and Google Search Console. Pinned by
- * exact path and count so the list cannot grow silently.
- */
 const RESPONSE_ASSERTION_ALLOWLIST = [
   'src/data/eve-data/station-names.ts',
   'src/data/gsc/source.ts',

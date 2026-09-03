@@ -17,12 +17,6 @@ import { refreshIndustryIndicesDeclaration } from './declaration';
  */
 export const maxDuration = 60;
 
-/**
- * Runs the declared industry-index batch; accepts only cron bearer auth and
- * consumes no body or query parameters.
- */
-// authz: cron
-// input: none
 export const GET = defineCronRoute<CronRefreshIndustryIndicesResponse>(
   refreshIndustryIndicesDeclaration,
 );

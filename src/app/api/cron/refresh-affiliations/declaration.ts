@@ -6,10 +6,6 @@ import {
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 
-/**
- * Declares the nightly stale-affiliation backstop as a lock-guarded batch job;
- * daily cadence intentionally records busy, empty, and refreshed runs.
- */
 export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAffiliationsResponse> = {
   name: 'cron:affiliations',
   action: 'cron_affiliations',
@@ -24,8 +20,7 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
     busyBody: () => ({ status: 'busy' }),
   },
   work: async () => {
-    // The lock stays on the shell's reserved connection; enumeration, ESI, and
-    // upserts use their owning clients without holding a transaction open.
+
     const staleIds = await listStaleLinkedCharacterIds();
     const refreshed = await refreshAffiliations(staleIds);
 

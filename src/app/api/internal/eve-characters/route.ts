@@ -1,12 +1,3 @@
-// POST /api/internal/eve-characters
-// Internal service endpoint (3.4.7). A Convex action authenticates with the
-// shared CONVEX_SERVICE_SECRET bearer and asks which EVE characters are linked
-// to one user, plus each character's scope health. This is the sync flow's
-// ownership boundary: the action only ever acts on the characters returned
-// here for the userId it authenticated via the spine's JWT — no client-posted
-// character id carries authority. The response holds no token material.
-// authz: service
-// rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import { after } from 'next/server';
 import { refreshAffiliations } from '@/platform/auth/affiliation';
 import {
@@ -22,10 +13,6 @@ import { readJsonBody } from '@/transport/route-body';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
-/**
- * Handles POST requests for /api/internal/eve-characters; this route owns its authorization,
- * boundary validation, and typed response mapping.
- */
 export async function POST(req: Request): Promise<Response> {
   const auth = await checkBearerSecret(req, 'CONVEX_SERVICE_SECRET');
   if (!auth.ok) return apiResponse(eveCharactersEndpoint, auth.failure.code === 'not_configured' ? 500 : 401, auth.failure);
@@ -33,16 +20,8 @@ export async function POST(req: Request): Promise<Response> {
   const parsed = await readJsonBody(req, eveCharactersRequestSchema);
   if (!parsed.ok) return apiResponse(eveCharactersEndpoint, 400, parsed.failure);
 
-  // An unknown userId simply has no linked characters — same response shape,
-  // empty list; the caller's sync writes nothing.
   const linked = await listLinkedCharacters(parsed.data.userId);
 
-  // On-view affiliation refresh (3.7.3.2). This enumeration boundary runs whenever
-  // a live surface (incl. the corp sync) is active, so it doubles as the on-view
-  // trigger: refresh any character whose cached corp is stale, behind the response
-  // (write-behind, zero added latency) so the NEXT run reads fresh corp ids. The
-  // current response still carries the cached corp id (≤1h stale is accepted), and
-  // the stale gate makes this a no-op (no ESI) when affiliations are fresh.
   const now = new Date();
   const staleIds = linked
     .filter((character) =>

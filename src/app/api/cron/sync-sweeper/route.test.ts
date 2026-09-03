@@ -79,7 +79,7 @@ describe('GET /api/cron/sync-sweeper', () => {
     expect(body.status).toBe('failed');
     expect(body.reason).toBe('unrecognized_convex_url');
     expect(h.fetchMock).not.toHaveBeenCalled();
-    // A failure is noteworthy — the durable telemetry row is written.
+
     expect(h.logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_sync_sweeper',
       metadata: expect.objectContaining({ status: 'failed', reason: 'unrecognized_convex_url' }),
@@ -106,8 +106,7 @@ describe('GET /api/cron/sync-sweeper', () => {
   });
 
   it('fails when the sweep response drifts from its declared counts', async () => {
-    // Old behavior: the asserted cast let a drifted body become the telemetry
-    // counts. The response is now validated at this service boundary.
+
     h.fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -155,7 +154,7 @@ describe('GET /api/cron/sync-sweeper', () => {
       method: 'POST',
       headers: { authorization: 'Bearer svc-secret' },
     });
-    // A healthy no-op sweep is NOT noteworthy — no durable telemetry row.
+
     expect(h.reserveMock).not.toHaveBeenCalled();
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();

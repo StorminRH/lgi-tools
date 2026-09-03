@@ -26,7 +26,6 @@ import { readJsonBody } from '@/transport/route-body';
 
 const FEEDBACK_LIMIT_PER_MINUTE = 5;
 
-// authz: public
 export const POST = capabilityRoute('feedback.submit-feedback', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

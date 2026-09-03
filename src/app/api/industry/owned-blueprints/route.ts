@@ -10,19 +10,6 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST /api/industry/owned-blueprints
- * Body: \{ blueprintTypeIds \} — the blueprints in the planned build.
- *
- * Per-pick owned-blueprint read for the planner's cost overlay + orb popover: the
- * caller's effective ME (best owned copy) for each requested blueprint they own,
- * plus that copy's TE / owner / location as readout detail (resolved server-side
- * in one bounded pass). Scoped to the authenticated caller's own owners (the user
- * id comes from the session, never the body); an anonymous caller gets an empty
- * set, so the client applies ME0 (the gross path). Returns only the OWNED
- * blueprints among those requested — an unowned one is simply absent.
- */
-// authz: auth
 export const POST = capabilityRoute('planner.read-owned-blueprints', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
