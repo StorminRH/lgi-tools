@@ -11,31 +11,7 @@ import {
 } from './eve-sso';
 
 describe('EVE_SCOPES', () => {
-  // The regression guard for the requested-scope set — and, by extension, for
-  // what every sign-in/relink re-consents to and persists (Better Auth forwards
-  // these to the authorize request and the token exchange; see the getToken site
-  // in auth.ts). EVE rejects an unknown scope with `invalid_scope`, which breaks
-  // ALL sign-in (a wrong name shipped in 3.4.1a and did exactly that).
-  //
-  // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE; 3.7.3.1 (the first corp
-  // feature) added the two corp reads, taking it to six; 3.7.5.1 added the two
-  // blueprint reads (owned-blueprints dataset), taking it to eight; 3.7.7.1
-  // added the two asset reads (owned-assets dataset), taking it to ten; MIGRATE.A
-  // re-admitted the online-status read (esi-location.read_online.v1, pruned in
-  // 3.7.1.1) for the live online-status canary, taking it to eleven; 3.7.9 added
-  // the corp owned-structures read (esi-corporations.read_structures.v1) for the
-  // planner's build-location catalogue, taking it to twelve; 4.0.4.2.1 re-admitted
-  // the location and ship-type reads (also pruned in 3.7.1.1) for tracked-location
-  // sync, taking it to fourteen; 4.0.4.4.1 added the authenticated ESI search
-  // scope for character typeahead, taking it to fifteen. Naming trap still worth
-  // pinning: the skill-queue
-  // read lives under `esi-skills`, NOT `esi-skillqueue`. (`read_attributes` does
-  // not exist; /attributes is gated by `read_skills`.) The corp roles read lives
-  // under `esi-characters`, NOT `esi-corporations` — but the corp BLUEPRINTS and
-  // corp STRUCTURES reads live under `esi-corporations`, while BOTH asset reads
-  // live under `esi-assets` (the corp one is `read_corporation_assets`). The ship
-  // read is `read_ship_type`, not `read_ship`. Adding a scope is a deliberate,
-  // batched decision — verify the exact live name before touching this list.
+
   it('matches the verified least-privilege EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
       'publicData',
@@ -57,9 +33,7 @@ describe('EVE_SCOPES', () => {
   });
 
   it('requests ZERO write scope (read-only by construction)', () => {
-    // Least-privilege: every scope is `publicData` or a `.read_` scope — never a
-    // `manage_`/`write_` capability. Catches a write scope slipping in (the kind
-    // that grants mutate-the-character access we never need).
+
     for (const scope of EVE_SCOPES) {
       const readOnly =
         scope === 'publicData' ||
@@ -173,9 +147,7 @@ describe('exchangeCodeForToken outbound headers', () => {
   });
 
   it('rejects a token envelope missing access_token at the boundary', async () => {
-    // 200 OK but no access_token — the boundary schema rejects it, throwing
-    // the same way an HTTP error does; the callback maps that to the
-    // token_exchange_failed auth-error redirect.
+
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ token_type: 'Bearer', expires_in: 1199 }), {
         status: 200,
@@ -234,7 +206,7 @@ describe('refreshEveToken', () => {
     const [, init] = fetchSpy.mock.calls[0];
     expect(new Headers(init?.headers).get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
     expect(init?.signal).toBeInstanceOf(AbortSignal);
-    // grant + url-encoded refresh token both ride the body.
+
     expect(init?.body).toContain('grant_type=refresh_token');
     expect(init?.body).toContain('refresh_token=a%2Bb%2Fc');
   });
@@ -350,7 +322,7 @@ describe('revokeEveRefreshToken', () => {
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe(EVE_REVOKE_URL);
     // RFC 7009 body: `token` + `token_type_hint` — NOT the token endpoint's
-    // `grant_type`/`refresh_token` keys.
+
     expect(init?.body).toContain('token=a%2Bb%2Fc');
     expect(init?.body).toContain('token_type_hint=refresh_token');
     expect(init?.body).not.toContain('grant_type');

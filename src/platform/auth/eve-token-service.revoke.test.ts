@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Chainable thenable for the single loadAccountRow read (the owner-transfer test
-// pattern). revokeCharacterToken's collaborators are mocked so these prove its
-// BEST-EFFORT contract (it never throws) and its read → decrypt → revoke wiring.
 const { chain, state } = vi.hoisted(() => {
   const state = { results: [] as unknown[] };
   const chain: Record<string, unknown> = {
@@ -61,7 +58,7 @@ describe('revokeCharacterToken', () => {
   });
 
   it('skips the revoke when there is no account row (nothing to revoke)', async () => {
-    state.results = [[]]; // loadAccountRow → undefined
+    state.results = [[]];
     await revokeCharacterToken(CHAR);
     expect(revokeEveRefreshTokenMock).not.toHaveBeenCalled();
   });

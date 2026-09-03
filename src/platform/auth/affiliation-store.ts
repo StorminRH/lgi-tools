@@ -47,7 +47,6 @@ export async function getUserAffiliations(userId: string): Promise<CachedAffilia
   });
 }
 
-/** One character's cached affiliation (null when the profile row doesn't exist). */
 export async function getCharacterAffiliation(
   characterId: number,
 ): Promise<CachedAffiliation | null> {
@@ -103,12 +102,6 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<void> 
   }
 }
 
-/**
- * Append one corp-access decision to the audit ledger (allow AND deny). Accepts
- * already-typed values (the gate owns the reason vocabulary, so `reason` is a
- * plain string here) and writes only the decision + its subject/corp/provenance —
- * never a token or secret.
- */
 export async function recordCorpAccessDecision(entry: {
   userId: string;
   corporationId: number;
@@ -119,7 +112,6 @@ export async function recordCorpAccessDecision(entry: {
   await db.insert(corpAccessAudit).values(entry);
 }
 
-/** Deletes corporation-access audit rows older than the retention cutoff. */
 export async function pruneCorpAccessAudit(
   database: AnyPgDb,
   retentionDays: number,

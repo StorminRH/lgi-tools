@@ -6,14 +6,13 @@ import {
   INITIAL_CONFIRM_PHASE,
 } from './confirm-gate';
 
-// Drive a sequence of events from the initial phase and return the final phase.
 function run(events: ConfirmEvent[], from: ConfirmPhase = INITIAL_CONFIRM_PHASE): ConfirmPhase {
   return events.reduce(confirmGateReducer, from);
 }
 
 describe('confirmGateReducer', () => {
   it('opens to confirming without running, and only confirm from that phase starts the call', () => {
-    // D-3: a lone `request` must not enter `running` (the destructive-call phase).
+
     expect(run([{ type: 'request' }])).toBe('confirming');
     expect(run([{ type: 'request' }, { type: 'request' }])).toBe('confirming');
     expect(run([{ type: 'request' }, { type: 'confirm' }])).toBe('running');

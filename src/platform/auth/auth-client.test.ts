@@ -56,7 +56,6 @@ describe('authClient OAuth failures', () => {
   });
 });
 
-// better-auth jwt plugin: the real client mints, and the bridge maps failures to null.
 describe('fetchConvexAccessToken', () => {
   beforeEach(() => {
     vi.resetModules();

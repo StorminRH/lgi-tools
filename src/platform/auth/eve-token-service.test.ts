@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Hoisted so the vi.mock factories below can close over them.
 const h = vi.hoisted(() => ({
-  // The first select returns selectRows; a SECOND select (the lost-race re-read)
-  // returns rereadRows when set — lets a single test drive read → write → re-read.
+
   selectRows: [] as Record<string, unknown>[],
   rereadRows: null as Record<string, unknown>[] | null,
   selectCount: 0,
-  // Controls whether a conditional UPDATE "won" (>=1 row) or "lost" (0 rows).
+
   updateReturning: [{ id: 'acc1' }] as { id: string }[],
   updateSpy: vi.fn(),
   refreshEveTokenMock: vi.fn(),
@@ -48,7 +46,6 @@ vi.mock('./eve-sso', async (importOriginal) => {
   return { ...actual, refreshEveToken: h.refreshEveTokenMock };
 });
 
-// Real crypto with a deterministic key, so we can assert ciphertext shape.
 const VALID_KEY = Buffer.alloc(32, 9).toString('base64');
 
 import {
@@ -140,13 +137,13 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'ok',
       accessToken: 'new-access',
     });
-    // Decrypted the stored refresh token before refreshing.
+
     expect(h.refreshEveTokenMock).toHaveBeenCalledWith({
       refreshToken: 'old-refresh',
       clientId: 'client-id',
       clientSecret: 'client-secret',
     });
-    // Persisted both tokens as v1 ciphertext, not plaintext.
+
     const persisted = h.updateSpy.mock.calls[0]![0] as { accessToken: string; refreshToken: string };
     expect(persisted.refreshToken.startsWith('v1:')).toBe(true);
     expect(persisted.accessToken.startsWith('v1:')).toBe(true);
@@ -321,7 +318,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       refresh_token: 'my-refresh',
       expires_in: 1200,
     });
-    h.updateReturning = []; // 0 rows: a concurrent winner already wrote a different token
+    h.updateReturning = [];
     h.rereadRows = [
       {
         id: 'acc1',
@@ -333,7 +330,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     ];
 
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
-    // Reflects the persisted (winner's) token, NOT our own minted one — and never nulls.
+
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
     expect(h.emitDomainEventMock).not.toHaveBeenCalled();
@@ -353,7 +350,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'dead',
       failureClass: 'invalid_grant',
     });
-    h.updateReturning = []; // 0 rows: a concurrent winner rotated before our strike landed
+    h.updateReturning = [];
     h.rereadRows = [
       {
         id: 'acc1',
@@ -483,7 +480,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     ];
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
-    // The class event and race signal both fire; the re-read just found no token.
+
     expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
   });
 
@@ -503,19 +500,17 @@ describe('getFreshAccessTokenForCharacter', () => {
       refresh_token: 'my-refresh',
       expires_in: 1200,
     });
-    h.updateReturning = []; // 0 rows: lost the success write
+    h.updateReturning = [];
     h.rereadRows = [
       {
         id: 'acc1',
         accessToken: encryptToken('winner-access'),
         refreshToken: encryptToken('winner-refresh'),
-        accessTokenExpiresAt: past(), // stored token is already expired
+        accessTokenExpiresAt: past(),
         scope: null,
       },
     ];
 
-    // Reflecting a token inside the refresh skew would hand back one ESI rejects —
-    // fall through to reauth_required instead, consistent with the main vend path.
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
   });
 
