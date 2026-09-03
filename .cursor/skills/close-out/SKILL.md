@@ -26,7 +26,8 @@ is green on that run. Done when the list exists and step 1 is in progress.
    lines are named and, when the destination is `main`, the changelog
    is on the head. Onto `main`, set `APP_VERSION` in
    `src/config/app-version.ts` to the latest lifecycle identity already
-   on the head.    Write the public changelog from the as-builts in
+   on the head.
+   Write the public changelog from the as-builts in
    `<head>...main` per `docs/workflows/schema/changelog-entry.md`. The
    overview is the as-built Delivered paragraphs, invoked through
    `unslop`. The bullets are those records' `Added:` / `Changed:` /
