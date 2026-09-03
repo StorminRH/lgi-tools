@@ -1,12 +1,5 @@
 'use client';
 
-// Canvas panel: development-only layout/motion dial group. User-facing map
-// lock / camera follow / click focus live in page-settings (portrait menu).
-//
-// Controlled and domain-stateless — commit handlers apply `map-controls-model`
-// clamping so invalid configs cannot leave the panel. Composed from existing
-// `@/components/ui` primitives inside a React Flow `Panel`. Renders nothing
-// outside development so production never shows an empty frosted shell.
 import { Panel } from '@xyflow/react';
 import { memo, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
@@ -71,7 +64,6 @@ import {
   directionPresetOf,
 } from './map-controls-model';
 
-/** Controlled props for the development-only layout/motion/halo/fog dials. */
 export interface MapControlsProps {
   readonly config: LayoutConfig;
   readonly onConfigChange: (config: LayoutConfig) => void;
@@ -83,12 +75,6 @@ export interface MapControlsProps {
   readonly onFogChange: (fog: FogConfig) => void;
 }
 
-/**
- * Development-only layout, motion, halo, and fog dials for the live chain
- * surface — the G-1 tuning seam; the chosen halo/fog values pin as constants.
- *
- * Must mount inside `<ReactFlow>` (via `ChainSurface`'s children slot).
- */
 function MapControlsComponent({
   config,
   onConfigChange,
@@ -108,7 +94,6 @@ function MapControlsComponent({
       data-map-dev-dials
       position="bottom-right"
       className={cn(
-        // The mapper chrome's bottom-right chip rail owns this development-only slot.
         'nopan nodrag nowheel mb-2! ml-2! mr-64! mt-2! flex max-h-[calc(100dvh-2rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
         mapFrostedSurface,
       )}
@@ -401,7 +386,6 @@ function MapControlsComponent({
   );
 }
 
-/** The shared collapsible-group header row (label + chevron). */
 function DialGroupHeader({ label }: { readonly label: string }) {
   return (
     <span className="flex w-full items-center gap-2">
@@ -416,10 +400,6 @@ function DialGroupHeader({ label }: { readonly label: string }) {
   );
 }
 
-/**
- * Memoized (drag hardening, IS-5): the panel's props are identity-stable
- * across a drag's per-frame renders, so the whole dial tree skips them.
- */
 export const MapControls = memo(MapControlsComponent);
 
 function DialRow({

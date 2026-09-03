@@ -74,8 +74,6 @@ vi.mock('../tracking/TrackingControls', () => ({
   useSetMapTracking: () => vi.fn(),
 }));
 
-// The presence host subscribes through the Convex client; these markup tests
-// run without one, so the provider degrades to a pass-through here.
 vi.mock('../tracking/PresenceProvider', () => ({
   MapPresenceProvider: ({ children }: { children?: unknown }) => children,
 }));
@@ -112,13 +110,9 @@ vi.mock('@xyflow/react', async () => {
     Position: { Left: 'left', Right: 'right' },
     Panel: ({ children }: { children?: unknown }) =>
       element('div', { 'data-react-flow-panel': '' }, children as never),
-    // FogLayer (OW4) mounts through the viewport portal and registers a
-    // gesture-settle callback; the static render needs both present.
     ViewportPortal: ({ children }: { children?: unknown }) =>
       element('div', { 'data-viewport-portal': '' }, children as never),
     useOnViewportChange: () => undefined,
-    // Camera follow now fits via getViewportForBounds + setViewport (fitBounds
-    // ignores option maxZoom). Keep the mock surface aligned with that path.
     getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
     useReactFlow: () => ({
       fitView: vi.fn(async () => true),
@@ -154,7 +148,6 @@ async function renderHost(): Promise<string> {
   return renderToStaticMarkup(createElement(ChainHost, { mapId: 'map-a' }));
 }
 
-/** Points the mocked hook at one live access state. */
 function withAccess(
   access: boolean | undefined,
   canEdit: boolean | undefined = access === true,
@@ -198,7 +191,6 @@ function resetHostMocks(): void {
   withAccess(true);
 }
 
-/** The props the host handed the flow surface, for driving its callbacks directly. */
 function surfaceProps(): Record<string, (...args: never[]) => void> {
   return mocks.reactFlow.mock.calls[0]?.[0] as Record<string, (...args: never[]) => void>;
 }
@@ -218,11 +210,6 @@ function stubNode(connectionId: string, x: number, y: number) {
 describe('chain host auth gate', () => {
   beforeEach(resetHostMocks);
 
-  // The regression this guards: an identity-less caller is answered `granted: false`, which is a
-  // legitimate value rather than an error — so subscribing before the JWT attaches would flash the
-  // calm no-access state on every map open.
-  // Dynamic import of ChainHost under full-suite coverage can exceed the
-  // default 5s when workers contend; these tests pay that first-load cost.
   it(
     'opens no subscription until Convex holds an identity',
     async () => {
@@ -266,7 +253,6 @@ describe('chain host auth gate', () => {
   );
 });
 
-// ── SC-4 · DC-4 / AC-4 — the calm state comes from a live value, never an error ──
 describe('chain host access states', () => {
   beforeEach(resetHostMocks);
 
@@ -277,7 +263,6 @@ describe('chain host access states', () => {
 
     expect(markup).toContain('data-chain-no-access');
     expect(markup).toContain('lost access to this map');
-    // No canvas behind it, and nothing that reads as an error or a retry.
     expect(markup).not.toContain('data-react-flow');
     expect(markup).not.toMatch(/error|try again|refresh|retry/i);
   });
@@ -316,8 +301,6 @@ describe('chain host access states', () => {
   });
 
   it('hides the home prompt when live systems exist even before merge lands', async () => {
-    // Merged canvas empty + liveSystemCount > 0 models the layout-worker lag
-    // that previously flashed a false-empty prompt.
     mocks.useMapChain.mockReturnValue({
       access: true,
       canEdit: true,
@@ -341,7 +324,6 @@ describe('chain host access states', () => {
     expect(markup).not.toContain('data-map-home-prompt');
   });
 
-  // HC-5: "not yet answered" is not a state of its own — it looks like an ordinary empty map.
   it('renders the ordinary empty canvas while access is still unknown', async () => {
     withAccess(undefined);
 
@@ -354,11 +336,6 @@ describe('chain host access states', () => {
   });
 });
 
-// ── SC-2 · DC-2 / HC-1 — one gesture can move several nodes ──────────────────
-//
-// React Flow's drag driver moves every selected node in one gesture and reports the whole set in the
-// callback's third argument. Honouring only the grabbed node would leave its companions unprotected
-// mid-drag and unpinned at drop, so they would snap back on the very next merge.
 describe('chain host group drag', () => {
   beforeEach(resetHostMocks);
 
@@ -416,7 +393,6 @@ describe('chain host group drag', () => {
     await renderHost();
     const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
 
-    // Both React Flow defaults would mutate local nodes outside the drag path this session owns.
     expect(props.deleteKeyCode).toBeNull();
     expect(props.disableKeyboardA11y).toBe(true);
   });

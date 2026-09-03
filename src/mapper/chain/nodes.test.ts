@@ -113,7 +113,6 @@ describe('canvas node projection', () => {
     expect(after.map((node) => node.id)).toEqual([String(JITA)]);
   });
 
-  // SC-2 · DC-2 — the drag-protection rule, as a unit test rather than an observation.
   it('keeps a dragging node’s live position through an incoming update', () => {
     const pointer = { x: 777, y: 111 };
     const state = stateFor([JITA]);
@@ -126,7 +125,6 @@ describe('canvas node projection', () => {
       },
     ];
 
-    // An unrelated system arrives mid-drag.
     const after = syncNodes(
       dragged,
       stateFor([JITA, AMARR]).systems,
@@ -139,8 +137,6 @@ describe('canvas node projection', () => {
   });
 
   it('takes the reconciled position once the drag has ended', () => {
-    // The reconciled position deliberately differs from the stale local one, so this passes only
-    // through the reconciled branch — with identical values either branch would satisfy it.
     const stale = { x: 777, y: 111 };
     const dropped = { x: 900, y: 250 };
     const dragged: ChainNode[] = [
@@ -158,7 +154,6 @@ describe('canvas node projection', () => {
     expect(after[0]?.position).toEqual(dropped);
   });
 
-  // SC-3 — a late directory load relabels in place without touching positions.
   it('relabels in place when the directory arrives late', () => {
     const state = stateFor([JITA]);
     const before = syncNodes([], state.systems, fallbackLabel, NO_DRAG);
@@ -295,15 +290,12 @@ describe('canvas edge projection', () => {
       snapshot([JITA, AMARR, DODIXIE], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
         { connectionId: 'c2', fromSystemId: AMARR, toSystemId: DODIXIE },
-        // A loop closure back to the root, and a duplicate of a tree pair.
         { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
         { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
       ]),
       NO_DRAG,
       sequentialTestAssigner,
     ).state;
-    // Derived by the kernel's own function on the same facts, not hand-built —
-    // binding the canvas classification to the derivation it claims to follow.
     const treeParents = deriveChainTree({
       systems: [JITA, AMARR, DODIXIE].map((systemId) => ({ systemId })),
       connections: [
@@ -324,8 +316,6 @@ describe('canvas edge projection', () => {
     ]);
   });
 });
-
-// ── OW3 (4.0.4.2.3) — derived halo systems merged into the canvas ────────────
 
 const RING1 = 30_000_144;
 const RING3 = 30_000_139;
@@ -356,8 +346,6 @@ describe('halo node projection', () => {
       data: { halo: { ring: 1, fogged: false } },
     });
     expect(drawn?.selectable).toBeUndefined();
-    // Every wrapper is pointer-inert; the visible chrome re-enables its own
-    // pointer events inside SystemNode (fogged/ghost chrome never does).
     expect(drawn?.style).toEqual({ pointerEvents: 'none' });
     const fogged = nodes[2];
     expect(fogged).toMatchObject({
@@ -386,7 +374,6 @@ describe('halo node projection', () => {
     const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
       placedHalo(true, RING1),
     ]);
-    // The jump lands: the same id is now reconciled truth and out of the halo.
     const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, []);
 
     expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
@@ -394,8 +381,6 @@ describe('halo node projection', () => {
     expect(upgraded?.data.halo).toBeUndefined();
     expect(upgraded?.draggable).toBeUndefined();
     expect(upgraded?.selectable).toBeUndefined();
-    // The wrapper stays pointer-inert after the upgrade: interactivity comes
-    // from the chrome, which re-enables once the halo/fogged markers drop.
     expect(upgraded?.style).toEqual({ pointerEvents: 'none' });
   });
 
@@ -428,11 +413,8 @@ describe('halo edge projection', () => {
     }).parents;
 
     const edges = buildEdges(state.connections, treeParents, Date.now(), [
-      // An authored line already spans this pair: contributes nothing.
       { a: JITA, b: AMARR },
-      // Claim link to a ring-1 system: a tree link, drawn solid.
       { a: JITA, b: RING1 },
-      // Onward claim link, and a non-tree cross-link.
       { a: RING1, b: RING3 },
       { a: AMARR, b: RING1 },
     ]);
@@ -472,8 +454,6 @@ describe('halo edge projection', () => {
     ]);
   });
 });
-
-// ── OW5 (4.0.4.3.1) — unresolved wormhole stubs on the node ladder ──────
 
 const placedStub = (
   overrides: Partial<PlacedStubConnection> = {},
@@ -550,8 +530,6 @@ describe('wormhole stub projection', () => {
     ).toEqual([String(JITA)]);
   });
 });
-
-// ── OW2 (4.0.4.3.2) — statics ghosts and D-D accounting ────────────────
 
 const SYSTEM_STATICS = [
   { id: `${JITA}:B274:1`, code: 'B274', className: 'HS', whClassId: 7 },

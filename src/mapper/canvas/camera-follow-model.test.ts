@@ -30,7 +30,6 @@ const MOVED: readonly MapChainIntent[] = [
   { kind: 'system-moved', systemId: 1, from: { x: 0, y: 0 }, to: { x: 1, y: 1 } },
 ];
 
-/** The widget-frame box camera math pads and centers with in these tests. */
 const FRAME = { width: SYSTEM_FRAME_WIDTH, height: SYSTEM_FRAME_HEIGHT };
 const DEPARTED: readonly MapChainIntent[] = [{ kind: 'system-departed', systemId: 1 }];
 
@@ -40,7 +39,6 @@ const placed = (systemId: number, x: number, y: number): [number, PlacedSystem] 
 ];
 
 test('camera fit policy frames first appearance, then only follow-on moves when ready', () => {
-  // First-appearance framing is the sole falsifier for "follow off still frames once."
   expect(
     shouldFitView({ intents: APPEARED, framed: false, follow: false, dragActive: false }),
   ).toBe(true);
@@ -138,7 +136,6 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
   expect(waiting.consume).toBe(false);
   expect(waiting.bounds).toBeNull();
 
-  // Viewport-not-ready skip is the sole falsifier that ticks do not consume early.
   expect(
     resolveFitTick({
       viewportReady: false,
@@ -216,7 +213,6 @@ test('camera easing, chain bounds, and flight lifecycle keep product pins', () =
     width: 300 + SYSTEM_FRAME_WIDTH,
     height: 150 + SYSTEM_FRAME_HEIGHT,
   });
-  // fitBounds ignores option maxZoom and uses the store ceiling (2.5).
   expect(CAMERA_FIT_MAX_ZOOM).toBeLessThan(2.5);
 
   const first = beginFlight(IDLE_FLIGHT);
@@ -226,7 +222,6 @@ test('camera easing, chain bounds, and flight lifecycle keep product pins', () =
   expect(settleFlight(second, first.generation)).toBe(second);
   expect(settleFlight(second, second.generation).active).toBe(false);
 
-  // Drag abort orphans the in-flight generation so completion cannot revive it.
   const flight = beginFlight(IDLE_FLIGHT);
   const aborted = abortFlightForDrag(flight);
   expect(aborted.active).toBe(false);

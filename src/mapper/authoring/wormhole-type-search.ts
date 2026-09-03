@@ -1,28 +1,15 @@
-// Pure wormhole-type search over the session codex — vocabulary only; no auto-fill.
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 
-/** Parsed terminal-search parameters for one wormhole type code. */
 export type WormholeTypeParams = { code: string | null };
 
-/**
- * Closed failure contract for wormhole-type search; consumers branch on kind
- * instead of parsing messages.
- */
 export type WormholeTypeErr = { kind: 'not_found' };
 
 const SUGGEST_LIMIT = 12;
 
-/**
- * Builds parse/suggest for a TerminalSearch over a fixed, sorted code list.
- * Empty input parses to null (unset). Unknown codes fail closed — except in
- * `lenient` mode (codex unavailable), where any syntactically canonical code
- * is accepted and the server-side vocabulary check remains the authority.
- */
 export function wormholeTypeSearch(
   codes: readonly string[],
   options?: {
     readonly lenient?: boolean;
-    /** Known origin-system statics promoted ahead of the remaining vocabulary. */
     readonly preferredCodes?: readonly string[];
   },
 ): {
@@ -33,8 +20,6 @@ export function wormholeTypeSearch(
     | { ok: false; error: WormholeTypeErr };
   suggest: (input: string) => Promise<string[]>;
 } {
-  // Deduplicate: the SDE can emit the same code on many typeIds; typeahead
-  // keys on the code string and must not list a code twice.
   const alphabetical = [
     ...new Set(codes.map((code) => code.toUpperCase())),
   ].toSorted((left, right) => left.localeCompare(right));

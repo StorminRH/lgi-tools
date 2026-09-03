@@ -49,7 +49,6 @@ type StoredQuery = {
   value: PageResult<OptimisticSystemRow | OptimisticConnectionRow>;
 };
 
-/** Minimal OptimisticLocalStore stub that records setQuery writes by function name. */
 function mockStore(seed: {
   systems?: OptimisticSystemRow[];
   connections?: OptimisticConnectionRow[];
@@ -110,11 +109,9 @@ function mockStore(seed: {
     unresolved: OptimisticConnectionRow[];
   } = {
     get systems() {
-      // By construction: mockStore seeds both keys and no test deletes them.
       return pages.get(SYSTEMS_NAME)!.value.page as OptimisticSystemRow[];
     },
     get connections() {
-      // By construction: mockStore seeds both keys and no test deletes them.
       return pages.get(CONNECTIONS_NAME)!.value
         .page as OptimisticConnectionRow[];
     },
@@ -211,8 +208,6 @@ describe('optimisticAddSystemFromNode', () => {
       { mapId: MAP, fromSystemId: JITA, toSystemId: AMARR },
       99,
     );
-    // Append-only: destination must stay after the existing root so
-    // resolveRoot(facts.systems[0]) does not flip for the optimistic window.
     expect(store.systems.map((row) => row.systemId)).toEqual([JITA, AMARR]);
     expect(store.connections).toHaveLength(1);
     expect(store.connections[0]).toMatchObject({
@@ -381,13 +376,10 @@ describe('explicit lifetime proposals', () => {
   };
 
   it('proposes a typed ceiling that never widens a stored window (server parity)', () => {
-    // The typed span {1_000, 3_601_000} contains the stored {2_000, 3_000},
-    // so the intersection keeps the narrower stored window.
     expect(wormholeTypeWindowProposal(connection, 60)).toEqual({
       earliestAt: 2_000,
       latestAt: 3_000,
     });
-    // A contradictory (fully earlier) stored window resets to the typed span.
     expect(
       wormholeTypeWindowProposal(
         {
