@@ -21,7 +21,6 @@ const IDENTITY_TABLE_NAMES = new Set(['user', 'characters']);
 export function isUserDataTable(table: PgTable): boolean {
   const columns = getTableConfig(table).columns.map((c) => c.name);
   if (PURGE_DIRECT_IDENTITY_COLUMNS.some((id) => columns.includes(id))) return true;
-  // Polymorphic per-owner: owner_id is identity only alongside owner_type.
   return columns.includes('owner_id') && columns.includes('owner_type');
 }
 

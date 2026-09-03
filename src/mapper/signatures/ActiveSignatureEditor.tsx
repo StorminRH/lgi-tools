@@ -46,11 +46,9 @@ function editedConnection(
   );
 }
 
-/** Props for the live editor host. */
 export interface ActiveSignatureEditorProps {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'> | null;
-  /** Scanner row the leader should bracket; null falls back to the from mouth. */
   readonly anchorSignatureId?: string | null;
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
@@ -59,7 +57,6 @@ export interface ActiveSignatureEditorProps {
   readonly onClose: () => void;
 }
 
-/** Mounts the editor for the currently edited connection, or nothing. */
 export function ActiveSignatureEditor({
   mapId,
   connectionId,

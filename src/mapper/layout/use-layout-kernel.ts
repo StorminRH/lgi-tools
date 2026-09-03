@@ -1,17 +1,5 @@
 'use client';
 
-// Worker-backed LayoutKernel with in-process fallback.
-//
-// Construction throw → immediate fallback. A post-construction
-// `error`/`messageerror` (a chunk that fails to load or evaluate never rejects
-// the constructor) logs once, marks the worker dead, and settles outstanding
-// and subsequent requests through the same `compassKernel` seam — identical
-// deterministic output either way, so the map can never sit silently empty
-// behind a healthy subscription.
-//
-// Posted-key / latest-wins sequencing lives in `use-map-chain-merge` via
-// `kernel-requests.ts`. This hook only correlates worker replies to the call
-// that posted them and owns degradation.
 import { useCallback, useEffect, useRef } from 'react';
 import type { ChainPosition } from '../chain/intents';
 import { compassKernel } from './compass';

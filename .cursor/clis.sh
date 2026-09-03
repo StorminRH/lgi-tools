@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# User-global CLIs for Cloud Agents. Sourced by install.sh (snapshot refresh)
-# and start.sh (install only what a pod from an older snapshot is missing).
-#
-# origin is the Cloud Agent runtime. convex and fallow stay project-local
-# (`pnpm exec`). This file installs binaries; it does not authenticate.
-# Depot, Vercel, and Neon pick up Cloud Agent Secrets when a command needs them.
-#
-# Pins:
-#   @colbymchenry/codegraph@1.5.0  (repo-mapper / cloud-agent.md)
-#   vercel@59.3.0
-#   neon@3.6.0                     (`pnpm neon:apply` spawns `neon`)
-#   depot 2.102.4
 set -euo pipefail
 
 lgi_export_cli_path() {

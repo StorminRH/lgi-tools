@@ -243,7 +243,7 @@
   --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
   --text-nav:     14px;     --text-nav--line-height:     1.6;  /* navigation, menu rows, everyday action language */
-  --text-body:    16px;     --text-body--line-height:    1.7;  /* prose, card descriptions */
+  --text-body:    16px;     --text-body--line-height:    1.7;
   --text-lead:    17px;     --text-lead--line-height:    1.6;  /* hero pitch line, section intros */
   --text-h3:      19px;     --text-h3--line-height:      1.2;  /* small headings: card titles, dialog/section sub-heads */
   --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-data tabular-nums at call site */

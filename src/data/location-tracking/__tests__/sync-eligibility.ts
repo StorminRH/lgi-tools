@@ -4,7 +4,6 @@ export const LOCATION_SYNC_SCOPES = [
   'esi-location.read_online.v1',
 ] as const;
 
-/** Returns whether a linked character has token custody and all three location-sync scopes. */
 export function canSyncLocation(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

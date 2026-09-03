@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Per-boot Cloud Agent startup.
-#
-# Put the user-global CLIs on PATH (install any a stale snapshot is missing),
-# then reconcile Convex AUTH_JWKS once Next and the anonymous backend are up.
-# Backgrounded: start must return; the waiter polls and then exits.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -1,6 +1,5 @@
 import type { ScannedRow, ScannerPasteResult, SigGroup } from '../scan-parse';
 
-/** One operator-supplied raw paste and its exact normalized parser result. */
 export interface ScannerPasteFixture {
   readonly name: string;
   readonly paste: string;
@@ -59,7 +58,6 @@ const unresolvedXkw = unresolved('XKW-981');
 const unresolvedCnn = unresolved('CNN-648');
 const unresolvedUmi = unresolved('UMI-744');
 
-/** Exact normalized expectations for the four operator-supplied raw paste blocks. */
 export const SCANNER_PASTE_FIXTURES: readonly ScannerPasteFixture[] = [
   {
     name: 'full scan with signatures, anomalies, and unresolved rows',

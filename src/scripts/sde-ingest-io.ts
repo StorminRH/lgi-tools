@@ -6,7 +6,6 @@ import { setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import type { SdeRowCounts } from './sde-bootstrap';
 
-/** Sentinel counts the populate gate and the CI seed restore check share. */
 export async function readSdeSentinelCounts(db: PostgresJsDb): Promise<SdeRowCounts> {
   const [countsRow] = await db.execute<{
     rowCount: string;

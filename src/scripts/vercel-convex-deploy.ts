@@ -29,10 +29,6 @@ export function isStagingPreviewBuild(env: ConvexDeployEnv): boolean {
   );
 }
 
-/**
- * Convex deploy argv after `pnpm exec convex`. Staging Preview must disable the
- * prod-key-on-preview guard; every other git ref keeps it.
- */
 export function convexDeployArgs(env: ConvexDeployEnv): string[] {
   const args = [
     'deploy',

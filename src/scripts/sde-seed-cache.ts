@@ -34,10 +34,8 @@ export const SDE_SEED_DUMP_FORMAT = 'pg-dump-Fc-data-only-v1';
 const DUMP_PREFIX = 'sde-';
 const DUMP_SUFFIX = '.dump';
 
-/** Closed seed plan: restore a versioned dump, or ingest from CCP. */
 export type SdeSeedAction = 'restore' | 'ingest';
 
-/** CLI flags for the CI seed entry. */
 export type SdeSeedArgs = {
   cacheDir: string | null;
   forceIngest: boolean;

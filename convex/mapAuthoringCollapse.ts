@@ -16,7 +16,6 @@ import { requireMapAccess } from './lib/mapAccess';
 import { deleteSignatureActivity } from './lib/mapSignatures';
 import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
-/** Fail-closed per-table bound for one collapse or shared-stamp restore. */
 export const COLLAPSE_MAP_SCAN_CAP = 128;
 
 interface BoundedMapTopology {

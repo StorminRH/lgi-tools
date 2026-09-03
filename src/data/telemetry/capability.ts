@@ -56,10 +56,6 @@ type CatalogueFromSpec<TSpec extends CapabilitySpec> = {
   }[keyof TSpec[F] & CapabilityKind];
 }[keyof TSpec & CapabilityFeature];
 
-/**
- * Builds the closed catalogue from a nested spec so the `{ feature, operation, kind }`
- * record shape exists once. Keys stay `${feature}.${operation}`.
- */
 function catalogueFromSpec<const TSpec extends CapabilitySpec>(spec: TSpec) {
   const entries: [string, { feature: CapabilityFeature; operation: string; kind: CapabilityKind }][] =
     [];

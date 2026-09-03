@@ -4,7 +4,6 @@ import { buildPageMetadata } from '@/lib/page-metadata';
 import { AtlasBound } from './AtlasBound';
 import { AtlasLandingFallback } from './AtlasLandingFallback';
 
-/** Static search and social metadata for the public Atlas route. */
 export const metadata = buildPageMetadata({
   title: 'Atlas',
   description:

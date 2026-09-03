@@ -2,7 +2,6 @@ import { ESLint } from 'eslint';
 import { fileURLToPath } from 'node:url';
 import { expect } from 'vitest';
 
-/** Shared ESLint probe helper for the syntax/import rail tests. */
 export function createEslintRail(metaUrl = import.meta.url) {
   const repoRoot = fileURLToPath(new URL('..', metaUrl));
   const eslint = new ESLint({ cwd: repoRoot });

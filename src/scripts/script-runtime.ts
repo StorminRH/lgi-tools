@@ -1,9 +1,3 @@
-// Shared teardown for the db entry scripts: run main(), close the client, exit.
-// Two variants — HARD-fail (exit 1 on error: the manual/CLI tools) and
-// SOFT-fail (log + exit 0: the deploy-time bootstraps, where a failed ingest
-// must not fail the build). One implementation so the close-then-exit ordering
-// can't drift between scripts. The script's testable logic lives in
-// import-safe sibling modules; this keeps the entry file a thin boot + call.
 import postgres from 'postgres';
 import { readEnv } from '@/lib/env';
 import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl, type Sql } from '@/db';

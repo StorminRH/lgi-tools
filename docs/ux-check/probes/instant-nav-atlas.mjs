@@ -1,7 +1,3 @@
-/**
- * Instant Navigations guard: home → /atlas must show the site header and Atlas
- * PageHead rather than a blank viewport while the listing resolves.
- */
 export default {
   name: 'instant-nav-atlas',
   route: '/',

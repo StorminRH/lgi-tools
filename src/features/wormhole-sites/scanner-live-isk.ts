@@ -1,12 +1,6 @@
-/**
- * Pure Est. ISK math for scanner harvestable rows — shared by the live cell
- * and its focused tests so the provider UI stays thin.
- */
-
 import { liveIskFor } from './live-isk';
 import type { SiteLiveRecipe } from './site-name-lookup';
 
-/** One recipe's ISK given a live best-sell price, falling back to its catalogue seed. */
 export function recipeLiveIsk(
   recipe: SiteLiveRecipe,
   bestSell: number | null | undefined,

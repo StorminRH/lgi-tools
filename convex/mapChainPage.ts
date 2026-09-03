@@ -1,6 +1,5 @@
 import type { PaginationResult } from 'convex/server';
 
-/** The largest page either chain subscription will serve, whatever a caller asks for. */
 export const MAP_CHAIN_MAX_PAGE_SIZE = 100;
 
 /**

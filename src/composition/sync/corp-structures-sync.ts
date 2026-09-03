@@ -60,16 +60,6 @@ export interface ViewerCorpStructuresResult {
   corporations: ViewerCorpStructures[];
 }
 
-// The on-view seam: scope the read to the corps the viewer is a CURRENT member of
-// (refresh stale affiliations first, then the fail-closed membership set — the 3.7.3
-// gate's refresh-then-decide), read those corps' shared catalogues + freshness, and
-// fire a stale-gated write-behind refresh behind the response. Because the staleness
-// stamp lives on the shared corp row, the FIRST member's view per window does the ESI
-// work and every other member's view inside the window makes no ESI call (the
-// refresh's per-corp staleness gate is the dedup). A non-member's affiliation set
-// never includes the corp, so they read nothing.
-// Fire the stale-gated write-behind refresh for the user's corps behind the
-// response — shared by both on-view reads.
 function scheduleCorpStructuresRefresh(userId: string): void {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
 }
@@ -82,7 +72,6 @@ async function loadFreshUserAffiliations(userId: string) {
   return getUserAffiliations(userId);
 }
 
-// Each corp's last-refreshed epoch ms, keyed by corp id, for the freshness readout.
 function freshnessMapOf(
   syncStates: { corporationId: number; lastRefreshedAt: Date }[],
 ): Map<number, number> {

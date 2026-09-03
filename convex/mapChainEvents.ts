@@ -2,7 +2,6 @@ import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
 
-/** Maximum retained ledger rows one live map subscription may read. */
 export const MAP_EVENT_READ_LIMIT = 100;
 
 export const watchMapEvents = query({

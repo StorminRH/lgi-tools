@@ -142,7 +142,6 @@ afterEach(() => {
 describe('map chain fixtures', () => {
   describe('defines every chain entity and keeps placement singular', () => {
     it('declares the exact chain table and index census', () => {
-      // Convex CLI export() is not on the public schema type.
       const exported = JSON.parse((schema as unknown as { export(): string }).export()) as {
         tables: {
           tableName: string;

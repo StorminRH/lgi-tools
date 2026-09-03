@@ -1,8 +1,3 @@
-// Pure chain tombstone vocabulary shared by Convex mutations, cleanup, and the
-// mapper read hook. It holds no database, framework, or slice import so both
-// runtimes normalize active/tombstoned the same way without either owning the
-// other's storage shape.
-
 import type { ConnectionTombstone } from '@/data/maps/connection-hallway';
 import { connectionTombstoneStamps } from '@/data/maps/connection-hallway';
 
@@ -33,7 +28,6 @@ export function connectionRemovedTombstone(deletedAt: number): {
   );
 }
 
-/** Connection tombstone union or the system stamp pair. Missing row is live. */
 export type ChainTombstoneRow = {
   readonly tombstone?: {
     readonly kind: 'live' | 'removed';
@@ -44,7 +38,6 @@ export type ChainTombstoneRow = {
   readonly purgeAfter?: number | null;
 } | null | undefined;
 
-/** Connections store a tombstone union. Systems still store the stamp pair. */
 export function isTombstoned(row: ChainTombstoneRow): boolean {
   if (row == null) return false;
   if (row.tombstone !== undefined) return row.tombstone.kind === 'removed';

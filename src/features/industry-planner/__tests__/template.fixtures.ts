@@ -1,13 +1,11 @@
 import type { TemplatePlannerState } from '../components/planner-contexts';
 import type { ApplyCtx, TemplateStructureView } from '../template-manifest';
 
-/** Deterministic structure fixture used by template application tests. */
 export interface TestStructure {
   id: string;
   name: string;
 }
 
-/** Mutable captured planner state used only by template-manifest tests. */
 export interface MockState {
   runs: number;
   location: { systemId: number; systemName: string; security: number | null } | null;
@@ -25,13 +23,11 @@ export interface MockState {
   persistedBuildLocation: MockState['location'];
 }
 
-/** Canonical deterministic structure fixture shared by template-manifest tests. */
 const STRUCTURE: TemplateStructureView = {
   blueprintTypeId: 999,
   nodeActivityByBlueprint: { 111: 1, 222: 11 },
 };
 
-/** Creates deterministic planner state for template-manifest tests without network or storage dependencies. */
 export function makeMockPlanner(opts?: {
   roster?: { characterId: number }[];
   structures?: TestStructure[];
@@ -185,12 +181,10 @@ export function makeMockPlanner(opts?: {
   return { ctx, state };
 }
 
-/** Creates a template application context backed by deterministic test setters and captured state. */
 export function makeApplyCtx(ctx: TemplatePlannerState): ApplyCtx {
   return { ctx, structure: STRUCTURE, fetchedStations: null };
 }
 
-/** A fully-configured planner — every field away from its default. */
 export function configureFull(state: MockState) {
   state.runs = 3;
   state.location = { systemId: 30000142, systemName: 'Jita', security: 0.9 };

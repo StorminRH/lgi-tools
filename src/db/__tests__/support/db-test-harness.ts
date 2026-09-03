@@ -5,12 +5,8 @@ import { db as requestDb, type Sql } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
-// Real-Postgres test support is deliberately unzoned under `src/db/**`, so
-// every slice can share one lifecycle primitive without creating a production
-// dependency between feature or data slices.
-// Schema, table, and foreign-key identifiers come only from in-repo suite
-// constants. postgres-js cannot parameterize identifiers, so the lifecycle
-// helpers use `unsafe` strictly for that trusted DDL/reset boundary.
+// postgres-js cannot parameterize identifiers, so the lifecycle helpers use
+// `unsafe` strictly for that trusted DDL/reset boundary.
 
 const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 

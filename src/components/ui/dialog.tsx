@@ -132,10 +132,6 @@ export const DialogTitle = Base.Title;
  */
 export const DialogDescription = Base.Description;
 
-/**
- * Shared title / description / close chrome used by map creation and trash.
- * Callers own the copy; this primitive owns the header layout.
- */
 export function DialogHeader({
   titleId,
   title,

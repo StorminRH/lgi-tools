@@ -3,11 +3,6 @@ import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
 
-/**
- * Per-(map, user) tracked-character bound, enforced at opt-in. Bounds every
- * downstream read/sweep of this table (a user's linked roster is far smaller;
- * the cap only stops scripted growth against the public mutation).
- */
 export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 
 interface TrackingIdentity {

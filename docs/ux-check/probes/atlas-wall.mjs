@@ -1,8 +1,3 @@
-/**
- * Signed-out Atlas landing: the public catalogue and site header, not an
- * administrator development wall. A shared `?map=` URL must not cover that
- * header, because the canvas omits login when there is no session.
- */
 export default {
   name: 'atlas-wall',
   route: '/atlas',
