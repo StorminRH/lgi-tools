@@ -57,7 +57,6 @@ export function FogLayer({ nodes, edges, motion, config }: FogLayerProps) {
   const canvasRef = useFogHost({ nodes, edges, motion, config });
   return (
     <ViewportPortal>
-      {}
       <canvas ref={canvasRef} data-map-fog aria-hidden className="map-fog" />
     </ViewportPortal>
 

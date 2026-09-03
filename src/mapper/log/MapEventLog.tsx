@@ -33,7 +33,6 @@ export function MapEventLog({
       data-map-event-undoable={undoable || undefined}
       className="pointer-events-none absolute bottom-4 right-14 z-sticky flex justify-end"
     >
-      {}
       <div
         className={cn(
           'pointer-events-auto rounded-card text-ui',
@@ -72,7 +71,6 @@ export function MapEventLog({
 
           }
         >
-          {}
           <div
             data-map-event-log-rows
             tabIndex={0}
