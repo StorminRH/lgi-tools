@@ -32,7 +32,7 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
 
   useEffect(() => {
     if (mode !== 'lightbox') {
-
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setOpen(false);
       return;
     }
@@ -66,23 +66,16 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
               >
                 ×
               </DialogClose>
-
             </div>
-
             <div className="sites-lightbox-zoom pb-3">
               <div className="flex flex-col gap-2 px-[17px] pb-[13px] pt-[15px]">
                 <SiteCardHeader site={site} nameId={nameId} />
               </div>
-
               <SiteDetailsBody site={site} />
             </div>
-
           </div>
-
         </Dialog>
-
       )}
     </span>
-
   );
 }

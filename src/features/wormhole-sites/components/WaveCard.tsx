@@ -10,10 +10,8 @@ export function WaveCard({
   showEwar = false,
 }: {
   wave: Wave;
-
   label?: string;
   defaultOpen?: boolean;
-
   showEwar?: boolean;
 }) {
   const displayLabel = label ?? wave.waveLabel;
@@ -26,13 +24,10 @@ export function WaveCard({
           <span className="text-label font-bold tracking-eyebrow uppercase text-text shrink-0">
             {displayLabel}
           </span>
-
           <span className="ml-auto text-micro font-semibold tracking-label text-text">
             DPS {formatDps(wave.dpsTotal)}
           </span>
-
         </>
-
       }
     >
       {showEwar && (
@@ -43,15 +38,12 @@ export function WaveCard({
           rr={wave.ewRrep}
         />
       )}
-      {}
       <div className="grid grid-cols-[44px_var(--npc-name-col,minmax(0,auto))_auto_1fr] px-3.5">
         {wave.npcs.map((npc) => (
           <NpcRow key={npc.id} npc={npc} />
         ))}
       </div>
-
     </Collapsible>
-
   );
 }
 
