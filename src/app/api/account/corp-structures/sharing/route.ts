@@ -5,8 +5,8 @@ import {
   setCorpStructureSharingRequestSchema,
 } from '@/features/owned-structures/api-contract';
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
-import { getSessionCharacterId } from '@/platform/auth/session';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { getSessionCharacterId } from '@/composition/session';
+import { checkUserId } from '@/composition/route-guards';
 import { stationManagerGate } from '@/composition/sync/corp-structures-sync';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';

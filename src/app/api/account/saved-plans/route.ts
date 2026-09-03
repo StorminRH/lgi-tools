@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { getCurrentUserId } from '@/platform/auth/session';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { getCurrentUserId } from '@/composition/session';
+import { checkUserId } from '@/composition/route-guards';
 import {
   createSavedPlanEndpoint,
   createSavedPlanRequestSchema,

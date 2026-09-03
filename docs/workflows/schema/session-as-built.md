@@ -60,21 +60,24 @@ valid body.
 ## Delivered outcome
 
 One short plain-English paragraph: what exists now that did not before, in
-behavior terms. The release changelog lifts this into the player-facing
-overview. Then list each player-facing change as one bullet with a closed
-prefix. Do not use `###` or `####` headings.
+behavior terms. The release changelog lifts this into the overview. Then
+list each change as one bullet with a closed prefix. Write in *player
+speech* per `docs/workflows/schema/changelog-entry.md`. Do not use `###`
+or `####` headings.
 
 ```markdown
 <What this work now gives a player.>
 
-- Added: <one short line>
-- Changed: <one short line>
-- Fixed: <one short line>
-- Removed: <one short line>
+- Added: <one short plain-speech line>
+- Changed: <one short plain-speech line>
+- Fixed: <one short plain-speech line>
+- Removed: <one short plain-speech line>
 ```
 
-Keep only the prefixes that apply. Internal-only notes stay out of these
-bullets. `None.` when the delivery has no player-facing change.
+Keep only the prefixes that apply. Player-impact lines come first. Shop-talk
+lines (database, tests, workflows, cleanup) stay allowed as one simple
+sentence each, never a granular process log. `None.` only when this record
+has nothing to publish in the release changelog.
 
 ## Divergences from plan
 

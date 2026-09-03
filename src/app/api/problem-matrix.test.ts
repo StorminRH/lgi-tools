@@ -26,12 +26,12 @@ vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/server')>()),
   connection: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkAdmin: (...args: unknown[]) => h.checkAdmin(...args),
   checkAdminMutation: (...args: unknown[]) => h.checkAdmin(...args),
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
-vi.mock('@/platform/auth/session', () => ({
+vi.mock('@/composition/session', () => ({
   getCurrentUserId: vi.fn(),
   getSession: (...args: unknown[]) => h.getSession(...args),
 }));

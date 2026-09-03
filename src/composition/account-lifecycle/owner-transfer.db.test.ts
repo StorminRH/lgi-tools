@@ -19,6 +19,7 @@ vi.mock('better-auth/api', () => ({
 }));
 vi.mock('@/platform/auth/eve-token-service', () => ({ revokeCharacterToken: vi.fn() }));
 
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import {
   absorbLinkedCharacterOnProof,
 } from '@/platform/auth/owner-transfer';
@@ -235,13 +236,19 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
 
   it('never absorbs sign-in, fresh-link, or same-user relink paths', async () => {
     oauthState.value = { callbackURL: '/' };
-    await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: false });
+    await expect(
+      absorbLinkedCharacterOnProof(MOVED_CHAR, identityProjectionRunners),
+    ).resolves.toEqual({ absorbed: false });
 
     oauthState.value = { link: { userId: TARGET_ID } };
-    await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: false });
+    await expect(
+      absorbLinkedCharacterOnProof(MOVED_CHAR, identityProjectionRunners),
+    ).resolves.toEqual({ absorbed: false });
 
     await seedEveAccount('target-owned', MOVED_CHAR, TARGET_ID, 'owner-one');
-    await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: false });
+    await expect(
+      absorbLinkedCharacterOnProof(MOVED_CHAR, identityProjectionRunners),
+    ).resolves.toEqual({ absorbed: false });
     expect(
       await harness.db.select().from(usageLogs).where(eq(usageLogs.action, 'auth_absorb')),
     ).toHaveLength(0);
@@ -251,7 +258,9 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, 'owner-one');
     oauthState.value = { link: { userId: TARGET_ID } };
 
-    await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: true });
+    await expect(
+      absorbLinkedCharacterOnProof(MOVED_CHAR, identityProjectionRunners),
+    ).resolves.toEqual({ absorbed: true });
 
     expect(
       await harness.db.select().from(user).where(eq(user.id, SOURCE_ID)),
@@ -293,7 +302,9 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     );
     oauthState.value = { link: { userId: TARGET_ID } };
 
-    await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: true });
+    await expect(
+      absorbLinkedCharacterOnProof(MOVED_CHAR, identityProjectionRunners),
+    ).resolves.toEqual({ absorbed: true });
 
     const [source] = await harness.db
       .select({ email: user.email, activeCharacterId: user.activeCharacterId })

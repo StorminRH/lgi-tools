@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { eveAccountsForUser } from './eve-account-shared';
-import { runBeforeUserDelete } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-hooks';
 import { repointActiveToOldest } from './linked-characters';
 import { account, user } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
@@ -9,6 +9,7 @@ import { syntheticEmail } from './synthetic-email';
 export async function reconcileAfterCharacterRemoval(
   userId: string,
   characterId: number,
+  runners: IdentityProjectionRunners,
 ): Promise<{ accountEmptied: boolean }> {
   const remaining = await db
     .select({ accountId: account.accountId })
@@ -18,7 +19,7 @@ export async function reconcileAfterCharacterRemoval(
 
   const [firstRemaining] = remaining;
   if (firstRemaining === undefined) {
-    await runBeforeUserDelete(userId);
+    await runners.runBeforeUserDelete(userId);
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };
   }

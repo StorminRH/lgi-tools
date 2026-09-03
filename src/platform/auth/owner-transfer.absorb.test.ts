@@ -38,14 +38,16 @@ vi.mock('better-auth/api', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('./identity-projection-hooks', () => ({
-  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
-  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
-}));
 
 import { logUsageEvent } from '@/data/telemetry/queries';
+import type { IdentityProjectionRunners } from './identity-projection-hooks';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { syntheticEmail } from './synthetic-email';
+
+const runners: IdentityProjectionRunners = {
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+};
 
 const CHARACTER = 100;
 
@@ -76,7 +78,7 @@ describe('absorbLinkedCharacterOnProof', () => {
       [{ accountId: '222' }],
       [{ email: syntheticEmail(222), activeCharacterId: 999 }],
     ];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    const out = await absorbLinkedCharacterOnProof(CHARACTER, runners);
     expect(out).toEqual({ absorbed: true });
     expect(state.calls).toEqual({ delete: 0, update: 1 });
     expect(state.results).toHaveLength(0);
@@ -91,7 +93,7 @@ describe('absorbLinkedCharacterOnProof', () => {
       [{ activeCharacterId: 999 }],
       new Error('transient db failure'),
     ];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    const out = await absorbLinkedCharacterOnProof(CHARACTER, runners);
     expect(out).toEqual({ absorbed: true });
     expect(state.calls).toEqual({ delete: 0, update: 1 });
     expect(errorSpy).toHaveBeenCalledTimes(1);
@@ -104,7 +106,7 @@ describe('absorbLinkedCharacterOnProof', () => {
 
   it('degrades to no-absorb when the OAuth state is unavailable', async () => {
     oauthState.shouldThrow = true;
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    const out = await absorbLinkedCharacterOnProof(CHARACTER, runners);
     expect(out).toEqual({ absorbed: false });
     expect(state.calls).toEqual({ delete: 0, update: 0 });
     expect(errorSpy).toHaveBeenCalledTimes(1);
