@@ -137,7 +137,6 @@ describe('canvas node projection', () => {
   });
 
   it('takes the reconciled position once the drag has ended', () => {
-
     const stale = { x: 777, y: 111 };
     const dropped = { x: 900, y: 250 };
     const dragged: ChainNode[] = [
@@ -291,14 +290,12 @@ describe('canvas edge projection', () => {
       snapshot([JITA, AMARR, DODIXIE], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
         { connectionId: 'c2', fromSystemId: AMARR, toSystemId: DODIXIE },
-
         { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
         { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
       ]),
       NO_DRAG,
       sequentialTestAssigner,
     ).state;
-
     const treeParents = deriveChainTree({
       systems: [JITA, AMARR, DODIXIE].map((systemId) => ({ systemId })),
       connections: [
@@ -349,7 +346,6 @@ describe('halo node projection', () => {
       data: { halo: { ring: 1, fogged: false } },
     });
     expect(drawn?.selectable).toBeUndefined();
-
     expect(drawn?.style).toEqual({ pointerEvents: 'none' });
     const fogged = nodes[2];
     expect(fogged).toMatchObject({
@@ -378,7 +374,6 @@ describe('halo node projection', () => {
     const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
       placedHalo(true, RING1),
     ]);
-
     const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, []);
 
     expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
@@ -386,7 +381,6 @@ describe('halo node projection', () => {
     expect(upgraded?.data.halo).toBeUndefined();
     expect(upgraded?.draggable).toBeUndefined();
     expect(upgraded?.selectable).toBeUndefined();
-
     expect(upgraded?.style).toEqual({ pointerEvents: 'none' });
   });
 
@@ -419,11 +413,8 @@ describe('halo edge projection', () => {
     }).parents;
 
     const edges = buildEdges(state.connections, treeParents, Date.now(), [
-
       { a: JITA, b: AMARR },
-
       { a: JITA, b: RING1 },
-
       { a: RING1, b: RING3 },
       { a: AMARR, b: RING1 },
     ]);

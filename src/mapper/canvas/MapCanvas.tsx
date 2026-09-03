@@ -21,6 +21,5 @@ export function MapCanvas() {
         <ChainSurface nodes={EMPTY_NODES} edges={EMPTY_EDGES} />
       )}
     </div>
-
   );
 }

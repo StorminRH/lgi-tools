@@ -109,11 +109,9 @@ function mockStore(seed: {
     unresolved: OptimisticConnectionRow[];
   } = {
     get systems() {
-
       return pages.get(SYSTEMS_NAME)!.value.page as OptimisticSystemRow[];
     },
     get connections() {
-
       return pages.get(CONNECTIONS_NAME)!.value
         .page as OptimisticConnectionRow[];
     },
@@ -210,7 +208,6 @@ describe('optimisticAddSystemFromNode', () => {
       { mapId: MAP, fromSystemId: JITA, toSystemId: AMARR },
       99,
     );
-
     expect(store.systems.map((row) => row.systemId)).toEqual([JITA, AMARR]);
     expect(store.connections).toHaveLength(1);
     expect(store.connections[0]).toMatchObject({
@@ -379,12 +376,10 @@ describe('explicit lifetime proposals', () => {
   };
 
   it('proposes a typed ceiling that never widens a stored window (server parity)', () => {
-
     expect(wormholeTypeWindowProposal(connection, 60)).toEqual({
       earliestAt: 2_000,
       latestAt: 3_000,
     });
-
     expect(
       wormholeTypeWindowProposal(
         {

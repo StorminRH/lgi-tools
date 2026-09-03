@@ -17,12 +17,9 @@ export type ChainNodeData = {
   className: string | null;
   security?: number | null;
   whClassId?: number | null;
-
   destinationHint?: WormholeDestinationHint | null;
   motion?: NodeMotion;
-
   halo?: { readonly ring: number; readonly fogged: boolean };
-
   stub?:
     | {
         readonly connectionId: string;
@@ -122,7 +119,6 @@ function ClassificationChip({
     >
       {label}
     </span>
-
   );
 }
 
@@ -186,9 +182,7 @@ function NodeDisc({
       >
         {stub ? null : <PilotPresenceBadge systemId={systemId} />}
       </div>
-
     </div>
-
   );
 }
 
@@ -196,7 +190,6 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
-
   return (
     <div
       data-chain-node
@@ -222,7 +215,6 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
       >
         {header.text}
       </span>
-
       <NodeDisc
         derived={derived}
         chromeClass={chromeClass}
@@ -232,7 +224,6 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
         systemId={Number(id)}
       />
     </div>
-
   );
 }
 

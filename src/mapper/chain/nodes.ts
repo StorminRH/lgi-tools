@@ -24,15 +24,10 @@ import type { SystemLabel } from './labels';
 import type { ChainState, VisibleConnection } from './reconciler';
 
 export type ChainEdgeData = {
-
   readonly loop: boolean;
-
   readonly tombstoneState?: Exclude<ChainTombstoneState, 'skeleton'>;
-
   readonly halo?: true;
-
   readonly stub?: true;
-
   readonly fogSide?: 'source' | 'target';
   readonly motion?: EdgeMotion;
 };
@@ -115,7 +110,6 @@ export function planStubNodes(input: {
   readonly signatures: readonly StubPlanningSignature[];
   readonly connections: readonly StubPlanningConnection[];
   readonly staticsBySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
-
   readonly rootSystemId: number | null;
 }): readonly PlannedStub[] {
   const planned: PlannedStub[] = [];
@@ -168,7 +162,6 @@ export interface ChainEdge {
   readonly source: string;
   readonly target: string;
   readonly data: ChainEdgeData;
-
   readonly selectable?: boolean;
   readonly focusable?: boolean;
 }
@@ -203,7 +196,6 @@ export function syncNodes(
       ...(local === undefined ? undefined : stripDerivedControls(local)),
       id,
       type: CHAIN_NODE_TYPE,
-
       width: SYSTEM_FRAME_WIDTH,
       height: SYSTEM_FRAME_HEIGHT,
       position: holdLocal ? local.position : placed.position,
@@ -229,7 +221,6 @@ export function syncNodes(
         type: CHAIN_NODE_TYPE,
         width: SYSTEM_FRAME_WIDTH,
         height: SYSTEM_FRAME_HEIGHT,
-
         position: placed.position,
         draggable: false,
         style: INERT_NODE_STYLE,
@@ -372,7 +363,6 @@ function newPairClaim(treeParents: ReadonlyMap<number, number>) {
   const claimed = new Set<string>();
   const rendered = new Set<string>();
   return {
-
     claimSolid(a: number, b: number): boolean {
       const key = pairKey(a, b);
       const isTreeLink = treeParents.get(b) === a || treeParents.get(a) === b;
@@ -397,7 +387,6 @@ function appendHaloEdges(
     if (claim.rendered(link.a, link.b)) continue;
     const aFogged = foggedSystemIds.has(link.a);
     const bFogged = foggedSystemIds.has(link.b);
-
     if (aFogged && bFogged) continue;
     const solid = claim.claimSolid(link.a, link.b);
     const fogSide = aFogged ? ('source' as const) : bFogged ? ('target' as const) : undefined;

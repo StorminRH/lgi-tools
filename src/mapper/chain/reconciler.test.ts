@@ -106,7 +106,6 @@ function kindsOf(intents: readonly MapChainIntent[]): string[] {
 }
 
 describe('map chain reconciler', () => {
-
   describe('intents', () => {
     it('emits system-appeared carrying the assigned position', () => {
       const merge = reconcileChain(

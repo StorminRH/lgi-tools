@@ -39,7 +39,6 @@ const placed = (systemId: number, x: number, y: number): [number, PlacedSystem] 
 ];
 
 test('camera fit policy frames first appearance, then only follow-on moves when ready', () => {
-
   expect(
     shouldFitView({ intents: APPEARED, framed: false, follow: false, dragActive: false }),
   ).toBe(true);
@@ -214,7 +213,6 @@ test('camera easing, chain bounds, and flight lifecycle keep product pins', () =
     width: 300 + SYSTEM_FRAME_WIDTH,
     height: 150 + SYSTEM_FRAME_HEIGHT,
   });
-
   expect(CAMERA_FIT_MAX_ZOOM).toBeLessThan(2.5);
 
   const first = beginFlight(IDLE_FLIGHT);

@@ -69,7 +69,6 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   expect(still).toContain('size-[55px]');
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
-
   expect(still.match(/pointer-events-auto/g)).toHaveLength(2);
 
   const noClass = renderToStaticMarkup(

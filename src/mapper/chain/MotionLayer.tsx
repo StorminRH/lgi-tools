@@ -61,6 +61,5 @@ export function MotionLayer({
       />
       {children}
     </ChainSurface>
-
   );
 }

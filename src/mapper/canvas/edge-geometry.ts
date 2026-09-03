@@ -60,7 +60,6 @@ export function frameSegment(
 export interface EdgeEndpointNode {
   readonly internals: { readonly positionAbsolute: { readonly x: number; readonly y: number } };
   readonly measured: { readonly width?: number; readonly height?: number };
-
   readonly width?: number;
   readonly height?: number;
 }

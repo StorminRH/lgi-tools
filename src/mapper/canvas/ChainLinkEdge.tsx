@@ -49,7 +49,6 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
   const classes = cn(
     data?.loop === true && LOOP_DASH_CLASS,
     data?.tombstoneState === 'dying' && 'map-edge-dying',
-
     (data?.halo === true || data?.stub === true) && 'map-edge-derived',
     edgeMotionClass(data?.motion),
   );
@@ -105,7 +104,6 @@ function OutboundArrowLabel({
   }, [transform]);
 
   if (transform === null) return null;
-
   return (
     <EdgeLabelRenderer>
       <span
@@ -117,11 +115,8 @@ function OutboundArrowLabel({
         <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">
           <path d="M2 1 L11 6 L2 11 Z" />
         </svg>
-
       </span>
-
     </EdgeLabelRenderer>
-
   );
 }
 
@@ -134,7 +129,6 @@ function ChainLinkEdgeComponent({
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
   const arrow = useOutboundArrow(id);
-
   const path =
     data?.fogSide === undefined
       ? chainLinkPath(sourceNode, targetNode)
@@ -161,7 +155,6 @@ function ChainLinkEdgeComponent({
         />
       )}
     </>
-
   );
 }
 

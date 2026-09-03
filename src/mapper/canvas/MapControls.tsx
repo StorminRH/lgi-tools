@@ -94,7 +94,6 @@ function MapControlsComponent({
       data-map-dev-dials
       position="bottom-right"
       className={cn(
-
         'nopan nodrag nowheel mb-2! ml-2! mr-64! mt-2! flex max-h-[calc(100dvh-2rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
         mapFrostedSurface,
       )}
@@ -118,7 +117,6 @@ function MapControlsComponent({
               onChange={(next) => onConfigChange(commitRingSpacing(config, next))}
             />
           </DialRow>
-
           <DialRow label="Separation">
             <Stepper
               value={config.minSeparation}
@@ -131,7 +129,6 @@ function MapControlsComponent({
               onChange={(next) => onConfigChange(commitMinSeparation(config, next))}
             />
           </DialRow>
-
           <DialRow label="Sibling fan">
             <Stepper
               value={config.siblingSpread}
@@ -143,10 +140,8 @@ function MapControlsComponent({
               onChange={(next) => onConfigChange(commitSiblingSpread(config, next))}
             />
           </DialRow>
-
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Wedge posture</span>
-
             <SegmentedControl
               label="Wedge posture"
               density="compact"
@@ -160,10 +155,8 @@ function MapControlsComponent({
               }
             />
           </div>
-
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Direction order</span>
-
             <Select
               ariaLabel="Direction order"
               value={preset}
@@ -178,9 +171,7 @@ function MapControlsComponent({
               }
             />
           </div>
-
         </div>
-
       </Collapsible>
 
       <Collapsible
@@ -202,7 +193,6 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitFastTempo(motion, next))}
             />
           </DialRow>
-
           <DialRow label="Mid">
             <Stepper
               value={motion.tempo.mid}
@@ -215,7 +205,6 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitMidTempo(motion, next))}
             />
           </DialRow>
-
           <DialRow label="Slow">
             <Stepper
               value={motion.tempo.slow}
@@ -228,7 +217,6 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitSlowTempo(motion, next))}
             />
           </DialRow>
-
           <DialRow label="Overshoot">
             <Stepper
               value={motion.overshootPct}
@@ -241,10 +229,8 @@ function MapControlsComponent({
               onChange={(next) => onMotionChange(commitOvershoot(motion, next))}
             />
           </DialRow>
-
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Edge flavor</span>
-
             <SegmentedControl
               label="Edge flavor"
               density="compact"
@@ -258,10 +244,8 @@ function MapControlsComponent({
               }
             />
           </div>
-
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Collapse exit</span>
-
             <SegmentedControl
               label="Collapse exit"
               density="compact"
@@ -277,9 +261,7 @@ function MapControlsComponent({
               }
             />
           </div>
-
         </div>
-
       </Collapsible>
 
       <Collapsible
@@ -301,7 +283,6 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloDrawnRings(halo, next))}
             />
           </DialRow>
-
           <DialRow label="Fogged rings">
             <Stepper
               value={halo.foggedRings}
@@ -314,7 +295,6 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloFoggedRings(halo, next))}
             />
           </DialRow>
-
           <DialRow label="Per exit">
             <Stepper
               value={halo.maxSystemsPerExit}
@@ -327,7 +307,6 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloPerExitCap(halo, next))}
             />
           </DialRow>
-
           <DialRow label="Total cap">
             <Stepper
               value={halo.maxSystemsTotal}
@@ -340,9 +319,7 @@ function MapControlsComponent({
               onChange={(next) => onHaloChange(commitHaloTotalCap(halo, next))}
             />
           </DialRow>
-
         </div>
-
       </Collapsible>
 
       <Collapsible
@@ -364,7 +341,6 @@ function MapControlsComponent({
               onChange={(next) => onFogChange(commitFogRevealRadius(fog, next))}
             />
           </DialRow>
-
           <DialRow label="Corridor">
             <Stepper
               value={fog.strokeRadius}
@@ -377,7 +353,6 @@ function MapControlsComponent({
               onChange={(next) => onFogChange(commitFogStrokeRadius(fog, next))}
             />
           </DialRow>
-
           <DialRow label="Density %">
             <Stepper
               value={Math.round(fog.opacity * 100)}
@@ -390,10 +365,8 @@ function MapControlsComponent({
               onChange={(next) => onFogChange(commitFogOpacityPct(fog, next))}
             />
           </DialRow>
-
           <div className="flex flex-col gap-1">
             <span className="text-label uppercase tracking-label text-muted">Smoke tier</span>
-
             <SegmentedControl
               label="Smoke tier"
               density="compact"
@@ -407,13 +380,9 @@ function MapControlsComponent({
               }
             />
           </div>
-
         </div>
-
       </Collapsible>
-
     </Panel>
-
   );
 }
 
@@ -421,16 +390,13 @@ function DialGroupHeader({ label }: { readonly label: string }) {
   return (
     <span className="flex w-full items-center gap-2">
       <span className="text-label uppercase tracking-label text-muted">{label}</span>
-
       <span
         data-chevron
         className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
       >
         ▾
       </span>
-
     </span>
-
   );
 }
 
@@ -446,9 +412,7 @@ function DialRow({
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-label uppercase tracking-label text-muted">{label}</span>
-
       {children}
     </div>
-
   );
 }

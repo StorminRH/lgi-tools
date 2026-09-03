@@ -32,7 +32,6 @@ export function useWormholeCodexData(code: string | null): {
         if (alive) setCodex(loaded);
       },
       () => {
-
       },
     );
     return () => {
@@ -67,7 +66,6 @@ export function useWormholeEditorData(
         if (alive) setStatics({ systemId, codes: statics });
       },
       () => {
-
       },
     );
     return () => {

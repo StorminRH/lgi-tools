@@ -26,7 +26,6 @@ export function edgeAllowsPointerActions(
   canEdit: boolean,
 ): boolean {
   if (edge.data.motion?.phase === 'departing') return false;
-
   if (edge.data.tombstoneState === 'dying') return false;
   return (
     edgeMenuConnectionId({
@@ -77,7 +76,6 @@ export function edgeMenuActions(input: {
         mapId: input.mapId,
         connectionId: anchor.connectionId,
         authoring: input.authoring,
-
         onDone: input.closeEditor,
       }).remove();
     },

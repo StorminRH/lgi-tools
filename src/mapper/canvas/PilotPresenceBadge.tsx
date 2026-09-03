@@ -15,7 +15,6 @@ function FriendlySilhouette({ className }: { readonly className?: string }) {
       <circle cx="8" cy="5" r="3" />
       <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5v1H3v-1Z" />
     </svg>
-
   );
 }
 
@@ -36,9 +35,7 @@ export function PresenceBadgeView({ presence }: { readonly presence: SystemPrese
         <span data-pilot-presence-count className="font-data text-micro text-muted">
           {presence.pilots.length}
         </span>
-
       )}
     </span>
-
   );
 }

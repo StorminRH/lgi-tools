@@ -9,14 +9,12 @@ function runBoundaryCheck(): string {
   const result = spawnSync(
     'npx',
     ['fallow', 'dead-code', '--boundary-violations'],
-
     { encoding: 'utf8', timeout: 30_000 },
   );
   return `${result.stdout}${result.stderr}`;
 }
 
 describe('mapper boundary', () => {
-
   it('rejects a reachable feature-to-mapper import and restores the probe bytes', () => {
     const before = readFileSync(PROBE_PATH, 'utf8');
     let violation = '';

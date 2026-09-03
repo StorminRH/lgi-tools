@@ -10,21 +10,14 @@ export function NoMapAccess() {
         <div className="font-data text-label uppercase tracking-eyebrow text-muted">
           Atlas · access
         </div>
-
-        {}
         <h2 className="font-display text-title font-bold tracking-copy text-name">
           You&rsquo;ve lost access to this map&nbsp;<span className="text-isk">o7</span>
-
         </h2>
-
         <p className="text-body leading-relaxed text-text">
           Another map can be opened from the atlas or access can be restored by the
           map&rsquo;s owner.
         </p>
-
       </div>
-
     </section>
-
   );
 }

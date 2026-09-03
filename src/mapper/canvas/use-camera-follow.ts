@@ -83,7 +83,6 @@ function runCameraFitEffect(input: {
   readonly framedRef: { current: boolean };
   readonly flightRef: { current: CameraFlight };
 }): void {
-
   const tick = resolveFitTick({
     viewportReady: isViewportReady(
       input.viewportInitialized,
@@ -124,15 +123,11 @@ interface CameraFollowProps {
   readonly intents: readonly MapChainIntent[];
   readonly follow: boolean;
   readonly dragging: ReadonlySet<number>;
-
   readonly nodeIds: ReadonlySet<number>;
-
   readonly systems: ChainState['systems'];
   readonly config: MotionConfig;
   readonly prefersReducedMotion: PrefersReducedMotion;
-
   readonly focusRequest: CameraFocusRequest | null;
-
   readonly focusEnabled: boolean;
 }
 
@@ -154,7 +149,6 @@ function useCameraFollow({
     getInternalNode,
     viewportInitialized,
   } = useReactFlow();
-
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
   const minZoom = useStore((state) => state.minZoom);

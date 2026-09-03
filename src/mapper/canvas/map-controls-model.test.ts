@@ -62,7 +62,6 @@ describe('map controls model', () => {
     expect(commitHaloPerExitCap(HALO_PINNED_LIMITS, 5).maxSystemsPerExit).toBe(10);
     expect(commitHaloPerExitCap(HALO_PINNED_LIMITS, 999).maxSystemsPerExit).toBe(120);
     expect(commitHaloTotalCap(HALO_PINNED_LIMITS, 1000).maxSystemsTotal).toBe(300);
-
     expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, 3)).toMatchObject({
       foggedRings: HALO_PINNED_LIMITS.foggedRings,
       maxSystemsPerExit: HALO_PINNED_LIMITS.maxSystemsPerExit,

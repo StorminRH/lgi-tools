@@ -30,17 +30,11 @@ export interface ChainSurfaceProps {
   readonly onNodeDragStop?: OnNodeDrag<ChainNode>;
   readonly onSelectionDragStart?: SelectionDragHandler<ChainNode>;
   readonly onSelectionDragStop?: SelectionDragHandler<ChainNode>;
-
   readonly onNodeClick?: NodeMouseHandler<ChainNode>;
-
   readonly onNodeContextMenu?: NodeMouseHandler<ChainNode>;
-
   readonly onEdgeContextMenu?: EdgeMouseHandler;
-
   readonly nodesDraggable?: boolean;
-
   readonly motion?: MotionConfig;
-
   readonly children?: ReactNode;
 }
 
@@ -91,13 +85,10 @@ export function ChainSurface({
         onNodeClick={onNodeClick}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
-
         className="bg-transparent!"
       >
         {children}
       </ReactFlow>
-
     </div>
-
   );
 }

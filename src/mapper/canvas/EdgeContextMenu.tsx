@@ -38,7 +38,6 @@ export function EdgeContextMenu({
       >
         Edit
       </MenuItem>
-
       <MenuItem
         className={menuRow}
         onClick={() => {
@@ -47,8 +46,6 @@ export function EdgeContextMenu({
       >
         Delete
       </MenuItem>
-
     </PointerMenu>
-
   );
 }

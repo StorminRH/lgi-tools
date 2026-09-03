@@ -164,7 +164,6 @@ describe('mapper source contract', () => {
   });
 
   it('keeps internalized tombstone helpers off every UI surface', () => {
-
     for (const file of mapperFiles()) {
       if (file === 'chain/optimistic-authoring.ts') continue;
       const source = sourceOf(file);
@@ -175,7 +174,6 @@ describe('mapper source contract', () => {
   });
 
   it('routes UI destruction only through sever and the public restore pair', () => {
-
     const allowed = new Set([
       'chain/optimistic-authoring.ts',
       'signatures/connection-authoring-api.ts',
@@ -197,7 +195,6 @@ describe('mapper source contract', () => {
   });
 
   it('keeps the window layer off the hot nodes array', () => {
-
     const layer = sourceOf('windows/MapWindowLayer.tsx');
     const host = sourceOf('chain/ChainLive.tsx');
     expect(layer).not.toMatch(/readonly nodes:/);
@@ -207,7 +204,6 @@ describe('mapper source contract', () => {
   });
 
   it('stacks the node info card above the scanner sibling layer', () => {
-
     expect(sourceOf('windows/MapWindowLayer.tsx')).toContain('z-float');
     expect(sourceOf('signatures/SignatureWindow.tsx')).toContain(
       'data-signature-window-layer',
@@ -244,7 +240,6 @@ describe('mapper source contract', () => {
   });
 
   it('keeps the page subscriptions split so a connection write cannot re-read systems', () => {
-
     const hook = sourceOf('chain/use-map-chain-pages.ts');
 
     expect(hook).toContain('api.mapChainSystems.watchMapSystems');
@@ -261,7 +256,6 @@ describe('mapper source contract', () => {
   });
 
   it('confines client-callable mutations to the three named mapper seams', () => {
-
     const mutationFiles = mapperFiles().filter((file) =>
       /useMutation|useAction/.test(sourceOf(file)),
     );
@@ -285,7 +279,6 @@ describe('mapper source contract', () => {
       expect(source, `${file} must not build state from pages`).not.toContain(
         'usePaginatedQuery',
       );
-
       expect(source, `${file} must not subscribe through a slice hook`).not.toMatch(
         /@\/data\/convex\/use-[\w-]+/,
       );
@@ -293,7 +286,6 @@ describe('mapper source contract', () => {
   });
 
   it('introduces no server-side Convex read for the map route', () => {
-
     for (const file of mapperFiles()) {
       expect(sourceOf(file)).not.toMatch(/preloadQuery|fetchQuery/);
     }

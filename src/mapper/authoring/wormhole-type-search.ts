@@ -10,7 +10,6 @@ export function wormholeTypeSearch(
   codes: readonly string[],
   options?: {
     readonly lenient?: boolean;
-
     readonly preferredCodes?: readonly string[];
   },
 ): {
@@ -21,7 +20,6 @@ export function wormholeTypeSearch(
     | { ok: false; error: WormholeTypeErr };
   suggest: (input: string) => Promise<string[]>;
 } {
-
   const alphabetical = [
     ...new Set(codes.map((code) => code.toUpperCase())),
   ].toSorted((left, right) => left.localeCompare(right));

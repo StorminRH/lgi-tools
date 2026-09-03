@@ -139,7 +139,6 @@ export function chainBounds(
 
 export interface FitExecution {
   readonly consume: boolean;
-
   readonly bounds: CameraBounds | null;
 }
 

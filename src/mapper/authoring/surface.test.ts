@@ -17,7 +17,6 @@ function sourceOf(relative: string): string {
 
 describe('authoring surface inspection', () => {
   it('owns only the home prompt and node-bound add flow as system creators', () => {
-
     const sources = authoringFiles().map((file) => sourceOf(file)).join('\n');
     expect(sources).toContain('data-map-home-prompt');
     expect(sources).toContain('Add connection');

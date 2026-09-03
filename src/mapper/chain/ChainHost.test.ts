@@ -110,11 +110,9 @@ vi.mock('@xyflow/react', async () => {
     Position: { Left: 'left', Right: 'right' },
     Panel: ({ children }: { children?: unknown }) =>
       element('div', { 'data-react-flow-panel': '' }, children as never),
-
     ViewportPortal: ({ children }: { children?: unknown }) =>
       element('div', { 'data-viewport-portal': '' }, children as never),
     useOnViewportChange: () => undefined,
-
     getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
     useReactFlow: () => ({
       fitView: vi.fn(async () => true),
@@ -265,7 +263,6 @@ describe('chain host access states', () => {
 
     expect(markup).toContain('data-chain-no-access');
     expect(markup).toContain('lost access to this map');
-
     expect(markup).not.toContain('data-react-flow');
     expect(markup).not.toMatch(/error|try again|refresh|retry/i);
   });
@@ -304,7 +301,6 @@ describe('chain host access states', () => {
   });
 
   it('hides the home prompt when live systems exist even before merge lands', async () => {
-
     mocks.useMapChain.mockReturnValue({
       access: true,
       canEdit: true,

@@ -3,11 +3,8 @@ import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 
 export interface SystemLabel {
   readonly name: string;
-
   readonly className: string | null;
-
   readonly security?: number | null;
-
   readonly whClassId?: number | null;
 }
 
