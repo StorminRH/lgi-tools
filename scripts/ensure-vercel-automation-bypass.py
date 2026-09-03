@@ -26,11 +26,9 @@ PROJECT_JSON = ROOT / ".vercel" / "project.json"
 ENV_LOCAL = ROOT / ".env.local"
 SECRET_KEY = "VERCEL_AUTOMATION_BYPASS_SECRET"
 
-
 def die(message: str, code: int = 1) -> None:
     print(f"✗ {message}", file=sys.stderr)
     raise SystemExit(code)
-
 
 def vercel_auth_token() -> str:
     if token := os.environ.get("VERCEL_TOKEN"):
@@ -54,7 +52,6 @@ def vercel_auth_token() -> str:
             return token
     die("No Vercel auth token found (run `vercel login` or set VERCEL_TOKEN)")
 
-
 def load_project() -> tuple[str, str | None]:
     if not PROJECT_JSON.is_file():
         die(f"Missing {PROJECT_JSON}; run `vercel link` first")
@@ -64,7 +61,6 @@ def load_project() -> tuple[str, str | None]:
         die("`.vercel/project.json` has no projectId")
     org_id = data.get("orgId")
     return project_id, org_id if isinstance(org_id, str) else None
-
 
 def api_request(method: str, url: str, token: str, body: dict | None = None) -> dict:
     payload = None if body is None else json.dumps(body).encode("utf-8")
@@ -83,7 +79,6 @@ def api_request(method: str, url: str, token: str, body: dict | None = None) -> 
             raw = response.read()
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", errors="replace")
-        # Never echo response bodies that may contain secrets.
         die(f"Vercel API {error.code} for {method} {url.split('?', 1)[0]}")
     if not raw:
         return {}
@@ -95,7 +90,6 @@ def api_request(method: str, url: str, token: str, body: dict | None = None) -> 
         die("Vercel API returned unexpected JSON shape")
     return parsed
 
-
 def automation_secrets(protection_bypass: dict) -> list[str]:
     secrets: list[str] = []
     for secret, meta in protection_bypass.items():
@@ -105,14 +99,12 @@ def automation_secrets(protection_bypass: dict) -> list[str]:
             secrets.append(secret)
     return secrets
 
-
 def fetch_project(token: str, project_id: str, team_id: str | None) -> dict:
     query = urllib.parse.urlencode({"teamId": team_id} if team_id else {})
     url = f"https://api.vercel.com/v9/projects/{project_id}"
     if query:
         url = f"{url}?{query}"
     return api_request("GET", url, token)
-
 
 def patch_bypass(token: str, project_id: str, team_id: str | None, body: dict) -> dict:
     query = urllib.parse.urlencode({"teamId": team_id} if team_id else {})
@@ -121,13 +113,11 @@ def patch_bypass(token: str, project_id: str, team_id: str | None, body: dict) -
         url = f"{url}?{query}"
     return api_request("PATCH", url, token, body)
 
-
 def ensure_secret(token: str, project_id: str, team_id: str | None, *, rotate: bool) -> str:
     project = fetch_project(token, project_id, team_id)
     existing = automation_secrets(project.get("protectionBypass") or {})
 
     if rotate and existing:
-        # Prefer the secret already marked as the system env var, else the first.
         bypass_map = project.get("protectionBypass") or {}
         revoked = existing[0]
         for candidate in existing:
@@ -143,7 +133,6 @@ def ensure_secret(token: str, project_id: str, team_id: str | None, *, rotate: b
         )
         secrets = automation_secrets(body.get("protectionBypass") or {})
         if not secrets:
-            # Some responses omit the map; re-fetch.
             project = fetch_project(token, project_id, team_id)
             secrets = automation_secrets(project.get("protectionBypass") or {})
         if not secrets:
@@ -167,7 +156,6 @@ def ensure_secret(token: str, project_id: str, team_id: str | None, *, rotate: b
         die("Create succeeded but no automation-bypass secret was returned")
     return secrets[0]
 
-
 def upsert_env_local(path: Path, key: str, value: str) -> str:
     """Write key=value into path. Returns 'created' | 'updated' | 'unchanged'."""
     text = path.read_text(encoding="utf-8") if path.exists() else ""
@@ -183,7 +171,6 @@ def upsert_env_local(path: Path, key: str, value: str) -> str:
         text += "\n"
     path.write_text(text + line + "\n", encoding="utf-8")
     return "created"
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -212,7 +199,6 @@ def main() -> None:
     print("  (value not printed; add the same key to Cursor Cloud Agents → Secrets)")
     if args.rotate:
         print("  rotated: prior bypass invalidated; redeploy if deployments must pick up the new system env")
-
 
 if __name__ == "__main__":
     main()

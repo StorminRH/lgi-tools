@@ -1,13 +1,3 @@
-// Deploy-time Neon wake immediately before `next build`. Migrate/backfill/
-// ingest already touched the database earlier in `build:vercel`, but the
-// compile gap before static generation can leave Launch-plan compute suspended
-// again. Homepage and site-shell prerender then hit Neon HTTP's 30s bound as
-// TimeoutError (not retried on the request path) and fail the whole deploy.
-//
-// Hard-fail: if Neon cannot answer SELECT 1 here, prerender would fail anyway.
-// Retry policy (including TimeoutError) lives in warm-neon-query.ts so the
-// shared prerender cold-start envelope stays unchanged.
-
 import { config } from 'dotenv';
 import { sql } from 'drizzle-orm';
 import { readEnv, requireEnv } from '@/lib/env';

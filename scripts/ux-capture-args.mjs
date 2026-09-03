@@ -1,8 +1,3 @@
-// Pure, import-safe helpers for the UX log sweep (scripts/ux-capture.mjs),
-// extracted so the arg parsing, slug assignment, and report-row shaping are unit
-// tested without launching a browser. Node builtins only — no playwright, no side
-// effects, no top-level execution.
-
 export const VIEWPORTS = {
   mobile: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
@@ -10,18 +5,15 @@ export const VIEWPORTS = {
   hd: { width: 1366, height: 768 },
   desktop: { width: 1440, height: 900 },
   wide: { width: 1920, height: 1080 },
-  // A 1280×900 browser window at 200% zoom exposes a 640×450 CSS viewport.
-  // This is a layout proxy, not browser-level zoom emulation.
+
   zoom200: { width: 640, height: 450 },
 };
 
-// --- args -------------------------------------------------------------------
-// Positionals are route paths; `--flag=value` are options. No args → smoke `/`.
 function applyFlag(opts, key, value) {
   if (key === 'base-url') opts.baseUrl = value;
   else if (key === 'settle') {
     const n = Number(value);
-    if (!Number.isNaN(n)) opts.settle = n; // allow --settle=0 (0 is valid, not "unset")
+    if (!Number.isNaN(n)) opts.settle = n;
   } else if (key === 'viewport' || key === 'viewports') {
     opts.viewports = value
       .split(',')
@@ -35,11 +27,7 @@ function applyFlag(opts, key, value) {
 export function parseArgs(argv) {
   const routes = [];
   const opts = {
-    // localhost, never 127.0.0.1: Next dev (Turbopack) blocks /_next/* dev
-    // assets cross-origin from a 127.0.0.1 Host (allowedDevOrigins), so the HMR
-    // handshake fails and pages silently render the SSR shell unhydrated — no
-    // client fetches, no errors. The server may still be *bound* to 127.0.0.1
-    // (`next dev -H 127.0.0.1`); only the browsed URL must be localhost.
+
     baseUrl: process.env.UX_BASE_URL ?? 'http://localhost:3000',
     viewports: ['desktop', 'mobile'],
     settle: 1500,
@@ -64,16 +52,11 @@ export function parseArgs(argv) {
   return { routes, opts };
 }
 
-// `/` → home; `/sites/[id]` → sites-id; trailing/leading slashes collapsed.
 function slugify(route) {
   const s = route.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9]+/g, '-');
   return s || 'home';
 }
 
-// Pair each route with a unique filename slug. slugify() collapses every
-// separator run to one `-`, so routes differing only in punctuation (`/a/b` vs
-// `/a-b`) would otherwise share a file and silently overwrite each other —
-// disambiguate collisions with a numeric suffix.
 export function assignSlugs(routes) {
   const used = new Set();
   return routes.map((route) => {
@@ -86,17 +69,12 @@ export function assignSlugs(routes) {
   });
 }
 
-// --- report row shaping -----------------------------------------------------
-// One network line per result: the first 4xx/5xx if any, else the first failed
-// request. Callers only reach this when a result has at least one of the two.
 function networkFirst(r) {
   return r.httpErrors[0]
     ? `${r.httpErrors[0].status} ${r.httpErrors[0].url}`
     : `${r.failedRequests[0].error} ${r.failedRequests[0].url}`;
 }
 
-// Shape the sweep results into the three finding tables + failure-artifact
-// count the summary prints. Pure: no console, no fs — the entry does the logging.
 export function summariseResults(results) {
   const failureArtifactCount = results.reduce(
     (n, r) => n + (r.failureArtifacts?.length ?? r.screenshots?.length ?? 0),

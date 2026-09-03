@@ -22,7 +22,6 @@ export type ResponseArgsFor<TCodec extends ResponseCodec> =
           ? []
           : never;
 
-/** Builds one endpoint-declared response with the exact body required by its status codec. */
 export function apiResponse<
   TEndpoint extends EndpointContract,
   TStatus extends DeclaredStatus<TEndpoint>,
@@ -72,16 +71,11 @@ export function apiResponse(
   return serializeProblem(mapped);
 }
 
-/**
- * Maps one typed failure to its safe delivery-boundary problem response, reusing the operation's
- * ambient correlation id so the id the user is shown is the id recorded against the operation.
- */
 export function problemResponse(failure: AppFailure): Response {
   stashFailure(failure);
   return serializeProblem(problemBody(failure, currentCorrelationId()));
 }
 
-/** Stamps one Cache-Control value on an apiResponse-built response. */
 export function withCacheControl(response: Response, value: string): Response {
   response.headers.set('Cache-Control', value);
   return response;

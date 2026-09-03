@@ -23,8 +23,6 @@ describe('isRouteFile', () => {
       expect(isRouteFile(base)).toBe(false);
     }
 
-    // Discovering favicon.ico would report a false missing route: it deliberately
-    // has no entry in route-classification.json; the post-build check filters it.
     expect(isRouteFile('favicon.ico')).toBe(false);
   });
 });

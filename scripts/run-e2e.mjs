@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-// Runs Playwright E2E after seeding local Better Auth storage state.
-// Set E2E_SKIP_SEED=1 when storage state already exists, or when pointing at a
-// remote base URL with an operator-exported file via E2E_STORAGE_STATE (or
-// UX_STORAGE_STATE). Cookie jars are for pnpm ux-check / run-probes — not this
-// runner; Playwright specs consume storageState JSON only.
+
 import { spawnSync } from 'node:child_process';
 import { remoteSkipSeedError } from './run-e2e-guard.mjs';
 
