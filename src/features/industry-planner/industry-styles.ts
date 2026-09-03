@@ -1,8 +1,3 @@
-// Feature-level domain → UI mapping for the Industry Planner. The only place
-// that knows "a thin margin is orange" or "activity 1 is Manufacturing". The
-// reusable primitives stay domain-agnostic; this file picks tones/labels from
-// the shared vocabulary.
-
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
@@ -10,50 +5,22 @@ import type { PriceSource } from '@/data/market-prices/types';
 import { isBoundaryStaleMs } from '@/lib/esi-datasets/freshness';
 import type { NodeMeState } from './me-overrides';
 
-// Below this percentage a positive margin is "thin" (orange) rather than
-// healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
 const THIN_MARGIN_PCT = 5;
 
 export type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
 
-/**
- * Shared planner disclosure treatment: the same recessed black well and neutral border as search
- * fields and dropdowns, with green reserved for the label rather than the whole control.
- */
 export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
   'border-border-soft bg-bg-deep text-isk shadow-field-inset hover:border-border-idle hover:bg-row-active hover:text-isk data-[popup-open]:border-border-idle data-[popup-open]:bg-row-active';
 
-/**
- * Planner trace treatment for an input related to the selected build node.
- * The inset border preserves the tier-row geometry while sharpening the existing dim wash.
- */
 export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
 
-/**
- * Hero location group layout: fluid below `sm` so manufacturing and reaction
- * pickers stay inside the card on narrow viewports; FIXED at the 332px plane
- * from `sm` up. The fixed width is load-bearing on desktop — a fluid `w-full`
- * child inside the hero's max-content-sized wrapper resolves cyclically (the
- * groups' intrinsic widths shrink to their content, wrap, then rewrap as labels
- * change — the shifting-pane bug), so only the sub-`sm` tier may be fluid.
- */
 export const HERO_LOCATION_GROUP_CLASS =
   'flex w-full min-w-0 max-w-[332px] sm:w-[332px] flex-col justify-center gap-1.5';
 
-/** Label + control row inside a hero location group. */
 export const HERO_LOCATION_ROW_CLASS = 'flex min-w-0 items-center gap-2';
 
-/**
- * The shared control well: 260px beside the fixed label when space allows
- * (consumers add their own height); shrinks on phones instead of clipping past
- * the card edge.
- */
 export const HERO_LOCATION_CONTROL_WELL_CLASS = 'min-w-0 flex-1 max-w-[260px]';
 
-/**
- * Sole presentation owner for planner efficiency states across icon glyphs, editable
- * values, hero labels, and build-node frames.
- */
 export const EFFICIENCY_TONE_CLASSES: Record<
   EfficiencyToneState,
   { fill: string; glow: string; stroke: string; text: string; frame: string }
@@ -95,10 +62,6 @@ export const EFFICIENCY_TONE_CLASSES: Record<
   },
 };
 
-/**
- * Text-colour class for a margin figure. Loss → red, thin → orange, healthy →
- * green, unknown (no product sell price) → muted.
- */
 export function marginToneClass(marginPct: number | null): string {
   if (marginPct === null) return 'text-muted';
   if (marginPct < 0) return toneTextClass('red');
@@ -106,7 +69,6 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
-/** Display-ready margin amount in ISK, percentage, and semantic profitability tone. */
 export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
@@ -116,12 +78,6 @@ export interface MarginFigures {
   missingAdjustedPriceCount: number;
 }
 
-/**
- * The hero's headline figures: net wins whenever a net estimate exists (a
- * manufacturing blueprint with a build location picked → `net` non-null),
- * otherwise gross from the materials-only summary. `sign` is the leading '+'
- * for a positive margin; the missing-fee flags feed selectMarginCaption.
- */
 export function deriveMarginFigures(
   summary: { margin: number | null; marginPct: number | null } | null,
   net: {
@@ -143,30 +99,16 @@ export function deriveMarginFigures(
   };
 }
 
-/**
- * Industry activity label, from the shared id → label map (eve-data).
- * Manufacturing (1) and reactions (11) are the only activities the planner
- * models (see eve-data INDUSTRY_ACTIVITY_NAMES); the fallback covers any id
- * outside the map.
- */
 export function activityLabel(activityId: number): string {
   return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
-/**
- * A material/build category: a display label, a palette tone, and a sort order.
- * Categories are keyed off the SDE *group* (not the broader category), because
- * group is what distinguishes e.g. a manufactured Fuel Block from a reaction
- * output — both sit under the `Material` SDE category. Adding/retuning a
- * category is a config edit here; nothing else changes.
- */
 export interface Category {
   label: string;
   tone: Tone;
   order: number;
 }
 
-// --- Raw materials (the cost panel — things you buy/gather) ------------
 const MINERALS: Category = { label: 'Minerals', tone: 'neutral', order: 21 };
 const ICE: Category = { label: 'Ice Products', tone: 'blue', order: 22 };
 const GAS: Category = { label: 'Gas', tone: 'teal', order: 23 };
@@ -187,7 +129,6 @@ const RAW_BY_GROUP: Record<string, Category> = {
   'Abyssal Materials': SALVAGE,
 };
 
-/** Returns the semantic raw-material style for a node from its market group and build classification. */
 export function classifyRaw(groupName: string, categoryName: string): Category {
   return (
     RAW_BY_GROUP[groupName] ??
@@ -195,29 +136,15 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
   );
 }
 
-// --- Build-sequence tree: a node's label + colour ----------------------
-// The phase a node sits in (how deep it is) is derived from graph height in
-// the data layer; this picks only its LABEL and colour, and every label is a
-// real in-game identifier — never an invented bucket. A reaction output
-// (activity 11) reads as "Reaction"; any other buildable reads as its own SDE
-// group name. The root product reads as its group/category (e.g. "Frigate").
-// Raws reuse the ledger's source-category colour but show their real SDE group
-// name, so no invented name enters the tree.
 const REACTION_ACTIVITY_ID = 11;
-/**
- * The label a reaction-activity (11) build node carries. Exported so the planner
- * can tell a reaction node from a manufactured one — reactions can't be researched,
- * so they have no ME/TE to adjust.
- */
+
 export const REACTION_NODE_LABEL = 'Reaction';
 
-/** Canonical build-node label, icon intent, and semantic tone. */
 export interface NodeLabel {
   label: string;
   tone: Tone;
 }
 
-/** Maps a build node to its canonical label, icon intent, and semantic tone. */
 export function classifyBuildNode(args: {
   isRaw: boolean;
   isRoot: boolean;
@@ -238,46 +165,28 @@ export function classifyBuildNode(args: {
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
 }
 
-// --- Price confidence: data quality → an abstract level + reasons ------
-// The only place that maps a material's price signals (source / freshness /
-// liquidity) onto the abstract `level` the `PriceConfidence` primitive renders.
-// The primitive stays domain-agnostic; this is the domain mapping.
-//
-// Buy-side depth (units) below this reads as illiquid — a rough at-a-glance
-// cut, not a trading signal (mirrors THIN_MARGIN_PCT). Used internally by the
-// per-row and aggregate confidence mappers below.
 const THIN_LIQUIDITY_UNITS = 100;
-// Aggregate headline bands: share of fully-trustworthy (high) material rows.
+
 const HIGH_CONFIDENCE_SHARE = 0.75;
 const MEDIUM_CONFIDENCE_SHARE = 0.4;
 
-/** The price signals a confidence verdict reads — a subset of MaterialCostRow. */
 export interface ConfidenceInput {
   source: PriceSource | null;
   buyVolume: number | null;
-  unitBuy: number | null; // null = no usable buy price (excluded from cost)
-  staleAfterMs: number | null; // null = no price row at all
+  unitBuy: number | null;
+  staleAfterMs: number | null;
 }
 
-/** Confidence evidence for one priced planner row, including source and freshness. */
 export interface RowConfidence {
   level: ConfidenceLevel;
   reasons: string[];
 }
 
-/** Worst-case confidence summary across all priced rows contributing to a total. */
 export interface AggregateConfidence {
   level: ConfidenceLevel;
   summary: string;
 }
 
-/**
- * One material's price-confidence verdict at time `nowMs`. high = fresh ESI
- * price with real depth; low = priced row but no usable price; unknown = no
- * price row yet; medium = any single shortfall (stale / fallback source /
- * thin depth). `nowMs` is passed in, never read from the wall clock, so this
- * stays pure (and Cache-Components-safe — see CostPanel for who supplies it).
- */
 export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfidence {
   if (input.staleAfterMs === null) {
     return { level: 'unknown', reasons: ['No price data yet'] };
@@ -296,54 +205,25 @@ export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfi
   return reasons.length === 0 ? { level: 'high', reasons: [] } : { level: 'medium', reasons };
 }
 
-// Below this best_sell / pct5_sell ratio the product's revenue anchor reads as
-// "a thin order" (3.7.25.1): the lowest ask sits well under the volume-weighted
-// front of the book, so the headline price is unlikely to be tradable at
-// volume. Calibrated in the best_sell hardening report — at 0.90 this fires on
-// ~4% of products (~7% of liquid ones) pre-hardening, and post-hardening only
-// on rows the dust filter can't judge (small books, Fuzzwork-fallback rows,
-// rows not yet re-fetched).
 const THIN_SELL_ANCHOR_RATIO = 0.9;
 
-/**
- * The Sell·Jita honesty badge (3.7.25.1): null = no badge (healthy or
- * unknowable); otherwise the level + reason the PriceConfidence primitive
- * renders. Pure ratio test on the two stored sell figures — deliberately
- * source-agnostic, so a Fuzzwork-fallback row (raw book bottom, no order book
- * to dust-filter) and a stale pre-hardening row fire the same way.
- */
 export function sellAnchorConfidence(product: {
   bestSell: number | null | undefined;
   pct5Sell: number | null | undefined;
 }): RowConfidence | null {
   const { bestSell, pct5Sell } = product;
-  // Loose null checks on purpose: a pricing payload cached before this field
-  // existed reaches here with pct5Sell undefined, and that must read as "no
-  // reference" (no badge) — a strict null check would let undefined through
-  // to a NaN ratio, which fails the >= comparison and falsely fires.
+
   if (bestSell == null || pct5Sell == null || pct5Sell <= 0) return null;
   if (bestSell / pct5Sell >= THIN_SELL_ANCHOR_RATIO) return null;
   return { level: 'medium', reasons: ['Price anchored by a thin order'] };
 }
 
-/**
- * The Sell·Jita opportunity callout's display verdict (3.7.26.1): the stored
- * regional discount, validated for render. The gate thresholds live at ingest
- * (constants.ts) — this only decides "is there a well-formed discount to
- * show" and shapes the display numbers. Distinct from the thin-order badge
- * above (different tone, different meaning — both can render at once).
- */
 export interface RegionalDiscountCallout {
   systemId: number;
-  pct: number; // whole percent, rounded for display
+  pct: number;
   units: number;
 }
 
-/**
- * Loose guards on purpose (the #203 posture): a payload cached before the
- * field existed reaches here with regionalDiscount undefined, and a malformed
- * or partial object must read as "no callout", never render NaN.
- */
 export function regionalDiscountCallout(product: {
   regionalDiscount?: {
     systemId?: number | null;
@@ -363,11 +243,6 @@ export function regionalDiscountCallout(product: {
   return { systemId: d.systemId, pct: Math.round(d.pct), units: d.units };
 }
 
-/**
- * The shortfall tallies behind an aggregate verdict. `total` is the row count
- * the share is taken over; `high` is the fully-trustworthy rows; the rest count
- * each shortfall independently (a row can be both stale and fallback).
- */
 export interface ConfidenceCounts {
   high: number;
   total: number;
@@ -377,12 +252,6 @@ export interface ConfidenceCounts {
   missing: number;
 }
 
-/**
- * Map shortfall counts onto one headline level + a breakdown string — the ONE
- * place the share bands and summary format live. The browse catalog computes
- * the counts in SQL (`aggregateConfidence` below tallies them in JS from the
- * per-row verdicts); both funnel through here so neither can drift.
- */
 export function aggregateConfidenceFromCounts(c: ConfidenceCounts): AggregateConfidence {
   if (c.total === 0) return { level: 'unknown', summary: 'No materials to price' };
 
@@ -402,9 +271,6 @@ export function aggregateConfidenceFromCounts(c: ConfidenceCounts): AggregateCon
   return { level, summary: parts.length ? parts.join(' · ') : 'all live · liquid' };
 }
 
-// One row's contribution to the aggregate: a high/missing verdict plus, for
-// priced rows, the specific shortfalls (stale / fallback-source / illiquid).
-// `total` is added once by the caller, so a single row tallies everything else.
 type RowCounts = Omit<ConfidenceCounts, 'total'>;
 
 function classifyInput(input: ConfidenceInput, nowMs: number): RowCounts {
@@ -420,12 +286,6 @@ function classifyInput(input: ConfidenceInput, nowMs: number): RowCounts {
   return counts;
 }
 
-/**
- * Roll the per-row verdicts into one headline level + a breakdown string for
- * the cost panel's aggregate line ("High confidence — 1 stale · 1 missing").
- * The headline is share-based (mostly-trustworthy rows still read "high", with
- * the exceptions surfaced in the summary); the summary counts each shortfall.
- */
 export function aggregateConfidence(
   inputs: ConfidenceInput[],
   nowMs: number,

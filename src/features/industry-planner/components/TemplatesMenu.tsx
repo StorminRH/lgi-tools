@@ -19,15 +19,6 @@ import { useSavedPlans } from '../use-saved-plans';
 import { useTemplatePlanner } from './planner-contexts';
 import { SavedPlanRows } from './SavedPlanRows';
 
-// Saved build templates (3.7.23): the PlannerHead's click-popover, cloned from
-// the multibuy panel idiom. Save captures the planner's full configuration
-// (captureTemplate — inputs only); the list spans ALL blueprints (favorites
-// first, the server's order); loading navigates to the template's own planner
-// page with ?plan=, where TemplateLoader replays it. The list state + row
-// mutations live in the shared useSavedPlans hook (3.7.24 — shared with the
-// dashboard's Templates section and /industry/templates); every mutating endpoint
-// echoes the full updated list, so the panel re-renders without a refetch.
-
 function TemplatesListState({
   plans,
   emptyLine,
@@ -42,11 +33,12 @@ function TemplatesListState({
   }
   if (plans.length === 0) {
     return <p className="text-micro leading-snug text-muted">{emptyLine}</p>;
+
   }
   return <ul className={`${scrollArea} flex max-h-[264px] flex-col gap-1.5 overflow-y-auto`}>{children}</ul>;
+
 }
 
-/** Renders saved template choices in the planner menu and forwards the selected snapshot for application. */
 export function TemplatesMenu({
   blueprintTypeId,
   productName,
@@ -61,8 +53,6 @@ export function TemplatesMenu({
   const [saving, setSaving] = useState(false);
   const menu = useManagedRowMenu({ rename: renameRow, remove: deleteRow });
 
-  // Refresh on every open (keeping the stale list up while the read runs);
-  // closing resets the transient row states so a re-open starts clean.
   const onOpenChange = (open: boolean) => {
     if (!open) {
       menu.reset();
@@ -110,7 +100,9 @@ export function TemplatesMenu({
         <>
           Templates
           <span className="inline-block text-micro text-muted">▾</span>
+
         </>
+
       }
     >
       <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
@@ -139,11 +131,14 @@ export function TemplatesMenu({
         >
           Save
         </Button>
+
       </div>
 
       <TemplatesListState plans={plans} emptyLine={emptyLine}>
         <SavedPlanRows plans={plans ?? []} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
       </TemplatesListState>
+
     </Popover>
+
   );
 }

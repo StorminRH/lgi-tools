@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { initialPriceMap } from './initial-price-map';
 import type { BlueprintPricing, IntermediatePrice, MaterialCostRow } from './types';
 
-// Minimal snapshot builders — only the fields the seed map reads vary per test.
 const row = (typeId: number, over: Partial<MaterialCostRow> = {}): MaterialCostRow => ({
   typeId,
   name: `Type ${typeId}`,
@@ -89,7 +88,7 @@ describe('initialPriceMap — the client seed from the server snapshot', () => {
     const depth = [{ pct: 1, cumVolume: 2 }];
     const map = initialPriceMap(
       pricing({
-        rows: [row(999, { unitBuy: 7 })], // self-recipe shape: the product also appears as a row
+        rows: [row(999, { unitBuy: 7 })],
         product: {
           typeId: 999,
           bestSell: 50,
@@ -101,9 +100,9 @@ describe('initialPriceMap — the client seed from the server snapshot', () => {
       }),
     );
     expect(map.get(999)).toMatchObject({
-      bestBuy: 7, // preserved from the row seed
+      bestBuy: 7,
       bestSell: 50,
-      pct5Sell: 55, // the thin-order badge's reference rides the seed too
+      pct5Sell: 55,
       buyDepth: depth,
       sellDepth: depth,
       staleAfterMs: 5,

@@ -4,14 +4,6 @@ import type { SavedPlanRow } from './api-contract';
 import { savedPlans } from './schema';
 import type { PlanSnapshotWire } from './template-snapshot';
 
-// Saved-plan queries (3.7.23.1). Every read/write is user-scoped: the user id
-// comes from the session (never the body), and the mutations' (userId, id)
-// predicate makes an operation on another user's row a silent no-op — never a
-// leak, never a 403 that reveals existence (the custom-structures posture).
-// Kept apart from queries.ts, whose blueprint reads are 'use cache' cached —
-// per-user rows must never sit behind those directives.
-
-/** Favorite-first, then most recently updated — the list's display order. */
 export async function listSavedPlans(userId: string): Promise<SavedPlanRow[]> {
   const rows = await db
     .select({
@@ -30,7 +22,6 @@ export async function listSavedPlans(userId: string): Promise<SavedPlanRow[]> {
   return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
 }
 
-/** Counts saved planner templates owned by one user for quota enforcement. */
 export async function countSavedPlans(userId: string): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -39,7 +30,6 @@ export async function countSavedPlans(userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** Creates one user-owned saved plan after enforcing the per-user quota and normalized name contract. */
 export async function createSavedPlan(
   userId: string,
   input: {
@@ -54,10 +44,6 @@ export async function createSavedPlan(
   await db.insert(savedPlans).values({ userId, ...input });
 }
 
-/**
- * Rename refreshes updatedAt (a content change reorders the list); the
- * favorite toggle deliberately does not — starring must not shuffle rows.
- */
 export async function renameSavedPlan(userId: string, id: string, name: string): Promise<void> {
   await db
     .update(savedPlans)
@@ -65,7 +51,6 @@ export async function renameSavedPlan(userId: string, id: string, name: string):
     .where(and(eq(savedPlans.userId, userId), eq(savedPlans.id, id)));
 }
 
-/** Sets one user-owned saved plan's favorite state without exposing plans owned by another user. */
 export async function setSavedPlanFavorite(
   userId: string,
   id: string,
@@ -77,7 +62,6 @@ export async function setSavedPlanFavorite(
     .where(and(eq(savedPlans.userId, userId), eq(savedPlans.id, id)));
 }
 
-/** Deletes one user-owned saved plan and reports whether a matching row existed. */
 export async function deleteSavedPlan(userId: string, id: string): Promise<void> {
   await db
     .delete(savedPlans)

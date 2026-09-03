@@ -9,12 +9,10 @@ import {
   type ConfidenceInput,
 } from './industry-styles';
 
-// Fixed clock so freshness is deterministic.
 const NOW = 1_700_000_000_000;
 const FRESH = NOW + 60_000;
 const STALE = NOW - 60_000;
 
-// A fully-trustworthy row: fresh ESI price with real depth.
 function liveRow(over: Partial<ConfidenceInput> = {}): ConfidenceInput {
   return { source: 'esi', buyVolume: 5_000, unitBuy: 10, staleAfterMs: FRESH, ...over };
 }
@@ -72,7 +70,7 @@ describe('aggregateConfidence', () => {
   });
 
   it('stays high with a small share of problems, surfacing the counts', () => {
-    // 8 of 10 fully trustworthy (≥75%) → headline stays high, exceptions listed.
+
     const rows = [
       ...Array.from({ length: 8 }, () => liveRow()),
       liveRow({ staleAfterMs: STALE }),
@@ -105,10 +103,6 @@ describe('aggregateConfidence', () => {
   });
 });
 
-// The browse catalog tallies the same shortfall counts in SQL and maps them
-// here, so this must agree with aggregateConfidence's share bands + summary.
-// SQL browse path maps the same shortfall counts here — keep band edges +
-// parity with aggregateConfidence; drop cases that only restate the row path.
 describe('aggregateConfidenceFromCounts', () => {
   it('is medium between the 40% and 75% bands', () => {
     expect(aggregateConfidenceFromCounts({ high: 5, total: 10, stale: 2, fallback: 1, thin: 2, missing: 0 })).toEqual({
@@ -178,7 +172,7 @@ describe('sellAnchorConfidence', () => {
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
     });
-    // Fallback-shaped figures still badge on ratio — no source check involved.
+
     expect(sellAnchorConfidence({ bestSell: 21_200_000, pct5Sell: 230_000_000 })).toEqual({
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
@@ -189,7 +183,7 @@ describe('sellAnchorConfidence', () => {
     expect(sellAnchorConfidence({ bestSell: null, pct5Sell: 100 })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: null })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 0 })).toBeNull();
-    // Pre-field caches carry undefined — read as "no reference", never NaN.
+
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: undefined })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: undefined, pct5Sell: 100 })).toBeNull();
   });
