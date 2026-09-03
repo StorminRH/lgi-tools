@@ -43,6 +43,9 @@ describe('getNavServerStatus', () => {
       revalidate: 60,
       expire: 300,
     });
+    expect(h.esiFetch).toHaveBeenCalledTimes(1);
+    expect(h.esiFetch).toHaveBeenCalledWith('https://esi.example/status/');
+    expect(h.esiFetch.mock.calls[0]).toHaveLength(1);
   });
 
   it.each([
@@ -56,7 +59,9 @@ describe('getNavServerStatus', () => {
     expect(h.cacheLife).toHaveBeenCalledWith({
       stale: 30,
       revalidate: 5,
-      expire: 300,
+      expire: 60,
     });
+    expect(h.esiFetch).toHaveBeenCalledTimes(1);
+    expect(h.esiFetch.mock.calls[0]).toHaveLength(1);
   });
 });
