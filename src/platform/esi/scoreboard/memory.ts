@@ -14,8 +14,6 @@ import {
   type PreDispatchState,
 } from './types';
 
-// Dev/test fallback with the same semantics over in-process state — and the
-// readable spec for what the Redis implementation does.
 class MemoryScoreboard implements EsiScoreboard {
   private errorCounts = new Map<number, number>();
   private echo: { value: number; expiresAt: number } | null = null;
@@ -72,7 +70,7 @@ class MemoryScoreboard implements EsiScoreboard {
 
     if (report.status >= 400) {
       this.errorCounts.set(minute, (this.errorCounts.get(minute) ?? 0) + 1);
-      // Only the current and previous buckets are ever read; prune the rest.
+
       for (const key of this.errorCounts.keys()) {
         if (key < minute - 1) this.errorCounts.delete(key);
       }
@@ -83,9 +81,6 @@ class MemoryScoreboard implements EsiScoreboard {
     } else if (report.errorLimitRemain !== null) {
       this.writeEchoIfLower(report.errorLimitRemain, echoTtl(report.errorLimitReset));
     }
-
-    // Group state is durable observability; the in-process fallback has no
-    // reader, so it is deliberately not mirrored here.
 
     if (report.status === 429) {
       const retryAfter = resolveRetryAfter(report.retryAfter);
@@ -116,15 +111,10 @@ class MemoryScoreboard implements EsiScoreboard {
   }
 }
 
-/**
- * Creates the process-local scoreboard used when Redis is unavailable, with bounded maps and the
- * same dispatch contract as the Redis implementation.
- */
 export function createMemoryScoreboard(): EsiScoreboard {
   return new MemoryScoreboard();
 }
 
-/** Returns a point-in-time budget snapshot from the in-memory scoreboard. */
 export function readMemoryBudgetSnapshot(
   scoreboard: EsiScoreboard,
 ): Promise<EsiBudgetSnapshot> {

@@ -26,9 +26,6 @@ const mocks = vi.hoisted(() => {
     }
   }
 
-  // The module now resolves its client through the shared factory, so the seam
-  // under mock is the factory rather than the vendor package. `configured`
-  // still drives the unconfigured path.
   const resolveUpstashClient = vi.fn(
     (options: { timeoutMs: number; retries: number }) => {
       void options;
@@ -71,7 +68,7 @@ describe('recent ESI budget exhaustion marker', () => {
     markRecentBudgetExhaustion();
 
     // A hint write on the ESI go/no-go path must never inherit the SDK's
-    // unbounded default.
+
     expect(mocks.resolveUpstashClient).toHaveBeenCalledWith({
       timeoutMs: 2000,
       retries: 0,

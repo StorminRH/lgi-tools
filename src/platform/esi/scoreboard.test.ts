@@ -1,10 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// In-process stand-in for Upstash Redis with real expiry semantics, shared
-// through one Map so assertions can inspect keys/TTLs directly. The `eval`
-// case interprets the one Lua script the scoreboard uses (write-if-lower);
-// its three behaviors (absent→set, higher→overwrite, lower→keep) are pinned
-// by the echo tests below.
 const h = vi.hoisted(() => {
   interface Entry {
     value: string;
@@ -58,7 +53,7 @@ const h = vi.hoisted(() => {
         const next = live ? Number(entry.value) + 1 : 1;
         store.set(cmd[1], {
           value: String(next),
-          // Redis INCR preserves an existing TTL.
+
           expiresAt: live ? entry.expiresAt : null,
         });
         return next;
@@ -138,7 +133,7 @@ import {
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 const BLOCK_KEY = 'lgi:esi:rl:block:/markets/{n}/orders';
 const ECHO_KEY = 'lgi:esi:err:echo';
-// ETag keys carry path + query only — the host is invariant.
+
 const ETAG_META_KEY = 'lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34';
 const ETAG_BODY_KEY = 'lgi:esi:etag:body:/markets/10000002/orders/?type_id=34';
 
@@ -168,8 +163,7 @@ function seed(key: string, value: string): void {
 }
 
 function redisScoreboard(): EsiScoreboard {
-  // KV_* takes precedence, so stubbing it pins the client config even when a
-  // `vercel env pull` left real credentials in the local env.
+
   vi.stubEnv('KV_REST_API_URL', 'https://example.upstash.io');
   vi.stubEnv('KV_REST_API_TOKEN', 'token');
   const sb = resolveScoreboard();
@@ -220,7 +214,7 @@ describe('RedisScoreboard', () => {
     seed(ECHO_KEY, '70');
 
     const state = await sb.preDispatch(TEST_URL, false);
-    // min(echo 70, 100 − 40) = 60
+
     expect(state.effectiveRemaining).toBe(60);
 
     seed(ECHO_KEY, '50');
@@ -254,12 +248,11 @@ describe('RedisScoreboard', () => {
 
   it('surfaces the seconds remaining on an active Retry-After block', async () => {
     const sb = redisScoreboard();
-    // Block values are stored as their expiry in epoch seconds.
+
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) + 30));
     const state = await sb.preDispatch(TEST_URL, false);
     expect(state.blockedRetryAfter).toBe(30);
 
-    // An already-expired value reads as no block.
     seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) - 5));
     const expired = await sb.preDispatch(TEST_URL, false);
     expect(expired.blockedRetryAfter).toBeNull();
@@ -290,9 +283,7 @@ describe('RedisScoreboard', () => {
   });
 
   it('still counts errors that carry token-bucket headers (conservative rule)', async () => {
-    // The docs leave it ambiguous whether errors on token-bucket routes
-    // deplete the legacy per-IP limit; under-counting risks the ban, so the
-    // mirror counts them.
+
     const sb = redisScoreboard();
     await sb.report(
       makeReport({
@@ -339,7 +330,7 @@ describe('RedisScoreboard', () => {
     );
     expect(h.store.get(ECHO_KEY)?.value).toBe('0');
     expect(h.store.get(ECHO_KEY)?.expiresAt).toBe(Date.now() + 30_000);
-    // A 420 is itself a non-2xx/3xx response — it counts.
+
     expect(h.store.get(`lgi:esi:err:count:${currentMinute()}`)?.value).toBe('1');
   });
 
@@ -459,7 +450,6 @@ describe('resolveScoreboard fallback selection', () => {
     const sb = resolveScoreboard();
     expect(sb).not.toBeNull();
 
-    // Full round trip on the same semantics as the Redis implementation.
     await sb!.report(makeReport({ status: 420 }));
     const closed = await sb!.preDispatch(TEST_URL, false);
     expect(closed.effectiveRemaining).toBe(0);
@@ -478,7 +468,6 @@ describe('resolveScoreboard fallback selection', () => {
     expect(withEtag.etag?.etag).toBe('"abc"');
     await expect(sb!.getCachedBody(TEST_URL)).resolves.toBe('B');
 
-    // Singleton: state persists across resolves.
     expect(resolveScoreboard()).toBe(sb);
     await expect(readEsiBudgetSnapshot()).resolves.toEqual({
       effectiveRemaining: 0,

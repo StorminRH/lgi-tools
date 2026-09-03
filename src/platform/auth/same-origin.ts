@@ -29,11 +29,6 @@ function canonicalOrigin(): string {
     ?? 'https://lgi.tools';
 }
 
-/**
- * Enforces browser same-origin on mutations: explicit Origin/Referer mismatches return a
- * forbidden `cross_origin` failure (and log telemetry); same-origin and provenance-less requests
- * pass. Matching semantics are unchanged from the 3.9-era observer.
- */
 export function requireSameOrigin(request: Request): SameOriginResult {
   const origin = request.headers.get('origin');
   const referer = origin === null ? request.headers.get('referer') : null;

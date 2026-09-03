@@ -3,15 +3,6 @@ import { createMemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
 import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
 import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
 
-// Shared ESI budget scoreboard (3.4.5, Decision Record 11). CCP's limits are
-// per-IP / per-app — shared across every serverless instance we run — so the
-// mirror of what we've spent must be shared too. This is the storage layer:
-// Upstash Redis (the real, shared thing) with an in-process fallback for
-// dev/test. The esiFetch gate owns policy: when to refuse, what to throw, the
-// trickle when Redis is unreachable. See ./types for the data model.
-
-// The public scoreboard surface — interfaces, the error ceiling, the body-cache
-// cap, and the path normalizer the gate also uses for its own keys.
 export {
   ESI_ERROR_CEILING,
   BODY_CACHE_MAX_BYTES,
@@ -32,11 +23,6 @@ let memoryScoreboard: ReturnType<typeof createMemoryScoreboard> | null = null;
 let warnedMissingEnvDev = false;
 let erroredMissingEnvProd = false;
 
-// Pick the live scoreboard. Configured → Redis (shared, the real thing).
-// Unconfigured in dev/test → in-process fallback so `pnpm dev` and vitest
-// need no Upstash account. Unconfigured in production → null: the gate
-// fails closed, and the one-time error makes the misconfigured deploy
-// diagnosable from runtime logs.
 function resolveConcreteScoreboard(): ResolvedScoreboard | null {
   const upstash = resolveUpstashRest();
   if (upstash) {
@@ -67,18 +53,10 @@ function resolveConcreteScoreboard(): ResolvedScoreboard | null {
   return null;
 }
 
-/**
- * Selects the Redis-backed scoreboard when configured and otherwise the in-memory development
- * implementation, reusing one shared instance per backend.
- */
 export function resolveScoreboard(): EsiScoreboard | null {
   return resolveConcreteScoreboard()?.scoreboard ?? null;
 }
 
-/**
- * Reads the current public and authenticated ESI budget counters from the active scoreboard, or
- * null when no snapshot can be produced.
- */
 export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null> {
   const scoreboard = resolveConcreteScoreboard();
   if (scoreboard === null) return null;
@@ -87,7 +65,6 @@ export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null>
     : await readMemoryBudgetSnapshot(scoreboard.scoreboard);
 }
 
-/** Reset module state between Vitest cases. Not for runtime callers. */
 export function __resetScoreboardForTests(): void {
   redisScoreboards.clear();
   memoryScoreboard = null;
