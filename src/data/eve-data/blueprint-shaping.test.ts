@@ -9,7 +9,6 @@ import {
 } from './blueprint-shaping';
 import type { BlueprintActivities } from './tree-resolver';
 
-// Manufacturing activityId = 1, reaction = 11 (ACTIVITY_NAME_TO_ID).
 const mfg = (products: { typeID: number; quantity: number }[]): BlueprintActivities => ({
   manufacturing: { products },
 });

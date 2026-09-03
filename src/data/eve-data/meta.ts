@@ -6,12 +6,6 @@ import { BLUEPRINT_STRUCTURE_TAG, SDE_META_KEY_VERSION } from './constants';
 import { eveDataMeta } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
 
-
-// Single key/value store for SDE pipeline bookkeeping (data version, tree hash).
-// Shared by the request-path queries, the resolver, and the deploy/cron pipeline
-// so they all read and write the same row through one implementation.
-
-/** Reads one SDE metadata value by key and returns null when the key has not been stored. */
 export async function getSdeMetaValue(db: AnyPgDb, key: string): Promise<string | null> {
   const [row] = await db
     .select({ value: eveDataMeta.value })
@@ -21,12 +15,6 @@ export async function getSdeMetaValue(db: AnyPgDb, key: string): Promise<string 
   return row?.value ?? null;
 }
 
-/**
- * Cached, no-arg view of the ingested SDE build + when it landed, for the home
- * dashboard's status card. Caching the read off the render path keeps it in the
- * static shell; the SDE refresh cron busts BLUEPRINT_STRUCTURE_TAG, so a new
- * build/ingest is reflected without waiting for a deploy.
- */
 export async function getCachedSdeVersion(): Promise<{
   version: string | null;
   ingestedAt: Date | null;
@@ -40,14 +28,12 @@ export async function getCachedSdeVersion(): Promise<{
       .from(eveDataMeta)
       .where(eq(eveDataMeta.key, SDE_META_KEY_VERSION))
       .limit(1);
-    // value/updatedAt are NOT NULL, so a present row needs no per-field
-    // coalescing — the only absent case is no row at all.
+
     if (!row) return { version: null, ingestedAt: null };
     return { version: row.value, ingestedAt: row.updatedAt };
   });
 }
 
-/** Upserts one authoritative SDE metadata value by key. */
 export async function setSdeMetaValue(db: AnyPgDb, key: string, value: string): Promise<void> {
   await db
     .insert(eveDataMeta)
