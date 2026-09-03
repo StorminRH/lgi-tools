@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import '@/composition/map-access-identity';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectTo(request, userId, 'last_character');
       }
 
-      const removed = await deleteLinkedCharacter(userId, characterId);
+      const removed = await deleteLinkedCharacter(userId, characterId, identityProjectionRunners);
       if (!removed) {
         return redirectTo(request, userId, 'unlink_failed');
       }

@@ -44,6 +44,11 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
     lintPatterns: ['@/platform/auth/auth'],
   },
   {
+    path: 'src/composition/auth.ts',
+    kind: 'file',
+    lintPatterns: ['@/composition/auth'],
+  },
+  {
     path: 'src/platform/auth/eve-sso.ts',
     kind: 'file',
     lintPatterns: ['@/platform/auth/eve-sso'],
@@ -83,6 +88,7 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
 ];
 
 const EXPECTED_MARKERS = [
+  'src/composition/auth.ts',
   'src/data/gsc/source.ts',
   'src/data/wh-statics/source.ts',
   'src/features/feedback/create-linear-issue.ts',

@@ -3,10 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { accountMatch, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import {
-  runAfterCharacterLinkChanged,
-  runBeforeUserDelete,
-} from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-hooks';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
 import { account, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';
@@ -134,13 +131,14 @@ export async function setUserRole(
 export async function deleteLinkedCharacter(
   userId: string,
   characterId: number,
+  runners: IdentityProjectionRunners,
 ): Promise<boolean> {
   const deleted = await db
     .delete(account)
     .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
     .returning({ id: account.id });
   if (deleted.length === 0) return false;
-  await runAfterCharacterLinkChanged({ userId, characterId });
+  await runners.runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
 
@@ -164,10 +162,12 @@ export async function reassignCharacter({
   characterId,
   fromUserId,
   toUserId,
+  runners,
 }: {
   characterId: number;
   fromUserId: string;
   toUserId: string;
+  runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
   await db
     .update(account)
@@ -187,9 +187,9 @@ export async function reassignCharacter({
     .limit(1);
 
   if (!remaining) {
-    await runBeforeUserDelete(fromUserId);
+    await runners.runBeforeUserDelete(fromUserId);
     await db.delete(user).where(eq(user.id, fromUserId));
-    await runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
+    await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
     return { sourceDeleted: true };
   }
 
@@ -197,6 +197,6 @@ export async function reassignCharacter({
   if (active === characterId) {
     await repointActiveToOldest(fromUserId);
   }
-  await runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
+  await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
   return { sourceDeleted: false };
 }

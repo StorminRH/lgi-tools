@@ -27,8 +27,8 @@ vi.mock('@/platform/auth/admin-users', () => ({
 }));
 
 vi.mock('@/platform/auth/account-purge', () => ({
-  reconcileAfterCharacterRemoval: (userId: string, characterId: number) =>
-    reconcileAfterCharacterRemovalMock(userId, characterId),
+  reconcileAfterCharacterRemoval: (...args: unknown[]) =>
+    reconcileAfterCharacterRemovalMock(...args),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
@@ -96,6 +96,10 @@ describe('POST /api/admin/characters/reassign', () => {
       characterId: 200,
       fromUserId: 'eve-user-2',
       toUserId: 'admin-1',
+      runners: expect.objectContaining({
+        runBeforeUserDelete: expect.any(Function),
+        runAfterCharacterLinkChanged: expect.any(Function),
+      }),
     });
     expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
@@ -110,7 +114,14 @@ describe('POST /api/admin/characters/reassign', () => {
     const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
 
     expect(res.status).toBe(303);
-    expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith('eve-user-2', 200);
+    expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith(
+      'eve-user-2',
+      200,
+      expect.objectContaining({
+        runBeforeUserDelete: expect.any(Function),
+        runAfterCharacterLinkChanged: expect.any(Function),
+      }),
+    );
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 

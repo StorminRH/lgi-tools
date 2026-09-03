@@ -20,7 +20,10 @@ import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
-import { runAfterCharacterLinkChanged } from './identity-projection-hooks';
+import {
+  registeredIdentityProjectionRunners,
+  runAfterCharacterLinkChanged,
+} from './identity-projection-hooks';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
@@ -121,7 +124,10 @@ const options = {
             const claims = await verifyEveJwt(tokens.accessToken);
             const character = claimsToCharacter(claims);
             await getCharacterOwnerReconciler()(character.characterId, claims.owner);
-            const { absorbed } = await absorbLinkedCharacterOnProof(character.characterId);
+            const { absorbed } = await absorbLinkedCharacterOnProof(
+              character.characterId,
+              registeredIdentityProjectionRunners,
+            );
             if (absorbed) recordAbsorb(character.characterId);
             await upsertCharacterLoginIdentity(character);
             void refreshAffiliations([character.characterId]).catch((err) =>
