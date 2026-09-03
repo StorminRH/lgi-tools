@@ -1,7 +1,3 @@
-// `neon config apply` alone cannot clear an existing `expiresAt`.
-// Reconcile with `pnpm neon:apply` (`neon config apply` plus a PATCH).
-// Nothing auto-applies it. Branch policy only: no services are declared.
-// Absence of a service leaves any existing one untouched (absence never disables).
 import { defineConfig, type BranchTarget, type BranchTuning } from '@neondatabase/config/v1';
 
 const STANDING_PREVIEW_NAMES = new Set(['staging', 'preview/staging']);
@@ -11,7 +7,7 @@ const PREVIEW_COMPUTE = {
     computeSettings: {
       autoscalingLimitMinCu: 0.25,
       autoscalingLimitMaxCu: 1,
-      // Launch cannot set 1m; 5m is the plan default and the shortest custom value.
+
       suspendTimeout: '5m',
     },
   },
@@ -43,10 +39,6 @@ export function standingPreviewNeedsExpirationClear(branch: {
   return STANDING_PREVIEW_NAMES.has(branch.name) && branch.expiresAt != null && branch.expiresAt !== '';
 }
 
-/**
- * Clears expiration on every standing preview that still has one.
- * `updateExpiration` owns the Neon PATCH; this only chooses which branches.
- */
 export async function clearStandingPreviewExpirations(
   branches: readonly {
     id: string;

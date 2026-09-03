@@ -11,7 +11,6 @@ import unittest
 
 from tools.lifecycle.check_lifecycle_evidence import collect_findings
 
-
 class LifecycleFixture:
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -149,7 +148,6 @@ class LifecycleEvidenceTests(unittest.TestCase):
             (finding.path, finding.line),
         )
         self.assertEqual("error", finding.severity)
-
 
 if __name__ == "__main__":
     unittest.main()

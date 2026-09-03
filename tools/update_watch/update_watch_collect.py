@@ -51,18 +51,14 @@ from urllib.parse import urlsplit, urlunsplit
 
 from tools._lib.repository import ROOT
 
-
 ISSUE_TITLE_PREFIX = "Update watch"
 DELTAS_FENCE = "update-watch-deltas"
 BASELINE_PATH = "docs/UPDATE_WATCH_BASELINE.md"
 _FETCH_TIMEOUT = 30
 _USER_AGENT = "lgi-tools-update-watch/1.0 (+https://github.com/StorminRH/lgi-tools; feed-reader)"
-# Cloud egress intermittently hits bot/WAF 403s (observed on vercel.com/atom); retry
-# only these statuses so a persistent failure still refuses the run.
 _FETCH_ATTEMPTS = 3
 _FETCH_RETRY_BASE_DELAY_S = 1.5
 _RETRYABLE_HTTP_CODES = frozenset({403, 429, 502, 503})
-
 
 @dataclass(frozen=True)
 class Source:
@@ -74,9 +70,6 @@ class Source:
     domains: tuple[str, ...]
     id_rule: str
 
-
-# The single owner of required sources and their exact watch domains; the
-# baseline checker imports this instead of keeping a second inventory.
 SOURCE_REGISTRY: tuple[Source, ...] = (
     Source("vercel-nextjs", "Vercel / Next.js", "services", ("vercel.com", "nextjs.org"), "url"),
     Source("neon", "Neon", "services", ("neon.com",), "url"),
@@ -89,11 +82,6 @@ SOURCE_REGISTRY: tuple[Source, ...] = (
         ("developers.eveonline.com",),
         "url",
     ),
-    # The docs source watches the rendered site's sitemap URL set rather than
-    # the esi-docs GitHub repo: cloud-session GitHub egress is scoped to the
-    # routine's own repository, and the MkDocs sitemap build-stamps lastmod,
-    # so new/removed pages surface by URL identity while in-place edits are a
-    # documented non-signal (the dev blog announces material ESI changes).
     Source(
         "eve-developer-docs",
         "EVE developer documentation",
@@ -103,22 +91,17 @@ SOURCE_REGISTRY: tuple[Source, ...] = (
     ),
 )
 
-
 def canonical_url(raw: str) -> str:
     """Canonicalize a URL id: lowercase scheme/host, strip query/fragment/trailing slash."""
     parts = urlsplit(raw.strip())
     path = parts.path.rstrip("/") or "/"
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, "", ""))
 
-
-# Supported idRule names mapped to their canonical-id extraction.
 ID_RULES = {"url": canonical_url}
-
 
 def source_by_name(name: str) -> Source | None:
     """Return the registry source with this exact display name, if any."""
     return next((source for source in SOURCE_REGISTRY if source.name == name), None)
-
 
 def parse_baseline(text: str) -> dict:
     """Parse the single fenced update-watch-baseline JSON block from the document.
@@ -131,14 +114,12 @@ def parse_baseline(text: str) -> dict:
         raise ValueError(f"expected exactly one update-watch-baseline block, found {len(blocks)}")
     return json.loads(blocks[0])
 
-
 def parse_issue_keys(body: str) -> list[str]:
     """Return every delta key inside the issue body's fenced key blocks."""
     keys: list[str] = []
     for block in re.findall(rf"```{DELTAS_FENCE}\n(.*?)```", body or "", re.DOTALL):
         keys.extend(line.strip() for line in block.splitlines() if line.strip())
     return keys
-
 
 def major_of(version: str) -> int:
     """Return the leading major of a semver-ish version string, or raise ValueError."""
@@ -147,22 +128,18 @@ def major_of(version: str) -> int:
         raise ValueError(f"unparseable version {version!r}")
     return int(head)
 
-
 def dep_major_key(name: str, major: int) -> str:
     """Delta key for an unacknowledged dependency major."""
     return f"dep-major:{name}:{major}"
-
 
 def advisory_key(ghsa_id: str) -> str:
     """Delta key for an unacknowledged or re-applicable advisory."""
     return f"advisory:{ghsa_id}"
 
-
 def item_key(source: Source, canonical_id: str) -> str:
     """Delta key for a service or EVE-surface announcement item."""
     prefix = "service" if source.section == "services" else "eve"
     return f"{prefix}:{source.slug}:{canonical_id}"
-
 
 def window_class(as_published: str | None, scan_since: str) -> str:
     """Classify an item against the discovery window.
@@ -176,11 +153,9 @@ def window_class(as_published: str | None, scan_since: str) -> str:
         return "in-window"
     return "backdated"
 
-
 def observed_applicability(module: str, vulnerable_range: str) -> str:
     """Render an advisory's observed applicability in the recorded appliesTo form."""
     return f"{module}@{vulnerable_range}"
-
 
 def load_dependency_scopes(repo_root: Path) -> tuple[set[str], set[str]]:
     """Return (production, development) top-level dependency names from package.json.
@@ -195,7 +170,6 @@ def load_dependency_scopes(repo_root: Path) -> tuple[set[str], set[str]]:
     except (OSError, json.JSONDecodeError):
         return set(), set()
     return set(manifest.get("dependencies", {})), set(manifest.get("devDependencies", {}))
-
 
 def classify_scope(paths: list[str], production: set[str], development: set[str]) -> str:
     """Classify an advisory as ``production`` or ``development`` by its audit paths.
@@ -218,7 +192,6 @@ def classify_scope(paths: list[str], production: set[str], development: set[str]
     if tops <= development:
         return "development"
     return "unknown"
-
 
 def _fetch(url: str) -> tuple[int, str]:
     """GET one URL raw; returns (status, body) or raises on transport failure.
@@ -250,7 +223,6 @@ def _fetch(url: str) -> tuple[int, str]:
     assert last_error is not None
     raise last_error
 
-
 def nwo_from_remote_url(url: str) -> str | None:
     """Extract owner/repo from a GitHub or platform-proxy remote URL, or None.
 
@@ -264,7 +236,6 @@ def nwo_from_remote_url(url: str) -> str | None:
         return match.group(1)
     match = re.search(r"/git/([^/\s]+/[^/\s]+?)(?:\.git)?/?$", cleaned)
     return match.group(1) if match else None
-
 
 def filter_update_watch_issues(raw_issues: list[dict]) -> list[dict]:
     """Reduce a REST issue listing to update-watch issues with parsed key blocks.
@@ -287,7 +258,6 @@ def filter_update_watch_issues(raw_issues: list[dict]) -> list[dict]:
             }
         )
     return issues
-
 
 def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
     """Enumerate all open update-watch issues exhaustively via the REST API.
@@ -328,7 +298,7 @@ def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
             request = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT) as response:
                 batch = json.loads(response.read().decode("utf-8", "replace"))
-        except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
+        except Exception as exc:
             failures.append(f"issue-listing: page {page} failed: {exc}")
             return []
         if not isinstance(batch, list):
@@ -336,21 +306,17 @@ def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
             return []
         raw_issues.extend(batch)
         if len(raw_issues) >= 10_000:
-            # Sanity cap: a listing this large means pagination went wrong;
-            # refuse rather than trust a possibly truncated suppression set.
             failures.append(f"issue-listing-truncation: {len(raw_issues)} issues returned")
             return []
         if len(batch) < 100:
             return filter_update_watch_issues(raw_issues)
         page += 1
 
-
 def _ensure_outside_repo(path: Path, repo_root: Path) -> None:
     """Refuse to write collector state inside the repository worktree."""
     resolved = path.resolve()
     if resolved.is_relative_to(repo_root.resolve()):
         raise SystemExit(f"state path {resolved} is inside the repository; use a temp path")
-
 
 def run_collect(repo_root: Path, out_path: Path) -> int:
     """Gather baseline, npm, audit, watch-page, and open-issue state into one document."""
@@ -375,7 +341,7 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
                 raise ValueError(f"HTTP {status}")
             version = json.loads(body)["version"]
             npm_latest[name] = {"version": version, "major": major_of(version)}
-        except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
+        except Exception as exc:
             failures.append(f"registry-query:{name}: {exc}")
 
     try:
@@ -390,8 +356,6 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
         audit = None
         failures.append(f"audit: pnpm unavailable: {exc}")
     if audit is not None:
-        # pnpm audit exits non-zero when advisories exist; only unparseable
-        # output fails.
         try:
             audit_data = json.loads(audit.stdout)
             production, development = load_dependency_scopes(repo_root)
@@ -434,14 +398,13 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
                 if status != 200:
                     raise ValueError(f"HTTP {status}")
                 pages[url] = {"status": status, "content": body}
-            except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
+            except Exception as exc:
                 failures.append(f"watch:{source.slug}:{url}: {exc}")
 
     state["openIssues"] = _list_open_issues(repo_root, failures)
     out_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
     print(f"collect: {len(failures)} failure(s), state -> {out_path}")
     return 0
-
 
 def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[dict]:
     """Compute unacknowledged delta candidates from collect state plus judged items.
@@ -490,7 +453,7 @@ def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[
     for name, entry in sorted(dependencies.items()):
         latest = npm_latest.get(name)
         if latest is None:
-            continue  # the named registry-query failure already forces refusal
+            continue
         acknowledged_major = entry.get("acknowledgedMajor")
         if isinstance(acknowledged_major, int) and latest["major"] > acknowledged_major:
             deltas.append(
@@ -554,14 +517,11 @@ def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[
         )
     return deltas
 
-
 def render_key_block(keys: list[str]) -> str:
     """Render the fenced delta-key block embedded in every digest issue."""
     body = "\n".join(keys)
     return f"```{DELTAS_FENCE}\n{body}\n```"
 
-
-# Priority order the digest presents its sections in; also the render order.
 SECTION_ORDER = (
     "Security advisories",
     "Major versions",
@@ -577,19 +537,16 @@ def _cell(value: object) -> str:
     text = "" if value is None else str(value)
     return text.replace("|", "\\|").replace("\r", " ").replace("\n", " ").strip()
 
-
 def _advisory_link(fields: dict) -> str:
     """Render the advisory id as a Markdown link when a url is present, else plain."""
     identifier = _cell(fields.get("advisory", "?"))
     url = fields.get("url")
     return f"[{identifier}]({url})" if url else identifier
 
-
 def _html_escape(text: str) -> str:
     """Escape the HTML control characters that could break the digest's `<details>`
     blocks. Ampersand is escaped first so the other escapes are not re-escaped."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
 
 def _inline(value: object) -> str:
     """Render untrusted text for a non-table (inline) context: coerce, flatten, escape.
@@ -603,7 +560,6 @@ def _inline(value: object) -> str:
     flattened = text.replace("\r", " ").replace("\n", " ").strip()
     return _html_escape(flattened)
 
-
 def _link_text(value: object) -> str:
     """Escape Markdown link-text delimiters in untrusted (already HTML-escaped) text.
 
@@ -613,13 +569,11 @@ def _link_text(value: object) -> str:
     """
     return _inline(value).replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
 
-
 def _render_table(header: str, alignment: str, rows: list[str], empty: str) -> str:
     """Assemble a Markdown table, or return the ``empty`` line when there are no rows."""
     if not rows:
         return empty
     return "\n".join([header, alignment, *rows])
-
 
 def render_advisory_section(deltas: list[dict]) -> str:
     """Render the security-advisory table. Version ranges are code-spanned so a
@@ -641,7 +595,6 @@ def render_advisory_section(deltas: list[dict]) -> str:
         "No unacknowledged security advisories.",
     )
 
-
 def render_major_section(deltas: list[dict]) -> str:
     """Render the acknowledged-major-vs-latest table for dependency deltas."""
     rows = [
@@ -659,18 +612,13 @@ def render_major_section(deltas: list[dict]) -> str:
         "No unacknowledged major-version deltas.",
     )
 
-
-# Source display order for the digest, resolved once: registry order first, then
-# any unknown source last (and alphabetical among unknowns via the name tiebreak).
 _SOURCE_REGISTRY_ORDER: dict[str, int] = {
     source.name: index for index, source in enumerate(SOURCE_REGISTRY)
 }
 
-
 def _service_source_order(name: str) -> tuple[int, str]:
     """Sort key placing sources in registry order, unknowns last then alphabetical."""
     return (_SOURCE_REGISTRY_ORDER.get(name, len(SOURCE_REGISTRY)), name)
-
 
 def _render_service_item(fields: dict) -> str:
     """Render one announcement as a linked-title bullet with an optional summary line."""
@@ -681,10 +629,8 @@ def _render_service_item(fields: dict) -> str:
     bullet = f"- **{linked}** · {meta}"
     summary = _inline(fields.get("summary", ""))
     if summary:
-        # Two trailing spaces + indent keep the summary a continuation of the bullet.
         bullet += f"  \n  {summary}"
     return bullet
-
 
 def render_service_section(deltas: list[dict]) -> str:
     """Render service/EVE announcements as one collapsible block per source.
@@ -709,8 +655,6 @@ def render_service_section(deltas: list[dict]) -> str:
         )
         span = ""
         if dated:
-            # Escape the dates too: they come from the same untrusted feed content
-            # as the titles and land in the HTML <summary> tag.
             low, high = _inline(dated[0]), _inline(dated[-1])
             span = f" · {low}" if low == high else f" · {low} → {high}"
         plural = "s" if len(items) != 1 else ""
@@ -719,13 +663,11 @@ def render_service_section(deltas: list[dict]) -> str:
         blocks.append(f"<details>\n{summary}\n\n{bullets}\n</details>")
     return "\n\n".join(blocks)
 
-
 _SECTION_RENDERERS = {
     "Security advisories": render_advisory_section,
     "Major versions": render_major_section,
     "Service/EVE surface changes": render_service_section,
 }
-
 
 def render_housekeeping(keys: list[str]) -> str:
     """Render the collapsed machine-facing footer: dedup key block + absorption note.
@@ -747,7 +689,6 @@ def render_housekeeping(keys: list[str]) -> str:
         "</details>"
     )
 
-
 def render_issue_body(deltas: list[dict]) -> str:
     """Render the full digest issue body verbatim for the skill to post.
 
@@ -767,7 +708,6 @@ def render_issue_body(deltas: list[dict]) -> str:
     ]
     parts.append(render_housekeeping([delta["key"] for delta in deltas]))
     return "\n\n".join(parts)
-
 
 def render_summary(
     state: dict, candidate_count: int, suppressed: list[str], verdict: str
@@ -790,10 +730,6 @@ def render_summary(
         """One count with its correctly numbered noun."""
         return f"{count} {noun if count == 1 else (plural or noun + 's')}"
 
-    # This summary prints AFTER the workflow's single outward write, so it must
-    # never instruct opening an issue — that reads as a second digest. Keyed on
-    # the final outcome, not the raw verdict, so a refused run can never
-    # advertise a write that did not happen.
     action = "None"
     result = (
         f"{counted(source_count, 'source')}, "
@@ -813,7 +749,6 @@ def render_summary(
         ]
     )
 
-
 def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -> dict:
     """Compute the fail-closed verdict payload from state, judged items, and re-scan.
 
@@ -823,8 +758,6 @@ def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -
     """
     failures: list[str] = list(state.get("failures", []))
     deltas = compute_deltas(state, items, failures)
-    # The true candidate count is fixed before the refusal gate clears the
-    # reportable set, so the summary never understates pending deltas.
     candidate_count = len(deltas)
 
     reported_keys = {key for issue in fresh_issues for key in issue.get("keys", [])}
@@ -851,7 +784,6 @@ def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -
         "summary": render_summary(summary_state, candidate_count, suppressed, verdict),
     }
 
-
 def run_finalize(repo_root: Path, state_path: Path, items_path: Path, out_path: Path) -> int:
     """Load state and judged items, re-scan open issues, and emit the verdict."""
     _ensure_outside_repo(out_path, repo_root)
@@ -862,8 +794,6 @@ def run_finalize(repo_root: Path, state_path: Path, items_path: Path, out_path: 
         state.setdefault("failures", []).append(f"judged-items: {exc}")
         items = []
 
-    # Re-scan immediately before the verdict so a digest opened since collect
-    # still suppresses; any re-scan failure joins the refusal set.
     rescan_failures: list[str] = []
     fresh_issues = _list_open_issues(repo_root, rescan_failures)
     state.setdefault("failures", []).extend(rescan_failures)
@@ -872,7 +802,6 @@ def run_finalize(repo_root: Path, state_path: Path, items_path: Path, out_path: 
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(payload["summary"])
     return 0
-
 
 def main(argv: list[str] | None = None) -> int:
     """Run the collector CLI (subcommands: collect, finalize)."""
@@ -891,7 +820,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "collect":
         return run_collect(root, args.out)
     return run_finalize(root, args.state, args.items, args.out)
-
 
 if __name__ == "__main__":
     sys.exit(main())

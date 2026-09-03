@@ -14,7 +14,6 @@ import unittest
 from tools._lib.repository import ROOT
 from tools.lifecycle.verify_archive import collect_findings
 
-
 class ArchiveFixture:
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -57,7 +56,6 @@ class ArchiveFixture:
             if source.is_dir():
                 shutil.copytree(source, destination / name)
         return destination
-
 
 class VerifyArchiveTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -150,7 +148,6 @@ class VerifyArchiveTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(1, result.returncode)
-
 
 if __name__ == "__main__":
     unittest.main()

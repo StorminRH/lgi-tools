@@ -14,9 +14,7 @@ from tools.update_watch.update_watch_collect import SOURCE_REGISTRY
 
 from tools._lib.repository import ROOT
 
-
 _REAL_ROOT = ROOT
-
 
 def valid_block(dependencies: dict | None = None) -> dict:
     """Build a schema-valid baseline block from the collector's own registry."""
@@ -32,8 +30,6 @@ def valid_block(dependencies: dict | None = None) -> dict:
         block[source.section].append(
             {
                 "name": source.name,
-                # Slug-unique paths keep watch URLs globally distinct even when
-                # two sources share a domain (both EVE sources do).
                 "watch": [f"https://{domain}/{source.slug}/feed.xml" for domain in source.domains],
                 "idRule": source.id_rule,
                 "scanSince": "2026-07-19",
@@ -41,7 +37,6 @@ def valid_block(dependencies: dict | None = None) -> dict:
             }
         )
     return block
-
 
 class BaselineFixture:
     def __init__(self) -> None:
@@ -64,7 +59,6 @@ class BaselineFixture:
             f"# Baseline\n\n```update-watch-baseline\n{body}\n```\n",
             encoding="utf-8",
         )
-
 
 class BaselineCheckerTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -154,12 +148,11 @@ class BaselineCheckerTests(unittest.TestCase):
         )
         docs_url = docs["watch"][0]
         upstash_extra = dict(upstash)
-        # Duplicate an existing URL inside one source's own list.
         upstash_extra["watch"] = [upstash["watch"][0], upstash["watch"][0]]
         block["services"][block["services"].index(upstash)] = upstash_extra
         self.fixture.write_baseline(block)
         self.assertTrue(any("is duplicated" in message for message in self.messages()))
-        self.assertIn(docs_url, json.dumps(block))  # unrelated URLs stay unique
+        self.assertIn(docs_url, json.dumps(block))
 
     def test_unknown_id_rule_reports(self) -> None:
         block = valid_block()
@@ -213,7 +206,6 @@ class BaselineCheckerTests(unittest.TestCase):
         self.assertEqual(["package.json:1: package.json is missing"], self.messages())
         (self.fixture.root / "package.json").write_text("{oops", "utf-8")
         self.assertIn("package.json is malformed", self.messages()[0])
-
 
 if __name__ == "__main__":
     unittest.main()

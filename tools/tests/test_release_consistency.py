@@ -13,9 +13,6 @@ import unittest
 from tools._lib.repository import ROOT
 from tools.lifecycle.check_release_consistency import collect_findings
 
-
-
-
 class ReleaseFixture:
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -56,7 +53,6 @@ class ReleaseFixture:
         args = argparse.Namespace(expect=expect)
         return [finding.render() for finding in collect_findings(self.root, args)]
 
-
 class ReleaseConsistencyTests(unittest.TestCase):
     def setUp(self) -> None:
         self.fixture = ReleaseFixture()
@@ -81,11 +77,6 @@ class ReleaseConsistencyTests(unittest.TestCase):
         self.assertEqual([], self.fixture.messages("reconciled"))
 
     def test_truthful_release_candidate_pr_is_clean(self) -> None:
-        # A planned final PR is authored in the reconciled state: the delivered
-        # sub-version's row is already terminal and APP_VERSION matches it, while
-        # later planned sub-versions stay nonterminal. It passes the gate the final
-        # PR now uses (--expect reconciled) and is correctly NOT pre-pr, which is
-        # why post-merge reconciliation is no longer needed.
         self.fixture.seed(
             "9.9.1.2",
             ["9.9.1.2", "9.9.1.1"],
@@ -100,8 +91,6 @@ class ReleaseConsistencyTests(unittest.TestCase):
         )
 
     def test_pending_fragments_do_not_perturb_release_identity(self) -> None:
-        # The pending inbox is neutral to release consistency: fragment files under
-        # content/changelog/pending/ never change the version triplet.
         self.fixture.seed(
             "9.9.1.2",
             ["9.9.1.2", "9.9.1.1"],
@@ -156,8 +145,6 @@ class ReleaseConsistencyTests(unittest.TestCase):
         self.assertTrue(any("terminal prefix" in message for message in self.fixture.messages()))
 
     def test_opening_transient_is_clean(self) -> None:
-        # New version opened: all rows planned, APP_VERSION still on the previous
-        # version, no changelog entry yet. --check is clean; --expect still pins.
         self.fixture.seed(
             "9.8.1.5",
             [],
@@ -172,8 +159,6 @@ class ReleaseConsistencyTests(unittest.TestCase):
         )
 
     def test_missing_changelog_for_current_version_is_red(self) -> None:
-        # APP_VERSION already names the active version but its changelog is missing:
-        # a real contradiction, not the opening transient.
         self.fixture.seed(
             "9.9.1.1",
             [],
@@ -204,7 +189,6 @@ class ReleaseConsistencyTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(1, result.returncode)
-
 
 if __name__ == "__main__":
     unittest.main()
