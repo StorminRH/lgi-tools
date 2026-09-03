@@ -3,7 +3,6 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';
 import { isTombstoned } from '@/data/maps/chain-contract';
 
-/** Maximum origin- or destination-side connections one scan transaction may inspect. */
 export const MAP_CONNECTION_SIGNATURE_SCAN_LIMIT = 128;
 
 export type ConnectionScanOptions = {
@@ -36,7 +35,6 @@ async function readIndexedConnections(
   return rows;
 }
 
-/** Reads one mapped system's bounded origin-side connection set. */
 export async function readOriginConnections(
   ctx: QueryCtx,
   mapId: string,
@@ -54,7 +52,6 @@ export async function readOriginConnections(
   );
 }
 
-/** Reads one mapped system's bounded inbound (destination-side) connection set. */
 export async function readInboundConnections(
   ctx: QueryCtx,
   mapId: string,
@@ -72,7 +69,6 @@ export async function readInboundConnections(
   );
 }
 
-/** Origin plus inbound connections that touch one system. */
 export async function readTouchingConnections(
   ctx: QueryCtx,
   mapId: string,
@@ -103,7 +99,6 @@ export async function hasTouchingConnection(
   return inbound !== null;
 }
 
-/** Whether this system's door already carries the signature identity. */
 export function connectionOwnsLocalSignature(
   row: Doc<'mapConnections'>,
   systemId: number,
@@ -121,7 +116,6 @@ function preferLiveConnection(
   return rows.find((row) => !isTombstoned(row)) ?? rows[0];
 }
 
-/** Finds the durable connection carrying one origin-side signature identity. */
 export function findConnectionForSignature(
   rows: readonly Doc<'mapConnections'>[],
   signatureId: string,
@@ -129,10 +123,6 @@ export function findConnectionForSignature(
   return rows.find((row) => row.from.signatureId === signatureId);
 }
 
-/**
- * Finds the connection whose local door (this system) already owns the
- * signature. Prefers a live row when a tombstone shares the same id.
- */
 export function findLocalSignatureConnection(
   rows: readonly Doc<'mapConnections'>[],
   systemId: number,
@@ -143,11 +133,6 @@ export function findLocalSignatureConnection(
   );
 }
 
-/**
- * Paste identity join: a live inbound or origin door wins, then a revivable
- * unresolved stub. A resolved collapse is a closed lifetime — the corpse is
- * skipped so the same id can start a new stub without undoing the branch.
- */
 export function findPasteConnection(
   rows: readonly Doc<'mapConnections'>[],
   systemId: number,
@@ -163,7 +148,6 @@ export function findPasteConnection(
   return matches.find((row) => row.toSystemId === null);
 }
 
-/** Loads one connection owned by the named map after the caller authorizes. */
 export async function requireConnectionOnMap(
   ctx: QueryCtx,
   mapId: string,
