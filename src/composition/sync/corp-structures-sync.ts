@@ -54,8 +54,6 @@ function scheduleCorpStructuresRefresh(userId: string): void {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
 }
 
-// headers() still resolves during the session App Shell. Affiliation ESI must
-// wait for a real request so Next does not abort the fetch at prerender end.
 async function loadFreshUserAffiliations(userId: string) {
   await connection();
   await refreshStaleAffiliationsForUser(userId);
