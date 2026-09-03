@@ -3,6 +3,8 @@ import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { apiResponse } from '@/transport/api-response';
 
+// authz: public
+// input: path
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },

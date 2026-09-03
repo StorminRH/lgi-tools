@@ -13,6 +13,7 @@ import { readJsonBody } from '@/transport/route-body';
 
 const MAX_METADATA_BYTES = 2048;
 
+// authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, telemetryRequestSchema);
   if (!parsed.ok) {

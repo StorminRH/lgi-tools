@@ -12,6 +12,8 @@ function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiIte
   return { ...rest, sheetResourceValueIsk: resourceValueIsk };
 }
 
+// authz: public
+// input: query
 export async function GET(request: NextRequest): Promise<Response> {
   const parsed = parseSitesQuery(request.nextUrl.searchParams);
   if (!parsed.ok) {

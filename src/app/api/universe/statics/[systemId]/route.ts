@@ -5,6 +5,8 @@ import {
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { apiResponse } from '@/transport/api-response';
 
+// authz: public
+// input: path
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ systemId: string }> },

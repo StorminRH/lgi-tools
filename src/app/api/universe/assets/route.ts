@@ -7,6 +7,8 @@ import {
   withCacheControl,
 } from '@/transport/api-response';
 
+// authz: public
+// input: none
 export async function GET(): Promise<Response> {
   await connection();
   const { version } = await getCachedSdeVersion();

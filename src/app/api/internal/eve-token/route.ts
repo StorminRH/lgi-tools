@@ -13,6 +13,7 @@ import { checkBearerSecret } from '@/lib/service-auth';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: service
 export async function POST(req: Request): Promise<Response> {
   const auth = await checkBearerSecret(req, 'CONVEX_SERVICE_SECRET');
   if (!auth.ok) return apiResponse(eveTokenEndpoint, auth.failure.code === 'not_configured' ? 500 : 401, auth.failure);

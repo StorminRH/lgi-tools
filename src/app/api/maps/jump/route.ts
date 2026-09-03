@@ -9,6 +9,7 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: auth
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'maps.resolve-jump',

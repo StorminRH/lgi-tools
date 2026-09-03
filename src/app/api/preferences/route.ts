@@ -13,6 +13,7 @@ import { validatePreferenceValue } from '@/lib/preferences';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: auth
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
