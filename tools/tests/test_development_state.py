@@ -26,6 +26,7 @@ from tools.lifecycle.resolve_development_state import (
 )
 from tools._lib.repository import ROOT
 
+
 CONTRACT_TITLES = (
     "Objective",
     "Current context and dependencies",
@@ -72,6 +73,7 @@ PLAN_SUBTITLES = (
     "Edge and failure behavior",
     "Ordered work",
 )
+
 
 class ResolverFixture:
     def __init__(self) -> None:
@@ -280,6 +282,7 @@ class ResolverFixture:
 **Proof standard:** Atomic
 **Execution status:** {execution_status}
 {baseline_marker}
+## Bottom line (READ FIRST)
 
 - **GOAL:** Deliver the fixture outcome.
 - **DONE =** SC-1 through SC-2 with observable fixture output.
@@ -295,45 +298,80 @@ class ResolverFixture:
 
 **Contract UX gate:** `{ux_gate}` · **required pause:** None
 
+## Read first
+
 - `AGENTS.md`
 - `docs/session-contracts/9.9/{session}.md`
+
+## Current state and prerequisites
 
 | Contract input | Live verdict | Evidence | Execution consequence |
 | --- | --- | --- | --- |
 | `DEP-1` | `Verified` | fixture evidence | proceed |
 
+## Why now
+
 The fixture unlocks the resolver test.
 
+## Scope (the destination)
+
 Deliver DC-1 within IS-1 while protecting OOS-1.
+
+### Scope coverage
 
 | Contract boundary | Implementation mapping or protection |
 | --- | --- |
 | `IS-1` | Deliver the fixture. |
 | `OOS-1` | Inspect the diff. |
 
+## Resolved implementation decisions
+
 - **Contract PD-1 — Fixture seam: selected.** Evidence supports it. **Rejected:** parallel ownership.
 
+### Audit-remediation mapping
+
 Not applicable — this is not an audit-remediation contract.
+
+## Design pressure and baseline effect
+
+### Hotspot proximity
 
 - **Touched measured surfaces:** None.
 - **Live proximity evidence:** Outside measured hotspots.
 
+### Preparatory refactor
+
 None; the fixture exposes the required seam.
+
+### Baseline effect and update
 
 - **Effect:** `{baseline_effect or 'Neutral'}` — the fixture adds no pressure.
 - **Required update:** None.
 
+## Implementation blueprint
+
+### Owned surfaces
+
 - Resolver fixture — owns schema proof.
+
+### Interfaces and contracts
 
 - No production export changes.
 
+### Control and data flow
+
 No runtime data flow changes.
 
+### Edge and failure behavior
+
 - Invalid fixture → resolver reports the violation.
+
+### Ordered work
 
 1. Implement the fixture contract.
 2. Prove its resolver result.
 {ux_ordered_step}
+## Success criteria (agent-runnable — show the output)
 
 - **SC-1 — Contract DC-1 / AC-1 / V-1.** Fixture behavior is observable.
 
@@ -346,6 +384,8 @@ No runtime data flow changes.
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-2.1` | `fixture gate` | Command exits successfully with no findings. |
+
+## End of session
 
 - Confirm DONE and HC-1.
 - **Delivery:** Commit the fixture evidence.
@@ -372,6 +412,7 @@ No runtime data flow changes.
             stderr=subprocess.PIPE,
             text=True,
         )
+
 
 class DevelopmentStateTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -1603,6 +1644,7 @@ class DevelopmentStateTests(unittest.TestCase):
         state = apply_promote_interrupt({"stage": "session-ready", "reason": "ready"}, 80)
         self.assertEqual("promote-needed", state["stage"])
         self.assertEqual(80, state["appFacing"])
+
 
 if __name__ == "__main__":
     unittest.main()
