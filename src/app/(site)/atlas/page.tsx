@@ -6,8 +6,7 @@ import { AtlasLandingFallback } from './AtlasLandingFallback';
 
 export const metadata = buildPageMetadata({
   title: 'Atlas',
-  description:
-    'Chart wormhole chains, paste scanner results, and share a live map with your corporation.',
+  description: 'A shared live map of your wormhole chain.',
   canonical: '/atlas',
 });
 

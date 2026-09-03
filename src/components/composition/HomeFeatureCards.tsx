@@ -68,7 +68,7 @@ export function HomeFeatureCards() {
         <FeatureCard
           href="/atlas"
           title="Atlas"
-          description="Chart wormhole chains, paste scanner results, and share a live map with your corporation."
+          description="A shared live map of your wormhole chain."
           pills={
             <>
               <Pill tone="purple">Chain</Pill>
