@@ -1,5 +1,3 @@
-// SC-2 / SC-6.1: node-bound Add connection… menu and destination search.
-// Seeds a disposable system on UX_MAP_ID when the map is empty.
 import {
   authoringMapId,
   authoringRoute,
@@ -8,7 +6,7 @@ import {
   waitForEditableMap,
 } from '../lib/authoring-helpers.mjs';
 
-const SEED_SYSTEM_ID = 30_000_142; // Jita — stable EVE id for fixture seed
+const SEED_SYSTEM_ID = 30_000_142;
 
 export default {
   name: 'atlas-authoring-add',
@@ -26,7 +24,6 @@ export default {
 
     await waitForEditableMap(page);
 
-    // If still blank (home not set), seed one system so the add menu can open.
     if ((await page.locator('[data-chain-node]').count()) === 0) {
       await convexRun('mapFixturePlace:placeSystemFixture', {
         mapId,
@@ -42,8 +39,7 @@ export default {
     const clickPoint = await openAddConnectionMenu(page);
     const menuItem = page.getByRole('menuitem', { name: 'Add connection…' });
     const menuBox = await menuItem.boundingBox();
-    // The popup positioner sits beside the virtual pointer anchor — a menu
-    // opening anywhere else (e.g. a global fallback) fails the distance bound.
+
     const nearPointer =
       clickPoint !== null
       && menuBox !== null

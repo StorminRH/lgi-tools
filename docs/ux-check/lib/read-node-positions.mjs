@@ -1,11 +1,3 @@
-// The one position-reading contract for multi-client map probes.
-//
-// Lives outside docs/ux-check/probes/ because the runner treats every module in
-// that directory as a probe definition. Firefox serializes translate(x, 0px) as
-// the shorthand translate(x); a missing second component means y = 0. A parse
-// miss is a probe defect, not sameness — callers must reject non-finite
-// coordinates so a serialization change can never pass the identity check
-// vacuously.
 export function readNodePositions(target) {
   return target.evaluate(() => {
     const nodes = [...document.querySelectorAll('.react-flow__node')];
@@ -23,21 +15,12 @@ export function readNodePositions(target) {
   });
 }
 
-/** True when every parsed coordinate is a finite number — the anti-vacuity gate. */
 export function allPositionsFinite(positions) {
   return positions.every(
     (node) => Number.isFinite(node.x) && Number.isFinite(node.y),
   );
 }
 
-/**
- * Position identity through the DOM witness. React writes the identical JS
- * string into style.transform in every engine; browsers store it as float32
- * and re-serialize with engine-specific last-digit rules, so the CSS read-back
- * carries ~1e-4 px noise on byte-identical values. 0.01 px is far above that
- * noise and far below perception; JS-side byte-identity itself is pinned by
- * the committed digest suite.
- */
 export function positionsMatch(a, b, epsilonPx = 0.01) {
   return (
     a.length === b.length

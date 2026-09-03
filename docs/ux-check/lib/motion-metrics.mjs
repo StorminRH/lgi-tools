@@ -1,16 +1,3 @@
-// The one shared in-page metrics contract for the atlas motion probes
-// (4.0.3.2): requestAnimationFrame counting, frame-time series, per-frame
-// geometry sampling, and the node-insertion birth witness.
-//
-// Lives outside docs/ux-check/probes/ because the runner treats every module
-// in that directory as a probe definition. Everything is installed as an init
-// script BEFORE navigation so the witness cannot miss the initial load, and
-// the helper's own sampling loops always run on the captured NATIVE
-// requestAnimationFrame binding — the wrapped counter sees only the
-// application's registrations, so a probe's own measurement can never read as
-// application work (the anti-vacuity requirement behind the idle proof).
-
-/** Installs the collector; call from a probe's `setup(ctx)`, pre-navigation. */
 export async function installMotionMetrics(page) {
   await page.addInitScript(() => {
     const native = window.requestAnimationFrame.bind(window);
@@ -22,22 +9,18 @@ export async function installMotionMetrics(page) {
     };
     window.__mapMotionMetrics = metrics;
 
-    // Count every application registration. The counter wrap must happen at
-    // init-script time, before any app code can capture the original.
     window.requestAnimationFrame = (callback) => {
       metrics.rafCount += 1;
       return native(callback);
     };
 
-    // Long-animation-frame entries are a supplementary signal only (their
-    // 50 ms threshold alone proves too little); recorded for context.
     metrics.loaf = [];
     try {
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) metrics.loaf.push(entry.duration);
       }).observe({ type: 'long-animation-frame', buffered: true });
     } catch {
-      // Engines without LoAF simply record none.
+
     }
 
     const parseTranslate = (transform) => {
@@ -49,10 +32,6 @@ export async function installMotionMetrics(page) {
         : { x: Number(match[1]), y: Number(match[2] ?? 0) };
     };
 
-    // Birth witness: record each React Flow node's position at DOM insertion
-    // and sample its inner element's computed scale/opacity over the frames
-    // that follow — so the animation window is witnessed without depending on
-    // the runner's settle delay.
     const witness = (node) => {
       const id = node.getAttribute('data-id');
       if (!id || metrics.births[id] !== undefined) return;
@@ -93,7 +72,6 @@ export async function installMotionMetrics(page) {
       observe();
     }
 
-    // Frame-time capture: an own loop on the native binding.
     let capturingFrames = false;
     window.__mapMotionStartFrames = () => {
       metrics.frames = [];
@@ -109,8 +87,6 @@ export async function installMotionMetrics(page) {
       capturingFrames = false;
     };
 
-    // Geometry sampling: per native frame, every node's flow position plus
-    // every edge segment's endpoints — the edge-tracking witness.
     let samplingGeometry = false;
     window.__mapMotionStartGeometry = () => {
       metrics.geometry = [];
@@ -158,12 +134,10 @@ export async function installMotionMetrics(page) {
   });
 }
 
-/** Starts the in-page frame-time capture. */
 export function startFrameCapture(page) {
   return page.evaluate(() => window.__mapMotionStartFrames());
 }
 
-/** Stops the capture and returns the per-frame deltas (ms). */
 export async function stopFrameCapture(page) {
   const timestamps = await page.evaluate(() => {
     window.__mapMotionStopFrames();
@@ -172,12 +146,10 @@ export async function stopFrameCapture(page) {
   return timestamps.slice(1).map((timestamp, index) => timestamp - timestamps[index]);
 }
 
-/** Starts the in-page geometry sampler. */
 export function startGeometrySample(page) {
   return page.evaluate(() => window.__mapMotionStartGeometry());
 }
 
-/** Stops the sampler and returns the sampled frames. */
 export function stopGeometrySample(page) {
   return page.evaluate(() => {
     window.__mapMotionStopGeometry();
@@ -185,22 +157,18 @@ export function stopGeometrySample(page) {
   });
 }
 
-/** The application's requestAnimationFrame registration count so far. */
 export function readRafCount(page) {
   return page.evaluate(() => window.__mapMotionMetrics.rafCount);
 }
 
-/** The birth witness records, keyed by node id. */
 export function readBirths(page) {
   return page.evaluate(() => window.__mapMotionMetrics.births);
 }
 
-/** Supplementary long-animation-frame durations recorded so far. */
 export function readLoaf(page) {
   return page.evaluate(() => window.__mapMotionMetrics.loaf);
 }
 
-/** p50/p95/count over a frame-delta series; null percentiles when empty. */
 export function frameStats(deltas) {
   if (deltas.length === 0) return { count: 0, p50: null, p95: null };
   const sorted = [...deltas].sort((a, b) => a - b);

@@ -1,9 +1,3 @@
-// SC-6.2 / V-3: with prefers-reduced-motion emulated, an insertion appears by
-// fade only and a forced shift lands nodes at their targets with no
-// intermediate glide frame; the paired control phase (no preference) first
-// proves the same scenario animates scale and glides — so the reduced run
-// cannot pass vacuously. Requires authenticated storage state, UX_MAP_ID, and
-// the local Convex deployment.
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
@@ -16,7 +10,6 @@ import { readNodePositions } from '../lib/read-node-positions.mjs';
 
 const execFileAsync = promisify(execFile);
 
-/** Shared offset below 100_000 keeps the 99_200_000 / 99_300_000 bands disjoint. */
 const PROBE_ID_OFFSET =
   (Date.now() % 99_000) + Math.floor(Math.random() * 1_000);
 const CONTROL_SYSTEM_ID = 99_200_000 + PROBE_ID_OFFSET;
@@ -41,7 +34,6 @@ async function insertSystem(mapId, systemId) {
   );
 }
 
-/** Runs one dial-commit shift and returns its sampled geometry + endpoints. */
 async function sampledShift(page, stepperName) {
   const before = await readNodePositions(page);
   await startGeometrySample(page);
@@ -52,7 +44,6 @@ async function sampledShift(page, stepperName) {
   return { before, geometry, settled };
 }
 
-/** Sampled frames where some mover sits strictly between origin and target. */
 function intermediateFrames({ before, geometry, settled }) {
   const beforeById = new Map(before.map((node) => [String(node.id), node]));
   const settledById = new Map(settled.map((node) => [String(node.id), node]));
@@ -93,7 +84,6 @@ export default {
     await page.waitForTimeout(1600);
     await page.getByText('Layout dials').click();
 
-    // ── Control phase: no reduced-motion preference ──────────────────────────
     await insertSystem(mapId, CONTROL_SYSTEM_ID);
     await page.waitForFunction(
       (id) => document.querySelector(`.react-flow__node[data-id="${id}"]`) !== null,
@@ -114,7 +104,6 @@ export default {
       intermediateFrames(controlShift).length >= 1,
     );
 
-    // ── Reduced phase: emulate prefers-reduced-motion live ───────────────────
     await page.emulateMedia({ reducedMotion: 'reduce' });
 
     await insertSystem(mapId, REDUCED_SYSTEM_ID);

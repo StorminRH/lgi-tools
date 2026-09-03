@@ -1,4 +1,3 @@
-// SC-4 / SC-6.1: bottom-edge map-event ledger mounts and expands.
 import {
   authoringMapId,
   authoringRoute,
@@ -34,8 +33,6 @@ export default {
       await page.waitForTimeout(200);
     }
 
-    // `count()` alone passes on a closed <details> (children stay in the DOM);
-    // assert the open state and actual visibility of the revealed region.
     check(
       'ledger details element is open after the summary click',
       (await details.count()) === 1 && (await details.evaluate((el) => el.open)),

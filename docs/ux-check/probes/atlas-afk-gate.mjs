@@ -1,11 +1,3 @@
-// AFK gate (hidden-tab tracking): an hour continuously hidden raises the
-// "Still mapping?" prompt, five unanswered minutes flip it to paused, and
-// Continue resumes. Real thresholds are exercised through Playwright's
-// virtual clock (fastForward fires due timers at most once — no heartbeat
-// storm), and visibility is simulated with the standard own-property shadow
-// over document.visibilityState. Requires authenticated storage state and
-// UX_BLANK_MAP_ID (any accessible map mounts the gate; no tracked pilot
-// needed — the AFK machine runs whenever the canvas is mounted).
 import { blankMapId, blankMapRoute } from '../lib/authoring-helpers.mjs';
 
 async function setVisibility(page, state) {
@@ -29,8 +21,7 @@ export default {
   requiresAuth: true,
   settle: 2500,
   async setup({ page }) {
-    // Virtualize Date.now + timers before any app script runs; the clock
-    // keeps flowing in real time until fastForward jumps it.
+
     await page.clock.install();
   },
   async run({ page, check, shot }) {
@@ -46,7 +37,6 @@ export default {
     );
     check('no AFK dialog on an active map', (await page.getByRole('dialog').count()) === 0);
 
-    // Alt-tab into the game: an hour passes hidden.
     await setVisibility(page, 'hidden');
     await page.clock.fastForward('01:01:00');
     const dialog = page.getByRole('dialog');
@@ -57,16 +47,13 @@ export default {
     check('prompt warns before pausing', (await warnCopy.count()) > 0);
     await shot('afk-prompt');
 
-    // Unanswered for the response window: tracking pauses, prompt persists.
     await page.clock.fastForward('00:06:00');
-    // fastForward fires the due timers but React's commit may land a
-    // microtask later — wait for the copy rather than counting immediately.
+
     const pausedCopy = page.getByText('location tracking is paused', { exact: false });
     await pausedCopy.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
     check('unanswered prompt flips to the paused copy', (await pausedCopy.count()) > 0);
     await shot('afk-paused');
 
-    // The player alt-tabs back: the prompt is waiting; Continue resumes.
     await setVisibility(page, 'visible');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.waitForTimeout(600);

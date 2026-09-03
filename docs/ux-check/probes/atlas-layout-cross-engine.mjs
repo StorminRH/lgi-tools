@@ -1,5 +1,3 @@
-// SC-2.2: Chromium vs a second engine on the same paused chain state.
-// Run with the primary engine (chromium) and UX_SECOND_ENGINE=firefox|webkit.
 import {
   allPositionsFinite,
   positionsMatch,
@@ -43,7 +41,6 @@ export default {
       { timeout: 120_000 },
     );
     await second.page.waitForTimeout(1500);
-
 
     const a = await readNodePositions(page);
     const b = await readNodePositions(second.page);

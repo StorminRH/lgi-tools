@@ -1,8 +1,3 @@
-/**
- * Shared helpers for probes that drive the real tracked-transition → doorbell →
- * server-resolver path (atlas-automatic-jump, atlas-signature-lifecycle).
- */
-
 function isDoorbellResponse(response) {
   if (
     new URL(response.url()).pathname !== '/api/maps/jump'
@@ -25,7 +20,6 @@ async function responseBody(response) {
   return await response.json().catch(() => null);
 }
 
-/** Runs the trigger and returns the JSON body of the doorbell POST it provokes. */
 export async function doorbellAfter(page, trigger) {
   const pending = waitForDoorbell(page);
   try {
@@ -37,7 +31,6 @@ export async function doorbellAfter(page, trigger) {
   return await responseBody(await pending);
 }
 
-/** The signed-in probe account's Better Auth user id, from the live session. */
 export async function sessionUserId(page, baseUrl) {
   const response = await page.request.get(
     new URL('/api/auth/get-session', baseUrl).href,
@@ -47,7 +40,6 @@ export async function sessionUserId(page, baseUrl) {
   return typeof session?.user?.id === 'string' ? session.user.id : null;
 }
 
-/** Waits until the canvas holds exactly the expected chain-node and edge counts. */
 export async function waitForTopology(page, nodes, edges) {
   await page.waitForFunction(
     ({ expectedNodes, expectedEdges }) =>

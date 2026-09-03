@@ -18,7 +18,6 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-
 PAGE_TITLES = {
     "/": "Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools",
     "/changelog": "Changelog",
@@ -26,7 +25,6 @@ PAGE_TITLES = {
     "/contact": "Contact",
     "/sites": "Wormhole Sites — Live Jita Loot & Resource Values",
 }
-
 
 class MetadataParser(HTMLParser):
     def __init__(self) -> None:
@@ -58,7 +56,6 @@ class MetadataParser(HTMLParser):
         if isinstance(value, dict):
             self.json_ld.append(value)
 
-
 def fetch_html(base_url: str, path: str) -> str:
     with urlopen(f"{base_url}{path}", timeout=60) as response:
         content_type = response.headers.get_content_type()
@@ -66,13 +63,11 @@ def fetch_html(base_url: str, path: str) -> str:
             raise ValueError(f"{path}: expected 200 text/html, got {response.status} {content_type}")
         return response.read().decode("utf-8")
 
-
 def parse_page(base_url: str, path: str) -> tuple[str, MetadataParser]:
     body = fetch_html(base_url, path)
     parser = MetadataParser()
     parser.feed(body)
     return body, parser
-
 
 def verify_page_metadata(path: str, parser: MetadataParser, expected_title: str | None) -> None:
     og_title = parser.metadata.get("og:title")
@@ -97,10 +92,8 @@ def verify_page_metadata(path: str, parser: MetadataParser, expected_title: str 
         raise ValueError(f"{path}: default social image dimensions are missing or incorrect")
     print(f"page {path}: og:title={og_title!r}; copy aligned; default card 1200x630")
 
-
 def schemas_of_type(parser: MetadataParser, schema_type: str) -> list[dict[str, object]]:
     return [value for value in parser.json_ld if value.get("@type") == schema_type]
-
 
 def verify_breadcrumb(path: str, parser: MetadataParser) -> None:
     breadcrumbs = schemas_of_type(parser, "BreadcrumbList")
@@ -111,14 +104,12 @@ def verify_breadcrumb(path: str, parser: MetadataParser) -> None:
         raise ValueError(f"{path}: breadcrumb positions are not [1, 2, 3]")
     print(f"schema {path}: BreadcrumbList with three ordered items")
 
-
 def print_head(path: str, body: str) -> None:
     match = re.search(r"<head>(.*?)</head>", body, flags=re.DOTALL)
     if match is None:
         raise ValueError(f"{path}: no rendered head block")
     rendered = html.unescape(match.group(0))
     print(f"\n--- rendered head for {path} ---\n{rendered}\n--- end rendered head ---")
-
 
 def main() -> None:
     argument_parser = argparse.ArgumentParser()
@@ -137,7 +128,6 @@ def main() -> None:
     for path in ("/sites/100", "/industry/691"):
         _body, parser = parse_page(base_url, path)
         verify_breadcrumb(path, parser)
-
 
 if __name__ == "__main__":
     main()

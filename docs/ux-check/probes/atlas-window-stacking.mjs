@@ -29,8 +29,6 @@ export default {
       node !== null && await dock.isVisible() && await card.isVisible(),
     );
 
-    // The readout is a passive click-through overlay: the interactive card
-    // always stacks above it, and pointer events pass through to the canvas.
     check(
       'the interactive card stacks above the passive readout',
       (await z(card)) > (await z(dock)),
