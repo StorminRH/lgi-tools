@@ -12,7 +12,6 @@ import { MAP_EVENT_RETENTION_MS } from './chain-events';
 describe('chain-contract', () => {
   it('pairs purgeAfter one undo window after deletedAt and pins durability windows', () => {
     const deletedAt = 1_700_000_000_000;
-
     expect(MAP_CHAIN_UNDO_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
     expect(MAP_EVENT_RETENTION_MS).toBe(7 * 24 * 60 * 60 * 1000);
     expect(chainTombstoneStamps(deletedAt)).toEqual({

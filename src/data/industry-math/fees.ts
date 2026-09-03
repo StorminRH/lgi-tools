@@ -46,13 +46,10 @@ export function taxDraftFromStored(taxPct: number | null): string {
 export type AdjustedPriceOf = (typeId: number) => number | null;
 
 export interface JobInstallationFee {
-
   estimatedItemValue: number;
-
   jobGrossCost: number | null;
   facilityTax: number;
   sccSurcharge: number;
-
   total: number | null;
   missingAdjustedPriceTypeIds: number[];
   missingSystemCostIndex: boolean;
@@ -63,7 +60,6 @@ export function computeJobInstallationFee(
   adjustedPriceOf: AdjustedPriceOf,
   systemCostIndex: number | null,
   rates: FeeRates = DEFAULT_FEE_RATES,
-
   structureCostBonusPct = 0,
 ): JobInstallationFee {
   const missingAdjustedPriceTypeIds: number[] = [];
@@ -116,12 +112,10 @@ export function computeSellSideFees(
 }
 
 export interface NetMarginInput extends MarginInput {
-
   baseMaterials: MaterialQty[];
   adjustedPriceOf: AdjustedPriceOf;
   systemCostIndex: number | null;
   rates?: FeeRates;
-
   structureCostBonusPct?: number;
 }
 

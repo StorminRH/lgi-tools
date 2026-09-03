@@ -32,7 +32,6 @@ describe('computeMarketScore — liquidity (time-to-clear)', () => {
   });
 
   it('counts the sell-side wall plus the batch against ADV', () => {
-
     const s = computeMarketScore({
       ...LIQUID,
       adv: 1_000,
@@ -96,7 +95,6 @@ describe('computeMarketScore — stability & consistency', () => {
 
 describe('computeMarketScore — weakest-link composition', () => {
   it('floors the final score when one KNOWN signal is zero', () => {
-
     const s = computeMarketScore({
       ...LIQUID,
       priceVolatility: STABILITY_CV_MAX + 0.2,
@@ -113,7 +111,6 @@ describe('computeMarketScore — weakest-link composition', () => {
   });
 
   it('is a geometric mean, not an arithmetic average (penalizes imbalance)', () => {
-
     const s = computeMarketScore({
       ...LIQUID,
       outputUnits: 3 * 100_000,
@@ -128,7 +125,6 @@ describe('computeMarketScore — weakest-link composition', () => {
 
 describe('computeMarketScore — honest degradation', () => {
   it('excludes an unknown signal without flooring or fabricating', () => {
-
     const s = computeMarketScore({ ...LIQUID, priceVolatility: null });
     expect(s.stability.score).toBeNull();
     expect(s.score).toBe(100);

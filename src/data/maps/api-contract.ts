@@ -6,11 +6,8 @@ const mapIdSchema = z.string().trim().min(1).max(200);
 const connectionIdSchema = z.string().trim().min(1).max(200);
 
 export const MAX_MAP_NAME_LENGTH = 120;
-
 export const MAX_MAP_CREATE_GRANTS = 100;
-
 export const MIN_CHARACTER_SEARCH_LENGTH = 3;
-
 export const MAX_CHARACTER_SEARCH_LENGTH = 100;
 
 const createMapGrantSchema = z.strictObject({

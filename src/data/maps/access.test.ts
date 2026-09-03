@@ -115,7 +115,6 @@ describe('resolveMapRole', () => {
 
 describe('resolveMatchedMapRoles', () => {
   it('returns every matched role in precedence order', () => {
-
     expect(
       resolveMatchedMapRoles({
         isCreator: false,

@@ -18,8 +18,6 @@ const costIndicesBodySchema = z.array(
   }),
 );
 
-// ESI spec; absent → null (distinct from a real 0.0). average_price rides the
-
 const adjustedPricesBodySchema = z.array(
   z.object({
     type_id: z.number(),

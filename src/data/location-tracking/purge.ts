@@ -23,7 +23,6 @@ async function postPurgeLocationTracking(
       },
       body: JSON.stringify({ userId, characterId }),
     });
-
     if (!response.ok) {
       throw new Error(`purge-location-tracking ${response.status}`);
     }
@@ -39,7 +38,6 @@ export async function teardownLocationTracking(
 
 export const locationTrackingPurgeContributor: PurgeContributor = {
   name: 'location-tracking',
-
   tier: 'durable',
   claims: [],
   purgeCharacter: ({ userId, characterId }) =>

@@ -29,7 +29,6 @@ afterEach(() => {
 
 describe('locationTrackingPurgeContributor', () => {
   it('is a durable-tier contributor that claims no Neon table (its homes live in Convex)', () => {
-
     expect(locationTrackingPurgeContributor.tier).toBe('durable');
     expect(locationTrackingPurgeContributor.claims).toEqual([]);
   });
@@ -41,7 +40,6 @@ describe('locationTrackingPurgeContributor', () => {
       characterId: CHAR,
     });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/purge-location-tracking');
     expect(init?.method).toBe('POST');
@@ -52,7 +50,6 @@ describe('locationTrackingPurgeContributor', () => {
   it('purgeUser POSTs the whole-user teardown (characterId null)', async () => {
     await locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-
     const [, init] = fetchSpy.mock.calls[0]!;
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
   });
@@ -67,7 +64,6 @@ describe('locationTrackingPurgeContributor', () => {
         characterId: CHAR,
       }),
     ).resolves.toBeUndefined();
-
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('[location-tracking/purge] convex-teardown failed'),
       expect.anything(),
@@ -76,7 +72,6 @@ describe('locationTrackingPurgeContributor', () => {
   });
 
   it('logs a non-2xx response as a missed delete instead of asserting done', async () => {
-
     fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await expect(

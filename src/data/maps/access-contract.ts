@@ -3,7 +3,6 @@ export const MAP_ROLES = ['viewer', 'editor', 'admin'] as const;
 export type MapRole = (typeof MAP_ROLES)[number];
 
 export const MAP_ACCESS_OWNER_TYPES = ['character', 'corporation'] as const;
-
 export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 
 export interface CorporationAccessOption {

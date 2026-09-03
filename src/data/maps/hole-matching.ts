@@ -21,13 +21,10 @@ export interface HoleMatchCandidate {
 }
 
 export interface JumpEvidence {
-
   readonly origin: WormholeSystemClassFacts;
-
   readonly destination: WormholeSystemClassFacts;
   readonly observedShipMassKg: number | null;
   readonly candidates: readonly HoleMatchCandidate[];
-
   readonly scannedTypeCodes: readonly string[];
   readonly staticTypeCodes: readonly string[];
   readonly codex: readonly WormholeCodexEntry[];

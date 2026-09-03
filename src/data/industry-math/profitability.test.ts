@@ -59,7 +59,6 @@ function priceOfFrom(buy: Record<number, number>): PriceOf {
 describe('computeBuildCost', () => {
   it('sums quantity × best buy for the Rifter (firm anchor)', () => {
     const cost = computeBuildCost(toMaterials(RIFTER_MATERIALS), priceOfFrom(ANCHOR_BUY));
-
     expect(cost.total).toBe(570_000);
     expect(cost.missingTypeIds).toEqual([]);
     expect(cost.perMaterial).toHaveLength(4);
@@ -69,20 +68,17 @@ describe('computeBuildCost', () => {
 
   it('sums quantity × best buy for the Drake (firm anchor)', () => {
     const cost = computeBuildCost(toMaterials(DRAKE_MATERIALS), priceOfFrom(ANCHOR_BUY));
-
     expect(cost.total).toBe(60_000_000);
     expect(cost.missingTypeIds).toEqual([]);
   });
 
   it('flags materials with no row or a null buy price instead of undercounting', () => {
-
     const priceOf: PriceOf = (typeId) => {
       if (typeId === 37) return undefined;
       if (typeId === 36) return { bestBuy: null, bestSell: 999 };
       return { bestBuy: ANCHOR_BUY[typeId] ?? null, bestSell: null };
     };
     const cost = computeBuildCost(toMaterials(RIFTER_MATERIALS), priceOf);
-
     expect(cost.total).toBe(220_000);
     expect(cost.missingTypeIds.sort((a, b) => a - b)).toEqual([36, 37]);
     const isk = cost.perMaterial.find((m) => m.typeId === 36);
@@ -90,7 +86,6 @@ describe('computeBuildCost', () => {
   });
 
   it('handles the Archon material set without throwing (regression sentinel)', () => {
-
     const flatBuy: PriceOf = () => ({ bestBuy: 10, bestSell: null });
     const cost = computeBuildCost(toMaterials(ARCHON_MATERIALS), flatBuy);
     const totalUnits = Object.values(ARCHON_MATERIALS).reduce((a, b) => a + b, 0);

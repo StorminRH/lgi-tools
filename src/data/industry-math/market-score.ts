@@ -26,7 +26,6 @@ export interface LiquiditySignal {
   sellWallDays: number | null;
   batchDays: number | null;
   instantDumpUnits: number | null;
-
   wallKnown: boolean;
 }
 
@@ -42,9 +41,7 @@ export interface ConsistencySignal {
 }
 
 export interface MarketScore {
-
   score: number | null;
-
   knownCount: number;
   liquidity: LiquiditySignal;
   stability: StabilitySignal;

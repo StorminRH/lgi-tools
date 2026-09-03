@@ -56,7 +56,6 @@ export function resolveMapRole(input: MapRoleInput): MapAccess {
   if (roles.length === 0) return { ...NO_ACCESS };
 
   return {
-
     role: MAP_ROLE_PRECEDENCE.find((role) => roles.includes(role)) ?? roles[0]!,
     canView: rolesAllow(roles, 'view'),
     canEdit: rolesAllow(roles, 'edit'),

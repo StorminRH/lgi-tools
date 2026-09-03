@@ -46,7 +46,6 @@ function candidate(
 }
 
 function evidence(overrides: Partial<JumpEvidence> = {}): JumpEvidence {
-
   const candidates = overrides.candidates ?? [];
   return {
     origin: { wormholeClassId: 7, securityStatus: 0.8 },
@@ -204,7 +203,6 @@ describe('matchJump', () => {
       provenance: 'assumed',
       survivors: ['typed'],
     });
-
     expect(
       matchJump({
         ...base,
