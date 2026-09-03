@@ -82,6 +82,10 @@ vi.mock('@/features/maps/MapCatalogue', () => ({
   MapCatalogue: () => createElement('div', { 'data-map-catalogue': '' }),
 }));
 
+vi.mock('./AtlasGuestLanding', () => ({
+  AtlasGuestLanding: () => createElement('div', { 'data-atlas-guest-landing': '' }),
+}));
+
 vi.mock('./AtlasCanvasFrame', () => ({
   AtlasCanvasFrame: ({ session }: { session: unknown }) =>
     createElement('div', {
@@ -125,18 +129,19 @@ describe('AtlasBound', () => {
     vi.restoreAllMocks();
   });
 
-  it('admits signed-out visitors and signed-in members, fails closed on auth errors, and rethrows framework signals', async () => {
+  it('lands guests on the sign-in page, admits signed-in members, fails closed on auth errors, and rethrows framework signals', async () => {
     mocks.checkSession.mockResolvedValue({ ok: false, failure: { code: 'unauthenticated' } });
     const signedOut = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
-    expect(signedOut).toContain('data-map-catalogue');
-    expect(signedOut).toContain('data-provider-map-count="0"');
-    expect(signedOut).toContain('data-provider-listing-available="true"');
+    expect(signedOut).toContain('data-atlas-guest-landing');
+    expect(signedOut).not.toContain('data-map-catalogue');
     expect(signedOut).not.toContain('data-map-canvas-frame');
     expect(signedOut).not.toContain('data-map-development-wall');
     const signedOutMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
-    expect(signedOutMap).toContain('data-map-catalogue');
+    expect(signedOutMap).toContain('data-atlas-guest-landing');
+    expect(signedOutMap).not.toContain('data-map-catalogue');
     expect(signedOutMap).not.toContain('data-map-canvas-frame');
     expect(mocks.listMapChromeData).not.toHaveBeenCalled();
+    expect(mocks.getScannerSiteIndex).not.toHaveBeenCalled();
     expect(mocks.connection).toHaveBeenCalledTimes(2);
     expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.checkSession.mock.invocationCallOrder[0]!,
@@ -173,6 +178,7 @@ describe('AtlasBound', () => {
     const failed = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
     expect(failed).toContain('data-map-catalogue');
     expect(failed).toContain('data-provider-listing-available="false"');
+    expect(failed).not.toContain('data-atlas-guest-landing');
     expect(failed).not.toContain('data-map-development-wall');
     const failedMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
     expect(failedMap).toContain('data-map-catalogue');

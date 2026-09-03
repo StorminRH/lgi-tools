@@ -18,6 +18,7 @@ import {
 } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { AtlasCanvasFrame } from './AtlasCanvasFrame';
+import { AtlasGuestLanding } from './AtlasGuestLanding';
 
 const EMPTY_MAP_CHROME: MapChromeData = {
   maps: [],
@@ -74,8 +75,9 @@ function atlasAccountSession(gate: SessionCheckResult | null): Session | null {
  * Resolves the signed-in map listing, then the site-framed catalogue or the
  * full-viewport canvas. The parent site layout already owns header and footer.
  *
- * Signed-out visitors stay on the catalogue, including a shared `?map=` URL,
- * so the site header login remains reachable. The canvas covers that chrome
+ * Signed-out visitors get the guest landing, including on a shared `?map=`
+ * URL: it names sign-in as the way in and returns them to that map afterwards,
+ * so nothing covers the site header login. The canvas covers that chrome
  * and omits AccountMenu when session is null. A thrown session check fails
  * closed to an unavailable listing rather than escaping: `error.tsx` covers a
  * segment's children, not its own layout, so an escaping throw here would
@@ -98,15 +100,14 @@ export async function AtlasBound({
     console.error('[map] authorization check unavailable', err);
   }
 
+  if (gate?.ok === false) return <AtlasGuestLanding />;
+
   const session = atlasAccountSession(gate);
   const [siteIndex, chromeSnapshot] = await Promise.all([
     loadScannerCatalogue(),
-    gate?.ok
-      ? loadMapChromeData(gate.session.user.id)
-      : Promise.resolve({
-          data: EMPTY_MAP_CHROME,
-          listingAvailable: gate !== null,
-        } as const),
+    gate === null
+      ? Promise.resolve({ data: EMPTY_MAP_CHROME, listingAvailable: false } as const)
+      : loadMapChromeData(gate.session.user.id),
   ]);
   const chromeData = chromeSnapshot.data;
   const showCanvas = mapSelected && gate?.ok === true;
