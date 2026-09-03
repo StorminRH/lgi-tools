@@ -147,7 +147,6 @@ export async function SiteDetailContent({
   return (
     <>
       <JsonLd data={breadcrumbJsonLd} />
-      {}
       <h1 className="sr-only">{site.name}</h1>
 
       <Suspense
@@ -163,7 +162,6 @@ export async function SiteDetailContent({
       </Suspense>
 
       <div className="w-full">
-        {}
         <div className="mx-auto w-full max-w-[32rem]">
           <SiteCard site={site} presentation="standalone" />
         </div>

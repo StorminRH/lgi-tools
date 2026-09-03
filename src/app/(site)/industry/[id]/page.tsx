@@ -114,7 +114,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
-      {}
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
 
       <RecordRecentBlueprint
@@ -129,7 +128,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         historyPromise={historyPromise}
         initialBuildCharacterId={initialBuildCharacterId}
       >
-        {}
         <TemplateLoader structure={structure} />
         <CockpitPlanner structure={structure} />
       </PricingProvider>
