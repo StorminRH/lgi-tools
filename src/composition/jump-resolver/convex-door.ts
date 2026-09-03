@@ -30,8 +30,7 @@ const transitionEvidenceSchema = z.strictObject({
     .nullable(),
   lastProcessedTransitionAt: z.number().finite().nullable(),
   originLive: z.boolean(),
-  // Origin-side typed scanned codes (resolved AND unresolved rows) — the
-  // statics-census pool. Distinct from `candidates`, which stays unresolved-only.
+
   scannedTypeCodes: z.array(z.string().min(1)),
   candidates: z.array(
     z.strictObject({
@@ -60,19 +59,14 @@ const authorResultSchema = z.union([
   }),
 ]);
 
-/** Complete authoritative connection facts returned by Convex after an identity event. */
 export type ConnectionEmissionFacts = z.infer<typeof emissionFactsSchema>;
 
-/** One consistent tracked-transition snapshot from the Convex evidence door. */
 export type TransitionEvidence = z.infer<typeof transitionEvidenceSchema>;
 
-/** One edit-authorized current connection snapshot from the Convex evidence door. */
 export type ConnectionEvidence = z.infer<typeof connectionEvidenceSchema>;
 
-/** Atomic authoring result returned by the Convex resolve door. */
 export type AuthorJumpResult = z.infer<typeof authorResultSchema>;
 
-/** Matcher decision plus the complete candidate snapshot revalidated by Convex. */
 export type AuthorJumpDecision =
   | {
       readonly kind: 'resolve';
@@ -87,7 +81,6 @@ export type AuthorJumpDecision =
       readonly survivors: readonly string[];
     };
 
-/** Every argument the server supplies to the transactional jump mutation. */
 export interface AuthorJumpInput {
   readonly userId: string;
   readonly mapId: string;
@@ -100,7 +93,6 @@ export interface AuthorJumpInput {
   readonly decision: AuthorJumpDecision;
 }
 
-/** Popup answer dispatched through the existing transactional resolve door. */
 export type AnswerJumpInput =
   | {
       readonly operation: 'confirm';
@@ -116,7 +108,6 @@ export type AnswerJumpInput =
       readonly targetConnectionId: string;
     };
 
-/** Typed failure for an unavailable or contract-invalid Convex service door. */
 export class JumpConvexUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -138,7 +129,6 @@ function postDoor<T>(
   });
 }
 
-/** Reads one consistent transition packet through the established evidence door. */
 export function readTransitionEvidence(
   userId: string,
   mapId: string,
@@ -151,7 +141,6 @@ export function readTransitionEvidence(
   );
 }
 
-/** Reads one current edit-authorized connection through the same evidence door. */
 export function readConnectionEvidence(
   userId: string,
   mapId: string,
@@ -164,7 +153,6 @@ export function readConnectionEvidence(
   );
 }
 
-/** Dispatches one fully decided jump to the atomic Convex authoring mutation. */
 export function authorJump(input: AuthorJumpInput): Promise<AuthorJumpResult> {
   return postDoor(
     '/resolve-jump',
@@ -173,7 +161,6 @@ export function authorJump(input: AuthorJumpInput): Promise<AuthorJumpResult> {
   );
 }
 
-/** Dispatches one confirmation or correction and returns authoritative emission facts. */
 export function answerJump(input: AnswerJumpInput): Promise<ConnectionEmissionFacts> {
   return postDoor('/resolve-jump', input, emissionFactsSchema);
 }

@@ -4,10 +4,8 @@ const withAdvisoryLockMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const connectionMock = vi.fn();
 
-// Reserved-connection stub identical in shape to the one the cron route tests
-// use, so the gate exercises the real requireCronAuth path.
 const reservedTag = vi.fn(() => Promise.resolve([{ got: true }]));
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 (reservedTag as any).release = vi.fn();
 const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
@@ -20,8 +18,7 @@ vi.mock('@/db/advisory-lock', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
-// `after` runs inline so the capability row this shell schedules is observable
-// on the same `logUsageEvent` mock as its UsageAction row.
+
 vi.mock('next/server', () => ({
   connection: (...args: unknown[]) => connectionMock(...args),
   after: (fn: () => unknown) => fn(),
@@ -478,9 +475,7 @@ describe('defineCronRoute capability recording', () => {
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test' },
       work: async (ctx) => {
-        // The client is mocked in this suite, so no real dependency time
-        // accrues; dependency accumulation is covered in correlation.test.ts
-        // and the per-seam suites.
+
         await ctx.client.reserve();
         return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
       },

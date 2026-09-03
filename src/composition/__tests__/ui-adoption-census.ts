@@ -9,18 +9,12 @@ function cssFamilies(css: string): string[] {
   )].sort();
 }
 
-/**
- * Returns stylesheet families that are not covered by any recorded allowed prefix.
- */
 export function unexpectedFamilies(css: string, allowed: readonly string[]): string[] {
   return cssFamilies(css).filter(
     (className) => !allowed.some((family) => className.startsWith(family)),
   );
 }
 
-/**
- * Returns allowed prefixes that no longer own a matching stylesheet family.
- */
 export function deadAllowlistEntries(css: string, allowed: readonly string[]): string[] {
   const found = cssFamilies(css);
   return [...allowed]

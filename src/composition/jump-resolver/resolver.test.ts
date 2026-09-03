@@ -92,8 +92,7 @@ function transitionEvidence(
     },
     lastProcessedTransitionAt: null,
     originLive: true,
-    // Mirrors the live packet: unresolved candidates are scanned rows, so
-    // their typed codes join the census pool unless a case overrides it.
+
     scannedTypeCodes: (input.candidates ?? [])
       .map((candidate) => candidate.wormholeTypeCode)
       .filter((code): code is string => code !== null),
@@ -192,7 +191,7 @@ describe('jump resolver composition', () => {
   });
 
   it('authors a J-space crossing with the seeded ship mass', async () => {
-    // Faithful fresh-insert facts: an inserted row has no typed identity yet.
+
     h.authorJump.mockResolvedValueOnce({
       status: 'authored',
       emission: {
@@ -278,7 +277,7 @@ describe('jump resolver composition', () => {
       }),
     );
     h.readSystemStaticsForSystem.mockResolvedValueOnce([]);
-    // Faithful mutation echo: an assumed decision stamps assumed provenance.
+
     h.authorJump.mockResolvedValueOnce({
       status: 'authored',
       emission: { ...emission, destinationProvenance: 'assumed' },
@@ -289,8 +288,7 @@ describe('jump resolver composition', () => {
       { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
       dependencies,
     );
-    // Ruling D-B: the weaker evidence is kept, tagged for what it is, rather
-    // than discarded — exactly one row, at the tier the mutation stamped.
+
     expect(h.insertWhObservation).toHaveBeenCalledTimes(1);
     expect(h.insertWhObservation).toHaveBeenCalledWith(
       database,
@@ -406,15 +404,12 @@ describe('jump resolver composition', () => {
       emitted: false,
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
-    // The contradicted retype makes any previously emitted row stale — the
-    // typed-hole channel removes it just like the answer path.
+
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
   });
 
   it('emission follows the stored provenance of a converged pair, never the matcher verdict', async () => {
-    // Matcher sees a lone typed consistent survivor (jump-verified verdict),
-    // but the mutation converged onto an existing pair whose association is
-    // still assumed — the row is logged at THAT tier, never inflated.
+
     h.readTransitionEvidence.mockResolvedValueOnce(
       transitionEvidence({
         candidates: [{ id: 'connection-9', wormholeTypeCode: 'C247', sizeClass: 'L' }],
@@ -438,8 +433,6 @@ describe('jump resolver composition', () => {
       expect.objectContaining({ provenance: 'assumed' }),
     );
 
-    // A converged pair whose identity was human-typed refreshes at ITS tier —
-    // the return-jump upsert must not inflate it to jump-verified.
     h.readTransitionEvidence.mockResolvedValueOnce(
       transitionEvidence({
         candidates: [{ id: 'connection-9', wormholeTypeCode: 'C247', sizeClass: 'L' }],

@@ -6,9 +6,6 @@ import { revokeCharacterToken } from '@/platform/auth/eve-token-service';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { account, user } from '@/db/auth-schema';
 
-/**
- * Purges one linked character, revokes its EVE grant, and reconciles the remaining account.
- */
 export async function purgeOwnCharacter(
   userId: string,
   characterId: number,
@@ -26,9 +23,6 @@ async function eveAccountIdsFor(userId: string): Promise<number[]> {
   return rows.map((row) => Number(row.accountId)).filter((id) => Number.isFinite(id));
 }
 
-/**
- * Purges every linked character and user-keyed contributor before deleting the account owner.
- */
 export async function nukeAccount(userId: string): Promise<void> {
   let linked = await eveAccountIdsFor(userId);
   while (linked.length > 0) {

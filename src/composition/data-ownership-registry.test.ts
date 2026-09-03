@@ -52,11 +52,6 @@ describe('describeDbInvariants', () => {
     expect(describeDbInvariants(ownedAssets)).toContain('fk(snapshot_id→esi_snapshots.id)');
   });
 
-  // No live table declares a CHECK, a table-level unique(), or a composite
-  // primary key through `primaryKey({...})` alongside these forms, so a synthetic
-  // table is the only way to prove those metadata kinds are reported. They matter:
-  // a kind this function silently ignored would pass the census's two-way diff
-  // while a real database-enforced invariant went undeclared.
   it('reports check constraints, table-level unique constraints, and composite keys', () => {
     const synthetic = pgTable(
       'synthetic_invariants',
