@@ -28,7 +28,7 @@ describe('deriveCorpStructureItemView', () => {
     });
     expect(view.typeName).toBe('Azbel');
     expect(view.displayName).toBe('Corp Azbel');
-    expect(view.validRigs).toEqual([L_RIG]); // only the L rig fits
+    expect(view.validRigs).toEqual([L_RIG]);
     expect(view.rigLabels).toEqual([{ key: 1, label: 'L Rig' }]);
     expect(view.taxLabel).toBe('tax 2%');
     expect(view.hasDetails).toBe(true);
@@ -40,8 +40,8 @@ describe('deriveCorpStructureItemView', () => {
       { structureTypes: [AZBEL], structureRigs: [L_RIG] },
     );
     expect(view.typeName).toBe('Type 999');
-    expect(view.displayName).toBe('Type 999'); // name null → type name
-    expect(view.validRigs).toEqual([]); // unknown type → no fitting rigs
+    expect(view.displayName).toBe('Type 999');
+    expect(view.validRigs).toEqual([]);
     expect(view.taxLabel).toBeNull();
     expect(view.hasDetails).toBe(false);
   });

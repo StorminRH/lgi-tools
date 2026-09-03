@@ -6,8 +6,6 @@ import type { OwnedBlueprintsPort } from './types';
 const NOW = new Date('2026-06-27T12:00:00Z');
 const CHAR_BP_SCOPE = 'esi-characters.read_blueprints.v1';
 
-// A valid ESI blueprint element — item_id is present and must be dropped by the
-// projection, so the saved row never carries it.
 function esiBlueprint(typeId: number) {
   return {
     type_id: typeId,
@@ -69,7 +67,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
   it('fetches and saves a stale owner, dropping item_id via the projection', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
-      readSyncState: vi.fn(async () => null), // never synced → stale
+      readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
           kind: 'fresh',
@@ -116,7 +114,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
   it('refreshes several stale character owners (the parallel pass saves each one)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
-      readSyncState: vi.fn(async () => null), // all stale
+      readSyncState: vi.fn(async () => null),
       read: vi.fn(
         async (): Promise<PagedOwnerReadResult> => ({
           kind: 'fresh',
@@ -153,7 +151,7 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
     const members = [character(1, { corporationId: 5000 }), character(2, { corporationId: 5000 })];
     const port = makePort({
       listCharacters: vi.fn(async () => members),
-      readSyncState: vi.fn(async () => null), // stale
+      readSyncState: vi.fn(async () => null),
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Director'] : ['Accountant'])),
       read: vi.fn(
@@ -193,7 +191,7 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
   it('reads no corp roles when the corp is fresh (the corp staleness gate)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 })]),
-      readSyncState: vi.fn(async () => fresh()), // both char + corp owner fresh
+      readSyncState: vi.fn(async () => fresh()),
       readRoles: vi.fn(async () => ['Director']),
     });
 

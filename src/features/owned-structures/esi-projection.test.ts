@@ -6,7 +6,7 @@ describe('parseCorpStructuresBody', () => {
     const out = parseCorpStructuresBody([
       {
         structure_id: 1002,
-        type_id: 35833, // Fortizar
+        type_id: 35833,
         system_id: 30000142,
         name: 'B',
         services: [{ name: 'Manufacturing', state: 'online' }],
