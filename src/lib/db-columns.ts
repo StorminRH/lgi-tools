@@ -20,10 +20,6 @@ export function ownerSyncStateColumns<T extends [string, ...string[]]>(ownerType
   };
 }
 
-/**
- * Fresh identity columns for an app-authored per-user row (id, owner, name,
- * created-at). Callers pass the user-id reference so lib never imports db.
- */
 export function ownedRowIdentityColumns(userIdReferences: () => AnyPgColumn) {
   return {
     id: text('id').primaryKey(),

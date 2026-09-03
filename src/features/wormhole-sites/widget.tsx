@@ -8,16 +8,13 @@ import { apiFetch } from '@/transport/api-client';
 import { siteDetailEndpoint, type SiteDetail } from './api-contract';
 import { SiteCard } from './components/SiteCard';
 
-/** Scanner Est. ISK cell and its refresh-on-view provider for harvestable rows. */
 export {
   ScannerEstIskCell,
   ScannerLivePricesProvider,
 } from './components/ScannerLivePrices';
 
-/** Reactive site catalogue lookups for atlas scanner row affordances and Est. ISK. */
 export { useSiteCatalogue } from './site-catalogue';
 
-/** Host-owned inputs for the embeddable sites card; the host supplies only identity and a box. */
 export interface SiteCardWidgetProps {
   siteId: number;
   className?: string;
@@ -59,6 +56,7 @@ function WidgetContent({ state }: { state: WidgetState }) {
       <Banner tone="warn" className="m-auto">
         This wormhole site could not be loaded.
       </Banner>
+
     );
   }
   return (
@@ -70,12 +68,10 @@ function WidgetContent({ state }: { state: WidgetState }) {
         className="border-0 bg-transparent shadow-none"
       />
     </div>
+
   );
 }
 
-/**
- * Renders the sites card as a D15 embeddable widget that loads one site and fills its host box.
- */
 export function SiteCardWidget({
   siteId,
   className,
@@ -112,5 +108,6 @@ export function SiteCardWidget({
     >
       <WidgetContent state={visibleState} />
     </section>
+
   );
 }

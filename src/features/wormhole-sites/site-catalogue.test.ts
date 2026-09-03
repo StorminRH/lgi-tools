@@ -20,7 +20,7 @@ function Probe({ name }: { readonly name: string }) {
 }
 
 test('SiteCatalogueProvider resolves from props on first render and falls back to the module index', () => {
-  // Module index stays empty — the provider must not depend on a later effect.
+
   expect(siteIdForSiteName('Barren Perimeter Reservoir')).toBeNull();
 
   const fromProps = renderToStaticMarkup(

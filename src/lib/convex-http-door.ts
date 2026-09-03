@@ -8,10 +8,6 @@ export type ConvexHttpDoorError = new (
   options?: { cause?: unknown },
 ) => Error;
 
-/**
- * Posts JSON to one Convex HTTP path and returns the parsed contract, or throws
- * `error` with a `label`-prefixed message.
- */
 export async function postConvexHttpDoor<T>({
   path,
   body,
