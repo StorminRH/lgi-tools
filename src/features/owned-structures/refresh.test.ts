@@ -5,8 +5,6 @@ import type { CorpStructuresPort, CorpStructuresReadResult, RefreshCorpMember } 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const STRUCTURES_SCOPE = 'esi-corporations.read_structures.v1';
 
-// A valid ESI corp-structures element — services/state are present and must be
-
 function esiStructure(structureId: number, extra: Record<string, unknown> = {}) {
   return {
     structure_id: structureId,

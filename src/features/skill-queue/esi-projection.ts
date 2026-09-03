@@ -16,8 +16,6 @@ const skillQueueBodySchema = z.array(skillQueueEntrySchema);
 
 export type SkillQueueEntry = z.infer<typeof skillQueueEntrySchema>;
 
-// in-game. The array is required in the ESI spec — its absence is a genuine
-
 const skillsBodySchema = z.object({
   total_sp: z.number(),
   unallocated_sp: z.number().optional(),

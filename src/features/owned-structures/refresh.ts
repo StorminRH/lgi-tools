@@ -1,5 +1,3 @@
-// per window does the ESI work and every other member's view inside the window does
-
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { makeCorpDescriptor, planRead, runOwnerSync } from '@/platform/owner-sync';
 import { CORP_STRUCTURES_REQUIRED_ROLES, canSyncCorpStructures } from './corp-sync-eligibility';
