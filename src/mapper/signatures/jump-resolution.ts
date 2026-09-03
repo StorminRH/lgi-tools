@@ -1,7 +1,3 @@
-// Pure selection and labeling for the confirm/correct prompt over an assumed
-// automatic hole link. The survivor list on the resolved row preserves the
-// matcher's deterministic ordering; this module only resolves those ids to
-// display facts and decides which pending resolution to surface.
 import type { Id } from '@/data/convex/data-model';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
@@ -15,30 +11,26 @@ import type {
 } from '../chain/connection-detail';
 import { destinationReadout } from './system-readout';
 
-/** One selectable candidate for a pending auto-link resolution. */
 export interface JumpResolutionCandidate {
   readonly connectionId: Id<'mapConnections'>;
   readonly signatureId: string | null;
   readonly wormholeTypeCode: string | null;
-  /** True for the slot the eliminator resolved into (the connection itself). */
+
   readonly isCurrent: boolean;
 }
 
-/** One pending assumed resolution: the resolved row plus its recorded survivors. */
 export interface JumpResolutionModel {
   readonly connectionId: Id<'mapConnections'>;
   readonly destination: SystemIdentityReadout;
   readonly candidates: readonly JumpResolutionCandidate[];
 }
 
-/** Route target for one survivor pick: null confirms the already-linked row. */
 export function jumpAnswerTarget(
   candidate: JumpResolutionCandidate,
 ): Id<'mapConnections'> | null {
   return candidate.isCurrent ? null : candidate.connectionId;
 }
 
-/** Whether one connection row still carries an answerable assumed auto-link. */
 export function hasPendingResolution(connection: ConnectionDetail): boolean {
   return (
     hasAnswerablePrompt(connection.resolution) &&
@@ -46,10 +38,6 @@ export function hasPendingResolution(connection: ConnectionDetail): boolean {
   );
 }
 
-/**
- * Resolves the recorded survivor ids to labeled candidates in the matcher's
- * exact order. Any now-unrepresentable survivor makes the whole prompt stale.
- */
 export function jumpResolutionCandidates(
   connection: ConnectionDetail,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
@@ -70,9 +58,7 @@ export function jumpResolutionCandidates(
       continue;
     }
     const hole = unresolvedHoles.find((row) => row.connectionId === candidateId);
-    // The stored array is the matcher's exact survivor list. If a concurrent
-    // update makes one survivor unrepresentable, withhold the stale prompt as
-    // a whole instead of silently presenting a shortened, dishonest list.
+
     if (hole === undefined) return null;
     candidates.push({
       connectionId: hole.connectionId,
@@ -84,12 +70,6 @@ export function jumpResolutionCandidates(
   return candidates;
 }
 
-/**
- * The newest exact multi-survivor resolution owned by one of this client's
- * tracked characters and not locally answered, or null. One at a time keeps
- * the scanner prompt rail non-blocking; scoping keeps another pilot's jump
- * from asking every editor on the map.
- */
 export function pendingJumpResolution(
   details: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
@@ -121,7 +101,6 @@ export function pendingJumpResolution(
   return newest;
 }
 
-/** Short human label for one candidate: signature identity plus typed code. */
 export function jumpCandidateLabel(candidate: JumpResolutionCandidate): string {
   const signature = candidate.signatureId ?? 'Unscanned';
   const code = candidate.wormholeTypeCode ?? 'Unidentified';

@@ -289,6 +289,7 @@ export function ScannerLeadsControl({
         footer={browsing ? 'Type to search systems…' : null}
       />
     </Combobox.Root>
+
   );
 }
 

@@ -10,7 +10,6 @@ import type {
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
 
-/** Props for the live scanner panel body host. */
 export interface ActiveScannerPanelProps {
   readonly mapId: string;
   readonly panelTarget: ScannerPanelTarget;
@@ -22,10 +21,6 @@ export interface ActiveScannerPanelProps {
   readonly onClose: () => void;
 }
 
-/**
- * Mounts the connection editor or read-only site viewer for the host's single
- * scanner panel target — never both.
- */
 export function ActiveScannerPanel({
   mapId,
   panelTarget,

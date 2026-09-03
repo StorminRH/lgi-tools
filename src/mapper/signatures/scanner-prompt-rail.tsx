@@ -39,18 +39,24 @@ function MissingSignaturesPrompt({
       <span className="font-data text-label uppercase tracking-label text-muted">
         Missing from scan
       </span>
+
       <p className="font-data text-micro text-name">{missingPromptCopy(count)}</p>
+
       <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={onDismiss}>
           Dismiss
         </Button>
+
         {canEdit ? (
           <Button variant="danger" size="sm" onClick={onRemove}>
             Remove
           </Button>
+
         ) : null}
       </div>
+
     </div>
+
   );
 }
 
@@ -88,5 +94,6 @@ export function ScannerPromptRail({
         />
       ) : null}
     </div>
+
   );
 }

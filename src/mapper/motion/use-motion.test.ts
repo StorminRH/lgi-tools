@@ -1,7 +1,3 @@
-// The derivation host's pure pipeline (`motion-host-model.ts`), driven exactly
-// as the thin React hook drives it: adjust-for-render on each simulated
-// commit, stepHost per injected clock frame, derivePresentation for what the
-// canvas would paint.
 import { describe, expect, it } from 'vitest';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { ChainEdge } from '../chain/nodes';
@@ -61,7 +57,6 @@ const mergeInput = (
   dragging: ReadonlySet<number> = NONE,
 ) => ({ truth, intents, now, plan: PLAN, dragging, flavor: FLAVOR });
 
-// ── SC-2.1 · DC-2 — glides step from the intent's own origin ─────────────────
 describe('glide derivation', () => {
   it('renders a fresh tween at its origin in the adoption commit, then steps along the spring', () => {
     const preMerge = truthOf([node(31, 0, 0), node(32, 500, 500)]);
@@ -81,14 +76,10 @@ describe('glide derivation', () => {
     const intents = [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })];
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, intents, 0));
 
-    // The sync effect commits the reconciled target one commit later; the
-    // derivation must keep overlaying the displaced value in that commit.
     const postMerge = truthOf([node(31, 100, 0)]);
     const commit = derivePresentation(postMerge, host, NONE, FLAVOR);
     expect(commit.nodes[0]?.position).toEqual({ x: 0, y: 0 });
 
-    // And every stepped frame stays strictly between origin and target until
-    // the glide completes.
     const half = stepHost(host, PLAN.moveMs / 2, EASE, NONE, false);
     const midway = derivePresentation(postMerge, half.next, NONE, FLAVOR);
     expect(midway.nodes[0]?.position.x).toBeGreaterThan(0);
@@ -107,7 +98,6 @@ describe('glide derivation', () => {
   });
 });
 
-// ── Plan hard constraint — identity preservation bounds the React commit ─────
 describe('identity preservation', () => {
   it('passes unmoved nodes through as the same object reference frame over frame', () => {
     const bystander = node(32, 500, 500);
@@ -142,7 +132,6 @@ describe('identity preservation', () => {
   });
 });
 
-// ── SC-1 support — births flag without moving ────────────────────────────────
 describe('birth derivation', () => {
   it('flags an arriving node entering at its exact truth position', () => {
     const arrival: MapChainIntent = {
@@ -157,15 +146,12 @@ describe('birth derivation', () => {
     expect(frame.nodes[0]?.position).toEqual({ x: 40, y: 50 });
     expect(frame.nodes[0]?.data.motion).toEqual({ phase: 'entering' });
 
-    // The window expires on the scheduler's clock and the node returns to
-    // plain truth by reference.
     const after = stepHost(host, PLAN.birthMs + 1, EASE, NONE, false);
     const settled = derivePresentation(truth, after.next, NONE, FLAVOR);
     expect(settled.nodes[0]).toBe(truth.nodes[0]);
   });
 });
 
-// ── Ghost lifecycle — snapshots captured from pre-merge truth ────────────────
 describe('departure derivation', () => {
   const departure: MapChainIntent = { kind: 'system-departed', systemId: 31 };
 
@@ -183,9 +169,7 @@ describe('departure derivation', () => {
     expect(ghost?.draggable).toBe(false);
     expect(ghost?.selectable).toBe(false);
     expect(ghost?.className).toBe('map-ghost');
-    // Inline, because React Flow's own inline pointer-events (truthy once
-    // onNodeClick is forwarded) beats any class rule — this is what makes the
-    // ghost genuinely inert to hover and click-to-focus.
+
     expect(ghost?.style).toEqual({ pointerEvents: 'none' });
   });
 
@@ -217,10 +201,7 @@ describe('departure derivation', () => {
   });
 
   it('ghosts a departing edge from the previous-merge memory — truth has already dropped it', () => {
-    // The regression this pins: ChainHost's edge memo recomputes in the merge
-    // commit itself, so at adoption the departing edge is ALREADY GONE from
-    // truth. Its ghost must come from the previous merge's edge memory, or
-    // exits pop instead of playing their flavor.
+
     const treeParents = new Map([[32, 31]]);
     const before = truthOf(
       [node(31, 0, 0), node(32, 100, 0)],
@@ -233,7 +214,7 @@ describe('departure derivation', () => {
       { kind: 'connection-departed', connectionId: 'c1' },
       { kind: 'system-departed', systemId: 32 },
     ];
-    // Post-merge truth: the edge is gone in the SAME commit; only nodes lag.
+
     const postMerge = truthOf([node(31, 0, 0), node(32, 100, 0)], [], treeParents);
     host = consumeMerge(host, {
       ...mergeInput(postMerge, collapse, 0),
@@ -248,7 +229,6 @@ describe('departure derivation', () => {
       flavor: 'grow',
     });
 
-    // And it expires on the scheduler clock like every ghost.
     const expired = stepHost(host, PLAN.exitMs + 1, EASE, NONE, false);
     const after = derivePresentation(truthOf([node(31, 0, 0)]), expired.next, NONE, 'grow-from-parent');
     expect(after.edges).toHaveLength(0);
@@ -264,7 +244,6 @@ describe('departure derivation', () => {
   });
 });
 
-// ── PD-4 — edge flavor: dash semantics never lie mid-animation ───────────────
 describe('edge motion flavor', () => {
   const treeParents = new Map([[32, 31]]);
 
@@ -326,7 +305,6 @@ describe('edge motion flavor', () => {
   });
 });
 
-// ── Batch discipline — the camera's identity rule, mirrored ──────────────────
 describe('render adjustment', () => {
   it('consumes a batch exactly once by identity and ignores repeats', () => {
     const truth = truthOf([node(31, 0, 0)]);
@@ -364,7 +342,6 @@ describe('render adjustment', () => {
   });
 });
 
-// ── Access loss — reset, not a ghost storm ───────────────────────────────────
 describe('access reset', () => {
   it('resets the whole motion state when access flips to false', () => {
     const preMerge = truthOf([node(31, 0, 0)]);
@@ -381,7 +358,6 @@ describe('access reset', () => {
     expect((reset as MotionHostState).motion.ghosts.size).toBe(0);
     expect((reset as MotionHostState).ghostNodes.size).toBe(0);
 
-    // Idle and consumed: no further adjustment loops.
     expect(
       adjustHostForRender(reset as MotionHostState, {
         ...mergeInput(truthOf([]), revoked, 20),
@@ -396,7 +372,6 @@ describe('access reset', () => {
     ];
     const reset = createHostState(revoked);
 
-    // Access returns with the same batch identity — nothing to consume.
     expect(
       adjustHostForRender(reset, {
         ...mergeInput(truthOf([]), revoked, 30),
@@ -406,7 +381,6 @@ describe('access reset', () => {
   });
 });
 
-// ── DC-6 — a live reduced-motion flip completes glides instantly ─────────────
 describe('reduced-motion flip', () => {
   it('resolves an in-flight glide on the next stepped frame', () => {
     const truth = truthOf([node(31, 100, 0)]);
