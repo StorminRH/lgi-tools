@@ -25,20 +25,10 @@ function zeroSummary(
   };
 }
 
-/**
- * Returns true during the 12:00–12:14 UTC drain slot. That one daily run
- * reaches Neon regardless of Redis hints so lost signal state can delay
- * durable queue work by no more than about 24 hours.
- */
 export function isDailyHealWindow(now: Date): boolean {
   return now.getUTCHours() === 12 && now.getUTCMinutes() < 15;
 }
 
-/**
- * Declares the deferred ESI drain as an idle-silent, lock-guarded route. Its
- * Redis-only probe runs before any Neon access; due work, recent budget
- * exhaustion, unknown Redis state, and the daily heal slot all proceed.
- */
 export const drainEsiRefreshJobsDeclaration: CronRouteDeclaration<EsiRefreshWorkerSummary> = {
   name: 'cron:esi-refresh-jobs',
   action: 'cron_esi_refresh_jobs',
