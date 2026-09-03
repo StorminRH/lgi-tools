@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SectionHeader } from './section-header';
 
-// The primitive is a thin styled shell — the testable logic is the size,
-// variant, and hint branches. No DOM: calling the component returns a React
-// element whose props we inspect directly (the suite is node-env, no RTL).
-
 describe('SectionHeader', () => {
   it('defaults to a small bar and distinguishes size, variant, and hint chrome', () => {
     const el = SectionHeader({ label: 'Label' });

@@ -6,19 +6,8 @@ import { cva } from 'class-variance-authority';
 import { cn } from './cn';
 import type { Tone } from './tones';
 
-// One exclusive value-chooser as a compact button group — the /sites view/detail
-// toggles' look (aria-pressed segments, active pill highlight), lifted into a
-// primitive now that the account menu is a second surface rendering the same
-// affordance. Controlled: the caller owns the value (usePreference, state, …).
-
-/**
- * Closed presentation vocabulary for segmented tone; feature callers map domain meaning to these
- * abstract values before rendering.
- */
 export type SegmentedTone = Extract<Tone, 'green'>;
 
-// Abstract tone → active-segment token classes, the menu.tsx single-tone cva
-// pattern; add a richer tone when a real second consumer needs one.
 const segment = cva(
   'rounded-ctl border border-transparent font-ui ' +
     'transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted',
@@ -47,10 +36,6 @@ const segment = cva(
   },
 );
 
-/**
- * One caller-supplied segmented option; its value is the stable control key and its label or
- * marker is presentation-ready.
- */
 export interface SegmentedOption {
   value: string;
   label: string;
@@ -71,10 +56,6 @@ const track = cva(
   },
 );
 
-/**
- * Renders the domain-neutral segmented control with house behavior and tokens; callers own
- * semantic meaning and content while this primitive owns presentation.
- */
 export function SegmentedControl({
   options,
   value,
@@ -87,8 +68,7 @@ export function SegmentedControl({
   options: readonly SegmentedOption[];
   value: string;
   onChange?: (value: string) => void;
-  // Accessible name for the group. Required: the segments alone don't say what
-  // is being chosen (the house rule — a control is never unnamed).
+
   label: string;
   tone?: SegmentedTone;
   density?: 'default' | 'compact';
@@ -107,8 +87,10 @@ export function SegmentedControl({
           >
             {option.label}
           </a>
+
         ))}
       </div>
+
     );
   }
 
@@ -131,7 +113,9 @@ export function SegmentedControl({
         >
           {option.label}
         </Toggle>
+
       ))}
     </ToggleGroup>
+
   );
 }

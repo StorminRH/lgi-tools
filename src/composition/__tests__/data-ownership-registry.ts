@@ -1,11 +1,6 @@
 import type { PgTable } from 'drizzle-orm/pg-core';
 import * as schema from '../drizzle-schema';
 
-/**
- * The slices this registry reasons about: every table owner plus every slice declared as a
- * permitted cross-owner writer. Deliberately narrower than the repository's Fallow zone map, which
- * remains the mechanical authority for file-to-zone ownership.
- */
 export type SliceId =
   | 'data/domain-events'
   | 'data/esi-refresh-jobs'
@@ -33,11 +28,6 @@ export type SliceId =
   | 'composition/pipelines'
   | 'scripts';
 
-/**
- * The authorization data classes. Every persisted table resolves to exactly one, and the
- * row-level-security decision is recorded per class rather than per table so the actual decision
- * axes stay visible.
- */
 export type DataClassId =
   | 'global-reference'
   | 'identity-credential'
@@ -45,7 +35,6 @@ export type DataClassId =
   | 'corp-shared'
   | 'operational';
 
-/** One data class's recorded authorization decision, its justification, and what would reopen it. */
 export interface DataClassDecision {
   readonly decision: 'application-authorization-only' | 'application-plus-rls';
   readonly justification: string;
@@ -57,11 +46,6 @@ const NO_DB_IDENTITY =
 const IDENTITY_CAMPAIGN =
   'the backlogged RLS tenant-isolation campaign, which propagates per-request identity to the database connection';
 
-/**
- * The per-data-class authorization decision resolved against the live role model in
- * `docs/security/db-privilege-runbook.md`. All five classes are application-authorization-only
- * today; the census asserts that no migration, table, or policy contradicts that.
- */
 export const DATA_CLASS_DECISIONS: Record<DataClassId, DataClassDecision> = {
   'global-reference': {
     decision: 'application-authorization-only',
@@ -90,7 +74,6 @@ export const DATA_CLASS_DECISIONS: Record<DataClassId, DataClassDecision> = {
   },
 };
 
-/** How a write to one table reaches Postgres, and therefore what atomicity its callers may assume. */
 export interface TransactionBoundary {
   readonly kind:
     | 'single-statement'
@@ -101,22 +84,16 @@ export interface TransactionBoundary {
   readonly note: string;
 }
 
-/** A slice permitted to read a table it does not own, and the purpose that permits it. */
 export interface CrossOwnerRead {
   readonly by: SliceId;
   readonly purpose: string;
 }
 
-/** A slice permitted to write a table it does not own, and the reason that permits it. */
 export interface CrossOwnerWrite {
   readonly by: SliceId;
   readonly reason: string;
 }
 
-/**
- * One table's ownership, access, invariant, boundary, and data-class declaration; the
- * dataset-declaration census enforces exact cover and truth against live schema metadata.
- */
 export interface DataOwnershipEntry {
   readonly table: PgTable;
   readonly owner: SliceId;
@@ -175,12 +152,6 @@ const WH_STATICS_PROMOTE_BATCH = {
   note: 'Operator-only promotion deletes the prior serving copy, inserts every normalized assignment bound to the selected snapshot, and marks that snapshot promoted in one postgres-js transaction.',
 } as const satisfies TransactionBoundary;
 
-/**
- * Every persisted Neon table's owning slice, cross-owner access contract, database-enforced
- * invariants, transaction boundary, and data class. The dataset-declaration census enforces exact
- * cover against live schema reflection and diffs `invariants` against live Drizzle metadata in both
- * directions, so a schema change that is not reflected here fails the suite.
- */
 export const DATA_OWNERSHIP = [
   {
     table: schema.eveCategories,

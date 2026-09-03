@@ -2,7 +2,6 @@ import type { Key, ReactNode } from 'react';
 import { cn } from './cn';
 import { eyebrow } from './type-roles';
 
-/** One declarative column in a semantic, non-sortable static table. */
 export interface StaticTableColumn<Row> {
   key: string;
   label: ReactNode;
@@ -38,9 +37,6 @@ function headerClass(
   );
 }
 
-/**
- * Renders tabular data with one shared semantic header and cell vocabulary.
- */
 export function StaticTable<Row>({
   columns,
   rows,
@@ -68,9 +64,12 @@ export function StaticTable<Row>({
             >
               {column.label}
             </th>
+
           ))}
         </tr>
+
       </thead>
+
       <tbody>
         {rows.map((row, index) => (
           <tr key={getRowKey(row, index)} className="border-b border-border-soft last:border-b-0">
@@ -87,11 +86,15 @@ export function StaticTable<Row>({
                 >
                   {column.render(row)}
                 </Cell>
+
               );
             })}
           </tr>
+
         ))}
       </tbody>
+
     </table>
+
   );
 }

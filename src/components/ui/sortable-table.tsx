@@ -4,19 +4,12 @@ import { cn } from './cn';
 import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-table-view';
 import { eyebrow } from './type-roles';
 
-/**
- * Column contract for the shared sortable table: header content, value accessor, and optional
- * comparison or presentation metadata.
- */
 export interface SortableColumn<Row> {
   key: string;
   label: string;
-  // Sortable by default. Set false for purely-rendered columns (none today,
-  // but the slot exists so future consumers don't get forced into a string
-  // comparator they don't want).
+
   sortable?: boolean;
-  // 'right' is the convention for numeric columns; the primitive uses this
-  // to right-align both the header label and the cell content.
+
   align?: 'left' | 'right';
   render: (row: Row) => ReactNode;
 }
@@ -25,46 +18,32 @@ export interface RenderRowArg<Row> {
   row: Row;
   cells: ReactNode;
   key: string | number;
-  // The Tailwind `grid-cols-[…]` class the consumer applies to whatever element
-  // holds the cells, so its row lines up with the header.
+
   gridColsClass: string;
 }
 
 export interface Props<Row> {
   columns: SortableColumn<Row>[];
   rows: Row[];
-  // Tailwind `grid-cols-[…]` class shared by the header and every row so their
-  // columns line up; must match the column count/order. Never an inline style —
-  // house style keeps the column template in a class, not on the element.
+
   gridColsClass: string;
-  // sortKey === null means "default order" (no ?sort param in the URL).
+
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
-  // URL building — matches the FilterBar contract so the same params pattern
-  // works for the existing Type/Class bars and the new sort headers.
+
   basePath: string;
   currentParams: Record<string, string | undefined>;
-  // URL param names — defaults to 'sort' + 'dir'. Customisable so a future
-  // page with two tables can give each its own pair.
+
   sortParam?: string;
   dirParam?: string;
-  // The default direction for a column when the user first activates it.
-  // The consumer owns the policy because it knows whether a column is
-  // numeric (desc-first) or string (asc-first). Falls back to 'desc' if not
-  // provided.
+
   defaultDirFor?: (columnKey: string) => 'asc' | 'desc';
   getRowKey: (row: Row) => string | number;
-  // Optional wrapper for each row — receives the pre-rendered cells. When
-  // omitted, rows render as a plain non-interactive grid div. Consumers who
-  // want clickable / expandable rows wrap the cells in <Link>, <details>,
-  // <UrlSync>, etc.
+
   renderRow?: (arg: RenderRowArg<Row>) => ReactNode;
   emptyState?: ReactNode;
 }
 
-// Header cell — a sort link, or a plain label for a non-sortable column. The
-// active/href/indicator decisions live in `deriveSortHeaderCells`; this only
-// renders the model.
 function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
   if (cell.href === null) {
     return (
@@ -76,6 +55,7 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       >
         {cell.label}
       </span>
+
     );
   }
 
@@ -93,15 +73,14 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       )}
     >
       <span>{cell.label}</span>
+
       {cell.indicator && <span className="text-isk">{cell.indicator}</span>}
+
     </Link>
+
   );
 }
 
-/**
- * Renders the domain-neutral sortable table with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
- */
 export function SortableTable<Row>({
   columns,
   rows,
@@ -139,6 +118,7 @@ export function SortableTable<Row>({
         <SortHeaderCell key={cell.key} cell={cell} />
       ))}
     </div>
+
   );
 
   const renderCells = (row: Row) => (
@@ -153,27 +133,27 @@ export function SortableTable<Row>({
         >
           {col.render(row)}
         </div>
+
       ))}
     </>
+
   );
 
   return (
-    // Horizontal scroll on narrow viewports: the grid columns keep a min-width
-    // floor (so labels/values don't crush) and the wrapper scrolls them sideways
-    // instead of stacking. Vertical content (an expanded row) still grows the
-    // page — the wrapper has no height cap, so overflow-y never clips. Lives in
-    // the primitive, so every table inherits it.
+
     <div className="overflow-x-auto">
       <div className="sortable-table border border-border bg-section min-w-[640px]">
         {renderHeader()}
         {rows.length === 0 ? (
           <div className="px-3 py-6 text-center text-muted text-ui">{emptyState ?? 'No rows.'}</div>
+
         ) : (
           rows.map((row) => {
             const key = getRowKey(row);
             const cells = renderCells(row);
             if (renderRow) {
               return <Fragment key={key}>{renderRow({ row, cells, key, gridColsClass })}</Fragment>;
+
             }
             return (
               <div
@@ -185,10 +165,13 @@ export function SortableTable<Row>({
               >
                 {cells}
               </div>
+
             );
           })
         )}
       </div>
+
     </div>
+
   );
 }

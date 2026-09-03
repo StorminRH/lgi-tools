@@ -4,10 +4,6 @@ import { Radio } from '@base-ui/react/radio';
 import { RadioGroup as BaseGroup } from '@base-ui/react/radio-group';
 import { cn } from './cn';
 
-/**
- * One caller-supplied radio option; its value is the stable control key and its label or marker is
- * presentation-ready.
- */
 export interface RadioOption {
   value: string;
   label: string;
@@ -15,11 +11,6 @@ export interface RadioOption {
   disabled?: boolean;
 }
 
-/**
- * Renders the domain-neutral radio group with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation. Pass `value={null}` to stay
- * controlled with no selection; omit `value` only for an uncontrolled group.
- */
 export function RadioGroup({
   label,
   options,
@@ -64,14 +55,20 @@ export function RadioGroup({
           >
             <Radio.Indicator className="h-2 w-2 rounded-full bg-isk" />
           </Radio.Root>
+
           <span className="flex flex-col gap-0.5">
             <span>{option.label}</span>
+
             {option.description ? (
               <span className="text-label text-faint">{option.description}</span>
+
             ) : null}
           </span>
+
         </label>
+
       ))}
     </BaseGroup>
+
   );
 }
