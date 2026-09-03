@@ -21,7 +21,6 @@ import {
   type FogRevealSet,
 } from './fog-model';
 
-/** A presentation node at a frame top-left, with the declared widget frame. */
 function node(
   id: number,
   x: number,

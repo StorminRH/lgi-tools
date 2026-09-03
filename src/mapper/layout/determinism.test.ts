@@ -1,5 +1,3 @@
-// Contract DC-2 (AC-1, V-1): the selected engine is deterministic — identical facts and config
-// produce byte-identical positions, within a process and across processes.
 import { describe, expect, it } from 'vitest';
 import { compassKernel } from './compass';
 import { DETERMINISM_DIGESTS } from './__tests__/determinism-fixture';

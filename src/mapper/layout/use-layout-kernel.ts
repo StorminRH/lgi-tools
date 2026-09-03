@@ -14,11 +14,6 @@ import type {
   LayoutWorkerResponse,
 } from './layout.worker';
 
-/**
- * Rejection message for requests torn down by unmount. Expected lifecycle —
- * StrictMode's simulated remount hits it on every dev mount — so consumers
- * drop it silently instead of logging an error.
- */
 export const LAYOUT_KERNEL_TEARDOWN = 'layout kernel teardown';
 
 type Pending = {
@@ -45,11 +40,6 @@ function settleInProcess(
   );
 }
 
-/**
- * Worker-backed LayoutKernel with in-process fallback; stable identity per mount.
- *
- * Consumed by `useMapChain` internally — callers never construct workers.
- */
 export function useLayoutKernel(): LayoutKernel {
   const workerRef = useRef<Worker | null>(null);
   const pendingRef = useRef<Map<number, Pending>>(new Map());

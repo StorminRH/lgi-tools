@@ -6,7 +6,6 @@ import {
   springFamily,
 } from './motion-contract';
 
-/** Peak of the eased curve over a fine grid — the measured overshoot witness. */
 function measuredPeak(ease: (t: number) => number): number {
   let peak = 0;
   for (let i = 0; i <= 2000; i += 1) {
@@ -15,13 +14,10 @@ function measuredPeak(ease: (t: number) => number): number {
   return peak;
 }
 
-// ── SC-7 · HC-3 — three tiers, one family, dial defaults ─────────────────────
 describe('motion config defaults', () => {
   it('ships the G-1-ratified tiers: fast below the shared mid/slow second', () => {
     const { fast, mid, slow } = DEFAULT_MOTION_CONFIG.tempo;
 
-    // Ratified at the 2026-08-02 tuning gate; changing these re-opens the
-    // gate, so the exact values are pinned, not just their ordering.
     expect(fast).toBe(250);
     expect(mid).toBe(1000);
     expect(slow).toBe(1000);
@@ -38,7 +34,6 @@ describe('motion config defaults', () => {
   });
 });
 
-// ── SC-1/SC-2 substrate — the easing family's shape guarantees ───────────────
 describe('spring family', () => {
   it('starts at 0 and settles exactly at 1', () => {
     for (const pct of [0, 8, 20, 40]) {
@@ -70,8 +65,7 @@ describe('spring family', () => {
 
   it('overshoots exactly once and settles without ringing', () => {
     const { ease } = springFamily(20);
-    // After the peak the curve must descend monotonically back to 1: a second
-    // rise would be ringing, which the family promises not to produce.
+
     let peakIndex = 0;
     const samples = Array.from({ length: 401 }, (_, i) => ease(i / 400));
     samples.forEach((value, index) => {
@@ -83,7 +77,6 @@ describe('spring family', () => {
   });
 });
 
-// ── SC-7.2 · HC-3 — the CSS token is the same spring, not a second family ────
 describe('css linear() token', () => {
   it('samples the JS function exactly at even spacing', () => {
     for (const pct of [0, 12, 33]) {
@@ -104,7 +97,6 @@ describe('css linear() token', () => {
   });
 });
 
-// ── SC-7.2 — the stylesheet bridge carries tiers and both ease variants ──────
 describe('motion css properties', () => {
   it('exposes exactly the three tier tokens and the two ease tokens', () => {
     const properties = motionCssProperties(DEFAULT_MOTION_CONFIG);
@@ -126,9 +118,7 @@ describe('motion css properties', () => {
   });
 
   it('keeps the stylesheet pre-hydration fallbacks pinned to the ratified defaults', () => {
-    // The [data-map-motion-scope] block in globals.css is the only other place
-    // the tier values appear; without this pin a retuned default could leave
-    // every pre-hydration frame (and the empty canvas) at a retired tempo.
+
     const stylesheet = readFileSync('src/app/globals.css', 'utf8');
     const scope = /\[data-map-motion-scope\]\s*\{([^}]*)\}/.exec(stylesheet);
 

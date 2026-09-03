@@ -1,8 +1,3 @@
-// Contract DC-3 (AC-2, V-1), as operator-relaxed in plan PD-3: spawn movement is a measured,
-// configured behavior. Under the `fixed-slot` posture — the shipped default since the
-// 2026-08-14 compass retune — every add moves nothing; under `proportional` a sector fill
-// re-spreads exactly the affected sibling group and the subtrees riding on it. Both postures
-// keep their exact moved-set guarantees gated here, each under its own explicit config.
 import { describe, expect, it } from 'vitest';
 import { compassKernel } from './compass';
 import { deriveChainTree } from './facts';
@@ -54,7 +49,7 @@ describe('leaf adds under the fixed-slot posture', () => {
   });
 
   it('growing a corpus-scale chain by one leaf moves no existing node', async () => {
-    // A 12-system branchy chain, then one more leaf on the deepest thread.
+
     const base: (readonly [number, number])[] = [
       [A, B], [B, C], [C, D], [B, E],
       [A, 31_000_006], [31_000_006, 31_000_007], [31_000_007, 31_000_008],
@@ -72,9 +67,7 @@ describe('leaf adds under the fixed-slot posture', () => {
 
 describe('corpus-wide growth under the fixed-slot posture', () => {
   it('replays every corpus chain spawn by spawn: no attached node ever moves', async () => {
-    // The stated exception (overflow.ts): parked orphans may shift within their cluster as
-    // orphans attach or the cluster base steps outward. Systems parked in EITHER layout are
-    // therefore excluded; every attached node must hold exactly still on every arrival.
+
     for (const entry of PROOF_CORPUS) {
       const full = generateChainTimeline(entry);
       let beforeFacts = chainPrefix(full, 1);
@@ -102,7 +95,7 @@ describe('corpus-wide growth under the fixed-slot posture', () => {
 
 describe('sector fills', () => {
   it('filling a sector under the fixed-slot posture moves nothing at all', async () => {
-    // D becomes B's second child — the sector-fill case; fixed slots hold every sibling still.
+
     const before = await compassKernel(facts([A, B, C, E], [[A, B], [B, C], [C, E]]), FIXED_SLOT);
     const after = await compassKernel(
       facts([A, B, C, E, D], [[A, B], [B, C], [C, E], [B, D]]),
@@ -117,7 +110,7 @@ describe('sector fills', () => {
       facts([A, B, C, D], [[A, B], [B, C], [B, D]]),
       PROPORTIONAL,
     );
-    // Exactly C — B's only existing child re-centers; nothing outside the group moves.
+
     expect(movedSystems(before, after)).toEqual([C]);
   });
 
@@ -130,7 +123,7 @@ describe('sector fills', () => {
       facts([A, B, C, E, D], [[A, B], [B, C], [C, E], [B, D]]),
       PROPORTIONAL,
     );
-    // Exactly C (the re-centered sibling) and E (riding on C); A and B hold.
+
     expect(movedSystems(before, after)).toEqual([C, E]);
   });
 

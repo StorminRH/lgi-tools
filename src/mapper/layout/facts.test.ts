@@ -61,8 +61,7 @@ describe('deriveChainTree root resolution', () => {
 
 describe('deriveChainTree attachment and classification', () => {
   it('pinned single-pass diamond: immediate attachment feeds later edges in the same pass', () => {
-    // Creation-ordered edges (A,C), (B,C), (A,B) with root A: (A,C) attaches C to A; (B,C) then
-    // sees C attached and attaches B under C; (A,B) finds both attached and closes the loop.
+
     const tree = deriveChainTree(facts([A, B, C], [[A, C], [B, C], [A, B]]));
     expect(tree.rootSystemId).toBe(A);
     expect(tree.parents.get(C)).toBe(A);
@@ -71,9 +70,7 @@ describe('deriveChainTree attachment and classification', () => {
   });
 
   it('pinned multi-pass: a skipped edge attaches on a later pass and stays a tree edge', () => {
-    // Edges (B,C), (A,B) with root A: pass 1 skips (B,C) (neither endpoint attached), attaches B
-    // via (A,B); pass 2 attaches C via (B,C). Classify-once means (B,C) is a tree edge, never
-    // re-read as loop-closing.
+
     const tree = deriveChainTree(facts([A, B, C], [[B, C], [A, B]]));
     expect(tree.parents.get(B)).toBe(A);
     expect(tree.parents.get(C)).toBe(B);
@@ -98,8 +95,7 @@ describe('deriveChainTree attachment and classification', () => {
   });
 
   it('classifies self edges as loop-closing, including one arriving before its system attaches', () => {
-    // (B,B) is examined before B attaches (unclassified), then classified loop-closing on the pass
-    // after (A,B) attaches B.
+
     const tree = deriveChainTree(facts([A, B], [[B, B], [A, B]]));
     expect(tree.parents.get(B)).toBe(A);
     expect(tree.loopEdges).toEqual([{ fromSystemId: B, toSystemId: B }]);
@@ -117,9 +113,7 @@ describe('deriveChainTree attachment and classification', () => {
 
 describe('deriveChainTree growth stability (operator-settled replay, 2026-08-01)', () => {
   it('appending a leaf edge never reorders existing attachments, even in blocked histories', () => {
-    // (X,Y) is created before (A,X) — a collapsed-and-rescanned history. Under full-pass rescan
-    // the appended (X,Z) attached before Y and stole its sibling slot; the settled replay drains
-    // the blocked (X,Y) the moment X attaches, so growth is append-only.
+
     const before = deriveChainTree(facts([A, B, C], [[B, C], [A, B]]));
     const after = deriveChainTree(facts([A, B, C, D], [[B, C], [A, B], [B, D]]));
     expect(before.attachmentOrder).toEqual([A, B, C]);
@@ -137,9 +131,9 @@ describe('deriveChainTree growth stability (operator-settled replay, 2026-08-01)
 
   it('every prefix of a history derives a strict prefix of the final attachment order', () => {
     const connections: (readonly [number, number])[] = [
-      [C, E], // blocked until C attaches
+      [C, E],
       [A, B],
-      [B, C], // attaches C, which drains (C,E)
+      [B, C],
       [A, D],
     ];
     const ids = [A, B, C, D, E];
@@ -160,8 +154,7 @@ describe('deriveChainTree orphans and unknown endpoints', () => {
   });
 
   it('keeps a disconnected pair orphaned even when linked to each other', () => {
-    // (C,D) connects two systems neither of which reaches the root, so it never classifies and
-    // both systems park deterministically.
+
     const tree = deriveChainTree(facts([A, C, D], [[C, D]]));
     expect(tree.orphans).toEqual([C, D]);
     expect(tree.loopEdges).toEqual([]);
@@ -173,7 +166,6 @@ describe('deriveChainTree orphans and unknown endpoints', () => {
     expect(before.parents.size).toBe(0);
     expect(before.loopEdges).toEqual([]);
 
-    // The same facts after B's row drains: the identical scan attaches it — an ordinary spawn.
     const after = deriveChainTree(facts([A, B], [[A, B]]));
     expect(after.parents.get(B)).toBe(A);
   });

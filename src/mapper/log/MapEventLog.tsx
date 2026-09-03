@@ -13,7 +13,6 @@ import {
   type MapEventRow,
 } from './map-event-copy';
 
-/** Props for the mapper-local bottom-edge despawn ledger. */
 export interface MapEventLogProps {
   readonly events: readonly MapEventRow[];
   readonly canEdit: boolean;
@@ -21,11 +20,6 @@ export interface MapEventLogProps {
   readonly onRestore: (action: MapEventRestoreAction) => void;
 }
 
-/**
- * Bottom-edge audit-log surface: Collapsible-composed newest-first ledger with
- * canEdit-gated Restore on in-window removal rows. Mapper-local until a second
- * consumer justifies promotion to `src/components/ui/`.
- */
 export function MapEventLog({
   events,
   canEdit,
@@ -39,9 +33,7 @@ export function MapEventLog({
       data-map-event-undoable={undoable || undefined}
       className="pointer-events-none absolute bottom-4 right-14 z-sticky flex justify-end"
     >
-      {/* Width lives on the collapsed header chip, not this container, so the
-          wider expanded rows region grows leftward inside the right-anchored
-          wrapper instead of overflowing past the viewport edge. */}
+      {}
       <div
         className={cn(
           'pointer-events-auto rounded-card text-ui',
@@ -60,12 +52,14 @@ export function MapEventLog({
               >
                 Audit Log
               </span>
+
               <span
                 data-map-event-log-count
                 className="font-data text-micro text-muted"
               >
                 Events - {events.length}
               </span>
+
               <span
                 data-chevron
                 aria-hidden
@@ -73,11 +67,12 @@ export function MapEventLog({
               >
                 ▾
               </span>
+
             </span>
+
           }
         >
-          {/* Focusable so keyboard-only viewers (no Restore buttons rendered)
-              can still scroll the bounded region with the arrow keys. */}
+          {}
           <div
             data-map-event-log-rows
             tabIndex={0}
@@ -92,6 +87,7 @@ export function MapEventLog({
               >
                 No map events yet.
               </p>
+
             ) : (
               events.map((event) => (
                 <EventRow
@@ -104,9 +100,13 @@ export function MapEventLog({
               ))
             )}
           </div>
+
         </Collapsible>
+
       </div>
+
     </div>
+
   );
 }
 
@@ -130,12 +130,16 @@ function EventRow({
     >
       <div className="min-w-0 flex-1">
         <div className="text-muted">{formatEventTime(event.at)}</div>
+
         <div className="text-name">
           <span className="text-isk">{event.actor}</span>
+
           {' · '}
           {mapEventLabel(event)}
         </div>
+
       </div>
+
       {restorable ? (
         <Button
           variant="ghost"
@@ -146,7 +150,9 @@ function EventRow({
         >
           Restore
         </Button>
+
       ) : null}
     </div>
+
   );
 }

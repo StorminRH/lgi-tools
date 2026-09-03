@@ -93,9 +93,6 @@ const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
   return proposals;
 };
 
-// The signature is what stops the merge effect from re-running on every render. If it were unstable,
-// every render would re-merge and replay every intent — which 4.0.3.2 binds motion to — while the
-// whole suite still passed. These cases pin the property that makes the guard work.
 describe('chain snapshot signature', () => {
   it('is stable across freshly built objects with identical content', () => {
     const a = chainSignature(
@@ -133,7 +130,6 @@ describe('chain snapshot signature', () => {
     const draining = chainSignature(systems([JITA], false), connections([], false));
     const complete = chainSignature(systems([JITA], true), connections([], true));
 
-    // Completeness is what licenses departures, so it must be part of the fingerprint.
     expect(draining).not.toBe(complete);
   });
 
@@ -390,12 +386,11 @@ describe('layout-then-merge posted-key guard', () => {
   it('includes the halo fingerprint so a halo membership change re-posts', () => {
     const signature = chainSignature(systems([JITA]), connections([]));
     const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    // The asset landing turns an empty halo into a populated one without
-    // touching the authored signature — the key must still change.
+
     expect(layoutPostKey(signature, configKey, 0, '#')).not.toBe(
       layoutPostKey(signature, configKey, 0, `${JITA + 1}:1:0#`),
     );
-    // Omitted halo (empty-halo callers) stays stable with itself.
+
     expect(layoutPostKey(signature, configKey, 0)).toBe(
       layoutPostKey(signature, configKey, 0),
     );
@@ -434,7 +429,6 @@ describe('layout-then-merge posted-key guard', () => {
   });
 });
 
-// ── OW3 · live-row filter + signature gate + optimistic merge path ───────────
 describe('live-row filter upstream of chainSignature', () => {
   it('drops tombstoned rows and changes the signature', () => {
     const subscribed = {
@@ -609,7 +603,6 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
     );
     expect(deriveChainTree(factsFromSnapshot(before)).rootSystemId).toBe(JITA);
 
-    // Tombstone patch filtered upstream — JITA gone from the live snapshot alone.
     const afterFilter: ChainSnapshot = {
       systems: { rows: [{ systemId: AMARR }], complete: true },
       connections: { rows: [], complete: true },
@@ -695,7 +688,6 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
       local.intents.some((intent) => intent.kind === 'connection-appeared'),
     ).toBe(true);
 
-    // Rejection rolls the optimistic layer back — server still has only home.
     const rolledBack = reconcileChain(
       local.state,
       home,

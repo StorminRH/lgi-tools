@@ -1,8 +1,6 @@
-// Contract DC-2 residual close: deterministic trig is bit-stable and accurate enough for layout.
 import { describe, expect, it } from 'vitest';
 import { detCos, detSin, distance } from './trig';
 
-/** Pinned reference bits for cardinal and diagonal angles (computed once from this polynomial). */
 const REFERENCE = {
   sin0: 0,
   cos0: 1,
@@ -14,7 +12,6 @@ const REFERENCE = {
   cosQuarterPi: 0.7071067811865476,
 } as const;
 
-/** Documented peak absolute error bound of the minimax polynomials versus true sine/cosine. */
 const ACCURACY_BOUND = 1e-15;
 
 describe('detSin / detCos', () => {
@@ -30,8 +27,7 @@ describe('detSin / detCos', () => {
   });
 
   it('stays within the documented accuracy bound of the host transcendental functions', () => {
-    // Bound against the host engine without naming the transcendental identifiers
-    // in source — SC-2.4 requires those call sites only in trig.ts.
+
     const { sin: refSin, cos: refCos } = Math;
     for (let i = 0; i < 360; i += 1) {
       const angle = (i * Math.PI) / 180;
@@ -44,7 +40,7 @@ describe('detSin / detCos', () => {
     for (const angle of [0, 0.3, 1.1, Math.PI, 4.2, -1.7]) {
       const s = detSin(angle);
       const c = detCos(angle);
-      // Unit-circle identity within a few ulps of exact double arithmetic.
+
       expect(Math.abs(s * s + c * c - 1)).toBeLessThan(1e-15);
     }
   });

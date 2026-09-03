@@ -1,13 +1,3 @@
-// Pins the two facts the layout kernel's determinism story rides on, without touching the frozen
-// 4.0.2.3 reconciler:
-//
-//   1. `reconcileChain` presents assigner candidates in synchronized creation order — retained
-//      systems keep their arrival order, new arrivals append in snapshot order — across draining
-//      pages, departures, and re-arrivals. The kernel's input order IS this order, so if this pin
-//      breaks, identical maps could feed engines differently-ordered facts and D1/D2 fall.
-//   2. Kernel-produced positions driven through a stub assigner — the exact adaptation
-//      4.0.3.1.2's worker bridge performs — yield exact `system-appeared` / `system-moved`
-//      intents from the unchanged `reconcileChain`.
 import { describe, expect, it } from 'vitest';
 import type { ChainPosition } from '../chain/intents';
 import { assignerFromPositions, type PlacementAssigner } from '../chain/placement';
@@ -44,7 +34,6 @@ function snapshot(
   };
 }
 
-/** Records the candidate and connection order of every consultation while proposing nothing. */
 function candidateOrderSpy(): {
   assigner: PlacementAssigner;
   consultations: number[][];
@@ -65,7 +54,6 @@ function candidateOrderSpy(): {
   };
 }
 
-/** The worker-bridge adaptation: a resolved kernel result proposed as-is on every merge. */
 function kernelResultAssigner(
   positions: ReadonlyMap<number, ChainPosition>,
 ): PlacementAssigner {
@@ -115,8 +103,7 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
       assigner,
     );
     const departed = reconcileChain(first.state, snapshot([A, C]), NO_DRAG, assigner);
-    // A re-scanned wormhole is a new Convex document with a new creation time, so it arrives after
-    // every retained system.
+
     reconcileChain(departed.state, snapshot([A, C, B]), NO_DRAG, assigner);
     expect(consultations[2]).toEqual([A, C, B]);
   });
@@ -135,8 +122,7 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
       NO_DRAG,
       assigner,
     );
-    // A still-draining connections page: e2 is momentarily absent, e3 arrives; the retained e1/e2
-    // survive additively ahead of the newly seen e3.
+
     const second = reconcileChain(
       first.state,
       snapshot(
@@ -150,7 +136,7 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
       NO_DRAG,
       assigner,
     );
-    // The complete page re-serves everything in snapshot (creation) order.
+
     reconcileChain(
       second.state,
       snapshot(
@@ -202,7 +188,6 @@ describe('reconcileChain driven by kernel-produced positions', () => {
     };
   }
 
-  /** A position the kernel must have produced; fails loudly instead of yielding `undefined`. */
   function at(positions: ReadonlyMap<number, ChainPosition>, systemId: number): ChainPosition {
     const position = positions.get(systemId);
     if (position === undefined) throw new Error(`kernel omitted system ${systemId}`);
@@ -237,8 +222,7 @@ describe('reconcileChain driven by kernel-produced positions', () => {
   });
 
   it('emits exact system-moved intents when a new kernel result repositions a node', async () => {
-    // Under the proportional posture, D's arrival as B's second child re-centers the sibling
-    // group, so the kernel's next result genuinely moves C — a real spawn-movement layout.
+
     const before = await compassKernel(factsOf([A, B, C], [[A, B], [B, C]]), PROPORTIONAL);
     const after = await compassKernel(
       factsOf([A, B, C, D], [[A, B], [B, C], [B, D]]),
