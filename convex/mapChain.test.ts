@@ -14,7 +14,6 @@ import schema from './schema';
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
 
-
 const chain = {
   watchMapAccess: api.mapChainAccess.watchMapAccess,
   watchMapSystems: api.mapChainSystems.watchMapSystems,

@@ -189,4 +189,3 @@ export const restoreConnection = mutation({
     return restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx));
   },
 });
-

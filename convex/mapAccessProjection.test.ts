@@ -11,7 +11,6 @@ import schema from './schema';
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
 
-
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
 const OWNER = 'user-owner';

@@ -9,7 +9,6 @@ import schema from './schema';
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
 
-
 const jump = {
   jumpEvidence: internal.mapJumpEvidence.jumpEvidence,
   connectionEvidence: internal.mapJumpEvidence.connectionEvidence,
