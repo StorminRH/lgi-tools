@@ -5,7 +5,7 @@ const logUsageEventMock = vi.fn();
 const connectionMock = vi.fn();
 
 const reservedTag = vi.fn(() => Promise.resolve([{ got: true }]));
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (reservedTag as any).release = vi.fn();
 const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
