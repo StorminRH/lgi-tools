@@ -12,26 +12,11 @@ import { ValueAxisGrid } from './chart/value-axis';
 import { HoverCaptureRect, HoverCrosshair } from './chart/hover-layer';
 import { continuousHoverHandler } from './chart/hover';
 
-/**
- * The analytical daily chart: discrete daily bars (weekends de-emphasised), a
- * 7-day moving-average line, a dashed prior-period reference line, optional
- * deploy markers, and a right-gutter end label — every question answerable at
- * rest. The full-size sibling of {@link TrendChart} for count series where the
- * smooth area misleads (it implies values between days that don't exist).
- *
- * All analytics are computed server-side; this component receives plain arrays
- * (`points`, `average`, `weekend`) and pre-resolved display strings, and derives
- * its geometry through the pure {@link dailyChartModel}. Colours come from the
- * tones map (bars) and theme tokens (average line, reference, markers) — the
- * charts stay on one blue accent, so weekend bars are the same blue, dimmed.
- */
-
 type NumericScale = (value: number) => number;
 
 export type EndLabel = {
   valueText: string;
   deltaText: string | null;
-  /** Pre-resolved delta colour (from tones, chosen in the app-layer wrapper). */
   deltaHex: string | null;
 };
 
@@ -54,13 +39,11 @@ export type AnnotatedDailyChartProps = {
   ariaLabel?: string;
 };
 
-// Wide right gutter for the end label; left room for value-axis labels.
 const MARGIN = { top: 10, right: 66, bottom: 24, left: 44 };
 
 const formatNumber = (value: number): string => String(value);
 const identity = (label: string): string => label;
 
-// Daily bars — weekend bars dimmed (same blue accent, lower opacity).
 function DailyBars({
   points,
   weekend,
@@ -98,7 +81,6 @@ function DailyBars({
   );
 }
 
-// A faint dashed vertical rule per changelog day within range.
 function DeployMarkers({
   markers,
   xScale,
@@ -130,7 +112,6 @@ function DeployMarkers({
   );
 }
 
-// Dashed prior-period reference line + its label; nothing when suppressed.
 function ReferenceLine({
   reference,
   yScale,
@@ -162,7 +143,6 @@ function ReferenceLine({
   );
 }
 
-// 7-day moving-average line, in the bright foreground token.
 function MovingAverageLine({
   average,
   xScale,
@@ -187,7 +167,6 @@ function MovingAverageLine({
   );
 }
 
-// Right-gutter end label: current value + week-over-week delta; nothing when absent.
 function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: number; y: number }) {
   if (!endLabel) return null;
   return (
@@ -215,7 +194,6 @@ function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: 
   );
 }
 
-// X-axis date labels at the chosen tick indices.
 function DailyXAxis({
   idx,
   labels,
@@ -256,10 +234,6 @@ function DailyTooltip({ datum, formatY }: { datum: DailyHoverPoint; formatY: (y:
   );
 }
 
-/**
- * Renders the domain-neutral annotated daily chart from display-ready caller data; callers own
- * units and labels while this primitive owns geometry and interaction.
- */
 export function AnnotatedDailyChart({
   points,
   average,

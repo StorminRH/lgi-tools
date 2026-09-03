@@ -15,10 +15,6 @@ import {
 } from '@/features/maps/map-dialog-state';
 import { MapLifecycleDialogs } from '@/features/maps/MapLifecycleDialogs';
 
-/**
- * Renders map-safe navigation and the creation door while external links open
- * away from the live atlas tab.
- */
 export function MapMenu({
   corporations = [],
   deletedMaps = [],

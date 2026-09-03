@@ -2,16 +2,8 @@ import type { MouseEvent, RefObject } from 'react';
 import { localPoint } from '@visx/event';
 import { continuousHoverTarget } from './chart-geometry';
 
-/** A d3/visx numeric scale used for a continuous axis: callable + `.invert`. */
 export type InvertibleScale = ((value: number) => number) & { invert: (x: number) => number };
 
-/**
- * Build the `onMouseMove` handler for a continuous-x line chart (Sparkline,
- * TrendChart): invert the pointer to data space, snap to the nearest datum, and
- * open the tooltip at that datum's position. The nearest-datum decision is the
- * pure {@link continuousHoverTarget}; this only wires it to the DOM event and
- * the visx tooltip state, so the two charts share one handler instead of copies.
- */
 export function continuousHoverHandler<T extends { x: number; y: number }>(opts: {
   svgRef: RefObject<SVGSVGElement | null>;
   xScale: InvertibleScale;

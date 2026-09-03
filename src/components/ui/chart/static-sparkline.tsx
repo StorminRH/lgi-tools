@@ -2,13 +2,6 @@ import type { SparklineTone } from '../sparkline';
 import { toneHex } from '../tones';
 import { extent } from './chart-geometry';
 
-// A static, presentation-only sparkline: one mini polyline with an end dot, no
-// axes and no hover. Server-renderable plain SVG, so a MetricTable row can draw
-// its recent-trend glyph without a client boundary or a tooltip. Geometry is
-// expressed through SVG presentation attributes only (the house rule); the
-// stroke colour comes from the shared tones map, like the other charts. A flat
-// series draws a centred line; a single point draws just the end dot.
-
 export type StaticSparklineProps = {
   values: number[];
   width?: number;
@@ -17,10 +10,6 @@ export type StaticSparklineProps = {
   ariaLabel?: string;
 };
 
-/**
- * Renders the domain-neutral static sparkline from display-ready caller data; callers own units
- * and labels while this primitive owns geometry and interaction.
- */
 export function StaticSparkline({
   values,
   width = 96,
@@ -37,8 +26,6 @@ export function StaticSparkline({
   const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
 
   const points = values.map((v, i) => {
-    // Flat series (min === max) sits on the vertical centre; otherwise higher
-    // values map higher on screen (smaller y).
     const norm = max === min ? 0.5 : (v - min) / (max - min);
     return { x: pad + i * stepX, y: pad + innerH - norm * innerH };
   });
