@@ -316,8 +316,8 @@ describe('fallbackRatePoints', () => {
   it('computes the whole-percent fallback share per day', () => {
     expect(
       fallbackRatePoints([
-        { esi: 90, fallback: 10 }, // 10%
-        { esi: 3, fallback: 1 }, // 25%
+        { esi: 90, fallback: 10 },
+        { esi: 3, fallback: 1 },
       ]),
     ).toEqual([10, 25]);
   });
@@ -327,6 +327,6 @@ describe('fallbackRatePoints', () => {
   });
 
   it('rounds to the nearest whole percent', () => {
-    expect(fallbackRatePoints([{ esi: 2, fallback: 1 }])).toEqual([33]); // 33.33 → 33
+    expect(fallbackRatePoints([{ esi: 2, fallback: 1 }])).toEqual([33]);
   });
 });

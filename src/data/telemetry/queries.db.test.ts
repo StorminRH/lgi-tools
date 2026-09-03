@@ -32,32 +32,20 @@ import {
   getWriteBehindOutcomes,
 } from './cost-queries';
 
-// Executes every admin-consumed telemetry query against the local Docker Postgres
-// (postgres-js) and asserts none throws — the coverage that would have caught the
-// OOB.1 GROUP BY 42803 at test time. Skips cleanly when no DB is reachable, so a
-// DB-less `pnpm verify` / CI run stays green (see the harness `canReachDb`).
-//
-// The request-path `db` proxy is steered onto postgres-js and into a throwaway
-// schema purely through env + a `search_path` connection param — no query, schema,
-// or app code is touched. The schema is dropped in afterAll, so nothing is left
-// behind in the dev database.
-
 const harness = await createDbTestHarness({
   schema: 'test_telemetry_cov',
   tables: ['usage_logs', 'characters'],
   steerDbProxy: true,
 });
 
-// A fixed historical week, far from any real data and from defaultNow(); every
-// seeded row sits inside it so the range-scoped queries return rows.
 const RANGE = {
   from: new Date('2020-01-01T00:00:00Z'),
   to: new Date('2020-01-08T00:00:00Z'),
 };
 const IN_RANGE = new Date('2020-01-03T12:00:00Z');
 
-const CHAR_OLD = 91_000_001; // created before the range — the "returning" user
-const CHAR_NEW = 91_000_002; // created in-range — the "new" user
+const CHAR_OLD = 91_000_001;
+const CHAR_NEW = 91_000_002;
 
 interface QueryCase {
   name: string;
@@ -75,9 +63,6 @@ function expectPositiveNumber(result: unknown): void {
   expect(result as number).toBeGreaterThan(0);
 }
 
-// Each case runs one query and asserts it resolved (no throw) with a plausible
-// shape. it.each names the failing query, so a query OTHER than OOB.1's throwing
-// surfaces as a named, isolated failure (which is a STOP-and-report finding).
 const cases: QueryCase[] = [
   { name: 'getDailyCounts', run: () => getDailyCounts(RANGE), check: expectNonEmptyArray },
   { name: 'getTopPages', run: () => getTopPages(RANGE), check: expectNonEmptyArray },
@@ -312,12 +297,8 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
   });
 });
 
-// The capability rows added in 3.10.3.1 are the server observing itself, one per
-// instrumented operation. They live in the same table as user activity, so
-// getDailyCounts must exclude them or the admin traffic panel would silently
-// change meaning the moment the instrumentation shipped.
 describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability rows', () => {
-  // A window of its own, so the seeds above cannot mask a leak.
+
   const NEUTRALITY_RANGE = {
     from: new Date('2021-05-01T00:00:00Z'),
     to: new Date('2021-05-08T00:00:00Z'),

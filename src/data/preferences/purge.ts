@@ -1,15 +1,8 @@
-// Preferences purge contributor (ACCOUNT.1) — durable tier. user_preferences is
-// app-authored, non-regenerable per-user data, so it's torn down last (after the
-// regenerable caches), keyed by user.
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { userPreferences } from './schema';
 
-/**
- * Personal-data purge contributor for preferences purge contributor; this data slice owns deleting
- * its user and character keyed rows.
- */
 export const preferencesPurgeContributor: PurgeContributor = {
   name: 'preferences',
   tier: 'durable',

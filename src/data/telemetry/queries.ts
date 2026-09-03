@@ -41,10 +41,6 @@ export interface LogEventInput {
   metadata?: Record<string, unknown>;
 }
 
-/**
- * Fire-and-forget INSERT. Callers can await for tests; production paths
- * generally don't because telemetry failures must never break user flows.
- */
 export async function logUsageEvent(input: LogEventInput): Promise<void> {
   await db.insert(usageLogs).values({
     action: input.action,
@@ -72,7 +68,6 @@ export async function claimPublicEsiBudgetAlert(
   return row.id;
 }
 
-/** Marks a claimed public ESI budget-alert window complete after the notification attempt finishes. */
 export async function completePublicEsiBudgetAlertClaim(id: number): Promise<void> {
   const [row] = await db
     .update(usageLogs)
@@ -94,13 +89,6 @@ export async function pruneUsageLogs(retentionDays: number, now: Date = new Date
   await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
 }
 
-/**
- * Returns day-bucketed telemetry counts for the requested action and half-open date range.
- *
- * `capability_outcome` rows are excluded: they are the server observing itself, one per instrumented
- * operation, so counting them here would blend server self-observation into the user-activity panel
- * this feeds and inflate it by an order of magnitude.
- */
 export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
   const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
   const rows = await db
@@ -124,9 +112,6 @@ export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
   }));
 }
 
-// Shared shape behind the metadata-keyed "top N" panels: pull a JSONB metadata
-// value, keep its non-null rows for one action, group, and rank by frequency.
-// Each public query renames the neutral `value` column to its domain field.
 function topByMetadataKeyQuery(
   metaKey: string,
   action: UsageAction,
@@ -139,9 +124,9 @@ function topByMetadataKeyQuery(
     .select({ value: col, count: count() })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
-    // Group by the SELECT output ordinal, not `col`: the JSON key is a bind param
+
     // Drizzle re-numbers per clause, so reusing `col` here makes GROUP BY reference
-    // a different placeholder than SELECT and Postgres raises 42803.
+
     .groupBy(sql`1`)
     .orderBy(desc(count()))
     .limit(limit);
@@ -160,11 +145,6 @@ async function topByMetadataKey(
     .map((r) => ({ value: r.value as string, count: Number(r.count) }));
 }
 
-/**
- * Exported only so the regression test can pin the SQL shape — building the query
- * never opens a connection, so the test needs no live DB. (Mirrors db/index.ts's
- * `isPooledHost`, exported for the connection unit test.)
- */
 export function topByMetadataKeyToSQL(
   metaKey: string,
   action: UsageAction,
@@ -175,7 +155,6 @@ export function topByMetadataKeyToSQL(
   return topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere).toSQL();
 }
 
-/** Returns the most-viewed public paths and counts over the requested date range. */
 export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
   const rows = await topByMetadataKey('path', 'page_view', range, limit);
   return rows.map((r) => ({ path: r.value, count: r.count }));
@@ -193,32 +172,22 @@ export async function getTopReferrers(range: DateRange, limit = 10): Promise<Ref
   return rows.map((r) => ({ host: r.value, count: r.count }));
 }
 
-/**
- * Top entry pages — paths where metadata.is_entry is true. Tracks the first
- * page-view per browser session, so this aggregates landing pages rather
- * than every page a user opens after they're already on the site.
- */
 export async function getTopEntryPages(range: DateRange, limit = 10): Promise<EntryPageCount[]> {
   const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
   const rows = await topByMetadataKey('path', 'page_view', range, limit, eq(isEntry, 'true'));
   return rows.map((r) => ({ path: r.value, count: r.count }));
 }
 
-/** Returns the most frequent normalized search terms and counts over the requested date range. */
 export async function getTopSearches(range: DateRange, limit = 10): Promise<SearchCount[]> {
   const rows = await topByMetadataKey('query', 'terminal_search', range, limit);
   return rows.map((r) => ({ query: r.value, count: r.count }));
 }
 
-/** Returns administrator role-change audit entries newest first for the requested date range. */
 export async function getRoleChangeAudit(
   range: DateRange,
   limit = 50,
 ): Promise<RoleChangeAuditEntry[]> {
-  // Actor is whoever fired the change (read from session at write time, stored
-  // in metadata.actorCharacterId). Target is metadata.targetCharacterId. Both
-  // joined to characters so we can render names. Either may be null if the
-  // character row was deleted between change and read.
+
   const actor = sql<number | null>`(${usageLogs.metadata} ->> 'actorCharacterId')::bigint`;
   const target = sql<number | null>`(${usageLogs.metadata} ->> 'targetCharacterId')::bigint`;
   const fromRole = sql<string | null>`${usageLogs.metadata} ->> 'from'`;
@@ -254,18 +223,6 @@ export async function getRoleChangeAudit(
   }));
 }
 
-// ── Health dashboard aggregates (3.2.13) ────────────────────────────────
-// JSON numeric fields are read with `nullif(... ->> 'k', 'null')::int` — a
-// JSON literal `null` stringifies to 'null' and `'null'::int` raises, while an
-// absent key yields SQL NULL (safe). Filtered sums are `coalesce(...,0)` so a
-// zero-match window reads as 0, not NULL. All division/bucketing is deferred
-// to the caller (health-metrics.ts) — these queries only emit raw counts.
-
-/**
- * ESI vs Fuzzwork-fallback source split over `cron_prices` refreshed rows,
- * with a per-day series for the fallback-rate trend. The caller turns these
- * into a rate (and distinguishes a real 0% from an empty window).
- */
 export async function getFallbackRate(range: DateRange): Promise<FallbackRateData> {
   const esi = sql<number>`coalesce(sum(${jsonInt('esiCount')}), 0)`.mapWith(Number);
   const fallback = sql<number>`coalesce(sum(${jsonInt('fuzzworkFallbackCount')}), 0)`.mapWith(
@@ -318,7 +275,6 @@ export async function getBudgetExhaustionCount(range: DateRange): Promise<number
   return Number(row?.n ?? 0);
 }
 
-/** Counts public ESI budget-exhaustion events inside one absolute alert window. */
 export async function countPublicEsiBudgetExhaustionsInWindow(
   from: Date,
   to: Date,
@@ -344,7 +300,6 @@ export async function countPublicEsiBudgetExhaustionsInWindow(
   return Number(row?.n ?? 0);
 }
 
-/** Returns whether the specified public ESI alert window already has a completed claim. */
 export async function hasPublicEsiBudgetAlertForWindow(
   windowStartedAt: string,
 ): Promise<boolean> {
@@ -363,11 +318,6 @@ export async function hasPublicEsiBudgetAlertForWindow(
   return Number(row?.n ?? 0) > 0;
 }
 
-/**
- * Degradation events grouped by caller (`cron` vs `on-demand`). `caller` only
- * exists on `price_source_degraded` rows, which are emitted only when degraded
- * — so this is the mix of degradation events by origin, not of all refreshes.
- */
 export async function getDegradationByCaller(
   range: DateRange,
 ): Promise<DegradationCallerCount[]> {
@@ -385,9 +335,6 @@ export async function getDegradationByCaller(
     .map((r) => ({ caller: r.caller as string, count: Number(r.count) }));
 }
 
-// Per-outcome run counts + average duration for one cron action. Average is
-// over rows that recorded a numeric `durationMs` (avg skips NULLs); a window
-// with no such rows yields 0. Used for both health % and the duration view.
 async function getCronOutcomes(
   range: DateRange,
   action: UsageAction,
@@ -409,26 +356,18 @@ async function getCronOutcomes(
     }));
 }
 
-/** Returns price-refresh cron outcome counts grouped by outcome for the requested range. */
 export function getPriceCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_prices');
 }
 
-/** Returns SDE-refresh cron outcome counts grouped by outcome for the requested range. */
 export function getSdeCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_sde');
 }
 
-/** Returns Search Console cron outcome counts grouped by outcome for the requested range. */
 export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_gsc');
 }
 
-/**
- * Latest run per cron action regardless of range — the status strip needs a
- * "now"-anchored staleness check, not a range-scoped one (a 1-day window with
- * no SDE run can still be normal for a daily cron; a multi-day-old last run is not).
- */
 export async function getLastCronRuns(): Promise<CronLastRun[]> {
   const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
   const rows = await db
@@ -448,7 +387,6 @@ export async function getLastCronRuns(): Promise<CronLastRun[]> {
   }));
 }
 
-/** Per-day fetched/written totals from `cron_prices` refreshed rows. */
 export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumePoint[]> {
   const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
   const fetched = sql<number>`coalesce(sum(${jsonInt('fetched')}), 0)`.mapWith(Number);
@@ -472,13 +410,6 @@ export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumeP
   }));
 }
 
-/**
- * Returning-vs-new authenticated users over the window. "New" = accounts
- * created in-window; "returning" = distinct characters that logged in during
- * the window whose account predates it. A user can be in at most one bucket;
- * dormant accounts (created before, no login in-window) are in neither.
- * Counts only — no character id or name leaves this function.
- */
 export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNew> {
   const [newRow, retRow] = await Promise.all([
     db
@@ -493,8 +424,7 @@ export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNe
         and(
           inRange(range),
           eq(usageLogs.action, 'auth_login'),
-          // Typed comparison (not a raw `sql` fragment) so the Date is bound
-          // as a real timestamp — a raw interpolation serializes it via
+
           // Date.toString(), which Postgres can't parse.
           lt(characters.createdAt, range.from),
         ),
@@ -506,10 +436,6 @@ export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNe
   };
 }
 
-/**
- * Per-user login counts over the window, returned as a bare count list (no
- * identity). The caller buckets these into a frequency histogram.
- */
 export async function getLoginCountsPerUser(range: DateRange): Promise<number[]> {
   const rows = await db
     .select({ c: count() })
@@ -525,11 +451,6 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
   return rows.map((r) => Number(r.c));
 }
 
-/**
- * Referred (carried an external referrer) vs direct page views. Same referrer
- * rule as getTopReferrers: TelemetryReporter only writes metadata.referrer for
- * a cross-origin referrer, so "direct" folds in same-origin and untagged hits.
- */
 export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirect> {
   const referred = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null)`.mapWith(
     Number,
@@ -544,7 +465,6 @@ export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirec
   return { referred: Number(row?.referred ?? 0), direct: Number(row?.direct ?? 0) };
 }
 
-/** Convenience for routes that want a quick "last 7d" snapshot. */
 export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {
   const to = now;
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
