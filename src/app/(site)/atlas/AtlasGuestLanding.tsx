@@ -13,18 +13,17 @@ import { atlasSignInReturnHref } from '@/features/maps/map-navigation';
 const SETUP_STEPS = [
   {
     title: 'Log in with EVE Online',
-    detail:
-      'Signing in links that character to your account with the read-only location, ship, and online access Atlas uses to follow it.',
+    detail: 'The character you log in with creates your account and allows Atlas to track it.',
   },
   {
-    title: 'Link the characters you fly in the chain',
+    title: 'Link additional characters you fly',
     detail:
-      'Open the account menu behind your portrait, top right, and choose Add character. Each linked character appears under Characters and can be tracked on any map.',
+      'Open the account menu behind your portrait, top right, and choose Add character for each alt you would like to track.',
   },
   {
-    title: 'Open a map and turn on Tracking',
+    title: 'Open or create a map and turn on Tracking',
     detail:
-      'With a map open, the account menu gains a Tracking section. Pick the pilots to follow and Atlas places them in the chain and moves them as they jump.',
+      "With a map open, you may enable or disable tracking by clicking your character's portrait. Initial tracking may take up to 30 seconds to start.",
   },
 ] as const;
 
@@ -38,14 +37,14 @@ export function AtlasGuestLanding() {
           size="hero"
           crumb="atlas"
           title="Atlas"
-          subtitle="Chart wormhole chains, paste scanner results, and share a live map with your corporation."
+          subtitle="A shared live map of your wormhole chain."
         />
         <div className="flex max-w-2xl flex-col gap-6 pb-16">
           <AccessGate
             blocked
             tone="green"
             title="Sign in required"
-            reason="Maps are shared through your account and corporation, and the live chain follows your own characters. Log in with EVE Online to create a map, open one shared with you, or track your pilots as they jump."
+            reason="Log in with EVE Online to create a map, open one shared with you, or follow your pilots as they jump."
             action={<EveSignInButton callbackURL={returnHref} />}
           >
             {null}

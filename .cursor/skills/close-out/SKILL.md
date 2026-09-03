@@ -26,11 +26,13 @@ is green on that run. Done when the list exists and step 1 is in progress.
    lines are named and, when the destination is `main`, the changelog
    is on the head. Onto `main`, set `APP_VERSION` in
    `src/config/app-version.ts` to the latest lifecycle identity already
-   on the head. Write the public changelog from the as-builts in
+   on the head.
+   Write the public changelog from the as-builts in
    `<head>...main` per `docs/workflows/schema/changelog-entry.md`. The
    overview is the as-built Delivered paragraphs, invoked through
    `unslop`. The bullets are those records' `Added:` / `Changed:` /
-   `Fixed:` / `Removed:` lines, grouped in that order. Run
+   `Fixed:` / `Removed:` lines, rewritten into player speech as you
+   lift, then grouped in that order. Run
    `python3 tools/cli.py lifecycle check-release --check --expect reconciled`.
    Land that commit on the head.
 2. Size gate. Run
@@ -72,7 +74,7 @@ is green on that run. Done when the list exists and step 1 is in progress.
    One record per session in the range, and one for ordinary work
    in the same PR. A session that still has work only on
    `development` waits for a later close-out. The Delivered
-   outcome carries the player-facing bullets the changelog will
+   outcome carries the plain-speech bullets the changelog will
    lift. Push the as-builts and any remaining mirror fixes to the
    Origin draft. Run the local test suite on that head. Done when
    those commits are on that PR and the suite is green.
