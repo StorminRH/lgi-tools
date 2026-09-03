@@ -2,11 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SearchResult } from '@/platform/search';
 
-// vitest runs in node by default — shim a minimal in-memory localStorage so
-// the storage helpers (which guard on `typeof window`) operate. Imports of
-// the module-under-test happen AFTER the shim is installed because the
-// helpers themselves read `window` lazily on each call, but using a dynamic
-// import is the safest way to guarantee module-load-time isn't earlier.
 function installLocalStorageShim() {
   const store = new Map<string, string>();
   const ls: Storage = {
@@ -126,7 +121,7 @@ describe('search-recents storage', () => {
   it('dedupes by id — re-pushing an existing id moves it to the top', () => {
     pushRecent(row('1', 'one'));
     pushRecent(row('2', 'two'));
-    pushRecent(row('1', 'one')); // re-push
+    pushRecent(row('1', 'one'));
     const labels = readRecents().map((r) => r.label);
     expect(labels).toEqual(['one', 'two']);
   });

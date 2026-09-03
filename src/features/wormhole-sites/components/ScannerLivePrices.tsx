@@ -36,11 +36,6 @@ function useScannerLive(): ScannerLiveValue {
   return useContext(ScannerLiveContext);
 }
 
-/**
- * Owns one refresh-on-view loop for every live-eligible type present among the
- * given harvestable site names. Remounts when the type-id set changes so a
- * newly identified site after paste starts a fresh confirmation loop.
- */
 export function ScannerLivePricesProvider({
   harvestableNames,
   children = null,
@@ -58,6 +53,7 @@ export function ScannerLivePricesProvider({
     <ScannerLivePricesEngine key={typeIdKey} typeIds={typeIds}>
       {children}
     </ScannerLivePricesEngine>
+
   );
 }
 
@@ -81,19 +77,16 @@ function ScannerLivePricesEngine({
     <ScannerLiveContext.Provider value={value}>
       {children}
     </ScannerLiveContext.Provider>
+
   );
 }
 
-/**
- * Scanner Est. ISK cell. Harvestable catalogue rows flash through LivePrice;
- * combat / unmatched / empty stay static (no pending pulse).
- */
 export function ScannerEstIskCell({
   siteName,
   live,
 }: {
   readonly siteName: string | null;
-  /** True for harvestable rows — arms LivePrice when recipes exist. */
+
   readonly live: boolean;
 }) {
   const scannerLive = useScannerLive();
@@ -128,6 +121,7 @@ export function ScannerEstIskCell({
         className={total === null ? 'text-muted' : 'text-isk'}
       />
     </span>
+
   );
 }
 
@@ -142,5 +136,6 @@ function StaticEstIsk({ isk }: { readonly isk: number | null }) {
     >
       {formatIskShort(isk)}
     </span>
+
   );
 }

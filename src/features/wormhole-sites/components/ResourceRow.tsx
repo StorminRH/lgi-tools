@@ -8,17 +8,12 @@ import type { SiteResource, SiteType } from '../types';
 import { deriveResourceRowView, resourceValueEligible } from './resource-row-view';
 import { resourceLiveIsk, useSiteLive } from './site-live-context';
 
-// The value cell. For a live-eligible resource it reads the shared site price
-// context: while its live confirmation is in flight a spinning badge sits beside
-// the seed figure, and when the value lands it flashes in to the confirmed
-// figure. One persistent LivePrice spans the seed→live transition so the flash
-// actually fires. Ineligible rows (no typeId / no unit count / unpriceable)
-// render their static seed as plain text.
 function ResourceValue({ resource }: { resource: SiteResource }) {
   const live = useSiteLive();
 
   if (!resourceValueEligible(resource)) {
     return <span className="font-data">{formatIsk(resourceLiveIsk(resource, live))}</span>;
+
   }
 
   const pending = live.isPending(resource.typeId as number);
@@ -26,7 +21,6 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
   return <LivePrice value={figure} pending={pending} />;
 }
 
-/** Renders one site resource's quantity, volume in cubic metres, and live ISK value. */
 export function SiteResourceRow({
   resource,
   siteType,
@@ -41,6 +35,7 @@ export function SiteResourceRow({
         <Dot tone={view.dotTone} />
         {resource.resourceName}
       </>
+
     ) : (
       resource.resourceName
     );
@@ -50,6 +45,7 @@ export function SiteResourceRow({
       colsClass={view.colsClass}
       name={name}
       meta={view.meta ? <span className="font-data">{view.meta}</span> : undefined}
+
       value={<ResourceValue resource={resource} />}
     />
   );

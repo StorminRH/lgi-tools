@@ -6,12 +6,12 @@ const NOW = new Date('2026-06-28T12:00:00Z');
 const STRUCTURES_SCOPE = 'esi-corporations.read_structures.v1';
 
 // A valid ESI corp-structures element — services/state are present and must be
-// dropped by the projection, so the saved row never carries them.
+
 function esiStructure(structureId: number, extra: Record<string, unknown> = {}) {
   return {
     structure_id: structureId,
-    type_id: 35832, // Astrahus
-    system_id: 30000142, // Jita
+    type_id: 35832,
+    system_id: 30000142,
     name: `Struct ${structureId}`,
     services: [{ name: 'Manufacturing', state: 'online' }],
     state: 'shield_vulnerable',
@@ -48,9 +48,7 @@ const freshState = () => ({ lastRefreshedAt: new Date('2026-06-28T11:30:00Z'), p
 
 describe('refreshCorpStructuresForUser', () => {
   it('makes no vend, roles read, or ESI call when the corp is fresh (the shared staleness gate)', async () => {
-    // The "re-view within the 1h window makes NO ESI call" proof, and the shared
-    // dedup: the stamp is on the corp row, so ANY member's view inside the window is
-    // a no-op.
+
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => freshState()),
@@ -65,13 +63,11 @@ describe('refreshCorpStructuresForUser', () => {
   });
 
   it('dispatches nothing for a corp that has not opted in to sharing (the consent gate)', async () => {
-    // The load-bearing retrofit: sharing OFF short-circuits in the engine BEFORE the
-    // staleness read, the token vend, the roles read, and any ESI fetch or save —
-    // zero ESI, zero rows for a non-opted-in corp.
+
     const port = makePort({
       isSharingEnabled: vi.fn(async () => false),
       listMembers: vi.fn(async () => [member(1)]),
-      readSyncState: vi.fn(async () => null), // would be stale → would pull if not gated
+      readSyncState: vi.fn(async () => null),
     });
 
     await refreshCorpStructuresForUser(port, 'u1');
@@ -87,7 +83,7 @@ describe('refreshCorpStructuresForUser', () => {
   it('reads with a Station_Manager member token and saves the shared corp-keyed row', async () => {
     const port = makePort({
       listMembers: vi.fn(async () => [member(1), member(2)]),
-      readSyncState: vi.fn(async () => null), // never synced → stale
+      readSyncState: vi.fn(async () => null),
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Station_Manager'] : ['Accountant'])),
       readStructures: vi.fn(
@@ -103,9 +99,9 @@ describe('refreshCorpStructuresForUser', () => {
 
     expect(port.readStructures).toHaveBeenCalledWith(5000, 'token-2', []);
     const save = vi.mocked(port.saveStructures).mock.calls[0]!;
-    // Owner key is the corporation ALONE — no userId reaches the save (the shared store).
+
     expect(save[0]).toBe(5000);
-    // Sorted by structure id; services/state stripped by the projection.
+
     expect(save[1]).toEqual([
       { structure_id: 1001, type_id: 35832, system_id: 30000142, name: 'Struct 1001' },
       { structure_id: 1002, type_id: 35832, system_id: 30000142, name: 'Struct 1002' },
@@ -117,7 +113,7 @@ describe('refreshCorpStructuresForUser', () => {
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => null),
-      readRoles: vi.fn(async () => ['Accountant']), // not a Station_Manager
+      readRoles: vi.fn(async () => ['Accountant']),
     });
 
     await refreshCorpStructuresForUser(port, 'u1');
@@ -176,7 +172,6 @@ describe('refreshCorpStructuresForUser', () => {
     const portB = make();
     await refreshCorpStructuresForUser(portB, 'userB');
 
-    // userId never reaches the owner key — both users write corp 5000's shared row.
     expect(vi.mocked(portA.saveStructures).mock.calls[0]![0]).toBe(5000);
     expect(vi.mocked(portB.saveStructures).mock.calls[0]![0]).toBe(5000);
   });

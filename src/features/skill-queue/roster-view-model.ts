@@ -1,44 +1,30 @@
-// The view model the home roster card renders for one character — the linked-character
-// truth (name/portrait/reconnect) joined with the Neon skills read (totals + the
-// current-training derivation). Pure, so the card is branch-on-kind only and the ?demo
-// path can seed it directly without a fetch or auth.
 import type { PanelCharacter } from '@/components/live-character-card';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from './esi-projection';
 import { currentTraining, type CurrentTraining } from './progress';
 
-/**
- * The live half of one row, as the Neon skills read returns it per character (the
- * extra characterId on the wire is ignored here).
- */
 export interface RosterLiveData {
   data: { entries: SkillQueueEntry[]; totalSp: number; unallocatedSp?: number } | null;
   lastSyncedAt: number | null;
   syncError: string | null;
 }
 
-/**
- * Display-ready roster view model consumed by the shared visualization layer; callers keep all
- * numeric values in one consistent unit.
- */
 export interface RosterViewModel {
   characterId: number;
   name: string;
   portraitUrl: string;
   needsReconnect: boolean;
-  // false until the first successful sync lands a payload (data === null).
+
   hasData: boolean;
   totalSp: number | null;
   unallocatedSp: number | null;
   training: CurrentTraining;
-  // Resolved name of the currently-training/paused skill, null when none or
-  // unresolved (falls back to the id in the card).
+
   currentSkillName: string | null;
-  // Pre-formatted "finishes in …", only when actively training.
+
   remainingLabel: string | null;
 }
 
-/** Derives one display-ready roster card from linked-character health, skills, and queue state. */
 export function buildRosterCard(
   character: PanelCharacter,
   live: RosterLiveData | undefined,
@@ -68,23 +54,14 @@ export function buildRosterCard(
   };
 }
 
-/**
- * The SP line's fallback message when no totals have synced: a reconnect prompt when the
- * character needs reauth, else a neutral not-yet note.
- */
 export function rosterSpFallback(vm: RosterViewModel): string {
   return vm.needsReconnect ? 'Reconnect to sync' : 'No data yet';
 }
 
-/**
- * The unallocated SP to show in the "· N free" clause, or null when there is none — so
- * the card renders the clause on a single narrowed value.
- */
 export function rosterFreeSp(vm: RosterViewModel): number | null {
   return vm.unallocatedSp !== null && vm.unallocatedSp > 0 ? vm.unallocatedSp : null;
 }
 
-/** The idle training-line copy for the two no-progress states. */
 export function idleTrainingText(kind: 'empty' | 'complete'): string {
   return kind === 'empty' ? 'No skills queued' : 'Training complete';
 }
