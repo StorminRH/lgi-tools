@@ -1,15 +1,9 @@
-// Complete collaborative-map deletion owner. Every declared table is keyed by
-// mapId and drained through its by_map index in a bounded transaction. Neon
-// decides when a map is eligible; this module only deletes the stated map's
-// collaborative rows and reports truthful continuation state.
 import { v } from 'convex/values';
 import type { Doc, TableNames } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 
-/** Maximum rows removed from each map-keyed table in one transaction. */
 export const MAP_PURGE_BATCH = 128;
 
-/** Single census-backed registry of every Convex table keyed by mapId. */
 export const MAP_PURGE_TABLES = [
   'mapAccess',
   'mapAccessProjectionWatermarks',
@@ -30,7 +24,6 @@ interface TablePurgeResult {
   readonly hasMore: boolean;
 }
 
-/** Deletes one fair, bounded slice from one map-keyed table. */
 async function purgeTable<Table extends MapPurgeTable>(
   ctx: MutationCtx,
   table: Table,
@@ -52,10 +45,6 @@ async function purgeTable<Table extends MapPurgeTable>(
   };
 }
 
-/**
- * Deletes up to 128 rows from every map-keyed table. Completed invocations are
- * persisted progress; a later invocation re-scans the remaining indexed rows.
- */
 export const purgeMapBatch = internalMutation({
   args: { mapId: v.string() },
   handler: async (ctx, { mapId }) => {

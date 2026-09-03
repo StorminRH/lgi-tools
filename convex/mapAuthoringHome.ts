@@ -71,12 +71,6 @@ async function requireLiveOrigin(
   }
 }
 
-/**
- * Places one live destination. A trashed system id comes back on the canvas
- * on this same document. Trash is undo for the old wormhole, not a lock on
- * placing the system again. Callers insert a new connection. They do not
- * merge the tombstoned line.
- */
 export async function upsertLiveDestination(
   ctx: MutationCtx,
   mapId: string,
@@ -134,4 +128,3 @@ export const addSystemFromNode = mutation({
   handler: (ctx, { mapId, fromSystemId, toSystemId }) =>
     addFromNode(ctx, mapId, fromSystemId, toSystemId),
 });
-

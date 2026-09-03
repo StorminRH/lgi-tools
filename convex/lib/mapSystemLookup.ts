@@ -1,10 +1,8 @@
-// Shared indexed map/system lookup and id validation for authoring + fixtures.
 import { ConvexError } from 'convex/values';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { requireMapAccess } from './mapAccess';
 import { isPositiveId } from './mapEntityContracts';
 
-/** Rejects a system ID that is not a positive safe integer. */
 export function requireSystemId(systemId: number): void {
   if (!isPositiveId(systemId)) {
     throw new ConvexError({
@@ -14,7 +12,6 @@ export function requireSystemId(systemId: number): void {
   }
 }
 
-/** The one indexed map/system lookup shared by chain reads and writes. */
 export function findSystem(
   ctx: QueryCtx,
   mapId: string,
@@ -26,7 +23,6 @@ export function findSystem(
     .unique();
 }
 
-/** Gate edit access and validate the system id — shared authoring/fixture preamble. */
 export async function beginSystemEdit(
   ctx: MutationCtx,
   mapId: string,

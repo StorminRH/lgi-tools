@@ -13,7 +13,6 @@ import schema from './schema';
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
 
-
 const MAP = 'map-a';
 const EDITOR = 'user-editor';
 const VIEWER = 'user-viewer';

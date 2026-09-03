@@ -1,13 +1,8 @@
-// Map-scoped cleanup owner for the automatic-jump exactly-once stamps.
-// Tracking revocation deliberately does not call this module: an
-// untrack/retrack cycle must never erase a processed transition.
 import { v } from 'convex/values';
 import { internalMutation } from './_generated/server';
 
-/** Maximum jump-processing stamps deleted in one bounded teardown transaction. */
 export const MAP_JUMP_BOOKKEEPING_PURGE_BATCH = 128;
 
-/** Deletes one bounded map-scoped batch; the HTTP teardown door drains continuation. */
 export const purgeForMap = internalMutation({
   args: { mapId: v.string() },
   handler: async (ctx, { mapId }) => {
