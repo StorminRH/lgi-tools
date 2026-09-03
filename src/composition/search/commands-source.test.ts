@@ -15,9 +15,6 @@ vi.mock('@/platform/auth/auth-client', () => ({
   authClient: { signOut, signIn: { oauth2: signInOauth2 } },
 }));
 
-// Each vitest file gets its own module graph, so we start with a clean
-// registry, then register the Commands source the way the wiring manifest
-// does — by pulling its exported value.
 beforeAll(() => {
   __resetSearchSources();
   registerSearchSource(commandsSearchSource);
@@ -61,8 +58,6 @@ describe('commands search source', () => {
   });
 });
 
-// The two side-effecting rows delegate to the official Better Auth client.
-// These pin the navigation semantics the hand-rolled REST calls used to own.
 describe('command auth side effects', () => {
   const stubLocation = () => {
     const location = { href: '' };

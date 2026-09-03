@@ -1,19 +1,3 @@
-// Commands search source. The platform's "command palette" surface — every
-// action a user might fire from the keyboard ends up here. Session/admin
-// gating keeps the list relevant: logged-out users see "Log in with EVE",
-// logged-in users see "Log out", and admins additionally see "Open admin".
-//
-// Rows with side effects use `onSelect(router)` instead of `href`-driven
-// navigation. Log out calls Better Auth's sign-out then hard-reloads (drops
-// cached server-component output that referenced the now-gone session); Log in
-// calls Better Auth's OAuth sign-in, whose client redirect plugin hard-navigates
-// to the SSO URL (router.push can't reach the cross-origin SSO chain).
-//
-// This application-composition source uses the official typed Better Auth
-// client, so the library owns these wire shapes. Composition may import
-// platform/auth, and this module is only ever pulled into the client shell
-// (AppHeaderShell → register-all).
-
 import { authClient } from '@/platform/auth/auth-client';
 import type { AppRouterInstance, SearchContext, SearchSource } from '@/platform/search';
 import { rankFuzzyResults } from '@/platform/search/rank';
@@ -68,20 +52,16 @@ const COMMANDS: CommandEntry[] = [
     href: '/',
     iconText: '⏏',
     onSelect: () => {
-      // Only redirect on success — if sign-out fails (network drop, 4xx, or
-      // 5xx) the server never cleared the session, so landing on / would
-      // silently look "logged out" while the session is still active. The
-      // client resolves HTTP failures into `error`, so that is the
-      // load-bearing check.
+
       void authClient
         .signOut()
         .then(({ error }) => {
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
           if (!error) window.location.href = '/';
-          // else: server returned an error; stay put so the user can retry.
+
         })
         .catch(() => {
-          // Network error; stay put.
+
         });
     },
     visible: (ctx) => ctx.session !== null,
@@ -93,21 +73,15 @@ const COMMANDS: CommandEntry[] = [
     href: '/',
     iconText: '↪',
     onSelect: () => {
-      // The client's built-in redirect plugin hard-navigates to the SSO URL the
-      // server returns, which is exactly what the hand-rolled assignment did.
-      // On any failure it navigates nowhere and the user stays put.
+
       void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' }).catch(() => {
-        // Network error; stay put.
+
       });
     },
     visible: (ctx) => ctx.session === null,
   },
 ];
 
-/**
- * Global-search source for commands search source; it owns matching and result mapping while the
- * app layer owns registration.
- */
 export const commandsSearchSource: SearchSource = {
   id: 'commands',
   name: 'Commands',
@@ -124,7 +98,7 @@ export const commandsSearchSource: SearchSource = {
         sub: cmd.sub,
         href: cmd.href,
         iconText: cmd.iconText,
-        // Abstract tone (the search render maps it to tokens); commands read neutral.
+
         iconTone: 'neutral',
         matchIndices: match.matchIndices,
         onSelect: cmd.onSelect,

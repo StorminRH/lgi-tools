@@ -118,8 +118,7 @@ describe('signature elimination composition', () => {
   });
 
   it('corrects a human override in place and removes vacated or migrated keys', async () => {
-    // A human retype leaves nothing to deduce, so the pass is quiet — but the
-    // corpus must stop asserting the machine's superseded guess.
+
     h.readEliminationEvidence.mockResolvedValueOnce({
       canEdit: true,
       signatures: [signature({
@@ -183,8 +182,7 @@ describe('signature elimination composition', () => {
   });
 
   it('keeps snapshot honesty across protected and stale races', async () => {
-    // A lost race reports the winner's key; the pass still logs only the
-    // identity its own snapshot read, so it cannot delete the winner's row.
+
     h.applyEliminationDeductions.mockResolvedValueOnce([
       { signatureId: 'AAA-111', outcome: 'protected', observationKey: 'hole-key' },
     ]);
@@ -194,9 +192,6 @@ describe('signature elimination composition', () => {
       deleteKeys: [],
     });
 
-    // The scanned row was removed or resolved between the evidence read and
-    // the write. A later removal does not falsify what was observed, so the
-    // logged identity stands rather than being deleted.
     h.readEliminationEvidence.mockResolvedValueOnce({
       canEdit: true,
       signatures: [signature({

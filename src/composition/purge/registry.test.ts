@@ -1,14 +1,3 @@
-// THE PURGE GATE (ACCOUNT.1) — DB-free, fail-closed. Reflects the Drizzle schema
-// with getTableConfig (pure metadata, no DB connection), finds every user/character/
-// owner-keyed table, and asserts each is claimed by a purge contributor OR declared
-// retained. A new user-data table that ships without a contributor fails this test.
-//
-// HOUSE RULE (tracked home; mirrored in CLAUDE.md): a personal / per-owner table
-// MUST key on one of {user_id, character_id, owner_id+owner_type}. A bare owner_id
-// is an SDE/reference owner (e.g. eve_npc_stations) and is NOT user data;
-// corporation_id-only corp-shared tables are deliberately out-of-scope (a personal
-// purge must not delete the shared corp catalogue). Keep the scan set in sync with
-// this rule so a future novel identity column can't silently slip the gate.
 import { is } from 'drizzle-orm';
 import { getTableConfig, integer, PgTable, pgTable, text } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
@@ -21,8 +10,6 @@ import {
 } from '@/platform/purge/__tests__/coverage';
 import { PURGE_CONTRIBUTORS } from './register-all';
 
-// The schema barrel re-exports pgTable objects alongside enums + const arrays;
-// narrow to PgTable so getTableConfig (which the gate's reflection needs) is sound.
 const tables = (Object.values(schema) as unknown[]).filter((v): v is PgTable =>
   is(v, PgTable),
 );
@@ -36,8 +23,7 @@ const retained = new Set(
 
 describe('purge registry gate', () => {
   it('flags the expected user/character/owner-keyed tables (sanity on the scan)', () => {
-    // Catches a scan regression in either direction: a renamed identity column that
-    // stops flagging a user-data table, or an SDE owner_id false-positive.
+
     expect([...flagged].sort()).toEqual(
       [
         'account',
@@ -101,9 +87,6 @@ describe('purge registry gate', () => {
     ).toBe(true);
   });
 
-  // The gate's red path, proven on a synthetic schema so it stands independent of
-  // the live tables: an unclaimed user-data table MUST surface; claimed/retained
-  // tables MUST NOT.
   it('findUnclaimed surfaces an unclaimed table and clears claimed/retained ones', () => {
     expect(findUnclaimed(['synthetic_unclaimed'], new Set(), new Set())).toEqual([
       'synthetic_unclaimed',

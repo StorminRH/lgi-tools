@@ -67,8 +67,6 @@ vi.mock('./owned-blueprints-sync', () => ({
 }));
 vi.mock('./skills-sync', () => ({ runSkillsRefreshJob: mocks.runSkills }));
 
-// Observe the capability row the runner schedules: `after` runs inline and the
-// telemetry writer is the same `logUsageEvent` owner the rest of the app uses.
 vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: mocks.logUsageEvent }));
 vi.mock('next/server', () => ({
   connection: async () => {},
@@ -346,7 +344,7 @@ describe('queued-job capability recording', () => {
   });
 
   it('records a final-attempt failure at the declared attempt ceiling', async () => {
-    // attemptCount 4 → this run is attempt 5, the dead-letter boundary.
+
     mocks.claim.mockResolvedValue([job(1, 'skills', 4)]);
     mocks.runSkills.mockResolvedValue({ kind: 'failed_retryable', code: 'timeout' });
 
@@ -386,9 +384,7 @@ describe('queued-job capability recording', () => {
   });
 
   it('records a thrown job before the drain swallows it', async () => {
-    // The drain isolates a failing job by catching. Without a record here the
-    // capability stream would be empty during exactly the outage — Neon
-    // unavailable while marking status — that the job indicator exists to show.
+
     mocks.claim.mockResolvedValue([job(1, 'skills')]);
     mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
     mocks.markSucceeded.mockRejectedValueOnce(new Error('neon unavailable'));
@@ -414,8 +410,6 @@ describe('queued-job capability recording', () => {
 
     const summary = await drainEsiRefreshJobs();
 
-    // The second job still ran and its row still landed; recording the throw
-    // must not change the drain's own error isolation.
     expect(summary.succeeded).toBe(1);
     expect(capabilityRows()).toHaveLength(2);
   });

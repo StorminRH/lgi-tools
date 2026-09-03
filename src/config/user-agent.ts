@@ -1,9 +1,5 @@
 import { APP_VERSION } from './app-version';
 
-// Maintainer contact for outbound API etiquette. CCP's ESI guidelines and
-// Fuzzwork both want a reachable contact so they can warn before throttling
-// rather than cut us off. Stable literal (not SITE_URL, which is env-
-// overridable on previews) — points at the dedicated contact page.
 const OUTBOUND_CONTACT = 'https://lgi.tools/contact';
 
 /**

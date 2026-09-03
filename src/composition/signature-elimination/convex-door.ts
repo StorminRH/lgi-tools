@@ -30,13 +30,10 @@ const outcomesSchema = z.array(
   }),
 );
 
-/** Bounded endpoint-local evidence returned by the Convex service door. */
 export type EliminationEvidence = z.infer<typeof evidenceSchema>;
 
-/** Per-deduction transactional outcome returned by the Convex write door. */
 export type EliminationWriteOutcome = z.infer<typeof outcomesSchema>[number];
 
-/** Typed failure for an unavailable or contract-invalid elimination door. */
 export class EliminationConvexUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -54,7 +51,6 @@ function postDoor<T>(body: unknown, schema: z.ZodType<T>): Promise<T> {
   });
 }
 
-/** Reads one access-checked live evidence snapshot for a map system. */
 export function readEliminationEvidence(
   userId: string,
   mapId: string,
@@ -66,7 +62,6 @@ export function readEliminationEvidence(
   );
 }
 
-/** Applies one assumed-tier deduction batch through the transactional door. */
 export function applyEliminationDeductions(input: {
   readonly userId: string;
   readonly mapId: string;
