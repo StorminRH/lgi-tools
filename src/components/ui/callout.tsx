@@ -2,10 +2,6 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { eyebrow } from './type-roles';
 
-/**
- * Renders the domain-neutral callout with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
- */
 export function Callout({
   label,
   children,
@@ -25,7 +21,10 @@ export function Callout({
       <span className={`${eyebrow({ tone: 'callout', weight: 'semibold' })} shrink-0`}>
         {label}
       </span>
+
       <span>{children}</span>
+
     </div>
+
   );
 }

@@ -3,12 +3,10 @@ import type { MouseEvent } from 'react';
 import { continuousHoverHandler } from './hover';
 
 vi.mock('@visx/event', () => ({
-  // Return the pointer straight through; the handler only uses point.x, which
-  // our fake identity scale then maps to data space unchanged.
+
   localPoint: (_el: unknown, _ev: unknown) => ({ x: 10, y: 0 }),
 }));
 
-// Identity scale that is also invertible — data space === pixel space here.
 const identityScale = Object.assign((v: number) => v, { invert: (x: number) => x });
 
 const evt = { nativeEvent: {} } as unknown as MouseEvent<SVGRectElement>;

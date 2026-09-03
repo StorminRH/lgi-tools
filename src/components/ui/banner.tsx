@@ -27,13 +27,10 @@ function DismissBannerButton({ label, onDismiss }: { label: string; onDismiss?: 
     >
       ×
     </button>
+
   );
 }
 
-/**
- * Renders the domain-neutral banner with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
- */
 export function Banner({
   tone,
   children,
@@ -65,7 +62,9 @@ export function Banner({
         )}
       />
       <div className="min-w-0 flex-1">{children}</div>
+
       <DismissBannerButton label={dismissLabel} onDismiss={onDismiss} />
     </div>
+
   );
 }

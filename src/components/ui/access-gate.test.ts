@@ -3,10 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AccessGate } from './access-gate';
 
-// Server-rendered markup assertions (the house pattern — SitesFilterLayout.test
-// .ts): effects don't run, so the output captures exactly which branch the gate
-// renders. The load-bearing guarantee is that the blocked branch withholds the
-// gated children entirely, so no data leaks into the page.
 function markup(props: Parameters<typeof AccessGate>[0]) {
   return renderToStaticMarkup(createElement(AccessGate, props));
 }
@@ -33,7 +29,7 @@ describe('AccessGate', () => {
     });
     expect(html).toContain('WHY-REASON');
     expect(html).toContain('GRANT-ACTION');
-    // The gated children must not render — the blocked state shows none of the data.
+
     expect(html).not.toContain('GATED-DATA');
   });
 

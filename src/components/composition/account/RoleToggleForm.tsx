@@ -2,11 +2,6 @@ import { Button } from '@/components/ui/button';
 import type { CharacterRole } from '@/platform/auth/types';
 import { deriveRoleToggle } from './role-toggle-view';
 
-/**
- * Per-row toggle. Pure HTML form posting to /api/admin/role — no client JS.
- * The disabled self-row is UI decoration; the route handler is the real guard.
- * Admin is per-user, so the toggle targets a userId (not a character id).
- */
 export function RoleToggleForm({
   targetUserId,
   currentRole,
@@ -36,6 +31,8 @@ export function RoleToggleForm({
       >
         {view.label}
       </Button>
+
     </form>
+
   );
 }

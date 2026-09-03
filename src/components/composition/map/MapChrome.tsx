@@ -8,17 +8,8 @@ import { MapSwitcher } from '@/features/maps/MapSwitcher';
 import type { Session } from '@/platform/auth/types';
 import { MapMenu } from './MapMenu';
 
-// Side-effect import: registers every search source on the CLIENT instance of
-// the registry. Atlas canvas chrome is the boot path when the site header is
-// hidden; without it, HomePrompt / NodeAddMenu `useSystemSearch().suggest`
-// dispatches `searchAll(..., ['systems'])` against an empty registry and the
-// list stays blank while Enter-to-parse (the separately loaded index) still
-// works.
 import '@/composition/search/register-all';
 
-/**
- * Composes the atlas's floating navigation, reserved search slot, account control, and feedback.
- */
 export function MapChrome({
   session,
   contextualSection,
@@ -38,8 +29,7 @@ export function MapChrome({
     <div
       data-map-chrome
       // z-dropdown: chrome controls (portrait, Atlas menu, search) must stay
-      // clickable above the z-float window layer — a float-side connection
-      // card clamped into the top-right corner would otherwise cover them.
+
       className="pointer-events-none absolute inset-0 z-dropdown"
     >
       <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
@@ -51,6 +41,7 @@ export function MapChrome({
               contextualSection={contextualSection}
             />
           </div>
+
         ) : null}
         <MapMenu
           corporations={corporations}
@@ -58,6 +49,7 @@ export function MapChrome({
           mapActionsAvailable={listingAvailable}
         />
       </div>
+
       <div
         ref={switcherFocusFallback}
         tabIndex={-1}
@@ -71,12 +63,15 @@ export function MapChrome({
           focusFallback={switcherFocusFallback}
         />
       </div>
+
       <div
         data-map-chrome-chips
         className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2"
       >
         <FeedbackButton compact embedded />
       </div>
+
     </div>
+
   );
 }

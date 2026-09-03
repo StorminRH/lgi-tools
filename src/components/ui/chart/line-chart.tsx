@@ -13,16 +13,11 @@ import { continuousHoverHandler } from './hover';
 
 export type Margin = { top: number; right: number; bottom: number; left: number };
 
-/** A d3/visx numeric scale, as the axis renderer consumes it. */
 export type NumericScale = ((value: number) => number) & {
   ticks: (count?: number) => number[];
   invert: (x: number) => number;
 };
 
-/**
- * Display-ready line chart axis consumed by the shared visualization layer; callers keep all
- * numeric values in one consistent unit.
- */
 export type LineChartAxis = (ctx: {
   xScale: NumericScale;
   yScale: NumericScale;
@@ -37,24 +32,17 @@ export type LineChartProps<T extends SparklinePoint> = {
   margin: Margin;
   className?: string;
   ariaLabel: string;
-  /** Value-axis domain from the series' y values (padded vs zero-based). */
+
   computeYDomain: (ys: number[]) => [number, number];
-  /** d3 `nice` rounding on the y axis (TrendChart uses it; Sparkline doesn't). */
+
   yNice?: boolean;
   fillOpacity: number;
-  /** Tooltip body for the hovered datum. */
+
   renderTooltip: (datum: T) => ReactNode;
-  /** Optional axis / gridline layer drawn behind the series. */
+
   renderAxis?: LineChartAxis;
 };
 
-/**
- * The shared continuous-x line chart core behind {@link Sparkline} and
- * TrendChart: linear x/y scales, the area + line marks, hover crosshair, and
- * the self-rendered tooltip. Callers supply the genuinely different bits — the
- * y-domain strategy, `nice`, fill opacity, tooltip body, and an optional axis
- * layer — so the two charts share this instead of copying it.
- */
 export function LineChart<T extends SparklinePoint>({
   data,
   tone,
@@ -147,5 +135,6 @@ export function LineChart<T extends SparklinePoint>({
         onLeave={hover.hideTooltip}
       />
     </ChartCanvas>
+
   );
 }

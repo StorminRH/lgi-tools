@@ -15,10 +15,6 @@ import {
 } from '@/features/maps/map-dialog-state';
 import { MapLifecycleDialogs } from '@/features/maps/MapLifecycleDialogs';
 
-/**
- * Renders map-safe navigation and the creation door while external links open
- * away from the live atlas tab.
- */
 export function MapMenu({
   corporations = [],
   deletedMaps = [],
@@ -57,11 +53,17 @@ export function MapMenu({
         >
           <span className="font-data font-extrabold tracking-copy uppercase text-name">
             <span className="text-isk">[</span>
+
             <span className="px-[2px]">LGI</span>
+
             <span className="text-isk">]</span>
+
             <span className="text-muted font-normal">.tools</span>
+
           </span>
+
         </MenuLinkItem>
+
         {mapActionsAvailable ? (
           <>
             <MenuItem
@@ -77,6 +79,7 @@ export function MapMenu({
             >
               Create map
             </MenuItem>
+
             <MenuItem
               closeOnClick
               className={menuRow}
@@ -87,7 +90,9 @@ export function MapMenu({
             >
               Trash{deletedMaps.length > 0 ? ` (${deletedMaps.length})` : ''}
             </MenuItem>
+
           </>
+
         ) : null}
         {visibleNavTools().map((tool) =>
           tool.href ? (
@@ -101,6 +106,7 @@ export function MapMenu({
             >
               {tool.label}
             </MenuLinkItem>
+
           ) : null,
         )}
         <MenuLinkItem
@@ -113,7 +119,9 @@ export function MapMenu({
         >
           Built with React Flow
         </MenuLinkItem>
+
       </Menu>
+
       <MapLifecycleDialogs
         dialogs={dialogs}
         onDialogsChange={setStoredDialogs}
@@ -124,5 +132,6 @@ export function MapMenu({
         hostRef={ownerRef}
       />
     </div>
+
   );
 }

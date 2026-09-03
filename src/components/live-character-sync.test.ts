@@ -17,7 +17,7 @@ describe('syncErrorMeta', () => {
 describe('emptyDataText', () => {
   it('tells a reconnect-needed character it will never sync', () => {
     expect(emptyDataText(true, false)).toBe('Nothing synced for this character.');
-    // reconnect wins even mid-sync
+
     expect(emptyDataText(true, true)).toBe('Nothing synced for this character.');
   });
 

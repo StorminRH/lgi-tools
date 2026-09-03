@@ -16,10 +16,10 @@ describe('dailyChartModel', () => {
       referenceLine: { value: 12, label: 'prior avg' },
       plotWidth: 200,
     });
-    // yMax spans the biggest of values/average/reference (30), never below it.
+
     expect(model.yMax).toBe(30);
     expect(model.refValue).toBe(12);
-    expect(model.lastAvg).toBe(13); // the final moving-average value
+    expect(model.lastAvg).toBe(13);
     expect(model.values).toEqual([10, 0, 30]);
     expect(model.barW).toBeGreaterThan(0);
     expect(model.hover[1]).toEqual({ x: 1, y: 0, label: '2026-07-07', avg: 5 });
