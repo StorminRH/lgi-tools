@@ -24,22 +24,10 @@ function redirectWithError(request: NextRequest, code: string): Response {
   return Response.redirect(url, 303);
 }
 
-/**
- * POST-only. Removes one of the signed-in pilot's linked EVE characters (and its
- * stored encrypted tokens — deleteAccount drops the row). We pre-check ownership
- * and the last-character guard ourselves for clean error copy; Better Auth's
- * unlink also enforces both as a backstop. If the removed character was active,
- * the active pointer is re-aimed at the oldest remaining one so the session never
- * references a deleted account.
- */
-// authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.unlink-character',
-    // Per-IP rate limit, still checked before the session read so a flood is
-    // rejected at the cheapest point. Unlinking is rare and deliberate — 10/min
-    // is plenty for a human and stops scripted hammering of the unlink + token
-    // deletion. Runs as the shell's preflight so a 429 is recorded.
+
     preflight: rateLimitPreflight(
       request,
       { name: 'account-unlink', perMinute: 10 },
@@ -57,7 +45,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (!linked.some((c) => c.characterId === characterId)) {
         return redirectWithError(request, 'not_linked');
       }
-      // Can't remove the only character — there'd be no identity left to act as.
+
       if (linked.length <= 1) {
         return redirectWithError(request, 'last_character');
       }
@@ -72,15 +60,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'unlink_failed');
       }
 
-      // Better Auth unlink does not go through deleteLinkedCharacter; re-project
-      // via the never-throw identity hook runner so a Neon enumeration blip
-      // cannot 500 a committed unlink or skip the active-pointer repoint.
       await runAfterCharacterLinkChanged({ userId: session.user.id, characterId });
 
-      // Re-point the active character if we just removed it (the oldest remaining one
-      // becomes active). Read the stored active id FRESH rather than trusting the
-      // session snapshot, which a concurrent switch could have made stale. Safe
-      // because the last-character guard above guarantees at least one account remains.
       const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
       if (activeCharacterId === characterId) {
         await repointActiveToOldest(session.user.id);

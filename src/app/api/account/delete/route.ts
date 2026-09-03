@@ -9,15 +9,6 @@ import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
 
-/**
- * POST-only. Nuke the CALLER's entire account — every linked character's derived
- * data scrubbed, each EVE grant revoked, then the user row deleted (its sessions,
- * preferences, and custom structures cascade). The most destructive self-service
- * control; the account-page UI confirm-gates it.
- * No user input — acts on the session user only (never a body-supplied id).
- */
-// authz: auth
-// input: none
 export const POST = capabilityRoute('account.delete-account', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
@@ -41,7 +32,6 @@ async function handlePost(request: NextRequest): Promise<Response> {
 
   await nukeAccount(session.user.id);
 
-  // Identity-free purge counter (D-6) — deliberately carries NO user/character id.
   void logUsageEvent({
     action: 'account_purge',
     metadata: { scope: 'account' },

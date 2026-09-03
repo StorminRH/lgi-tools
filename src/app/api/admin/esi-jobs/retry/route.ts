@@ -9,12 +9,6 @@ import { parseRange } from '@/composition/admin-period';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
-/**
- * Admin-only form POST. Re-enqueues a dead-lettered refresh through the normal
- * worker path; the query layer absorbs an already-live replacement as an
- * idempotent superseded outcome.
- */
-// authz: admin
 export const POST = capabilityRoute('admin.requeue-esi-job', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

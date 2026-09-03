@@ -15,20 +15,10 @@ import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * POST-only. Purge one of the CALLER's OWN linked characters — the destructive
- * counterpart to unlink: it scrubs all of the character's derived data and revokes
- * its EVE grant upstream (unlink only detaches). Returns \{ accountEmptied \} so the
- * UI knows whether purging the last character emptied (and deleted) the account.
- * Acts on session.user.id only; the ownership check guards the posted character id.
- */
-// authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.purge-character',
-    // Per-IP rate limit, still checked before the session read so a flood is
-    // rejected at the cheapest point. A purge is a rare, deliberate action —
-    // 10/min is generous. Runs as the shell's preflight so a 429 is recorded.
+
     preflight: rateLimitPreflight(
       request,
       { name: 'account-purge-character', perMinute: 10 },
@@ -48,8 +38,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           };
     },
     handle: async ({ session }, { characterId }) => {
-      // The security-critical line: never trust the posted id. Only purge among the
-      // user's own linked characters.
+
       if (!(await accountBelongsToUser(session.user.id, characterId))) {
         return apiResponse(
           purgeCharacterEndpoint,
@@ -63,7 +52,6 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       const result = await purgeOwnCharacter(session.user.id, characterId);
 
-      // Identity-free purge counter (D-6) — deliberately carries NO character id.
       void logUsageEvent({
         action: 'account_purge',
         metadata: { scope: 'character' },

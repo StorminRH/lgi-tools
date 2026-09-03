@@ -24,7 +24,7 @@ import { readJsonBody } from '@/transport/route-body';
  * sharing toggle: the caller must be a member of the corp AND hold the Station_Manager
  * role. The user id comes from the session, never the body.
  */
-// authz: auth
+
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'structures.set-corp-structure-rigs',

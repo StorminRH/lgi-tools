@@ -24,15 +24,6 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
   return url;
 }
 
-/**
- * POST-only. The dashboard's <RoleToggleForm> submits hidden inputs:
- *   userId, nextRole, q (optional).
- * Admin is per-user; the gate + the viewer's own id come from the Better Auth
- * session directly (the shared Session type deliberately doesn't carry userId).
- * Independent gate — never trust a UI-level disable; the handler is the source
- * of truth for who can mutate roles.
- */
-// authz: admin
 export const POST = capabilityRoute('admin.set-user-role', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
@@ -58,8 +49,6 @@ async function handlePost(request: NextRequest): Promise<Response> {
   if (!parsed.ok) return problemResponse(parsed.failure);
   const { userId, nextRole } = parsed.data;
 
-  // Self-toggle guard. The UI disables this button on the viewer's own row,
-  // but a crafted POST would still arrive here — this is the real defense.
   if (userId === viewerUserId) {
     return problemResponse(
       validationFailure('self_role', 'Cannot toggle your own role'),

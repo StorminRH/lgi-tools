@@ -28,7 +28,6 @@ import { NextRequest } from 'next/server';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-// SDE fixtures: an Azbel (group 1404, L rigs) + one fitting L manufacturing rig.
 const azbel = { typeId: 35826, name: 'Azbel', groupId: 1404, rigSize: 3 };
 const lMfgRig = {
   typeId: 37170,
