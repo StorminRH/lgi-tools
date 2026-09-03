@@ -1,5 +1,3 @@
-// Wire shapes verified against the live ESI OpenAPI spec
-
 import { z } from 'zod';
 
 export const skillQueueEntrySchema = z.object({

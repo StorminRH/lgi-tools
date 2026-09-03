@@ -1,4 +1,5 @@
 import { authClient } from '@/platform/auth/auth-client';
+import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
 import type { AppRouterInstance, SearchContext, SearchSource } from '@/platform/search';
 import { rankFuzzyResults } from '@/platform/search/rank';
 
@@ -56,8 +57,7 @@ const COMMANDS: CommandEntry[] = [
       void authClient
         .signOut()
         .then(({ error }) => {
-          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
-          if (!error) window.location.href = '/';
+          if (!error) reloadDocumentHome();
 
         })
         .catch(() => {

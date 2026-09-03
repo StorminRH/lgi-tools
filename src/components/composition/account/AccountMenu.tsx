@@ -14,6 +14,7 @@ import {
   type MenuAnchor,
 } from '@/components/ui/menu';
 import { authClient } from '@/platform/auth/auth-client';
+import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
 import type { Session } from '@/platform/auth/types';
 import { startCharacterLink } from '@/platform/auth/link-character';
 
@@ -64,8 +65,7 @@ export function AccountMenu({
         onClick={() => {
 
           void authClient.signOut().finally(() => {
-            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
-            window.location.href = '/';
+            reloadDocumentHome();
           });
         }}
       >

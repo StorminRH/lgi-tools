@@ -35,7 +35,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   }, [siteIndex]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR; seed after mount
     setRecents(readRecents());
   }, []);
 

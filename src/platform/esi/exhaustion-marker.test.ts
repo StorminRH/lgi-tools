@@ -67,8 +67,6 @@ describe('recent ESI budget exhaustion marker', () => {
   it('resolves its client with an explicit bound and no retries', () => {
     markRecentBudgetExhaustion();
 
-    // A hint write on the ESI go/no-go path must never inherit the SDK's
-
     expect(mocks.resolveUpstashClient).toHaveBeenCalledWith({
       timeoutMs: 2000,
       retries: 0,

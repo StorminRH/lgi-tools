@@ -321,8 +321,6 @@ describe('revokeEveRefreshToken', () => {
 
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe(EVE_REVOKE_URL);
-    // RFC 7009 body: `token` + `token_type_hint` — NOT the token endpoint's
-
     expect(init?.body).toContain('token=a%2Bb%2Fc');
     expect(init?.body).toContain('token_type_hint=refresh_token');
     expect(init?.body).not.toContain('grant_type');

@@ -319,8 +319,6 @@ const postgresConnectionStringSelectors = [
   },
 ];
 
-// Banning the host literal outside src/platform/esi means the only way to target
-
 const esiHostSelectors = [
   {
     selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
@@ -889,8 +887,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // @/platform/auth owns the Better Auth instance, its adapter, and the EVE
-
   {
     files: [
       "src/platform/auth/**/*.{ts,tsx,mts}",

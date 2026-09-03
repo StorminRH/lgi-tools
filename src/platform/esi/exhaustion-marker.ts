@@ -2,8 +2,6 @@ import { resolveUpstashClient, type UpstashRedis } from '@/lib/upstash';
 
 const RECENT_EXHAUSTION_KEY = 'lgi:esi:recent-exhaustion';
 const RECENT_EXHAUSTION_TTL_SECONDS = 35 * 60;
-// The marker is a hint on the ESI go/no-go path: a slow Redis must not add
-
 const MARKER_TIMEOUT_MS = 2000;
 const MARKER_RETRIES = 0;
 

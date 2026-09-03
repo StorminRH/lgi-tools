@@ -11,9 +11,6 @@ export default defineConfig({
     },
   },
   test: {
-
-    // via a per-file `// @vitest-environment edge-runtime` directive (convex-test
-
     include: [
       'src/**/*.test.ts',
       'convex/**/*.test.ts',

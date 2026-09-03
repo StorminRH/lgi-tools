@@ -102,16 +102,14 @@ export type SiteResource = z.infer<typeof siteResourceSchema>;
 
 export type SiteDetail = z.infer<typeof siteDetailSchema>;
 
-// Postgres `serial` is signed 32-bit, so site IDs cannot exceed this. Reject
-
-const PG_SERIAL_MAX = 2_147_483_647;
+const POSTGRES_SERIAL_MAX = 2_147_483_647;
 
 const siteIdParamSchema = z.object({
   id: z
     .string()
     .regex(/^[1-9]\d*$/)
     .transform(Number)
-    .pipe(z.number().int().positive().max(PG_SERIAL_MAX)),
+    .pipe(z.number().int().positive().max(POSTGRES_SERIAL_MAX)),
 });
 
 export const siteDetailEndpoint = defineEndpoint({

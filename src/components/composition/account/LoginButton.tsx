@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip } from '@/components/ui/tooltip';
 import { authClient } from '@/platform/auth/auth-client';
+import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
 import { AccountMenu } from './AccountMenu';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 
@@ -79,8 +80,7 @@ function SignedInCluster({
           onClick={() => {
 
             void authClient.signOut().finally(() => {
-              // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
-              window.location.href = '/';
+              reloadDocumentHome();
             });
           }}
           className="text-label uppercase tracking-wide text-muted hover:text-text px-2 py-1 transition-colors"

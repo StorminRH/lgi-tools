@@ -1,5 +1,3 @@
-// Wire shape verified against the live ESI OpenAPI spec
-
 import { z } from 'zod';
 
 const ownedBlueprintSchema = z.object({

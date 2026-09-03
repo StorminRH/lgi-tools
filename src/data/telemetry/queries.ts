@@ -124,9 +124,6 @@ function topByMetadataKeyQuery(
     .select({ value: col, count: count() })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
-
-    // Drizzle re-numbers per clause, so reusing `col` here makes GROUP BY reference
-
     .groupBy(sql`1`)
     .orderBy(desc(count()))
     .limit(limit);

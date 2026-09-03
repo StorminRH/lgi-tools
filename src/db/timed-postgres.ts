@@ -1,5 +1,3 @@
-// This module deliberately does not import the `postgres` package: the vendor rail
-
 import { addDependencyTiming } from '@/lib/dependency-timing';
 
 const OBSERVED = Symbol('db.query-timed');

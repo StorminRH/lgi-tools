@@ -35,8 +35,6 @@ const eveTokenErrorSchema = z.object({
   error_description: z.string().optional(),
 });
 
-// EVE's JWKS rotates rarely; `jose` caches the remote set per process.
-
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | undefined;
 function jwks() {
   if (!jwksCache) {
@@ -203,8 +201,6 @@ export async function revokeEveRefreshToken({
   clientId,
   clientSecret,
 }: RevokeTokenInput): Promise<{ ok: boolean }> {
-  // RFC 7009 revoke params: the token + its type hint. NOT the token endpoint's
-
   const body = new URLSearchParams({
     token: refreshToken,
     token_type_hint: 'refresh_token',

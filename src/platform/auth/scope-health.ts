@@ -1,8 +1,6 @@
 import { EVE_SCOPES } from './eve-sso';
 
 export interface CharacterHealth {
-  // True when the character can't currently back the required ESI calls: either
-
   needsReconnect: boolean;
 
   missingScopes: string[];

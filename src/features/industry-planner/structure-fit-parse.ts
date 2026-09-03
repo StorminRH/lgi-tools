@@ -1,5 +1,3 @@
-// --- Verified format (CCP fitting spec + pyfa's reference parser; HIGH confidence) ---
-
 export interface ParsedStructureFit {
   structureTypeId: number;
   rigTypeIds: number[];

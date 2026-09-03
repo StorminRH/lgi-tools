@@ -3,8 +3,7 @@ import { esiFetch, esiUrl } from '@/platform/esi';
 import { eveNpcStations } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
 
-// ESI's /universe/names/ resolves up to 1000 ids per POST.
-const NAMES_BATCH = 1000;
+const ESI_UNIVERSE_NAMES_POST_MAX = 1000;
 
 export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: number }> {
   const rows = await db
@@ -15,14 +14,12 @@ export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: n
   if (ids.length === 0) return { resolved: 0 };
 
   let resolved = 0;
-  for (let i = 0; i < ids.length; i += NAMES_BATCH) {
-    const batch = ids.slice(i, i + NAMES_BATCH);
+  for (let i = 0; i < ids.length; i += ESI_UNIVERSE_NAMES_POST_MAX) {
+    const batch = ids.slice(i, i + ESI_UNIVERSE_NAMES_POST_MAX);
 
     try {
       const named = await fetchStationNames(batch);
       if (named.length === 0) continue;
-      // One UPDATE … FROM (VALUES …) per ESI batch, not per station. The VALUES
-
       const values = sql.join(
         named.map((n) => sql`(${n.id}, ${n.name})`),
         sql`, `,

@@ -11,8 +11,6 @@ const TYPES = new Map<string, number>([
 ]);
 const resolve: ResolveTypeId = (name) => TYPES.get(name);
 
-// Grammar-faithful Azbel fit (CCP fitting spec): high slots, a rig, two service
-
 const AZBEL_FIT = `[Azbel, Cap Production]
 Standup Multirole Missile Launcher I
 Standup Multirole Missile Launcher I
