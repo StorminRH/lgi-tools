@@ -1,5 +1,3 @@
-// deliberately import-free and free of `node:` builtins: the three seams that
-// call it (`src/platform/esi/index.ts`, `src/lib/upstash.ts`, `src/db/index.ts`)
 export type DependencyKind = 'neon' | 'esi' | 'redis';
 
 export interface DependencyTiming {
