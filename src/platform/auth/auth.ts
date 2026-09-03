@@ -99,12 +99,6 @@ const options = {
           responseType: 'code',
           prompt: 'consent',
           overrideUserInfo: true,
-          // EVE's token endpoint needs HTTP Basic auth, the PKCE verifier, AND a
-          // descriptive User-Agent (CCP blocks UA-less traffic). We hand the whole
-          // exchange to the proven helper rather than Better Auth's default fetch,
-          // which can't set the User-Agent. Likewise getUserInfo runs EVE's JWKS
-          // fetch through the helper's User-Agent. Do NOT drop these for the
-          // default exchange. (`authentication` is moot while getToken is custom.)
           getToken: async ({ code, codeVerifier }) => {
             const token = await exchangeCodeForToken({
               code,
