@@ -27,6 +27,7 @@ const box = cva(
   },
 );
 
+// eslint-disable-next-line no-restricted-syntax -- inner checkbox-fill indicator, sub-4px by design
 const fill = cva('block h-[8px] w-[8px] rounded-[1px]', {
   variants: {
     tone: {
