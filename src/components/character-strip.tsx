@@ -1,22 +1,5 @@
 'use client';
 
-// The per-surface character strip (ACCOUNT.7, D-7): the account's characters as
-// portrait toggles above a tracked-data panel. Dimming a portrait hides that
-// character's rows on THIS surface only — the panel filters its render through
-// the same preference binding (view-only: the on-view sync still fetches every
-// eligible character). A scope-missing character renders dimmed-LOCKED: its
-// portrait is not a toggle but the surface's compact reconnect affordance, and
-// one strip-level "Reconnect to track" button appears beside the row. Both ride
-// startCharacterLink — EVE SSO picks the character at its login, so every
-// reconnect affordance launches the same consent; the pathname is read inside
-// the click handler only (never at render — the #182 request-time lesson).
-//
-// Controlled on purpose: the panel owns the single usePreference binding and
-// passes { dimmedIds, onChange }, so this stays a stateless shell over the
-// tested character-strip-model helpers. Shared zone: it bridges the tracker
-// features to the auth relink flow — features may not import auth/components;
-// this zone may (the RunAsFrame edge).
-
 import { cva } from 'class-variance-authority';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -38,10 +21,6 @@ const portraitButton = cva(
   },
 );
 
-/**
- * Renders selectable character portraits with online status and optional selection control;
- * callers own the selected character identifier.
- */
 export function CharacterStrip({
   characters,
   dimmedIds,
@@ -57,13 +36,12 @@ export function CharacterStrip({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-label tracking-wide uppercase text-muted">Tracking</span>
+
       <div className="flex items-center gap-1.5">
         {characters.map((character) => {
           const state = stripState(character, dimmedIds);
           const isLocked = state === 'locked';
-          // One phrase names the ACTION for both the accessible name and the
-          // tooltip — aria-label overrides title as the accessible name, so a
-          // name-only label would leave the Hide/Show verb unannounced.
+
           const actionLabel = isLocked
             ? `Reconnect ${character.name} to track`
             : state === 'dimmed'
@@ -93,10 +71,13 @@ export function CharacterStrip({
                   src={character.portraitUrl}
                 />
               </Button>
+
             </Tooltip>
+
           );
         })}
       </div>
+
       {anyLocked && (
         <Button
           variant="secondary"
@@ -106,7 +87,9 @@ export function CharacterStrip({
         >
           Reconnect to track
         </Button>
+
       )}
     </div>
+
   );
 }

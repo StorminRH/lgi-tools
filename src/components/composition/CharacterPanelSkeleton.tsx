@@ -1,7 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-/** Reserves portrait, identity, and readout geometry while a character-backed panel resolves. */
 export function CharacterPanelSkeleton({
   rows = 2,
   label = 'Loading characters',
@@ -21,9 +20,12 @@ export function CharacterPanelSkeleton({
             <Skeleton aria-hidden="true" className="h-3 w-36 max-w-full" />
             <Skeleton aria-hidden="true" className="h-2.5 w-24 max-w-full" />
           </div>
+
           <Skeleton aria-hidden="true" className="h-6 w-24" />
         </div>
+
       ))}
     </Card>
+
   );
 }

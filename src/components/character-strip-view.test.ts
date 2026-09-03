@@ -47,9 +47,9 @@ describe('deriveStripView', () => {
   it('shows the all-hidden notice only when a strip leaves nothing lit', () => {
     const characters = [character(1)];
     expect(deriveStripView(strip, characters, [1], false).showEmptyNotice).toBe(true);
-    // no strip → no notice even when the (unfiltered) list would be empty
+
     expect(deriveStripView(undefined, [], [], false).showEmptyNotice).toBe(false);
-    // strip but something stays lit → no notice
+
     expect(deriveStripView(strip, [character(1), character(2)], [1], false).showEmptyNotice).toBe(
       false,
     );

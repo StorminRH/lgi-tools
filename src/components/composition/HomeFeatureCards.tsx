@@ -22,31 +22,31 @@ function FeatureCard({
           <div className="font-display font-bold text-h3 tracking-optical leading-[1.15] text-name">
             {title}
           </div>
+
         </div>
+
         <p className="flex-1 text-body leading-[1.65] text-text">{description}</p>
+
         <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
           <div className="flex items-center gap-1">{pills}</div>
+
           <span className="text-label tracking-copy text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
             open →
           </span>
+
         </div>
+
       </Link>
+
     </Card>
+
   );
 }
 
-/**
- * The shared tool grid — identical for anonymous and signed-in visitors. The
- * card-glow + bob hover (reduced-motion gated in globals.css) and the
- * arbitrary-value grid template use classes, not inline `style` (house style).
- */
 export function HomeFeatureCards() {
   return (
     <section>
       <SectionLabel className="mb-cluster">Tools</SectionLabel>
-      {/* Tailwind arbitrary-value class, not an inline `style` prop — house
-       * style keeps the column template in a class so it renders server-side,
-       * not just after hydration. */}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         <FeatureCard
           href="/sites"
@@ -55,9 +55,13 @@ export function HomeFeatureCards() {
           pills={
             <>
               <Pill tone="red-soft">Combat</Pill>
+
               <Pill tone="teal">Gas</Pill>
+
               <Pill tone="yellow">Ore</Pill>
+
             </>
+
           }
         />
         <FeatureCard
@@ -67,10 +71,15 @@ export function HomeFeatureCards() {
           pills={
             <>
               <Pill tone="neutral">T1</Pill>
+
               <Pill tone="blue">T2</Pill>
+
               <Pill tone="purple">T3</Pill>
+
               <Pill tone="teal">Reactions</Pill>
+
             </>
+
           }
         />
         <FeatureCard
@@ -80,12 +89,18 @@ export function HomeFeatureCards() {
           pills={
             <>
               <Pill tone="purple">Chain</Pill>
+
               <Pill tone="teal">Scanner</Pill>
+
               <Pill tone="green">Live</Pill>
+
             </>
+
           }
         />
       </div>
+
     </section>
+
   );
 }
