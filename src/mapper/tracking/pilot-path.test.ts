@@ -8,10 +8,6 @@ import {
   PILOT_PATH_MAX_JUMPS,
 } from './pilot-path';
 
-// A gate corridor off a two-system drawn boundary, with a branch:
-//
-//   drawn {10, 11} — 11–20 — 20–21 — 21–22 — … (long tail to 35)
-//                       └— 40 (side spur off 20)
 const CORRIDOR = new Map<number, readonly number[]>([
   [10, [11]],
   [11, [10, 20]],
@@ -42,7 +38,6 @@ test('derivePilotPath returns inclusive paths and nulls past the jump bound', ()
     }),
   ).toEqual([11]);
 
-  // 34 is 15 jumps out — exactly at the bound; 35 is 16 — one past it.
   expect(PILOT_PATH_MAX_JUMPS).toBe(15);
   expect(
     derivePilotPath({

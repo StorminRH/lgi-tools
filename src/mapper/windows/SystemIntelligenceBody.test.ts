@@ -7,7 +7,6 @@ import {
   SystemTitleAccessory,
 } from './SystemIntelligenceBody';
 
-// Mutable fixture facts so each case drives the mocked directory lookup.
 const fields = {
   name: 'J123456',
   security: -1 as number | null,
