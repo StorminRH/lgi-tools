@@ -1,17 +1,6 @@
-// Recent search source. The ONLY source that opts into `showOnEmpty: true`
-// — focusing the empty search bar surfaces the user's previously-clicked
-// rows so re-finding a recently-viewed site doesn't require re-typing its
-// name. The actual storage lives in `./storage.ts`; the source reads from
-// the SearchContext's `recents` array (populated by GlobalSearch on mount
-// via `readRecents()`).
-
 import type { SearchResult, SearchSource } from '@/platform/search';
 import { fuzzyMatch } from '@/platform/search/match';
 
-/**
- * Global-search source for recents search source; it owns matching and result mapping while the
- * app layer owns registration.
- */
 export const recentsSearchSource: SearchSource = {
   id: 'recents',
   name: 'Recent',
@@ -19,7 +8,7 @@ export const recentsSearchSource: SearchSource = {
   showOnEmpty: true,
   async search(query, ctx) {
     if (query.length === 0) {
-      // Preserve recency order — no scoring needed when the bar is empty.
+
       return ctx.recents.map<SearchResult>((r) => ({ ...r, matchIndices: [] }));
     }
 

@@ -1,7 +1,3 @@
-// localStorage helpers for the search-recents slice. Pure functions —
-// no React. Cap at MAX entries; newer entries replace older duplicates so
-// the most recently-clicked row floats to the top.
-
 import { z } from 'zod';
 import { blueprintImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
 import type { SearchResult } from '@/platform/search';
@@ -9,22 +5,11 @@ import type { SearchResult } from '@/platform/search';
 const STORAGE_KEY = 'lgi:search:recents';
 const MAX_RECENTS = 10;
 
-// What gets persisted is a thin subset of SearchResult — re-emitted to
-// the dropdown verbatim when the user refocuses an empty input. Storing
-// `kind` lets the dropdown re-tone the icon, while `originKind` records
-// which source produced the row so future cleanup logic can target one
-// kind specifically without parsing strings. `typeId` preserves the source's
-// product/type identity; blueprint image intent is reconstructed from the stable
-// `blueprint:<id>` row id on read rather than persisting a rendition string.
 type StoredRecent = Pick<
   SearchResult,
   'kind' | 'id' | 'label' | 'sub' | 'href' | 'iconText' | 'iconTone' | 'typeId'
 >;
 
-// localStorage is an untrusted boundary (another tab, an old build, a user
-// poking at devtools), so validate every stored row with Zod rather than a
-// hand-rolled typeof guard — it also type-checks the optional display fields
-// the old guard skipped.
 const storedRecentSchema = z.object({
   kind: z.string(),
   id: z.string(),
@@ -59,16 +44,10 @@ function recentImage(r: StoredRecent): EveImageDescriptor | undefined {
   return blueprintTypeId !== undefined ? blueprintImage(blueprintTypeId) : undefined;
 }
 
-// A blueprint recent must retain its product typeId for compatibility and carry
-// a valid stable blueprint id so replay can reconstruct the blueprint rendition.
 function rendersIcon(r: StoredRecent): boolean {
   return r.kind !== BLUEPRINT_KIND || (r.typeId !== undefined && recentImage(r) !== undefined);
 }
 
-/**
- * Reads and validates browser-local search recents, returning an empty list for malformed or
- * unavailable storage.
- */
 export function readRecents(): SearchResult[] {
   return readStored()
     .slice(0, MAX_RECENTS)
@@ -83,7 +62,6 @@ export function readRecents(): SearchResult[] {
     });
 }
 
-/** Moves one search selection to the front of the bounded, deduplicated recent list. */
 export function pushRecent(result: SearchResult): void {
   if (result.kind === 'recent') return;
   if (result.disabled) return;
@@ -115,8 +93,7 @@ function readStored(): StoredRecent[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    // Drop malformed rows AND stale item rows that predate the typeId — both via
-    // the same gate, so a later pushRecent rewrites a cleaned list (self-purging).
+
     return parsed.filter(isStoredRecent).filter(rendersIcon);
   } catch {
     return [];

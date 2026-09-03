@@ -5,7 +5,6 @@ import type { CharacterSkillSyncState, RefreshCharacter, SkillsEsiRead, SkillsPo
 const NOW = new Date('2026-06-28T12:00:00Z');
 const QUEUE_SCOPE = 'esi-skills.read_skillqueue.v1';
 
-// A valid ESI skillqueue element.
 function esiQueueEntry(skillId: number, position: number) {
   return {
     skill_id: skillId,
@@ -45,7 +44,6 @@ const character = (id: number, extra: Partial<RefreshCharacter> = {}): RefreshCh
   ...extra,
 });
 
-// lastRefreshedAt 60s ago — inside the 120s TTL, so the character is fresh.
 const fresh = (): CharacterSkillSyncState => ({
   lastRefreshedAt: new Date(NOW.getTime() - 60_000),
   queueEtag: null,
@@ -70,7 +68,7 @@ describe('refreshSkillsForUser', () => {
   it('fetches and saves both halves for a never-synced character', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
-      readSyncState: vi.fn(async () => null), // never synced → stale, no held etags
+      readSyncState: vi.fn(async () => null),
     });
 
     await refreshSkillsForUser(port, 'u1');
@@ -195,9 +193,6 @@ describe('refreshSkillsForUser', () => {
   });
 });
 
-// The save/stamp/partial-304/error branches run through refreshSkillsForUser's
-// port workflow above; the mismatch row is the one arm with no workflow twin,
-// and it pins the PersistVerdict skip shape owner-sync consumes.
 describe('planSkillsPersist', () => {
   const fresh = (body: unknown, etag: string | null): SkillsEsiRead => ({ kind: 'fresh', body, etag });
   const unchanged: SkillsEsiRead = { kind: 'unchanged' };
