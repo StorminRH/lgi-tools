@@ -3,7 +3,7 @@ import { leaveSyncEndpoint, leaveSyncRequestSchema } from '@/data/convex/api-con
 import { LeaveSyncDoorError, postLeaveSync } from '@/data/convex/leave-door';
 import { dependencyUnavailableFailure } from '@/lib/failure';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/composition/route-guards';
 import { apiResponse, problemResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 

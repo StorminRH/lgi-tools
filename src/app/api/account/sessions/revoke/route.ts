@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { sessionsRevokeEndpoint } from '@/platform/auth/api-contract';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
-import { checkSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/composition/route-guards';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { apiResponse } from '@/transport/api-response';
 

@@ -5,9 +5,9 @@ import {
   type AppFailure,
   unauthenticatedFailure,
 } from '@/lib/failure';
-import { auth } from './auth';
-import { getCurrentUserId } from './session';
-import { requireSameOrigin } from './same-origin';
+import { auth } from '@/composition/auth';
+import { getCurrentUserId } from '@/composition/session';
+import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 

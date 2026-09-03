@@ -1,9 +1,9 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
-vi.mock('./auth', () => ({ auth: { api: { getSession: vi.fn() } } }));
+vi.mock('@/composition/auth', () => ({ auth: { api: { getSession: vi.fn() } } }));
 
-import { isAdmin } from './session';
-import type { Session } from './types';
+import { isAdmin } from '@/composition/session';
+import type { Session } from '@/platform/auth/types';
 
 const userSession: Session = {
   characterId: 12345,

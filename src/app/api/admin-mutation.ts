@@ -1,4 +1,4 @@
-import { checkAdminMutation, type SessionCheckResult } from '@/platform/auth/route-guards';
+import { checkAdminMutation, type SessionCheckResult } from '@/composition/route-guards';
 import { problemResponse } from '@/transport/api-response';
 
 export type AdminSession = Extract<SessionCheckResult, { ok: true }>['session'];
