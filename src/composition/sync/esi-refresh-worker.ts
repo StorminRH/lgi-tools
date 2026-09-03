@@ -119,9 +119,6 @@ async function alertDeadLetter(
   );
 }
 
-// The queue's own outcome vocabulary mapped onto the shared failure taxonomy.
-// The queue statuses stay authoritative for retry scheduling; this is only how
-// the run is described in the capability record.
 function capabilityResultForJob(outcome: ProcessJobOutcome): CapabilityResult {
   switch (outcome.status) {
     case 'succeeded':
@@ -147,11 +144,6 @@ function jobRetry(outcome: ProcessJobOutcome): CapabilityRetry {
   };
 }
 
-/**
- * Runs one job inside its own correlation scope so the ESI and Neon time it spends is attributed to
- * that job alone, and records exactly one capability row for it. Retry, recovery, and alerting
- * behavior is unchanged: the record describes the run, it does not decide it.
- */
 function processJob(job: EsiRefreshJob, now: Date): Promise<ProcessJobOutcome> {
   return withCorrelationScope(async () => {
     const startedAt = performance.now();
@@ -164,11 +156,7 @@ function processJob(job: EsiRefreshJob, now: Date): Promise<ProcessJobOutcome> {
       });
       return outcome;
     } catch (error) {
-      // `runJob`'s own status writes can throw — Neon being unavailable is the
-      // obvious case — and the drain swallows that to isolate the job. Recording
-      // before rethrowing keeps the runs where the queue is failing hardest in
-      // the capability stream; without it the job and ESI indicators would read
-      // clean through exactly the outage they exist to surface.
+
       recordCapabilityOutcome('sync.process-esi-refresh-job', {
         ...capabilityResultForError(error),
         durationMs: performance.now() - startedAt,
@@ -233,9 +221,6 @@ function emitJobStatus(
   });
 }
 
-// One owner for the status-to-summary mapping and the rule that only persisted
-// completion/failure transitions enter the ledger. Budget deferral stays live
-// queue state, so it contributes to the drain summary but emits no finish event.
 function recordProcessedOutcome(
   counts: EsiRefreshWorkerCounts,
   job: EsiRefreshJob,
@@ -261,10 +246,6 @@ function recordProcessedOutcome(
   emitJobStatus(job, outcome.status, outcome.attemptCount, outcome.failureCode);
 }
 
-/**
- * Claims and runs one bounded batch of deferred ESI refresh jobs with per-job isolation, retry
- * scheduling, dead-letter handling, and an aggregate drain summary.
- */
 export async function drainEsiRefreshJobs(
   now = new Date(),
 ): Promise<Omit<EsiRefreshWorkerSummary, 'status' | 'durationMs'>> {

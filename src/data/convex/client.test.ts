@@ -11,7 +11,7 @@ describe('convexClient construction', () => {
   });
 
   it('builds with a custom logger and reuses the first mint on connect', async () => {
-    // Isolate Math.random: Next Cache Components prerender flags Convex DefaultLogger.
+
     const random = vi.spyOn(Math, 'random').mockReturnValue(0.42);
     vi.resetModules();
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');

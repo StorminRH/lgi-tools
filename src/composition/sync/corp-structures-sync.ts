@@ -25,11 +25,6 @@ import type { SecurityClass } from '@/data/eve-data/security';
 import { forbiddenFailure, type AppFailure } from '@/lib/failure';
 import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor } from './owner-sync-port';
 
-// The real corp port: the shared auth + ESI wiring (owner-sync-port.ts) plus this
-// slice's own corp-keyed Neon read/save/stamp. Corp structures reads ONE paged
-// endpoint (readPagedEndpoint) per corporation. Note there is no saveNeedsRole: the
-// store is shared, so a role-less member never drops it (the refresh omits the gate
-// state — see owned-structures/refresh.ts).
 function makeCorpStructuresPort(): CorpStructuresPort {
   return {
     now: () => new Date(),
@@ -45,17 +40,12 @@ function makeCorpStructuresPort(): CorpStructuresPort {
   };
 }
 
-/** One corp's structures for the wire: the shared catalogue + the "as of" stamp. */
 export interface ViewerCorpStructures {
   corporationId: number;
   structures: CorpStructureRow[];
   lastRefreshedAt: number | null;
 }
 
-/**
- * The on-view payload: the per-corp structure catalogues for every corp the viewer
- * is a member of.
- */
 export interface ViewerCorpStructuresResult {
   corporations: ViewerCorpStructures[];
 }
@@ -65,7 +55,7 @@ function scheduleCorpStructuresRefresh(userId: string): void {
 }
 
 // headers() still resolves during the session App Shell. Affiliation ESI must
-// wait for a real request so Next does not abort the fetch at prerender end.
+
 async function loadFreshUserAffiliations(userId: string) {
   await connection();
   await refreshStaleAffiliationsForUser(userId);
@@ -78,10 +68,6 @@ function freshnessMapOf(
   return new Map(syncStates.map((s) => [s.corporationId, s.lastRefreshedAt.getTime()]));
 }
 
-/**
- * Returns stored corporation structures visible to one user and schedules only the stale eligible
- * owners for refresh.
- */
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
   const affiliations = await loadFreshUserAffiliations(userId);
   const corporationIds = memberCorpIds(affiliations, new Date());
@@ -92,9 +78,6 @@ export async function getCorpStructuresForUserOnView(userId: string): Promise<Vi
   ]);
   scheduleCorpStructuresRefresh(userId);
 
-  // Fail reads closed on consent (defense in depth): a corp that hasn't opted in
-  // returns no structures even if a row survived a partial wipe — so this seam (and
-  // the planner merge that reuses it) never exposes a disabled corp's catalogue.
   const freshnessByCorp = freshnessMapOf(syncStates);
   const corporations: ViewerCorpStructures[] = corporationIds.map((corporationId) => ({
     corporationId,
@@ -105,12 +88,6 @@ export async function getCorpStructuresForUserOnView(userId: string): Promise<Vi
   return { corporations };
 }
 
-/**
- * One corp-pulled structure flattened for the planner's build-location selector: the
- * stored row joined with the structure-manager's authored completion (rig fit, empty
- * when none; facility tax, null when never entered → the fee path assumes the 0.25%
- * NPC baseline).
- */
 export interface AvailableCorpStructure {
   structureId: number;
   typeId: number;
@@ -121,13 +98,6 @@ export interface AvailableCorpStructure {
   taxPct: number | null;
 }
 
-/**
- * The corp-pulled structures the user may build in, flattened across their member
- * corps and joined with the authored rigs — the corp half of GET /api/account/structures.
- * Reuses the on-view seam (membership scoping + the sharing read-filter + the
- * write-behind refresh), so only sharing-enabled corps contribute and a disabled
- * corp's structures never appear. Anonymous / no-member users get an empty list.
- */
 export async function getAvailableCorpStructuresForUser(userId: string): Promise<AvailableCorpStructure[]> {
   const { corporations } = await getCorpStructuresForUserOnView(userId);
   const rigsByStructure = await getCorpStructureRigs(corporations.map((c) => c.corporationId));
@@ -226,15 +196,6 @@ async function userHoldsCorpRole(
   return false;
 }
 
-/**
- * The two-step Station_Manager gate shared by the corp-structure mutation routes
- * (sharing toggle + the rig/tax completion): membership first (decideCorpAccess —
- * fail-closed + audited; also refreshes affiliations), then the in-game role on
- * the freshly refreshed set. Returns a typed failure union so the caller owns
- * HTTP delivery. Lives here beside userHoldsCorpRole because it composes the
- * auth slice's access decision with this layer's role read — the same cross-slice
- * join reason the rest of the file exists.
- */
 export async function stationManagerGate(
   userId: string,
   corporationId: number,
