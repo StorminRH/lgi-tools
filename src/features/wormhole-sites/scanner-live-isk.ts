@@ -8,10 +8,6 @@ export function recipeLiveIsk(
   return liveIskFor(recipe.units, bestSell ?? null) ?? recipe.seedIsk;
 }
 
-/**
- * Sums live (or seed) ISK across recipes and reports whether any type is still
- * awaiting confirmation. Empty recipes → null total / not pending.
- */
 export function scannerLiveEstIsk(
   recipes: readonly SiteLiveRecipe[],
   priceOf: (typeId: number) => { bestSell: number | null } | undefined,
@@ -30,12 +26,10 @@ export function scannerLiveEstIsk(
   return { total, pending };
 }
 
-/** Sorted unique type-id key so a provider remount tracks set membership. */
 export function scannerLiveTypeIdKey(typeIds: readonly number[]): string {
   return [...new Set(typeIds)].sort((a, b) => a - b).join(',');
 }
 
-/** Collects unique type IDs from live recipes for named harvestable sites. */
 export function scannerLiveTypeIdsForNames(
   names: readonly string[],
   recipesForName: (name: string) => readonly SiteLiveRecipe[],

@@ -3,7 +3,6 @@ import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
 
-/** Renders one combat wave's NPC composition, totals, and electronic-warfare indicators. */
 export function WaveCard({
   wave,
   label,
@@ -11,11 +10,10 @@ export function WaveCard({
   showEwar = false,
 }: {
   wave: Wave;
-  /** Override the wave's own waveLabel (e.g. "Initial", "Delayed") if needed. */
+
   label?: string;
   defaultOpen?: boolean;
-  /** When the parent card hasn't already rendered a site-level EWAR row,
-   *  render the wave's own EWAR row inside the wave body. */
+
   showEwar?: boolean;
 }) {
   const displayLabel = label ?? wave.waveLabel;
@@ -28,10 +26,13 @@ export function WaveCard({
           <span className="text-label font-bold tracking-eyebrow uppercase text-text shrink-0">
             {displayLabel}
           </span>
+
           <span className="ml-auto text-micro font-semibold tracking-label text-text">
             DPS {formatDps(wave.dpsTotal)}
           </span>
+
         </>
+
       }
     >
       {showEwar && (
@@ -42,19 +43,15 @@ export function WaveCard({
           rr={wave.ewRrep}
         />
       )}
-      {/* Subgrid so the EWAR chips line up in one column (DPS far right). The name
-       *  column width comes from `--npc-name-col` (set by NpcNameColScope to the
-       *  widest name across ALL waves, so the columns line up across the whole
-       *  expansion); it falls back to per-wave auto sizing before that runs. The
-       *  row's horizontal padding lives here on the parent, not on the subgrid rows
-       *  — padding on a subgrid offsets its inherited track lines and would collapse
-       *  the 44px lead column. */}
+      {}
       <div className="grid grid-cols-[44px_var(--npc-name-col,minmax(0,auto))_auto_1fr] px-3.5">
         {wave.npcs.map((npc) => (
           <NpcRow key={npc.id} npc={npc} />
         ))}
       </div>
+
     </Collapsible>
+
   );
 }
 

@@ -1,9 +1,3 @@
-// Sites search source. Reads from a module-scoped site index that
-// AppHeaderShell (GlobalSearch) seeds at mount and SiteCatalogueProvider
-// mirrors for the atlas — keeps the per-keystroke matcher synchronous
-// and zero-RPC. AppHeader uses getSiteSearchIndex(); the atlas scanner
-// uses getScannerSiteIndex() for live-priced Est. ISK + recipes.
-
 import type { SearchResult, SearchSource } from '@/platform/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/platform/search/match';
 import { formatIskCompact } from '@/lib/format/isk';
@@ -14,10 +8,9 @@ import { primarySiteIsk } from './site-primary-isk';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 
-/** Injects the immutable wormhole-site search catalogue consumed by the registered source. */
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
-  // Exact name→id (+ Est. ISK + live recipes) for scanner site rows shares this seed.
+
   setSiteNameIndex(
     entries.map((entry) => ({
       id: entry.id,
@@ -28,8 +21,6 @@ export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   );
 }
 
-// The result-icon badge colour, as an abstract tone (the render layer maps it to
-// tokens). The wormhole-class → tone knowledge stays here in the sites feature.
 function iconTone(entry: SiteSearchEntry): string {
   return entry.wormholeClass ? CLASS_TONE[entry.wormholeClass] : 'neutral';
 }
@@ -38,10 +29,6 @@ const CLASS_ORDER: Record<string, number> = {
   C1: 0, C2: 1, C3: 2, C4: 3, C5: 4, C6: 5,
 };
 
-/**
- * Global-search source for sites search source; it owns matching and result mapping while the app
- * layer owns registration.
- */
 export const sitesSearchSource: SearchSource = {
   id: 'sites',
   name: 'Sites',
@@ -53,9 +40,6 @@ export const sitesSearchSource: SearchSource = {
       if (match) matches.push({ entry, match });
     }
 
-    // Sort by fuzzy score desc, then keep the existing class C1→C6 +
-    // primary-ISK desc tiebreaker so equal-score hits still cluster
-    // the same way they did before fuzzy matching landed.
     matches.sort((a, b) => {
       if (a.match.score !== b.match.score) return b.match.score - a.match.score;
       const ca = a.entry.wormholeClass ? CLASS_ORDER[a.entry.wormholeClass] ?? 9 : 9;
