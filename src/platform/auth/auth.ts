@@ -49,7 +49,6 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
   return characterId !== null && characterId === superId;
 }
 
-/** Builds the Better Auth instance with injected identity-projection runners. */
 export function createAuth(runners: IdentityProjectionRunners) {
   const options = {
   database: drizzleAdapter(db, {

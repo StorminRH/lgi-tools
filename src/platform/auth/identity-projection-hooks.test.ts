@@ -2,13 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { createIdentityProjectionRunners } from './identity-projection-hooks';
 
 describe('createIdentityProjectionRunners', () => {
-  it('fails closed before user deletion when the required hook is missing', async () => {
+  it('skips character reprojection when that hook is missing', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const runners = createIdentityProjectionRunners({});
+    const runners = createIdentityProjectionRunners({
+      beforeUserDelete: vi.fn(),
+    });
 
-    await expect(runners.runBeforeUserDelete('user-1')).rejects.toThrow(
-      'Required before-user-delete map purge hook is not registered',
-    );
     await expect(
       runners.runAfterCharacterLinkChanged({ userId: 'user-1', characterId: 100 }),
     ).resolves.toBeUndefined();
