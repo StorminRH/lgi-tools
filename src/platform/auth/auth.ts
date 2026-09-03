@@ -42,7 +42,6 @@ const options = {
   }),
   secret: readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'),
   baseURL: readEnv('BETTER_AUTH_URL'),
-
   databaseHooks: {
     account: {
       create: {
@@ -57,7 +56,6 @@ const options = {
       update: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
     },
   },
-
   account: {
     additionalFields: {
       refreshTokenInvalidGrantCount: {
@@ -79,15 +77,12 @@ const options = {
   user: {
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'USER', input: false },
-
       activeCharacterId: { type: 'number', bigint: true, required: false, input: false },
     },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7,
-
     freshAge: 0,
-
     cookieCache: { enabled: true, maxAge: 300 },
   },
   plugins: [
@@ -102,12 +97,14 @@ const options = {
           scopes: [...EVE_SCOPES],
           pkce: true,
           responseType: 'code',
-
           prompt: 'consent',
           overrideUserInfo: true,
-
+          // EVE's token endpoint needs HTTP Basic auth, the PKCE verifier, AND a
+          // descriptive User-Agent (CCP blocks UA-less traffic). We hand the whole
+          // exchange to the proven helper rather than Better Auth's default fetch,
           // which can't set the User-Agent. Likewise getUserInfo runs EVE's JWKS
-
+          // fetch through the helper's User-Agent. Do NOT drop these for the
+          // default exchange. (`authentication` is moot while getToken is custom.)
           getToken: async ({ code, codeVerifier }) => {
             const token = await exchangeCodeForToken({
               code,
@@ -121,12 +118,10 @@ const options = {
               accessTokenExpiresAt: token.expires_in
                 ? new Date(Date.now() + token.expires_in * 1000)
                 : undefined,
-
               scopes: [...EVE_SCOPES],
               raw: token as unknown as Record<string, unknown>,
             };
           },
-
           getUserInfo: async (tokens) => {
             if (!tokens.accessToken) return null;
             const claims = await verifyEveJwt(tokens.accessToken);
@@ -154,21 +149,18 @@ const options = {
         },
       ],
     }),
-
     jwt({
       jwks: { keyPairConfig: { alg: 'ES256' } },
       jwt: {
         issuer: readEnv('BETTER_AUTH_URL'),
         audience: 'convex',
         expirationTime: '7d',
-
         definePayload: ({ user: u }) => ({
           role: (u.role as CharacterRole | undefined) ?? 'USER',
           name: u.name,
         }),
       },
       adapter: { getJwks: getCachedJwks },
-
       disableSettingJwtHeader: true,
     }),
   ],
