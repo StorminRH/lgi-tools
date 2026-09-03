@@ -22,7 +22,6 @@ import sys
 from tools._lib.checker_common import Finding, find_line, run_checker
 from tools.lifecycle.resolve_development_state import active_roadmap
 
-
 APP_VERSION_PATH = "src/config/app-version.ts"
 APP_VERSION_RE = re.compile(
     r"^export const APP_VERSION = ['\"](\d+\.\d+\.\d+(?:\.\d+)*)['\"];$",
@@ -33,11 +32,9 @@ CHANGELOG_HEADING_RE = re.compile(
     re.MULTILINE,
 )
 
-
 def _add_arguments(parser: argparse.ArgumentParser) -> None:
     """Register the optional call-site signature constraint."""
     parser.add_argument("--expect", choices=("pre-pr", "reconciled"))
-
 
 def _app_version(path: Path) -> str | None:
     if not path.is_file():
@@ -45,12 +42,10 @@ def _app_version(path: Path) -> str | None:
     match = APP_VERSION_RE.search(path.read_text(encoding="utf-8"))
     return match.group(1) if match else None
 
-
 def _changelog_versions(path: Path) -> list[str]:
     if not path.is_file():
         return []
     return CHANGELOG_HEADING_RE.findall(path.read_text(encoding="utf-8"))
-
 
 def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
     """Report contradictions in the active release identity triplet."""
@@ -98,11 +93,6 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
     changelog_path = root / changelog_rel
     changelog_versions = _changelog_versions(changelog_path)
     if not changelog_versions:
-        # New-version opening transient: a fresh roadmap has landed (every row
-        # nonterminal) but APP_VERSION still names the previous version, and the new
-        # changelog file opens only with the first sub-version's PR. That triplet is a
-        # legal, self-clearing state, not a contradiction. It clears the moment the
-        # first sub-version merges.
         opening = (
             app_version is not None
             and not any(row.terminal for row in rows)
@@ -181,11 +171,9 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
         )
     return findings
 
-
 def main() -> int:
     """Run the release-consistency checker CLI."""
     return run_checker(collect_findings, add_arguments=_add_arguments)
-
 
 if __name__ == "__main__":
     sys.exit(main())

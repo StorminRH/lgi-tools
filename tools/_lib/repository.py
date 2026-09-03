@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-
 def repository_root(start: Optional[Path] = None) -> Path:
     """Return the nearest LGI.tools repository root above *start*."""
 
@@ -18,6 +17,5 @@ def repository_root(start: Optional[Path] = None) -> Path:
             return directory
 
     raise RuntimeError(f"unable to locate the repository root from {candidate}")
-
 
 ROOT = repository_root()

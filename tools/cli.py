@@ -13,7 +13,6 @@ if str(ROOT) not in sys.path:
 
 from tools._lib.repository import ROOT as REPOSITORY_ROOT
 
-
 COMMANDS = {
     ("delivery", "github-api"): "tools.delivery.github_api",
     ("delivery", "repair-gh-auth"): "tools.delivery.repair_gh_auth",
@@ -29,7 +28,6 @@ COMMANDS = {
     ("update-watch", "collector"): "tools.update_watch.update_watch_collect",
 }
 
-
 def usage() -> str:
     """Return concise dispatcher help."""
 
@@ -41,7 +39,6 @@ def usage() -> str:
         "       python3 tools/cli.py test [unittest arguments]\n\n"
         f"commands:\n{commands}\n  test"
     )
-
 
 def main(argv: list[str] | None = None) -> int:
     """Dispatch one stable public command to its owning Python module."""
@@ -72,7 +69,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     return subprocess.call(command, cwd=REPOSITORY_ROOT)
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

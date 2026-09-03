@@ -12,7 +12,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 from tools._lib.repository import ROOT
 from tools.lifecycle.count_app_facing import (
     PROMOTE_BAR,
@@ -24,19 +23,12 @@ DEFAULT_ROOT = ROOT
 CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
 PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
 AS_BUILT_SCHEMA_RELPATH = "docs/workflows/schema/session-as-built.md"
-# Sessions in sub-versions at or above this floor require an as-built record
-# once their plan is Complete; earlier sessions predate the record species.
 AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
-# Plans from this session onward use atomic proof rows. The immediately prior
-# approved plan remains a frozen legacy prompt.
 ATOMIC_PLAN_BINDING_FLOOR = (4, 0, 2, 2, 2)
-# As-built records from this session onward carry criterion and review receipts.
 EXECUTION_RECEIPT_BINDING_FLOOR = (4, 0, 2, 2, 1)
 POLICY_MANIFEST_RELPATH = "tools/policy/policy-manifest.json"
 RELEASE_CONSISTENCY_GATE = "python3 tools/cli.py lifecycle check-release --check"
 TERMINAL = ("SHIPPED", "COMPLETE", "DEFERRED", "CANCELLED")
-# Closed, case-sensitive marker vocabularies owned by the canonical schemas.
-# Binding-era artifacts report any other present value with its file and value.
 MARKER_VOCABULARY = {
     "Execution status": ("Pending", "Complete"),
     "Baseline effect": ("Improves", "Neutral", "Temporary pressure"),
@@ -69,7 +61,6 @@ PLAN_ID_SECTIONS = {
     "G": "Success criteria (agent-runnable — show the output)",
 }
 
-
 @dataclass(frozen=True)
 class RoadmapRow:
     subversion: str
@@ -79,7 +70,6 @@ class RoadmapRow:
     def terminal(self) -> bool:
         """Return whether the stripped status is one exact terminal token."""
         return self.status.upper() in TERMINAL
-
 
 @dataclass(frozen=True)
 class WorkflowDirective:
@@ -104,7 +94,6 @@ class WorkflowDirective:
             "preDispatchGate": RELEASE_CONSISTENCY_GATE if self.handler is not None else None,
         }
 
-
 LIFECYCLE_BRANCH_PREFIX = "lifecycle/"
 PROMOTE_INTERRUPT_STAGES = frozenset(
     {
@@ -115,7 +104,6 @@ PROMOTE_INTERRUPT_STAGES = frozenset(
     }
 )
 
-
 def lifecycle_branch(subversion: str) -> str:
     """Return the as-built Branch marker for a sub-version.
 
@@ -124,19 +112,16 @@ def lifecycle_branch(subversion: str) -> str:
     """
     return f"{LIFECYCLE_BRANCH_PREFIX}{subversion}"
 
-
 def version_from_path(path: Path) -> str | None:
     match = re.fullmatch(r"VERSION_(\d+)_(\d+)_PLAN\.md", path.name)
     if not match:
         return None
     return f"{match.group(1)}.{match.group(2)}"
 
-
 def ambiguous_status(status: str) -> bool:
     """Return whether a nonterminal roadmap status embeds a terminal token."""
     upper = status.upper()
     return upper not in TERMINAL and any(word in upper for word in TERMINAL)
-
 
 def parse_status_rows(path: Path) -> list[RoadmapRow]:
     text = path.read_text(encoding="utf-8")
@@ -155,7 +140,6 @@ def parse_status_rows(path: Path) -> list[RoadmapRow]:
             continue
         rows.append(RoadmapRow(cells[0], cells[-1]))
     return rows
-
 
 def active_roadmap(root: Path) -> tuple[Path | None, str | None, list[RoadmapRow], list[str]]:
     docs = root / "docs"
@@ -200,7 +184,6 @@ def active_roadmap(root: Path) -> tuple[Path | None, str | None, list[RoadmapRow
         errors.append(f"multiple completed unarchived master plans: {names}")
     return None, None, [], errors
 
-
 def parse_contract_index(path: Path) -> dict[str, tuple[str, Path]]:
     entries: dict[str, tuple[str, Path]] = {}
     if not path.is_file():
@@ -214,7 +197,6 @@ def parse_contract_index(path: Path) -> dict[str, tuple[str, Path]]:
         entries[cells[0]] = (cells[1], path.parent / cells[2])
     return entries
 
-
 def marker(path: Path, label: str) -> str | None:
     if not path.is_file():
         return None
@@ -226,7 +208,6 @@ def marker(path: Path, label: str) -> str | None:
     )
     return match.group(1).strip().strip("`") if match else None
 
-
 def schema_headings(path: Path, level: int) -> list[str] | None:
     """Return one schema's ordered headings, or None when its form is unusable."""
     if not path.is_file():
@@ -235,7 +216,6 @@ def schema_headings(path: Path, level: int) -> list[str] | None:
     if not headings or len(headings) != len(set(headings)):
         return None
     return headings
-
 
 def required_contract_sections(root: Path) -> list[str] | None:
     """Return the schema-derived numbered contract titles, or None when unusable."""
@@ -258,7 +238,6 @@ def required_contract_sections(root: Path) -> list[str] | None:
         return None
     return titles
 
-
 def contract_section_titles(contract: Path) -> list[str]:
     """Return ordered numbered titles, preserving missing-file error ownership."""
     if not contract.is_file():
@@ -272,7 +251,6 @@ def contract_section_titles(contract: Path) -> list[str]:
         )
     ]
 
-
 def section_bodies(path: Path, level: int) -> dict[str, str]:
     """Split a Markdown artifact into bodies owned by one heading level."""
     if not path.is_file():
@@ -284,7 +262,6 @@ def section_bodies(path: Path, level: int) -> dict[str, str]:
         match.group(1).strip(): text[match.end() : matches[index + 1].start() if index + 1 < len(matches) else len(text)].strip()
         for index, match in enumerate(matches)
     }
-
 
 def legacy_schema_artifacts(root: Path) -> set[str]:
     """Return exact repository-relative artifacts grandfathered by policy."""
@@ -298,14 +275,12 @@ def legacy_schema_artifacts(root: Path) -> set[str]:
     values = manifest.get("developmentState", {}).get("legacySchemaArtifacts", [])
     return {value for value in values if isinstance(value, str)} if isinstance(values, list) else set()
 
-
 def schema_allowlisted(path: Path, root: Path) -> bool:
     try:
         relative = str(path.relative_to(root))
     except ValueError:
         return False
     return relative in legacy_schema_artifacts(root)
-
 
 def contract_item_ids(path: Path) -> dict[str, list[str]]:
     """Return schema-owned item definitions found in their canonical sections."""
@@ -319,7 +294,6 @@ def contract_item_ids(path: Path) -> dict[str, list[str]]:
             re.MULTILINE,
         )
     return definitions
-
 
 def contract_schema_violations(path: Path, root: Path) -> list[str]:
     """Return structural and reference violations for a non-legacy contract."""
@@ -424,21 +398,17 @@ def contract_schema_violations(path: Path, root: Path) -> list[str]:
         violations.append("contract contains a placeholder token")
     return violations
 
-
 def session_key(session: str) -> tuple[int, ...]:
     """Return the numeric ordering key for a session or sub-version id."""
     return tuple(int(part) for part in session.split("."))
-
 
 def atomic_plan_binds(session: str) -> bool:
     """Return whether this session requires atomic proof rows."""
     return session_key(session) >= ATOMIC_PLAN_BINDING_FLOOR
 
-
 def execution_receipt_binds(session: str) -> bool:
     """Return whether this session requires structured close-out receipts."""
     return session_key(session) >= EXECUTION_RECEIPT_BINDING_FLOOR
-
 
 def plan_success_ids(plan: Path) -> list[str]:
     """Return the plan's ordered success-criterion identifiers."""
@@ -446,7 +416,6 @@ def plan_success_ids(plan: Path) -> list[str]:
         "Success criteria (agent-runnable — show the output)", ""
     )
     return re.findall(r"^\s*-\s+\*\*(SC-\d+)\s+—", success, re.MULTILINE)
-
 
 def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
     """Return machine-verifiable plan-form and contract-coverage violations."""
@@ -508,17 +477,12 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
         violations.append("Contract UX gate must match the contract marker")
     if ux_gate == "Yes":
         ordered_work = bodies.get("Implementation blueprint", "")
-        # Schema requires a numbered dedicated UX step under ### Ordered work.
         ordered_section = re.search(
             r"^### Ordered work\s*\n([\s\S]*?)(?=^## |\Z)",
             ordered_work,
             re.MULTILINE,
         )
         ordered_body = ordered_section.group(1) if ordered_section else ""
-        # Dedicated step: numbered item with an affirmative Run/Complete/
-        # Perform/Execute ux-check action plus disposition/G-N. Reject only
-        # when every action verb on the line is locally negated ("Do not Run
-        # ux-check"); a later affirmative verb still counts.
         has_dedicated_ux_step = False
         for line_match in re.finditer(r"^\d+\.\s+\S.+$", ordered_body, re.MULTILINE):
             line = line_match.group(0)
@@ -628,11 +592,9 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
             violations.append(f"End of session must contain a non-empty {label} item")
     return violations
 
-
 def as_built_binds(subversion: str) -> bool:
     """Return whether an as-built for this sub-version uses the bound schema."""
     return session_key(subversion) >= AS_BUILT_BINDING_FLOOR
-
 
 def as_built_schema_violations(
     path: Path,
@@ -750,18 +712,15 @@ def as_built_schema_violations(
             )
     return violations
 
-
 def vocabulary_binds(version: str) -> bool:
     """Return whether active artifacts must satisfy the 3.9 marker schema."""
     major, minor = (int(part) for part in version.split(".", maxsplit=1))
     return (major, minor) >= (3, 9)
 
-
 def workflow_schema_binds(version: str) -> bool:
     """Return whether the canonical contract and plan forms are mandatory."""
     major, minor = (int(part) for part in version.split(".", maxsplit=1))
     return (major, minor) >= (3, 10)
-
 
 def marker_value_error(
     path: Path,
@@ -774,19 +733,15 @@ def marker_value_error(
         return None
     return f"{path.relative_to(root)}: invalid {label} value {value!r}"
 
-
 def status_is(path: Path, label: str, expected: str) -> bool:
     value = marker(path, f"{label} status")
     return value is not None and value.casefold() == expected.casefold()
 
-
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
-
 def execution_complete(path: Path) -> bool:
     return status_is(path, "Execution", "Complete")
-
 
 def approved_session_plan(
     path: Path,
@@ -833,11 +788,9 @@ def approved_session_plan(
             return False, "The session plan does not conform to the canonical schema.", violations
     return True, "The approved session plan matches the current contract.", []
 
-
 def invalid_state(common: dict[str, object], reason: str, errors: list[str]) -> tuple[dict[str, object], list[str]]:
     errors.append(reason)
     return {**common, "stage": "invalid", "reason": reason}, errors
-
 
 def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[str]]:
     root = root.resolve()
@@ -1006,7 +959,6 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
         "reason": "Every roadmap row is terminal. Archive the master plan.",
     }, errors
 
-
 def directive_for(state: dict[str, object]) -> WorkflowDirective:
     stage = str(state["stage"])
     version = str(state.get("activeVersion", "the active version"))
@@ -1117,7 +1069,6 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
         )
     raise ValueError(f"unsupported workflow stage: {stage}")
 
-
 def _run_git(root: Path, *args: str) -> str | None:
     """Return stripped stdout of a git command under root, or None on failure."""
     try:
@@ -1131,7 +1082,6 @@ def _run_git(root: Path, *args: str) -> str | None:
     except OSError:
         return None
     return result.stdout.strip() if result.returncode == 0 else None
-
 
 def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     """Return non-blocking warnings from the current local git snapshot.
@@ -1184,7 +1134,6 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
 
     return warnings
 
-
 def apply_promote_interrupt(
     state: dict[str, object],
     count: int | None,
@@ -1204,7 +1153,6 @@ def apply_promote_interrupt(
         ),
     }
 
-
 def resolve(
     root: Path = DEFAULT_ROOT,
     *,
@@ -1214,11 +1162,8 @@ def resolve(
     count = try_app_facing_count(root) if app_facing is None else app_facing
     state = apply_promote_interrupt(state, count)
     directive = directive_for(state).as_dict(str(state["reason"]))
-    # UX gate is directive input, not a new top-level payload field; keeping it
-    # internal preserves the frozen default resolver output for UX gate: No.
     public_state = {key: value for key, value in state.items() if key != "uxGate"}
     return {**public_state, "directive": directive}, errors
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1249,7 +1194,6 @@ def main() -> int:
         payload["warnings"] = warnings
     print(json.dumps(payload, indent=2 if args.pretty else None, sort_keys=True))
     return 1 if errors else 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

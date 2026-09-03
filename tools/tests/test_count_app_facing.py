@@ -16,7 +16,6 @@ from tools.lifecycle.count_app_facing import (
     try_app_facing_count,
 )
 
-
 class CountAppFacingTests(unittest.TestCase):
     def test_docs_cursor_and_scripts_are_excluded(self) -> None:
         for path in (
@@ -89,7 +88,6 @@ class CountAppFacingTests(unittest.TestCase):
             "app-facing 1/100\nsrc 1\nexcluded 1\nfiles\nsrc/a.ts",
             render_count(count, list_files=True),
         )
-
 
 if __name__ == "__main__":
     unittest.main()
