@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
-import { auth } from '@/platform/auth/auth';
+import { auth } from '@/composition/auth';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { toPanelCharacter } from '@/platform/auth/panel-character';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';

@@ -11,7 +11,7 @@ const getCurrentUserIdMock = vi.fn();
 const getSkillLevelsForCharacterOnViewMock = vi.fn();
 const measureOwnedDataReadMock = vi.fn();
 
-vi.mock('@/platform/auth/session', () => ({
+vi.mock('@/composition/session', () => ({
   getCurrentUserId: () => getCurrentUserIdMock(),
 }));
 

@@ -9,7 +9,7 @@
 import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { toPanelCharacter } from '@/platform/auth/panel-character';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { getCurrentUserId } from '@/platform/auth/session';
+import { getCurrentUserId } from '@/composition/session';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 import { apiResponse } from '@/transport/api-response';
 

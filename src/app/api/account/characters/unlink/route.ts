@@ -5,17 +5,16 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
-import '@/composition/map-access-identity';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
-import { auth } from '@/platform/auth/auth';
+import { auth } from '@/composition/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
-import { runAfterCharacterLinkChanged } from '@/platform/auth/identity-projection-hooks';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/platform/auth/linked-characters';
-import { checkSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {
@@ -75,7 +74,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       // Better Auth unlink does not go through deleteLinkedCharacter; re-project
       // via the never-throw identity hook runner so a Neon enumeration blip
       // cannot 500 a committed unlink or skip the active-pointer repoint.
-      await runAfterCharacterLinkChanged({ userId: session.user.id, characterId });
+      await identityProjectionRunners.runAfterCharacterLinkChanged({
+        userId: session.user.id,
+        characterId,
+      });
 
       // Re-point the active character if we just removed it (the oldest remaining one
       // becomes active). Read the stored active id FRESH rather than trusting the

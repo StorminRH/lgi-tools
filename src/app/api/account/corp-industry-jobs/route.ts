@@ -1,5 +1,5 @@
 import { getCorpJobsForUserOnView } from '@/composition/sync/corp-industry-jobs-sync';
-import { getCurrentUserId } from '@/platform/auth/session';
+import { getCurrentUserId } from '@/composition/session';
 import { corpIndustryJobsEndpoint } from '@/features/industry-jobs/api-contract';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';

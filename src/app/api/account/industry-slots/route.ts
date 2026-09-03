@@ -1,5 +1,5 @@
 import { getSkillLevelsForUserOnView } from '@/composition/sync/skills-sync';
-import { getCurrentUserId } from '@/platform/auth/session';
+import { getCurrentUserId } from '@/composition/session';
 import { industrySlotsEndpoint } from '@/features/industry-jobs/api-contract';
 import { slotCapacity } from '@/features/industry-jobs/slots';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';

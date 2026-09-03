@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/composition/route-guards';
 import {
   favoriteSavedPlanEndpoint,
   favoriteSavedPlanRequestSchema,

@@ -2,7 +2,7 @@ import { BetterAuthError } from 'better-auth';
 import { headers } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
 import { cache } from 'react';
-import { auth } from '@/platform/auth/auth';
+import { auth } from '@/composition/auth';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';

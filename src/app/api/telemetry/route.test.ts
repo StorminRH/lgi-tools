@@ -8,9 +8,9 @@ const getSessionCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const checkRateLimitMock = vi.fn();
 
-vi.mock('@/platform/auth/session', async () => {
-  const actual = await vi.importActual<typeof import('@/platform/auth/session')>(
-    '@/platform/auth/session',
+vi.mock('@/composition/session', async () => {
+  const actual = await vi.importActual<typeof import('@/composition/session')>(
+    '@/composition/session',
   );
   return {
     ...actual,

@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { formatIsoDay } from '@/lib/format/time';
-import { getSession, isAdmin } from '@/platform/auth/session';
+import { getSession, isAdmin } from '@/composition/session';
 import { MetricsSection } from './MetricsSection';
 import { OpsSection } from './OpsSection';
 import { parseRange, RANGES, rangeFor, type RangeKey } from '@/composition/admin-period';

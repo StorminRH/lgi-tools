@@ -7,16 +7,10 @@ import {
 } from '@/db/__tests__/support/db-test-harness';
 import { getStoredActiveCharacterId } from './linked-characters';
 
-const hooks = vi.hoisted(() => ({
+const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('./identity-projection-hooks', () => ({
-  runBeforeUserDelete: (userId: string) => hooks.runBeforeUserDelete(userId),
-  runAfterCharacterLinkChanged: (args: { userId: string; characterId: number }) =>
-    hooks.runAfterCharacterLinkChanged(args),
-}));
+};
 
 import {
   CHARACTER_SEARCH_LIMIT,
@@ -62,8 +56,8 @@ const SURVIVOR_CHAR = 90000022;
 
 describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => {
   beforeEach(async () => {
-    hooks.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
-    hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
+    runners.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
+    runners.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
     await seedUser(SOURCE_ID, { name: 'Source Pilot' });
     await seedUser(TARGET_ID, { name: 'Target Pilot' });
   });
@@ -164,12 +158,12 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       role: 'ADMIN',
     });
     await expect(setUserRole('missing-user', 'ADMIN')).resolves.toBeNull();
-    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR)).resolves.toBe(true);
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(true);
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
     });
-    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR)).resolves.toBe(false);
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(false);
   });
 
   it('counts only unexpired sessions and revokes the exact stored row count', async () => {
@@ -190,10 +184,11 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         characterId: MOVED_CHAR,
         fromUserId: SOURCE_ID,
         toUserId: TARGET_ID,
+        runners,
       }),
     ).resolves.toEqual({ sourceDeleted: true });
-    expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+    expect(runners.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
     });
@@ -220,9 +215,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         characterId: MOVED_CHAR,
         fromUserId: SOURCE_ID,
         toUserId: TARGET_ID,
+        runners,
       }),
     ).resolves.toEqual({ sourceDeleted: false });
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
     });
@@ -239,9 +235,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         characterId: MOVED_CHAR,
         fromUserId: SOURCE_ID,
         toUserId: TARGET_ID,
+        runners,
       }),
     ).resolves.toEqual({ sourceDeleted: true });
-    expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
+    expect(runners.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
 
     await expect(getUserById(SOURCE_ID)).resolves.toBeNull();
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(0);

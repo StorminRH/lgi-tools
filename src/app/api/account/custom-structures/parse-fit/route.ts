@@ -6,7 +6,7 @@ import {
   parseStructureFitRequestSchema,
 } from '@/features/custom-structures/api-contract';
 import { parseStructureFit } from '@/features/industry-planner/structure-fit-parse';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 

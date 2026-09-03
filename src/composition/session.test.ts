@@ -1,12 +1,12 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
 const getSessionApiMock = vi.fn();
-vi.mock('./auth', () => ({
+vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: (...args: unknown[]) => getSessionApiMock(...args) } },
 }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-import { getSession, getSessionCharacterId } from './session';
+import { getSession, getSessionCharacterId } from '@/composition/session';
 
 const ENRICHED = {
   user: { id: 'u1' },

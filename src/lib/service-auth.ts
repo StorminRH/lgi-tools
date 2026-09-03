@@ -13,7 +13,7 @@
 // Route-kit dividing rule: auth-AGNOSTIC route plumbing (body parse, rate-limit
 // guard, bearer-secret checks) lives here in src/lib beside route-body.ts;
 // auth-AWARE guards (session/admin — they need the Better Auth instance) live
-// in src/platform/auth/route-guards.ts, because lib may import only lib.
+// in src/composition/route-guards.ts, because lib may import only lib.
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
 import { readEnv } from '@/lib/env';

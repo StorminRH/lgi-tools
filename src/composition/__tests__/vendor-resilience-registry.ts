@@ -91,7 +91,7 @@ const eveSso = policy({
     "'eve_token_refresh_invalid_grant', 'eve_token_refresh_timeout', 'eve_token_refresh_connection', 'eve_token_refresh_provider_5xx', 'eve_token_refresh_unexpected', 'eve_token_refresh_race'.",
 });
 const betterAuth = policy({
-  wrapper: { module: 'src/platform/auth/auth.ts', symbol: 'auth' },
+  wrapper: { module: 'src/composition/auth.ts', symbol: 'auth' },
   timeout:
     "Bounded indirectly: the vendor orchestrates the flow, but its outbound EVE legs are overridden onto fetchWithTimeout (10s), and its database access runs through the Drizzle adapter on Neon's bounds.",
   retryableErrors: 'None added; the SDK owns its own request lifecycle.',

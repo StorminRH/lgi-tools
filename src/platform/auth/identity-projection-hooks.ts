@@ -2,9 +2,8 @@ import { bestEffort } from '@/lib/best-effort';
 
 /**
  * Composition-owned Convex map side-effects for identity mutations.
- * Composition registers these because platform/auth cannot import composition
- * under Fallow. Absent hooks, Neon identity work still completes; claims heal
- * on the next successful projection or resync.
+ * Platform/auth cannot import composition under Fallow, so callers pass
+ * runners created with these hooks.
  */
 export interface IdentityProjectionHooks {
   readonly beforeUserDelete?: (userId: string) => Promise<void>;
@@ -14,44 +13,41 @@ export interface IdentityProjectionHooks {
   }) => Promise<void>;
 }
 
-let hooks: IdentityProjectionHooks | null = null;
-
-/**
- * Registers composition-owned projection side-effects for character unlink,
- * reassign, absorb, fresh account create, and emptied-account user deletes.
- * Call once at process boot.
- */
-export function registerIdentityProjectionHooks(next: IdentityProjectionHooks): void {
-  hooks = next;
+export interface IdentityProjectionRunners {
+  readonly runBeforeUserDelete: (userId: string) => Promise<void>;
+  readonly runAfterCharacterLinkChanged: (args: {
+    userId: string;
+    characterId: number;
+  }) => Promise<void>;
 }
 
 /**
- * Runs before a user row is deleted because it has no remaining EVE accounts.
- * Required: deleting the durable row before its owned collaborative chains are
- * gone would strand unselectable personal data.
+ * Builds identity-mutation runners that close over the given hooks.
+ * `runBeforeUserDelete` fails closed when the hook is missing.
+ * `runAfterCharacterLinkChanged` is best-effort.
  */
-export async function runBeforeUserDelete(userId: string): Promise<void> {
-  const action = hooks?.beforeUserDelete;
-  if (action === undefined) {
-    throw new Error('Required before-user-delete map purge hook is not registered');
-  }
-  await action(userId);
-}
-
-/**
- * Runs after a character account row is unlinked or moved between users.
- * `userId` is the user **losing** the character (source on reassign).
- * Best-effort: Neon identity work must not abort on a Convex outage.
- */
-export async function runAfterCharacterLinkChanged(args: {
-  userId: string;
-  characterId: number;
-}): Promise<void> {
-  const action = hooks?.afterCharacterLinkChanged;
-  await bestEffort(
-    'identity-projection',
-    'afterCharacterLinkChanged',
-    `${args.userId}:${args.characterId}`,
-    action === undefined ? undefined : () => action(args),
-  );
+export function createIdentityProjectionRunners(
+  hooks: IdentityProjectionHooks,
+): IdentityProjectionRunners {
+  return {
+    async runBeforeUserDelete(userId: string): Promise<void> {
+      const action = hooks.beforeUserDelete;
+      if (action === undefined) {
+        throw new Error('Required before-user-delete map purge hook is not registered');
+      }
+      await action(userId);
+    },
+    async runAfterCharacterLinkChanged(args: {
+      userId: string;
+      characterId: number;
+    }): Promise<void> {
+      const action = hooks.afterCharacterLinkChanged;
+      await bestEffort(
+        'identity-projection',
+        'afterCharacterLinkChanged',
+        `${args.userId}:${args.characterId}`,
+        action === undefined ? undefined : () => action(args),
+      );
+    },
+  };
 }

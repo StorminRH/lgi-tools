@@ -5,7 +5,7 @@ import {
   ownedAssetsEndpoint,
   ownedAssetsRequestSchema,
 } from '@/features/industry-planner/api-contract';
-import { getCurrentUserId } from '@/platform/auth/session';
+import { getCurrentUserId } from '@/composition/session';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';

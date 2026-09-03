@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   listMapChromeData: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkSession: mocks.checkSession,
 }));
 

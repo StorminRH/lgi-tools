@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
   resolveEntityNamesStrict: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/platform/auth/linked-characters', () => ({

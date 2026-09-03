@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { capabilityRoute } from '@/app/api/capability-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { getSession } from '@/platform/auth/session';
+import { getSession } from '@/composition/session';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { APP_VERSION } from '@/config/app-version';
 import {

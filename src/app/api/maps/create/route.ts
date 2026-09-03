@@ -12,7 +12,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import {
   checkUserId,
   type UserIdCheckResult,
-} from '@/platform/auth/route-guards';
+} from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 

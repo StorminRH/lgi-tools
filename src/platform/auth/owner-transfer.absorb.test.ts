@@ -48,16 +48,15 @@ vi.mock('better-auth/api', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
-// Identity projection hooks are composition-registered at route boot; unit
-// stubs here so reassignCharacter's never-throw runners do not breadcrumb.
-vi.mock('./identity-projection-hooks', () => ({
-  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
-  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
-}));
-
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { createIdentityProjectionRunners } from './identity-projection-hooks';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { syntheticEmail } from './synthetic-email';
+
+const runners = createIdentityProjectionRunners({
+  beforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  afterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+});
 
 const CHARACTER = 100;
 
@@ -88,7 +87,7 @@ describe('absorbLinkedCharacterOnProof', () => {
       [{ accountId: '222' }],
       [{ email: syntheticEmail(222), activeCharacterId: 999 }],
     ];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    const out = await absorbLinkedCharacterOnProof(CHARACTER, runners);
     expect(out).toEqual({ absorbed: true });
     expect(state.calls).toEqual({ delete: 0, update: 1 }); // the move only
     expect(state.results).toHaveLength(0);
@@ -107,7 +106,7 @@ describe('absorbLinkedCharacterOnProof', () => {
       [{ activeCharacterId: 999 }],
       new Error('transient db failure'),
     ];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    const out = await absorbLinkedCharacterOnProof(CHARACTER, runners);
     expect(out).toEqual({ absorbed: true });
     expect(state.calls).toEqual({ delete: 0, update: 1 }); // the move only
     expect(errorSpy).toHaveBeenCalledTimes(1); // the cleanup failure, logged
@@ -120,7 +119,7 @@ describe('absorbLinkedCharacterOnProof', () => {
 
   it('degrades to no-absorb when the OAuth state is unavailable', async () => {
     oauthState.shouldThrow = true;
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    const out = await absorbLinkedCharacterOnProof(CHARACTER, runners);
     expect(out).toEqual({ absorbed: false });
     expect(state.calls).toEqual({ delete: 0, update: 0 });
     expect(errorSpy).toHaveBeenCalledTimes(1);

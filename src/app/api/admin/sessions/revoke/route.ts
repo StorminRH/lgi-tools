@@ -5,7 +5,7 @@ import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
-import { checkAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 /**

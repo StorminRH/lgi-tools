@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { capabilityRoute } from '@/app/api/capability-route';
 import { getSkillLevelsForCharacterOnView } from '@/composition/sync/skills-sync';
-import { getCurrentUserId } from '@/platform/auth/session';
+import { getCurrentUserId } from '@/composition/session';
 import {
   skillLevelsEndpoint,
   skillLevelsRequestSchema,

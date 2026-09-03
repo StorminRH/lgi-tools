@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { runPurge } from '@/composition/purge/orchestrator';
 import { eveAccountsForUser } from '@/platform/auth/eve-account-shared';
 import { revokeCharacterToken } from '@/platform/auth/eve-token-service';
@@ -15,7 +16,7 @@ export async function purgeOwnCharacter(
 ): Promise<{ accountEmptied: boolean }> {
   await revokeCharacterToken(characterId);
   await runPurge({ kind: 'character', userId, characterId });
-  return reconcileAfterCharacterRemoval(userId, characterId);
+  return reconcileAfterCharacterRemoval(userId, characterId, identityProjectionRunners);
 }
 
 async function eveAccountIdsFor(userId: string): Promise<number[]> {

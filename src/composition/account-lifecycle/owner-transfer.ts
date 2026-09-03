@@ -1,8 +1,8 @@
 import { db } from '@/db';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { runPurge } from '@/composition/purge/orchestrator';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountMatch } from '@/platform/auth/eve-account-shared';
-import { runAfterCharacterLinkChanged } from '@/platform/auth/identity-projection-hooks';
 import { classifyOwnerReconcile } from '@/platform/auth/owner-reconcile';
 import { account } from '@/db/auth-schema';
 
@@ -42,8 +42,11 @@ export async function purgeTransferredCharacter(
   characterId: number,
 ): Promise<void> {
   await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
-  await reconcileAfterCharacterRemoval(priorUserId, characterId);
+  await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
   // Credential-only transfer must not skip Convex location/lease/tracking: the
   // sync poll is mapTracking now, not a Neon character enum.
-  await runAfterCharacterLinkChanged({ userId: priorUserId, characterId });
+  await identityProjectionRunners.runAfterCharacterLinkChanged({
+    userId: priorUserId,
+    characterId,
+  });
 }

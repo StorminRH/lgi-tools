@@ -1,4 +1,3 @@
-import '@/composition/map-access-identity';
 import { PURGE_CONTRIBUTORS } from './register-all';
 import type { PurgeSubject, PurgeTier } from '@/platform/purge/types';
 

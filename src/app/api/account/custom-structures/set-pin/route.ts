@@ -6,7 +6,7 @@ import {
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, setCustomStructurePin } from '@/features/custom-structures/queries';
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 

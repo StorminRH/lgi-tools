@@ -32,7 +32,7 @@ import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
-import { runAfterCharacterLinkChanged } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-hooks';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
@@ -49,7 +49,9 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
   return characterId !== null && characterId === superId;
 }
 
-const options = {
+/** Builds the Better Auth instance with injected identity-projection runners. */
+export function createAuth(runners: IdentityProjectionRunners) {
+  const options = {
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: { user, session, account, verification, jwks },
@@ -73,7 +75,7 @@ const options = {
           if (acct.providerId !== EVE_PROVIDER_ID) return;
           const characterId = Number(acct.accountId);
           if (!Number.isFinite(characterId)) return;
-          await runAfterCharacterLinkChanged({ userId: acct.userId, characterId });
+          await runners.runAfterCharacterLinkChanged({ userId: acct.userId, characterId });
         },
       },
       update: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
@@ -201,7 +203,10 @@ const options = {
             // lookup — a stray duplicate's row is already on the linking user
             // when the callback compares userIds, so the refusal becomes a
             // normal relink. Sign-ins carry no link state and never absorb.
-            const { absorbed } = await absorbLinkedCharacterOnProof(character.characterId);
+            const { absorbed } = await absorbLinkedCharacterOnProof(
+              character.characterId,
+              runners,
+            );
             if (absorbed) recordAbsorb(character.characterId);
             await upsertCharacterLoginIdentity(character);
             // Refresh this character's cached corp affiliation (3.7.3.2). Runs
@@ -262,25 +267,24 @@ const options = {
   ],
 } satisfies BetterAuthOptions;
 
-/**
- * Server Better Auth instance owning EVE OAuth, encrypted application token custody, sessions, and
- * account hooks.
- */
-export const auth = betterAuth({
-  ...options,
-  plugins: [
-    ...options.plugins,
-    // Enrich the session with the legacy-shaped identity fields + the per-user
-    // isAdmin (computed server-side because superadmin reads an env var). Both
-    // the server shim (session.ts) and the client (useSession) read these.
-    customSession(async ({ user: u, session: s }) => {
-      // Resolve the ACTIVE character (the one named by user.activeCharacterId, or
-      // the oldest linked account as a fallback) — one indexed lookup — then shape
-      // the enriched identity from it, so the header portrait/name always match the
-      // active selection independent of the `overrideUserInfo` churn that rewrites
-      // u.name/u.image to whichever character last signed in.
-      const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
-      return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
-    }, options),
-  ],
-});
+  return betterAuth({
+    ...options,
+    plugins: [
+      ...options.plugins,
+      // Enrich the session with the legacy-shaped identity fields + the per-user
+      // isAdmin (computed server-side because superadmin reads an env var). Both
+      // the server shim (session.ts) and the client (useSession) read these.
+      customSession(async ({ user: u, session: s }) => {
+        // Resolve the ACTIVE character (the one named by user.activeCharacterId, or
+        // the oldest linked account as a fallback) — one indexed lookup — then shape
+        // the enriched identity from it, so the header portrait/name always match the
+        // active selection independent of the `overrideUserInfo` churn that rewrites
+        // u.name/u.image to whichever character last signed in.
+        const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
+        return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
+      }, options),
+    ],
+  });
+}
+
+export type AppAuth = ReturnType<typeof createAuth>;

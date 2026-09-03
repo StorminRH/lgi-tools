@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { capabilityRoute } from '@/app/api/capability-route';
-import '@/composition/map-access-identity';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
@@ -53,10 +53,15 @@ async function handlePost(request: NextRequest): Promise<Response> {
     );
   }
 
-  const { sourceDeleted } = await reassignCharacter({ characterId, fromUserId, toUserId });
+  const { sourceDeleted } = await reassignCharacter({
+    characterId,
+    fromUserId,
+    toUserId,
+    runners: identityProjectionRunners,
+  });
   if (!sourceDeleted) {
     try {
-      await reconcileAfterCharacterRemoval(fromUserId, characterId);
+      await reconcileAfterCharacterRemoval(fromUserId, characterId, identityProjectionRunners);
     } catch (err) {
       console.error(
         '[admin/characters/reassign] source identity rebind failed after the move committed',

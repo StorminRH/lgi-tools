@@ -15,7 +15,7 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { auth } from '@/platform/auth/auth';
+import { auth } from '@/composition/auth';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';

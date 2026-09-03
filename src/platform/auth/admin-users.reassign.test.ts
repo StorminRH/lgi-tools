@@ -29,16 +29,10 @@ const { chain, state } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
-const hooks = vi.hoisted(() => ({
+const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('./identity-projection-hooks', () => ({
-  runBeforeUserDelete: (userId: string) => hooks.runBeforeUserDelete(userId),
-  runAfterCharacterLinkChanged: (args: { userId: string; characterId: number }) =>
-    hooks.runAfterCharacterLinkChanged(args),
-}));
+};
 
 import { reassignCharacter } from './admin-users';
 
@@ -46,8 +40,8 @@ beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
-  hooks.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
-  hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
+  runners.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
+  runners.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
 });
 
 describe('reassignCharacter', () => {
@@ -59,11 +53,12 @@ describe('reassignCharacter', () => {
       characterId: 100,
       fromUserId: 'eve-user-2',
       toUserId: 'admin-1',
+      runners,
     });
     expect(out).toEqual({ sourceDeleted: true });
     expect(state.calls.delete).toBe(1);
-    expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+    expect(runners.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: 'eve-user-2',
       characterId: 100,
     });
@@ -71,7 +66,7 @@ describe('reassignCharacter', () => {
 
   it('keeps the source user when required collaborative purge fails', async () => {
     const failure = new Error('map purge unavailable');
-    hooks.runBeforeUserDelete.mockRejectedValueOnce(failure);
+    runners.runBeforeUserDelete.mockRejectedValueOnce(failure);
     state.results = [undefined, []];
 
     await expect(
@@ -79,10 +74,11 @@ describe('reassignCharacter', () => {
         characterId: 100,
         fromUserId: 'eve-user-2',
         toUserId: 'admin-1',
+        runners,
       }),
     ).rejects.toBe(failure);
     expect(state.calls.delete).toBe(0);
-    expect(hooks.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
   });
 
 });

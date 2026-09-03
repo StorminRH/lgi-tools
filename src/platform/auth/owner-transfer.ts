@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { reconcileAfterCharacterRemoval } from './account-purge';
 import { reassignCharacter } from './admin-users';
 import { accountMatch } from './eve-account-shared';
+import type { IdentityProjectionRunners } from './identity-projection-hooks';
 import { account } from '@/db/auth-schema';
 
 /**
@@ -26,6 +27,7 @@ import { account } from '@/db/auth-schema';
  */
 export async function absorbLinkedCharacterOnProof(
   characterId: number,
+  runners: IdentityProjectionRunners,
 ): Promise<{ absorbed: boolean }> {
   try {
     const state = (await getOAuthState()) as { link?: { userId: string } } | null;
@@ -46,6 +48,7 @@ export async function absorbLinkedCharacterOnProof(
       characterId,
       fromUserId: row.userId,
       toUserId: link.userId,
+      runners,
     });
     // The move is COMMITTED from here on. Cleanup and reporting failures must
     // degrade individually — the outer catch must never see them, or a
@@ -59,7 +62,7 @@ export async function absorbLinkedCharacterOnProof(
       // email-fallback hazard (a stale synthetic address could resurrect the
       // stray account if the character's row is ever deleted later).
       try {
-        await reconcileAfterCharacterRemoval(row.userId, characterId);
+        await reconcileAfterCharacterRemoval(row.userId, characterId, runners);
       } catch (err) {
         console.error('[auth] absorb source cleanup failed after the move committed', err);
       }

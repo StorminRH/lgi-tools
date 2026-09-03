@@ -11,7 +11,7 @@
 
 import { customSessionClient, genericOAuthClient, jwtClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
-import type { auth } from './auth';
+import type { AppAuth } from './auth';
 
 /**
  * Browser Better Auth client configured with the EVE OAuth provider and shared session contract.
@@ -19,7 +19,7 @@ import type { auth } from './auth';
  * Convex bridge calls when it has no usable JWT (first mint, expiry, or forceRefreshToken).
  */
 export const authClient = createAuthClient({
-  plugins: [genericOAuthClient(), customSessionClient<typeof auth>(), jwtClient()],
+  plugins: [genericOAuthClient(), customSessionClient<AppAuth>(), jwtClient()],
 });
 
 interface CachedConvexJwt {

@@ -5,7 +5,7 @@ import {
 } from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { getSessionCharacterId } from '@/platform/auth/session';
+import { getSessionCharacterId } from '@/composition/session';
 import { validationFailure } from '@/lib/failure';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';

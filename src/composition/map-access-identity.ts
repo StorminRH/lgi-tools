@@ -11,7 +11,10 @@ import {
   getOwnedMapIds,
 } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import { registerIdentityProjectionHooks } from '@/platform/auth/identity-projection-hooks';
+import {
+  createIdentityProjectionRunners,
+  type IdentityProjectionHooks,
+} from '@/platform/auth/identity-projection-hooks';
 
 /**
  * Maps whose projected claims may change when a character leaves or joins a
@@ -29,7 +32,7 @@ export async function mapIdsAffectedByCharacter(characterId: number): Promise<st
 /**
  * Re-projects every map whose claim set may have changed because a character
  * was unlinked or reassigned. Best-effort per map: callers that must never
- * throw (identity routes) wrap this in {@link runAfterCharacterLinkChanged}.
+ * throw (identity routes) wrap this in the identity projection runner.
  */
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
   const mapIds = await mapIdsAffectedByCharacter(characterId);
@@ -64,7 +67,9 @@ async function afterCharacterLinkChanged(args: {
   await teardownLocationTracking(args.userId, args.characterId);
 }
 
-registerIdentityProjectionHooks({
+const hooks: IdentityProjectionHooks = {
   beforeUserDelete: teardownProjectionsForDeletedUser,
   afterCharacterLinkChanged,
-});
+};
+
+export const identityProjectionRunners = createIdentityProjectionRunners(hooks);
