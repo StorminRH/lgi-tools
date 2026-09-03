@@ -1,11 +1,3 @@
-// Tiny RSS 2.0 parser for CCP's EVE Online news feed. A curated parser for a
-// known feed is the right pairing (same call as the changelog parser): the feed
-// is plain `<item>` blocks with `<title>`, `<link>`, `<pubDate>`, `<category>`,
-// and we only surface title / date / category, so a full XML dependency would
-// be dead weight. On unparseable input this THROWS; the cached accessor
-// (getEveNews) catches it inside its 'use cache' boundary and caches an empty
-// list on a short-lived profile, so a broken feed self-heals within minutes.
-
 import type { EveNewsItem } from './types';
 
 const ITEM_RE = /<item\b[^>]*>([\s\S]*?)<\/item>/gi;
@@ -38,10 +30,6 @@ function decodeOnce(s: string): string {
   });
 }
 
-// CCP's feed double-encodes some text (e.g. `&amp;#39;` for an apostrophe). Two
-// bounded passes resolve both single- and double-encoded entities. The result is
-// rendered as a JSX text child, which React re-escapes, so decoding is purely for
-// readability and never a markup-injection path.
 function decodeEntities(s: string): string {
   return decodeOnce(decodeOnce(s));
 }
@@ -56,10 +44,6 @@ function toIso(pubDate: string | null): string | null {
   return Number.isNaN(ms) ? null : new Date(ms).toISOString();
 }
 
-/**
- * Parses the EVE news RSS document into normalized entries, dropping malformed items instead of
- * failing the whole feed.
- */
 export function parseEveRss(xml: string): EveNewsItem[] {
   if (typeof xml !== 'string' || !xml.includes('<item')) {
     throw new Error('eve rss: no <item> elements');
@@ -67,15 +51,13 @@ export function parseEveRss(xml: string): EveNewsItem[] {
 
   const items: EveNewsItem[] = [];
   for (const match of xml.matchAll(ITEM_RE)) {
-    // ITEM_RE's capture group ([\s\S]*?) always participates, so match[1] is a string.
+
     const block = match[1] ?? '';
     const title = firstTag(block, 'title');
     const link = firstTag(block, 'link');
     if (!title || !link) continue;
     const url = cleanText(link);
-    // Only surface http(s) links. These become anchor hrefs, and React does not
-    // block a `javascript:`/`data:` href in production, so a malformed or
-    // compromised feed entry must not be able to yield a script link.
+
     if (!/^https?:\/\//i.test(url)) continue;
     const category = firstTag(block, 'category');
     items.push({

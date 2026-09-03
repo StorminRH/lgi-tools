@@ -14,104 +14,40 @@ import { intOrNull, localizedEn, numOrNull } from './coerce';
 import type { SdeJsonlPaths } from './source';
 import type { AnyPgDb } from '@/lib/db-types';
 
-// ===========================================================================
-// Universe parse core + Neon emitter (3.5.1a).
-//
-// THE SEAM — "one source, two homes" (RQ-5). One shared parse core feeds N
-// emitters. This session ships ONE emitter (Neon); a CDN emitter is deferred to
-// v4.0's wormhole mapper. The seam *contract* is intentionally just:
-//
-//   • `parseUniverse(paths) -> UniverseDataset`   — the shared core (pure logic
-//        in `buildUniverseDataset`, wrapped in thin async file IO). One
-//        download (already done by `downloadSdeJsonl`), one parse, no DB.
-//   • `type UniverseDataset`                       — the stable typed contract:
-//        projected, K-space-filtered, capability-resolved in-memory arrays.
-//
-// There is deliberately NO `Emitter` interface/registry — only one emitter
-// exists today, and an abstraction for a single v4.0-deferred consumer would be
-// speculative. Adding the CDN head later is purely additive: a composition-layer
-// build script (at/above `src/composition/pipelines/sde-pipeline.ts`) imports
-// `parseUniverse` and `UniverseDataset`, then serializes `public/universe/*.json`
-// — ZERO edits here.
-//
-// WHY THE CORE LIVES IN eve-data (not `sde-pipeline.ts` as RQ-5 phrased it):
-// `runIngest` is a data slice and LGI's lint-enforced import-direction boundary
-// forbids it importing the composition layer. So the core sits here, where
-// `runIngest` can route the Neon ingest through it; the future CDN emitter sits
-// above and imports down (composition -> data, allowed).
-//
-// FUTURE `build:vercel` SLOT for the CDN emitter (documented, NOT built): a new
-// UNCONDITIONAL `tsx scripts/emit-universe-cdn.ts` step placed AFTER
-// `ingest-sde-if-empty.ts` and BEFORE `next build` (so the static prerender sees
-// the fresh `public/` artifacts). It must NOT be folded onto the conditional
-// `ingest-sde-if-empty` step — that step skips when Neon is already populated,
-// but the CDN artifact must be regenerated on every deploy.
-//
-// SCOPE: every PERSISTENT New Eden system — K-space + Pochven + J-space
-// (wormhole) — plus the static stargate jump graph (3.7.2.2). The richer
-// per-WH mapper attributes (statics + environmental effects, sourced from
-// anoik.is) and 3-D positions / the K/J-space CDN split remain v4.0; only the
-// coarse first-party SDE class (on the system row) and adjacency are here.
-// ===========================================================================
-
-
-// CCP region-ID bands: K-space 10000001–10000070 (incl. Pochven 10000070),
-// wormhole/J-space 11000001–11000033, then abyssal deadspace (ADR, instanced)
-// and the special/non-standard "VR"/"GPMR" regions all live at 12000000+.
-// Filtering on `regionID < 12000000` keeps every persistent system (K-space +
-// Pochven + J-space) and excludes only the instanced/special tail — exactly the
-// ~2,600 wormhole systems are added over the prior K-space-only `< 11000000`.
 const PERSISTENT_REGION_MAX_EXCLUSIVE = 12_000_000;
 
-// Insert chunk size — keeps each statement's bind-param count well under
-// Postgres's 64k limit (stations are the widest at 8 cols, so 1000 rows ≈ 8k
-// params).
 const INSERT_BATCH = 1000;
 
-// ----- The typed contract (one home-agnostic shape both emitters consume) ---
-
-/** Normalized EVE region identity and name emitted from the universe dump. */
 export type UniverseRegion = {
   id: number;
   name: string;
 };
 
-/** Normalized EVE constellation identity, name, and parent region. */
 export type UniverseConstellation = {
   id: number;
   regionId: number;
   name: string;
 };
 
-/** Normalized EVE solar-system identity, name, security status, and universe parents. */
 export type UniverseSolarSystem = {
   id: number;
   constellationId: number;
   regionId: number;
   name: string;
   securityStatus: number | null;
-  // CCP's coarse location class, derived most-specific (system → constellation →
-  // region). Null only for the handful of untagged hi-sec K-space systems. See
-  // the `wormhole_class_id` schema note for the value table.
   wormholeClassId: number | null;
 };
 
-/**
- * A directed system→system jump (one CCP stargate). An undirected gate appears as
- * the two reciprocal edges (each physical gate is its own record).
- */
 export type UniverseSystemJump = {
   fromSystemId: number;
   toSystemId: number;
 };
 
-/** Normalized NPC station-operation identity and supported service vocabulary. */
 export type UniverseStationOperation = {
   id: number;
   name: string;
 };
 
-/** Normalized NPC station identity, name, system, operation, and owning corporation. */
 export type UniverseNpcStation = {
   id: number;
   solarSystemId: number;
@@ -123,7 +59,6 @@ export type UniverseNpcStation = {
   industryCapable: boolean;
 };
 
-/** Normalized universe dump containing regions, constellations, systems, operations, and NPC stations. */
 export type UniverseDataset = {
   regions: UniverseRegion[];
   constellations: UniverseConstellation[];
@@ -133,7 +68,6 @@ export type UniverseDataset = {
   stations: UniverseNpcStation[];
 };
 
-/** The raw record sets the core operates on (one array per universe file). */
 export type RawUniverseFiles = {
   regions: Record<string, unknown>[];
   constellations: Record<string, unknown>[];
@@ -143,8 +77,6 @@ export type RawUniverseFiles = {
   operations: Record<string, unknown>[];
   services: Record<string, unknown>[];
 };
-
-// ----- Service-ID resolution + the build assertion --------------------------
 
 /**
  * Resolve the Factory (manufacturing) and Laboratory (research) service `_key`s
@@ -182,14 +114,6 @@ function findServiceIdByName(
   );
 }
 
-// ----- The pure core --------------------------------------------------------
-
-/**
- * Pure: raw records in, projected/filtered/joined dataset out. No file IO, no
- * DB, no logging — so it's fully unit-testable from in-memory fixtures. Each
- * pass below filters/joins one entity, threading the surviving id-sets into the
- * next; this orchestrator just wires them together.
- */
 export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
   const { regions, regionIds, regionClass } = projectRegions(raw);
   const { constellations, constellationIds, constellationClass } =
@@ -207,10 +131,6 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
   return { regions, constellations, systems, jumps, operations, stations };
 }
 
-// Regions — every persistent region (K-space + Pochven + J-space), excluding the
-// instanced/special tail. Also captures each region's `wormholeClassID` so a
-// system can fall back to it when neither the system nor its constellation
-// carries one (the region is the least-specific class source).
 function projectRegions(raw: RawUniverseFiles): {
   regions: UniverseRegion[];
   regionIds: Set<number>;
@@ -230,8 +150,6 @@ function projectRegions(raw: RawUniverseFiles): {
   return { regions, regionIds, regionClass };
 }
 
-// Constellations — those whose region survived. Captures the constellation-level
-// `wormholeClassID` (the mid-specificity class source between system and region).
 function projectConstellations(
   raw: RawUniverseFiles,
   regionIds: Set<number>,
@@ -257,11 +175,6 @@ function projectConstellations(
   };
 }
 
-// Solar systems — those whose region survived (CCP ships both regionID and
-// constellationID on the system row, so no constellation hop is needed). The
-// class is taken most-specific: the system's own `wormholeClassID` (only the 5
-// Drifter systems carry one, overriding their region's), else the
-// constellation's, else the region's, else null.
 function projectSystems(
   raw: RawUniverseFiles,
   regionIds: Set<number>,
@@ -295,12 +208,6 @@ function projectSystems(
   return { systems, systemIds };
 }
 
-// Stargate topology → a derived system→system jump graph. Each CCP stargate
-// record carries both endpoints directly (`solarSystemID` and
-// `destination.solarSystemID`), so an edge is read off without resolving
-// gate→gate. Both endpoints must be ingested systems (defensive FK-safety: drops
-// any edge to an excluded system, though in practice every gate is K-space /
-// Pochven). Deduped on (from, to) to match the table's composite PK.
 function projectStargates(
   raw: RawUniverseFiles,
   systemIds: Set<number>,
@@ -323,7 +230,6 @@ function projectStargates(
 
 type OperationCapability = Map<number, { manufacturing: boolean; research: boolean }>;
 
-// Station operations (all kept) + the resolved industry-capability join.
 function projectOperations(raw: RawUniverseFiles): {
   operations: UniverseStationOperation[];
   operationIds: Set<number>;
@@ -347,13 +253,6 @@ function projectOperations(raw: RawUniverseFiles): {
   return { operations, operationIds: new Set(operations.map((o) => o.id)), operationCapability };
 }
 
-// NPC stations — kept only when their system is an ingested system AND their
-// operation exists. With J-space now ingested this guard rarely fires (every NPC
-// station sits in a persistent system); it still defends against an unknown
-// operation or a station in an excluded region. Thera's 4 stations — formerly
-// dropped because Thera's wormhole system wasn't ingested — are now KEPT (they're
-// manufacturing+research capable, so Thera becomes a valid build location).
-// Capability booleans are stamped from the station's operation.
 function projectStations(
   raw: RawUniverseFiles,
   systemIds: Set<number>,
@@ -395,9 +294,6 @@ function projectStations(
   return stations;
 }
 
-// A K-space parent (region/constellation/system) with no English name signals
-// corrupt SDE: throw rather than row-skip, because skipping a parent would
-// FK-orphan its children mid-transaction.
 function requireName(value: unknown, kind: string, id: number): string {
   const name = localizedEn(value);
   if (name === null) {
@@ -408,8 +304,6 @@ function requireName(value: unknown, kind: string, id: number): string {
   }
   return name;
 }
-
-// ----- File IO wrapper (the only impure part of the core) -------------------
 
 async function readJsonl(path: string): Promise<Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = [];
@@ -425,12 +319,6 @@ async function readJsonl(path: string): Promise<Record<string, unknown>[]> {
   return out;
 }
 
-/**
- * The shared parse core. Reads the six already-downloaded universe files fully
- * (small — 6.5KB–5MB; unlike the 149MB types.jsonl they materialize trivially,
- * and the cross-file industry join can't be done streaming) and returns the
- * typed dataset. Pure logic lives in `buildUniverseDataset`.
- */
 export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDataset> {
   const [regions, constellations, systems, stargates, stations, operations, services] =
     await Promise.all([
@@ -464,9 +352,6 @@ export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDatas
   return dataset;
 }
 
-// ----- The Neon emitter (this session's only consumer) ----------------------
-
-/** Absolute row counts emitted for each normalized universe table. */
 export type UniverseEmitSummary = {
   regionsWritten: number;
   constellationsWritten: number;
@@ -476,13 +361,6 @@ export type UniverseEmitSummary = {
   npcStationsWritten: number;
 };
 
-/**
- * Wipe + refill the universe tables from the in-memory dataset, inside the
- * caller's transaction (`runIngest`'s). Children-first TRUNCATE (CASCADE),
- * parents-first insert: jumps and stations both reference systems, so they're
- * truncated before / inserted after the systems table. The universe tables are
- * FK-independent of the type/blueprint tables, so this is self-contained.
- */
 export async function emitUniverseNeon(
   tx: AnyPgDb,
   dataset: UniverseDataset,

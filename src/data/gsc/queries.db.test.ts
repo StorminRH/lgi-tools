@@ -13,11 +13,6 @@ import {
 import { indexStatusToRecord, upsertUrlInspectionRecords } from './ingest';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 
-// Executes every admin-consumed GSC query against the local Docker Postgres
-// (postgres-js) and asserts none throws — the same OOB.1-class coverage as the
-// telemetry suite, for the SEO dashboard's read path. Skips cleanly when no DB is
-// reachable. The throwaway schema is dropped in afterAll, leaving nothing behind.
-
 const harness = await createDbTestHarness({
   schema: 'test_gsc_cov',
   tables: ['gsc_search_analytics', 'gsc_sitemaps', 'gsc_url_inspection'],
@@ -105,10 +100,7 @@ const cases: QueryCase[] = [
     name: 'getLastSyncedAt',
     run: () => getLastSyncedAt(),
     check: (r) => {
-      // Coerced to a real Date at the query (bare sql<> aggregates return raw
-      // timestamp strings under both drivers — strings lack .toISOString(), the
-      // latent /admin 500). The populated case must be an actual Date equal to the
-      // seeded syncedAt, not merely a timestamp-coercible string.
+
       expect(r).toBeInstanceOf(Date);
       expect((r as Date).getTime()).toBe(SYNCED_AT.getTime());
     },
@@ -230,9 +222,7 @@ describe.skipIf(!harness.reachable)('admin GSC analytics queries execute against
   });
 
   it('getLastSyncedAt returns null when nothing has synced', async () => {
-    // Runs after the seeded it.each cases; clear the analytics rows so max() over
-    // an empty set is null — the contract's no-sync branch, which must stay null and
-    // never coerce to the epoch (new Date(null)).
+
     await harness.db.delete(gscSearchAnalytics);
     expect(await getLastSyncedAt()).toBeNull();
   });

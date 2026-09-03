@@ -66,10 +66,8 @@ describe('inspectUrl', () => {
 
     await inspectUrl('https://lgi.tools/sites/3');
 
-    // The API request routes through fetchWithTimeout, which attaches the
-    // abort signal that enforces the bound.
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
-    // Token acquisition is the SDK's own fetch, bounded through its transporter.
+
     expect(authState.options?.transporterOptions).toEqual({ timeout: 10_000 });
   });
 
