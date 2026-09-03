@@ -22,8 +22,7 @@ export default {
       return;
     }
     await waitForWindowMap(page);
-    // The readout is click-through by design — input isolation is meaningless
-    // for it; assert the pass-through contract instead.
+
     const dock = mapWindow(page, 'dock');
     check(
       'the readout stays docked (no floating mode)',

@@ -1,5 +1,3 @@
-// SC-3 / SC-8.1: switcher cog opens the shared access editor. Creator is not a
-// revocable row. Requires auth + UX_MAP_ID (an admin-authorized map).
 const route = () =>
   process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas';
 

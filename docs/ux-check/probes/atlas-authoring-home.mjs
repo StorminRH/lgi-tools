@@ -1,5 +1,3 @@
-// SC-1.1 / SC-6.1: editor on a blank map sees the centered home prompt with
-// both options. Current-system enablement depends on a live location sample.
 import {
   blankMapId,
   blankMapRoute,

@@ -1,4 +1,3 @@
-// SC-1 / SC-3 / SC-6.1: typed codex panel, size lock, mass range, lifetime row.
 import {
   authoringMapId,
   authoringRoute,
@@ -28,8 +27,6 @@ export default {
     const card = signatureEditor(page);
     await card.waitFor({ state: 'attached', timeout: 15_000 });
 
-    // Give the session wormhole codex a chance to resolve a pre-typed edge
-    // before deciding to type. Prior probe runs may already have set B274.
     await Promise.race([
       card.locator('[data-map-connection-codex]').waitFor({
         state: 'attached',
@@ -41,8 +38,7 @@ export default {
     if ((await card.locator('[data-map-connection-codex]').count()) === 0) {
       const typeInput = page.getByPlaceholder('Type code — e.g. B274 or K162');
       await typeInput.click();
-      // Codex codes load async — wait for the B274 suggestion before submit so
-      // an empty list cannot fail closed with "No wormhole type matches…"
+
       await typeInput.fill('B');
       await page.waitForFunction(
         () =>

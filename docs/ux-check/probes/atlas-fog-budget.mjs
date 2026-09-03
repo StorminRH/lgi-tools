@@ -1,16 +1,3 @@
-// Frame budget at maximum combined load (4.0.4.2.3 OW4, SC-6.2): an authored
-// chain at the operator-set 50–60-node ceiling with three k-space exits
-// driving the halo to its aggregate cap (150 derived systems), fog active on
-// the dynamic tier — a forced re-layout glide must hold the 4.0.3.2 dev-mode
-// budget (p50 ≤ 17 ms, p95 ≤ 34 ms over ≥ 60 frame deltas), and the map must
-// return to strict stillness afterward (no leaked fog loop at full load).
-//
-// Requires authenticated storage state and a fresh empty UX_FOG_BUDGET_MAP_ID
-// map. The probe seeds ~55 systems through mapFixtures (sequential convex
-// runs; expect the seeding phase to take a minute or two) and leaves them
-// behind — the map is disposable. Ops mirror atlas-halo:
-//   UX_FOG_BUDGET_MAP_ID=<id> node docs/ux-check/run-probes.mjs \
-//     --storage-state=docs/ux-check/captures/auth-storage.json atlas-fog-budget
 import {
   convexRun,
   fogBudgetMapId,
@@ -26,20 +13,16 @@ import {
   stopFrameCapture,
 } from '../lib/motion-metrics.mjs';
 
-/** Real J-space systems (adjacency-free, so they never contribute halo). */
 const JSPACE_BASE_SYSTEM_ID = 31_000_001;
 
-/** Authored chain length in J-space systems. */
 const JSPACE_CHAIN_LENGTH = 52;
 
-/** K-space trade hubs — dense gate neighbourhoods drive the halo to its cap. */
 const KSPACE_EXITS = [
-  { atChainIndex: 10, systemId: 30_000_142 }, // Jita
-  { atChainIndex: 25, systemId: 30_002_187 }, // Amarr
-  { atChainIndex: 40, systemId: 30_002_659 }, // Dodixie
+  { atChainIndex: 10, systemId: 30_000_142 },
+  { atChainIndex: 25, systemId: 30_002_187 },
+  { atChainIndex: 40, systemId: 30_002_659 },
 ];
 
-/** Mirrors the pinned aggregate cap (halo-model HALO_MAX_SYSTEMS_TOTAL). */
 const HALO_MAX_SYSTEMS_TOTAL = 150;
 
 const jumpArgs = (mapId, fromSystemId, toSystemId) => ({
@@ -51,7 +34,6 @@ const jumpArgs = (mapId, fromSystemId, toSystemId) => ({
   shipSize: null,
 });
 
-/** Seeds the ceiling-sized chain: a J-space line plus three k-space exits. */
 async function seedCeilingChain(mapId) {
   await convexRun('mapFixturePlace:placeSystemFixture', {
     mapId,
@@ -91,8 +73,6 @@ export default {
 
     const authoredCount = await seedCeilingChain(mapId);
 
-    // One clean load over the fully-seeded map: the budget is measured on the
-    // steady state, not on 55 incremental merges.
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
     const expectedTotalNodes = authoredCount + HALO_MAX_SYSTEMS_TOTAL;
     await page.waitForFunction(
@@ -123,7 +103,6 @@ export default {
     );
     check('the fog canvas is painted at full load', counts.fogPainted);
 
-    // ── The budgeted glide: a real dial commit re-layouts everything ────────
     await page.getByText('Layout dials').click();
     await startFrameCapture(page);
     await page.getByRole('button', { name: 'Increase Ring spacing' }).click();
@@ -141,7 +120,6 @@ export default {
       true,
     );
 
-    // ── Back to stillness: no leaked fog loop at full load ──────────────────
     await page.waitForTimeout(2000);
     const idleStart = await readRafCount(page);
     await page.waitForTimeout(3000);

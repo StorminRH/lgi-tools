@@ -8,7 +8,6 @@ import {
 const STORAGE_STATE_PATH = resolveE2eStorageStatePath();
 const EXPECT_SYNTHETIC_PILOT = usesSyntheticE2ePilot(STORAGE_STATE_PATH);
 
-/** Local Convex websocket / HMR noise — not a blanket match on every "Convex" string. */
 const CONSOLE_ALLOW =
   /127\.0\.0\.1:3210|webpack-hmr|Fast Refresh|va\.vercel-scripts|ERR_CONNECTION_REFUSED/i;
 
@@ -30,7 +29,6 @@ function attachDiagnostics(page: Page) {
   };
 }
 
-/** Proves the browser cookie is accepted by Better Auth (DB-backed session). */
 async function expectAuthenticatedSession(page: Page) {
   const session = await page.request.get('/api/auth/get-session');
   expect(session.ok(), `get-session HTTP ${session.status()}`).toBeTruthy();
@@ -51,20 +49,10 @@ function accountMenuLocator(page: Page) {
   if (EXPECT_SYNTHETIC_PILOT) {
     return page.getByRole('button', { name: `${E2E_CHARACTER_NAME} — account menu` });
   }
-  // Operator-exported remote session — name is unknown; menu label always ends this way.
+
   return page.getByRole('button', { name: /— account menu$/ });
 }
 
-/**
- * Tiny happy-path smoke: signed-out public shell, then seeded-session
- * authenticated account surfaces. Prefer role/label locators; assert outcomes
- * and keep console/page errors empty. Bar for adding cases stays high — see
- * docs/contributing/end-to-end-testing.md.
- *
- * Authenticated storage state: default local seed path, or
- * `E2E_STORAGE_STATE` / `UX_STORAGE_STATE` for an operator-exported remote session
- * (use with `E2E_SKIP_SEED=1`).
- */
 test('public home shell loads without console or page errors', async ({ page }) => {
   const diag = attachDiagnostics(page);
   await page.goto('/');
@@ -81,7 +69,7 @@ test.describe('authenticated smoke', () => {
 
     await page.goto('/');
     await expectAuthenticatedSession(page);
-    // Desktop header: AccountMenu trigger label is "<name> — account menu".
+
     await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 

@@ -1,4 +1,3 @@
-// SC-2.3: two authenticated contexts on the same map retain identical positions.
 import {
   allPositionsFinite,
   positionsMatch,
@@ -37,7 +36,6 @@ export default {
       { timeout: 120_000 },
     );
     await second.page.waitForTimeout(1500);
-
 
     const a = await readNodePositions(page);
     const b = await readNodePositions(second.page);

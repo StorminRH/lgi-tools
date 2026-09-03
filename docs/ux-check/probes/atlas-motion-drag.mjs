@@ -1,8 +1,3 @@
-// SC-3.3 / V-1: own-drag is raw one-to-one — the dragged node's rendered
-// position matches the dispatched pointer path at every sample, with no
-// smoothing — and the frame-time series across the drag window holds the
-// dev-mode budget at the 50–60 node ceiling. Requires authenticated storage
-// state and UX_MAP_ID pointing at a replayed 50–60 node chain.
 import {
   frameStats,
   installMotionMetrics,
@@ -38,19 +33,12 @@ export default {
     const nodeCount = await page.locator('.react-flow__node').count();
     check(`a production-like chain is rendered (${nodeCount} nodes)`, nodeCount >= 40);
 
-    // Unlock for dragging; keep the camera out of the picture.
     await setAtlasMapPreference(page, 'camera follow', false);
     check(
       'auto layout is off for the drag',
       (await setAtlasMapPreference(page, 'auto layout', false)) === false,
     );
 
-    // Grab a node near the viewport center whose disc is actually hittable
-    // (floating chrome or the control panel can overlap discs), and keep the
-    // drag path bounded around it: a path that nears the viewport edge
-    // triggers React Flow's standard drag auto-pan, which moves the canvas
-    // under the pointer — ordinary behavior, but it would confound the 1:1
-    // witness.
     const viewport = page.viewportSize();
     const centerTarget = { x: viewport.width / 2, y: viewport.height / 2 };
     const discs = page.locator('.map-node-disc');
@@ -91,8 +79,6 @@ export default {
     check('a hittable central disc was found to grab', grip !== null);
     if (grip === null) return;
 
-    // Resolve the node from the grabbed disc — disc and node locator orders
-    // can diverge when selection or z-index reorders React Flow wrappers.
     const nodeId = await discs
       .nth(gripIndex)
       .evaluate((element) => element.closest('.react-flow__node')?.dataset.id ?? null);
@@ -113,9 +99,6 @@ export default {
     await startFrameCapture(page);
     await page.mouse.down();
 
-    // Activate the drag with a small priming move, then re-baseline: the
-    // library consumes the activation move as its drag threshold, so the 1:1
-    // witness measures from the first post-activation state.
     const startX = gripX + 4;
     const startY = gripY;
     await page.mouse.move(startX, startY);
@@ -131,8 +114,6 @@ export default {
       return;
     }
 
-    // ~1.5 s of continuous small moves around a bounded loop; sample the
-    // node's rendered box against the dispatched pointer at every step.
     const steps = 36;
     let maxDeviation = 0;
     for (let step = 1; step <= steps; step += 1) {
@@ -140,9 +121,7 @@ export default {
       const pointerX = startX + Math.sin(angle) * 60;
       const pointerY = startY + (Math.cos(angle) - 1) * 45;
       await page.mouse.move(pointerX, pointerY);
-      // Two real frames: the pointer event's state update commits on the next
-      // frame, and the paint after that is what boundingBox reads. A blind
-      // timeout races the event pipeline and reads one move behind.
+
       await page.evaluate(
         () =>
           new Promise((resolve) => {
@@ -151,7 +130,7 @@ export default {
       );
       const box = await node.boundingBox();
       if (box === null) continue;
-      // One-to-one: the node's box moves exactly with the pointer delta.
+
       const deviation = Math.hypot(
         box.x - baseline.x - (pointerX - startX),
         box.y - baseline.y - (pointerY - startY),

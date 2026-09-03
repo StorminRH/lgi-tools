@@ -1,8 +1,3 @@
-// SC-4.2 / SC-4.3 / V-2: hover produces its response only while hovered, and
-// the idle map performs zero work — the injected requestAnimationFrame
-// counter strictly increases during a glide (the positive control) and is
-// unchanged across a ≥3 s idle window, so a leaked loop cannot pass as
-// stillness. Requires authenticated storage state and UX_MAP_ID.
 import {
   installMotionMetrics,
   readRafCount,
@@ -31,8 +26,6 @@ export default {
     );
     await page.waitForTimeout(1600);
 
-    // Positive control: a forced glide registers animation frames — proving
-    // the counter actually observes the motion loop.
     await page.getByText('Layout dials').click();
     const beforeGlide = await readRafCount(page);
     await page.getByRole('button', { name: 'Increase Ring spacing' }).click();
@@ -43,7 +36,6 @@ export default {
       afterGlide > beforeGlide,
     );
 
-    // Hover: the one cursor-responsive moment (SC-4.2).
     const disc = page.locator('.map-node-disc').first();
     await disc.hover();
     await page.waitForTimeout(150);
@@ -64,7 +56,6 @@ export default {
       !restingAnimation.includes('map-node-breathe'),
     );
 
-    // Idle window: let every window drain, then demand strict stillness.
     await page.waitForTimeout(1500);
     const idleStart = await readRafCount(page);
     await page.waitForTimeout(3200);

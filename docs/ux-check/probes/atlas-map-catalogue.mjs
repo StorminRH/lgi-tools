@@ -1,5 +1,3 @@
-// SC-7.2 / SC-6.1 / SC-8.1: no-map Atlas renders the landing catalogue, and
-// activating a card opens exactly that map's canvas. Requires auth.
 export default {
   name: 'atlas-map-catalogue',
   route: '/atlas',

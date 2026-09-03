@@ -1,7 +1,3 @@
-// Session 4.0.4.2.2 G-1: two authenticated clients observe the real tracked
-// transition → doorbell → server resolver path. The first jump auto-links one
-// typed survivor and decrements mass; the second picks from the exact ambiguous
-// survivor list in the scanner overlay. One-shot by design.
 import {
   automaticJumpMapId,
   automaticJumpRoute,
@@ -17,11 +13,11 @@ import {
   waitForTopology,
 } from '../lib/doorbell-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001; // Synthetic E2E pilot seeded in Neon.
-const ORIGIN_SYSTEM_ID = 31_001_677; // J113551 — C247 + N766 statics.
-const VERIFIED_DESTINATION_ID = 31_000_880; // J160650 — C3.
-const AMBIGUOUS_DESTINATION_ID = 31_000_881; // J114342 — C3.
-const SHIP_TYPE_ID = 28_606; // Orca — 150M kg, legal through C247's 300M cap.
+const CHARACTER_ID = 9_000_001;
+const ORIGIN_SYSTEM_ID = 31_001_677;
+const VERIFIED_DESTINATION_ID = 31_000_880;
+const AMBIGUOUS_DESTINATION_ID = 31_000_881;
+const SHIP_TYPE_ID = 28_606;
 
 async function advanceLocation({
   mapId,
@@ -91,8 +87,7 @@ export default {
       });
     });
     await Promise.all([
-      // J113551 is identified immediately, so its C247 and N766 guaranteed
-      // statics exist before any authored jump.
+
       waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
     ]);
@@ -200,7 +195,7 @@ export default {
       && ['authored', 'converged'].includes(verified?.outcome),
     );
     await Promise.all([
-      // Two authored systems plus the unresolved N766 and destination U210.
+
       waitForTopology(page, 4, 3),
       waitForTopology(second.page, 4, 3),
     ]);
@@ -212,7 +207,7 @@ export default {
       && (await second.page.locator('[data-chain-node]').count()) === 4
       && (await page.locator('.react-flow__edge').count()) === 3
       && (await second.page.locator('.react-flow__edge').count()) === 3
-      // Typed unresolved N766 claimed its static slot; destination opens U210.
+
       && postJumpStubTexts.some((text) => text.includes('U210'))
       && (await second.page.locator('[data-chain-node-static-stub]').allTextContents())
         .some((text) => text.includes('U210')),
@@ -276,13 +271,10 @@ export default {
       && ['authored', 'converged'].includes(ambiguous?.outcome),
     );
     await Promise.all([
-      // Three authored systems, two origin signature ghosts, and one U210
-      // static on each destination. The new sig-less resolved line claims the
-      // other unidentified candidate under the believed-holes rule.
+
       waitForTopology(page, 7, 6),
       waitForTopology(second.page, 7, 6),
-      // Same authenticated account on both clients tracks the jumping
-      // character, so both see the prompt. A different account would not.
+
       page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
       second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
     ]);
@@ -297,8 +289,6 @@ export default {
       && (await secondaryCandidates.count()) === 2,
     );
 
-    // Pick the second survivor; the server moves the destination facts,
-    // cascades elimination, and fans out the settled state.
     await primaryCandidates.nth(1).click();
     await Promise.all([
       primaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
