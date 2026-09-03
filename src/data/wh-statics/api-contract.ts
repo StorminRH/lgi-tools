@@ -11,13 +11,11 @@ const refreshActionSchema = z.object({
   snapshotId: z.undefined().optional(),
 });
 
-/** Boundary validator for the admin statics review form POST. */
 export const whStaticsAdminFormSchema = z.union([
   snapshotActionSchema,
   refreshActionSchema,
 ]);
 
-/** Response vocabulary shared by the scheduled and on-demand refresh paths. */
 export type WhStaticsRefreshResult =
   | { readonly status: 'unchanged' }
   | { readonly status: 'feed-unavailable'; readonly reason: string }
@@ -33,20 +31,16 @@ export type WhStaticsRefreshResult =
       readonly disagreementCount: number;
     };
 
-/** JSON response returned by the weekly statics cron. */
 export type CronRefreshWhStaticsResponse = WhStaticsRefreshResult;
 
-/** Dynamic path boundary for one promoted solar-system statics lookup. */
 export const systemStaticsParamsSchema = z.object({
   systemId: z.coerce.number().int().positive().safe(),
 });
 
-/** Small picker payload for one system; an unknown system owns no statics. */
 const systemStaticsResponseSchema = z.object({
   statics: z.array(z.string()),
 });
 
-/** Public read-only endpoint serving promoted statics to the Atlas type picker. */
 export const systemStaticsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/universe/statics/[systemId]',

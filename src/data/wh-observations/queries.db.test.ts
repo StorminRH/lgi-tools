@@ -61,7 +61,7 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
       observedAt: new Date('2026-08-06T14:00:00.000Z'),
       dedupeKey: 'vacated-key',
     });
-    // Correction onto an untyped target: the vacated identity's row must go.
+
     await deleteWhObservation(harness.db, 'vacated-key');
     expect(await harness.db.select().from(whObservations)).toHaveLength(0);
     await expect(
@@ -134,8 +134,6 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
       dedupeKey: 'deduced-hole-key',
     });
 
-    // Ruling D-B: a person's later identification rewrites the SAME per-hole
-    // row rather than leaving the machine's guess beside it.
     await insertWhObservation(harness.db, {
       solarSystemId: 31_000_001,
       whTypeCode: 'H296',
@@ -153,8 +151,7 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
   });
 
   it('keeps the K162 and hour-coarse checks the migration did not drop', async () => {
-    // The provenance check is gone; these two are the retained database floor,
-    // proven past the application guard that normally rejects K162 first.
+
     await expect(harness.sql`
       INSERT INTO ${harness.sql(SCHEMA)}.wh_observations
         (solar_system_id, wh_type_code, provenance, observed_at, dedupe_key)

@@ -3,7 +3,6 @@
 import { apiFetch } from '@/transport/api-client';
 import { systemStaticsEndpoint } from './api-contract';
 
-/** Loads one origin system's promoted statics; transport failure stays explicit. */
 export async function loadSystemStatics(
   systemId: number,
   signal?: AbortSignal,

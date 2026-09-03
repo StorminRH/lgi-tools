@@ -1,23 +1,5 @@
-// The five user-centered service indicators fixed by roadmap section 3.10.3.1,
-// with the two things that make an indicator actionable rather than decorative:
-// who acts when it degrades, and what they do.
-//
-// These live beside the telemetry rows they read rather than in a prose document
-// under `docs/`: a typed const makes the owner and the response action
-// non-optional at compile time and lets `sli-queries.ts` and the admin panel
-// derive from one list instead of restating it — the exact drift
-// `vendor-resilience-registry.ts` exists to prevent.
-//
-// Nothing here is alerted on. Alerting infrastructure beyond what already exists
-// is out of scope for this session.
-
-/**
- * Who acts when an indicator degrades. Closed because an unowned indicator is not an SLI.
- * For a single-operator project the honest values are the operator and CCP's upstream service.
- */
 export type SliOwner = 'operator' | 'ccp-upstream';
 
-/** Stable identifiers for the five indicators. */
 export const SLI_IDS = [
   'read_success_rate',
   'mutation_success_rate',
@@ -26,16 +8,10 @@ export const SLI_IDS = [
   'job_backlog',
 ] as const;
 
-/** One indicator's stable identifier. */
 export type SliId = (typeof SLI_IDS)[number];
 
-/** How an indicator's live value should be read. */
 export type SliUnit = 'percent' | 'milliseconds' | 'count';
 
-/**
- * One user-centered service indicator: what it measures, who owns it, and the exact action taken
- * when it degrades. The admin panel keys each indicator's live value by `id`.
- */
 export interface SliDefinition {
   id: SliId;
   title: string;
@@ -45,7 +21,6 @@ export interface SliDefinition {
   unit: SliUnit;
 }
 
-/** The five indicators fixed by roadmap section 3.10.3.1. */
 export const SLI_DEFINITIONS: readonly SliDefinition[] = [
   {
     id: 'read_success_rate',
@@ -99,8 +74,3 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
   },
 ];
 
-// Recorded, deliberately unbuilt: OpenTelemetry or a third-party observability
-// vendor is deferred. The capability record in capability.ts is vendor-neutral
-// and writes through usage_logs, so adopting one later is an export concern
-// rather than a re-instrumentation. Revisit when a second operator, a paging
-// rotation, or cross-service tracing makes the dependency worth its cost.

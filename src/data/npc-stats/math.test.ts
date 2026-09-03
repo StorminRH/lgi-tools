@@ -119,12 +119,7 @@ describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
       });
 
       it('omni EHP', () => {
-        // Drifters carry shield in the raw SDE but the Sheet's snapshot for
-        // their Calculations row is off by exactly 6 ISK below
-        // (armor_omni + structure). The mismatch is a Sheet-side artefact —
-        // probably a hand-typed value at some past edit — and only affects
-        // the two Drifter rows in the entire 36-archetype set. We tolerate
-        // a single-digit delta here rather than coding the typo into math.ts.
+
         const tolerance = arch.name.startsWith('Drifter') ? 10 : 0;
         expect(Math.abs(Math.round(stats.hp.ehp) - arch.ehp)).toBeLessThanOrEqual(tolerance);
       });
@@ -137,23 +132,14 @@ describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
       });
 
       it('EWAR amounts and counts', () => {
-        // The snapshot's `neutDuration` / `rrepDuration` are Sheet-author
-        // artifacts — they don't correspond to any single SDE attribute.
-        // attr 98 (real neut cycle time) reports 25000–100000ms across the
-        // 36-sleeper set, while the snapshot prints 10000 for every sleepless
-        // type, 20000 for Avenger, 0 for Drifters. Our math returns attr 98
-        // honestly; this test only asserts the amounts and the derived counts.
+
         expect(stats.ewar.scram).toBe(arch.scram);
         expect(stats.ewar.web).toBe(arch.web);
         expect(stats.ewar.neutAmount).toBe(arch.neutAmount);
         expect(stats.ewar.rrepAmount).toBe(arch.rrepAmount);
-        // neutCount = amount / 10 holds for every sleepless type and both
-        // Drifters; only Avenger uses a divisor of 20 in the Sheet (its
-        // 20-second cycle vs the sleeper-standard 10s). We use the universal
-        // /10 baseline in math.ts (Avenger doesn't appear in the wormhole-sites
-        // wave data, so the live API is unaffected); the test mirrors that.
+
         if (arch.typeId === 37472) {
-          // Upgraded Avenger — Sheet divisor differs; assert math's /10 result.
+
           expect(stats.ewar.neutCount).toBe(Math.floor(arch.neutAmount / 10));
         } else {
           expect(stats.ewar.neutCount).toBe(arch.neutCount);
