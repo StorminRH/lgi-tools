@@ -19,7 +19,6 @@ const popup = cva(
     variants: {
       tone: {
         neutral: `${panelSurface} text-text`,
-
         green: 'glass-panel text-text border-isk-dim shadow-popover-green',
       } satisfies Record<PopoverTone, string>,
     },
@@ -38,27 +37,18 @@ export function Popover({
   triggerClassName,
   className,
 }: {
-
   trigger: ReactNode;
-
   children: ReactNode;
-
   label: string;
   tone?: PopoverTone;
   side?: 'top' | 'bottom' | 'left' | 'right';
-
   openOnHover?: boolean;
-
   onOpenChange?: (open: boolean) => void;
-
   triggerClassName?: string;
-
   className?: string;
 }) {
   return (
-
     <Base.Root modal={false} onOpenChange={onOpenChange}>
-      {}
       <Base.Trigger
         type="button"
         aria-label={label}
@@ -69,19 +59,14 @@ export function Popover({
       >
         {trigger}
       </Base.Trigger>
-
       <Base.Portal>
         <Base.Positioner side={side} sideOffset={8} className="z-dropdown">
           <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
             {children}
           </Base.Popup>
-
         </Base.Positioner>
-
       </Base.Portal>
-
     </Base.Root>
-
   );
 }
 
@@ -90,7 +75,6 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
     <div className={eyebrow({ tone: 'isk', weight: 'semibold', emphasis: 'strong' })}>
       {children}
     </div>
-
   );
 }
 
@@ -98,10 +82,7 @@ export function PopoverRow({ label, children }: { label: string; children: React
   return (
     <p className="font-ui text-body leading-snug text-muted">
       <span className="font-semibold text-text">{label}</span> —{' '}
-
       <span className="font-data">{children}</span>
-
     </p>
-
   );
 }
