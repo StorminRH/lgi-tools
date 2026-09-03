@@ -46,11 +46,6 @@ export function createIdentityProjectionRunners(
 
 let registeredHooks: Partial<IdentityProjectionHooks> = {};
 
-/**
- * Registers composition-owned projection side-effects for character unlink,
- * reassign, absorb, fresh account create, and emptied-account user deletes.
- * Call once at process boot.
- */
 export function registerIdentityProjectionHooks(next: Partial<IdentityProjectionHooks>): void {
   registeredHooks = next;
 }
