@@ -1,5 +1,3 @@
-// `vercel-build`) so a route can't silently regress to a more dynamic mode — the
-
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
