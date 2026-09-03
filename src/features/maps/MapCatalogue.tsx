@@ -32,14 +32,12 @@ import {
 import { mapSelectionHref } from './map-navigation';
 import { useMapDeletion } from './use-map-deletion';
 
-/** One self-hiding catalogue section derived without changing listing order. */
 export interface MapCatalogueSection {
   readonly id: 'created' | 'corporation' | 'direct';
   readonly label: 'Your maps' | 'Corporation maps' | 'Shared with you';
   readonly maps: readonly AuthorizedMapRow[];
 }
 
-/** Partitions the exact authorized listing into its three exclusive provenance sections. */
 export function mapCatalogueSections(
   maps: readonly AuthorizedMapRow[],
 ): readonly MapCatalogueSection[] {
@@ -67,6 +65,7 @@ function PlusGlyph() {
     <svg viewBox="0 0 24 24" aria-hidden className="size-[18px] stroke-current" fill="none">
       <path d="M12 5v14M5 12h14" strokeWidth="1.5" />
     </svg>
+
   );
 }
 
@@ -75,6 +74,7 @@ function TrashGlyph() {
     <svg viewBox="0 0 20 20" aria-hidden className="size-[18px] stroke-current" fill="none">
       <path d="M4.5 6h11M8 3.5h4M6.5 6l.6 10h5.8l.6-10M8.5 8.5v5M11.5 8.5v5" />
     </svg>
+
   );
 }
 
@@ -106,10 +106,13 @@ function CorporationBadges({
               className="size-6 rounded-ctl object-cover"
             />
             <span>{name}</span>
+
           </span>
+
         );
       })}
     </div>
+
   );
 }
 
@@ -141,18 +144,25 @@ function CatalogueMapCard({
           <h2 className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name">
             {map.name}
           </h2>
+
           {map.provenance.kind === 'created' ? null : (
             <p className="font-ui text-label text-muted">Shared by {map.creatorName}</p>
+
           )}
         </div>
+
         <CorporationBadges map={map} corporationById={corporationById} />
         <div className="mt-auto flex flex-col gap-1 font-data text-label text-muted">
           <span>Your access: {mapRoleLabel(map.role)}</span>
+
           <time dateTime={map.createdAt.toISOString()}>
             Created {formatUtcDate(map.createdAt)}
           </time>
+
         </div>
+
       </Link>
+
       {map.role === 'admin' ? (
         <div className="flex items-center justify-between gap-2 border-t border-border-soft px-3 py-2">
           <Button
@@ -164,6 +174,7 @@ function CatalogueMapCard({
           >
             <TrashGlyph />
           </Button>
+
           <Button
             size="sm"
             variant="secondary"
@@ -172,9 +183,12 @@ function CatalogueMapCard({
           >
             Edit access
           </Button>
+
         </div>
+
       ) : null}
     </Card>
+
   );
 }
 
@@ -198,7 +212,9 @@ function CatalogueSection({
     <section aria-labelledby={`map-catalogue-${section.id}`} className="flex flex-col gap-3">
       <SectionLabel>
         <span id={`map-catalogue-${section.id}`}>{section.label}</span>
+
       </SectionLabel>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {section.maps.map((map) => (
           <CatalogueMapCard
@@ -211,7 +227,9 @@ function CatalogueSection({
           />
         ))}
       </div>
+
     </section>
+
   );
 }
 
@@ -260,16 +278,23 @@ function MapCatalogueSurface({
               <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
                 Map catalogue unavailable
               </h2>
+
               <p className="font-ui text-ui leading-relaxed text-muted">
                 Atlas could not load your authorized maps. Retry before creating or managing a map.
               </p>
+
             </div>
+
             <Button variant="primary" onClick={onRetry}>
               Try again
             </Button>
+
           </Card>
+
         </PageShell>
+
       </div>
+
     );
   }
 
@@ -292,6 +317,7 @@ function MapCatalogueSurface({
                 <PlusGlyph />
                 Create new map
               </Button>
+
               <Button
                 variant="secondary"
                 size="sm"
@@ -302,7 +328,9 @@ function MapCatalogueSurface({
                 <TrashGlyph />
                 Trash{deletedCount > 0 ? ` (${deletedCount})` : ''}
               </Button>
+
             </div>
+
           }
         />
         <div className="flex flex-col gap-9 pb-16">
@@ -310,6 +338,7 @@ function MapCatalogueSurface({
             <p data-map-catalogue-empty-hint className="font-ui text-ui text-muted">
               Create a map to begin charting a chain.
             </p>
+
           ) : null}
 
           {sections.map((section) => (
@@ -324,8 +353,11 @@ function MapCatalogueSurface({
             />
           ))}
         </div>
+
       </PageShell>
+
     </div>
+
   );
 }
 
@@ -333,8 +365,7 @@ function useMapCatalogueDialogs(data: MapCatalogueData) {
   const { maps, corporations, listingAvailable } = data;
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // Create/trash stay keyed to listing availability only. Including admin map
-  // ids would close TrashWindow on restore refresh, unlike the Atlas-menu door.
+
   const authorityKey = mapDialogAuthorityKey(listingAvailable, []);
   const [storedDialogs, setStoredDialogs] = useState(() =>
     closedMapDialogs(authorityKey),
@@ -492,10 +523,10 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
         finalFocus={deleteOpenerRef}
       />
     </>
+
   );
 }
 
-/** Renders the metadata-only Atlas landing as a site-framed catalogue. */
 export function MapCatalogue() {
   const data = useMapCatalogueData();
   return <MapCatalogueContent data={data} />;

@@ -10,7 +10,6 @@ import {
   type AuthorityScopedMapDialogs,
 } from './map-dialog-state';
 
-/** Shared create and trash doors for the Atlas menu and landing catalogue. */
 export function MapLifecycleDialogs({
   dialogs,
   onDialogsChange,
@@ -51,5 +50,6 @@ export function MapLifecycleDialogs({
         }
       />
     </>
+
   );
 }

@@ -10,14 +10,6 @@ import {
 import { planSnapshotV1Schema, snapshotFieldSchemas } from './template-snapshot';
 import { configureFull, makeApplyCtx, makeMockPlanner } from './__tests__/template.fixtures';
 
-// The template core, tested against a mock context whose setters mimic the
-// provider's public surface (including the #187 no-double-select guard) — the
-// shared harness in template.fixtures.ts. The round-trip pin is the
-// completeness proof: capture → apply(fresh) → capture must be stable when
-// every reference resolves; the degrade battery pins that each
-// dangling-reference kind degrades ITS field alone, with one note, and
-// never throws.
-
 describe('captureTemplate', () => {
   it('captures a snapshot the versioned schema accepts, with deterministic ordering', () => {
     const { ctx, state } = makeMockPlanner();
@@ -26,7 +18,7 @@ describe('captureTemplate', () => {
     expect(() => planSnapshotV1Schema.parse(snap)).not.toThrow();
     expect(snap.v).toBe(1);
     expect(snap.blueprintTypeId).toBe(999);
-    // Maps/Sets serialize sorted so a re-save is byte-stable.
+
     expect(snap.meOverrides).toEqual([
       [111, 5],
       [999, 10],
@@ -67,7 +59,7 @@ describe('applyTemplate round-trip', () => {
     const notes = await applyTemplate(makeApplyCtx(target.ctx), snap);
     expect(notes).toEqual([]);
     expect(captureTemplate(target.ctx, 999)).toEqual(snap);
-    // The pref-backed system write-through happened (persist: true).
+
     expect(target.state.persistedBuildLocation).toEqual(snap.buildSystem);
   });
 
@@ -84,8 +76,7 @@ describe('applyTemplate round-trip', () => {
 });
 
 describe('applyTemplate per-field fail-open degrades', () => {
-  // Each case starts from the same fully-configured snapshot and breaks ONE
-  // reference — that field alone degrades, one note, everything else lands.
+
   async function degradeCase(
     mutate: (snap: ReturnType<typeof captureTemplate>) => void,
     target = makeMockPlanner(),
@@ -104,7 +95,7 @@ describe('applyTemplate per-field fail-open degrades', () => {
     });
     expect(notes).toEqual(['Build structure "Vanished Sotiyo" is gone or no longer shared — cleared']);
     expect(target.state.selectedStructure).toBeNull();
-    // The rest of the template landed intact.
+
     expect(target.state.runs).toBe(3);
     expect(target.state.reactionStructure?.id).toBe('custom-uuid-1');
     expect(target.state.location?.systemId).toBe(30000142);
@@ -116,7 +107,7 @@ describe('applyTemplate per-field fail-open degrades', () => {
     });
     expect(notes).toEqual(['Reaction structure "Deleted Athanor" is gone or no longer shared — cleared']);
     expect(target.state.reactionStructure).toBeNull();
-    // Its system survives — each field degrades alone.
+
     expect(target.state.reactionSystem?.systemId).toBe(30002187);
     expect(target.state.selectedStructure?.id).toBe('corp:1021');
   });
@@ -141,7 +132,7 @@ describe('applyTemplate per-field fail-open degrades', () => {
     ]);
     expect(target.state.location).toBeNull();
     expect(target.state.station).toBeNull();
-    // Everything not hanging off the system still landed.
+
     expect(target.state.selectedStructure?.id).toBe('corp:1021');
     expect(target.state.costBasis).toBe('batched');
   });
@@ -230,15 +221,13 @@ describe('classification gates', () => {
 
   it('every snapshot-classified setter names a real manifest field (the runtime mirror of the tsc pin)', () => {
     const fieldKeys = new Set<string>(TEMPLATE_FIELD_KEYS);
-    // Widened: today every mutator happens to classify as a field key, and the
-    // narrowed literal union would make the exemption comparisons a tsc error.
+
     const classifications = Object.entries(SETTER_CLASSIFICATION) as [string, string][];
     const bad = classifications.filter(
       ([, cls]) => cls !== 'derived-or-account' && cls !== 'exempt' && !fieldKeys.has(cls),
     );
     expect(bad).toEqual([]);
-    // Every manifest field has at least one setter feeding it — a field no
-    // mutator can reach could never restore.
+
     const reachable = new Set(classifications.map(([, cls]) => cls));
     const unreachable = TEMPLATE_FIELD_KEYS.filter((k) => !reachable.has(k));
     expect(unreachable).toEqual([]);
