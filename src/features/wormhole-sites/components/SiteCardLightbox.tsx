@@ -22,6 +22,13 @@ function findCardSummary(
   return summary ? { card, summary } : null;
 }
 
+export function nextLightboxOpen(
+  mode: 'lightbox' | 'expand',
+  open: boolean,
+): boolean {
+  return mode === 'lightbox' && open;
+}
+
 export function SiteCardLightbox({ site }: { site: SiteDetail }) {
   const [mode] = usePreference(sitesDetailMode);
   const nameId = useId();
@@ -29,11 +36,13 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const summaryRef = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
+  const nextOpen = nextLightboxOpen(mode, open);
+  if (nextOpen !== open) {
+    setOpen(nextOpen);
+  }
 
   useEffect(() => {
     if (mode !== 'lightbox') {
-      /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      setOpen(false);
       return;
     }
     const found = findCardSummary(anchorRef.current);
