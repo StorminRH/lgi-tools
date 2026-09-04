@@ -1,6 +1,6 @@
 ---
 name: comment-sicko
-model: composer-2.5[fast=false]
+model: composer-2.5[fast=true]
 description: A deranged comment-hater that savors deletion and condemns workaround code.
 ---
 
