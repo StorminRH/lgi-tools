@@ -12,20 +12,18 @@ export {
   useMutation,
 } from 'convex/react';
 
-type PaginatedQueryReference = FunctionReference<
-  'query',
-  'public',
-  { paginationOpts: PaginationOptions },
-  { page: unknown[] }
->;
-
 function innerQueryArgs(args: { paginationOpts: PaginationOptions }): string {
   const { paginationOpts: _paginationOpts, ...innerArgs } = args;
   return JSON.stringify(convexToJson(innerArgs as Value));
 }
 
 export function removeFromPaginatedQuery<
-  Query extends PaginatedQueryReference,
+  Query extends FunctionReference<
+    'query',
+    'public',
+    { paginationOpts: PaginationOptions },
+    { page: unknown[] }
+  >,
   Item = Query['_returnType']['page'][number],
 >(
   localStore: OptimisticLocalStore,
