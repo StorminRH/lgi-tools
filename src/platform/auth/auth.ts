@@ -34,7 +34,7 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
   return characterId !== null && characterId === superId;
 }
 
-interface CreateAuthDeps {
+export interface CreateAuthDeps {
   readonly runners: IdentityProjectionRunners;
   readonly reconcileCharacterOwner: (
     characterId: number,
