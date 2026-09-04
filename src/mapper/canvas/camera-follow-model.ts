@@ -20,13 +20,6 @@ export function nodesReadyForFit(
   return systemsNeedingFit(intents).every((systemId) => nodeIds.has(systemId));
 }
 
-/**
- * Whether a merge's intents warrant a viewport fit. The first fit is initial
- * presentation and ignores the follow toggle — without it a fresh map load
- * leaves the layout origin in the top-left corner under the chrome. Every
- * later fit is following: it requires the toggle on
- * (operator G-1 call: the camera must not move on its own).
- */
 export function shouldFitView(input: {
   readonly intents: readonly MapChainIntent[];
   readonly framed: boolean;

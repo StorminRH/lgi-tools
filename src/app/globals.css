@@ -1259,8 +1259,6 @@ details[data-collapsible][open] > summary [data-chevron] {
   animation: map-node-exit-heavy var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
 }
 
-/* Hover: the one cursor-responsive moment (DC-4) — a glow plus subtle
- * breathing, strictly hover-scoped so the idle map schedules nothing. */
 @keyframes map-node-breathe {
   0%, 100% { scale: 1; }
   50% { scale: 1.045; }

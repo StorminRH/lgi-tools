@@ -23,9 +23,7 @@ export function useChainNodeSync(
   const [nodes, setNodes] = useState<ChainNode[]>([]);
 
   useEffect(() => {
-    // renderToStaticMarkup never runs effects; syncing during render would
-    // double-invoke parent hooks in ChainHost tests.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- RF local nodes must survive chain-fact updates
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNodes((previous) =>
       syncNodes(
         previous,
