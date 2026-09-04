@@ -138,10 +138,9 @@ describe('path parameter binding', () => {
   });
 
   it('rejects a dynamic path whose params schema is missing or mismatched', () => {
-    const slugParams = z.object({ slug: z.string() });
     type MissingParams = Omit<typeof pathEndpoint, 'params'>;
     type MismatchedParams = Omit<typeof pathEndpoint, 'params'> & {
-      params: typeof slugParams;
+      params: z.ZodObject<{ slug: z.ZodString }>;
     };
     type StaticWithParams = typeof queryEndpoint & {
       params: typeof pathEndpoint.params;
