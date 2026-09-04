@@ -5,7 +5,7 @@ import {
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { currentMapRoleValidator } from './lib/mapEntityContracts';
+import { currentMapRoleValidator, type StoredMapRole } from './lib/mapEntityContracts';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
@@ -31,7 +31,7 @@ export interface UserClaimsPurgeResult {
 }
 
 function rolesEqual(
-  left: readonly (MapRole | 'owner')[],
+  left: readonly StoredMapRole[],
   right: readonly MapRole[],
 ): boolean {
   return left.length === right.length && left.every((role, index) => role === right[index]);
