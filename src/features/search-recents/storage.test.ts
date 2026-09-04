@@ -20,7 +20,14 @@ function installLocalStorageShim() {
 
 installLocalStorageShim();
 
-const { pushRecent, readRecents } = await import('./storage');
+const {
+  getRecentsServerSnapshot,
+  getRecentsSnapshot,
+  pushRecent,
+  readRecents,
+  subscribeRecents,
+} = await import('./storage');
+const { useSearchRecents } = await import('./use-search-recents');
 const STORAGE_KEY = 'lgi:search:recents';
 const MAX_RECENTS = 10;
 
@@ -176,5 +183,98 @@ describe('search-recents storage', () => {
     const out = readRecents();
     expect(out).toHaveLength(1);
     expect(out[0]!.id).toBe('1');
+  });
+});
+
+describe('search-recents store emit and cache', () => {
+  it('exposes useSearchRecents as the useSyncExternalStore hook', () => {
+    expect(typeof useSearchRecents).toBe('function');
+  });
+
+  it('returns the same snapshot reference while storage is unchanged', () => {
+    pushRecent(row('1', 'one'));
+    const first = getRecentsSnapshot();
+    const second = getRecentsSnapshot();
+    expect(first).toBe(second);
+    expect(first).toHaveLength(1);
+    expect(first[0]!.label).toBe('one');
+  });
+
+  it('returns a new snapshot after a write that changes the stored list', () => {
+    pushRecent(row('1', 'one'));
+    const before = getRecentsSnapshot();
+    pushRecent(row('2', 'two'));
+    const after = getRecentsSnapshot();
+    expect(after).not.toBe(before);
+    expect(after.map((r) => r.label)).toEqual(['two', 'one']);
+    expect(after.map((r) => r.label)).toEqual(readRecents().map((r) => r.label));
+  });
+
+  it('notifies subscribers after a successful write', () => {
+    const seen: number[] = [];
+    const unsubscribe = subscribeRecents(() => {
+      seen.push(getRecentsSnapshot().length);
+    });
+    pushRecent(row('1', 'one'));
+    pushRecent(row('2', 'two'));
+    unsubscribe();
+    expect(seen).toEqual([1, 2]);
+  });
+
+  it('stops notifying after unsubscribe', () => {
+    let calls = 0;
+    const unsubscribe = subscribeRecents(() => {
+      calls += 1;
+    });
+    pushRecent(row('1', 'one'));
+    unsubscribe();
+    pushRecent(row('2', 'two'));
+    expect(calls).toBe(1);
+  });
+
+  it('does not emit when a recent-kind or disabled row is refused', () => {
+    let calls = 0;
+    const unsubscribe = subscribeRecents(() => {
+      calls += 1;
+    });
+    pushRecent({ kind: 'recent', id: '1', label: 'one', href: '/x' });
+    pushRecent({
+      kind: 'tool',
+      id: 'soon',
+      label: 'Soon',
+      href: '#',
+      disabled: true,
+    });
+    unsubscribe();
+    expect(calls).toBe(0);
+    expect(getRecentsSnapshot()).toBe(getRecentsServerSnapshot());
+  });
+
+  it('keeps the server snapshot identity-stable and empty', () => {
+    pushRecent(row('1', 'one'));
+    const first = getRecentsServerSnapshot();
+    const second = getRecentsServerSnapshot();
+    expect(first).toBe(second);
+    expect(first).toEqual([]);
+  });
+
+  it('reuses the empty server snapshot when storage is empty', () => {
+    expect(getRecentsSnapshot()).toBe(getRecentsServerSnapshot());
+    pushRecent(row('1', 'one'));
+    window.localStorage.removeItem(STORAGE_KEY);
+    expect(getRecentsSnapshot()).toBe(getRecentsServerSnapshot());
+  });
+
+  it('rebuilds the cached snapshot when the stored payload changes without emit', () => {
+    pushRecent(row('1', 'one'));
+    const before = getRecentsSnapshot();
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([{ kind: 'site', id: 's1', label: 'A Site', href: '/sites/1' }]),
+    );
+    const after = getRecentsSnapshot();
+    expect(after).not.toBe(before);
+    expect(after).toHaveLength(1);
+    expect(after[0]!.label).toBe('A Site');
   });
 });
