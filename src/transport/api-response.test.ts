@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import {
   dependencyUnavailableFailure,
@@ -8,8 +8,16 @@ import {
   validationFailure,
 } from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
-import { apiResponse, problemResponse } from './api-response';
-import { defineEndpoint, emptyBody, jsonBody, problem, textBody } from './endpoint';
+import { apiResponse, problemResponse, type ResponseArgsFor } from './api-response';
+import {
+  defineEndpoint,
+  emptyBody,
+  jsonBody,
+  problem,
+  textBody,
+  type DeclaredStatus,
+  type ResponseBodyFor,
+} from './endpoint';
 
 const endpoint = defineEndpoint({
   method: 'POST',
@@ -78,17 +86,16 @@ describe('apiResponse', () => {
   });
 
   it('makes undeclared statuses, wrong bodies, and body-on-empty fail typecheck', () => {
-    if (false) {
-      // @ts-expect-error Status 200 is not declared by this endpoint.
-      apiResponse(endpoint, 200, { id: 'abc' });
-      // @ts-expect-error Status 201 requires the declared JSON body.
-      apiResponse(endpoint, 201, 'abc');
-      // @ts-expect-error Empty status 204 accepts no body.
-      apiResponse(endpoint, 204, { id: 'abc' });
-      // @ts-expect-error The other endpoint's response shape cannot cross endpoints.
-      apiResponse(otherEndpoint, 200, { id: 'abc' });
-    }
-    expect(true).toBe(true);
+    expectTypeOf<200>().not.toExtend<DeclaredStatus<typeof endpoint>>();
+    expectTypeOf<[string]>().not.toExtend<
+      ResponseArgsFor<(typeof endpoint)['responses'][201]>
+    >();
+    expectTypeOf<[{ id: string }]>().not.toExtend<
+      ResponseArgsFor<(typeof endpoint)['responses'][204]>
+    >();
+    expectTypeOf<{ id: string }>().not.toExtend<
+      ResponseBodyFor<typeof otherEndpoint, 200>
+    >();
   });
 });
 
