@@ -1,12 +1,16 @@
 import { Suspense } from 'react';
-import { atlasMapQueryPresent } from '@/features/maps/map-navigation';
+import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
+import {
+  atlasMapQueryPresent,
+  atlasSignInReturnHrefFromMapQuery,
+} from '@/features/maps/map-navigation';
 import { buildPageMetadata } from '@/lib/page-metadata';
 import { AtlasBound } from './AtlasBound';
 import { AtlasLandingFallback } from './AtlasLandingFallback';
 
 export const metadata = buildPageMetadata({
   title: 'Atlas',
-  description: 'A shared live map of your wormhole chain.',
+  description: ATLAS_TAGLINE,
   canonical: '/atlas',
 });
 
@@ -16,7 +20,12 @@ async function AtlasFromParams({
   searchParams: Promise<{ map?: string | string[] }>;
 }) {
   const params = await searchParams;
-  return <AtlasBound mapSelected={atlasMapQueryPresent(params.map)} />;
+  return (
+    <AtlasBound
+      mapSelected={atlasMapQueryPresent(params.map)}
+      returnHref={atlasSignInReturnHrefFromMapQuery(params.map)}
+    />
+  );
 }
 
 export default function AtlasPage({

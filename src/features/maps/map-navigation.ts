@@ -22,6 +22,15 @@ export function atlasSignInReturnHref(
   return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
 }
 
+export function atlasSignInReturnHrefFromMapQuery(
+  map: string | string[] | undefined,
+): string {
+  const params = new URLSearchParams();
+  const value = Array.isArray(map) ? map[0] : map;
+  if (value !== undefined) params.set('map', value);
+  return atlasSignInReturnHref(params);
+}
+
 export function mapDeletionHref(
   searchParams: Pick<URLSearchParams, 'get' | 'toString'>,
   mapId: string,

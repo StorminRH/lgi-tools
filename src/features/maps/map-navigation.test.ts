@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import {
   atlasMapQueryPresent,
   atlasSignInReturnHref,
+  atlasSignInReturnHrefFromMapQuery,
   mapDeletionHref,
   mapSelectionHref,
 } from './map-navigation';
@@ -38,4 +39,13 @@ it('returns a signed-out sign-in to the shared map and nothing else', () => {
   expect(
     atlasSignInReturnHref(new URLSearchParams('map=map%2Fone&error=access_denied&tab=scanner')),
   ).toBe('/atlas?map=map%2Fone');
+});
+
+it('builds the Atlas return href from the page map query', () => {
+  expect(atlasSignInReturnHrefFromMapQuery(undefined)).toBe('/atlas');
+  expect(atlasSignInReturnHrefFromMapQuery('')).toBe('/atlas');
+  expect(atlasSignInReturnHrefFromMapQuery('map/one')).toBe('/atlas?map=map%2Fone');
+  expect(atlasSignInReturnHrefFromMapQuery(['map/one', 'ignored'])).toBe(
+    '/atlas?map=map%2Fone',
+  );
 });

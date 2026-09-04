@@ -21,11 +21,11 @@ describe('topByMetadataKey GROUP BY shape', () => {
     to: new Date('2026-05-08T00:00:00Z'),
   };
 
-  it('groups by the SELECT ordinal, with the metadata key bound only in SELECT + WHERE', () => {
+  it('groups by the selected metadata expression', () => {
     const { sql, params } = topByMetadataKeyToSQL('referrer', 'page_view', range, 10);
 
-    expect(sql.toLowerCase()).toMatch(/group by 1\b/);
-    expect(sql.toLowerCase()).not.toMatch(/group by[^,]*->>/);
-    expect(params.filter((p) => p === 'referrer')).toHaveLength(2);
+    expect(sql.toLowerCase()).toMatch(/group by[^,]*->>/);
+    expect(sql.toLowerCase()).not.toMatch(/group by 1\b/);
+    expect(params.filter((p) => p === 'referrer')).toHaveLength(3);
   });
 });

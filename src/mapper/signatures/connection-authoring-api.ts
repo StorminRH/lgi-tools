@@ -1,9 +1,15 @@
 import { toast } from '@/components/ui/toast';
 import type { Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
-import type { ConnectionDetail } from '../chain/connection-detail';
+import type {
+  ConnectionDetail,
+  ConnectionEditorDetail,
+} from '../chain/connection-detail';
+import {
+  connectionFieldSetters,
+  type ConnectionFieldAuthoringApi,
+} from '../authoring/connection-field-setters';
 import { postJumpRequest } from '../jump-client';
-import type { ConnectionFieldAuthoringApi } from '../authoring/connection-field-setters';
 import { announceSeverOutcome } from '../authoring/sever-toast';
 import { announceSignatureRemoval } from './signature-toast';
 
@@ -65,6 +71,46 @@ export async function answerAndAnnounce(input: {
     id: `jump-answer:${input.connectionId}`,
     duration: 5_000,
   });
+}
+
+function isResolvedConnection(
+  connection: ConnectionEditorDetail,
+): connection is ConnectionDetail {
+  return connection.toSystemId !== null;
+}
+
+export function bindConnectionSetters(
+  mapId: string,
+  authoring: ConnectionAuthoringApi,
+) {
+  return (
+    connection: ConnectionEditorDetail,
+    side: 'from' | 'to' = 'from',
+  ) =>
+    connectionFieldSetters(
+      mapId,
+      connection,
+      authoring,
+      (value) => {
+        if (isResolvedConnection(connection)) {
+          void applyWormholeType({
+            mapId,
+            connection,
+            value,
+            side,
+            authoring,
+          });
+          return;
+        }
+        void authoring.setConnectionWormholeType({
+          mapId,
+          connection,
+          value,
+          side,
+        });
+      },
+      side,
+    );
 }
 
 export async function applyWormholeType(input: {
