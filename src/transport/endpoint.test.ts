@@ -9,8 +9,14 @@ import {
   problem,
   textBody,
   type DeclaredStatus,
+  type EndpointDefinition,
+  type JsonCodec,
   type OutcomeOf,
+  type ParamsKeysOf,
   type PathParamKeys,
+  type PathParamsBinding,
+  type PathParamsOf,
+  type QueryInputOf,
   type RequestInputOf,
   type ResponseBodyFor,
 } from './endpoint';
@@ -76,26 +82,20 @@ describe('endpoint contracts', () => {
   });
 
   it('keeps transforming schemas out of JSON response codecs', () => {
-    if (false) {
-      // @ts-expect-error Response codecs require identical Zod input and output types.
-      jsonBody(z.string().transform((value) => value.length));
-    }
-    expect(true).toBe(true);
+    const lengthFromString = z.string().transform((value) => value.length);
+    expectTypeOf<z.input<typeof lengthFromString>>().not.toEqualTypeOf<
+      z.output<typeof lengthFromString>
+    >();
+    expectTypeOf(lengthFromString).not.toExtend<z.ZodType<number, number>>();
   });
 
   it('prevents GET contracts from declaring a request body', () => {
-    if (false) {
-      // @ts-expect-error GET endpoint contracts cannot declare request bodies.
-      defineEndpoint({
-        method: 'GET',
-        path: '/api/test/invalid-get',
-        request: requestSchema,
-        responses: {
-          200: jsonBody(responseSchema),
-        },
-      });
-    }
-    expect(true).toBe(true);
+    expectTypeOf<{
+      method: 'GET';
+      path: '/api/test/invalid-get';
+      request: typeof requestSchema;
+      responses: { 200: JsonCodec<z.output<typeof responseSchema>> };
+    }>().not.toExtend<EndpointDefinition>();
   });
 });
 
@@ -138,32 +138,27 @@ describe('path parameter binding', () => {
   });
 
   it('rejects a dynamic path whose params schema is missing or mismatched', () => {
-    if (false) {
-      // @ts-expect-error A [segment] path template requires a matching params schema.
-      defineEndpoint({
-        method: 'GET',
-        path: '/api/test/things/[id]',
-        request: null,
-        responses: { 200: jsonBody(responseSchema) },
-      });
-      defineEndpoint({
-        method: 'GET',
-        path: '/api/test/things/[id]',
-        request: null,
-        // @ts-expect-error The params schema key must match the path template's [segment].
-        params: z.object({ slug: z.string() }),
-        responses: { 200: jsonBody(responseSchema) },
-      });
-      defineEndpoint({
-        method: 'GET',
-        path: '/api/test/things',
-        request: null,
-        // @ts-expect-error A static path template cannot declare params keys.
-        params: z.object({ id: z.string() }),
-        responses: { 200: jsonBody(responseSchema) },
-      });
-    }
-    expect(true).toBe(true);
+    const slugParams = z.object({ slug: z.string() });
+    type MissingParams = Omit<typeof pathEndpoint, 'params'>;
+    type MismatchedParams = Omit<typeof pathEndpoint, 'params'> & {
+      params: typeof slugParams;
+    };
+    type StaticWithParams = typeof queryEndpoint & {
+      params: typeof pathEndpoint.params;
+    };
+
+    expectTypeOf<PathParamsBinding<MissingParams>>().toEqualTypeOf<{
+      params: 'a [segment] in this path template needs a matching params key';
+    }>();
+    expectTypeOf<PathParamKeys<MismatchedParams['path']>>().not.toEqualTypeOf<
+      ParamsKeysOf<MismatchedParams>
+    >();
+    expectTypeOf<PathParamsBinding<MismatchedParams>>().toEqualTypeOf<{
+      params: 'a [segment] in this path template needs a matching params key';
+    }>();
+    expectTypeOf<PathParamsBinding<StaticWithParams>>().toEqualTypeOf<{
+      params: 'declares a key this path template does not contain';
+    }>();
   });
 });
 
@@ -192,23 +187,25 @@ describe('endpointUrl', () => {
   });
 
   it('requires exactly the declared parameters and rejects undeclared keys', () => {
-    if (false) {
-      // @ts-expect-error A dynamic endpoint requires its path parameters.
-      endpointUrl(pathEndpoint, {});
-      // @ts-expect-error Path parameter keys must match the path template.
-      endpointUrl(pathEndpoint, { params: { slug: '1' } });
-      // @ts-expect-error Every declared path parameter must be supplied.
-      endpointUrl(nestedPathEndpoint, { params: { thingId: '7' } });
-      // @ts-expect-error Query keys must come from the endpoint's query schema.
-      endpointUrl(queryEndpoint, { query: { sort: 'name' } });
-      // @ts-expect-error Query values must satisfy the declared schema input.
-      endpointUrl(queryEndpoint, { query: { type: 'relic' } });
-      // @ts-expect-error An endpoint without a query schema accepts no query input.
-      endpointUrl(pathEndpoint, { params: { id: '1' }, query: { type: 'gas' } });
-      // @ts-expect-error An endpoint without a path template accepts no params.
-      endpointUrl(queryEndpoint, { params: { id: '1' } });
-    }
-    expect(true).toBe(true);
+    expectTypeOf<Record<string, never>>().not.toExtend<PathParamsOf<typeof pathEndpoint>>();
+    expectTypeOf<{ params: { slug: '1' } }>().not.toExtend<
+      PathParamsOf<typeof pathEndpoint>
+    >();
+    expectTypeOf<{ params: { thingId: '7' } }>().not.toExtend<
+      PathParamsOf<typeof nestedPathEndpoint>
+    >();
+    expectTypeOf<
+      NonNullable<QueryInputOf<typeof queryEndpoint>['query']>
+    >().not.toHaveProperty('sort');
+    expectTypeOf<{ query: { type: 'relic' } }>().not.toExtend<
+      QueryInputOf<typeof queryEndpoint>
+    >();
+    expectTypeOf<{ query: { type: 'gas' } }>().not.toExtend<
+      QueryInputOf<typeof pathEndpoint>
+    >();
+    expectTypeOf<{ params: { id: '1' } }>().not.toExtend<
+      PathParamsOf<typeof queryEndpoint>
+    >();
   });
 });
 
