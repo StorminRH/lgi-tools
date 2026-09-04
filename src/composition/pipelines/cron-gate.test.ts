@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 
 const withAdvisoryLockMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const connectionMock = vi.fn();
 
-const reservedTag = vi.fn(() => Promise.resolve([{ got: true }]));
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(reservedTag as any).release = vi.fn();
-const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
+const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock();
 
 vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => reserveMock(...args) },
