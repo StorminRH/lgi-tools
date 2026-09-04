@@ -3,7 +3,6 @@ import type { ChainPosition } from './intents';
 export interface PlacementCandidate {
   readonly systemId: number;
   readonly position: ChainPosition | null;
-  readonly locked: boolean;
 }
 
 export interface PlacementEdge {

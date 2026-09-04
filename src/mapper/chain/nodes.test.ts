@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   SYSTEM_FRAME_HEIGHT,
   SYSTEM_FRAME_WIDTH,
-  type ChainNode,
 } from '../canvas/SystemNode';
 import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
@@ -18,7 +17,6 @@ import {
   type PlacedStubConnection,
 } from './nodes';
 import {
-  applyUserPlacement,
   EMPTY_CHAIN_STATE,
   reconcileChain,
   type ChainSnapshot,
@@ -46,8 +44,6 @@ const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
-const NO_DRAG: ReadonlySet<number> = new Set();
-
 const fallbackLabel = (systemId: number): SystemLabel => ({
   name: String(systemId),
   className: null,
@@ -66,13 +62,13 @@ function snapshot(systemIds: readonly number[], connections: ChainSnapshot['conn
 }
 
 function stateFor(systemIds: readonly number[]): ChainState {
-  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), NO_DRAG, sequentialTestAssigner)
+  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), sequentialTestAssigner)
     .state;
 }
 
 describe('canvas node projection', () => {
   it('projects one node per reconciled system with its label', () => {
-    const nodes = syncNodes([], stateFor([JITA, AMARR]).systems, namedLabel, NO_DRAG);
+    const nodes = syncNodes([], stateFor([JITA, AMARR]).systems, namedLabel);
 
     expect(nodes).toEqual([
       {
@@ -107,57 +103,18 @@ describe('canvas node projection', () => {
   });
 
   it('drops a node the reconciler no longer holds', () => {
-    const before = syncNodes([], stateFor([JITA, AMARR]).systems, fallbackLabel, NO_DRAG);
-    const after = syncNodes(before, stateFor([JITA]).systems, fallbackLabel, NO_DRAG);
+    const before = syncNodes([], stateFor([JITA, AMARR]).systems, fallbackLabel);
+    const after = syncNodes(before, stateFor([JITA]).systems, fallbackLabel);
 
     expect(after.map((node) => node.id)).toEqual([String(JITA)]);
   });
 
-  it('keeps a dragging node’s live position through an incoming update', () => {
-    const pointer = { x: 777, y: 111 };
-    const state = stateFor([JITA]);
-    const dragged: ChainNode[] = [
-      {
-        id: String(JITA),
-        type: 'chainSystem',
-        position: pointer,
-        data: { name: 'Jita', className: null },
-      },
-    ];
 
-    const after = syncNodes(
-      dragged,
-      stateFor([JITA, AMARR]).systems,
-      fallbackLabel,
-      new Set([JITA]),
-    );
-
-    expect(after.find((node) => node.id === String(JITA))?.position).toEqual(pointer);
-    expect(state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
-  });
-
-  it('takes the reconciled position once the drag has ended', () => {
-    const stale = { x: 777, y: 111 };
-    const dropped = { x: 900, y: 250 };
-    const dragged: ChainNode[] = [
-      {
-        id: String(JITA),
-        type: 'chainSystem',
-        position: stale,
-        data: { name: 'Jita', className: null },
-      },
-    ];
-    const pinned = applyUserPlacement(stateFor([JITA]), JITA, dropped);
-
-    const after = syncNodes(dragged, pinned.systems, fallbackLabel, NO_DRAG);
-
-    expect(after[0]?.position).toEqual(dropped);
-  });
 
   it('relabels in place when the directory arrives late', () => {
     const state = stateFor([JITA]);
-    const before = syncNodes([], state.systems, fallbackLabel, NO_DRAG);
-    const after = syncNodes(before, state.systems, namedLabel, NO_DRAG);
+    const before = syncNodes([], state.systems, fallbackLabel);
+    const after = syncNodes(before, state.systems, namedLabel);
 
     expect(before[0]?.data).toEqual({
       name: String(JITA),
@@ -182,7 +139,6 @@ describe('canvas edge projection', () => {
       snapshot([JITA, AMARR], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -214,7 +170,6 @@ describe('canvas edge projection', () => {
           purgeAfter: now + 1,
         },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -248,7 +203,6 @@ describe('canvas edge projection', () => {
           purgeAfter: null,
         },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -276,7 +230,6 @@ describe('canvas edge projection', () => {
       snapshot([JITA], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -293,7 +246,6 @@ describe('canvas edge projection', () => {
         { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
         { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
     const treeParents = deriveChainTree({
@@ -329,7 +281,7 @@ const placedHalo = (fogged: boolean, systemId: number = fogged ? RING3 : RING1) 
 
 describe('halo node projection', () => {
   it('appends kernel-owned halo nodes: declared frame, never draggable, fogged ring inert', () => {
-    const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(false),
       placedHalo(true),
     ]);
@@ -358,23 +310,23 @@ describe('halo node projection', () => {
   });
 
   it('retains selection for a drawn halo node across merges', () => {
-    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(false),
     ]);
     const selected = before.map((node) =>
       node.id === String(RING1) ? { ...node, selected: true } : node,
     );
-    const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(false),
     ]);
     expect(after.find((node) => node.id === String(RING1))?.selected).toBe(true);
   });
 
   it('upgrades a halo node in place when its system becomes authored, shedding derived controls', () => {
-    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(true, RING1),
     ]);
-    const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, []);
+    const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, []);
 
     expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
     const upgraded = after.find((node) => node.id === String(RING1));
@@ -385,7 +337,7 @@ describe('halo node projection', () => {
   });
 
   it('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {
-    const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, [
+    const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, [
       placedHalo(false, RING1),
     ]);
     expect(nodes.filter((node) => node.id === String(RING1))).toHaveLength(1);
@@ -400,7 +352,6 @@ describe('halo edge projection', () => {
       snapshot([JITA, AMARR], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
     const treeParents = deriveChainTree({
@@ -475,7 +426,6 @@ describe('wormhole stub projection', () => {
       [],
       state.systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       [stub],
     );
@@ -519,13 +469,12 @@ describe('wormhole stub projection', () => {
       before,
       resolved.systems,
       fallbackLabel,
-      NO_DRAG,
     );
     expect(after.filter((node) => node.id === String(AMARR))).toHaveLength(1);
     expect(after.some((node) => node.id.startsWith(STUB_NODE_ID_PREFIX))).toBe(false);
 
     expect(
-      syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [], [])
+      syncNodes([], stateFor([JITA]).systems, fallbackLabel, [], [])
         .map((node) => node.id),
     ).toEqual([String(JITA)]);
   });
@@ -616,7 +565,6 @@ describe('static wormhole stub projection', () => {
       [],
       stateFor([JITA]).systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       placed,
     );
@@ -708,7 +656,6 @@ describe('static wormhole stub projection', () => {
       [],
       stateFor([JITA]).systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       placed,
     );
@@ -748,7 +695,6 @@ describe('static wormhole stub projection', () => {
       [],
       stateFor([JITA]).systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       [stub],
     );

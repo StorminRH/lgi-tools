@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   authed: true,
   useMapChain: vi.fn(),
   reactFlow: vi.fn(),
-  pinPlacement: vi.fn(),
   authoring: {
     setHomeSystem: vi.fn(),
     addSystemFromNode: vi.fn(),
@@ -174,8 +173,6 @@ function withAccess(
     halo: { systems: [], links: [] },
     stubs: [],
     neighboursOf: () => [],
-    pinPlacement: mocks.pinPlacement,
-    releasePlacements: vi.fn(),
   });
 }
 
@@ -183,28 +180,11 @@ function resetHostMocks(): void {
   vi.resetModules();
   mocks.reactFlow.mockClear();
   mocks.useMapChain.mockClear();
-  mocks.pinPlacement.mockClear();
   for (const spy of Object.values(mocks.authoring)) {
     spy.mockClear();
   }
   mocks.authed = true;
   withAccess(true);
-}
-
-function surfaceProps(): Record<string, (...args: never[]) => void> {
-  return mocks.reactFlow.mock.calls[0]?.[0] as Record<string, (...args: never[]) => void>;
-}
-
-function node(systemId: number, x: number, y: number) {
-  return { id: String(systemId), position: { x, y }, data: {} };
-}
-
-function stubNode(connectionId: string, x: number, y: number) {
-  return {
-    id: `stub:${connectionId}`,
-    position: { x, y },
-    data: { stub: { connectionId, fromSystemId: 30_000_142, signatureId: 'ABC-123' } },
-  };
 }
 
 describe('chain host auth gate', () => {
@@ -315,8 +295,6 @@ describe('chain host access states', () => {
       halo: { systems: [], links: [] },
       stubs: [],
       neighboursOf: () => [],
-      pinPlacement: mocks.pinPlacement,
-      releasePlacements: vi.fn(),
     });
 
     const markup = await renderHost();
@@ -336,63 +314,18 @@ describe('chain host access states', () => {
   });
 });
 
-describe('chain host group drag', () => {
+describe('chain host never draggable', () => {
   beforeEach(resetHostMocks);
 
-  it('pins every node a multi-node drag moved, not just the grabbed one', async () => {
-    await renderHost();
-    const moved = [node(30_000_142, 10, 20), node(30_002_187, 30, 40)];
-
-    surfaceProps().onNodeDragStop?.(
-      ...([{}, moved[0], moved] as unknown as never[]),
-    );
-
-    expect(mocks.pinPlacement.mock.calls).toEqual([
-      [30_000_142, { x: 10, y: 20 }],
-      [30_002_187, { x: 30, y: 40 }],
-    ]);
-  });
-
-  it('pins the grabbed node when a gesture reports no companion set', async () => {
-    await renderHost();
-    const grabbed = node(30_000_142, 7, 8);
-
-    surfaceProps().onNodeDragStop?.(
-      ...([{}, grabbed, []] as unknown as never[]),
-    );
-
-    expect(mocks.pinPlacement.mock.calls).toEqual([[30_000_142, { x: 7, y: 8 }]]);
-  });
-
-  it('pins every node a selection-rectangle drag moved', async () => {
-    await renderHost();
-    const moved = [node(30_000_142, 1, 2), node(30_002_187, 3, 4)];
-
-    surfaceProps().onSelectionDragStop?.(...([{}, moved] as unknown as never[]));
-
-    expect(mocks.pinPlacement.mock.calls).toEqual([
-      [30_000_142, { x: 1, y: 2 }],
-      [30_002_187, { x: 3, y: 4 }],
-    ]);
-  });
-
-  it('never feeds a synthetic stub id into numeric drag placement', async () => {
-    await renderHost();
-    const authored = node(30_000_142, 1, 2);
-    const stub = stubNode('c1', 300, 0);
-
-    surfaceProps().onNodeDragStop?.(
-      ...([{}, authored, [authored, stub]] as unknown as never[]),
-    );
-
-    expect(mocks.pinPlacement).toHaveBeenCalledOnce();
-    expect(mocks.pinPlacement).toHaveBeenCalledWith(30_000_142, { x: 1, y: 2 });
-  });
-
-  it('offers no delete key and no keyboard node movement on the surface', async () => {
+  it('hardcodes nodesDraggable false and offers no drag handlers', async () => {
     await renderHost();
     const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
 
+    expect(props.nodesDraggable).toBe(false);
+    expect(props.onNodeDragStart).toBeUndefined();
+    expect(props.onNodeDragStop).toBeUndefined();
+    expect(props.onSelectionDragStart).toBeUndefined();
+    expect(props.onSelectionDragStop).toBeUndefined();
     expect(props.deleteKeyCode).toBeNull();
     expect(props.disableKeyboardA11y).toBe(true);
   });

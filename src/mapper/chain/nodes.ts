@@ -237,7 +237,6 @@ export function syncNodes(
   previous: readonly ChainNode[],
   systems: ChainState['systems'],
   labelOf: (systemId: number) => SystemLabel,
-  dragging: ReadonlySet<number>,
   halo: readonly PlacedHaloSystem[] = [],
   stubs: readonly PlacedStub[] = [],
 ): ChainNode[] {
@@ -246,7 +245,6 @@ export function syncNodes(
   const authored = [...systems.values()].map((placed): ChainNode => {
     const id = String(placed.systemId);
     const local = localById.get(id);
-    const holdLocal = local !== undefined && dragging.has(placed.systemId);
     const label = labelOf(placed.systemId);
 
     return {
@@ -255,7 +253,7 @@ export function syncNodes(
       type: CHAIN_NODE_TYPE,
       width: SYSTEM_FRAME_WIDTH,
       height: SYSTEM_FRAME_HEIGHT,
-      position: holdLocal ? local.position : placed.position,
+      position: placed.position,
       style: INERT_NODE_STYLE,
       data: {
         name: label.name,

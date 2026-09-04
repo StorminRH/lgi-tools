@@ -4,7 +4,7 @@ import {
   applyNodeChanges,
   type NodeChange,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { PlacedHalo } from '../halo/halo-model';
 import type { MotionTruth } from '../motion/motion-host-model';
@@ -19,22 +19,23 @@ export function useChainNodeSync(
   stubs: readonly PlacedStub[],
   treeParents: ReadonlyMap<number, number>,
   connectionPresentationNow: number,
-  draggingRef: RefObject<ReadonlySet<number>>,
 ) {
   const [nodes, setNodes] = useState<ChainNode[]>([]);
 
   useEffect(() => {
+    // renderToStaticMarkup never runs effects; syncing during render would
+    // double-invoke parent hooks in ChainHost tests.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- RF local nodes must survive chain-fact updates
     setNodes((previous) =>
       syncNodes(
         previous,
         state.systems,
         labelOf,
-        draggingRef.current,
         halo.systems,
         stubs,
       ),
     );
-  }, [state.systems, labelOf, halo.systems, stubs, draggingRef]);
+  }, [state.systems, labelOf, halo.systems, stubs]);
 
   const foggedSystemIds = useMemo(() => {
     const fogged = new Set<number>();

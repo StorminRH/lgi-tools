@@ -53,9 +53,8 @@ export function layoutConfigKey(config: LayoutConfig): string {
 export function layoutPostKey(
   signature: string,
   configKey: string,
-  revision: number,
   haloKey = '',
   stubKey = '',
 ): string {
-  return `${signature}#${configKey}@${revision}~${haloKey}^${stubKey}`;
+  return `${signature}#${configKey}~${haloKey}^${stubKey}`;
 }

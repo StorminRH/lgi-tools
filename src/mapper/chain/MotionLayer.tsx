@@ -16,7 +16,6 @@ export interface MotionLayerProps
   readonly truth: MotionTruth;
   readonly intents: readonly MapChainIntent[];
   readonly access: MapAccessState;
-  readonly dragging: ReadonlySet<number>;
   readonly motionConfig: MotionConfig;
   readonly fogConfig: FogConfig;
   readonly canEdit: boolean;
@@ -27,7 +26,6 @@ export function MotionLayer({
   truth,
   intents,
   access,
-  dragging,
   motionConfig,
   fogConfig,
   canEdit,
@@ -38,7 +36,6 @@ export function MotionLayer({
     truth,
     intents,
     access,
-    dragging,
     motionConfig,
     BROWSER_MOTION_SEAMS,
   );

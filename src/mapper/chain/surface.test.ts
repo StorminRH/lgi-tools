@@ -65,7 +65,6 @@ describe('mapper source contract', () => {
       'chain/stub-layout.ts',
       'chain/use-authoring-menus.ts',
       'chain/use-chain-dials.ts',
-      'chain/use-chain-drag.ts',
       'chain/use-chain-focus-menus.ts',
       'chain/use-chain-node-sync.ts',
       'chain/use-map-chain-halo.ts',

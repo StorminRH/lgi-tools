@@ -349,13 +349,11 @@ describe('seat-ordered children', () => {
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshotOf(held),
-      new Set(),
       assignerFromPositions(before),
     );
     const second = reconcileChain(
       first.state,
       snapshotOf(purged),
-      new Set(),
       assignerFromPositions(after),
     );
     expect(
