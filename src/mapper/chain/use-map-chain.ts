@@ -47,6 +47,7 @@ export function useMapChain(
   const { halo, haloKey, labelOf, neighboursOf, stubKey } = useMapChainHalo(
     pages.authoredKey,
     pages.stubLayout,
+    pages.slotHolders,
     haloLimits,
   );
   const {
@@ -61,6 +62,7 @@ export function useMapChain(
     pages.systems,
     pages.connections,
     pages.stubLayout,
+    pages.slotHolders,
     halo,
     haloKey,
     stubKey,

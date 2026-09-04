@@ -73,3 +73,11 @@ export function unresolvedHolesFromRows(
     .filter((row) => row.toSystemId === null && !isTombstoned(row))
     .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
 }
+
+export function slotHolderRows(
+  rows: readonly Doc<'mapConnections'>[],
+): readonly UnresolvedHoleSummary[] {
+  return rows
+    .filter((row) => row.toSystemId === null && isTombstoned(row))
+    .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { seatOrderedLayout } from '../chain/stub-layout';
 import { compassKernel } from './compass';
 import { deriveChainTree } from './facts';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from './layout-contract';
@@ -7,6 +8,7 @@ import {
   generateChainTimeline,
   movedSystems,
   PROOF_CORPUS,
+  type ChainTimeline,
 } from './proof-kit';
 
 const A = 31_000_001;
@@ -72,6 +74,54 @@ describe('corpus-wide growth under the fixed-slot posture', () => {
       let before = await compassKernel(beforeFacts, FIXED_SLOT);
       for (let size = 2; size <= entry.size; size += 1) {
         const afterFacts = chainPrefix(full, size);
+        const after = await compassKernel(afterFacts, FIXED_SLOT);
+        const parked = new Set([
+          ...deriveChainTree(beforeFacts).orphans,
+          ...deriveChainTree(afterFacts).orphans,
+        ]);
+        const moved = movedSystems(before, after).filter(
+          (systemId) => !parked.has(systemId),
+        );
+        expect(
+          moved,
+          `seed ${entry.seed} step ${size - 1}→${size} moved attached nodes`,
+        ).toEqual([]);
+        beforeFacts = afterFacts;
+        before = after;
+      }
+    }
+  });
+});
+
+function factsWithStubs(timeline: ChainTimeline, size: number): LayoutFacts {
+  const prefix = chainPrefix(timeline, size);
+  const rootId = prefix.systems[0]?.systemId ?? 31_000_001;
+  return seatOrderedLayout({
+    systems: prefix.systems,
+    connections: prefix.connections.map((edge, index) => ({
+      _id: `e${index}`,
+      fromSystemId: edge.fromSystemId,
+      toSystemId: edge.toSystemId,
+      _creationTime: (timeline.connectionSteps[index] ?? size) * 10,
+    })),
+    stubRows: Array.from({ length: size }, (_, index) => ({
+      connectionId: `stub-${index}`,
+      fromSystemId: rootId,
+      layoutSystemId: -(index + 1),
+      _creationTime: (index + 1) * 10 + 1,
+    })),
+    slotHolders: [],
+  }).facts;
+}
+
+describe('corpus replay with interleaved stub rows', () => {
+  it('reports no attached node moves when stub rows append at every step', async () => {
+    for (const entry of PROOF_CORPUS) {
+      const full = generateChainTimeline(entry);
+      let beforeFacts = factsWithStubs(full, 1);
+      let before = await compassKernel(beforeFacts, FIXED_SLOT);
+      for (let size = 2; size <= entry.size; size += 1) {
+        const afterFacts = factsWithStubs(full, size);
         const after = await compassKernel(afterFacts, FIXED_SLOT);
         const parked = new Set([
           ...deriveChainTree(beforeFacts).orphans,

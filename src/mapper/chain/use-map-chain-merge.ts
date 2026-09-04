@@ -23,10 +23,10 @@ import {
 } from '../layout/use-layout-kernel';
 import {
   chainSignature,
-  factsFromSnapshot,
   layoutConfigKey,
   layoutPostKey,
 } from './chain-signature';
+import type { UnresolvedHoleSummary } from './connection-detail';
 import type { ChainPosition } from './intents';
 import { assignerFromPositions } from './placement';
 import {
@@ -38,8 +38,8 @@ import {
   type ChainSnapshot,
 } from './reconciler';
 import {
-  appendStubFacts,
   placedStubs,
+  seatOrderedLayout,
   stubPositionsFromLayout,
   type AccountedStubLayoutRow,
 } from './stub-layout';
@@ -52,6 +52,7 @@ export function useMapChainMerge(
   systems: MapChainPages['systems'],
   connections: MapChainPages['connections'],
   stubLayout: readonly AccountedStubLayoutRow[],
+  slotHolders: readonly UnresolvedHoleSummary[],
   halo: HaloDerivation,
   haloKey: string,
   stubKey: string,
@@ -110,10 +111,13 @@ export function useMapChainMerge(
       },
     };
 
-    const facts = appendStubFacts(
-      appendHaloFacts(factsFromSnapshot(snapshot), halo),
-      stubLayout,
-    );
+    const ordered = seatOrderedLayout({
+      systems: systems.rows,
+      connections: connections.rows,
+      stubRows: stubLayout,
+      slotHolders,
+    });
+    const facts = appendHaloFacts(ordered.facts, halo);
 
     void layout(facts, config).then(
       (positions) => {
@@ -137,7 +141,9 @@ export function useMapChainMerge(
                 links: halo.links,
               },
         );
-        setStubPositions(stubPositionsFromLayout(stubLayout, positions));
+        setStubPositions(
+          stubPositionsFromLayout(stubLayout, positions, ordered.childIdBySeatKey),
+        );
         const tree = deriveChainTree(facts);
         setTreeParents(tree.parents);
         setRootSystemId(tree.rootSystemId);
@@ -149,7 +155,7 @@ export function useMapChainMerge(
         requestStateRef.current = failRequest(requestStateRef.current, requestId);
       },
     );
-  }, [postKey, systems, connections, layout, config, halo, stubLayout]);
+  }, [postKey, systems, connections, layout, config, halo, stubLayout, slotHolders]);
   const stubs = useMemo(
     () => placedStubs(stubLayout, stubPositions),
     [stubLayout, stubPositions],

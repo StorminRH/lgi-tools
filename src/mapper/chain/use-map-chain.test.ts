@@ -4,22 +4,23 @@ import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
   chainSignature,
-  factsFromSnapshot,
   filterLivePages,
   layoutConfigKey,
   layoutPostKey,
 } from './chain-signature';
 import {
   connectionDetailsFromRows,
+  slotHolderRows,
   unresolvedHolesFromRows,
 } from './connection-detail';
 import {
   accountedStubLayoutRows,
-  appendStubFacts,
   placedStubs,
+  seatOrderedLayout,
   stubLayoutRows,
   stubLayoutSignature,
   stubPositionsFromLayout,
+  stubPostKey,
 } from './stub-layout';
 import { normalizeMapAccess } from './use-map-chain-pages';
 import {
@@ -28,7 +29,7 @@ import {
   type ChainSnapshot,
 } from './reconciler';
 import type { PlacementAssigner } from './placement';
-import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
+import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from '../layout/layout-contract';
 import { deriveChainTree } from '../layout/facts';
 import {
   acceptReply,
@@ -159,31 +160,15 @@ describe('chain snapshot signature', () => {
   });
 });
 
-describe('factsFromSnapshot', () => {
-  it('derives layout facts in server (creation) row order, never reconciled arrival order', () => {
-    const snapshot: ChainSnapshot = {
-      systems: {
-        rows: [{ systemId: AMARR }, { systemId: JITA }],
-        complete: true,
-      },
-      connections: {
-        rows: [
-          { connectionId: 'c2', fromSystemId: AMARR, toSystemId: JITA },
-          { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-        ],
-        complete: true,
-      },
-    };
-
-    expect(factsFromSnapshot(snapshot)).toEqual({
-      systems: [{ systemId: AMARR }, { systemId: JITA }],
-      connections: [
-        { fromSystemId: AMARR, toSystemId: JITA },
-        { fromSystemId: JITA, toSystemId: AMARR },
-      ],
-    });
-  });
-});
+function factsFromSnapshot(snapshot: ChainSnapshot): LayoutFacts {
+  return {
+    systems: snapshot.systems.rows.map((row) => ({ systemId: row.systemId })),
+    connections: snapshot.connections.rows.map((row) => ({
+      fromSystemId: row.fromSystemId,
+      toSystemId: row.toSystemId,
+    })),
+  };
+}
 
 describe('unresolved wormhole layout facts', () => {
   it('places only scanned rows with live anchors and excludes a resolved-feed overlap', () => {
@@ -227,10 +212,12 @@ describe('unresolved wormhole layout facts', () => {
     ], scannedRows);
     expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
 
-    const facts = appendStubFacts(
-      { systems: [{ systemId: JITA }], connections: [] },
-      layoutRows,
-    );
+    const facts = seatOrderedLayout({
+      systems: [{ systemId: JITA }],
+      connections: [],
+      stubRows: layoutRows,
+      slotHolders: [],
+    }).facts;
     expect(facts).toEqual({
       systems: [{ systemId: JITA }, { systemId: -1 }],
       connections: [{ fromSystemId: JITA, toSystemId: -1 }],
@@ -330,14 +317,16 @@ describe('unresolved wormhole layout facts', () => {
     expect(stubLayoutSignature(layoutRows)).toBe(
       `scan-1:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
     );
-    const facts = appendStubFacts(
-      { systems: [{ systemId: JITA }], connections: [] },
-      layoutRows,
-    );
+    const facts = seatOrderedLayout({
+      systems: [{ systemId: JITA }],
+      connections: [],
+      stubRows: layoutRows,
+      slotHolders: [],
+    }).facts;
     expect(facts.systems).toEqual([
       { systemId: JITA },
-      { systemId: -1 },
       { systemId: -2 },
+      { systemId: -1 },
     ]);
     expect(
       placedStubs(
@@ -399,6 +388,21 @@ describe('layout-then-merge posted-key guard', () => {
     const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
     expect(layoutPostKey(signature, configKey, 0, '', `c1:${JITA}>-1`)).not.toBe(
       layoutPostKey(signature, configKey, 0, '', ''),
+    );
+  });
+
+  it('includes slot holders in the stub fingerprint so a deletion re-posts', () => {
+    const signature = chainSignature(systems([JITA]), connections([]));
+    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
+    const withoutHolder = stubPostKey([]);
+    const withHolder = stubPostKey([], [{
+      connectionId: 'dead-1',
+      fromSystemId: JITA,
+      _creationTime: 10,
+    }]);
+    expect(withHolder).not.toBe(withoutHolder);
+    expect(layoutPostKey(signature, configKey, 0, '', withHolder)).not.toBe(
+      layoutPostKey(signature, configKey, 0, '', withoutHolder),
     );
   });
 
@@ -568,6 +572,18 @@ describe('client subscription projections', () => {
           fromSystemId: JITA,
           toSystemId: null,
           from: { ...blankDoor(), signatureId: 'ABC-123' },
+        }),
+        toSystemId: null,
+      },
+    ]);
+    expect(slotHolderRows(rows)).toEqual([
+      {
+        ...connectionEditorFixture({
+          connectionId: 'stub-dead' as Id<'mapConnections'>,
+          _creationTime: 10,
+          fromSystemId: JITA,
+          toSystemId: null,
+          tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
         }),
         toSystemId: null,
       },

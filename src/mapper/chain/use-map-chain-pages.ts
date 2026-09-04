@@ -13,6 +13,7 @@ import {
 import { filterLivePages } from './chain-signature';
 import {
   connectionDetailsFromRows,
+  slotHolderRows,
   unresolvedHolesFromRows,
 } from './connection-detail';
 import { planStubNodes } from './nodes';
@@ -81,6 +82,10 @@ export function useMapChainPages(mapId: string | null) {
     () => unresolvedHolesFromRows(subscribedUnresolved.rows),
     [subscribedUnresolved.rows],
   );
+  const slotHolders = useMemo(
+    () => slotHolderRows(subscribedUnresolved.rows),
+    [subscribedUnresolved.rows],
+  );
   const scannedStubLayout = useMemo(
     () => stubLayoutRows(unresolvedHoles, systems.rows, connections.rows),
     [unresolvedHoles, systems.rows, connections.rows],
@@ -108,6 +113,7 @@ export function useMapChainPages(mapId: string | null) {
     connectionDetails,
     connections,
     events,
+    slotHolders,
     stubLayout,
     systems,
     unresolvedHoles,
