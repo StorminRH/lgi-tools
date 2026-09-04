@@ -20,6 +20,7 @@ import {
   optimisticSetHomeSystem,
   optimisticSetConnectionWormholeType,
   optimisticSeverConnection,
+  isOptimisticTempId,
   optimisticTempId,
   swallowMutationRejection,
   wormholeTypeWindowProposal,
@@ -180,6 +181,11 @@ describe('optimisticTempId', () => {
     expect(optimisticTempId('mapConnections')).toMatch(
       /^optimistic:mapConnections:/,
     );
+  });
+
+  it('satisfies isOptimisticTempId', () => {
+    expect(isOptimisticTempId(optimisticTempId('mapConnections'))).toBe(true);
+    expect(isOptimisticTempId('persisted:c1')).toBe(false);
   });
 });
 
