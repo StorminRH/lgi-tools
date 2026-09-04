@@ -1,6 +1,6 @@
 ---
 name: test-runner
-model: gemini-3.8-flash[reasoning_effort=high]
+model: composer-2.5[fast=true]
 description: Always use before a commit or when running local typecheck, lint, fallow, and focused tests.
 ---
 
