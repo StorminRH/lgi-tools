@@ -26,9 +26,7 @@ vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
   return {
     ...actual,
-    getCharacterCorporationId: vi.fn().mockResolvedValue(null),
-    getMapIdsWithCharacterGrant: vi.fn().mockResolvedValue([]),
-    getMapIdsWithCorporationGrants: vi.fn().mockResolvedValue([]),
+    affectedMapIdsForCharacter: vi.fn().mockResolvedValue([]),
     getOwnedMapIds: vi.fn().mockResolvedValue([]),
   };
 });

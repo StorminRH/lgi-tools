@@ -28,14 +28,11 @@ export function archivedMapLifecycle(enteredAt: Date) {
   };
 }
 
-export function purgeQueuedMapLifecycle(enteredAt: Date, archivedAt: Date) {
+export function purgeQueuedMapLifecycle(enteredAt: Date) {
   return {
     lifecycleStatus: 'purge_queued' as const,
     lifecycleEnteredAt: enteredAt,
-    archivedAt,
     purgeRequestedAt: enteredAt,
-    purgeClaimedAt: null,
-    tombstonedAt: null,
   };
 }
 
@@ -47,11 +44,10 @@ export function purgeClaimedMapLifecycle(enteredAt: Date) {
   };
 }
 
-export function tombstonedMapLifecycle(enteredAt: Date, archivedAt: Date) {
+export function tombstonedMapLifecycle(enteredAt: Date) {
   return {
     lifecycleStatus: 'tombstoned' as const,
     lifecycleEnteredAt: enteredAt,
-    archivedAt,
     tombstonedAt: enteredAt,
   };
 }

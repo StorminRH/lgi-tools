@@ -32,7 +32,6 @@ const mocks = vi.hoisted(() => ({
   runCharacterJobs: vi.fn(),
   runCorporationJobs: vi.fn(),
   runSkills: vi.fn(),
-  writeBackPendingWorkSignal: vi.fn(async () => {}),
   logUsageEvent: vi.fn<(input: { action: string; metadata: Record<string, unknown> }) => Promise<void>>(
     async () => {},
   ),
@@ -50,9 +49,6 @@ vi.mock('@/data/esi-refresh-jobs/queries', () => ({
   markEsiRefreshJobRetryable: mocks.markRetryable,
   markEsiRefreshJobSucceeded: mocks.markSucceeded,
   recoverStaleRunningJobs: mocks.recover,
-}));
-vi.mock('@/data/esi-refresh-jobs/pending-signal', () => ({
-  writeBackPendingWorkSignal: mocks.writeBackPendingWorkSignal,
 }));
 vi.mock('@/lib/alerts', () => ({ alertEsiRefreshDeadLetter: mocks.alertDeadLetter }));
 vi.mock('./corp-industry-jobs-sync', () => ({
@@ -186,9 +182,6 @@ describe('drainEsiRefreshJobs', () => {
       failureCode: 'connection',
     });
     expect(mocks.residual).toHaveBeenCalledWith(NOW);
-    expect(mocks.writeBackPendingWorkSignal).toHaveBeenCalledWith(
-      earliestNextAttemptAt,
-    );
     expect(console.log).toHaveBeenCalledWith(
       expect.stringContaining('"dueCount":2'),
     );
@@ -270,7 +263,6 @@ describe('drainEsiRefreshJobs', () => {
       recovered: 2,
     });
     expect(mocks.markSucceeded).toHaveBeenCalledTimes(2);
-    expect(mocks.writeBackPendingWorkSignal).toHaveBeenCalledWith(null);
     expect(mocks.alertDeadLetter).toHaveBeenCalledWith({
       jobId: 8,
       dataset: 'owned_blueprints',

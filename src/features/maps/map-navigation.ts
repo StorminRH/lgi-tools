@@ -15,20 +15,11 @@ export function mapSelectionHref(
 }
 
 export function atlasSignInReturnHref(
-  searchParams: Pick<URLSearchParams, 'get'>,
-): string {
-  const mapId = searchParams.get('map');
-  if (mapId === null || mapId === '') return '/atlas';
-  return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
-}
-
-export function atlasSignInReturnHrefFromMapQuery(
   map: string | string[] | undefined,
 ): string {
-  const params = new URLSearchParams();
-  const value = Array.isArray(map) ? map[0] : map;
-  if (value !== undefined) params.set('map', value);
-  return atlasSignInReturnHref(params);
+  const mapId = Array.isArray(map) ? map[0] : map;
+  if (mapId === undefined || mapId === '') return '/atlas';
+  return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
 }
 
 export function mapDeletionHref(

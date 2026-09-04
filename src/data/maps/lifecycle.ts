@@ -18,8 +18,6 @@ import {
   mapAuthorizationRows,
 } from './authorization-sql';
 import {
-  activeMapLifecycle,
-  archivedMapLifecycle,
   purgeClaimedMapLifecycle,
   purgeQueuedMapLifecycle,
   tombstonedMapLifecycle,
@@ -50,8 +48,7 @@ export async function archiveAuthorizedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const lifecycle = archivedMapLifecycle(now);
-  const nowIso = lifecycle.lifecycleEnteredAt.toISOString();
+  const nowIso = now.toISOString();
   const result = await database.execute(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
@@ -63,10 +60,10 @@ export async function archiveAuthorizedMap(
     )
     UPDATE ${maps}
     SET archived_at = ${nowIso}::timestamptz,
-        purge_requested_at = ${lifecycle.purgeRequestedAt},
-        purge_claimed_at = ${lifecycle.purgeClaimedAt},
-        tombstoned_at = ${lifecycle.tombstonedAt},
-        lifecycle_status = ${lifecycle.lifecycleStatus},
+        purge_requested_at = NULL,
+        purge_claimed_at = NULL,
+        tombstoned_at = NULL,
+        lifecycle_status = 'archived',
         lifecycle_entered_at = ${nowIso}::timestamptz,
         updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
@@ -84,8 +81,7 @@ export async function restoreAuthorizedMap(
 ): Promise<boolean> {
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const cutoffIso = cutoff.toISOString();
-  const lifecycle = activeMapLifecycle(now);
-  const nowIso = lifecycle.lifecycleEnteredAt.toISOString();
+  const nowIso = now.toISOString();
   const result = await database.execute(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
@@ -100,11 +96,11 @@ export async function restoreAuthorizedMap(
       )}
     )
     UPDATE ${maps}
-    SET archived_at = ${lifecycle.archivedAt},
-        purge_requested_at = ${lifecycle.purgeRequestedAt},
-        purge_claimed_at = ${lifecycle.purgeClaimedAt},
-        tombstoned_at = ${lifecycle.tombstonedAt},
-        lifecycle_status = ${lifecycle.lifecycleStatus},
+    SET archived_at = NULL,
+        purge_requested_at = NULL,
+        purge_claimed_at = NULL,
+        tombstoned_at = NULL,
+        lifecycle_status = 'active',
         lifecycle_entered_at = ${nowIso}::timestamptz,
         updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
@@ -120,15 +116,9 @@ export async function requestAuthorizedMapPurge(
   database: AnyPgDb = db,
 ): Promise<boolean> {
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
-  const lifecycle = purgeQueuedMapLifecycle(now, now);
   const updated = await database
     .update(maps)
-    .set({
-      purgeRequestedAt: lifecycle.purgeRequestedAt,
-      lifecycleStatus: lifecycle.lifecycleStatus,
-      lifecycleEnteredAt: lifecycle.lifecycleEnteredAt,
-      updatedAt: now,
-    })
+    .set({ ...purgeQueuedMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),
@@ -206,15 +196,9 @@ export async function tombstonePurgedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const lifecycle = tombstonedMapLifecycle(now, now);
   const updated = await database
     .update(maps)
-    .set({
-      tombstonedAt: lifecycle.tombstonedAt,
-      lifecycleStatus: lifecycle.lifecycleStatus,
-      lifecycleEnteredAt: lifecycle.lifecycleEnteredAt,
-      updatedAt: now,
-    })
+    .set({ ...tombstonedMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),
