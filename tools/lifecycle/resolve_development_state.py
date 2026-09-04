@@ -404,6 +404,8 @@ def session_key(session: str) -> tuple[int, ...]:
 
 def atomic_plan_binds(session: str) -> bool:
     """Return whether this session requires atomic proof rows."""
+    if session.startswith("LGI-"):
+        return True
     return session_key(session) >= ATOMIC_PLAN_BINDING_FLOOR
 
 def execution_receipt_binds(session: str) -> bool:

@@ -674,6 +674,7 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertFalse(atomic_plan_binds("4.0.2.2.1"))
         self.assertTrue(atomic_plan_binds("4.0.2.2.2"))
         self.assertTrue(atomic_plan_binds("9.9.1.1.1"))
+        self.assertTrue(atomic_plan_binds("LGI-71"))
 
     def test_plan_schema_enforces_contract_coverage_and_verified_inputs(self) -> None:
         self.fixture.write_roadmap("PLANNED")
