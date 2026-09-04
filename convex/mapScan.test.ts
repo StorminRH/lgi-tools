@@ -852,6 +852,78 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(ids.sourceId))).toBeNull();
   });
 
+  it('link deduction carries staticCode onto the resolved survivor and does not respawn', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: WH_FAR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: AMARR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: WH_FAR,
+      codes: ['C247'],
+    });
+    const ids = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      const placeholder = rows.find((row) => row.staticCode === 'C247');
+      if (placeholder === undefined) throw new Error('missing C247 placeholder');
+      await ctx.db.patch(placeholder._id, {
+        from: { ...placeholder.from, signatureId: 'STA-247' },
+        seatOrderAt: 500,
+      });
+      const targetId = await ctx.db.insert('mapConnections', {
+        ...connectionInsert({
+          mapId: MAP,
+          fromSystemId: WH_FAR,
+          toSystemId: AMARR,
+        }),
+        seatOrderAt: 9_000,
+      });
+      return { sourceId: placeholder._id, targetId };
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      expect((await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        WH_FAR,
+        'STA-247',
+        'C247',
+      )).outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.sourceId))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.targetId))).toMatchObject({
+      staticCode: 'C247',
+      seatOrderAt: 500,
+      from: expect.objectContaining({ signatureId: 'STA-247' }),
+      toSystemId: AMARR,
+    });
+    const ghosts = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      return rows.filter((row) => row.staticCode === 'C247' && row.toSystemId === null);
+    });
+    expect(ghosts).toEqual([]);
+  });
+
   it('does not absorb a claimed static as a leftover counterpart stub', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
