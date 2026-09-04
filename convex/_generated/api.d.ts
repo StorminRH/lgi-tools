@@ -71,6 +71,7 @@ import type * as mapJumpIdentity from "../mapJumpIdentity.js";
 import type * as mapJumpReads from "../mapJumpReads.js";
 import type * as mapPurge from "../mapPurge.js";
 import type * as mapScan from "../mapScan.js";
+import type * as mapStatics from "../mapStatics.js";
 import type * as mapTrackingIds from "../mapTrackingIds.js";
 import type * as mapTrackingLive from "../mapTrackingLive.js";
 import type * as mapTrackingOptIn from "../mapTrackingOptIn.js";
@@ -147,6 +148,7 @@ declare const fullApi: ApiFromModules<{
   mapJumpReads: typeof mapJumpReads;
   mapPurge: typeof mapPurge;
   mapScan: typeof mapScan;
+  mapStatics: typeof mapStatics;
   mapTrackingIds: typeof mapTrackingIds;
   mapTrackingLive: typeof mapTrackingLive;
   mapTrackingOptIn: typeof mapTrackingOptIn;

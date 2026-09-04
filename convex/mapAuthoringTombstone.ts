@@ -11,6 +11,7 @@ import { requireMapAccess } from './lib/mapAccess';
 import { requireConnectionOnMap } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { eventActor, writeMapEvent } from './mapAuthoringEvents';
+import { ensureStaticPlaceholders } from './mapStatics';
 
 const LIVE_CONNECTION_SCAN_CAP = 32;
 
@@ -113,6 +114,7 @@ async function clearSystemTombstone(
   const system = await gatedSystem(ctx, mapId, systemId);
   if (!isTombstoned(system)) return { restored: true };
   await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
+  await ensureStaticPlaceholders(ctx, mapId, systemId);
   return { restored: true };
 }
 

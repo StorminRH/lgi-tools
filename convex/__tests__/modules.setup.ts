@@ -45,6 +45,7 @@ export const modules = import.meta.glob([
   '../mapJumpReads.ts',
   '../mapPurge.ts',
   '../mapScan.ts',
+  '../mapStatics.ts',
   '../mapTrackingIds.ts',
   '../mapTrackingLive.ts',
   '../mapTrackingOptIn.ts',

@@ -95,6 +95,8 @@ export default defineSchema({
     observedMassAtStateKg: v.optional(v.number()),
     observationKey: v.optional(v.string()),
     firstSeenAt: v.optional(v.number()),
+    staticCode: v.optional(v.string()),
+    seatOrderAt: v.optional(v.number()),
   })
     .index('by_map', ['mapId'])
     .index('by_map_from', ['mapId', 'fromSystemId'])
