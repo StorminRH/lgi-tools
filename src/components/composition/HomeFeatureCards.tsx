@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
+import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
 
 function FeatureCard({
   href,
@@ -68,7 +69,7 @@ export function HomeFeatureCards() {
         <FeatureCard
           href="/atlas"
           title="Atlas"
-          description="A shared live map of your wormhole chain."
+          description={ATLAS_TAGLINE}
           pills={
             <>
               <Pill tone="purple">Chain</Pill>

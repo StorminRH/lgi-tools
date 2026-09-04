@@ -68,8 +68,10 @@ function atlasAccountSession(gate: SessionCheckResult | null): Session | null {
 
 export async function AtlasBound({
   mapSelected,
+  returnHref,
 }: {
   readonly mapSelected: boolean;
+  readonly returnHref: string;
 }) {
   await connection();
 
@@ -81,7 +83,7 @@ export async function AtlasBound({
     console.error('[map] authorization check unavailable', err);
   }
 
-  if (gate?.ok === false) return <AtlasGuestLanding />;
+  if (gate?.ok === false) return <AtlasGuestLanding returnHref={returnHref} />;
 
   const session = atlasAccountSession(gate);
   const [siteIndex, chromeSnapshot] = await Promise.all([

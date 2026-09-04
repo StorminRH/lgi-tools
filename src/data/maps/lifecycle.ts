@@ -17,6 +17,13 @@ import {
   authorizedAdminMapsSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
+import {
+  activeMapLifecycle,
+  archivedMapLifecycle,
+  purgeClaimedMapLifecycle,
+  purgeQueuedMapLifecycle,
+  tombstonedMapLifecycle,
+} from './lifecycle-contract';
 import { MAP_DELETE_GRACE_MS } from './queries';
 import { maps } from './schema';
 
@@ -43,7 +50,8 @@ export async function archiveAuthorizedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const nowIso = now.toISOString();
+  const lifecycle = archivedMapLifecycle(now);
+  const nowIso = lifecycle.lifecycleEnteredAt.toISOString();
   const result = await database.execute(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
@@ -55,10 +63,10 @@ export async function archiveAuthorizedMap(
     )
     UPDATE ${maps}
     SET archived_at = ${nowIso}::timestamptz,
-        purge_requested_at = NULL,
-        purge_claimed_at = NULL,
-        tombstoned_at = NULL,
-        lifecycle_status = 'archived',
+        purge_requested_at = ${lifecycle.purgeRequestedAt},
+        purge_claimed_at = ${lifecycle.purgeClaimedAt},
+        tombstoned_at = ${lifecycle.tombstonedAt},
+        lifecycle_status = ${lifecycle.lifecycleStatus},
         lifecycle_entered_at = ${nowIso}::timestamptz,
         updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
@@ -76,7 +84,8 @@ export async function restoreAuthorizedMap(
 ): Promise<boolean> {
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const cutoffIso = cutoff.toISOString();
-  const nowIso = now.toISOString();
+  const lifecycle = activeMapLifecycle(now);
+  const nowIso = lifecycle.lifecycleEnteredAt.toISOString();
   const result = await database.execute(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
@@ -91,11 +100,11 @@ export async function restoreAuthorizedMap(
       )}
     )
     UPDATE ${maps}
-    SET archived_at = NULL,
-        purge_requested_at = NULL,
-        purge_claimed_at = NULL,
-        tombstoned_at = NULL,
-        lifecycle_status = 'active',
+    SET archived_at = ${lifecycle.archivedAt},
+        purge_requested_at = ${lifecycle.purgeRequestedAt},
+        purge_claimed_at = ${lifecycle.purgeClaimedAt},
+        tombstoned_at = ${lifecycle.tombstonedAt},
+        lifecycle_status = ${lifecycle.lifecycleStatus},
         lifecycle_entered_at = ${nowIso}::timestamptz,
         updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
@@ -111,12 +120,13 @@ export async function requestAuthorizedMapPurge(
   database: AnyPgDb = db,
 ): Promise<boolean> {
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
+  const lifecycle = purgeQueuedMapLifecycle(now, now);
   const updated = await database
     .update(maps)
     .set({
-      purgeRequestedAt: now,
-      lifecycleStatus: 'purge_queued',
-      lifecycleEnteredAt: now,
+      purgeRequestedAt: lifecycle.purgeRequestedAt,
+      lifecycleStatus: lifecycle.lifecycleStatus,
+      lifecycleEnteredAt: lifecycle.lifecycleEnteredAt,
       updatedAt: now,
     })
     .where(
@@ -166,12 +176,11 @@ export async function claimPurgeableMaps(
     .limit(limit);
   if (candidates.length === 0) return [];
 
+  const lifecycle = purgeClaimedMapLifecycle(now);
   const claimed = await database
     .update(maps)
     .set({
-      purgeClaimedAt: now,
-      lifecycleStatus: 'purge_claimed',
-      lifecycleEnteredAt: now,
+      ...lifecycle,
       updatedAt: now,
     })
     .where(
@@ -197,12 +206,13 @@ export async function tombstonePurgedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
+  const lifecycle = tombstonedMapLifecycle(now, now);
   const updated = await database
     .update(maps)
     .set({
-      tombstonedAt: now,
-      lifecycleStatus: 'tombstoned',
-      lifecycleEnteredAt: now,
+      tombstonedAt: lifecycle.tombstonedAt,
+      lifecycleStatus: lifecycle.lifecycleStatus,
+      lifecycleEnteredAt: lifecycle.lifecycleEnteredAt,
       updatedAt: now,
     })
     .where(

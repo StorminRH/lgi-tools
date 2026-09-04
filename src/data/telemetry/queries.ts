@@ -124,7 +124,7 @@ function topByMetadataKeyQuery(
     .select({ value: col, count: count() })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
-    .groupBy(sql`1`)
+    .groupBy(col)
     .orderBy(desc(count()))
     .limit(limit);
 }

@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import type { Id } from '@/data/convex/data-model';
-import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
@@ -10,7 +9,7 @@ import type {
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {
-  applyWormholeType,
+  bindConnectionSetters,
   type ConnectionAuthoringApi,
 } from './connection-authoring-api';
 import {
@@ -94,32 +93,7 @@ export function SignatureProvider({
         onOpenEditor={panel.openEditor}
         onOpenSite={panel.openSite}
         originLeadConnections={[...connectionDetails.values()]}
-        bindConnectionSetters={(connection, side) =>
-          connectionFieldSetters(
-            mapId,
-            connection,
-            authoring,
-            (value) => {
-              if (connection.toSystemId !== null) {
-                void applyWormholeType({
-                  mapId,
-                  connection: connection as ConnectionDetail,
-                  value,
-                  side,
-                  authoring,
-                });
-                return;
-              }
-              void authoring.setConnectionWormholeType({
-                mapId,
-                connection,
-                value,
-                side,
-              });
-            },
-            side,
-          )
-        }
+        bindConnectionSetters={bindConnectionSetters(mapId, authoring)}
       />
       <ActiveScannerPanel
         mapId={mapId}
