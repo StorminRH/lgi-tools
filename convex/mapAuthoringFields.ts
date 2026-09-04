@@ -28,6 +28,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
+import { claimStaticPlaceholder } from './lib/mapStaticClaim';
 import {
   connectionDoorSideValidator,
   destinationHintValidator,
@@ -169,6 +170,9 @@ async function applyConnectionWormholeType(
     && connection.resolution.kind === resolution.kind
     && sameDeathWindow(connection, window)
   ) {
+    if (input.value !== null) {
+      await claimStaticPlaceholder(ctx, connection, door);
+    }
     return { changed: false };
   }
   await ctx.db.patch(input.connectionId, {
@@ -179,6 +183,10 @@ async function applyConnectionWormholeType(
       ? {}
       : stampObservationKey(connection.observationKey).patch),
   });
+  if (input.value !== null) {
+    const typed = await ctx.db.get(input.connectionId);
+    if (typed !== null) await claimStaticPlaceholder(ctx, typed, door);
+  }
   return { changed: true };
 }
 

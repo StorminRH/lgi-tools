@@ -117,6 +117,14 @@ import {
 } from '../mapHallwayBackfill';
 import { purgeMapBatch } from '../mapPurge';
 import {
+  STATIC_BACKFILL_BATCH,
+  applyStaticPlaceholders,
+  backfillStaticPlaceholders,
+  ensureStaticPlaceholders,
+  fetchSystemStatics,
+  listLiveSystemsPage,
+} from '../mapStatics';
+import {
   MAP_ELIMINATION_CONNECTION_LIMIT,
   MAP_SCAN_ROW_LIMIT,
   MAP_SIGNATURE_PAGE_SIZE,
@@ -229,6 +237,12 @@ describe('convex runtime exports', () => {
       HALLWAY_BACKFILL_BATCH,
       backfillHallwayConnections,
       purgeMapBatch,
+      STATIC_BACKFILL_BATCH,
+      applyStaticPlaceholders,
+      backfillStaticPlaceholders,
+      ensureStaticPlaceholders,
+      fetchSystemStatics,
+      listLiveSystemsPage,
       MAP_ELIMINATION_CONNECTION_LIMIT,
       MAP_SCAN_ROW_LIMIT,
       MAP_SIGNATURE_PAGE_SIZE,

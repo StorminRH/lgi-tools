@@ -15,8 +15,6 @@ const B = 31_000_002;
 const C = 31_000_003;
 const D = 31_000_004;
 
-const NO_DRAG: ReadonlySet<number> = new Set();
-
 function snapshot(
   systemIds: readonly number[],
   connections: readonly ConnectionRow[] = [],
@@ -63,7 +61,7 @@ function kernelResultAssigner(
 describe('reconcileChain candidate order (synchronized creation order)', () => {
   it('presents an initial complete snapshot in creation order', () => {
     const { assigner, consultations } = candidateOrderSpy();
-    reconcileChain(EMPTY_CHAIN_STATE, snapshot([C, A, B]), NO_DRAG, assigner);
+    reconcileChain(EMPTY_CHAIN_STATE, snapshot([C, A, B]),  assigner);
     expect(consultations).toEqual([[C, A, B]]);
   });
 
@@ -72,10 +70,9 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshot([A, B], [], { systems: false }),
-      NO_DRAG,
       assigner,
     );
-    reconcileChain(first.state, snapshot([A, B, C, D]), NO_DRAG, assigner);
+    reconcileChain(first.state, snapshot([A, B, C, D]),  assigner);
     expect(consultations).toEqual([
       [A, B],
       [A, B, C, D],
@@ -87,10 +84,9 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshot([A, B, C]),
-      NO_DRAG,
       assigner,
     );
-    reconcileChain(first.state, snapshot([A, C]), NO_DRAG, assigner);
+    reconcileChain(first.state, snapshot([A, C]),  assigner);
     expect(consultations[1]).toEqual([A, C]);
   });
 
@@ -99,11 +95,10 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshot([A, B, C]),
-      NO_DRAG,
       assigner,
     );
-    const departed = reconcileChain(first.state, snapshot([A, C]), NO_DRAG, assigner);
-    reconcileChain(departed.state, snapshot([A, C, B]), NO_DRAG, assigner);
+    const departed = reconcileChain(first.state, snapshot([A, C]),  assigner);
+    reconcileChain(departed.state, snapshot([A, C, B]),  assigner);
     expect(consultations[2]).toEqual([A, C, B]);
   });
 
@@ -118,7 +113,6 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
           { connectionId: 'e2', fromSystemId: B, toSystemId: C },
         ],
       ),
-      NO_DRAG,
       assigner,
     );
     const second = reconcileChain(
@@ -131,7 +125,6 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
         ],
         { connections: false },
       ),
-      NO_DRAG,
       assigner,
     );
     reconcileChain(
@@ -144,7 +137,6 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
           { connectionId: 'e3', fromSystemId: A, toSystemId: C },
         ],
       ),
-      NO_DRAG,
       assigner,
     );
     expect(consultations).toHaveLength(3);
@@ -158,13 +150,11 @@ describe('reconcileChain candidate order (synchronized creation order)', () => {
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshot([A, B, C]),
-      NO_DRAG,
       assigner,
     );
     reconcileChain(
       first.state,
       snapshot([C], [], { systems: false }),
-      NO_DRAG,
       assigner,
     );
     expect(consultations[1]).toEqual([A, B, C]);
@@ -202,7 +192,6 @@ describe('reconcileChain driven by kernel-produced positions', () => {
     const merge = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshot([A, B], [{ connectionId: 'e1', fromSystemId: A, toSystemId: B }]),
-      NO_DRAG,
       kernelResultAssigner(positions),
     );
     expect(merge.intents).toEqual([
@@ -215,7 +204,7 @@ describe('reconcileChain driven by kernel-produced positions', () => {
         toSystemId: B,
       },
     ]);
-    expect(merge.state.systems.get(B)?.placementSource).toBe('assigner');
+    expect(merge.state.systems.get(B)?.position).toEqual(at(positions, B));
   });
 
   it('emits exact system-moved intents when a new kernel result repositions a node', async () => {
@@ -229,13 +218,11 @@ describe('reconcileChain driven by kernel-produced positions', () => {
     const first = reconcileChain(
       EMPTY_CHAIN_STATE,
       snapshot([A, B, C]),
-      NO_DRAG,
       kernelResultAssigner(before),
     );
     const merge = reconcileChain(
       first.state,
       snapshot([A, B, C, D]),
-      NO_DRAG,
       kernelResultAssigner(after),
     );
     expect(merge.intents).toEqual([
@@ -249,30 +236,5 @@ describe('reconcileChain driven by kernel-produced positions', () => {
     ]);
     expect(merge.state.systems.get(A)?.position).toEqual(at(before, A));
     expect(merge.state.systems.get(B)?.position).toEqual(at(before, B));
-  });
-
-  it('never moves a protected node no matter what the kernel result proposes', async () => {
-    const before = await compassKernel(factsOf([A, B, C], [[A, B], [B, C]]), PROPORTIONAL);
-    const after = await compassKernel(
-      factsOf([A, B, C, D], [[A, B], [B, C], [B, D]]),
-      PROPORTIONAL,
-    );
-    const first = reconcileChain(
-      EMPTY_CHAIN_STATE,
-      snapshot([A, B, C]),
-      NO_DRAG,
-      kernelResultAssigner(before),
-    );
-    const dragging = new Set([C]);
-    const merge = reconcileChain(
-      first.state,
-      snapshot([A, B, C, D]),
-      dragging,
-      kernelResultAssigner(after),
-    );
-    expect(merge.state.systems.get(C)?.position).toEqual(at(before, C));
-    expect(
-      merge.intents.filter((intent) => intent.kind === 'system-moved'),
-    ).toEqual([]);
   });
 });

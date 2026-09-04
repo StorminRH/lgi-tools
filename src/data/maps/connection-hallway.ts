@@ -76,6 +76,8 @@ export interface ConnectionHallway {
   observedMassKg?: number;
   observedMassAtStateKg?: number;
   observationKey?: string;
+  staticCode?: string;
+  seatOrderAt?: number;
 }
 
 export function blankDoor(): ConnectionDoorValue {
@@ -278,4 +280,23 @@ export function hallwayDoorTypes(hallway: {
   readonly to: ConnectionDoorValue;
 }): { readonly from: string | null; readonly to: string | null } {
   return { from: hallway.from.typeCode, to: hallway.to.typeCode };
+}
+
+export function isStaticPlaceholder(row: {
+  readonly staticCode?: string;
+  readonly toSystemId: number | null;
+  readonly from: { readonly signatureId: string | null };
+}): boolean {
+  return (
+    row.staticCode !== undefined
+    && row.toSystemId === null
+    && row.from.signatureId === null
+  );
+}
+
+export function seatOrderOf(row: {
+  readonly seatOrderAt?: number;
+  readonly _creationTime: number;
+}): number {
+  return row.seatOrderAt ?? row._creationTime;
 }

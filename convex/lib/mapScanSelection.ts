@@ -30,6 +30,7 @@ import {
   tombstoneConnectionRow,
   type ScanState,
 } from './mapScanState';
+import { deleteUnclaimedRespawn, respawnAfterTombstone } from './mapStaticClaim';
 
 function trackedPresenceReader(
   ctx: MutationCtx,
@@ -126,6 +127,12 @@ async function tombstoneSingleRows(
       write.purgeAfter,
     );
     if (didChange) {
+      if (write.deletedAt !== null) {
+        await respawnAfterTombstone(ctx, connection._id);
+      } else {
+        const restored = await ctx.db.get(connection._id);
+        if (restored !== null) await deleteUnclaimedRespawn(ctx, restored);
+      }
       pass.changed += 1;
       pass.changedRowIds.push(signatureId);
     }
@@ -290,6 +297,7 @@ async function removeConfidentRow(
   await ctx.db.patch(connection._id, connectionRemovedTombstone(input.now));
   const activity = state.activities.find((row) => row.signatureId === input.signatureId);
   if (activity !== undefined) await ctx.db.delete(activity._id);
+  await respawnAfterTombstone(ctx, connection._id);
 }
 
 export async function removeConfidentRows(

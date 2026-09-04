@@ -5,6 +5,7 @@ import type { Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
 import { beginSystemEdit, findSystem, requireSystemId } from './lib/mapSystemLookup';
+import { ensureStaticPlaceholders } from './mapStatics';
 
 const HOME_SYSTEM_SCAN_CAP = 128;
 
@@ -49,12 +50,14 @@ async function insertHomeSystem(
     return prior._id;
   }
 
-  return await ctx.db.insert('mapSystems', {
+  const inserted = await ctx.db.insert('mapSystems', {
     mapId,
     systemId,
     deletedAt: null,
     purgeAfter: null,
   });
+  await ensureStaticPlaceholders(ctx, mapId, systemId);
+  return inserted;
 }
 
 async function requireLiveOrigin(
@@ -80,15 +83,18 @@ export async function upsertLiveDestination(
   if (destination !== null) {
     if (isTombstoned(destination)) {
       await ctx.db.patch(destination._id, { deletedAt: null, purgeAfter: null });
+      await ensureStaticPlaceholders(ctx, mapId, toSystemId);
     }
     return destination._id;
   }
-  return await ctx.db.insert('mapSystems', {
+  const inserted = await ctx.db.insert('mapSystems', {
     mapId,
     systemId: toSystemId,
     deletedAt: null,
     purgeAfter: null,
   });
+  await ensureStaticPlaceholders(ctx, mapId, toSystemId);
+  return inserted;
 }
 
 async function addFromNode(

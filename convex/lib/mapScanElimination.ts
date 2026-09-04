@@ -27,6 +27,7 @@ import {
   readInboundConnections,
   readOriginConnections,
 } from './mapConnectionLookup';
+import { claimStaticPlaceholder, mergeSeatFields } from './mapStaticClaim';
 import { stampObservationKey } from './observationKey';
 import { findSystem, requireSystemId } from './mapSystemLookup';
 import {
@@ -178,6 +179,7 @@ async function applyTypeDeduction(
     && source.identity.kind === 'typed'
     && source.identity.provenance === 'assumed'
   ) {
+    await claimStaticPlaceholder(ctx, source, 'from');
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   if (
@@ -191,6 +193,8 @@ async function applyTypeDeduction(
     ...connectionTypePatch(source, 'from', typeCode, 'assumed'),
     ...stamped.patch,
   });
+  const typed = await ctx.db.get(source._id);
+  if (typed !== null) await claimStaticPlaceholder(ctx, typed, 'from');
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
@@ -285,6 +289,7 @@ export async function applyLinkDeduction(
   if (leftover !== null) {
     next = absorbLeftoverOriginStub(next, leftover.row, side);
   }
+  next = { ...next, ...mergeSeatFields(next, source) };
   const { _id: _targetId, _creationTime: _createdAt, ...fields } = next;
   await ctx.db.patch(target._id, fields);
   if (leftover !== null) await ctx.db.delete(leftover.id);
@@ -339,7 +344,8 @@ async function findLeftoverOriginStub(
     return null;
   }
   const leftover = uniqueCounterpartStub(
-    await readOriginConnections(ctx, target.mapId, oppositeSystemId),
+    (await readOriginConnections(ctx, target.mapId, oppositeSystemId))
+      .filter((row) => row.staticCode === undefined),
     new Set([sourceId, target._id]),
   );
   return leftover === null ? null : { row: leftover, id: leftover._id };
@@ -365,6 +371,7 @@ function absorbLeftoverOriginStub(
       signalPct: oppositeSide === 'from' ? leftover.from.signalPct : door.signalPct,
     }),
     ...(firstSeenAt === undefined ? {} : { firstSeenAt }),
+    ...mergeSeatFields(afterKnowledge, leftover),
   };
 }
 

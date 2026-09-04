@@ -216,6 +216,34 @@ describe('map chain read path', () => {
       ]);
     });
 
+    it('returns tombstoned unresolved rows as slot holders', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+      await grant(t, MAP_A, VIEWER, ['viewer']);
+      await placeSystems(t, MAP_A, [JITA]);
+      const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+      });
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
+        mapId: MAP_A,
+        connectionId: unresolved.connectionId,
+      });
+
+      const holes = await asUser(t, VIEWER).query(chain.watchUnresolvedHoles, {
+        mapId: MAP_A,
+        paginationOpts: page(10),
+      });
+      expect(holes.page).toEqual([
+        expect.objectContaining({
+          _id: unresolved.connectionId,
+          toSystemId: null,
+          tombstone: expect.objectContaining({ kind: 'removed' }),
+        }),
+      ]);
+    });
+
     it('flips access off on revocation and restores rows when the claim returns', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, EDITOR, ['editor']);

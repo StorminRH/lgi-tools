@@ -48,11 +48,8 @@ export const SYSTEM_DISC_SIZE = 55;
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
 
-export function nodeMotionClass(
-  motion: NodeMotion | undefined,
-  dragging: boolean,
-): string | null {
-  if (dragging || motion === undefined) return null;
+export function nodeMotionClass(motion: NodeMotion | undefined): string | null {
+  if (motion === undefined) return null;
   if (motion.phase === 'entering') return 'map-node-enter';
   return motion.heavy === true ? 'map-node-exit-heavy' : 'map-node-exit';
 }
@@ -67,7 +64,7 @@ function nodePresentation(data: ChainNodeData) {
     staticStub,
     fogged,
     derived: data.halo !== undefined || stub,
-    chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto',
+    chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto nopan',
   } as const;
 }
 
@@ -186,7 +183,7 @@ function NodeDisc({
   );
 }
 
-function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<ChainNode>) {
+function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) {
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
@@ -194,7 +191,6 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
     <div
       data-chain-node
       aria-hidden={fogged || undefined}
-      data-dragging={dragging || undefined}
       data-chain-node-derived={derived || undefined}
       data-chain-node-fogged={fogged || undefined}
       data-chain-node-stub={stub || undefined}
@@ -202,7 +198,7 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
       className={cn(
         'relative h-full w-full',
         derived && (fogged ? 'opacity-0' : 'opacity-75'),
-        nodeMotionClass(data.motion, dragging),
+        nodeMotionClass(data.motion),
       )}
     >
       <span

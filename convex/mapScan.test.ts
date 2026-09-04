@@ -7,6 +7,7 @@ import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
+import { applyLinkDeduction } from './lib/mapScanElimination';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
 import schema from './schema';
 
@@ -794,6 +795,257 @@ describe('mapScan paste application and lifecycle', () => {
       fromSystemId: JITA,
       from: expect.objectContaining({ typeCode: 'B274' }),
     });
+  });
+
+  it('applyLinkDeduction survivor carries seatOrderAt from the earlier row', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: AMARR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      const sourceId = await ctx.db.insert('mapConnections', {
+        ...connectionInsert({
+          mapId: MAP,
+          fromSystemId: JITA,
+          toSystemId: null,
+          fromSignatureId: 'ABC-123',
+          wormholeTypeCode: 'B274',
+          typedSide: 'from',
+          typeProvenance: 'assumed',
+        }),
+        seatOrderAt: 1_000,
+      });
+      const targetId = await ctx.db.insert('mapConnections', {
+        ...connectionInsert({
+          mapId: MAP,
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          wormholeTypeCode: 'B274',
+          typedSide: 'from',
+          typeProvenance: 'human',
+        }),
+        seatOrderAt: 9_000,
+      });
+      return { sourceId, targetId };
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      const outcome = await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        JITA,
+        'ABC-123',
+        'B274',
+      );
+      expect(outcome.outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.targetId))).toMatchObject({
+      seatOrderAt: 1_000,
+      from: expect.objectContaining({ signatureId: 'ABC-123' }),
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.sourceId))).toBeNull();
+  });
+
+  it('link deduction carries staticCode onto the resolved survivor and does not respawn', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: WH_FAR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: AMARR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: WH_FAR,
+      codes: ['C247'],
+    });
+    const ids = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      const placeholder = rows.find((row) => row.staticCode === 'C247');
+      if (placeholder === undefined) throw new Error('missing C247 placeholder');
+      await ctx.db.patch(placeholder._id, {
+        from: { ...placeholder.from, signatureId: 'STA-247' },
+        seatOrderAt: 500,
+      });
+      const targetId = await ctx.db.insert('mapConnections', {
+        ...connectionInsert({
+          mapId: MAP,
+          fromSystemId: WH_FAR,
+          toSystemId: AMARR,
+        }),
+        seatOrderAt: 9_000,
+      });
+      return { sourceId: placeholder._id, targetId };
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      expect((await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        WH_FAR,
+        'STA-247',
+        'C247',
+      )).outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.sourceId))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.targetId))).toMatchObject({
+      staticCode: 'C247',
+      seatOrderAt: 500,
+      from: expect.objectContaining({ signatureId: 'STA-247' }),
+      toSystemId: AMARR,
+    });
+    const ghosts = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      return rows.filter((row) => row.staticCode === 'C247' && row.toSystemId === null);
+    });
+    expect(ghosts).toEqual([]);
+  });
+
+  it('does not absorb a claimed static as a leftover counterpart stub', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: WH_FAR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      const sourceId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: null,
+      }));
+      const targetId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: WH_FAR,
+      }));
+      return { sourceId, targetId };
+    });
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: WH_FAR,
+      codes: ['C247'],
+    });
+    const claimedId = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      const placeholder = rows.find((row) => row.staticCode === 'C247');
+      if (placeholder === undefined) throw new Error('missing C247 placeholder');
+      await ctx.db.patch(placeholder._id, {
+        from: { ...placeholder.from, signatureId: 'STA-247' },
+      });
+      return placeholder._id;
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      expect((await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        JITA,
+        'ABC-123',
+        null,
+      )).outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(claimedId))).toMatchObject({
+      staticCode: 'C247',
+      from: expect.objectContaining({ signatureId: 'STA-247' }),
+      toSystemId: null,
+    });
+    const target = await t.run(async (ctx) => await ctx.db.get(ids.targetId));
+    expect(target?.staticCode).toBeUndefined();
+    expect(target?.from.signatureId).toBe('ABC-123');
+  });
+
+  it('does not absorb a static placeholder as a leftover counterpart stub', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: WH_FAR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      const sourceId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: null,
+      }));
+      const targetId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: WH_FAR,
+      }));
+      return { sourceId, targetId };
+    });
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: WH_FAR,
+      codes: ['C247'],
+    });
+    const placeholderId = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      const placeholder = rows.find((row) => row.staticCode === 'C247');
+      if (placeholder === undefined) throw new Error('missing C247 placeholder');
+      return placeholder._id;
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      const outcome = await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        JITA,
+        'ABC-123',
+        null,
+      );
+      expect(outcome.outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(placeholderId))).toMatchObject({
+      staticCode: 'C247',
+      from: expect.objectContaining({ signatureId: null }),
+      toSystemId: null,
+    });
+    const target = await t.run(async (ctx) => await ctx.db.get(ids.targetId));
+    expect(target?.staticCode).toBeUndefined();
+    expect(target?.from.signatureId).toBe('ABC-123');
   });
 
   it('absorbs a unique leftover origin stub when a Leads-to pick rehomes the hallway', async () => {

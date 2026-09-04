@@ -1,7 +1,6 @@
 'use client';
 
 import { ReactFlowProvider } from '@xyflow/react';
-import { useEffect, useRef } from 'react';
 import { HomePrompt } from '../authoring/HomePrompt';
 import { MapAuthoringOverlay } from '../authoring/MapAuthoringOverlay';
 import { NodeAddMenu } from '../authoring/NodeAddMenu';
@@ -23,7 +22,6 @@ import { NoMapAccess } from './NoMapAccess';
 import { useChainAuthoringMutations } from './optimistic-authoring';
 import { useAuthoringMenus } from './use-authoring-menus';
 import { useChainDials } from './use-chain-dials';
-import { useChainDrag } from './use-chain-drag';
 import { useChainFocusMenus } from './use-chain-focus-menus';
 import { useChainNodeSync } from './use-chain-node-sync';
 import { useMapChain } from './use-map-chain';
@@ -31,25 +29,20 @@ import { useMapChain } from './use-map-chain';
 export function ChainLive({ mapId }: { readonly mapId: string }) {
   const {
     config,
-    dragging,
-    draggingRef,
     fogConfig,
     focusOnClick,
     focusRequest,
     focusTokenRef,
     follow,
     haloLimits,
-    locked,
     motionConfig,
     setConfig,
-    setDragging,
     setFocusRequest,
     setFogConfig,
     setHaloLimits,
     setMotionConfig,
     shellRef,
   } = useChainDials();
-  const wasLockedRef = useRef(locked);
 
   const {
     access,
@@ -68,13 +61,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     halo,
     stubs,
     neighboursOf,
-    pinPlacement,
-    releasePlacements,
-  } = useMapChain(mapId, dragging, config, haloLimits);
-  useEffect(() => {
-    if (locked && !wasLockedRef.current) releasePlacements();
-    wasLockedRef.current = locked;
-  }, [locked, releasePlacements]);
+  } = useMapChain(mapId, config, haloLimits);
   const authoring = useChainAuthoringMutations();
   const menus = useAuthoringMenus(canEdit);
   const {
@@ -91,14 +78,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     stubs,
     treeParents,
     connectionPresentationNow,
-    draggingRef,
   );
-  const {
-    onNodeDragStart,
-    onNodeDragStop,
-    onSelectionDragStart,
-    onSelectionDragStop,
-  } = useChainDrag(draggingRef, setDragging, pinPlacement);
   const {
     edgeActions,
     onEdgeContextMenu,
@@ -149,16 +129,10 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
               truth={truth}
               intents={intents}
               access={access}
-              dragging={dragging}
               motionConfig={motionConfig}
               fogConfig={fogConfig}
               canEdit={canEdit === true}
-              nodesDraggable={!locked}
               onNodesChange={onNodesChange}
-              onNodeDragStart={onNodeDragStart}
-              onNodeDragStop={onNodeDragStop}
-              onSelectionDragStart={onSelectionDragStart}
-              onSelectionDragStop={onSelectionDragStop}
               onNodeClick={onNodeClick}
               onNodeContextMenu={onNodeContextMenu}
               onEdgeContextMenu={onEdgeContextMenu}
@@ -177,7 +151,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
               <CameraFollowHost
                 intents={intents}
                 follow={follow}
-                dragging={dragging}
                 nodeIds={nodeIds}
                 systems={state.systems}
                 config={motionConfig}

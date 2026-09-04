@@ -6,12 +6,9 @@ import {
 import { OPTIMISTIC_ID_PREFIX } from './optimistic-authoring';
 import type { PlacementAssigner, PlacementCandidate } from './placement';
 
-export type PlacementSource = 'assigner' | 'user';
-
 export interface PlacedSystem {
   readonly systemId: number;
   readonly position: ChainPosition;
-  readonly placementSource: PlacementSource;
 }
 
 export interface VisibleConnection {
@@ -92,18 +89,9 @@ function resolveKnownConnections(
   return known;
 }
 
-function userPlacedIds(previous: ChainState): Set<number> {
-  const owned = new Set<number>();
-  for (const [systemId, placed] of previous.systems) {
-    if (placed.placementSource === 'user') owned.add(systemId);
-  }
-  return owned;
-}
-
 function placeSystems(
   previous: ChainState,
   present: readonly number[],
-  isProtected: (systemId: number) => boolean,
   proposals: ReadonlyMap<number, ChainPosition>,
 ): { systems: Map<number, PlacedSystem>; appeared: MapChainIntent[]; moved: MapChainIntent[] } {
   const systems = new Map<number, PlacedSystem>();
@@ -115,18 +103,18 @@ function placeSystems(
 
     if (existing === undefined) {
       const position = proposals.get(systemId) ?? ORIGIN;
-      systems.set(systemId, { systemId, position, placementSource: 'assigner' });
+      systems.set(systemId, { systemId, position });
       appeared.push({ kind: 'system-appeared', systemId, position });
       continue;
     }
 
     const proposed = proposals.get(systemId) ?? existing.position;
-    if (isProtected(systemId) || samePosition(proposed, existing.position)) {
+    if (samePosition(proposed, existing.position)) {
       systems.set(systemId, existing);
       continue;
     }
 
-    systems.set(systemId, { ...existing, position: proposed });
+    systems.set(systemId, { systemId, position: proposed });
     moved.push({
       kind: 'system-moved',
       systemId,
@@ -154,7 +142,6 @@ function resolveVisibleConnections(
 export function reconcileChain(
   previous: ChainState,
   snapshot: ChainSnapshot,
-  protectedIds: ReadonlySet<number>,
   assigner: PlacementAssigner,
 ): ChainMerge {
   const present = resolvePresentSystems(previous, snapshot);
@@ -162,14 +149,9 @@ export function reconcileChain(
   const known = resolveKnownConnections(previous, snapshot);
   const visible = resolveVisibleConnections(known, presentSet);
 
-  const owned = userPlacedIds(previous);
-  const isProtected = (systemId: number) =>
-    protectedIds.has(systemId) || owned.has(systemId);
-
   const candidates: PlacementCandidate[] = present.map((systemId) => ({
     systemId,
     position: previous.systems.get(systemId)?.position ?? null,
-    locked: isProtected(systemId),
   }));
   const proposals = assigner({
     systems: candidates,
@@ -179,7 +161,6 @@ export function reconcileChain(
   const { systems, appeared, moved } = placeSystems(
     previous,
     present,
-    isProtected,
     proposals,
   );
 
@@ -272,30 +253,3 @@ function suppressConnectionIdSwaps(
   };
 }
 
-export function applyUserPlacement(
-  state: ChainState,
-  systemId: number,
-  position: ChainPosition,
-): ChainState {
-  const existing = state.systems.get(systemId);
-  if (existing === undefined) return state;
-
-  const systems = new Map(state.systems);
-  systems.set(systemId, { systemId, position, placementSource: 'user' });
-  return { systems, connections: state.connections };
-}
-
-export function clearUserPlacements(state: ChainState): ChainState {
-  let changed = false;
-  const systems = new Map<number, PlacedSystem>();
-  for (const [systemId, placed] of state.systems) {
-    if (placed.placementSource === 'user') {
-      systems.set(systemId, { ...placed, placementSource: 'assigner' });
-      changed = true;
-    } else {
-      systems.set(systemId, placed);
-    }
-  }
-  if (!changed) return state;
-  return { systems, connections: state.connections };
-}

@@ -1259,14 +1259,11 @@ details[data-collapsible][open] > summary [data-chevron] {
   animation: map-node-exit-heavy var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
 }
 
-/* Hover: the one cursor-responsive moment (DC-4) — a glow plus subtle
- * breathing, strictly hover-scoped so the idle map schedules nothing, and
- * suppressed while the node itself is being dragged. */
 @keyframes map-node-breathe {
   0%, 100% { scale: 1; }
   50% { scale: 1.045; }
 }
-[data-chain-node]:not([data-dragging]):hover .map-node-disc {
+[data-chain-node]:hover .map-node-disc {
   animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
   box-shadow:
     0 0 0 1px var(--color-card-glow-ring),
@@ -1446,7 +1443,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   .map-node-exit-heavy {
     animation: map-fade-out var(--map-motion-slow) linear both;
   }
-  [data-chain-node]:not([data-dragging]):hover .map-node-disc {
+  [data-chain-node]:hover .map-node-disc {
     animation: none;
   }
   .map-edge-grow-enter,

@@ -9,8 +9,10 @@ import {
   identityFromDoors,
   hasAnswerablePrompt,
   isPendingResolution,
+  isStaticPlaceholder,
   leadsToEquals,
   pendingResolution,
+  seatOrderOf,
   leadsToFromHint,
   leadsToFromSystem,
   lifetimeDeathWindow,
@@ -90,6 +92,27 @@ describe('connection hallway', () => {
     expect(leadsToEquals({ kind: 'hint', hint: 'hisec' }, { kind: 'hint', hint: 'lowsec' })).toBe(
       false,
     );
+  });
+
+  it('names a static placeholder by birth code, open destination, and no signature', () => {
+    const hallway = blankHallway({ mapId: 'm', fromSystemId: 1, toSystemId: null });
+    expect(isStaticPlaceholder({ ...hallway, staticCode: 'C247' })).toBe(true);
+    expect(
+      isStaticPlaceholder({
+        ...hallway,
+        staticCode: 'C247',
+        from: { ...hallway.from, signatureId: 'ABC-123' },
+      }),
+    ).toBe(false);
+    expect(
+      isStaticPlaceholder({ ...hallway, staticCode: 'C247', toSystemId: 2 }),
+    ).toBe(false);
+    expect(isStaticPlaceholder(hallway)).toBe(false);
+  });
+
+  it('orders a seat by seatOrderAt when present, otherwise _creationTime', () => {
+    expect(seatOrderOf({ _creationTime: 10 })).toBe(10);
+    expect(seatOrderOf({ seatOrderAt: 4, _creationTime: 10 })).toBe(4);
   });
 
   it('clears a pending prompt into destination provenance, not open', () => {
