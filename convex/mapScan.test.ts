@@ -852,6 +852,67 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(ids.sourceId))).toBeNull();
   });
 
+  it('does not absorb a static placeholder as a leftover counterpart stub', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: WH_FAR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      const sourceId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: null,
+      }));
+      const targetId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: WH_FAR,
+      }));
+      return { sourceId, targetId };
+    });
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: WH_FAR,
+      codes: ['C247'],
+    });
+    const placeholderId = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', WH_FAR))
+        .collect();
+      const placeholder = rows.find((row) => row.staticCode === 'C247');
+      if (placeholder === undefined) throw new Error('missing C247 placeholder');
+      return placeholder._id;
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      const outcome = await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        JITA,
+        'ABC-123',
+        null,
+      );
+      expect(outcome.outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(placeholderId))).toMatchObject({
+      staticCode: 'C247',
+      from: expect.objectContaining({ signatureId: null }),
+      toSystemId: null,
+    });
+    const target = await t.run(async (ctx) => await ctx.db.get(ids.targetId));
+    expect(target?.staticCode).toBeUndefined();
+    expect(target?.from.signatureId).toBe('ABC-123');
+  });
+
   it('absorbs a unique leftover origin stub when a Leads-to pick rehomes the hallway', async () => {
     const t = convexTest(schema, modules);
     await seed(t);

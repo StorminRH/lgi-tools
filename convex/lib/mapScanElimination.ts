@@ -14,6 +14,7 @@ import {
   hallwayDoor,
   hallwayDoorTypes,
   identityFromDoors,
+  isStaticPlaceholder,
   replaceDoor,
 } from '@/data/maps/connection-hallway';
 import {
@@ -344,7 +345,8 @@ async function findLeftoverOriginStub(
     return null;
   }
   const leftover = uniqueCounterpartStub(
-    await readOriginConnections(ctx, target.mapId, oppositeSystemId),
+    (await readOriginConnections(ctx, target.mapId, oppositeSystemId))
+      .filter((row) => !isStaticPlaceholder(row)),
     new Set([sourceId, target._id]),
   );
   return leftover === null ? null : { row: leftover, id: leftover._id };
