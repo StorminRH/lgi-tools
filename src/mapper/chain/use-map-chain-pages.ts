@@ -6,10 +6,9 @@ import type { Doc } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { chainTombstoneState } from '@/data/maps/chain-contract';
-import { doorHint } from '@/data/maps/connection-hallway';
 import {
-  destinationClassIdForCode,
-  useSystemStaticSlots,
+  staticClassForCode,
+  useWormholeCodex,
 } from '../signatures/use-system-statics';
 import { filterLivePages } from './chain-signature';
 import {
@@ -63,6 +62,7 @@ export function useMapChainPages(mapId: string | null) {
     PAGE_SIZE,
   );
   const subscribedEvents = useLiveValue(api.mapChainEvents.watchMapEvents, args);
+  const codex = useWormholeCodex();
   const systems = useMemo(
     () =>
       filterLivePages({
@@ -86,29 +86,15 @@ export function useMapChainPages(mapId: string | null) {
     [unresolvedHoles, systems.rows, connections.rows],
   );
   const authoredKey = systems.rows.map((row) => row.systemId).join(',');
-  const staticSlots = useSystemStaticSlots(authoredKey);
   const plannedStubs = useMemo(
     () => planStubNodes({
       systemIds: systems.rows.map((row) => row.systemId),
-      signatures: scannedStubLayout.flatMap((row) => {
-        const signatureId = row.from.signatureId;
-        if (signatureId === null) return [];
-        return [{
-          connectionId: row.connectionId,
-          fromSystemId: row.fromSystemId,
-          signatureId,
-          wormholeTypeCode: row.from.typeCode,
-          destinationHint: doorHint(row.from),
-          whClassId: row.from.typeCode === null
-            ? null
-            : destinationClassIdForCode(row.from.typeCode, staticSlots.codex),
-        }];
-      }),
+      rows: scannedStubLayout,
       connections: connections.rows,
-      staticsBySystem: staticSlots.bySystem,
       rootSystemId: systems.rows[0]?.systemId ?? null,
+      classOf: (code) => staticClassForCode(code, codex),
     }),
-    [systems.rows, scannedStubLayout, connections.rows, staticSlots],
+    [systems.rows, scannedStubLayout, connections.rows, codex],
   );
   const stubLayout = useMemo(
     () => accountedStubLayoutRows(plannedStubs, scannedStubLayout),

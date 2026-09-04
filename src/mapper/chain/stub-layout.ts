@@ -1,3 +1,4 @@
+import { isStaticPlaceholder } from '@/data/maps/connection-hallway';
 import type { LayoutFacts } from '../layout/layout-contract';
 import type { UnresolvedHoleSummary } from './connection-detail';
 import type { ChainPosition } from './intents';
@@ -21,9 +22,9 @@ export function stubLayoutRows(
   const stubs: StubLayoutRow[] = [];
   for (const row of rows) {
     if (
-      row.from.signatureId === null ||
-      !authored.has(row.fromSystemId) ||
-      resolved.has(row.connectionId)
+      (row.from.signatureId === null && !isStaticPlaceholder(row))
+      || !authored.has(row.fromSystemId)
+      || resolved.has(row.connectionId)
     ) {
       continue;
     }
@@ -45,12 +46,16 @@ export function accountedStubLayoutRows(
   let nextStatic = scanned.length + 1;
   const rows: AccountedStubLayoutRow[] = [];
   for (const stub of planned) {
-    if ('staticId' in stub) {
-      rows.push({ ...stub, layoutSystemId: -(nextStatic++) });
+    const scannedId = scannedIds.get(
+      'staticId' in stub ? stub.staticId : stub.connectionId,
+    );
+    if (scannedId !== undefined) {
+      rows.push({ ...stub, layoutSystemId: scannedId });
       continue;
     }
-    const layoutSystemId = scannedIds.get(stub.connectionId);
-    if (layoutSystemId !== undefined) rows.push({ ...stub, layoutSystemId });
+    if ('staticId' in stub) {
+      rows.push({ ...stub, layoutSystemId: -(nextStatic++) });
+    }
   }
   return rows;
 }

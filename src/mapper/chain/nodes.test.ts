@@ -531,9 +531,57 @@ describe('wormhole stub projection', () => {
   });
 });
 
-const SYSTEM_STATICS = [
-  { id: `${JITA}:B274:1`, code: 'B274', className: 'HS', whClassId: 7 },
-  { id: `${JITA}:H296:1`, code: 'H296', className: 'C5', whClassId: 5 },
+const CLASS_BY_CODE: Readonly<Record<string, { className: string; whClassId: number }>> = {
+  B274: { className: 'HS', whClassId: 7 },
+  H296: { className: 'C5', whClassId: 5 },
+  C247: { className: 'C3', whClassId: 3 },
+};
+
+function classOf(code: string) {
+  return CLASS_BY_CODE[code] ?? null;
+}
+
+function placeholderRow(args: {
+  readonly connectionId: string;
+  readonly fromSystemId: number;
+  readonly code: string;
+}) {
+  return {
+    connectionId: args.connectionId,
+    fromSystemId: args.fromSystemId,
+    toSystemId: null,
+    from: {
+      typeCode: args.code,
+      signatureId: null,
+      signalPct: null,
+      leadsTo: { kind: 'unset' as const },
+    },
+    staticCode: args.code,
+  };
+}
+
+function scannedRow(args: {
+  readonly connectionId: string;
+  readonly fromSystemId: number;
+  readonly signatureId: string;
+  readonly typeCode?: string | null;
+}) {
+  return {
+    connectionId: args.connectionId,
+    fromSystemId: args.fromSystemId,
+    toSystemId: null,
+    from: {
+      typeCode: args.typeCode ?? null,
+      signatureId: args.signatureId,
+      signalPct: null,
+      leadsTo: { kind: 'unset' as const },
+    },
+  };
+}
+
+const SYSTEM_PLACEHOLDERS = [
+  placeholderRow({ connectionId: 'ph-B274', fromSystemId: JITA, code: 'B274' }),
+  placeholderRow({ connectionId: 'ph-H296', fromSystemId: JITA, code: 'H296' }),
 ];
 
 function placePlannedStubs(
@@ -547,21 +595,21 @@ function placePlannedStubs(
 
 describe('static wormhole stub projection', () => {
   it('renders exactly the believed-holes plan for the two-statics/four-sigs case', () => {
-    const signatures = ['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map(
-      (signatureId) => ({
-        connectionId: `connection-${signatureId}`,
-        fromSystemId: JITA,
-        signatureId,
-        wormholeTypeCode: null,
-        whClassId: null,
-      }),
-    );
+    const rows = [
+      ...SYSTEM_PLACEHOLDERS,
+      ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
+        scannedRow({
+          connectionId: `connection-${signatureId}`,
+          fromSystemId: JITA,
+          signatureId,
+        })),
+    ];
     const planned = planStubNodes({
       systemIds: [JITA],
-      signatures,
+      rows,
       connections: [],
-      staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
       rootSystemId: JITA,
+      classOf,
     });
     const placed = placePlannedStubs(planned);
     const nodes = syncNodes(
@@ -612,16 +660,16 @@ describe('static wormhole stub projection', () => {
     };
     const input = {
       systemIds: [JITA],
-      signatures: [],
-      staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
+      rows: SYSTEM_PLACEHOLDERS,
       rootSystemId: JITA,
+      classOf,
     };
     const matched = placePlannedStubs(planStubNodes({
       ...input,
       connections: [liveConnection],
     }));
     expect(matched.map(stubNodeId)).toEqual([
-      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:H296:1`,
+      `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
     ]);
 
     const collapsed = placePlannedStubs(planStubNodes({
@@ -632,31 +680,29 @@ describe('static wormhole stub projection', () => {
       }],
     }));
     expect(collapsed.map(stubNodeId)).toEqual([
-      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:B274:1`,
-      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:H296:1`,
+      `${STATIC_STUB_NODE_ID_PREFIX}ph-B274`,
+      `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
     ]);
     expect(
       buildEdges(new Map(), new Map(), Date.now(), [], new Set(), collapsed)
         .map((edge) => edge.id),
     ).toEqual([
-      `${STATIC_STUB_EDGE_ID_PREFIX}${JITA}:B274:1`,
-      `${STATIC_STUB_EDGE_ID_PREFIX}${JITA}:H296:1`,
+      `${STATIC_STUB_EDGE_ID_PREFIX}ph-B274`,
+      `${STATIC_STUB_EDGE_ID_PREFIX}ph-H296`,
     ]);
   });
 
   it('renders zero static ghosts in degraded mode while preserving the pasted stub', () => {
     const placed = placePlannedStubs(planStubNodes({
       systemIds: [JITA],
-      signatures: [{
+      rows: [scannedRow({
         connectionId: 'scan-1',
         fromSystemId: JITA,
         signatureId: 'ABC-123',
-        wormholeTypeCode: null,
-        whClassId: null,
-      }],
+      })],
       connections: [],
-      staticsBySystem: new Map(),
       rootSystemId: JITA,
+      classOf,
     }));
     const nodes = syncNodes(
       [],
@@ -673,21 +719,21 @@ describe('static wormhole stub projection', () => {
   });
 
   it('reserves the inbound hole on a non-root system so four unidentified sigs draw one Unknown', () => {
-    const signatures = ['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map(
-      (signatureId) => ({
-        connectionId: `connection-${signatureId}`,
-        fromSystemId: AMARR,
-        signatureId,
-        wormholeTypeCode: null,
-        whClassId: null,
-      }),
-    );
     const planned = planStubNodes({
       systemIds: [AMARR],
-      signatures,
+      rows: [
+        placeholderRow({ connectionId: 'ph-B274', fromSystemId: AMARR, code: 'B274' }),
+        placeholderRow({ connectionId: 'ph-H296', fromSystemId: AMARR, code: 'H296' }),
+        ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
+          scannedRow({
+            connectionId: `connection-${signatureId}`,
+            fromSystemId: AMARR,
+            signatureId,
+          })),
+      ],
       connections: [],
-      staticsBySystem: new Map([[AMARR, SYSTEM_STATICS]]),
       rootSystemId: JITA,
+      classOf,
     });
     expect(planned.filter((stub) => 'connectionId' in stub)).toHaveLength(1);
     expect(planned.filter((stub) => 'staticId' in stub)).toHaveLength(2);

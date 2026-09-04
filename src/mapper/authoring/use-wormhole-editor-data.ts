@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
-import {
-  loadWormholeCodex,
-  type WormholeCodex,
-} from '@/data/eve-data/universe-assets-client';
+import type { WormholeCodex } from '@/data/eve-data/universe-assets-client';
 import { loadSystemStatics } from '@/data/wh-statics/client';
+import { useWormholeCodex } from '../signatures/use-system-statics';
 
 export interface WormholeEditorData {
   readonly codex: WormholeCodex | null;
@@ -22,22 +20,7 @@ export function useWormholeCodexData(code: string | null): {
   readonly entry: WormholeCodexEntry | null;
   readonly codexReady: boolean;
 } {
-  const [codex, setCodex] = useState<WormholeCodex | null>(null);
-
-  useEffect(() => {
-    if (codex !== null) return;
-    let alive = true;
-    loadWormholeCodex().then(
-      (loaded) => {
-        if (alive) setCodex(loaded);
-      },
-      () => {
-      },
-    );
-    return () => {
-      alive = false;
-    };
-  }, [codex, code]);
+  const codex = useWormholeCodex();
 
   return {
     codex,
