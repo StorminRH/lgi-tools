@@ -11,7 +11,7 @@ import {
   getOwnedMapIds,
 } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-hooks';
+import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 
 export async function mapIdsAffectedByCharacter(characterId: number): Promise<string[]> {
   const corporationId = await getCharacterCorporationId(characterId);
