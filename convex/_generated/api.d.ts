@@ -39,6 +39,7 @@ import type * as lib_mapScanSelection from "../lib/mapScanSelection.js";
 import type * as lib_mapScanState from "../lib/mapScanState.js";
 import type * as lib_mapSignatureCleanup from "../lib/mapSignatureCleanup.js";
 import type * as lib_mapSignatures from "../lib/mapSignatures.js";
+import type * as lib_mapStaticClaim from "../lib/mapStaticClaim.js";
 import type * as lib_mapSystemLookup from "../lib/mapSystemLookup.js";
 import type * as lib_observationKey from "../lib/observationKey.js";
 import type * as lib_subjects from "../lib/subjects.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mapScanState": typeof lib_mapScanState;
   "lib/mapSignatureCleanup": typeof lib_mapSignatureCleanup;
   "lib/mapSignatures": typeof lib_mapSignatures;
+  "lib/mapStaticClaim": typeof lib_mapStaticClaim;
   "lib/mapSystemLookup": typeof lib_mapSystemLookup;
   "lib/observationKey": typeof lib_observationKey;
   "lib/subjects": typeof lib_subjects;

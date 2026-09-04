@@ -1,8 +1,6 @@
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { typedDoorsFrom } from '@/data/maps/connection-door-types';
-import { blankHallway, identityFromDoors } from '@/data/maps/connection-hallway';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { internal } from './_generated/api';
 import {
@@ -12,6 +10,7 @@ import {
   type MutationCtx,
 } from './_generated/server';
 import { readOriginConnections } from './lib/mapConnectionLookup';
+import { insertStaticPlaceholder } from './lib/mapStaticClaim';
 import { findSystem } from './lib/mapSystemLookup';
 
 export const STATIC_BACKFILL_BATCH = 32;
@@ -92,30 +91,6 @@ async function loadSystemStaticCodes(systemId: number): Promise<StaticCodesLoad>
     skipStaticPlaceholders('fetch failed', { systemId });
     return { kind: 'skip' };
   }
-}
-
-async function insertStaticPlaceholder(
-  ctx: MutationCtx,
-  args: {
-    readonly mapId: string;
-    readonly systemId: number;
-    readonly code: string;
-    readonly seatOrderAt: number;
-  },
-): Promise<void> {
-  const doors = typedDoorsFrom('from', args.code);
-  await ctx.db.insert('mapConnections', {
-    ...blankHallway({
-      mapId: args.mapId,
-      fromSystemId: args.systemId,
-      toSystemId: null,
-    }),
-    from: doors.from,
-    to: doors.to,
-    identity: identityFromDoors(doors.from.typeCode, doors.to.typeCode, 'assumed'),
-    staticCode: args.code,
-    seatOrderAt: args.seatOrderAt,
-  });
 }
 
 export async function ensureStaticPlaceholders(

@@ -7,6 +7,7 @@ import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
+import { applyLinkDeduction } from './lib/mapScanElimination';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
 import schema from './schema';
 
@@ -794,6 +795,61 @@ describe('mapScan paste application and lifecycle', () => {
       fromSystemId: JITA,
       from: expect.objectContaining({ typeCode: 'B274' }),
     });
+  });
+
+  it('applyLinkDeduction survivor carries seatOrderAt from the earlier row', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: AMARR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      const sourceId = await ctx.db.insert('mapConnections', {
+        ...connectionInsert({
+          mapId: MAP,
+          fromSystemId: JITA,
+          toSystemId: null,
+          fromSignatureId: 'ABC-123',
+          wormholeTypeCode: 'B274',
+          typedSide: 'from',
+          typeProvenance: 'assumed',
+        }),
+        seatOrderAt: 1_000,
+      });
+      const targetId = await ctx.db.insert('mapConnections', {
+        ...connectionInsert({
+          mapId: MAP,
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          wormholeTypeCode: 'B274',
+          typedSide: 'from',
+          typeProvenance: 'human',
+        }),
+        seatOrderAt: 9_000,
+      });
+      return { sourceId, targetId };
+    });
+    await t.run(async (ctx) => {
+      const source = await ctx.db.get(ids.sourceId);
+      const target = await ctx.db.get(ids.targetId);
+      const outcome = await applyLinkDeduction(
+        ctx,
+        source ?? undefined,
+        target ?? undefined,
+        JITA,
+        'ABC-123',
+        'B274',
+      );
+      expect(outcome.outcome).toBe('applied');
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.targetId))).toMatchObject({
+      seatOrderAt: 1_000,
+      from: expect.objectContaining({ signatureId: 'ABC-123' }),
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.sourceId))).toBeNull();
   });
 
   it('absorbs a unique leftover origin stub when a Leads-to pick rehomes the hallway', async () => {

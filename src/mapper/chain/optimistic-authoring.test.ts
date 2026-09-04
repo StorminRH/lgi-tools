@@ -473,6 +473,53 @@ describe('explicit lifetime proposals', () => {
     });
   });
 
+  it('optimistic claim removes the sig row from the unresolved page and patches the placeholder', () => {
+    const placeholder = connectionRow('ghost', JITA, AMARR, {
+      toSystemId: null,
+      staticCode: 'C247',
+      from: {
+        typeCode: 'C247',
+        signatureId: null,
+        signalPct: null,
+        leadsTo: { kind: 'unset' },
+      },
+      to: {
+        typeCode: 'K162',
+        signatureId: null,
+        signalPct: null,
+        leadsTo: { kind: 'unset' },
+      },
+      identity: { kind: 'typed', provenance: 'assumed' },
+    });
+    const sig = connectionRow('sig', JITA, AMARR, {
+      toSystemId: null,
+      from: {
+        typeCode: null,
+        signatureId: 'ABC-123',
+        signalPct: 22,
+        leadsTo: { kind: 'hint', hint: 'dangerous' },
+      },
+    });
+    const store = mockStore({ unresolved: [placeholder, sig] });
+    optimisticSetConnectionWormholeType(store, {
+      mapId: MAP,
+      connectionId: 'sig',
+      value: 'C247',
+    });
+    expect(store.unresolved).toHaveLength(1);
+    expect(store.unresolved[0]).toMatchObject({
+      _id: 'ghost',
+      staticCode: 'C247',
+      from: {
+        typeCode: 'C247',
+        signatureId: 'ABC-123',
+        signalPct: 22,
+        leadsTo: { kind: 'hint', hint: 'dangerous' },
+      },
+      identity: { kind: 'typed', provenance: 'human' },
+    });
+  });
+
   it('clears a pending jump prompt on the optimistic type write', () => {
     const store = mockStore({
       connections: [

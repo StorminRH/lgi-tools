@@ -10,6 +10,7 @@ import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
 import { requireConnectionOnMap } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
+import { deleteUnclaimedRespawn } from './lib/mapStaticClaim';
 import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 import { ensureStaticPlaceholders } from './mapStatics';
 
@@ -143,6 +144,7 @@ async function clearConnectionTombstone(
   if (connection.toSystemId !== null) {
     await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
   }
+  await deleteUnclaimedRespawn(ctx, connection);
   await ctx.db.patch(connectionId, { tombstone: { kind: 'live' } });
   return { restored: true, changed: true };
 }

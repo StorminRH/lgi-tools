@@ -65,6 +65,7 @@ export const modules = import.meta.glob([
   '../lib/mapScanElimination.ts',
   '../lib/mapScanSelection.ts',
   '../lib/mapScanState.ts',
+  '../lib/mapStaticClaim.ts',
   '../lib/mapSignatureCleanup.ts',
   '../lib/mapSignatures.ts',
   '../lib/mapSystemLookup.ts',

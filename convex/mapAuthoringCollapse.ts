@@ -13,6 +13,7 @@ import {
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
+import { deleteUnclaimedRespawn, respawnAfterTombstone } from './lib/mapStaticClaim';
 import { deleteSignatureActivity } from './lib/mapSignatures';
 import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
@@ -192,6 +193,7 @@ async function writeRetainedSever(
 ): Promise<{ outcome: 'retained' }> {
   await input.ctx.db.patch(input.cut._id, connectionRemovedTombstone(input.deletedAt));
   await deleteConnectionActivity(input.ctx, input.cut);
+  await respawnAfterTombstone(input.ctx, input.cut._id);
   await writeMapEvent(input.ctx, {
     mapId: input.mapId,
     at: input.deletedAt,
@@ -230,10 +232,12 @@ async function stampRemovedRows(
   for (const connection of connections) {
     await input.ctx.db.patch(connection._id, connectionStamp);
     await deleteConnectionActivity(input.ctx, connection);
+    await respawnAfterTombstone(input.ctx, connection._id);
   }
   for (const stub of incidentStubs) {
     await input.ctx.db.patch(stub._id, connectionStamp);
     await deleteConnectionActivity(input.ctx, stub);
+    await respawnAfterTombstone(input.ctx, stub._id);
   }
   for (const connection of skeletonsToRearm) {
     if (connection.tombstone.kind !== 'removed') continue;
@@ -357,6 +361,7 @@ export async function runBranchRestore(
     await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
   }
   for (const row of connections) {
+    await deleteUnclaimedRespawn(ctx, row);
     await ctx.db.patch(row._id, { tombstone: { kind: 'live' } });
   }
   const at = Date.now();
