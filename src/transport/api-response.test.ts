@@ -31,7 +31,7 @@ const endpoint = defineEndpoint({
   },
 });
 
-const _otherEndpoint = defineEndpoint({
+const otherEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/test/other',
   request: null,
@@ -46,6 +46,10 @@ describe('apiResponse', () => {
     expect(json.status).toBe(201);
     expect(json.headers.get('Content-Type')).toContain('application/json');
     await expect(json.json()).resolves.toEqual({ id: 'abc' });
+
+    const other = apiResponse(otherEndpoint, 200, { count: 1 });
+    expect(other.status).toBe(200);
+    await expect(other.json()).resolves.toEqual({ count: 1 });
 
     const text = apiResponse(endpoint, 409, 'already exists');
     expect(text.status).toBe(409);
@@ -94,7 +98,7 @@ describe('apiResponse', () => {
       ResponseArgsFor<(typeof endpoint)['responses'][204]>
     >();
     expectTypeOf<{ id: string }>().not.toExtend<
-      ResponseBodyFor<typeof _otherEndpoint, 200>
+      ResponseBodyFor<typeof otherEndpoint, 200>
     >();
   });
 });
