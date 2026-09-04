@@ -4,9 +4,9 @@
 same: open a map, paste, jump, click a system. People see more of what is
 already scanned and already in universe data.
 
-`plan-version` groups this file into session contracts. Goals, outcomes,
-invariants, and decisions below are fixed. The Status headings are
-provisional until that grouping is approved.
+`plan-version` grouped this file into two session contracts. Goals,
+outcomes, invariants, and decisions below are fixed. The Status table is
+the approved delivery topology.
 
 **DONE for the version =** a corp watching a live chain can see which systems
 hold harvestables, hacking, or combat, read identified site totals on the
@@ -30,8 +30,8 @@ alerts, a roll-calculator host, or a restore of unlock-to-drag.
 
 ## Status
 
-> Provisional delivery topology. Two player-named features. `plan-version`
-> may merge or rename the rows; it may not drop an outcome from this file.
+> Approved delivery topology (2026-09-03). Two player-named features. One
+> session contract per feature. Outcomes in this file stay binding.
 
 | Sub-version | Theme | Covers | Sessions | Status |
 |---|---|---|---|---|
