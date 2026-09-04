@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
 import {
   atlasMapQueryPresent,
-  atlasSignInReturnHrefFromMapQuery,
+  atlasSignInReturnHref,
 } from '@/features/maps/map-navigation';
 import { buildPageMetadata } from '@/lib/page-metadata';
 import { AtlasBound } from './AtlasBound';
@@ -23,7 +23,7 @@ async function AtlasFromParams({
   return (
     <AtlasBound
       mapSelected={atlasMapQueryPresent(params.map)}
-      returnHref={atlasSignInReturnHrefFromMapQuery(params.map)}
+      returnHref={atlasSignInReturnHref(params.map)}
     />
   );
 }

@@ -5,13 +5,10 @@ import { drainEsiRefreshJobs } from '@/composition/sync/esi-refresh-worker';
 import { swallow } from '@/transport/cron';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
-function zeroSummary(
-  reason: 'busy',
-  durationMs: number,
-): EsiRefreshWorkerSummary {
+function busySummary(durationMs: number): EsiRefreshWorkerSummary {
   return {
     status: 'skipped',
-    reason,
+    reason: 'busy',
     claimed: 0,
     succeeded: 0,
     deferredForBudget: 0,
@@ -31,7 +28,7 @@ export const drainEsiRefreshJobsDeclaration: CronRouteDeclaration<EsiRefreshWork
   record: { policy: 'noteworthy' },
   lock: {
     key: Number(ADVISORY_LOCK_ESI_REFRESH_QUEUE),
-    busyBody: (durationMs) => zeroSummary('busy', durationMs),
+    busyBody: (durationMs) => busySummary(durationMs),
   },
   work: async () => {
     const started = Date.now();

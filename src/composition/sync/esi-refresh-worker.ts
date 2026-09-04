@@ -14,7 +14,6 @@ import {
   getEsiRefreshQueueResidual,
   recoverStaleRunningJobs,
 } from '@/data/esi-refresh-jobs/queries';
-import { writeBackPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import {
   capabilityResultForError,
@@ -291,7 +290,6 @@ export async function drainEsiRefreshJobs(
   }
 
   const residual = await getEsiRefreshQueueResidual(now);
-  await writeBackPendingWorkSignal(residual.earliestNextAttemptAt);
   console.log(
     JSON.stringify({
       scope: 'esi-refresh-worker:residual',

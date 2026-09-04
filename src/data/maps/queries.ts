@@ -22,10 +22,7 @@ import {
   type MapPrincipals,
 } from './access';
 import type { MapRole } from './access-contract';
-import {
-  activeMapLifecycle,
-  purgeQueuedMapLifecycle,
-} from './lifecycle-contract';
+import { activeMapLifecycle } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
@@ -276,7 +273,6 @@ export async function createMapAtomic(
   database: AnyPgDb = db,
 ): Promise<string> {
   const mapId = randomUUID();
-  const staged = purgeQueuedMapLifecycle(new Date(), new Date());
   const encodedGrants = JSON.stringify(
     grants.map((grant) => ({
       owner_type: grant.ownerType,
@@ -292,7 +288,7 @@ export async function createMapAtomic(
       )
       VALUES (
         ${mapId}, ${userId}, ${name}, now(), now(),
-        ${staged.lifecycleStatus}::"public"."map_lifecycle_status", now()
+        'purge_queued'::"public"."map_lifecycle_status", now()
       )
       RETURNING id
     )
@@ -658,8 +654,10 @@ export async function affectedMapIdsForCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<string[]> {
-  const corporationId = await getCharacterCorporationId(characterId, database);
-  const characterMaps = await getMapIdsWithCharacterGrant(characterId, database);
+  const [corporationId, characterMaps] = await Promise.all([
+    getCharacterCorporationId(characterId, database),
+    getMapIdsWithCharacterGrant(characterId, database),
+  ]);
   const corporationMaps =
     corporationId === null
       ? []
