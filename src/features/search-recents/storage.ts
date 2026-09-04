@@ -4,6 +4,11 @@ import type { SearchResult } from '@/platform/search';
 
 const STORAGE_KEY = 'lgi:search:recents';
 const MAX_RECENTS = 10;
+const EMPTY_RECENTS: SearchResult[] = [];
+
+const listeners = new Set<() => void>();
+let cachedRaw: string | null | undefined;
+let cachedSnapshot: SearchResult[] = EMPTY_RECENTS;
 
 type StoredRecent = Pick<
   SearchResult,
@@ -83,6 +88,36 @@ export function pushRecent(result: SearchResult): void {
     ...without,
   ].slice(0, MAX_RECENTS);
   store.setItem(STORAGE_KEY, JSON.stringify(next));
+  emitRecents();
+}
+
+export function subscribeRecents(onStoreChange: () => void): () => void {
+  listeners.add(onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+  };
+}
+
+export function getRecentsSnapshot(): SearchResult[] {
+  const store = safeStorage();
+  const raw = store?.getItem(STORAGE_KEY) ?? null;
+  if (raw === cachedRaw) {
+    return cachedSnapshot;
+  }
+  cachedRaw = raw;
+  const next = readRecents();
+  cachedSnapshot = next.length === 0 ? EMPTY_RECENTS : next;
+  return cachedSnapshot;
+}
+
+export function getRecentsServerSnapshot(): SearchResult[] {
+  return EMPTY_RECENTS;
+}
+
+function emitRecents(): void {
+  for (const listener of listeners) {
+    listener();
+  }
 }
 
 function readStored(): StoredRecent[] {
