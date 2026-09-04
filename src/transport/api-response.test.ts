@@ -31,7 +31,7 @@ const endpoint = defineEndpoint({
   },
 });
 
-const otherEndpoint = defineEndpoint({
+const _otherEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/test/other',
   request: null,
@@ -94,7 +94,7 @@ describe('apiResponse', () => {
       ResponseArgsFor<(typeof endpoint)['responses'][204]>
     >();
     expectTypeOf<{ id: string }>().not.toExtend<
-      ResponseBodyFor<typeof otherEndpoint, 200>
+      ResponseBodyFor<typeof _otherEndpoint, 200>
     >();
   });
 });
