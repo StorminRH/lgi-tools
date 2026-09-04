@@ -24,7 +24,6 @@ const {
   getRecentsServerSnapshot,
   getRecentsSnapshot,
   pushRecent,
-  readRecents,
   subscribeRecents,
 } = await import('./storage');
 const { useSearchRecents } = await import('./use-search-recents');
@@ -46,12 +45,12 @@ beforeEach(() => {
 
 describe('search-recents storage', () => {
   it('returns an empty list when nothing has been stored', () => {
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('persists a pushed entry and reads it back with kind=recent', () => {
     pushRecent(row('1', 'one'));
-    const out = readRecents();
+    const out = getRecentsSnapshot();
     expect(out).toHaveLength(1);
     expect(out[0]!.label).toBe('one');
     expect(out[0]!.kind).toBe('recent');
@@ -70,7 +69,7 @@ describe('search-recents storage', () => {
       iconText: 'BP',
       iconTone: 'tool',
     });
-    const out = readRecents();
+    const out = getRecentsSnapshot();
     expect(out).toHaveLength(1);
     expect(out[0]!.typeId).toBe(587);
     expect(out[0]!.icon).toEqual(blueprintImage(691));
@@ -86,7 +85,7 @@ describe('search-recents storage', () => {
         { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
       ]),
     );
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('drops a blueprint recent whose stable id cannot reconstruct a blueprint image', () => {
@@ -102,7 +101,7 @@ describe('search-recents storage', () => {
         },
       ]),
     );
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('keeps non-item recents without a typeId (sites/tools render their own glyph)', () => {
@@ -112,7 +111,7 @@ describe('search-recents storage', () => {
         { kind: 'site', id: 's1', label: 'A Site', href: '/sites/1', iconText: 'C3', iconTone: 'cls-c3' },
       ]),
     );
-    const out = readRecents();
+    const out = getRecentsSnapshot();
     expect(out).toHaveLength(1);
     expect(out[0]!.label).toBe('A Site');
   });
@@ -121,7 +120,7 @@ describe('search-recents storage', () => {
     pushRecent(row('1', 'one'));
     pushRecent(row('2', 'two'));
     pushRecent(row('3', 'three'));
-    const labels = readRecents().map((r) => r.label);
+    const labels = getRecentsSnapshot().map((r) => r.label);
     expect(labels).toEqual(['three', 'two', 'one']);
   });
 
@@ -129,7 +128,7 @@ describe('search-recents storage', () => {
     pushRecent(row('1', 'one'));
     pushRecent(row('2', 'two'));
     pushRecent(row('1', 'one'));
-    const labels = readRecents().map((r) => r.label);
+    const labels = getRecentsSnapshot().map((r) => r.label);
     expect(labels).toEqual(['one', 'two']);
   });
 
@@ -138,19 +137,19 @@ describe('search-recents storage', () => {
     for (let i = 0; i < max + 5; i++) {
       pushRecent(row(`id-${i}`, `label-${i}`));
     }
-    expect(readRecents()).toHaveLength(max);
+    expect(getRecentsSnapshot()).toHaveLength(max);
   });
 
   it('clearing the recents key wipes the stored list', () => {
     pushRecent(row('1'));
     pushRecent(row('2'));
     window.localStorage.removeItem(STORAGE_KEY);
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('refuses to push recent-kind rows (avoids self-referential loops)', () => {
     pushRecent({ kind: 'recent', id: '1', label: 'one', href: '/x' });
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('refuses to push disabled rows (SOON tools)', () => {
@@ -161,12 +160,12 @@ describe('search-recents storage', () => {
       href: '#',
       disabled: true,
     });
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('survives malformed localStorage content', () => {
     window.localStorage.setItem(STORAGE_KEY, 'not-json{{');
-    expect(readRecents()).toEqual([]);
+    expect(getRecentsSnapshot()).toEqual([]);
   });
 
   it('filters out non-conforming stored entries', () => {
@@ -180,7 +179,7 @@ describe('search-recents storage', () => {
         { kind: 'blueprint', id: '3', label: 'bad-typeId', href: '/industry/3', typeId: '587' },
       ]),
     );
-    const out = readRecents();
+    const out = getRecentsSnapshot();
     expect(out).toHaveLength(1);
     expect(out[0]!.id).toBe('1');
   });
@@ -207,7 +206,6 @@ describe('search-recents store emit and cache', () => {
     const after = getRecentsSnapshot();
     expect(after).not.toBe(before);
     expect(after.map((r) => r.label)).toEqual(['two', 'one']);
-    expect(after.map((r) => r.label)).toEqual(readRecents().map((r) => r.label));
   });
 
   it('notifies subscribers after a successful write', () => {
