@@ -656,7 +656,7 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
   });
 });
 
-describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
+describe('optimistic add through the merge', () => {
   it('shows an optimistic edge then removes it on rollback to server truth', () => {
     const home: ChainSnapshot = {
       systems: { rows: [{ systemId: JITA }], complete: true },
