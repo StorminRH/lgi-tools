@@ -1,13 +1,15 @@
-import { rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
-  downloadDumps,
+  cleanupSdeJsonl,
   downloadSdeJsonl,
   getRemoteSdeVersion,
   parseSdeBuildNumber,
+  type SdeJsonlPaths,
 } from './source';
 
 const CACHE_DIR = join(tmpdir(), 'lgi-sde');
@@ -15,6 +17,25 @@ const JSONL_CACHE_DIR = join(tmpdir(), 'lgi-sde-jsonl');
 
 function streamingResponse(): Response {
   return new Response(new Blob([Uint8Array.of(0x42)]).stream(), { status: 200 });
+}
+
+function extractPaths(): SdeJsonlPaths {
+  const file = (name: string) => join(JSONL_CACHE_DIR, `${name}.jsonl`);
+  return {
+    categories: file('categories'),
+    groups: file('groups'),
+    types: file('types'),
+    dogmaAttributes: file('dogmaAttributes'),
+    typeDogma: file('typeDogma'),
+    blueprints: file('blueprints'),
+    mapRegions: file('mapRegions'),
+    mapConstellations: file('mapConstellations'),
+    mapSolarSystems: file('mapSolarSystems'),
+    mapStargates: file('mapStargates'),
+    npcStations: file('npcStations'),
+    stationOperations: file('stationOperations'),
+    stationServices: file('stationServices'),
+  };
 }
 
 describe('eve-data source outbound headers', () => {
@@ -68,17 +89,43 @@ describe('eve-data source outbound headers', () => {
     fetchSpy.mockResolvedValueOnce(new Response(null, { status: 503 }));
     expect(await getRemoteSdeVersion()).toBeNull();
   });
+});
 
-  it('sends the outbound User-Agent on the legacy Fuzzwork dump download', async () => {
-    fetchSpy.mockImplementation(async () => streamingResponse());
+describe('cleanupSdeJsonl', () => {
+  beforeEach(async () => {
+    await rm(CACHE_DIR, { recursive: true, force: true });
+    await rm(JSONL_CACHE_DIR, { recursive: true, force: true });
+    await mkdir(CACHE_DIR, { recursive: true });
+    await mkdir(JSONL_CACHE_DIR, { recursive: true });
+  });
 
-    await downloadDumps();
+  afterEach(async () => {
+    await rm(CACHE_DIR, { recursive: true, force: true });
+    await rm(JSONL_CACHE_DIR, { recursive: true, force: true });
+  });
 
-    expect(fetchSpy).toHaveBeenCalled();
-    const [, init] = fetchSpy.mock.calls[0];
-    expect(new Headers(init?.headers).get('User-Agent')).toBe(
-      OUTBOUND_USER_AGENT,
-    );
+  it('unlinks given JSONL extracts and swallows a missing path', async () => {
+    const paths = extractPaths();
+    const present = [paths.categories, paths.groups, paths.types] as const;
+    await Promise.all(present.map((path) => writeFile(path, 'row\n')));
+
+    await expect(cleanupSdeJsonl(paths)).resolves.toBeUndefined();
+
+    for (const path of present) {
+      expect(existsSync(path)).toBe(false);
+    }
+  });
+
+  it('does not unlink a file under a dump-cache dir', async () => {
+    const paths = extractPaths();
+    await writeFile(paths.categories, 'row\n');
+    const leftover = join(CACHE_DIR, 'invTypes.csv.bz2');
+    await writeFile(leftover, 'dump\n');
+
+    await expect(cleanupSdeJsonl(paths)).resolves.toBeUndefined();
+
+    expect(existsSync(paths.categories)).toBe(false);
+    expect(existsSync(leftover)).toBe(true);
   });
 });
 
