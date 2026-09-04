@@ -53,7 +53,7 @@ function rendersIcon(r: StoredRecent): boolean {
   return r.kind !== BLUEPRINT_KIND || (r.typeId !== undefined && recentImage(r) !== undefined);
 }
 
-export function readRecents(): SearchResult[] {
+function readRecents(): SearchResult[] {
   return readStored()
     .slice(0, MAX_RECENTS)
     .map((r) => {
