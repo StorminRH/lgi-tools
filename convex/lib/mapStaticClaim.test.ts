@@ -213,6 +213,44 @@ describe('claimStaticPlaceholder', () => {
     expect(outcome).toBe('none');
     expect(await t.run(async (ctx) => await ctx.db.get(secondId))).not.toBeNull();
   });
+
+  it('returns none when the typed door is the destination', async () => {
+    const t = convexTest(schema, modules);
+    await applyC247(t);
+    const placeholder = await livePlaceholder(t);
+    expect(placeholder).toBeDefined();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP_A,
+        systemId: WH_A,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    const inboundId = await t.run(async (ctx) =>
+      ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP_A,
+        fromSystemId: WH_A,
+        toSystemId: WH_ROOT,
+        wormholeTypeCode: 'C247',
+        typedSide: 'to',
+        typeProvenance: 'human',
+      })),
+    );
+    const outcome = await t.run(async (ctx) => {
+      const inbound = await ctx.db.get(inboundId);
+      if (inbound === null) throw new Error('missing inbound row');
+      return claimStaticPlaceholder(ctx, inbound, 'to');
+    });
+    expect(outcome).toBe('none');
+    const inbound = await t.run(async (ctx) => ctx.db.get(inboundId));
+    expect(inbound).toMatchObject({
+      _id: inboundId,
+      fromSystemId: WH_A,
+    });
+    expect(inbound?.staticCode).toBeUndefined();
+    expect(await livePlaceholder(t)).toMatchObject({ _id: placeholder!._id });
+  });
 });
 
 describe('respawnStaticPlaceholder', () => {

@@ -283,6 +283,42 @@ describe('automatic jump authoring', () => {
     ).resolves.toEqual({ canEdit: false, connection: null });
   });
 
+  it('does not treat static placeholders as jump candidates', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: ORIGIN,
+      codes: ['C247', 'C140'],
+    });
+    const evidence = await t.query(jump.jumpEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      characterId: CHARACTER,
+    });
+    expect(evidence).toMatchObject({
+      canEdit: true,
+      scannedTypeCodes: [],
+      candidates: [],
+    });
+    const authored = await t.mutation(
+      jump.resolveJumpAuthoring,
+      authorArgs({
+        decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      }),
+    );
+    expect(authored).toMatchObject({ status: 'authored' });
+    const state = await mapState(t);
+    const placeholders = state.connections.filter(
+      (row) => row.staticCode !== undefined && row.toSystemId === null,
+    );
+    const jumped = state.connections.filter((row) => row.toSystemId === DESTINATION);
+    expect(placeholders).toHaveLength(2);
+    expect(jumped).toHaveLength(1);
+    expect(jumped[0]?.staticCode).toBeUndefined();
+  });
+
   it('records assumed survivors, confirms them, and re-associates the destination round trip', async () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);

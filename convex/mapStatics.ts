@@ -146,6 +146,16 @@ export const applyStaticPlaceholders = internalMutation({
     let inserted = 0;
     for (const code of uniqueStaticCodes(codes)) {
       if (claimed.has(code)) continue;
+      const occupant = existing.find((row) =>
+        !isTombstoned(row)
+        && row.staticCode === undefined
+        && row.from.typeCode === code
+      );
+      if (occupant !== undefined) {
+        await ctx.db.patch(occupant._id, { staticCode: code });
+        claimed.add(code);
+        continue;
+      }
       await insertStaticPlaceholder(ctx, { mapId, systemId, code, seatOrderAt });
       claimed.add(code);
       inserted += 1;
