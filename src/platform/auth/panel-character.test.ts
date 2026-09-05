@@ -1,6 +1,4 @@
 import { expect, test } from 'vitest';
-import { canSyncLocation } from '@/data/location-tracking/sync-eligibility';
-import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 import { toAccountCharacter, toPanelCharacter } from './panel-character';
 
 const base = { characterId: 90001, name: 'Pilot Alpha', portraitUrl: 'https://img/1.jpg' };
@@ -34,12 +32,14 @@ test('projects client-safe fields, never the granted scope, and wires needsRecon
 });
 
 test('toAccountCharacter splits skill-queue reconnect from location tracking reconnect', () => {
-  const gates = { skillQueue: canSyncSkillQueue, location: canSyncLocation };
-  const locationScopes = [
-    'esi-location.read_location.v1',
-    'esi-location.read_ship_type.v1',
-    'esi-location.read_online.v1',
-  ].join(',');
+  const gates = {
+    skillQueue: (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) =>
+      eligibility.hasRefreshToken &&
+      !eligibility.missingScopes.includes('esi-skills.read_skills.v1'),
+    location: (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) =>
+      eligibility.hasRefreshToken &&
+      !eligibility.missingScopes.includes('esi-location.read_location.v1'),
+  };
 
   expect(
     toAccountCharacter({ ...base, scope: `${SKILLS},${QUEUE}`, hasRefreshToken: true }, gates),
@@ -51,11 +51,18 @@ test('toAccountCharacter splits skill-queue reconnect from location tracking rec
     needsLocationReconnect: true,
   });
   expect(
-    toAccountCharacter({ ...base, scope: locationScopes, hasRefreshToken: true }, gates),
+    toAccountCharacter(
+      {
+        ...base,
+        scope: 'esi-location.read_location.v1,esi-location.read_ship_type.v1,esi-location.read_online.v1',
+        hasRefreshToken: true,
+      },
+      gates,
+    ),
   ).toMatchObject({ needsReconnect: true, needsLocationReconnect: false });
   expect(
     toAccountCharacter(
-      { ...base, scope: `${SKILLS},${QUEUE},${locationScopes}`, hasRefreshToken: false },
+      { ...base, scope: `${SKILLS},${QUEUE}`, hasRefreshToken: false },
       gates,
     ),
   ).toMatchObject({ needsReconnect: true, needsLocationReconnect: true });

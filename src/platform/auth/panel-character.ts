@@ -7,20 +7,10 @@ export interface PanelCharacter {
   needsReconnect: boolean;
 }
 
-type LinkedProjection = {
-  characterId: number;
-  name: string;
-  portraitUrl: string;
+function eligibilityOf(character: {
   scope: string | null | undefined;
   hasRefreshToken: boolean;
-};
-
-type SyncGate = (eligibility: {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}) => boolean;
-
-function eligibilityOf(character: LinkedProjection): {
+}): {
   hasRefreshToken: boolean;
   missingScopes: string[];
 } {
@@ -35,7 +25,11 @@ function eligibilityOf(character: LinkedProjection): {
 }
 
 function panelFields(
-  character: LinkedProjection,
+  character: {
+    characterId: number;
+    name: string;
+    portraitUrl: string;
+  },
   needsReconnect: boolean,
 ): PanelCharacter {
   return {
@@ -47,17 +41,35 @@ function panelFields(
 }
 
 export function toPanelCharacter(
-  character: LinkedProjection,
-  canSync: SyncGate,
+  character: {
+    characterId: number;
+    name: string;
+    portraitUrl: string;
+    scope: string | null | undefined;
+    hasRefreshToken: boolean;
+  },
+  canSync: (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) => boolean,
 ): PanelCharacter {
   return panelFields(character, !canSync(eligibilityOf(character)));
 }
 
 export function toAccountCharacter(
-  character: LinkedProjection,
+  character: {
+    characterId: number;
+    name: string;
+    portraitUrl: string;
+    scope: string | null | undefined;
+    hasRefreshToken: boolean;
+  },
   canSync: {
-    skillQueue: SyncGate;
-    location: SyncGate;
+    skillQueue: (eligibility: {
+      hasRefreshToken: boolean;
+      missingScopes: string[];
+    }) => boolean;
+    location: (eligibility: {
+      hasRefreshToken: boolean;
+      missingScopes: string[];
+    }) => boolean;
   },
 ): PanelCharacter & { needsLocationReconnect: boolean } {
   const eligibility = eligibilityOf(character);
