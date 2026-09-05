@@ -119,7 +119,7 @@ jobs:
 
   # Playwright against `next start`. Reuses the `build` job's `.next`.
   # Playwright image already has OS deps + headless shell
-  # (matches @playwright/test 1.61.1). Job-in-container reaches the
+  # (matches @playwright/test 1.62.1). Job-in-container reaches the
   # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER selects
   # the TCP driver for `next start`; Redis degrade is the hosted-Vercel
   # predicate, so this flag is not a Redis signal. Leave it unset on
@@ -128,7 +128,7 @@ jobs:
     needs: [build]
     runs-on: depot-ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.61.1-noble
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
       options: --ipc=host
     services:
       postgres:
