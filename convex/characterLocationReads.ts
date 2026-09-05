@@ -1,31 +1,5 @@
 import { v } from 'convex/values';
-import type { Doc } from './_generated/dataModel';
-import { internalQuery, query } from './_generated/server';
-import { collectByUser, viewerUserDocs } from './lib/indexedQuery';
-
-function viewerLocation(doc: Doc<'characterLocation'>) {
-  return {
-    characterId: doc.characterId,
-    solarSystemId: doc.solarSystemId,
-    stationId: doc.stationId,
-    structureId: doc.structureId,
-    shipTypeId: doc.shipTypeId,
-    prevSolarSystemId: doc.prevSolarSystemId,
-    prevFresh: doc.prevFresh,
-    transitionObservedAt: doc.transitionObservedAt ?? null,
-    observedAt: doc.observedAt,
-  };
-}
-
-export const forViewer = query({
-  args: {},
-  handler: async (ctx) =>
-    viewerUserDocs(
-      ctx,
-      (userId) => collectByUser(ctx, 'characterLocation', userId),
-      viewerLocation,
-    ),
-});
+import { internalQuery } from './_generated/server';
 
 export const heldState = internalQuery({
   args: { userId: v.string() },
