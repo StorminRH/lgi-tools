@@ -1,6 +1,7 @@
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { internal } from './_generated/api';
 import {
@@ -48,6 +49,12 @@ function systemStaticsUrl(siteUrl: string, systemId: number): string {
   return `${origin}/api/universe/statics/${systemId}`;
 }
 
+function vercelProtectionBypassHeaders(): Record<string, string> | undefined {
+  const bypass = readEnv('VERCEL_AUTOMATION_BYPASS_SECRET');
+  if (bypass === undefined) return undefined;
+  return { 'x-vercel-protection-bypass': bypass };
+}
+
 function parseStaticsPayload(value: unknown): string[] | null {
   if (typeof value !== 'object' || value === null) return null;
   if (!('statics' in value) || !Array.isArray(value.statics)) return null;
@@ -76,7 +83,11 @@ async function loadSystemStaticCodes(systemId: number): Promise<StaticCodesLoad>
     return { kind: 'skip' };
   }
   try {
-    const response = await fetchWithTimeout(systemStaticsUrl(siteUrl, systemId));
+    const headers = vercelProtectionBypassHeaders();
+    const response = await fetchWithTimeout(
+      systemStaticsUrl(siteUrl, systemId),
+      headers === undefined ? undefined : { headers },
+    );
     if (!response.ok) {
       skipStaticPlaceholders(`HTTP ${response.status}`, { systemId });
       return { kind: 'skip' };
