@@ -1,43 +1,11 @@
-import { deriveCharacterHealth } from './scope-health';
+import type { AccountCharactersResponse } from './api-contract';
+import { deriveCharacterHealth, deriveScopeHealth } from './scope-health';
 
 export interface PanelCharacter {
   characterId: number;
   name: string;
   portraitUrl: string;
   needsReconnect: boolean;
-}
-
-function eligibilityOf(character: {
-  scope: string | null | undefined;
-  hasRefreshToken: boolean;
-}): {
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-} {
-  const health = deriveCharacterHealth({
-    scope: character.scope,
-    hasRefreshToken: character.hasRefreshToken,
-  });
-  return {
-    hasRefreshToken: character.hasRefreshToken,
-    missingScopes: health.missingScopes,
-  };
-}
-
-function panelFields(
-  character: {
-    characterId: number;
-    name: string;
-    portraitUrl: string;
-  },
-  needsReconnect: boolean,
-): PanelCharacter {
-  return {
-    characterId: character.characterId,
-    name: character.name,
-    portraitUrl: character.portraitUrl,
-    needsReconnect,
-  };
 }
 
 export function toPanelCharacter(
@@ -50,7 +18,19 @@ export function toPanelCharacter(
   },
   canSync: (eligibility: { hasRefreshToken: boolean; missingScopes: string[] }) => boolean,
 ): PanelCharacter {
-  return panelFields(character, !canSync(eligibilityOf(character)));
+  const health = deriveCharacterHealth({
+    scope: character.scope,
+    hasRefreshToken: character.hasRefreshToken,
+  });
+  return {
+    characterId: character.characterId,
+    name: character.name,
+    portraitUrl: character.portraitUrl,
+    needsReconnect: !canSync({
+      hasRefreshToken: character.hasRefreshToken,
+      missingScopes: health.missingScopes,
+    }),
+  };
 }
 
 export function toAccountCharacter(
@@ -61,20 +41,16 @@ export function toAccountCharacter(
     scope: string | null | undefined;
     hasRefreshToken: boolean;
   },
-  canSync: {
-    skillQueue: (eligibility: {
-      hasRefreshToken: boolean;
-      missingScopes: string[];
-    }) => boolean;
-    location: (eligibility: {
-      hasRefreshToken: boolean;
-      missingScopes: string[];
-    }) => boolean;
+  scopes: {
+    skillQueue: readonly string[];
+    location: readonly string[];
   },
-): PanelCharacter & { needsLocationReconnect: boolean } {
-  const eligibility = eligibilityOf(character);
+): AccountCharactersResponse['characters'][number] {
   return {
-    ...panelFields(character, !canSync.skillQueue(eligibility)),
-    needsLocationReconnect: !canSync.location(eligibility),
+    characterId: character.characterId,
+    name: character.name,
+    portraitUrl: character.portraitUrl,
+    needsReconnect: deriveScopeHealth(character, scopes.skillQueue).needsReconnect,
+    needsLocationReconnect: deriveScopeHealth(character, scopes.location).needsReconnect,
   };
 }

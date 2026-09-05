@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import { cn } from '@/components/ui/cn';
 import {
   MenuCheckboxItem,
   menuSection,
@@ -15,10 +14,11 @@ import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { AfkDialog } from './AfkGate';
 import { useMapPresenceAfk } from './presence-context';
-import {
-  trackingReconnectVisible,
-  trackingToggleLabel,
-} from './tracking-controls-view';
+import { trackingToggleLabel } from './tracking-controls-view';
+
+const trackingRowClass = 'flex flex-wrap items-center gap-2 px-3 pb-2';
+const trackingPortraitClass =
+  'box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-transparent p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none data-[tracking-reconnect]:border-tone-orange data-[checked]:data-[tracking-reconnect]:border-tone-orange';
 
 interface TrackingCharacter {
   readonly characterId: number;
@@ -31,7 +31,7 @@ interface TrackingControlsViewProps {
   readonly characters: readonly TrackingCharacter[];
   readonly trackedIds: ReadonlySet<number>;
   readonly onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
-  readonly reconnectAction?: ReactNode;
+  readonly reconnectAction: ReactNode;
 }
 
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
@@ -52,7 +52,7 @@ export function TrackingControls({
   reconnectAction,
 }: {
   readonly mapId: string;
-  readonly reconnectAction?: ReactNode;
+  readonly reconnectAction: ReactNode;
 }) {
   const characters = useAccountCharacters();
   const access = useLiveValue(api.mapChainAccess.watchMapAccess, { mapId });
@@ -82,7 +82,7 @@ function TrackingControlsView({
   onToggle,
   reconnectAction,
 }: TrackingControlsViewProps) {
-  const showReconnect = trackingReconnectVisible(characters);
+  const showReconnect = characters.some((character) => character.needsLocationReconnect);
 
   return (
     <div
@@ -99,7 +99,7 @@ function TrackingControlsView({
           No linked characters
         </span>
       ) : (
-        <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
+        <div className={trackingRowClass}>
           {characters.map((character) => {
             const checked = trackedIds.has(character.characterId);
             return (
@@ -120,12 +120,7 @@ function TrackingControlsView({
                 data-tracking-reconnect={
                   character.needsLocationReconnect ? 'true' : undefined
                 }
-                className={cn(
-                  'box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none',
-                  character.needsLocationReconnect
-                    ? 'border-tone-orange data-[checked]:border-tone-orange'
-                    : 'border-transparent data-[checked]:border-isk',
-                )}
+                className={trackingPortraitClass}
               >
                 <CharacterPortrait
                   characterId={character.characterId}
@@ -140,10 +135,7 @@ function TrackingControlsView({
         </div>
       )}
       {showReconnect ? (
-        <div
-          className="flex flex-wrap items-center gap-2 px-3 pb-2"
-          data-tracking-reconnect-action
-        >
+        <div className={trackingRowClass} data-tracking-reconnect-action>
           <span className="font-data text-micro text-muted">Cannot sync location</span>
           {reconnectAction}
         </div>

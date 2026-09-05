@@ -100,6 +100,8 @@ vi.mock('@/components/ui/menu', () => ({
 }));
 
 describe('TrackingControls', () => {
+  const reconnectAction = createElement('button', { type: 'button' }, 'Reconnect');
+
   beforeEach(() => {
     mocks.heartbeat.mockClear();
     mocks.mutate.mockClear();
@@ -111,7 +113,7 @@ describe('TrackingControls', () => {
   });
 
   it('renders owned portraits as tracking toggles and keeps the heartbeat mounted independently', async () => {
-    const element = TrackingControls({ mapId: 'map-a' });
+    const element = TrackingControls({ mapId: 'map-a', reconnectAction });
     expect(isValidElement(element)).toBe(true);
     if (!isValidElement(element)) throw new Error('tracking controls did not render');
 
@@ -147,13 +149,14 @@ describe('TrackingControls', () => {
   it('surfaces location reconnect on the control even when skill-queue health is fine', () => {
     mocks.characters[0]!.needsReconnect = false;
     mocks.characters[0]!.needsLocationReconnect = true;
-    const reconnectAction = createElement('button', { type: 'button' }, 'Reconnect');
     const element = TrackingControls({ mapId: 'map-a', reconnectAction });
     expect(isValidElement(element)).toBe(true);
     if (!isValidElement(element)) throw new Error('tracking controls did not render');
 
     const markup = renderToStaticMarkup(element);
-    expect(markup).toContain('data-tracking-portrait="Alice Own cannot sync location"');
+    expect(markup).toContain(
+      'data-tracking-portrait="Stop tracking Alice Own (cannot sync location)"',
+    );
     expect(markup).toContain('data-tracking-reconnect="true"');
     expect(markup).toContain('Cannot sync location');
     expect(markup).toContain('data-tracking-reconnect-action');
