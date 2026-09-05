@@ -1,7 +1,22 @@
 import { v } from 'convex/values';
-import { internalMutation } from './_generated/server';
+import { type MutationCtx, internalMutation } from './_generated/server';
 
 export const MAP_JUMP_BOOKKEEPING_PURGE_BATCH = 128;
+
+export async function deleteForMapCharacter(
+  ctx: MutationCtx,
+  mapId: string,
+  characterId: number,
+): Promise<void> {
+  const row = await ctx.db
+    .query('mapJumpBookkeeping')
+    .withIndex('by_map_character', (q) =>
+      q.eq('mapId', mapId).eq('characterId', characterId),
+    )
+    .unique();
+  if (row === null) return;
+  await ctx.db.delete(row._id);
+}
 
 export const purgeForMap = internalMutation({
   args: { mapId: v.string() },

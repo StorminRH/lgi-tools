@@ -107,7 +107,7 @@ import {
   confirmJumpIdentity,
   reassociateJumpDestination,
 } from '../mapJumpIdentity';
-import { purgeForMap } from '../mapJumpBookkeeping';
+import { deleteForMapCharacter, purgeForMap } from '../mapJumpBookkeeping';
 import {
   HALLWAY_BACKFILL_BATCH,
   backfillHallwayConnections,
@@ -229,6 +229,7 @@ describe('convex runtime exports', () => {
       jumpEvidence,
       reassociateJumpDestination,
       resolveJumpAuthoring,
+      deleteForMapCharacter,
       purgeForMap,
       HALLWAY_BACKFILL_BATCH,
       backfillHallwayConnections,

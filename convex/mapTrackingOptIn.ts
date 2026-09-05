@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
+import { deleteForMapCharacter } from './mapJumpBookkeeping';
 
 export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 
@@ -70,6 +71,7 @@ export const setTracking = mutation({
       return { tracked: true };
     }
 
+    await deleteForMapCharacter(ctx, mapId, characterId);
     await disableTracking(ctx, match);
     return { tracked: false };
   },
