@@ -68,15 +68,16 @@ async function liveStaticRows(t: Chain, systemId: number) {
 
 function stubStaticsFetch(handler: (systemId: number) => Response) {
   vi.stubEnv('SITE_URL', SITE);
-  return vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: string | URL | Request) => {
+  const fetchMock = vi.fn(
+    async (input: string | URL | Request, _init?: RequestInit): Promise<Response> => {
       const url = typeof input === 'string' ? input : input.toString();
       const match = /\/api\/universe\/statics\/(\d+)$/.exec(url);
       if (match === null) throw new Error(`unexpected url ${url}`);
       return handler(Number(match[1]));
-    }),
+    },
   );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
 
 describe('map static placeholders', () => {
@@ -285,6 +286,57 @@ describe('map static placeholders', () => {
     expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
     expect(warn.mock.calls.some((call) => String(call[0]).includes('static placeholders skipped')))
       .toBe(true);
+  });
+
+  it('sends the Vercel protection bypass header when the secret is set', async () => {
+    const t = convexTest(schema, modules);
+    await seedHome(t, WH_ROOT);
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
+    const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
+    await t.action(internal.mapStatics.fetchSystemStatics, {
+      mapId: MAP_A,
+      systemId: WH_ROOT,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${SITE}/api/universe/statics/${WH_ROOT}`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-vercel-protection-bypass': 'bypass-secret',
+        }),
+      }),
+    );
+    expect((await liveStaticRows(t, WH_ROOT)).map((row) => row.staticCode)).toEqual(['C247']);
+  });
+
+  it('omits the Vercel protection bypass header when the secret is unset', async () => {
+    const t = convexTest(schema, modules);
+    await seedHome(t, WH_ROOT);
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', undefined);
+    const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
+    await t.action(internal.mapStatics.fetchSystemStatics, {
+      mapId: MAP_A,
+      systemId: WH_ROOT,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${SITE}/api/universe/statics/${WH_ROOT}`,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(init?.headers).not.toHaveProperty('x-vercel-protection-bypass');
+    expect((await liveStaticRows(t, WH_ROOT)).map((row) => row.staticCode)).toEqual(['C247']);
+  });
+
+  it('skips apply on HTTP 302', async () => {
+    const t = convexTest(schema, modules);
+    await seedHome(t, WH_ROOT);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stubStaticsFetch(() => new Response('Redirecting...', { status: 302 }));
+    await t.action(internal.mapStatics.fetchSystemStatics, {
+      mapId: MAP_A,
+      systemId: WH_ROOT,
+    });
+    expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
+    expect(warn.mock.calls.some((call) => String(call[0]).includes('HTTP 302'))).toBe(true);
   });
 
   it('backfillStaticPlaceholders on a fixture map', async () => {

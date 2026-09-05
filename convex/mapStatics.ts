@@ -1,6 +1,7 @@
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { vercelProtectionBypassHeaders } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { internal } from './_generated/api';
 import {
@@ -76,7 +77,10 @@ async function loadSystemStaticCodes(systemId: number): Promise<StaticCodesLoad>
     return { kind: 'skip' };
   }
   try {
-    const response = await fetchWithTimeout(systemStaticsUrl(siteUrl, systemId));
+    const response = await fetchWithTimeout(
+      systemStaticsUrl(siteUrl, systemId),
+      { headers: vercelProtectionBypassHeaders() },
+    );
     if (!response.ok) {
       skipStaticPlaceholders(`HTTP ${response.status}`, { systemId });
       return { kind: 'skip' };
