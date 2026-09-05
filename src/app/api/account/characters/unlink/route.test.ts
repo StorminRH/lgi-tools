@@ -17,21 +17,8 @@ const listLinkedCharactersMock = vi.fn();
 const repointActiveToOldestMock = vi.fn();
 const getStoredActiveCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const getCharacterCorporationIdMock = vi.fn();
-const getMapIdsWithCharacterGrantMock = vi.fn();
-const getMapIdsWithCorporationGrantsMock = vi.fn();
 const getOwnedMapIdsMock = vi.fn();
-const affectedMapIdsForCharacterMock = vi.fn(
-  async (characterId: number) => {
-    const corporationId = await getCharacterCorporationIdMock();
-    const characterMaps = await getMapIdsWithCharacterGrantMock(characterId);
-    const corporationMaps =
-      corporationId === null
-        ? []
-        : await getMapIdsWithCorporationGrantsMock([corporationId]);
-    return [...new Set([...characterMaps, ...corporationMaps])];
-  },
-);
+const affectedMapIdsForCharacterMock = vi.fn();
 const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
@@ -52,10 +39,6 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 }));
 
 vi.mock('@/data/maps/queries', () => ({
-  getCharacterCorporationId: () => getCharacterCorporationIdMock(),
-  getMapIdsWithCharacterGrant: (characterId: number) =>
-    getMapIdsWithCharacterGrantMock(characterId),
-  getMapIdsWithCorporationGrants: (ids: number[]) => getMapIdsWithCorporationGrantsMock(ids),
   getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
   affectedMapIdsForCharacter: (characterId: number) =>
     affectedMapIdsForCharacterMock(characterId),
@@ -102,19 +85,15 @@ describe('POST /api/account/characters/unlink', () => {
     repointActiveToOldestMock.mockReset();
     getStoredActiveCharacterIdMock.mockReset();
     logUsageEventMock.mockReset();
-    getCharacterCorporationIdMock.mockReset();
-    getMapIdsWithCharacterGrantMock.mockReset();
-    getMapIdsWithCorporationGrantsMock.mockReset();
     getOwnedMapIdsMock.mockReset();
+    affectedMapIdsForCharacterMock.mockReset();
     projectMapAccessMock.mockReset();
     teardownMapAccessProjectionMock.mockReset();
     purgeUserMapAccessProjectionMock.mockReset();
     teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
-    getCharacterCorporationIdMock.mockResolvedValue(null);
-    getMapIdsWithCharacterGrantMock.mockResolvedValue([]);
-    getMapIdsWithCorporationGrantsMock.mockResolvedValue([]);
     getOwnedMapIdsMock.mockResolvedValue([]);
+    affectedMapIdsForCharacterMock.mockResolvedValue([]);
     projectMapAccessMock.mockResolvedValue({
       inserted: 0,
       updated: 0,
@@ -153,14 +132,14 @@ describe('POST /api/account/characters/unlink', () => {
       body: { providerId: 'eve', accountId: '100' },
       headers: expect.any(Headers),
     });
-    expect(getMapIdsWithCharacterGrantMock).toHaveBeenCalledWith(100);
+    expect(affectedMapIdsForCharacterMock).toHaveBeenCalledWith(100);
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
 
     unlinkAccountMock.mockClear();
     repointActiveToOldestMock.mockClear();
-    getMapIdsWithCharacterGrantMock.mockClear();
+    affectedMapIdsForCharacterMock.mockClear();
     teardownLocationTrackingMock.mockClear();
     logUsageEventMock.mockClear();
     const inactive = await POST(buildRequest({ characterId: '200' }));
@@ -176,7 +155,7 @@ describe('POST /api/account/characters/unlink', () => {
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
-    expect(getMapIdsWithCharacterGrantMock).not.toHaveBeenCalled();
+    expect(affectedMapIdsForCharacterMock).not.toHaveBeenCalled();
   });
 
   it('keeps unlink success and repoint when map enumeration fails', async () => {
@@ -184,7 +163,7 @@ describe('POST /api/account/characters/unlink', () => {
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
-    getMapIdsWithCharacterGrantMock.mockRejectedValue(new Error('neon enumeration failed'));
+    affectedMapIdsForCharacterMock.mockRejectedValue(new Error('neon enumeration failed'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const res = await POST(buildRequest({ characterId: '100' }));

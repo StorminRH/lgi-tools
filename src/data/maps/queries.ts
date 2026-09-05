@@ -593,7 +593,7 @@ export async function getUserIdsInCorporations(
   return new Set(owners.values());
 }
 
-export async function getMapIdsWithCorporationGrants(
+async function getMapIdsWithCorporationGrants(
   corporationIds: number[],
   database: AnyPgDb = db,
 ): Promise<string[]> {
@@ -611,7 +611,7 @@ export async function getMapIdsWithCorporationGrants(
   return rows.map((row) => row.mapId);
 }
 
-export async function getMapIdsWithCharacterGrant(
+async function getMapIdsWithCharacterGrant(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<string[]> {
@@ -638,7 +638,7 @@ export async function getOwnedMapIds(
   return rows.map((row) => row.id);
 }
 
-export async function getCharacterCorporationId(
+async function getCharacterCorporationId(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<number | null> {
