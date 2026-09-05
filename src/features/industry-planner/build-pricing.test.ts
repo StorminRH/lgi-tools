@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { computeBatchLedger } from './build-batch';
 import {
   assemblePricing,
   buildConfidenceInputs,
@@ -111,6 +112,13 @@ describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
     const one = assemblePricing(structure, priceOf, { basis: 'marginal' });
     const three = assemblePricing(structure, priceOf, { basis: 'marginal', runs: 3 });
     expect(three.summary.inputCost).toBeCloseTo(one.summary.inputCost * 3, 9);
+  });
+
+  it('a precomputed ledger matches walking the tree again', () => {
+    const ledger = computeBatchLedger(structure.tree, 1);
+    const walked = assemblePricing(structure, priceOf);
+    const reused = assemblePricing(structure, priceOf, { ledger });
+    expect(reused).toEqual(walked);
   });
 });
 

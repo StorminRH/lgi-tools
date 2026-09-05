@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import {
   computeBatchLedger,
-  computeBatchLedgerWithMe,
   computeBatchMaterials,
   type BatchLedger,
 } from './build-batch';
@@ -225,6 +224,6 @@ describe('scaleTiersToBatched — follows an ME-reduced ledger', () => {
 
   it('an ME10 ledger bears 90 raw R where the unowned ledger bears 100', () => {
     expect(rawCell(computeBatchLedger(tree, 1))).toBe(100);
-    expect(rawCell(computeBatchLedgerWithMe(tree, 1, me10))).toBe(90);
+    expect(rawCell(computeBatchLedger(tree, 1, me10))).toBe(90);
   });
 });
