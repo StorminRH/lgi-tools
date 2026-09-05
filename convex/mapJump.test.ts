@@ -133,6 +133,13 @@ function authorArgs(
   };
 }
 
+function requiredRow<T>(row: T | null): T {
+  if (row === null) {
+    throw new Error('expected a seeded row');
+  }
+  return row;
+}
+
 async function mapState(t: Chain) {
   return await t.run(async (ctx) => ({
     systems: await ctx.db
@@ -517,14 +524,14 @@ describe('automatic jump authoring', () => {
     });
     const nextObservedAt = OBSERVED_AT + 1;
     await t.run(async (ctx) => {
-      const location = await ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', TRACKER).eq('characterId', CHARACTER),
-        )
-        .unique();
-      expect(location).not.toBeNull();
-      if (location === null) return;
+      const location = requiredRow(
+        await ctx.db
+          .query('characterLocation')
+          .withIndex('by_user_character', (q) =>
+            q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+          )
+          .unique(),
+      );
       await ctx.db.patch(location._id, {
         transitionObservedAt: nextObservedAt,
         observedAt: nextObservedAt,
