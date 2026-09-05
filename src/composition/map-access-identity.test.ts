@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getCharacterCorporationId: vi.fn(),
-  getMapIdsWithCharacterGrant: vi.fn(),
-  getMapIdsWithCorporationGrants: vi.fn(),
+  affectedMapIdsForCharacter: vi.fn(),
   getOwnedMapIds: vi.fn(),
   projectMapAccess: vi.fn(),
   purgeMapChain: vi.fn(),
@@ -12,9 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/data/maps/queries', () => ({
-  getCharacterCorporationId: mocks.getCharacterCorporationId,
-  getMapIdsWithCharacterGrant: mocks.getMapIdsWithCharacterGrant,
-  getMapIdsWithCorporationGrants: mocks.getMapIdsWithCorporationGrants,
+  affectedMapIdsForCharacter: mocks.affectedMapIdsForCharacter,
   getOwnedMapIds: mocks.getOwnedMapIds,
 }));
 
@@ -33,16 +29,13 @@ vi.mock('@/data/location-tracking/purge', () => ({
 
 import {
   identityProjectionRunners,
-  mapIdsAffectedByCharacter,
   reprojectMapsForCharacter,
   teardownProjectionsForDeletedUser,
 } from './map-access-identity';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.getCharacterCorporationId.mockResolvedValue(null);
-  mocks.getMapIdsWithCharacterGrant.mockResolvedValue([]);
-  mocks.getMapIdsWithCorporationGrants.mockResolvedValue([]);
+  mocks.affectedMapIdsForCharacter.mockResolvedValue([]);
   mocks.getOwnedMapIds.mockResolvedValue([]);
   mocks.projectMapAccess.mockResolvedValue({
     inserted: 0,
@@ -57,13 +50,8 @@ beforeEach(() => {
 });
 
 describe('map-access-identity', () => {
-  it('unions affected maps, re-projects through failures, and tears down owned chains before claims', async () => {
-    mocks.getCharacterCorporationId.mockResolvedValue(9800);
-    mocks.getMapIdsWithCharacterGrant.mockResolvedValue(['map-a', 'map-b']);
-    mocks.getMapIdsWithCorporationGrants.mockResolvedValue(['map-b', 'map-c']);
-
-    await expect(mapIdsAffectedByCharacter(100)).resolves.toEqual(['map-a', 'map-b', 'map-c']);
-    expect(mocks.getMapIdsWithCorporationGrants).toHaveBeenCalledWith([9800]);
+  it('re-projects through failures, and tears down owned chains before claims', async () => {
+    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a', 'map-b']);
 
     mocks.projectMapAccess
       .mockRejectedValueOnce(new Error('convex down'))
@@ -76,6 +64,7 @@ describe('map-access-identity', () => {
       });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await reprojectMapsForCharacter(100);
+    expect(mocks.affectedMapIdsForCharacter).toHaveBeenCalledWith(100);
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-a');
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-b');
     expect(errorSpy).toHaveBeenCalled();

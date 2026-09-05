@@ -53,8 +53,8 @@ function rendersIcon(r: StoredRecent): boolean {
   return r.kind !== BLUEPRINT_KIND || (r.typeId !== undefined && recentImage(r) !== undefined);
 }
 
-function readRecents(): SearchResult[] {
-  return readStored()
+function readRecents(raw?: string | null): SearchResult[] {
+  return readStored(raw)
     .slice(0, MAX_RECENTS)
     .map((r) => {
       const icon = recentImage(r);
@@ -99,13 +99,12 @@ export function subscribeRecents(onStoreChange: () => void): () => void {
 }
 
 export function getRecentsSnapshot(): SearchResult[] {
-  const store = safeStorage();
-  const raw = store?.getItem(STORAGE_KEY) ?? null;
+  const raw = safeStorage()?.getItem(STORAGE_KEY) ?? null;
   if (raw === cachedRaw) {
     return cachedSnapshot;
   }
   cachedRaw = raw;
-  const next = readRecents();
+  const next = readRecents(raw);
   cachedSnapshot = next.length === 0 ? EMPTY_RECENTS : next;
   return cachedSnapshot;
 }
@@ -120,13 +119,11 @@ function emitRecents(): void {
   }
 }
 
-function readStored(): StoredRecent[] {
-  const store = safeStorage();
-  if (!store) return [];
-  const raw = store.getItem(STORAGE_KEY);
-  if (!raw) return [];
+function readStored(raw?: string | null): StoredRecent[] {
+  const value = raw !== undefined ? raw : safeStorage()?.getItem(STORAGE_KEY);
+  if (!value) return [];
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(value);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(isStoredRecent).filter(rendersIcon);
   } catch {

@@ -21,6 +21,17 @@ const getCharacterCorporationIdMock = vi.fn();
 const getMapIdsWithCharacterGrantMock = vi.fn();
 const getMapIdsWithCorporationGrantsMock = vi.fn();
 const getOwnedMapIdsMock = vi.fn();
+const affectedMapIdsForCharacterMock = vi.fn(
+  async (characterId: number) => {
+    const corporationId = await getCharacterCorporationIdMock();
+    const characterMaps = await getMapIdsWithCharacterGrantMock(characterId);
+    const corporationMaps =
+      corporationId === null
+        ? []
+        : await getMapIdsWithCorporationGrantsMock([corporationId]);
+    return [...new Set([...characterMaps, ...corporationMaps])];
+  },
+);
 const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
@@ -46,6 +57,8 @@ vi.mock('@/data/maps/queries', () => ({
     getMapIdsWithCharacterGrantMock(characterId),
   getMapIdsWithCorporationGrants: (ids: number[]) => getMapIdsWithCorporationGrantsMock(ids),
   getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
+  affectedMapIdsForCharacter: (characterId: number) =>
+    affectedMapIdsForCharacterMock(characterId),
 }));
 
 vi.mock('@/composition/map-access-projection', () => ({

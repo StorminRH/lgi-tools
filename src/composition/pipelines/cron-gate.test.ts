@@ -46,7 +46,6 @@ describe('defineCronRoute', () => {
 
   it('rejects an unauthenticated request before any declared stage', async () => {
     const work = vi.fn();
-    const probe = vi.fn();
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:test',
       action: 'cron_prices',
@@ -54,10 +53,6 @@ describe('defineCronRoute', () => {
       wakeClass: 'batch',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test route is lock-free' },
-      idle: {
-        probe,
-        body: () => ({ status: 'idle' }),
-      },
       work,
     });
 
@@ -66,7 +61,6 @@ describe('defineCronRoute', () => {
     );
 
     expect(response.status).toBe(401);
-    expect(probe).not.toHaveBeenCalled();
     expect(work).not.toHaveBeenCalled();
     expect(withAdvisoryLockMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).not.toHaveBeenCalled();
@@ -103,13 +97,6 @@ describe('defineCronRoute', () => {
         key: 17,
         busyBody: () => ({ status: 'busy' as const }),
       },
-      idle: {
-        probe: async () => {
-          order.push('idle');
-          return { idle: false };
-        },
-        body: () => ({ status: 'idle' as const }),
-      },
       preLock: async () => {
         order.push('preLock');
         return { proceed: 'prepared' };
@@ -132,69 +119,12 @@ describe('defineCronRoute', () => {
     expect(await response.json()).toEqual({ status: 'completed' });
     expect(order).toEqual([
       'auth',
-      'idle',
       'preLock',
       'lock',
       'work',
       'capability',
       'telemetry',
     ]);
-  });
-
-  it('finishes an idle probe before pre-lock, lock, work, or durable telemetry', async () => {
-    const preLock = vi.fn();
-    const work = vi.fn();
-    const GET = defineCronRoute<{
-      status: 'skipped';
-      reason: 'idle';
-      durationMs: number;
-    }>({
-      name: 'cron:test',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
-      wakeClass: 'idle-silent',
-      record: { policy: 'noteworthy' },
-      lock: {
-        key: 17,
-        busyBody: (durationMs) => ({
-          status: 'skipped',
-          reason: 'idle',
-          durationMs,
-        }),
-      },
-      idle: {
-        probe: async () => ({
-          idle: true,
-          telemetry: { signal: 'empty' },
-        }),
-        body: (durationMs) => ({
-          status: 'skipped',
-          reason: 'idle',
-          durationMs,
-        }),
-      },
-      preLock,
-      work,
-    });
-
-    const response = await GET(authedRequest());
-    const body = await response.json();
-
-    expect(body).toEqual({
-      status: 'skipped',
-      reason: 'idle',
-      durationMs: expect.any(Number),
-    });
-    expect(preLock).not.toHaveBeenCalled();
-    expect(withAdvisoryLockMock).not.toHaveBeenCalled();
-    expect(work).not.toHaveBeenCalled();
-    expect(logUsageEventMock).not.toHaveBeenCalled();
-    expect(JSON.parse(vi.mocked(console.log).mock.calls[0]?.[0] as string)).toEqual({
-      scope: 'cron:test',
-      signal: 'empty',
-      outcome: 'idle',
-      durationMs: body.durationMs,
-    });
   });
 
   it('returns the declared busy body and records busy under always', async () => {
@@ -509,26 +439,6 @@ describe('defineCronRoute capability recording', () => {
     const rows = capabilityRows();
     expect(rows).toHaveLength(1);
     expect(rows[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'unexpected' });
-  });
-
-  it('writes zero rows for an idle run, preserving the idle-silent contract', async () => {
-    const GET = defineCronRoute<{ status: string }>({
-      name: 'cron/sweeper',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
-      wakeClass: 'idle-silent',
-      record: { policy: 'noteworthy' },
-      lock: { mode: 'none', justification: 'test' },
-      idle: {
-        probe: async () => ({ idle: true }),
-        body: () => ({ status: 'idle' }),
-      },
-      work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
-    });
-
-    await GET(authedRequest());
-
-    expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('writes zero rows for a busy (lock-contended) run', async () => {
