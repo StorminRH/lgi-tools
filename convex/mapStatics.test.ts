@@ -68,12 +68,14 @@ async function liveStaticRows(t: Chain, systemId: number) {
 
 function stubStaticsFetch(handler: (systemId: number) => Response) {
   vi.stubEnv('SITE_URL', SITE);
-  const fetchMock = vi.fn(async (input: string | URL | Request) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    const match = /\/api\/universe\/statics\/(\d+)$/.exec(url);
-    if (match === null) throw new Error(`unexpected url ${url}`);
-    return handler(Number(match[1]));
-  });
+  const fetchMock = vi.fn(
+    async (input: string | URL | Request, _init?: RequestInit): Promise<Response> => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const match = /\/api\/universe\/statics\/(\d+)$/.exec(url);
+      if (match === null) throw new Error(`unexpected url ${url}`);
+      return handler(Number(match[1]));
+    },
+  );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
