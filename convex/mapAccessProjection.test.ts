@@ -4,6 +4,7 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
+import { legacyMapOwnerRoleValidator } from './lib/mapEntityContracts';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
@@ -283,6 +284,32 @@ describe('purgeUserClaims', () => {
 
     const remaining = await t.run((ctx) => ctx.db.query('mapTracking').collect());
     expect(remaining.map((row) => row.userId)).toEqual([OWNER]);
+  });
+});
+
+describe('map role leftover', () => {
+  it('stored-versus-write inserts owner and rejects write owner', async () => {
+    expect(legacyMapOwnerRoleValidator.kind).toBe('literal');
+
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert('mapAccess', {
+        mapId: MAP_A,
+        userId: OWNER,
+        roles: ['owner'],
+      }),
+    );
+    expect(await readClaims(t, MAP_A)).toMatchObject([
+      { userId: OWNER, roles: ['owner'] },
+    ]);
+
+    await expect(
+      t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+        mapId: MAP_A,
+        revision: 1,
+        claims: [{ userId: OWNER, roles: ['owner'] }],
+      } as never),
+    ).rejects.toThrow();
   });
 });
 
