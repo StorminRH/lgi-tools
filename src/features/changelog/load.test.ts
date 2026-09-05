@@ -14,7 +14,9 @@ describe('readChangelogSource', () => {
     });
     expect(ranks).toEqual([...ranks].sort((a, b) => b - a));
     expect(new Set(ranks).size).toBe(ranks.length);
-    expect(masters[0]?.title).toBe('Atlas of Worlds');
+    expect(masters[0]?.version).toBe('4.1');
+    expect(masters[0]?.title).toBe('What is on the chain');
+    expect(masters[0]?.subVersions[0]?.version).toBe('4.1.1');
   });
 
   it('projects every real entry into exactly one browser document', async () => {

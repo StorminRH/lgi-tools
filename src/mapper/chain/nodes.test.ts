@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   SYSTEM_FRAME_HEIGHT,
   SYSTEM_FRAME_WIDTH,
-  type ChainNode,
 } from '../canvas/SystemNode';
 import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
@@ -18,7 +17,6 @@ import {
   type PlacedStubConnection,
 } from './nodes';
 import {
-  applyUserPlacement,
   EMPTY_CHAIN_STATE,
   reconcileChain,
   type ChainSnapshot,
@@ -46,8 +44,6 @@ const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
-const NO_DRAG: ReadonlySet<number> = new Set();
-
 const fallbackLabel = (systemId: number): SystemLabel => ({
   name: String(systemId),
   className: null,
@@ -66,13 +62,13 @@ function snapshot(systemIds: readonly number[], connections: ChainSnapshot['conn
 }
 
 function stateFor(systemIds: readonly number[]): ChainState {
-  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), NO_DRAG, sequentialTestAssigner)
+  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), sequentialTestAssigner)
     .state;
 }
 
 describe('canvas node projection', () => {
   it('projects one node per reconciled system with its label', () => {
-    const nodes = syncNodes([], stateFor([JITA, AMARR]).systems, namedLabel, NO_DRAG);
+    const nodes = syncNodes([], stateFor([JITA, AMARR]).systems, namedLabel);
 
     expect(nodes).toEqual([
       {
@@ -107,57 +103,18 @@ describe('canvas node projection', () => {
   });
 
   it('drops a node the reconciler no longer holds', () => {
-    const before = syncNodes([], stateFor([JITA, AMARR]).systems, fallbackLabel, NO_DRAG);
-    const after = syncNodes(before, stateFor([JITA]).systems, fallbackLabel, NO_DRAG);
+    const before = syncNodes([], stateFor([JITA, AMARR]).systems, fallbackLabel);
+    const after = syncNodes(before, stateFor([JITA]).systems, fallbackLabel);
 
     expect(after.map((node) => node.id)).toEqual([String(JITA)]);
   });
 
-  it('keeps a dragging node’s live position through an incoming update', () => {
-    const pointer = { x: 777, y: 111 };
-    const state = stateFor([JITA]);
-    const dragged: ChainNode[] = [
-      {
-        id: String(JITA),
-        type: 'chainSystem',
-        position: pointer,
-        data: { name: 'Jita', className: null },
-      },
-    ];
 
-    const after = syncNodes(
-      dragged,
-      stateFor([JITA, AMARR]).systems,
-      fallbackLabel,
-      new Set([JITA]),
-    );
-
-    expect(after.find((node) => node.id === String(JITA))?.position).toEqual(pointer);
-    expect(state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
-  });
-
-  it('takes the reconciled position once the drag has ended', () => {
-    const stale = { x: 777, y: 111 };
-    const dropped = { x: 900, y: 250 };
-    const dragged: ChainNode[] = [
-      {
-        id: String(JITA),
-        type: 'chainSystem',
-        position: stale,
-        data: { name: 'Jita', className: null },
-      },
-    ];
-    const pinned = applyUserPlacement(stateFor([JITA]), JITA, dropped);
-
-    const after = syncNodes(dragged, pinned.systems, fallbackLabel, NO_DRAG);
-
-    expect(after[0]?.position).toEqual(dropped);
-  });
 
   it('relabels in place when the directory arrives late', () => {
     const state = stateFor([JITA]);
-    const before = syncNodes([], state.systems, fallbackLabel, NO_DRAG);
-    const after = syncNodes(before, state.systems, namedLabel, NO_DRAG);
+    const before = syncNodes([], state.systems, fallbackLabel);
+    const after = syncNodes(before, state.systems, namedLabel);
 
     expect(before[0]?.data).toEqual({
       name: String(JITA),
@@ -182,7 +139,6 @@ describe('canvas edge projection', () => {
       snapshot([JITA, AMARR], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -214,7 +170,6 @@ describe('canvas edge projection', () => {
           purgeAfter: now + 1,
         },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -248,7 +203,6 @@ describe('canvas edge projection', () => {
           purgeAfter: null,
         },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -276,7 +230,6 @@ describe('canvas edge projection', () => {
       snapshot([JITA], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
 
@@ -293,7 +246,6 @@ describe('canvas edge projection', () => {
         { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
         { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
     const treeParents = deriveChainTree({
@@ -329,7 +281,7 @@ const placedHalo = (fogged: boolean, systemId: number = fogged ? RING3 : RING1) 
 
 describe('halo node projection', () => {
   it('appends kernel-owned halo nodes: declared frame, never draggable, fogged ring inert', () => {
-    const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(false),
       placedHalo(true),
     ]);
@@ -358,23 +310,23 @@ describe('halo node projection', () => {
   });
 
   it('retains selection for a drawn halo node across merges', () => {
-    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(false),
     ]);
     const selected = before.map((node) =>
       node.id === String(RING1) ? { ...node, selected: true } : node,
     );
-    const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(false),
     ]);
     expect(after.find((node) => node.id === String(RING1))?.selected).toBe(true);
   });
 
   it('upgrades a halo node in place when its system becomes authored, shedding derived controls', () => {
-    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
       placedHalo(true, RING1),
     ]);
-    const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, []);
+    const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, []);
 
     expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
     const upgraded = after.find((node) => node.id === String(RING1));
@@ -385,7 +337,7 @@ describe('halo node projection', () => {
   });
 
   it('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {
-    const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, [
+    const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, [
       placedHalo(false, RING1),
     ]);
     expect(nodes.filter((node) => node.id === String(RING1))).toHaveLength(1);
@@ -400,7 +352,6 @@ describe('halo edge projection', () => {
       snapshot([JITA, AMARR], [
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
-      NO_DRAG,
       sequentialTestAssigner,
     ).state;
     const treeParents = deriveChainTree({
@@ -475,7 +426,6 @@ describe('wormhole stub projection', () => {
       [],
       state.systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       [stub],
     );
@@ -519,21 +469,68 @@ describe('wormhole stub projection', () => {
       before,
       resolved.systems,
       fallbackLabel,
-      NO_DRAG,
     );
     expect(after.filter((node) => node.id === String(AMARR))).toHaveLength(1);
     expect(after.some((node) => node.id.startsWith(STUB_NODE_ID_PREFIX))).toBe(false);
 
     expect(
-      syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [], [])
+      syncNodes([], stateFor([JITA]).systems, fallbackLabel, [], [])
         .map((node) => node.id),
     ).toEqual([String(JITA)]);
   });
 });
 
-const SYSTEM_STATICS = [
-  { id: `${JITA}:B274:1`, code: 'B274', className: 'HS', whClassId: 7 },
-  { id: `${JITA}:H296:1`, code: 'H296', className: 'C5', whClassId: 5 },
+const CLASS_BY_CODE: Readonly<Record<string, { className: string; whClassId: number }>> = {
+  B274: { className: 'HS', whClassId: 7 },
+  H296: { className: 'C5', whClassId: 5 },
+  C247: { className: 'C3', whClassId: 3 },
+};
+
+function classOf(code: string) {
+  return CLASS_BY_CODE[code] ?? null;
+}
+
+function placeholderRow(args: {
+  readonly connectionId: string;
+  readonly fromSystemId: number;
+  readonly code: string;
+}) {
+  return {
+    connectionId: args.connectionId,
+    fromSystemId: args.fromSystemId,
+    toSystemId: null,
+    from: {
+      typeCode: args.code,
+      signatureId: null,
+      signalPct: null,
+      leadsTo: { kind: 'unset' as const },
+    },
+    staticCode: args.code,
+  };
+}
+
+function scannedRow(args: {
+  readonly connectionId: string;
+  readonly fromSystemId: number;
+  readonly signatureId: string;
+  readonly typeCode?: string | null;
+}) {
+  return {
+    connectionId: args.connectionId,
+    fromSystemId: args.fromSystemId,
+    toSystemId: null,
+    from: {
+      typeCode: args.typeCode ?? null,
+      signatureId: args.signatureId,
+      signalPct: null,
+      leadsTo: { kind: 'unset' as const },
+    },
+  };
+}
+
+const SYSTEM_PLACEHOLDERS = [
+  placeholderRow({ connectionId: 'ph-B274', fromSystemId: JITA, code: 'B274' }),
+  placeholderRow({ connectionId: 'ph-H296', fromSystemId: JITA, code: 'H296' }),
 ];
 
 function placePlannedStubs(
@@ -547,28 +544,27 @@ function placePlannedStubs(
 
 describe('static wormhole stub projection', () => {
   it('renders exactly the believed-holes plan for the two-statics/four-sigs case', () => {
-    const signatures = ['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map(
-      (signatureId) => ({
-        connectionId: `connection-${signatureId}`,
-        fromSystemId: JITA,
-        signatureId,
-        wormholeTypeCode: null,
-        whClassId: null,
-      }),
-    );
+    const rows = [
+      ...SYSTEM_PLACEHOLDERS,
+      ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
+        scannedRow({
+          connectionId: `connection-${signatureId}`,
+          fromSystemId: JITA,
+          signatureId,
+        })),
+    ];
     const planned = planStubNodes({
       systemIds: [JITA],
-      signatures,
+      rows,
       connections: [],
-      staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
       rootSystemId: JITA,
+      classOf,
     });
     const placed = placePlannedStubs(planned);
     const nodes = syncNodes(
       [],
       stateFor([JITA]).systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       placed,
     );
@@ -612,16 +608,16 @@ describe('static wormhole stub projection', () => {
     };
     const input = {
       systemIds: [JITA],
-      signatures: [],
-      staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
+      rows: SYSTEM_PLACEHOLDERS,
       rootSystemId: JITA,
+      classOf,
     };
     const matched = placePlannedStubs(planStubNodes({
       ...input,
       connections: [liveConnection],
     }));
     expect(matched.map(stubNodeId)).toEqual([
-      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:H296:1`,
+      `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
     ]);
 
     const collapsed = placePlannedStubs(planStubNodes({
@@ -632,37 +628,34 @@ describe('static wormhole stub projection', () => {
       }],
     }));
     expect(collapsed.map(stubNodeId)).toEqual([
-      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:B274:1`,
-      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:H296:1`,
+      `${STATIC_STUB_NODE_ID_PREFIX}ph-B274`,
+      `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
     ]);
     expect(
       buildEdges(new Map(), new Map(), Date.now(), [], new Set(), collapsed)
         .map((edge) => edge.id),
     ).toEqual([
-      `${STATIC_STUB_EDGE_ID_PREFIX}${JITA}:B274:1`,
-      `${STATIC_STUB_EDGE_ID_PREFIX}${JITA}:H296:1`,
+      `${STATIC_STUB_EDGE_ID_PREFIX}ph-B274`,
+      `${STATIC_STUB_EDGE_ID_PREFIX}ph-H296`,
     ]);
   });
 
   it('renders zero static ghosts in degraded mode while preserving the pasted stub', () => {
     const placed = placePlannedStubs(planStubNodes({
       systemIds: [JITA],
-      signatures: [{
+      rows: [scannedRow({
         connectionId: 'scan-1',
         fromSystemId: JITA,
         signatureId: 'ABC-123',
-        wormholeTypeCode: null,
-        whClassId: null,
-      }],
+      })],
       connections: [],
-      staticsBySystem: new Map(),
       rootSystemId: JITA,
+      classOf,
     }));
     const nodes = syncNodes(
       [],
       stateFor([JITA]).systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       placed,
     );
@@ -673,21 +666,21 @@ describe('static wormhole stub projection', () => {
   });
 
   it('reserves the inbound hole on a non-root system so four unidentified sigs draw one Unknown', () => {
-    const signatures = ['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map(
-      (signatureId) => ({
-        connectionId: `connection-${signatureId}`,
-        fromSystemId: AMARR,
-        signatureId,
-        wormholeTypeCode: null,
-        whClassId: null,
-      }),
-    );
     const planned = planStubNodes({
       systemIds: [AMARR],
-      signatures,
+      rows: [
+        placeholderRow({ connectionId: 'ph-B274', fromSystemId: AMARR, code: 'B274' }),
+        placeholderRow({ connectionId: 'ph-H296', fromSystemId: AMARR, code: 'H296' }),
+        ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
+          scannedRow({
+            connectionId: `connection-${signatureId}`,
+            fromSystemId: AMARR,
+            signatureId,
+          })),
+      ],
       connections: [],
-      staticsBySystem: new Map([[AMARR, SYSTEM_STATICS]]),
       rootSystemId: JITA,
+      classOf,
     });
     expect(planned.filter((stub) => 'connectionId' in stub)).toHaveLength(1);
     expect(planned.filter((stub) => 'staticId' in stub)).toHaveLength(2);
@@ -702,7 +695,6 @@ describe('static wormhole stub projection', () => {
       [],
       stateFor([JITA]).systems,
       fallbackLabel,
-      NO_DRAG,
       [],
       [stub],
     );

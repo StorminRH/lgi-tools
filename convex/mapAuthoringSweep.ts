@@ -6,6 +6,7 @@ import {
   deleteConnectionActivity,
   runCollapse,
 } from './mapAuthoringCollapse';
+import { respawnAfterTombstone } from './lib/mapStaticClaim';
 import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
 export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
@@ -109,6 +110,7 @@ async function sweepExpiredCeilings(
     if (fresh.toSystemId === null) {
       await ctx.db.patch(fresh._id, connectionRemovedTombstone(now));
       await deleteConnectionActivity(ctx, fresh);
+      await respawnAfterTombstone(ctx, fresh._id);
       recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;
     } else if (await collapseDueRow(ctx, fresh, trackedByMap)) {

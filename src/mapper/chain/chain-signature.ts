@@ -1,6 +1,5 @@
 import { isTombstoned } from '@/data/maps/chain-contract';
-import type { LayoutConfig, LayoutFacts } from '../layout/layout-contract';
-import type { ChainSnapshot } from './reconciler';
+import type { LayoutConfig } from '../layout/layout-contract';
 
 export interface SignatureInput {
   readonly systems: { readonly rows: readonly { readonly systemId: number }[]; readonly complete: boolean };
@@ -40,16 +39,6 @@ export function filterLivePages<Row extends { readonly deletedAt?: number | null
   return { rows: live, complete: pages.complete };
 }
 
-export function factsFromSnapshot(snapshot: ChainSnapshot): LayoutFacts {
-  return {
-    systems: snapshot.systems.rows.map((row) => ({ systemId: row.systemId })),
-    connections: snapshot.connections.rows.map((row) => ({
-      fromSystemId: row.fromSystemId,
-      toSystemId: row.toSystemId,
-    })),
-  };
-}
-
 export function layoutConfigKey(config: LayoutConfig): string {
   const parts = {
     ringSpacing: config.ringSpacing,
@@ -64,9 +53,8 @@ export function layoutConfigKey(config: LayoutConfig): string {
 export function layoutPostKey(
   signature: string,
   configKey: string,
-  revision: number,
   haloKey = '',
   stubKey = '',
 ): string {
-  return `${signature}#${configKey}@${revision}~${haloKey}^${stubKey}`;
+  return `${signature}#${configKey}~${haloKey}^${stubKey}`;
 }

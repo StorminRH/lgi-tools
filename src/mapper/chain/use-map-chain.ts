@@ -4,7 +4,7 @@ import type { Doc, Id } from '@/data/convex/data-model';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutConfig } from '../layout/layout-contract';
 import type { HaloLimits, PlacedHalo } from '../halo/halo-model';
 import type { ConnectionDetail, UnresolvedHoleSummary } from './connection-detail';
-import type { ChainPosition, MapChainIntent } from './intents';
+import type { MapChainIntent } from './intents';
 import type { SystemLabel } from './labels';
 import type { PlacedStub } from './nodes';
 import type { ChainState } from './reconciler';
@@ -12,8 +12,6 @@ import type { MapAccessState } from './use-map-chain-pages';
 import { useConnectionPresentationNow, useMapChainPages } from './use-map-chain-pages';
 import { useMapChainHalo } from './use-map-chain-halo';
 import { useMapChainMerge } from './use-map-chain-merge';
-
-const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
 
 export interface MapChain {
   readonly access: MapAccessState;
@@ -32,13 +30,10 @@ export interface MapChain {
   readonly halo: PlacedHalo;
   readonly stubs: readonly PlacedStub[];
   readonly neighboursOf: (systemId: number) => readonly number[];
-  readonly pinPlacement: (systemId: number, position: ChainPosition) => void;
-  readonly releasePlacements: () => void;
 }
 
 export function useMapChain(
   mapId: string | null,
-  draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
   config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
   haloLimits?: HaloLimits,
 ): MapChain {
@@ -47,13 +42,12 @@ export function useMapChain(
   const { halo, haloKey, labelOf, neighboursOf, stubKey } = useMapChainHalo(
     pages.authoredKey,
     pages.stubLayout,
+    pages.slotHolders,
     haloLimits,
   );
   const {
     merge,
-    pinPlacement,
     placedHalo,
-    releasePlacements,
     rootSystemId,
     stubs,
     treeParents,
@@ -61,10 +55,10 @@ export function useMapChain(
     pages.systems,
     pages.connections,
     pages.stubLayout,
+    pages.slotHolders,
     halo,
     haloKey,
     stubKey,
-    draggingIds,
     config,
   );
 
@@ -85,7 +79,5 @@ export function useMapChain(
     halo: placedHalo,
     stubs,
     neighboursOf,
-    pinPlacement,
-    releasePlacements,
   };
 }

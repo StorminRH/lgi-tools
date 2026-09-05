@@ -6,7 +6,6 @@ import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
 import {
   CAMERA_FIT_MAX_ZOOM,
   IDLE_FLIGHT,
-  abortFlightForDrag,
   beginFlight,
   cameraEaseOf,
   chainBounds,
@@ -35,26 +34,26 @@ const DEPARTED: readonly MapChainIntent[] = [{ kind: 'system-departed', systemId
 
 const placed = (systemId: number, x: number, y: number): [number, PlacedSystem] => [
   systemId,
-  { systemId, position: { x, y }, placementSource: 'assigner' },
+  { systemId, position: { x, y } },
 ];
 
 test('camera fit policy frames first appearance, then only follow-on moves when ready', () => {
   expect(
-    shouldFitView({ intents: APPEARED, framed: false, follow: false, dragActive: false }),
+    shouldFitView({ intents: APPEARED, framed: false, follow: false }),
   ).toBe(true);
   expect(
-    shouldFitView({ intents: MOVED, framed: true, follow: true, dragActive: false }),
+    shouldFitView({ intents: MOVED, framed: true, follow: true }),
   ).toBe(true);
   expect(
-    shouldFitView({ intents: MOVED, framed: true, follow: false, dragActive: false }),
+    shouldFitView({ intents: MOVED, framed: true, follow: false }),
   ).toBe(false);
   expect(
-    shouldFitView({ intents: APPEARED, framed: true, follow: true, dragActive: true }),
-  ).toBe(false);
+    shouldFitView({ intents: APPEARED, framed: true, follow: true }),
+  ).toBe(true);
   expect(
-    shouldFitView({ intents: DEPARTED, framed: false, follow: true, dragActive: false }),
+    shouldFitView({ intents: DEPARTED, framed: false, follow: true }),
   ).toBe(false);
-  expect(shouldFitView({ intents: [], framed: true, follow: true, dragActive: false })).toBe(
+  expect(shouldFitView({ intents: [], framed: true, follow: true })).toBe(
     false,
   );
 
@@ -68,7 +67,6 @@ test('camera fit policy frames first appearance, then only follow-on moves when 
     previousIntents: DEPARTED,
     framed: false,
     follow: false,
-    dragActive: false,
     nodeIds: new Set<number>(),
   };
   expect(decideCameraFit({ ...base, previousIntents: APPEARED })).toBe('ignore');
@@ -89,7 +87,7 @@ test('camera fit policy frames first appearance, then only follow-on moves when 
 
 test('fit execution returns bounds, waits, skips, and marks framed across one tick journey', () => {
   const systems = new Map([
-    [1, { systemId: 1, position: { x: 0, y: 0 }, placementSource: 'assigner' } as PlacedSystem],
+    [1, { systemId: 1, position: { x: 0, y: 0 } } as PlacedSystem],
   ]);
 
   const warranted = decideFitExecution({
@@ -97,7 +95,6 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
     previousIntents: [],
     framed: false,
     follow: false,
-    dragActive: false,
     nodeIds: new Set([1]),
     systems,
     frame: FRAME,
@@ -115,7 +112,6 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
     previousIntents: [],
     framed: true,
     follow: true,
-    dragActive: false,
     nodeIds: new Set([1]),
     systems,
     frame: FRAME,
@@ -128,7 +124,6 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
     previousIntents: [],
     framed: false,
     follow: false,
-    dragActive: false,
     nodeIds: new Set(),
     systems,
     frame: FRAME,
@@ -143,7 +138,6 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
       previousIntents: [],
       framed: false,
       follow: false,
-      dragActive: false,
       nodeIds: new Set([1]),
       systems,
       frame: FRAME,
@@ -156,7 +150,6 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
     previousIntents: [],
     framed: false,
     follow: false,
-    dragActive: false,
     nodeIds: new Set([1]),
     systems,
     frame: FRAME,
@@ -168,14 +161,13 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
 
 test('focus gating centers measured or declared frames only when allowed', () => {
   const center = { x: 10, y: 20 };
-  expect(decideFocus({ enabled: true, dragActive: false, center, zoom: 0.7 })).toEqual({
+  expect(decideFocus({ enabled: true, center, zoom: 0.7 })).toEqual({
     x: 10,
     y: 20,
     zoom: 0.7,
   });
-  expect(decideFocus({ enabled: false, dragActive: false, center, zoom: 1 })).toBeNull();
-  expect(decideFocus({ enabled: true, dragActive: true, center, zoom: 1 })).toBeNull();
-  expect(decideFocus({ enabled: true, dragActive: false, center: null, zoom: 1 })).toBeNull();
+  expect(decideFocus({ enabled: false, center, zoom: 1 })).toBeNull();
+  expect(decideFocus({ enabled: true, center: null, zoom: 1 })).toBeNull();
 
   const request = { nodeId: '31', token: 3 };
   expect(newFocusRequest(request, 2, true)).toBe(request);
@@ -222,9 +214,4 @@ test('camera easing, chain bounds, and flight lifecycle keep product pins', () =
   expect(settleFlight(second, first.generation)).toBe(second);
   expect(settleFlight(second, second.generation).active).toBe(false);
 
-  const flight = beginFlight(IDLE_FLIGHT);
-  const aborted = abortFlightForDrag(flight);
-  expect(aborted.active).toBe(false);
-  expect(settleFlight(aborted, flight.generation)).toBe(aborted);
-  expect(abortFlightForDrag(IDLE_FLIGHT)).toBe(IDLE_FLIGHT);
 });

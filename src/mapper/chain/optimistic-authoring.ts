@@ -6,6 +6,7 @@ import {
   insertAtBottomIfLoaded,
   insertAtTop,
   optimisticallyUpdateValueInPaginatedQuery,
+  removeFromPaginatedQuery,
   useMutation,
   type OptimisticLocalStore,
 } from '@/data/convex/use-mutation';
@@ -33,6 +34,7 @@ import {
   connectionLifetimeFrom,
   hallwayDoor,
   hallwayDoorTypes,
+  isStaticPlaceholder,
   leadsToFromHint,
   leadsToFromSystem,
   lifetimeDeathWindow,
@@ -336,6 +338,73 @@ export function optimisticSetConnectionWormholeType(
     api.mapChainConnections.watchUnresolvedHoles,
     { mapId: args.mapId },
     apply,
+  );
+  if (args.value !== null) {
+    optimisticClaimStaticPlaceholder(localStore, {
+      mapId: args.mapId,
+      connectionId: args.connectionId,
+      typeCode: args.value,
+    });
+  }
+}
+
+function optimisticClaimStaticPlaceholder(
+  localStore: OptimisticLocalStore,
+  args: {
+    readonly mapId: string;
+    readonly connectionId: string;
+    readonly typeCode: string;
+  },
+): void {
+  const unresolved = localStore.getAllQueries(api.mapChainConnections.watchUnresolvedHoles);
+  const claimant = unresolved.flatMap((entry) => {
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
+    return entry.value.page.filter((row) => row._id === args.connectionId);
+  })[0];
+  if (
+    claimant === undefined
+    || claimant.staticCode !== undefined
+    || claimant.toSystemId !== null
+    || isTombstoned(claimant)
+  ) {
+    return;
+  }
+  const placeholder = unresolved.flatMap((entry) => {
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
+    return entry.value.page.filter((row) =>
+      row._id !== args.connectionId
+      && row.mapId === args.mapId
+      && row.fromSystemId === claimant.fromSystemId
+      && row.staticCode === args.typeCode
+      && isStaticPlaceholder(row)
+      && !isTombstoned(row),
+    );
+  })[0];
+  if (placeholder === undefined) return;
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchUnresolvedHoles,
+    { mapId: args.mapId },
+    (row) => {
+      if (row._id !== placeholder._id) return row;
+      return {
+        ...row,
+        from: {
+          ...row.from,
+          signatureId: claimant.from.signatureId,
+          signalPct: claimant.from.signalPct,
+          leadsTo: claimant.from.leadsTo,
+        },
+        identity: claimant.identity,
+        lifetime: claimant.lifetime,
+      };
+    },
+  );
+  removeFromPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchUnresolvedHoles,
+    { mapId: args.mapId },
+    (row) => row._id === args.connectionId,
   );
 }
 

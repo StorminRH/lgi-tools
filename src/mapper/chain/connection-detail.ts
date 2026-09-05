@@ -42,6 +42,8 @@ function connectionEditorDetail(
     firstSeenAt: optionalOrNull(row.firstSeenAt),
     observedMassKg: optionalOrNull(row.observedMassKg),
     observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
+    ...(row.staticCode === undefined ? {} : { staticCode: row.staticCode }),
+    ...(row.seatOrderAt === undefined ? {} : { seatOrderAt: row.seatOrderAt }),
   };
 }
 
@@ -69,5 +71,13 @@ export function unresolvedHolesFromRows(
 ): readonly UnresolvedHoleSummary[] {
   return rows
     .filter((row) => row.toSystemId === null && !isTombstoned(row))
+    .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
+}
+
+export function slotHolderRows(
+  rows: readonly Doc<'mapConnections'>[],
+): readonly UnresolvedHoleSummary[] {
+  return rows
+    .filter((row) => row.toSystemId === null && isTombstoned(row))
     .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
 }

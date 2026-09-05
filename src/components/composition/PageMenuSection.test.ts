@@ -32,14 +32,14 @@ test('PageMenuSection renders enum and boolean controls with declared titles', (
   registerPageSettings({
     route: '/atlas',
     title: 'Map settings',
-    controls: [{ key: 'atlas.autoLayout', placement: 'section' }],
+    controls: [{ key: 'atlas.cameraFollow', placement: 'section' }],
   });
   const atlas = renderAt('/atlas');
   expect(atlas).toContain('Map settings');
-  expect(atlas).toContain('auto layout');
-  expect(atlas).not.toContain('re-enabling restores the computed layout');
+  expect(atlas).toContain('camera follow');
+  expect(atlas).not.toContain('auto layout');
   expect(atlas).toContain('role="switch"');
-  expect(atlas).toContain('aria-checked="true"');
+  expect(atlas).toContain('aria-checked="false"');
 
   __resetPageSettings();
   registerPageSettings({
