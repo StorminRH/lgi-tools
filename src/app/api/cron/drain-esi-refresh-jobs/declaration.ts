@@ -1,19 +1,14 @@
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
 import { ADVISORY_LOCK_ESI_REFRESH_QUEUE } from '@/data/esi-refresh-jobs/constants';
-import { readPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { drainEsiRefreshJobs } from '@/composition/sync/esi-refresh-worker';
 import { swallow } from '@/transport/cron';
-import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
-function zeroSummary(
-  reason: 'busy' | 'idle',
-  durationMs: number,
-): EsiRefreshWorkerSummary {
+function busySummary(durationMs: number): EsiRefreshWorkerSummary {
   return {
     status: 'skipped',
-    reason,
+    reason: 'busy',
     claimed: 0,
     succeeded: 0,
     deferredForBudget: 0,
@@ -25,39 +20,15 @@ function zeroSummary(
   };
 }
 
-export function isDailyHealWindow(now: Date): boolean {
-  return now.getUTCHours() === 12 && now.getUTCMinutes() < 15;
-}
-
 export const drainEsiRefreshJobsDeclaration: CronRouteDeclaration<EsiRefreshWorkerSummary> = {
   name: 'cron:esi-refresh-jobs',
   action: 'cron_esi_refresh_jobs',
   capability: 'cron.drain-esi-refresh-jobs',
-  wakeClass: 'idle-silent',
+  wakeClass: 'batch',
   record: { policy: 'noteworthy' },
   lock: {
     key: Number(ADVISORY_LOCK_ESI_REFRESH_QUEUE),
-    busyBody: (durationMs) => zeroSummary('busy', durationMs),
-  },
-  idle: {
-    probe: async () => {
-      const now = new Date();
-      if (isDailyHealWindow(now)) return { idle: false };
-
-      const recentExhaustion = await hasRecentBudgetExhaustion();
-      if (recentExhaustion !== false) return { idle: false };
-
-      const pendingWork = await readPendingWorkSignal(now);
-      if (pendingWork !== 'idle') return { idle: false };
-      return {
-        idle: true,
-        telemetry: {
-          pendingWork,
-          recentExhaustion,
-        },
-      };
-    },
-    body: (durationMs) => zeroSummary('idle', durationMs),
+    busyBody: (durationMs) => busySummary(durationMs),
   },
   work: async () => {
     const started = Date.now();

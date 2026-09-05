@@ -6,6 +6,7 @@ import {
   answerAndAnnounce,
   answerJumpResolution,
   applyWormholeType,
+  bindConnectionSetters,
   connectionLifecycleActions,
   severAndAnnounce,
 } from './connection-authoring-api';
@@ -189,4 +190,44 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
     stub: { systemId: 7, signatureId: 'ABC-123' },
   }).remove();
   await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
+});
+
+it('binds resolved holes through applyWormholeType and stubs through a raw type write', async () => {
+  const resolvedApi = authoring();
+  resolvedApi.setConnectionWormholeType.mockResolvedValue({ changed: true });
+  const resolved = detail({ connectionId: 'c1' as Id<'mapConnections'> });
+  postJump.mockClear();
+  bindConnectionSetters('map-a', resolvedApi)(resolved).setWormholeType('B274');
+  await vi.waitFor(() =>
+    expect(resolvedApi.setConnectionWormholeType).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connection: resolved,
+      value: 'B274',
+      side: 'from',
+    }),
+  );
+  expect(postJump).toHaveBeenCalledWith({
+    kind: 'typed-hole',
+    mapId: 'map-a',
+    connectionId: 'c1',
+  });
+
+  const stubApi = authoring();
+  stubApi.setConnectionWormholeType.mockResolvedValue({ changed: true });
+  const stub = connectionEditorFixture({
+    connectionId: 'stub-1' as Id<'mapConnections'>,
+    fromSystemId: 7,
+    toSystemId: null,
+  });
+  postJump.mockClear();
+  bindConnectionSetters('map-a', stubApi)(stub, 'to').setWormholeType('K162');
+  await vi.waitFor(() =>
+    expect(stubApi.setConnectionWormholeType).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connection: stub,
+      value: 'K162',
+      side: 'to',
+    }),
+  );
+  expect(postJump).not.toHaveBeenCalled();
 });

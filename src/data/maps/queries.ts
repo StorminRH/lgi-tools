@@ -649,3 +649,18 @@ export async function getCharacterCorporationId(
     .limit(1);
   return row?.corporationId ?? null;
 }
+
+export async function affectedMapIdsForCharacter(
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<string[]> {
+  const [corporationId, characterMaps] = await Promise.all([
+    getCharacterCorporationId(characterId, database),
+    getMapIdsWithCharacterGrant(characterId, database),
+  ]);
+  const corporationMaps =
+    corporationId === null
+      ? []
+      : await getMapIdsWithCorporationGrants([corporationId], database);
+  return [...new Set([...characterMaps, ...corporationMaps])];
+}

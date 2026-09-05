@@ -15,10 +15,10 @@ export function mapSelectionHref(
 }
 
 export function atlasSignInReturnHref(
-  searchParams: Pick<URLSearchParams, 'get'>,
+  map: string | string[] | undefined,
 ): string {
-  const mapId = searchParams.get('map');
-  if (mapId === null || mapId === '') return '/atlas';
+  const mapId = Array.isArray(map) ? map[0] : map;
+  if (mapId === undefined || mapId === '') return '/atlas';
   return `/atlas?${new URLSearchParams({ map: mapId }).toString()}`;
 }
 

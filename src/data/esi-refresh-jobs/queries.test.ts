@@ -2,13 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 
-const mocks = vi.hoisted(() => ({
-  advancePendingWorkSignal: vi.fn(async () => {}),
-}));
-vi.mock('./pending-signal', () => ({
-  advancePendingWorkSignal: mocks.advancePendingWorkSignal,
-}));
-
 import { enqueueEsiRefreshJob, getEsiRefreshQueueResidual } from './queries';
 
 const NOW = new Date('2026-07-14T12:00:00Z');
@@ -74,9 +67,6 @@ describe('enqueueEsiRefreshJob', () => {
       updatedAt: NOW,
     });
     expect(fake.select).not.toHaveBeenCalled();
-    expect(mocks.advancePendingWorkSignal).toHaveBeenCalledWith(
-      new Date('2026-07-14T12:15:00Z'),
-    );
   });
 
   it('returns the existing live job when the unique key coalesces an insert', async () => {
@@ -86,7 +76,6 @@ describe('enqueueEsiRefreshJob', () => {
 
     expect(fake.insert).toHaveBeenCalledOnce();
     expect(fake.select).toHaveBeenCalledOnce();
-    expect(mocks.advancePendingWorkSignal).toHaveBeenCalledWith(NOW);
   });
 
   it('fails loudly if a coalesced row is no longer live', async () => {
