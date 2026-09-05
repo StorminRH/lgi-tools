@@ -322,9 +322,7 @@ describe('map static placeholders', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     const init = fetchMock.mock.calls[0]?.[1];
-    expect(
-      init !== undefined && typeof init === 'object' && 'headers' in init ? init.headers : undefined,
-    ).toBeUndefined();
+    expect(init?.headers).not.toHaveProperty('x-vercel-protection-bypass');
     expect((await liveStaticRows(t, WH_ROOT)).map((row) => row.staticCode)).toEqual(['C247']);
   });
 

@@ -71,3 +71,9 @@ export function isHostedVercel(): boolean {
   const vercelEnv = readEnv('VERCEL_ENV');
   return vercelEnv === 'production' || vercelEnv === 'preview';
 }
+
+export function vercelProtectionBypassHeaders(): Record<string, string> {
+  const bypass = readEnv('VERCEL_AUTOMATION_BYPASS_SECRET');
+  if (bypass === undefined) return {};
+  return { 'x-vercel-protection-bypass': bypass };
+}
