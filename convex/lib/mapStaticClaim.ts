@@ -148,6 +148,9 @@ async function runClaim(
   row: Doc<'mapConnections'>,
   side: 'from' | 'to',
 ): Promise<ClaimRun> {
+  if (side === 'to') {
+    return { outcome: 'none', survivorId: row._id };
+  }
   const claimant = await ctx.db.get(row._id);
   if (claimant === null || isTombstoned(claimant) || claimant.staticCode !== undefined) {
     return { outcome: 'none', survivorId: row._id };

@@ -6,7 +6,11 @@ import {
   type ConnectionDoor,
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { destinationProvenanceOf, hallwayDoorTypes } from '@/data/maps/connection-hallway';
+import {
+  destinationProvenanceOf,
+  hallwayDoorTypes,
+  isStaticPlaceholder,
+} from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 
@@ -61,7 +65,9 @@ export async function readTrackedLocation(
 export function unresolvedCandidatesOf(
   rows: readonly Doc<'mapConnections'>[],
 ): Doc<'mapConnections'>[] {
-  return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
+  return rows.filter((row) =>
+    row.toSystemId === null && !isTombstoned(row) && !isStaticPlaceholder(row)
+  );
 }
 
 export async function readConnectionsFrom(

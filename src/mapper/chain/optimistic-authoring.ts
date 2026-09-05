@@ -358,7 +358,7 @@ function optimisticClaimStaticPlaceholder(
 ): void {
   const unresolved = localStore.getAllQueries(api.mapChainConnections.watchUnresolvedHoles);
   const claimant = unresolved.flatMap((entry) => {
-    if (entry.value === undefined) return [];
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
     return entry.value.page.filter((row) => row._id === args.connectionId);
   })[0];
   if (
@@ -370,9 +370,10 @@ function optimisticClaimStaticPlaceholder(
     return;
   }
   const placeholder = unresolved.flatMap((entry) => {
-    if (entry.value === undefined) return [];
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
     return entry.value.page.filter((row) =>
       row._id !== args.connectionId
+      && row.mapId === args.mapId
       && row.fromSystemId === claimant.fromSystemId
       && row.staticCode === args.typeCode
       && isStaticPlaceholder(row)
@@ -395,6 +396,7 @@ function optimisticClaimStaticPlaceholder(
           leadsTo: claimant.from.leadsTo,
         },
         identity: claimant.identity,
+        lifetime: claimant.lifetime,
       };
     },
   );

@@ -517,6 +517,7 @@ describe('explicit lifetime proposals', () => {
         leadsTo: { kind: 'hint', hint: 'dangerous' },
       },
       identity: { kind: 'typed', provenance: 'human' },
+      lifetime: sig.lifetime,
     });
   });
 

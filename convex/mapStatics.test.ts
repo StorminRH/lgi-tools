@@ -5,6 +5,7 @@ import { api, internal } from './_generated/api';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc.setup';
 import {
   AMARR,
   JITA,
@@ -116,6 +117,36 @@ describe('map static placeholders', () => {
       inserted: 0,
     });
     expect(await liveStaticRows(t, WH_ROOT)).toHaveLength(2);
+  });
+
+  it('stamps staticCode onto a live from-door of that code instead of inserting a twin', async () => {
+    const t = convexTest(schema, modules);
+    await seedHome(t, WH_ROOT);
+    const typedId = await t.run(async (ctx) =>
+      ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP_A,
+        fromSystemId: WH_ROOT,
+        toSystemId: AMARR,
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'human',
+      })),
+    );
+    const result = await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP_A,
+      systemId: WH_ROOT,
+      codes: ['C247', 'C140'],
+    });
+    expect(result).toEqual({ inserted: 1 });
+    const typed = await t.run(async (ctx) => ctx.db.get(typedId));
+    expect(typed).toMatchObject({
+      _id: typedId,
+      staticCode: 'C247',
+      toSystemId: AMARR,
+    });
+    const rows = await liveStaticRows(t, WH_ROOT);
+    expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
+    expect(rows.filter((row) => row.staticCode === 'C247')).toHaveLength(1);
   });
 
   it('inserts nothing for an empty code list', async () => {
