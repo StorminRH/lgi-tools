@@ -1,7 +1,11 @@
 import { expect, test } from 'vitest';
-import { toPanelCharacter } from './panel-character';
+import { canSyncLocation } from '@/data/location-tracking/sync-eligibility';
+import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
+import { toAccountCharacter, toPanelCharacter } from './panel-character';
 
 const base = { characterId: 90001, name: 'Pilot Alpha', portraitUrl: 'https://img/1.jpg' };
+const SKILLS = 'esi-skills.read_skills.v1';
+const QUEUE = 'esi-skills.read_skillqueue.v1';
 
 test('projects client-safe fields, never the granted scope, and wires needsReconnect from the tracker', () => {
   const panel = toPanelCharacter(
@@ -27,4 +31,32 @@ test('projects client-safe fields, never the granted scope, and wires needsRecon
   });
   expect(seen?.hasRefreshToken).toBe(false);
   expect(seen?.missingScopes.length ?? 0).toBeGreaterThan(0);
+});
+
+test('toAccountCharacter splits skill-queue reconnect from location tracking reconnect', () => {
+  const gates = { skillQueue: canSyncSkillQueue, location: canSyncLocation };
+  const locationScopes = [
+    'esi-location.read_location.v1',
+    'esi-location.read_ship_type.v1',
+    'esi-location.read_online.v1',
+  ].join(',');
+
+  expect(
+    toAccountCharacter({ ...base, scope: `${SKILLS},${QUEUE}`, hasRefreshToken: true }, gates),
+  ).toEqual({
+    characterId: 90001,
+    name: 'Pilot Alpha',
+    portraitUrl: 'https://img/1.jpg',
+    needsReconnect: false,
+    needsLocationReconnect: true,
+  });
+  expect(
+    toAccountCharacter({ ...base, scope: locationScopes, hasRefreshToken: true }, gates),
+  ).toMatchObject({ needsReconnect: true, needsLocationReconnect: false });
+  expect(
+    toAccountCharacter(
+      { ...base, scope: `${SKILLS},${QUEUE},${locationScopes}`, hasRefreshToken: false },
+      gates,
+    ),
+  ).toMatchObject({ needsReconnect: true, needsLocationReconnect: true });
 });

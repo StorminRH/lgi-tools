@@ -100,6 +100,7 @@ const accountCharacterSchema = z.object({
   name: z.string(),
   portraitUrl: z.string(),
   needsReconnect: z.boolean(),
+  needsLocationReconnect: z.boolean(),
 });
 const accountCharactersResponseSchema = z.object({
   characters: z.array(accountCharacterSchema),
