@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Dialog, DialogClose } from '@/components/ui/dialog';
 import { sitesDetailMode } from '@/lib/preferences';
@@ -25,17 +25,30 @@ function findCardSummary(
 export function SiteCardLightbox({ site }: { site: SiteDetail }) {
   const [mode] = usePreference(sitesDetailMode);
   const nameId = useId();
-
   const anchorRef = useRef<HTMLSpanElement>(null);
+
+  return (
+    <span ref={anchorRef} className="contents">
+      {mode === 'lightbox' && (
+        <LightboxDialog site={site} nameId={nameId} anchorRef={anchorRef} />
+      )}
+    </span>
+  );
+}
+
+function LightboxDialog({
+  site,
+  nameId,
+  anchorRef,
+}: {
+  site: SiteDetail;
+  nameId: string;
+  anchorRef: RefObject<HTMLSpanElement | null>;
+}) {
   const summaryRef = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (mode !== 'lightbox') {
-      /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      setOpen(false);
-      return;
-    }
     const found = findCardSummary(anchorRef.current);
     if (!found) return;
     summaryRef.current = found.summary;
@@ -46,36 +59,32 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
     };
     found.summary.addEventListener('click', onClick);
     return () => found.summary.removeEventListener('click', onClick);
-  }, [mode]);
+  }, [anchorRef]);
 
   return (
-    <span ref={anchorRef} className="contents">
-      {mode === 'lightbox' && (
-        <Dialog
-          open={open}
-          onOpenChange={setOpen}
-          labelledBy={nameId}
-          finalFocus={summaryRef}
-          className="sites-lightbox-dialog"
-        >
-          <div className="sites-lightbox-panel">
-            <div className="sticky top-0 z-sticky flex justify-end bg-bg px-2 py-1.5">
-              <DialogClose
-                aria-label="Close"
-                className="text-ui leading-none text-muted hover:text-name px-1.5 py-0.5"
-              >
-                ×
-              </DialogClose>
-            </div>
-            <div className="sites-lightbox-zoom pb-3">
-              <div className="flex flex-col gap-2 px-[17px] pb-[13px] pt-[15px]">
-                <SiteCardHeader site={site} nameId={nameId} />
-              </div>
-              <SiteDetailsBody site={site} />
-            </div>
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      labelledBy={nameId}
+      finalFocus={summaryRef}
+      className="sites-lightbox-dialog"
+    >
+      <div className="sites-lightbox-panel">
+        <div className="sticky top-0 z-sticky flex justify-end bg-bg px-2 py-1.5">
+          <DialogClose
+            aria-label="Close"
+            className="text-ui leading-none text-muted hover:text-name px-1.5 py-0.5"
+          >
+            ×
+          </DialogClose>
+        </div>
+        <div className="sites-lightbox-zoom pb-3">
+          <div className="flex flex-col gap-2 px-[17px] pb-[13px] pt-[15px]">
+            <SiteCardHeader site={site} nameId={nameId} />
           </div>
-        </Dialog>
-      )}
-    </span>
+          <SiteDetailsBody site={site} />
+        </div>
+      </div>
+    </Dialog>
   );
 }

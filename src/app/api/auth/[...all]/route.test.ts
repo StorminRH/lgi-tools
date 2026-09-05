@@ -14,7 +14,6 @@ vi.mock('better-auth/next-js', () => ({
   }),
 }));
 
-vi.mock('@/composition/account-lifecycle/register-owner-reconciler', () => ({}));
 vi.mock('@/composition/auth', () => ({ auth: {} }));
 vi.mock('@/platform/auth/absorb-context', () => ({
   runWithAbsorbTracking: vi.fn(),

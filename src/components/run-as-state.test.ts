@@ -21,6 +21,7 @@ const alt: BuildCharacter = {
   name: 'Alt Pilot',
   portraitUrl: 'https://images.evetech.net/characters/90000002/portrait?size=128',
   needsReconnect: false,
+  needsLocationReconnect: false,
 };
 
 const brokenAlt: BuildCharacter = { ...alt, characterId: 90000003, needsReconnect: true };

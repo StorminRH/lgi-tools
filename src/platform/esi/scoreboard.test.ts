@@ -121,13 +121,13 @@ vi.mock('@upstash/redis', () => ({ Redis: h.FakeRedis }));
 
 import {
   __resetScoreboardForTests,
-  ESI_ERROR_CEILING,
   normalizeEsiPath,
   readEsiBudgetSnapshot,
   resolveScoreboard,
   type EsiReport,
   type EsiScoreboard,
 } from './scoreboard';
+import { ESI_ERROR_CEILING } from './scoreboard/types';
 
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 const BLOCK_KEY = 'lgi:esi:rl:block:/markets/{n}/orders';

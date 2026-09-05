@@ -21,10 +21,7 @@ import {
 } from '../characterLocationAccess';
 import { applySyncResults, JUMP_CONTINUITY_MS } from '../characterLocationApply';
 import { purgeForUser as purgeLocationForUser } from '../characterLocationPurge';
-import {
-  forViewer as locationForViewer,
-  heldState,
-} from '../characterLocationReads';
+import { heldState } from '../characterLocationReads';
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
@@ -170,7 +167,6 @@ describe('convex runtime exports', () => {
       accessLeases,
       applySyncResults,
       clearAccessLease,
-      locationForViewer,
       heldState,
       purgeLocationForUser,
       putAccessLease,

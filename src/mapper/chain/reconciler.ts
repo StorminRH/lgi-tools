@@ -3,7 +3,7 @@ import {
   type ChainPosition,
   type MapChainIntent,
 } from './intents';
-import { OPTIMISTIC_ID_PREFIX } from './optimistic-authoring';
+import { isOptimisticTempId } from './optimistic-authoring';
 import type { PlacementAssigner, PlacementCandidate } from './placement';
 
 export interface PlacedSystem {
@@ -218,7 +218,7 @@ function suppressConnectionIdSwaps(
   );
   const unmatchedDepartedByEndpoint = new Map<string, string[]>();
   for (const connectionId of departedIds) {
-    if (!connectionId.startsWith(OPTIMISTIC_ID_PREFIX)) continue;
+    if (!isOptimisticTempId(connectionId)) continue;
     const prior = previousConnections.get(connectionId);
     if (prior === undefined) continue;
     const key = endpointKey(prior.fromSystemId, prior.toSystemId);

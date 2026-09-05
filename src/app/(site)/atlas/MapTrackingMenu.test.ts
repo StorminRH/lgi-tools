@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MapTrackingMenu } from './MapTrackingMenu';
@@ -16,8 +16,22 @@ vi.mock('@/data/convex/client', () => ({
 }));
 
 vi.mock('@/mapper', () => ({
-  TrackingControls: ({ mapId }: { mapId: string }) =>
-    createElement('div', { 'data-tracking-map-id': mapId }),
+  TrackingControls: ({
+    mapId,
+    reconnectAction,
+  }: {
+    mapId: string;
+    reconnectAction?: ReactNode;
+  }) => createElement('div', { 'data-tracking-map-id': mapId }, reconnectAction),
+}));
+
+vi.mock('@/components/composition/account/LinkCharacterButton', () => ({
+  LinkCharacterButton: ({ callbackURL }: { callbackURL?: string }) =>
+    createElement(
+      'button',
+      { type: 'button', 'data-reconnect-callback': callbackURL },
+      'Reconnect',
+    ),
 }));
 
 describe('MapTrackingMenu', () => {
@@ -25,10 +39,11 @@ describe('MapTrackingMenu', () => {
     mocks.mapId = 'map-a';
   });
 
-  it('passes the query-string map id to the mapper settings surface and renders nothing without one', () => {
-    expect(renderToStaticMarkup(createElement(MapTrackingMenu))).toContain(
-      'data-tracking-map-id="map-a"',
-    );
+  it('passes the query-string map id and the existing reconnect affordance', () => {
+    const markup = renderToStaticMarkup(createElement(MapTrackingMenu));
+    expect(markup).toContain('data-tracking-map-id="map-a"');
+    expect(markup).toContain('data-reconnect-callback="/atlas?map=map-a"');
+    expect(markup).toContain('Reconnect');
 
     for (const mapId of [null, '']) {
       mocks.mapId = mapId;

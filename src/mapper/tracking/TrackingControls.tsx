@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import {
@@ -13,17 +14,24 @@ import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { AfkDialog } from './AfkGate';
 import { useMapPresenceAfk } from './presence-context';
+import { trackingToggleLabel } from './tracking-controls-view';
+
+const trackingRowClass = 'flex flex-wrap items-center gap-2 px-3 pb-2';
+const trackingPortraitClass =
+  'box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-transparent p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none data-[tracking-reconnect]:border-tone-orange data-[checked]:data-[tracking-reconnect]:border-tone-orange';
 
 interface TrackingCharacter {
   readonly characterId: number;
   readonly name: string;
   readonly portraitUrl: string;
+  readonly needsLocationReconnect: boolean;
 }
 
 interface TrackingControlsViewProps {
   readonly characters: readonly TrackingCharacter[];
   readonly trackedIds: ReadonlySet<number>;
   readonly onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
+  readonly reconnectAction: ReactNode;
 }
 
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
@@ -39,7 +47,13 @@ export function useSetMapTracking() {
   return useMutation(api.mapTrackingOptIn.setTracking);
 }
 
-export function TrackingControls({ mapId }: { readonly mapId: string }) {
+export function TrackingControls({
+  mapId,
+  reconnectAction,
+}: {
+  readonly mapId: string;
+  readonly reconnectAction: ReactNode;
+}) {
   const characters = useAccountCharacters();
   const access = useLiveValue(api.mapChainAccess.watchMapAccess, { mapId });
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
@@ -57,6 +71,7 @@ export function TrackingControls({ mapId }: { readonly mapId: string }) {
       onToggle={(characterId, tracked) =>
         setTracking({ mapId, characterId, tracked })
       }
+      reconnectAction={reconnectAction}
     />
   );
 }
@@ -65,7 +80,10 @@ function TrackingControlsView({
   characters,
   trackedIds,
   onToggle,
+  reconnectAction,
 }: TrackingControlsViewProps) {
+  const showReconnect = characters.some((character) => character.needsLocationReconnect);
+
   return (
     <div
       data-map-tracking
@@ -81,7 +99,7 @@ function TrackingControlsView({
           No linked characters
         </span>
       ) : (
-        <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
+        <div className={trackingRowClass}>
           {characters.map((character) => {
             const checked = trackedIds.has(character.characterId);
             return (
@@ -93,9 +111,16 @@ function TrackingControlsView({
                 }}
                 closeOnClick={false}
                 label={character.name}
-                aria-label={`${checked ? 'Stop tracking' : 'Track'} ${character.name}`}
+                aria-label={trackingToggleLabel({
+                  name: character.name,
+                  tracked: checked,
+                  needsLocationReconnect: character.needsLocationReconnect,
+                })}
                 data-tracking-character-id={character.characterId}
-                className="box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-transparent p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none"
+                data-tracking-reconnect={
+                  character.needsLocationReconnect ? 'true' : undefined
+                }
+                className={trackingPortraitClass}
               >
                 <CharacterPortrait
                   characterId={character.characterId}
@@ -109,6 +134,12 @@ function TrackingControlsView({
           })}
         </div>
       )}
+      {showReconnect ? (
+        <div className={trackingRowClass} data-tracking-reconnect-action>
+          <span className="font-data text-micro text-muted">Cannot sync location</span>
+          {reconnectAction}
+        </div>
+      ) : null}
     </div>
   );
 }

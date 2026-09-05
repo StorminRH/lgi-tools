@@ -529,7 +529,6 @@ const serverRootImportPatterns = [
       "@/features/feedback/create-linear-issue",
       "@/data/wh-statics/source",
       "@/data/eve-data/source",
-      "@/data/esi-refresh-jobs/pending-signal",
     ],
     message:
       "Client modules cannot import server roots. Move the read behind a server boundary or import a client-safe contract.",
