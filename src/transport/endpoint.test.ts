@@ -83,10 +83,15 @@ describe('endpoint contracts', () => {
 
   it('keeps transforming schemas out of JSON response codecs', () => {
     const lengthFromString = z.string().transform((value) => value.length);
-    expectTypeOf<z.input<typeof lengthFromString>>().not.toEqualTypeOf<
-      z.output<typeof lengthFromString>
-    >();
-    expectTypeOf(lengthFromString).not.toExtend<z.ZodType<number, number>>();
+    const echoed = jsonBody(responseSchema);
+
+    expectTypeOf(echoed).toExtend<JsonCodec<{ echoed: string }>>();
+    expectTypeOf(jsonBody<number>).parameter(0).toExtend<JsonCodec<number>['schema']>();
+    expectTypeOf(lengthFromString).not.toExtend<JsonCodec<number>['schema']>();
+    expectTypeOf<{
+      kind: 'json';
+      schema: typeof lengthFromString;
+    }>().not.toExtend<JsonCodec<number>>();
   });
 
   it('prevents GET contracts from declaring a request body', () => {
