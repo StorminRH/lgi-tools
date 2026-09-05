@@ -17,6 +17,11 @@ import {
   authorizedAdminMapsSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
+import {
+  purgeClaimedMapLifecycle,
+  purgeQueuedMapLifecycle,
+  tombstonedMapLifecycle,
+} from './lifecycle-contract';
 import { MAP_DELETE_GRACE_MS } from './queries';
 import { maps } from './schema';
 
@@ -113,12 +118,7 @@ export async function requestAuthorizedMapPurge(
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const updated = await database
     .update(maps)
-    .set({
-      purgeRequestedAt: now,
-      lifecycleStatus: 'purge_queued',
-      lifecycleEnteredAt: now,
-      updatedAt: now,
-    })
+    .set({ ...purgeQueuedMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),
@@ -166,12 +166,11 @@ export async function claimPurgeableMaps(
     .limit(limit);
   if (candidates.length === 0) return [];
 
+  const lifecycle = purgeClaimedMapLifecycle(now);
   const claimed = await database
     .update(maps)
     .set({
-      purgeClaimedAt: now,
-      lifecycleStatus: 'purge_claimed',
-      lifecycleEnteredAt: now,
+      ...lifecycle,
       updatedAt: now,
     })
     .where(
@@ -199,12 +198,7 @@ export async function tombstonePurgedMap(
 ): Promise<boolean> {
   const updated = await database
     .update(maps)
-    .set({
-      tombstonedAt: now,
-      lifecycleStatus: 'tombstoned',
-      lifecycleEnteredAt: now,
-      updatedAt: now,
-    })
+    .set({ ...tombstonedMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),

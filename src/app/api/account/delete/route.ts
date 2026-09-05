@@ -2,7 +2,6 @@ import type { NextRequest } from 'next/server';
 import { capabilityRoute } from '@/app/api/capability-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { accountDeleteEndpoint } from '@/platform/auth/api-contract';
-import '@/composition/account-lifecycle/register-owner-reconciler';
 import { nukeAccount } from '@/composition/account-lifecycle/account-purge';
 import { checkSession } from '@/composition/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';

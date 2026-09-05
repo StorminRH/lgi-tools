@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { searchAll, type SearchResult, type SearchSection } from '@/platform/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
-import { readRecents, pushRecent } from '@/features/search-recents/storage';
+import { pushRecent } from '@/features/search-recents/storage';
+import { useSearchRecents } from '@/features/search-recents/use-search-recents';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
@@ -28,16 +29,11 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   const [value, setValue] = useState('');
   const [debounced, setDebounced] = useState('');
   const [sections, setSections] = useState<SearchSection[]>([]);
-  const [recents, setRecents] = useState<SearchResult[]>([]);
+  const recents = useSearchRecents();
 
   useEffect(() => {
     setSiteSearchIndex(siteIndex);
   }, [siteIndex]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR; seed after mount
-    setRecents(readRecents());
-  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(value), DEBOUNCE_MS);
@@ -78,7 +74,6 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   function fireResult(result: SearchResult) {
     if (result.disabled) return;
     pushRecent(result);
-    setRecents(readRecents());
     setValue('');
     onActiveChange(false);
     inputRef.current?.blur();

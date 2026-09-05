@@ -79,12 +79,6 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
     lintPatterns: ['@/data/eve-data/source'],
     exemption: 'Shared with the SDE ingestion CLI graph.',
   },
-  {
-    path: 'src/data/esi-refresh-jobs/pending-signal.ts',
-    kind: 'file',
-    lintPatterns: ['@/data/esi-refresh-jobs/pending-signal'],
-    exemption: 'Shared with the CLI-driven refresh worker graph.',
-  },
 ];
 
 const EXPECTED_MARKERS = [

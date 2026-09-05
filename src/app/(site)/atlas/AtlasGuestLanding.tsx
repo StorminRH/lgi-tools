@@ -1,6 +1,3 @@
-'use client';
-
-import { useSearchParams } from 'next/navigation';
 import { EveSignInButton } from '@/components/composition/account/LoginButton';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Card } from '@/components/ui/card';
@@ -8,7 +5,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
-import { atlasSignInReturnHref } from '@/features/maps/map-navigation';
+import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
 
 const SETUP_STEPS = [
   {
@@ -27,9 +24,11 @@ const SETUP_STEPS = [
   },
 ] as const;
 
-export function AtlasGuestLanding() {
-  const returnHref = atlasSignInReturnHref(useSearchParams());
-
+export function AtlasGuestLanding({
+  returnHref,
+}: {
+  readonly returnHref: string;
+}) {
   return (
     <div data-atlas-guest-landing>
       <PageShell mode="workspace">
@@ -37,7 +36,7 @@ export function AtlasGuestLanding() {
           size="hero"
           crumb="atlas"
           title="Atlas"
-          subtitle="A shared live map of your wormhole chain."
+          subtitle={ATLAS_TAGLINE}
         />
         <div className="flex max-w-2xl flex-col gap-6 pb-16">
           <AccessGate

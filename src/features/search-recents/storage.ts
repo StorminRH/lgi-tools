@@ -4,6 +4,11 @@ import type { SearchResult } from '@/platform/search';
 
 const STORAGE_KEY = 'lgi:search:recents';
 const MAX_RECENTS = 10;
+const EMPTY_RECENTS: SearchResult[] = [];
+
+const listeners = new Set<() => void>();
+let cachedRaw: string | null | undefined;
+let cachedSnapshot: SearchResult[] = EMPTY_RECENTS;
 
 type StoredRecent = Pick<
   SearchResult,
@@ -48,8 +53,8 @@ function rendersIcon(r: StoredRecent): boolean {
   return r.kind !== BLUEPRINT_KIND || (r.typeId !== undefined && recentImage(r) !== undefined);
 }
 
-export function readRecents(): SearchResult[] {
-  return readStored()
+function readRecents(raw?: string | null): SearchResult[] {
+  return readStored(raw)
     .slice(0, MAX_RECENTS)
     .map((r) => {
       const icon = recentImage(r);
@@ -83,15 +88,42 @@ export function pushRecent(result: SearchResult): void {
     ...without,
   ].slice(0, MAX_RECENTS);
   store.setItem(STORAGE_KEY, JSON.stringify(next));
+  emitRecents();
 }
 
-function readStored(): StoredRecent[] {
-  const store = safeStorage();
-  if (!store) return [];
-  const raw = store.getItem(STORAGE_KEY);
-  if (!raw) return [];
+export function subscribeRecents(onStoreChange: () => void): () => void {
+  listeners.add(onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+  };
+}
+
+export function getRecentsSnapshot(): SearchResult[] {
+  const raw = safeStorage()?.getItem(STORAGE_KEY) ?? null;
+  if (raw === cachedRaw) {
+    return cachedSnapshot;
+  }
+  cachedRaw = raw;
+  const next = readRecents(raw);
+  cachedSnapshot = next.length === 0 ? EMPTY_RECENTS : next;
+  return cachedSnapshot;
+}
+
+export function getRecentsServerSnapshot(): SearchResult[] {
+  return EMPTY_RECENTS;
+}
+
+function emitRecents(): void {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function readStored(raw?: string | null): StoredRecent[] {
+  const value = raw !== undefined ? raw : safeStorage()?.getItem(STORAGE_KEY);
+  if (!value) return [];
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(value);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(isStoredRecent).filter(rendersIcon);
   } catch {

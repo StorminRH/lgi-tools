@@ -65,7 +65,11 @@ export type OptimisticConnectionRow = ConnectionHallway & {
   readonly _creationTime: number;
 };
 
-export const OPTIMISTIC_ID_PREFIX = 'optimistic:';
+const OPTIMISTIC_ID_PREFIX = 'optimistic:';
+
+export function isOptimisticTempId(id: string): boolean {
+  return id.startsWith(OPTIMISTIC_ID_PREFIX);
+}
 
 export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string {
   return `${OPTIMISTIC_ID_PREFIX}${table}:${crypto.randomUUID()}`;

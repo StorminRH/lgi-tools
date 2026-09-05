@@ -131,12 +131,14 @@ describe('AtlasBound', () => {
 
   it('lands guests on the sign-in page, admits signed-in members, fails closed on auth errors, and rethrows framework signals', async () => {
     mocks.checkSession.mockResolvedValue({ ok: false, failure: { code: 'unauthenticated' } });
-    const signedOut = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
+    const signedOut = renderToStaticMarkup(
+      await AtlasBound({ mapSelected: false, returnHref: '/atlas' }),
+    );
     expect(signedOut).toContain('data-atlas-guest-landing');
     expect(signedOut).not.toContain('data-map-catalogue');
     expect(signedOut).not.toContain('data-map-canvas-frame');
     expect(signedOut).not.toContain('data-map-development-wall');
-    const signedOutMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    const signedOutMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(signedOutMap).toContain('data-atlas-guest-landing');
     expect(signedOutMap).not.toContain('data-map-catalogue');
     expect(signedOutMap).not.toContain('data-map-canvas-frame');
@@ -148,7 +150,7 @@ describe('AtlasBound', () => {
     );
 
     mocks.checkSession.mockResolvedValue({ ok: true, session });
-    const landing = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
+    const landing = renderToStaticMarkup(await AtlasBound({ mapSelected: false, returnHref: '/atlas' }));
     expect(landing).toContain('data-map-catalogue');
     expect(landing).toContain('data-site-catalogue');
     expect(landing).toContain('data-map-site-index="1"');
@@ -159,7 +161,7 @@ describe('AtlasBound', () => {
     expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
     expect(mocks.listMapChromeData).toHaveBeenCalledOnce();
 
-    const canvas = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    const canvas = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(canvas).toContain('data-map-canvas-frame');
     expect(canvas).toContain('data-map-account-session="true"');
     expect(canvas).not.toContain('data-map-catalogue=""');
@@ -168,19 +170,19 @@ describe('AtlasBound', () => {
       ok: true,
       session: { ...session, characterId: null },
     });
-    const noCharacter = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    const noCharacter = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(noCharacter).toContain('data-map-canvas-frame');
     expect(noCharacter).toContain('data-map-account-session="false"');
 
     const err = new Error('session store unavailable');
     mocks.checkSession.mockRejectedValue(err);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const failed = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
+    const failed = renderToStaticMarkup(await AtlasBound({ mapSelected: false, returnHref: '/atlas' }));
     expect(failed).toContain('data-map-catalogue');
     expect(failed).toContain('data-provider-listing-available="false"');
     expect(failed).not.toContain('data-atlas-guest-landing');
     expect(failed).not.toContain('data-map-development-wall');
-    const failedMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    const failedMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(failedMap).toContain('data-map-catalogue');
     expect(failedMap).not.toContain('data-map-canvas-frame');
     expect(mocks.rethrow).toHaveBeenCalledWith(err);
@@ -195,7 +197,7 @@ describe('AtlasBound', () => {
       throw rethrowErr;
     });
     consoleError.mockClear();
-    await expect(AtlasBound({ mapSelected: false })).rejects.toBe(signal);
+    await expect(AtlasBound({ mapSelected: false, returnHref: '/atlas' })).rejects.toBe(signal);
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -205,7 +207,7 @@ describe('AtlasBound', () => {
     mocks.getScannerSiteIndex.mockRejectedValue(pricedErr);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const degraded = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    const degraded = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
 
     expect(degraded).toContain('data-map-canvas-frame');
     expect(degraded).toContain('data-map-site-index="1"');
@@ -219,7 +221,7 @@ describe('AtlasBound', () => {
     mocks.getSiteSearchIndex.mockRejectedValue(new Error('catalogue down'));
     consoleError.mockClear();
     mocks.rethrow.mockClear();
-    const empty = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    const empty = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(empty).toContain('data-map-canvas-frame');
     expect(empty).toContain('data-map-site-index="0"');
   });
@@ -230,7 +232,7 @@ describe('AtlasBound', () => {
     mocks.listMapChromeData.mockRejectedValue(listingError);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const degraded = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
+    const degraded = renderToStaticMarkup(await AtlasBound({ mapSelected: false, returnHref: '/atlas' }));
 
     expect(degraded).toContain('data-map-catalogue');
     expect(degraded).toContain('data-provider-map-count="0"');

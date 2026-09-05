@@ -4,7 +4,6 @@ import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
 import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 export {
-  ESI_ERROR_CEILING,
   BODY_CACHE_MAX_BYTES,
   type CachedEtagMeta,
   type EsiBudgetSnapshot,

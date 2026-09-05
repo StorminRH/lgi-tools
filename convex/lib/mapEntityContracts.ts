@@ -1,4 +1,4 @@
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 import {
   CONNECTION_PROVENANCES,
   CONNECTION_MASS_STATES,
@@ -60,7 +60,9 @@ const MAP_ROLE_LITERALS = {
   admin: v.literal('admin'),
 } as const satisfies Record<MapRole, unknown>;
 
-const legacyMapOwnerRoleValidator = v.literal('owner');
+export const legacyMapOwnerRoleValidator = v.literal('owner');
+
+export type StoredMapRole = MapRole | Infer<typeof legacyMapOwnerRoleValidator>;
 
 export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
 
