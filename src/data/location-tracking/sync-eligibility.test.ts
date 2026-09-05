@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { canSyncLocation, LOCATION_SYNC_SCOPES } from './__tests__/sync-eligibility';
+import { canSyncLocation, LOCATION_SYNC_SCOPES } from './sync-eligibility';
 
 test('canSyncLocation accepts covered tokens and rejects missing scopes or dead tokens', () => {
   expect([...LOCATION_SYNC_SCOPES]).toEqual([

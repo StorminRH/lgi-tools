@@ -26,12 +26,14 @@ const mocks = vi.hoisted(() => ({
       name: 'Alice Own',
       portraitUrl: '/alice.png',
       needsReconnect: false,
+      needsLocationReconnect: false,
     },
     {
       characterId: 202,
       name: 'Bob Own',
       portraitUrl: '/bob.png',
-      needsReconnect: false,
+      needsReconnect: true,
+      needsLocationReconnect: false,
     },
   ],
 }));
@@ -80,13 +82,19 @@ vi.mock('@/components/ui/menu', () => ({
     children?: ReactNode;
     onCheckedChange: (checked: boolean) => void;
     'aria-label': string;
+    'data-tracking-reconnect'?: string;
   }) =>
-    createElement('button', {
-      type: 'button',
-      'data-tracking-portrait': props['aria-label'],
-      'aria-checked': props.checked,
-      onClick: () => props.onCheckedChange(!props.checked),
-    }, props.children),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        'data-tracking-portrait': props['aria-label'],
+        'data-tracking-reconnect': props['data-tracking-reconnect'],
+        'aria-checked': props.checked,
+        onClick: () => props.onCheckedChange(!props.checked),
+      },
+      props.children,
+    ),
   menuSection: 'menu-section',
   menuSectionLabel: 'menu-section-label',
 }));
@@ -95,6 +103,11 @@ describe('TrackingControls', () => {
   beforeEach(() => {
     mocks.heartbeat.mockClear();
     mocks.mutate.mockClear();
+    mocks.characters[0]!.needsReconnect = false;
+    mocks.characters[0]!.needsLocationReconnect = false;
+    mocks.characters[1]!.needsReconnect = true;
+    mocks.characters[1]!.needsLocationReconnect = false;
+    mocks.queryResult.ownTrackedCharacterIds = [101];
   });
 
   it('renders owned portraits as tracking toggles and keeps the heartbeat mounted independently', async () => {
@@ -114,6 +127,8 @@ describe('TrackingControls', () => {
     expect(markup).toContain('data-tracking-portrait="Track Bob Own"');
     expect(markup).toContain('aria-checked="true"');
     expect(markup).toContain('aria-checked="false"');
+    expect(markup).not.toContain('Cannot sync location');
+    expect(markup).not.toContain('data-tracking-reconnect-action');
 
     const view = element as ReactElement<{
       onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
@@ -127,6 +142,23 @@ describe('TrackingControls', () => {
 
     TrackingHeartbeat({ mapId: 'map-a' });
     expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
+  });
+
+  it('surfaces location reconnect on the control even when skill-queue health is fine', () => {
+    mocks.characters[0]!.needsReconnect = false;
+    mocks.characters[0]!.needsLocationReconnect = true;
+    const reconnectAction = createElement('button', { type: 'button' }, 'Reconnect');
+    const element = TrackingControls({ mapId: 'map-a', reconnectAction });
+    expect(isValidElement(element)).toBe(true);
+    if (!isValidElement(element)) throw new Error('tracking controls did not render');
+
+    const markup = renderToStaticMarkup(element);
+    expect(markup).toContain('data-tracking-portrait="Alice Own cannot sync location"');
+    expect(markup).toContain('data-tracking-reconnect="true"');
+    expect(markup).toContain('Cannot sync location');
+    expect(markup).toContain('data-tracking-reconnect-action');
+    expect(markup).toContain('Reconnect');
+    expect(markup).toContain('data-tracking-portrait="Track Bob Own"');
   });
 
   it('empties the heartbeat character set while the AFK gate is paused', () => {
