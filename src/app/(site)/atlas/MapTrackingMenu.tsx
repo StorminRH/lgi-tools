@@ -17,7 +17,7 @@ export function MapTrackingMenu() {
         <LinkCharacterButton
           label="Reconnect"
           emphasis="reconnect"
-          callbackURL={atlasSignInReturnHref(searchParams)}
+          callbackURL={atlasSignInReturnHref(mapId)}
         />
       }
     />
