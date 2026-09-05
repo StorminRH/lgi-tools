@@ -94,9 +94,9 @@ export const NON_NEON_HOMES = [
   {
     home: 'convex:mapJumpBookkeeping',
     coveredBy:
-      'full map teardown via POST /project-map-access drains bounded convex/mapJumpBookkeeping.purgeForMap batches; account/character purge (POST /purge-location-tracking → characterLocationPurge.purgeForUser) drains the purged characterIds by_character; tracking revocation intentionally retains the stamps so untrack/retrack cannot double-count a jump',
-    explicitTeardown: 'convex/mapJumpBookkeeping.ts — session 4.0.4.2.2 OW1',
+      'full map teardown via POST /project-map-access drains bounded convex/mapJumpBookkeeping.purgeForMap batches; account/character purge (POST /purge-location-tracking → characterLocationPurge.purgeForUser) drains the purged characterIds by_character; untrack (setTracking tracked=false) and tracking teardown (mapTrackingTeardown) delete the map+character stamp via by_map_character so a later retrack can process a new transition',
+    explicitTeardown: 'convex/mapJumpBookkeeping.ts — deleteForMapCharacter on untrack/teardown; purgeForMap on map drain',
     reason:
-      'the table is (mapId, characterId)-keyed exactly-once state rather than account-owned payload: no userId column, and it survives tracking revocation by design so a retrack cannot double-count the odometer. Character identity leaves with the account/character purge drain; the map teardown door deletes the rest with the collaborative map whose jump history it protects.',
+      'the table is (mapId, characterId)-keyed exactly-once state rather than account-owned payload: no userId column. Untrack and tracking teardown drop that stamp so a stale lastProcessedTransitionAt cannot suppress the next jump after retrack. Character identity still leaves with the account/character purge drain; the map teardown door still deletes leftovers with the collaborative map.',
   },
 ] as const;

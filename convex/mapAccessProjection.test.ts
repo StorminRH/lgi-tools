@@ -275,6 +275,21 @@ describe('purgeUserClaims', () => {
       await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: 90_000_001 });
       await ctx.db.insert('mapTracking', { mapId: MAP_B, userId: EDITOR, characterId: 90_000_002 });
       await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 90_000_003 });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: MAP_A,
+        characterId: 90_000_001,
+        lastProcessedTransitionAt: 1,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: MAP_B,
+        characterId: 90_000_002,
+        lastProcessedTransitionAt: 2,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: MAP_A,
+        characterId: 90_000_003,
+        lastProcessedTransitionAt: 3,
+      });
     });
 
     const result = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
@@ -284,6 +299,8 @@ describe('purgeUserClaims', () => {
 
     const remaining = await t.run((ctx) => ctx.db.query('mapTracking').collect());
     expect(remaining.map((row) => row.userId)).toEqual([OWNER]);
+    const stamps = await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect());
+    expect(stamps.map((row) => row.characterId)).toEqual([90_000_003]);
   });
 });
 

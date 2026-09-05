@@ -2,7 +2,7 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { tombstoneDeletedAt } from '@/data/maps/chain-contract';
-import { internal } from './_generated/api';
+import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
 
@@ -485,38 +485,68 @@ describe('automatic jump authoring', () => {
     expect(state.stamps).toHaveLength(2);
   });
 
-  it('keeps the processed stamp across untrack/retrack and rejects viewer authority', async () => {
+  it('clears the processed stamp on untrack so a later retrack can author a new transition', async () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);
     await grant(t, VIEWER, ['viewer']);
+    await grant(t, TRACKER, ['viewer']);
     await seedTrackedTransition(t);
     const args = authorArgs({
       decision: { kind: 'insert', candidateIds: [], survivors: [] },
     });
     await t.mutation(jump.resolveJumpAuthoring, args);
-
-    await t.run(async (ctx) => {
-      const tracking = await ctx.db
-        .query('mapTracking')
-        .withIndex('by_map_user', (q) => q.eq('mapId', MAP).eq('userId', TRACKER))
-        .unique();
-      if (tracking !== null) await ctx.db.delete(tracking._id);
-      await ctx.db.insert('mapTracking', {
+    expect((await mapState(t)).stamps).toEqual([
+      expect.objectContaining({
         mapId: MAP,
-        userId: TRACKER,
         characterId: CHARACTER,
+        lastProcessedTransitionAt: OBSERVED_AT,
+      }),
+    ]);
+
+    await t.withIdentity({ subject: TRACKER }).mutation(api.mapTrackingOptIn.setTracking, {
+      mapId: MAP,
+      characterId: CHARACTER,
+      tracked: false,
+    });
+    expect((await mapState(t)).stamps).toEqual([]);
+
+    await t.withIdentity({ subject: TRACKER }).mutation(api.mapTrackingOptIn.setTracking, {
+      mapId: MAP,
+      characterId: CHARACTER,
+      tracked: true,
+    });
+    const nextObservedAt = OBSERVED_AT + 1;
+    await t.run(async (ctx) => {
+      const location = await ctx.db
+        .query('characterLocation')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+        )
+        .unique();
+      expect(location).not.toBeNull();
+      if (location === null) return;
+      await ctx.db.patch(location._id, {
+        transitionObservedAt: nextObservedAt,
+        observedAt: nextObservedAt,
       });
     });
     expect(
-      await t.mutation(jump.resolveJumpAuthoring, args),
-    ).toEqual({ status: 'converged', reason: 'processed' });
-    expect((await mapState(t)).connections[0]?.observedMassKg).toBe(10_000_000);
+      await t.mutation(
+        jump.resolveJumpAuthoring,
+        authorArgs({
+          transitionObservedAt: nextObservedAt,
+          observationKey: 'retrack-key',
+          decision: { kind: 'insert', candidateIds: [], survivors: [] },
+        }),
+      ),
+    ).toMatchObject({ status: 'converged' });
+    expect((await mapState(t)).connections[0]?.observedMassKg).toBe(20_000_000);
 
     await expect(
       t.mutation(jump.resolveJumpAuthoring, {
         ...args,
         userId: VIEWER,
-        transitionObservedAt: OBSERVED_AT + 1,
+        transitionObservedAt: nextObservedAt + 1,
       }),
     ).rejects.toThrow('FORBIDDEN');
   });
