@@ -1,5 +1,3 @@
-"""Development accumulation, promotion, and archive transitions."""
-
 from __future__ import annotations
 
 import unittest

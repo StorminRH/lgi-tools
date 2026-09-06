@@ -1,5 +1,3 @@
-"""As-built records for sessions delivered together by a promotion."""
-
 from pathlib import Path
 import re
 import unittest

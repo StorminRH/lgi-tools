@@ -1,5 +1,3 @@
-"""Committed-tree fixtures for archive delivery readiness."""
-
 from __future__ import annotations
 
 from pathlib import Path
