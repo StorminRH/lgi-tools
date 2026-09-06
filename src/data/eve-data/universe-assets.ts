@@ -53,8 +53,6 @@ export type AdjacencyEntry = [
   neighbours: number[],
 ];
 
-export type { WormholeSizeClass };
-
 export interface FarSideWormholeCodexEntry {
   code: typeof FAR_SIDE_WORMHOLE_CODE;
   typeId: number;

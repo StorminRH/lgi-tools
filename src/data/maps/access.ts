@@ -1,13 +1,11 @@
 import {
   canonicalizeMapRoles,
-  MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
   rolesAllow,
+  type MapAccessOwnerType,
+  type MapRole,
   type MapRoleCapabilities,
 } from './access-contract';
-import type { MapAccessOwnerType, MapRole } from './schema';
-
-export { MAP_ROLE_CAPABILITIES, MAP_ROLE_PRECEDENCE };
 
 export interface MapPrincipals {
   readonly characterIds: readonly number[];

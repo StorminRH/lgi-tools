@@ -11,10 +11,6 @@ export const telemetryRequestSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
-/**
- * Success is 204 No Content (fire-and-forget; the beacon ignores it); errors
- * use declared RFC 9457 problem bodies.
- */
 export const telemetryEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/telemetry',

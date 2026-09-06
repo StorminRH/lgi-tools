@@ -31,7 +31,7 @@ import {
   getPriceSourceSplit,
   getTopCostlyEndpoints,
   getWriteBehindOutcomes,
-} from './cost-queries';
+} from './queries';
 
 const RANGE = {
   from: new Date('2026-07-01T00:00:00Z'),
