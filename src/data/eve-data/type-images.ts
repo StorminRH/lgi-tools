@@ -14,10 +14,6 @@ export function blueprintImage(blueprintTypeId: number): EveImageDescriptor {
   return { typeId: blueprintTypeId, variant: 'bp' };
 }
 
-export function heroImage(blueprintTypeId: number): EveImageDescriptor {
-  return blueprintImage(blueprintTypeId);
-}
-
 export function nodeImage(
   producingBlueprintTypeId: number | undefined,
   typeId: number,

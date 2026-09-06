@@ -13,17 +13,8 @@ import { user } from '@/db/auth-schema';
 import {
   MAP_ACCESS_OWNER_TYPES,
   MAP_ROLES,
-  type MapAccessOwnerType,
-  type MapRole,
 } from './access-contract';
 import { MAP_LIFECYCLE_STATUSES } from './lifecycle-contract';
-
-export {
-  MAP_ACCESS_OWNER_TYPES,
-  MAP_ROLES,
-  type MapAccessOwnerType,
-  type MapRole,
-};
 
 export const mapRoleEnum = pgEnum('map_role', MAP_ROLES);
 

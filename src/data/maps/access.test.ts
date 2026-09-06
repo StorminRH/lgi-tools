@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { roleAllows, rolesAllow } from './access-contract';
 import {
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
+  roleAllows,
+  rolesAllow,
+  type MapRole,
+} from './access-contract';
+import {
   resolveMapRole,
   resolveMatchedMapRoles,
   type MapGrant,
 } from './access';
-import type { MapRole } from './schema';
 
 const EMPTY_PRINCIPALS = { characterIds: [], corporationIds: [] } as const;
 

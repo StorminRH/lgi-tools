@@ -21,20 +21,17 @@ import {
   type MapGrant,
   type MapPrincipals,
 } from './access';
-import type { MapRole } from './access-contract';
-import { activeMapLifecycle } from './lifecycle-contract';
+import type { MapAccessOwnerType, MapRole } from './access-contract';
+import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
   maps,
-  type MapAccessOwnerType,
 } from './schema';
 import {
   authorizedAdminMapsSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
-
-export const MAP_DELETE_GRACE_MS = 30 * 24 * 60 * 60 * 1_000;
 
 export interface CreateMapGrant {
   readonly ownerType: MapAccessOwnerType;

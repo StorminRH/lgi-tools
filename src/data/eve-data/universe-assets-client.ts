@@ -106,35 +106,25 @@ async function fetchWormholeCodex(
   };
 }
 
-async function loadUniverseAssetsFresh(): Promise<UniverseAssets> {
+async function loadVersionedAsset<T>(
+  load: (version: string) => Promise<T | null>,
+  staleMessage: string,
+): Promise<T> {
   let version = await loadManifestVersion();
-  let assets = await fetchUniverseAssets(version);
-  if (assets !== null) return assets;
-
+  let value = await load(version);
+  if (value !== null) return value;
   version = await loadManifestVersion();
-  assets = await fetchUniverseAssets(version);
-  if (assets === null) {
-    throw new Error('universe assets remained stale after one manifest refresh');
-  }
-  return assets;
-}
-
-async function loadWormholeCodexFresh(): Promise<WormholeCodex> {
-  let version = await loadManifestVersion();
-  let codex = await fetchWormholeCodex(version);
-  if (codex !== null) return codex;
-
-  version = await loadManifestVersion();
-  codex = await fetchWormholeCodex(version);
-  if (codex === null) {
-    throw new Error('wormhole codex remained stale after one manifest refresh');
-  }
-  return codex;
+  value = await load(version);
+  if (value === null) throw new Error(staleMessage);
+  return value;
 }
 
 export function loadUniverseAssets(): Promise<UniverseAssets> {
   if (universeAssetsPromise === null) {
-    universeAssetsPromise = loadUniverseAssetsFresh().catch((error: unknown) => {
+    universeAssetsPromise = loadVersionedAsset(
+      fetchUniverseAssets,
+      'universe assets remained stale after one manifest refresh',
+    ).catch((error: unknown) => {
       universeAssetsPromise = null;
       throw error;
     });
@@ -144,7 +134,10 @@ export function loadUniverseAssets(): Promise<UniverseAssets> {
 
 export function loadWormholeCodex(): Promise<WormholeCodex> {
   if (wormholeCodexPromise === null) {
-    wormholeCodexPromise = loadWormholeCodexFresh().catch((error: unknown) => {
+    wormholeCodexPromise = loadVersionedAsset(
+      fetchWormholeCodex,
+      'wormhole codex remained stale after one manifest refresh',
+    ).catch((error: unknown) => {
       wormholeCodexPromise = null;
       throw error;
     });

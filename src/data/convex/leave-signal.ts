@@ -2,10 +2,6 @@ import { apiFetch } from '@/transport/api-client';
 import { leaveSyncEndpoint } from './api-contract';
 import type { SyncDataset } from '@/lib/sync-engine';
 
-export function shouldSendLeave(event: { readonly persisted: boolean }): boolean {
-  return !event.persisted;
-}
-
 export function postLeaveBeacon(input: {
   readonly dataset: SyncDataset;
   readonly tabId: string;

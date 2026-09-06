@@ -17,7 +17,7 @@ import {
   getEsiSuccessRate,
   getMutationSuccessRate,
   getReadSuccessRate,
-} from './sli-queries';
+} from './queries';
 
 const RANGE = {
   from: new Date('2020-01-01T00:00:00Z'),

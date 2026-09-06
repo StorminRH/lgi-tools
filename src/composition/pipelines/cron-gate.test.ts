@@ -16,6 +16,9 @@ vi.mock('@/db/advisory-lock', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
+vi.mock('@/data/telemetry/log', () => ({
+  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+}));
 vi.mock('next/server', () => ({
   connection: (...args: unknown[]) => connectionMock(...args),
   after: (fn: () => unknown) => fn(),
