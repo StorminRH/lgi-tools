@@ -63,7 +63,7 @@ vi.mock('./owned-blueprints-sync', () => ({
 }));
 vi.mock('./skills-sync', () => ({ runSkillsRefreshJob: mocks.runSkills }));
 
-vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: mocks.logUsageEvent }));
+vi.mock('@/data/telemetry/log', () => ({ logUsageEvent: mocks.logUsageEvent }));
 vi.mock('next/server', () => ({
   connection: async () => {},
   after: (fn: () => unknown) => fn(),
