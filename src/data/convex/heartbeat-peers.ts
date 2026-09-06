@@ -62,7 +62,6 @@ export function createHeartbeatPeers(local: { tabId: string; characterIdsHint: n
       return {
         isLeader: leader.tabId === local.tabId,
         characterIdsHint: [...hints].sort((a, b) => a - b),
-        hasPeers: peers.size > 0,
       };
     },
   };

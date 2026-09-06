@@ -83,6 +83,8 @@ is best effort: joins, timer throttling, or unavailable messaging can produce
 extra beats. The server still owns authorization, tracked characters, dispatch,
 leave fencing, and the hidden-presence limit. AFK pause removes a participant;
 bfcache suspension closes its channel without retiring server presence.
+Every non-bfcache close still attempts the server-fenced leave. Local peer
+knowledge cannot determine whether other tabs are also closing or have crashed.
 
 ## Secrets, env, and deploy
 

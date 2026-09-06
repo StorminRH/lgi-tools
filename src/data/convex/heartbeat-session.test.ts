@@ -162,20 +162,46 @@ describe('heartbeat participants', () => {
     expect(tab.beats.map((beat) => beat.visible)).toEqual([false, false, false]);
   });
 
-  it('hands off immediately on graceful close without retiring a surviving peer', () => {
+  it('sends the server-fenced leave and hands off immediately on graceful close', () => {
     const bus = new TestBus();
     const first = participant(bus, 'a', { hints: [100] });
     const second = participant(bus, 'b', { hints: [200] });
     bus.flush();
     first.session.onPageHide({ persisted: false });
     bus.flush();
-    expect(first.leaves).toEqual([]);
+    expect(first.leaves).toEqual(['a-1']);
     expect(second.intervals()).toMatchObject([{ characterIdsHint: [200] }]);
     advance(bus);
     first.visibility(true);
     first.session.onPageShow({ persisted: true });
     expect(first.beats).toHaveLength(1);
     expect(second.intervals()).toHaveLength(2);
+  });
+
+  it('sends leaves when all tabs close before peer messages can be delivered', () => {
+    const bus = new TestBus();
+    const first = participant(bus, 'a');
+    const second = participant(bus, 'b');
+    bus.flush();
+    first.session.onPageHide({ persisted: false });
+    second.session.onPageHide({ persisted: false });
+    expect(first.leaves).toEqual(['a-1']);
+    expect(second.leaves).toEqual(['b-1']);
+    bus.flush();
+    advance(bus);
+    expect(first.beats).toHaveLength(1);
+    expect(second.beats).toHaveLength(1);
+  });
+
+  it('sends the final leave even while a crashed peer remains cached', () => {
+    const bus = new TestBus();
+    const crashed = participant(bus, 'a');
+    const survivor = participant(bus, 'b');
+    bus.flush();
+    crashed.session.stop();
+    bus.queue = [];
+    survivor.session.onPageHide({ persisted: false });
+    expect(survivor.leaves).toEqual(['b-1']);
   });
 
   it('expires a crashed leader and its hints using local receipt time', () => {

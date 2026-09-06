@@ -116,7 +116,7 @@ export default {
 
     await lifecycle(visiblePeer, 'pagehide', false);
     await new Promise((resolve) => setTimeout(resolve, 250));
-    check('departing owner preserves peers without a leave request', leaves.length === 0);
+    check('departing owner sends the existing server-fenced leave request', leaves.length === 1);
     const survivors = pages.filter((tab) => tab !== visiblePeer);
     await visiblePeer.close();
     const beforeHidden = intervals(survivors).length;

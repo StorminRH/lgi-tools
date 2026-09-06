@@ -83,10 +83,9 @@ function joinHeartbeatSession(host: SessionHost, input: SessionInput) {
       if (!active) return;
       active = false;
       loop.stop();
-      const hasPeers = peers.select(host.isVisible(), host.now()).hasPeers;
       advertise('leave');
       disconnect();
-      if (sendLeave && !hasPeers) host.leave(tabId);
+      if (sendLeave) host.leave(tabId);
     },
   };
 }
