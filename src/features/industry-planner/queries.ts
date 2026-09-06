@@ -24,7 +24,7 @@ import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
-import { collectRawTypeIds } from './build-batch';
+import { collectBlueprintTypeIds, collectRawTypeIds } from './build-batch';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -43,14 +43,6 @@ function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
   for (const node of nodes) {
     acc.push(node.typeId);
     if (node.inputs.length > 0) collectTreeTypeIds(node.inputs, acc);
-  }
-  return acc;
-}
-
-function collectBlueprintIds(nodes: TreeNode[], acc: Set<number> = new Set()): Set<number> {
-  for (const node of nodes) {
-    if (node.producedBy) acc.add(node.producedBy.blueprintTypeId);
-    if (node.inputs.length > 0) collectBlueprintIds(node.inputs, acc);
   }
   return acc;
 }
@@ -126,12 +118,12 @@ export async function getBlueprintStructure(
     const rawTypeIds = collectRawTypeIds(tree);
 
     const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
-    const blueprintIds = collectBlueprintIds(tree);
+    const blueprintIds = collectBlueprintTypeIds(tree, blueprintId);
     const [labels, activityByBlueprint, activityTimeMap, nodeTimeSkills] = await Promise.all([
       getTypeLabels(labelIds),
-      getActivityByBlueprint([...blueprintIds]),
-      getBlueprintActivityTimes([blueprintId, ...blueprintIds]),
-      nodeTimeSkillsFor([blueprintId, ...blueprintIds]),
+      getActivityByBlueprint(blueprintIds),
+      getBlueprintActivityTimes(blueprintIds),
+      nodeTimeSkillsFor(blueprintIds),
     ]);
     const topJobSeconds = activityTimeMap.get(blueprintId) ?? null;
     const nodeJobSeconds: Record<number, number> = {};

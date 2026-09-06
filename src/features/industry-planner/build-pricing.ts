@@ -15,11 +15,12 @@ import {
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 import {
   computeBatchMaterials,
-  computeBatchMaterialsWithMe,
   computeMarginalMaterials,
+  type BatchLedger,
+  type MeOptions,
 } from './build-batch';
 import type { ConfidenceInput } from './industry-styles';
-import { REACTION_ACTIVITY } from './structure-bonus';
+import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import type {
   BlueprintPricing,
   BlueprintStructure,
@@ -113,10 +114,9 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
   return map;
 }
 
-export const MANUFACTURING_ACTIVITY_ID = 1;
-
 export interface AssembleOptions {
   runs?: number;
+  ledger?: BatchLedger;
   fee?: {
     adjustedPriceOf: AdjustedPriceOf;
     systemCostIndex: number | null;
@@ -145,7 +145,7 @@ function computeNet(
   let enteredTaxPct: number | null;
   let rates: FeeRates;
   let structureCostBonusPct: number;
-  if (structure.activityId === MANUFACTURING_ACTIVITY_ID) {
+  if (structure.activityId === MANUFACTURING_ACTIVITY) {
     systemCostIndex = fee.systemCostIndex;
     enteredTaxPct = fee.facilityTaxPct ?? null;
     rates = { ...DEFAULT_FEE_RATES, facilityTax: effectiveFacilityTaxRate(enteredTaxPct) };
@@ -199,17 +199,14 @@ function resolveCostBills(
   buildCost: BuildCost;
   bases: { batched: number; marginal: number };
 } {
-  const meOpts =
-    opts.meOf || opts.structureMeFactorOf
-      ? {
-          meOf: opts.meOf ?? (() => undefined),
-          topBlueprintTypeId: structure.blueprintTypeId,
-          structureMeFactorOf: opts.structureMeFactorOf,
-        }
-      : undefined;
-  const batchedMaterials = meOpts
-    ? computeBatchMaterialsWithMe(structure.tree, runs, meOpts)
-    : computeBatchMaterials(structure.tree, runs);
+  const meOpts: MeOptions = {
+    meOf: opts.meOf ?? (() => undefined),
+    topBlueprintTypeId: structure.blueprintTypeId,
+    structureMeFactorOf: opts.structureMeFactorOf,
+  };
+  const batchedMaterials = opts.ledger
+    ? [...opts.ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }))
+    : computeBatchMaterials(structure.tree, runs, meOpts);
   const rowsCost = computeBuildCost(batchedMaterials, buyOf);
   const marginalCost = computeBuildCost(
     computeMarginalMaterials(structure.tree, runs, meOpts),

@@ -42,7 +42,7 @@ function getLimiter(
       retries: RATE_LIMIT_REDIS_RETRIES,
     }),
     limiter: Ratelimit.slidingWindow(options.perMinute, "60 s"),
-    analytics: true,
+    analytics: false,
     prefix: `lgi:ratelimit:${options.name}`,
   });
   limiters.set(cacheKey, limiter);

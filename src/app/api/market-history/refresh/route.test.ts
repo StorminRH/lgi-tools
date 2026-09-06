@@ -40,6 +40,10 @@ describe('POST /api/market-history/refresh telemetry', () => {
   it('records stale-stored history without inventing a fallback source', async () => {
     const response = await POST(request([34]));
     expect(response.status).toBe(200);
+    expect(checkRateLimitMock).toHaveBeenCalledWith(
+      expect.any(Request),
+      expect.objectContaining({ name: 'market-history-refresh' }),
+    );
     expect(getLiveHistoryMock).toHaveBeenCalledWith([34], expect.any(Function));
     expect(emitCostMetricMock).toHaveBeenCalledWith(
       'market_history_refresh',

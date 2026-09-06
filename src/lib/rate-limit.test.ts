@@ -3,6 +3,7 @@ import { clientIdentifier } from './rate-limit';
 
 const limitMock = vi.fn();
 const redisCtorSpy = vi.fn();
+const limiterCtorSpy = vi.fn();
 
 vi.mock('@upstash/redis', () => ({
   Redis: class MockRedis {
@@ -14,7 +15,8 @@ vi.mock('@upstash/redis', () => ({
 
 vi.mock('@upstash/ratelimit', () => ({
   Ratelimit: Object.assign(
-    function MockRatelimit() {
+    function MockRatelimit(opts: unknown) {
+      limiterCtorSpy(opts);
       return { limit: limitMock };
     },
     {
@@ -31,6 +33,7 @@ describe('rateLimit', () => {
   beforeEach(() => {
     vi.resetModules();
     limitMock.mockReset();
+    limiterCtorSpy.mockReset();
   });
 
   afterEach(() => {
@@ -52,6 +55,12 @@ describe('rateLimit', () => {
     const { rateLimit } = await importHelper();
     const result = await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
     expect(result).toEqual({ ok: true, remaining: 4 });
+    expect(limiterCtorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        analytics: false,
+        prefix: 'lgi:ratelimit:feedback',
+      }),
+    );
   });
 
   it('returns denied with retryAfter rounded up to next whole second', async () => {
@@ -90,14 +99,14 @@ describe('rateLimit', () => {
     expect(result).toEqual({ ok: false, retryAfter: 1 });
   });
 
-  it('awaits the pending analytics promise before returning', async () => {
+  it('awaits the pending promise before returning', async () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
     vi.stubEnv('NODE_ENV', 'production');
-    let analyticsResolved = false;
+    let pendingResolved = false;
     const pending = new Promise<void>((resolve) => {
       setTimeout(() => {
-        analyticsResolved = true;
+        pendingResolved = true;
         resolve();
       }, 10);
     });
@@ -110,7 +119,7 @@ describe('rateLimit', () => {
 
     const { rateLimit } = await importHelper();
     await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
-    expect(analyticsResolved).toBe(true);
+    expect(pendingResolved).toBe(true);
   });
 
   it('bypasses the limiter in development when env vars are unset', async () => {
@@ -251,6 +260,7 @@ describe('checkRateLimit', () => {
   beforeEach(() => {
     vi.resetModules();
     limitMock.mockReset();
+    limiterCtorSpy.mockReset();
   });
 
   afterEach(() => {
