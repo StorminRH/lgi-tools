@@ -7,7 +7,7 @@ import { FAILURE_CATEGORIES } from '@/lib/failure';
 import { withCorrelationScope, currentCorrelationId } from '@/transport/correlation';
 
 const logUsageEventMock = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock('./queries', () => ({ logUsageEvent: logUsageEventMock }));
+vi.mock('./log', () => ({ logUsageEvent: logUsageEventMock }));
 vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }));
 
 import {

@@ -1,6 +1,6 @@
 import { esiFetch, esiUrl } from '@/platform/esi';
 
-type UniverseNameRow = {
+export type UniverseNameRow = {
   readonly id: number;
   readonly name: string;
   readonly category: string | null;

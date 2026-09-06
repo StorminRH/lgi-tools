@@ -7,7 +7,11 @@ vi.mock('@/platform/esi', () => ({
   esiUrl: (path: string) => `https://esi.example${path}`,
 }));
 
-import { parseUniverseNameRows, postUniverseNames } from './universe-names';
+import {
+  parseUniverseNameRows,
+  postUniverseNames,
+  type UniverseNameRow,
+} from './universe-names';
 
 beforeEach(() => {
   esiFetchMock.mockReset();
@@ -15,17 +19,16 @@ beforeEach(() => {
 
 describe('parseUniverseNameRows', () => {
   it('keeps named rows and drops malformed entries', () => {
-    expect(
-      parseUniverseNameRows([
-        { category: 'station', id: 60_000_001, name: 'First Station' },
-        { category: 'character', id: 7, name: 'Pilot' },
-        { id: 9, name: 'No category' },
-        { category: 'station', id: 'bad', name: 'Nope' },
-        { category: 'station', id: 1 },
-        null,
-        'skip',
-      ]),
-    ).toEqual([
+    const rows: UniverseNameRow[] = parseUniverseNameRows([
+      { category: 'station', id: 60_000_001, name: 'First Station' },
+      { category: 'character', id: 7, name: 'Pilot' },
+      { id: 9, name: 'No category' },
+      { category: 'station', id: 'bad', name: 'Nope' },
+      { category: 'station', id: 1 },
+      null,
+      'skip',
+    ]);
+    expect(rows).toEqual([
       { category: 'station', id: 60_000_001, name: 'First Station' },
       { category: 'character', id: 7, name: 'Pilot' },
       { category: null, id: 9, name: 'No category' },
