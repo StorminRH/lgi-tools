@@ -25,7 +25,7 @@ import { heldState } from '../characterLocationReads';
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
-import { heartbeat } from '../engine';
+import { currentUser, heartbeat } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
 import { scan } from '../engineScan';
@@ -173,6 +173,7 @@ describe('convex runtime exports', () => {
       putAccessLease,
       chainDispatch,
       heartbeat,
+      currentUser,
       leave,
       onSyncComplete,
       scan,

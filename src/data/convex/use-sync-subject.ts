@@ -1,57 +1,55 @@
 'use client';
 
-import { useMutation } from 'convex/react';
-import { useEffect, useRef } from 'react';
-import { HEARTBEAT_MS, type SyncDataset } from '@/lib/sync-engine';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { useEffect } from 'react';
+import type { SyncDataset } from '@/lib/sync-engine';
 import { api } from './api';
-import { startHeartbeatLoop } from './heartbeat-loop';
-import { postLeaveBeacon, shouldSendLeave } from './leave-signal';
+import { startHeartbeatSession } from './heartbeat-session';
+import { postLeaveBeacon } from './leave-signal';
 
 export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
   const heartbeat = useMutation(api.engine.heartbeat);
-  const tabIdRef = useRef<string | null>(null);
-  if (tabIdRef.current === null) {
-    tabIdRef.current = crypto.randomUUID();
-  }
-
-  const characterIdsKey = characterIds.join(',');
+  const { isAuthenticated, isLoading, isRefreshing } = useConvexAuth();
+  const enabled = isAuthenticated && !isLoading && !isRefreshing;
+  const currentUserId = useQuery(api.engine.currentUser, enabled ? {} : 'skip');
+  const characterIdsKey = [...new Set(characterIds)].sort((a, b) => a - b).join(',');
 
   useEffect(() => {
-    if (characterIdsKey === '') return;
+    if (!enabled || !currentUserId || characterIdsKey === '') return;
     const characterIdsHint = characterIdsKey.split(',').map(Number);
-    const tabId = tabIdRef.current;
-    if (tabId === null) return;
 
-    const loop = startHeartbeatLoop(
+    const session = startHeartbeatSession(
       {
         isVisible: () => document.visibilityState === 'visible',
-        beat: (reason, visible) =>
+        now: () => performance.now(),
+        createTabId: () => crypto.randomUUID(),
+        openChannel: (name) => new BroadcastChannel(name),
+        beat: (beat) =>
           void heartbeat({
             dataset,
-            characterIdsHint,
-            reason,
-            visible,
-            tabId,
+            ...beat,
+            expectedUserId: currentUserId,
           }).catch(() => undefined),
+        leave: (tabId) => postLeaveBeacon({ dataset, tabId }),
         startInterval: (tick, ms) => {
           const id = setInterval(tick, ms);
           return () => clearInterval(id);
         },
       },
-      HEARTBEAT_MS,
+      { dataset, userId: currentUserId, characterIdsHint },
     );
 
-    const onVisibilityChange = () => loop.onVisibilityChange();
-    const onPageHide = (event: PageTransitionEvent) => {
-      if (!shouldSendLeave(event)) return;
-      postLeaveBeacon({ dataset, tabId });
-    };
+    const onVisibilityChange = () => session.onVisibilityChange();
+    const onPageHide = (event: PageTransitionEvent) => session.onPageHide(event);
+    const onPageShow = (event: PageTransitionEvent) => session.onPageShow(event);
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
-      loop.stop();
+      session.stop();
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
     };
-  }, [dataset, characterIdsKey, heartbeat]);
+  }, [dataset, characterIdsKey, heartbeat, enabled, currentUserId]);
 }

@@ -74,6 +74,18 @@ through the 4-step registration seam: dataset + cadence in the schema union,
 Heartbeats must not invalidate watched payload (`syncPresence` vs
 `syncSubjects`). Read constants from source; do not hardcode duplicates.
 
+Atlas tabs coordinate interval heartbeats with a BroadcastChannel scoped to
+the authenticated Convex user and dataset. Fresh peers share character hints
+and prefer a visible sender; every tab still sends its own mount and visible
+beats. The identity query reads no database documents, and heartbeat requests
+check the expected user against the authenticated subject. Browser coordination
+is best effort: joins, timer throttling, or unavailable messaging can produce
+extra beats. The server still owns authorization, tracked characters, dispatch,
+leave fencing, and the hidden-presence limit. AFK pause removes a participant;
+bfcache suspension closes its channel without retiring server presence.
+Every non-bfcache close still attempts the server-fenced leave. Local peer
+knowledge cannot determine whether other tabs are also closing or have crashed.
+
 ## Secrets, env, and deploy
 
 - **Refresh token never leaves Neon.** Convex receives only short-lived
