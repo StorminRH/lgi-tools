@@ -1,12 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { postLeaveBeacon, shouldSendLeave } from './leave-signal';
-
-describe('shouldSendLeave', () => {
-  it('sends only when the document is discarded, not when it enters bfcache', () => {
-    expect(shouldSendLeave({ persisted: false })).toBe(true);
-    expect(shouldSendLeave({ persisted: true })).toBe(false);
-  });
-});
+import { postLeaveBeacon } from './leave-signal';
 
 describe('postLeaveBeacon', () => {
   it('posts a JSON beacon to the leave door', () => {

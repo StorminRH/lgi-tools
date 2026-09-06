@@ -5,18 +5,23 @@ export function Collapsible({
   header,
   children,
   defaultOpen = false,
+  open,
+  onOpenChange,
   className,
   headerClassName,
 }: {
   header: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   className?: string;
   headerClassName?: string;
 }) {
   return (
     <details
-      open={defaultOpen}
+      open={open ?? defaultOpen}
+      onToggle={onOpenChange ? (event) => onOpenChange(event.currentTarget.open) : undefined}
       data-collapsible
       className={cn('border-b border-border-soft last:border-b-0 group', className)}
     >

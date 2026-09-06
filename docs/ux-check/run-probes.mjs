@@ -257,6 +257,15 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     httpErrors: [],
   };
   const ownedContexts = [];
+  const siblingPages = [];
+
+  const createPage = async () => {
+    const sibling = await context.newPage();
+    const siblingDiagnostics = watchPage(sibling, definition.allowConsole);
+    siblingPages.push({ page: sibling, diagnostics: siblingDiagnostics });
+    await installCspCollector(sibling);
+    return sibling;
+  };
 
   const check = (label, condition) => {
     const passed = Boolean(condition);
@@ -331,6 +340,7 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
       engine: opts.engine,
       storageState: opts.storageState,
       createContext,
+      createPage,
     };
     if (definition.setup) await definition.setup(ctx);
     await page.goto(result.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -342,6 +352,7 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
   } finally {
     const watchedPages = [
       ...(page ? [{ page, diagnostics }] : []),
+      ...siblingPages,
       ...ownedContexts.filter(
         (owned) => owned.page !== null && owned.diagnostics !== null,
       ),

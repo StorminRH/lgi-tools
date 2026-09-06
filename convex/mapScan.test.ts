@@ -2201,14 +2201,15 @@ describe('mapScan paste application and lifecycle', () => {
       signatureIds: ['ANO-001'],
     });
 
-    const page = await t.withIdentity({ subject: VIEWER }).query(api.mapScan.watchMapSignatures, {
+    const page = await t.withIdentity({ subject: VIEWER }).query(api.mapScan.watchSystemSignatures, {
       mapId: MAP,
+      systemId: JITA,
       paginationOpts: { cursor: null, numItems: 1000 },
     });
     expect(page.page.map((row) => row.signatureId)).toEqual(['SIG-001']);
     const denied = await t.withIdentity({ subject: 'stranger' }).query(
-      api.mapScan.watchMapSignatures,
-      { mapId: MAP, paginationOpts: { cursor: null, numItems: 10 } },
+      api.mapScan.watchSystemSignatures,
+      { mapId: MAP, systemId: JITA, paginationOpts: { cursor: null, numItems: 10 } },
     );
     expect(denied).toEqual({ page: [], isDone: true, continueCursor: '' });
   });

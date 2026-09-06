@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { Doc, Id } from '@/data/convex/data-model';
+import type { Id } from '@/data/convex/data-model';
 import type { ConnectionAuthoringApi } from '../signatures/connection-authoring-api';
 import { MapEventLog } from '../log/MapEventLog';
 import type { MapEventRestoreAction } from '../log/map-event-copy';
@@ -12,7 +12,6 @@ export interface MapAuthoringOverlayProps {
   readonly mapId: string;
   readonly canEdit: boolean;
   readonly connectionPresentationNow: number;
-  readonly events: readonly Doc<'mapEvents'>[];
   readonly authoring: ConnectionAuthoringApi;
 }
 
@@ -20,7 +19,6 @@ export function MapAuthoringOverlay({
   mapId,
   canEdit,
   connectionPresentationNow,
-  events,
   authoring,
 }: MapAuthoringOverlayProps) {
   const [tickNow, setTickNow] = useState(connectionPresentationNow);
@@ -53,7 +51,7 @@ export function MapAuthoringOverlay({
 
   return (
     <MapEventLog
-      events={events}
+      mapId={mapId}
       canEdit={canEdit}
       now={now}
       onRestore={restoreFromEvent}

@@ -110,6 +110,12 @@ export default {
 Prefer role/label locators and behavioral checks. Do not add probes whose only
 job is a screenshot.
 
+Use `createPage()` for another tab in the primary authenticated browser context,
+including cross-tab BroadcastChannel tests. The runner attaches diagnostics and
+CSP collection and closes that tab with the context. `createContext()` instead
+creates an isolated client, optionally in another browser engine. Playwright's
+clock is shared by pages in a context; install and advance it once per context.
+
 ## Instant navigations (`instant`)
 
 The runner injects Next.js 16.3's `@next/playwright` `instant(fn, options?)`

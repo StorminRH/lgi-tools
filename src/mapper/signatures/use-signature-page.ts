@@ -26,12 +26,13 @@ function connectionRows(
 
 export function useSignaturePage(
   mapId: string,
+  systemId: number | null,
   connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
 ) {
   const signatures = useDrainedPages(
-    api.mapScan.watchMapSignatures,
-    { mapId },
+    api.mapScan.watchSystemSignatures,
+    systemId === null ? 'skip' : { mapId, systemId },
     SIGNATURE_PAGE_SIZE,
   );
   const connections = useMemo(
@@ -49,5 +50,5 @@ export function useSignaturePage(
       }),
     [signatures.rows, connections, codex],
   );
-  return { rows, complete: signatures.complete };
+  return { rows, complete: systemId === null || signatures.complete };
 }
