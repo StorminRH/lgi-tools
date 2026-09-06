@@ -4,16 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 from collections.abc import Callable
-import re
 import subprocess
 import tempfile
 from typing import Literal
 
+from tools.lifecycle.text_markers import execution_complete
 
 ArchiveDeliveryStatus = Literal["delivered", "pending", "unknown"]
-_COMPLETE = re.compile(
-    r"^\*\*Execution status:\*\*[ \t]+`?Complete`?[ \t\r]*$", re.MULTILINE | re.IGNORECASE
-)
 
 
 def _git(root: Path, *args: str) -> bytes:
@@ -55,7 +52,9 @@ def _valid_record(
     paths = (record, contract, plan, schema)
     if any(str(path) not in destination for path in paths):
         return False
-    if destination[str(contract)] != source.get(str(contract)):
+    if any(destination[str(path)] != source.get(str(path)) for path in (contract, schema)):
+        return False
+    if str(record) in source and destination[str(record)] != source[str(record)]:
         return False
     with tempfile.TemporaryDirectory() as directory:
         snapshot_root = Path(directory)
@@ -94,17 +93,25 @@ def archive_delivery_status(
             if local_plan.name == "INDEX.md":
                 continue
             contents = local_plan.read_bytes()
-            if not _COMPLETE.search(contents.decode("utf-8")):
+            if not execution_complete(contents.decode("utf-8")):
                 continue
             oid = source.get(local_plan.relative_to(root).as_posix())
             if oid is None or _git(root, "cat-file", "blob", oid) != contents:
+                return "unknown"
+            record_path = PurePosixPath("docs/session-as-built") / version / local_plan.name
+            local_record = root / record_path
+            record_oid = source.get(str(record_path)) or destination.get(str(record_path))
+            if local_record.is_file():
+                if record_oid is None or _git(root, "cat-file", "blob", record_oid) != local_record.read_bytes():
+                    return "unknown"
+            elif str(record_path) in source:
                 return "unknown"
         for path, oid in source.items():
             plan = PurePosixPath(path)
             if plan.parent != plan_directory or plan.suffix != ".md" or plan.name == "INDEX.md":
                 continue
             contents = _git(root, "cat-file", "blob", oid).decode("utf-8")
-            if not _COMPLETE.search(contents):
+            if not execution_complete(contents):
                 continue
             if destination.get(path) != oid:
                 return "pending"

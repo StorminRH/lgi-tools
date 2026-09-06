@@ -2,12 +2,26 @@ import type { Doc } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
 import { deleteForMapCharacter } from './mapJumpBookkeeping';
 
-async function deleteTrackingRow(
+export async function deleteTrackingRow(
   ctx: MutationCtx,
   row: Doc<'mapTracking'>,
-): Promise<void> {
-  await deleteForMapCharacter(ctx, row.mapId, row.characterId);
+): Promise<number> {
   await ctx.db.delete(row._id);
+  return deleteBookkeepingIfUntracked(ctx, row);
+}
+
+export async function deleteBookkeepingIfUntracked(
+  ctx: MutationCtx,
+  { mapId, characterId }: Pick<Doc<'mapTracking'>, 'mapId' | 'characterId'>,
+): Promise<number> {
+  const survivor = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map_character', (q) =>
+      q.eq('mapId', mapId).eq('characterId', characterId),
+    )
+    .first();
+  if (survivor !== null) return 0;
+  return deleteForMapCharacter(ctx, mapId, characterId);
 }
 
 export async function deleteTrackingForUser(

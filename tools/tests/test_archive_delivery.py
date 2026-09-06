@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from tools.lifecycle.archive_delivery import archive_delivery_status
-from tools.lifecycle.resolve_development_state import archive_record_violations
+from tools.lifecycle.resolve_development_state import archive_record_violations, execution_complete
 from tools.tests.test_development_state import ResolverFixture
 
 
@@ -138,13 +138,55 @@ class ArchiveDeliveryTests(unittest.TestCase):
         self.ref("development")
         self.assertEqual("pending", self.status())
 
-    def test_malformed_staging_record_is_pending_despite_valid_local_record(self) -> None:
+    def test_unlanded_local_record_repair_is_unknown(self) -> None:
         self.write_complete()
         self.write(RECORD, "Final record\n")
         self.commit()
         self.ref("development")
         self.ref("staging")
         self.write(RECORD, self.record)
+        self.assertEqual("unknown", self.status())
+
+    def test_newer_development_record_requires_promotion(self) -> None:
+        self.write_complete()
+        self.write(RECORD, self.record)
+        self.commit()
+        self.ref("staging")
+        self.write(RECORD, self.record + "\nAdditional finalized evidence.\n")
+        self.commit()
+        self.ref("development")
+        self.assertEqual("pending", self.status())
+
+    def test_unlanded_local_record_edit_or_deletion_is_unknown(self) -> None:
+        self.write_complete()
+        self.write(RECORD, self.record)
+        self.commit()
+        self.ref("development")
+        self.ref("staging")
+        self.write(RECORD, self.record + "\nUnlanded evidence.\n")
+        self.assertEqual("unknown", self.status())
+        (self.root / RECORD).unlink()
+        self.assertEqual("unknown", self.status())
+
+    def test_staging_only_record_does_not_authorize_unlanded_local_edits(self) -> None:
+        self.write_complete()
+        self.commit()
+        self.ref("development")
+        self.write(RECORD, self.record)
+        self.commit()
+        self.ref("staging")
+        self.write(RECORD, self.record + "\nUnlanded evidence.\n")
+        self.assertEqual("unknown", self.status())
+
+    def test_staging_schema_must_match_development(self) -> None:
+        self.write_complete()
+        self.write(RECORD, self.record)
+        self.commit()
+        self.ref("development")
+        schema = "docs/workflows/schema/session-as-built.md"
+        self.write(schema, self.support[schema] + "\nChanged schema authority.\n")
+        self.commit()
+        self.ref("staging")
         self.assertEqual("pending", self.status())
 
     def test_stale_staging_plan_digest_is_pending(self) -> None:
@@ -203,6 +245,8 @@ class ArchiveDeliveryTests(unittest.TestCase):
                 self.ref("staging")
                 if update_development:
                     self.ref("development")
+                else:
+                    self.write(RECORD, self.record)
                 self.assertEqual("pending", self.status())
 
     def test_pending_plan_does_not_require_final_record(self) -> None:
@@ -211,6 +255,21 @@ class ArchiveDeliveryTests(unittest.TestCase):
         self.commit()
         self.ref("development")
         self.assertEqual("delivered", self.status())
+
+    def test_completion_classification_matches_filesystem_markers(self) -> None:
+        cases = (
+            ("  **Execution status:** `Complete`\n", True),
+            ("**Execution status:** Pending\n**Execution status:** Complete\n", False),
+            ("**Execution status:** Complete\n**Execution status:** Pending\n", True),
+        )
+        self.ref("staging", self.base)
+        for contents, complete in cases:
+            with self.subTest(contents=contents):
+                self.write(PLAN, contents)
+                self.commit()
+                self.ref("development")
+                self.assertEqual(complete, execution_complete(self.root / PLAN))
+                self.assertEqual("pending" if complete else "delivered", self.status())
 
     def test_other_versions_and_unrelated_docs_do_not_block(self) -> None:
         self.ref("staging")

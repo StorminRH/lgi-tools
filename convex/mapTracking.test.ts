@@ -199,6 +199,61 @@ describe('mapTracking.setTracking', () => {
     ]);
   });
 
+  it('preserves a foreign tracker stamp when the caller has no matching row', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
+      mapId: MAP_A, characterId: CHAR, tracked: true,
+    });
+    await t.run((ctx) => ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100,
+    }));
+
+    await asUser(t, EDITOR).mutation(tracking.setTracking, {
+      mapId: MAP_A, characterId: CHAR, tracked: false,
+    });
+
+    expect(await readTracking(t)).toEqual([
+      { mapId: MAP_A, userId: OWNER, characterId: CHAR },
+    ]);
+    expect(await readBookkeeping(t)).toEqual([
+      { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100 },
+    ]);
+    await expect(asUser(t, 'no-access').mutation(tracking.setTracking, {
+      mapId: MAP_A, characterId: CHAR, tracked: false,
+    })).rejects.toThrow(ConvexError);
+  });
+
+  it('retains shared bookkeeping until the last user stops tracking', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    for (const userId of [OWNER, EDITOR]) {
+      await asUser(t, userId).mutation(tracking.setTracking, {
+        mapId: MAP_A, characterId: CHAR, tracked: true,
+      });
+    }
+    await t.run((ctx) => ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100,
+    }));
+
+    await asUser(t, EDITOR).mutation(tracking.setTracking, {
+      mapId: MAP_A, characterId: CHAR, tracked: false,
+    });
+    expect(await readBookkeeping(t)).toEqual([
+      { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100 },
+    ]);
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
+      mapId: MAP_A, characterId: CHAR, tracked: false,
+    });
+    expect(await readBookkeeping(t)).toEqual([]);
+  });
+
   it('refuses opt-in beyond the per-(map, user) cap but keeps toggle-off/re-add working', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
@@ -455,6 +510,58 @@ describe('mapTracking revocation cascade', () => {
     expect(await readBookkeeping(t)).toEqual([
       { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 11 },
     ]);
+  });
+
+  it('retains shared bookkeeping through one user revocation and clears it on map teardown', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    for (const userId of [OWNER, EDITOR]) {
+      await asUser(t, userId).mutation(tracking.setTracking, {
+        mapId: MAP_A, characterId: CHAR, tracked: true,
+      });
+    }
+    await t.run((ctx) => ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100,
+    }));
+
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    expect(await readTracking(t)).toEqual([
+      { mapId: MAP_A, userId: OWNER, characterId: CHAR },
+    ]);
+    expect(await readBookkeeping(t)).toEqual([
+      { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100 },
+    ]);
+    await grant(t, MAP_A, []);
+    expect(await readTracking(t)).toEqual([]);
+    expect(await readBookkeeping(t)).toEqual([]);
+  });
+
+  it('retains shared bookkeeping through a user purge until the last tracker is purged', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (const userId of [OWNER, EDITOR, 'third-user']) {
+        await ctx.db.insert('mapTracking', {
+          mapId: MAP_A, userId, characterId: CHAR,
+        });
+      }
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100,
+      });
+    });
+    for (const userId of [OWNER, EDITOR]) {
+      await t.mutation(internal.mapAccessProjection.purgeUserClaims, { userId });
+      expect(await readBookkeeping(t)).toEqual([
+        { mapId: MAP_A, characterId: CHAR, lastProcessedTransitionAt: 100 },
+      ]);
+    }
+    await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
+      userId: 'third-user',
+    });
+    expect(await readTracking(t)).toEqual([]);
+    expect(await readBookkeeping(t)).toEqual([]);
   });
 
   it('sweeps every mapTracking row on full map teardown (claims: [])', async () => {

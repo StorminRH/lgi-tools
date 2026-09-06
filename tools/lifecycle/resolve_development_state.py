@@ -14,6 +14,7 @@ from pathlib import Path
 
 from tools._lib.repository import ROOT
 from tools.lifecycle.archive_delivery import ArchiveDeliveryStatus, archive_delivery_status
+from tools.lifecycle import text_markers
 from tools.lifecycle.count_app_facing import (
     PROMOTE_BAR,
     PROMOTE_TRIGGER,
@@ -208,13 +209,7 @@ def parse_contract_index(path: Path) -> dict[str, tuple[str, Path]]:
 def marker(path: Path, label: str) -> str | None:
     if not path.is_file():
         return None
-    text = path.read_text(encoding="utf-8")
-    match = re.search(
-        rf"\*\*{re.escape(label)}:\*\*[ \t]+([^\r\n]+?)[ \t]*$",
-        text,
-        re.I | re.M,
-    )
-    return match.group(1).strip().strip("`") if match else None
+    return text_markers.marker(path.read_text(encoding="utf-8"), label)
 
 def schema_headings(path: Path, level: int) -> list[str] | None:
     """Return one schema's ordered headings, or None when its form is unusable."""
@@ -755,14 +750,15 @@ def marker_value_error(
     return f"{path.relative_to(root)}: invalid {label} value {value!r}"
 
 def status_is(path: Path, label: str, expected: str) -> bool:
-    value = marker(path, f"{label} status")
-    return value is not None and value.casefold() == expected.casefold()
+    return path.is_file() and text_markers.status_is(
+        path.read_text(encoding="utf-8"), label, expected,
+    )
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def execution_complete(path: Path) -> bool:
-    return status_is(path, "Execution", "Complete")
+    return path.is_file() and text_markers.execution_complete(path.read_text(encoding="utf-8"))
 
 def approved_session_plan(
     path: Path,
@@ -836,6 +832,20 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
     }
     pending_rows: list[RoadmapRow] = []
     development_delivery = session_key(version) >= DEVELOPMENT_DELIVERY_BINDING_FLOOR
+    if development_delivery:
+        for session, (_, contract) in contracts.items():
+            plan = docs / "session-plans" / version / f"{session}.md"
+            if not execution_complete(plan):
+                continue
+            if not contract.is_file():
+                return invalid_state(common, f"{session}: completed session contract is missing", errors)
+            violations = [] if schema_allowlisted(contract, root) else contract_schema_violations(contract, root)
+            ready, reason, plan_errors = approved_session_plan(plan, contract, version, root)
+            if violations or not ready:
+                errors.extend(violations)
+                errors.extend(plan_errors)
+                detail = "The contract does not conform to the canonical schema." if violations else reason
+                return invalid_state(common, f"{session}: completed session authority is invalid. {detail}", errors)
     for row in rows:
         if row.status.upper() in {"CANCELLED", "DEFERRED"} or (row.terminal and not development_delivery):
             continue
