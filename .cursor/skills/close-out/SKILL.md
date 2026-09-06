@@ -68,8 +68,10 @@ is green on that run. Done when the list exists and step 1 is in progress.
 8. One batch. Triage every finding from that settled window.
    Dedupe. Accept or reject. Fix the accepted set on the head.
    Note dispositions on the Origin PR. Run the local test suite.
-   Pause in chat with the reasoning when leaving a finding
-   unfixed. Resume after the operator has settled any paused disposition.
+   Reject findings with evidence when they are false positives, hypothetical
+   misuse by absent callers, or changes whose cost outweighs their benefit.
+   Report the justification and continue. Pause only for an unresolved material
+   risk, disputed product behavior, or deferral of a confirmed defect.
    Done when every finding has a disposition, accepted fixes are on the
    head, and the suite is green.
 9. When the destination is `staging`, author as-builts for the
@@ -186,8 +188,13 @@ Origin `staging` to GitHub `staging` so the mirror base matches the
 already-reviewed line. Build `dump/<YYYY-MM-DD>-<shortsha>` from that
 base with only the isolated paths at the head SHA. Open the GitHub PR
 ready for review on `StorminRH/lgi-tools` (`dump/...` → `staging`) with
-`gh pr create` or the GitHub MCP. Request Greptile and CodeRabbit by
-hand.
+`gh pr create` or the GitHub MCP. Request Greptile and CodeRabbit once
+by hand. The GitHub dump gets one review pass. CodeRabbit uses the free tier;
+a single response is expected. Review fixes locally and keep the mirror paths
+current without requesting another bot pass or waiting for review credits.
+A later rate-limit notice does not invalidate the completed first pass.
+Record a disposition for any additional findings that arrive without restarting
+the review loop.
 
 ## Merge
 
