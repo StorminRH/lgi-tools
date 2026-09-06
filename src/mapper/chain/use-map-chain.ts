@@ -1,6 +1,6 @@
 'use client';
 
-import type { Doc, Id } from '@/data/convex/data-model';
+import type { Id } from '@/data/convex/data-model';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutConfig } from '../layout/layout-contract';
 import type { HaloLimits, PlacedHalo } from '../halo/halo-model';
 import type { ConnectionDetail, UnresolvedHoleSummary } from './connection-detail';
@@ -20,7 +20,6 @@ export interface MapChain {
   readonly liveSystemCount: number;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
-  readonly events: readonly Doc<'mapEvents'>[];
   readonly connectionPresentationNow: number;
   readonly state: ChainState;
   readonly intents: readonly MapChainIntent[];
@@ -69,7 +68,6 @@ export function useMapChain(
     liveSystemCount: pages.systems.rows.length,
     connectionDetails: pages.connectionDetails,
     unresolvedHoles: pages.unresolvedHoles,
-    events: pages.events,
     connectionPresentationNow,
     state: merge.state,
     intents: merge.intents,

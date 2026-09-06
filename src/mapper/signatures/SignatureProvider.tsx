@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { Id } from '@/data/convex/data-model';
 import type {
   ConnectionDetail,
@@ -13,7 +13,7 @@ import {
   type ConnectionAuthoringApi,
 } from './connection-authoring-api';
 import {
-  SignatureRowsProvider,
+  SignatureDataProvider,
   type ScannerPanelTarget,
 } from './signature-context';
 import { SignatureWindow } from './SignatureWindow';
@@ -48,6 +48,7 @@ export function SignatureProvider({
 }) {
   const { rows, complete } = useSignaturePage(
     mapId,
+    scannerSystemId,
     connectionDetails,
     unresolvedHoles,
   );
@@ -74,8 +75,15 @@ export function SignatureProvider({
     clockActive: rows.length > 0 || panelTarget !== null,
   });
 
+  const signatureData = useMemo(
+    () => ({
+      mapId, scannerSystemId, scannerRows: rows, connectionDetails, unresolvedHoles,
+    }),
+    [mapId, scannerSystemId, rows, connectionDetails, unresolvedHoles],
+  );
+
   return (
-    <SignatureRowsProvider value={rows}>
+    <SignatureDataProvider value={signatureData}>
       {children}
       <SignatureWindow
         scannerSystemId={scannerSystemId}
@@ -105,6 +113,6 @@ export function SignatureProvider({
         now={panel.now}
         onClose={panel.closePanel}
       />
-    </SignatureRowsProvider>
+    </SignatureDataProvider>
   );
 }

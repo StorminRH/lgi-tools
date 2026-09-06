@@ -232,10 +232,10 @@ describe('mapper source contract', () => {
       'signatures/use-signature-page.ts',
     ]);
     expect(sourceOf('chain/use-map-chain-pages.ts')).not.toContain(
-      'api.mapScan.watchMapSignatures',
+      'api.mapScan.watchSystemSignatures',
     );
     expect(sourceOf('signatures/use-signature-page.ts')).toContain(
-      'api.mapScan.watchMapSignatures',
+      'api.mapScan.watchSystemSignatures',
     );
   });
 
@@ -248,9 +248,10 @@ describe('mapper source contract', () => {
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(3);
   });
 
-  it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
+  it('keeps ledger subscription ownership in the log and memoizes normalized chain pages', () => {
     const hook = sourceOf('chain/use-map-chain-pages.ts');
-    expect(hook).toContain('api.mapChainEvents.watchMapEvents');
+    expect(hook).not.toContain('api.mapChainEvents.watchMapEvents');
+    expect(sourceOf('log/MapEventLog.tsx')).toContain('api.mapChainEvents.watchMapEvents');
     expect(hook).toContain('const connections = subscribedConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
   });

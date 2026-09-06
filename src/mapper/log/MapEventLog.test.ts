@@ -1,9 +1,18 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { MapEventLog } from './MapEventLog';
 import type { MapEventRow } from './map-event-copy';
+
+const state = vi.hoisted(() => ({ open: false }));
+const liveValue = vi.hoisted(() => vi.fn());
+
+vi.mock('react', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react')>(),
+  useState: () => [state.open, vi.fn()],
+}));
+vi.mock('@/data/convex/use-live-value', () => ({ useLiveValue: liveValue }));
 
 vi.mock('@/components/ui/button', () => ({
   Button: (props: {
@@ -48,10 +57,38 @@ function row(
 }
 
 describe('MapEventLog', () => {
+  beforeEach(() => {
+    state.open = true;
+    liveValue.mockReset();
+    liveValue.mockReturnValue([]);
+  });
+
+  it('skips the detail subscription and omits count and rows when closed', () => {
+    state.open = false;
+    const markup = renderToStaticMarkup(createElement(MapEventLog, {
+      mapId: 'map-a', canEdit: true, now: NOW, onRestore: vi.fn(),
+    }));
+    expect(liveValue.mock.calls[0]?.[1]).toBe('skip');
+    expect(markup).toContain('Audit Log');
+    expect(markup).not.toContain('data-map-event-log-count');
+    expect(markup).not.toContain('data-map-event-log-rows');
+  });
+
+  it('shows loading rather than an empty result until the open subscription returns', () => {
+    liveValue.mockReturnValue(undefined);
+    const markup = renderToStaticMarkup(createElement(MapEventLog, {
+      mapId: 'map-b', canEdit: true, now: NOW, onRestore: vi.fn(),
+    }));
+    expect(liveValue.mock.calls[0]?.[1]).toEqual({ mapId: 'map-b' });
+    expect(markup).toContain('Loading map events');
+    expect(markup).not.toContain('No map events yet');
+    expect(markup).not.toContain('data-map-event-log-count');
+  });
+
   it('renders empty state and gates Restore on canEdit + in-window rows', () => {
     const empty = renderToStaticMarkup(
       createElement(MapEventLog, {
-        events: [],
+        mapId: 'map-a',
         canEdit: true,
         now: NOW,
         onRestore: vi.fn(),
@@ -77,9 +114,10 @@ describe('MapEventLog', () => {
       }),
     ];
 
+    liveValue.mockReturnValue(events);
     const editor = renderToStaticMarkup(
       createElement(MapEventLog, {
-        events,
+        mapId: 'map-a',
         canEdit: true,
         now: NOW,
         onRestore: vi.fn(),
@@ -95,7 +133,7 @@ describe('MapEventLog', () => {
 
     const viewer = renderToStaticMarkup(
       createElement(MapEventLog, {
-        events,
+        mapId: 'map-a',
         canEdit: false,
         now: NOW,
         onRestore: vi.fn(),

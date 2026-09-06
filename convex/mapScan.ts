@@ -1,9 +1,11 @@
 import {
   paginationOptsValidator,
+  paginationResultValidator,
   type PaginationOptions,
   type PaginationResult,
 } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
+import schema from './schema';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { findMissingSignatures } from '@/data/maps/signature-lifecycle';
 import type { Doc } from './_generated/dataModel';
@@ -257,14 +259,25 @@ export const removeSignatures = signatureSelectionMutation('remove');
 
 export const restoreSignatures = signatureSelectionMutation('restore');
 
-export const watchMapSignatures = query({
-  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { mapId, paginationOpts }) => {
+export const watchSystemSignatures = query({
+  args: {
+    mapId: v.string(),
+    systemId: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(v.object({
+    ...schema.tables.mapSignatures.validator.fields,
+    _id: v.id('mapSignatures'),
+    _creationTime: v.number(),
+  })),
+  handler: async (ctx, { mapId, systemId, paginationOpts }) => {
     const principal = await tryMapAccess(ctx, mapId, 'view');
     if (principal === null) return deniedPage<Doc<'mapSignatures'>>();
     const page = await ctx.db
       .query('mapSignatures')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .withIndex('by_map_signature', (q) =>
+        q.eq('mapId', mapId).eq('systemId', systemId),
+      )
       .paginate(boundedPageOptions(paginationOpts));
     return { ...page, page: page.page.filter((row) => !isTombstoned(row)) };
   },

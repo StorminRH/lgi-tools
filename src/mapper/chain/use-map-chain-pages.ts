@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/data/convex/api';
-import type { Doc } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { chainTombstoneState } from '@/data/maps/chain-contract';
@@ -20,7 +19,6 @@ import { planStubNodes } from './nodes';
 import { accountedStubLayoutRows, stubLayoutRows } from './stub-layout';
 
 const PAGE_SIZE = 100;
-const EMPTY_MAP_EVENTS: readonly Doc<'mapEvents'>[] = [];
 const TOMBSTONE_TICK_MS = 60_000;
 
 export type MapAccessState = boolean | undefined;
@@ -62,7 +60,6 @@ export function useMapChainPages(mapId: string | null) {
     args,
     PAGE_SIZE,
   );
-  const subscribedEvents = useLiveValue(api.mapChainEvents.watchMapEvents, args);
   const codex = useWormholeCodex();
   const systems = useMemo(
     () =>
@@ -73,7 +70,6 @@ export function useMapChainPages(mapId: string | null) {
     [subscribedSystems.rows, subscribedSystems.complete],
   );
   const connections = subscribedConnections;
-  const events = subscribedEvents ?? EMPTY_MAP_EVENTS;
   const connectionDetails = useMemo(
     () => connectionDetailsFromRows(connections.rows),
     [connections.rows],
@@ -112,7 +108,6 @@ export function useMapChainPages(mapId: string | null) {
     canEdit,
     connectionDetails,
     connections,
-    events,
     slotHolders,
     stubLayout,
     systems,

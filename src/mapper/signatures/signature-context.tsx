@@ -2,19 +2,36 @@
 
 import { createContext, useContext } from 'react';
 import type { Id } from '@/data/convex/data-model';
-import type {
-  SignatureCounts,
-  SignatureWindowRow,
-} from './signature-model';
+import type { ConnectionDetail, UnresolvedHoleSummary } from '../chain/connection-detail';
+import { useSignaturePage } from './use-signature-page';
+import type { SignatureCounts, SignatureWindowRow } from './signature-model';
 import { signatureCounts } from './signature-model';
 
-const EMPTY_ROWS: readonly SignatureWindowRow[] = [];
-const SignatureRowsContext = createContext(EMPTY_ROWS);
+interface SignatureData {
+  readonly mapId: string;
+  readonly scannerSystemId: number | null;
+  readonly scannerRows: readonly SignatureWindowRow[];
+  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
+  readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
+}
 
-export const SignatureRowsProvider = SignatureRowsContext.Provider;
+const SignatureDataContext = createContext<SignatureData | null>(null);
+
+export const SignatureDataProvider = SignatureDataContext.Provider;
 
 export function useSignatureCounts(systemId: number): SignatureCounts {
-  return signatureCounts(useContext(SignatureRowsContext), systemId);
+  const data = useContext(SignatureDataContext);
+  if (data === null) throw new Error('SignatureDataProvider is required');
+  const { rows } = useSignaturePage(
+    data.mapId,
+    systemId === data.scannerSystemId ? null : systemId,
+    data.connectionDetails,
+    data.unresolvedHoles,
+  );
+  return signatureCounts(
+    systemId === data.scannerSystemId ? data.scannerRows : rows,
+    systemId,
+  );
 }
 
 export type ScannerPanelTarget =

@@ -159,7 +159,6 @@ function withAccess(
     connectionDetails: new Map(),
     unresolvedHoles: [],
     connectionPresentationNow: 1,
-    events: [],
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({
