@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { esiFetch, esiUrl } from '@/platform/esi';
 import { eveNpcStations } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
+import { parseUniverseNameRows, postUniverseNames } from './universe-names';
 
 const ESI_UNIVERSE_NAMES_POST_MAX = 1000;
 
@@ -40,14 +40,9 @@ export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: n
 }
 
 async function fetchStationNames(ids: number[]): Promise<{ id: number; name: string }[]> {
-  const res = await esiFetch(esiUrl('/universe/names/'), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(ids),
-  });
-  if (!res.ok) throw new Error(`ESI /universe/names/ ${res.status}`);
-  const data = (await res.json()) as { category: string; id: number; name: string }[];
-  return data
-    .filter((d) => d.category === 'station' && typeof d.name === 'string')
-    .map((d) => ({ id: d.id, name: d.name }));
+  const posted = await postUniverseNames(ids);
+  if (!posted.ok) throw new Error(`ESI /universe/names/ ${posted.status}`);
+  return parseUniverseNameRows(posted.data)
+    .filter((row) => row.category === 'station')
+    .map((row) => ({ id: row.id, name: row.name }));
 }

@@ -1,5 +1,6 @@
 import {
   and,
+  avg,
   between,
   count,
   countDistinct,
@@ -12,9 +13,11 @@ import {
   ne,
   or,
   sql,
+  sum,
 } from 'drizzle-orm';
 import { db } from '@/db';
 import { characters } from '@/db/auth-schema';
+import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
 import { usageLogs } from './schema';
 import { inRange, jsonInt } from './sql';
 import type {
@@ -49,10 +52,6 @@ export async function logUsageEvent(input: LogEventInput): Promise<void> {
   });
 }
 
-/**
- * Atomically claims one public ESI budget-alert window so concurrent cron runs cannot send
- * duplicate notifications.
- */
 export async function claimPublicEsiBudgetAlert(
   metadata: Record<string, unknown>,
 ): Promise<number> {
@@ -77,13 +76,6 @@ export async function completePublicEsiBudgetAlertClaim(id: number): Promise<voi
   if (!row) throw new Error('Failed to complete public ESI budget alert claim');
 }
 
-/**
- * Bound the otherwise-unbounded usage_logs table (one row per page view plus
- * each ESI/degradation/cron event): drop rows past the retention window. Hosted
- * on the daily GSC cron. Idempotent — a re-run only deletes newly-aged rows — so
- * it needs no lock of its own. The cutoff is computed in JS (driver-agnostic,
- * matching the market-history prune) rather than via SQL now().
- */
 export async function pruneUsageLogs(retentionDays: number, now: Date = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
   await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
@@ -157,13 +149,6 @@ export async function getTopPages(range: DateRange, limit = 10): Promise<PathCou
   return rows.map((r) => ({ path: r.value, count: r.count }));
 }
 
-/**
- * Top referrer hostnames among page_view events. TelemetryReporter only
- * writes metadata.referrer when the referring origin is different from the
- * current host, so same-origin page-hops never appear here. Joining on
- * `path = '/sites'` would over-narrow it — we want acquisition across the
- * whole platform.
- */
 export async function getTopReferrers(range: DateRange, limit = 10): Promise<ReferrerCount[]> {
   const rows = await topByMetadataKey('referrer', 'page_view', range, limit);
   return rows.map((r) => ({ host: r.value, count: r.count }));
@@ -252,11 +237,6 @@ export async function getFallbackRate(range: DateRange): Promise<FallbackRateDat
   };
 }
 
-/**
- * Count one canonical degradation row per price refresh whose ESI budget was
- * exhausted. A degraded cron also writes a cron_prices outcome row, so counting
- * both actions would double the same incident.
- */
 export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -464,4 +444,219 @@ export function lastNDaysRange(days: number, now: Date = new Date()): DateRange 
   const to = now;
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
   return { from, to };
+}
+
+const CAPABILITY_ACTION = 'capability_outcome';
+
+const capabilityOperation = sql<string>`${usageLogs.metadata} ->> 'operation'`;
+const capabilityOutcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
+
+function capabilityRows(range: DateRange, operations: readonly string[]) {
+  return and(
+    inRange(range),
+    eq(usageLogs.action, CAPABILITY_ACTION),
+    inArray(capabilityOperation, [...operations]),
+  );
+}
+
+async function successRatio(
+  range: DateRange,
+  operations: readonly string[],
+  excludedOutcomes: readonly string[] = [],
+): Promise<number | null> {
+  const excluded =
+    excludedOutcomes.length === 0
+      ? sql<number>`0`
+      : sql<number>`count(*) filter (where ${inArray(capabilityOutcome, [...excludedOutcomes])})`;
+
+  const [row] = await db
+    .select({
+      total: count(),
+      succeeded: sql<number>`count(*) filter (where ${capabilityOutcome} = 'succeeded')`.mapWith(Number),
+      excluded: excluded.mapWith(Number),
+    })
+    .from(usageLogs)
+    .where(capabilityRows(range, operations));
+
+  const total = Number(row?.total ?? 0) - Number(row?.excluded ?? 0);
+  if (total <= 0) return null;
+  return Number(row?.succeeded ?? 0) / total;
+}
+
+export function getReadSuccessRate(range: DateRange): Promise<number | null> {
+  return successRatio(range, operationsOfKind('read'));
+}
+
+export function getMutationSuccessRate(range: DateRange): Promise<number | null> {
+  return successRatio(range, operationsOfKind('mutation'), ['validation']);
+}
+
+export async function getCriticalLatencyP95(range: DateRange): Promise<number | null> {
+  const [row] = await db
+    .select({
+      p95: sql<number | null>`
+        percentile_cont(0.95) within group (order by ${jsonInt('durationMs')})
+      `.mapWith(Number),
+    })
+    .from(usageLogs)
+    .where(capabilityRows(range, operationsOfKind(...USER_FACING_CAPABILITY_KINDS)));
+
+  const p95 = row?.p95;
+  if (p95 === null || p95 === undefined || Number.isNaN(p95)) return null;
+  return Math.round(p95);
+}
+
+export async function getEsiSuccessRate(range: DateRange): Promise<number | null> {
+  const [row] = await db
+    .select({
+      total: count(),
+      healthy: sql<number>`
+        count(*) filter (
+          where ${capabilityOutcome} not in ('rate_limited', 'dependency_unavailable')
+        )
+      `.mapWith(Number),
+    })
+    .from(usageLogs)
+    .where(
+      and(
+        inRange(range),
+        eq(usageLogs.action, CAPABILITY_ACTION),
+        sql`${usageLogs.metadata} -> 'dependencies' ? 'esi'`,
+      ),
+    );
+
+  const total = Number(row?.total ?? 0);
+  if (total <= 0) return null;
+  return Number(row?.healthy ?? 0) / total;
+}
+
+export interface PriceSourceSplit {
+  cacheHits: number;
+  esiCount: number;
+  fuzzworkFallbackCount: number;
+  requested: number;
+  returned: number;
+}
+
+export interface HistorySourceSplit {
+  freshEsi: number;
+  warmStored: number;
+  staleStored: number;
+  missing: number;
+}
+
+export interface WriteBehindOutcome {
+  action: 'market_price_write_behind' | 'market_history_write_behind';
+  outcome: string;
+  count: number;
+}
+
+export interface CostlyEndpoint {
+  endpoint: string;
+  count: number;
+  avgDurationMs: number;
+}
+
+function summedInt(key: string) {
+  return sql<number>`coalesce(sum(${jsonInt(key)}), 0)`.mapWith(Number);
+}
+
+export async function getPriceSourceSplit(range: DateRange): Promise<PriceSourceSplit> {
+  const [row] = await db
+    .select({
+      cacheHits: summedInt('cacheHits'),
+      esiCount: summedInt('esiCount'),
+      fuzzworkFallbackCount: summedInt('fuzzworkFallbackCount'),
+      requested: summedInt('requested'),
+      returned: summedInt('returned'),
+    })
+    .from(usageLogs)
+    .where(and(inRange(range), eq(usageLogs.action, 'market_price_refresh')));
+  return {
+    cacheHits: Number(row?.cacheHits ?? 0),
+    esiCount: Number(row?.esiCount ?? 0),
+    fuzzworkFallbackCount: Number(row?.fuzzworkFallbackCount ?? 0),
+    requested: Number(row?.requested ?? 0),
+    returned: Number(row?.returned ?? 0),
+  };
+}
+
+export async function getHistorySourceSplit(range: DateRange): Promise<HistorySourceSplit> {
+  const [row] = await db
+    .select({
+      freshEsi: summedInt('freshEsi'),
+      warmStored: summedInt('warmStored'),
+      staleStored: summedInt('staleStored'),
+      missing: summedInt('missing'),
+    })
+    .from(usageLogs)
+    .where(and(inRange(range), eq(usageLogs.action, 'market_history_refresh')));
+  return {
+    freshEsi: Number(row?.freshEsi ?? 0),
+    warmStored: Number(row?.warmStored ?? 0),
+    staleStored: Number(row?.staleStored ?? 0),
+    missing: Number(row?.missing ?? 0),
+  };
+}
+
+export async function getWriteBehindOutcomes(
+  range: DateRange,
+): Promise<WriteBehindOutcome[]> {
+  const outcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
+  const rows = await db
+    .select({ action: usageLogs.action, outcome, count: count() })
+    .from(usageLogs)
+    .where(
+      and(
+        inRange(range),
+        inArray(usageLogs.action, [
+          'market_price_write_behind',
+          'market_history_write_behind',
+        ]),
+        isNotNull(outcome),
+      ),
+    )
+    .groupBy(usageLogs.action, outcome)
+    .orderBy(usageLogs.action, desc(count()));
+  return rows
+    .filter((row) => row.outcome !== null)
+    .map((row) => ({
+      action: row.action as WriteBehindOutcome['action'],
+      outcome: row.outcome as string,
+      count: Number(row.count),
+    }));
+}
+
+export async function getTopCostlyEndpoints(
+  range: DateRange,
+  limit: number,
+): Promise<CostlyEndpoint[]> {
+  const endpoint = sql<string>`${usageLogs.metadata} ->> 'endpoint'`;
+  const duration = jsonInt('durationMs');
+  const rows = await db
+    .select({
+      endpoint,
+      count: count(),
+      avgDurationMs: avg(duration).mapWith(Number),
+      totalDurationMs: sum(duration).mapWith(Number),
+    })
+    .from(usageLogs)
+    .where(
+      and(
+        inRange(range),
+        eq(usageLogs.action, 'owned_data_read'),
+        isNotNull(endpoint),
+        isNotNull(duration),
+      ),
+    )
+    .groupBy(endpoint)
+    .orderBy(desc(sum(duration)))
+    .limit(limit);
+  return rows
+    .filter((row) => row.endpoint !== null)
+    .map((row) => ({
+      endpoint: row.endpoint as string,
+      count: Number(row.count),
+      avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)),
+    }));
 }

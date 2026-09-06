@@ -165,7 +165,7 @@ describe('metric label cardinality', () => {
 
   it('never groups a telemetry query on a high-cardinality record field', () => {
     const sliQueries = readFileSync(
-      path.join(process.cwd(), 'src/data/telemetry/sli-queries.ts'),
+      path.join(process.cwd(), 'src/data/telemetry/queries.ts'),
       'utf8',
     );
     const groupBys = [...sliQueries.matchAll(/\.groupBy\(([^)]*)\)/g)].map(([, args]) => args);

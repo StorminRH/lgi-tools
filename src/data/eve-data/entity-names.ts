@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { esiFetch, esiUrl } from '@/platform/esi';
+import { parseUniverseNameRows, postUniverseNames } from './universe-names';
 
 function entityNameTag(id: number): string {
   return `eve-entity-name-${id}`;
@@ -13,23 +13,11 @@ async function fetchEntityName(id: number): Promise<string> {
   'use cache: remote';
   cacheTag(entityNameTag(id));
   cacheLife(NAME_CACHE_LIFE);
-  const res = await esiFetch(esiUrl('/universe/names/'), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify([id]),
-  });
-  if (!res.ok) throw new Error(`EVE entity name request failed (${res.status})`);
-  const data: unknown = await res.json();
-  if (!Array.isArray(data)) throw new Error('EVE entity name response was malformed');
-  const row = data.find(
-    (candidate): candidate is { id: number; name: string } =>
-      typeof candidate === 'object' &&
-      candidate !== null &&
-      'id' in candidate &&
-      candidate.id === id &&
-      'name' in candidate &&
-      typeof candidate.name === 'string' &&
-      candidate.name.length > 0,
+  const posted = await postUniverseNames([id]);
+  if (!posted.ok) throw new Error(`EVE entity name request failed (${posted.status})`);
+  if (!Array.isArray(posted.data)) throw new Error('EVE entity name response was malformed');
+  const row = parseUniverseNameRows(posted.data).find(
+    (candidate) => candidate.id === id && candidate.name.length > 0,
   );
   if (row === undefined) throw new Error(`EVE entity name missing for ${id}`);
   return row.name;

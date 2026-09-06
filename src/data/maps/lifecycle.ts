@@ -22,7 +22,7 @@ import {
   purgeQueuedMapLifecycle,
   tombstonedMapLifecycle,
 } from './lifecycle-contract';
-import { MAP_DELETE_GRACE_MS } from './queries';
+import { MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import { maps } from './schema';
 
 const MAP_PURGE_MAPS_PER_RUN = 25;

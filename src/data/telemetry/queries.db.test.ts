@@ -22,15 +22,13 @@ import {
   getTopPages,
   getTopReferrers,
   getTopSearches,
-  hasPublicEsiBudgetAlertForWindow,
-} from './queries';
-import { usageLogs } from './schema';
-import {
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
   getWriteBehindOutcomes,
-} from './cost-queries';
+  hasPublicEsiBudgetAlertForWindow,
+} from './queries';
+import { usageLogs } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_telemetry_cov',
