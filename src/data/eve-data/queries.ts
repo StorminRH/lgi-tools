@@ -210,14 +210,6 @@ export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
   return collectTrackedTypeIds(rows);
 }
 
-/**
- * The item a blueprint produces and how many per run, for the chosen industry
- * activity (manufacturing 1 preferred over reaction 11). `null` when the
- * blueprint produces nothing under either — i.e. not a planner-buildable — OR
- * when the blueprint type is unpublished (a CCP test/dev artifact the in-game
- * client hides, e.g. the "Test Reaction Blueprint"). Reads the blueprint
- * `activities` JSONB so the Industry Planner never touches the raw table directly.
- */
 export async function getBlueprintOutput(
   blueprintId: number,
 ): Promise<BlueprintOutput | null> {

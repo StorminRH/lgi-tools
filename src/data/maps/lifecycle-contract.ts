@@ -1,3 +1,5 @@
+export const MAP_DELETE_GRACE_MS = 30 * 24 * 60 * 60 * 1_000;
+
 export const MAP_LIFECYCLE_STATUSES = [
   'active',
   'archived',

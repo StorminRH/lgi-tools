@@ -8,13 +8,30 @@ vi.mock('@/platform/esi', () => ({
   esiUrl: (path: string) => `https://esi.test${path}`,
 }));
 
-import { resolveEntityNamesStrict } from './entity-names';
+import { resolveEntityNames, resolveEntityNamesStrict } from './entity-names';
 
 beforeEach(() => {
   h.esiFetch.mockReset();
 });
 
 describe('resolveEntityNamesStrict', () => {
+  it('propagates malformed response failures while best-effort resolution omits the name', async () => {
+    h.esiFetch.mockImplementation(async () => Response.json({ names: [] }));
+
+    await expect(resolveEntityNamesStrict([7])).rejects.toThrow(
+      'ESI /universe/names/ response was malformed',
+    );
+    await expect(resolveEntityNames([7])).resolves.toEqual({});
+  });
+
+  it('reports a missing entity when the response is a valid empty array', async () => {
+    h.esiFetch.mockResolvedValue(Response.json([]));
+
+    await expect(resolveEntityNamesStrict([7])).rejects.toThrow(
+      'EVE entity name missing for 7',
+    );
+  });
+
   it('resolves every id while keeping cold ESI fan-out at the shared cap', async () => {
     let active = 0;
     let maxActive = 0;

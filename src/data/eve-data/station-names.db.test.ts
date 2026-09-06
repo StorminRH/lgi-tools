@@ -152,4 +152,28 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
     for (const id of requestedBatches[1]!) expect(storedNames.get(id)).toBe(`Station ${id}`);
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('warns on malformed response envelopes and keeps the station unresolved', async () => {
+    await harness.db.insert(eveNpcStations).values(station(60_000_001));
+    fetchMock.mockResolvedValue(jsonResponse({ names: [] }));
+
+    await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
+
+    const [row] = await harness.db.select().from(eveNpcStations);
+    expect(row?.name).toBeNull();
+    expect(warnSpy).toHaveBeenCalledExactlyOnceWith(
+      'Station-name resolution skipped a batch of 1: Error: ESI /universe/names/ response was malformed',
+    );
+  });
+
+  it('accepts an empty response without warning or changing the station', async () => {
+    await harness.db.insert(eveNpcStations).values(station(60_000_001));
+    fetchMock.mockResolvedValue(jsonResponse([]));
+
+    await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
+
+    const [row] = await harness.db.select().from(eveNpcStations);
+    expect(row?.name).toBeNull();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });

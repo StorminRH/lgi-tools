@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { logUsageEvent } from './queries';
+import { logUsageEvent } from './log';
 import type { UsageAction } from './types';
 
 export interface CostTimer {

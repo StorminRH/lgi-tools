@@ -8,24 +8,22 @@ import { StaticTable, type StaticTableColumn } from '@/components/ui/static-tabl
 import { metricLabelColumn } from './metric-label-column';
 import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import {
-  getHistorySourceSplit,
-  getPriceSourceSplit,
-  getTopCostlyEndpoints,
-  getWriteBehindOutcomes,
-} from '@/data/telemetry/cost-queries';
-import {
   budgetSummary,
   degradationCallerSummary,
   fallbackRatePoints,
   fallbackSummary,
 } from '@/data/telemetry/health-metrics';
-import { getDegradationByCaller } from '@/data/telemetry/queries';
 import {
   getCriticalLatencyP95,
+  getDegradationByCaller,
   getEsiSuccessRate,
+  getHistorySourceSplit,
   getMutationSuccessRate,
+  getPriceSourceSplit,
   getReadSuccessRate,
-} from '@/data/telemetry/sli-queries';
+  getTopCostlyEndpoints,
+  getWriteBehindOutcomes,
+} from '@/data/telemetry/queries';
 import type {
   DateRange,
   DegradationCallerCount,

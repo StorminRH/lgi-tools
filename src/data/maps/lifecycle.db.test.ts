@@ -5,7 +5,7 @@ import {
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
 import { activeMapLifecycle } from './lifecycle-contract';
-import { MAP_DELETE_GRACE_MS } from './queries';
+import { MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   archiveAuthorizedMap,
   claimPurgeableMaps,

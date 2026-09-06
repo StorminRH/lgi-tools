@@ -4,7 +4,7 @@ import type {
   HistorySourceSplit,
   PriceSourceSplit,
   WriteBehindOutcome,
-} from '@/data/telemetry/cost-queries';
+} from '@/data/telemetry/queries';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import type { DomainEventRow } from '@/data/domain-events/types';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';

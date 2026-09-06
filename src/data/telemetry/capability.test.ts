@@ -7,7 +7,7 @@ import { FAILURE_CATEGORIES } from '@/lib/failure';
 import { withCorrelationScope, currentCorrelationId } from '@/transport/correlation';
 
 const logUsageEventMock = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock('./queries', () => ({ logUsageEvent: logUsageEventMock }));
+vi.mock('./log', () => ({ logUsageEvent: logUsageEventMock }));
 vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }));
 
 import {
@@ -165,7 +165,7 @@ describe('metric label cardinality', () => {
 
   it('never groups a telemetry query on a high-cardinality record field', () => {
     const sliQueries = readFileSync(
-      path.join(process.cwd(), 'src/data/telemetry/sli-queries.ts'),
+      path.join(process.cwd(), 'src/data/telemetry/queries.ts'),
       'utf8',
     );
     const groupBys = [...sliQueries.matchAll(/\.groupBy\(([^)]*)\)/g)].map(([, args]) => args);
