@@ -47,6 +47,60 @@ class DevelopmentDeliveryTests(unittest.TestCase):
         self.assertEqual("contracts-needed", state["stage"])
         self.assertEqual("9.9.1.2", state["subversion"])
 
+    def test_completed_authority_is_validated_before_skip_or_archive(self) -> None:
+        for next_status in ("Pending", "Complete"):
+            for corruption in ("contract", "approval", "digest", "plan_schema"):
+                with self.subTest(next_status=next_status, corruption=corruption):
+                    self.two_rows(next_status)
+                    contract = self.fixture.docs / "session-contracts/9.9/9.9.1.1.1.md"
+                    plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+                    if corruption == "contract":
+                        contract.write_text("# Malformed completed contract\n")
+                        self.fixture.write_session_plan(contract, execution_status="Complete")
+                    else:
+                        text = plan.read_text()
+                        if corruption == "approval":
+                            text = text.replace("**Plan status:** Approved", "**Plan status:** Draft")
+                        elif corruption == "digest":
+                            text = text.replace("sha256:", "sha256:stale")
+                        else:
+                            text = text.replace("### Ordered work", "### Missing ordered work")
+                        plan.write_text(text)
+                    state, errors = resolve(self.fixture.root, app_facing=0, delivery_state="delivered")
+                    self.assertEqual("invalid", state["stage"])
+                    self.assertTrue(any("completed session authority is invalid" in error for error in errors))
+                    self.assertIsNone(state["directive"]["handler"])
+
+    def test_completed_index_entry_outside_roadmap_is_validated(self) -> None:
+        self.two_rows("Complete")
+        index = self.fixture.docs / "session-contracts/9.9/INDEX.md"
+        index.write_text(index.read_text().replace("| 9.9.1.2 |", "| 9.9.1.3 |"))
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.2.1.md"
+        plan.write_text(plan.read_text().replace("**Plan status:** Approved", "**Plan status:** Draft"))
+        state, errors = resolve(self.fixture.root, app_facing=0, delivery_state="delivered")
+        self.assertEqual("invalid", state["stage"])
+        self.assertTrue(any("9.9.1.2.1: completed session authority" in error for error in errors))
+
+    def test_legacy_terminal_work_keeps_existing_archive_behavior(self) -> None:
+        roadmap = self.fixture.docs / "VERSION_9_9_PLAN.md"
+        (self.fixture.docs / "VERSION_4_0_PLAN.md").write_text(
+            roadmap.read_text().replace("9.9", "4.0").replace("CANCELLED", "COMPLETE")
+        )
+        roadmap.unlink()
+        contracts = self.fixture.docs / "session-contracts/4.0"
+        contracts.mkdir(parents=True)
+        (contracts / "INDEX.md").write_text(
+            "| Session | Sub-version | Contract |\n| --- | --- | --- |\n"
+            "| 4.0.1.1.1 | 4.0.1.1 | `4.0.1.1.1.md` |\n"
+        )
+        (contracts / "4.0.1.1.1.md").write_text("# Legacy contract\n")
+        plans = self.fixture.docs / "session-plans/4.0"
+        plans.mkdir(parents=True)
+        (plans / "4.0.1.1.1.md").write_text("**Execution status:** Complete\n")
+        state, errors = resolve(self.fixture.root, app_facing=0)
+        self.assertEqual([], errors)
+        self.assertEqual("archive-needed", state["stage"])
+
     def test_final_session_ignores_later_completed_rows(self) -> None:
         self.two_rows("Complete")
         first = self.fixture.docs / "session-contracts/9.9/9.9.1.1.1.md"

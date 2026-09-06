@@ -7,15 +7,16 @@ export async function deleteForMapCharacter(
   ctx: MutationCtx,
   mapId: string,
   characterId: number,
-): Promise<void> {
+): Promise<number> {
   const row = await ctx.db
     .query('mapJumpBookkeeping')
     .withIndex('by_map_character', (q) =>
       q.eq('mapId', mapId).eq('characterId', characterId),
     )
     .unique();
-  if (row === null) return;
+  if (row === null) return 0;
   await ctx.db.delete(row._id);
+  return 1;
 }
 
 export const purgeForMap = internalMutation({

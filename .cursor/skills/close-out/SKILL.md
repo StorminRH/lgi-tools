@@ -96,7 +96,8 @@ is green on that run. Done when the list exists and step 1 is in progress.
 13. When the destination is `staging`, `origin pr thread list
     --unresolved` empty. Merge per **Merge**. Close the mirror PR
     unmerged. Done when Origin `staging` holds the head.
-14. Resync per **Resync**. Done when `development` contains
+14. When the destination is `staging`, resync per **Resync**. Done when
+    `development` contains
     `staging`. Return `PROMOTED`. When the operator requested staging web
     testing, hand back to the pending `ux-check` or OW visual pause. The merge
     does not approve the UI; testing and operator disposition remain required.
