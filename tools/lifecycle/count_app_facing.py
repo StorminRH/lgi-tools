@@ -25,6 +25,7 @@ DEFAULT_HEAD = "origin/development"
 EXCLUDED_PREFIXES = (
     ".cursor/",
     ".agents/",
+    ".codex/",
     "docs/",
     "scripts/",
     "content/changelog/",

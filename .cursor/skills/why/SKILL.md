@@ -66,7 +66,8 @@ Before spawning investigators, anchor the investigation in concrete code. You ne
 - The relevant file path(s) and line range(s)
 - The key symbols (function names, class names, constants)
 - An initial commit list. The last few commits touching the target.
-- PR numbers from merge commits (pattern `(#1234)` in the subject line)
+- PR references from commit messages, with their forge identified. A bare
+  number does not establish whether it belongs to Origin or GitHub.
 
 Build this inline. It's cheap, and every investigator needs it.
 
@@ -84,11 +85,11 @@ git log --oneline -20 -- <file>
 git log -1 --format=%B <commit>
 ```
 
-Pull PR bodies and discussion via `gh` for any substantive commits:
-
-```bash
-gh pr view <number> --json title,body,author,createdAt,mergedAt,labels,closingIssuesReferences,comments,reviews
-```
+Read substantive PRs on their owning forge. Origin is the land forge:
+use `origin pr view <number>` and read its review threads. Consult the
+installed CLI help for additional read commands. Use `gh pr view` only for
+a verified GitHub mirror or historical GitHub PR. Linear owns tickets.
+Keep forge names in citations so matching PR numbers cannot be confused.
 
 Capture this as seed context (file paths, symbols, commits, PR numbers, linked ticket IDs). Pass it to the investigators so they don't rediscover it.
 
@@ -100,7 +101,7 @@ Capture this as seed context (file paths, symbols, commits, PR numbers, linked t
 
 Before spawning investigators, list the available MCPs from the Cursor environment. Use the available-tools map when present. Otherwise inspect the `mcps/` directory Cursor exposes for enabled MCP servers.
 
-Map each available MCP to one evidence category:
+Map each available connector or CLI to one evidence category:
 
 1. Source control history
 2. Issue / ticket tracker
@@ -110,11 +111,13 @@ Map each available MCP to one evidence category:
 6. Error / exception tracking
 7. Product analytics warehouse
 
-Source control is always available through git and `gh`. For the other six, classify using the MCP name, server instructions, tool names, and resource descriptors. If an MCP could fit more than one category, choose the one matching its primary evidence. Record ambiguous cases in the coverage map.
+Use local git for source history and verify Origin or GitHub access before
+claiming PR coverage. For the other six, classify using the MCP name, server instructions, tool names, and resource descriptors. If an MCP could fit more than one category, choose the one matching its primary evidence. Record ambiguous cases in the coverage map.
 
-Aim for a complete **coverage map**, not a minimal one. A null result from an issue tracker is evidence the decision was not ticketed, a useful fact in itself. Document the null, don't skip the search.
+Aim for a complete **coverage map**, not a minimal one. A null result means the query found no matching record. It does not prove
+the decision was never ticketed. Record the query and its limits.
 
-Launch all matching investigators in a single message so they run concurrently. One investigator per category lets each specialize in one tool's query vocabulary and result shape. Don't ask one agent to cover multiple MCPs.
+Launch all matching investigators in a single message so they run concurrently. One investigator per category lets each specialize in one tool's query vocabulary and result shape. Keep each investigator within one evidence category.
 
 Subagent config (each):
 
@@ -134,11 +137,13 @@ Each investigator gets:
 
 ### Investigator roster. One per available evidence category
 
-Spawn one investigator per category that has a matching MCP. Each owns exactly one tool or MCP.
+Spawn one investigator per category with readable sources. Each owns that
+category and may use its matching connectors and CLIs. For example, the
+source-control investigator reads git and the owning forge together.
 
 Each entry lists what the category physically contains and the kind of "why" it uniquely surfaces. Use it to know what to expect back, how to name a gap when a category returns empty, and (only in the rare provably-irrelevant case) to justify a skip. Every category overlaps, but each owns a kind of evidence the others cannot recover.
 
-1. **Source control investigator**. Git history, `gh` for PRs, code comments, tests. Always spawn; the only guaranteed source. Best at surfacing *implementation-time rationale captured during review*. PR descriptions stating the problem, review threads debating alternatives, inline comments encoding non-obvious constraints, test names that encode motivating edge cases, and commit messages linking tickets or incidents. Most trustworthy because it ties directly to the diff that shipped.
+1. **Source control investigator**. Local git history, Origin PRs, verified GitHub mirror or historical PRs, code comments, and tests. Always spawn; record unavailable remote history as a gap. Best at surfacing *implementation-time rationale captured during review*. PR descriptions stating the problem, review threads debating alternatives, inline comments encoding non-obvious constraints, test names that encode motivating edge cases, and commit messages linking tickets or incidents. Most trustworthy because it ties directly to the diff that shipped.
 2. **Issue / ticket tracker investigator** (e.g. Linear, Jira, GitHub Issues, Plane, Shortcut MCP). Tickets, project docs, status updates, spec attachments. Best at surfacing *the product or business forcing function*. Customer requests ("Acme needs X for their SOC2 audit"), compliance deadlines, parent-initiative framing ("Q3 enterprise readiness"), ticket-level scope changes, and labels that categorize the motivation (`customer:`*, `incident-followup`, `compliance`, `perf-regression`). Strongest when the why is external to engineering.
 3. **Long-form documents investigator** (e.g. Notion, Confluence, Google Docs, Coda MCP). PRDs, specs, RFCs, design docs, ADRs, postmortems, team pages, meeting notes. Best at surfacing *long-form design rationale*. Problem statements, explicit "alternatives considered" and "rejected approaches" sections, strategy documents that set priorities, ADRs with finalized decisions, and postmortem action items that tie directly to code. Where the why is written out before it becomes code.
 4. **Real-time team chat investigator** (e.g. Slack, Discord, Microsoft Teams, Mattermost MCP). Feature-name and symbol searches, PR URL mentions, incident channels (`#sev-`*, `#incident-*`), author-handle activity around the ship date. Best at surfacing *real-time deliberation that never reached a doc*. Fire-drill decisions during incidents, Q&A between the PR author and reviewers, casual "we decided X because Y" threads, and rationale for small changes that didn't warrant a PRD. Especially important when the source control, ticket, and doc paper trail is thin.
@@ -150,9 +155,10 @@ Each entry lists what the category physically contains and the kind of "why" it 
 
 ### When to skip an investigator
 
-Only skip with an **explicit, written justification** that goes in the final "Sources Consulted" section. Two valid reasons:
+Only skip with an **explicit, written justification** that goes in the final "Sources Consulted" section. Three valid reasons:
 
-- **No MCP is available for that category** in this environment. Flag this as a gap, not a choice. Example: "Real-time team chat skipped. No matching MCP available, so the conversational record was not searchable."
+- **The caller explicitly limits the sources.** Record the limit and the omitted categories. A narrow topic alone does not narrow source coverage.
+- **No readable connector or CLI is available for that category** in this environment. Flag this as a gap, not a choice. Example: "Real-time team chat skipped. No matching MCP available, so the conversational record was not searchable."
 - **The source is provably irrelevant**, not just "probably irrelevant." A high bar. Example: "Error / exception tracking skipped. Target is a build-time script with no runtime code path." Not "probably not in error tracking, it's a feature not an error."
 
 "It's pure feature code, error tracking won't have anything" is **not** sufficient, and neither is "I doubt long-form docs would have this." Run the search; let the null result speak. The cost of an investigator returning empty is one subagent. The cost of missing a design doc that actually exists is a wrong answer.

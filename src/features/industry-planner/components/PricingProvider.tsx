@@ -28,7 +28,7 @@ import { industryCostBasis, plannerBuildCharacter, plannerBuildLocation } from '
 import {
   collectBlueprintTypeIds,
   collectRawTypeIds,
-  computeBatchLedgerWithMe,
+  computeBatchLedger,
   type BatchLedger,
   type MeOptions,
 } from '../build-batch';
@@ -416,9 +416,9 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 
 interface PriceAssembleMirrors {
   readonly costBasis: 'batched' | 'marginal';
+  readonly ledger: BatchLedger;
+  readonly ledgerMeOpts: MeOptions;
   readonly location: SelectedLocation | null;
-  readonly meOverrides: Map<number, number>;
-  readonly ownedMe: Map<number, number> | null;
   readonly reactionLocation: ReactionLocationSnapshot | null;
   readonly reactionStructure: AvailableStructure | null;
   readonly runs: number;
@@ -446,16 +446,14 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
       reactionStructure: current.reactionStructure,
       structureCostBonusPct: sf.structureCostBonusPct,
     });
-    const owned = current.ownedMe;
-    const overrides = current.meOverrides;
-    const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
     setPricing(
       assemblePricing(structure, priceSnapshot.lookup, {
         runs: current.runs,
         fee,
-        meOf,
-        structureMeFactorOf: sf.active ? sf.structureMeFactorOf : undefined,
+        meOf: current.ledgerMeOpts.meOf,
+        structureMeFactorOf: current.ledgerMeOpts.structureMeFactorOf,
         basis: current.costBasis,
+        ledger: current.ledger,
       }),
     );
   }, [structure, priceSnapshot]);
@@ -477,8 +475,8 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     mirrors.reactionLocation,
     mirrors.selectedStructure,
     mirrors.reactionStructure,
-    mirrors.ownedMe,
-    mirrors.meOverrides,
+    mirrors.ledger,
+    mirrors.ledgerMeOpts,
     mirrors.structureFactors,
     mirrors.costBasis,
     seeded,
@@ -566,7 +564,7 @@ function usePlannerLedger(
     [structure.blueprintTypeId, ownedMe, meOverrides, structureFactors],
   );
   const ledger = useMemo<BatchLedger>(
-    () => computeBatchLedgerWithMe(structure.tree, runs, ledgerMeOpts),
+    () => computeBatchLedger(structure.tree, runs, ledgerMeOpts),
     [structure.tree, runs, ledgerMeOpts],
   );
   const skillTimeFactors = useMemo<SkillTimeFactors>(
@@ -646,9 +644,9 @@ export function PricingProvider({
   );
   const clock = usePriceClock(structure, {
     costBasis: prefs.costBasis,
+    ledger: ledger.ledger,
+    ledgerMeOpts: ledger.ledgerMeOpts,
     location: locationState.location,
-    meOverrides: ledger.meOverrides,
-    ownedMe: owned.ownedMe,
     reactionLocation: locationState.reactionLocation,
     reactionStructure: locationState.reactionStructure,
     runs: prefs.runs,

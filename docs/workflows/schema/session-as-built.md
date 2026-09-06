@@ -15,6 +15,15 @@ session that shipped exactly per plan still needs the Delivered outcome
 lines the changelog will lift. `None.` is the expected value for other
 sections with nothing to report. Do not restate the diff.
 
+A promotion containing only part of a session writes a separate ordinary-work
+style partial-delivery record: `None.` for Contract, Plan, and both digests;
+actual delivering branch and Origin PR; links to the session and completed
+OWs in Delivered outcome or Successor notes. Describe only the behavior this
+promotion delivers. Verification summary records the available proof and
+review receipt; it does not claim uncompleted session criteria passed. Keep
+the numbered final session record for the promotion completing that session,
+and identify prior partial records so the changelog does not repeat them.
+
 An as-built record starts with this frame:
 
 ```markdown
@@ -26,7 +35,7 @@ An as-built record starts with this frame:
 **Contract digest:** `sha256:<64 lowercase hexadecimal characters>`
 **Plan:** `docs/session-plans/X.Y/X.Y.N.M.md`
 **Plan digest:** `sha256:<64 lowercase hexadecimal characters>`
-**Branch:** `lifecycle/X.Y.N`
+**Branch:** `development`
 **PR:** `#NNN`
 **Record standard:** `docs/workflows/schema/session-as-built.md`
 ```
@@ -41,15 +50,16 @@ The marker values are closed vocabularies:
   Session records still use those frozen prompt paths. Ordinary work in
   the same PR uses a separate file and writes `None.` for Contract, Plan,
   and their digests.
-- `Branch` is the sub-version's deterministic lifecycle branch.
-- `PR` is the delivering PR's `#<number>`, written once that PR exists — on
-  the final session, and on every session in a sub-version whose effective
-  delivery unit is one PR per session. A per-session declaration on any indexed
-  contract applies to the whole sub-version so later operator-added splits do
-  not require edits to prior frozen contracts. A non-final session under the
-  one-sub-version-PR delivery unit writes `Deferred to <final session id>`
-  instead. The PR number plus Delivered outcome make the record a complete
-  devlog reference without git-history archaeology.
+- From version 4.1 onward, numbered session records and ordinary work records
+  use the delivering Origin PR's actual head branch (normally `development`)
+  and positive `#<number>`. Each completed session delivered by the same
+  promotion records that PR, including sessions previously labelled non-final.
+  `PR` identifies the promotion completing the session record; earlier
+  promotions may already have delivered some of its Ordered work.
+- Records through version 4.0 retain their historical branch and PR rules:
+  numbered sessions use `lifecycle/<sub-version>`; one-sub-version-PR delivery
+  uses `Deferred to <final session id>` for non-final sessions. A per-session
+  delivery declaration on any indexed contract applies across that sub-version.
 - `Record standard` is exactly `docs/workflows/schema/session-as-built.md`.
 
 The record lives at `docs/session-as-built/X.Y/<session>.md`. Every record
@@ -107,8 +117,8 @@ code. `None.` when the session changed no durable surface worth mapping.
 
 Work found during execution and deliberately not done. Prefer absorbing
 corrections in-session; backlog or later-session cuts are extremely rare and
-operator-driven. When present, each item names where it went: a `[Backlog]`
-GitHub Issue with its number or canonical URL, a named later session, or
+operator-driven. When present, each item names where it went: a Linear issue
+with its identifier or canonical URL, a named later session, or
 dropped with the reason. `None.` when nothing was cut.
 
 ## Successor notes
@@ -119,7 +129,9 @@ there are none.
 
 ## Verification summary
 
-Use exactly one ordered line per plan criterion and one review receipt:
+For a numbered final session record, use exactly one ordered line per plan
+criterion and one review receipt. Ordinary and partial-delivery records state
+the proof available for their delivered scope and the review receipt:
 
 ```markdown
 - **SC-1:** `Passed` — <specific evidence covering every atomic proof row>

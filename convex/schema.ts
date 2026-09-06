@@ -164,6 +164,7 @@ export default defineSchema({
     characterId: v.number(),
   })
     .index('by_map', ['mapId'])
+    .index('by_map_character', ['mapId', 'characterId'])
     .index('by_map_user', ['mapId', 'userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
