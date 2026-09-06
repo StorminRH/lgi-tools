@@ -364,7 +364,6 @@ export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNe
         and(
           inRange(range),
           eq(usageLogs.action, 'auth_login'),
-          // Date.toString(), which Postgres can't parse.
           lt(characters.createdAt, range.from),
         ),
       ),
