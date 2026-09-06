@@ -1,3 +1,4 @@
+import { observeConvexQueries } from '../lib/convex-query-observer.mjs';
 import {
   authoringMapId,
   authoringRoute,
@@ -14,27 +15,7 @@ export default {
   reducedMotion: true,
   settle: 1500,
   async setup({ page }) {
-    const active = new Set();
-    subscriptions.set(page, active);
-    page.on('websocket', (socket) => {
-      const owned = new Set();
-      socket.on('framesent', ({ payload }) => {
-        const message = JSON.parse(String(payload));
-        if (message.type !== 'ModifyQuerySet') return;
-        for (const change of message.modifications) {
-          if (change.type === 'Add' && change.udfPath === 'mapChainEvents:watchMapEvents') {
-            owned.add(change.queryId);
-            active.add(change.queryId);
-          } else if (change.type === 'Remove') {
-            owned.delete(change.queryId);
-            active.delete(change.queryId);
-          }
-        }
-      });
-      socket.on('close', () => {
-        for (const id of owned) active.delete(id);
-      });
-    });
+    subscriptions.set(page, observeConvexQueries(page, 'mapChainEvents:watchMapEvents'));
   },
   async run({ page, viewport, check }) {
     const mapId = authoringMapId();
@@ -64,7 +45,7 @@ export default {
     check('ledger starts collapsed', !(await details.evaluate((el) => el.open)));
     check('collapsed ledger omits detail rows and count',
       await log.locator('[data-map-event-log-rows], [data-map-event-log-count]').count() === 0);
-    check('collapsed ledger has no event subscription', subscriptions.get(page).size === 0);
+    check('collapsed ledger has no event subscription', subscriptions.get(page)().length === 0);
     if ((await details.count()) === 1 && !(await details.evaluate((el) => el.open))) {
       await toggle();
       await log.locator('[data-map-event-log-count]').waitFor();
@@ -80,18 +61,18 @@ export default {
         ((await log.locator('[data-map-event-log-empty]').isVisible()) ||
           (await log.locator('[data-map-event-row]').count()) >= 1),
     );
-    check('expanded ledger has one event subscription', subscriptions.get(page).size === 1);
+    check('expanded ledger has one event subscription', subscriptions.get(page)().length === 1);
 
     await toggle();
     await log.locator('[data-map-event-log-rows]').waitFor({ state: 'detached' });
     check('closing releases rendered details and count',
       await log.locator('[data-map-event-log-count]').count() === 0);
     await page.waitForTimeout(200);
-    check('closing releases the event subscription', subscriptions.get(page).size === 0);
+    check('closing releases the event subscription', subscriptions.get(page)().length === 0);
     await toggle();
     await log.locator('[data-map-event-log-count]').waitFor();
     check('reopening loads the current ledger',
       await log.locator('[data-map-event-log-rows]').isVisible());
-    check('reopening restores one event subscription', subscriptions.get(page).size === 1);
+    check('reopening restores one event subscription', subscriptions.get(page)().length === 1);
   },
 };

@@ -14,6 +14,7 @@ import {
   internalQuery,
   mutation,
   query,
+  type QueryCtx,
 } from './_generated/server';
 import {
   requireMapAccess,
@@ -259,28 +260,46 @@ export const removeSignatures = signatureSelectionMutation('remove');
 
 export const restoreSignatures = signatureSelectionMutation('restore');
 
+const signaturePageValidator = paginationResultValidator(v.object({
+  ...schema.tables.mapSignatures.validator.fields,
+  _id: v.id('mapSignatures'),
+  _creationTime: v.number(),
+}));
+
+async function readSignaturePage(
+  ctx: QueryCtx,
+  { mapId, systemId, paginationOpts }: {
+    readonly mapId: string;
+    readonly systemId: number | null;
+    readonly paginationOpts: PaginationOptions;
+  },
+) {
+  const principal = await tryMapAccess(ctx, mapId, 'view');
+  if (principal === null) return deniedPage<Doc<'mapSignatures'>>();
+  const signatures = ctx.db.query('mapSignatures');
+  const indexed = systemId === null
+    ? signatures.withIndex('by_map', (q) => q.eq('mapId', mapId))
+    : signatures.withIndex('by_map_signature', (q) =>
+      q.eq('mapId', mapId).eq('systemId', systemId),
+    );
+  const page = await indexed.paginate(boundedPageOptions(paginationOpts));
+  return { ...page, page: page.page.filter((row) => !isTombstoned(row)) };
+}
+
+export const watchMapSignatures = query({
+  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
+  returns: signaturePageValidator,
+  handler: async (ctx, args) => await readSignaturePage(ctx, { ...args, systemId: null }),
+});
+
 export const watchSystemSignatures = query({
   args: {
     mapId: v.string(),
     systemId: v.number(),
     paginationOpts: paginationOptsValidator,
   },
-  returns: paginationResultValidator(v.object({
-    ...schema.tables.mapSignatures.validator.fields,
-    _id: v.id('mapSignatures'),
-    _creationTime: v.number(),
-  })),
-  handler: async (ctx, { mapId, systemId, paginationOpts }) => {
-    const principal = await tryMapAccess(ctx, mapId, 'view');
-    if (principal === null) return deniedPage<Doc<'mapSignatures'>>();
-    const page = await ctx.db
-      .query('mapSignatures')
-      .withIndex('by_map_signature', (q) =>
-        q.eq('mapId', mapId).eq('systemId', systemId),
-      )
-      .paginate(boundedPageOptions(paginationOpts));
-    return { ...page, page: page.page.filter((row) => !isTombstoned(row)) };
-  },
+  returns: signaturePageValidator,
+  handler: readSignaturePage,
 });
 
 export const purgeExpiredSignatureTombstones = internalMutation({

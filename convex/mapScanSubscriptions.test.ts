@@ -19,9 +19,11 @@ async function seed(t: ScanDb) {
       await ctx.db.insert('mapAccess', { mapId, userId: VIEWER, roles: ['viewer'] });
     }
     await ctx.db.insert('mapAccess', { mapId: MAP, userId: EDITOR, roles: ['editor'] });
-    await ctx.db.insert('mapSystems', {
-      mapId: MAP, systemId: SYSTEM, deletedAt: null, purgeAfter: null,
-    });
+    for (const systemId of [SYSTEM, SYSTEM + 1]) {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP, systemId, deletedAt: null, purgeAfter: null,
+      });
+    }
     for (const [mapId, systemId, count] of [
       [MAP, SYSTEM, 225], [MAP, SYSTEM + 1, 130], ['map-b', SYSTEM, 130],
     ] satisfies [string, number, number][]) {
@@ -107,9 +109,70 @@ describe('system signature subscriptions', () => {
     expect(await page(t, first.continueCursor)).toEqual(denied);
   });
 
+  it('keeps legacy map-wide pagination available to stale clients with the original argument shape', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const viewer = t.withIdentity({ subject: VIEWER });
+    const args = { mapId: MAP, paginationOpts: { cursor: null, numItems: 1000 } };
+    const first = await viewer.query(api.mapScan.watchMapSignatures, args);
+    const second = await viewer.query(api.mapScan.watchMapSignatures, {
+      ...args, paginationOpts: { ...args.paginationOpts, cursor: first.continueCursor },
+    });
+    const third = await viewer.query(api.mapScan.watchMapSignatures, {
+      ...args, paginationOpts: { ...args.paginationOpts, cursor: second.continueCursor },
+    });
+    const fourth = await viewer.query(api.mapScan.watchMapSignatures, {
+      ...args, paginationOpts: { ...args.paginationOpts, cursor: third.continueCursor },
+    });
+    expect([first.page.length, second.page.length, third.page.length, fourth.page.length])
+      .toEqual([100, 100, 100, 55]);
+    expect([first.isDone, second.isDone, third.isDone, fourth.isDone])
+      .toEqual([false, false, false, true]);
+    const rows = [...first.page, ...second.page, ...third.page, ...fourth.page];
+    expect(rows.every((row) => row.mapId === MAP)).toBe(true);
+    expect(rows.filter((row) => row.systemId === SYSTEM)).toHaveLength(225);
+    expect(rows.filter((row) => row.systemId === SYSTEM + 1)).toHaveLength(130);
+    expect(new Set(rows.map((row) => row._id)).size).toBe(355);
+  });
+
+  it('retains legacy tombstone filtering, restore, and live authorization', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const viewer = t.withIdentity({ subject: VIEWER });
+    const args = { mapId: MAP, paginationOpts: { cursor: null, numItems: 1 } };
+    const first = await viewer.query(api.mapScan.watchMapSignatures, args);
+    const row = first.page[0];
+    if (row === undefined) throw new Error('Legacy page missing');
+    const editor = t.withIdentity({ subject: EDITOR });
+    await editor.mutation(api.mapScan.removeSignatures, {
+      mapId: MAP, systemId: row.systemId, signatureIds: [row.signatureId],
+    });
+    const removed = await viewer.query(api.mapScan.watchMapSignatures, args);
+    expect(removed.page).toEqual([]);
+    expect(removed.isDone).toBe(false);
+    await editor.mutation(api.mapScan.restoreSignatures, {
+      mapId: MAP, systemId: row.systemId, signatureIds: [row.signatureId],
+    });
+    expect((await viewer.query(api.mapScan.watchMapSignatures, args)).page).toEqual(first.page);
+
+    const denied = { page: [], isDone: true, continueCursor: '' };
+    expect(await t.query(api.mapScan.watchMapSignatures, args)).toEqual(denied);
+    expect(await t.withIdentity({ subject: 'stranger' }).query(api.mapScan.watchMapSignatures, args))
+      .toEqual(denied);
+    await t.run(async (ctx) => {
+      const claim = await ctx.db.query('mapAccess')
+        .withIndex('by_map_user', (q) => q.eq('mapId', MAP).eq('userId', VIEWER)).unique();
+      if (claim === null) throw new Error('Viewer claim missing');
+      await ctx.db.delete(claim._id);
+    });
+    expect(await viewer.query(api.mapScan.watchMapSignatures, {
+      ...args, paginationOpts: { ...args.paginationOpts, cursor: first.continueCursor },
+    })).toEqual(denied);
+  });
+
   it('places both selection bounds in the indexed read before pagination', () => {
     const source = readFileSync('convex/mapScan.ts', 'utf8');
-    const watcher = source.slice(source.indexOf('export const watchSystemSignatures'));
+    const watcher = source.slice(source.indexOf('async function readSignaturePage'));
     expect(watcher).toMatch(/withIndex\('by_map_signature',[\s\S]*?q\.eq\('mapId', mapId\)\.eq\('systemId', systemId\)[\s\S]*?\.paginate\(boundedPageOptions\(paginationOpts\)\)/);
   });
 });
