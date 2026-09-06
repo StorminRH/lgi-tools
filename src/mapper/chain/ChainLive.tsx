@@ -52,7 +52,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     connectionDetails,
     unresolvedHoles,
     connectionPresentationNow,
-    events,
     state,
     intents,
     labelOf,
@@ -170,7 +169,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
             mapId={mapId}
             canEdit={canEdit === true}
             connectionPresentationNow={connectionPresentationNow}
-            events={events}
             authoring={authoring}
           />
           {canEdit === true ? (

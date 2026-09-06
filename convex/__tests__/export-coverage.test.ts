@@ -134,6 +134,7 @@ import {
   removeSignatures,
   restoreSignatures,
   watchMapSignatures,
+  watchSystemSignatures,
 } from '../mapScan';
 import { trackedCharacterIds } from '../mapTrackingIds';
 import { coverage, forMap } from '../mapTrackingLive';
@@ -252,6 +253,7 @@ describe('convex runtime exports', () => {
       removeSignatures,
       restoreSignatures,
       watchMapSignatures,
+      watchSystemSignatures,
       coverage,
       forMap,
       setTracking,
