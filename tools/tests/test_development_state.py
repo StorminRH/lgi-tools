@@ -82,7 +82,7 @@ class ResolverFixture:
         self.docs = self.root / "docs"
         self.docs.mkdir()
         self.write_schemas()
-        self.write_roadmap("COMPLETE")
+        self.write_roadmap("CANCELLED")
 
     def close(self) -> None:
         self.temporary.cleanup()
@@ -144,7 +144,7 @@ class ResolverFixture:
         ux_gate: str | None = "No",
         *,
         session: str = "9.9.1.1.1",
-        delivery_unit: str = DELIVERY_UNITS[1],
+        delivery_unit: str = DELIVERY_UNITS[2],
     ) -> Path:
         directory = self.docs / "session-contracts/9.9"
         directory.mkdir(parents=True, exist_ok=True)
@@ -231,7 +231,7 @@ class ResolverFixture:
             f"**Contract digest:** `sha256:{contract_digest}`\n"
             f"**Plan:** `docs/session-plans/9.9/{session}.md`\n"
             f"**Plan digest:** `sha256:{plan_digest}`\n"
-            f"**Branch:** `lifecycle/{subversion}`\n"
+            f"**Branch:** `{'development' if tuple(map(int, session.split('.'))) >= (4, 1) else lifecycle_branch(subversion)}`\n"
             f"**PR:** `{pr}`\n"
             "**Record standard:** `docs/workflows/schema/session-as-built.md`\n\n"
             + "\n\n".join(
@@ -294,7 +294,7 @@ class ResolverFixture:
 
 </hard_constraints>
 
-**Branch:** `codex/{subversion}-fixture` · **ends in PR:** no · **gate:** fixture evidence
+**Branch:** `development` · **ends in PR:** no · **gate:** fixture evidence
 
 **Contract UX gate:** `{ux_gate}` · **required pause:** None
 
@@ -422,7 +422,7 @@ class DevelopmentStateTests(unittest.TestCase):
         self.fixture.close()
 
     def resolved(self) -> dict[str, object]:
-        state, errors = resolve(self.fixture.root)
+        state, errors = resolve(self.fixture.root, delivery_state="delivered")
         self.assertEqual([], errors)
         directive = state.get("directive")
         self.assertIsInstance(directive, dict)
@@ -501,7 +501,9 @@ class DevelopmentStateTests(unittest.TestCase):
         for status in ("SHIPPED", "COMPLETE"):
             with self.subTest(status=status):
                 self.fixture.write_roadmap(status)
-                state, errors = resolve(self.fixture.root)
+                contract = self.fixture.write_contract()
+                self.fixture.write_session_plan(contract, execution_status="Complete")
+                state, errors = resolve(self.fixture.root, delivery_state="delivered")
                 self.assertEqual([], errors)
                 self.assertEqual("archive-needed", state["stage"])
 
@@ -783,12 +785,9 @@ class DevelopmentStateTests(unittest.TestCase):
                 "Execution profile must be Frontier autonomous coding agent",
             ),
             "delivery unit": (
-                "**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR\n",
+                "**Delivery unit:** One agent session, land each Ordered work step on development\n",
                 "**Delivery unit:** One branch\n",
-                "Delivery unit must be one of: One agent session, one shared "
-                "sub-version branch, one PR per session | One agent session, "
-                "one shared sub-version branch, one sub-version PR | One agent "
-                "session, land each Ordered work step on development",
+                "Delivery unit must be one of: One agent session, land each Ordered work step on development",
             ),
             "roadmap coverage": (
                 "**Roadmap coverage:** §9.9.1.1 fixture outcome\n",
@@ -840,7 +839,7 @@ class DevelopmentStateTests(unittest.TestCase):
         assert isinstance(directive, dict)
         self.assertEqual(
             "UX gate: Complete the dedicated UX Ordered-work step (`ux-check` plus "
-            "the operator's local browser review) before awaiting close-out; "
+            "the operator's browser review on development or staging through close-out); "
             "also pause to discuss design conflicts and reshape in-session.",
             directive["pause"],
         )
@@ -1227,17 +1226,13 @@ class DevelopmentStateTests(unittest.TestCase):
         )
         self.assertTrue(any(item.startswith("Plan digest must be") for item in violations))
 
-    def test_delivery_unit_accepts_per_session_prs(self) -> None:
+    def test_new_contract_rejects_legacy_per_session_pr_delivery(self) -> None:
         self.fixture.write_roadmap("PLANNED")
-        contract = self.fixture.write_contract()
-        text = contract.read_text(encoding="utf-8").replace(
-            "one sub-version PR", "one PR per session"
-        )
-        contract.write_text(text, encoding="utf-8")
-        self.fixture.write_session_plan(contract)
+        self.fixture.write_contract(delivery_unit=DELIVERY_UNITS[0])
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)
-        self.assertEqual("session-ready", state["stage"])
+        self.assertEqual("contract-repair-needed", state["stage"])
+        self.assertTrue(any("Delivery unit" in item for item in state["contractSchemaViolations"]))
 
     def test_delivery_unit_accepts_land_each_ordered_work_step(self) -> None:
         self.fixture.write_roadmap("PLANNED")
@@ -1249,13 +1244,13 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertEqual("session-ready", state["stage"])
 
-    def test_later_per_session_contract_applies_to_frozen_prior_session(self) -> None:
+    def test_later_development_session_advances_without_prior_promotion(self) -> None:
         self.fixture.write_roadmap("PLANNED", sessions=2)
         first = self.fixture.write_contract()
         self.fixture.write_session_plan(first, execution_status="Complete")
         second = self.fixture.write_contract(
             session="9.9.1.1.2",
-            delivery_unit=DELIVERY_UNITS[0],
+            delivery_unit=DELIVERY_UNITS[2],
         )
         self.fixture.write_session_plan(second)
         (second.parent / "INDEX.md").write_text(
@@ -1273,7 +1268,7 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("session-ready", state["stage"])
         self.assertEqual("9.9.1.1.2", state["session"])
 
-    def test_subversion_pr_contract_still_requires_deferred_prior_record(self) -> None:
+    def test_promotion_records_use_actual_pr_even_for_prior_session(self) -> None:
         self.fixture.write_roadmap("PLANNED", sessions=2)
         first = self.fixture.write_contract()
         self.fixture.write_session_plan(first, execution_status="Complete")
@@ -1296,10 +1291,7 @@ class DevelopmentStateTests(unittest.TestCase):
             per_session_delivery=False,
             final_session="9.9.1.1.2",
         )
-        self.assertIn(
-            "PR must defer to the final session under the one-sub-version-PR delivery unit",
-            violations,
-        )
+        self.assertEqual([], violations)
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)
         self.assertEqual("session-ready", state["stage"])

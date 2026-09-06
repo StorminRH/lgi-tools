@@ -74,7 +74,9 @@ Iterative discussion with the operator is the default. Research in the open.
    the first look.
 4. A marked visual look pauses the execute chat so the operator can try
    `development` (Preview, or laptop `pnpm dev` when they choose). Their
-   disposition is the gate to the next Ordered work step.
+   disposition is the gate to the next Ordered work step. They may instead
+   request staging web tests: promote through the full `close-out` process,
+   then return to that pause until testing and disposition are recorded.
 5. Resolve every contract planning decision (`PD-N`) during this walk.
    Surface choices that change behavior, ownership, risk, or scope.
 6. Record delivery as land-on-`development`. The plan's `Branch` is the land
@@ -82,7 +84,10 @@ Iterative discussion with the operator is the default. Research in the open.
    `lifecycle/<session>-ow-<n>` from that tip at execute time. Promote
    starts at 80 app-facing files versus `staging`. The resolver then
    sends Start Session to close-out. That promote is not this session's
-   land.
+   land. An operator-requested earlier promotion uses the same close-out
+   reviews and gates. From version 4.1 onward, version completion with
+   undelivered plans or final records also requires close-out regardless of
+   count; archive waits for staging proof.
 
 ## 3. Assemble and review
 

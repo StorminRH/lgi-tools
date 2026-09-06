@@ -88,7 +88,7 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
     "yauzl": "^3.4.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",

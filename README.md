@@ -20,7 +20,7 @@ The current tool catalogue:
 ## Tech stack
 
 - [Next.js](https://nextjs.org) (App Router, Cache Components) — see
-  [CONTRIBUTING.md](CONTRIBUTING.md#this-isnt-the-nextjs-you-know) about API
+  [AGENTS.md](AGENTS.md#this-is-not-the-nextjs-you-know) about API
   drift from prior versions.
 - TypeScript (strict)
 - [React 19](https://react.dev)
@@ -108,7 +108,7 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
-| `pnpm build` | Production build — Vercel only, after merge; never run locally |
+| `pnpm build` | Production build — runs in Depot before merge and Vercel on deploy; agents do not run it locally |
 | `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + fallow. Not the land or merge gate. |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
