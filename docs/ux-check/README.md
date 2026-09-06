@@ -20,12 +20,17 @@ ignored local evidence and can be deleted at any time.
 
 ## Run durable probes
 
-Start the local app first:
+For local Cursor or Codex, complete the README's local-development setup,
+then start the app:
 
 ```bash
 pnpm dev
 # or pnpm dev:all when Convex-backed surfaces are required
 ```
+
+In a Cursor Cloud Agent VM, use the `next-dev` and `convex-dev` terminals
+from `.cursor/environment.json`; read `.cursor/cloud-agent.md` for their
+prerequisites. The local `dev:all` command requires Docker.
 
 List available definitions, run all of them, or select names:
 

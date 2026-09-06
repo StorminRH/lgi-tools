@@ -39,8 +39,8 @@ feat: add API endpoints for browsing and filtering wormhole sites
    `staging` → `main`. Those merges, and any other merge onto
    `staging` or `main`, run through close-out.
 2. Before you land, run the local test suite: `pnpm typecheck`,
-   `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests
-   for your diff. A promote or release waits on one Depot `dispatch` after
+   `pnpm lint`, Fallow `dead-code` (default and `--production`), `dupes`,
+   and `health`, and focused tests for your diff. A promote or release waits on one Depot `dispatch` after
    reviews (`verify`, `build`, and `e2e`). Laptop `pnpm verify` is not
    done.
 3. Fill in the PR template's **test plan** — what you verified and how.

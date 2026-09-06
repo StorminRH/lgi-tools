@@ -8,7 +8,7 @@
 - Comments on issues (clarifications, scope changes, "why we're doing this" rationale)
 - Labels (e.g., `compliance`, `customer-request`, `perf`) that signal the type of motivation
 - Status updates that explain scope changes
-- Attachments and linked GitHub PRs
+- Attachments and linked Origin or GitHub PRs
 
 Linear is where the product/business context often lives: the "we're doing this because customer X asked" or "this is for the Q3 compliance initiative" layer.
 

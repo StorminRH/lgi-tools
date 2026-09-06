@@ -37,12 +37,19 @@ diagnose red checks, then give the operator an explicit visual checklist.
 
 Probe only routes the change affects:
 
+Resolve the destination from the supplied change or plan. Ordinary feature
+work targets `development`; promotions target `staging`; releases target
+`main`. Set `UX_BASE_REF` to its verified remote-tracking ref. Inspect committed,
+staged, unstaged, and untracked changes:
+
 ```bash
-git diff --name-only $(git merge-base HEAD origin/main)..HEAD
+git diff --name-only "$(git merge-base HEAD "$UX_BASE_REF")" HEAD
 git diff --name-only
+git diff --cached --name-only
+git ls-files --others --exclude-standard
 ```
 
-Map route files directly. For shared feature/UI code, find consumers. Replace
+Map route files directly. For shared feature/UI code, use the named `repo-mapper` to find consumers. Replace
 dynamic segments with real local identifiers from the owning list page or
 database — never example ids as fixtures.
 
@@ -57,7 +64,7 @@ curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
 
 Reuse an answering server when it represents the current worktree. Otherwise
 start what the routes need (`pnpm dev` locally; Cloud Agent caveats live in
-the repo's agent guide). Browse `http://localhost:3000`, never `127.0.0.1`.
+[Cloud Agent guide](../../../.cursor/cloud-agent.md)). Browse `http://localhost:3000`, never `127.0.0.1`.
 
 Browser binaries live in the host Playwright cache (macOS:
 `$HOME/Library/Caches/ms-playwright`). If `PLAYWRIGHT_BROWSERS_PATH` points
@@ -111,7 +118,8 @@ When account-adjacent shells matter and Vitest cannot falsify them:
 
 Planned lifecycle with `UX gate: Yes`: dedicated Ordered work step under
 `start-session` — finish the operator pause before awaiting close-out.
-Ordinary work: run standalone, finish the pause, then `close-out`.
+Ordinary work: run standalone, finish the pause, then return to the owning
+delivery workflow. `close-out` owns merges onto `staging` or `main`.
 
 ## Remote / production log probes
 

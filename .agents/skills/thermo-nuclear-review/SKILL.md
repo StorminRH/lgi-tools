@@ -5,7 +5,10 @@ description: Comprehensive security and correctness audit of a branch's changes.
 
 # Thermo Nuclear Review
 
-Use this skill for a comprehensive security and correctness audit of a checked-out branch.
+Audit the caller's Origin change with `origin pr diff <N>` and read the
+changed files at that head. For an explicitly requested local branch audit,
+use the caller's base and head. Collect evidence and report findings; leave
+fixes to the caller after review.
 
 ## Prompt
 
@@ -39,7 +42,11 @@ If you report issues as High priority when they are not in fact high priority / 
 NEVER misreport the priority / importance of issues. Be extremely thorough in tracing issues end-to-end to gain complete, and total confidence before reporting.
 
 # Final Response
-IF you have medium-to-high priority / risk findings, and there is a PR for this branch, then check the PR/MR discussion using gh/glab cli to see if there are comments from BugBot or others present.
+After the independent audit, if you have medium-or-higher findings, read
+the Origin change discussion with `origin pr view` and `origin pr thread`
+commands. Use `--help` for supported read arguments. If the caller names a
+GitHub mirror, also read its discussion with `gh`; Origin is the primary
+review record.
 If so, take their findings into account. If they found issues you missed, evaluate them to determine if they are valid and include them in your report. If they found some of the same issues you did, see if there is anything from their findings that are worth incorporating into your response.
 Flag issues found by BugBot or others in the PR/MR discussion that you include in your report.
 

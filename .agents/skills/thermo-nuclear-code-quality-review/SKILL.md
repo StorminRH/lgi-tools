@@ -5,7 +5,11 @@ description: Run an extremely strict maintainability review for abstraction qual
 
 # Thermo-Nuclear Code Quality Review
 
-Use this skill for an unusually strict review focused on implementation quality, maintainability, abstraction quality, and codebase health.
+Audit the caller's Origin change with `origin pr diff <N>` and read the
+changed files at that head. For an explicitly requested local branch audit,
+use the caller's base and head. This is a report-only review of implementation
+quality, maintainability, abstraction quality, and codebase health. Propose
+structural remedies with evidence; the caller owns edits after review.
 
 Above all, this skill should push the reviewer to be **ambitious** about code structure. Do not merely identify local cleanup opportunities. Actively search for "code judo" moves: restructurings that preserve behavior while making the implementation dramatically simpler, smaller, more direct, and more elegant.
 

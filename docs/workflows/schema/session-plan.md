@@ -31,7 +31,9 @@ Marker vocabularies:
 - `Contract digest` — lowercase SHA-256 of that contract's exact bytes, prefixed with `sha256:`.
 - `Planning standard` — exactly `docs/workflows/schema/session-plan.md`.
 - `Proof standard` — exactly `Atomic`. Bind each success criterion to separately executable proof rows with one required observable per row. Plans before session `4.0.2.2.2` are a frozen legacy exception.
-- `Execution status` — `Pending` or `Complete`. Close-out sets `Complete` only after required delivery evidence exists.
+- `Execution status` — `Pending` or `Complete`. `start-session` sets `Complete`
+  in the final Ordered work land after its required proof and reviews pass. Close-out later records the work delivered
+  by the promote PR.
 - `Baseline effect` — `Improves`, `Neutral`, or `Temporary pressure`.
 
 Map every contract item — no silent drops:

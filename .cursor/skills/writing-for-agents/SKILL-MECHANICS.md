@@ -1,22 +1,46 @@
 # Skill mechanics
 
-The skill-specific branch of [`writing-for-agents`](SKILL.md): what changes when the document is a skill (frontmatter, the invocation choice, and router skills). Everything else about writing it is the universal reference in `SKILL.md`.
+Read [writing-for-agents](SKILL.md) for instruction design. This reference
+covers repository packaging, invocation, and routing.
 
-## Invocation
+## Harness packaging
 
-Two choices, trading the two loads:
+Keep workflow rules aligned across the two repository skill trees. Select
+invocation syntax and model pins for the running harness:
 
-- A **model-invoked** skill keeps a `description`, so the agent can fire it autonomously, and other skills can reach it. You can still type its name: model-invocation always _includes_ user reach; a description only ever adds agent discovery, never removes the human's. The description is the skill's top-level context pointer, forced to stay loaded at all times: permanent context load in exchange for discoverability. A model-invoked skill whose content is all reference is also one home for shared reference: another skill can invoke it, so reference needed by several skills lives in one place. Mechanics: omit `disable-model-invocation`, and write a model-facing description carrying the trigger branches (the pointer-writing rules in `SKILL.md` apply in full).
-- A **user-invoked** skill strips the description from the agent's reach: only the human typing its name can invoke it, and no other skill can. Zero context load, but it spends cognitive load: you are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing: a one-line summary, trigger lists stripped.
+| Harness | Skill tree | Explicit invocation | Explicit-only policy |
+| --- | --- | --- | --- |
+| Cursor | `.cursor/skills/<name>/SKILL.md` | `/skill-name` | `disable-model-invocation: true` in frontmatter |
+| Codex | `.agents/skills/<name>/SKILL.md` | `$skill-name` | `policy.allow_implicit_invocation: false` in `agents/openai.yaml` |
 
-Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
+Every skill has a `name` and `description` in YAML frontmatter. Preserve an
+existing invocation policy when editing or adapting it. New skills allow
+implicit invocation unless the user requests explicit-only discovery.
 
-Shared reference that two user-invoked skills both need can live in neither: with no descriptions, neither can fire the other. Push it to a plain file outside the skill system: external reference any skill can point at.
+Cursor also discovers `.agents/skills`. Follow the harness routing in root
+`AGENTS.md` when both copies are present; directory discovery alone does not
+select the correct tool syntax or model. Keep paired workflow changes in sync,
+including relative references, while retaining each harness's metadata.
 
-## Splitting by invocation
+## Routing
 
-The invocation cut of splitting (the sequence cut lives in `SKILL.md`): split off a model-invoked skill when you have a distinct leading word that should trigger it on its own (a trigger word you actually use in your prompts), or another skill must reach it. You pay context load for the new always-loaded description, so that independent reach has to be worth it.
+A description provides the trigger for automatic selection. Explicit-only
+policy limits automatic selection; it does not make supporting files
+unreadable. When an authorized workflow needs another procedure, link its
+file and state when to read and follow it. A file read grants no additional
+permission to execute that procedure or publish its results.
 
-## Router skills
+A router selects the applicable file and keeps the steps in their owning
+skill. Split a skill when the new part has a useful independent trigger or
+workflow. Keep common reference behind a relative file link when it needs no
+independent invocation.
 
-When user-invoked skills multiply past what you can remember, that piled-up cognitive load is cured by a **router skill**: one user-invoked skill that names the others and when to reach for each, so the human has one skill to remember instead of many. It can only hint, never fire them: user-invoked skills have no description, so nothing but the human can reach them.
+## Verification
+
+Check frontmatter, invocation metadata, concrete reference paths, and each
+harness's exposed agent roles. Exercise changed routing with a bounded brief
+that records the selected procedure and stopping point. Keep audits and smoke
+tests separate from the delivery actions described by the files.
+
+Discovery reference: [Cursor skills](https://cursor.com/docs/skills).
+Use the active host's tool schema for agent calls.

@@ -1,15 +1,15 @@
 ---
 name: adversarial-review
-description: Use on an Origin draft and before every merge onto staging or main. Independent structure and behavior agents, then thermos, on a freeze after the comment pass. Reviewers run origin pr diff.
+description: Use on an Origin draft and before every merge onto staging or main. Independent structure, behavior, and thermo reviews on one freeze after the comment pass. Reviewers run origin pr diff.
 ---
 
 # Adversarial review
 
 For agent launches, follow [Codex agent calls](../_shared/codex-agents.md).
 
-The comment pass already wrote. One freeze. Independent agents. Then
-`thermos`. Every freeze seat returns before the caller batches. One
-review round.
+The comment pass already wrote. One freeze covers the structure, behavior,
+and two thermo reviewers. Every seat returns before the caller batches.
+One review round.
 
 Return `PASS`, `CORRECTIONS_REQUIRED`, or `BLOCKED`.
 
@@ -55,25 +55,31 @@ returned.
 
 Done when every selected freeze seat has returned its verdict form.
 
-Launch `structure-reviewer`, `behavior-reviewer`, and `thermos` in
-the same turn. Add the other agent when the operator names it.
+Launch `structure-reviewer` and `behavior-reviewer` by agent type. Read
+and follow `../thermos/SKILL.md` to launch the two thermo reviewers;
+`thermos` is a skill, not an agent type. Launch independent seats up to
+the available concurrency limit, then launch remaining seats as slots
+become available. Keep the same frozen head across batches. Add another
+reviewer when the operator names it.
 Brief each seat with the change number, authority, and operator
 emphasis. Each seat gets a fresh brief. The brief is the change
 number.
 
 Launch those agents by type name. Omit spawn `model` and `reasoning_effort` so the agent
-file pin applies. `thermos` is the skill; it launches both thermo
-seats.
+file pin applies.
 
-If the first launch ran this chat's model, retry once the same
-way. Named type, no `model`. A second wrong-model or format
-failure is `BLOCKED`.
+If runtime metadata confirms the wrong model, retry once by named type
+without a model override. A second confirmed mismatch or verdict-format
+failure is `BLOCKED`. When runtime identity is unavailable, record
+`Not observable`; neither the requested pin nor an agent self-report
+proves the backend identity.
 
 ## 3. Thermos
 
 Done when `thermos` has returned its synthesized verdict.
 
-Read and follow `.agents/skills/thermos/SKILL.md`.
+Collect the two thermo verdicts launched in step 2 and complete that
+skill's synthesis. Each required seat runs once for this freeze.
 
 Treat accepted findings from `thermos` as this review's findings.
 

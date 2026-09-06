@@ -47,8 +47,8 @@ is green on that run. Done when the list exists and step 1 is in progress.
    count. It has no mirror and no file cap. Done when the count is
    known and, for `staging`, under the cap.
 3. Run the local test suite through `test-runner` until it passes.
-   Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
-   `dupes`, and `health`, plus focused tests for the diff, are green
+   Done when every local-suite command in `AGENTS.md`, including
+   both Fallow dead-code modes and focused tests for the diff, is green
    on the head.
 4. Open the Origin draft (`<head>` → destination) per **Origin PR**.
    Done when that PR is draft and the change number is known.
@@ -60,7 +60,7 @@ is green on that run. Done when the list exists and step 1 is in progress.
    the mirror PR is open ready and Greptile and CodeRabbit have been
    requested. Destination `main` skips the mirror.
 7. Freeze and review. Invoke `adversarial-review` on that Origin
-   change. Brief is the change number. Every Codex seat runs
+   change. Brief is the change number. Every review seat runs
    `origin pr diff <N>`. Bugbot on open. Mirror bots when a mirror
    exists. Done when every freeze seat has returned, Bugbot and
    mirror review have finished posting, and the tree is still the
@@ -69,8 +69,9 @@ is green on that run. Done when the list exists and step 1 is in progress.
    Dedupe. Accept or reject. Fix the accepted set on the head.
    Note dispositions on the Origin PR. Run the local test suite.
    Pause in chat with the reasoning when leaving a finding
-   unfixed. Done when every accepted finding is on the head, or
-   the operator has that pause, and the suite is green.
+   unfixed. Resume after the operator has settled any paused disposition.
+   Done when every finding has a disposition, accepted fixes are on the
+   head, and the suite is green.
 9. When the destination is `staging`, author as-builts for the
    work this PR delivers, per `docs/workflows/schema/session-as-built.md`.
    One record per session in the range, and one for ordinary work
@@ -184,8 +185,8 @@ hand.
 
 Done when the Origin PR is merged to its base line.
 
-`origin pr thread list --unresolved` is empty, or the operator
-paused. Merge with `origin pr merge <N>`. That merge is what
+`origin pr thread list --unresolved` is empty and every operator pause
+has a recorded disposition. A pending pause stops this process. Merge with `origin pr merge <N>`. That merge is what
 moves the work onto the destination. It waits for this step.
 `--merge`, `--squash`, `--auto`, and `--branch` hit the same
 merge gate. A Cloud Agent token that is not scoped for merge

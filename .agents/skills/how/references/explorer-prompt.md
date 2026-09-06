@@ -18,7 +18,7 @@ Other explorers are investigating different slices of the same subsystem in para
 
 ## Exploration Instructions
 
-Start by finding the relevant code. Use Glob to find directories and files, Grep to find key symbols, Read to understand the actual implementation. Don't guess from names. Read the code.
+Start by finding the relevant code. Use `rg --files` to find paths and `rg` to find symbols, then read the implementation. Reuse any supplied Repository map for call paths and boundaries. Don't guess from names. Read the code.
 
 Follow this pattern:
 1. **Find the entry point.** What triggers this behavior? A user action, an API call, a scheduled job? Find where it starts.

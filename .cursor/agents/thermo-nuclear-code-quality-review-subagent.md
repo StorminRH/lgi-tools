@@ -11,8 +11,8 @@ Run `origin pr diff <N>` and read those files on the branch.
 
 ## Rubric
 
-1. Load the local `thermo-nuclear-code-quality-review` skill and treat its `SKILL.md` as the **complete** rubric — tone, approval bar, output ordering, code-judo / 1k-line / spaghetti rules.
-2. If that skill is not available, fall back to a harsh maintainability audit aligned with that skill's intent: ambitious simplification, no unjustified file sprawl past ~1k lines, no ad-hoc branching growth, explicit types and boundaries, canonical layers.
+1. Read `.cursor/skills/thermo-nuclear-code-quality-review/SKILL.md` and treat its `SKILL.md` as the **complete** rubric — tone, approval bar, output ordering, code-judo / 1k-line / spaghetti rules.
+2. If that rubric is missing, return `BLOCKED` with its path so the caller can repair discovery.
 
 ## Work
 

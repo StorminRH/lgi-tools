@@ -1,6 +1,6 @@
 # TypeScript patterns
 
-Code examples for each rule in `SKILL.md`. The underlying principles are language-agnostic; see the **type-system-discipline** and **boundary-discipline** principle skills.
+Code examples for each rule in `SKILL.md`. The underlying principles are language-agnostic; read [type system discipline](../../principle-type-system-discipline/SKILL.md) and [boundary discipline](../../principle-boundary-discipline/SKILL.md).
 
 ## Branded types
 
@@ -55,7 +55,8 @@ function pickWinner(entries: string[]): string {
 
 // Do: an empty value of the type can't exist
 function pickWinner(entries: NonEmpty<string>): string {
-  return entries[Math.floor(Math.random() * entries.length)];
+  const index = Math.floor(Math.random() * entries.length);
+  return entries[index] ?? entries[0];
 }
 ```
 
@@ -77,11 +78,13 @@ A time range, as start plus duration:
 // Don't: a comment holds the invariant
 type TimeRange = { start: Date; end: Date }; // start <= end
 
-// Do: a negative range can't be written; derive end when needed
+// Store duration directly; validate its sign and finiteness at the boundary
 type TimeRange = { start: Date; durationMs: number };
 ```
 
-Keep `durationMs` a plain number. Brand it (per Branded types) only if a raw number could be passed where a duration is expected, not by reflex. A `Pairs<T>` is an even-length list under the interpretation you give it, the same way `{ start, durationMs }` is a range. Pick the representation that makes the bad state unconstructable, then expose the reading you need on top (`pairs.flat()`, a `rangeEnd()` helper).
+A plain `number` still admits negative values, `NaN`, and infinity. Validate
+finite, nonnegative durations at the boundary. Use a validated branded
+duration when callers must carry that invariant in the type. A `Pairs<T>` is an even-length list under the interpretation you give it, the same way `{ start, durationMs }` is a range. Pick the representation that makes the bad state unconstructable, then expose the reading you need on top (`pairs.flat()`, a `rangeEnd()` helper).
 
 ## Simplest total type
 
@@ -129,22 +132,25 @@ External sources include RPC payloads, `JSON.parse`, `postMessage`, IPC, file co
 
 ## No `as` casts
 
-Every `as` is a potential runtime crash. Cast only after the type system has verified the claim.
+Type assertions do not validate runtime values. Parse external data and
+construct the validated result. Use a boundary assertion only for a fact
+the compiler cannot express, such as a validated brand.
 
 ```ts
 // Don't
 const user = data as User;
 
-// Do. Earn the cast at the boundary.
+// Do. Validate every field and construct the declared shape.
+type User = { id: string };
+
 function parseUser(data: unknown): User {
   if (typeof data !== "object" || data === null) {
     throw new Error("expected object");
   }
-  if (!("id" in data) || typeof (data as Record<string, unknown>).id !== "string") {
+  if (!("id" in data) || typeof data.id !== "string") {
     throw new Error("expected id");
   }
-  // ... validate all fields
-  return data as User; // OK, earned cast after full validation
+  return { id: data.id };
 }
 ```
 
@@ -237,9 +243,9 @@ const config = { theme: "dark", cols: 3 } satisfies Config;
 
 ## Boundary validation
 
-Validate once where data crosses in; trust types inside. See the **boundary-discipline** principle skill.
+Validate once where data crosses in; trust types inside. See [boundary discipline](../../principle-boundary-discipline/SKILL.md).
 
-- **Wire formats** (proto, JSON-RPC): parse with `ignoreUnknownFields` so forward-compatible changes don't break old clients.
+- **Wire formats**: use the protocol owner's unknown-field policy. Only use parser options supported by the installed library and the relevant protocol.
 - **Persisted JSON:** versioned blob with a try/catch around the parse.
 - **Don't re-validate** deep in call chains.
 

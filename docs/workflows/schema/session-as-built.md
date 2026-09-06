@@ -41,9 +41,13 @@ The marker values are closed vocabularies:
   Session records still use those frozen prompt paths. Ordinary work in
   the same PR uses a separate file and writes `None.` for Contract, Plan,
   and their digests.
-- `Branch` is the sub-version's deterministic lifecycle branch.
-- `PR` is the delivering PR's `#<number>`, written once that PR exists — on
-  the final session, and on every session in a sub-version whose effective
+- Ordinary work records use the delivering PR's head branch (normally
+  `development`) and its Origin `#<number>`.
+- Numbered session records still use the sub-version's deterministic lifecycle
+  branch as a resolver compatibility identity, even when its OW branches have
+  already landed on `development`. The marker is not a checkout instruction.
+- For numbered sessions, `PR` is the delivering Origin PR's `#<number>`, written
+  once that PR exists — on the final session, and on every session in a sub-version whose effective
   delivery unit is one PR per session. A per-session declaration on any indexed
   contract applies to the whole sub-version so later operator-added splits do
   not require edits to prior frozen contracts. A non-final session under the
@@ -107,8 +111,8 @@ code. `None.` when the session changed no durable surface worth mapping.
 
 Work found during execution and deliberately not done. Prefer absorbing
 corrections in-session; backlog or later-session cuts are extremely rare and
-operator-driven. When present, each item names where it went: a `[Backlog]`
-GitHub Issue with its number or canonical URL, a named later session, or
+operator-driven. When present, each item names where it went: a Linear issue
+with its identifier or canonical URL, a named later session, or
 dropped with the reason. `None.` when nothing was cut.
 
 ## Successor notes

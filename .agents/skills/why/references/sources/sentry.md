@@ -61,11 +61,7 @@ Use the Sentry MCP.
 
    Cross-reference release version with the PR's merge date.
 
-6. **Use Seer sparingly.**
-
-   ```
-   analyze_issue_with_seer
-   ```
+6. **Read existing Seer analyses when available.** Creating or triggering a new analysis is outside this read-only investigation.
 
    Seer produces AI root-cause analyses. Useful as a hypothesis generator, but treat them as inference, not authoritative. The actual events and stack traces are the primary evidence; Seer's narrative is secondary.
 
