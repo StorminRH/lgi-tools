@@ -2,21 +2,20 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { AppHeaderShell } from '@/components/composition/AppHeaderShell';
-import { ServerStatus } from '@/components/composition/ServerStatus';
-import { Skeleton } from '@/components/ui/skeleton';
+import {
+  HeldServerStatus,
+  ServerStatus,
+  ServerStatusFallback,
+} from '@/components/composition/ServerStatus';
 import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 async function NavServerStatus() {
   await connection();
-  return <ServerStatus status={await getNavServerStatus()} />;
-}
-
-function NavServerStatusFallback() {
   return (
-    <span className="flex h-full items-center px-3">
-      <Skeleton label="Loading server status" className="h-3 w-20" />
-    </span>
+    <HeldServerStatus>
+      <ServerStatus status={await getNavServerStatus()} />
+    </HeldServerStatus>
   );
 }
 
@@ -39,7 +38,7 @@ export async function AppHeader() {
       <AppHeaderShell
         siteIndex={siteIndex}
         serverStatusSlot={
-          <Suspense fallback={<NavServerStatusFallback />}>
+          <Suspense fallback={<ServerStatusFallback />}>
             <NavServerStatus />
           </Suspense>
         }
