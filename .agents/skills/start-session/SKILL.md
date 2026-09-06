@@ -27,8 +27,12 @@ handler is `start-session`, output is one OW step landed on `development`
 plus `OW_HANDOFF`, or a pause/block. When the handler is `close-out`,
 dispatch that skill from `development` as a promote. After the promote,
 the next Start Session continues Ordered work, planning, or archive.
-When the resolver stage is `archive-needed`, archive the completed
-version from `development`.
+For version 4.1 onward, `archive-needed` is a candidate stage: archive from
+`development` after no execution remains and current `origin/staging` proves
+completed plans and final session records were delivered. Cancelled or deferred
+rows need no execution. Pending delivery routes to close-out regardless of file
+count; unavailable evidence blocks until fetched and verified. Versions through
+4.0 retain their historical archive rules.
 
 ## 1. Resolve and select the branch
 
@@ -37,7 +41,8 @@ directive is the dispatch contract, and `preDispatchGate` passed.
 
 1. Run `python3 tools/cli.py lifecycle resolve --pretty` and report the
    directive's action, reason, authority, primary artifact, branch, and pause.
-   The resolver names the stage.
+   The resolver names the stage. It advances past completed session rows without
+   rewriting the roadmap; roadmap completion is finalized during archive.
 2. Stop when the worktree contains unexplained changes. Preserve authorized
    work. In-progress OW is explained when HEAD is this step's lifecycle
    branch and the dirty files belong to that step. In-progress planning is
@@ -169,10 +174,12 @@ the plan or the land required has an operator disposition.
    Repeat until both return `CLEAN`, or every accepted finding is
    corrected and re-reviewed clean, and the suite after that last
    review is green.
-5. Commit the verified OW scope, implementation and tests. Leave the frozen
-   session plan untouched on every step except the last: on the last Ordered
-   work step, set `Execution status` to `Complete` in that land so the
-   resolver can plan the next session. Write no as-built here.
+5. Commit the verified OW scope, implementation and tests. On the last OW,
+   set `Execution status` to `Complete` only when all session proof and required
+   operator dispositions pass. If its visual or staging test is pending, keep
+   the marker `Pending`, finish step 7, then verify and land the marker update
+   on `development` as this OW's finalization. Other steps leave the session
+   plan untouched. Write no as-built here.
 6. Land and clean that commit onto `development`. Then run
    `python3 tools/cli.py lifecycle count-app-facing`. That command
    compares `origin/staging...origin/development` after this land, so
@@ -183,8 +190,11 @@ the plan or the land required has an operator disposition.
    the land presents something the operator can see on `development`
    (Preview, or laptop `pnpm dev` when they choose). That is about every
    other step, and any time a visual exists. Record the disposition in the
-   handoff. It is the gate to the next Ordered work step. A backend-only
-   land continues without a look.
+   handoff. It is the gate to the next Ordered work step. If the operator
+   requests staging web testing, run the full `close-out` process for an early
+   promotion, then resume the visual pause on staging. Keep that pause pending
+   until the test and disposition are recorded; promotion alone does not pass
+   it. A backend-only land continues without a look.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
 and next-agent notes live in that prompt, not in git. When more Ordered work
@@ -201,10 +211,21 @@ Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None
 Execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land and clean onto development + handoff.
 ```
 
-When this was the last Ordered work step and the resolver `finalSession`
-flag is true, promote first when the count printed `promote is due`. Then
-run Archive a completed version in this chat, or in the Start Session after
-that promote. Use the archived handoff.
+When this was the last Ordered work step and `finalSession` is true, rerun the
+resolver and hand off its directive. Pending plans or final records on staging
+require close-out from version 4.1 onward even below 80 app-facing files or for
+documentation-only work. Missing staging evidence requires a fetch and
+successful verification.
+A last-OW handoff is not archive authorization; only the resolver's verified
+archive directive permits Archive a completed version. Use this handoff:
+
+```text
+Version <X.Y> Ordered work is complete. Last OW landed on development (<sha>). Source branch cleaned.
+App-facing vs staging: <n>/100.
+Fresh resolver: <action, handler, reason, staging delivery evidence>.
+Return to start-session for that directive. For version 4.1 onward, archive requires no remaining execution and completed plans plus final records delivered on origin/staging.
+Next-agent notes: <gotchas, open operator dispositions, or None>.
+```
 
 When this was the last Ordered work step of a session that is not the
 version's last session:
@@ -234,8 +255,12 @@ Next-agent notes: <gotchas, open operator dispositions, or None>.
 Done when `verify-archive --phase post` is green and the live version
 sources are gone from `docs/`.
 
-1. Mark every remaining nonterminal `## Status` row `COMPLETE` on the
-   master plan.
+1. Fetch `origin/development` and `origin/staging`, then rerun the resolver.
+   Require its archive directive. From version 4.1 onward, this confirms no
+   remaining execution and completed plans plus final records delivered on
+   `origin/staging`; cancelled or deferred rows need no execution. Pending
+   delivery returns to close-out; unavailable evidence blocks. Then mark
+   remaining nonterminal `## Status` rows `COMPLETE` on the master plan.
 2. Run `python3 tools/cli.py lifecycle verify-archive --phase pre`.
 3. Copy the master plan, `docs/session-contracts/<X.Y>/`,
    `docs/session-plans/<X.Y>/`, and `docs/session-as-built/<X.Y>/` when
@@ -245,7 +270,9 @@ sources are gone from `docs/`.
 5. Delete those live sources. Leave `docs/workflows/` in the repo.
 6. Land and clean that commit onto `development`.
 
-Promote at 80 app-facing files runs before this archive when both are due.
+From version 4.1 onward, delivery verification runs before archive regardless
+of the 80-file trigger. A zero app-facing count does not prove plans and records
+reached staging.
 
 ## 6. Stop and resume
 

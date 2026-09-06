@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tools._lib.repository import ROOT
+from tools.lifecycle.archive_delivery import ArchiveDeliveryStatus, archive_delivery_status
 from tools.lifecycle.count_app_facing import (
     PROMOTE_BAR,
     PROMOTE_TRIGGER,
@@ -24,6 +25,7 @@ CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
 PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
 AS_BUILT_SCHEMA_RELPATH = "docs/workflows/schema/session-as-built.md"
 AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
+DEVELOPMENT_DELIVERY_BINDING_FLOOR = (4, 1)
 ATOMIC_PLAN_BINDING_FLOOR = (4, 0, 2, 2, 2)
 EXECUTION_RECEIPT_BINDING_FLOOR = (4, 0, 2, 2, 1)
 POLICY_MANIFEST_RELPATH = "tools/policy/policy-manifest.json"
@@ -65,6 +67,7 @@ PLAN_ID_SECTIONS = {
 class RoadmapRow:
     subversion: str
     status: str
+    sessions: int | None = None
 
     @property
     def terminal(self) -> bool:
@@ -130,15 +133,20 @@ def parse_status_rows(path: Path) -> list[RoadmapRow]:
         return []
 
     rows: list[RoadmapRow] = []
+    session_column: int | None = None
     for line in match.group(1).splitlines():
         if not line.startswith("|"):
             continue
         cells = [cell.strip().strip("*") for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 2 or cells[0] in {"Sub-version", "---"}:
+        if cells[0] == "Sub-version":
+            session_column = cells.index("Sessions") if "Sessions" in cells else None
+            continue
+        if len(cells) < 2 or cells[0] == "---":
             continue
         if not re.fullmatch(r"\d+\.\d+\.\d+(?:\.\d+)*", cells[0]):
             continue
-        rows.append(RoadmapRow(cells[0], cells[-1]))
+        count = cells[session_column] if session_column is not None and session_column < len(cells) else ""
+        rows.append(RoadmapRow(cells[0], cells[-1], int(count) if count.isdigit() else None))
     return rows
 
 def active_roadmap(root: Path) -> tuple[Path | None, str | None, list[RoadmapRow], list[str]]:
@@ -319,9 +327,10 @@ def contract_schema_violations(path: Path, root: Path) -> list[str]:
         violations.append(
             "Execution profile must be Frontier autonomous coding agent"
         )
-    if marker(path, "Delivery unit") not in DELIVERY_UNITS:
+    allowed_delivery_units = DELIVERY_UNITS[2:] if session_key(path.stem) >= DEVELOPMENT_DELIVERY_BINDING_FLOOR else DELIVERY_UNITS
+    if marker(path, "Delivery unit") not in allowed_delivery_units:
         violations.append(
-            "Delivery unit must be one of: " + " | ".join(DELIVERY_UNITS)
+            "Delivery unit must be one of: " + " | ".join(allowed_delivery_units)
         )
     for label in ("Roadmap coverage", "Internal phases", "Split triggers"):
         value = marker(path, label)
@@ -511,6 +520,11 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
             )
     if not re.search(r"^\*\*Branch:\*\*\s+\S.+\*\*ends in PR:\*\*\s+(?:yes|no)\s+·\s+\*\*gate:\*\*\s+\S", text, re.MULTILINE | re.IGNORECASE):
         violations.append("Bottom line must contain the exact Branch / ends in PR / gate marker")
+    if session_key(path.stem) >= DEVELOPMENT_DELIVERY_BINDING_FLOOR and not re.search(
+        r"^\*\*Branch:\*\*\s+`?development`?\s+·\s+\*\*ends in PR:\*\*\s+no\s+·",
+        text, re.MULTILINE,
+    ):
+        violations.append("4.1+ plans must land on development with ends in PR: no")
     if "<hard_constraints>" not in bodies.get("Bottom line (READ FIRST)", "") or "</hard_constraints>" not in bodies.get("Bottom line (READ FIRST)", ""):
         violations.append("Bottom line must contain the hard_constraints block")
     for label in ("GOAL:", "DONE =", "OUT OF SCOPE:"):
@@ -603,6 +617,8 @@ def as_built_schema_violations(
     root: Path,
     per_session_delivery: bool,
     final_session: str | None = None,
+    *,
+    delivering_branch: str = "development",
 ) -> list[str]:
     """Return structural and marker violations for a session as-built record."""
     schema = root / AS_BUILT_SCHEMA_RELPATH
@@ -638,11 +654,16 @@ def as_built_schema_violations(
     if recorded is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", recorded):
         violations.append("Recorded must be a YYYY-MM-DD date")
     subversion = ".".join(path.stem.split(".")[:-1])
-    if marker(path, "Branch") != lifecycle_branch(subversion):
-        violations.append(f"Branch must be {lifecycle_branch(subversion)!r}")
+    promotion_record = session_key(path.stem) >= DEVELOPMENT_DELIVERY_BINDING_FLOOR
+    expected_branch = delivering_branch if promotion_record else lifecycle_branch(subversion)
+    if marker(path, "Branch") != expected_branch:
+        violations.append(f"Branch must be {expected_branch!r}")
     pr_marker = marker(path, "PR") or ""
     is_final = final_session is None or path.stem == final_session
-    if re.fullmatch(r"#\d+", pr_marker):
+    if promotion_record:
+        if not re.fullmatch(r"#[1-9]\d*", pr_marker):
+            violations.append("PR must be '#<positive number>' for every delivered session")
+    elif re.fullmatch(r"#\d+", pr_marker):
         if not (per_session_delivery or is_final):
             violations.append(
                 "PR must defer to the final session under the one-sub-version-PR delivery unit"
@@ -813,7 +834,30 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
         "masterPlan": str(roadmap.relative_to(root)),
         "contractIndex": str(contract_index.relative_to(root)),
     }
-    incomplete = next((row for row in rows if not row.terminal), None)
+    pending_rows: list[RoadmapRow] = []
+    development_delivery = session_key(version) >= DEVELOPMENT_DELIVERY_BINDING_FLOOR
+    for row in rows:
+        if row.status.upper() in {"CANCELLED", "DEFERRED"} or (row.terminal and not development_delivery):
+            continue
+        row_sessions = [
+            session for session, (subversion, _) in contracts.items()
+            if subversion == row.subversion
+        ]
+        if development_delivery and row.sessions is None:
+            return invalid_state(common, f"{row.subversion}: Sessions must declare a numeric session count", errors)
+        count_matches = not development_delivery or len(row_sessions) == row.sessions
+        all_complete = bool(row_sessions) and all(
+            execution_complete(docs / "session-plans" / version / f"{session}.md")
+            for session in row_sessions
+        )
+        if row.terminal and (not count_matches or not all_complete):
+            return invalid_state(common, (
+                f"{row.subversion}: {row.status} requires every declared session to be indexed "
+                "with Execution status Complete"
+            ), errors)
+        if not count_matches or not all_complete:
+            pending_rows.append(row)
+    incomplete = next(iter(pending_rows), None)
     if incomplete:
         sessions = sorted(
             (
@@ -823,12 +867,12 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
             ),
             key=lambda item: tuple(int(part) for part in item[0].split(".")),
         )
-        if not contract_index.is_file() or not sessions:
+        if not contract_index.is_file() or not sessions or (development_delivery and len(sessions) != incomplete.sessions):
             return {
                 **common,
                 "stage": "contracts-needed",
                 "subversion": incomplete.subversion,
-                "reason": "The next incomplete sub-version has no indexed session contract.",
+                "reason": "The next incomplete sub-version needs its declared session contracts indexed.",
             }, errors
 
         remaining = []
@@ -837,28 +881,6 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
             if execution_complete(plan):
                 continue
             remaining.append((session, contract, plan))
-
-        if not remaining:
-            later_incomplete = any(
-                not row.terminal
-                and session_key(row.subversion) > session_key(incomplete.subversion)
-                for row in rows
-            )
-            if later_incomplete:
-                return invalid_state(
-                    common,
-                    f"{roadmap.relative_to(root)}: {incomplete.subversion} is nonterminal but every indexed session plan is complete",
-                    errors,
-                )
-            return {
-                **common,
-                "stage": "archive-needed",
-                "subversion": incomplete.subversion,
-                "reason": (
-                    "The last session of the version is complete. "
-                    "Archive the master plan."
-                ),
-            }, errors
 
         session, contract, plan = remaining[0]
         if not contract.is_file():
@@ -939,7 +961,7 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
         later_incomplete = any(
             not row.terminal
             and session_key(row.subversion) > session_key(incomplete.subversion)
-            for row in rows
+            for row in pending_rows
         )
         return {
             **common,
@@ -956,7 +978,7 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
     return {
         **common,
         "stage": "archive-needed",
-        "reason": "Every roadmap row is terminal. Archive the master plan.",
+        "reason": "Every roadmap row is terminal or its indexed sessions are complete. Check delivery before archive.",
     }, errors
 
 def directive_for(state: dict[str, object]) -> WorkflowDirective:
@@ -1028,7 +1050,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
         if state.get("uxGate") == "Yes":
             pause = (
                 "UX gate: Complete the dedicated UX Ordered-work step (`ux-check` plus "
-                "the operator's local browser review) before awaiting close-out; "
+                "the operator's browser review on development or staging through close-out); "
                 "also pause to discuss design conflicts and reshape in-session."
             )
         return WorkflowDirective(
@@ -1153,14 +1175,44 @@ def apply_promote_interrupt(
         ),
     }
 
+def archive_record_violations(
+    record: Path, contract: Path, plan: Path, snapshot: Path,
+    *, delivering_branch: str = "development",
+) -> list[str]:
+    if marker(plan, "Contract digest") != f"sha256:{sha256(contract)}":
+        return ["The completed plan must bind the delivered contract"]
+    return as_built_schema_violations(
+        record, contract, plan, snapshot, per_session_delivery=False,
+        delivering_branch=delivering_branch,
+    )
+
+
 def resolve(
     root: Path = DEFAULT_ROOT,
     *,
     app_facing: int | None = None,
+    delivery_state: ArchiveDeliveryStatus | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     state, errors = resolve_state(root)
     count = try_app_facing_count(root) if app_facing is None else app_facing
     state = apply_promote_interrupt(state, count)
+    if state["stage"] == "archive-needed":
+        version = str(state["activeVersion"])
+        plans = root.glob(f"docs/session-plans/{version}/*.md")
+        completed = any(execution_complete(plan) for plan in plans)
+        if session_key(version) >= DEVELOPMENT_DELIVERY_BINDING_FLOOR and completed:
+            delivery = delivery_state if delivery_state is not None else archive_delivery_status(root, version, validate_record=archive_record_violations)
+            if delivery == "pending":
+                state = {**state, "stage": "promote-needed", "reason": (
+                    "Completed session plans or their finalized records have not reached staging. "
+                    "Run close-out before archiving, even below the app-facing threshold."
+                )}
+            elif delivery != "delivered":
+                state, errors = invalid_state(state, (
+                    "Cannot verify completed-session delivery on origin/staging. "
+                    "Land completed plans on development and fetch origin/development and origin/staging, "
+                    "then resolve again before archiving."
+                ), errors)
     directive = directive_for(state).as_dict(str(state["reason"]))
     public_state = {key: value for key, value in state.items() if key != "uxGate"}
     return {**public_state, "directive": directive}, errors

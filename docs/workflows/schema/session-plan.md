@@ -32,8 +32,10 @@ Marker vocabularies:
 - `Planning standard` — exactly `docs/workflows/schema/session-plan.md`.
 - `Proof standard` — exactly `Atomic`. Bind each success criterion to separately executable proof rows with one required observable per row. Plans before session `4.0.2.2.2` are a frozen legacy exception.
 - `Execution status` — `Pending` or `Complete`. `start-session` sets `Complete`
-  in the final Ordered work land after its required proof and reviews pass. Close-out later records the work delivered
-  by the promote PR.
+  in the final Ordered work land after all required proof, reviews, and operator
+  dispositions pass. A pending staging test keeps it `Pending` through early
+  promotion; after the test passes, land the final marker on `development`.
+  Close-out records the completed session on its final delivering promotion.
 - `Baseline effect` — `Improves`, `Neutral`, or `Temporary pressure`.
 
 Map every contract item — no silent drops:
@@ -66,6 +68,11 @@ Every approved plan contains each following `##` heading exactly once in this or
 Carry every `HC-N` here. Label additional implementation constraints `Plan`. The contract wins if a summary here is ambiguous.
 
 **Branch:** `[exact branch name]` · **ends in PR:** `[yes/no]` · **gate:** [exact commit, review, operator, or merge evidence required at the session boundary]
+
+For version 4.1 onward, `Branch` is `development` and `ends in PR` is `no`.
+Each OW branch is cut from current `origin/development` and lands there after
+its required proof and reviews. Frozen plans through version 4.0 retain their
+historical delivery markers.
 
 **Contract UX gate:** `[Yes/No]` · **required pause:** [exact operator-review point, or `None` when the marker is `No` and the contract names no other pause]
 
@@ -164,7 +171,10 @@ can skip the look. Close-out, promote,
 gate` is Yes, include a dedicated Ordered work step whose outcome is
 `ux-check` evidence plus the named `G-N` operator disposition, after there
 is something to look at. That step is not the first look. Name concrete
-surfaces.
+surfaces. The operator may test locally on `development` or request an early
+promotion for staging web tests. That promotion follows the full `close-out`
+process outside the OW sequence, even below 80 app-facing files; keep the UX
+pause pending until the staging test and operator disposition are recorded.
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -194,7 +204,12 @@ Proof identifiers are unique and contiguous within each criterion (`SC-1.1`, `SC
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary held.
 - **Delivery:** [land each Ordered work step on `development` through
   `start-session`; no land PR].
-- **Lifecycle artifacts:** [plan marker, roadmap, changelog, as-built, or archive updates this session owns; omit the rest]. The last session of a version archives the master plan after its last Ordered work step.
+- **Lifecycle artifacts:** [plan marker, roadmap, changelog, as-built, or archive updates this session owns; omit the rest]. After the last OW, rerun the resolver. From version 4.1 onward, archive
+  requires no remaining execution and completed plans plus final records
+  verified on `origin/staging`; cancelled or deferred rows need no execution.
+  Pending delivery routes to close-out even below 80 files or for documentation-only
+  work. Missing staging evidence blocks until fetched and verified. Versions
+  through 4.0 retain their historical archive rules.
 - **Handoff:** [exact resolver rerun, next-session pointer, or terminal pause after delivery]. Per-OW chat handoffs are owned by the `start-session` skill.
 
 Overwrite on re-approval; do not append an execution log. Record in-session reshapes after approval in the session as-built — do not rewrite this frozen prompt mid-execution.

@@ -10,12 +10,13 @@ console, page errors, network). Write screenshots/traces under
 `docs/ux-check/captures/` on failure only. The operator reviews visual feel in
 their browser — never always-on screenshots or agent visual approval.
 
-Local aid only: not the local test suite or the standing Depot pipeline.
+Development and operator-requested staging aid; independent of the local test
+suite and the standing Depot pipeline.
 Sweeps/probes exit non-zero on hard assertion/console/page failures; network
 findings still need disposition.
 
 Inputs: (1) complete change diff and affected user-facing routes; (2) running
-local stack that renders them truthfully; (3) durable open-state probe
+local stack or promoted staging deployment that renders them truthfully; (3) durable open-state probe
 definitions for changed interactions; (4) for auth probes — seeded storage
 state (`pnpm e2e:seed` → `docs/ux-check/captures/auth-storage.json`),
 `UX_STORAGE_STATE` / `--storage-state`, or operator cookie jar (`UX_COOKIE_JAR`
@@ -56,7 +57,15 @@ database — never example ids as fixtures.
 Anonymous sweeps verify signed-out gates. Signed-in: `pnpm e2e:seed`, then
 `--storage-state=docs/ux-check/captures/auth-storage.json`.
 
-## 2. Establish the local server
+## 2. Establish the test environment
+
+Use local `development` by default. If the operator requests staging web
+validation, follow `close-out` to promote first, retaining this test as a
+pending post-promotion pause. Full reviews and gates still apply below the
+80-file promotion trigger. Verify the deployed revision, use its staging URL
+with `--base-url`, and use remote authentication per the remote-probes section.
+Resume this sweep after promotion; a successful merge does not supply an
+operator disposition. For local testing:
 
 ```bash
 curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
@@ -113,13 +122,15 @@ When account-adjacent shells matter and Vitest cannot falsify them:
 2. Report every console/page error, failed request, and 4xx/5xx by route or
    probe and viewport.
 3. Do not open the site to approve layout. Build an operator checklist of
-   routes/interactions to open locally.
+   routes/interactions to open in the selected environment.
 4. Return `UX_EVIDENCE`, pause for operator browser review. Do not open a PR.
 
 Planned lifecycle with `UX gate: Yes`: dedicated Ordered work step under
-`start-session` — finish the operator pause before awaiting close-out.
-Ordinary work: run standalone, finish the pause, then return to the owning
-delivery workflow. `close-out` owns merges onto `staging` or `main`.
+`start-session` — finish the operator pause before the next OW. With explicit
+operator direction to test on staging, promote through `close-out` first and
+return to this pending pause for the actual test and disposition. Ordinary
+work follows the same environment choice and returns to its owning delivery
+workflow. `close-out` owns merges onto `staging` or `main`.
 
 ## Remote / production log probes
 

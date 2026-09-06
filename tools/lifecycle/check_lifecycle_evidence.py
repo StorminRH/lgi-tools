@@ -16,10 +16,12 @@ import sys
 
 from tools._lib.checker_common import Finding, find_line, run_checker
 from tools.lifecycle.resolve_development_state import (
+    DEVELOPMENT_DELIVERY_BINDING_FLOOR,
     RoadmapRow as _RoadmapRow,
     active_roadmap as _active_roadmap,
     marker,
     parse_contract_index,
+    session_key,
 )
 
 _POLICY_MANIFEST = Path("tools/policy/policy-manifest.json")
@@ -113,6 +115,7 @@ def _execution_evidence_findings(
         all_sessions_complete = all(executions[sibling] == "Complete" for sibling in sibling_sessions)
         if (
             execution == "Complete"
+            and session_key(session) < DEVELOPMENT_DELIVERY_BINDING_FLOOR
             and not row.terminal
             and all_sessions_complete
             and session == sibling_sessions[-1]
