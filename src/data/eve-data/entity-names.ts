@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { parseUniverseNameRows, postUniverseNames } from './universe-names';
+import { postUniverseNames } from './universe-names';
 
 function entityNameTag(id: number): string {
   return `eve-entity-name-${id}`;
@@ -15,8 +15,7 @@ async function fetchEntityName(id: number): Promise<string> {
   cacheLife(NAME_CACHE_LIFE);
   const posted = await postUniverseNames([id]);
   if (!posted.ok) throw new Error(`EVE entity name request failed (${posted.status})`);
-  if (!Array.isArray(posted.data)) throw new Error('EVE entity name response was malformed');
-  const row = parseUniverseNameRows(posted.data).find(
+  const row = posted.data.find(
     (candidate) => candidate.id === id && candidate.name.length > 0,
   );
   if (row === undefined) throw new Error(`EVE entity name missing for ${id}`);

@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { eveNpcStations } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
-import { parseUniverseNameRows, postUniverseNames } from './universe-names';
+import { postUniverseNames } from './universe-names';
 
 const ESI_UNIVERSE_NAMES_POST_MAX = 1000;
 
@@ -42,7 +42,7 @@ export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: n
 async function fetchStationNames(ids: number[]): Promise<{ id: number; name: string }[]> {
   const posted = await postUniverseNames(ids);
   if (!posted.ok) throw new Error(`ESI /universe/names/ ${posted.status}`);
-  return parseUniverseNameRows(posted.data)
+  return posted.data
     .filter((row) => row.category === 'station')
     .map((row) => ({ id: row.id, name: row.name }));
 }

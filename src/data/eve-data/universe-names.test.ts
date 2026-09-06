@@ -7,40 +7,52 @@ vi.mock('@/platform/esi', () => ({
   esiUrl: (path: string) => `https://esi.example${path}`,
 }));
 
-import {
-  parseUniverseNameRows,
-  postUniverseNames,
-  type UniverseNameRow,
-} from './universe-names';
+import { postUniverseNames } from './universe-names';
 
 beforeEach(() => {
   esiFetchMock.mockReset();
 });
 
-describe('parseUniverseNameRows', () => {
-  it('keeps named rows and drops malformed entries', () => {
-    const rows: UniverseNameRow[] = parseUniverseNameRows([
-      { category: 'station', id: 60_000_001, name: 'First Station' },
-      { category: 'character', id: 7, name: 'Pilot' },
-      { id: 9, name: 'No category' },
-      { category: 'station', id: 'bad', name: 'Nope' },
-      { category: 'station', id: 1 },
-      null,
-      'skip',
-    ]);
-    expect(rows).toEqual([
-      { category: 'station', id: 60_000_001, name: 'First Station' },
-      { category: 'character', id: 7, name: 'Pilot' },
-      { category: null, id: 9, name: 'No category' },
-    ]);
-  });
-
-  it('returns nothing when the payload is not an array', () => {
-    expect(parseUniverseNameRows({ names: [] })).toEqual([]);
-  });
-});
-
 describe('postUniverseNames', () => {
+  it('keeps named rows and drops malformed entries', async () => {
+    esiFetchMock.mockResolvedValue(
+      Response.json([
+        { category: 'station', id: 60_000_001, name: 'First Station' },
+        { category: 'character', id: 7, name: 'Pilot' },
+        { id: 9, name: 'No category' },
+        { category: 'station', id: 'bad', name: 'Nope' },
+        { category: 'station', id: 1 },
+        null,
+        'skip',
+      ]),
+    );
+    await expect(postUniverseNames([60_000_001, 7, 9])).resolves.toEqual({
+      ok: true,
+      data: [
+        { category: 'station', id: 60_000_001, name: 'First Station' },
+        { category: 'character', id: 7, name: 'Pilot' },
+        { category: null, id: 9, name: 'No category' },
+      ],
+    });
+  });
+
+  it.each([{ names: [] }, null, 'unexpected', 7])(
+    'rejects a malformed envelope: %j',
+    async (body) => {
+      esiFetchMock.mockResolvedValue(Response.json(body));
+
+      await expect(postUniverseNames([7])).rejects.toThrow(
+        'ESI /universe/names/ response was malformed',
+      );
+    },
+  );
+
+  it('preserves a valid empty response', async () => {
+    esiFetchMock.mockResolvedValue(Response.json([]));
+
+    await expect(postUniverseNames([7])).resolves.toEqual({ ok: true, data: [] });
+  });
+
   it('posts the id list and returns the JSON body', async () => {
     esiFetchMock.mockResolvedValue(
       Response.json([{ category: 'station', id: 60_000_001, name: 'First Station' }]),

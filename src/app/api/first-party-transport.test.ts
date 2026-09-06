@@ -13,7 +13,6 @@ const TEMPLATE_FETCH_RE = /\b(?:fetch|fetchWithTimeout)\s*\(\s*`[^`]*\/api\//g;
 const RESPONSE_ASSERTION_RE = /\.json\(\)\s*\)?\s+as\s+(?!unknown\s*(?:[;,)\]]|$))/gm;
 
 const RESPONSE_ASSERTION_ALLOWLIST = [
-  'src/data/eve-data/station-names.ts',
   'src/data/gsc/source.ts',
 ];
 

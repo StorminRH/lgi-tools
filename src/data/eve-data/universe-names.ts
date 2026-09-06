@@ -9,7 +9,7 @@ export type UniverseNameRow = {
 export async function postUniverseNames(
   ids: readonly number[],
 ): Promise<
-  { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly status: number }
+  { readonly ok: true; readonly data: UniverseNameRow[] } | { readonly ok: false; readonly status: number }
 > {
   const res = await esiFetch(esiUrl('/universe/names/'), {
     method: 'POST',
@@ -17,11 +17,12 @@ export async function postUniverseNames(
     body: JSON.stringify(ids),
   });
   if (!res.ok) return { ok: false, status: res.status };
-  return { ok: true, data: await res.json() };
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) throw new Error('ESI /universe/names/ response was malformed');
+  return { ok: true, data: parseUniverseNameRows(data) };
 }
 
-export function parseUniverseNameRows(data: unknown): UniverseNameRow[] {
-  if (!Array.isArray(data)) return [];
+function parseUniverseNameRows(data: readonly unknown[]): UniverseNameRow[] {
   const rows: UniverseNameRow[] = [];
   for (const candidate of data) {
     if (
