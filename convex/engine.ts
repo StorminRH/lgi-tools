@@ -9,9 +9,16 @@ import {
   SYNC_DATASET_CONFIG,
   type SyncDataset,
 } from '@/lib/sync-engine';
-import { mutation, type MutationCtx } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { mutation, query, type MutationCtx } from './_generated/server';
 import { dispatch, syncDatasetValidator } from './lib/engineCore';
 import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
+
+export const currentUser = query({
+  args: {},
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx) => (await ctx.auth.getUserIdentity())?.subject ?? null,
+});
 
 export const heartbeat = mutation({
   args: {
@@ -20,10 +27,12 @@ export const heartbeat = mutation({
     reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
     visible: v.optional(v.boolean()),
     tabId: v.optional(v.string()),
+    expectedUserId: v.optional(v.string()),
   },
-  handler: async (ctx, { dataset, characterIdsHint, reason, visible, tabId }) => {
+  handler: async (ctx, { dataset, characterIdsHint, reason, visible, tabId, expectedUserId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
+    if (expectedUserId !== undefined && expectedUserId !== identity.subject) return;
     if (!isRegisteredDataset(dataset)) return;
     const userId = identity.subject;
     const now = Date.now();
@@ -32,6 +41,7 @@ export const heartbeat = mutation({
 
     const wasCold = await upsertPresence(
       ctx,
+      presence,
       dataset,
       userId,
       visible !== false,
@@ -69,13 +79,13 @@ export const heartbeat = mutation({
 
 async function upsertPresence(
   ctx: MutationCtx,
+  presence: Doc<'syncPresence'> | null,
   dataset: SyncDataset,
   userId: string,
   seenVisible: boolean,
   now: number,
   tabId: string | undefined,
 ): Promise<boolean> {
-  const presence = await getPresence(ctx.db, dataset, userId);
   const wasCold =
     presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
   const tabFields = tabId === undefined ? {} : { tabId, leftTabId: '' };
