@@ -107,7 +107,6 @@ export async function seedE2eStorageState(
       characterId: E2E_CHARACTER_ID,
       name: E2E_CHARACTER_NAME,
       portraitUrl: `https://images.evetech.net/characters/${E2E_CHARACTER_ID}/portrait?size=128`,
-      role: 'USER',
       createdAt: now,
       updatedAt: now,
       lastLoginAt: now,

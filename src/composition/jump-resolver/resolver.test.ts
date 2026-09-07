@@ -145,7 +145,7 @@ describe('jump resolver composition', () => {
       { kind: 'confirm', mapId: MAP, connectionId: 'pending', targetConnectionId: 'second' },
       dependencies,
     )).resolves.toMatchObject({ status: 'processed', outcome: 'reassociated' });
-    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(2);
+    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(1);
     expect(h.insertWhObservation).toHaveBeenCalledOnce();
   });
   it('honestly re-anchors missing, discontinuous, and capsule-loss transitions', async () => {
@@ -250,17 +250,11 @@ describe('jump resolver composition', () => {
         observedShipMassKg: 12_000_000,
       }),
     );
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      1,
+    expect(h.resolveSignatureElimination).toHaveBeenCalledOnce();
+    expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
       database,
       USER,
-      { mapId: MAP, systemId: ORIGIN },
-    );
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      2,
-      database,
-      USER,
-      { mapId: MAP, systemId: DESTINATION },
+      { mapId: MAP, systemIds: [ORIGIN, DESTINATION] },
     );
   });
 
@@ -370,17 +364,11 @@ describe('jump resolver composition', () => {
       mapId: MAP,
       connectionId: 'connection-1',
     });
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      1,
+    expect(h.resolveSignatureElimination).toHaveBeenCalledOnce();
+    expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
       database,
       USER,
-      { mapId: MAP, systemId: ORIGIN },
-    );
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      2,
-      database,
-      USER,
-      { mapId: MAP, systemId: DESTINATION },
+      { mapId: MAP, systemIds: [ORIGIN, DESTINATION] },
     );
     expect(h.insertWhObservation).toHaveBeenCalledWith(
       database,
@@ -538,6 +526,6 @@ describe('jump resolver composition', () => {
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
-    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(2);
+    expect(h.resolveSignatureElimination).toHaveBeenCalledOnce();
   });
 });

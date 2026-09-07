@@ -11,7 +11,7 @@ import {
   type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import type { MapRole } from '@/data/maps/access-contract';
+import { canonicalizeMapRoles, type MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 import {
   SCANNED_KINDS,
@@ -63,6 +63,10 @@ const MAP_ROLE_LITERALS = {
 export const legacyMapOwnerRoleValidator = v.literal('owner');
 
 export type StoredMapRole = MapRole | Infer<typeof legacyMapOwnerRoleValidator>;
+
+export function currentRolesFromStored(roles: readonly StoredMapRole[]): MapRole[] {
+  return canonicalizeMapRoles(roles.map((role) => role === 'owner' ? 'admin' : role));
+}
 
 export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
 

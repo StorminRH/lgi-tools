@@ -75,8 +75,8 @@ async function readStaticTypeCodes(
   }
 }
 
-function quiet(): SignatureEliminationResponse {
-  return { status: 'quiet' };
+function quiet(systemId: number): SignatureEliminationResponse['results'][number] {
+  return { systemId, status: 'quiet' };
 }
 
 interface SettledIdentity {
@@ -138,22 +138,24 @@ async function logIdentifications(
   await dependencies.reconcileWhObservations(database, { upserts, deleteKeys });
 }
 
-export async function resolveSignatureElimination(
+async function resolveOneSystem(
   database: AnyPgDb,
   userId: string,
-  request: SignatureEliminationRequest,
-  dependencies: SignatureEliminationDependencies = productionDependencies,
-): Promise<SignatureEliminationResponse> {
+  mapId: string,
+  systemId: number,
+  loadCodex: () => Promise<readonly WormholeCodexEntry[] | null>,
+  dependencies: SignatureEliminationDependencies,
+): Promise<SignatureEliminationResponse['results'][number]> {
   const evidence = await dependencies.readEliminationEvidence(
     userId,
-    request.mapId,
-    request.systemId,
+    mapId,
+    systemId,
   );
-  if (!evidence.canEdit) return quiet();
+  if (!evidence.canEdit) return quiet(systemId);
 
   const [codex, staticTypeCodes] = await Promise.all([
-    readCodex(dependencies),
-    readStaticTypeCodes(database, request.systemId, dependencies),
+    loadCodex(),
+    readStaticTypeCodes(database, systemId, dependencies),
   ]);
 
   const deductions = staticTypeCodes === null || codex === null
@@ -172,8 +174,8 @@ export async function resolveSignatureElimination(
     ? []
     : await dependencies.applyEliminationDeductions({
         userId,
-        mapId: request.mapId,
-        systemId: request.systemId,
+        mapId,
+        systemId,
         deductions,
       });
 
@@ -183,7 +185,7 @@ export async function resolveSignatureElimination(
     try {
       await logIdentifications(
         database,
-        request.systemId,
+        systemId,
         evidence.signatures.map((signature) =>
           settleIdentity(
             signature,
@@ -196,17 +198,47 @@ export async function resolveSignatureElimination(
       );
     } catch (cause) {
       dependencies.reportEmissionFailure(cause);
+      return { systemId, status: 'observations-unavailable' };
     }
   }
 
   if (staticTypeCodes === null || codex === null) {
-    return { status: 'statics-unavailable' };
+    return { systemId, status: 'statics-unavailable' };
   }
 
   const signatureIds = outcomes
     .filter((outcome) => outcome.outcome === 'applied')
     .map((outcome) => outcome.signatureId);
   return signatureIds.length === 0
-    ? quiet()
-    : { status: 'applied', signatureIds };
+    ? quiet(systemId)
+    : { systemId, status: 'applied', signatureIds };
+}
+
+export async function resolveSignatureElimination(
+  database: AnyPgDb,
+  userId: string,
+  request: SignatureEliminationRequest,
+  dependencies: SignatureEliminationDependencies = productionDependencies,
+): Promise<SignatureEliminationResponse> {
+  const results: SignatureEliminationResponse['results'][number][] = [];
+  let codex: Promise<readonly WormholeCodexEntry[] | null> | undefined;
+  const loadCodex = () => codex ??= readCodex(dependencies);
+  let firstError: unknown;
+  for (const systemId of request.systemIds) {
+    try {
+      const resolved = await resolveOneSystem(
+        database,
+        userId,
+        request.mapId,
+        systemId,
+        loadCodex,
+        dependencies,
+      );
+      results.push(resolved);
+    } catch (cause) {
+      firstError ??= cause;
+    }
+  }
+  if (firstError !== undefined) throw firstError;
+  return { results };
 }

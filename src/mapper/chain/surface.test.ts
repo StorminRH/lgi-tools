@@ -131,6 +131,7 @@ describe('mapper source contract', () => {
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
       'signatures/system-readout.ts',
+      'signatures/type-setter-follow-up.ts',
       'signatures/use-identify-signature.ts',
       'signatures/use-scanner-paste.ts',
       'signatures/use-signature-jump-flow.ts',

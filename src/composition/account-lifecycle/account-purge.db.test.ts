@@ -115,7 +115,6 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   async function seedCharacter(characterId: number) {
     await insertCharacter(harness.db, characterId, {
       portraitUrl: `https://images.example/${characterId}`,
-      preferences: { privateNote: `note-${characterId}` },
     });
   }
 
@@ -256,10 +255,13 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       await harness.db.select().from(usageLogs).where(isNull(usageLogs.characterId)),
     ).toHaveLength(1);
     const [profile] = await harness.db
-      .select({ preferences: characters.preferences })
+      .select({ characterId: characters.characterId, name: characters.name })
       .from(characters)
       .where(eq(characters.characterId, FIRST_CHAR));
-    expect(profile?.preferences).toEqual({});
+    expect(profile).toEqual({
+      characterId: FIRST_CHAR,
+      name: `Character ${FIRST_CHAR}`,
+    });
     const [remainingUser] = await harness.db
       .select({ email: user.email, activeCharacterId: user.activeCharacterId })
       .from(user)
