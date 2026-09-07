@@ -45,7 +45,12 @@ import {
   WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
 } from '../lib/mapEntityContracts';
-import { purgeUserClaims, reconcileMapClaims } from '../mapAccessProjection';
+import {
+  currentRolesFromStored,
+  purgeUserClaims,
+  reconcileMapClaims,
+  remapLegacyOwnerRoles,
+} from '../mapAccessProjection';
 import {
   restoreSeveredBranch,
   severConnection,
@@ -187,6 +192,8 @@ describe('convex runtime exports', () => {
       WORMHOLE_LIFE_STAGES,
       purgeUserClaims,
       reconcileMapClaims,
+      currentRolesFromStored,
+      remapLegacyOwnerRoles,
       CEILING_SWEEP_BATCH,
       CEILING_SWEEP_SCAN,
       addSystemFromNode,
