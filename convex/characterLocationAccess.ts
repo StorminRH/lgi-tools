@@ -52,12 +52,7 @@ export const clearAccessLease = internalMutation({
     characterId: v.number(),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query('characterLocationAccess')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', args.userId).eq('characterId', args.characterId),
-      )
-      .unique();
+    const existing = await findAccessLease(ctx, args.userId, args.characterId);
     if (existing !== null) await ctx.db.delete(existing._id);
   },
 });
@@ -78,12 +73,7 @@ async function upsertAccessLease(
     )
     .first();
   if (tracking === null) return;
-  const existing = await ctx.db
-    .query('characterLocationAccess')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', args.userId).eq('characterId', args.characterId),
-    )
-    .unique();
+  const existing = await findAccessLease(ctx, args.userId, args.characterId);
   const now = Date.now();
   if (existing !== null) {
     await ctx.db.patch(existing._id, {
@@ -100,4 +90,17 @@ async function upsertAccessLease(
     expiresAt: args.expiresAt,
     updatedAt: now,
   });
+}
+
+function findAccessLease(
+  ctx: Pick<MutationCtx, 'db'>,
+  userId: string,
+  characterId: number,
+) {
+  return ctx.db
+    .query('characterLocationAccess')
+    .withIndex('by_user_character', (q) =>
+      q.eq('userId', userId).eq('characterId', characterId),
+    )
+    .unique();
 }
