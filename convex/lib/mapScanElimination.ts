@@ -345,7 +345,8 @@ async function findLeftoverOriginStub(
   }
   const leftover = uniqueCounterpartStub(
     (await readOriginConnections(ctx, target.mapId, oppositeSystemId))
-      .filter((row) => row.staticCode === undefined),
+      .filter((row) => row.staticCode === undefined
+        && row.resolution.kind !== 'awaiting-signature'),
     new Set([sourceId, target._id]),
   );
   return leftover === null ? null : { row: leftover, id: leftover._id };

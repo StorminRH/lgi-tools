@@ -44,6 +44,12 @@ export type ConnectionLifetime =
 
 export type ConnectionResolution =
   | { kind: 'open' }
+  | {
+      kind: 'awaiting-signature';
+      destinationSystemId: number;
+      candidates: { connectionId: ConnectionRowId; signatureId: string | null }[];
+      characterId: number;
+    }
   | { kind: 'destination'; provenance: ConnectionProvenance }
   | {
       kind: 'pending';
@@ -205,7 +211,9 @@ export function isPendingResolution(
 }
 
 export function hasAnswerablePrompt(resolution: ConnectionResolution): boolean {
-  return isPendingResolution(resolution) && resolution.candidateIds.length > 1;
+  return resolution.kind === 'awaiting-signature'
+    ? resolution.candidates.length > 1
+    : isPendingResolution(resolution) && resolution.candidateIds.length > 1;
 }
 
 export function leadsToEquals(left: DoorLeadsTo, right: DoorLeadsTo): boolean {
@@ -231,7 +239,9 @@ export function identityEquals(
 export function destinationProvenanceOf(
   resolution: ConnectionResolution,
 ): ConnectionProvenance | null {
-  return resolution.kind === 'open' ? null : resolution.provenance;
+  return resolution.kind === 'open' || resolution.kind === 'awaiting-signature'
+    ? null
+    : resolution.provenance;
 }
 
 export function clearPendingResolution(

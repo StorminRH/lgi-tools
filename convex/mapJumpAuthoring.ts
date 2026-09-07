@@ -12,7 +12,6 @@ import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
 import {
   blankHallway,
   destinationResolution,
-  pendingResolution,
 } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
@@ -107,8 +106,12 @@ async function readPairRows(
   const forward = await readConnectionsFrom(ctx, mapId, fromSystemId, 'pair');
   const reverse = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
   return [
-    ...forward.filter((row) => row.toSystemId === toSystemId),
-    ...reverse.filter((row) => row.toSystemId === fromSystemId),
+    ...forward.filter((row) => row.toSystemId === toSystemId
+      || (row.resolution.kind === 'awaiting-signature'
+        && row.resolution.destinationSystemId === toSystemId)),
+    ...reverse.filter((row) => row.toSystemId === fromSystemId
+      || (row.resolution.kind === 'awaiting-signature'
+        && row.resolution.destinationSystemId === fromSystemId)),
   ];
 }
 
@@ -291,18 +294,45 @@ async function resolveCandidateTopology(
   observedShipMassKg: number | null,
 ): Promise<TopologyResult> {
   const { candidate } = selection;
-  const ambiguous =
-    selection.provenance === 'assumed' && selection.survivors.length > 1;
   const patch = {
     toSystemId: args.toSolarSystemId,
-    resolution: ambiguous
-      ? pendingResolution([...selection.survivors], args.characterId)
-      : destinationResolution(selection.provenance),
+    resolution: destinationResolution(selection.provenance),
     observedMassKg: nextObservedMass(candidate, observedShipMassKg),
     observationKey: candidate.observationKey ?? args.observationKey,
   };
   await ctx.db.patch(candidate._id, patch);
   return { outcome: 'authored', connection: { ...candidate, ...patch } };
+}
+
+async function awaitSignatureTopology(
+  ctx: MutationCtx,
+  args: ResolveJumpInput,
+  selection: Extract<CandidateSelection, { kind: 'resolve' }>,
+  candidates: readonly Doc<'mapConnections'>[],
+  observedShipMassKg: number | null,
+): Promise<TopologyResult> {
+  const connectionId = await ctx.db.insert('mapConnections', {
+    ...blankHallway({
+      mapId: args.mapId,
+      fromSystemId: args.fromSolarSystemId,
+      toSystemId: null,
+    }),
+    resolution: {
+      kind: 'awaiting-signature',
+      destinationSystemId: args.toSolarSystemId,
+      candidates: candidates
+        .filter((row) => selection.survivors.includes(row._id))
+        .map((row) => ({ connectionId: row._id, signatureId: row.from.signatureId })),
+      characterId: args.characterId,
+    },
+    observationKey: args.observationKey,
+    ...(observedShipMassKg === null ? {} : { observedMassKg: observedShipMassKg }),
+  });
+  const connection = await ctx.db.get(connectionId);
+  if (connection === null) {
+    throw new ConvexError({ code: 'INSERTED_CONNECTION_MISSING' });
+  }
+  return { outcome: 'authored', connection };
 }
 
 async function insertJumpTopology(
@@ -357,6 +387,10 @@ async function authorNewTopology(
   );
   const selection = validateCandidateDecision(candidates, args.decision);
   if ('status' in selection) return selection;
+
+  if (selection.kind === 'resolve' && selection.survivors.length > 1) {
+    return await awaitSignatureTopology(ctx, args, selection, candidates, observedShipMassKg);
+  }
 
   await upsertLiveDestination(ctx, args.mapId, args.toSolarSystemId);
   const authored = selection.kind === 'resolve'

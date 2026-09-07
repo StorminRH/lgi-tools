@@ -326,25 +326,21 @@ describe('automatic jump authoring', () => {
     expect(jumped[0]?.staticCode).toBeUndefined();
   });
 
-  it('records assumed survivors, confirms them, and re-associates the destination round trip', async () => {
+  it('confirms legacy pending survivors and re-associates the destination round trip', async () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     const firstId = await seedCandidate(t, 'AAA', 'C247');
     const secondId = await seedCandidate(t, 'BBB', null);
 
-    await t.mutation(
-      jump.resolveJumpAuthoring,
-      authorArgs({
-        decision: {
-          kind: 'resolve',
-          candidateId: firstId,
-          provenance: 'assumed',
-          candidateIds: [firstId, secondId],
-          survivors: [firstId, secondId],
-        },
-      }),
-    );
+    await t.run(async (ctx) => {
+      await ctx.db.patch(firstId, {
+        toSystemId: DESTINATION,
+        resolution: { kind: 'pending', provenance: 'assumed', candidateIds: [firstId, secondId], characterId: CHARACTER },
+        observedMassKg: 10_000_000,
+        observationKey: 'observation-key',
+      });
+    });
     expect(await t.run(async (ctx) => await ctx.db.get(firstId))).toMatchObject({
       toSystemId: DESTINATION,
       resolution: {

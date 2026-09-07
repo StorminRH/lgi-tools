@@ -117,6 +117,37 @@ beforeEach(() => {
 });
 
 describe('jump resolver composition', () => {
+  it('leaves elimination and observations until an ambiguous jump has an answer', async () => {
+    h.readTransitionEvidence.mockResolvedValue(transitionEvidence({
+      candidates: [
+        { id: 'first', wormholeTypeCode: 'C247', sizeClass: 'L' },
+        { id: 'second', wormholeTypeCode: null, sizeClass: null },
+      ],
+    }));
+    h.authorJump.mockResolvedValue({
+      status: 'authored',
+      emission: {
+        ...emission,
+        toSystemId: null,
+        wormholeTypeCode: null,
+        typedSide: null,
+        destinationProvenance: null,
+      },
+    });
+    await expect(resolveJumpRequest(
+      database, USER, { kind: 'doorbell', mapId: MAP, characterId: CHARACTER }, dependencies,
+    )).resolves.toEqual({ status: 'processed', outcome: 'authored', emitted: false });
+    expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
+    expect(h.insertWhObservation).not.toHaveBeenCalled();
+
+    await expect(resolveJumpRequest(
+      database, USER,
+      { kind: 'confirm', mapId: MAP, connectionId: 'pending', targetConnectionId: 'second' },
+      dependencies,
+    )).resolves.toMatchObject({ status: 'processed', outcome: 'reassociated' });
+    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(2);
+    expect(h.insertWhObservation).toHaveBeenCalledOnce();
+  });
   it('honestly re-anchors missing, discontinuous, and capsule-loss transitions', async () => {
     h.readTransitionEvidence.mockResolvedValueOnce({
       ...transitionEvidence(),

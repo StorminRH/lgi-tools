@@ -66,7 +66,10 @@ export function unresolvedCandidatesOf(
   rows: readonly Doc<'mapConnections'>[],
 ): Doc<'mapConnections'>[] {
   return rows.filter((row) =>
-    row.toSystemId === null && !isTombstoned(row) && !isStaticPlaceholder(row)
+    row.toSystemId === null
+    && row.resolution.kind !== 'awaiting-signature'
+    && !isTombstoned(row)
+    && !isStaticPlaceholder(row)
   );
 }
 
