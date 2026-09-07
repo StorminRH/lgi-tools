@@ -4,9 +4,9 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import { legacyMapOwnerRoleValidator } from './lib/mapEntityContracts';
+import { mapRoleValidator } from './lib/mapEntityContracts';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
-import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
+import { currentRolesFromStored, MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -305,20 +305,21 @@ describe('purgeUserClaims', () => {
 });
 
 describe('map role leftover', () => {
-  it('stored-versus-write inserts owner and rejects write owner', async () => {
-    expect(legacyMapOwnerRoleValidator.kind).toBe('literal');
+  it('contracts stored and write roles to viewer, editor, and admin', async () => {
+    expect(mapRoleValidator.kind).toBe('union');
+    expect(currentRolesFromStored(['owner', 'viewer'])).toEqual(['admin', 'viewer']);
+    expect(currentRolesFromStored(['admin', 'editor'])).toEqual(['admin', 'editor']);
 
     const t = convexTest(schema, modules);
-    await t.run((ctx) =>
-      ctx.db.insert('mapAccess', {
-        mapId: MAP_A,
-        userId: OWNER,
-        roles: ['owner'],
-      }),
-    );
-    expect(await readClaims(t, MAP_A)).toMatchObject([
-      { userId: OWNER, roles: ['owner'] },
-    ]);
+    await expect(
+      t.run((ctx) =>
+        ctx.db.insert('mapAccess', {
+          mapId: MAP_A,
+          userId: OWNER,
+          roles: ['owner'],
+        }),
+      ),
+    ).rejects.toThrow();
 
     await expect(
       t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
@@ -327,17 +328,28 @@ describe('map role leftover', () => {
         claims: [{ userId: OWNER, roles: ['owner'] }],
       } as never),
     ).rejects.toThrow();
+
+    await t.run((ctx) =>
+      ctx.db.insert('mapAccess', {
+        mapId: MAP_A,
+        userId: OWNER,
+        roles: ['admin'],
+      }),
+    );
+    await expect(
+      t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {}),
+    ).resolves.toEqual({ remapped: 0, continueCursor: null, isDone: true });
   });
 });
 
 describe('gate returns projected roles', () => {
-  it('normalizes a stored legacy owner claim to current admin authorization', async () => {
+  it('authorizes a stored admin claim without a leftover owner remap', async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) =>
       ctx.db.insert('mapAccess', {
         mapId: MAP_A,
         userId: OWNER,
-        roles: ['owner'],
+        roles: ['admin'],
       }),
     );
 

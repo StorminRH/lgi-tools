@@ -122,9 +122,7 @@ async function resolveMapPrincipal(
     return null;
   }
 
-  const roles = canonicalizeMapRoles(
-    claim.roles.map((role) => (role === 'owner' ? 'admin' : role)),
-  );
+  const roles = canonicalizeMapRoles(claim.roles);
   if (!rolesAllow(roles, requiredCapability)) return null;
 
   return { userId, roles };

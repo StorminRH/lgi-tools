@@ -5,7 +5,7 @@ import {
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { currentMapRoleValidator, type StoredMapRole } from './lib/mapEntityContracts';
+import { currentMapRoleValidator } from './lib/mapEntityContracts';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
@@ -30,8 +30,17 @@ export interface UserClaimsPurgeResult {
   readonly hasMore: boolean;
 }
 
+export function currentRolesFromStored(roles: readonly string[]): MapRole[] {
+  const next: MapRole[] = [];
+  for (const role of roles) {
+    if (role === 'owner' || role === 'admin') next.push('admin');
+    else if (role === 'editor' || role === 'viewer') next.push(role);
+  }
+  return canonicalizeMapRoles(next);
+}
+
 function rolesEqual(
-  left: readonly StoredMapRole[],
+  left: readonly MapRole[],
   right: readonly MapRole[],
 ): boolean {
   return left.length === right.length && left.every((role, index) => role === right[index]);
@@ -216,6 +225,35 @@ export const purgeUserClaims = internalMutation({
     return {
       deleted: doomed.length + tracking.deleted,
       hasMore: rows.length > MAP_ACCESS_PURGE_BATCH || tracking.hasMore,
+    };
+  },
+});
+
+export const remapLegacyOwnerRoles = internalMutation({
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.object({
+    remapped: v.number(),
+    continueCursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query('mapAccess').paginate({
+      numItems: MAP_ACCESS_PURGE_BATCH,
+      cursor: cursor ?? null,
+    });
+    let remapped = 0;
+    for (const row of page.page) {
+      const roles = currentRolesFromStored(row.roles);
+      if (rolesEqual(row.roles, roles)) continue;
+      await ctx.db.patch(row._id, { roles });
+      remapped += 1;
+    }
+    return {
+      remapped,
+      continueCursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
     };
   },
 });
