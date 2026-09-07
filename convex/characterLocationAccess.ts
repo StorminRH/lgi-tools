@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
 import { collectByUser } from './lib/indexedQuery';
+import { getSyncSubjectForGeneration } from './lib/subjects';
 
 const leaseWriteValidator = v.object({
   characterId: v.number(),
@@ -20,25 +21,15 @@ export const accessLeases = internalQuery({
   },
 });
 
-export const putAccessLease = internalMutation({
-  args: {
-    userId: v.string(),
-    characterId: v.number(),
-    accessToken: v.string(),
-    expiresAt: v.number(),
-  },
-  handler: async (ctx, args) => {
-    await upsertAccessLease(ctx, args);
-  },
-});
-
 export const putAccessLeases = internalMutation({
   args: {
     userId: v.string(),
+    generation: v.number(),
     leases: v.array(leaseWriteValidator),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if (await getSyncSubjectForGeneration(ctx.db, 'characterLocation', args) === null) return null;
     for (const lease of args.leases) {
       await upsertAccessLease(ctx, { userId: args.userId, ...lease });
     }
@@ -49,11 +40,15 @@ export const putAccessLeases = internalMutation({
 export const clearAccessLease = internalMutation({
   args: {
     userId: v.string(),
+    generation: v.number(),
     characterId: v.number(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
+    if (await getSyncSubjectForGeneration(ctx.db, 'characterLocation', args) === null) return null;
     const existing = await findAccessLease(ctx, args.userId, args.characterId);
     if (existing !== null) await ctx.db.delete(existing._id);
+    return null;
   },
 });
 

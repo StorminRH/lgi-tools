@@ -4,9 +4,13 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import { legacyMapOwnerRoleValidator, mapRoleValidator } from './lib/mapEntityContracts';
+import {
+  currentRolesFromStored,
+  legacyMapOwnerRoleValidator,
+  mapRoleValidator,
+} from './lib/mapEntityContracts';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
-import { currentRolesFromStored, MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
+import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';

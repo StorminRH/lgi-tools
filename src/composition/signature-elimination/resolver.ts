@@ -79,16 +79,6 @@ function quiet(systemId: number): SignatureEliminationResponse['results'][number
   return { systemId, status: 'quiet' };
 }
 
-type SharedCodex = { value: readonly WormholeCodexEntry[] | null };
-
-async function loadSharedCodex(
-  holder: SharedCodex | undefined,
-  dependencies: SignatureEliminationDependencies,
-): Promise<SharedCodex> {
-  if (holder !== undefined) return holder;
-  return { value: await readCodex(dependencies) };
-}
-
 interface SettledIdentity {
   readonly whTypeCode: string | null;
   readonly provenance: ConnectionProvenance | null;
@@ -153,24 +143,20 @@ async function resolveOneSystem(
   userId: string,
   mapId: string,
   systemId: number,
-  sharedCodex: SharedCodex | undefined,
+  loadCodex: () => Promise<readonly WormholeCodexEntry[] | null>,
   dependencies: SignatureEliminationDependencies,
-): Promise<{
-  readonly result: SignatureEliminationResponse['results'][number];
-  readonly sharedCodex: SharedCodex | undefined;
-}> {
+): Promise<SignatureEliminationResponse['results'][number]> {
   const evidence = await dependencies.readEliminationEvidence(
     userId,
     mapId,
     systemId,
   );
-  if (!evidence.canEdit) return { result: quiet(systemId), sharedCodex };
+  if (!evidence.canEdit) return quiet(systemId);
 
-  const [loadedCodex, staticTypeCodes] = await Promise.all([
-    loadSharedCodex(sharedCodex, dependencies),
+  const [codex, staticTypeCodes] = await Promise.all([
+    loadCodex(),
     readStaticTypeCodes(database, systemId, dependencies),
   ]);
-  const codex = loadedCodex.value;
 
   const deductions = staticTypeCodes === null || codex === null
     ? []
@@ -212,29 +198,20 @@ async function resolveOneSystem(
       );
     } catch (cause) {
       dependencies.reportEmissionFailure(cause);
-      return {
-        result: { systemId, status: 'observations-unavailable' },
-        sharedCodex: loadedCodex,
-      };
+      return { systemId, status: 'observations-unavailable' };
     }
   }
 
   if (staticTypeCodes === null || codex === null) {
-    return {
-      result: { systemId, status: 'statics-unavailable' },
-      sharedCodex: loadedCodex,
-    };
+    return { systemId, status: 'statics-unavailable' };
   }
 
   const signatureIds = outcomes
     .filter((outcome) => outcome.outcome === 'applied')
     .map((outcome) => outcome.signatureId);
-  return {
-    result: signatureIds.length === 0
-      ? quiet(systemId)
-      : { systemId, status: 'applied', signatureIds },
-    sharedCodex: loadedCodex,
-  };
+  return signatureIds.length === 0
+    ? quiet(systemId)
+    : { systemId, status: 'applied', signatureIds };
 }
 
 export async function resolveSignatureElimination(
@@ -244,7 +221,8 @@ export async function resolveSignatureElimination(
   dependencies: SignatureEliminationDependencies = productionDependencies,
 ): Promise<SignatureEliminationResponse> {
   const results: SignatureEliminationResponse['results'][number][] = [];
-  let sharedCodex: SharedCodex | undefined;
+  let codex: Promise<readonly WormholeCodexEntry[] | null> | undefined;
+  const loadCodex = () => codex ??= readCodex(dependencies);
   let firstError: unknown;
   for (const systemId of request.systemIds) {
     try {
@@ -253,11 +231,10 @@ export async function resolveSignatureElimination(
         userId,
         request.mapId,
         systemId,
-        sharedCodex,
+        loadCodex,
         dependencies,
       );
-      results.push(resolved.result);
-      sharedCodex = resolved.sharedCodex;
+      results.push(resolved);
     } catch (cause) {
       firstError ??= cause;
     }

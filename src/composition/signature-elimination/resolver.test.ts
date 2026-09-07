@@ -291,6 +291,7 @@ describe('signature elimination composition', () => {
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ results: [{ systemId: SYSTEM, status: 'quiet' }] });
     expect(h.readSystemStaticsForSystem).not.toHaveBeenCalled();
+    expect(h.getWormholeCodex).not.toHaveBeenCalled();
 
     h.applyEliminationDeductions.mockResolvedValueOnce([
       { signatureId: 'AAA-111', outcome: 'unchanged', observationKey: 'hole-key' },
@@ -336,5 +337,31 @@ describe('signature elimination composition', () => {
     expect(h.getWormholeCodex).toHaveBeenCalledOnce();
     expect(h.readEliminationEvidence).toHaveBeenCalledTimes(2);
     expect(h.readSystemStaticsForSystem).toHaveBeenCalledTimes(2);
+  });
+
+  it('reuses the codex and processes the second system after the first write fails', async () => {
+    const secondSystem = 31_000_002;
+    const failure = new Error('deduction write failed');
+    h.applyEliminationDeductions.mockRejectedValueOnce(failure);
+
+    await expect(
+      resolveSignatureElimination(
+        database,
+        'user-1',
+        { mapId: 'map-1', systemIds: [SYSTEM, secondSystem] },
+        dependencies,
+      ),
+    ).rejects.toBe(failure);
+
+    expect(h.getWormholeCodex).toHaveBeenCalledOnce();
+    expect(h.applyEliminationDeductions).toHaveBeenCalledTimes(2);
+    expect(h.applyEliminationDeductions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ systemId: secondSystem }),
+    );
+    expect(h.reconcileWhObservations).toHaveBeenCalledOnce();
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [expect.objectContaining({ solarSystemId: secondSystem })],
+      deleteKeys: [],
+    });
   });
 });

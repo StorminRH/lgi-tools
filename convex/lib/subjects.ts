@@ -35,6 +35,15 @@ export function getSyncSubject(
   return uniqueByUserDataset(db, 'syncSubjects', dataset, userId);
 }
 
+export async function getSyncSubjectForGeneration(
+  db: DatabaseReader,
+  dataset: StoredDataset,
+  args: { userId: string; generation: number },
+): Promise<Doc<'syncSubjects'> | null> {
+  const subject = await getSyncSubject(db, dataset, args.userId);
+  return subject?.lastRequestedAt === args.generation ? subject : null;
+}
+
 export function getPresence(
   db: DatabaseReader,
   dataset: StoredDataset,

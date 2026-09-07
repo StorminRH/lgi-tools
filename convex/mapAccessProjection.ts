@@ -5,7 +5,11 @@ import {
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { currentMapRoleValidator, type StoredMapRole } from './lib/mapEntityContracts';
+import {
+  currentMapRoleValidator,
+  currentRolesFromStored,
+  type StoredMapRole,
+} from './lib/mapEntityContracts';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
@@ -28,10 +32,6 @@ export type ReconcileResult = ReconcileCounts & {
 export interface UserClaimsPurgeResult {
   readonly deleted: number;
   readonly hasMore: boolean;
-}
-
-export function currentRolesFromStored(roles: readonly StoredMapRole[]): MapRole[] {
-  return canonicalizeMapRoles(roles.map((role) => role === 'owner' ? 'admin' : role));
 }
 
 function rolesEqual(

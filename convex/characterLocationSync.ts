@@ -111,6 +111,7 @@ async function runLocationSync(
         ctx,
         env,
         userId,
+        generation,
         characterId,
         heldState,
         heldOnline,
@@ -120,7 +121,7 @@ async function runLocationSync(
         rl,
       );
       if (pendingLeases.size >= ACCESS_LEASE_BATCH_SIZE) {
-        await flushPendingLeases(ctx, userId, pendingLeases);
+        await flushPendingLeases(ctx, userId, generation, pendingLeases);
       }
       if (outcome.kind === 'skip') continue;
       results.push(outcome.result);
@@ -130,7 +131,7 @@ async function runLocationSync(
       }
     }
 
-    await flushPendingLeases(ctx, userId, pendingLeases);
+    await flushPendingLeases(ctx, userId, generation, pendingLeases);
     await ctx.runMutation(internal.characterLocationApply.applySyncResults, {
       userId,
       generation,
@@ -141,7 +142,7 @@ async function runLocationSync(
       ...rl,
     });
   } catch (error) {
-    await flushPendingLeases(ctx, userId, pendingLeases).catch(() => undefined);
+    await flushPendingLeases(ctx, userId, generation, pendingLeases).catch(() => undefined);
     throw error;
   }
 }
@@ -162,6 +163,7 @@ async function syncLocationCharacter(
   ctx: ActionCtx,
   env: SyncEnv,
   userId: string,
+  generation: number,
   characterId: number,
   held: HeldState,
   heldOnline: HeldOnlineState | undefined,
@@ -194,6 +196,7 @@ async function syncLocationCharacter(
       pendingLeases.delete(characterId);
       await ctx.runMutation(internal.characterLocationAccess.clearAccessLease, {
         userId,
+        generation,
         characterId,
       });
     }
@@ -213,11 +216,12 @@ async function syncLocationCharacter(
 async function flushPendingLeases(
   ctx: ActionCtx,
   userId: string,
+  generation: number,
   pendingLeases: Map<number, AccessLease & { characterId: number }>,
 ): Promise<void> {
   if (pendingLeases.size === 0) return;
   const leases = [...pendingLeases.values()];
-  await ctx.runMutation(internal.characterLocationAccess.putAccessLeases, { userId, leases });
+  await ctx.runMutation(internal.characterLocationAccess.putAccessLeases, { userId, generation, leases });
   pendingLeases.clear();
 }
 

@@ -254,7 +254,7 @@ const inFlight: DoorbellMemoryEntry = {
   attempts: 1,
   settled: false,
   inFlight: true,
-  lease: { id: 'remote', expiresAt: Date.now() + 15_000 },
+  lease: { id: 'remote', expiresAt: 20_000 },
 };
 
 describe('doorbell remount memory', () => {
@@ -322,7 +322,7 @@ describe('doorbell tab memory', () => {
     firstMemory.set(101, inFlight);
     first.share();
     bus.flush();
-    expect(pendingDoorbells([tracked(101, 5_000)], secondMemory)).toEqual([]);
+    expect(pendingDoorbells([tracked(101, 5_000)], secondMemory, 10_000)).toEqual([]);
     expect(secondMemory.get(101)).toMatchObject({ inFlight: true, settled: false });
 
     second.close();

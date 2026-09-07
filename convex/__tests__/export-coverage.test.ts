@@ -17,7 +17,6 @@ import authConfig from '../auth.config';
 import {
   accessLeases,
   clearAccessLease,
-  putAccessLease,
   putAccessLeases,
 } from '../characterLocationAccess';
 import { applySyncResults, JUMP_CONTINUITY_MS } from '../characterLocationApply';
@@ -47,7 +46,6 @@ import {
   WORMHOLE_LIFE_STAGES,
 } from '../lib/mapEntityContracts';
 import {
-  currentRolesFromStored,
   purgeUserClaims,
   reconcileMapClaims,
   remapLegacyOwnerRoles,
@@ -176,7 +174,6 @@ describe('convex runtime exports', () => {
       clearAccessLease,
       heldState,
       purgeLocationForUser,
-      putAccessLease,
       putAccessLeases,
       chainDispatch,
       heartbeat,
@@ -194,7 +191,6 @@ describe('convex runtime exports', () => {
       WORMHOLE_LIFE_STAGES,
       purgeUserClaims,
       reconcileMapClaims,
-      currentRolesFromStored,
       remapLegacyOwnerRoles,
       CEILING_SWEEP_BATCH,
       CEILING_SWEEP_SCAN,
