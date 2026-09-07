@@ -228,6 +228,37 @@ describe('ambiguous jump identity', () => {
       .toMatchObject({ connectionId: placeholderId, toSystemId: TO });
   });
 
+  it('skeletons a dying pair to the same destination when deferring the jump', async () => {
+    const { t, args } = await setup();
+    const corpseId = await t.run(async (ctx) => ctx.db.insert('mapConnections', {
+      ...blankHallway({ mapId: MAP, fromSystemId: FROM, toSystemId: TO }),
+      tombstone: { kind: 'removed', deletedAt: AT - 1_000, purgeAfter: AT + 60_000 },
+    }));
+    await pending(t, args);
+    const corpse = await t.run((ctx) => ctx.db.get(corpseId));
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .not.toBe(AT + 60_000);
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .toBeLessThanOrEqual(Date.now());
+  });
+
+  it('skeletons a dying pair when answering a deferred jump', async () => {
+    const { t, candidates, args } = await setup();
+    const sourceId = await pending(t, args);
+    const targetId = candidates[1];
+    if (targetId === undefined) throw new Error('missing candidate');
+    const corpseId = await t.run(async (ctx) => ctx.db.insert('mapConnections', {
+      ...blankHallway({ mapId: MAP, fromSystemId: FROM, toSystemId: TO }),
+      tombstone: { kind: 'removed', deletedAt: AT - 1_000, purgeAfter: AT + 60_000 },
+    }));
+    await t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId));
+    const corpse = await t.run((ctx) => ctx.db.get(corpseId));
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .not.toBe(AT + 60_000);
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .toBeLessThanOrEqual(Date.now());
+  });
+
   it('rejects unauthorized and non-offered answers without publishing a destination', async () => {
     const { t, candidates, args } = await setup();
     const sourceId = await pending(t, args);
