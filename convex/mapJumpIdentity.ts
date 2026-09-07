@@ -11,6 +11,7 @@ import { requireMapAccessForUser } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import { emissionFacts, readConnectionsFrom, type EmissionFacts } from './mapJumpReads';
 import { upsertLiveDestination } from './mapAuthoringHome';
+import { supersedeDyingPairsForEndpoints } from './mapJumpAuthoring';
 import { findSystem } from './lib/mapSystemLookup';
 
 export const confirmJumpIdentity = internalMutation({
@@ -82,6 +83,14 @@ async function answerAwaitingSignature(
   };
   await ctx.db.patch(target._id, moved);
   await ctx.db.delete(source._id);
+  await supersedeDyingPairsForEndpoints(
+    ctx,
+    source.mapId,
+    source.fromSystemId,
+    destinationSystemId,
+    target._id,
+    Date.now(),
+  );
   return emissionFacts({ ...target, ...moved });
 }
 

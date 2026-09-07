@@ -101,7 +101,7 @@ import {
   seedTrackedLocationFixture,
 } from '../mapFixtureTracking';
 import { readMapCollection } from '../mapFixtures';
-import { resolveJumpAuthoring } from '../mapJumpAuthoring';
+import { resolveJumpAuthoring, supersedeDyingPairsForEndpoints } from '../mapJumpAuthoring';
 import { connectionEvidence, jumpEvidence } from '../mapJumpEvidence';
 import {
   confirmJumpIdentity,
@@ -231,6 +231,7 @@ describe('convex runtime exports', () => {
       jumpEvidence,
       reassociateJumpDestination,
       resolveJumpAuthoring,
+      supersedeDyingPairsForEndpoints,
       deleteForMapCharacter,
       purgeForMap,
       HALLWAY_BACKFILL_BATCH,

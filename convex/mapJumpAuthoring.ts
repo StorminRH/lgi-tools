@@ -376,6 +376,22 @@ async function supersedeDyingPairConnections(
   }
 }
 
+export async function supersedeDyingPairsForEndpoints(
+  ctx: MutationCtx,
+  mapId: string,
+  fromSystemId: number,
+  toSystemId: number,
+  liveId: Id<'mapConnections'>,
+  now: number,
+): Promise<void> {
+  await supersedeDyingPairConnections(
+    ctx,
+    await readPairRows(ctx, mapId, fromSystemId, toSystemId),
+    liveId,
+    now,
+  );
+}
+
 async function authorNewTopology(
   ctx: MutationCtx,
   args: ResolveJumpInput,
@@ -392,7 +408,15 @@ async function authorNewTopology(
   if ('status' in selection) return selection;
 
   if (selection.kind === 'resolve' && selection.survivors.length > 1) {
-    return await awaitSignatureTopology(ctx, args, selection, candidates, observedShipMassKg);
+    const authored = await awaitSignatureTopology(
+      ctx,
+      args,
+      selection,
+      candidates,
+      observedShipMassKg,
+    );
+    await supersedeDyingPairConnections(ctx, pairRows, authored.connection._id, now);
+    return authored;
   }
 
   await upsertLiveDestination(ctx, args.mapId, args.toSolarSystemId);
