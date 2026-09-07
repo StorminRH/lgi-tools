@@ -26,7 +26,7 @@ import type {
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
-import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
+import { followUpTypeSetterElimination } from '../signatures/type-setter-follow-up';
 import { connectionTypePatch, namedDoorType } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
@@ -689,14 +689,15 @@ export function useChainAuthoringMutations() {
         side: args.side,
         ...windowArgs(proposal),
       });
-      if (result === undefined) return undefined;
       const typedSystemId = args.side === 'to'
         && args.connection.toSystemId !== null
         ? args.connection.toSystemId
         : args.connection.fromSystemId;
-      await eliminateSignaturesAndAnnounce({
+      await followUpTypeSetterElimination({
         mapId: args.mapId,
-        systemIds: [typedSystemId],
+        connectionId: args.connection.connectionId,
+        systemId: typedSystemId,
+        write: result,
       });
       return result;
     },

@@ -5,6 +5,7 @@ import {
   identifyWriteDigest,
   pasteSemanticWrite,
   pasteWriteDigest,
+  typeSetterSemanticWrite,
 } from './semantic-write';
 
 describe('paste semantic write', () => {
@@ -66,6 +67,29 @@ describe('identify semantic write', () => {
       changed: false,
       connectionId: null,
     })).toEqual({ kind: 'idle' });
+  });
+});
+
+describe('type setter semantic write', () => {
+  it('treats a field change as mutated even when a placeholder was also claimed', () => {
+    expect(typeSetterSemanticWrite({ changed: true, claimed: false })).toEqual({
+      kind: 'mutated',
+    });
+    expect(typeSetterSemanticWrite({ changed: true, claimed: true })).toEqual({
+      kind: 'mutated',
+    });
+  });
+
+  it('does not treat an unchanged boolean as idle when a placeholder was claimed', () => {
+    expect(typeSetterSemanticWrite({ changed: false, claimed: true })).toEqual({
+      kind: 'claimed',
+    });
+  });
+
+  it('treats a true no-op as idle', () => {
+    expect(typeSetterSemanticWrite({ changed: false, claimed: false })).toEqual({
+      kind: 'idle',
+    });
   });
 });
 
