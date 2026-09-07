@@ -624,4 +624,70 @@ describe('characterLocationSync.syncUser', () => {
     expect(await readLease(stale)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
     expect((await readDoc(stale))?.solarSystemId).toBe(SYSTEM_A);
   });
+
+  it('persists a vended lease when a later character throws', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t, 101);
+    await seedTracking(t, 102);
+    await seedOnline(t, {}, 101);
+    await seedOnline(t, {}, 102);
+    stubFetch({
+      esi: (url) => {
+        if (url.includes('/characters/102/')) throw new Error('esi_down');
+        if (url.includes('/location')) {
+          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        }
+        if (url.includes('/ship')) {
+          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect(await readLease(t, 101)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect(await readLease(t, 102)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect(await readDoc(t, 101)).toBeNull();
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) =>
+          q.eq('userId', USER).eq('dataset', 'characterLocation'),
+        )
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(subject?.lastError).toMatch(/esi_down/);
+  });
+
+  it('re-vends two expired leases in one batch and keeps both', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t, 101);
+    await seedTracking(t, 102);
+    await seedOnline(t, {}, 101);
+    await seedOnline(t, {}, 102);
+    await seedLease(t, { expiresAt: Date.now() - 1, accessToken: 'stale-a' }, 101);
+    await seedLease(t, { expiresAt: Date.now() - 1, accessToken: 'stale-b' }, 102);
+    stubFetch({
+      esi: (url) => {
+        if (url.includes('/location')) {
+          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        }
+        if (url.includes('/ship')) {
+          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect(await readLease(t, 101)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect(await readLease(t, 102)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect((await readDoc(t, 101))?.solarSystemId).toBe(SYSTEM_A);
+    expect((await readDoc(t, 102))?.solarSystemId).toBe(SYSTEM_A);
+  });
 });
