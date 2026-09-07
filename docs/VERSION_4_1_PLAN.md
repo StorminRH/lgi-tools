@@ -35,7 +35,7 @@ alerts, a roll-calculator host, or a restore of unlock-to-drag.
 
 | Sub-version | Theme | Covers | Sessions | Status |
 |---|---|---|---|---|
-| 4.1.1 | Seats stay put | §4.1.1 | 1 | READY |
+| 4.1.1 | Seats stay put | §4.1.1 | 1 | SHIPPED |
 | 4.1.2 | What is on the system | §4.1.2 | 1 | READY |
 
 ## Still true
