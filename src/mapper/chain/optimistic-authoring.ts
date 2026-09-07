@@ -696,7 +696,7 @@ export function useChainAuthoringMutations() {
         : args.connection.fromSystemId;
       await eliminateSignaturesAndAnnounce({
         mapId: args.mapId,
-        systemId: typedSystemId,
+        systemIds: [typedSystemId],
       });
       return result;
     },

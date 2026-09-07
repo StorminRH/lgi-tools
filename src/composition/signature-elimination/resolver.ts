@@ -75,8 +75,18 @@ async function readStaticTypeCodes(
   }
 }
 
-function quiet(): SignatureEliminationResponse {
-  return { status: 'quiet' };
+function quiet(systemId: number): SignatureEliminationResponse['results'][number] {
+  return { systemId, status: 'quiet' };
+}
+
+type SharedCodex = { value: readonly WormholeCodexEntry[] | null };
+
+async function loadSharedCodex(
+  holder: SharedCodex | undefined,
+  dependencies: SignatureEliminationDependencies,
+): Promise<SharedCodex> {
+  if (holder !== undefined) return holder;
+  return { value: await readCodex(dependencies) };
 }
 
 interface SettledIdentity {
@@ -138,23 +148,29 @@ async function logIdentifications(
   await dependencies.reconcileWhObservations(database, { upserts, deleteKeys });
 }
 
-export async function resolveSignatureElimination(
+async function resolveOneSystem(
   database: AnyPgDb,
   userId: string,
-  request: SignatureEliminationRequest,
-  dependencies: SignatureEliminationDependencies = productionDependencies,
-): Promise<SignatureEliminationResponse> {
+  mapId: string,
+  systemId: number,
+  sharedCodex: SharedCodex | undefined,
+  dependencies: SignatureEliminationDependencies,
+): Promise<{
+  readonly result: SignatureEliminationResponse['results'][number];
+  readonly sharedCodex: SharedCodex | undefined;
+}> {
   const evidence = await dependencies.readEliminationEvidence(
     userId,
-    request.mapId,
-    request.systemId,
+    mapId,
+    systemId,
   );
-  if (!evidence.canEdit) return quiet();
+  if (!evidence.canEdit) return { result: quiet(systemId), sharedCodex };
 
-  const [codex, staticTypeCodes] = await Promise.all([
-    readCodex(dependencies),
-    readStaticTypeCodes(database, request.systemId, dependencies),
+  const [loadedCodex, staticTypeCodes] = await Promise.all([
+    loadSharedCodex(sharedCodex, dependencies),
+    readStaticTypeCodes(database, systemId, dependencies),
   ]);
+  const codex = loadedCodex.value;
 
   const deductions = staticTypeCodes === null || codex === null
     ? []
@@ -172,8 +188,8 @@ export async function resolveSignatureElimination(
     ? []
     : await dependencies.applyEliminationDeductions({
         userId,
-        mapId: request.mapId,
-        systemId: request.systemId,
+        mapId,
+        systemId,
         deductions,
       });
 
@@ -183,7 +199,7 @@ export async function resolveSignatureElimination(
     try {
       await logIdentifications(
         database,
-        request.systemId,
+        systemId,
         evidence.signatures.map((signature) =>
           settleIdentity(
             signature,
@@ -200,13 +216,48 @@ export async function resolveSignatureElimination(
   }
 
   if (staticTypeCodes === null || codex === null) {
-    return { status: 'statics-unavailable' };
+    return {
+      result: { systemId, status: 'statics-unavailable' },
+      sharedCodex: loadedCodex,
+    };
   }
 
   const signatureIds = outcomes
     .filter((outcome) => outcome.outcome === 'applied')
     .map((outcome) => outcome.signatureId);
-  return signatureIds.length === 0
-    ? quiet()
-    : { status: 'applied', signatureIds };
+  return {
+    result: signatureIds.length === 0
+      ? quiet(systemId)
+      : { systemId, status: 'applied', signatureIds },
+    sharedCodex: loadedCodex,
+  };
+}
+
+export async function resolveSignatureElimination(
+  database: AnyPgDb,
+  userId: string,
+  request: SignatureEliminationRequest,
+  dependencies: SignatureEliminationDependencies = productionDependencies,
+): Promise<SignatureEliminationResponse> {
+  const results: SignatureEliminationResponse['results'][number][] = [];
+  let sharedCodex: SharedCodex | undefined;
+  let firstError: unknown;
+  for (const systemId of request.systemIds) {
+    try {
+      const resolved = await resolveOneSystem(
+        database,
+        userId,
+        request.mapId,
+        systemId,
+        sharedCodex,
+        dependencies,
+      );
+      results.push(resolved.result);
+      sharedCodex = resolved.sharedCodex;
+    } catch (cause) {
+      firstError ??= cause;
+    }
+  }
+  if (firstError !== undefined) throw firstError;
+  return { results };
 }
