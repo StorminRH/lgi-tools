@@ -1,11 +1,11 @@
 import { ConvexError } from 'convex/values';
 import {
-  canonicalizeMapRoles,
   rolesAllow,
   type MapCapability,
   type MapRole,
 } from '@/data/maps/access-contract';
 import type { QueryCtx } from '../_generated/server';
+import { currentRolesFromStored } from './mapEntityContracts';
 
 export interface MapPrincipal {
   readonly userId: string;
@@ -122,9 +122,7 @@ async function resolveMapPrincipal(
     return null;
   }
 
-  const roles = canonicalizeMapRoles(
-    claim.roles.map((role) => (role === 'owner' ? 'admin' : role)),
-  );
+  const roles = currentRolesFromStored(claim.roles);
   if (!rolesAllow(roles, requiredCapability)) return null;
 
   return { userId, roles };

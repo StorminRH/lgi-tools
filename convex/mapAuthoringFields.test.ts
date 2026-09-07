@@ -148,6 +148,7 @@ describe('map authoring', () => {
         return rows.find((row) => row.staticCode === 'C247' && row.from.signatureId === null);
       });
       expect(placeholder).toBeDefined();
+      if (placeholder === undefined) throw new Error('Expected a C247 static placeholder');
 
       await expect(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
@@ -161,7 +162,7 @@ describe('map authoring', () => {
         staticCode: 'C247',
         toSystemId: WH_A,
       });
-      expect(await readConnection(t, placeholder!._id)).toBeNull();
+      expect(await readConnection(t, placeholder._id)).toBeNull();
     });
 
     it('stamps lifeStageObservedAt on change and leaves it on an equal re-pick', async () => {

@@ -146,6 +146,56 @@ it('retries an identical idle paste after observation persistence fails', async 
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
+it('shares overlapping identical idle follow-ups and announces the result once', async () => {
+  const response = Promise.withResolvers<ReturnType<typeof applied>>();
+  h.apiFetch.mockReturnValueOnce(response.promise);
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  const first = followUpElimination(input);
+  const second = followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+
+  const result = applied(['A']);
+  response.resolve(result);
+  await expect(Promise.all([first, second])).resolves.toEqual([result.data, result.data]);
+  expect(h.success).toHaveBeenCalledOnce();
+  await expect(followUpElimination(input)).resolves.toBeNull();
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+});
+
+it('retries after overlapping idle follow-ups share a failed transport result', async () => {
+  const response = Promise.withResolvers<{ ok: false }>();
+  h.apiFetch.mockReturnValueOnce(response.promise).mockResolvedValueOnce(quiet());
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  const first = followUpElimination(input);
+  const second = followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+
+  response.resolve({ ok: false });
+  await expect(Promise.all([first, second])).resolves.toEqual([null, null]);
+  await expect(followUpElimination(input)).resolves.toEqual(quiet().data);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  expect(h.success).not.toHaveBeenCalled();
+});
+
+it('retries after overlapping idle follow-ups share a rejected request', async () => {
+  const response = Promise.withResolvers<ReturnType<typeof quiet>>();
+  h.apiFetch.mockReturnValueOnce(response.promise).mockResolvedValueOnce(quiet());
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  const first = followUpElimination(input);
+  const second = followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledOnce();
+
+  const error = new Error('Request rejected');
+  const outcomes = Promise.allSettled([first, second]);
+  response.reject(error);
+  await expect(outcomes).resolves.toEqual([
+    { status: 'rejected', reason: error },
+    { status: 'rejected', reason: error },
+  ]);
+  await expect(followUpElimination(input)).resolves.toEqual(quiet().data);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+});
+
 it('reruns an identical paste after its evidence is invalidated by removal or restore', async () => {
   const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
   h.apiFetch.mockResolvedValueOnce(quiet()).mockResolvedValueOnce(applied(['A']));
@@ -168,12 +218,12 @@ it('does not restore an invalidated cache entry when an older request completes'
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
-it('ignores an older success after a newer mutation follow-up fails', async () => {
+it.each(['mutated', 'claimed'] as const)('ignores an older success after a newer %s follow-up fails', async (kind) => {
   const response = Promise.withResolvers<ReturnType<typeof quiet>>();
   h.apiFetch.mockReturnValueOnce(response.promise).mockResolvedValueOnce({ ok: false });
   const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
   const pending = followUpElimination(input);
-  await followUpElimination({ ...input, write: { kind: 'mutated' } });
+  await followUpElimination({ ...input, write: { kind } });
   response.resolve(quiet());
   await pending;
   h.apiFetch.mockResolvedValueOnce(quiet());

@@ -7,7 +7,7 @@ import {
   stampSyncSubject,
 } from './lib/characterSync';
 import { applyCoverageSet } from './lib/locationCoverage';
-import { getSyncSubject } from './lib/subjects';
+import { getSyncSubjectForGeneration } from './lib/subjects';
 
 export const JUMP_CONTINUITY_MS = 45_000;
 
@@ -34,8 +34,8 @@ export const applySyncResults = internalMutation({
     results: v.array(characterResultValidator),
   },
   handler: async (ctx, args) => {
-    const subject = await getSyncSubject(ctx.db, 'characterLocation', args.userId);
-    if (subject === null || subject.lastRequestedAt !== args.generation) return;
+    const subject = await getSyncSubjectForGeneration(ctx.db, 'characterLocation', args);
+    if (subject === null) return;
 
     const docs = await ctx.db
       .query('characterLocation')

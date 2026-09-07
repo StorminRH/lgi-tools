@@ -14,10 +14,13 @@ import { apiFetch } from '@/transport/api-client';
 
 const ELIMINATION_REQUEST_TIMEOUT_MS = 15_000;
 
-interface EliminationAttempt {
-  readonly digest: string;
-  readonly status: 'pending' | 'succeeded';
-}
+type EliminationAttempt =
+  | {
+    readonly kind: 'pending';
+    readonly digest: string;
+    readonly promise: Promise<SignatureEliminationResponse | null>;
+  }
+  | { readonly kind: 'succeeded'; readonly digest: string };
 
 const eliminationBySystem = new Map<string, EliminationAttempt>();
 
@@ -27,7 +30,7 @@ function systemKey(mapId: string, systemId: number): string {
 
 function lastEliminationDigest(mapId: string, systemId: number): string | undefined {
   const attempt = eliminationBySystem.get(systemKey(mapId, systemId));
-  return attempt?.status === 'succeeded' ? attempt.digest : undefined;
+  return attempt?.kind === 'succeeded' ? attempt.digest : undefined;
 }
 
 export function invalidateSignatureElimination(mapId: string, systemId: number): void {
@@ -44,7 +47,7 @@ function recordEliminationOutcome(
   if (eliminationBySystem.get(key) !== attempt) return;
   const result = outcome?.results.find((entry) => entry.systemId === systemId);
   if (result?.status === 'applied' || result?.status === 'quiet') {
-    eliminationBySystem.set(key, { digest: attempt.digest, status: 'succeeded' });
+    eliminationBySystem.set(key, { digest: attempt.digest, kind: 'succeeded' });
     return;
   }
   eliminationBySystem.delete(key);
@@ -97,6 +100,11 @@ export async function followUpElimination(input: {
   readonly write: SemanticWrite;
   readonly digest: string;
 }): Promise<SignatureEliminationResponse | null> {
+  const key = systemKey(input.mapId, input.systemId);
+  const current = eliminationBySystem.get(key);
+  if (input.write.kind === 'idle' && current?.kind === 'pending' && current.digest === input.digest) {
+    return current.promise;
+  }
   if (!eliminationFollowUpNeeded(
     input.write,
     lastEliminationDigest(input.mapId, input.systemId),
@@ -104,12 +112,18 @@ export async function followUpElimination(input: {
   )) {
     return null;
   }
-  const attempt: EliminationAttempt = { digest: input.digest, status: 'pending' };
-  eliminationBySystem.set(systemKey(input.mapId, input.systemId), attempt);
-  const outcome = await requestEliminationAndAnnounce({
+  const promise = requestEliminationAndAnnounce({
     mapId: input.mapId,
     systemIds: [input.systemId],
   });
-  recordEliminationOutcome(input.mapId, input.systemId, attempt, outcome);
-  return outcome;
+  const attempt: EliminationAttempt = { digest: input.digest, kind: 'pending', promise };
+  eliminationBySystem.set(key, attempt);
+  try {
+    const outcome = await promise;
+    recordEliminationOutcome(input.mapId, input.systemId, attempt, outcome);
+    return outcome;
+  } catch (error) {
+    recordEliminationOutcome(input.mapId, input.systemId, attempt, null);
+    throw error;
+  }
 }
