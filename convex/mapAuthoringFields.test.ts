@@ -26,6 +26,7 @@ import {
   seedJump,
   installAuthoringTimers,
   restoreAuthoringTimers,
+  type Chain,
 } from './__tests__/mapAuthoring.setup';
 
 beforeEach(() => {
@@ -41,39 +42,43 @@ describe('map authoring', () => {
     it.each([
       {
         name: 'setConnectionShipSize',
-        mutation: api.mapAuthoringFields.setConnectionShipSize,
-        value: 'L' as const,
+        write: (t: Chain, connectionId: Parameters<typeof readConnection>[1]) =>
+          asUser(t).mutation(api.mapAuthoringFields.setConnectionShipSize, {
+            mapId: MAP_A,
+            connectionId,
+            value: 'L',
+          }),
         stored: { shipSize: 'L' },
       },
       {
         name: 'setConnectionMassState',
-        mutation: api.mapAuthoringFields.setConnectionMassState,
-        value: 'reduced' as const,
+        write: (t: Chain, connectionId: Parameters<typeof readConnection>[1]) =>
+          asUser(t).mutation(api.mapAuthoringFields.setConnectionMassState, {
+            mapId: MAP_A,
+            connectionId,
+            value: 'reduced',
+          }),
         stored: { massState: 'reduced' },
       },
       {
         name: 'setConnectionLifeStage',
-        mutation: api.mapAuthoringFields.setConnectionLifeStage,
-        value: 'under_4_hours' as const,
+        write: (t: Chain, connectionId: Parameters<typeof readConnection>[1]) =>
+          asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
+            mapId: MAP_A,
+            connectionId,
+            value: 'under_4_hours',
+          }),
         stored: { lifetime: { kind: 'stage', lifeStage: 'under_4_hours' } },
       },
-    ])('$name writes once then no-ops on the same value', async ({ mutation, value, stored }) => {
+    ])('$name writes once then no-ops on the same value', async ({ write, stored }) => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
-      await asUser(t).mutation(mutation, {
-        mapId: MAP_A,
-        connectionId,
-        value,
-      });
+      await write(t, connectionId);
       const afterFirst = await readConnection(t, connectionId);
       expect(afterFirst).toMatchObject(stored);
 
-      const result = await asUser(t).mutation(mutation, {
-        mapId: MAP_A,
-        connectionId,
-        value,
-      });
+      const result = await write(t, connectionId);
       expect(result).toEqual({ changed: false });
 
       const afterSecond = await readConnection(t, connectionId);
