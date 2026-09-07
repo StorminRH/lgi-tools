@@ -1,4 +1,4 @@
-import { readEnv } from '@/lib/env';
+import { vercelProtectionBypassHeaders } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { decodeEndpointResponse, networkFailure } from '@/transport/decode';
 import type {
@@ -24,12 +24,9 @@ export async function serviceFetch<const TEndpoint extends EndpointContract>(
   const bodyless = endpoint.request === null;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${secret}`,
+    ...vercelProtectionBypassHeaders(),
   };
   if (!bodyless) headers['Content-Type'] = 'application/json';
-  const protectionBypass = readEnv('VERCEL_AUTOMATION_BYPASS_SECRET');
-  if (protectionBypass) {
-    headers['x-vercel-protection-bypass'] = protectionBypass;
-  }
 
   let response: Response;
   try {

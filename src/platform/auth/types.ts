@@ -6,8 +6,6 @@ export interface Character {
   characterId: number;
   name: string;
   portraitUrl: string;
-  role: CharacterRole;
-  preferences: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date;

@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
+import type { AnyPgDb } from '@/lib/db-types';
 import { emitUniverseNeon, type UniverseDataset } from './universe';
 import { eveNpcStations, eveSolarSystems } from './schema';
 
@@ -45,8 +46,7 @@ const DATASET: UniverseDataset = {
 
 describe.skipIf(!harness.reachable)('emitUniverseNeon executes against Postgres', () => {
   beforeAll(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await emitUniverseNeon(harness.db as any, DATASET);
+    await emitUniverseNeon(harness.db as unknown as AnyPgDb, DATASET);
   });
 
   it('reads back a J-space system with its derived wormhole class', async () => {
@@ -80,8 +80,7 @@ describe.skipIf(!harness.reachable)('emitUniverseNeon executes against Postgres'
   });
 
   it('is idempotent on re-emit (truncate + refill)', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const summary = await emitUniverseNeon(harness.db as any, DATASET);
+    const summary = await emitUniverseNeon(harness.db as unknown as AnyPgDb, DATASET);
     expect(summary).toMatchObject({
       regionsWritten: 3,
       systemsWritten: 4,

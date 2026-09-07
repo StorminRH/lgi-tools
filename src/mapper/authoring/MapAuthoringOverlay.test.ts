@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { MapAuthoringOverlay } from './MapAuthoringOverlay';
 
 vi.mock('../log/MapEventLog', () => ({
-  MapEventLog: (props: { canEdit: boolean; events: readonly unknown[] }) =>
+  MapEventLog: (props: { canEdit: boolean; mapId: string }) =>
     createElement('div', {
       'data-map-event-log': '',
       'data-can-edit': props.canEdit ? 'true' : 'false',
-      'data-event-count': String(props.events.length),
+      'data-map-id': props.mapId,
     }),
 }));
 
@@ -36,7 +36,6 @@ describe('MapAuthoringOverlay', () => {
         mapId: 'map-a',
         canEdit: true,
         connectionPresentationNow: 10_000,
-        events: [],
         authoring: authoring(),
       }),
     );

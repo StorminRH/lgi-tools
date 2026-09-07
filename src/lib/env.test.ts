@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isHostedVercel, readEnv, requireEnv } from './env';
+import { isHostedVercel, readEnv, requireEnv, vercelProtectionBypassHeaders } from './env';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -85,5 +85,21 @@ describe('isHostedVercel', () => {
     expect(isHostedVercel()).toBe(false);
     vi.stubEnv('VERCEL_ENV', 'development');
     expect(isHostedVercel()).toBe(false);
+  });
+});
+
+describe('vercelProtectionBypassHeaders', () => {
+  it('returns the bypass header when the secret is set', () => {
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
+    expect(vercelProtectionBypassHeaders()).toEqual({
+      'x-vercel-protection-bypass': 'bypass-secret',
+    });
+  });
+
+  it('returns an empty record when the secret is unset or empty', () => {
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', undefined);
+    expect(vercelProtectionBypassHeaders()).toEqual({});
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', '');
+    expect(vercelProtectionBypassHeaders()).toEqual({});
   });
 });

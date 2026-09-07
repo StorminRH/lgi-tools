@@ -9,8 +9,9 @@ import {
   type HaloLimits,
 } from '../halo/halo-model';
 import { resolveSystemLabel, type SystemLabel } from './labels';
+import type { UnresolvedHoleSummary } from './connection-detail';
 import {
-  stubLayoutSignature,
+  stubPostKey,
   type AccountedStubLayoutRow,
 } from './stub-layout';
 import { useUniverseAssets } from './use-universe-assets';
@@ -20,6 +21,7 @@ const EMPTY_NEIGHBOURS: readonly number[] = [];
 export function useMapChainHalo(
   authoredKey: string,
   stubLayout: readonly AccountedStubLayoutRow[],
+  slotHolders: readonly UnresolvedHoleSummary[] = [],
   haloLimits?: HaloLimits,
 ) {
   const assets = useUniverseAssets();
@@ -40,7 +42,10 @@ export function useMapChainHalo(
     });
   }, [authoredKey, assets, haloLimits]);
   const haloKey = useMemo(() => haloSignature(halo), [halo]);
-  const stubKey = useMemo(() => stubLayoutSignature(stubLayout), [stubLayout]);
+  const stubKey = useMemo(
+    () => stubPostKey(stubLayout, slotHolders),
+    [stubLayout, slotHolders],
+  );
   const labelOf = useCallback(
     (systemId: number): SystemLabel =>
       resolveSystemLabel(

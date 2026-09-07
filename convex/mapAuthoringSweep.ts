@@ -1,9 +1,9 @@
-import { connectionRemovedTombstone, isTombstoned } from '@/data/maps/chain-contract';
+import { isTombstoned } from '@/data/maps/chain-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { writeMapEvent } from './mapAuthoringEvents';
 import {
-  deleteConnectionActivity,
+  retainRemovedConnection,
   runCollapse,
 } from './mapAuthoringCollapse';
 import { readTrackedPilotSystemIds } from './mapTrackingLive';
@@ -107,8 +107,7 @@ async function sweepExpiredCeilings(
       continue;
     }
     if (fresh.toSystemId === null) {
-      await ctx.db.patch(fresh._id, connectionRemovedTombstone(now));
-      await deleteConnectionActivity(ctx, fresh);
+      await retainRemovedConnection(ctx, fresh, now);
       recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;
     } else if (await collapseDueRow(ctx, fresh, trackedByMap)) {

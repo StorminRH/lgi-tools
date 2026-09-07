@@ -16,7 +16,9 @@ import { authClient } from '@/platform/auth/auth-client';
 import { apiFetch } from '@/transport/api-client';
 import {
   PREFERENCES,
+  RETIRED_PREFERENCE_KEYS,
   peekLocalPreference,
+  pruneRetiredPreferences,
   writeLocalPreference,
   writePreferenceCookie,
   type PreferenceDef,
@@ -57,6 +59,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
     const timer = setTimeout(() => {
       if (!alive) return;
+      if (RETIRED_PREFERENCE_KEYS.length > 0) pruneRetiredPreferences();
 
       if (!userId) {
         setValues(readLocalValues());

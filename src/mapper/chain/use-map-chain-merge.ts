@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import {
   appendHaloFacts,
@@ -23,39 +23,36 @@ import {
 } from '../layout/use-layout-kernel';
 import {
   chainSignature,
-  factsFromSnapshot,
   layoutConfigKey,
   layoutPostKey,
 } from './chain-signature';
+import type { UnresolvedHoleSummary } from './connection-detail';
 import type { ChainPosition } from './intents';
 import { assignerFromPositions } from './placement';
 import {
-  applyUserPlacement,
-  clearUserPlacements,
   EMPTY_CHAIN_STATE,
   reconcileChain,
   type ChainMerge,
   type ChainSnapshot,
 } from './reconciler';
 import {
-  appendStubFacts,
   placedStubs,
+  seatOrderedLayout,
   stubPositionsFromLayout,
   type AccountedStubLayoutRow,
 } from './stub-layout';
 import type { MapChainPages } from './use-map-chain-pages';
 
-const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
 const INITIAL_MERGE: ChainMerge = { state: EMPTY_CHAIN_STATE, intents: [] };
 
 export function useMapChainMerge(
   systems: MapChainPages['systems'],
   connections: MapChainPages['connections'],
   stubLayout: readonly AccountedStubLayoutRow[],
+  slotHolders: readonly UnresolvedHoleSummary[],
   halo: HaloDerivation,
   haloKey: string,
   stubKey: string,
-  draggingIds: ReadonlySet<number>,
   config: LayoutConfig,
 ) {
   const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
@@ -67,24 +64,12 @@ export function useMapChainMerge(
   const [stubPositions, setStubPositions] = useState<ReadonlyMap<string, ChainPosition>>(
     () => new Map(),
   );
-  const [layoutRevision, setLayoutRevision] = useState(0);
   const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
-  const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
-
-  useEffect(() => {
-    draggingRef.current = draggingIds;
-  }, [draggingIds]);
 
   const layout = useLayoutKernel();
   const signature = chainSignature(systems, connections);
   const configKey = layoutConfigKey(config);
-  const postKey = layoutPostKey(
-    signature,
-    configKey,
-    layoutRevision,
-    haloKey,
-    stubKey,
-  );
+  const postKey = layoutPostKey(signature, configKey, haloKey, stubKey);
 
   useEffect(() => {
     const posted = postRequest(requestStateRef.current, postKey);
@@ -110,10 +95,13 @@ export function useMapChainMerge(
       },
     };
 
-    const facts = appendStubFacts(
-      appendHaloFacts(factsFromSnapshot(snapshot), halo),
-      stubLayout,
-    );
+    const ordered = seatOrderedLayout({
+      systems: systems.rows,
+      connections: connections.rows,
+      stubRows: stubLayout,
+      slotHolders,
+    });
+    const facts = appendHaloFacts(ordered.facts, halo);
 
     void layout(facts, config).then(
       (positions) => {
@@ -122,7 +110,6 @@ export function useMapChainMerge(
           reconcileChain(
             previous.state,
             snapshot,
-            draggingRef.current,
             assignerFromPositions(positions),
           ),
         );
@@ -137,7 +124,9 @@ export function useMapChainMerge(
                 links: halo.links,
               },
         );
-        setStubPositions(stubPositionsFromLayout(stubLayout, positions));
+        setStubPositions(
+          stubPositionsFromLayout(stubLayout, positions, ordered.childIdBySeatKey),
+        );
         const tree = deriveChainTree(facts);
         setTreeParents(tree.parents);
         setRootSystemId(tree.rootSystemId);
@@ -149,35 +138,15 @@ export function useMapChainMerge(
         requestStateRef.current = failRequest(requestStateRef.current, requestId);
       },
     );
-  }, [postKey, systems, connections, layout, config, halo, stubLayout]);
+  }, [postKey, systems, connections, layout, config, halo, stubLayout, slotHolders]);
   const stubs = useMemo(
     () => placedStubs(stubLayout, stubPositions),
     [stubLayout, stubPositions],
   );
 
-  const pinPlacement = useCallback(
-    (systemId: number, position: ChainPosition) => {
-      setMerge((previous) => ({
-        state: applyUserPlacement(previous.state, systemId, position),
-        intents: [],
-      }));
-    },
-    [setMerge],
-  );
-
-  const releasePlacements = useCallback(() => {
-    setMerge((previous) => ({
-      state: clearUserPlacements(previous.state),
-      intents: [],
-    }));
-    setLayoutRevision((revision) => revision + 1);
-  }, [setMerge, setLayoutRevision]);
-
   return {
     merge,
-    pinPlacement,
     placedHalo,
-    releasePlacements,
     rootSystemId,
     stubs,
     treeParents,

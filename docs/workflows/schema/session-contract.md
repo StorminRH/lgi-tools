@@ -26,9 +26,9 @@ Start every contract with this frame:
 
 `UX gate` is exactly `Yes` or `No` (`Yes` when the session changes user-facing
 behavior or appearance). `Execution profile` uses the exact value above.
-`Delivery unit` for new contracts is exactly
+`Delivery unit` for contracts from version 4.1 onward is exactly
 `One agent session, land each Ordered work step on development`.
-Completed 4.0 contracts may still carry
+Frozen contracts through version 4.0 may still carry
 `One agent session, one shared sub-version branch, one sub-version PR` or
 `One agent session, one shared sub-version branch, one PR per session`.
 `start-session` cuts `lifecycle/<session>-ow-<n>` from `development` per
@@ -106,7 +106,9 @@ work, not when the session ends. Mark a visual look on about every other
 step, and on any step that presents something they can see. When the marker
 is Yes, a dedicated Ordered work step under `start-session` also invokes
 `ux-check` once there is something to look at. That step is not the first
-look.
+look. Default to local `development` testing. When the operator requests
+staging web tests, promote through full `close-out`, then finish the pending
+visual test and record its disposition before the next OW.
 
 ## 11. Baseline/hotspot boundary
 
@@ -118,9 +120,17 @@ audit and code-health baseline tracking are retired.
 Each Ordered work step already landed on `development`. Close-out does not
 open a land PR. Record when the plan marker may become `Complete`, and that
 promote starts at 80 app-facing files versus `staging` (shown as n/100).
-The resolver then sends Start Session to close-out. The last Ordered work
-step of the version's last session archives the master plan after any due
-promote. Close-out consumes recorded operator looks and any `ux-check`
-disposition; it does not re-run those pauses. Promote and release open an
-Origin draft, comments, GitHub mirror on promote, freeze, review with `origin pr diff`, batch, then one
-Depot `dispatch`.
+The resolver then sends Start Session to close-out. An operator-requested
+early promotion for staging testing follows the same process below 80 files;
+the staging mirror cap remains 100. Close-out consumes completed operator
+looks; a test explicitly requested on staging remains pending until after
+promotion and actual operator disposition.
+
+After the version's last OW, rerun the resolver. From version 4.1 onward,
+archive requires no remaining execution and completed plans plus final records
+verified on `origin/staging`; cancelled or deferred rows need no execution.
+Pending delivery requires close-out regardless of count or documentation-only
+scope; unavailable evidence blocks until fetched and verified. Versions
+through 4.0 retain their historical archive rules. Promote and
+release open an Origin draft, comments, GitHub mirror on promote, freeze,
+review with `origin pr diff`, batch, then one Depot `dispatch`.

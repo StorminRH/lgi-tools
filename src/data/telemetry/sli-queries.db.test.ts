@@ -6,7 +6,7 @@ import {
   getEsiSuccessRate,
   getMutationSuccessRate,
   getReadSuccessRate,
-} from './sli-queries';
+} from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_telemetry_sli',

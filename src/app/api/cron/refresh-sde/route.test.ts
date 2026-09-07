@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
 
 const getSdeMetaValueMock = vi.fn();
 const setSdeMetaValueMock = vi.fn();
@@ -9,10 +10,9 @@ const logUsageEventMock = vi.fn();
 const revalidateTagMock = vi.fn();
 
 let lockGot = true;
-const reservedTag = vi.fn(() => Promise.resolve([{ got: lockGot }]));
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(reservedTag as any).release = vi.fn();
-const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
+const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
+  () => Promise.resolve([{ got: lockGot }]),
+);
 
 vi.mock('@/data/eve-data/meta', () => ({
   getSdeMetaValue: (...args: unknown[]) => getSdeMetaValueMock(...args),

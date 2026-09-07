@@ -421,6 +421,13 @@
       "when": 1787854555663,
       "tag": "0059_maps_lifecycle_status",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1788562847655,
+      "tag": "0060_retire_atlas_auto_layout",
+      "breakpoints": true
     }
   ]
 }

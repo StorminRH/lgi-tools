@@ -21,20 +21,17 @@ import {
   type MapGrant,
   type MapPrincipals,
 } from './access';
-import type { MapRole } from './access-contract';
-import { activeMapLifecycle } from './lifecycle-contract';
+import type { MapAccessOwnerType, MapRole } from './access-contract';
+import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
   maps,
-  type MapAccessOwnerType,
 } from './schema';
 import {
   authorizedAdminMapsSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
-
-export const MAP_DELETE_GRACE_MS = 30 * 24 * 60 * 60 * 1_000;
 
 export interface CreateMapGrant {
   readonly ownerType: MapAccessOwnerType;
@@ -593,7 +590,7 @@ export async function getUserIdsInCorporations(
   return new Set(owners.values());
 }
 
-export async function getMapIdsWithCorporationGrants(
+async function getMapIdsWithCorporationGrants(
   corporationIds: number[],
   database: AnyPgDb = db,
 ): Promise<string[]> {
@@ -611,7 +608,7 @@ export async function getMapIdsWithCorporationGrants(
   return rows.map((row) => row.mapId);
 }
 
-export async function getMapIdsWithCharacterGrant(
+async function getMapIdsWithCharacterGrant(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<string[]> {
@@ -638,7 +635,7 @@ export async function getOwnedMapIds(
   return rows.map((row) => row.id);
 }
 
-export async function getCharacterCorporationId(
+async function getCharacterCorporationId(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<number | null> {
@@ -648,4 +645,19 @@ export async function getCharacterCorporationId(
     .where(eq(characters.characterId, characterId))
     .limit(1);
   return row?.corporationId ?? null;
+}
+
+export async function affectedMapIdsForCharacter(
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<string[]> {
+  const [corporationId, characterMaps] = await Promise.all([
+    getCharacterCorporationId(characterId, database),
+    getMapIdsWithCharacterGrant(characterId, database),
+  ]);
+  const corporationMaps =
+    corporationId === null
+      ? []
+      : await getMapIdsWithCorporationGrants([corporationId], database);
+  return [...new Set([...characterMaps, ...corporationMaps])];
 }

@@ -13,6 +13,11 @@ Two modes:
 1. **Explain** (default). Explore the codebase and produce a clear explanation
 2. **Critique.** Explain first, then spawn multiple models to independently identify architectural issues
 
+For relationships, consumers, dependencies, and blast radius, launch the named
+`repo-mapper` first as required by `AGENTS.md`. Give its Repository map to the
+explorers or explainer. Reuse its call paths while investigating implementation
+details and writing the explanation.
+
 ## Explain Mode
 
 ### Step 1. Understand the Question and Assess Complexity
@@ -51,7 +56,7 @@ Spawn all explorers in a single message:
 
 Each explorer gets the same base prompt from `references/explorer-prompt.md` plus a specific exploration angle naming its slice. Each explorer should:
 
-- Start broad: Glob for relevant directories, Grep for key types/interfaces/class names
+- Start broad: use `rg --files` for paths and `rg` for key symbols
 - Follow the thread: from an entry point, trace the call chain (callers, callees, data flow, type definitions)
 - Read the actual code, don't guess from file names
 - Stop when it can describe the full path from input to output (or trigger to effect) without hand-waving any step
@@ -69,7 +74,7 @@ Spawn a single Task subagent that explores and explains in one pass:
 - `model`: your configured how-explainer model (default `cursor-grok-4.6-xhigh`)
 - `readonly`: `true`
 
-The agent does its own exploration (Glob, Grep, Read) and writes the explanation directly. Read `references/explainer-prompt.md` for the communication style and output format. Same structure, just no explorer findings as input.
+The agent searches and reads the relevant files and writes the explanation directly. Read `references/explainer-prompt.md` for the communication style and output format. Same structure, just no explorer findings as input.
 
 Proceed to Step 4.
 
@@ -129,7 +134,7 @@ Read `references/critic-prompt.md` for the prompt template. Each critic gets:
 
 ### Step 3. Lead Judgment
 
-Same framework as the interrogate skill. You're a pragmatic lead, not an aggregator.
+Use lead judgment to assess the evidence and scope of each finding.
 
 Categorize findings:
 

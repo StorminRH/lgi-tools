@@ -94,19 +94,46 @@ export const searchCharactersEndpoint = defineEndpoint({
   },
 });
 
-export const signatureEliminationRequestSchema = z.strictObject({
-  mapId: mapIdSchema,
-  systemId: z.number().int().positive().safe(),
-});
+const systemIdSchema = z.number().int().positive().safe();
 
-const signatureEliminationResponseSchema = z.discriminatedUnion('status', [
+const signatureEliminationRequestSchema = z
+  .strictObject({
+    mapId: mapIdSchema,
+    systemIds: z.array(systemIdSchema).min(1).max(2),
+  })
+  .superRefine((body, ctx) => {
+    if (body.systemIds.length !== new Set(body.systemIds).size) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['systemIds'],
+        message: 'duplicate system id',
+      });
+    }
+  });
+
+const signatureEliminationSystemResultSchema = z.discriminatedUnion('status', [
   z.strictObject({
     status: z.literal('applied'),
+    systemId: systemIdSchema,
     signatureIds: z.array(z.string().min(1)).min(1),
   }),
-  z.strictObject({ status: z.literal('quiet') }),
-  z.strictObject({ status: z.literal('statics-unavailable') }),
+  z.strictObject({
+    status: z.literal('quiet'),
+    systemId: systemIdSchema,
+  }),
+  z.strictObject({
+    status: z.literal('statics-unavailable'),
+    systemId: systemIdSchema,
+  }),
+  z.strictObject({
+    status: z.literal('observations-unavailable'),
+    systemId: systemIdSchema,
+  }),
 ]);
+
+const signatureEliminationResponseSchema = z.strictObject({
+  results: z.array(signatureEliminationSystemResultSchema).min(1).max(2),
+});
 
 export type SignatureEliminationRequest = z.infer<
   typeof signatureEliminationRequestSchema
@@ -125,6 +152,35 @@ export const signatureEliminationEndpoint = defineEndpoint({
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
+  },
+});
+
+const legacySignatureEliminationRequestSchema = z.strictObject({
+  mapId: mapIdSchema,
+  systemId: systemIdSchema,
+});
+
+const legacySignatureEliminationResponseSchema = z.discriminatedUnion('status', [
+  z.strictObject({
+    status: z.literal('applied'),
+    signatureIds: z.array(z.string().min(1)).min(1),
+  }),
+  z.strictObject({ status: z.literal('quiet') }),
+  z.strictObject({ status: z.literal('statics-unavailable') }),
+]);
+
+export const signatureEliminationRouteRequestSchema = z.union([
+  signatureEliminationRequestSchema,
+  legacySignatureEliminationRequestSchema,
+]);
+
+export const legacySignatureEliminationEndpoint = defineEndpoint({
+  ...signatureEliminationEndpoint,
+  request: legacySignatureEliminationRequestSchema,
+  responses: {
+    ...signatureEliminationEndpoint.responses,
+    200: jsonBody(legacySignatureEliminationResponseSchema),
+    503: problem('observations_unavailable'),
   },
 });
 

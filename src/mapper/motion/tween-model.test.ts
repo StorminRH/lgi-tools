@@ -3,7 +3,6 @@ import type { MapChainIntent } from '../chain/intents';
 import { springFamily, tweenPlanOf, DEFAULT_MOTION_CONFIG } from './motion-contract';
 import {
   adoptIntents,
-  cancelForDrag,
   createMotionState,
   finishAllTweens,
   isIdle,
@@ -16,7 +15,6 @@ const HEAVY_PLAN = tweenPlanOf(
   false,
 );
 const EASE = springFamily(DEFAULT_MOTION_CONFIG.overshootPct).ease;
-const NONE: ReadonlySet<number> = new Set();
 
 const appeared = (systemId: number): MapChainIntent => ({
   kind: 'system-appeared',
@@ -39,7 +37,7 @@ describe('appear path', () => {
 
     expect(state.tweens.size).toBe(0);
     expect(state.entering.has(31)).toBe(true);
-    const frame = stepMotion(state, 1000, EASE, NONE);
+    const frame = stepMotion(state, 1000, EASE);
     expect(frame.displacements.size).toBe(0);
   });
 
@@ -73,7 +71,7 @@ describe('move path', () => {
       PLAN,
     );
 
-    const halfway = stepMotion(state, PLAN.moveMs / 2, EASE, NONE);
+    const halfway = stepMotion(state, PLAN.moveMs / 2, EASE);
     const expected = 100 * EASE(0.5);
     expect(halfway.displacements.get(31)?.x).toBeCloseTo(expected, 6);
     expect(halfway.active).toBe(true);
@@ -98,7 +96,7 @@ describe('move path', () => {
     const tween = state.tweens.get(31);
     expect(tween?.from.x).toBeCloseTo(midpoint, 6);
     expect(tween?.to).toEqual({ x: -40, y: 0 });
-    const frame = stepMotion(state, PLAN.moveMs / 2, EASE, NONE);
+    const frame = stepMotion(state, PLAN.moveMs / 2, EASE);
     expect(frame.displacements.get(31)?.x).toBeCloseTo(midpoint, 6);
   });
 
@@ -114,7 +112,7 @@ describe('move path', () => {
     expect(state.tweens.size).toBe(0);
     expect(state.entering.has(31)).toBe(true);
 
-    const settled = stepMotion(state, PLAN.birthMs + 1, EASE, NONE).state;
+    const settled = stepMotion(state, PLAN.birthMs + 1, EASE).state;
     const gliding = adoptIntents(
       settled,
       [moved(31, { x: 300, y: -150 }, { x: 0, y: 0 })],
@@ -155,7 +153,7 @@ describe('move path', () => {
       PLAN,
     );
 
-    const resumed = stepMotion(state, PLAN.moveMs * 10, EASE, NONE);
+    const resumed = stepMotion(state, PLAN.moveMs * 10, EASE);
     expect(resumed.displacements.size).toBe(0);
     expect(resumed.state.tweens.size).toBe(0);
   });
@@ -169,57 +167,15 @@ describe('move path', () => {
       reducedPlan,
     );
 
-    const frame = stepMotion(state, 0, EASE, NONE);
+    const frame = stepMotion(state, 0, EASE);
     expect(frame.displacements.size).toBe(0);
     expect(frame.state.tweens.size).toBe(0);
   });
 });
 
-describe('drag path', () => {
-  it('cancelForDrag drops the active tween at drag start', () => {
-    const state = adoptIntents(
-      createMotionState(),
-      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
-      0,
-      PLAN,
-    );
-
-    const cancelled = cancelForDrag(state, new Set([31]));
-    expect(cancelled.tweens.size).toBe(0);
-  });
-
-  it('writes no displacement for an id in the live drag set', () => {
-    const state = adoptIntents(
-      createMotionState(),
-      [
-        moved(31, { x: 0, y: 0 }, { x: 100, y: 0 }),
-        moved(32, { x: 0, y: 0 }, { x: 0, y: 100 }),
-      ],
-      0,
-      PLAN,
-    );
-
-    const frame = stepMotion(state, PLAN.moveMs / 2, EASE, new Set([31]));
-    expect(frame.displacements.has(31)).toBe(false);
-    expect(frame.displacements.has(32)).toBe(true);
-    const after = stepMotion(frame.state, PLAN.moveMs * 0.75, EASE, NONE);
-    expect(after.displacements.has(31)).toBe(false);
-  });
-
-  it('is untouched by an empty drag set', () => {
-    const state = adoptIntents(
-      createMotionState(),
-      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
-      0,
-      PLAN,
-    );
-
-    expect(cancelForDrag(state, NONE)).toBe(state);
-  });
-});
 
 describe('batch discipline', () => {
-  it('returns the same state for an empty batch (pin/release merges)', () => {
+  it('returns the same state for an empty batch', () => {
     const state = adoptIntents(
       createMotionState(),
       [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
@@ -236,9 +192,9 @@ describe('departure path', () => {
     const state = adoptIntents(createMotionState(), [departed(31)], 0, PLAN);
 
     expect(state.ghosts.get(31)).toMatchObject({ expiresAt: PLAN.exitMs, heavy: false });
-    const before = stepMotion(state, PLAN.exitMs - 1, EASE, NONE);
+    const before = stepMotion(state, PLAN.exitMs - 1, EASE);
     expect(before.state.ghosts.has(31)).toBe(true);
-    const after = stepMotion(state, PLAN.exitMs, EASE, NONE);
+    const after = stepMotion(state, PLAN.exitMs, EASE);
     expect(after.state.ghosts.has(31)).toBe(false);
   });
 
@@ -307,7 +263,7 @@ describe('idle detection', () => {
     );
     expect(isIdle(busy)).toBe(false);
 
-    const drained = stepMotion(busy, PLAN.heavyExitMs + PLAN.moveMs + 1, EASE, NONE);
+    const drained = stepMotion(busy, PLAN.heavyExitMs + PLAN.moveMs + 1, EASE);
     expect(isIdle(drained.state)).toBe(true);
     expect(drained.active).toBe(false);
   });
@@ -315,7 +271,7 @@ describe('idle detection', () => {
   it('reports no visible change when only unexpired windows persist', () => {
     const state = adoptIntents(createMotionState(), [appeared(1)], 0, PLAN);
 
-    const frame = stepMotion(state, 1, EASE, NONE);
+    const frame = stepMotion(state, 1, EASE);
     expect(frame.changed).toBe(false);
     expect(frame.active).toBe(true);
     expect(frame.state).toBe(state);

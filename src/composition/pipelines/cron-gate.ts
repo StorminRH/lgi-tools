@@ -44,13 +44,6 @@ export type CronRouteDeclaration<Body, Pre = void> = {
   lock:
     | { key: number; busyBody: (durationMs: number) => Body }
     | { mode: 'none'; justification: string };
-  idle?: {
-    probe: () => Promise<
-      | { idle: true; telemetry?: Record<string, unknown> }
-      | { idle: false }
-    >;
-    body: (durationMs: number) => Body;
-  };
   preLock?: (
     ctx: CronWorkContext,
   ) => Promise<{ done: CronRunOutcome<Body> } | { proceed: Pre }>;
@@ -137,23 +130,6 @@ async function runDeclaredCron<Body, Pre>(
   const started = Date.now();
 
   try {
-    if (declaration.idle) {
-      const idle = await declaration.idle.probe();
-      if (idle.idle) {
-        const durationMs = Date.now() - started;
-        return finishRun(
-          declaration,
-          {
-            outcome: 'idle',
-            workDone: false,
-            telemetry: idle.telemetry,
-            body: declaration.idle.body(durationMs),
-          },
-          durationMs,
-        );
-      }
-    }
-
     const baseContext = workContext(declaration.name);
     let pre = undefined as Pre;
     if (declaration.preLock) {

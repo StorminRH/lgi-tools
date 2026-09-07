@@ -65,7 +65,6 @@ describe('mapper source contract', () => {
       'chain/stub-layout.ts',
       'chain/use-authoring-menus.ts',
       'chain/use-chain-dials.ts',
-      'chain/use-chain-drag.ts',
       'chain/use-chain-focus-menus.ts',
       'chain/use-chain-node-sync.ts',
       'chain/use-map-chain-halo.ts',
@@ -132,6 +131,7 @@ describe('mapper source contract', () => {
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
       'signatures/system-readout.ts',
+      'signatures/type-setter-follow-up.ts',
       'signatures/use-identify-signature.ts',
       'signatures/use-scanner-paste.ts',
       'signatures/use-signature-jump-flow.ts',
@@ -151,6 +151,7 @@ describe('mapper source contract', () => {
       'tracking/presence-context.ts',
       'tracking/presence-model.ts',
       'tracking/tracked-system.ts',
+      'tracking/tracking-controls-view.ts',
       'tracking/use-map-coverage.ts',
       'tracking/use-tracked-system.ts',
       'windows/MapWindow.tsx',
@@ -232,10 +233,10 @@ describe('mapper source contract', () => {
       'signatures/use-signature-page.ts',
     ]);
     expect(sourceOf('chain/use-map-chain-pages.ts')).not.toContain(
-      'api.mapScan.watchMapSignatures',
+      'api.mapScan.watchSystemSignatures',
     );
     expect(sourceOf('signatures/use-signature-page.ts')).toContain(
-      'api.mapScan.watchMapSignatures',
+      'api.mapScan.watchSystemSignatures',
     );
   });
 
@@ -248,9 +249,10 @@ describe('mapper source contract', () => {
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(3);
   });
 
-  it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
+  it('keeps ledger subscription ownership in the log and memoizes normalized chain pages', () => {
     const hook = sourceOf('chain/use-map-chain-pages.ts');
-    expect(hook).toContain('api.mapChainEvents.watchMapEvents');
+    expect(hook).not.toContain('api.mapChainEvents.watchMapEvents');
+    expect(sourceOf('log/MapEventLog.tsx')).toContain('api.mapChainEvents.watchMapEvents');
     expect(hook).toContain('const connections = subscribedConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
   });

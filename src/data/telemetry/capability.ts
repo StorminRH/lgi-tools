@@ -54,14 +54,6 @@ function catalogueFromSpec<const TSpec extends CapabilitySpec>(spec: TSpec) {
   };
 }
 
-/**
- * Closed catalogue of the 50 instrumented operations: 25 mutations and one authenticated read
- * through `runMutationRoute`, 9 cron routes through `defineCronRoute`, 8 direct mutation routes
- * that deliberately sit outside the mutation shell, 6 other POST-bodied tool reads, and the
- * queued ESI-refresh job runner. Adding a
- * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
- * census covers the rest, so an operation cannot ship unnamed.
- */
 export const CAPABILITIES = catalogueFromSpec({
   account: { mutation: ['switch-active-character', 'unlink-character', 'purge-character', 'revoke-own-sessions', 'save-preferences', 'delete-account'] },
   structures: { mutation: ['set-corp-structure-rigs', 'set-corp-structure-sharing', 'create-custom-structure', 'delete-custom-structure', 'set-custom-structure-pin', 'set-custom-structure-tax'], read: ['parse-structure-fit'] },

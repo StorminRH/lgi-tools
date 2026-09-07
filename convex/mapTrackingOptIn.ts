@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
+import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 
@@ -25,14 +26,6 @@ async function enableTracking(
     });
   }
   await ctx.db.insert('mapTracking', identity);
-}
-
-async function disableTracking(
-  ctx: MutationCtx,
-  match: Doc<'mapTracking'> | undefined,
-): Promise<void> {
-  if (match === undefined) return;
-  await ctx.db.delete(match._id);
 }
 
 /**
@@ -70,7 +63,7 @@ export const setTracking = mutation({
       return { tracked: true };
     }
 
-    await disableTracking(ctx, match);
+    if (match !== undefined) await deleteTrackingRow(ctx, match);
     return { tracked: false };
   },
 });

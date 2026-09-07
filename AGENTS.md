@@ -9,6 +9,20 @@ EVE Online multi-tool. Work lands in slices.
 - Planned lifecycle work starts only through `start-session`. Use the
   resolver-selected branch and handler.
 
+## Agent guidance
+
+Use the repository instructions for the active harness:
+
+| Harness | Skills | Named agents |
+| --- | --- | --- |
+| Cursor | `.cursor/skills/` | `.cursor/agents/` |
+| Codex | `.agents/skills/` | `.codex/agents/` |
+
+When both skill copies are discoverable, select the active harness's path.
+Keep shared workflow changes aligned across both copies; invocation syntax
+and model mappings belong to their harness. Before editing agent guidance,
+read that harness's `writing-for-agents` skill.
+
 ## Agents
 
 Use a listed agent when the work isolates to it. Other sub-agents are fine
@@ -27,8 +41,11 @@ needs test results: `pnpm typecheck`, `pnpm lint`, Fallow
 `dead-code` (default and `--production`), `dupes`, and `health`, plus
 caller-supplied focused tests for the diff.
 
-Name those agents and omit Task `model` so the agent file pin applies. `inherit`
-and model slugs override the pin.
+Launch by the exact role name and keep the definition's model pin. In Cursor,
+omit Task `model`. In Codex, use `agent_type` and omit `model` and
+`reasoning_effort`; read `.agents/skills/_shared/codex-agents.md` before
+launching seats. A missing required role blocks that seat; report the loading
+failure and repair discovery before retrying.
 
 ## Done
 
@@ -159,7 +176,9 @@ The delete path is the animal name (`robust-puffin-832`), not
 
 ## Cloud Agent
 
-Cloud Agent (this VM, Cloud secrets, e2e on the VM): `.cursor/cloud-agent.md`.
+For Cursor Cloud Agent VM setup, secrets, or VM-local e2e, read
+`.cursor/cloud-agent.md`. Those Linux provisioning scripts apply only to that
+VM. For local Cursor or Codex development, use `README.md#local-development`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

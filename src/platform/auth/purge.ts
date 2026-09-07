@@ -25,9 +25,5 @@ export const authPurgeContributor: PurgeContributor = {
           eq(account.accountId, String(characterId)),
         ),
       );
-    await db
-      .update(characters)
-      .set({ preferences: {}, updatedAt: new Date() })
-      .where(eq(characters.characterId, characterId));
   },
 };

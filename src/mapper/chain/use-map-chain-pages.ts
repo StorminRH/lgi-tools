@@ -2,25 +2,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/data/convex/api';
-import type { Doc } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { chainTombstoneState } from '@/data/maps/chain-contract';
-import { doorHint } from '@/data/maps/connection-hallway';
 import {
-  destinationClassIdForCode,
-  useSystemStaticSlots,
+  staticClassForCode,
+  useWormholeCodex,
 } from '../signatures/use-system-statics';
 import { filterLivePages } from './chain-signature';
 import {
+  awaitingJumpsFromRows,
   connectionDetailsFromRows,
+  slotHolderRows,
   unresolvedHolesFromRows,
 } from './connection-detail';
 import { planStubNodes } from './nodes';
 import { accountedStubLayoutRows, stubLayoutRows } from './stub-layout';
 
 const PAGE_SIZE = 100;
-const EMPTY_MAP_EVENTS: readonly Doc<'mapEvents'>[] = [];
 const TOMBSTONE_TICK_MS = 60_000;
 
 export type MapAccessState = boolean | undefined;
@@ -62,7 +61,7 @@ export function useMapChainPages(mapId: string | null) {
     args,
     PAGE_SIZE,
   );
-  const subscribedEvents = useLiveValue(api.mapChainEvents.watchMapEvents, args);
+  const codex = useWormholeCodex();
   const systems = useMemo(
     () =>
       filterLivePages({
@@ -72,7 +71,6 @@ export function useMapChainPages(mapId: string | null) {
     [subscribedSystems.rows, subscribedSystems.complete],
   );
   const connections = subscribedConnections;
-  const events = subscribedEvents ?? EMPTY_MAP_EVENTS;
   const connectionDetails = useMemo(
     () => connectionDetailsFromRows(connections.rows),
     [connections.rows],
@@ -81,34 +79,28 @@ export function useMapChainPages(mapId: string | null) {
     () => unresolvedHolesFromRows(subscribedUnresolved.rows),
     [subscribedUnresolved.rows],
   );
+  const awaitingJumps = useMemo(
+    () => awaitingJumpsFromRows(subscribedUnresolved.rows),
+    [subscribedUnresolved.rows],
+  );
+  const slotHolders = useMemo(
+    () => slotHolderRows(subscribedUnresolved.rows),
+    [subscribedUnresolved.rows],
+  );
   const scannedStubLayout = useMemo(
     () => stubLayoutRows(unresolvedHoles, systems.rows, connections.rows),
     [unresolvedHoles, systems.rows, connections.rows],
   );
   const authoredKey = systems.rows.map((row) => row.systemId).join(',');
-  const staticSlots = useSystemStaticSlots(authoredKey);
   const plannedStubs = useMemo(
     () => planStubNodes({
       systemIds: systems.rows.map((row) => row.systemId),
-      signatures: scannedStubLayout.flatMap((row) => {
-        const signatureId = row.from.signatureId;
-        if (signatureId === null) return [];
-        return [{
-          connectionId: row.connectionId,
-          fromSystemId: row.fromSystemId,
-          signatureId,
-          wormholeTypeCode: row.from.typeCode,
-          destinationHint: doorHint(row.from),
-          whClassId: row.from.typeCode === null
-            ? null
-            : destinationClassIdForCode(row.from.typeCode, staticSlots.codex),
-        }];
-      }),
+      rows: scannedStubLayout,
       connections: connections.rows,
-      staticsBySystem: staticSlots.bySystem,
       rootSystemId: systems.rows[0]?.systemId ?? null,
+      classOf: (code) => staticClassForCode(code, codex),
     }),
-    [systems.rows, scannedStubLayout, connections.rows, staticSlots],
+    [systems.rows, scannedStubLayout, connections.rows, codex],
   );
   const stubLayout = useMemo(
     () => accountedStubLayoutRows(plannedStubs, scannedStubLayout),
@@ -117,11 +109,12 @@ export function useMapChainPages(mapId: string | null) {
 
   return {
     access,
+    awaitingJumps,
     authoredKey,
     canEdit,
     connectionDetails,
     connections,
-    events,
+    slotHolders,
     stubLayout,
     systems,
     unresolvedHoles,

@@ -1,6 +1,9 @@
 import { expect, it } from 'vitest';
 import type { WormholeCodex } from '@/data/eve-data/universe-assets-client';
-import { staticSlotsForCodes } from './use-system-statics';
+import {
+  destinationClassIdForCode,
+  staticClassForCode,
+} from './use-system-statics';
 
 const codex: WormholeCodex = {
   version: 'test',
@@ -17,27 +20,34 @@ const codex: WormholeCodex = {
           sizeClass: 'L',
           targetClass: 3,
         }
-      : null,
-  codes: () => ['C247'],
+      : code === 'K162'
+        ? {
+            code,
+            typeId: 2,
+            farSide: true,
+            totalMass: 1,
+            maxJumpMass: 1,
+            massRegen: 0,
+            lifetimeMinutes: 960,
+            sizeClass: 'L',
+            targetClass: 0,
+          }
+        : null,
+  codes: () => ['C247', 'K162'],
 };
 
-it('decorates duplicate statics with stable per-system multiset identities', () => {
-  expect(staticSlotsForCodes(31_000_001, ['C247', 'C247'], codex)).toEqual([
-    {
-      id: '31000001:C247:1',
-      code: 'C247',
-      className: 'C3',
-      whClassId: 3,
-    },
-    {
-      id: '31000001:C247:2',
-      code: 'C247',
-      className: 'C3',
-      whClassId: 3,
-    },
-  ]);
+it('resolves a named static to its destination class', () => {
+  expect(destinationClassIdForCode('C247', codex)).toBe(3);
+  expect(staticClassForCode('C247', codex)).toEqual({
+    className: 'C3',
+    whClassId: 3,
+  });
 });
 
-it('withholds the whole system rather than fabricating an unknown class', () => {
-  expect(staticSlotsForCodes(31_000_001, ['C247', 'MISSING'], codex)).toEqual([]);
+it('withholds a class rather than fabricating one', () => {
+  expect(destinationClassIdForCode('MISSING', codex)).toBeNull();
+  expect(staticClassForCode('MISSING', codex)).toBeNull();
+  expect(destinationClassIdForCode('K162', codex)).toBeNull();
+  expect(staticClassForCode('K162', codex)).toBeNull();
+  expect(staticClassForCode('C247', null)).toBeNull();
 });

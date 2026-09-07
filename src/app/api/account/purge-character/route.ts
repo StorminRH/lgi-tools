@@ -6,7 +6,6 @@ import {
   purgeCharacterRequestSchema,
 } from '@/platform/auth/api-contract';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
-import '@/composition/account-lifecycle/register-owner-reconciler';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
 import { validationFailure } from '@/lib/failure';
 import { checkSession } from '@/composition/route-guards';

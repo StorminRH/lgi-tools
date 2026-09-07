@@ -248,20 +248,20 @@ async function eliminateAfterCommit(
   emission: ConnectionEmissionFacts,
   dependencies: JumpResolverDependencies,
 ): Promise<void> {
-  const systemIds = new Set([
-    emission.fromSystemId,
-    ...(emission.toSystemId === null ? [] : [emission.toSystemId]),
-  ]);
-  for (const systemId of systemIds) {
-    try {
-      await dependencies.resolveSignatureElimination(
-        database,
-        userId,
-        { mapId, systemId },
-      );
-    } catch (cause) {
-      dependencies.reportEliminationFailure(cause);
-    }
+  const systemIds = [
+    ...new Set([
+      emission.fromSystemId,
+      ...(emission.toSystemId === null ? [] : [emission.toSystemId]),
+    ]),
+  ];
+  try {
+    await dependencies.resolveSignatureElimination(
+      database,
+      userId,
+      { mapId, systemIds },
+    );
+  } catch (cause) {
+    dependencies.reportEliminationFailure(cause);
   }
 }
 
@@ -364,6 +364,9 @@ async function resolveDoorbell(
   }
   if ('reason' in resolved) {
     return { status: 'processed', outcome: 'converged', emitted: false };
+  }
+  if (resolved.emission.toSystemId === null) {
+    return { status: 'processed', outcome: resolved.status, emitted: false };
   }
   await eliminateAfterCommit(
     database,

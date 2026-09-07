@@ -62,7 +62,6 @@ export interface MergeInput {
   readonly intents: readonly MapChainIntent[];
   readonly now: number;
   readonly plan: TweenPlan;
-  readonly dragging: ReadonlySet<number>;
   readonly flavor: EdgeFlavor;
 }
 
@@ -137,7 +136,7 @@ export function consumeMerge(
   input: MergeInput,
 ): MotionHostState {
   const motion = adoptIntents(previous.motion, input.intents, input.now, input.plan);
-  const frame = stepMotion(motion, input.now, input.plan.ease, input.dragging);
+  const frame = stepMotion(motion, input.now, input.plan.ease);
   return {
     consumed: input.intents,
     motion: frame.state,
@@ -178,13 +177,12 @@ export function stepHost(
   previous: MotionHostState,
   now: number,
   ease: (t: number) => number,
-  dragging: ReadonlySet<number>,
   reducedMotion: boolean,
 ): HostStep {
   const motion = reducedMotion
     ? finishAllTweens(previous.motion)
     : previous.motion;
-  const frame = stepMotion(motion, now, ease, dragging);
+  const frame = stepMotion(motion, now, ease);
   if (!frame.changed && motion === previous.motion) {
     return { next: previous, active: frame.active, changed: false };
   }
@@ -228,11 +226,9 @@ function nodeMotionOf(
 function deriveNode(
   node: ChainNode,
   host: MotionHostState,
-  dragging: ReadonlySet<number>,
 ): ChainNode {
   if (node.data.stub !== undefined) return node;
   const systemId = Number(node.id);
-  if (dragging.has(systemId)) return node;
   const displaced = host.displacements.get(systemId);
   const motion = nodeMotionOf(host, systemId);
   if (displaced === undefined && motion === undefined) return node;
@@ -259,10 +255,9 @@ function appendGhostNodes(
 function deriveNodes(
   truth: MotionTruth,
   host: MotionHostState,
-  dragging: ReadonlySet<number>,
 ): ChainNode[] {
   return appendGhostNodes(
-    truth.nodes.map((node) => deriveNode(node, host, dragging)),
+    truth.nodes.map((node) => deriveNode(node, host)),
     truth,
     host,
   );
@@ -302,11 +297,10 @@ function deriveEdges(
 export function derivePresentation(
   truth: MotionTruth,
   host: MotionHostState,
-  dragging: ReadonlySet<number>,
   flavor: EdgeFlavor,
 ): MotionPresentation {
   return {
-    nodes: deriveNodes(truth, host, dragging),
+    nodes: deriveNodes(truth, host),
     edges: deriveEdges(truth, host, flavor),
   };
 }

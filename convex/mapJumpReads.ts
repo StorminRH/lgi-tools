@@ -6,9 +6,14 @@ import {
   type ConnectionDoor,
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { destinationProvenanceOf, hallwayDoorTypes } from '@/data/maps/connection-hallway';
+import {
+  destinationProvenanceOf,
+  hallwayDoorTypes,
+  isStaticPlaceholder,
+} from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
 import { readOriginConnections } from './lib/mapConnectionLookup';
+import { findSystem } from './lib/mapSystemLookup';
 
 const JUMP_TRACKING_SCAN_CAP = 256;
 export const JUMP_CONNECTION_SCAN_CAP = 64;
@@ -35,7 +40,9 @@ export async function readTrackedLocation(
 ): Promise<TrackedLocation | null> {
   const rows = await ctx.db
     .query('mapTracking')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
+    .withIndex('by_map_character', (q) =>
+      q.eq('mapId', mapId).eq('characterId', characterId),
+    )
     .take(JUMP_TRACKING_SCAN_CAP + 1);
   if (rows.length > JUMP_TRACKING_SCAN_CAP) {
     throw new ConvexError({
@@ -43,9 +50,8 @@ export async function readTrackedLocation(
       detail: `Map ${mapId} exceeds the jump-tracking read bound.`,
     });
   }
-  const matches = rows.filter((row) => row.characterId === characterId);
   const joined: TrackedLocation[] = [];
-  for (const tracking of matches) {
+  for (const tracking of rows) {
     const location = await ctx.db
       .query('characterLocation')
       .withIndex('by_user_character', (q) =>
@@ -61,7 +67,12 @@ export async function readTrackedLocation(
 export function unresolvedCandidatesOf(
   rows: readonly Doc<'mapConnections'>[],
 ): Doc<'mapConnections'>[] {
-  return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
+  return rows.filter((row) =>
+    row.toSystemId === null
+    && row.resolution.kind !== 'awaiting-signature'
+    && !isTombstoned(row)
+    && !isStaticPlaceholder(row)
+  );
 }
 
 export async function readConnectionsFrom(
@@ -75,6 +86,23 @@ export async function readConnectionsFrom(
     errorCode: 'MAP_TOO_LARGE',
     errorDetail: `Map ${mapId} exceeds the jump-${purpose} read bound.`,
   });
+}
+
+export async function hasAwaitingReturn(
+  ctx: QueryCtx,
+  mapId: string,
+  fromSystemId: number,
+  toSystemId: number,
+): Promise<boolean> {
+  const destination = await findSystem(ctx, mapId, toSystemId);
+  if (destination === null || isTombstoned(destination)) return false;
+  const rows = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
+  return rows.some((row) =>
+    !isTombstoned(row)
+    && row.toSystemId === null
+    && row.resolution.kind === 'awaiting-signature'
+    && row.resolution.destinationSystemId === fromSystemId,
+  );
 }
 
 function emissionTypeSnapshot(connection: Doc<'mapConnections'>): {

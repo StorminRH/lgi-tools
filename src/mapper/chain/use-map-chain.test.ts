@@ -4,22 +4,24 @@ import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
   chainSignature,
-  factsFromSnapshot,
   filterLivePages,
   layoutConfigKey,
   layoutPostKey,
 } from './chain-signature';
 import {
+  awaitingJumpsFromRows,
   connectionDetailsFromRows,
+  slotHolderRows,
   unresolvedHolesFromRows,
 } from './connection-detail';
 import {
   accountedStubLayoutRows,
-  appendStubFacts,
   placedStubs,
+  seatOrderedLayout,
   stubLayoutRows,
   stubLayoutSignature,
   stubPositionsFromLayout,
+  stubPostKey,
 } from './stub-layout';
 import { normalizeMapAccess } from './use-map-chain-pages';
 import {
@@ -28,7 +30,7 @@ import {
   type ChainSnapshot,
 } from './reconciler';
 import type { PlacementAssigner } from './placement';
-import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
+import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from '../layout/layout-contract';
 import { deriveChainTree } from '../layout/facts';
 import {
   acceptReply,
@@ -94,6 +96,23 @@ const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
 };
 
 describe('chain snapshot signature', () => {
+  it('projects an awaiting jump only as a prompt, leaving graph and scanner rows untouched', () => {
+    const candidate = unresolvedConnection({ _id: 'candidate', from: { ...blankDoor(), signatureId: 'AAA-123' } });
+    const awaiting = unresolvedConnection({
+      _id: 'awaiting',
+      resolution: {
+        kind: 'awaiting-signature', destinationSystemId: AMARR, characterId: 101,
+        candidates: [{ connectionId: candidate._id, signatureId: 'AAA-123' }],
+      },
+    });
+    const rows = [candidate, awaiting];
+    expect([...connectionDetailsFromRows(rows)]).toEqual([]);
+    expect(unresolvedHolesFromRows(rows).map((row) => row.connectionId)).toEqual([candidate._id]);
+    expect(awaitingJumpsFromRows(rows).map((row) => row.connectionId)).toEqual([awaiting._id]);
+    const removed = { ...awaiting, tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: 2 } };
+    expect(awaitingJumpsFromRows([removed])).toEqual([]);
+    expect(slotHolderRows([removed])).toEqual([]);
+  });
   it('is stable across freshly built objects with identical content', () => {
     const a = chainSignature(
       systems([JITA, AMARR]),
@@ -159,31 +178,15 @@ describe('chain snapshot signature', () => {
   });
 });
 
-describe('factsFromSnapshot', () => {
-  it('derives layout facts in server (creation) row order, never reconciled arrival order', () => {
-    const snapshot: ChainSnapshot = {
-      systems: {
-        rows: [{ systemId: AMARR }, { systemId: JITA }],
-        complete: true,
-      },
-      connections: {
-        rows: [
-          { connectionId: 'c2', fromSystemId: AMARR, toSystemId: JITA },
-          { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-        ],
-        complete: true,
-      },
-    };
-
-    expect(factsFromSnapshot(snapshot)).toEqual({
-      systems: [{ systemId: AMARR }, { systemId: JITA }],
-      connections: [
-        { fromSystemId: AMARR, toSystemId: JITA },
-        { fromSystemId: JITA, toSystemId: AMARR },
-      ],
-    });
-  });
-});
+function factsFromSnapshot(snapshot: ChainSnapshot): LayoutFacts {
+  return {
+    systems: snapshot.systems.rows.map((row) => ({ systemId: row.systemId })),
+    connections: snapshot.connections.rows.map((row) => ({
+      fromSystemId: row.fromSystemId,
+      toSystemId: row.toSystemId,
+    })),
+  };
+}
 
 describe('unresolved wormhole layout facts', () => {
   it('places only scanned rows with live anchors and excludes a resolved-feed overlap', () => {
@@ -227,10 +230,12 @@ describe('unresolved wormhole layout facts', () => {
     ], scannedRows);
     expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
 
-    const facts = appendStubFacts(
-      { systems: [{ systemId: JITA }], connections: [] },
-      layoutRows,
-    );
+    const facts = seatOrderedLayout({
+      systems: [{ systemId: JITA }],
+      connections: [],
+      stubRows: layoutRows,
+      slotHolders: [],
+    }).facts;
     expect(facts).toEqual({
       systems: [{ systemId: JITA }, { systemId: -1 }],
       connections: [{ fromSystemId: JITA, toSystemId: -1 }],
@@ -330,14 +335,16 @@ describe('unresolved wormhole layout facts', () => {
     expect(stubLayoutSignature(layoutRows)).toBe(
       `scan-1:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
     );
-    const facts = appendStubFacts(
-      { systems: [{ systemId: JITA }], connections: [] },
-      layoutRows,
-    );
+    const facts = seatOrderedLayout({
+      systems: [{ systemId: JITA }],
+      connections: [],
+      stubRows: layoutRows,
+      slotHolders: [],
+    }).facts;
     expect(facts.systems).toEqual([
       { systemId: JITA },
-      { systemId: -1 },
       { systemId: -2 },
+      { systemId: -1 },
     ]);
     expect(
       placedStubs(
@@ -369,16 +376,14 @@ describe('unresolved wormhole layout facts', () => {
 });
 
 describe('layout-then-merge posted-key guard', () => {
-  it('includes dial fingerprint and revision so config and re-lock re-merge', () => {
+  it('includes the dial fingerprint so a config change re-posts', () => {
     const signature = chainSignature(systems([JITA]), connections([]));
     const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    const base = layoutPostKey(signature, configKey, 0);
-    expect(layoutPostKey(signature, configKey, 1)).not.toBe(base);
+    const base = layoutPostKey(signature, configKey);
     expect(
       layoutPostKey(
         signature,
         layoutConfigKey({ ...DEFAULT_LAYOUT_CONFIG, ringSpacing: DEFAULT_LAYOUT_CONFIG.ringSpacing + 60 }),
-        0,
       ),
     ).not.toBe(base);
   });
@@ -386,28 +391,43 @@ describe('layout-then-merge posted-key guard', () => {
   it('includes the halo fingerprint so a halo membership change re-posts', () => {
     const signature = chainSignature(systems([JITA]), connections([]));
     const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    expect(layoutPostKey(signature, configKey, 0, '#')).not.toBe(
-      layoutPostKey(signature, configKey, 0, `${JITA + 1}:1:0#`),
+    expect(layoutPostKey(signature, configKey, '#')).not.toBe(
+      layoutPostKey(signature, configKey, `${JITA + 1}:1:0#`),
     );
-    expect(layoutPostKey(signature, configKey, 0)).toBe(
-      layoutPostKey(signature, configKey, 0),
+    expect(layoutPostKey(signature, configKey)).toBe(
+      layoutPostKey(signature, configKey),
     );
   });
 
   it('includes the stub fingerprint so paste and resolution re-post layout', () => {
     const signature = chainSignature(systems([JITA]), connections([]));
     const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    expect(layoutPostKey(signature, configKey, 0, '', `c1:${JITA}>-1`)).not.toBe(
-      layoutPostKey(signature, configKey, 0, '', ''),
+    expect(layoutPostKey(signature, configKey, '', `c1:${JITA}>-1`)).not.toBe(
+      layoutPostKey(signature, configKey, '', ''),
+    );
+  });
+
+  it('includes slot holders in the stub fingerprint so a deletion re-posts', () => {
+    const signature = chainSignature(systems([JITA]), connections([]));
+    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
+    const withoutHolder = stubPostKey([]);
+    const withHolder = stubPostKey([], [{
+      connectionId: 'dead-1',
+      fromSystemId: JITA,
+      _creationTime: 10,
+    }]);
+    expect(withHolder).not.toBe(withoutHolder);
+    expect(layoutPostKey(signature, configKey, '', withHolder)).not.toBe(
+      layoutPostKey(signature, configKey, '', withoutHolder),
     );
   });
 
   it('drops a stale reply after a newer key posts (merges wait for the latest positions)', () => {
     let state = initialKernelRequestState();
-    const first = postRequest(state, layoutPostKey('sig', 'cfg', 0));
+    const first = postRequest(state, layoutPostKey('sig', 'cfg'));
     if (first.kind !== 'posted') throw new Error('expected post');
     state = first.state;
-    const second = postRequest(state, layoutPostKey('sig', 'cfg', 1));
+    const second = postRequest(state, layoutPostKey('sig', 'cfg', 'halo-b'));
     if (second.kind !== 'posted') throw new Error('expected post');
     state = second.state;
 
@@ -418,11 +438,11 @@ describe('layout-then-merge posted-key guard', () => {
   it('resets the posted key on terminal-without-apply so the next change retries', () => {
     const posted = postRequest(
       initialKernelRequestState(),
-      layoutPostKey('sig', 'cfg', 0),
+      layoutPostKey('sig', 'cfg'),
     );
     if (posted.kind !== 'posted') throw new Error('expected post');
     const failed = failRequest(posted.state, posted.requestId);
-    const retry = postRequest(failed, layoutPostKey('sig', 'cfg', 0));
+    const retry = postRequest(failed, layoutPostKey('sig', 'cfg'));
     expect(retry.kind).toBe('posted');
   });
 });
@@ -572,6 +592,18 @@ describe('client subscription projections', () => {
         toSystemId: null,
       },
     ]);
+    expect(slotHolderRows(rows)).toEqual([
+      {
+        ...connectionEditorFixture({
+          connectionId: 'stub-dead' as Id<'mapConnections'>,
+          _creationTime: 10,
+          fromSystemId: JITA,
+          toSystemId: null,
+          tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
+        }),
+        toSystemId: null,
+      },
+    ]);
   });
 });
 
@@ -596,7 +628,6 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
     const populated = reconcileChain(
       EMPTY_CHAIN_STATE,
       before,
-      new Set(),
       keepPositions,
     );
     expect(deriveChainTree(factsFromSnapshot(before)).rootSystemId).toBe(JITA);
@@ -608,7 +639,6 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
     const after = reconcileChain(
       populated.state,
       afterFilter,
-      new Set(),
       keepPositions,
     );
 
@@ -644,7 +674,7 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
   });
 });
 
-describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
+describe('optimistic add through the merge', () => {
   it('shows an optimistic edge then removes it on rollback to server truth', () => {
     const home: ChainSnapshot = {
       systems: { rows: [{ systemId: JITA }], complete: true },
@@ -653,7 +683,6 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
     const withHome = reconcileChain(
       EMPTY_CHAIN_STATE,
       home,
-      new Set(),
       keepPositions,
     );
 
@@ -676,7 +705,6 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
     const local = reconcileChain(
       withHome.state,
       optimistic,
-      new Set(),
       keepPositions,
     );
     expect(
@@ -689,7 +717,6 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
     const rolledBack = reconcileChain(
       local.state,
       home,
-      new Set(),
       keepPositions,
     );
     expect(rolledBack.state.connections.size).toBe(0);
@@ -732,13 +759,11 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
     const local = reconcileChain(
       EMPTY_CHAIN_STATE,
       optimistic,
-      new Set(),
       keepPositions,
     );
     const merged = reconcileChain(
       local.state,
       confirmed,
-      new Set(),
       keepPositions,
     );
 

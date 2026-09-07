@@ -1,15 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import {
   loadWormholeCodex,
   type WormholeCodex,
 } from '@/data/eve-data/universe-assets-client';
-import type { StaticStubSlot } from '@/data/maps/stub-accounting';
-import { loadSystemStatics } from '@/data/wh-statics/client';
-
-const EMPTY_STATIC_SLOTS: ReadonlyMap<number, readonly StaticStubSlot[]> = new Map();
 
 export function destinationClassIdForCode(
   code: string,
@@ -19,92 +15,34 @@ export function destinationClassIdForCode(
   return entry === null || entry.farSide ? null : entry.targetClass;
 }
 
-export function staticSlotsForCodes(
-  systemId: number,
-  codes: readonly string[],
-  codex: WormholeCodex,
-): readonly StaticStubSlot[] {
-  const occurrences = new Map<string, number>();
-  const slots: StaticStubSlot[] = [];
-  for (const code of codes) {
-    const whClassId = destinationClassIdForCode(code, codex);
-    if (whClassId === null) return [];
-    const className = systemClassText(whClassId);
-    if (className === null) return [];
-    const ordinal = (occurrences.get(code) ?? 0) + 1;
-    occurrences.set(code, ordinal);
-    slots.push({
-      id: `${systemId}:${code}:${ordinal}`,
-      code,
-      className,
-      whClassId,
-    });
-  }
-  return slots;
+export function staticClassForCode(
+  code: string,
+  codex: WormholeCodex | null,
+): { readonly className: string; readonly whClassId: number } | null {
+  const whClassId = destinationClassIdForCode(code, codex);
+  if (whClassId === null) return null;
+  const className = systemClassText(whClassId);
+  if (className === null) return null;
+  return { className, whClassId };
 }
 
-interface LoadedStatics {
-  readonly key: string;
-  readonly bySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
-  readonly codex: WormholeCodex | null;
-}
-
-export interface SystemStaticSlots {
-  readonly bySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
-  readonly codex: WormholeCodex | null;
-}
-
-const EMPTY_SYSTEM_STATIC_SLOTS: SystemStaticSlots = {
-  bySystem: EMPTY_STATIC_SLOTS,
-  codex: null,
-};
-
-export function useSystemStaticSlots(
-  systemIdsKey: string,
-): SystemStaticSlots {
-  const [loaded, setLoaded] = useState<LoadedStatics>({
-    key: '',
-    bySystem: EMPTY_STATIC_SLOTS,
-    codex: null,
-  });
-  const systemIds = useMemo(
-    () => systemIdsKey.length === 0 ? [] : systemIdsKey.split(',').map(Number),
-    [systemIdsKey],
-  );
+export function useWormholeCodex(): WormholeCodex | null {
+  const [codex, setCodex] = useState<WormholeCodex | null>(null);
 
   useEffect(() => {
-    if (systemIdsKey.length === 0) return;
-    const controller = new AbortController();
-    let ignore = false;
-
-    void loadWormholeCodex().then(
-      async (codex) => {
-        const entries = await Promise.all(
-          systemIds.map(async (systemId) => {
-            try {
-              const codes = await loadSystemStatics(systemId, controller.signal);
-              return [systemId, staticSlotsForCodes(systemId, codes, codex)] as const;
-            } catch {
-              return [systemId, []] as const;
-            }
-          }),
-        );
-        if (!ignore) {
-          setLoaded({ key: systemIdsKey, bySystem: new Map(entries), codex });
-        }
+    if (codex !== null) return;
+    let alive = true;
+    loadWormholeCodex().then(
+      (loaded) => {
+        if (alive) setCodex(loaded);
       },
       () => {
-        if (!ignore) {
-          setLoaded({ key: systemIdsKey, bySystem: EMPTY_STATIC_SLOTS, codex: null });
-        }
       },
     );
-
     return () => {
-      ignore = true;
-      controller.abort();
+      alive = false;
     };
-  }, [systemIds, systemIdsKey]);
+  }, [codex]);
 
-  return loaded.key === systemIdsKey ? loaded : EMPTY_SYSTEM_STATIC_SLOTS;
+  return codex;
 }

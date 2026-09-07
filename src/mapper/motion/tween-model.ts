@@ -140,19 +140,6 @@ function adoptMove(
   });
 }
 
-export function cancelForDrag(
-  state: MotionState,
-  ids: ReadonlySet<number>,
-): MotionState {
-  if (ids.size === 0) return state;
-  let changed = false;
-  const tweens = new Map(state.tweens);
-  for (const id of ids) {
-    if (tweens.delete(id)) changed = true;
-  }
-  return changed ? { ...state, tweens } : state;
-}
-
 export function finishAllTweens(state: MotionState): MotionState {
   if (state.tweens.size === 0) return state;
   return { ...state, tweens: new Map() };
@@ -169,17 +156,12 @@ export function stepMotion(
   state: MotionState,
   now: number,
   ease: (t: number) => number,
-  draggingIds: ReadonlySet<number>,
 ): MotionFrame {
   const displacements = new Map<number, ChainPosition>();
   const tweens = new Map<number, Tween>();
   let changed = false;
 
   for (const [systemId, tween] of state.tweens) {
-    if (draggingIds.has(systemId)) {
-      changed = true;
-      continue;
-    }
     if (now - tween.startedAt >= tween.durationMs) {
       changed = true;
       continue;

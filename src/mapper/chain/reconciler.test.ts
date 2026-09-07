@@ -39,8 +39,6 @@ const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
   return proposals;
 };
 import {
-  applyUserPlacement,
-  clearUserPlacements,
   EMPTY_CHAIN_STATE,
   reconcileChain,
   type ChainSnapshot,
@@ -52,7 +50,6 @@ const JITA = 30_000_142;
 const AMARR = 30_002_187;
 const DODIXIE = 30_002_659;
 
-const NO_DRAG: ReadonlySet<number> = new Set();
 
 function snapshot(
   systemIds: readonly number[],
@@ -94,7 +91,7 @@ function replay(
   let state = EMPTY_CHAIN_STATE;
   const intents: MapChainIntent[][] = [];
   for (const next of snapshots) {
-    const merge = reconcileChain(state, next, NO_DRAG, assigner);
+    const merge = reconcileChain(state, next, assigner);
     state = merge.state;
     intents.push([...merge.intents]);
   }
@@ -109,10 +106,7 @@ describe('map chain reconciler', () => {
   describe('intents', () => {
     it('emits system-appeared carrying the assigned position', () => {
       const merge = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
+        EMPTY_CHAIN_STATE, snapshot([JITA]), sequentialTestAssigner,
       );
 
       expect(merge.intents).toEqual([
@@ -248,16 +242,10 @@ describe('map chain reconciler', () => {
     it('emits system-moved when the placement seam proposes a new position', () => {
       const target = { x: 999, y: 42 };
       const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
+        EMPTY_CHAIN_STATE, snapshot([JITA]), sequentialTestAssigner,
       );
       const second = reconcileChain(
-        first.state,
-        snapshot([JITA]),
-        NO_DRAG,
-        assignerMoving(JITA, target),
+        first.state, snapshot([JITA]), assignerMoving(JITA, target),
       );
 
       expect(second.intents).toEqual([
@@ -323,7 +311,6 @@ describe('map chain reconciler', () => {
       const merge = reconcileChain(
         EMPTY_CHAIN_STATE,
         snapshot([JITA], [link('c1', JITA, AMARR)]),
-        NO_DRAG,
         sequentialTestAssigner,
       );
 
@@ -372,99 +359,11 @@ describe('map chain reconciler', () => {
     });
   });
 
-  describe('protection', () => {
-    it('leaves a user-placed node identical through an unrelated arrival', () => {
-      const dragged = { x: 512, y: 64 };
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      const pinned = applyUserPlacement(first.state, JITA, dragged);
-
-      const second = reconcileChain(
-        pinned,
-        snapshot([JITA, AMARR]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-
-      expect(second.state.systems.get(JITA)?.position).toEqual(dragged);
-      expect(second.state.systems.get(JITA)?.placementSource).toBe('user');
-      expect(kindsOf(second.intents)).toEqual(['system-appeared']);
-    });
-
-    it('never repositions a dragging node even when the assigner proposes one', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-
-      const second = reconcileChain(
-        first.state,
-        snapshot([JITA]),
-        new Set([JITA]),
-        assignerMoving(JITA, { x: 1, y: 1 }),
-      );
-
-      expect(second.state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
-      expect(second.intents).toEqual([]);
-    });
-
-    it('never repositions a user-placed node the caller omitted from the drag set', () => {
-      const dragged = { x: 300, y: 300 };
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      const pinned = applyUserPlacement(first.state, JITA, dragged);
-
-      const second = reconcileChain(
-        pinned,
-        snapshot([JITA]),
-        NO_DRAG,
-        assignerMoving(JITA, { x: 9, y: 9 }),
-      );
-
-      expect(second.state.systems.get(JITA)?.position).toEqual(dragged);
-      expect(second.intents).toEqual([]);
-    });
-
-    it('marks a protected candidate locked when offering it to the assigner', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      const seen: boolean[] = [];
-
-      reconcileChain(
-        first.state,
-        snapshot([JITA]),
-        new Set([JITA]),
-        (input) => {
-          seen.push(...input.systems.map((candidate) => candidate.locked));
-          return sequentialTestAssigner(input);
-        },
-      );
-
-      expect(seen).toEqual([true]);
-    });
-  });
 
   describe('placement', () => {
     it('falls back to the origin when an assigner declines to place a new node', () => {
       const merge = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        () => new Map(),
+        EMPTY_CHAIN_STATE, snapshot([JITA]), () => new Map(),
       );
 
       expect(merge.state.systems.get(JITA)?.position).toEqual({ x: 0, y: 0 });
@@ -472,16 +371,10 @@ describe('map chain reconciler', () => {
 
     it('keeps an existing position when an assigner omits an existing node', () => {
       const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
+        EMPTY_CHAIN_STATE, snapshot([JITA]), sequentialTestAssigner,
       );
       const second = reconcileChain(
-        first.state,
-        snapshot([JITA]),
-        NO_DRAG,
-        () => new Map(),
+        first.state, snapshot([JITA]), () => new Map(),
       );
 
       expect(second.state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
@@ -489,110 +382,30 @@ describe('map chain reconciler', () => {
     });
   });
 
-  describe('user placement', () => {
-    it('stamps the user source so the position is protected thereafter', () => {
+  describe('assigner proposals', () => {
+    it('emits system-moved when the assigner proposes new coordinates', () => {
       const first = reconcileChain(
         EMPTY_CHAIN_STATE,
         snapshot([JITA]),
-        NO_DRAG,
         sequentialTestAssigner,
       );
+      const next = { x: 11, y: 22 };
+      const moved = reconcileChain(
+        first.state,
+        snapshot([JITA]),
+        assignerMoving(JITA, next),
+      );
 
-      const pinned = applyUserPlacement(first.state, JITA, { x: 5, y: 6 });
-
-      expect(pinned.systems.get(JITA)).toEqual({
+      expect(moved.state.systems.get(JITA)).toEqual({
         systemId: JITA,
-        position: { x: 5, y: 6 },
-        placementSource: 'user',
+        position: next,
       });
-    });
-
-    it('ignores an unknown system so a stale drag callback cannot invent a node', () => {
-      const pinned = applyUserPlacement(EMPTY_CHAIN_STATE, JITA, { x: 1, y: 2 });
-
-      expect(pinned).toBe(EMPTY_CHAIN_STATE);
-      expect(pinned.systems.size).toBe(0);
-    });
-
-    it('keeps a user-stamped node unmoved while new systems arrive', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      const pinned = applyUserPlacement(first.state, JITA, { x: 50, y: 60 });
-      const grown = reconcileChain(
-        pinned,
-        snapshot([JITA, AMARR]),
-        NO_DRAG,
-        assignerMoving(JITA, { x: 999, y: 999 }),
-      );
-
-      expect(grown.state.systems.get(JITA)).toEqual({
-        systemId: JITA,
-        position: { x: 50, y: 60 },
-        placementSource: 'user',
-      });
-      expect(grown.state.systems.get(AMARR)?.placementSource).toBe('assigner');
-    });
-
-    it('clearUserPlacements reverts ownership without moving anything', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA, AMARR]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      const pinned = applyUserPlacement(first.state, JITA, { x: 11, y: 22 });
-      const cleared = clearUserPlacements(pinned);
-
-      expect(cleared.systems.get(JITA)).toEqual({
-        systemId: JITA,
-        position: { x: 11, y: 22 },
-        placementSource: 'assigner',
-      });
-      expect(cleared.systems.get(AMARR)).toEqual(first.state.systems.get(AMARR));
-    });
-
-    it('returns the same state when nothing was hand-placed', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      expect(clearUserPlacements(first.state)).toBe(first.state);
-    });
-
-    it('forced re-lock merge emits system-moved back to the kernel position', () => {
-      const first = reconcileChain(
-        EMPTY_CHAIN_STATE,
-        snapshot([JITA]),
-        NO_DRAG,
-        sequentialTestAssigner,
-      );
-      const pinned = applyUserPlacement(first.state, JITA, { x: 11, y: 22 });
-      const cleared = clearUserPlacements(pinned);
-      const home = { x: 0, y: 0 };
-      const relocked = reconcileChain(
-        cleared,
-        snapshot([JITA]),
-        NO_DRAG,
-        assignerMoving(JITA, home),
-      );
-
-      expect(relocked.state.systems.get(JITA)).toEqual({
-        systemId: JITA,
-        position: home,
-        placementSource: 'assigner',
-      });
-      expect(relocked.intents).toEqual([
+      expect(moved.intents).toEqual([
         {
           kind: 'system-moved',
           systemId: JITA,
-          from: { x: 11, y: 22 },
-          to: home,
+          from: positionOfSlot(0),
+          to: next,
         },
       ]);
     });

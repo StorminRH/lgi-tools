@@ -1,4 +1,5 @@
-import { deriveCharacterHealth } from './scope-health';
+import type { AccountCharactersResponse } from './api-contract';
+import { deriveCharacterHealth, deriveScopeHealth } from './scope-health';
 
 export interface PanelCharacter {
   characterId: number;
@@ -29,5 +30,27 @@ export function toPanelCharacter(
       hasRefreshToken: character.hasRefreshToken,
       missingScopes: health.missingScopes,
     }),
+  };
+}
+
+export function toAccountCharacter(
+  character: {
+    characterId: number;
+    name: string;
+    portraitUrl: string;
+    scope: string | null | undefined;
+    hasRefreshToken: boolean;
+  },
+  scopes: {
+    skillQueue: readonly string[];
+    location: readonly string[];
+  },
+): AccountCharactersResponse['characters'][number] {
+  return {
+    characterId: character.characterId,
+    name: character.name,
+    portraitUrl: character.portraitUrl,
+    needsReconnect: deriveScopeHealth(character, scopes.skillQueue).needsReconnect,
+    needsLocationReconnect: deriveScopeHealth(character, scopes.location).needsReconnect,
   };
 }

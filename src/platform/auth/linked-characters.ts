@@ -40,7 +40,17 @@ export async function upsertCharacterLoginIdentity(
     })
     .returning();
 
-  return row as Character;
+  if (row === undefined) {
+    throw new Error(`Character login identity upsert returned no row for ${input.characterId}.`);
+  }
+  return {
+    characterId: row.characterId,
+    name: row.name,
+    portraitUrl: row.portraitUrl,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    lastLoginAt: row.lastLoginAt,
+  };
 }
 
 export interface LinkedCharacter {

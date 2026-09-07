@@ -6,8 +6,6 @@ import {
   type EdgeMouseHandler,
   type NodeChange,
   type NodeMouseHandler,
-  type OnNodeDrag,
-  type SelectionDragHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useRef, type ReactNode } from 'react';
@@ -26,14 +24,9 @@ export interface ChainSurfaceProps {
   readonly nodes: readonly ChainNode[];
   readonly edges: readonly Edge[];
   readonly onNodesChange?: (changes: NodeChange<ChainNode>[]) => void;
-  readonly onNodeDragStart?: OnNodeDrag<ChainNode>;
-  readonly onNodeDragStop?: OnNodeDrag<ChainNode>;
-  readonly onSelectionDragStart?: SelectionDragHandler<ChainNode>;
-  readonly onSelectionDragStop?: SelectionDragHandler<ChainNode>;
   readonly onNodeClick?: NodeMouseHandler<ChainNode>;
   readonly onNodeContextMenu?: NodeMouseHandler<ChainNode>;
   readonly onEdgeContextMenu?: EdgeMouseHandler;
-  readonly nodesDraggable?: boolean;
   readonly motion?: MotionConfig;
   readonly children?: ReactNode;
 }
@@ -42,14 +35,9 @@ export function ChainSurface({
   nodes,
   edges,
   onNodesChange,
-  onNodeDragStart,
-  onNodeDragStop,
-  onSelectionDragStart,
-  onSelectionDragStop,
   onNodeClick,
   onNodeContextMenu,
   onEdgeContextMenu,
-  nodesDraggable = true,
   motion,
   children,
 }: ChainSurfaceProps) {
@@ -76,12 +64,8 @@ export function ChainSurface({
         proOptions={PRO_OPTIONS}
         deleteKeyCode={null}
         disableKeyboardA11y
-        nodesDraggable={nodesDraggable}
+        nodesDraggable={false}
         onNodesChange={onNodesChange}
-        onNodeDragStart={onNodeDragStart}
-        onNodeDragStop={onNodeDragStop}
-        onSelectionDragStart={onSelectionDragStart}
-        onSelectionDragStop={onSelectionDragStop}
         onNodeClick={onNodeClick}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}

@@ -17,18 +17,15 @@ import authConfig from '../auth.config';
 import {
   accessLeases,
   clearAccessLease,
-  putAccessLease,
+  putAccessLeases,
 } from '../characterLocationAccess';
 import { applySyncResults, JUMP_CONTINUITY_MS } from '../characterLocationApply';
 import { purgeForUser as purgeLocationForUser } from '../characterLocationPurge';
-import {
-  forViewer as locationForViewer,
-  heldState,
-} from '../characterLocationReads';
+import { heldState } from '../characterLocationReads';
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
-import { heartbeat } from '../engine';
+import { currentUser, heartbeat } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
 import { scan } from '../engineScan';
@@ -48,7 +45,11 @@ import {
   WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
 } from '../lib/mapEntityContracts';
-import { purgeUserClaims, reconcileMapClaims } from '../mapAccessProjection';
+import {
+  purgeUserClaims,
+  reconcileMapClaims,
+  remapLegacyOwnerRoles,
+} from '../mapAccessProjection';
 import {
   restoreSeveredBranch,
   severConnection,
@@ -104,18 +105,26 @@ import {
   seedTrackedLocationFixture,
 } from '../mapFixtureTracking';
 import { readMapCollection } from '../mapFixtures';
-import { resolveJumpAuthoring } from '../mapJumpAuthoring';
+import { resolveJumpAuthoring, supersedeDyingPairsForEndpoints } from '../mapJumpAuthoring';
 import { connectionEvidence, jumpEvidence } from '../mapJumpEvidence';
 import {
   confirmJumpIdentity,
   reassociateJumpDestination,
 } from '../mapJumpIdentity';
-import { purgeForMap } from '../mapJumpBookkeeping';
+import { deleteForMapCharacter, purgeForMap } from '../mapJumpBookkeeping';
 import {
   HALLWAY_BACKFILL_BATCH,
   backfillHallwayConnections,
 } from '../mapHallwayBackfill';
 import { purgeMapBatch } from '../mapPurge';
+import {
+  STATIC_BACKFILL_BATCH,
+  applyStaticPlaceholders,
+  backfillStaticPlaceholders,
+  ensureStaticPlaceholders,
+  fetchSystemStatics,
+  listLiveSystemsPage,
+} from '../mapStatics';
 import {
   MAP_ELIMINATION_CONNECTION_LIMIT,
   MAP_SCAN_ROW_LIMIT,
@@ -129,6 +138,7 @@ import {
   removeSignatures,
   restoreSignatures,
   watchMapSignatures,
+  watchSystemSignatures,
 } from '../mapScan';
 import { trackedCharacterIds } from '../mapTrackingIds';
 import { coverage, forMap } from '../mapTrackingLive';
@@ -162,12 +172,12 @@ describe('convex runtime exports', () => {
       accessLeases,
       applySyncResults,
       clearAccessLease,
-      locationForViewer,
       heldState,
       purgeLocationForUser,
-      putAccessLease,
+      putAccessLeases,
       chainDispatch,
       heartbeat,
+      currentUser,
       leave,
       onSyncComplete,
       scan,
@@ -181,6 +191,7 @@ describe('convex runtime exports', () => {
       WORMHOLE_LIFE_STAGES,
       purgeUserClaims,
       reconcileMapClaims,
+      remapLegacyOwnerRoles,
       CEILING_SWEEP_BATCH,
       CEILING_SWEEP_SCAN,
       addSystemFromNode,
@@ -225,10 +236,18 @@ describe('convex runtime exports', () => {
       jumpEvidence,
       reassociateJumpDestination,
       resolveJumpAuthoring,
+      supersedeDyingPairsForEndpoints,
+      deleteForMapCharacter,
       purgeForMap,
       HALLWAY_BACKFILL_BATCH,
       backfillHallwayConnections,
       purgeMapBatch,
+      STATIC_BACKFILL_BATCH,
+      applyStaticPlaceholders,
+      backfillStaticPlaceholders,
+      ensureStaticPlaceholders,
+      fetchSystemStatics,
+      listLiveSystemsPage,
       MAP_ELIMINATION_CONNECTION_LIMIT,
       MAP_SCAN_ROW_LIMIT,
       MAP_SIGNATURE_PAGE_SIZE,
@@ -241,6 +260,7 @@ describe('convex runtime exports', () => {
       removeSignatures,
       restoreSignatures,
       watchMapSignatures,
+      watchSystemSignatures,
       coverage,
       forMap,
       setTracking,

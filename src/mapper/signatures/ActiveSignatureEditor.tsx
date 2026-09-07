@@ -3,12 +3,11 @@
 import { useEffect } from 'react';
 import type { Id } from '@/data/convex/data-model';
 import {
-  applyWormholeType,
+  bindConnectionSetters,
   connectionLifecycleActions,
   type ConnectionAuthoringApi,
 } from './connection-authoring-api';
 import { connectionEditorMode } from '../authoring/connection-editor-mode';
-import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import { originLeadOptions } from './origin-leads';
 import type {
   ConnectionDetail,
@@ -19,12 +18,6 @@ import { useUniverseAssets } from '../chain/use-universe-assets';
 import { SignatureEditor } from './SignatureEditor';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { destinationReadout } from './system-readout';
-
-function isResolvedConnection(
-  connection: ConnectionEditorDetail,
-): connection is ConnectionDetail {
-  return connection.toSystemId !== null;
-}
 
 function editedConnection(
   connectionId: Id<'mapConnections'> | null,
@@ -147,17 +140,7 @@ function ActiveSignatureEditorView({
       now={now}
       destination={destination}
       originLeads={originLeads}
-      setters={connectionFieldSetters(mapId, edited, authoring, (value) => {
-        if (isResolvedConnection(edited)) {
-          void applyWormholeType({ mapId, connection: edited, value, authoring });
-          return;
-        }
-        void authoring.setConnectionWormholeType({
-          mapId,
-          connection: edited,
-          value,
-        });
-      })}
+      setters={bindConnectionSetters(mapId, authoring)(edited)}
       onDelete={lifecycle.remove}
       onRestore={lifecycle.restore}
       onClose={onClose}

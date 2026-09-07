@@ -117,6 +117,37 @@ beforeEach(() => {
 });
 
 describe('jump resolver composition', () => {
+  it('leaves elimination and observations until an ambiguous jump has an answer', async () => {
+    h.readTransitionEvidence.mockResolvedValue(transitionEvidence({
+      candidates: [
+        { id: 'first', wormholeTypeCode: 'C247', sizeClass: 'L' },
+        { id: 'second', wormholeTypeCode: null, sizeClass: null },
+      ],
+    }));
+    h.authorJump.mockResolvedValue({
+      status: 'authored',
+      emission: {
+        ...emission,
+        toSystemId: null,
+        wormholeTypeCode: null,
+        typedSide: null,
+        destinationProvenance: null,
+      },
+    });
+    await expect(resolveJumpRequest(
+      database, USER, { kind: 'doorbell', mapId: MAP, characterId: CHARACTER }, dependencies,
+    )).resolves.toEqual({ status: 'processed', outcome: 'authored', emitted: false });
+    expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
+    expect(h.insertWhObservation).not.toHaveBeenCalled();
+
+    await expect(resolveJumpRequest(
+      database, USER,
+      { kind: 'confirm', mapId: MAP, connectionId: 'pending', targetConnectionId: 'second' },
+      dependencies,
+    )).resolves.toMatchObject({ status: 'processed', outcome: 'reassociated' });
+    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(1);
+    expect(h.insertWhObservation).toHaveBeenCalledOnce();
+  });
   it('honestly re-anchors missing, discontinuous, and capsule-loss transitions', async () => {
     h.readTransitionEvidence.mockResolvedValueOnce({
       ...transitionEvidence(),
@@ -219,17 +250,11 @@ describe('jump resolver composition', () => {
         observedShipMassKg: 12_000_000,
       }),
     );
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      1,
+    expect(h.resolveSignatureElimination).toHaveBeenCalledOnce();
+    expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
       database,
       USER,
-      { mapId: MAP, systemId: ORIGIN },
-    );
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      2,
-      database,
-      USER,
-      { mapId: MAP, systemId: DESTINATION },
+      { mapId: MAP, systemIds: [ORIGIN, DESTINATION] },
     );
   });
 
@@ -339,17 +364,11 @@ describe('jump resolver composition', () => {
       mapId: MAP,
       connectionId: 'connection-1',
     });
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      1,
+    expect(h.resolveSignatureElimination).toHaveBeenCalledOnce();
+    expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
       database,
       USER,
-      { mapId: MAP, systemId: ORIGIN },
-    );
-    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
-      2,
-      database,
-      USER,
-      { mapId: MAP, systemId: DESTINATION },
+      { mapId: MAP, systemIds: [ORIGIN, DESTINATION] },
     );
     expect(h.insertWhObservation).toHaveBeenCalledWith(
       database,
@@ -507,6 +526,6 @@ describe('jump resolver composition', () => {
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
-    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(2);
+    expect(h.resolveSignatureElimination).toHaveBeenCalledOnce();
   });
 });

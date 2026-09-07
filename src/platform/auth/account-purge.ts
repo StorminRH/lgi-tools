@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { eveAccountsForUser } from './eve-account-shared';
-import type { IdentityProjectionRunners } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { repointActiveToOldest } from './linked-characters';
 import { account, user } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';

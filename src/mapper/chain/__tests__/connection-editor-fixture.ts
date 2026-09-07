@@ -26,5 +26,7 @@ export function connectionEditorFixture(
     firstSeenAt: overrides.firstSeenAt ?? null,
     observedMassKg: overrides.observedMassKg ?? null,
     observedMassAtStateKg: overrides.observedMassAtStateKg ?? null,
+    ...(overrides.staticCode === undefined ? {} : { staticCode: overrides.staticCode }),
+    ...(overrides.seatOrderAt === undefined ? {} : { seatOrderAt: overrides.seatOrderAt }),
   };
 }

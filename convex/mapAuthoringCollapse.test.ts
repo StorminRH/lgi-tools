@@ -5,6 +5,7 @@ import { api, internal } from './_generated/api';
 import { COLLAPSE_MAP_SCAN_CAP } from './mapAuthoringCollapse';
 import {
   MAP_CHAIN_UNDO_WINDOW_MS,
+  isTombstoned,
   tombstoneDeletedAt,
 } from '@/data/maps/chain-contract';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
@@ -250,7 +251,7 @@ describe('map authoring', () => {
         mapId: MAP_A,
         paginationOpts: { cursor: null, numItems: 10 },
       });
-      expect(candidates.page).toEqual([]);
+      expect(candidates.page.filter((row) => !isTombstoned(row))).toEqual([]);
       expect(tombstoneDeletedAt(await readConnection(t, stub.connectionId))).toBe(NOW);
     });
 

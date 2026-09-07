@@ -64,12 +64,11 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
     });
   }
 
-  it('updates login-owned profile fields while preserving role and preferences', async () => {
+  it('updates login-owned profile fields while preserving affiliation', async () => {
     await seedCharacter(FIRST_CHAR, {
       name: 'Old Name',
       portraitUrl: 'https://images.example/old',
-      role: 'ADMIN',
-      preferences: { pinned: true },
+      corporationId: 98000001,
     });
 
     await upsertCharacterLoginIdentity({
@@ -86,8 +85,7 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
     expect(row).toMatchObject({
       name: 'New Name',
       portraitUrl: 'https://images.example/new',
-      role: 'ADMIN',
-      preferences: { pinned: true },
+      corporationId: 98000001,
     });
   });
 

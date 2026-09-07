@@ -45,70 +45,24 @@ export interface BatchLedger {
   >;
 }
 
-export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLedger {
-  const recipes = flattenRecipes(tree);
-  const ledger = new Map<number, { required: number; runs: number }>();
-  const raws = new Map<number, number>();
-
-  const walk = (typeId: number, qtyNeeded: number) => {
-    const recipe = recipes.get(typeId);
-    if (!recipe) {
-      raws.set(typeId, (raws.get(typeId) ?? 0) + qtyNeeded);
-      return;
-    }
-    let entry = ledger.get(typeId);
-    if (!entry) {
-      entry = { required: 0, runs: 0 };
-      ledger.set(typeId, entry);
-    }
-    const prevRuns = entry.runs;
-    entry.required += qtyNeeded;
-    entry.runs = recipe.batch > 0 ? Math.ceil(entry.required / recipe.batch) : 0;
-    const additionalRuns = entry.runs - prevRuns;
-    if (additionalRuns > 0) {
-      for (const input of recipe.inputs) walk(input.typeId, additionalRuns * input.qty);
-    }
-  };
-
-  for (const node of tree) walk(node.typeId, node.quantity * requestedRuns);
-
-  const builds: BatchLedger['builds'] = new Map();
-  for (const [typeId, entry] of ledger) {
-    const recipe = recipes.get(typeId)!;
-    builds.set(typeId, {
-      runs: entry.runs,
-      batch: recipe.batch,
-      me: 0,
-      blueprintTypeId: recipe.blueprintTypeId,
-      required: entry.required,
-    });
-  }
-
-  return { raws, builds };
-}
-
-export function computeBatchMaterials(
-  tree: TreeNode[],
-  requestedRuns = 1,
-): { typeId: number; quantity: number }[] {
-  return [...computeBatchLedger(tree, requestedRuns).raws.entries()].map(
-    ([typeId, quantity]) => ({ typeId, quantity }),
-  );
-}
-
 export interface MeOptions {
   meOf: (blueprintTypeId: number) => number | undefined;
   topBlueprintTypeId: number;
   structureMeFactorOf?: (blueprintTypeId: number) => number;
 }
 
+const UNSET_ME: MeOptions = { meOf: () => undefined, topBlueprintTypeId: 0 };
+
 function roundTo2(x: number): number {
   return Math.round(x * 100) / 100;
 }
 
+function meFactor(me: number): number {
+  return me <= 0 ? 1 : 1 - me / 100;
+}
+
 function meAdjust(qty: number, runs: number, me: number, structureMult = 1): number {
-  const meMult = me > 0 ? 1 - me / 100 : 1;
-  const mult = meMult * structureMult;
+  const mult = meFactor(me) * structureMult;
   if (mult >= 1) return qty * runs;
   return Math.max(runs, Math.ceil(roundTo2(qty * runs * mult)));
 }
@@ -148,22 +102,34 @@ function recipeHeights(recipes: Map<number, Recipe>): Map<number, number> {
   return heights;
 }
 
-export function computeBatchLedgerWithMe(
+function seedTopDemand(
   tree: TreeNode[],
   requestedRuns: number,
-  opts: MeOptions,
-): BatchLedger {
-  const recipes = flattenRecipes(tree);
-  const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
-
-  const structureFactorOf = opts.structureMeFactorOf ?? (() => 1);
-
-  const topMe = opts.meOf(opts.topBlueprintTypeId) ?? 0;
+  meOpts: MeOptions,
+  addDemand: (typeId: number, qty: number) => void,
+): void {
+  const structureFactorOf = meOpts.structureMeFactorOf ?? (() => 1);
+  const topMe = meOpts.meOf(meOpts.topBlueprintTypeId) ?? 0;
   for (const node of tree)
     addDemand(
       node.typeId,
-      meAdjust(node.quantity, requestedRuns, topMe, structureFactorOf(opts.topBlueprintTypeId)),
+      meAdjust(node.quantity, requestedRuns, topMe, structureFactorOf(meOpts.topBlueprintTypeId)),
     );
+}
+
+function rawRows(ledger: BatchLedger): { typeId: number; quantity: number }[] {
+  return [...ledger.raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
+}
+
+export function computeBatchLedger(
+  tree: TreeNode[],
+  requestedRuns = 1,
+  opts: MeOptions = UNSET_ME,
+): BatchLedger {
+  const recipes = flattenRecipes(tree);
+  const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
+  seedTopDemand(tree, requestedRuns, opts, addDemand);
+  const structureFactorOf = opts.structureMeFactorOf ?? (() => 1);
   const builds: BatchLedger['builds'] = new Map();
   for (const typeId of ordered) {
     const recipe = recipes.get(typeId)!;
@@ -175,18 +141,15 @@ export function computeBatchLedgerWithMe(
     for (const input of recipe.inputs)
       addDemand(input.typeId, meAdjust(input.qty, runs, me, structureMult));
   }
-
   return { raws, builds };
 }
 
-export function computeBatchMaterialsWithMe(
+export function computeBatchMaterials(
   tree: TreeNode[],
-  requestedRuns: number,
-  opts: MeOptions,
+  requestedRuns = 1,
+  opts: MeOptions = UNSET_ME,
 ): { typeId: number; quantity: number }[] {
-  return [...computeBatchLedgerWithMe(tree, requestedRuns, opts).raws.entries()].map(
-    ([typeId, quantity]) => ({ typeId, quantity }),
-  );
+  return rawRows(computeBatchLedger(tree, requestedRuns, opts));
 }
 
 export function computeMarginalMaterials(
@@ -222,28 +185,9 @@ export function collectBlueprintTypeIds(tree: TreeNode[], topBlueprintTypeId: nu
   return [...out];
 }
 
-function meFactor(me: number): number {
-  return me <= 0 ? 1 : 1 - me / 100;
-}
-
 export interface MultibuyOptions {
   buildSet: Set<number>;
   ownedOf?: (typeId: number) => number;
-}
-
-function seedTopDemand(
-  tree: TreeNode[],
-  requestedRuns: number,
-  meOpts: MeOptions,
-  addDemand: (typeId: number, qty: number) => void,
-): void {
-  const structureFactorOf = meOpts.structureMeFactorOf ?? (() => 1);
-  const topMe = meOpts.meOf(meOpts.topBlueprintTypeId) ?? 0;
-  for (const node of tree)
-    addDemand(
-      node.typeId,
-      meAdjust(node.quantity, requestedRuns, topMe, structureFactorOf(meOpts.topBlueprintTypeId)),
-    );
 }
 
 function expandBuild(

@@ -12,7 +12,9 @@ import unittest
 from tools.lifecycle.check_lifecycle_evidence import collect_findings
 
 class LifecycleFixture:
-    def __init__(self) -> None:
+    def __init__(self, version: str = "9.9") -> None:
+        self.version = version
+        self.session = f"{version}.1.1"
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.docs = self.root / "docs"
@@ -27,8 +29,8 @@ class LifecycleFixture:
                 {
                     "developmentState": {
                         "legacySchemaArtifacts": [
-                            "docs/session-contracts/9.9/9.9.1.1.md",
-                            "docs/session-plans/9.9/9.9.1.1.md",
+                            f"docs/session-contracts/{version}/{self.session}.md",
+                            f"docs/session-plans/{version}/{self.session}.md",
                         ]
                     }
                 }
@@ -39,35 +41,35 @@ class LifecycleFixture:
         self.temporary.cleanup()
 
     def write_roadmap(self, status: str, theme: str = "Fixture") -> None:
-        (self.docs / "VERSION_9_9_PLAN.md").write_text(
-            "# Version 9.9\n\n## Status\n\n"
+        (self.docs / f"VERSION_{self.version.replace('.', '_')}_PLAN.md").write_text(
+            f"# Version {self.version}\n\n## Status\n\n"
             "| Sub-version | Theme | Sessions | Status |\n"
             "| --- | --- | --- | --- |\n"
-            f"| 9.9.1.1 | {theme} | 1 | {status} |\n",
+            f"| {self.session} | {theme} | 1 | {status} |\n",
             encoding="utf-8",
         )
 
     def write_contract(self) -> Path:
-        directory = self.docs / "session-contracts/9.9"
+        directory = self.docs / "session-contracts" / self.version
         directory.mkdir(parents=True)
-        contract = directory / "9.9.1.1.md"
+        contract = directory / f"{self.session}.md"
         contract.write_text(
-            "## Session 9.9.1.1 — Fixture\n\n**UX gate:** No\n",
+            f"## Session {self.session} — Fixture\n\n**UX gate:** No\n",
             encoding="utf-8",
         )
         (directory / "INDEX.md").write_text(
             "| Session | Sub-version | Contract |\n"
             "| --- | --- | --- |\n"
-            "| 9.9.1.1 | 9.9.1.1 | `9.9.1.1.md` |\n",
+            f"| {self.session} | {self.session} | `{self.session}.md` |\n",
             encoding="utf-8",
         )
         return contract
 
     def write_plan(self, execution: str) -> None:
-        directory = self.docs / "session-plans/9.9"
+        directory = self.docs / "session-plans" / self.version
         directory.mkdir(parents=True, exist_ok=True)
         digest = hashlib.sha256(self.contract.read_bytes()).hexdigest()
-        (directory / "9.9.1.1.md").write_text(
+        (directory / f"{self.session}.md").write_text(
             "# Plan\n\n"
             "**Plan status:** Approved\n"
             f"**Contract digest:** `sha256:{digest}`\n"
@@ -92,24 +94,57 @@ class LifecycleEvidenceTests(unittest.TestCase):
         self.assertEqual(1, len(matches), [finding.render() for finding in matches])
         return matches[0]
 
-    def test_complete_plan_with_open_roadmap_is_an_error(self) -> None:
+    def test_legacy_complete_plan_with_open_roadmap_is_an_error(self) -> None:
+        self.fixture.close()
+        self.fixture = LifecycleFixture("4.0")
         self.fixture.write_plan("Complete")
         finding = self.matching("execution is Complete")
-        self.assertEqual(("docs/session-plans/9.9/9.9.1.1.md", 5), (finding.path, finding.line))
+        self.assertEqual(("docs/session-plans/4.0/4.0.1.1.md", 5), (finding.path, finding.line))
         self.assertEqual("error", finding.severity)
 
-    def test_complete_early_session_with_later_session_remaining_is_valid(self) -> None:
+    def test_development_complete_rows_can_await_archive(self) -> None:
+        self.fixture.close()
+        self.fixture = LifecycleFixture("4.1")
         self.fixture.write_plan("Complete")
-        contract_directory = self.fixture.docs / "session-contracts/9.9"
-        (contract_directory / "9.9.1.1.2.md").write_text(
-            "## Session 9.9.1.1.2 — Fixture continuation\n\n**UX gate:** No\n",
+        roadmap = self.fixture.docs / "VERSION_4_1_PLAN.md"
+        roadmap.write_text(
+            roadmap.read_text(encoding="utf-8")
+            + "| 4.1.2.1 | Later completed work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        contract_directory = self.fixture.docs / "session-contracts/4.1"
+        (contract_directory / "4.1.2.1.md").write_text(
+            "## Session 4.1.2.1 — Later completed work\n\n**UX gate:** No\n",
+            encoding="utf-8",
+        )
+        index = contract_directory / "INDEX.md"
+        index.write_text(
+            index.read_text(encoding="utf-8")
+            + "| 4.1.2.1 | 4.1.2.1 | `4.1.2.1.md` |\n",
+            encoding="utf-8",
+        )
+        plan_directory = self.fixture.docs / "session-plans/4.1"
+        (plan_directory / "4.1.2.1.md").write_text(
+            "# Plan\n\n**Execution status:** Complete\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual([], collect_findings(self.fixture.root))
+
+    def test_complete_early_session_with_later_session_remaining_is_valid(self) -> None:
+        self.fixture.close()
+        self.fixture = LifecycleFixture("4.0")
+        self.fixture.write_plan("Complete")
+        contract_directory = self.fixture.docs / "session-contracts/4.0"
+        (contract_directory / "4.0.1.1.2.md").write_text(
+            "## Session 4.0.1.1.2 — Fixture continuation\n\n**UX gate:** No\n",
             encoding="utf-8",
         )
         (contract_directory / "INDEX.md").write_text(
             "| Session | Sub-version | Contract |\n"
             "| --- | --- | --- |\n"
-            "| 9.9.1.1 | 9.9.1.1 | `9.9.1.1.md` |\n"
-            "| 9.9.1.1.2 | 9.9.1.1 | `9.9.1.1.2.md` |\n",
+            "| 4.0.1.1 | 4.0.1.1 | `4.0.1.1.md` |\n"
+            "| 4.0.1.1.2 | 4.0.1.1 | `4.0.1.1.2.md` |\n",
             encoding="utf-8",
         )
         findings = collect_findings(self.fixture.root)

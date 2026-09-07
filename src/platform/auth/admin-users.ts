@@ -3,7 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { accountMatch, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import type { IdentityProjectionRunners } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
 import { account, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';

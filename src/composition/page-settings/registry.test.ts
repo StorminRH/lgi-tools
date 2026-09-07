@@ -8,6 +8,7 @@ import {
 } from '@/platform/page-settings';
 import { FEATURE_CONTROL_IDS } from '@/platform/page-settings/feature-controls';
 import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/specs';
+import { atlasPageSettings } from '@/platform/page-settings/atlas';
 
 beforeEach(() => __resetPageSettings());
 
@@ -78,5 +79,13 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
     expect(resolvePageSettings('/skills')?.strip?.surfaceId).toBe('skills');
     expect(resolvePageSettings('/jobs')?.strip?.surfaceId).toBe('jobs');
     expect(resolvePageSettings('/sites')?.strip).toBeUndefined();
+  });
+
+  it('resolves the atlas spec to camera follow and click focus only', () => {
+    expect(
+      atlasPageSettings.controls?.flatMap((control) =>
+        'key' in control ? [control.key] : [],
+      ),
+    ).toEqual(['atlas.cameraFollow', 'atlas.clickFocus']);
   });
 });

@@ -19,8 +19,7 @@ import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
-import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
-import type { IdentityProjectionRunners } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
@@ -35,7 +34,15 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
   return characterId !== null && characterId === superId;
 }
 
-export function createAuth(runners: IdentityProjectionRunners) {
+export interface CreateAuthDeps {
+  readonly runners: IdentityProjectionRunners;
+  readonly reconcileCharacterOwner: (
+    characterId: number,
+    jwtOwnerHash: string | null | undefined,
+  ) => Promise<void>;
+}
+
+export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps) {
   const options = {
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -121,7 +128,7 @@ export function createAuth(runners: IdentityProjectionRunners) {
               if (!tokens.accessToken) return null;
               const claims = await verifyEveJwt(tokens.accessToken);
               const character = claimsToCharacter(claims);
-              await getCharacterOwnerReconciler()(character.characterId, claims.owner);
+              await reconcileCharacterOwner(character.characterId, claims.owner);
               const { absorbed } = await absorbLinkedCharacterOnProof(
                 character.characterId,
                 runners,

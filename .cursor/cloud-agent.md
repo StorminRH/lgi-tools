@@ -1,8 +1,10 @@
 # Cloud Agent
 
-Read when running or setting up a Cloud Agent. This environment provisions the
-stack. CLI commands live in AGENTS.md Tools. The caveats below are the ones
-those files do not state.
+Read when running or setting up the Cursor Cloud Agent Linux VM defined by
+`.cursor/environment.json`. Its install/start scripts provision the VM stack;
+local Cursor and Codex sessions use `README.md#local-development` instead.
+CLI commands live in AGENTS.md Tools. These notes describe the VM environment,
+not permissions or credentials granted to other hosts.
 
 ## Postgres
 
@@ -52,7 +54,8 @@ Never upload production `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
 `*.db.test.ts` suites need the `:5433` cluster with migrations and SDE
 applied. They clone the live `public` schema. Wormhole codex and `sde_version`
 fail rather than skip without SDE data. A cold or unreachable database makes
-the harness skip those suites. `pnpm verify` is green in this environment.
+the harness skip those suites. Report which suites actually ran; a skipped
+DB suite is not evidence for its behavior.
 
 Playwright Chromium is installed by `.cursor/install.sh`. Use
 `http://localhost:3000` (the `next-dev` terminal). Seed auth with
@@ -60,9 +63,8 @@ Playwright Chromium is installed by `.cursor/install.sh`. Use
 
 ## Tooling
 
-Project skills live in `.cursor/skills/`. Review skills here include
-`thermos`, `thermo-nuclear-review`, and
-`thermo-nuclear-code-quality-review`. Custom subagents live in `.cursor/agents/`.
+Use the Cursor skill and agent paths listed in AGENTS.md. Codex paths are
+separate harness adaptations; they do not provision this VM.
 
 `.cursor/clis.sh` (install + start) puts Codegraph (`@colbymchenry/codegraph@1.5.0`),
 Depot, Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
@@ -71,13 +73,14 @@ Depot, Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
 Codegraph does not need a token. Depot, Vercel, and Neon use Cloud Agent
 Secrets when a command needs them.
 
-This Cloud Agent Origin token can create, comment, and watch. It is
-not scoped for `origin pr merge` or `origin ruleset list`. Default
-merge, `--merge`, `--squash`, `--auto`, and `--branch` all return
-"not scoped for this operation". `origin api` merge calls 401. The
-PR can still be mergeable. `origin pr merge <N>` returns `BLOCKED`
-on that error. Leave the Origin PR open. The operator reviews and
-merges, or upgrades the token.
+The Cloud Agent Origin token was observed to allow create, comment, and watch
+but refuse `origin pr merge` and `origin ruleset list`. Default
+merge, `--merge`, `--squash`, `--auto`, and `--branch` all returned
+"not scoped for this operation"; `origin api` merge calls returned 401.
+The PR can still be mergeable. If the authorized merge returns that scope
+error, report `BLOCKED` and leave the Origin PR open for the operator to merge
+or upgrade the token. Check the actual command result on the current host;
+this observation does not establish a local Cursor or Codex token's scope.
 
 Depot wait is `depot ci dispatch` on the head branch, then
 `depot ci status <run-id>` until it returns. Dispatch once reviews

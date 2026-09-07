@@ -5,6 +5,7 @@ import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import type {
+  AwaitingJumpSummary,
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
@@ -21,6 +22,7 @@ export function useSignatureJumpFlow(
   canEdit: boolean,
   connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
+  awaitingJumps: readonly AwaitingJumpSummary[],
 ) {
   const assets = useUniverseAssets();
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
@@ -40,10 +42,12 @@ export function useSignatureJumpFlow(
             dismissedResolutions,
             assets === null ? null : (id: number) => assets.systemInfo(id),
             ownCharacterIds,
+            awaitingJumps,
           )
         : null,
     [
       assets,
+      awaitingJumps,
       canEdit,
       connectionDetails,
       dismissedResolutions,

@@ -20,25 +20,17 @@ export function nodesReadyForFit(
   return systemsNeedingFit(intents).every((systemId) => nodeIds.has(systemId));
 }
 
-/**
- * Whether a merge's intents warrant a viewport fit. The first fit is initial
- * presentation and ignores the follow toggle — without it a fresh map load
- * leaves the layout origin in the top-left corner under the chrome. Every
- * later fit is following: it requires the toggle on and no active drag
- * (operator G-1 call: the camera must not move on its own).
- */
 export function shouldFitView(input: {
   readonly intents: readonly MapChainIntent[];
   readonly framed: boolean;
   readonly follow: boolean;
-  readonly dragActive: boolean;
 }): boolean {
   const appeared = input.intents.some(
     (intent) => intent.kind === 'system-appeared' || intent.kind === 'system-moved',
   );
   if (!appeared) return false;
   if (!input.framed) return true;
-  return input.follow && !input.dragActive;
+  return input.follow;
 }
 
 export type CameraFitAction = 'ignore' | 'wait' | 'skip' | 'fit';
@@ -53,7 +45,6 @@ export function decideCameraFit(input: {
   readonly previousIntents: readonly MapChainIntent[];
   readonly framed: boolean;
   readonly follow: boolean;
-  readonly dragActive: boolean;
   readonly nodeIds: ReadonlySet<number>;
 }): CameraFitAction {
   if (input.intents === input.previousIntents) return 'ignore';
@@ -62,7 +53,6 @@ export function decideCameraFit(input: {
       intents: input.intents,
       framed: input.framed,
       follow: input.follow,
-      dragActive: input.dragActive,
     })
   ) {
     return 'skip';
@@ -147,7 +137,6 @@ export function decideFitExecution(input: {
   readonly previousIntents: readonly MapChainIntent[];
   readonly framed: boolean;
   readonly follow: boolean;
-  readonly dragActive: boolean;
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ReadonlyMap<number, PlacedSystem>;
   readonly frame: NodeFrameSize;
@@ -158,7 +147,6 @@ export function decideFitExecution(input: {
       previousIntents: input.previousIntents,
       framed: input.framed,
       follow: input.follow,
-      dragActive: input.dragActive,
       nodeIds: input.nodeIds,
     }),
   );
@@ -178,7 +166,6 @@ export function resolveFitTick(input: {
   readonly previousIntents: readonly MapChainIntent[];
   readonly framed: boolean;
   readonly follow: boolean;
-  readonly dragActive: boolean;
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ReadonlyMap<number, PlacedSystem>;
   readonly frame: NodeFrameSize;
@@ -201,11 +188,10 @@ export interface FocusAction {
 
 export function decideFocus(input: {
   readonly enabled: boolean;
-  readonly dragActive: boolean;
   readonly center: { readonly x: number; readonly y: number } | null;
   readonly zoom: number;
 }): FocusAction | null {
-  if (!input.enabled || input.dragActive || input.center === null) return null;
+  if (!input.enabled || input.center === null) return null;
   return { x: input.center.x, y: input.center.y, zoom: input.zoom };
 }
 
@@ -258,7 +244,3 @@ export function settleFlight(
   return { generation: flight.generation, active: false };
 }
 
-export function abortFlightForDrag(flight: CameraFlight): CameraFlight {
-  if (!flight.active) return flight;
-  return { generation: flight.generation + 1, active: false };
-}

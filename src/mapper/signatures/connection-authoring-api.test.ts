@@ -1,18 +1,22 @@
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { ConnectionDetail } from '../chain/connection-detail';
 import {
   answerAndAnnounce,
   answerJumpResolution,
   applyWormholeType,
+  bindConnectionSetters,
   connectionLifecycleActions,
   severAndAnnounce,
 } from './connection-authoring-api';
 
 const announce = vi.hoisted(() => vi.fn());
 const postJump = vi.hoisted(() =>
-  vi.fn(async () => ({ status: 'processed', outcome: 'confirmed', emitted: true })),
+  vi.fn(async (): Promise<JumpResolverResponse | null> => ({
+    status: 'processed', outcome: 'confirmed', emitted: true,
+  })),
 );
 const toastError = vi.hoisted(() => vi.fn());
 
@@ -64,6 +68,23 @@ function authoring() {
     restoreSignatures: vi.fn(),
   };
 }
+
+it.each([null, { status: 'retry', reason: 'emission failed' }] as const)(
+  'retries a failed typed-hole on the next identical selection: %j', async (outcome) => {
+    const api = authoring();
+    const connection = detail({ connectionId: 'retry-type' as Id<'mapConnections'> });
+    api.setConnectionWormholeType
+      .mockResolvedValueOnce({ kind: 'mutated' })
+      .mockResolvedValue({ kind: 'idle' });
+    postJump.mockClear().mockResolvedValueOnce(outcome);
+    const input = { mapId: 'map-retry', connection, value: 'B274', authoring: api };
+    await applyWormholeType(input);
+    await applyWormholeType(input);
+    expect(postJump).toHaveBeenCalledTimes(2);
+    await applyWormholeType(input);
+    expect(postJump).toHaveBeenCalledTimes(2);
+  },
+);
 
 it('answers jump picks through the route, dismisses only delivered answers, and notifies typed holes when held', async () => {
   postJump.mockClear();
@@ -118,7 +139,7 @@ it('answers jump picks through the route, dismisses only delivered answers, and 
   const api = authoring();
   const connection = detail({ connectionId: 'c1' as Id<'mapConnections'> });
   postJump.mockClear();
-  api.setConnectionWormholeType.mockResolvedValueOnce({ changed: true } as never);
+  api.setConnectionWormholeType.mockResolvedValueOnce({ kind: 'mutated' });
   await applyWormholeType({ mapId: 'map-a', connection, value: 'B274', authoring: api });
   expect(postJump).toHaveBeenCalledWith({
     kind: 'typed-hole',
@@ -126,7 +147,19 @@ it('answers jump picks through the route, dismisses only delivered answers, and 
     connectionId: 'c1',
   });
   postJump.mockClear();
-  api.setConnectionWormholeType.mockResolvedValueOnce(undefined as never);
+  api.setConnectionWormholeType.mockResolvedValueOnce({ kind: 'claimed' });
+  await applyWormholeType({ mapId: 'map-a', connection, value: 'B274', authoring: api });
+  expect(postJump).toHaveBeenCalledWith({
+    kind: 'typed-hole',
+    mapId: 'map-a',
+    connectionId: 'c1',
+  });
+  postJump.mockClear();
+  api.setConnectionWormholeType.mockResolvedValueOnce({ kind: 'idle' });
+  await applyWormholeType({ mapId: 'map-a', connection, value: 'B274', authoring: api });
+  expect(postJump).not.toHaveBeenCalled();
+  postJump.mockClear();
+  api.setConnectionWormholeType.mockResolvedValueOnce(undefined);
   await applyWormholeType({ mapId: 'map-a', connection, value: 'B274', authoring: api });
   expect(postJump).not.toHaveBeenCalled();
 });
@@ -189,4 +222,52 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
     stub: { systemId: 7, signatureId: 'ABC-123' },
   }).remove();
   await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
+});
+
+it('binds resolved holes through applyWormholeType and stubs through a raw type write', async () => {
+  const resolvedApi = authoring();
+  resolvedApi.setConnectionWormholeType.mockResolvedValue({ kind: 'mutated' });
+  const resolved = detail({ connectionId: 'c1' as Id<'mapConnections'> });
+  postJump.mockClear();
+  bindConnectionSetters('map-a', resolvedApi)(resolved).setWormholeType('B274');
+  await vi.waitFor(() =>
+    expect(resolvedApi.setConnectionWormholeType).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connection: resolved,
+      value: 'B274',
+      side: 'from',
+    }),
+  );
+  expect(postJump).toHaveBeenCalledWith({
+    kind: 'typed-hole',
+    mapId: 'map-a',
+    connectionId: 'c1',
+  });
+
+  resolvedApi.setConnectionWormholeType.mockResolvedValue({ kind: 'idle' });
+  postJump.mockClear();
+  bindConnectionSetters('map-a', resolvedApi)(resolved).setWormholeType('B274');
+  await vi.waitFor(() =>
+    expect(resolvedApi.setConnectionWormholeType).toHaveBeenCalledTimes(2),
+  );
+  expect(postJump).not.toHaveBeenCalled();
+
+  const stubApi = authoring();
+  stubApi.setConnectionWormholeType.mockResolvedValue({ kind: 'mutated' });
+  const stub = connectionEditorFixture({
+    connectionId: 'stub-1' as Id<'mapConnections'>,
+    fromSystemId: 7,
+    toSystemId: null,
+  });
+  postJump.mockClear();
+  bindConnectionSetters('map-a', stubApi)(stub, 'to').setWormholeType('K162');
+  await vi.waitFor(() =>
+    expect(stubApi.setConnectionWormholeType).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connection: stub,
+      value: 'K162',
+      side: 'to',
+    }),
+  );
+  expect(postJump).not.toHaveBeenCalled();
 });

@@ -1,4 +1,4 @@
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 import {
   CONNECTION_PROVENANCES,
   CONNECTION_MASS_STATES,
@@ -11,7 +11,7 @@ import {
   type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import type { MapRole } from '@/data/maps/access-contract';
+import { canonicalizeMapRoles, type MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 import {
   SCANNED_KINDS,
@@ -60,7 +60,13 @@ const MAP_ROLE_LITERALS = {
   admin: v.literal('admin'),
 } as const satisfies Record<MapRole, unknown>;
 
-const legacyMapOwnerRoleValidator = v.literal('owner');
+export const legacyMapOwnerRoleValidator = v.literal('owner');
+
+export type StoredMapRole = MapRole | Infer<typeof legacyMapOwnerRoleValidator>;
+
+export function currentRolesFromStored(roles: readonly StoredMapRole[]): MapRole[] {
+  return canonicalizeMapRoles(roles.map((role) => role === 'owner' ? 'admin' : role));
+}
 
 export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
 
@@ -143,6 +149,15 @@ export const connectionLifetimeValidator = v.union(
 
 export const connectionResolutionValidator = v.union(
   v.object({ kind: v.literal('open') }),
+  v.object({
+    kind: v.literal('awaiting-signature'),
+    destinationSystemId: v.number(),
+    candidates: v.array(v.object({
+      connectionId: v.id('mapConnections'),
+      signatureId: v.union(v.string(), v.null()),
+    })),
+    characterId: v.number(),
+  }),
   v.object({
     kind: v.literal('destination'),
     provenance: connectionProvenanceValidator,

@@ -1,20 +1,20 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { Id } from '@/data/convex/data-model';
-import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import type {
+  AwaitingJumpSummary,
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {
-  applyWormholeType,
+  bindConnectionSetters,
   type ConnectionAuthoringApi,
 } from './connection-authoring-api';
 import {
-  SignatureRowsProvider,
+  SignatureDataProvider,
   type ScannerPanelTarget,
 } from './signature-context';
 import { SignatureWindow } from './SignatureWindow';
@@ -31,6 +31,7 @@ export function SignatureProvider({
   canEdit,
   connectionDetails,
   unresolvedHoles,
+  awaitingJumps,
   authoring,
   panelTarget,
   onPanelTargetChange,
@@ -42,6 +43,7 @@ export function SignatureProvider({
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
+  readonly awaitingJumps: readonly AwaitingJumpSummary[];
   readonly authoring: ConnectionAuthoringApi;
   readonly panelTarget: ScannerPanelTarget;
   readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
@@ -49,6 +51,7 @@ export function SignatureProvider({
 }) {
   const { rows, complete } = useSignaturePage(
     mapId,
+    scannerSystemId,
     connectionDetails,
     unresolvedHoles,
   );
@@ -69,14 +72,22 @@ export function SignatureProvider({
     canEdit,
     connectionDetails,
     unresolvedHoles,
+    awaitingJumps,
   );
   const panel = useSignaturePanel({
     onPanelTargetChange,
     clockActive: rows.length > 0 || panelTarget !== null,
   });
 
+  const signatureData = useMemo(
+    () => ({
+      mapId, scannerSystemId, scannerRows: rows, connectionDetails, unresolvedHoles,
+    }),
+    [mapId, scannerSystemId, rows, connectionDetails, unresolvedHoles],
+  );
+
   return (
-    <SignatureRowsProvider value={rows}>
+    <SignatureDataProvider value={signatureData}>
       {children}
       <SignatureWindow
         scannerSystemId={scannerSystemId}
@@ -94,32 +105,7 @@ export function SignatureProvider({
         onOpenEditor={panel.openEditor}
         onOpenSite={panel.openSite}
         originLeadConnections={[...connectionDetails.values()]}
-        bindConnectionSetters={(connection, side) =>
-          connectionFieldSetters(
-            mapId,
-            connection,
-            authoring,
-            (value) => {
-              if (connection.toSystemId !== null) {
-                void applyWormholeType({
-                  mapId,
-                  connection: connection as ConnectionDetail,
-                  value,
-                  side,
-                  authoring,
-                });
-                return;
-              }
-              void authoring.setConnectionWormholeType({
-                mapId,
-                connection,
-                value,
-                side,
-              });
-            },
-            side,
-          )
-        }
+        bindConnectionSetters={bindConnectionSetters(mapId, authoring)}
       />
       <ActiveScannerPanel
         mapId={mapId}
@@ -131,6 +117,6 @@ export function SignatureProvider({
         now={panel.now}
         onClose={panel.closePanel}
       />
-    </SignatureRowsProvider>
+    </SignatureDataProvider>
   );
 }

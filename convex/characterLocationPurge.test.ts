@@ -73,7 +73,7 @@ describe('characterLocationPurge.purgeForUser', () => {
       userId: USER,
       characterId: null,
     });
-    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2, deletedBookkeeping: 2 });
+    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2, deletedBookkeeping: 1 });
 
     const remainingLocations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
@@ -85,6 +85,16 @@ describe('characterLocationPurge.purgeForUser', () => {
     expect(remainingOnline.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingLeases.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingCovered.map((doc) => doc.userId)).toEqual([OTHER]);
+    const stamps = await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect());
+    expect(stamps.map((doc) => doc.characterId)).toEqual([CHAR_A, 90_999_999]);
+    const finalPurge = await t.mutation(internal.characterLocationPurge.purgeForUser, {
+      userId: OTHER,
+      characterId: CHAR_A,
+    });
+    expect(finalPurge.deletedBookkeeping).toBe(1);
+    const survivors = await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect());
+    expect(survivors.map((doc) => doc.characterId)).toEqual([90_999_999]);
+
   });
 
   it('deletes only the named character\'s location and tracking rows', async () => {
@@ -140,6 +150,26 @@ describe('characterLocationPurge.purgeForUser', () => {
         .collect(),
     );
     expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
+  });
+
+  it('preserves other users trackers while cleaning orphan stamps for a named character', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', {
+        mapId: 'map-a', userId: OTHER, characterId: CHAR_A,
+      });
+      for (const mapId of ['map-a', 'map-orphan']) {
+        await ctx.db.insert('mapJumpBookkeeping', {
+          mapId, characterId: CHAR_A, lastProcessedTransitionAt: 100,
+        });
+      }
+    });
+    const out = await t.mutation(internal.characterLocationPurge.purgeForUser, {
+      userId: USER, characterId: CHAR_A,
+    });
+    expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0, deletedBookkeeping: 1 });
+    const stamps = await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect());
+    expect(stamps.map((doc) => doc.mapId)).toEqual(['map-a']);
   });
 
   it('is a no-op when there is nothing to delete', async () => {

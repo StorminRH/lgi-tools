@@ -40,7 +40,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 import { logUsageEvent } from '@/data/telemetry/queries';
-import type { IdentityProjectionRunners } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { syntheticEmail } from './synthetic-email';
 

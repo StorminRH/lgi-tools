@@ -13,6 +13,7 @@ import {
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
+import { deleteUnclaimedRespawn, respawnAfterTombstone } from './lib/mapStaticClaim';
 import { deleteSignatureActivity } from './lib/mapSignatures';
 import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
@@ -175,7 +176,7 @@ function shouldRearmSkeleton(
     && touchesRemovedSystem;
 }
 
-export async function deleteConnectionActivity(
+async function deleteConnectionActivity(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'>,
 ): Promise<void> {
@@ -187,11 +188,20 @@ export async function deleteConnectionActivity(
   });
 }
 
+export async function retainRemovedConnection(
+  ctx: MutationCtx,
+  connection: Doc<'mapConnections'>,
+  deletedAt: number,
+): Promise<void> {
+  await ctx.db.patch(connection._id, connectionRemovedTombstone(deletedAt));
+  await deleteConnectionActivity(ctx, connection);
+  await respawnAfterTombstone(ctx, connection._id);
+}
+
 async function writeRetainedSever(
   input: SeverWriteContext,
 ): Promise<{ outcome: 'retained' }> {
-  await input.ctx.db.patch(input.cut._id, connectionRemovedTombstone(input.deletedAt));
-  await deleteConnectionActivity(input.ctx, input.cut);
+  await retainRemovedConnection(input.ctx, input.cut, input.deletedAt);
   await writeMapEvent(input.ctx, {
     mapId: input.mapId,
     at: input.deletedAt,
@@ -226,14 +236,8 @@ async function stampRemovedRows(
   for (const system of systems) {
     await input.ctx.db.patch(system._id, input.stamps);
   }
-  const connectionStamp = connectionRemovedTombstone(input.deletedAt);
-  for (const connection of connections) {
-    await input.ctx.db.patch(connection._id, connectionStamp);
-    await deleteConnectionActivity(input.ctx, connection);
-  }
-  for (const stub of incidentStubs) {
-    await input.ctx.db.patch(stub._id, connectionStamp);
-    await deleteConnectionActivity(input.ctx, stub);
+  for (const connection of [...connections, ...incidentStubs]) {
+    await retainRemovedConnection(input.ctx, connection, input.deletedAt);
   }
   for (const connection of skeletonsToRearm) {
     if (connection.tombstone.kind !== 'removed') continue;
@@ -357,6 +361,7 @@ export async function runBranchRestore(
     await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
   }
   for (const row of connections) {
+    await deleteUnclaimedRespawn(ctx, row);
     await ctx.db.patch(row._id, { tombstone: { kind: 'live' } });
   }
   const at = Date.now();

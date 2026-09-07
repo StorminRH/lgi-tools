@@ -18,6 +18,7 @@ import {
   findLocalSignatureConnection,
   findPasteConnection,
 } from './mapConnectionLookup';
+import { claimStaticOrKeepId } from './mapStaticClaim';
 import {
   applyKnownSignatureTombstone,
   touchKnownSignatureActivity,
@@ -491,8 +492,8 @@ async function stampIdentifiedWormholeType(
   ctx: MutationCtx,
   connectionId: Id<'mapConnections'>,
   wormholeTypeCode: string | null | undefined,
-): Promise<void> {
-  if (!wormholeTypeCode) return;
+): Promise<Id<'mapConnections'> | undefined> {
+  if (!wormholeTypeCode) return connectionId;
   if (!isWormholeTypeCode(wormholeTypeCode)) {
     throw new ConvexError({
       code: 'INVALID_WORMHOLE_CODE',
@@ -500,7 +501,7 @@ async function stampIdentifiedWormholeType(
     });
   }
   const connection = await ctx.db.get(connectionId);
-  if (connection === null) return;
+  if (connection === null) return undefined;
   const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode, 'human');
   const resolution = clearPendingResolution(connection.resolution);
   if (
@@ -511,13 +512,16 @@ async function stampIdentifiedWormholeType(
     && connection.observationKey !== undefined
     && connection.resolution.kind === resolution.kind
   ) {
-    return;
+    return await claimStaticOrKeepId(ctx, connection, 'from');
   }
   await ctx.db.patch(connectionId, {
     ...typePatch,
     resolution,
     ...stampObservationKey(connection.observationKey).patch,
   });
+  const typed = await ctx.db.get(connectionId);
+  if (typed === null) return undefined;
+  return await claimStaticOrKeepId(ctx, typed, 'from');
 }
 
 async function identifyWormholeRow(
@@ -548,10 +552,14 @@ async function identifyWormholeRow(
   if (written.connectionId === undefined) {
     throw new ConvexError({ code: 'SIGNATURE_MIGRATION_FAILED' });
   }
-  await stampIdentifiedWormholeType(ctx, written.connectionId, wormholeTypeCode);
+  const claimedId = await stampIdentifiedWormholeType(
+    ctx,
+    written.connectionId,
+    wormholeTypeCode,
+  );
   return {
     changed: (signature.group ?? null) !== 'Wormhole',
-    connectionId: written.connectionId,
+    connectionId: claimedId ?? written.connectionId,
   };
 }
 
@@ -578,8 +586,12 @@ export async function identifyScannedSignature(
         normalizedId,
       );
       if (existing !== undefined) {
-        await stampIdentifiedWormholeType(ctx, existing._id, wormholeTypeCode);
-        return { changed: false, connectionId: existing._id };
+        const claimedId = await stampIdentifiedWormholeType(
+          ctx,
+          existing._id,
+          wormholeTypeCode,
+        );
+        return { changed: false, connectionId: claimedId ?? existing._id };
       }
     }
     throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MapChainIntent } from '../chain/intents';
 import {
   browserPrefersReducedMotion,
@@ -37,7 +37,6 @@ export function useMotion(
   truth: MotionTruth,
   intents: readonly MapChainIntent[],
   access: boolean | undefined,
-  dragging: ReadonlySet<number>,
   config: MotionConfig,
   seams: MotionSeams,
 ): MotionPresentation {
@@ -47,11 +46,6 @@ export function useMotion(
   const plan = useMemo(() => tweenPlanOf(config, false), [config]);
   const reducedPlan = useMemo(() => tweenPlanOf(config, true), [config]);
 
-  const draggingRef = useRef(dragging);
-  useEffect(() => {
-    draggingRef.current = dragging;
-  }, [dragging]);
-
   let live = host;
   if (access === false) {
     const adjusted = adjustHostForRender(host, {
@@ -60,7 +54,6 @@ export function useMotion(
       access,
       now: 0,
       plan,
-      dragging,
       flavor: config.edgeFlavor,
     });
     if (adjusted !== null) {
@@ -74,7 +67,6 @@ export function useMotion(
       access,
       now: seams.now(),
       plan: seams.prefersReducedMotion() ? reducedPlan : plan,
-      dragging,
       flavor: config.edgeFlavor,
     });
     if (adjusted !== null) {
@@ -93,7 +85,6 @@ export function useMotion(
         host,
         seams.now(),
         plan.ease,
-        draggingRef.current,
         seams.prefersReducedMotion(),
       );
       if (step.changed) {
@@ -109,5 +100,5 @@ export function useMotion(
     };
   }, [host, plan, seams]);
 
-  return derivePresentation(truth, live, dragging, config.edgeFlavor);
+  return derivePresentation(truth, live, config.edgeFlavor);
 }

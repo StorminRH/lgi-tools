@@ -4,25 +4,12 @@ import {
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
-import {
-  getCharacterCorporationId,
-  getMapIdsWithCharacterGrant,
-  getMapIdsWithCorporationGrants,
-  getOwnedMapIds,
-} from '@/data/maps/queries';
+import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-hooks';
-
-export async function mapIdsAffectedByCharacter(characterId: number): Promise<string[]> {
-  const corporationId = await getCharacterCorporationId(characterId);
-  const characterMaps = await getMapIdsWithCharacterGrant(characterId);
-  const corporationMaps =
-    corporationId === null ? [] : await getMapIdsWithCorporationGrants([corporationId]);
-  return [...new Set([...characterMaps, ...corporationMaps])];
-}
+import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
-  const mapIds = await mapIdsAffectedByCharacter(characterId);
+  const mapIds = await affectedMapIdsForCharacter(characterId);
   for (const mapId of mapIds) {
     await bestEffort('map-access-identity', 'projection', mapId, () =>
       projectMapAccess(mapId),

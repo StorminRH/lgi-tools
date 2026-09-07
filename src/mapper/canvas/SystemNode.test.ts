@@ -41,10 +41,9 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
-function markup(motion: NodeMotion | undefined, dragging = false): string {
+function markup(motion: NodeMotion | undefined): string {
   const props = {
     data: { name: 'J123456', className: 'C5', security: -1, whClassId: 5, motion },
-    dragging,
   } as unknown as NodeProps<ChainNode>;
   return renderToStaticMarkup(createElement(SystemNode, props));
 }
@@ -70,11 +69,11 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
   expect(still.match(/pointer-events-auto/g)).toHaveLength(2);
+  expect(still.match(/nopan/g)).toHaveLength(2);
 
   const noClass = renderToStaticMarkup(
     createElement(SystemNode, {
       data: { name: 'Jita', className: null },
-      dragging: false,
     } as unknown as NodeProps<ChainNode>),
   );
   expect(noClass).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
@@ -300,7 +299,7 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
   expect(outboundArrowFraction(undefined)).toBe(0.7);
 });
 
-test('presence badge tones, counts, motion markup, and drag suppression', () => {
+test('presence badge tones, counts, and motion markup', () => {
   const pilot = (overrides: Partial<PresencePilot>): PresencePilot => ({
     characterId: 1,
     shipTypeId: null,
@@ -329,13 +328,9 @@ test('presence badge tones, counts, motion markup, and drag suppression', () => 
   expect(markup({ phase: 'departing', heavy: true })).toContain('map-node-exit-heavy');
   expect(markup(undefined)).not.toMatch(/map-node-enter|map-node-exit/);
 
-  const dragged = markup({ phase: 'entering' }, true);
-  expect(dragged).not.toMatch(/map-node-enter|map-node-exit/);
-  expect(dragged).toContain('data-dragging');
-  expect(nodeMotionClass({ phase: 'entering' }, true)).toBeNull();
-  expect(nodeMotionClass({ phase: 'departing', heavy: true }, true)).toBeNull();
-  expect(nodeMotionClass(undefined, false)).toBeNull();
-  expect(nodeMotionClass({ phase: 'entering' }, false)).toBe('map-node-enter');
+  expect(markup({ phase: 'entering' })).not.toContain('data-dragging');
+  expect(nodeMotionClass(undefined)).toBeNull();
+  expect(nodeMotionClass({ phase: 'entering' })).toBe('map-node-enter');
 });
 
 test('edge motion classes map fade/grow/rev/heavy/dying and loop dash', () => {

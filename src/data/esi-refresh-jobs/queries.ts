@@ -7,7 +7,6 @@ import {
   ESI_REFRESH_JOB_MAX_ATTEMPTS,
   LIVE_ESI_REFRESH_JOB_STATUSES,
 } from './constants';
-import { advancePendingWorkSignal } from './pending-signal';
 import { esiRefreshJobs } from './schema';
 import type {
   EnqueueEsiRefreshJobInput,
@@ -56,7 +55,6 @@ export async function enqueueEsiRefreshJob(
     .onConflictDoNothing()
     .returning({ id: esiRefreshJobs.id });
   if (inserted[0] !== undefined) {
-    await advancePendingWorkSignal(nextAttemptAt);
     return inserted[0].id;
   }
 
@@ -76,7 +74,6 @@ export async function enqueueEsiRefreshJob(
   if (existing[0] === undefined) {
     throw new Error('ESI refresh job coalesced without a live row');
   }
-  await advancePendingWorkSignal(existing[0].nextAttemptAt);
   return existing[0].id;
 }
 

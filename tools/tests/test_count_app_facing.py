@@ -17,6 +17,23 @@ from tools.lifecycle.count_app_facing import (
 )
 
 class CountAppFacingTests(unittest.TestCase):
+    def test_agent_harness_files_do_not_raise_promotion_count(self) -> None:
+        runtime_paths = [f"src/f{index}.ts" for index in range(PROMOTE_TRIGGER - 1)]
+        agent_paths = [
+            ".cursor/agents/docs-researcher.md",
+            ".codex/agents/docs-researcher.toml",
+            ".codex/agents/test-runner.toml",
+            ".codex/config.toml",
+            ".agents/skills/start-session/SKILL.md",
+        ]
+
+        count = classify_paths(runtime_paths + agent_paths)
+
+        self.assertEqual(tuple(runtime_paths), count.included)
+        self.assertEqual(tuple(agent_paths), count.excluded)
+        self.assertEqual(PROMOTE_TRIGGER - 1, count.app_facing)
+        self.assertNotIn("promote is due", render_count(count))
+
     def test_docs_cursor_and_scripts_are_excluded(self) -> None:
         for path in (
             "docs/workflows/schema/changelog-entry.md",

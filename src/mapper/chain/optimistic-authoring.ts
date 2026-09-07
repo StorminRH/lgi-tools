@@ -25,7 +25,7 @@ import type {
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
-import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
+import { followUpTypeSetterElimination } from '../signatures/type-setter-follow-up';
 import { connectionTypePatch, namedDoorType } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
@@ -33,6 +33,7 @@ import {
   connectionLifetimeFrom,
   hallwayDoor,
   hallwayDoorTypes,
+  isStaticPlaceholder,
   leadsToFromHint,
   leadsToFromSystem,
   lifetimeDeathWindow,
@@ -63,7 +64,11 @@ export type OptimisticConnectionRow = ConnectionHallway & {
   readonly _creationTime: number;
 };
 
-export const OPTIMISTIC_ID_PREFIX = 'optimistic:';
+const OPTIMISTIC_ID_PREFIX = 'optimistic:';
+
+export function isOptimisticTempId(id: string): boolean {
+  return id.startsWith(OPTIMISTIC_ID_PREFIX);
+}
 
 export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string {
   return `${OPTIMISTIC_ID_PREFIX}${table}:${crypto.randomUUID()}`;
@@ -337,6 +342,69 @@ export function optimisticSetConnectionWormholeType(
     { mapId: args.mapId },
     apply,
   );
+  if (args.value !== null) {
+    optimisticClaimStaticPlaceholder(localStore, {
+      mapId: args.mapId,
+      connectionId: args.connectionId,
+      typeCode: args.value,
+    });
+  }
+}
+
+function optimisticClaimStaticPlaceholder(
+  localStore: OptimisticLocalStore,
+  args: {
+    readonly mapId: string;
+    readonly connectionId: string;
+    readonly typeCode: string;
+  },
+): void {
+  const unresolved = localStore.getAllQueries(api.mapChainConnections.watchUnresolvedHoles);
+  const claimant = unresolved.flatMap((entry) => {
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
+    return entry.value.page.filter((row) => row._id === args.connectionId);
+  })[0];
+  if (
+    claimant === undefined
+    || claimant.staticCode !== undefined
+    || claimant.toSystemId !== null
+    || isTombstoned(claimant)
+  ) {
+    return;
+  }
+  const placeholder = unresolved.flatMap((entry) => {
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) return [];
+    return entry.value.page.filter((row) =>
+      row._id !== args.connectionId
+      && row.mapId === args.mapId
+      && row.fromSystemId === claimant.fromSystemId
+      && row.staticCode === args.typeCode
+      && isStaticPlaceholder(row)
+      && !isTombstoned(row),
+    );
+  })[0];
+  if (placeholder === undefined) return;
+  for (const entry of unresolved) {
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) continue;
+    localStore.setQuery(api.mapChainConnections.watchUnresolvedHoles, entry.args, {
+      ...entry.value,
+      page: entry.value.page.flatMap((row) => {
+        if (row._id === claimant._id) return [];
+        if (row._id !== placeholder._id) return [row];
+        return [{
+          ...row,
+          from: {
+            ...row.from,
+            signatureId: claimant.from.signatureId,
+            signalPct: claimant.from.signalPct,
+            leadsTo: claimant.from.leadsTo,
+          },
+          identity: claimant.identity,
+          lifetime: claimant.lifetime,
+        }];
+      }),
+    });
+  }
 }
 
 export interface ConnectionWindowSource {
@@ -616,14 +684,15 @@ export function useChainAuthoringMutations() {
         side: args.side,
         ...windowArgs(proposal),
       });
-      if (result === undefined) return undefined;
       const typedSystemId = args.side === 'to'
         && args.connection.toSystemId !== null
         ? args.connection.toSystemId
         : args.connection.fromSystemId;
-      await eliminateSignaturesAndAnnounce({
+      await followUpTypeSetterElimination({
         mapId: args.mapId,
+        connectionId: args.connection.connectionId,
         systemId: typedSystemId,
+        write: result,
       });
       return result;
     },

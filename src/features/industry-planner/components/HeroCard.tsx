@@ -6,8 +6,8 @@ import { cn } from '@/components/ui/cn';
 import { Card } from '@/components/ui/card';
 import { Stepper } from '@/components/ui/stepper';
 import { TypeIcon } from '@/components/type-icon';
-import { heroImage } from '@/data/eve-data/type-images';
-import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
+import { blueprintImage } from '@/data/eve-data/type-images';
+import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';
@@ -132,7 +132,7 @@ function HeroSteppers({
 }
 
 export function HeroCard({ structure }: { structure: BlueprintStructure }) {
-  const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
+  const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY;
 
   return (
     <Card
@@ -143,7 +143,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
     >
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-ctl border border-border p-2">
         <TypeIcon
-          {...heroImage(structure.blueprintTypeId)}
+          {...blueprintImage(structure.blueprintTypeId)}
           size={88}
           alt={structure.product.name}
           mono={structure.product.name.slice(0, 2)}

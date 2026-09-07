@@ -9,7 +9,6 @@ import {
   CAMERA_FIT_MAX_ZOOM,
   CAMERA_FIT_PADDING,
   IDLE_FLIGHT,
-  abortFlightForDrag,
   beginFlight,
   cameraEaseOf,
   decideFocus,
@@ -70,7 +69,6 @@ function runCameraFitEffect(input: {
   readonly minZoom: number;
   readonly intents: readonly MapChainIntent[];
   readonly follow: boolean;
-  readonly dragging: ReadonlySet<number>;
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ChainState['systems'];
   readonly config: MotionConfig;
@@ -93,7 +91,6 @@ function runCameraFitEffect(input: {
     previousIntents: input.prevIntentsRef.current,
     framed: input.framedRef.current,
     follow: input.follow,
-    dragActive: input.dragging.size > 0,
     nodeIds: input.nodeIds,
     systems: input.systems,
     frame: SYSTEM_FRAME_SIZE,
@@ -122,7 +119,6 @@ export interface CameraFocusRequest {
 interface CameraFollowProps {
   readonly intents: readonly MapChainIntent[];
   readonly follow: boolean;
-  readonly dragging: ReadonlySet<number>;
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ChainState['systems'];
   readonly config: MotionConfig;
@@ -134,7 +130,6 @@ interface CameraFollowProps {
 function useCameraFollow({
   intents,
   follow,
-  dragging,
   nodeIds,
   systems,
   config,
@@ -165,7 +160,6 @@ function useCameraFollow({
       minZoom,
       intents,
       follow,
-      dragging,
       nodeIds,
       systems,
       config,
@@ -178,7 +172,6 @@ function useCameraFollow({
   }, [
     intents,
     follow,
-    dragging,
     nodeIds,
     systems,
     config,
@@ -190,13 +183,6 @@ function useCameraFollow({
     minZoom,
   ]);
 
-  const dragActive = dragging.size > 0;
-  useEffect(() => {
-    if (!dragActive || !flightRef.current.active) return;
-    flightRef.current = abortFlightForDrag(flightRef.current);
-    void setViewport(getViewport());
-  }, [dragActive, setViewport, getViewport]);
-
   useEffect(() => {
     const request = newFocusRequest(
       focusRequest,
@@ -207,7 +193,6 @@ function useCameraFollow({
     focusTokenRef.current = request.token;
     const action = decideFocus({
       enabled: focusEnabled,
-      dragActive: dragging.size > 0,
       center: focusCenter(
         internalNodeSummary(getInternalNode(request.nodeId)),
         SYSTEM_FRAME_SIZE,
@@ -226,7 +211,6 @@ function useCameraFollow({
   }, [
     focusRequest,
     focusEnabled,
-    dragging,
     config,
     prefersReducedMotion,
     getInternalNode,

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createReservedConnectionMock } from './__tests__/support/reserved-connection-mock';
 import { withAdvisoryLock } from './advisory-lock';
 
 function makeClient(got: boolean, opts: { unlockThrows?: boolean } = {}) {
   const sqlCalls: string[] = [];
-  const release = vi.fn();
-  const reservedTag = vi.fn((strings: TemplateStringsArray) => {
+  const { client, reserved, reserve } = createReservedConnectionMock((strings) => {
     const text = strings.join('?');
     sqlCalls.push(text);
     if (text.includes('pg_try_advisory_lock')) return Promise.resolve([{ got }]);
@@ -13,11 +13,8 @@ function makeClient(got: boolean, opts: { unlockThrows?: boolean } = {}) {
       return Promise.resolve([{ unlocked: true }]);
     }
     return Promise.resolve([]);
-  }) as unknown as { release: typeof release };
-  (reservedTag as unknown as { release: typeof release }).release = release;
-  const reserve = vi.fn(() => Promise.resolve(reservedTag));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { client: { reserve } as any, sqlCalls, release, reserve };
+  });
+  return { client, sqlCalls, release: reserved.release, reserve };
 }
 
 describe('withAdvisoryLock', () => {

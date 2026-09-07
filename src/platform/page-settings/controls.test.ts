@@ -50,7 +50,6 @@ describe('resolveMenuControls', () => {
 
     const booleans = resolveMenuControls(
       spec([
-        { key: 'atlas.autoLayout', placement: 'section' },
         { key: 'atlas.cameraFollow', placement: 'section' },
         { key: 'atlas.clickFocus', placement: 'section' },
       ]),
@@ -58,15 +57,12 @@ describe('resolveMenuControls', () => {
     expect(booleans.map((m) => m.kind)).toEqual([
       'preference-boolean',
       'preference-boolean',
-      'preference-boolean',
     ]);
     expect(booleans.map((m) => m.key)).toEqual([
-      'atlas.autoLayout',
       'atlas.cameraFollow',
       'atlas.clickFocus',
     ]);
     expect(booleans.map((m) => m.label)).toEqual([
-      'auto layout',
       'camera follow',
       'click focus',
     ]);

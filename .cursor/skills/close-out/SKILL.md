@@ -38,15 +38,17 @@ is green on that run. Done when the list exists and step 1 is in progress.
 2. Size gate. Run
    `python3 tools/cli.py lifecycle count-app-facing --list --base origin/<destination> --head origin/<head>`.
    Count is due at 80 versus `staging`. A smaller clean chunk is fine
-   when the operator asked for one. Reviewers run
+   when the operator asked for one, including staging web testing. The resolver
+   also routes here below 80 when version 4.1 or later completion still needs
+   delivery of plans or final records. Reviewers run
    `origin pr diff <N>` after the draft exists. When the destination
    is `staging`, the `--list` is mirror isolation and a pile over 100
    is `BLOCKED`. Split first. Destination `main` still runs the
    count. It has no mirror and no file cap. Done when the count is
    known and, for `staging`, under the cap.
 3. Run the local test suite through `test-runner` until it passes.
-   Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
-   `dupes`, and `health`, plus focused tests for the diff, are green
+   Done when every local-suite command in `AGENTS.md`, including
+   both Fallow dead-code modes and focused tests for the diff, is green
    on the head.
 4. Open the Origin draft (`<head>` → destination) per **Origin PR**.
    Done when that PR is draft and the change number is known.
@@ -58,7 +60,7 @@ is green on that run. Done when the list exists and step 1 is in progress.
    the mirror PR is open ready and Greptile and CodeRabbit have been
    requested. Destination `main` skips the mirror.
 7. Freeze and review. Invoke `adversarial-review` on that Origin
-   change. Brief is the change number. Every Cursor seat runs
+   change. Brief is the change number. Every review seat runs
    `origin pr diff <N>`. Bugbot on open. Mirror bots when a mirror
    exists. Done when every freeze seat has returned, Bugbot and
    mirror review have finished posting, and the tree is still the
@@ -66,16 +68,24 @@ is green on that run. Done when the list exists and step 1 is in progress.
 8. One batch. Triage every finding from that settled window.
    Dedupe. Accept or reject. Fix the accepted set on the head.
    Note dispositions on the Origin PR. Run the local test suite.
-   Pause in chat with the reasoning when leaving a finding
-   unfixed. Done when every accepted finding is on the head, or
-   the operator has that pause, and the suite is green.
+   Reject findings with evidence when they are false positives, hypothetical
+   misuse by absent callers, or changes whose cost outweighs their benefit.
+   Report the justification and continue. Pause only for an unresolved material
+   risk, disputed product behavior, or deferral of a confirmed defect.
+   Done when every finding has a disposition, accepted fixes are on the
+   head, and the suite is green.
 9. When the destination is `staging`, author as-builts for the
    work this PR delivers, per `docs/workflows/schema/session-as-built.md`.
-   One record per session in the range, and one for ordinary work
-   in the same PR. A session that still has work only on
-   `development` waits for a later close-out. The Delivered
-   outcome carries the plain-speech bullets the changelog will
-   lift. Push the as-builts and any remaining mirror fixes to the
+   Write a numbered final record for each completed session and a separate
+   record for ordinary work. For an incomplete session, write an ordinary-work
+   style partial-delivery record linked to its session and delivered OWs;
+   record available proof without claiming unfinished criteria passed. Reserve
+   its numbered final record for the promotion completing the session. From
+   version 4.1 onward, every finalized session names this Origin PR and its
+   actual head branch; retain historical record rules through version 4.0.
+   Link earlier partial records to avoid duplicate changelog lines. The
+   Delivered outcome carries the plain-speech bullets the changelog will lift.
+   Push the as-builts and any remaining mirror fixes to the
    Origin draft. Run the local test suite on that head. Done when
    those commits are on that PR and the suite is green.
 10. Dispatch per **Depot**. That command is the watch todo. Done
@@ -88,8 +98,11 @@ is green on that run. Done when the list exists and step 1 is in progress.
 13. When the destination is `staging`, `origin pr thread list
     --unresolved` empty. Merge per **Merge**. Close the mirror PR
     unmerged. Done when Origin `staging` holds the head.
-14. Resync per **Resync**. Done when `development` contains
-    `staging`. Return `PROMOTED`.
+14. When the destination is `staging`, resync per **Resync**. Done when
+    `development` contains
+    `staging`. Return `PROMOTED`. When the operator requested staging web
+    testing, hand back to the pending `ux-check` or OW visual pause. The merge
+    does not approve the UI; testing and operator disposition remain required.
 
 Outputs. Exactly one:
 
@@ -175,15 +188,23 @@ Origin `staging` to GitHub `staging` so the mirror base matches the
 already-reviewed line. Build `dump/<YYYY-MM-DD>-<shortsha>` from that
 base with only the isolated paths at the head SHA. Open the GitHub PR
 ready for review on `StorminRH/lgi-tools` (`dump/...` → `staging`) with
-`gh pr create` or the GitHub MCP. Request Greptile and CodeRabbit by
-hand.
+`gh pr create` or the GitHub MCP. Request Greptile and CodeRabbit once
+by hand. The GitHub dump gets one review pass. CodeRabbit uses the free tier;
+a single response is expected. Review fixes locally and keep the mirror paths
+current without requesting another bot pass or waiting for review credits.
+A later rate-limit notice does not invalidate the completed first pass.
+Record a disposition for any additional findings that arrive without restarting
+the review loop.
 
 ## Merge
 
 Done when the Origin PR is merged to its base line.
 
-`origin pr thread list --unresolved` is empty, or the operator
-paused. Merge with `origin pr merge <N>`. That merge is what
+`origin pr thread list --unresolved` is empty and every pre-merge operator
+pause has a recorded disposition. An operator-requested staging test is a
+post-promotion pause: record that direction, complete this process, then return
+to the pending test. Other pending pauses stop the merge.
+Merge with `origin pr merge <N>`. That merge is what
 moves the work onto the destination. It waits for this step.
 `--merge`, `--squash`, `--auto`, and `--branch` hit the same
 merge gate. A Cloud Agent token that is not scoped for merge

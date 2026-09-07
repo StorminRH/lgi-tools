@@ -4,7 +4,6 @@ import {
   type PaginationResult,
 } from 'convex/server';
 import { v } from 'convex/values';
-import { isTombstoned } from '@/data/maps/chain-contract';
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
@@ -50,10 +49,7 @@ async function readConnectionPage(
     .query('mapConnections')
     .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', null))
     .paginate(bounded);
-  return {
-    ...result,
-    page: result.page.filter((row) => !isTombstoned(row)) as UnresolvedMapConnection[],
-  };
+  return result as PaginationResult<UnresolvedMapConnection>;
 }
 
 export const watchMapConnections = query({

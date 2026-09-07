@@ -62,12 +62,6 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
   'marginal',
 );
 
-export const atlasAutoLayout = define<boolean>(
-  'atlas.autoLayout',
-  z.boolean(),
-  true,
-);
-
 export const atlasCameraFollow = define<boolean>(
   'atlas.cameraFollow',
   z.boolean(),
@@ -108,7 +102,6 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   plannerBuildCharacter,
   sitesDetailMode,
   industryCostBasis,
-  atlasAutoLayout,
   atlasCameraFollow,
   atlasClickFocus,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
@@ -116,6 +109,19 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
 export const PREFERENCE_KEYS: readonly string[] = PREFERENCES.map((p) => p.key);
+
+export const RETIRED_PREFERENCE_KEYS = ['atlas.autoLayout'] as const;
+
+export function pruneRetiredPreferences(): void {
+  const store = safeStorage();
+  if (store === null) return;
+  for (const key of RETIRED_PREFERENCE_KEYS) {
+    try {
+      store.removeItem(LS_PREFIX + key);
+    } catch {
+    }
+  }
+}
 
 export function getPreferenceDef(key: string): PreferenceDef<unknown> | undefined {
   return BY_KEY.get(key);

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const logUsageEventMock = vi.fn();
 const afterMock = vi.fn();
 
-vi.mock('./queries', () => ({
+vi.mock('./log', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 vi.mock('next/server', () => ({ after: (callback: () => unknown) => afterMock(callback) }));

@@ -9,13 +9,14 @@ import {
   chainTombstoneState,
   type ChainTombstoneState,
 } from '@/data/maps/chain-contract';
-import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
+import {
+  doorHint,
+  hallwayDoorTypes,
+  isStaticPlaceholder,
+} from '@/data/maps/connection-hallway';
 import type { ConnectionDoorValue, ConnectionTombstone } from '@/data/maps/connection-hallway';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import {
-  believedHoles,
-  type StaticStubSlot,
-} from '@/data/maps/stub-accounting';
+import { hiddenUnidentifiedSignatures } from '@/data/maps/stub-accounting';
 import type { HaloLink, PlacedHaloSystem } from '../halo/halo-model';
 import { pairKey } from '../lib/pair-key';
 import type { EdgeMotion } from '../motion/motion-contract';
@@ -70,13 +71,12 @@ export interface PlacedStaticStub {
 
 export type PlacedStub = PlacedStubConnection | PlacedStaticStub;
 
-export interface StubPlanningSignature {
+export interface StubPlanningRow {
   readonly connectionId: string;
   readonly fromSystemId: number;
-  readonly signatureId: string;
-  readonly wormholeTypeCode: string | null;
-  readonly whClassId: number | null;
-  readonly destinationHint?: WormholeDestinationHint | null;
+  readonly toSystemId: number | null;
+  readonly from: ConnectionDoorValue;
+  readonly staticCode?: string;
 }
 
 export interface StubPlanningConnection {
@@ -85,6 +85,11 @@ export interface StubPlanningConnection {
   readonly from: ConnectionDoorValue;
   readonly to: ConnectionDoorValue;
   readonly tombstone?: ConnectionTombstone;
+}
+
+export interface StaticStubClass {
+  readonly className: string;
+  readonly whClassId: number;
 }
 
 export type PlannedStub =
@@ -105,43 +110,95 @@ function localConnectionFacts(
   };
 }
 
+function claimedCodeCounts(
+  signatures: readonly { readonly wormholeTypeCode: string | null }[],
+  connections: readonly { readonly wormholeTypeCode: string | null }[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const hole of [...signatures, ...connections]) {
+    const code = hole.wormholeTypeCode;
+    if (code !== null) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function unclaimedPlaceholders<Row extends { readonly staticCode: string }>(
+  placeholders: readonly Row[],
+  claimed: ReadonlyMap<string, number>,
+): Row[] {
+  const skippedByCode = new Map<string, number>();
+  return placeholders.filter((row) => {
+    const skipped = skippedByCode.get(row.staticCode) ?? 0;
+    const consume = claimed.get(row.staticCode) ?? 0;
+    if (skipped < consume) {
+      skippedByCode.set(row.staticCode, skipped + 1);
+      return false;
+    }
+    return true;
+  });
+}
+
 export function planStubNodes(input: {
   readonly systemIds: readonly number[];
-  readonly signatures: readonly StubPlanningSignature[];
+  readonly rows: readonly StubPlanningRow[];
   readonly connections: readonly StubPlanningConnection[];
-  readonly staticsBySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
   readonly rootSystemId: number | null;
+  readonly classOf: (code: string) => StaticStubClass | null;
 }): readonly PlannedStub[] {
   const planned: PlannedStub[] = [];
   for (const systemId of input.systemIds) {
-    const signatures = input.signatures.filter(
-      (signature) => signature.fromSystemId === systemId,
-    );
+    const localRows = input.rows.filter((row) => row.fromSystemId === systemId);
     const connections = input.connections.filter(
       (connection) =>
         !isTombstoned(connection)
         && (connection.fromSystemId === systemId || connection.toSystemId === systemId),
     );
-    const plan = believedHoles({
-      statics: input.staticsBySystem.get(systemId) ?? [],
+    const connectionFacts = connections.map((connection) =>
+      localConnectionFacts(connection, systemId));
+    const signatures = localRows.flatMap((row) => {
+      const signatureId = row.from.signatureId;
+      if (signatureId === null) return [];
+      const typeCode = row.from.typeCode;
+      return [{
+        connectionId: row.connectionId,
+        fromSystemId: systemId,
+        signatureId,
+        wormholeTypeCode: typeCode,
+        destinationHint: doorHint(row.from),
+        whClassId: typeCode === null ? null : input.classOf(typeCode)?.whClassId ?? null,
+      }];
+    });
+    const placeholders = localRows.flatMap((row) => {
+      if (!isStaticPlaceholder(row) || row.from.typeCode === null) return [];
+      const staticCode = row.staticCode;
+      if (staticCode === undefined) return [];
+      const decoration = input.classOf(row.from.typeCode);
+      if (decoration === null) return [];
+      return [{
+        staticId: row.connectionId,
+        fromSystemId: systemId,
+        code: row.from.typeCode,
+        className: decoration.className,
+        whClassId: decoration.whClassId,
+        staticCode,
+      }];
+    });
+    const unclaimed = unclaimedPlaceholders(
+      placeholders,
+      claimedCodeCounts(signatures, connectionFacts),
+    );
+    const hidden = hiddenUnidentifiedSignatures({
+      unclaimedStatics: unclaimed.length,
       signatures: signatures.map((signature) => ({
         id: signature.connectionId,
         wormholeTypeCode: signature.wormholeTypeCode,
       })),
-      connections: connections.map((connection) =>
-        localConnectionFacts(connection, systemId)),
+      connections: connectionFacts,
       isRoot: systemId === input.rootSystemId,
     });
-    const drawnSignatures = new Set(plan.signatureStubIds);
     planned.push(
-      ...signatures.filter((signature) => drawnSignatures.has(signature.connectionId)),
-      ...plan.staticStubs.map((stub) => ({
-        staticId: stub.id,
-        fromSystemId: systemId,
-        code: stub.code,
-        className: stub.className,
-        whClassId: stub.whClassId,
-      })),
+      ...signatures.filter((signature) => !hidden.has(signature.connectionId)),
+      ...unclaimed.map(({ staticCode: _staticCode, ...stub }) => stub),
     );
   }
   return planned;
@@ -180,7 +237,6 @@ export function syncNodes(
   previous: readonly ChainNode[],
   systems: ChainState['systems'],
   labelOf: (systemId: number) => SystemLabel,
-  dragging: ReadonlySet<number>,
   halo: readonly PlacedHaloSystem[] = [],
   stubs: readonly PlacedStub[] = [],
 ): ChainNode[] {
@@ -189,7 +245,6 @@ export function syncNodes(
   const authored = [...systems.values()].map((placed): ChainNode => {
     const id = String(placed.systemId);
     const local = localById.get(id);
-    const holdLocal = local !== undefined && dragging.has(placed.systemId);
     const label = labelOf(placed.systemId);
 
     return {
@@ -198,7 +253,7 @@ export function syncNodes(
       type: CHAIN_NODE_TYPE,
       width: SYSTEM_FRAME_WIDTH,
       height: SYSTEM_FRAME_HEIGHT,
-      position: holdLocal ? local.position : placed.position,
+      position: placed.position,
       style: INERT_NODE_STYLE,
       data: {
         name: label.name,

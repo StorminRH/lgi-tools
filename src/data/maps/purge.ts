@@ -2,12 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bestEffort } from '@/lib/best-effort';
 import type { PurgeContributor } from '@/platform/purge/types';
-import {
-  getCharacterCorporationId,
-  getMapIdsWithCharacterGrant,
-  getMapIdsWithCorporationGrants,
-  getOwnedMapIds,
-} from './queries';
+import { affectedMapIdsForCharacter, getOwnedMapIds } from './queries';
 import { mapAccess, maps } from './schema';
 
 export interface MapAccessProjectionPurgeHooks {
@@ -50,13 +45,7 @@ export function createMapsPurgeContributor(
     tier: 'credential',
     claims: [maps, mapAccess],
     async purgeCharacter({ characterId }) {
-      const corporationId = await getCharacterCorporationId(characterId);
-      const characterMaps = await getMapIdsWithCharacterGrant(characterId);
-      const corporationMaps =
-        corporationId === null
-          ? []
-          : await getMapIdsWithCorporationGrants([corporationId]);
-      const affectedMapIds = [...new Set([...characterMaps, ...corporationMaps])];
+      const affectedMapIds = await affectedMapIdsForCharacter(characterId);
 
       await deleteCharacterMapGrants(characterId);
 

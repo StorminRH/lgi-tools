@@ -42,6 +42,8 @@ function connectionEditorDetail(
     firstSeenAt: optionalOrNull(row.firstSeenAt),
     observedMassKg: optionalOrNull(row.observedMassKg),
     observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
+    ...(row.staticCode === undefined ? {} : { staticCode: row.staticCode }),
+    ...(row.seatOrderAt === undefined ? {} : { seatOrderAt: row.seatOrderAt }),
   };
 }
 
@@ -64,10 +66,34 @@ export interface UnresolvedHoleSummary extends ConnectionEditorDetail {
   readonly toSystemId: null;
 }
 
+export interface AwaitingJumpSummary extends UnresolvedHoleSummary {
+  readonly resolution: Extract<ConnectionHallway['resolution'], { kind: 'awaiting-signature' }>;
+}
+
+export function awaitingJumpsFromRows(
+  rows: readonly Doc<'mapConnections'>[],
+): readonly AwaitingJumpSummary[] {
+  return rows.flatMap((row) =>
+    row.toSystemId === null && row.resolution.kind === 'awaiting-signature' && !isTombstoned(row)
+      ? [{ ...connectionEditorDetail(row), toSystemId: null, resolution: row.resolution }]
+      : [],
+  );
+}
+
 export function unresolvedHolesFromRows(
   rows: readonly Doc<'mapConnections'>[],
 ): readonly UnresolvedHoleSummary[] {
   return rows
-    .filter((row) => row.toSystemId === null && !isTombstoned(row))
+    .filter((row) => row.toSystemId === null
+      && row.resolution.kind !== 'awaiting-signature' && !isTombstoned(row))
+    .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
+}
+
+export function slotHolderRows(
+  rows: readonly Doc<'mapConnections'>[],
+): readonly UnresolvedHoleSummary[] {
+  return rows
+    .filter((row) => row.toSystemId === null
+      && row.resolution.kind !== 'awaiting-signature' && isTombstoned(row))
     .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
 }

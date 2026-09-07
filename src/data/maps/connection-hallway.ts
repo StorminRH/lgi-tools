@@ -44,6 +44,12 @@ export type ConnectionLifetime =
 
 export type ConnectionResolution =
   | { kind: 'open' }
+  | {
+      kind: 'awaiting-signature';
+      destinationSystemId: number;
+      candidates: { connectionId: ConnectionRowId; signatureId: string | null }[];
+      characterId: number;
+    }
   | { kind: 'destination'; provenance: ConnectionProvenance }
   | {
       kind: 'pending';
@@ -76,6 +82,8 @@ export interface ConnectionHallway {
   observedMassKg?: number;
   observedMassAtStateKg?: number;
   observationKey?: string;
+  staticCode?: string;
+  seatOrderAt?: number;
 }
 
 export function blankDoor(): ConnectionDoorValue {
@@ -203,7 +211,9 @@ export function isPendingResolution(
 }
 
 export function hasAnswerablePrompt(resolution: ConnectionResolution): boolean {
-  return isPendingResolution(resolution) && resolution.candidateIds.length > 1;
+  return resolution.kind === 'awaiting-signature'
+    ? resolution.candidates.length > 1
+    : isPendingResolution(resolution) && resolution.candidateIds.length > 1;
 }
 
 export function leadsToEquals(left: DoorLeadsTo, right: DoorLeadsTo): boolean {
@@ -229,7 +239,9 @@ export function identityEquals(
 export function destinationProvenanceOf(
   resolution: ConnectionResolution,
 ): ConnectionProvenance | null {
-  return resolution.kind === 'open' ? null : resolution.provenance;
+  return resolution.kind === 'open' || resolution.kind === 'awaiting-signature'
+    ? null
+    : resolution.provenance;
 }
 
 export function clearPendingResolution(
@@ -278,4 +290,23 @@ export function hallwayDoorTypes(hallway: {
   readonly to: ConnectionDoorValue;
 }): { readonly from: string | null; readonly to: string | null } {
   return { from: hallway.from.typeCode, to: hallway.to.typeCode };
+}
+
+export function isStaticPlaceholder(row: {
+  readonly staticCode?: string;
+  readonly toSystemId: number | null;
+  readonly from: { readonly signatureId: string | null };
+}): boolean {
+  return (
+    row.staticCode !== undefined
+    && row.toSystemId === null
+    && row.from.signatureId === null
+  );
+}
+
+export function seatOrderOf(row: {
+  readonly seatOrderAt?: number;
+  readonly _creationTime: number;
+}): number {
+  return row.seatOrderAt ?? row._creationTime;
 }

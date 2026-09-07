@@ -16,7 +16,6 @@ import {
 
 const PLAN = tweenPlanOf(DEFAULT_MOTION_CONFIG, false);
 const EASE = springFamily(DEFAULT_MOTION_CONFIG.overshootPct).ease;
-const NONE: ReadonlySet<number> = new Set();
 const FLAVOR = DEFAULT_MOTION_CONFIG.edgeFlavor;
 
 const node = (systemId: number, x: number, y: number): ChainNode => ({
@@ -54,8 +53,7 @@ const mergeInput = (
   truth: MotionTruth,
   intents: readonly MapChainIntent[],
   now: number,
-  dragging: ReadonlySet<number> = NONE,
-) => ({ truth, intents, now, plan: PLAN, dragging, flavor: FLAVOR });
+) => ({ truth, intents, now, plan: PLAN, flavor: FLAVOR });
 
 describe('glide derivation', () => {
   it('renders a fresh tween at its origin in the adoption commit, then steps along the spring', () => {
@@ -63,11 +61,11 @@ describe('glide derivation', () => {
     const intents = [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })];
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, intents, 0));
 
-    const atAdoption = derivePresentation(preMerge, host, NONE, FLAVOR);
+    const atAdoption = derivePresentation(preMerge, host, FLAVOR);
     expect(atAdoption.nodes[0]?.position).toEqual({ x: 0, y: 0 });
 
-    const half = stepHost(host, PLAN.moveMs / 2, EASE, NONE, false);
-    const midway = derivePresentation(preMerge, half.next, NONE, FLAVOR);
+    const half = stepHost(host, PLAN.moveMs / 2, EASE, false);
+    const midway = derivePresentation(preMerge, half.next, FLAVOR);
     expect(midway.nodes[0]?.position.x).toBeCloseTo(100 * EASE(0.5), 6);
   });
 
@@ -77,11 +75,11 @@ describe('glide derivation', () => {
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, intents, 0));
 
     const postMerge = truthOf([node(31, 100, 0)]);
-    const commit = derivePresentation(postMerge, host, NONE, FLAVOR);
+    const commit = derivePresentation(postMerge, host, FLAVOR);
     expect(commit.nodes[0]?.position).toEqual({ x: 0, y: 0 });
 
-    const half = stepHost(host, PLAN.moveMs / 2, EASE, NONE, false);
-    const midway = derivePresentation(postMerge, half.next, NONE, FLAVOR);
+    const half = stepHost(host, PLAN.moveMs / 2, EASE, false);
+    const midway = derivePresentation(postMerge, half.next, FLAVOR);
     expect(midway.nodes[0]?.position.x).toBeGreaterThan(0);
     expect(midway.nodes[0]?.position.x).not.toBe(100);
   });
@@ -91,8 +89,8 @@ describe('glide derivation', () => {
     const intents = [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })];
     const host = consumeMerge(createHostState([]), mergeInput(postMerge, intents, 0));
 
-    const done = stepHost(host, PLAN.moveMs + 1, EASE, NONE, false);
-    const settled = derivePresentation(postMerge, done.next, NONE, FLAVOR);
+    const done = stepHost(host, PLAN.moveMs + 1, EASE, false);
+    const settled = derivePresentation(postMerge, done.next, FLAVOR);
     expect(settled.nodes[0]).toBe(postMerge.nodes[0]);
     expect(done.active).toBe(false);
   });
@@ -106,28 +104,19 @@ describe('identity preservation', () => {
     let host = consumeMerge(createHostState([]), mergeInput(truth, intents, 0));
 
     for (const now of [100, 200, 300]) {
-      host = stepHost(host, now, EASE, NONE, false).next;
-      const frame = derivePresentation(truth, host, NONE, FLAVOR);
+      host = stepHost(host, now, EASE, false).next;
+      const frame = derivePresentation(truth, host, FLAVOR);
       expect(frame.nodes[1]).toBe(bystander);
     }
   });
 
-  it('passes a dragged node through untouched even while it has a live tween', () => {
-    const dragged = node(31, 42, 43);
-    const truth = truthOf([dragged]);
-    const intents = [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })];
-    const host = consumeMerge(createHostState([]), mergeInput(truth, intents, 0));
-
-    const frame = derivePresentation(truth, host, new Set([31]), FLAVOR);
-    expect(frame.nodes[0]).toBe(dragged);
-  });
 
   it('leaves edges untouched by reference when nothing about them animates', () => {
     const plain = edge('c1', 31, 32);
     const truth = truthOf([node(31, 0, 0), node(32, 10, 10)], [plain]);
     const host = createHostState([]);
 
-    const frame = derivePresentation(truth, host, NONE, FLAVOR);
+    const frame = derivePresentation(truth, host, FLAVOR);
     expect(frame.edges[0]).toBe(plain);
   });
 });
@@ -142,12 +131,12 @@ describe('birth derivation', () => {
     const truth = truthOf([node(31, 40, 50)]);
     const host = consumeMerge(createHostState([]), mergeInput(truth, [arrival], 0));
 
-    const frame = derivePresentation(truth, host, NONE, FLAVOR);
+    const frame = derivePresentation(truth, host, FLAVOR);
     expect(frame.nodes[0]?.position).toEqual({ x: 40, y: 50 });
     expect(frame.nodes[0]?.data.motion).toEqual({ phase: 'entering' });
 
-    const after = stepHost(host, PLAN.birthMs + 1, EASE, NONE, false);
-    const settled = derivePresentation(truth, after.next, NONE, FLAVOR);
+    const after = stepHost(host, PLAN.birthMs + 1, EASE, false);
+    const settled = derivePresentation(truth, after.next, FLAVOR);
     expect(settled.nodes[0]).toBe(truth.nodes[0]);
   });
 });
@@ -160,7 +149,7 @@ describe('departure derivation', () => {
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, [departure], 0));
 
     const postMerge = truthOf([node(32, 0, 0)]);
-    const frame = derivePresentation(postMerge, host, NONE, FLAVOR);
+    const frame = derivePresentation(postMerge, host, FLAVOR);
     expect(frame.nodes).toHaveLength(2);
     const ghost = frame.nodes[1];
     expect(ghost?.id).toBe('31');
@@ -176,8 +165,8 @@ describe('departure derivation', () => {
     const preMerge = truthOf([node(31, 40, 50)]);
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, [departure], 0));
 
-    const expired = stepHost(host, PLAN.exitMs + 1, EASE, NONE, false);
-    const frame = derivePresentation(truthOf([]), expired.next, NONE, FLAVOR);
+    const expired = stepHost(host, PLAN.exitMs + 1, EASE, false);
+    const frame = derivePresentation(truthOf([]), expired.next, FLAVOR);
     expect(frame.nodes).toHaveLength(0);
     expect(expired.next.ghostNodes.size).toBe(0);
   });
@@ -194,7 +183,7 @@ describe('departure derivation', () => {
     const rearrivalTruth = truthOf([node(31, 40, 50)]);
     host = consumeMerge(host, mergeInput(rearrivalTruth, [rearrival], 100));
 
-    const frame = derivePresentation(rearrivalTruth, host, NONE, FLAVOR);
+    const frame = derivePresentation(rearrivalTruth, host, FLAVOR);
     expect(frame.nodes).toHaveLength(1);
     expect(frame.nodes[0]?.data.motion).toEqual({ phase: 'entering' });
   });
@@ -218,7 +207,7 @@ describe('departure derivation', () => {
       flavor: 'grow-from-parent',
     });
 
-    const frame = derivePresentation(postMerge, host, NONE, 'grow-from-parent');
+    const frame = derivePresentation(postMerge, host, 'grow-from-parent');
     const ghostEdge = frame.edges.find((candidate) => candidate.id === 'c1');
     expect(ghostEdge).toBeDefined();
     expect(ghostEdge?.data.motion).toMatchObject({
@@ -226,8 +215,8 @@ describe('departure derivation', () => {
       flavor: 'grow',
     });
 
-    const expired = stepHost(host, PLAN.exitMs + 1, EASE, NONE, false);
-    const after = derivePresentation(truthOf([node(31, 0, 0)]), expired.next, NONE, 'grow-from-parent');
+    const expired = stepHost(host, PLAN.exitMs + 1, EASE, false);
+    const after = derivePresentation(truthOf([node(31, 0, 0)]), expired.next, 'grow-from-parent');
     expect(after.edges).toHaveLength(0);
   });
 
@@ -235,7 +224,7 @@ describe('departure derivation', () => {
     const preMerge = truthOf([node(31, 40, 50)]);
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, [departure], 0));
 
-    const frame = derivePresentation(preMerge, host, NONE, FLAVOR);
+    const frame = derivePresentation(preMerge, host, FLAVOR);
     expect(frame.nodes).toHaveLength(1);
     expect(frame.nodes[0]?.data.motion).toEqual({ phase: 'departing', heavy: false });
   });
@@ -297,7 +286,7 @@ describe('edge motion flavor', () => {
     );
     const host = consumeMerge(createHostState([]), mergeInput(truth, [arriving], 0));
 
-    const frame = derivePresentation(truth, host, NONE, FLAVOR);
+    const frame = derivePresentation(truth, host, FLAVOR);
     expect(frame.edges[0]?.data.motion?.phase).toBe('entering');
   });
 });
@@ -384,10 +373,10 @@ describe('reduced-motion flip', () => {
     const intents = [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })];
     const host = consumeMerge(createHostState([]), mergeInput(truth, intents, 0));
 
-    const flipped = stepHost(host, 50, EASE, NONE, true);
+    const flipped = stepHost(host, 50, EASE, true);
     expect(flipped.next.motion.tweens.size).toBe(0);
     expect(flipped.next.displacements.size).toBe(0);
-    const frame = derivePresentation(truth, flipped.next, NONE, FLAVOR);
+    const frame = derivePresentation(truth, flipped.next, FLAVOR);
     expect(frame.nodes[0]).toBe(truth.nodes[0]);
   });
 });

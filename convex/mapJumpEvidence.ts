@@ -4,9 +4,10 @@ import { internalQuery } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
 import { findSystem } from './lib/mapSystemLookup';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
+import { hallwayDoorTypes, isStaticPlaceholder } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
+  hasAwaitingReturn,
   type EmissionFacts,
   readConnectionsFrom,
   readTrackedLocation,
@@ -15,7 +16,7 @@ import {
 
 function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
   return rows.flatMap((row) => {
-    if (isTombstoned(row)) return [];
+    if (isTombstoned(row) || isStaticPlaceholder(row)) return [];
     const originType = hallwayDoorTypes(row).from;
     return originType === null ? [] : [originType];
   });
@@ -71,11 +72,36 @@ export const jumpEvidence = internalQuery({
         q.eq('mapId', mapId).eq('characterId', characterId),
       )
       .unique();
+    const lastProcessedTransitionAt = stamp?.lastProcessedTransitionAt ?? null;
+    const transition = {
+      fromSolarSystemId: location.prevSolarSystemId,
+      toSolarSystemId: location.solarSystemId,
+      shipTypeId: location.shipTypeId,
+      prevFresh: location.prevFresh,
+      transitionObservedAt: location.transitionObservedAt,
+    };
+    if (
+      lastProcessedTransitionAt !== null
+      && lastProcessedTransitionAt >= location.transitionObservedAt
+    ) {
+      return {
+        canEdit: true as const,
+        tracked: true as const,
+        transition,
+        lastProcessedTransitionAt,
+        originLive: false,
+        scannedTypeCodes: [],
+        candidates: [],
+      };
+    }
     const fromSolarSystemId = location.prevSolarSystemId;
     const origin = fromSolarSystemId === null
       ? null
       : await findSystem(ctx, mapId, fromSolarSystemId);
-    const originLive = origin !== null && !isTombstoned(origin);
+    const originLive = origin !== null
+      ? !isTombstoned(origin)
+      : fromSolarSystemId !== null && location.prevFresh
+        && await hasAwaitingReturn(ctx, mapId, fromSolarSystemId, location.solarSystemId);
     const originRows = originLive && fromSolarSystemId !== null
       ? await readConnectionsFrom(ctx, mapId, fromSolarSystemId, 'candidate')
       : [];
@@ -84,14 +110,8 @@ export const jumpEvidence = internalQuery({
     return {
       canEdit: true as const,
       tracked: true as const,
-      transition: {
-        fromSolarSystemId: location.prevSolarSystemId,
-        toSolarSystemId: location.solarSystemId,
-        shipTypeId: location.shipTypeId,
-        prevFresh: location.prevFresh,
-        transitionObservedAt: location.transitionObservedAt,
-      },
-      lastProcessedTransitionAt: stamp?.lastProcessedTransitionAt ?? null,
+      transition,
+      lastProcessedTransitionAt,
       originLive,
       scannedTypeCodes: scannedTypeCodes(originRows),
       candidates: candidates.map((candidate) => ({

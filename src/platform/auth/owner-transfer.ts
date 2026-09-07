@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { reconcileAfterCharacterRemoval } from './account-purge';
 import { reassignCharacter } from './admin-users';
 import { accountMatch } from './eve-account-shared';
-import type { IdentityProjectionRunners } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { account } from '@/db/auth-schema';
 
 /**
