@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from 'react';
 import type { Id } from '@/data/convex/data-model';
 import type {
+  AwaitingJumpSummary,
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
@@ -30,6 +31,7 @@ export function SignatureProvider({
   canEdit,
   connectionDetails,
   unresolvedHoles,
+  awaitingJumps,
   authoring,
   panelTarget,
   onPanelTargetChange,
@@ -41,6 +43,7 @@ export function SignatureProvider({
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
+  readonly awaitingJumps: readonly AwaitingJumpSummary[];
   readonly authoring: ConnectionAuthoringApi;
   readonly panelTarget: ScannerPanelTarget;
   readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
@@ -69,6 +72,7 @@ export function SignatureProvider({
     canEdit,
     connectionDetails,
     unresolvedHoles,
+    awaitingJumps,
   );
   const panel = useSignaturePanel({
     onPanelTargetChange,

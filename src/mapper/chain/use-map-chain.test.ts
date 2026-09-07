@@ -9,6 +9,7 @@ import {
   layoutPostKey,
 } from './chain-signature';
 import {
+  awaitingJumpsFromRows,
   connectionDetailsFromRows,
   slotHolderRows,
   unresolvedHolesFromRows,
@@ -95,6 +96,23 @@ const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
 };
 
 describe('chain snapshot signature', () => {
+  it('projects an awaiting jump only as a prompt, leaving graph and scanner rows untouched', () => {
+    const candidate = unresolvedConnection({ _id: 'candidate', from: { ...blankDoor(), signatureId: 'AAA-123' } });
+    const awaiting = unresolvedConnection({
+      _id: 'awaiting',
+      resolution: {
+        kind: 'awaiting-signature', destinationSystemId: AMARR, characterId: 101,
+        candidates: [{ connectionId: candidate._id, signatureId: 'AAA-123' }],
+      },
+    });
+    const rows = [candidate, awaiting];
+    expect([...connectionDetailsFromRows(rows)]).toEqual([]);
+    expect(unresolvedHolesFromRows(rows).map((row) => row.connectionId)).toEqual([candidate._id]);
+    expect(awaitingJumpsFromRows(rows).map((row) => row.connectionId)).toEqual([awaiting._id]);
+    const removed = { ...awaiting, tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: 2 } };
+    expect(awaitingJumpsFromRows([removed])).toEqual([]);
+    expect(slotHolderRows([removed])).toEqual([]);
+  });
   it('is stable across freshly built objects with identical content', () => {
     const a = chainSignature(
       systems([JITA, AMARR]),

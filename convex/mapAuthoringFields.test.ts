@@ -259,9 +259,7 @@ describe('map authoring', () => {
         from: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
       });
       const afterNote = await readConnection(t, connectionId);
-      expect(
-        afterNote?.resolution.kind === 'open' ? undefined : afterNote?.resolution.provenance,
-      ).toBeUndefined();
+      expect(afterNote?.resolution).toEqual({ kind: 'open' });
       expect(await readSystem(t, DODIXIE)).toBeNull();
       expect(await readSystem(t, AMARR)).toMatchObject({
         systemId: AMARR,

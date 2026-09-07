@@ -85,6 +85,10 @@ export default {
         shipTypeId: SHIP_TYPE_ID,
         transitionObservedAt: baseTime,
       });
+      await convexRun('mapStatics:fetchSystemStatics', {
+        mapId,
+        systemId: ORIGIN_SYSTEM_ID,
+      });
     });
     await Promise.all([
       waitForTopology(page, 3, 2),
@@ -251,6 +255,10 @@ export default {
         fromSignatureId: signatureId,
       });
     }
+    await Promise.all([
+      waitForTopology(page, 6, 5),
+      waitForTopology(second.page, 6, 5),
+    ]);
 
     const ambiguous = await doorbellAfter(page, async () => {
       await advanceLocation({
@@ -268,8 +276,8 @@ export default {
       && ['authored', 'converged'].includes(ambiguous?.outcome),
     );
     await Promise.all([
-      waitForTopology(page, 7, 6),
-      waitForTopology(second.page, 7, 6),
+      waitForTopology(page, 6, 5),
+      waitForTopology(second.page, 6, 5),
       page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
       second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
     ]);
@@ -283,11 +291,18 @@ export default {
       && (await primaryCandidates.count()) === 2
       && (await secondaryCandidates.count()) === 2,
     );
+    check(
+      'the destination has no map node until a signature is selected',
+      (await page.locator(`.react-flow__node[data-id="${AMBIGUOUS_DESTINATION_ID}"]`).count()) === 0
+      && (await second.page.locator(`.react-flow__node[data-id="${AMBIGUOUS_DESTINATION_ID}"]`).count()) === 0,
+    );
 
     await primaryCandidates.nth(1).click();
     await Promise.all([
       primaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
       secondaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
+      waitForTopology(page, 7, 6),
+      waitForTopology(second.page, 7, 6),
     ]);
     check(
       'signature pick settles the shared prompt on both clients',

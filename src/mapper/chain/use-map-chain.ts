@@ -3,7 +3,7 @@
 import type { Id } from '@/data/convex/data-model';
 import { DEFAULT_LAYOUT_CONFIG, type LayoutConfig } from '../layout/layout-contract';
 import type { HaloLimits, PlacedHalo } from '../halo/halo-model';
-import type { ConnectionDetail, UnresolvedHoleSummary } from './connection-detail';
+import type { AwaitingJumpSummary, ConnectionDetail, UnresolvedHoleSummary } from './connection-detail';
 import type { MapChainIntent } from './intents';
 import type { SystemLabel } from './labels';
 import type { PlacedStub } from './nodes';
@@ -20,6 +20,7 @@ export interface MapChain {
   readonly liveSystemCount: number;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
+  readonly awaitingJumps: readonly AwaitingJumpSummary[];
   readonly connectionPresentationNow: number;
   readonly state: ChainState;
   readonly intents: readonly MapChainIntent[];
@@ -68,6 +69,7 @@ export function useMapChain(
     liveSystemCount: pages.systems.rows.length,
     connectionDetails: pages.connectionDetails,
     unresolvedHoles: pages.unresolvedHoles,
+    awaitingJumps: pages.awaitingJumps,
     connectionPresentationNow,
     state: merge.state,
     intents: merge.intents,

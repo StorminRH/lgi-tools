@@ -146,6 +146,15 @@ export const connectionLifetimeValidator = v.union(
 export const connectionResolutionValidator = v.union(
   v.object({ kind: v.literal('open') }),
   v.object({
+    kind: v.literal('awaiting-signature'),
+    destinationSystemId: v.number(),
+    candidates: v.array(v.object({
+      connectionId: v.id('mapConnections'),
+      signatureId: v.union(v.string(), v.null()),
+    })),
+    characterId: v.number(),
+  }),
+  v.object({
     kind: v.literal('destination'),
     provenance: connectionProvenanceValidator,
   }),

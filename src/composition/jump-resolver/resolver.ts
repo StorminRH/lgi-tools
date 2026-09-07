@@ -365,6 +365,9 @@ async function resolveDoorbell(
   if ('reason' in resolved) {
     return { status: 'processed', outcome: 'converged', emitted: false };
   }
+  if (resolved.emission.toSystemId === null) {
+    return { status: 'processed', outcome: resolved.status, emitted: false };
+  }
   await eliminateAfterCommit(
     database,
     userId,

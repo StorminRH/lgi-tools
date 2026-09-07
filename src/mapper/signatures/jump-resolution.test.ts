@@ -3,6 +3,7 @@ import type { Id } from '@/data/convex/data-model';
 import { blankDoor, pendingResolution } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type {
+  AwaitingJumpSummary,
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
@@ -30,7 +31,7 @@ function detail(
 const C1 = 'c1' as Id<'mapConnections'>;
 const STUB = 'stub-2' as Id<'mapConnections'>;
 
-const HOLES: readonly UnresolvedHoleSummary[] = [
+const HOLES = [
   {
     ...connectionEditorFixture({
       connectionId: STUB,
@@ -40,7 +41,7 @@ const HOLES: readonly UnresolvedHoleSummary[] = [
     }),
     toSystemId: null,
   },
-];
+] as const satisfies readonly UnresolvedHoleSummary[];
 
 function pending(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
   return detail({
@@ -55,6 +56,60 @@ function pending(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
 const OWN = new Set([101]);
 
 describe('jump resolution', () => {
+  it('offers every deferred candidate without placing a current choice and survives static row replacement', () => {
+    const awaiting: AwaitingJumpSummary = {
+      ...pending(),
+      toSystemId: null,
+      resolution: {
+        kind: 'awaiting-signature',
+        destinationSystemId: 2,
+        characterId: 101,
+        candidates: [
+          { connectionId: C1, signatureId: 'ABC-123' },
+          { connectionId: STUB, signatureId: 'DEF-456' },
+        ],
+      },
+    };
+    const claimed = {
+      ...HOLES[0],
+      connectionId: 'claimed-static' as Id<'mapConnections'>,
+    };
+    const first: UnresolvedHoleSummary = { ...pending(), toSystemId: null, resolution: { kind: 'open' } };
+    const systemInfo = (id: number) => ({ id, name: 'J123456', security: -1, whClassId: 4 });
+    const model = pendingJumpResolution(
+      new Map(), [first, claimed], new Set(), systemInfo, OWN, [awaiting],
+    );
+    expect(model?.destination.label).toBe('J123456 - C4');
+    expect(model?.candidates.map((candidate) => [jumpAnswerTarget(candidate), candidate.isCurrent])).toEqual([
+      [C1, false], ['claimed-static', false],
+    ]);
+    expect(pendingJumpResolution(new Map(), [first, claimed], new Set(), systemInfo, new Set(), [awaiting])).toBeNull();
+    const remaining = pendingJumpResolution(new Map(), [first], new Set(), systemInfo, OWN, [awaiting]);
+    expect(remaining?.candidates.map((candidate) => [jumpAnswerTarget(candidate), candidate.isCurrent]))
+      .toEqual([[C1, false]]);
+    expect(pendingJumpResolution(new Map(), [], new Set(), systemInfo, OWN, [awaiting])).toBeNull();
+  });
+
+  it('keeps surviving choices available when a candidate disappears before the answer', () => {
+    const remaining: UnresolvedHoleSummary = { ...pending(), toSystemId: null, resolution: { kind: 'open' } };
+    const awaiting: AwaitingJumpSummary = {
+      ...pending(),
+      toSystemId: null,
+      resolution: {
+        kind: 'awaiting-signature',
+        destinationSystemId: 2,
+        characterId: 101,
+        candidates: [
+          { connectionId: 'removed' as Id<'mapConnections'>, signatureId: 'GHI-789' },
+          { connectionId: C1, signatureId: 'ABC-123' },
+          { connectionId: STUB, signatureId: 'DEF-456' },
+        ],
+      },
+    };
+    const systemInfo = (id: number) => ({ id, name: 'J123456', security: -1, whClassId: 4 });
+    const model = pendingJumpResolution(new Map(), [remaining, ...HOLES], new Set(), systemInfo, OWN, [awaiting]);
+    expect(model?.candidates.map(jumpAnswerTarget)).toEqual([C1, STUB]);
+  });
   it('requires exact multi-survivor ambiguity and preserves matcher order', () => {
     expect(hasPendingResolution(pending())).toBe(true);
     expect(hasPendingResolution(pending({

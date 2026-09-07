@@ -51,6 +51,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     liveSystemCount,
     connectionDetails,
     unresolvedHoles,
+    awaitingJumps,
     connectionPresentationNow,
     state,
     intents,
@@ -114,6 +115,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}
+          awaitingJumps={awaitingJumps}
           authoring={authoring}
           panelTarget={menus.panelTarget}
           onPanelTargetChange={menus.setPanelTarget}

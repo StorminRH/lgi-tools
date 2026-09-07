@@ -11,6 +11,7 @@ import {
 } from '../signatures/use-system-statics';
 import { filterLivePages } from './chain-signature';
 import {
+  awaitingJumpsFromRows,
   connectionDetailsFromRows,
   slotHolderRows,
   unresolvedHolesFromRows,
@@ -78,6 +79,10 @@ export function useMapChainPages(mapId: string | null) {
     () => unresolvedHolesFromRows(subscribedUnresolved.rows),
     [subscribedUnresolved.rows],
   );
+  const awaitingJumps = useMemo(
+    () => awaitingJumpsFromRows(subscribedUnresolved.rows),
+    [subscribedUnresolved.rows],
+  );
   const slotHolders = useMemo(
     () => slotHolderRows(subscribedUnresolved.rows),
     [subscribedUnresolved.rows],
@@ -104,6 +109,7 @@ export function useMapChainPages(mapId: string | null) {
 
   return {
     access,
+    awaitingJumps,
     authoredKey,
     canEdit,
     connectionDetails,

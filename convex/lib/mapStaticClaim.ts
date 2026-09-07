@@ -143,6 +143,28 @@ type ClaimRun =
   | { readonly outcome: 'none'; readonly survivorId: Id<'mapConnections'> }
   | { readonly outcome: 'claimed'; readonly survivorId: Id<'mapConnections'> };
 
+async function rebindAwaitingCandidates(
+  ctx: MutationCtx,
+  claimant: Doc<'mapConnections'>,
+  survivorId: Id<'mapConnections'>,
+): Promise<void> {
+  const rows = await readOriginConnections(ctx, claimant.mapId, claimant.fromSystemId);
+  for (const row of rows) {
+    if (isTombstoned(row) || row.resolution.kind !== 'awaiting-signature') continue;
+    if (!row.resolution.candidates.some((candidate) => candidate.connectionId === claimant._id)) continue;
+    await ctx.db.patch(row._id, {
+      resolution: {
+        ...row.resolution,
+        candidates: row.resolution.candidates.map((candidate) =>
+          candidate.connectionId === claimant._id
+            ? { connectionId: survivorId, signatureId: claimant.from.signatureId ?? candidate.signatureId }
+            : candidate,
+        ),
+      },
+    });
+  }
+}
+
 async function runClaim(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
@@ -173,6 +195,7 @@ async function runClaim(
   const survivorId = claimant.toSystemId === null
     ? await mergeSigIntoPlaceholder(ctx, placeholder, claimant)
     : await mergePlaceholderIntoResolved(ctx, placeholder, claimant);
+  if (survivorId !== claimant._id) await rebindAwaitingCandidates(ctx, claimant, survivorId);
   return { outcome: 'claimed', survivorId };
 }
 
