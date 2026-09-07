@@ -4,7 +4,14 @@ import { useCallback } from 'react';
 import { api } from '@/data/convex/api';
 import { useMutation } from '@/data/convex/use-mutation';
 import type { SigGroup } from '@/data/maps/scan-parse';
-import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
+import {
+  identifySemanticWrite,
+  identifyWriteDigest,
+} from '@/data/maps/semantic-write';
+import {
+  followUpElimination,
+  invalidateSignatureElimination,
+} from './signature-elimination-client';
 import type { SignatureWindowRow } from './signature-model';
 
 export function useIdentifySignature(mapId: string) {
@@ -15,7 +22,7 @@ export function useIdentifySignature(mapId: string) {
       group: SigGroup,
       wormholeTypeCode?: string,
     ): Promise<void> => {
-      await identifySignature({
+      const identified = await identifySignature({
         mapId,
         systemId: row.systemId,
         signatureId: row.signatureId,
@@ -23,7 +30,14 @@ export function useIdentifySignature(mapId: string) {
         ...(wormholeTypeCode ? { wormholeTypeCode } : {}),
       });
       if (group === 'Wormhole') {
-        await eliminateSignaturesAndAnnounce({ mapId, systemId: row.systemId });
+        await followUpElimination({
+          mapId,
+          systemId: row.systemId,
+          write: identifySemanticWrite(identified),
+          digest: identifyWriteDigest(row.systemId, row.signatureId, group),
+        });
+      } else if (identified.changed) {
+        invalidateSignatureElimination(mapId, row.systemId);
       }
     },
     [identifySignature, mapId],

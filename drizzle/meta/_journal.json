@@ -428,6 +428,13 @@
       "when": 1788562847655,
       "tag": "0060_retire_atlas_auto_layout",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1788751405920,
+      "tag": "0061_drop_characters_role_preferences",
+      "breakpoints": true
     }
   ]
 }

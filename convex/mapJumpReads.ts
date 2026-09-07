@@ -40,7 +40,9 @@ export async function readTrackedLocation(
 ): Promise<TrackedLocation | null> {
   const rows = await ctx.db
     .query('mapTracking')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
+    .withIndex('by_map_character', (q) =>
+      q.eq('mapId', mapId).eq('characterId', characterId),
+    )
     .take(JUMP_TRACKING_SCAN_CAP + 1);
   if (rows.length > JUMP_TRACKING_SCAN_CAP) {
     throw new ConvexError({
@@ -48,9 +50,8 @@ export async function readTrackedLocation(
       detail: `Map ${mapId} exceeds the jump-tracking read bound.`,
     });
   }
-  const matches = rows.filter((row) => row.characterId === characterId);
   const joined: TrackedLocation[] = [];
-  for (const tracking of matches) {
+  for (const tracking of rows) {
     const location = await ctx.db
       .query('characterLocation')
       .withIndex('by_user_character', (q) =>

@@ -129,9 +129,20 @@ describe('ambiguous jump identity', () => {
       resolution: { kind: 'awaiting-signature', destinationSystemId: TO, characterId: 1 },
     });
     const evidence = await t.query(internal.mapJumpEvidence.jumpEvidence, { userId: USER, mapId: MAP, characterId: 1 });
-    expect(evidence.candidates.map((row) => row.id)).toEqual(candidates);
+    expect(evidence).toMatchObject({ lastProcessedTransitionAt: AT, candidates: [] });
     expect(await t.mutation(internal.mapJumpAuthoring.resolveJumpAuthoring, args)).toEqual({ status: 'converged', reason: 'processed' });
     expect(await state(t)).toEqual(after);
+    await t.run(async (ctx) => {
+      const location = await ctx.db.query('characterLocation')
+        .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', 1))
+        .unique();
+      if (location === null) throw new Error('missing tracked location');
+      await ctx.db.patch(location._id, { transitionObservedAt: AT + 1 });
+    });
+    const nextEvidence = await t.query(internal.mapJumpEvidence.jumpEvidence, {
+      userId: USER, mapId: MAP, characterId: 1,
+    });
+    expect(nextEvidence.candidates.map((row) => row.id)).toEqual(candidates);
   });
 
   it.each([0, 1, 2])('commits only the chosen candidate %i and preserves scanned identity and static metadata', async (index) => {

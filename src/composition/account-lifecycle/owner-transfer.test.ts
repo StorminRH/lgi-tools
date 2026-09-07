@@ -79,12 +79,11 @@ describe('purgeTransferredCharacter', () => {
     state.results = [
       [{ id: 'acc-1' }],
       undefined,
-      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    expect(state.calls).toEqual({ delete: 2, update: 1 });
+    expect(state.calls).toEqual({ delete: 2, update: 0 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
       characterId: CHAR,
@@ -113,12 +112,11 @@ describe('reconcileCharacterOwner', () => {
       [{ userId: USER, ownerHash: 'owner-old' }],
       [{ id: 'acc-1' }],
       undefined,
-      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await reconcileCharacterOwner(CHAR, 'owner-new');
-    expect(state.calls).toEqual({ delete: 2, update: 1 });
+    expect(state.calls).toEqual({ delete: 2, update: 0 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
       characterId: CHAR,

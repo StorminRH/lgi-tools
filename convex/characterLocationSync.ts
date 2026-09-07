@@ -21,6 +21,7 @@ import {
 } from './lib/characterSync';
 
 const FALLBACK_TTL_MS = 5_000;
+const ACCESS_LEASE_BATCH_SIZE = 32;
 
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
@@ -86,56 +87,75 @@ async function runLocationSync(
 ): Promise<void> {
   const env = requireSyncEnv();
 
-  const held = await ctx.runQuery(internal.characterLocationReads.heldState, { userId });
-  const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
-  const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
-  const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
-    userId,
-  });
-  const leases = await ctx.runQuery(internal.characterLocationAccess.accessLeases, { userId });
-  const leaseByCharacter = new Map(leases.map((row) => [row.characterId, row]));
+  const prep = await prepareLocationSync(ctx, userId);
+  const heldByCharacter = new Map(prep.locations.map((h) => [h.characterId, h]));
+  const heldOnlineByCharacter = new Map(prep.online.map((h) => [h.characterId, h]));
+  const leaseByCharacter = new Map(prep.leases.map((row) => [row.characterId, row]));
+  const pendingLeases = new Map<number, AccessLease & { characterId: number }>();
   const now = Date.now();
 
   const results: CharacterResult[] = [];
   const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
   let runError: string | null = null;
 
-  for (const characterId of trackedIds) {
-    const heldState = heldByCharacter.get(characterId) ?? {
-      solarSystemId: null,
-      etagLocation: null,
-      etagShip: null,
-    };
-    const heldOnline = heldOnlineByCharacter.get(characterId);
-    const lease = leaseByCharacter.get(characterId);
-    const outcome = await syncLocationCharacter(
-      ctx,
-      env,
-      userId,
-      characterId,
-      heldState,
-      heldOnline,
-      lease,
-      now,
-      rl,
-    );
-    if (outcome.kind === 'skip') continue;
-    results.push(outcome.result);
-    if (outcome.kind === 'stop') {
-      runError = outcome.runError;
-      break;
+  try {
+    for (const characterId of prep.trackedIds) {
+      const heldState = heldByCharacter.get(characterId) ?? {
+        solarSystemId: null,
+        etagLocation: null,
+        etagShip: null,
+      };
+      const heldOnline = heldOnlineByCharacter.get(characterId);
+      const lease = leaseByCharacter.get(characterId);
+      const outcome = await syncLocationCharacter(
+        ctx,
+        env,
+        userId,
+        characterId,
+        heldState,
+        heldOnline,
+        lease,
+        pendingLeases,
+        now,
+        rl,
+      );
+      if (pendingLeases.size >= ACCESS_LEASE_BATCH_SIZE) {
+        await flushPendingLeases(ctx, userId, pendingLeases);
+      }
+      if (outcome.kind === 'skip') continue;
+      results.push(outcome.result);
+      if (outcome.kind === 'stop') {
+        runError = outcome.runError;
+        break;
+      }
     }
-  }
 
-  await ctx.runMutation(internal.characterLocationApply.applySyncResults, {
+    await flushPendingLeases(ctx, userId, pendingLeases);
+    await ctx.runMutation(internal.characterLocationApply.applySyncResults, {
+      userId,
+      generation,
+      enumeratedCharacterIds: prep.trackedIds,
+      trackedCharacterIds: prep.trackedIds,
+      results,
+      lastError: runError,
+      ...rl,
+    });
+  } catch (error) {
+    await flushPendingLeases(ctx, userId, pendingLeases).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function prepareLocationSync(ctx: ActionCtx, userId: string) {
+  const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
     userId,
-    generation,
-    enumeratedCharacterIds: trackedIds,
-    trackedCharacterIds: trackedIds,
-    results,
-    lastError: runError,
-    ...rl,
   });
+  if (trackedIds.length === 0) {
+    return { trackedIds, locations: [], online: [], leases: [] };
+  }
+  const held = await ctx.runQuery(internal.characterLocationReads.heldState, { userId });
+  const leases = await ctx.runQuery(internal.characterLocationAccess.accessLeases, { userId });
+  return { trackedIds, ...held, leases };
 }
 
 async function syncLocationCharacter(
@@ -146,6 +166,7 @@ async function syncLocationCharacter(
   held: HeldState,
   heldOnline: HeldOnlineState | undefined,
   lease: AccessLease | undefined,
+  pendingLeases: Map<number, AccessLease & { characterId: number }>,
   now: number,
   rl: RlSnapshot,
 ): Promise<CharacterOutcome> {
@@ -160,8 +181,7 @@ async function syncLocationCharacter(
       return { kind: 'result', result: errorResult(characterId, code, held) };
     }
     accessToken = vend.accessToken;
-    await ctx.runMutation(internal.characterLocationAccess.putAccessLease, {
-      userId,
+    pendingLeases.set(characterId, {
       characterId,
       accessToken: vend.accessToken,
       expiresAt: vend.expiresAt,
@@ -171,6 +191,7 @@ async function syncLocationCharacter(
   try {
     const result = await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl);
     if (result.error === 'esi_401' || result.error === 'esi_403') {
+      pendingLeases.delete(characterId);
       await ctx.runMutation(internal.characterLocationAccess.clearAccessLease, {
         userId,
         characterId,
@@ -187,6 +208,17 @@ async function syncLocationCharacter(
     }
     throw error;
   }
+}
+
+async function flushPendingLeases(
+  ctx: ActionCtx,
+  userId: string,
+  pendingLeases: Map<number, AccessLease & { characterId: number }>,
+): Promise<void> {
+  if (pendingLeases.size === 0) return;
+  const leases = [...pendingLeases.values()];
+  await ctx.runMutation(internal.characterLocationAccess.putAccessLeases, { userId, leases });
+  pendingLeases.clear();
 }
 
 interface ProbeResolution {

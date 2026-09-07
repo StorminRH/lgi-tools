@@ -88,32 +88,28 @@ function stale(reason: StaleReason): StaleResult {
   return { status: 'stale', reason };
 }
 
-async function readUnresolvedCandidates(
-  ctx: QueryCtx,
-  mapId: string,
-  fromSystemId: number,
-): Promise<Doc<'mapConnections'>[]> {
-  return unresolvedCandidatesOf(
-    await readConnectionsFrom(ctx, mapId, fromSystemId, 'candidate'),
-  );
-}
-
 async function readPairRows(
   ctx: QueryCtx,
   mapId: string,
   fromSystemId: number,
   toSystemId: number,
-): Promise<Doc<'mapConnections'>[]> {
+): Promise<{
+  readonly pairRows: Doc<'mapConnections'>[];
+  readonly forward: Doc<'mapConnections'>[];
+}> {
   const forward = await readConnectionsFrom(ctx, mapId, fromSystemId, 'pair');
   const reverse = await readConnectionsFrom(ctx, mapId, toSystemId, 'pair');
-  return [
-    ...forward.filter((row) => row.toSystemId === toSystemId
-      || (row.resolution.kind === 'awaiting-signature'
-        && row.resolution.destinationSystemId === toSystemId)),
-    ...reverse.filter((row) => row.toSystemId === fromSystemId
-      || (row.resolution.kind === 'awaiting-signature'
-        && row.resolution.destinationSystemId === fromSystemId)),
-  ];
+  return {
+    forward,
+    pairRows: [
+      ...forward.filter((row) => row.toSystemId === toSystemId
+        || (row.resolution.kind === 'awaiting-signature'
+          && row.resolution.destinationSystemId === toSystemId)),
+      ...reverse.filter((row) => row.toSystemId === fromSystemId
+        || (row.resolution.kind === 'awaiting-signature'
+          && row.resolution.destinationSystemId === fromSystemId)),
+    ],
+  };
 }
 
 function sameIds(
@@ -384,12 +380,8 @@ export async function supersedeDyingPairsForEndpoints(
   liveId: Id<'mapConnections'>,
   now: number,
 ): Promise<void> {
-  await supersedeDyingPairConnections(
-    ctx,
-    await readPairRows(ctx, mapId, fromSystemId, toSystemId),
-    liveId,
-    now,
-  );
+  const { pairRows } = await readPairRows(ctx, mapId, fromSystemId, toSystemId);
+  await supersedeDyingPairConnections(ctx, pairRows, liveId, now);
 }
 
 async function authorNewTopology(
@@ -397,13 +389,10 @@ async function authorNewTopology(
   args: ResolveJumpInput,
   observedShipMassKg: number | null,
   pairRows: readonly Doc<'mapConnections'>[],
+  forward: readonly Doc<'mapConnections'>[],
   now: number,
 ): Promise<TopologyResult | StaleResult> {
-  const candidates = await readUnresolvedCandidates(
-    ctx,
-    args.mapId,
-    args.fromSolarSystemId,
-  );
+  const candidates = unresolvedCandidatesOf(forward);
   const selection = validateCandidateDecision(candidates, args.decision);
   if ('status' in selection) return selection;
 
@@ -456,7 +445,7 @@ export const resolveJumpAuthoring = internalMutation({
     const lapse = await endpointLapse(ctx, args);
     if (lapse !== null) return lapse;
 
-    const pairRows = await readPairRows(
+    const { pairRows, forward } = await readPairRows(
       ctx,
       args.mapId,
       args.fromSolarSystemId,
@@ -465,7 +454,14 @@ export const resolveJumpAuthoring = internalMutation({
     const existingPair = selectExistingPair(pairRows);
     const now = Date.now();
     const topology = existingPair === null
-      ? await authorNewTopology(ctx, args, validated.observedShipMassKg, pairRows, now)
+      ? await authorNewTopology(
+          ctx,
+          args,
+          validated.observedShipMassKg,
+          pairRows,
+          forward,
+          now,
+        )
       : await convergeExistingPair(
           ctx,
           existingPair,

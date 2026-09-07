@@ -60,15 +60,15 @@ beforeEach(() => {
 describe('runPurge orchestrator', () => {
   it('transfer scope removes auth custody and direct map grants at the credential tier', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
-    expect(names()).toEqual(['account', 'characters', 'map_access']);
+    expect(names()).toEqual(['account', 'map_access']);
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 });
     const seq = names();
     expect(seq[0]).toBe('account');
-    expect(seq[1]).toBe('characters');
-    expect(seq[2]).toBe('map_access');
+    expect(seq[1]).toBe('map_access');
+    expect(seq).not.toContain('characters');
     for (const cacheTable of [
       'character_skills',
       'character_skill_syncs',

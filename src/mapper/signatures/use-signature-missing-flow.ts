@@ -5,8 +5,12 @@ import { toast } from '@/components/ui/toast';
 import { api } from '@/data/convex/api';
 import { useMutation } from '@/data/convex/use-mutation';
 import type { ScannedRow } from '@/data/maps/scan-parse';
+import { pasteSemanticWrite, pasteWriteDigest } from '@/data/maps/semantic-write';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
-import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
+import {
+  followUpElimination,
+  invalidateSignatureElimination,
+} from './signature-elimination-client';
 import { announceSignatureRemoval } from './signature-toast';
 import { useScannerPaste } from './use-scanner-paste';
 
@@ -44,7 +48,15 @@ function useApplySignatureScan(
         `Scan applied — ${result.inserted + result.updated + result.migrated} changed, ${result.unchanged} unchanged.`,
         { id: 'scanner-paste:applied', duration: 3_000 },
       );
-      await eliminateSignaturesAndAnnounce({ mapId, systemId });
+      await followUpElimination({
+        mapId,
+        systemId,
+        write: pasteSemanticWrite(result),
+        digest: pasteWriteDigest(
+          systemId,
+          scannedRows.map((row) => row.signatureId),
+        ),
+      });
     },
     [applyScan, mapId, replaceMissing],
   );
@@ -64,6 +76,7 @@ function useRemoveMissingSignatures(
         systemId,
         signatureIds: [...signatureIds],
       });
+      invalidateSignatureElimination(mapId, systemId);
       clearAllMissing(systemId);
       announceSignatureRemoval({
         systemId,
@@ -73,6 +86,8 @@ function useRemoveMissingSignatures(
             mapId,
             systemId,
             signatureIds: [...signatureIds],
+          }).then(() => {
+            invalidateSignatureElimination(mapId, systemId);
           }).catch(() => {
             toast.error('Signature could not be restored.', {
               id: `signature-restore:${systemId}:batch`,

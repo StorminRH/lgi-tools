@@ -78,12 +78,26 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
       dedupeKey: 'connection-lifetime-key',
     });
 
-    expect(first.observedAt).toBeInstanceOf(Date);
-    expect(first.observedAt.getTime()).toBe(
+    expect(first?.observedAt).toBeInstanceOf(Date);
+    expect(first?.observedAt?.getTime()).toBe(
       new Date('2026-08-06T14:00:00.000Z').getTime(),
     );
     expect(firstInputAt.getTime()).toBe(
       new Date('2026-08-06T14:37:42.123Z').getTime(),
+    );
+
+    const equivalent = await insertWhObservation(harness.db, {
+      solarSystemId: 31_000_001,
+      whTypeCode: 'B274',
+      provenance: 'jump-verified',
+      observedAt: new Date('2026-08-06T14:51:00.000Z'),
+      dedupeKey: 'connection-lifetime-key',
+    });
+    expect(equivalent).toBeNull();
+    const stillFirst = await harness.db.select().from(whObservations);
+    expect(stillFirst).toHaveLength(1);
+    expect(stillFirst[0]?.observedAt.getTime()).toBe(
+      new Date('2026-08-06T14:00:00.000Z').getTime(),
     );
 
     const corrected = await insertWhObservation(harness.db, {

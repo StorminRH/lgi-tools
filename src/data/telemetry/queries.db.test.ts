@@ -142,14 +142,12 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         characterId: CHAR_OLD,
         name: 'Old Pilot',
         portraitUrl: 'https://images.evetech.net/characters/91000001/portrait',
-        role: 'USER',
         createdAt: new Date('2019-01-01T00:00:00Z'),
       },
       {
         characterId: CHAR_NEW,
         name: 'New Pilot',
         portraitUrl: 'https://images.evetech.net/characters/91000002/portrait',
-        role: 'USER',
         createdAt: new Date('2020-01-03T00:00:00Z'),
       },
     ]);

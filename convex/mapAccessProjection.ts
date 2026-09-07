@@ -30,6 +30,10 @@ export interface UserClaimsPurgeResult {
   readonly hasMore: boolean;
 }
 
+export function currentRolesFromStored(roles: readonly StoredMapRole[]): MapRole[] {
+  return canonicalizeMapRoles(roles.map((role) => role === 'owner' ? 'admin' : role));
+}
+
 function rolesEqual(
   left: readonly StoredMapRole[],
   right: readonly MapRole[],
@@ -216,6 +220,35 @@ export const purgeUserClaims = internalMutation({
     return {
       deleted: doomed.length + tracking.deleted,
       hasMore: rows.length > MAP_ACCESS_PURGE_BATCH || tracking.hasMore,
+    };
+  },
+});
+
+export const remapLegacyOwnerRoles = internalMutation({
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.object({
+    remapped: v.number(),
+    continueCursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query('mapAccess').paginate({
+      numItems: MAP_ACCESS_PURGE_BATCH,
+      cursor: cursor ?? null,
+    });
+    let remapped = 0;
+    for (const row of page.page) {
+      const roles = currentRolesFromStored(row.roles);
+      if (rolesEqual(row.roles, roles)) continue;
+      await ctx.db.patch(row._id, { roles });
+      remapped += 1;
+    }
+    return {
+      remapped,
+      continueCursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
     };
   },
 });

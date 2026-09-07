@@ -100,13 +100,9 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     });
   }
 
-  async function seedCharacter(
-    characterId: number,
-    preferences: Record<string, unknown> = { privateNote: 'owner-authored' },
-  ) {
+  async function seedCharacter(characterId: number) {
     await insertCharacter(harness.db, characterId, {
       portraitUrl: `https://images.example/${characterId}`,
-      preferences,
     });
   }
 
@@ -197,10 +193,13 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     expect(await harness.db.select().from(maps)).toHaveLength(1);
     expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
     const [profile] = await harness.db
-      .select({ preferences: characters.preferences })
+      .select({ characterId: characters.characterId, name: characters.name })
       .from(characters)
       .where(eq(characters.characterId, MOVED_CHAR));
-    expect(profile?.preferences).toEqual({});
+    expect(profile).toEqual({
+      characterId: MOVED_CHAR,
+      name: `Character ${MOVED_CHAR}`,
+    });
   });
 
   it('keeps a prior owner with siblings, rebinding identity email and active character', async () => {

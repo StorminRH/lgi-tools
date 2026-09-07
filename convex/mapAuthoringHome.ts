@@ -50,14 +50,7 @@ async function insertHomeSystem(
     return prior._id;
   }
 
-  const inserted = await ctx.db.insert('mapSystems', {
-    mapId,
-    systemId,
-    deletedAt: null,
-    purgeAfter: null,
-  });
-  await ensureStaticPlaceholders(ctx, mapId, systemId);
-  return inserted;
+  return insertLiveSystem(ctx, mapId, systemId);
 }
 
 async function requireLiveOrigin(
@@ -87,13 +80,21 @@ export async function upsertLiveDestination(
     }
     return destination._id;
   }
+  return insertLiveSystem(ctx, mapId, toSystemId);
+}
+
+async function insertLiveSystem(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+): Promise<Id<'mapSystems'>> {
   const inserted = await ctx.db.insert('mapSystems', {
     mapId,
-    systemId: toSystemId,
+    systemId,
     deletedAt: null,
     purgeAfter: null,
   });
-  await ensureStaticPlaceholders(ctx, mapId, toSystemId);
+  await ensureStaticPlaceholders(ctx, mapId, systemId);
   return inserted;
 }
 

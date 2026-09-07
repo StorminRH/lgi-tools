@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
@@ -22,6 +22,32 @@ export interface WhObservationReconcile {
 
 function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
+}
+
+function observationConflict(): {
+  readonly target: typeof whObservations.dedupeKey;
+  readonly set: {
+    readonly solarSystemId: SQL;
+    readonly whTypeCode: SQL;
+    readonly provenance: SQL;
+    readonly observedAt: SQL;
+  };
+  readonly setWhere: SQL;
+} {
+  const solarSystemId = excluded(whObservations.solarSystemId.name);
+  const whTypeCode = excluded(whObservations.whTypeCode.name);
+  const provenance = excluded(whObservations.provenance.name);
+  const observedAt = excluded(whObservations.observedAt.name);
+  return {
+    target: whObservations.dedupeKey,
+    set: { solarSystemId, whTypeCode, provenance, observedAt },
+    setWhere: sql`(
+      ${whObservations.solarSystemId} is distinct from ${solarSystemId}
+      or ${whObservations.whTypeCode} is distinct from ${whTypeCode}
+      or ${whObservations.provenance} is distinct from ${provenance}
+      or ${whObservations.observedAt} is distinct from ${observedAt}
+    )`,
+  };
 }
 
 function validSolarSystemId(value: number): boolean {
@@ -65,25 +91,14 @@ export async function deleteWhObservation(
 export async function insertWhObservation(
   database: AnyPgDb,
   input: WhObservationInput,
-): Promise<typeof whObservations.$inferSelect> {
+): Promise<typeof whObservations.$inferSelect | null> {
   assertObservationInput(input);
   const [stored] = await database
     .insert(whObservations)
     .values({ ...input, observedAt: toObservationHour(input.observedAt) })
-    .onConflictDoUpdate({
-      target: whObservations.dedupeKey,
-      set: {
-        solarSystemId: excluded(whObservations.solarSystemId.name),
-        whTypeCode: excluded(whObservations.whTypeCode.name),
-        provenance: excluded(whObservations.provenance.name),
-        observedAt: excluded(whObservations.observedAt.name),
-      },
-    })
+    .onConflictDoUpdate(observationConflict())
     .returning();
-  if (stored === undefined) {
-    throw new Error('Wormhole observation upsert returned no row.');
-  }
-  return stored;
+  return stored ?? null;
 }
 
 export async function reconcileWhObservations(
@@ -100,15 +115,7 @@ export async function reconcileWhObservations(
           observedAt: toObservationHour(input.observedAt),
         })),
       )
-      .onConflictDoUpdate({
-        target: whObservations.dedupeKey,
-        set: {
-          solarSystemId: excluded(whObservations.solarSystemId.name),
-          whTypeCode: excluded(whObservations.whTypeCode.name),
-          provenance: excluded(whObservations.provenance.name),
-          observedAt: excluded(whObservations.observedAt.name),
-        },
-      });
+      .onConflictDoUpdate(observationConflict());
   }
   if (reconcile.deleteKeys.length > 0) {
     await database

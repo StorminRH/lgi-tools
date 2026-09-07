@@ -16,14 +16,13 @@ interface CharacterRow {
   character_id: string;
   name: string;
   portrait_url: string;
-  role: string;
   created_at: Date;
   updated_at: Date;
 }
 
 async function backfillUnderLock(reserved: ReservedConnection): Promise<void> {
   const chars = await reserved<CharacterRow[]>`
-    SELECT character_id, name, portrait_url, role, created_at, updated_at FROM characters
+    SELECT character_id, name, portrait_url, created_at, updated_at FROM characters
   `;
 
   let created = 0;
@@ -42,7 +41,7 @@ async function backfillUnderLock(reserved: ReservedConnection): Promise<void> {
       INSERT INTO "user" (id, name, email, email_verified, image, role, created_at, updated_at)
       VALUES (
         ${userId}, ${c.name}, ${syntheticEmail(characterId)}, true,
-        ${c.portrait_url}, ${c.role}, ${c.created_at}, ${c.updated_at}
+        ${c.portrait_url}, 'USER', ${c.created_at}, ${c.updated_at}
       )
       ON CONFLICT (id) DO NOTHING
     `;
