@@ -1,4 +1,5 @@
 import type { Id } from '@/data/convex/data-model';
+import type { SemanticWrite } from '@/data/maps/semantic-write';
 import type {
   ConnectionMassState,
   WormholeDestinationHint,
@@ -14,7 +15,7 @@ export interface ConnectionFieldAuthoringApi {
     connection: ConnectionEditorDetail;
     value: string | null;
     side?: 'from' | 'to';
-  }) => Promise<unknown>;
+  }) => Promise<SemanticWrite | undefined>;
   readonly setConnectionShipSize: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;

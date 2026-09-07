@@ -1,13 +1,14 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from './_generated/api';
+import { api, internal } from './_generated/api';
 import {
   lifetimeObservedAt,
   lifetimeStage,
 } from '@/data/maps/connection-hallway';
 import schema from './schema';
 
+import { connectionInsert } from './__tests__/connection-doc.setup';
 import { modules } from './__tests__/modules.setup';
 import {
   AMARR,
@@ -15,10 +16,13 @@ import {
   JITA,
   MAP_A,
   NOW,
+  WH_A,
+  WH_ROOT,
   asUser,
   expectConvexError,
   readConnection,
   readSystem,
+  seedHome,
   seedJump,
   installAuthoringTimers,
   restoreAuthoringTimers,
@@ -35,12 +39,6 @@ afterEach(() => {
 describe('map authoring', () => {
   describe('field setters equality-skip', () => {
     it.each([
-      {
-        name: 'setConnectionWormholeType',
-        mutation: api.mapAuthoringFields.setConnectionWormholeType,
-        value: 'C247',
-        stored: { from: expect.objectContaining({ typeCode: 'C247' }) },
-      },
       {
         name: 'setConnectionShipSize',
         mutation: api.mapAuthoringFields.setConnectionShipSize,
@@ -80,6 +78,85 @@ describe('map authoring', () => {
 
       const afterSecond = await readConnection(t, connectionId);
       expect(afterSecond).toEqual(afterFirst);
+    });
+
+    it('returns mutated then idle for a repeated wormhole type with no claim', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'C247',
+        }),
+      ).resolves.toEqual({ kind: 'mutated' });
+      const afterFirst = await readConnection(t, connectionId);
+      expect(afterFirst).toMatchObject({
+        from: expect.objectContaining({ typeCode: 'C247' }),
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'C247',
+        }),
+      ).resolves.toEqual({ kind: 'idle' });
+      expect(await readConnection(t, connectionId)).toEqual(afterFirst);
+    });
+
+    it('returns claimed when a no-field-change type set absorbs a static placeholder', async () => {
+      const t = convexTest(schema, modules);
+      await seedHome(t, WH_ROOT);
+      await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+        mapId: MAP_A,
+        systemId: WH_ROOT,
+        codes: ['C247'],
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_A,
+          systemId: WH_A,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      });
+      const resolvedId = await t.run(async (ctx) =>
+        ctx.db.insert('mapConnections', {
+          ...connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: WH_ROOT,
+            toSystemId: WH_A,
+            wormholeTypeCode: 'C247',
+            typedSide: 'from',
+            typeProvenance: 'human',
+          }),
+          seatOrderAt: NOW + 80,
+        }),
+      );
+      const placeholder = await t.run(async (ctx) => {
+        const rows = await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map_from', (q) => q.eq('mapId', MAP_A).eq('fromSystemId', WH_ROOT))
+          .collect();
+        return rows.find((row) => row.staticCode === 'C247' && row.from.signatureId === null);
+      });
+      expect(placeholder).toBeDefined();
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId: resolvedId,
+          value: 'C247',
+        }),
+      ).resolves.toEqual({ kind: 'claimed' });
+      expect(await readConnection(t, resolvedId)).toMatchObject({
+        _id: resolvedId,
+        staticCode: 'C247',
+        toSystemId: WH_A,
+      });
+      expect(await readConnection(t, placeholder!._id)).toBeNull();
     });
 
     it('stamps lifeStageObservedAt on change and leaves it on an equal re-pick', async () => {
@@ -469,7 +546,7 @@ describe('map authoring', () => {
           deathEarliestAt: NOW,
           deathLatestAt: NOW + 16 * HOUR_MS,
         }),
-      ).resolves.toEqual({ changed: true });
+      ).resolves.toEqual({ kind: 'mutated' });
       const typed = await readConnection(t, connectionId);
       expect(typed).toMatchObject({
         from: expect.objectContaining({ typeCode: 'C247' }),
@@ -488,7 +565,7 @@ describe('map authoring', () => {
           deathEarliestAt: NOW + 4 * HOUR_MS,
           deathLatestAt: NOW + 16 * HOUR_MS,
         }),
-      ).resolves.toEqual({ changed: false });
+      ).resolves.toEqual({ kind: 'idle' });
       expect(await readConnection(t, connectionId)).toEqual(typed);
     });
 

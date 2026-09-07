@@ -15,6 +15,11 @@ export interface IdentifyWriteResult {
   readonly connectionId: string | null;
 }
 
+export interface TypeSetterWriteResult {
+  readonly changed: boolean;
+  readonly claimed: boolean;
+}
+
 export function pasteSemanticWrite(counts: PasteWriteCounts): SemanticWrite {
   const changed =
     counts.inserted + counts.updated + counts.migrated + counts.removedConfident;
@@ -25,6 +30,16 @@ export function identifySemanticWrite(result: IdentifyWriteResult): SemanticWrit
   if (result.connectionId !== null && !result.changed) return { kind: 'claimed' };
   if (result.changed) return { kind: 'mutated' };
   return { kind: 'idle' };
+}
+
+export function typeSetterSemanticWrite(result: TypeSetterWriteResult): SemanticWrite {
+  if (result.changed) return { kind: 'mutated' };
+  if (result.claimed) return { kind: 'claimed' };
+  return { kind: 'idle' };
+}
+
+export function typeSetterFollowUpNeeded(write: SemanticWrite | undefined): boolean {
+  return write !== undefined && write.kind !== 'idle';
 }
 
 export function pasteWriteDigest(

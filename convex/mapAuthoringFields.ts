@@ -2,6 +2,10 @@ import { ConvexError, v } from 'convex/values';
 import { doorDestination } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import {
+  typeSetterSemanticWrite,
+  type SemanticWrite,
+} from '@/data/maps/semantic-write';
+import {
   clearPendingResolution,
   connectionLifetimeFrom,
   hallwayDoor,
@@ -136,7 +140,7 @@ async function applyConnectionWormholeType(
     readonly deathEarliestAt?: number | null;
     readonly deathLatestAt?: number | null;
   },
-): Promise<{ changed: boolean }> {
+): Promise<SemanticWrite> {
   const connection = await requireLiveConnection(
     ctx,
     input.mapId,
@@ -172,10 +176,9 @@ async function applyConnectionWormholeType(
     && connection.resolution.kind === resolution.kind
     && sameDeathWindow(connection, window)
   ) {
-    if (input.value !== null) {
-      await claimStaticPlaceholder(ctx, connection, door);
-    }
-    return { changed: false };
+    const claimed = input.value !== null
+      && (await claimStaticPlaceholder(ctx, connection, door)) === 'claimed';
+    return typeSetterSemanticWrite({ changed: false, claimed });
   }
   await ctx.db.patch(input.connectionId, {
     ...typePatch,
@@ -189,7 +192,7 @@ async function applyConnectionWormholeType(
     const typed = await ctx.db.get(input.connectionId);
     if (typed !== null) await claimStaticPlaceholder(ctx, typed, door);
   }
-  return { changed: true };
+  return typeSetterSemanticWrite({ changed: true, claimed: false });
 }
 
 async function applyConnectionDestinationHint(
@@ -322,6 +325,12 @@ async function applyConnectionLifeStage(
   return { changed: true as const };
 }
 
+const semanticWriteValidator = v.union(
+  v.object({ kind: v.literal('idle') }),
+  v.object({ kind: v.literal('mutated') }),
+  v.object({ kind: v.literal('claimed') }),
+);
+
 export const setConnectionWormholeType = mutation({
   args: {
     mapId: v.string(),
@@ -331,6 +340,7 @@ export const setConnectionWormholeType = mutation({
     deathEarliestAt: optionalTimestampValidator,
     deathLatestAt: optionalTimestampValidator,
   },
+  returns: semanticWriteValidator,
   handler: (ctx, args) => applyConnectionWormholeType(ctx, args),
 });
 
