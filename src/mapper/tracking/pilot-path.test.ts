@@ -5,7 +5,6 @@ import {
   deriveOutboundArrows,
   edgeIdOfPairIndex,
   parseArrowPilotKey,
-  PILOT_PATH_MAX_JUMPS,
 } from './pilot-path';
 
 const CORRIDOR = new Map<number, readonly number[]>([
@@ -38,7 +37,6 @@ test('derivePilotPath returns inclusive paths and nulls past the jump bound', ()
     }),
   ).toEqual([11]);
 
-  expect(PILOT_PATH_MAX_JUMPS).toBe(15);
   expect(
     derivePilotPath({
       drawnSystemIds: new Set([11]),

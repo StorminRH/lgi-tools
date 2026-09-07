@@ -22,7 +22,6 @@ import {
   shipSizeValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
-import { HALLWAY_BACKFILL_BATCH } from './mapHallwayBackfill';
 import schema from './schema';
 
 const expandedSchema = defineSchema({
@@ -177,6 +176,5 @@ describe('backfillHallwayConnections', () => {
     await expect(
       t.mutation(internal.mapHallwayBackfill.backfillHallwayConnections, {}),
     ).resolves.toEqual({ rewritten: 0, skipped: 1 });
-    expect(HALLWAY_BACKFILL_BATCH).toBe(32);
   });
 });

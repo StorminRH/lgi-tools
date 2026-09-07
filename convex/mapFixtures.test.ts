@@ -117,6 +117,7 @@ async function drain(
       .query(api.mapFixtures.readMapCollection, { mapId: MAP_A, collection, cursor });
     rows.push(...page.page);
     pages += 1;
+    expect(page.page.length).toBeLessThanOrEqual(MAP_FIXTURE_PAGE_SIZE);
     if (page.isDone) break;
     expect(page.continueCursor).not.toBeNull();
     sawNonTerminalCursor = true;

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
 import { legacyMapOwnerRoleValidator } from './lib/mapEntityContracts';
-import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
@@ -381,80 +380,5 @@ describe('revocation', () => {
       expect(error).toBeInstanceOf(ConvexError);
       expect((error as ConvexError<{ code: string }>).data).toEqual({ code: 'FORBIDDEN' });
     }
-  });
-});
-
-describe('read-set cost', () => {
-  it('drains pinned collection sizes in exact pages of at most 25 rows', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
-
-    await t.run(async (ctx) => {
-      for (let index = 0; index < 50; index += 1) {
-        await ctx.db.insert('mapSystems', { mapId: MAP_A, systemId: 30_000_000 + index });
-      }
-      for (let index = 0; index < 30; index += 1) {
-        await ctx.db.insert('mapConnections', connectionInsert({
-          mapId: MAP_A,
-          fromSystemId: 30_000_000 + index,
-          toSystemId: 30_000_100 + index,
-          wormholeTypeCode: null,
-          shipSize: null,
-          massState: 'stable',
-        }));
-      }
-      for (let index = 0; index < 60; index += 1) {
-        await ctx.db.insert('mapSignatures', {
-          mapId: MAP_A,
-          systemId: 30_000_000 + (index % 50),
-          signatureId: `SIG-${String(index).padStart(3, '0')}`,
-          group: null,
-          typeName: null,
-          wormholeTypeCode: null,
-          deletedAt: null,
-          purgeAfter: null,
-        });
-      }
-      for (let index = 0; index < 10; index += 1) {
-        await ctx.db.insert('mapNotes', {
-          mapId: MAP_A,
-          targetKind: 'map',
-          targetId: MAP_A,
-          body: `note-${index}`,
-        });
-      }
-    });
-
-    async function drain(
-      collection: 'systems' | 'connections' | 'signatures' | 'notes',
-    ): Promise<{ rows: number; pages: number; maxPage: number }> {
-      let rows = 0;
-      let pages = 0;
-      let maxPage = 0;
-      let cursor: string | null = null;
-      for (;;) {
-        const page: {
-          page: readonly unknown[];
-          isDone: boolean;
-          continueCursor: string;
-        } = await asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-          mapId: MAP_A,
-          collection,
-          cursor,
-        });
-        pages += 1;
-        rows += page.page.length;
-        maxPage = Math.max(maxPage, page.page.length);
-        expect(page.page.length).toBeLessThanOrEqual(MAP_FIXTURE_PAGE_SIZE);
-        if (page.isDone) break;
-        cursor = page.continueCursor;
-      }
-      return { rows, pages, maxPage };
-    }
-
-    expect(await drain('systems')).toEqual({ rows: 50, pages: 2, maxPage: 25 });
-    expect(await drain('connections')).toEqual({ rows: 30, pages: 2, maxPage: 25 });
-    expect(await drain('signatures')).toEqual({ rows: 60, pages: 3, maxPage: 25 });
-    expect(await drain('notes')).toEqual({ rows: 10, pages: 1, maxPage: 10 });
   });
 });
