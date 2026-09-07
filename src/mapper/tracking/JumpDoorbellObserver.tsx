@@ -1,6 +1,5 @@
 'use client';
 
-import { useQuery } from 'convex/react';
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
@@ -23,7 +22,7 @@ function persistMapMemory(
 
 export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
-  const userId = useQuery(api.engine.currentUser);
+  const userId = useLiveValue(api.engine.currentUser);
   const memoryRef = useRef<Map<number, DoorbellMemoryEntry> | null>(null);
   const shareRef = useRef<(() => void) | null>(null);
 
