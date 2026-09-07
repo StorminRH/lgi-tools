@@ -4,7 +4,7 @@ import {
   applyNodeChanges,
   type NodeChange,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { PlacedHalo } from '../halo/halo-model';
 import type { MotionTruth } from '../motion/motion-host-model';
@@ -20,20 +20,31 @@ export function useChainNodeSync(
   treeParents: ReadonlyMap<number, number>,
   connectionPresentationNow: number,
 ) {
-  const [nodes, setNodes] = useState<ChainNode[]>([]);
+  const [nodeState, setNodeState] = useState(() => ({
+    systems: state.systems,
+    labelOf,
+    haloSystems: halo.systems,
+    stubs,
+    nodes: syncNodes([], state.systems, labelOf, halo.systems, stubs),
+  }));
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNodes((previous) =>
-      syncNodes(
-        previous,
-        state.systems,
-        labelOf,
-        halo.systems,
-        stubs,
-      ),
-    );
-  }, [state.systems, labelOf, halo.systems, stubs]);
+  let liveNodes = nodeState;
+  if (
+    nodeState.systems !== state.systems ||
+    nodeState.labelOf !== labelOf ||
+    nodeState.haloSystems !== halo.systems ||
+    nodeState.stubs !== stubs
+  ) {
+    liveNodes = {
+      systems: state.systems,
+      labelOf,
+      haloSystems: halo.systems,
+      stubs,
+      nodes: syncNodes(nodeState.nodes, state.systems, labelOf, halo.systems, stubs),
+    };
+    setNodeState(liveNodes);
+  }
+  const { nodes } = liveNodes;
 
   const foggedSystemIds = useMemo(() => {
     const fogged = new Set<number>();
@@ -77,15 +88,20 @@ export function useChainNodeSync(
   );
 
   const onNodesChange = useCallback((changes: NodeChange<ChainNode>[]) => {
-    setNodes((previous) => applyNodeChanges(changes, previous));
+    setNodeState((previous) => ({
+      ...previous,
+      nodes: applyNodeChanges(changes, previous.nodes),
+    }));
   }, []);
 
   const deselectNodes = useCallback(() => {
-    setNodes((previous) => {
-      const changes: NodeChange<ChainNode>[] = previous
+    setNodeState((previous) => {
+      const changes: NodeChange<ChainNode>[] = previous.nodes
         .filter((node) => node.selected)
         .map((node) => ({ id: node.id, type: 'select', selected: false }));
-      return changes.length === 0 ? previous : applyNodeChanges(changes, previous);
+      return changes.length === 0
+        ? previous
+        : { ...previous, nodes: applyNodeChanges(changes, previous.nodes) };
     });
   }, []);
 
