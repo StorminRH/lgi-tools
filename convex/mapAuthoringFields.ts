@@ -56,17 +56,15 @@ async function requireLiveConnection(
   return connection;
 }
 
-async function patchConnectionField<K extends keyof Doc<'mapConnections'>>(
+async function writeDoorLeadsTo(
   ctx: MutationCtx,
-  mapId: string,
-  connectionId: Id<'mapConnections'>,
-  field: K,
-  value: Doc<'mapConnections'>[K],
-  extra?: Partial<Doc<'mapConnections'>>,
+  connection: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+  leadsTo: Doc<'mapConnections'>['from']['leadsTo'],
 ): Promise<{ changed: boolean }> {
-  const connection = await requireLiveConnection(ctx, mapId, connectionId);
-  if (connection[field] === value) return { changed: false };
-  await ctx.db.patch(connectionId, { [field]: value, ...extra });
+  const door = hallwayDoor(connection, side);
+  if (leadsToEquals(door.leadsTo, leadsTo)) return { changed: false };
+  await ctx.db.patch(connection._id, replaceDoor(connection, side, { ...door, leadsTo }));
   return { changed: true };
 }
 
@@ -208,13 +206,12 @@ async function applyConnectionDestinationHint(
     input.mapId,
     input.connectionId,
   );
-  const door = hallwayDoor(connection, input.side);
-  const next = { ...door, leadsTo: leadsToFromHint(input.value) };
-  if (leadsToEquals(door.leadsTo, next.leadsTo)) {
-    return { changed: false };
-  }
-  await ctx.db.patch(input.connectionId, replaceDoor(connection, input.side, next));
-  return { changed: true };
+  return writeDoorLeadsTo(
+    ctx,
+    connection,
+    input.side,
+    leadsToFromHint(input.value),
+  );
 }
 
 async function applyConnectionDestination(
@@ -231,7 +228,6 @@ async function applyConnectionDestination(
     input.mapId,
     input.connectionId,
   );
-  const door = hallwayDoor(connection, input.side);
   const here = input.side === 'from' ? connection.fromSystemId : connection.toSystemId;
   const derived = doorDestination(
     connection.fromSystemId,
@@ -249,12 +245,12 @@ async function applyConnectionDestination(
     }
     nextSystem = input.value === derived ? null : input.value;
   }
-  const next = { ...door, leadsTo: leadsToFromSystem(nextSystem) };
-  if (leadsToEquals(door.leadsTo, next.leadsTo)) {
-    return { changed: false };
-  }
-  await ctx.db.patch(input.connectionId, replaceDoor(connection, input.side, next));
-  return { changed: true };
+  return writeDoorLeadsTo(
+    ctx,
+    connection,
+    input.side,
+    leadsToFromSystem(nextSystem),
+  );
 }
 
 async function applyConnectionShipSize(
@@ -263,13 +259,12 @@ async function applyConnectionShipSize(
   connectionId: Id<'mapConnections'>,
   value: WormholeSizeClass | null,
 ): Promise<{ changed: boolean }> {
-  return await patchConnectionField(
-    ctx,
-    mapId,
-    connectionId,
-    'shipSize',
-    value satisfies WormholeSizeClass | null,
-  );
+  const connection = await requireLiveConnection(ctx, mapId, connectionId);
+  if (connection.shipSize === value) return { changed: false };
+  await ctx.db.patch(connectionId, {
+    shipSize: value satisfies WormholeSizeClass | null,
+  });
+  return { changed: true };
 }
 
 async function applyConnectionMassState(

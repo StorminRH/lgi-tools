@@ -16,21 +16,11 @@ import { ensureStaticPlaceholders } from './mapStatics';
 
 const LIVE_CONNECTION_SCAN_CAP = 32;
 
-async function gatedConnection(
-  ctx: MutationCtx,
-  mapId: string,
-  connectionId: Id<'mapConnections'>,
-): Promise<Doc<'mapConnections'>> {
-  await requireMapAccess(ctx, mapId, 'edit');
-  return requireConnectionOnMap(ctx, mapId, connectionId);
-}
-
-async function gatedSystem(
+async function loadMappedSystem(
   ctx: MutationCtx,
   mapId: string,
   systemId: number,
 ): Promise<Doc<'mapSystems'>> {
-  await requireMapAccess(ctx, mapId, 'edit');
   requireSystemId(systemId);
   const system = await findSystem(ctx, mapId, systemId);
   if (system === null) {
@@ -72,7 +62,7 @@ async function stampSystemTombstone(
   mapId: string,
   systemId: number,
 ): Promise<{ tombstoned: true }> {
-  const system = await gatedSystem(ctx, mapId, systemId);
+  const system = await loadMappedSystem(ctx, mapId, systemId);
   if (isTombstoned(system)) return { tombstoned: true };
   const incidentConnections = await readIncidentConnections(ctx, mapId, systemId);
   if (incidentConnections.some((connection) => !isTombstoned(connection))) {
@@ -101,7 +91,7 @@ async function stampConnectionTombstone(
   mapId: string,
   connectionId: Id<'mapConnections'>,
 ): Promise<{ tombstoned: true }> {
-  const connection = await gatedConnection(ctx, mapId, connectionId);
+  const connection = await requireConnectionOnMap(ctx, mapId, connectionId);
   if (isTombstoned(connection)) return { tombstoned: true };
   await ctx.db.patch(connectionId, connectionRemovedTombstone(Date.now()));
   return { tombstoned: true };
@@ -112,7 +102,7 @@ async function clearSystemTombstone(
   mapId: string,
   systemId: number,
 ): Promise<{ restored: true }> {
-  const system = await gatedSystem(ctx, mapId, systemId);
+  const system = await loadMappedSystem(ctx, mapId, systemId);
   if (!isTombstoned(system)) return { restored: true };
   await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
   await ensureStaticPlaceholders(ctx, mapId, systemId);
@@ -138,7 +128,7 @@ async function clearConnectionTombstone(
   mapId: string,
   connectionId: Id<'mapConnections'>,
 ): Promise<{ restored: true; changed: boolean }> {
-  const connection = await gatedConnection(ctx, mapId, connectionId);
+  const connection = await requireConnectionOnMap(ctx, mapId, connectionId);
   if (!isTombstoned(connection)) return { restored: true, changed: false };
   await requireLiveEndpoint(ctx, mapId, connection.fromSystemId);
   if (connection.toSystemId !== null) {
@@ -170,20 +160,26 @@ async function restoreLiveConnection(
 
 export const tombstoneSystem = internalMutation({
   args: { mapId: v.string(), systemId: v.number() },
-  handler: (ctx, { mapId, systemId }) =>
-    stampSystemTombstone(ctx, mapId, systemId),
+  handler: async (ctx, { mapId, systemId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    return stampSystemTombstone(ctx, mapId, systemId);
+  },
 });
 
 export const tombstoneConnection = internalMutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: (ctx, { mapId, connectionId }) =>
-    stampConnectionTombstone(ctx, mapId, connectionId),
+  handler: async (ctx, { mapId, connectionId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    return stampConnectionTombstone(ctx, mapId, connectionId);
+  },
 });
 
 export const restoreSystem = internalMutation({
   args: { mapId: v.string(), systemId: v.number() },
-  handler: (ctx, { mapId, systemId }) =>
-    clearSystemTombstone(ctx, mapId, systemId),
+  handler: async (ctx, { mapId, systemId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    return clearSystemTombstone(ctx, mapId, systemId);
+  },
 });
 
 export const restoreConnection = mutation({
