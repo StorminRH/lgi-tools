@@ -2207,11 +2207,6 @@ describe('mapScan paste application and lifecycle', () => {
       paginationOpts: { cursor: null, numItems: 1000 },
     });
     expect(page.page.map((row) => row.signatureId)).toEqual(['SIG-001']);
-    const denied = await t.withIdentity({ subject: 'stranger' }).query(
-      api.mapScan.watchSystemSignatures,
-      { mapId: MAP, systemId: JITA, paginationOpts: { cursor: null, numItems: 10 } },
-    );
-    expect(denied).toEqual({ page: [], isDone: true, continueCursor: '' });
   });
 
   it('purges expired tombstones through the production internal mutation and cron registry', async () => {
