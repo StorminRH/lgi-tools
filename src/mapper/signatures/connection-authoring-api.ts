@@ -1,7 +1,7 @@
 import { toast } from '@/components/ui/toast';
 import type { Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
-import { typeSetterFollowUpNeeded } from '@/data/maps/semantic-write';
+import { followUpTypeSetterTypedHole } from './type-setter-follow-up';
 import type {
   ConnectionDetail,
   ConnectionEditorDetail,
@@ -127,11 +127,10 @@ export async function applyWormholeType(input: {
     value: input.value,
     side: input.side,
   });
-  if (!typeSetterFollowUpNeeded(result)) return;
-  await postJumpRequest({
-    kind: 'typed-hole',
+  await followUpTypeSetterTypedHole({
     mapId: input.mapId,
     connectionId: input.connection.connectionId,
+    write: result,
   });
 }
 

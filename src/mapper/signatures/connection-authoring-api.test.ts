@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { ConnectionDetail } from '../chain/connection-detail';
 import {
@@ -13,7 +14,9 @@ import {
 
 const announce = vi.hoisted(() => vi.fn());
 const postJump = vi.hoisted(() =>
-  vi.fn(async () => ({ status: 'processed', outcome: 'confirmed', emitted: true })),
+  vi.fn(async (): Promise<JumpResolverResponse | null> => ({
+    status: 'processed', outcome: 'confirmed', emitted: true,
+  })),
 );
 const toastError = vi.hoisted(() => vi.fn());
 
@@ -65,6 +68,23 @@ function authoring() {
     restoreSignatures: vi.fn(),
   };
 }
+
+it.each([null, { status: 'retry', reason: 'emission failed' }] as const)(
+  'retries a failed typed-hole on the next identical selection: %j', async (outcome) => {
+    const api = authoring();
+    const connection = detail({ connectionId: 'retry-type' as Id<'mapConnections'> });
+    api.setConnectionWormholeType
+      .mockResolvedValueOnce({ kind: 'mutated' })
+      .mockResolvedValue({ kind: 'idle' });
+    postJump.mockClear().mockResolvedValueOnce(outcome);
+    const input = { mapId: 'map-retry', connection, value: 'B274', authoring: api };
+    await applyWormholeType(input);
+    await applyWormholeType(input);
+    expect(postJump).toHaveBeenCalledTimes(2);
+    await applyWormholeType(input);
+    expect(postJump).toHaveBeenCalledTimes(2);
+  },
+);
 
 it('answers jump picks through the route, dismisses only delivered answers, and notifies typed holes when held', async () => {
   postJump.mockClear();

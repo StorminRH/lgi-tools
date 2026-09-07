@@ -5,7 +5,6 @@ import {
   identifyWriteDigest,
   pasteSemanticWrite,
   pasteWriteDigest,
-  typeSetterFollowUpNeeded,
   typeSetterSemanticWrite,
 } from './semantic-write';
 
@@ -91,13 +90,6 @@ describe('type setter semantic write', () => {
     expect(typeSetterSemanticWrite({ changed: false, claimed: false })).toEqual({
       kind: 'idle',
     });
-  });
-
-  it('follows up only for mutated and claimed writes', () => {
-    expect(typeSetterFollowUpNeeded(undefined)).toBe(false);
-    expect(typeSetterFollowUpNeeded({ kind: 'idle' })).toBe(false);
-    expect(typeSetterFollowUpNeeded({ kind: 'mutated' })).toBe(true);
-    expect(typeSetterFollowUpNeeded({ kind: 'claimed' })).toBe(true);
   });
 });
 

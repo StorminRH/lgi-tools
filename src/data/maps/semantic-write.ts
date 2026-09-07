@@ -38,10 +38,6 @@ export function typeSetterSemanticWrite(result: TypeSetterWriteResult): Semantic
   return { kind: 'idle' };
 }
 
-export function typeSetterFollowUpNeeded(write: SemanticWrite | undefined): boolean {
-  return write !== undefined && write.kind !== 'idle';
-}
-
 export function pasteWriteDigest(
   systemId: number,
   signatureIds: readonly string[],
