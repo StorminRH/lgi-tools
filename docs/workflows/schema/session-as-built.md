@@ -129,8 +129,8 @@ there are none.
 
 ## Verification summary
 
-For a numbered final session record, use exactly one ordered line per plan
-criterion and one review receipt. Ordinary and partial-delivery records state
+For a numbered final session record, use exactly one ordered line per plan criterion
+and one review receipt. Ordinary and partial-delivery records state
 the proof available for their delivered scope and the review receipt:
 
 ```markdown

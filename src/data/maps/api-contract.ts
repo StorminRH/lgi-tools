@@ -96,7 +96,7 @@ export const searchCharactersEndpoint = defineEndpoint({
 
 const systemIdSchema = z.number().int().positive().safe();
 
-export const signatureEliminationRequestSchema = z
+const signatureEliminationRequestSchema = z
   .strictObject({
     mapId: mapIdSchema,
     systemIds: z.array(systemIdSchema).min(1).max(2),
@@ -152,6 +152,35 @@ export const signatureEliminationEndpoint = defineEndpoint({
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
+  },
+});
+
+const legacySignatureEliminationRequestSchema = z.strictObject({
+  mapId: mapIdSchema,
+  systemId: systemIdSchema,
+});
+
+const legacySignatureEliminationResponseSchema = z.discriminatedUnion('status', [
+  z.strictObject({
+    status: z.literal('applied'),
+    signatureIds: z.array(z.string().min(1)).min(1),
+  }),
+  z.strictObject({ status: z.literal('quiet') }),
+  z.strictObject({ status: z.literal('statics-unavailable') }),
+]);
+
+export const signatureEliminationRouteRequestSchema = z.union([
+  signatureEliminationRequestSchema,
+  legacySignatureEliminationRequestSchema,
+]);
+
+export const legacySignatureEliminationEndpoint = defineEndpoint({
+  ...signatureEliminationEndpoint,
+  request: legacySignatureEliminationRequestSchema,
+  responses: {
+    ...signatureEliminationEndpoint.responses,
+    200: jsonBody(legacySignatureEliminationResponseSchema),
+    503: problem('observations_unavailable'),
   },
 });
 

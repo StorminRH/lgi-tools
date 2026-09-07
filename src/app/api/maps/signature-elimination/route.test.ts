@@ -37,6 +37,51 @@ beforeEach(() => {
 });
 
 describe('POST /api/maps/signature-elimination', () => {
+  it.each([
+    { status: 'applied', signatureIds: ['ABC-123'] },
+    { status: 'quiet' },
+    { status: 'statics-unavailable' },
+  ])('preserves the legacy response $status for already-open tabs', async (result) => {
+    h.resolveSignatureElimination.mockResolvedValueOnce({
+      results: [{ systemId: 31_000_001, ...result }],
+    });
+    const response = await POST(request({ mapId: 'map-1', systemId: 31_000_001 }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(result);
+    expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
+      expect.anything(), 'user-1', { mapId: 'map-1', systemIds: [31_000_001] },
+    );
+  });
+
+  it('reports unavailable observations as a problem for legacy clients', async () => {
+    h.resolveSignatureElimination.mockResolvedValueOnce({
+      results: [{ systemId: 31_000_001, status: 'observations-unavailable' }],
+    });
+    const response = await POST(request({ mapId: 'map-1', systemId: 31_000_001 }));
+    expect(response.status).toBe(503);
+    expect(problemBodySchema.parse(await response.json())).toMatchObject({
+      code: 'observations_unavailable',
+    });
+  });
+
+  it.each([
+    { mapId: 'map-1', systemId: -1 },
+    { mapId: 'map-1', systemId: 31_000_001, systemIds: [31_000_001] },
+    { mapId: 'map-1', systemId: 31_000_001, extra: true },
+  ])('rejects invalid or mixed legacy bodies before dispatch', async (body) => {
+    expect((await POST(request(body))).status).toBe(400);
+    expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
+  });
+
+  it('requires authentication for legacy requests', async () => {
+    h.checkUserId.mockResolvedValueOnce({
+      ok: false,
+      failure: { category: 'unauthenticated', code: 'unauthenticated' },
+    });
+    expect((await POST(request({ mapId: 'map-1', systemId: 31_000_001 }))).status).toBe(401);
+    expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
+  });
+
   it('rejects malformed and anonymous requests before dispatching', async () => {
     const malformed = await POST(request({ mapId: 'map-1', systemIds: [-1] }));
     expect(malformed.status).toBe(400);

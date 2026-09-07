@@ -6,7 +6,6 @@ import {
   insertAtBottomIfLoaded,
   insertAtTop,
   optimisticallyUpdateValueInPaginatedQuery,
-  removeFromPaginatedQuery,
   useMutation,
   type OptimisticLocalStore,
 } from '@/data/convex/use-mutation';
@@ -385,31 +384,27 @@ function optimisticClaimStaticPlaceholder(
     );
   })[0];
   if (placeholder === undefined) return;
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchUnresolvedHoles,
-    { mapId: args.mapId },
-    (row) => {
-      if (row._id !== placeholder._id) return row;
-      return {
-        ...row,
-        from: {
-          ...row.from,
-          signatureId: claimant.from.signatureId,
-          signalPct: claimant.from.signalPct,
-          leadsTo: claimant.from.leadsTo,
-        },
-        identity: claimant.identity,
-        lifetime: claimant.lifetime,
-      };
-    },
-  );
-  removeFromPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchUnresolvedHoles,
-    { mapId: args.mapId },
-    (row) => row._id === args.connectionId,
-  );
+  for (const entry of unresolved) {
+    if (entry.value === undefined || entry.args.mapId !== args.mapId) continue;
+    localStore.setQuery(api.mapChainConnections.watchUnresolvedHoles, entry.args, {
+      ...entry.value,
+      page: entry.value.page.flatMap((row) => {
+        if (row._id === claimant._id) return [];
+        if (row._id !== placeholder._id) return [row];
+        return [{
+          ...row,
+          from: {
+            ...row.from,
+            signatureId: claimant.from.signatureId,
+            signalPct: claimant.from.signalPct,
+            leadsTo: claimant.from.leadsTo,
+          },
+          identity: claimant.identity,
+          lifetime: claimant.lifetime,
+        }];
+      }),
+    });
+  }
 }
 
 export interface ConnectionWindowSource {
