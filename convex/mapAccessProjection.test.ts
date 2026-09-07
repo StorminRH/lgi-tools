@@ -4,7 +4,7 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import { mapRoleValidator } from './lib/mapEntityContracts';
+import { legacyMapOwnerRoleValidator, mapRoleValidator } from './lib/mapEntityContracts';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { currentRolesFromStored, MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
@@ -305,21 +305,20 @@ describe('purgeUserClaims', () => {
 });
 
 describe('map role leftover', () => {
-  it('contracts stored and write roles to viewer, editor, and admin', async () => {
+  it('preserves stored owner claims while rejecting new owner writes', async () => {
+    expect(legacyMapOwnerRoleValidator.value).toBe('owner');
     expect(mapRoleValidator.kind).toBe('union');
     expect(currentRolesFromStored(['owner', 'viewer'])).toEqual(['admin', 'viewer']);
     expect(currentRolesFromStored(['admin', 'editor'])).toEqual(['admin', 'editor']);
 
     const t = convexTest(schema, modules);
-    await expect(
-      t.run((ctx) =>
-        ctx.db.insert('mapAccess', {
-          mapId: MAP_A,
-          userId: OWNER,
-          roles: ['owner'],
-        } as never),
-      ),
-    ).rejects.toThrow();
+    await t.run((ctx) =>
+      ctx.db.insert('mapAccess', {
+        mapId: MAP_A,
+        userId: OWNER,
+        roles: ['owner'],
+      }),
+    );
 
     await expect(
       t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
@@ -329,27 +328,55 @@ describe('map role leftover', () => {
       } as never),
     ).rejects.toThrow();
 
-    await t.run((ctx) =>
-      ctx.db.insert('mapAccess', {
-        mapId: MAP_A,
-        userId: OWNER,
-        roles: ['admin'],
-      }),
-    );
     await expect(
       t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {}),
-    ).resolves.toEqual({ remapped: 0, continueCursor: null, isDone: true });
+    ).resolves.toEqual({ remapped: 1, continueCursor: null, isDone: true });
+    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+  });
+
+  it('remaps every page and leaves current claims unchanged on repeated runs', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let i = 0; i <= MAP_ACCESS_PURGE_BATCH; i += 1) {
+        await ctx.db.insert('mapAccess', {
+          mapId: MAP_A,
+          userId: `legacy-${i}`,
+          roles: ['owner', 'admin', 'viewer'],
+        });
+      }
+      await ctx.db.insert('mapAccess', { mapId: MAP_B, userId: EDITOR, roles: ['editor'] });
+    });
+    const current = await readClaims(t, MAP_B);
+    const first = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {});
+    expect(first.isDone).toBe(false);
+    expect(first.continueCursor).not.toBeNull();
+    const second = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {
+      cursor: first.continueCursor,
+    });
+    expect(second.isDone).toBe(true);
+    expect(second.continueCursor).toBeNull();
+    expect(first.remapped + second.remapped).toBe(MAP_ACCESS_PURGE_BATCH + 1);
+    const migrated = await readClaims(t, MAP_A);
+    expect(migrated).toHaveLength(MAP_ACCESS_PURGE_BATCH + 1);
+    expect(migrated.every((row) => row.roles.join(',') === 'admin,viewer')).toBe(true);
+    const repeated = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {});
+    expect(repeated.remapped).toBe(0);
+    await expect(t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {
+      cursor: repeated.continueCursor,
+    })).resolves.toEqual({ remapped: 0, continueCursor: null, isDone: true });
+    expect(await readClaims(t, MAP_A)).toEqual(migrated);
+    expect(await readClaims(t, MAP_B)).toEqual(current);
   });
 });
 
 describe('gate returns projected roles', () => {
-  it('authorizes a stored admin claim without a leftover owner remap', async () => {
+  it('keeps a stored owner authorized while the migration is pending', async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) =>
       ctx.db.insert('mapAccess', {
         mapId: MAP_A,
         userId: OWNER,
-        roles: ['admin'],
+        roles: ['owner'],
       }),
     );
 

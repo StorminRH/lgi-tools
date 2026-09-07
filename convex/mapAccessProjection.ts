@@ -5,7 +5,7 @@ import {
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { currentMapRoleValidator } from './lib/mapEntityContracts';
+import { currentMapRoleValidator, type StoredMapRole } from './lib/mapEntityContracts';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
@@ -30,17 +30,12 @@ export interface UserClaimsPurgeResult {
   readonly hasMore: boolean;
 }
 
-export function currentRolesFromStored(roles: readonly string[]): MapRole[] {
-  const next: MapRole[] = [];
-  for (const role of roles) {
-    if (role === 'owner' || role === 'admin') next.push('admin');
-    else if (role === 'editor' || role === 'viewer') next.push(role);
-  }
-  return canonicalizeMapRoles(next);
+export function currentRolesFromStored(roles: readonly StoredMapRole[]): MapRole[] {
+  return canonicalizeMapRoles(roles.map((role) => role === 'owner' ? 'admin' : role));
 }
 
 function rolesEqual(
-  left: readonly MapRole[],
+  left: readonly StoredMapRole[],
   right: readonly MapRole[],
 ): boolean {
   return left.length === right.length && left.every((role, index) => role === right[index]);
