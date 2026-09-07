@@ -21,6 +21,7 @@ import {
 } from './lib/characterSync';
 
 const FALLBACK_TTL_MS = 5_000;
+const ACCESS_LEASE_BATCH_SIZE = 32;
 
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
@@ -86,9 +87,7 @@ async function runLocationSync(
 ): Promise<void> {
   const env = requireSyncEnv();
 
-  const prep = await ctx.runQuery(internal.characterLocationReads.prepareLocationSync, {
-    userId,
-  });
+  const prep = await prepareLocationSync(ctx, userId);
   const heldByCharacter = new Map(prep.locations.map((h) => [h.characterId, h]));
   const heldOnlineByCharacter = new Map(prep.online.map((h) => [h.characterId, h]));
   const leaseByCharacter = new Map(prep.leases.map((row) => [row.characterId, row]));
@@ -120,6 +119,9 @@ async function runLocationSync(
         now,
         rl,
       );
+      if (pendingLeases.size >= ACCESS_LEASE_BATCH_SIZE) {
+        await flushPendingLeases(ctx, userId, pendingLeases);
+      }
       if (outcome.kind === 'skip') continue;
       results.push(outcome.result);
       if (outcome.kind === 'stop') {
@@ -138,9 +140,22 @@ async function runLocationSync(
       lastError: runError,
       ...rl,
     });
-  } finally {
-    await flushPendingLeases(ctx, userId, pendingLeases);
+  } catch (error) {
+    await flushPendingLeases(ctx, userId, pendingLeases).catch(() => undefined);
+    throw error;
   }
+}
+
+async function prepareLocationSync(ctx: ActionCtx, userId: string) {
+  const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
+    userId,
+  });
+  if (trackedIds.length === 0) {
+    return { trackedIds, locations: [], online: [], leases: [] };
+  }
+  const held = await ctx.runQuery(internal.characterLocationReads.heldState, { userId });
+  const leases = await ctx.runQuery(internal.characterLocationAccess.accessLeases, { userId });
+  return { trackedIds, ...held, leases };
 }
 
 async function syncLocationCharacter(
@@ -202,8 +217,8 @@ async function flushPendingLeases(
 ): Promise<void> {
   if (pendingLeases.size === 0) return;
   const leases = [...pendingLeases.values()];
-  pendingLeases.clear();
   await ctx.runMutation(internal.characterLocationAccess.putAccessLeases, { userId, leases });
+  pendingLeases.clear();
 }
 
 interface ProbeResolution {

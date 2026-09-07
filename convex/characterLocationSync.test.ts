@@ -1,9 +1,11 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
+import { makeFunctionReference, type FunctionArgs } from 'convex/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
+import type { MutationCtx } from './_generated/server';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -185,6 +187,27 @@ async function seedLease(
 
 function run(t: TestConvex<typeof schema>) {
   return t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN });
+}
+
+async function observeLeaseWrites() {
+  const access = await import('./characterLocationAccess');
+  const persist = vi.fn((
+    ctx: MutationCtx,
+    args: FunctionArgs<typeof internal.characterLocationAccess.putAccessLeases>,
+  ) => ctx.runMutation(makeFunctionReference<
+    'mutation',
+    FunctionArgs<typeof internal.characterLocationAccess.putAccessLeases>,
+    null
+  >('actualLocationAccess:putAccessLeases'), args));
+  const t = convexTest(schema, {
+    ...modules,
+    '../actualLocationAccess.ts': async () => access,
+    '../characterLocationAccess.ts': async () => ({
+      ...access,
+      putAccessLeases: { ...access.putAccessLeases, _handler: persist },
+    }),
+  });
+  return { t, persist };
 }
 
 describe('characterLocationSync.syncUser', () => {
@@ -660,6 +683,87 @@ describe('characterLocationSync.syncUser', () => {
     );
     expect(subject?.status).toBe('idle');
     expect(subject?.lastError).toMatch(/esi_down/);
+  });
+
+  it.each([false, true])(
+    'retries a rejected lease batch and preserves the first error, retry fails: %s',
+    async (retryFails) => {
+      const { t, persist } = await observeLeaseWrites();
+      persist.mockRejectedValueOnce(new Error('lease_write_failed'));
+      if (retryFails) persist.mockRejectedValueOnce(new Error('retry_write_failed'));
+      await seedSubject(t);
+      await seedTracking(t, 101);
+      await seedTracking(t, 102);
+      await seedOnline(t, {}, 101);
+      await seedOnline(t, {}, 102);
+      stubFetch({
+        esi: (url) => {
+          if (url.includes('/location')) {
+            return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+          }
+          if (url.includes('/ship')) {
+            return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+          }
+          throw new Error(`unexpected esi ${url}`);
+        },
+      });
+
+      await run(t);
+
+      expect(persist).toHaveBeenCalledTimes(2);
+      expect(persist.mock.calls[0]?.[1]).toEqual({
+        userId: USER,
+        leases: [
+          { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
+          { characterId: 102, accessToken: 'tok', expiresAt: TOKEN_EXP },
+        ],
+      });
+      expect(persist.mock.calls[1]?.[1]).toEqual(persist.mock.calls[0]?.[1]);
+      for (const characterId of [101, 102]) {
+        const lease = await readLease(t, characterId);
+        if (retryFails) expect(lease).toBeNull();
+        else expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+        expect(await readDoc(t, characterId)).toBeNull();
+      }
+      const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
+      expect(subject?.status).toBe('idle');
+      expect(subject?.lastError).toBe('sync_failed: lease_write_failed');
+    },
+  );
+
+  it('persists full lease batches before fetching the next character', async () => {
+    const { t, persist } = await observeLeaseWrites();
+    await seedSubject(t);
+    for (let characterId = 101; characterId <= 133; characterId += 1) {
+      await t.run((ctx) => ctx.db.insert('mapTracking', {
+        mapId: characterId === 133 ? 'map-b' : 'map-a', userId: USER, characterId,
+      }));
+      await seedOnline(t, {}, characterId);
+    }
+    let tokenRequests = 0;
+    stubFetch({
+      token: () => {
+        tokenRequests += 1;
+        if (tokenRequests === 33) expect(persist).toHaveBeenCalledTimes(1);
+        return jsonResponse({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+      },
+      esi: (url) => {
+        if (url.includes('/location')) return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        if (url.includes('/ship')) return jsonResponse({ ship_type_id: SHIP_A }, RL);
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect(tokenRequests).toBe(33);
+    expect(persist.mock.calls.map((call) => call[1].leases.length)).toEqual([32, 1]);
+    const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
+    expect(leases).toHaveLength(33);
+    expect((await readDoc(t, 133))?.solarSystemId).toBe(SYSTEM_A);
+    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
+    expect(subject?.status).toBe('idle');
+    expect(subject?.lastError).toBeNull();
   });
 
   it('re-vends two expired leases in one batch and keeps both', async () => {
