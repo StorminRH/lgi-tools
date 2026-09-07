@@ -85,17 +85,25 @@ export default {
       client.locator(`.react-flow__node[data-id="${ORIGIN_SYSTEM_ID}"]`)
         .waitFor({ state: 'attached', timeout: 30_000 }),
     ));
+    const candidateIds = [];
     for (const candidate of CANDIDATES) {
-      await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
+      const fixture = JSON.parse(await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
         mapId,
         fromSystemId: ORIGIN_SYSTEM_ID,
         fromSignatureId: candidate.signatureId,
         wormholeTypeCode: candidate.typeCode,
         shipSize: 'L',
-      });
+      }));
+      if (typeof fixture.connectionId !== 'string') throw new Error('fixture did not return a connection id');
+      candidateIds.push(fixture.connectionId);
     }
-    const beforeJump = await jumpEvidence(mapId, userId);
-    check('all three possible signatures are unresolved before the jump', beforeJump.candidates.length === 3);
+    const beforeJump = await Promise.all(candidateIds.map(async (connectionId) =>
+      JSON.parse(await convexRun('mapJumpEvidence:connectionEvidence', { mapId, userId, connectionId })),
+    ));
+    check(
+      'all three possible signatures are unresolved before the jump',
+      beforeJump.length === 3 && beforeJump.every((evidence) => evidence.canEdit === true && evidence.connection === null),
+    );
     const beforeNodes = await Promise.all(clients.map((client) => destinationNode(client).count()));
     check('the C3 destination has no node before the jump on either client', beforeNodes.every((count) => count === 0));
 
@@ -131,9 +139,9 @@ export default {
     const awaitingAnswer = await jumpEvidence(mapId, userId);
     check(
       'opening the prompt leaves every candidate unresolved without preselecting a row',
-      awaitingAnswer.candidates.length === beforeJump.candidates.length
-      && beforeJump.candidates.every((candidate) =>
-        awaitingAnswer.candidates.some((pending) => pending.id === candidate.id),
+      awaitingAnswer.candidates.length === candidateIds.length
+      && candidateIds.every((connectionId) =>
+        awaitingAnswer.candidates.some((pending) => pending.id === connectionId),
       ),
     );
 
