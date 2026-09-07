@@ -723,4 +723,84 @@ describe('automatic jump authoring', () => {
     });
     expect(ambiguous).toMatchObject({ tracked: false, transition: null });
   });
+
+  it('authors one character among many unrelated trackers', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 257; index += 1) {
+        await ctx.db.insert('mapTracking', {
+          mapId: MAP,
+          userId: `other-tracker-${index}`,
+          characterId: CHARACTER + 1 + index,
+        });
+      }
+    });
+    const authored = await t.mutation(
+      jump.resolveJumpAuthoring,
+      authorArgs({
+        decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      }),
+    );
+    expect(authored.status).toBe('authored');
+    expect((await mapState(t)).connections).toHaveLength(1);
+  });
+
+  it('throws MAP_TOO_LARGE when one character exceeds the jump-tracking cap', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 256; index += 1) {
+        await ctx.db.insert('mapTracking', {
+          mapId: MAP,
+          userId: `cap-tracker-${index}`,
+          characterId: CHARACTER,
+        });
+      }
+    });
+    await expect(
+      t.query(jump.jumpEvidence, {
+        userId: EDITOR,
+        mapId: MAP,
+        characterId: CHARACTER,
+      }),
+    ).rejects.toThrow('MAP_TOO_LARGE');
+  });
+
+  it('returns processed evidence without origin candidates', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    await t.mutation(
+      jump.resolveJumpAuthoring,
+      authorArgs({
+        decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      }),
+    );
+    const leftoverId = await seedCandidate(t, 'ABC', 'C247');
+    const evidence = await t.query(jump.jumpEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      characterId: CHARACTER,
+    });
+    expect(evidence).toEqual({
+      canEdit: true,
+      tracked: true,
+      transition: {
+        fromSolarSystemId: ORIGIN,
+        toSolarSystemId: DESTINATION,
+        shipTypeId: 587,
+        prevFresh: true,
+        transitionObservedAt: OBSERVED_AT,
+      },
+      lastProcessedTransitionAt: OBSERVED_AT,
+      originLive: false,
+      scannedTypeCodes: [],
+      candidates: [],
+    });
+    const leftover = await t.run(async (ctx) => await ctx.db.get(leftoverId));
+    expect(leftover?.toSystemId).toBeNull();
+  });
 });

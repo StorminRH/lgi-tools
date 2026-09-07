@@ -2,12 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import {
   DOORBELL_ATTEMPT_CAP,
+  DOORBELL_CHANNEL_PREFIX,
+  doorbellChannelName,
+  hydrateDoorbellMemory,
+  joinDoorbellChannel,
   ownTrackedDoorbellRows,
   pendingDoorbells,
+  persistDoorbellMemory,
   ringAnswered,
   ringDispatched,
   ringOwnDoorbells,
   ringPendingTransitions,
+  type DoorbellChannel,
   type DoorbellMemoryEntry,
 } from './doorbell-model';
 
@@ -174,5 +180,154 @@ describe('ringPendingTransitions', () => {
     expect(failMemory.get(101)).toMatchObject({ settled: false, inFlight: false });
     await ringPendingTransitions(failMemory, [tracked(101, 5_000)], failRing);
     expect(failRing).toHaveBeenCalledTimes(2);
+  });
+});
+
+class MemoryStorage {
+  readonly store = new Map<string, string>();
+
+  getItem(key: string): string | null {
+    return this.store.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.store.set(key, value);
+  }
+}
+
+class TestChannel implements DoorbellChannel {
+  onmessage: DoorbellChannel['onmessage'] = null;
+  onmessageerror: DoorbellChannel['onmessageerror'] = null;
+  closed = false;
+
+  constructor(readonly name: string, private readonly bus: TestBus) {}
+
+  postMessage(data: unknown) {
+    if (this.closed) throw new Error('channel closed');
+    this.bus.send(this, data);
+  }
+
+  close() {
+    this.closed = true;
+  }
+
+  deliver(data: unknown) {
+    if (!this.closed) {
+      this.onmessage?.({ data } as MessageEvent<unknown>);
+    }
+  }
+}
+
+class TestBus {
+  readonly channels: TestChannel[] = [];
+  readonly queue: Array<() => void> = [];
+
+  open = (name: string) => {
+    const channel = new TestChannel(name, this);
+    this.channels.push(channel);
+    return channel;
+  };
+
+  send(sender: TestChannel, data: unknown) {
+    for (const receiver of this.channels) {
+      if (receiver === sender || receiver.closed || receiver.name !== sender.name) continue;
+      const cloned = structuredClone(data);
+      this.queue.push(() => receiver.deliver(cloned));
+    }
+  }
+
+  flush() {
+    while (this.queue.length > 0) this.queue.shift()?.();
+  }
+}
+
+const settled: DoorbellMemoryEntry = {
+  transitionObservedAt: 5_000,
+  attempts: 1,
+  settled: true,
+  inFlight: false,
+};
+
+const inFlight: DoorbellMemoryEntry = {
+  transitionObservedAt: 5_000,
+  attempts: 1,
+  settled: false,
+  inFlight: true,
+};
+
+describe('doorbell remount memory', () => {
+  it('hydrates settled memory for the same map after remount', () => {
+    const storage = new MemoryStorage();
+    const memory = new Map<number, DoorbellMemoryEntry>([[101, settled]]);
+    persistDoorbellMemory(storage, 'map-a', memory);
+
+    const remounted = hydrateDoorbellMemory(storage, 'map-a');
+    expect(pendingDoorbells([tracked(101, 5_000)], remounted)).toEqual([]);
+    expect(hydrateDoorbellMemory(storage, 'map-missing').size).toBe(0);
+    storage.setItem(JSON.stringify([DOORBELL_CHANNEL_PREFIX, 'map-bad']), '{');
+    expect(hydrateDoorbellMemory(storage, 'map-bad').size).toBe(0);
+  });
+
+  it('isolates map A from map B and restores A', () => {
+    const storage = new MemoryStorage();
+    persistDoorbellMemory(
+      storage,
+      'map-a',
+      new Map<number, DoorbellMemoryEntry>([[101, settled]]),
+    );
+
+    const mapB = hydrateDoorbellMemory(storage, 'map-b');
+    expect(pendingDoorbells([tracked(101, 5_000)], mapB)).toEqual([
+      { characterId: 101, transitionObservedAt: 5_000 },
+    ]);
+
+    persistDoorbellMemory(
+      storage,
+      'map-b',
+      new Map<number, DoorbellMemoryEntry>([[202, inFlight]]),
+    );
+    const restoredA = hydrateDoorbellMemory(storage, 'map-a');
+    expect(pendingDoorbells([tracked(101, 5_000)], restoredA)).toEqual([]);
+    expect(restoredA.get(202)).toBeUndefined();
+  });
+});
+
+describe('doorbell tab memory', () => {
+  it('shares two-tab in-flight memory on the doorbell channel', () => {
+    const bus = new TestBus();
+    const firstMemory = new Map<number, DoorbellMemoryEntry>();
+    const secondMemory = new Map<number, DoorbellMemoryEntry>();
+    const first = joinDoorbellChannel({
+      userId: 'user-a',
+      mapId: 'map-a',
+      tabId: 'tab-a',
+      characterIdsHint: [101],
+      memory: firstMemory,
+      openChannel: bus.open,
+      now: () => 1,
+      persist: () => undefined,
+    });
+    const second = joinDoorbellChannel({
+      userId: 'user-a',
+      mapId: 'map-a',
+      tabId: 'tab-b',
+      characterIdsHint: [101],
+      memory: secondMemory,
+      openChannel: bus.open,
+      now: () => 1,
+      persist: () => undefined,
+    });
+
+    expect(bus.channels[0]?.name).toBe(doorbellChannelName('user-a'));
+    expect(doorbellChannelName('user-a')).toContain(DOORBELL_CHANNEL_PREFIX);
+
+    firstMemory.set(101, inFlight);
+    first.share();
+    bus.flush();
+    expect(pendingDoorbells([tracked(101, 5_000)], secondMemory)).toEqual([]);
+    expect(secondMemory.get(101)).toMatchObject({ inFlight: true, settled: false });
+
+    second.close();
+    first.close();
   });
 });

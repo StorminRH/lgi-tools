@@ -7,6 +7,10 @@ const mocks = vi.hoisted(() => ({
   liveValue: vi.fn(),
 }));
 
+vi.mock('convex/react', () => ({
+  useQuery: () => null,
+}));
+
 vi.mock('@/data/convex/use-live-value', () => ({
   useLiveValue: (...args: unknown[]) => mocks.liveValue(...args),
 }));
