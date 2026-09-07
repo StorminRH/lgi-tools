@@ -3,6 +3,7 @@ import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import {
   DOORBELL_ATTEMPT_CAP,
   DOORBELL_CHANNEL_PREFIX,
+  DOORBELL_RETRY_INTERVAL_MS,
   doorbellChannelName,
   hydrateDoorbellMemory,
   joinDoorbellChannel,
@@ -94,7 +95,7 @@ describe('pendingDoorbells', () => {
     expect(
       pendingDoorbells(
         [tracked(101, 5_000)],
-        new Map([[101, { ...unsettled, inFlight: true }]]),
+        new Map([[101, { ...unsettled, inFlight: true, lease: { id: 'active', expiresAt: Date.now() + 15_000 } }]]),
       ),
     ).toEqual([]);
     expect(
@@ -253,6 +254,7 @@ const inFlight: DoorbellMemoryEntry = {
   attempts: 1,
   settled: false,
   inFlight: true,
+  lease: { id: 'remote', expiresAt: Date.now() + 15_000 },
 };
 
 describe('doorbell remount memory', () => {
@@ -301,20 +303,16 @@ describe('doorbell tab memory', () => {
       userId: 'user-a',
       mapId: 'map-a',
       tabId: 'tab-a',
-      characterIdsHint: [101],
       memory: firstMemory,
       openChannel: bus.open,
-      now: () => 1,
       persist: () => undefined,
     });
     const second = joinDoorbellChannel({
       userId: 'user-a',
       mapId: 'map-a',
       tabId: 'tab-b',
-      characterIdsHint: [101],
       memory: secondMemory,
       openChannel: bus.open,
-      now: () => 1,
       persist: () => undefined,
     });
 
@@ -329,5 +327,103 @@ describe('doorbell tab memory', () => {
 
     second.close();
     first.close();
+  });
+});
+
+describe('doorbell recovery', () => {
+  it('retries a remounted or abandoned lease after its deadline and recovers legacy snapshots', async () => {
+    const storage = new MemoryStorage();
+    const expiresAt = Date.now() + DOORBELL_RETRY_INTERVAL_MS;
+    const memory = new Map<number, DoorbellMemoryEntry>([[101, {
+      ...inFlight, lease: { id: 'abandoned', expiresAt },
+    }]]);
+    persistDoorbellMemory(storage, 'map-a', memory);
+    const remounted = hydrateDoorbellMemory(storage, 'map-a');
+    expect(pendingDoorbells([tracked(101, 5_000)], remounted, expiresAt - 1)).toEqual([]);
+    expect(pendingDoorbells([tracked(101, 5_000)], remounted, expiresAt)).toHaveLength(1);
+    persistDoorbellMemory(storage, 'legacy', new Map([[101, {
+      transitionObservedAt: 5_000, attempts: 1, settled: false, inFlight: true,
+    }]]));
+    const legacy = hydrateDoorbellMemory(storage, 'legacy');
+    const ring = vi.fn(async () => response('processed'));
+    await ringPendingTransitions(legacy, [tracked(101, 5_000)], ring);
+    expect(ring).toHaveBeenCalledOnce();
+  });
+
+  it('does not let an expired request overwrite a newer request for the same transition', async () => {
+    vi.useFakeTimers();
+    try {
+      const memory = new Map<number, DoorbellMemoryEntry>();
+      const releases: Array<(value: JumpResolverResponse) => void> = [];
+      const ring = vi.fn(() => new Promise<JumpResolverResponse>((resolve) => releases.push(resolve)));
+      const first = ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
+      vi.advanceTimersByTime(DOORBELL_RETRY_INTERVAL_MS);
+      const second = ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
+      const newer = memory.get(101);
+      releases[0]?.(response('retry'));
+      await first;
+      expect(memory.get(101)).toBe(newer);
+      expect(newer?.inFlight).toBe(true);
+      releases[1]?.(response('processed'));
+      await second;
+      expect(memory.get(101)).toMatchObject({ settled: true, inFlight: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('doorbell snapshot handshake', () => {
+  function join(bus: TestBus, tabId: string, memory: Map<number, DoorbellMemoryEntry>) {
+    return joinDoorbellChannel({
+      userId: 'user-a', mapId: 'map-a', tabId, memory,
+      openChannel: bus.open, persist: () => undefined,
+    });
+  }
+
+  it.each(['settled', 'in-flight'] as const)('learns existing %s state before a new tab rings', async (state) => {
+    const bus = new TestBus();
+    const entry = state === 'settled' ? settled : {
+      ...inFlight, lease: { id: 'owner', expiresAt: Date.now() + 15_000 },
+    };
+    const owner = join(bus, 'owner', new Map([[101, entry]]));
+    const memory = new Map<number, DoorbellMemoryEntry>();
+    const newcomer = join(bus, 'newcomer', memory);
+    const ring = vi.fn(async () => response('processed'));
+    const ready = newcomer.ready.then(() => ringPendingTransitions(memory, [tracked(101, 5_000)], ring));
+    expect(ring).not.toHaveBeenCalled();
+    bus.flush();
+    await ready;
+    expect(ring).not.toHaveBeenCalled();
+    expect(memory.get(101)).toEqual(entry);
+    owner.close(); newcomer.close();
+  });
+
+  it.each(['processed', 'retry'] as const)('clears a sibling lease when its owner answers %s', async (status) => {
+    const bus = new TestBus();
+    const entry = { ...inFlight, lease: { id: 'owner', expiresAt: Date.now() + 15_000 } };
+    const firstMemory = new Map<number, DoorbellMemoryEntry>([[101, entry]]);
+    const owner = join(bus, 'owner', firstMemory);
+    const memory = new Map<number, DoorbellMemoryEntry>();
+    const newcomer = join(bus, 'newcomer', memory);
+    bus.flush(); await newcomer.ready;
+    firstMemory.set(101, ringAnswered(entry, 5_000, status));
+    owner.share(); bus.flush();
+    expect(memory.get(101)).toMatchObject({ inFlight: false, settled: status === 'processed' });
+    expect(pendingDoorbells([tracked(101, 5_000)], memory)).toHaveLength(status === 'processed' ? 0 : 1);
+    owner.close(); newcomer.close();
+  });
+
+  it('continues without peers after the bounded join wait', async () => {
+    vi.useFakeTimers();
+    try {
+      const channel = join(new TestBus(), 'alone', new Map());
+      const ready = vi.fn();
+      void channel.ready.then(ready);
+      expect(ready).not.toHaveBeenCalled();
+      await vi.runAllTimersAsync();
+      expect(ready).toHaveBeenCalledOnce();
+      channel.close();
+    } finally { vi.useRealTimers(); }
   });
 });

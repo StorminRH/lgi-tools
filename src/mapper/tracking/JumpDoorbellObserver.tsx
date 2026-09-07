@@ -13,68 +13,80 @@ import {
   type DoorbellMemoryEntry,
 } from './doorbell-model';
 
-function persistMapMemory(
-  mapId: string,
-  memory: Map<number, DoorbellMemoryEntry>,
-): void {
-  persistDoorbellMemory(window.sessionStorage, mapId, memory);
+interface DoorbellSession {
+  readonly memory: Map<number, DoorbellMemoryEntry>;
+  readonly persist: () => void;
+  readonly share: () => void;
+  ready: boolean;
 }
 
 export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const userId = useLiveValue(api.engine.currentUser);
-  const memoryRef = useRef<Map<number, DoorbellMemoryEntry> | null>(null);
-  const shareRef = useRef<(() => void) | null>(null);
+  const sessionRef = useRef<DoorbellSession | null>(null);
 
   const ringPending = useEffectEvent(() => {
+    const session = sessionRef.current;
+    if (session === null || !session.ready) return;
     ringOwnDoorbells(
-      memoryRef.current,
+      session.memory,
       tracking,
       (characterId) => postJumpRequest({ kind: 'doorbell', mapId, characterId }),
       () => {
-        const memory = memoryRef.current;
-        if (memory === null) return;
-        persistMapMemory(mapId, memory);
-        shareRef.current?.();
+        if (sessionRef.current !== session) return;
+        session.persist();
+        session.share();
       },
     );
   });
 
   useEffect(() => {
-    const memory = hydrateDoorbellMemory(window.sessionStorage, mapId);
-    memoryRef.current = memory;
-    const channel = typeof userId === 'string' && userId !== ''
-      && typeof BroadcastChannel === 'function'
+    if (typeof userId !== 'string' || userId === '') return;
+    const storageKey = JSON.stringify([userId, mapId]);
+    let storage: Storage | null = null;
+    try { storage = window.sessionStorage; } catch {}
+    const memory = storage === null
+      ? new Map<number, DoorbellMemoryEntry>()
+      : hydrateDoorbellMemory(storage, storageKey);
+    const persist = () => {
+      if (storage !== null) persistDoorbellMemory(storage, storageKey, memory);
+    };
+    const channel = typeof BroadcastChannel === 'function'
       ? joinDoorbellChannel({
           userId,
           mapId,
           tabId: crypto.randomUUID(),
-          characterIdsHint: [],
           memory,
           openChannel: (name) => new BroadcastChannel(name),
-          now: () => Date.now(),
-          persist: () => persistMapMemory(mapId, memory),
+          persist,
         })
       : null;
-    shareRef.current = channel === null ? null : () => channel.share();
-    ringPending();
+    const session: DoorbellSession = {
+      memory,
+      persist,
+      share: () => channel?.share(),
+      ready: channel === null,
+    };
+    sessionRef.current = session;
+    if (channel === null) ringPending();
+    else void channel.ready.then(() => {
+      if (sessionRef.current !== session) return;
+      session.ready = true;
+      ringPending();
+    });
     return () => {
-      persistMapMemory(mapId, memory);
+      persist();
       channel?.close();
-      shareRef.current = null;
-      if (memoryRef.current === memory) memoryRef.current = null;
+      if (sessionRef.current === session) sessionRef.current = null;
     };
   }, [mapId, userId]);
 
   useEffect(() => {
-    if (tracking === undefined || memoryRef.current === null) return;
-    ringPending();
+    if (tracking !== undefined) ringPending();
   }, [tracking]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      ringPending();
-    }, DOORBELL_RETRY_INTERVAL_MS);
+    const id = setInterval(() => ringPending(), DOORBELL_RETRY_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
 

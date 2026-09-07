@@ -1,4 +1,3 @@
-import { createHeartbeatPeers } from '@/data/convex/heartbeat-peers';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
 
 export interface DoorbellMemoryEntry {
@@ -6,11 +5,14 @@ export interface DoorbellMemoryEntry {
   readonly attempts: number;
   readonly settled: boolean;
   readonly inFlight: boolean;
+  readonly lease?: { readonly id: string; readonly expiresAt: number };
 }
 
 export const DOORBELL_ATTEMPT_CAP = 5;
 
 export const DOORBELL_RETRY_INTERVAL_MS = 15_000;
+
+const DOORBELL_JOIN_WAIT_MS = 100;
 
 export const DOORBELL_CHANNEL_PREFIX = 'lgi-atlas-doorbell-v1';
 
@@ -64,6 +66,7 @@ export interface PendingDoorbell {
 export function pendingDoorbells(
   tracked: readonly TrackedDoorbellRow[],
   memory: ReadonlyMap<number, DoorbellMemoryEntry>,
+  now = Date.now(),
 ): readonly PendingDoorbell[] {
   const pending: PendingDoorbell[] = [];
   for (const row of tracked) {
@@ -71,7 +74,9 @@ export function pendingDoorbells(
     if (transitionObservedAt === null) continue;
     const entry = memory.get(row.characterId);
     if (entry !== undefined && entry.transitionObservedAt === transitionObservedAt) {
-      if (entry.settled || entry.inFlight || entry.attempts >= DOORBELL_ATTEMPT_CAP) {
+      if (entry.settled
+        || (entry.inFlight && entry.lease !== undefined && entry.lease.expiresAt > now)
+        || entry.attempts >= DOORBELL_ATTEMPT_CAP) {
         continue;
       }
     }
@@ -115,14 +120,16 @@ export async function ringPendingTransitions(
     memory.set(characterId, {
       ...ringDispatched(memory.get(characterId), transitionObservedAt),
       inFlight: true,
+      lease: { id: crypto.randomUUID(), expiresAt: Date.now() + DOORBELL_RETRY_INTERVAL_MS },
     });
   }
   if (pending.length > 0) onMemoryChange?.();
   await Promise.all(
     pending.map(async ({ characterId, transitionObservedAt }) => {
+      const leaseId = memory.get(characterId)?.lease?.id;
       const response = await ring(characterId).catch(() => null);
       const entry = memory.get(characterId);
-      if (entry === undefined) return;
+      if (entry === undefined || entry.lease?.id !== leaseId || !entry.inFlight) return;
       memory.set(
         characterId,
         ringAnswered(entry, transitionObservedAt, response?.status ?? null),
@@ -130,6 +137,14 @@ export async function ringPendingTransitions(
     }),
   );
   if (pending.length > 0) onMemoryChange?.();
+}
+
+function parseDoorbellLease(input: unknown): DoorbellMemoryEntry['lease'] {
+  if (typeof input !== 'object' || input === null) return undefined;
+  if (!('id' in input) || typeof input.id !== 'string' || input.id === '') return undefined;
+  if (!('expiresAt' in input) || typeof input.expiresAt !== 'number'
+    || !Number.isSafeInteger(input.expiresAt) || input.expiresAt <= 0) return undefined;
+  return { id: input.id, expiresAt: input.expiresAt };
 }
 
 function parseDoorbellMemoryEntry(input: unknown): DoorbellMemoryEntry | null {
@@ -144,11 +159,15 @@ function parseDoorbellMemoryEntry(input: unknown): DoorbellMemoryEntry | null {
     return null;
   }
   if (!Number.isSafeInteger(input.attempts) || input.attempts < 0) return null;
+  const lease = parseDoorbellLease(
+    'lease' in input ? input.lease : undefined,
+  );
   return {
     transitionObservedAt: input.transitionObservedAt,
     attempts: input.attempts,
     settled: input.settled,
-    inFlight: input.inFlight,
+    inFlight: input.inFlight && lease !== undefined,
+    ...(lease === undefined ? {} : { lease }),
   };
 }
 
@@ -210,6 +229,7 @@ interface DoorbellMemoryMessage {
   readonly tabId: string;
   readonly mapId: string;
   readonly entries: Readonly<Record<string, DoorbellMemoryEntry>>;
+  readonly requestSnapshot: boolean;
 }
 
 function parseDoorbellMemoryMessage(input: unknown): DoorbellMemoryMessage | null {
@@ -230,6 +250,7 @@ function parseDoorbellMemoryMessage(input: unknown): DoorbellMemoryMessage | nul
     tabId: input.tabId,
     mapId: input.mapId,
     entries: snapshotDoorbellMemory(parseDoorbellMemorySnapshot(input.entries)),
+    requestSnapshot: 'requestSnapshot' in input && input.requestSnapshot === true,
   };
 }
 
@@ -247,11 +268,18 @@ function mergeDoorbellMemory(
       continue;
     }
     if (incomingEntry.transitionObservedAt !== current.transitionObservedAt) continue;
+    const newer = incomingEntry.attempts > current.attempts
+      || (incomingEntry.attempts === current.attempts
+        && (incomingEntry.lease?.expiresAt ?? 0) > (current.lease?.expiresAt ?? 0))
+      ? incomingEntry : current;
+    const sameLease = incomingEntry.lease?.id === current.lease?.id;
+    const settled = current.settled || incomingEntry.settled;
     memory.set(characterId, {
-      transitionObservedAt: current.transitionObservedAt,
-      attempts: Math.max(current.attempts, incomingEntry.attempts),
-      settled: current.settled || incomingEntry.settled,
-      inFlight: current.inFlight || incomingEntry.inFlight,
+      ...newer,
+      settled,
+      inFlight: !settled && (sameLease
+        ? current.inFlight && incomingEntry.inFlight
+        : newer.inFlight),
     });
   }
 }
@@ -265,18 +293,17 @@ export function joinDoorbellChannel(input: {
   readonly userId: string;
   readonly mapId: string;
   readonly tabId: string;
-  readonly characterIdsHint: readonly number[];
   readonly memory: Map<number, DoorbellMemoryEntry>;
   readonly openChannel: (name: string) => DoorbellChannel;
-  readonly now: () => number;
   readonly persist: () => void;
-}): { share(): void; close(): void } {
-  const peers = createHeartbeatPeers({
-    tabId: input.tabId,
-    characterIdsHint: [...input.characterIdsHint],
-  });
+}): { share(): void; close(): void; readonly ready: Promise<void> } {
+  let markReady = () => {};
+  const ready = new Promise<void>((resolve) => { markReady = resolve; });
+  const timer = setTimeout(() => markReady(), DOORBELL_JOIN_WAIT_MS);
+  const finishJoin = () => { clearTimeout(timer); markReady(); };
   let channel: DoorbellChannel | null = null;
   const disconnect = () => {
+    finishJoin();
     const previous = channel;
     channel = null;
     if (previous === null) return;
@@ -291,7 +318,6 @@ export function joinDoorbellChannel(input: {
     channel = input.openChannel(doorbellChannelName(input.userId));
     channel.onmessage = (event: MessageEvent<unknown>) => {
       if (channel === null) return;
-      peers.receive(event.data, input.now());
       const message = parseDoorbellMemoryMessage(event.data);
       if (
         message === null
@@ -302,24 +328,26 @@ export function joinDoorbellChannel(input: {
       }
       mergeDoorbellMemory(input.memory, message.entries);
       input.persist();
+      if (message.requestSnapshot) share();
+      else finishJoin();
     };
     channel.onmessageerror = disconnect;
   } catch {
     disconnect();
   }
-  return {
-    share() {
-      if (channel === null) return;
-      try {
-        channel.postMessage({
-          tabId: input.tabId,
-          mapId: input.mapId,
-          entries: snapshotDoorbellMemory(input.memory),
-        });
-      } catch {
-        disconnect();
-      }
-    },
-    close: disconnect,
-  };
+  function share(requestSnapshot = false) {
+    if (channel === null) return;
+    try {
+      channel.postMessage({
+        tabId: input.tabId,
+        mapId: input.mapId,
+        entries: snapshotDoorbellMemory(input.memory),
+        requestSnapshot,
+      });
+    } catch {
+      disconnect();
+    }
+  }
+  share(true);
+  return { share, close: disconnect, ready };
 }
