@@ -9,7 +9,6 @@ import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
-import { connectionInsert } from './__tests__/connection-doc.setup';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';

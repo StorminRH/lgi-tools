@@ -5,6 +5,8 @@ import {
   appendHaloFacts,
   deriveHalo,
   EMPTY_HALO,
+  HALO_DRAWN_RINGS,
+  HALO_FOGGED_RINGS,
   haloSignature,
   type HaloInput,
   type HaloLimits,
@@ -52,6 +54,8 @@ const RINGS_ON: HaloLimits = {
 };
 
 test('pinned zero-ring extent derives an empty halo from a k-space exit', () => {
+  expect(HALO_DRAWN_RINGS).toBe(0);
+  expect(HALO_FOGGED_RINGS).toBe(0);
   expect(deriveHalo(inputFor([100]))).toBe(EMPTY_HALO);
   expect(deriveHalo(inputFor([100], { limits: { ...RINGS_ON, drawnRings: 0, foggedRings: 0 } })))
     .toBe(EMPTY_HALO);
