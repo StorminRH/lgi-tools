@@ -15,6 +15,38 @@ import {
   USER,
 } from './__tests__/characterLocation.setup';
 
+describe('characterLocationAccess.putAccessLeases', () => {
+  it('upserts tracked characters and skips untracked ones in one batch', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', {
+        mapId: 'map-a',
+        userId: USER,
+        characterId: CHAR_A,
+      });
+    });
+    await t.mutation(internal.characterLocationAccess.putAccessLeases, {
+      userId: USER,
+      leases: [
+        { characterId: CHAR_A, accessToken: 'tok-a', expiresAt: GEN + 1_200_000 },
+        { characterId: CHAR_B, accessToken: 'tok-b', expiresAt: GEN + 1_200_000 },
+      ],
+    });
+    const leases = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
+    );
+    expect(leases).toHaveLength(1);
+    expect(leases[0]).toMatchObject({
+      characterId: CHAR_A,
+      accessToken: 'tok-a',
+      expiresAt: GEN + 1_200_000,
+    });
+  });
+});
+
 describe('characterLocationAccess.putAccessLease', () => {
   it('does not resurrect a lease after tracking teardown', async () => {
     const t = convexTest(schema, modules);

@@ -18,6 +18,7 @@ import {
   accessLeases,
   clearAccessLease,
   putAccessLease,
+  putAccessLeases,
 } from '../characterLocationAccess';
 import { applySyncResults, JUMP_CONTINUITY_MS } from '../characterLocationApply';
 import { purgeForUser as purgeLocationForUser } from '../characterLocationPurge';
@@ -176,6 +177,7 @@ describe('convex runtime exports', () => {
       heldState,
       purgeLocationForUser,
       putAccessLease,
+      putAccessLeases,
       chainDispatch,
       heartbeat,
       currentUser,
