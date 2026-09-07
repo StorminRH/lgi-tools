@@ -72,6 +72,28 @@ export const jumpEvidence = internalQuery({
         q.eq('mapId', mapId).eq('characterId', characterId),
       )
       .unique();
+    const lastProcessedTransitionAt = stamp?.lastProcessedTransitionAt ?? null;
+    const transition = {
+      fromSolarSystemId: location.prevSolarSystemId,
+      toSolarSystemId: location.solarSystemId,
+      shipTypeId: location.shipTypeId,
+      prevFresh: location.prevFresh,
+      transitionObservedAt: location.transitionObservedAt,
+    };
+    if (
+      lastProcessedTransitionAt !== null
+      && lastProcessedTransitionAt >= location.transitionObservedAt
+    ) {
+      return {
+        canEdit: true as const,
+        tracked: true as const,
+        transition,
+        lastProcessedTransitionAt,
+        originLive: false,
+        scannedTypeCodes: [],
+        candidates: [],
+      };
+    }
     const fromSolarSystemId = location.prevSolarSystemId;
     const origin = fromSolarSystemId === null
       ? null
@@ -88,14 +110,8 @@ export const jumpEvidence = internalQuery({
     return {
       canEdit: true as const,
       tracked: true as const,
-      transition: {
-        fromSolarSystemId: location.prevSolarSystemId,
-        toSolarSystemId: location.solarSystemId,
-        shipTypeId: location.shipTypeId,
-        prevFresh: location.prevFresh,
-        transitionObservedAt: location.transitionObservedAt,
-      },
-      lastProcessedTransitionAt: stamp?.lastProcessedTransitionAt ?? null,
+      transition,
+      lastProcessedTransitionAt,
       originLive,
       scannedTypeCodes: scannedTypeCodes(originRows),
       candidates: candidates.map((candidate) => ({
