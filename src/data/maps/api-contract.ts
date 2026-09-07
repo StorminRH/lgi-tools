@@ -125,6 +125,10 @@ const signatureEliminationSystemResultSchema = z.discriminatedUnion('status', [
     status: z.literal('statics-unavailable'),
     systemId: systemIdSchema,
   }),
+  z.strictObject({
+    status: z.literal('observations-unavailable'),
+    systemId: systemIdSchema,
+  }),
 ]);
 
 const signatureEliminationResponseSchema = z.strictObject({

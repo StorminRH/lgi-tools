@@ -8,7 +8,10 @@ import {
   identifySemanticWrite,
   identifyWriteDigest,
 } from '@/data/maps/semantic-write';
-import { followUpElimination } from './signature-elimination-client';
+import {
+  followUpElimination,
+  invalidateSignatureElimination,
+} from './signature-elimination-client';
 import type { SignatureWindowRow } from './signature-model';
 
 export function useIdentifySignature(mapId: string) {
@@ -33,6 +36,8 @@ export function useIdentifySignature(mapId: string) {
           write: identifySemanticWrite(identified),
           digest: identifyWriteDigest(row.systemId, row.signatureId, group),
         });
+      } else if (identified.changed) {
+        invalidateSignatureElimination(mapId, row.systemId);
       }
     },
     [identifySignature, mapId],

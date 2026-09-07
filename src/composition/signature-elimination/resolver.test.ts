@@ -256,8 +256,29 @@ describe('signature elimination composition', () => {
     h.reconcileWhObservations.mockRejectedValueOnce(new Error('neon down'));
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
-    ).resolves.toEqual({ results: [{ systemId: SYSTEM, status: 'applied', signatureIds: ['AAA-111'] }] });
+    ).resolves.toEqual({ results: [{ systemId: SYSTEM, status: 'observations-unavailable' }] });
     expect(h.reportEmissionFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries failed observation persistence when no Convex deduction is needed', async () => {
+    h.readEliminationEvidence.mockResolvedValue({
+      canEdit: true,
+      signatures: [signature({
+        wormholeTypeCode: 'B274',
+        typeProvenance: 'human',
+        observationKey: 'hole-key',
+      })],
+      connections: [],
+    });
+    h.reconcileWhObservations.mockRejectedValueOnce(new Error('neon down'));
+    await expect(
+      resolveSignatureElimination(database, 'user-1', request, dependencies),
+    ).resolves.toEqual({ results: [{ systemId: SYSTEM, status: 'observations-unavailable' }] });
+    await expect(
+      resolveSignatureElimination(database, 'user-1', request, dependencies),
+    ).resolves.toEqual({ results: [{ systemId: SYSTEM, status: 'quiet' }] });
+    expect(h.reconcileWhObservations).toHaveBeenCalledTimes(2);
+    expect(h.applyEliminationDeductions).not.toHaveBeenCalled();
   });
 
   it('stays quiet without edit access or when a concurrent write already converged', async () => {

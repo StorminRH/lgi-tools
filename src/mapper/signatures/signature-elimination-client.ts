@@ -14,29 +14,40 @@ import { apiFetch } from '@/transport/api-client';
 
 const ELIMINATION_REQUEST_TIMEOUT_MS = 15_000;
 
-const lastSuccessBySystem = new Map<string, string>();
+interface EliminationAttempt {
+  readonly digest: string;
+  readonly status: 'pending' | 'succeeded';
+}
+
+const eliminationBySystem = new Map<string, EliminationAttempt>();
 
 function systemKey(mapId: string, systemId: number): string {
   return `${mapId}:${systemId}`;
 }
 
 function lastEliminationDigest(mapId: string, systemId: number): string | undefined {
-  return lastSuccessBySystem.get(systemKey(mapId, systemId));
+  const attempt = eliminationBySystem.get(systemKey(mapId, systemId));
+  return attempt?.status === 'succeeded' ? attempt.digest : undefined;
+}
+
+export function invalidateSignatureElimination(mapId: string, systemId: number): void {
+  eliminationBySystem.delete(systemKey(mapId, systemId));
 }
 
 function recordEliminationOutcome(
   mapId: string,
   systemId: number,
-  digest: string,
+  attempt: EliminationAttempt,
   outcome: SignatureEliminationResponse | null,
 ): void {
   const key = systemKey(mapId, systemId);
+  if (eliminationBySystem.get(key) !== attempt) return;
   const result = outcome?.results.find((entry) => entry.systemId === systemId);
   if (result?.status === 'applied' || result?.status === 'quiet') {
-    lastSuccessBySystem.set(key, digest);
+    eliminationBySystem.set(key, { digest: attempt.digest, status: 'succeeded' });
     return;
   }
-  lastSuccessBySystem.delete(key);
+  eliminationBySystem.delete(key);
 }
 
 function signatureIdList(signatureIds: readonly string[]): string {
@@ -57,7 +68,7 @@ function announceApplied(mapId: string, result: Extract<
   );
 }
 
-export async function eliminateSignaturesAndAnnounce(
+async function requestEliminationAndAnnounce(
   body: SignatureEliminationRequest,
 ): Promise<SignatureEliminationResponse | null> {
   const outcome = await apiFetch(signatureEliminationEndpoint, {
@@ -69,6 +80,15 @@ export async function eliminateSignaturesAndAnnounce(
     if (result.status === 'applied') announceApplied(body.mapId, result);
   }
   return outcome.data;
+}
+
+export function eliminateSignaturesAndAnnounce(
+  body: SignatureEliminationRequest,
+): Promise<SignatureEliminationResponse | null> {
+  for (const systemId of body.systemIds) {
+    invalidateSignatureElimination(body.mapId, systemId);
+  }
+  return requestEliminationAndAnnounce(body);
 }
 
 export async function followUpElimination(input: {
@@ -84,10 +104,12 @@ export async function followUpElimination(input: {
   )) {
     return null;
   }
-  const outcome = await eliminateSignaturesAndAnnounce({
+  const attempt: EliminationAttempt = { digest: input.digest, status: 'pending' };
+  eliminationBySystem.set(systemKey(input.mapId, input.systemId), attempt);
+  const outcome = await requestEliminationAndAnnounce({
     mapId: input.mapId,
     systemIds: [input.systemId],
   });
-  recordEliminationOutcome(input.mapId, input.systemId, input.digest, outcome);
+  recordEliminationOutcome(input.mapId, input.systemId, attempt, outcome);
   return outcome;
 }

@@ -67,17 +67,22 @@ describe('POST /api/maps/signature-elimination', () => {
     expect(h.resolveSignatureElimination).not.toHaveBeenCalled();
   });
 
-  it('forwards only validated identifiers and preserves degraded results', async () => {
-    const body = { mapId: 'map-1', systemIds: [31_000_001] };
-    const response = await POST(request(body));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      results: [{ systemId: 31_000_001, status: 'statics-unavailable' }],
-    });
-    expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
-      expect.anything(),
-      'user-1',
-      body,
-    );
-  });
+  it.each(['statics-unavailable', 'observations-unavailable'])(
+    'forwards only validated identifiers and preserves %s results', async (status) => {
+      h.resolveSignatureElimination.mockResolvedValueOnce({
+        results: [{ systemId: 31_000_001, status }],
+      });
+      const body = { mapId: 'map-1', systemIds: [31_000_001] };
+      const response = await POST(request(body));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        results: [{ systemId: 31_000_001, status }],
+      });
+      expect(h.resolveSignatureElimination).toHaveBeenCalledWith(
+        expect.anything(),
+        'user-1',
+        body,
+      );
+    },
+  );
 });

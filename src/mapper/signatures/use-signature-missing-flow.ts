@@ -7,7 +7,10 @@ import { useMutation } from '@/data/convex/use-mutation';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { pasteSemanticWrite, pasteWriteDigest } from '@/data/maps/semantic-write';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
-import { followUpElimination } from './signature-elimination-client';
+import {
+  followUpElimination,
+  invalidateSignatureElimination,
+} from './signature-elimination-client';
 import { announceSignatureRemoval } from './signature-toast';
 import { useScannerPaste } from './use-scanner-paste';
 
@@ -73,6 +76,7 @@ function useRemoveMissingSignatures(
         systemId,
         signatureIds: [...signatureIds],
       });
+      invalidateSignatureElimination(mapId, systemId);
       clearAllMissing(systemId);
       announceSignatureRemoval({
         systemId,
@@ -82,6 +86,8 @@ function useRemoveMissingSignatures(
             mapId,
             systemId,
             signatureIds: [...signatureIds],
+          }).then(() => {
+            invalidateSignatureElimination(mapId, systemId);
           }).catch(() => {
             toast.error('Signature could not be restored.', {
               id: `signature-restore:${systemId}:batch`,

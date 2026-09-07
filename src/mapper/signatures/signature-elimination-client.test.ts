@@ -13,6 +13,7 @@ import { signatureEliminationEndpoint } from '@/data/maps/api-contract';
 import {
   eliminateSignaturesAndAnnounce,
   followUpElimination,
+  invalidateSignatureElimination,
 } from './signature-elimination-client';
 
 const SYSTEM = 31_000_001;
@@ -41,6 +42,7 @@ function quiet() {
 beforeEach(() => {
   h.apiFetch.mockReset();
   h.success.mockReset();
+  invalidateSignatureElimination(MAP, SYSTEM);
 });
 
 it('announces applied identifications and stays quiet on quiet/failed transport', async () => {
@@ -79,7 +81,7 @@ it('announces applied identifications and stays quiet on quiet/failed transport'
 });
 
 it('skips idle follow-up after a successful reconcile and retries after a failed one', async () => {
-  const digest = `idle:${Date.now()}`;
+  const digest = 'idle-scan';
   h.apiFetch.mockResolvedValueOnce(quiet());
   await followUpElimination({
     mapId: MAP,
@@ -130,4 +132,61 @@ it('skips idle follow-up after a successful reconcile and retries after a failed
     digest,
   });
   expect(h.apiFetch).toHaveBeenCalledTimes(5);
+});
+
+it('retries an identical idle paste after observation persistence fails', async () => {
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  h.apiFetch.mockResolvedValueOnce({
+    ok: true,
+    data: { results: [{ systemId: SYSTEM, status: 'observations-unavailable' }] },
+  }).mockResolvedValueOnce(quiet());
+  await followUpElimination(input);
+  await followUpElimination(input);
+  await followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+});
+
+it('reruns an identical paste after its evidence is invalidated by removal or restore', async () => {
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  h.apiFetch.mockResolvedValueOnce(quiet()).mockResolvedValueOnce(applied(['A']));
+  await followUpElimination(input);
+  invalidateSignatureElimination(MAP, SYSTEM);
+  await followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  expect(h.success).toHaveBeenCalledWith('A has been identified.', expect.anything());
+});
+
+it('does not restore an invalidated cache entry when an older request completes', async () => {
+  const response = Promise.withResolvers<ReturnType<typeof quiet>>();
+  h.apiFetch.mockReturnValueOnce(response.promise).mockResolvedValueOnce(quiet());
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  const pending = followUpElimination(input);
+  invalidateSignatureElimination(MAP, SYSTEM);
+  response.resolve(quiet());
+  await pending;
+  await followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+});
+
+it('ignores an older success after a newer mutation follow-up fails', async () => {
+  const response = Promise.withResolvers<ReturnType<typeof quiet>>();
+  h.apiFetch.mockReturnValueOnce(response.promise).mockResolvedValueOnce({ ok: false });
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  const pending = followUpElimination(input);
+  await followUpElimination({ ...input, write: { kind: 'mutated' } });
+  response.resolve(quiet());
+  await pending;
+  h.apiFetch.mockResolvedValueOnce(quiet());
+  await followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
+});
+
+it('invalidates prior paste success when a direct authoring follow-up fails', async () => {
+  const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
+  h.apiFetch.mockResolvedValueOnce(quiet()).mockResolvedValueOnce({ ok: false });
+  await followUpElimination(input);
+  await eliminateSignaturesAndAnnounce({ mapId: MAP, systemIds: [SYSTEM] });
+  h.apiFetch.mockResolvedValueOnce(quiet());
+  await followUpElimination(input);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
 });

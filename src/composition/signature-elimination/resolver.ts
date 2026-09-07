@@ -212,6 +212,10 @@ async function resolveOneSystem(
       );
     } catch (cause) {
       dependencies.reportEmissionFailure(cause);
+      return {
+        result: { systemId, status: 'observations-unavailable' },
+        sharedCodex: loadedCodex,
+      };
     }
   }
 
