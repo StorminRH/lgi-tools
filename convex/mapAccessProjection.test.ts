@@ -317,7 +317,7 @@ describe('map role leftover', () => {
           mapId: MAP_A,
           userId: OWNER,
           roles: ['owner'],
-        }),
+        } as never),
       ),
     ).rejects.toThrow();
 
