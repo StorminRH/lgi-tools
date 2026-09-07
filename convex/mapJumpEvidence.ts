@@ -7,6 +7,7 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 import { hallwayDoorTypes, isStaticPlaceholder } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
+  hasAwaitingReturn,
   type EmissionFacts,
   readConnectionsFrom,
   readTrackedLocation,
@@ -75,7 +76,10 @@ export const jumpEvidence = internalQuery({
     const origin = fromSolarSystemId === null
       ? null
       : await findSystem(ctx, mapId, fromSolarSystemId);
-    const originLive = origin !== null && !isTombstoned(origin);
+    const originLive = origin !== null
+      ? !isTombstoned(origin)
+      : fromSolarSystemId !== null && location.prevFresh
+        && await hasAwaitingReturn(ctx, mapId, fromSolarSystemId, location.solarSystemId);
     const originRows = originLive && fromSolarSystemId !== null
       ? await readConnectionsFrom(ctx, mapId, fromSolarSystemId, 'candidate')
       : [];

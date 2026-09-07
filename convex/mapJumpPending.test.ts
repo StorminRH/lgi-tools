@@ -2,7 +2,7 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { blankHallway } from '@/data/maps/connection-hallway';
-import { internal } from './_generated/api';
+import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
 import { modules } from './__tests__/modules.setup';
@@ -97,6 +97,23 @@ function answer(connectionId: Id<'mapConnections'>, targetConnectionId: Id<'mapC
 }
 
 describe('ambiguous jump identity', () => {
+  it('rejects field edits on an unanswered jump and preserves its selectable candidates', async () => {
+    const { t, candidates, args } = await setup();
+    const sourceId = await pending(t, args);
+    const before = await state(t);
+    await expect(t.withIdentity({ subject: USER }).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
+      mapId: MAP,
+      connectionId: sourceId,
+      side: 'from',
+      value: 'C247',
+    })).rejects.toThrow('UNANSWERED_JUMP');
+    expect(await state(t)).toEqual(before);
+    const targetId = candidates[1];
+    if (targetId === undefined) throw new Error('missing candidate');
+    expect(await t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, targetId)))
+      .toMatchObject({ connectionId: targetId, toSystemId: TO });
+  });
+
   it('leaves candidates and map systems untouched and excludes the prompt from future candidates', async () => {
     const { t, candidates, args } = await setup();
     const before = await state(t);
@@ -172,6 +189,43 @@ describe('ambiguous jump identity', () => {
     expect(after.connections.filter((row) => row.resolution.kind === 'awaiting-signature')).toHaveLength(1);
     expect(after.connections.find((row) => row._id === sourceId)?.observedMassKg).toBe(MASS * 2);
     expect(after.systems.map((row) => row.systemId)).toEqual([FROM]);
+  });
+
+  it('rebinds an unscanned candidate when typing it claims a static placeholder', async () => {
+    const { t, candidates, args } = await setup();
+    const targetId = candidates[1];
+    if (targetId === undefined) throw new Error('missing candidate');
+    const placeholderId = await t.run(async (ctx) => {
+      const target = await ctx.db.get(targetId);
+      if (target === null) throw new Error('missing candidate');
+      await ctx.db.patch(targetId, { from: { ...target.from, signatureId: null } });
+      const base = blankHallway({ mapId: MAP, fromSystemId: FROM, toSystemId: null });
+      return await ctx.db.insert('mapConnections', {
+        ...base,
+        from: { ...base.from, typeCode: 'C247' },
+        to: { ...base.to, typeCode: 'K162' },
+        staticCode: 'C247',
+      });
+    });
+    const sourceId = await pending(t, args);
+    await t.withIdentity({ subject: USER }).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
+      mapId: MAP,
+      connectionId: targetId,
+      side: 'from',
+      value: 'C247',
+    });
+    const afterClaim = await state(t);
+    expect(afterClaim.connections.some((row) => row._id === targetId)).toBe(false);
+    expect(afterClaim.connections.find((row) => row._id === sourceId)?.resolution).toMatchObject({
+      kind: 'awaiting-signature',
+      candidates: [
+        { connectionId: candidates[0], signatureId: 'AAA-001' },
+        { connectionId: placeholderId, signatureId: null },
+        { connectionId: candidates[2], signatureId: 'CCC-003' },
+      ],
+    });
+    expect(await t.mutation(internal.mapJumpIdentity.reassociateJumpDestination, answer(sourceId, placeholderId)))
+      .toMatchObject({ connectionId: placeholderId, toSystemId: TO });
   });
 
   it('rejects unauthorized and non-offered answers without publishing a destination', async () => {

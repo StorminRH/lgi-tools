@@ -49,7 +49,11 @@ async function requireLiveConnection(
   connectionId: Id<'mapConnections'>,
 ): Promise<Doc<'mapConnections'>> {
   await requireMapAccess(ctx, mapId, 'edit');
-  return await requireLiveConnectionOnMap(ctx, mapId, connectionId);
+  const connection = await requireLiveConnectionOnMap(ctx, mapId, connectionId);
+  if (connection.resolution.kind === 'awaiting-signature') {
+    throw new ConvexError({ code: 'UNANSWERED_JUMP' });
+  }
+  return connection;
 }
 
 async function patchConnectionField<K extends keyof Doc<'mapConnections'>>(

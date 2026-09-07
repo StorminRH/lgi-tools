@@ -15,6 +15,7 @@ import {
 } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
+  hasAwaitingReturn,
   type EmissionFacts,
   JUMP_CONNECTION_SCAN_CAP,
   readConnectionsFrom,
@@ -220,8 +221,10 @@ async function endpointLapse(
   args: ResolveJumpInput,
 ): Promise<StaleResult | null> {
   const origin = await findSystem(ctx, args.mapId, args.fromSolarSystemId);
-  if (origin === null || isTombstoned(origin)) return stale('origin');
-  return null;
+  if (origin !== null) return isTombstoned(origin) ? stale('origin') : null;
+  return await hasAwaitingReturn(ctx, args.mapId, args.fromSolarSystemId, args.toSolarSystemId)
+    ? null
+    : stale('origin');
 }
 
 function selectExistingPair(

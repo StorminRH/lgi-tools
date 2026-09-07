@@ -51,7 +51,7 @@ export function jumpResolutionCandidates(
           || (candidate.signatureId !== null && row.from.signatureId === candidate.signatureId)
         ),
       );
-      if (hole === undefined) return null;
+      if (hole === undefined) continue;
       candidates.push({
         connectionId: hole.connectionId,
         signatureId: hole.from.signatureId,
@@ -112,7 +112,8 @@ export function pendingJumpResolution(
         : connection.toSystemId,
       systemInfo,
     );
-    if (candidates === null || candidates.length <= 1 || destination === null) continue;
+    const minimumChoices = connection.resolution.kind === 'awaiting-signature' ? 1 : 2;
+    if (candidates === null || candidates.length < minimumChoices || destination === null) continue;
     if (connection._creationTime <= newestCreatedAt) continue;
     newestCreatedAt = connection._creationTime;
     newest = {
