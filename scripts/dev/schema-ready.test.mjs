@@ -8,7 +8,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test('schema callback writes a private marker and stays alive for Convex', async (t) => {
+test('schema callback writes a private marker and exits without a keepalive', async (t) => {
   const directory = mkdtempSync(join(tmpdir(), 'lgi-schema-test-'));
   t.onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
   const marker = join(directory, 'schema');
@@ -18,12 +18,10 @@ test('schema callback writes a private marker and stays alive for Convex', async
   await import('./schema-ready.mjs');
   expect(readFileSync(marker, 'utf8')).toBe('ready\n');
   expect(statSync(marker).mode & 0o777).toBe(0o600);
-  expect(vi.getTimerCount()).toBe(1);
-  await vi.advanceTimersByTimeAsync(60000);
-  expect(vi.getTimerCount()).toBe(1);
+  expect(vi.getTimerCount()).toBe(0);
 });
 
-test('missing marker destination fails before starting the keepalive', async () => {
+test('missing marker destination fails before writing', async () => {
   vi.stubEnv('LGI_SCHEMA_READY_FILE', undefined);
   vi.useFakeTimers();
   vi.resetModules();

@@ -38,8 +38,9 @@ Errors name the variable without exposing its value.
 The application and migration subprocesses receive the same local URL and
 `postgres-js` driver. Hosted Convex keys, deployment selectors and self-hosted
 selectors are neutralized for these subprocesses. Anonymous local Convex owns
-its generated deployment configuration; env operations explicitly select
-`--deployment local`.
+its generated deployment configuration; env operations select its generated
+`anonymous:` deployment through `CONVEX_DEPLOYMENT`. The `--deployment local`
+option is omitted because that CLI form selects a hosted deployment.
 
 Cloud PostgreSQL uses `/usr/lib/postgresql/16/bin` and the user-owned
 `~/.local/share/lgi-pgdata` directory (`LGI_PGDATA` may select another owned

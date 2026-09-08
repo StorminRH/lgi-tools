@@ -18,7 +18,7 @@ const guardError = remoteSkipSeedError({
   uxStorageState: process.env.UX_STORAGE_STATE,
 });
 if (guardError) {
-  console.error(`✗ ${guardError}`);
+  console.error(`BLOCKED prerequisite: ${guardError}`);
   process.exit(1);
 }
 
