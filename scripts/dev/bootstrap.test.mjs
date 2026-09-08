@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 import { assertLocalEnvironment, effectiveEnvironment, localProcessEnvironment, prepareEnvironment } from './environment.mjs';
 import { validateJwks } from './jwks.mjs';
 import { baselineMatches, sourceIdentity } from './source-identity.mjs';
@@ -57,6 +57,8 @@ test('local subprocesses neutralize inherited hosted Convex selectors', (t) => {
 
 test('preparation creates reusable local secrets and removes hosted selection', (t) => {
   const root = fixture(t);
+  t.onTestFinished(() => vi.unstubAllEnvs());
+  for (const key of ['LGI_DATABASE_URL', 'LGI_DATABASE_URL_UNPOOLED', 'DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'DATABASE_MIGRATION_URL', 'DOTENV_PATH', 'LOCAL_DB_DRIVER', 'BETTER_AUTH_URL']) vi.stubEnv(key, undefined);
   writeFileSync(join(root, '.env.local'), 'CONVEX_DEPLOYMENT=prod:old\n');
   prepareEnvironment(root);
   const first = effectiveEnvironment(root, {});
