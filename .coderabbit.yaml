@@ -1,0 +1,7 @@
+reviews:
+  auto_review:
+    enabled: false
+    auto_incremental_review: false
+    drafts: false
+    base_branches:
+      - '^(development|staging|main)$'

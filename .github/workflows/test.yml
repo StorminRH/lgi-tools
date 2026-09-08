@@ -1,22 +1,44 @@
-name: Test
-
+name: Verify
 on:
   pull_request:
+    branches: [development, staging, main]
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [codex/github-primary-migration]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - uses: ./.github/actions/setup-node-pnpm
 
       - run: pnpm install --frozen-lockfile
 
@@ -24,16 +46,172 @@ jobs:
 
       - run: pnpm lint
 
-      # Lightweight presence gate (no build): every src/app route is classified
-      # in route-classification.json and vice-versa. The full render-MODE assert
-      # (assert:routes) needs `next build` and runs at deploy, so this catches a
-      # route added or removed without its classification entry here in plain CI.
       - run: pnpm assert:routes-present
 
-      # Coverage-backed Vitest suite. The fallow step below reads
-      # coverage/coverage-final.json for health/CRAP.
-      - run: pnpm test:coverage
+      - name: SDE cache identity
+        id: seed-key
+        env:
+          SEED_SOURCE: ${{ hashFiles('src/data/eve-data/**', 'src/scripts/sde-*.ts', 'src/scripts/ci-sde-seed.ts', 'drizzle/**') }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/sde-cache"
+          version=$(pnpm exec tsx -e 'import { getRemoteSdeVersion } from "./src/data/eve-data/source"; getRemoteSdeVersion().then(v => console.log(v ?? "unknown"))')
+          echo "prefix=sde-pg16-Fc-v1-$version-$SEED_SOURCE-" >> "$GITHUB_OUTPUT"
 
-      # Whole-repo Fallow gate (dead code, duplication, architecture
-      # boundaries, health). Inherited findings fail the same as new ones.
+      - uses: actions/cache/restore@v6
+        id: seed-cache
+        with:
+          path: ${{ runner.temp }}/sde-cache
+          key: ${{ steps.seed-key.outputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.seed-key.outputs.prefix }}
+
+      - name: Record restored seed manifest
+        run: find "$RUNNER_TEMP/sde-cache" -type f -name '*.dump' -exec sha256sum {} + | sort > "$RUNNER_TEMP/seed-before"
+
+      - run: pnpm db:migrate
+
+      - run: pnpm db:ci-sde-seed --cache-dir "$RUNNER_TEMP/sde-cache"
+
+      - name: Measure seed and database readiness
+        id: seed-result
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/sde-cache"
+          find "$RUNNER_TEMP/sde-cache" -type f -name '*.dump' -exec sha256sum {} + | sort > "$RUNNER_TEMP/seed-after"
+          if ! cmp -s "$RUNNER_TEMP/seed-before" "$RUNNER_TEMP/seed-after"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+          du -sb "$RUNNER_TEMP/sde-cache" >> "$GITHUB_STEP_SUMMARY"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT 'eve_types' AS relation, count(*) FROM eve_types UNION ALL SELECT 'eve_solar_systems', count(*) FROM eve_solar_systems;" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/cache/save@v6
+        if: steps.seed-result.outputs.changed == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        with:
+          path: ${{ runner.temp }}/sde-cache
+          key: ${{ steps.seed-cache.outputs.cache-primary-key }}
+
+      - run: pnpm test:coverage --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/vitest-results.json"
+
       - run: pnpm fallow
+
+      - name: Verification evidence
+        if: always()
+        run: |
+          git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
+          free -m >> "$GITHUB_STEP_SUMMARY"
+          df -h / >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: verification-evidence
+          path: |
+            coverage/coverage-final.json
+            ${{ runner.temp }}/vitest-results.json
+          if-no-files-found: warn
+          retention-days: 1
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+      LOCAL_DB_DRIVER: postgres-js
+      BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            next-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:migrate
+
+      - run: pnpm build
+
+      - run: pnpm assert:routes
+
+      - name: Package production build
+        run: |
+          tar --exclude='.next/cache' --exclude='.next/dev' --exclude='.next/diagnostics' -czf "$RUNNER_TEMP/next-build.tgz" .next
+          du -b "$RUNNER_TEMP/next-build.tgz" >> "$GITHUB_STEP_SUMMARY"
+          git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
+          df -h / >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: next-build
+          path: ${{ runner.temp }}/next-build.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  e2e:
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: true
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@postgres:5432/postgres
+      LOCAL_DB_DRIVER: postgres-js
+      BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: next-build
+          path: ${{ runner.temp }}
+
+      - run: tar -xzf "$RUNNER_TEMP/next-build.tgz"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:migrate
+
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-failure
+          path: |
+            docs/ux-check/captures/playwright
+            docs/ux-check/captures/e2e-report.json
+          if-no-files-found: ignore
+          retention-days: 1
