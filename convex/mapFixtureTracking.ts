@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { getSyncSubject, newIdleSubject } from './lib/subjects';
@@ -67,6 +68,25 @@ async function stampCoverage(
   }
 }
 
+async function loadTrackedPair(
+  ctx: MutationCtx,
+  mapId: string,
+  userId: string,
+  characterId: number,
+) {
+  const [location, tracking] = await Promise.all([
+    uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId),
+    ctx.db
+      .query('mapTracking')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', userId).eq('characterId', characterId),
+      )
+      .filter((q) => q.eq(q.field('mapId'), mapId))
+      .unique(),
+  ]);
+  return { location, tracking };
+}
+
 export const clearTrackedCoverage = internalMutation({
   args: {
     userId: v.string(),
@@ -122,25 +142,17 @@ export const seedTrackedLocationFixture = internalMutation({
       });
     }
 
-    const tracking = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_map_user', (q) =>
-        q.eq('mapId', args.mapId).eq('userId', args.userId),
-      )
-      .filter((q) => q.eq(q.field('characterId'), args.characterId))
-      .unique();
+    const { location, tracking } = await loadTrackedPair(
+      ctx,
+      args.mapId,
+      args.userId,
+      args.characterId,
+    );
     const trackingId = tracking?._id ?? await ctx.db.insert('mapTracking', {
       mapId: args.mapId,
       userId: args.userId,
       characterId: args.characterId,
     });
-
-    const location = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', args.userId).eq('characterId', args.characterId),
-      )
-      .unique();
     const source = {
       userId: args.userId,
       characterId: args.characterId,
@@ -198,12 +210,12 @@ export const advanceTrackedLocationFixture = internalMutation({
       args.transitionObservedAt,
     );
 
-    const location = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', args.userId).eq('characterId', args.characterId),
-      )
-      .unique();
+    const { location, tracking } = await loadTrackedPair(
+      ctx,
+      args.mapId,
+      args.userId,
+      args.characterId,
+    );
     if (location === null) {
       throw new ConvexError({
         code: 'FIXTURE_LOCATION_MISSING',
@@ -227,13 +239,6 @@ export const advanceTrackedLocationFixture = internalMutation({
       observedAt: args.transitionObservedAt,
       etagLocation: null,
     });
-    const tracking = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', args.userId).eq('characterId', args.characterId),
-      )
-      .filter((q) => q.eq(q.field('mapId'), args.mapId))
-      .first();
     if (tracking === null) {
       throw new ConvexError({
         code: 'FIXTURE_TRACKING_MISSING',

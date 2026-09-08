@@ -1,14 +1,17 @@
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { v } from 'convex/values';
 import {
+  classifyDueSubject,
   isRegisteredDataset,
   SYNC_DATASET_CONFIG,
+  type DueSubjectAction,
   type SyncDataset,
 } from '@/lib/sync-engine';
 import { components, internal } from '../_generated/api';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { clearCoverageForUser } from './locationCoverage';
+import { getPresence } from './subjects';
 
 const rateLimiter = new RateLimiter(components.rateLimiter, {
   syncDispatch: { kind: 'token bucket', period: MINUTE, rate: 30, capacity: 10 },
@@ -29,7 +32,7 @@ export function logBatchCapped(scope: string, note: string, processed: number): 
   console.warn(JSON.stringify({ scope, note, processed }));
 }
 
-export function dueSubjects(ctx: MutationCtx, now: number): Promise<Doc<'syncSubjects'>[]> {
+function dueSubjects(ctx: MutationCtx, now: number): Promise<Doc<'syncSubjects'>[]> {
   return ctx.db
     .query('syncSubjects')
     .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
@@ -43,6 +46,71 @@ export async function retireFromScan(
   await ctx.db.patch(subject._id, { nextDueAt: null });
   if (subject.dataset === 'characterLocation') {
     await clearCoverageForUser(ctx, subject.userId);
+  }
+}
+
+export interface DueWalkCounts {
+  dispatched: number;
+  retired: number;
+  deleted: number;
+}
+
+export async function walkDueSubjects(
+  ctx: MutationCtx,
+  now: number,
+  options: {
+    allowDelete: boolean;
+    counts?: DueWalkCounts;
+    capScope: string;
+    capNote: string;
+  },
+): Promise<void> {
+  const due = await dueSubjects(ctx, now);
+  for (const subject of due) {
+    if (!isRegisteredDataset(subject.dataset)) {
+      await retireFromScan(ctx, subject);
+      if (options.counts !== undefined) options.counts.retired += 1;
+      continue;
+    }
+    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+    const classified = classifyDueSubject(
+      presence,
+      subject.status,
+      subject.lastRequestedAt,
+      SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs,
+      now,
+    );
+    const action = classified === 'delete' && !options.allowDelete ? 'retire' : classified;
+    await applyDueAction(ctx, subject, presence, action, now, options.counts);
+  }
+  if (due.length === SCAN_DISPATCH_BATCH) {
+    logBatchCapped(options.capScope, options.capNote, due.length);
+  }
+}
+
+async function applyDueAction(
+  ctx: MutationCtx,
+  subject: Doc<'syncSubjects'>,
+  presence: Doc<'syncPresence'> | null,
+  action: DueSubjectAction,
+  now: number,
+  counts: DueWalkCounts | undefined,
+): Promise<void> {
+  switch (action) {
+    case 'delete':
+      await ctx.db.delete(subject._id);
+      if (presence !== null) await ctx.db.delete(presence._id);
+      if (counts !== undefined) counts.deleted += 1;
+      return;
+    case 'retire':
+      await retireFromScan(ctx, subject);
+      if (counts !== undefined) counts.retired += 1;
+      return;
+    case 'dispatch':
+      if (await dispatch(ctx, subject, now) && counts !== undefined) counts.dispatched += 1;
+      return;
+    case 'skip':
+      return;
   }
 }
 
