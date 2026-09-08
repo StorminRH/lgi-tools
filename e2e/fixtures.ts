@@ -2,6 +2,7 @@ import { test as base, expect, devices, chromium, firefox, webkit, type Browser,
 import { installOriginScopedBypass } from '../scripts/ux-remote-auth.mjs';
 import { isLocalBaseUrl } from '../scripts/run-e2e-guard.mjs';
 import { createDiagnostics, requireBackend } from './diagnostics.mjs';
+import { persistSanitizedFailure, sanitizedFailurePayload } from './sanitized-failure.mjs';
 import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.mjs';
 import type { createRunFixtures } from './fixture-data';
 
@@ -107,11 +108,14 @@ export const test = base.extend<Fixtures>({
       throw error;
     } finally {
       if (diagnosticsFailed || info.status !== info.expectedStatus) {
-        await info.attach('sanitized-failure', { contentType: 'application/json', body: JSON.stringify({
+        const dest = persistSanitizedFailure(sanitizedFailurePayload({
           scenario: info.title.match(/^\[([\w-]+)\]/)?.[1] ?? 'unknown',
-          lane: info.project.name, diagnostics: diagnostics.events,
-          classification: info.errors.some((error) => /BLOCKED[: ]|E2E_PREREQUISITE/.test(error.message ?? '')) ? 'prerequisite' : 'failure',
-        }) });
+          lane: info.project.name,
+          diagnostics: diagnostics.events,
+          classification: info.errors.some((error) => /BLOCKED[: ]|E2E_PREREQUISITE/.test(error.message ?? ''))
+            ? 'prerequisite' : 'failure',
+        }), { id: info.testId });
+        await info.attach('sanitized-failure', { contentType: 'application/json', path: dest });
       }
     }
   }, { auto: true }],

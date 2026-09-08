@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { persistSanitizedFailureAttachment } from './sanitized-failure.mjs';
 const { probeRegistry, journeys } = JSON.parse(readFileSync(new URL('./probe-registry.json', import.meta.url), 'utf8'));
 
 const mandatory = ['home-public', 'atlas-guest', 'route-home', 'route-industry', 'route-atlas',
@@ -42,7 +43,13 @@ export default class AcceptanceReporter {
       time: result.startTime.toISOString(), durationMs: result.duration,
       metadata, classification: blocked ? 'prerequisite' : status === 'PASS' ? 'clean' : 'assertion-or-diagnostics',
       evidence: result.attachments.filter((item) => item.name === 'sanitized-failure')
-        .map((item) => ({ name: item.name, path: item.path })),
+        .flatMap((item) => {
+          const dest = persistSanitizedFailureAttachment(item, {
+            directory: path.join(path.dirname(this.outputFile), 'sanitized-failures'),
+            id: test.id,
+          });
+          return dest ? [{ name: item.name, path: dest }] : [];
+        }),
     });
     console.log(`${status} ${this.scenario(test)}`);
   }

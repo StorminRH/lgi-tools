@@ -84,11 +84,14 @@ traffic counts as first-party. Expected HTTP failures are declared inside the
 scenario for an exact endpoint, method and status; another route or status
 still fails. Third-party network findings are separately classified.
 
-Only failed cases attach a bounded sanitized diagnostic timeline. Raw console
-messages, response bodies, headers, query values, cookies and auth state are
-excluded. Native traces, screenshots and video are disabled because they can
-capture credentials or account content; there is no verified sanitizer for
-those formats. Upload only the report and Playwright's sanitized-failure JSON.
+Only failed cases attach a bounded sanitized diagnostic timeline. Fixtures write
+that JSON under `docs/ux-check/captures/sanitized-failures/` and attach the file
+path. The reporter copies a body-only attachment into the same directory so the
+report always records an uploadable path. Raw console messages, response bodies,
+headers, query values, cookies and auth state are excluded. Native traces,
+screenshots and video are disabled because they can capture credentials or
+account content; there is no verified sanitizer for those formats. Upload only
+the report and those sanitized-failure JSON files.
 
 `READY_FOR_REVIEW` means selected assertions and cleanup passed. Operator visual
 acceptance is still pending. No local-suite result or discovery listing proves

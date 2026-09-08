@@ -29,7 +29,8 @@ name the exact endpoint, method and status within the scenario. Whole-test
 retries are disabled for acceptance.
 
 Auth storage, cookies, headers and raw network/DOM captures are not uploadable
-evidence. Keep sanitized failure diagnostics and the result inventory. A clean
+evidence. Keep sanitized failure diagnostics under
+`docs/ux-check/captures/sanitized-failures/` and the result inventory. A clean
 report means `READY_FOR_REVIEW`; operator visual approval is separate. Browser
 commands are not part of `pnpm verify` and must be reported separately.
 
