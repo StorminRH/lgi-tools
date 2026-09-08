@@ -15,6 +15,7 @@ let signals;
 let convexStarts;
 let missingMarker;
 let authExit;
+let authConfigured;
 let suiteExit;
 let stubborn;
 let reportStatus;
@@ -37,6 +38,7 @@ beforeEach(() => {
   convexStarts = 0;
   missingMarker = 0;
   authExit = 0;
+  authConfigured = false;
   suiteExit = 0;
   stubborn = false;
   reportStatus = 'READY_FOR_REVIEW';
@@ -60,8 +62,11 @@ beforeEach(() => {
         const envFile = join(root, '.env.local');
         if (convexStarts === 1) writeFileSync(envFile, `${readFileSync(envFile, 'utf8')}CONVEX_DEPLOYMENT=anonymous:anonymous-agent\n`);
         mkdirSync(join(root, '.convex'), { recursive: true });
-        if (missingMarker !== convexStarts) writeFileSync(options.env.LGI_SCHEMA_READY_FILE, 'ready');
-      } else if (command === process.execPath) finish(child, authExit);
+        if (authConfigured && args.includes('--start') && missingMarker !== convexStarts) writeFileSync(options.env.LGI_SCHEMA_READY_FILE, 'ready');
+      } else if (command === process.execPath) {
+        authConfigured = authExit === 0;
+        finish(child, authExit);
+      }
       else if (args[0] === 'test:e2e') {
         const captures = join(root, 'docs/ux-check/captures');
         mkdirSync(captures, { recursive: true });
@@ -94,7 +99,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test('hands production port ownership to Playwright only after auth and the restarted schema are ready', async () => {
+test('configures auth while initial schema is blocked, then gates Playwright on the restarted schema', async () => {
   const result = run();
   await vi.runAllTimersAsync();
   await result;
@@ -105,6 +110,9 @@ test('hands production port ownership to Playwright only after auth and the rest
   expect(browser.options.env.NEXT_PUBLIC_CONVEX_URL).toBe('http://127.0.0.1:3210');
   expect(browser.options.env.CONVEX_SERVICE_SECRET.length).toBeGreaterThanOrEqual(32);
   expect(children[2].options.env.CONVEX_SERVICE_SECRET).toBe(browser.options.env.CONVEX_SERVICE_SECRET);
+  expect(children[0].args).not.toContain('--start');
+  expect(children[0].options.env.LGI_SCHEMA_READY_FILE).toBeUndefined();
+  expect(authConfigured).toBe(true);
   expect(children[3].args).toContain('--start');
   expect(children.every((child) => !child.alive)).toBe(true);
   expect(existsSync(join(root, '.convex'))).toBe(false);
@@ -138,12 +146,23 @@ test('refuses occupied ports without starting or killing another service', async
   expect(process.kill).not.toHaveBeenCalled();
 });
 
-test.each([1, 2])('schema phase %s expires and never launches the browser', async (phase) => {
-  missingMarker = phase;
-  const result = expect(run()).rejects.toThrow('timed out');
+test('unreachable initial backend expires before auth and cleans its process', async () => {
+  vi.mocked(fetch).mockResolvedValue({ ok: false });
+  const result = expect(run()).rejects.toThrow('Initial Convex backend: timed out');
+  await vi.runAllTimersAsync();
+  await result;
+  expect(children).toHaveLength(1);
+  expect(authConfigured).toBe(false);
+  expect(children[0].alive).toBe(false);
+});
+
+test('missing post-auth schema readiness expires and never launches the browser', async () => {
+  missingMarker = 2;
+  const result = expect(run()).rejects.toThrow('Convex schema with live auth: timed out');
   await vi.runAllTimersAsync();
   await result;
   expect(children.some((child) => child.args[0] === 'test:e2e')).toBe(false);
+  expect(authConfigured).toBe(true);
   expect(children.every((child) => !child.alive)).toBe(true);
 });
 
@@ -184,7 +203,7 @@ test('service death during a successful readiness probe cannot advance to auth',
 });
 
 test('SIGTERM interrupts readiness and still performs group cleanup', async () => {
-  missingMarker = 1;
+  vi.mocked(fetch).mockResolvedValue({ ok: false });
   const result = expect(run()).rejects.toThrow('interrupted');
   await vi.advanceTimersByTimeAsync(100);
   process.emit('SIGTERM');

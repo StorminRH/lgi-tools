@@ -94,9 +94,10 @@ export async function runBrowserServices({ root = process.cwd(), readinessMs = 1
     prepared = true;
     const env = localProcessEnvironment(root);
     const convexArgs = ['exec', 'convex', 'dev', '--local-cloud-port', '3210', '--local-site-port', '3211',
-      '--codegen', 'disable', '--typecheck', 'disable', '--tail-logs', 'disable', '--start', 'node scripts/dev/schema-ready.mjs'];
-    const initial = start('pnpm', convexArgs, { ...env, LGI_SCHEMA_READY_FILE: marker });
-    await waitFor(async () => existsSync(marker) && await endpoint('http://127.0.0.1:3210/version'), [initial], 'Initial Convex schema');
+      '--codegen', 'disable', '--typecheck', 'disable', '--tail-logs', 'disable'];
+    const initial = start('pnpm', convexArgs, env);
+    await waitFor(async () => await endpoint('http://127.0.0.1:3210/version')
+      && Boolean(parseEnv(readFileSync(join(root, '.env.local'), 'utf8')).CONVEX_DEPLOYMENT), [initial], 'Initial Convex backend');
     const deployment = parseEnv(readFileSync(join(root, '.env.local'), 'utf8')).CONVEX_DEPLOYMENT;
     if (!/^anonymous:anonymous-[a-zA-Z0-9_-]+$/.test(deployment ?? '')) throw new Error('Convex did not select an anonymous deployment');
     env.CONVEX_DEPLOYMENT = deployment;
@@ -109,7 +110,7 @@ export async function runBrowserServices({ root = process.cwd(), readinessMs = 1
     await stop(next);
     await stop(initial);
     rmSync(marker, { force: true });
-    const convex = start('pnpm', convexArgs, { ...env, LGI_SCHEMA_READY_FILE: marker });
+    const convex = start('pnpm', [...convexArgs, '--start', 'node scripts/dev/schema-ready.mjs'], { ...env, LGI_SCHEMA_READY_FILE: marker });
     await waitFor(async () => existsSync(marker) && await endpoint('http://127.0.0.1:3210/version'), [convex], 'Convex schema with live auth');
     await requireUnusedPort(3000);
     const suite = start('pnpm', ['test:e2e'], env);
