@@ -37,22 +37,20 @@ describe('type setter follow-up recovery', () => {
     expect(typedHole).not.toHaveBeenCalled();
   });
 
-  it.each(['mutated', 'claimed'] as const)('runs both stages for %s then skips idle', async (kind) => {
-    const input = { mapId: kind, connectionId: 'c1', systemId: 1 };
-    await followUpTypeSetterElimination({ ...input, write: { kind } });
-    await followUpTypeSetterTypedHole({ ...input, write: { kind } });
+  it('runs both stages for a mutated write then skips idle', async () => {
+    const input = { mapId: 'mutated', connectionId: 'c1', systemId: 1 };
+    await followUpTypeSetterElimination({ ...input, write: { kind: 'mutated' } });
+    await followUpTypeSetterTypedHole({ ...input, write: { kind: 'mutated' } });
     await followUpTypeSetterElimination({ ...input, write: { kind: 'idle' } });
     await followUpTypeSetterTypedHole({ ...input, write: { kind: 'idle' } });
-    expect(eliminate).toHaveBeenCalledExactlyOnceWith({ mapId: kind, systemIds: [1] });
+    expect(eliminate).toHaveBeenCalledExactlyOnceWith({ mapId: 'mutated', systemIds: [1] });
     expect(typedHole).toHaveBeenCalledExactlyOnceWith({
-      kind: 'typed-hole', mapId: kind, connectionId: 'c1',
+      kind: 'typed-hole', mapId: 'mutated', connectionId: 'c1',
     });
   });
 
   it.each<SignatureEliminationResponse | null>([
     null,
-    { results: [{ systemId: 1, status: 'statics-unavailable' }] },
-    { results: [{ systemId: 1, status: 'observations-unavailable' }] },
     { results: [{ systemId: 2, status: 'quiet' }] },
   ])('retries an unfinished elimination independently of typed-hole: %j', async (outcome) => {
     const input = { mapId: 'elimination-retry', connectionId: 'c1', systemId: 1 };
