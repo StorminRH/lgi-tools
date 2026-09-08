@@ -3,8 +3,6 @@ on:
   pull_request:
     branches: [development, staging, main]
   workflow_dispatch:
-  push:
-    branches: [codex/github-primary-migration]
 
 permissions:
   contents: read
@@ -175,6 +173,7 @@ jobs:
       LOCAL_DB_DRIVER: postgres-js
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:3210
     steps:
       - uses: actions/checkout@v6
 
@@ -198,6 +197,7 @@ jobs:
       - name: Package production build
         run: |
           tar --exclude='.next/cache' --exclude='.next/dev' --exclude='.next/diagnostics' -czf "$RUNNER_TEMP/next-build.tgz" .next
+          git rev-parse HEAD > "$RUNNER_TEMP/next-build-subject.txt"
           du -b "$RUNNER_TEMP/next-build.tgz" >> "$GITHUB_STEP_SUMMARY"
           git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
           df -h / >> "$GITHUB_STEP_SUMMARY"
@@ -205,7 +205,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: next-build
-          path: ${{ runner.temp }}/next-build.tgz
+          path: |
+            ${{ runner.temp }}/next-build.tgz
+            ${{ runner.temp }}/next-build-subject.txt
           if-no-files-found: error
           retention-days: 1
 
@@ -213,26 +215,28 @@ jobs:
     needs: [build]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
-      options: --ipc=host
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: lgi
+          POSTGRES_PASSWORD: lgi
+          POSTGRES_DB: lgi_tools
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U lgi -d lgi_tools"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5433:5432
     env:
       CI: true
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
-      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@postgres:5432/postgres
+      DATABASE_URL: postgres://lgi:lgi@localhost:5433/lgi_tools
+      DATABASE_URL_UNPOOLED: postgres://lgi:lgi@localhost:5433/lgi_tools
       LOCAL_DB_DRIVER: postgres-js
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:3210
     steps:
       - uses: actions/checkout@v6
 
@@ -243,20 +247,27 @@ jobs:
           name: next-build
           path: ${{ runner.temp }}
 
-      - run: tar -xzf "$RUNNER_TEMP/next-build.tgz"
+      - name: Restore this subject's production build
+        run: |
+          test "$(cat "$RUNNER_TEMP/next-build-subject.txt")" = "$(git rev-parse HEAD)"
+          tar -xzf "$RUNNER_TEMP/next-build.tgz"
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm exec playwright install --with-deps chromium
+
       - run: pnpm db:migrate
 
-      - run: pnpm test:e2e
+      - name: Mandatory production browser suite with disposable local Convex
+        timeout-minutes: 30
+        run: node scripts/ci/browser-services.mjs
 
       - uses: actions/upload-artifact@v7
-        if: failure()
+        if: always()
         with:
-          name: playwright-failure
+          name: playwright-evidence
           path: |
-            docs/ux-check/captures/playwright
             docs/ux-check/captures/e2e-report.json
-          if-no-files-found: ignore
+            docs/ux-check/captures/playwright/**/sanitized-failure*.json
+          if-no-files-found: warn
           retention-days: 1
