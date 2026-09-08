@@ -7,12 +7,14 @@ Cursor `disable-model-invocation: true` frontmatter and Codex
 native controls expressing the same invocation policy. Preserve all 24
 capabilities and 14 explicit-only policies unless explicitly changed.
 
-Temporary `.cursor/skills` entrypoints contain native metadata and a pointer
-to the canonical body. They remain until actual Cursor local/Cloud discovery
-proves direct shared loading, explicit-only behavior and unambiguous names.
-Their presence is an unresolved duplicate-discovery acceptance item, not
-proof consolidation is complete. Remove them only after recorded runtime
-acceptance. Supporting references resolve from the canonical body.
+`.cursor/skills` is a relative directory symlink to `../.agents/skills`.
+Cursor local and Cloud catalogs inject that native path; both resolve it to
+the same canonical files. Fresh runtime probes verified ten unique implicit
+skills, fourteen excluded explicit-only skills and canonical file reads;
+the local slash menu exposes all twenty-four skills. Preserve the symlink
+when changing shared guidance. Supporting references resolve from the body.
+File-search tools may not walk the symlink; inspect `.agents/skills` directly
+for inventory rather than treating an empty glob as missing native discovery.
 
 Shared procedures use [agent calls](../_shared/agent-calls.md) for native
 launch differences. Native role TOML has no prompt-include facility; adapters

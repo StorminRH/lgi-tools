@@ -18,8 +18,8 @@ tracking and durable handoffs; GitHub Issues is not a second backlog.
 ## Guidance and context
 
 Shared skills live in `.agents/skills`; native roles live in `.codex/agents`
-for Codex and `.cursor/agents` for Cursor. Temporary `.cursor/skills`
-entrypoints point to shared bodies pending local/Cloud discovery proof.
+for Codex and `.cursor/agents` for Cursor. `.cursor/skills` is a relative
+directory symlink to the canonical skills for Cursor's native catalog paths.
 Read [agent calls](.agents/skills/_shared/agent-calls.md) before launching
 roles. Preserve their model pins and tool permissions. Read applicable
 nested `AGENTS.md` before edits; do not assume a child inherited them.
