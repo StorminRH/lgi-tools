@@ -14,6 +14,8 @@ if str(ROOT) not in sys.path:
 from tools._lib.repository import ROOT as REPOSITORY_ROOT
 
 COMMANDS = {
+    ("delivery", "check-record"): "tools.delivery.records",
+    ("delivery", "check-receipt"): "tools.delivery.receipts",
     ("delivery", "github-api"): "tools.delivery.github_api",
     ("delivery", "repair-gh-auth"): "tools.delivery.repair_gh_auth",
     ("delivery", "scrub-pr-body"): "tools.delivery.scrub_pr_body",

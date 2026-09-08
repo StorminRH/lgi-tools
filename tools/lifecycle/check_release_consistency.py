@@ -49,7 +49,12 @@ def _changelog_versions(path: Path) -> list[str]:
 
 def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
     """Report contradictions in the active release identity triplet."""
-    findings: list[Finding] = []
+    from tools.delivery.records import collection_violations
+
+    findings: list[Finding] = [
+        Finding("docs/session-as-built", 1, message, "error")
+        for message in collection_violations(sorted((root / "docs/session-as-built").glob("*/*.md")), root)
+    ]
     app_path = root / APP_VERSION_PATH
     app_version = _app_version(app_path)
     if app_version is None:

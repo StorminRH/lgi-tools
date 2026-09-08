@@ -616,6 +616,16 @@ def as_built_schema_violations(
     delivering_branch: str = "development",
 ) -> list[str]:
     """Return structural and marker violations for a session as-built record."""
+    from tools.delivery.records import violations as candidate_violations
+
+    record_format = marker(path, "Record format")
+    if record_format is not None:
+        if record_format != "2":
+            return [f"unsupported Record format {record_format!r}"]
+        violations = candidate_violations(path, root, contract, plan)
+        if marker(path, "Branch") != delivering_branch:
+            violations.append(f"Branch must be {delivering_branch!r}")
+        return violations
     schema = root / AS_BUILT_SCHEMA_RELPATH
     required = schema_headings(schema, 2)
     if required is None:
