@@ -1,0 +1,29 @@
+name: Clean consumed build artifact
+on:
+  workflow_run:
+    workflows: [Verify]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Remove the consumed build archive from this successful run
+        shell: bash
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name == "next-build") | .id' > "$RUNNER_TEMP/build-artifacts"
+          while IFS= read -r artifact_id; do
+            [[ "$artifact_id" =~ ^[0-9]+$ ]]
+            gh api --method DELETE "repos/$GH_REPO/actions/artifacts/$artifact_id"
+          done < "$RUNNER_TEMP/build-artifacts"
