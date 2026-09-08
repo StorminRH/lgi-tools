@@ -8,7 +8,12 @@
     "require": "best-effort"
   },
 
-  "entry": [],
+  "entry": [
+    "scripts/dev/run-local.mjs",
+    "scripts/dev/schema-ready.mjs",
+    "scripts/dev/sde.ts",
+    "scripts/dev/services.mjs"
+  ],
 
   "ignorePatterns": [
     "convex/_generated/**",
