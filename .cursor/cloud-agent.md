@@ -26,7 +26,9 @@ Depot remains installed pending the CI decision.
 
 For DB suites, prove that the migrated local `:5433` cluster and complete SDE
 baseline were used and that meaningful suites ran with zero unintended skips.
-Playwright Chromium comes from the selected lockfile. Seed synthetic browser
-auth through `pnpm e2e:seed`; keep cookie jars and `auth-storage.json` out of
-artifacts. Atlas probes require the running local Convex/Next stack and a real
-authenticated fixture operation beyond bootstrap readiness.
+Playwright Chromium comes from the selected lockfile. Follow
+[selected browser acceptance](../docs/ux-check/README.md): fixtures own synthetic
+principals, maps and cleanup; keep auth state out of artifacts. Production
+browser lanes own their server, so stop the development stack first and keep
+the required local PostgreSQL/Convex backends ready. Atlas journeys require a
+real authenticated fixture operation beyond bootstrap readiness.

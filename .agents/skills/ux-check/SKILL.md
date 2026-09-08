@@ -1,160 +1,73 @@
 ---
 name: ux-check
-description: Exercise changed user-facing routes with log-driven Playwright (assertions, console/network diagnostics, failure-only artifacts) and pause for operator visual review. Use as the Ordered-work / pre-close-out UI gate for UI or interaction changes; close-out consumes the recorded disposition and does not re-run this sweep.
+description: Run selected Playwright route and interaction acceptance for user-facing changes, then obtain the operator visual disposition.
 ---
 
 # Run the UX check
 
-Exercise changed user-facing routes with **log-driven Playwright** (assertions,
-console, page errors, network). Write screenshots/traces under
-`docs/ux-check/captures/` on failure only. The operator reviews visual feel in
-their browser — never always-on screenshots or agent visual approval.
+Playwright Test owns browser acceptance. Read the [command and evidence
+contract](../../../docs/ux-check/README.md) before choosing a lane. This skill
+selects affected journeys and consumes their report; it does not own a second
+browser runner. Local suite and required CI remain independent under
+[verification](../../../docs/workflows/verification.md).
 
-Development and operator-requested staging aid; independent of the local test
-evidence and required CI checks under [verification](../../../docs/workflows/verification.md).
-Sweeps/probes exit non-zero on hard assertion/console/page failures; network
-findings still need disposition.
+Inputs: the complete diff, affected routes/interactions, exact tested revision,
+and a stack that represents the required behavior. Resolve shared consumers
+through `repo-mapper`. Include committed, staged, unstaged and untracked changes.
+For lifecycle work, retain the selected Ordered work and its operator pause.
 
-Inputs: (1) complete change diff and affected user-facing routes; (2) running
-local stack or promoted staging deployment that renders them truthfully; (3) durable open-state probe
-definitions for changed interactions; (4) for auth probes — seeded storage
-state (`pnpm e2e:seed` → `docs/ux-check/captures/auth-storage.json`),
-`UX_STORAGE_STATE` / `--storage-state`, or operator cookie jar (`UX_COOKIE_JAR`
-/ `--cookie-jar`). `pnpm test:e2e` uses Playwright `storageState` only (local
-seed by default, or `E2E_STORAGE_STATE` / `UX_STORAGE_STATE` with
-`E2E_SKIP_SEED=1`).
+1. Select the smallest sufficient route cases and interaction journeys from
+   the executable inventory. Require exact URL, principal, ready content and
+   changed state. A quiet error shell or empty selection cannot pass.
+2. Choose a lane and satisfy its prerequisites. Local mutation uses disposable
+   PostgreSQL/Convex data with fixture-owned users, grants and maps. Production
+   lanes require a production build and own their server; development probes
+   use a separate development server. Missing backend, authentication, fixture
+   or selected scenario is `BLOCKED`.
+3. Run the selected Playwright command. `pnpm ux-check` uses the same owner as
+   `pnpm test:e2e`; use Playwright flags for routes and `E2E_SCENARIOS` for optional
+   journeys. Do not substitute retries, allow-empty flags, skips or an unselected
+   whole portfolio for meaningful acceptance.
+4. Read `docs/ux-check/captures/e2e-report.json`. Require actual execution,
+   diagnostic disposition and successful fixture cleanup, including on failure.
+   Unexpected first-party HTTP errors, required Convex failures, page/console
+   errors and CSP violations fail. Expected failures must match the scenario's
+   exact endpoint, method and status.
+5. Return the subject and report, selected/unselected/blocked cases, command
+   exits, cleanup result and limitations. A clean report is `READY_FOR_REVIEW`.
+   Give the operator a short visual checklist for changed routes/interactions
+   and wait for their disposition. Agents do not visually approve the product.
+   Record `Approved` or `Changes requested` only from the operator. Do not open
+   a PR from this skill; return to its delivery owner.
 
-Output: `UX_EVIDENCE` naming probed routes/viewports, diagnostics, failure
-artifact paths, an **operator visual checklist**, and review status. `BLOCKED`
-when the stack cannot represent required behavior or a diagnostic stays
-unexplained. Clean sweep → `READY_FOR_REVIEW` with review `Pending`, then
-pause. Do not open a PR from this skill. Close-out consumes the disposition.
+## Lane selection
 
-Agents must not visually approve the UI (local or production). Use Playwright
-logs and any failure screenshots/traces under `docs/ux-check/captures/` only to
-diagnose red checks, then give the operator an explicit visual checklist.
-
-## 1. Resolve the capture surface
-
-Probe only routes the change affects:
-
-Resolve the destination from the supplied change or plan. Ordinary feature
-work targets `development`; promotions target `staging`; releases target
-`main`. Set `UX_BASE_REF` to its verified remote-tracking ref. Inspect committed,
-staged, unstaged, and untracked changes:
-
-```bash
-git diff --name-only "$(git merge-base HEAD "$UX_BASE_REF")" HEAD
-git diff --name-only
-git diff --cached --name-only
-git ls-files --others --exclude-standard
-```
-
-Map route files directly. For shared feature/UI code, use the named `repo-mapper` to find consumers. Replace
-dynamic segments with real local identifiers from the owning list page or
-database — never example ids as fixtures.
-
-Anonymous sweeps verify signed-out gates. Signed-in: `pnpm e2e:seed`, then
-`--storage-state=docs/ux-check/captures/auth-storage.json`.
-
-## 2. Establish the test environment
-
-Use local `development` by default. If the operator requests staging web
-validation, follow `close-out` to promote first, retaining this test as a
-pending post-promotion pause. Full reviews and gates still apply below the
-80-file promotion trigger. Verify the deployed revision, use its staging URL
-with `--base-url`, and use remote authentication per the remote-probes section.
-Resume this sweep after promotion; a successful merge does not supply an
-operator disposition. For local testing:
-
-```bash
-curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
-```
-
-Reuse an answering server when it represents the current worktree. Otherwise
-start what the routes need (`pnpm dev` locally; Cloud Agent caveats live in
-[Cloud Agent guide](../../../.cursor/cloud-agent.md)). Browse `http://localhost:3000`, never `127.0.0.1`.
-
-Browser binaries live in the host Playwright cache (macOS:
-`$HOME/Library/Caches/ms-playwright`). If `PLAYWRIGHT_BROWSERS_PATH` points
-under `cursor-sandbox-cache/`, redirect it to that host cache or unset it
-before launch — do not re-download into the sandbox path. Only when the host
-cache lacks the required revision: `pnpm exec playwright install chromium`.
-
-## 3. Run the log-driven route sweep
-
-```bash
-pnpm ux-check /changed-route /other-changed-route
-pnpm ux-check /changed-route --storage-state=docs/ux-check/captures/auth-storage.json
-```
-
-Defaults: desktop 1440×900, mobile 390×844. Optional: `--viewport=desktop`,
-`--base-url=…`, `--settle=2000`, `--cookie-jar=…`, `--storage-state=…`. Set
-`VERCEL_AUTOMATION_BYPASS_SECRET` for protected Vercel preview/production URLs.
-Evidence: gitignored `docs/ux-check/captures/report.json`. Failure PNGs:
-`*--failure.png` in the same directory.
-
-## 4. Run required open-state probes
-
-```bash
-node docs/ux-check/run-probes.mjs --list
-node docs/ux-check/run-probes.mjs nav-menu overlay-open
-pnpm e2e:seed
-node docs/ux-check/run-probes.mjs --storage-state=docs/ux-check/captures/auth-storage.json <auth-probe-id>
-```
-
-Isolated desktop/mobile contexts; writes
-`docs/ux-check/captures/probes/report.json`. Fails on assertion failure, probe
-crash, `style-src` violation, unfiltered console error, or uncaught page error.
-Add recurring interactions under `docs/ux-check/probes/` per
-`docs/ux-check/README.md`. No standalone Playwright launchers. Delete temporary
-`*-probe.mjs` scripts before close-out.
-
-## 5. Optional authenticated smoke
-
-When account-adjacent shells matter and Vitest cannot falsify them:
-`pnpm test:e2e`. Keep the suite tiny. See the repo's end-to-end testing notes.
-
-## 6. Report and pause for operator visual review
-
-1. Read `docs/ux-check/captures/report.json` and, when run,
-   `docs/ux-check/captures/probes/report.json` (and e2e report).
-2. Report every console/page error, failed request, and 4xx/5xx by route or
-   probe and viewport.
-3. Do not open the site to approve layout. Build an operator checklist of
-   routes/interactions to open in the selected environment.
-4. Return `UX_EVIDENCE`, pause for operator browser review. Do not open a PR.
-
-Planned lifecycle with `UX gate: Yes`: dedicated Ordered work step under
-`start-session` — finish the operator pause before the next OW. With explicit
-operator direction to test on staging, promote through `close-out` first and
-return to this pending pause for the actual test and disposition. Ordinary
-work follows the same environment choice and returns to its owning delivery
-workflow. `close-out` owns merges onto `staging` or `main`.
-
-## Remote / production log probes
-
-Do not visually inspect production. For deployment proof:
-
-| Need | Mechanism |
+| Need | Entry point |
 | --- | --- |
-| Vercel Deployment Protection | `VERCEL_AUTOMATION_BYPASS_SECRET` via origin-scoped Playwright route (`installOriginScopedBypass`) — never context-wide `extraHTTPHeaders` |
-| App session on remote | Operator Netscape `--cookie-jar` or Playwright `--storage-state` |
+| Small production route contract | `pnpm test:e2e --grep '<case>'` |
+| Changed local interaction | `E2E_SCENARIOS=<journeys> pnpm test:e2e:local` |
+| Requested deployed read | `pnpm test:e2e:deployed --grep '<case>'` |
+| Development navigation | `E2E_SCENARIOS=<journeys> pnpm test:e2e:dev` |
+| Explicit performance observation | `E2E_SCENARIOS=<journeys> pnpm test:e2e:benchmark` |
 
-```bash
-VERCEL_AUTOMATION_BYPASS_SECRET=… pnpm verify:site-routes -- <production-or-preview-url> --cookie-jar <operator-cookie-jar>
-```
+The command reference owns environment variables, inventory IDs and device
+selection. Benchmarks require declared calibration; they do not gate production
+or justify paid compute. Listings prove selection only, not browser execution.
 
-## Return
+## Deployed checks and artifacts
 
-Render this form in chat. Do not wrap the result in a code fence or prepend a
-second summary. Remaining detail stays in the report JSON files.
+Use a verified deployment revision and operator-supplied authentication. No
+synthetic seed, local server, application HTTP write or Convex mutation/action
+is allowed in this lane. An authenticated route requiring heartbeat writes
+blocks it; choose public smoke when appropriate. Protection bypass headers
+stay scoped to the exact origin. Keep auth files outside artifacts.
 
-## UX check: `READY_FOR_REVIEW` | `BLOCKED`
+Upload only the sanitized report and failure diagnostics. Raw traces, screenshots,
+video, cookies, headers and storage state have no verified sanitizer and are not
+uploadable evidence. A remote GET may have server-side effects the browser cannot
+prove absent; preserve the deployment's actual access boundary.
 
-- **Subject:** <concrete probed routes and viewports>; report `<report path>`
-- **Result:** <diagnostics/probe summary, naming any authenticated-state limitation and failure artifacts; ≤2 sentences>
-- **Operator checklist:** <routes/interactions for the operator to open visually>
-- **Disposition:** `Pending` after a clean sweep; `Approved` or `Changes requested` only after the operator visual pause
-- **Action:** <Pause for operator review (`Pending`), return to implementation, hand off to the next Ordered work step, or continue to close-out>
-- **Blocker:** <exact blocker or `None`>
+With explicit staging-test direction, [close-out](../close-out/SKILL.md) owns
+promotion first, then this skill completes the pending operator review. Merge
+or deployment success does not provide that disposition. For tooling-only
+changes with no product UI change, record why visual review is not applicable.

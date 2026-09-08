@@ -5,9 +5,11 @@ harness's model, effort and permission fields and instruct the role to read
 its contract after resolving the repository root. A path in a prompt is
 not an automatic include: runtime acceptance must prove the file was read.
 
-For Codex, read [Codex calls](codex-agents.md). For Cursor, use the named
-native agent through the exposed Task tool and omit a model override so
-`.cursor/agents/<role>.md` owns its pin. Follow the live tool schema.
+For Codex, read [Codex calls](codex-agents.md). For Cursor, set the exposed
+Task tool's `subagent_type` to the exact native role and omit a model override
+so `.cursor/agents/<role>.md` owns its pin. A role name in the prompt alone
+creates a generic child and can inherit the parent's model. Verify the actual
+call arguments and follow the live tool schema.
 
 Send a bounded brief: repository/root, exact subject and revision, question
 or selected commands, authority, applicable source paths and required return.
