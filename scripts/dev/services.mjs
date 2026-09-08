@@ -29,7 +29,9 @@ function stop(child) {
 async function waitFor(check, owned, label) {
   for (let attempt = 0; attempt < 180; attempt++) {
     if (stopping || owned.some((child) => child.failed || child.exitCode !== null || child.signalCode !== null)) throw new Error(`${label}: owned service exited`);
-    if (await check()) return;
+    const ready = await check();
+    if (stopping || owned.some((child) => child.failed || child.exitCode !== null || child.signalCode !== null)) throw new Error(`${label}: owned service exited`);
+    if (ready) return;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`${label} did not become ready within 180 attempts`);
