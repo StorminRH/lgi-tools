@@ -1,140 +1,96 @@
-# docs/ux-check — UX verification workspace
+# Selected browser acceptance
 
-Route sweeps, operator visual pause, and remote log-probe procedure live in
-the `ux-check` skill. This directory owns durable probe definitions, the
-shared probe runner, and generated capture artifacts.
+Playwright Test owns route checks and retained interaction journeys. `pnpm test:e2e`
+runs the small production-build suite. It does not run the interaction portfolio.
+This redesign follows the unchanged-suite LGI-112 cost baseline; it does not
+change or reinterpret that historical measurement.
 
-The durable probe harness, probe definitions, and this guide are tracked project
-tooling. Generated reports and failure artifacts under `captures/` remain
-ignored local evidence and can be deleted at any time.
-
-## Layout
-
-| Path | What | Lifecycle |
+| Lane | Command | Contract |
 | --- | --- | --- |
-| `run-probes.mjs` | Shared Playwright runner for durable interaction probes | Tracked; browser lifecycle, diagnostics, failure-only screenshots, reports, exit gating |
-| `probes/*.mjs` | Small durable probe definitions | Tracked; one module per recurring feature check |
-| `captures/probes/` | Probe failure screenshots plus `report.json` | Ignored; wiped when the probe runner starts |
-| `captures/` | `pnpm ux-check` report + failure PNGs; `auth-storage.json` from `pnpm e2e:seed` | Ignored |
-| `docs/contributing/end-to-end-testing.md` | Tiny Playwright smoke suite policy (`pnpm test:e2e`) | Tracked |
+| Mandatory production | `pnpm test:e2e` | Local `pnpm start`; eight independent public/authenticated route cases |
+| Local mutation | `E2E_SCENARIOS=atlas-access pnpm test:e2e:local` | Explicit journeys, disposable local PostgreSQL/Convex fixtures |
+| Deployed read-only | `pnpm test:e2e:deployed` | Supplied remote session and expected principal; no local server or seed |
+| Development only | `E2E_SCENARIOS=dev-navigation-sites pnpm test:e2e:dev` | Local `pnpm dev`; Next instant navigation and eventual useful content |
+| Benchmark | `E2E_SCENARIOS=fog-benchmark pnpm test:e2e:benchmark` | Optional observations; never a paid-compute or production release gate |
 
-## Run durable probes
+`E2E_SCENARIOS` is a comma-separated list of journey IDs. List discovery without
+starting a server or creating fixtures with `pnpm test:e2e --list` or
+`E2E_LANE=local-mutation pnpm test:e2e --list`. Every optional run requires a
+selection. Empty, unknown, and wrong-lane selections fail. `--no-deps` and
+`--pass-with-no-tests` cannot be used as acceptance gates. There are no whole-test
+retries. Assertions may poll for observable completion.
 
-For local Cursor or Codex, complete the README's local-development setup,
-then start the app:
+The old `ux-capture` route sweep and `run-probes` browser runner have been removed.
+`pnpm ux-check` invokes the same Playwright owner and accepts Playwright flags.
+Use `--grep` to narrow mandatory routes, or `E2E_LANE` and `E2E_SCENARIOS` for
+interactions. Arbitrary URLs are not a pass contract. Add a route-specific
+ready-content assertion when a new route needs browser coverage.
 
-```bash
-pnpm dev
-# or pnpm dev:all when Convex-backed surfaces are required
-```
+## Local prerequisites
 
-In a Cursor Cloud Agent VM, use the `next-dev` and `convex-dev` terminals
-from `.cursor/environment.json`; read `.cursor/cloud-agent.md` for their
-prerequisites. The local `dev:all` command requires Docker.
+Build first with `pnpm build`. The production lanes start their own `pnpm start`
+and reject an existing server, so they cannot accidentally test a development
+server. `PLAYWRIGHT_BASE_URL` defaults to `http://localhost:3000`; use the same
+origin in `BETTER_AUTH_URL` and configure the application port when changing it.
 
-List available definitions, run all of them, or select names:
+Authenticated fixtures require current local PostgreSQL migrations,
+`LOCAL_DB_DRIVER=postgres-js`, a loopback `LGI_DATABASE_URL` or `DATABASE_URL`,
+and a matching local `BETTER_AUTH_SECRET` or `SESSION_SECRET`. Local Convex must
+be running with a `local:` or `anonymous:` `CONVEX_DEPLOYMENT`, a loopback
+`NEXT_PUBLIC_CONVEX_URL`, and matching `CONVEX_SERVICE_SECRET`. Remove
+`CONVEX_DEPLOY_KEY`. Missing required backends fail as `BLOCKED`; refusal is
+never console noise to ignore. A production build must use those same local
+service settings.
 
-```bash
-node docs/ux-check/run-probes.mjs --list
-node docs/ux-check/run-probes.mjs
-node docs/ux-check/run-probes.mjs overlay-open dialog-open
-```
+Each authenticated test creates distinct owner, editor, viewer and unauthorized
+principals. Atlas journeys create maps owned by that test. Do not supply
+`UX_MAP_ID` or reuse another run's maps. Setup owns map aliases and cleanup.
+Cleanup deletes owned durable and live records and checks that no owned rows
+remain, including after setup or assertion failure. A failed census fails the
+run. Auth storage stays in memory and is never an attachment. The old standalone
+seed command is retired.
 
-Authenticated probes:
+## Deployed reads
 
-```bash
-pnpm e2e:seed
-node docs/ux-check/run-probes.mjs --storage-state=docs/ux-check/captures/auth-storage.json atlas-window-dock
-```
+Set `PLAYWRIGHT_BASE_URL` to the deployment origin, `E2E_STORAGE_STATE` to an
+operator-supplied storage file, and `E2E_EXPECTED_USER_ID`,
+`E2E_EXPECTED_CHARACTER_ID`, and `E2E_EXPECTED_NAME` to its intended principal.
+`E2E_DEPLOYMENT_ID` identifies the deployment in reports. The deployed package
+command sets `E2E_SKIP_SEED=1`; the original remote seed guard remains in force.
+Optional protection bypass headers are installed only on that exact origin.
+Session checks fetch in the browser context, using its cookies and routing.
 
-The one-shot automatic-jump gate also needs a dedicated empty editable map:
+The deployed lane performs no synthetic seeding, fixture mutations, or local
+server startup. Browser HTTP writes and Convex Mutation/Action frames are
+prevented and fail acceptance; service workers are blocked. An authenticated
+route that starts heartbeat writes will therefore block this lane. Select the
+public cases with `--grep 'home-public|atlas-guest'` for deployed smoke without
+authenticated background behavior. Browser interception cannot establish that
+the deployed server has no side effects while handling GET requests. Keep
+storage files and cookie jars outside uploaded artifacts.
 
-```bash
-UX_JUMP_MAP_ID=<uuid> node docs/ux-check/run-probes.mjs \
-  --storage-state=docs/ux-check/captures/auth-storage.json atlas-automatic-jump
-```
+## Results and evidence
 
-The probe leaves its two authored jumps in place for operator review. Use a
-fresh empty map for a later run instead of reusing that UUID.
+`docs/ux-check/captures/e2e-report.json` records revision and dirty state,
+deployment, time, lane, browser/device, auth role, fixture identity, cleanup,
+selected/skipped/blocked scenarios, attempts, and diagnostic disposition.
+The 64 historical probe dispositions live in `e2e/probe-registry.json` and are
+included in the report. A filtered scenario is recorded as unselected; a
+selected scenario that cannot execute is blocked and cannot make the run green.
 
-Use a different origin when needed:
+Unexpected first-party HTTP failures, failed requests, JavaScript errors, CSP
+violations and console errors fail the selected journey. Required Convex
+traffic counts as first-party. Expected HTTP failures are declared inside the
+scenario for an exact endpoint, method and status; another route or status
+still fails. Third-party network findings are separately classified.
 
-```bash
-node docs/ux-check/run-probes.mjs --base-url=http://localhost:3001 overlay-open
-```
+Only failed cases attach a bounded sanitized diagnostic timeline. Raw console
+messages, response bodies, headers, query values, cookies and auth state are
+excluded. Native traces, screenshots and video are disabled because they can
+capture credentials or account content; there is no verified sanitizer for
+those formats. Upload only the report and Playwright's sanitized-failure JSON.
 
-With no names, the runner loads every `.mjs` definition in `probes/`. It runs each
-definition in an isolated page and browser context for its declared viewports, so one
-crash is recorded without aborting the remaining probes. It never waits for
-`networkidle`; the Convex websocket keeps live pages busy indefinitely.
-
-Every viewport run automatically records:
-
-- authored checks;
-- `style-src` CSP violations;
-- unfiltered console errors and uncaught page errors;
-- failed requests and HTTP 4xx/5xx responses;
-- a failure screenshot under `captures/probes/` only when the run fails.
-
-Proactive `shot()` in probe definitions is a no-op (kept so older probes do not
-crash). The command exits non-zero when an authored check, a definition, or a
-default gate fails. Network findings are recorded for diagnosis but are not an
-automatic failure, because some probes deliberately exercise responses such as
-signed-out 401s. Read the combined result at `captures/probes/report.json`.
-
-## Definition format
-
-A definition imports nothing. The runner discovers it and injects the complete probe
-context, keeping capture paths, Playwright lifecycle, and diagnostic policy out of
-feature checks:
-
-```js
-export default {
-  name: 'feedback-dialog',
-  route: '/',
-  viewports: ['desktop', 'mobile'],  // optional; defaults to both
-  reducedMotion: true,               // optional; emulates prefers-reduced-motion
-  settle: 1200,                      // optional milliseconds; defaults to 1000
-  allowConsole: [/expected noise/],  // optional extra RegExp filters
-  requiresAuth: false,               // optional; needs --storage-state or cookie jar
-  async setup({ page, baseUrl }) {
-    // Optional pre-navigation route mocks, permissions, or init scripts.
-  },
-  async run({ page, viewport, baseUrl, check }) {
-    const dialog = page.getByRole('dialog');
-    check('dialog opens', await dialog.isVisible());
-  },
-};
-```
-
-Prefer role/label locators and behavioral checks. Do not add probes whose only
-job is a screenshot.
-
-Use `createPage()` for another tab in the primary authenticated browser context,
-including cross-tab BroadcastChannel tests. The runner attaches diagnostics and
-CSP collection and closes that tab with the context. `createContext()` instead
-creates an isolated client, optionally in another browser engine. Playwright's
-clock is shared by pages in a context; install and advance it once per context.
-
-## Instant navigations (`instant`)
-
-The runner injects Next.js 16.3's `@next/playwright` `instant(fn, options?)`
-helper on the probe context. Inside the callback, navigations render only the
-App Shell / prefetched UI; dynamic streams wait until the callback returns.
-
-```js
-async run({ page, baseUrl, check, instant }) {
-  await page.goto(new URL('/', baseUrl).href, { waitUntil: 'domcontentloaded' });
-  await instant(async () => {
-    await page.locator('a[href="/sites"]').first().click();
-    await page.waitForURL('**/sites');
-    check('sites shell is instant', await page.getByRole('heading', { name: /wormhole/i }).isVisible());
-  });
-}
-```
-
-Prefer soft `<Link>` navigations. Pass `{ baseURL: baseUrl }` only when overriding
-the runner default (it already scopes cookies to `baseUrl`). Run against
-`pnpm dev` / `pnpm dev:all` — the testing API is enabled automatically there; do
-not rely on a local production build. Warm-cache is assumed: cold `'use cache'`
-misses can still wait once.
+`READY_FOR_REVIEW` means selected assertions and cleanup passed. Operator visual
+acceptance is still pending. No local-suite result or discovery listing proves
+a browser journey ran. Record the actual browser command and report when the
+parent executes representative journeys.

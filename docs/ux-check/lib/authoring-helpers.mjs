@@ -1,11 +1,25 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { localConvexRun } from '../../../e2e/fixture-data-convex.mjs';
+import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from '../../../e2e/fixture-data-local.mjs';
 import { config as loadDotenv } from 'dotenv';
 import { calmAtlasCamera } from './window-helpers.mjs';
 
 loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
-const execFileAsync = promisify(execFile);
+export function fixtureCharacterId() {
+  const value = Number(process.env.UX_CHARACTER_ID);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error('E2E_PREREQUISITE: a run-owned UX_CHARACTER_ID is required');
+  }
+  return value;
+}
+
+let accessControl;
+
+export function installFixtureAccessControl(control) {
+  if (accessControl) throw new Error('A fixture access controller is already installed');
+  accessControl = control;
+  return () => { accessControl = undefined; };
+}
 
 export const blankMapId = () => process.env.UX_BLANK_MAP_ID ?? null;
 
@@ -135,42 +149,30 @@ export async function openFirstEdgeEditor(page) {
 }
 
 export async function teardownMapAccess(mapId) {
-  const { stdout, stderr } = await execFileAsync(
-    'pnpm',
-    ['map:project-access', '--', 'teardown', mapId],
-    { cwd: process.cwd(), env: process.env, timeout: 60_000 },
-  );
-  if (stderr.trim()) console.error(stderr.trim());
-  return stdout.trim();
+  if (!accessControl) throw new Error('E2E_PREREQUISITE: access changes require run-owned fixtures');
+  return accessControl.revoke('editor', mapId);
 }
 
 export async function restoreMapAccess(mapId) {
-  const { stdout, stderr } = await execFileAsync(
-    'pnpm',
-    ['map:project-access', '--', 'project', mapId],
-    { cwd: process.cwd(), env: process.env, timeout: 60_000 },
-  );
-  if (stderr.trim()) console.error(stderr.trim());
-  return stdout.trim();
+  if (!accessControl) throw new Error('E2E_PREREQUISITE: access changes require run-owned fixtures');
+  return accessControl.restore('editor', mapId);
 }
 
 export async function convexRun(path, args) {
-  const deployment = process.env.CONVEX_DEPLOYMENT ?? '';
-  if (
-    !deployment.startsWith('local:') &&
-    !deployment.startsWith('anonymous:')
-  ) {
-    throw new Error(
-      `Refusing convex run: CONVEX_DEPLOYMENT=${deployment || '(unset)'} is not a local or anonymous backend`,
-    );
+  requireLocalAuthEnvironment(process.env.E2E_BASE_URL ?? process.env.BETTER_AUTH_URL);
+  requireLocalConvexEnvironment();
+  if (!process.env.UX_FIXTURE_RUN_ID) {
+    throw new Error('E2E_PREREQUISITE: Convex probe writes require a run-owned fixture');
   }
-  const { stdout, stderr } = await execFileAsync(
-    'pnpm',
-    ['exec', 'convex', 'run', path, JSON.stringify(args)],
-    { cwd: process.cwd(), env: process.env, timeout: 30_000 },
-  );
-  if (stderr.trim()) console.error(stderr.trim());
-  return stdout.trim();
+  const mapIds = JSON.parse(process.env.UX_OWNED_MAP_IDS ?? '[]');
+  const userIds = JSON.parse(process.env.UX_OWNED_USER_IDS ?? '[]');
+  if (args.mapId !== undefined && !mapIds.includes(args.mapId)) {
+    throw new Error('Refusing mutation of a map outside this fixture');
+  }
+  if (args.userId !== undefined && !userIds.includes(args.userId)) {
+    throw new Error('Refusing mutation of a principal outside this fixture');
+  }
+  return JSON.stringify(await localConvexRun(path, args));
 }
 
 const DEFAULT_JUMP_FROM_SYSTEM_ID = 30_000_142;

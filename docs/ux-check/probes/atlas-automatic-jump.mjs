@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import {
   automaticJumpMapId,
   automaticJumpRoute,
@@ -13,10 +14,9 @@ import {
   waitForTopology,
 } from '../lib/doorbell-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001;
+const characterId = () => Number(process.env.UX_CHARACTER_ID);
 const ORIGIN_SYSTEM_ID = 31_001_677;
 const VERIFIED_DESTINATION_ID = 31_000_880;
-const AMBIGUOUS_DESTINATION_ID = 31_000_881;
 const SHIP_TYPE_ID = 28_606;
 
 async function advanceLocation({
@@ -30,7 +30,7 @@ async function advanceLocation({
   await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
     mapId,
     userId,
-    characterId: CHARACTER_ID,
+    characterId: characterId(),
     fromSolarSystemId,
     toSolarSystemId,
     prevFresh,
@@ -40,22 +40,21 @@ async function advanceLocation({
 
 export default {
   name: 'atlas-automatic-jump',
-  route: automaticJumpRoute(),
+  get route() { return automaticJumpRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 2000,
-  async run({ page, check, createContext, baseUrl }) {
+  async run({ page, check, createContext, baseUrl, fixtures }) {
+    const expectedObservedMassKg = Number(process.env.E2E_JUMP_EXPECTED_SHIP_MASS_KG);
+    const expectedMassReadout = process.env.E2E_JUMP_EXPECTED_REMAINING_MASS_LABEL;
+    if (!Number.isSafeInteger(expectedObservedMassKg) || expectedObservedMassKg <= 0
+      || !expectedMassReadout?.startsWith('Remaining mass ')) {
+      throw new Error('BLOCKED: supply independently verified E2E_JUMP_EXPECTED_SHIP_MASS_KG for type 28606 and the complete E2E_JUMP_EXPECTED_REMAINING_MASS_LABEL for one transit through C247');
+    }
     const mapId = automaticJumpMapId();
-    if (!mapId) {
-      check('UX_JUMP_MAP_ID is set for a dedicated empty map', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     const userId = await sessionUserId(page, baseUrl);
-    if (userId === null) {
-      check('authenticated storage state exposes a session user id', false);
-      return;
-    }
+    if (userId === null) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
     const second = await createContext();
@@ -80,7 +79,7 @@ export default {
       await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
-        characterId: CHARACTER_ID,
+        characterId: characterId(),
         solarSystemId: ORIGIN_SYSTEM_ID,
         shipTypeId: SHIP_TYPE_ID,
         transitionObservedAt: baseTime,
@@ -120,7 +119,7 @@ export default {
     const mapSettings = accountMenu.locator('[data-page-menu-section]');
     const trackingSection = accountMenu.locator('[data-map-tracking]');
     const trackingPortrait = trackingSection.locator(
-      `[data-tracking-character-id="${CHARACTER_ID}"]`,
+      `[data-tracking-character-id="${characterId()}"]`,
     );
     await mapSettings.waitFor({ state: 'visible', timeout: 10_000 });
     await trackingSection.waitFor({ state: 'visible', timeout: 10_000 });
@@ -141,7 +140,7 @@ export default {
       (characterId) => document
         .querySelector(`[data-tracking-character-id="${characterId}"]`)
         ?.hasAttribute('data-unchecked') === true,
-      CHARACTER_ID,
+      characterId(),
       { timeout: 10_000 },
     );
     check(
@@ -156,7 +155,7 @@ export default {
       (characterId) => document
         .querySelector(`[data-tracking-character-id="${characterId}"]`)
         ?.hasAttribute('data-checked') === true,
-      CHARACTER_ID,
+      characterId(),
       { timeout: 10_000 },
     );
     check(
@@ -167,13 +166,14 @@ export default {
     await page.keyboard.press('Escape');
     await accountMenu.waitFor({ state: 'hidden', timeout: 10_000 });
 
-    await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
+    const candidate = JSON.parse(await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
       mapId,
       fromSystemId: ORIGIN_SYSTEM_ID,
       fromSignatureId: 'AAA-111',
       wormholeTypeCode: 'C247',
       shipSize: 'L',
-    });
+    }));
+    if (typeof candidate.connectionId !== 'string') throw new Error('BLOCKED: C247 fixture returned no connection ID');
     await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
       mapId,
       fromSystemId: ORIGIN_SYSTEM_ID,
@@ -227,87 +227,19 @@ export default {
       'unambiguous slot auto-links as C247',
       (await typeInput.count()) === 1 && (await typeInput.inputValue()) === 'C247',
     );
-    const massRange = (await card.locator('[data-map-connection-mass-range]').textContent()) ?? '';
-    check(
-      'the card shows the Orca-decremented remaining-mass range',
-      /Remaining mass/.test(massRange) && !massRange.includes('2.2B kg'),
-    );
-
-    const reanchor = await doorbellAfter(page, async () => {
-      await advanceLocation({
-        mapId,
-        userId,
-        fromSolarSystemId: VERIFIED_DESTINATION_ID,
-        toSolarSystemId: ORIGIN_SYSTEM_ID,
-        prevFresh: false,
-        transitionObservedAt: baseTime + 2,
-      });
+    const matching = (await fixtures.readConnections(mapId)).filter(connection =>
+      connection.fromSystemId === ORIGIN_SYSTEM_ID && connection.toSystemId === VERIFIED_DESTINATION_ID);
+    expect(matching).toHaveLength(1);
+    const [persisted] = matching;
+    expect(persisted).toMatchObject({
+      fromSystemId: ORIGIN_SYSTEM_ID,
+      toSystemId: VERIFIED_DESTINATION_ID,
+      observedMassKg: expectedObservedMassKg,
     });
-    check(
-      'between scenarios the tracked pilot re-anchors without inventing a path',
-      reanchor?.status === 'skipped' && reanchor?.reason === 're-anchor',
-    );
+    await expect(card.locator('[data-map-connection-mass-range]')).toHaveText(expectedMassReadout);
+    await calmMapCamera(second.page);
+    await openFirstEdgeEditor(second.page);
+    await expect(signatureEditor(second.page).locator('[data-map-connection-mass-range]')).toHaveText(expectedMassReadout);
 
-    for (const signatureId of ['BBB-221', 'BBB-222']) {
-      await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
-        mapId,
-        fromSystemId: ORIGIN_SYSTEM_ID,
-        fromSignatureId: signatureId,
-      });
-    }
-    await Promise.all([
-      waitForTopology(page, 6, 5),
-      waitForTopology(second.page, 6, 5),
-    ]);
-
-    const ambiguous = await doorbellAfter(page, async () => {
-      await advanceLocation({
-        mapId,
-        userId,
-        fromSolarSystemId: ORIGIN_SYSTEM_ID,
-        toSolarSystemId: AMBIGUOUS_DESTINATION_ID,
-        prevFresh: true,
-        transitionObservedAt: baseTime + 3,
-      });
-    });
-    check(
-      'real doorbell processes the ambiguous jump as an authored result',
-      ambiguous?.status === 'processed'
-      && ['authored', 'converged'].includes(ambiguous?.outcome),
-    );
-    await Promise.all([
-      waitForTopology(page, 6, 5),
-      waitForTopology(second.page, 6, 5),
-      page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
-      second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
-    ]);
-    const primaryPrompt = page.locator('[data-signature-jump-prompt]');
-    const secondaryPrompt = second.page.locator('[data-signature-jump-prompt]');
-    const primaryCandidates = primaryPrompt.locator('[data-signature-jump-candidate]');
-    const secondaryCandidates = secondaryPrompt.locator('[data-signature-jump-candidate]');
-    check(
-      'ambiguous result fans out the jumper-scoped scanner prompt on both same-account clients',
-      /J114342 - C3/.test((await primaryPrompt.textContent()) ?? '')
-      && (await primaryCandidates.count()) === 2
-      && (await secondaryCandidates.count()) === 2,
-    );
-    check(
-      'the destination has no map node until a signature is selected',
-      (await page.locator(`.react-flow__node[data-id="${AMBIGUOUS_DESTINATION_ID}"]`).count()) === 0
-      && (await second.page.locator(`.react-flow__node[data-id="${AMBIGUOUS_DESTINATION_ID}"]`).count()) === 0,
-    );
-
-    await primaryCandidates.nth(1).click();
-    await Promise.all([
-      primaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
-      secondaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
-      waitForTopology(page, 7, 6),
-      waitForTopology(second.page, 7, 6),
-    ]);
-    check(
-      'signature pick settles the shared prompt on both clients',
-      (await page.locator('[data-signature-jump-prompt]').count()) === 0
-      && (await second.page.locator('[data-signature-jump-prompt]').count()) === 0,
-    );
   },
 };

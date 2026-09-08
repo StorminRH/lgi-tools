@@ -23,20 +23,15 @@ const near = (a, b) =>
 
 export default {
   name: 'atlas-window-track',
-  route: atlasWindowRoute(),
+  get route() { return atlasWindowRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
-    if (!process.env.UX_MAP_ID) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+  async run({ page, check }) {
+    if (!process.env.UX_MAP_ID) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForWindowMap(page);
     const target = await openSummary(page);
     const card = mapWindow(page, 'summary');
     check('a non-root selection opens the summary card', target !== null && await card.isVisible());
-    if (target === null) return;
     await page.waitForTimeout(1100);
     const initial = await offset(target.node, card);
 
@@ -65,6 +60,6 @@ export default {
       'deselection closes the card while the dock stands',
       !(await card.isVisible()) && await mapWindow(page, 'dock').isVisible(),
     );
-    await shot('node-anchored-summary');
+
   },
 };

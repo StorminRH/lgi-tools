@@ -48,17 +48,13 @@ async function pickSelect(page, ariaLabel, optionName) {
 
 export default {
   name: 'atlas-authoring-two-clients',
-  route: blankMapRoute(),
+  get route() { return blankMapRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 2500,
-  async run({ page, check, shot, createContext, baseUrl }) {
+  async run({ page, check, createContext, baseUrl }) {
     const mapId = blankMapId();
-    if (!mapId) {
-      check('UX_BLANK_MAP_ID is set for the blank map', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
     const home = page.locator('[data-map-home-prompt]');
@@ -67,9 +63,8 @@ export default {
       'editor client starts on a blank map with the home prompt (re-seed or drain UX_BLANK_MAP_ID after each run)',
       startedBlank,
     );
-    if (!startedBlank) return;
 
-    const second = await createContext();
+    const second = await createContext({ role: 'editor' });
     await second.page.goto(new URL(`/atlas?map=${mapId}`, baseUrl).href, {
       waitUntil: 'domcontentloaded',
       timeout: 60_000,
@@ -79,8 +74,8 @@ export default {
       'second authenticated client also sees the home prompt on the blank map',
       (await second.page.locator('[data-map-home-prompt]').count()) === 1,
     );
-    await shot('two-clients-blank-home');
-    await shot('two-clients-blank-home-b', { page: second.page });
+
+
 
     await pickSystemSearch(page, 'Search systems — type a name', 'jita', {
       root: page.locator('[data-map-home-prompt]'),
@@ -104,7 +99,7 @@ export default {
       'home prompt unmounts after the root exists',
       (await page.locator('[data-map-home-prompt]').count()) === 0,
     );
-    await shot('two-clients-after-home');
+
 
     await openAddConnectionMenu(page);
     await page.getByRole('menuitem', { name: 'Add connection…' }).click();
@@ -128,12 +123,12 @@ export default {
     );
     check(
       'add-from-node fans out: both clients show two nodes and one edge',
-      (await page.locator('[data-chain-node]').count()) >= 2
-        && (await second.page.locator('[data-chain-node]').count()) >= 2
-        && (await page.locator('.react-flow__edge').count()) >= 1
-        && (await second.page.locator('.react-flow__edge').count()) >= 1,
+      (await page.locator('[data-chain-node]').count()) === 2
+        && (await second.page.locator('[data-chain-node]').count()) === 2
+        && (await page.locator('.react-flow__edge').count()) === 1
+        && (await second.page.locator('.react-flow__edge').count()) === 1,
     );
-    await shot('two-clients-after-add');
+
 
     await calmMapCamera(page);
     await calmMapCamera(second.page);
@@ -153,18 +148,11 @@ export default {
     check('size fans out to the second client', /\bL\b/.test(sizeB));
     check('mass fans out to the second client', /more than 50%/i.test(massB));
     check('reliable lifetime fans out to the second client', /1 day/i.test(lifeB));
-    await shot('two-clients-after-edit');
-    await shot('two-clients-after-edit-b', { page: second.page });
+
+
 
     try {
       await teardownMapAccess(mapId);
-      await page.waitForFunction(
-        () =>
-          document.querySelector('[data-chain-no-access]') !== null
-          || document.querySelector('[data-map-can-edit="true"]') === null,
-        null,
-        { timeout: 30_000 },
-      );
       await second.page.waitForFunction(
         () =>
           document.querySelector('[data-chain-no-access]') !== null
@@ -172,11 +160,8 @@ export default {
         null,
         { timeout: 30_000 },
       );
-      check(
-        'revocation removes editor affordances on client A',
-        (await page.locator('[data-map-can-edit="true"]').count()) === 0
-          || (await page.locator('[data-chain-no-access]').count()) === 1,
-      );
+      check('owner retains editing after editor grant revocation',
+        await page.locator('[data-map-can-edit="true"]').count() === 1);
       check(
         'revocation removes editor affordances on client B',
         (await second.page.locator('[data-map-can-edit="true"]').count()) === 0
@@ -184,9 +169,9 @@ export default {
       );
       check(
         'the Signature Editor is gone after revocation',
-        (await page.locator('[data-map-window="signature-editor"]').count()) === 0,
+        (await second.page.locator('[data-map-window="signature-editor"]').count()) === 0,
       );
-      await shot('two-clients-after-revoke');
+
     } finally {
       await restoreMapAccess(mapId);
     }

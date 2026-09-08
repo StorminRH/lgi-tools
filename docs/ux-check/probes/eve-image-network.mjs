@@ -1,41 +1,15 @@
-const ROUTES = ['/', '/contact', '/industry/11372'];
-const STATE = new WeakMap();
+import { expect } from '@playwright/test';
 
 export default {
-  name: 'eve-image-network',
-  route: ROUTES[0],
-  viewports: ['desktop'],
-  settle: 2000,
-  async setup({ page }) {
-    const state = { currentRoute: ROUTES[0], requests: new Map() };
-    for (const route of ROUTES) state.requests.set(route, new Set());
-    page.on('request', (request) => {
-      const url = request.url();
-      if (
-        request.resourceType() === 'image' ||
-        url.includes('/_next/image') ||
-        url.includes('images.evetech.net')
-      ) {
-        state.requests.get(state.currentRoute).add(url);
-      }
-    });
-    STATE.set(page, state);
-  },
-  async run({ page, baseUrl, check }) {
-    const state = STATE.get(page);
-    for (const [index, route] of ROUTES.entries()) {
-      if (index > 0) {
-        state.currentRoute = route;
-        await page.goto(new URL(route, baseUrl).href, {
-          waitUntil: 'domcontentloaded',
-          timeout: 60000,
-        });
-        await page.waitForTimeout(2000);
-      }
-      check(`${route} issues at least one image request`, state.requests.get(route).size > 0);
-    }
-    const requests = [...state.requests.values()].flatMap((items) => [...items]);
-    check('EVE images load directly from images.evetech.net', requests.some((url) => url.startsWith('https://images.evetech.net/')));
-    check('no request uses the Next image optimizer', !requests.some((url) => url.includes('/_next/image')));
+  name: 'eve-image-network', route: '/industry/11372', viewports: ['desktop'],
+  async run({ page }) {
+    const image = page.locator('img[src^="https://images.evetech.net/"]').first();
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+    const source = await image.getAttribute('src');
+    if (source === null) throw new Error('Expected EVE image source missing');
+    const response = await page.request.get(source);
+    expect(response.ok(), 'expected EVE image response succeeds').toBe(true);
+    expect(response.headers()['content-type']).toMatch(/^image\//);
   },
 };

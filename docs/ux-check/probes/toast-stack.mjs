@@ -1,8 +1,7 @@
 export default {
   name: 'toast-stack',
-  route: '/industry/692?plan=probe-stack',
+  get route() { return '/industry/692?plan=probe-stack'; },
   viewports: ['desktop', 'mobile'],
-  settle: 1400,
   async setup({ page }) {
     await page.route('**/api/account/saved-plans', async (route) => {
       await route.fulfill({
@@ -33,11 +32,11 @@ export default {
       });
     });
   },
-  async run({ page, check, shot }) {
+  async run({ page, check }) {
     const templateToast = page.locator('[data-sonner-toast]', { hasText: 'Loaded "Stack probe"' });
     const syncToast = page.locator('[data-sonner-toast]', { hasText: '> syncing…' });
-    await templateToast.waitFor({ timeout: 12000 }).catch(() => {});
-    await syncToast.waitFor({ timeout: 12000 }).catch(() => {});
+    await templateToast.waitFor({ timeout: 12000 });
+    await syncToast.waitFor({ timeout: 12000 });
 
     check('template-loaded toast is visible', await templateToast.isVisible().catch(() => false));
     check('keyed sync toast is visible', await syncToast.isVisible().catch(() => false));
@@ -54,6 +53,6 @@ export default {
       (await templateToast.textContent())?.includes('Stack probe') === true &&
         (await syncToast.textContent())?.includes('syncing') === true,
     );
-    await shot('concurrent');
+
   },
 };

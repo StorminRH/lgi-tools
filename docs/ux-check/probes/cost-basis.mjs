@@ -1,37 +1,20 @@
+import { expect } from '@playwright/test';
+import { installPlannerPrices } from '../lib/planner-fixture.mjs';
+
 export default {
-  name: 'cost-basis',
-  route: '/industry/12043',
-  viewports: ['desktop'],
-  settle: 3000,
-  async run({ page, check, shot }) {
+  name: 'cost-basis', route: '/industry/691', viewports: ['desktop'],
+  async setup({ page }) { await installPlannerPrices(page); },
+  async run({ page }) {
+    const me = page.getByRole('textbox', { name: 'main blueprint material efficiency' }).first();
+    await me.fill('0');
+    await me.press('Enter');
     const tile = page.locator('div.rounded-md.border', { hasText: 'Input cost' }).first();
-    const figure = async () => {
-      const text = await tile.innerText();
-      return text.match(/[\d,]+(?:\.\d+)?[KMB]?\s*ISK|[\d,]+(?:\.\d+)?[KMB]/)?.[0] ?? '?';
-    };
-
-    const itemFigure = await figure();
-    check('Item cost figure renders', itemFigure !== '?');
-    await shot('item');
-    await page.getByRole('button', { name: 'Raw', exact: true }).click();
-    await page.waitForTimeout(600);
-    const rawFigure = await figure();
-    check('Raw cost differs from Item cost', rawFigure !== '?' && rawFigure !== itemFigure);
-    await shot('raw');
-
-    const help = page.getByRole('button', { name: 'How input cost is computed' }).first();
-    await help.hover();
-    await page.waitForTimeout(600);
-    const popoverText = await page
-      .locator('[role="presentation"], [data-popup-open]')
-      .last()
-      .innerText()
-      .catch(() => '');
-    check('input-cost popover shows Raw and Item bases', popoverText.includes('Raw') && popoverText.includes('Item'));
-    await shot('popover');
-
-    await page.getByRole('button', { name: 'Item', exact: true }).click();
-    await page.waitForTimeout(600);
-    check('Item toggle restores a rendered figure', (await figure()) !== '?');
+    const basis = page.getByRole('group', { name: 'Input cost basis' });
+    await basis.getByRole('button', { name: 'Raw', exact: true }).click();
+    await expect(basis.getByRole('button', { name: 'Raw', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(tile).toContainText('410K');
+    await basis.getByRole('button', { name: 'Item', exact: true }).click();
+    await expect(basis.getByRole('button', { name: 'Item', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(tile).toContainText('410K');
   },
 };

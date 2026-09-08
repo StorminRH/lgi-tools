@@ -1,8 +1,7 @@
 export default {
   name: 'instant-nav-planner',
-  route: '/industry',
+  get route() { return '/industry'; },
   viewports: ['desktop'],
-  settle: 1000,
   async run({ page, baseUrl, check, instant }) {
     await instant(async () => {
       await page.goto(new URL('/industry/691', baseUrl).href, {
@@ -12,13 +11,9 @@ export default {
       const shell = page.locator('[data-page-shell]');
       check('planner shell mounts in the static shell', await shell.isVisible());
       const skeleton = page.getByRole('status', { name: /loading blueprint/i });
-      const title = page.locator('h1.sr-only, [data-page-shell] h1').first();
-      const hasSkeleton = (await skeleton.count()) > 0;
-      const hasTitle = (await title.count()) > 0;
-      check(
-        'planner shows skeleton or structure title in the instant shell',
-        hasSkeleton || hasTitle,
-      );
+      check('planner exposes its loading blueprint status while dynamic work is held', await skeleton.isVisible());
     });
+    await page.getByPlaceholder('Build system — type a name').waitFor({ state: 'visible', timeout: 30_000 });
+    check('Rifter planner resolves on the exact route', new URL(page.url()).pathname === '/industry/691');
   },
 };

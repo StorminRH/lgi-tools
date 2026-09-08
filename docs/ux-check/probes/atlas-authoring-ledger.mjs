@@ -9,20 +9,16 @@ const subscriptions = new WeakMap();
 
 export default {
   name: 'atlas-authoring-ledger',
-  route: authoringRoute(),
+  get route() { return authoringRoute(); },
   viewports: ['desktop', 'mobile'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 1500,
   async setup({ page }) {
     subscriptions.set(page, observeConvexQueries(page, 'mapChainEvents:watchMapEvents'));
   },
   async run({ page, viewport, check }) {
     const mapId = authoringMapId();
-    if (!mapId) {
-      check('UX_MAP_ID is set', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
 

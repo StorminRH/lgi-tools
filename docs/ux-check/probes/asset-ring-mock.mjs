@@ -1,8 +1,8 @@
+import { expect } from '@playwright/test';
 export default {
   name: 'asset-ring-mock',
-  route: '/industry/23784',
-  viewports: ['desktop'],
-  settle: 2200,
+  get route() { return '/industry/23784'; },
+  viewports: ['desktop', 'mobile'],
   async setup({ page }) {
     await page.route('**/api/industry/owned-assets', async (route) => {
       const body = route.request().postDataJSON();
@@ -40,22 +40,34 @@ export default {
       });
     });
   },
-  async run({ page, check, shot }) {
+  async run({ page, check, createContext, baseUrl, viewport }) {
     const rings = page.getByRole('button', { name: /asset tracking/i });
     const ringCount = await rings.count();
     check('mock ownership renders multiple asset rings', ringCount > 2);
-    await shot('plan');
-    if (ringCount === 0) return;
+
 
     const trigger = rings.first();
     await trigger.scrollIntoViewIfNeeded();
-    await trigger.focus();
-    await page.keyboard.press('Enter');
+    if (viewport === 'mobile') await trigger.tap();
+    else { await trigger.focus(); await trigger.press('Enter'); }
     await page.waitForTimeout(400);
     check('mock asset ledger opens', (await trigger.getAttribute('data-popup-open')) !== null);
     const bodyText = await page.evaluate(() => document.body.innerText);
     check('mock corporation holding is shown', bodyText.includes('Lo-Gang'));
     check('mock character holding is shown', bodyText.includes('Test Pilot'));
-    await shot('ledger-open');
+
+    await page.keyboard.press('Escape');
+    await expect(trigger).not.toHaveAttribute('data-popup-open');
+    const guest = await createContext({ storageState: { cookies: [], origins: [] } });
+    await guest.page.goto(new URL('/industry/23784', baseUrl).href);
+    const emptyTrigger = guest.page.getByRole('button', { name: /asset tracking/i }).first();
+    if (viewport === 'mobile') await emptyTrigger.tap();
+    else { await emptyTrigger.focus(); await emptyTrigger.press('Enter'); }
+    await expect(guest.page.getByText('No holdings tracked yet')).toBeVisible();
+    for (const label of ['Total Needed', 'Total Owned', 'Total Remaining']) {
+      await expect(guest.page.getByText(label, { exact: true })).toBeVisible();
+    }
+    await guest.page.keyboard.press('Escape');
+    await expect(emptyTrigger).not.toHaveAttribute('data-popup-open');
   },
 };

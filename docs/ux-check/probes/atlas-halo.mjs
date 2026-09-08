@@ -81,11 +81,10 @@ const upgradeState = (page) =>
 
 export default {
   name: 'atlas-halo',
-  route: haloRoute(),
+  get route() { return haloRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 2500,
   async setup({ page }) {
     mutationPaths = [];
     page.on('websocket', (ws) => {
@@ -94,10 +93,7 @@ export default {
   },
   async run({ page, check, createContext, baseUrl }) {
     const mapId = haloMapId();
-    if (!mapId) {
-      check('UX_HALO_MAP_ID is set for a dedicated empty map', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForEditableMap(page);
 
     await convexRun('mapFixturePlace:placeSystemFixture', {
@@ -176,7 +172,7 @@ export default {
           HALO_TARGET_SYSTEM_ID,
           { timeout: 30_000 },
         )
-        .catch(() => undefined);
+        ;
     }
     const upgradeA = await upgradeState(page);
     const upgradeB = await upgradeState(second.page);

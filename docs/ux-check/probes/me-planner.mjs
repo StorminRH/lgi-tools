@@ -1,71 +1,31 @@
-const MAIN_BLUEPRINT = 29987;
+import { expect } from '@playwright/test';
+import { installMemoryClipboard } from '../lib/planner-fixture.mjs';
+
+const exportAtMe10 = 'Isogen\t450\nMexallon\t2250\nPyerite\t5400\nTritanium\t28800';
+const exportAtMe0 = 'Isogen\t500\nMexallon\t2500\nPyerite\t6000\nTritanium\t32000';
+
+async function exportedMaterials(page) {
+  await page.getByRole('button', { name: 'Multibuy export' }).first().click();
+  await page.getByRole('button', { name: 'Copy', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Copied', exact: true })).toBeVisible();
+  const result = await page.evaluate(() => window.__acceptanceClipboard);
+  await page.keyboard.press('Escape');
+  return result;
+}
 
 export default {
-  name: 'me-planner',
-  route: '/industry/29987',
-  viewports: ['desktop'],
-  settle: 4000,
-  allowConsole: [/status of 404/i],
+  name: 'me-planner', route: '/industry/691', viewports: ['desktop'], requiresAuth: true,
   async setup({ page }) {
-    await page.route('**/api/industry/owned-blueprints', async (route) => {
-      const body = route.request().postDataJSON();
-      const ids = body?.blueprintTypeIds ?? [];
-      const efficiencies = [5, 8, 10, 7];
-      const blueprints = ids
-        .filter((_, index) => index % 2 === 0)
-        .map((blueprintTypeId, index) => ({
-          blueprintTypeId,
-          me: blueprintTypeId === MAIN_BLUEPRINT ? 10 : efficiencies[index % efficiencies.length],
-          te: 20,
-          ownerType: 'character',
-          ownerName: 'Test Pilot',
-          locationName: 'Jita IV-4',
-          locationFlag: 'Hangar',
-        }));
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ blueprints }),
-      });
-    });
+    await installMemoryClipboard(page);
+    await page.route('**/api/industry/owned-blueprints', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ blueprints: [{ blueprintTypeId: 691, me: 10, te: 20, ownerType: 'character', ownerName: 'Test Pilot', locationName: 'Jita IV-4', locationFlag: 'Hangar' }] }) }));
   },
-  async run({ page, check, shot }) {
+  async run({ page }) {
     const main = page.getByRole('textbox', { name: 'main blueprint material efficiency' }).first();
-    check('main-blueprint ME control renders', (await main.count()) === 1);
-    if ((await main.count()) === 0) return;
-    check('mocked owned ME populates the main control', (await main.inputValue()) === '10');
-
-    const componentAdjusters = page.getByRole('button', { name: /— efficiency$/i });
-    check('component efficiency triggers render', (await componentAdjusters.count()) > 0);
-    if ((await componentAdjusters.count()) > 0) {
-      const trigger = componentAdjusters.first();
-      await trigger.click();
-      await page.waitForTimeout(300);
-      check('component efficiency popover opens', (await trigger.getAttribute('data-popup-open')) !== null);
-      check(
-        'popover exposes blueprint research adjusters',
-        (await page.getByText('Blueprint Research Adjusters', { exact: true }).count()) === 1,
-      );
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(200);
-    }
-
-    const quantities = async () =>
-      page.locator('[role="img"][aria-label]').evaluateAll((elements) =>
-        elements
-          .map((element) => element.getAttribute('aria-label') ?? '')
-          .filter((label) => /\b(?:needed|owned)\b/i.test(label))
-          .join('|'),
-      );
-    const before = await quantities();
-    const decrement = page.getByRole('button', {
-      name: 'Decrease main blueprint material efficiency',
-    });
-    for (let step = 0; step < 10; step += 1) await decrement.click();
-    await page.waitForTimeout(1200);
-    const after = await quantities();
-    check('ME override commits through the shared stepper', (await main.inputValue()) === '0');
-    check('ME override recomputes material quantities', before.length > 0 && before !== after);
-    await shot('planner-orbs');
+    await expect(main).toHaveValue('10');
+    expect(await exportedMaterials(page)).toBe(exportAtMe10);
+    const decrement = page.getByRole('button', { name: 'Decrease main blueprint material efficiency' });
+    for (let step = 0; step < 10; step++) await decrement.click();
+    await expect(main).toHaveValue('0');
+    expect(await exportedMaterials(page)).toBe(exportAtMe0);
   },
 };

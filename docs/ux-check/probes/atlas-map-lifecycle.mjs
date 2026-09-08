@@ -1,9 +1,8 @@
 export default {
   name: 'atlas-map-lifecycle',
-  route: '/atlas',
+  get route() { return '/atlas'; },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 1500,
   async run({ page, check }) {
     const catalogue = page.locator('[data-map-catalogue]');
     await catalogue.waitFor({ state: 'visible', timeout: 60_000 });
@@ -19,10 +18,11 @@ export default {
       await removeGrant.first().click();
     }
     await createDialog.getByRole('button', { name: 'Create map' }).click();
+    await page.locator('[data-map-creation-interstitial="creating"]').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByRole('heading', { name: 'Creating your map' }).waitFor({ state: 'visible' });
     await page.locator('[data-map-home-prompt]').waitFor({ state: 'visible', timeout: 30_000 });
     const mapId = new URL(page.url()).searchParams.get('map');
     check('lifecycle probe created a disposable map', typeof mapId === 'string' && mapId.length > 0);
-    if (mapId === null || mapId.length === 0) return;
 
     await page.goto(new URL('/atlas', page.url()).href, {
       waitUntil: 'domcontentloaded',

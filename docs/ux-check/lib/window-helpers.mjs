@@ -99,7 +99,7 @@ export async function settleMapViewport(page, { samples = 4, intervalMs = 150 } 
     }
     last = next;
   }
-  return last;
+  throw new Error('Map viewport did not settle');
 }
 
 function pointInViewport(page, point) {
@@ -213,28 +213,14 @@ export async function dragNodeDisc(page, target, delta = { x: 70, y: 40 }) {
 export async function exerciseWindowInput(page, windowId) {
   const root = mapWindow(page, windowId);
   const before = await viewportTransform(page);
-  const input = root.locator('[data-window-probe-input]');
-  await root.locator('[data-map-window-scroll]').evaluate((element) => {
-    const existing = element.querySelector('[data-window-probe-input]');
-    if (existing) existing.remove();
-    const field = document.createElement('input');
-    field.dataset.windowProbeInput = '';
-    field.setAttribute('aria-label', 'Window isolation probe');
-    element.prepend(field);
-  });
-  await input.fill('window keys');
-  await input.press('Space');
-  await input.press('Shift+A');
-  await input.press('Control+B');
+  const input = root.getByPlaceholder('Type code — e.g. B274 or K162');
+  await input.fill('B274');
+  await input.press('ArrowLeft');
+  await input.press('ArrowRight');
   const box = await root.boundingBox();
-  if (box !== null) {
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.wheel(0, 240);
-  }
-  await page.waitForTimeout(100);
-  return {
-    before,
-    after: await viewportTransform(page),
-    value: await input.inputValue(),
-  };
+  if (box === null) throw new Error('BLOCKED: signature editor has no painted bounds');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 240);
+  await settleMapViewport(page);
+  return { before, after: await viewportTransform(page), value: await input.inputValue() };
 }

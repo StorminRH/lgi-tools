@@ -1,29 +1,32 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolveLane } from '../e2e/lane-policy.mjs';
 import { remoteSkipSeedError } from './run-e2e-guard.mjs';
 
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: 'inherit', shell: false });
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
-}
-
-const baseUrl =
-  process.env.PLAYWRIGHT_BASE_URL ?? process.env.UX_BASE_URL ?? 'http://localhost:3000';
-const skipSeed = process.env.E2E_SKIP_SEED === '1';
-const guardError = remoteSkipSeedError({
-  baseUrl,
-  skipSeed,
-  e2eStorageState: process.env.E2E_STORAGE_STATE,
-  uxStorageState: process.env.UX_STORAGE_STATE,
-});
-if (guardError) {
-  console.error(`BLOCKED prerequisite: ${guardError}`);
+const argv = process.argv.slice(2).filter((arg) => arg !== '--');
+try {
+  const { baseURL } = resolveLane({ argv });
+  const error = remoteSkipSeedError({
+    baseUrl: baseURL,
+    skipSeed: process.env.E2E_SKIP_SEED === '1',
+    e2eStorageState: process.env.E2E_STORAGE_STATE,
+    uxStorageState: process.env.UX_STORAGE_STATE,
+  });
+  if (error) throw new Error(error);
+} catch {
+  mkdirSync('docs/ux-check/captures', { recursive: true });
+  writeFileSync('docs/ux-check/captures/e2e-report.json', JSON.stringify({
+    status: 'BLOCKED', classification: 'target-or-selection-prerequisite',
+    revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    time: new Date().toISOString(), selected: [], skipped: [], blocked: ['run-prerequisite'],
+  }, null, 2));
+  console.error('BLOCKED: invalid lane, selection or target/auth prerequisite. See docs/ux-check/README.md.');
   process.exit(1);
 }
 
-if (!skipSeed) {
-  run('pnpm', ['exec', 'tsx', 'e2e/seed-storage-state.ts']);
-}
-
-run('pnpm', ['exec', 'playwright', 'test', ...process.argv.slice(2)]);
+const result = spawnSync('pnpm', ['exec', 'playwright', 'test', ...argv], {
+  stdio: 'inherit', shell: false,
+});
+if (result.error) throw result.error;
+process.exit(result.status ?? 1);

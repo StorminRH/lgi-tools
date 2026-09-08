@@ -1,3 +1,4 @@
+import { calmAtlasCamera, dragNodeDisc, hittableNode, setAtlasMapPreference } from '../lib/window-helpers.mjs';
 import {
   convexRun,
   fogBudgetMapId,
@@ -56,19 +57,15 @@ async function seedCeilingChain(mapId) {
 
 export default {
   name: 'atlas-fog-budget',
-  route: fogBudgetRoute(),
+  get route() { return fogBudgetRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2500,
   async setup({ page }) {
     await installMotionMetrics(page);
   },
   async run({ page, check }) {
     const mapId = fogBudgetMapId();
-    if (!mapId) {
-      check('UX_FOG_BUDGET_MAP_ID is set for a dedicated empty map', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForEditableMap(page);
 
     const authoredCount = await seedCeilingChain(mapId);
@@ -103,16 +100,23 @@ export default {
     );
     check('the fog canvas is painted at full load', counts.fogPainted);
 
-    await page.getByText('Layout dials').click();
+    const profile = process.env.E2E_BENCHMARK_PROFILE;
+    const p50Limit = Number(process.env.E2E_BENCHMARK_P50_MS);
+    const p95Limit = Number(process.env.E2E_BENCHMARK_P95_MS);
+    if (!profile || !(p50Limit > 0) || !(p95Limit >= p50Limit)) throw new Error('BLOCKED: calibrated E2E_BENCHMARK_PROFILE, P50_MS, and P95_MS are required');
+    await calmAtlasCamera(page);
+    const target = await hittableNode(page);
+    if (target === null) throw new Error('BLOCKED: benchmark has no hittable node');
+    if (!await dragNodeDisc(page, target, { x: 80, y: 45 })) throw new Error('Benchmark drag failed');
     await startFrameCapture(page);
-    await page.getByRole('button', { name: 'Increase Ring spacing' }).click();
+    await setAtlasMapPreference(page, 'auto layout', true);
     await page.waitForTimeout(2500);
     const deltas = await stopFrameCapture(page);
 
     const stats = frameStats(deltas);
     check(
-      `the 4.0.3.2 frame budget holds at maximum combined load (${stats.count} deltas, p50 ${stats.p50?.toFixed(1)} ms, p95 ${stats.p95?.toFixed(1)} ms)`,
-      stats.count >= 60 && stats.p50 !== null && stats.p50 <= 17 && stats.p95 <= 34,
+      `calibrated ${profile} frame budget holds at maximum combined load (${stats.count} deltas, p50 ${stats.p50?.toFixed(1)} ms, p95 ${stats.p95?.toFixed(1)} ms)`,
+      stats.count >= 60 && stats.p50 !== null && stats.p50 <= p50Limit && stats.p95 <= p95Limit,
     );
     const loaf = await readLoaf(page);
     check(

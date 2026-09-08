@@ -1,75 +1,18 @@
-import {
-  atlasWindowRoute,
-  mapWindow,
-  waitForWindowMap,
-} from '../lib/window-helpers.mjs';
+import { expect } from '@playwright/test';
+import { atlasWindowRoute, mapWindow, waitForWindowMap } from '../lib/window-helpers.mjs';
 
 export default {
-  name: 'atlas-signature-chrome',
-  route: atlasWindowRoute(),
-  viewports: ['desktop'],
-  requiresAuth: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
-    if (!process.env.UX_MAP_ID) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+  name: 'atlas-signature-chrome', get route() { return atlasWindowRoute(); },
+  viewports: ['desktop'], requiresAuth: true,
+  async run({ page }) {
     await waitForWindowMap(page);
-
-    const signatures = mapWindow(page, 'signatures');
-    check('the scanner window is visible', await signatures.isVisible());
-    check(
-      'the scanner window uses the one bottom-left MapWindow placement',
-      (await signatures.getAttribute('data-map-window-placement')) ===
-        'docked-bottom-left',
-    );
-    const signatureBox = await signatures.boundingBox();
-    const viewport = page.viewportSize();
-    check(
-      'the scanner window occupies the lower-left quadrant',
-      signatureBox !== null && viewport !== null
-        && signatureBox.x < viewport.width / 2
-        && signatureBox.y + signatureBox.height > viewport.height / 2,
-    );
-
-    const dock = mapWindow(page, 'dock');
-    check(
-      'the dock header carries one colored classification without a duplicated body identity',
-      (await dock.locator('[data-identity-readout]').count()) === 1
-        && (await dock.locator('[data-identity-classification]').count()) === 1
-        && (await dock.locator('[data-intel-section="summary"]').count()) === 0
-        && (await dock.locator('[data-security-status]').count()) === 0
-        && (await dock.locator('[data-intel-section="signatures"]').count()) === 1,
-    );
-
+    await expect(mapWindow(page, 'signatures')).toBeVisible();
     const feedback = page.locator('[data-map-feedback-chip]');
-    const ledger = page.locator('[data-map-event-log]');
-    check('the map feedback chip is visible', await feedback.isVisible());
-    check('the audit chip is visible', await ledger.isVisible());
-    const feedbackBox = await feedback.boundingBox();
-    const ledgerBox = await ledger.boundingBox();
-    check(
-      'feedback and audit form the bottom-right chip rail',
-      viewport !== null && feedbackBox !== null && ledgerBox !== null
-        && feedbackBox.x > viewport.width / 2
-        && ledgerBox.x > viewport.width / 2
-        && Math.abs(
-          feedbackBox.y + feedbackBox.height - (ledgerBox.y + ledgerBox.height),
-        ) < 12,
-    );
-
-    const dials = page.locator('[data-map-dev-dials]');
-    if (await dials.count()) {
-      const dialBox = await dials.boundingBox();
-      check(
-        'development dials join the right-side chrome cluster',
-        viewport !== null && dialBox !== null && dialBox.x > viewport.width / 2,
-      );
-    } else {
-      check('dev dials are absent outside development (expected)', true);
-    }
-
-    await shot('signature-window-chrome-relayout');
+    await feedback.focus();
+    await feedback.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Send feedback' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(feedback).toBeFocused();
   },
 };

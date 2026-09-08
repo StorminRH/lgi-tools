@@ -1,46 +1,39 @@
-export default {
-  name: 'feedback-dialog',
-  route: '/',
-  viewports: ['desktop', 'mobile'],
-  async run({ page, viewport, check, shot }) {
-    const trigger = page.getByRole('button', { name: 'Feedback' });
-    check('Feedback trigger is present', (await trigger.count()) === 1);
-    if (viewport === 'mobile') {
-      const point = await trigger.evaluate((element) => {
-        const box = element.getBoundingClientRect();
-        return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-      });
-      await page.touchscreen.tap(point.x, point.y);
-    } else {
-      await trigger.focus();
-      await page.keyboard.press('Enter');
-    }
+import { expect } from '@playwright/test';
 
-    const dialog = page.getByRole('dialog').first();
-    await dialog.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    check(`${viewport === 'mobile' ? 'tap' : 'Enter'} opens the dialog`, await dialog.isVisible());
+export default {
+  name: 'feedback-dialog', route: '/', viewports: ['desktop', 'mobile'],
+  async run({ page, viewport, diagnostics }) {
+    diagnostics.expectHttp({ pathname: '/api/feedback', method: 'POST', status: 502 });
+    const requests = [];
+    await page.route('**/api/feedback', async route => {
+      requests.push(route.request().postDataJSON());
+      if (requests.length === 1) await route.fulfill({ status: 502, contentType: 'application/problem+json', body: JSON.stringify({ type: 'linear_failed', title: 'Unavailable', status: 502, detail: 'Controlled failure' }) });
+      else await route.fulfill({ status: 204, body: '' });
+    });
+    const trigger = page.getByRole('button', { name: 'Feedback', exact: true });
+    if (viewport === 'mobile') await trigger.tap();
+    else { await trigger.focus(); await trigger.press('Enter'); }
+    const dialog = page.getByRole('dialog', { name: 'Send feedback' });
+    await expect(dialog).toBeVisible();
     const title = dialog.getByRole('textbox', { name: 'Title' });
-    const textarea = dialog.getByRole('textbox', { name: 'Feedback' });
-    const focused = await title.evaluate((element) => element === document.activeElement);
-    check('Field label moves focus into the title field', focused);
-    check('Title field is present', (await title.count()) === 1);
+    await expect(title).toBeFocused();
     const category = dialog.getByRole('combobox', { name: 'Category' });
-    check('Category select is present', (await category.count()) === 1);
-    check('Category defaults to Bug', ((await category.textContent()) ?? '').includes('Bug'));
+    await expect(category).toContainText('Bug');
     await category.click();
-    const feature = page.getByRole('option', { name: 'Feature request' });
-    await feature.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    check('Category popup lists Feature request', await feature.isVisible());
-    await feature.click();
-    check(
-      'Category trigger shows Feature request',
-      ((await category.textContent()) ?? '').includes('Feature request'),
-    );
-    await title.fill('UI system probe');
-    await textarea.fill('The category control should stay usable after a title is entered.');
-    await shot('open');
+    await page.getByRole('option', { name: 'Feature request' }).click();
+    await expect(category).toContainText('Feature request');
+    await title.fill('Acceptance feedback');
+    await dialog.getByRole('textbox', { name: 'Feedback' }).fill('Controlled browser submission.');
+    await dialog.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(dialog).toContainText('Something went wrong sending your feedback. Try again.');
+    await expect(title).toHaveValue('Acceptance feedback');
+    await dialog.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(dialog).toContainText('Thanks — your feedback was sent.');
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toEqual(requests[0]);
+    expect(requests[0]).toMatchObject({ title: 'Acceptance feedback', message: 'Controlled browser submission.', path: '/', category: 'feature' });
     await page.keyboard.press('Escape');
-    await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    check('Escape closes the dialog', !(await dialog.isVisible().catch(() => false)));
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
   },
 };

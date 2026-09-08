@@ -1,0 +1,833 @@
+{
+  "probeRegistry": [
+    {
+      "id": "atlas-afk-gate",
+      "journey": "atlas-background-tracking",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into heartbeat/background tracking: retain active→hidden threshold→warning→paused→Continue; use controlled time and one coordinator fixture."
+    },
+    {
+      "id": "atlas-ambiguous-jump",
+      "journey": "atlas-ambiguous-jump",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as a critical multi-client journey: three unresolved wormholes, no destination before selection, alternate K162 choice, persisted selected edge, named hole remains unresolved."
+    },
+    {
+      "id": "atlas-authoring-add",
+      "journey": "atlas-authoring",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into one authoring journey: retain right-click node→Add connection→system search; drop placeholder/presence-only checks."
+    },
+    {
+      "id": "atlas-authoring-connection",
+      "journey": "atlas-authoring",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into that authoring journey: retain edge edit, editable fields, delete affordance, and a persisted field outcome; remove retired-control absence checks."
+    },
+    {
+      "id": "atlas-authoring-home",
+      "journey": "atlas-authoring",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "as the beginning of the authoring journey: empty owned map→set home→one root node. Remove stale-copy assertions."
+    },
+    {
+      "id": "atlas-authoring-intelligence",
+      "journey": "atlas-authoring",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "after connection typing: retain type-driven locked/read-only intelligence and explicit expected values; remove heading/chrome absence checks."
+    },
+    {
+      "id": "atlas-authoring-ledger",
+      "journey": "atlas-subscriptions",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into a subscription-resource suite with signature subscriptions: retain closed=zero, open=one, close=zero, reopen=current."
+    },
+    {
+      "id": "atlas-authoring-two-clients",
+      "journey": "atlas-authoring",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as critical collaboration behavior: home/add/edit fan-out. Split authorization into seeded owner/editor/viewer principals; current same-storage clients prove synchronization only."
+    },
+    {
+      "id": "atlas-automatic-jump",
+      "journey": "atlas-automatic-jump",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "retain one unambiguous tracked jump, portrait tracking toggle, mass update, and no prompt; remove its second ambiguous branch because `atlas-ambiguous-jump` owns that behavior."
+    },
+    {
+      "id": "atlas-background-tracking",
+      "journey": "atlas-background-tracking",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "with heartbeat/AFK: retain presence following a hidden-tab jump, continued pre-threshold heartbeats, pause after threshold, presence removal, and resume. Remove duplicate helper implementations."
+    },
+    {
+      "id": "atlas-halo",
+      "journey": "atlas-halo",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "multi-client deterministic halo membership and derived-node→authored-node in-place upgrade are valuable browser synchronization/render behavior. Keep mutation-wire exclusion narrowly scoped."
+    },
+    {
+      "id": "atlas-heartbeat-coordination",
+      "journey": "atlas-heartbeat-logout",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as critical browser semantics: one interval writer, active-hint union, visibility ownership transfer, BFCache lifecycle, silent-owner recovery, server-fenced leave, logout stop."
+    },
+    {
+      "id": "atlas-map-access",
+      "journey": "atlas-access",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "seed owner/editor/viewer; perform real revoke and prove another principal loses edit/access. Current empty-private and Cancel-only branches are insufficient."
+    },
+    {
+      "id": "atlas-map-catalogue",
+      "journey": "atlas-map-lifecycle",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": ", split into explicit empty and populated fixtures. Retain landing/canvas boundary and opening the selected map; replace data-dependent branching."
+    },
+    {
+      "id": "atlas-map-create",
+      "journey": "atlas-map-lifecycle",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into lifecycle: create→pending state→successful selected map→home prompt. Remove the uncontrolled five-second elapsed assertion."
+    },
+    {
+      "id": "atlas-map-lifecycle",
+      "journey": "atlas-map-lifecycle",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as create→delete→trash→restore with run-owned cleanup. Current restored map remains behind."
+    },
+    {
+      "id": "atlas-map-switcher",
+      "journey": "atlas-map-switching",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "with two run-owned maps and cleanup: exact selected map, no stale prior-map content after URL commit, browser Back."
+    },
+    {
+      "id": "atlas-signature-lifecycle",
+      "journey": "atlas-signatures",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as a critical journey: paste/fan-out, missing/remove/undo, static elimination/restoration, real doorbell resolution, auto-resolution, current-system update. Split independent stages without breaking each coherent chain."
+    },
+    {
+      "id": "atlas-signature-subscriptions",
+      "journey": "atlas-subscriptions",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into the resource suite: retain scoped map/system query additions and removal on close."
+    },
+    {
+      "id": "atlas-signature-viewer",
+      "journey": "atlas-signature-viewer",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "matched site opens, unmatched site stays inert, anchored shared panel, Escape/outside dismissal."
+    },
+    {
+      "id": "atlas-wall",
+      "journey": "atlas-guest",
+      "lane": "mandatory-production",
+      "disposition": "merge",
+      "reason": "into mandatory/deployed route contracts: signed-out `/atlas` must show the guest landing and sign-in, with catalogue/canvas/chrome absent."
+    },
+    {
+      "id": "atlas-fog-budget",
+      "journey": "fog-benchmark",
+      "lane": "benchmark",
+      "disposition": "move",
+      "reason": "cap/chain math to existing halo/fog/layout unit tests and p50/p95/LoAF to an opt-in calibrated benchmark. Merge one full-load painted/settled behavior into the fog scenario if still needed."
+    },
+    {
+      "id": "atlas-fog-layering",
+      "journey": "atlas-fog",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into one browser fog interaction case: retain painted reveal/cloud distinction and pointer pass-through; move alpha geometry/cut math lower and remove DOM parent/z-index assertions."
+    },
+    {
+      "id": "atlas-layout-cross-engine",
+      "journey": "layout-cross-browser",
+      "lane": "benchmark",
+      "disposition": "move",
+      "reason": "to an optional cross-browser compatibility lane. Exact `0.01px` CSS read-back must not be a mandatory product gate; deterministic coordinates already belong to layout tests."
+    },
+    {
+      "id": "atlas-layout-lock",
+      "journey": "atlas-layout-lock",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "manual drag while unlocked, arrival does not move the pinned node/camera, relock returns to computed layout. Replace direct persistent fixture injection with run-owned setup/cleanup."
+    },
+    {
+      "id": "atlas-layout-two-clients",
+      "journey": "atlas-authoring",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "convergence evidence into the two-client authoring or halo journey; remove duplicate exact-coordinate comparison."
+    },
+    {
+      "id": "atlas-layout-worker",
+      "journey": null,
+      "lane": "lower-level",
+      "disposition": "remove",
+      "reason": "“a worker exists” and absent/inconclusive LoAF attribution do not prove layout stayed off the main thread. Existing kernel/layout tests own computation behavior."
+    },
+    {
+      "id": "atlas-motion-birth",
+      "journey": "atlas-motion",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into one motion behavior suite: retain in-place birth and scale/opacity transition; remove direct Convex mutation from scenario body."
+    },
+    {
+      "id": "atlas-motion-drag",
+      "journey": "atlas-motion",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "retain successful drag and settled destination. Remove p50/p95 and the “every sampled frame equals pointer” latency claim."
+    },
+    {
+      "id": "atlas-motion-glide",
+      "journey": "atlas-motion",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "retain visible intermediate glide and edges following endpoints; move timing distributions to benchmark."
+    },
+    {
+      "id": "atlas-motion-idle",
+      "journey": "atlas-motion",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "only hover response/reversion if it protects a named regression; remove rAF-registration-as-idle-performance."
+    },
+    {
+      "id": "atlas-motion-reduced",
+      "journey": "atlas-motion",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into the motion suite and retain deterministic reduced-motion outcomes: fade-only birth and immediate stable landing."
+    },
+    {
+      "id": "atlas-signature-chrome",
+      "journey": "atlas-windows",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "meaningful scanner/chip accessibility into the window suite; remove quadrant, duplicated-identity, and development-chrome layout assertions."
+    },
+    {
+      "id": "atlas-window-dock",
+      "journey": "atlas-windows",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into the persistent-window journey: dock survives interaction and stays click-through."
+    },
+    {
+      "id": "atlas-window-dom",
+      "journey": null,
+      "lane": "lower-level",
+      "disposition": "remove",
+      "reason": "sibling placement, pointer-inert layer, and primitive identity are implementation topology already covered by `MapWindow`/window model tests."
+    },
+    {
+      "id": "atlas-window-isolation",
+      "journey": "atlas-windows",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "using a real product input/scroll control. Remove injected `[data-window-probe-input]`."
+    },
+    {
+      "id": "atlas-window-reload",
+      "journey": "atlas-windows",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into persistent-window journey: dock survives reload."
+    },
+    {
+      "id": "atlas-window-stacking",
+      "journey": "atlas-windows",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into persistent-window journey: popup above card, ordered Escape dismissal, passive dock survives, exposed canvas remains interactive."
+    },
+    {
+      "id": "atlas-window-track",
+      "journey": "atlas-windows",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as the summary-card journey: open a real non-root system, track through pan/zoom/direct drag, deselect while dock survives."
+    },
+    {
+      "id": "asset-ledger",
+      "journey": "planner-assets",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "with mocked asset ownership: retain signed-out empty behavior, keyboard/touch open/close, totals."
+    },
+    {
+      "id": "asset-ring-mock",
+      "journey": "planner-assets",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into the same deterministic asset journey: retain corporation/character holdings and rendered progress."
+    },
+    {
+      "id": "changelog-browser",
+      "journey": "content-navigation",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "with contents navigation: retain canonical soft navigation, active document, metadata, and real scroll chaining. Remove “twelve masters,” “current v4.0,” and repeated sticky/CSS measurements; parsing/order/sitemap membership belong lower."
+    },
+    {
+      "id": "combobox-global",
+      "journey": "global-search",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "keyboard and real mobile touch selection must land on the exact chosen route; retain Escape/focus behavior."
+    },
+    {
+      "id": "combobox-terminal",
+      "journey": "planner-materials",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into the planner journey: select a known system and assert the exact committed field/business effect; retain Escape semantics."
+    },
+    {
+      "id": "content-browser-scroll",
+      "journey": "content-navigation",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "with changelog/contents: retain reachability and actual internal-scroll versus page-scroll behavior; remove exact sticky offsets and scrollbar CSS."
+    },
+    {
+      "id": "contents-drawer",
+      "journey": "content-navigation",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as the mobile changelog journey: open, focus transfer, choose another document, close, restore focus, Escape. Move transition-duration literals out."
+    },
+    {
+      "id": "cost-basis",
+      "journey": "planner-materials",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into a deterministic planner scenario with known fixture and exact expected figure. Arithmetic remains in lower-level tests; “values differ” is deleted."
+    },
+    {
+      "id": "dialog-open",
+      "journey": "sites-details",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into the sites detail journey: real card→lightbox→Escape, with explicit fixture."
+    },
+    {
+      "id": "eve-image-network",
+      "journey": "eve-images",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as a scoped network contract: require expected first-party/EVE image response success and decoded visible image; keep “no Next optimizer” only if routing policy remains intentional."
+    },
+    {
+      "id": "feedback-dialog",
+      "journey": "feedback",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "with controlled request interception: field/category/focus plus explicit submission success and error outcomes; do not send a real ticket."
+    },
+    {
+      "id": "instant-nav-atlas",
+      "journey": "dev-navigation-atlas",
+      "lane": "dev-only",
+      "disposition": "move",
+      "reason": "to a tagged dev-only `@next/playwright` lane; add eventual useful-content assertion after release."
+    },
+    {
+      "id": "instant-nav-planner",
+      "journey": "dev-navigation-planner",
+      "lane": "dev-only",
+      "disposition": "move",
+      "reason": "to the same dev-only lane; replace “skeleton or title” with exact interim and eventual contracts."
+    },
+    {
+      "id": "instant-nav-session",
+      "journey": "dev-navigation-session",
+      "lane": "dev-only",
+      "disposition": "move",
+      "reason": "to the dev-only lane, table-driven by route; keep routes independent and assert eventual ready content."
+    },
+    {
+      "id": "instant-nav-sites",
+      "journey": "dev-navigation-sites",
+      "lane": "dev-only",
+      "disposition": "move",
+      "reason": "to the dev-only lane; retain soft navigation shell plus eventual catalogue content."
+    },
+    {
+      "id": "me-planner",
+      "journey": "planner-materials",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into deterministic planner behavior: known owned ME, real override, exact displayed quantity. Calculation stays in `me-overrides`/build tests."
+    },
+    {
+      "id": "multibuy-panel",
+      "journey": "planner-export",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "tier selection, exact deterministic export, clipboard success and failure fallback are browser-worthy. Formatting arithmetic remains lower."
+    },
+    {
+      "id": "nav-menu",
+      "journey": "responsive-navigation",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as a responsive navigation journey: desktop/collapsed state, touch/keyboard open, exact `/sites` navigation, close/unmount, Escape. Remove divider/alignment style checks."
+    },
+    {
+      "id": "nav-page-settings",
+      "journey": "responsive-navigation",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into responsive nav: exact route-specific controls, selection persistence, absent section on unsupported route."
+    },
+    {
+      "id": "overlay-open",
+      "journey": "planner-materials",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "one keyboard and one touch disclosure into the planner journey; avoid repeating primitive behavior for each label."
+    },
+    {
+      "id": "page-modes",
+      "journey": null,
+      "lane": "lower-level",
+      "disposition": "remove",
+      "reason": "exact max-width/padding/footer/CSS assertions. Keep responsive overflow in operator review or a narrowly justified visual/layout case."
+    },
+    {
+      "id": "sites-lazy-detail",
+      "journey": "sites-details",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "around user-observable behavior: controlled cards/table, one detail opens, view/sort survives navigation/reload. Avoid asserting wrapper emptiness as the primary outcome."
+    },
+    {
+      "id": "sites-standalone-detail",
+      "journey": "sites-details",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "into sites detail: exact site identity/content and related sites; remove width-fraction and card-chrome assertions."
+    },
+    {
+      "id": "templates-menu",
+      "journey": "planner-notifications",
+      "lane": "local-mutation",
+      "disposition": "merge",
+      "reason": "with planner/toast behavior: signed-out save failure and unknown-plan URL cleanup; lower tests own failure mapping."
+    },
+    {
+      "id": "toast-stack",
+      "journey": "planner-notifications",
+      "lane": "local-mutation",
+      "disposition": "keep",
+      "reason": "as a small browser layout/accessibility case for concurrent readable, non-overlapping status messages; fix the apparent undeclared `syncToast` reference during migration."
+    }
+  ],
+  "journeys": [
+    {
+      "id": "atlas-authoring",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-authoring-two-clients",
+        "atlas-authoring-intelligence"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-access",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-map-access"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-map-lifecycle",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-map-catalogue",
+        "atlas-map-lifecycle"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-map-switching",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-map-switcher"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-ambiguous-jump",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-ambiguous-jump"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-automatic-jump",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-automatic-jump"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-signatures",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-signature-lifecycle"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-background-tracking",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-background-tracking"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-heartbeat-logout",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-heartbeat-coordination"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-subscriptions",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-authoring-ledger",
+        "atlas-signature-subscriptions"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-signature-viewer",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-signature-viewer"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-halo",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-halo"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-fog",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-fog-layering"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-layout-lock",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-layout-lock"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-motion",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-motion-birth",
+        "atlas-motion-drag",
+        "atlas-motion-glide",
+        "atlas-motion-idle",
+        "atlas-motion-reduced"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "atlas-windows",
+      "lane": "local-mutation",
+      "probes": [
+        "atlas-window-dock",
+        "atlas-window-reload",
+        "atlas-window-stacking",
+        "atlas-window-isolation",
+        "atlas-signature-chrome",
+        "atlas-window-track"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "planner-assets",
+      "lane": "local-mutation",
+      "probes": [
+        "asset-ring-mock"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "content-navigation",
+      "lane": "local-mutation",
+      "probes": [
+        "changelog-browser",
+        "contents-drawer"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "global-search",
+      "lane": "local-mutation",
+      "probes": [
+        "combobox-global"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "planner-materials",
+      "lane": "local-mutation",
+      "probes": [
+        "combobox-terminal",
+        "cost-basis",
+        "me-planner",
+        "overlay-open"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "planner-export",
+      "lane": "local-mutation",
+      "probes": [
+        "multibuy-panel"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "planner-notifications",
+      "lane": "local-mutation",
+      "probes": [
+        "templates-menu",
+        "toast-stack"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "feedback",
+      "lane": "local-mutation",
+      "probes": [
+        "feedback-dialog"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "responsive-navigation",
+      "lane": "local-mutation",
+      "probes": [
+        "nav-menu",
+        "nav-page-settings"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "sites-details",
+      "lane": "local-mutation",
+      "probes": [
+        "sites-lazy-detail",
+        "sites-standalone-detail",
+        "dialog-open"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "id": "eve-images",
+      "lane": "local-mutation",
+      "probes": [
+        "eve-image-network"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "dev-navigation-atlas",
+      "lane": "dev-only",
+      "probes": [
+        "instant-nav-atlas"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "dev-navigation-planner",
+      "lane": "dev-only",
+      "probes": [
+        "instant-nav-planner"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "dev-navigation-sites",
+      "lane": "dev-only",
+      "probes": [
+        "instant-nav-sites"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "dev-navigation-session",
+      "lane": "dev-only",
+      "probes": [
+        "instant-nav-session"
+      ],
+      "authenticated": false,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "fog-benchmark",
+      "lane": "benchmark",
+      "probes": [
+        "atlas-fog-budget"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "layout-cross-browser",
+      "lane": "benchmark",
+      "probes": [
+        "atlas-layout-cross-engine"
+      ],
+      "authenticated": true,
+      "viewports": [
+        "desktop"
+      ]
+    }
+  ]
+}

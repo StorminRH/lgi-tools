@@ -50,11 +50,10 @@ async function cadence(pages, ms = 20_000) {
 
 export default {
   name: 'atlas-heartbeat-coordination',
-  route: authoringRoute(),
+  get route() { return authoringRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 1000,
   async setup({ page }) {
     await page.clock.install();
     await observe(page);

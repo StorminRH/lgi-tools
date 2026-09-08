@@ -1,18 +1,15 @@
+import { expect } from '@playwright/test';
+import { installMemoryClipboard } from '../lib/planner-fixture.mjs';
+
 export default {
   name: 'multibuy-panel',
-  route: '/industry/23758',
+  get route() { return '/industry/23758'; },
   viewports: ['desktop'],
-  settle: 2000,
-  async setup({ page, baseUrl }) {
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], {
-      origin: new URL(baseUrl).origin,
-    });
-  },
-  async run({ page, check, shot }) {
+  async setup({ page }) { await installMemoryClipboard(page); },
+  async run({ page, check }) {
     const trigger = page.getByRole('button', { name: 'Multibuy export' }).first();
     const present = (await trigger.count()) > 0;
     check('Multibuy export trigger is present', present);
-    if (!present) return;
     await trigger.scrollIntoViewIfNeeded();
     await trigger.click();
     await page.waitForTimeout(300);
@@ -29,7 +26,7 @@ export default {
     const boxes = page.getByRole('checkbox', { name: /Build tier \d+/ });
     const boxCount = await boxes.count();
     check('multiple build-tier checkboxes are present', boxCount > 1);
-    await shot('open');
+
     if (boxCount > 1) {
       await boxes.last().click();
       await page.waitForTimeout(200);
@@ -46,7 +43,7 @@ export default {
         'nested explainer opens',
         (await page.getByText(/Check the tiers you.ll build yourself/).count()) > 0,
       );
-      await shot('explainer');
+
       await page.keyboard.press('Escape');
       await page.waitForTimeout(200);
     }
@@ -63,7 +60,7 @@ export default {
       'copy control announces the exported item count',
       (await page.locator('[role="status"]', { hasText: /items? copied to clipboard/ }).count()) > 0,
     );
-    await shot('copied-state');
+
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
     const lines = clipboard.split('\n').filter(Boolean);
     check('clipboard contains Name<TAB>integer rows', lines.length > 0 && lines.every((line) => /^.+\t\d+$/.test(line)));
@@ -71,7 +68,7 @@ export default {
 
     await page.getByRole('button', { name: 'Copy', exact: true }).waitFor();
     const clipboardFailureInjected = await page.evaluate(async () => {
-      Object.defineProperty(Object.getPrototypeOf(navigator.clipboard), 'writeText', {
+      Object.defineProperty(navigator.clipboard, 'writeText', {
         configurable: true,
         value: async () => {
           throw new Error('clipboard unavailable');
@@ -94,6 +91,13 @@ export default {
       (await page.locator('[role="status"]', {
         hasText: 'Clipboard unavailable for this export',
       }).count()) > 0,
+    );
+    await page.goto('/industry/691');
+    await page.getByRole('button', { name: 'Multibuy export' }).first().click();
+    await page.getByRole('button', { name: 'Copy', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Copied', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => window.__acceptanceClipboard)).toBe(
+      'Isogen\t500\nMexallon\t2500\nPyerite\t6000\nTritanium\t32000',
     );
   },
 };

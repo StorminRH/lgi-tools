@@ -1,9 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
-import { isLocalBaseUrl, remoteSkipSeedError } from './scripts/run-e2e-guard.mjs';
+import { config } from 'dotenv';
+import { remoteSkipSeedError } from './scripts/run-e2e-guard.mjs';
+import { resolveLane } from './e2e/lane-policy.mjs';
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? process.env.UX_BASE_URL ?? 'http://localhost:3000';
-const isCi = Boolean(process.env.CI);
-const isLocal = isLocalBaseUrl(baseURL);
+config({ path: process.env.DOTENV_PATH ?? '.env.local', quiet: true });
+const { lane, baseURL, local } = resolveLane({ argv: process.argv });
 const targetError = remoteSkipSeedError({
   baseUrl: baseURL,
   skipSeed: true,
@@ -12,28 +13,35 @@ const targetError = remoteSkipSeedError({
 });
 if (targetError) throw new Error(`BLOCKED prerequisite: ${targetError}`);
 
-// Bypass headers belong to origin-scoped routing, never extraHTTPHeaders.
 export default defineConfig({
   testDir: './e2e',
-  testMatch: '**/*.spec.ts',
   fullyParallel: false,
-  forbidOnly: isCi,
+  forbidOnly: true,
   retries: 0,
   workers: 1,
+  timeout: 90_000,
+  expect: { timeout: 15_000 },
   outputDir: 'docs/ux-check/captures/playwright',
-  reporter: [['list'], ['json', { outputFile: 'docs/ux-check/captures/e2e-report.json' }]],
+  reporter: [['./e2e/reporter.mjs']],
+  metadata: { lane, deployment: process.env.E2E_DEPLOYMENT_ID ?? 'local' },
+  projects: [{
+    name: lane,
+    testMatch: ['mandatory-production', 'deployed-readonly'].includes(lane)
+      ? '**/smoke.spec.ts' : '**/probes.spec.ts',
+    metadata: { lane, mutation: lane === 'local-mutation' || lane === 'benchmark' },
+  }],
   use: {
     ...devices['Desktop Chrome'],
     baseURL,
-    screenshot: 'only-on-failure',
-    // Remote traces contain authenticated traffic; retain sanitized diagnostics instead.
-    trace: isLocal ? 'retain-on-failure' : 'off',
+    serviceWorkers: 'block',
+    screenshot: 'off',
+    trace: 'off',
     video: 'off',
   },
-  webServer: isLocal ? {
-    command: isCi ? 'pnpm start' : 'pnpm dev',
+  webServer: local ? {
+    command: lane === 'dev-only' ? 'pnpm dev' : 'pnpm start',
     url: baseURL,
-    reuseExistingServer: !isCi,
+    reuseExistingServer: false,
     timeout: 120_000,
   } : undefined,
 });

@@ -1,8 +1,7 @@
 export default {
   name: 'instant-nav-atlas',
-  route: '/',
+  get route() { return '/'; },
   viewports: ['desktop'],
-  settle: 800,
   async run({ page, check, instant }) {
     const atlasLink = page.locator('nav[aria-label="Tools"] a[href="/atlas"]').first();
     check('home header exposes Atlas', (await atlasLink.count()) > 0);
@@ -35,5 +34,6 @@ export default {
     });
 
     check('landed on /atlas', new URL(page.url()).pathname === '/atlas');
+    await page.locator('[data-atlas-guest-landing]').waitFor({ state: 'visible', timeout: 30_000 });
   },
 };

@@ -1,58 +1,75 @@
-const route = () =>
-  process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas';
+import { assertPrincipal, assertMapRole } from '../../../e2e/route-contracts.ts';
+import { expect } from '@playwright/test';
+import { authoringMapId, authoringRoute, waitForEditableMap } from '../lib/authoring-helpers.mjs';
 
 export default {
-  name: 'atlas-map-access',
-  route: route(),
-  viewports: ['desktop'],
-  requiresAuth: true,
-  settle: 1500,
-  async run({ page, check }) {
-    const mapId = process.env.UX_MAP_ID;
-    if (!mapId) {
-      check('UX_MAP_ID identifies an admin-authorized map', false);
-      return;
+  name: 'atlas-map-access', get route() { return authoringRoute(); },
+  viewports: ['desktop'], requiresAuth: true,
+  async run({ page, createContext, fixtures, baseUrl, diagnostics }) {
+    const mapId = authoringMapId();
+    if (!mapId) throw new Error('BLOCKED: run-owned map missing');
+    for (const [role, required] of [['owner', 'admin'], ['editor', 'editor'], ['viewer', 'viewer']]) {
+      assertMapRole({ actual: await fixtures.readRole(role, mapId), required });
     }
-
-    const trigger = page.locator('[data-map-switcher-trigger]');
-    await trigger.waitFor({ state: 'visible', timeout: 60_000 });
-    await trigger.click();
-    const cog = page.locator(`[data-map-switcher-manage="${mapId}"]`);
-    await cog.waitFor({ state: 'visible', timeout: 10_000 });
-    await cog.click();
-
+    expect(await fixtures.readRole('unauthorized', mapId)).toBeNull();
+    await waitForEditableMap(page);
+    const editor = await createContext({ role: 'editor' });
+    const viewer = await createContext({ role: 'viewer' });
+    const denied = await createContext({ role: 'unauthorized' });
+    const clients = [
+      { page, principal: fixtures.principals.owner, required: 'admin' },
+      { page: editor.page, principal: fixtures.principals.editor, required: 'editor' },
+      { page: viewer.page, principal: fixtures.principals.viewer, required: 'viewer' },
+      { page: denied.page, principal: fixtures.principals.unauthorized, required: null },
+    ];
+    const labels = { 'Your access: Admin': 'admin', 'Your access: Write': 'editor', 'Your access: Read-only': 'viewer' };
+    for (const client of clients) {
+      await client.page.goto(new URL('/atlas', baseUrl).href);
+      const session = await client.page.request.get(new URL('/api/auth/get-session', baseUrl).href);
+      expect(session.ok()).toBe(true);
+      assertPrincipal({ session: await session.json(), expected: client.principal });
+      const card = client.page.locator(`[data-map-catalogue-card="${mapId}"]`);
+      if (client.required === null) await expect(card).toHaveCount(0);
+      else {
+        const role = card.getByText(/^Your access:/);
+        await expect(role).toBeVisible();
+        assertMapRole({ actual: labels[(await role.innerText()).trim()], required: client.required });
+      }
+      await client.page.goto(new URL(authoringRoute(), baseUrl).href);
+    }
+    await waitForEditableMap(editor.page);
+    await expect(viewer.page.locator('[data-map-canvas]')).toBeVisible();
+    await expect(viewer.page.locator('[data-map-can-edit="true"]')).toHaveCount(0);
+    await expect(denied.page.locator('[data-chain-no-access]')).toBeVisible();
+    await page.locator('[data-map-switcher-trigger]').click();
+    await page.locator(`[data-map-switcher-manage="${mapId}"]`).click();
     const dialog = page.getByRole('dialog', { name: /^Manage / });
-    await dialog.waitFor({ state: 'visible', timeout: 10_000 });
-    check('the switcher cog opens the access editor', await dialog.isVisible());
-    check(
-      'the shared editor is in manage mode',
-      (await page.locator('[data-map-access-editor="manage"]').count()) === 1,
-    );
-    check(
-      'character search is present',
-      (await page.locator('[data-map-character-search]').count()) === 1,
-    );
-    check(
-      'the creator is not a revocable grant row',
-      (await page.locator('[data-map-access-principal^="character:9000001"]').count()) === 0,
-    );
-    check(
-      'delete lives on the landing card, not the manage footer',
-      (await dialog.getByRole('button', { name: 'Delete map' }).count()) === 0,
-    );
-
-    const grant = page.locator('[data-map-access-principal]').first();
-    if ((await grant.count()) === 0) {
-      check('private maps show an empty delegated list', await dialog.getByText('Private — no delegated access.').isVisible());
-      return;
-    }
-
+    await expect(dialog).toBeVisible();
+    const grant = dialog.locator(`[data-map-access-principal="character:${fixtures.principals.editor.characterId}"]`);
+    await expect(grant).toBeVisible();
     await grant.getByRole('button', { name: 'Revoke' }).click();
     const confirm = page.getByRole('dialog', { name: 'Revoke map access?' });
-    await confirm.waitFor({ state: 'visible', timeout: 10_000 });
-    check('revoke asks for one confirmation', await confirm.isVisible());
+    await expect(confirm).toBeVisible();
     await confirm.getByRole('button', { name: 'Cancel' }).click();
-    await confirm.waitFor({ state: 'hidden', timeout: 10_000 });
-    check('cancel leaves the grant in place', (await grant.count()) === 1);
+    await expect(grant).toBeVisible();
+    await grant.getByRole('button', { name: 'Revoke' }).click();
+    await confirm.getByRole('button', { name: /Revoke/ }).click();
+    await expect(grant).toHaveCount(0);
+    expect(await fixtures.readRole('editor', mapId)).toBeNull();
+    await expect(editor.page.locator('[data-chain-no-access]')).toBeVisible();
+    await expect(editor.page.locator('[data-map-can-edit="true"]')).toHaveCount(0);
+    await expect(viewer.page.locator('[data-map-canvas]')).toBeVisible();
+    await expect(page.locator('[data-map-can-edit="true"]')).toBeVisible();
+    diagnostics.expectHttp({ pathname: '/api/maps/access', method: 'POST', status: 403 });
+    const rejected = await editor.page.evaluate(async ({ mapId, characterId }) => {
+      const response = await fetch('/api/maps/access', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ operation: 'upsert', mapId, grant: { ownerType: 'character', ownerId: characterId, role: 'admin' } }),
+      });
+      return { status: response.status, body: await response.json() };
+    }, { mapId, characterId: fixtures.principals.editor.characterId });
+    expect(rejected.status).toBe(403);
+    expect(rejected.body).toMatchObject({ code: 'map_admin_required' });
+    await expect(editor.page.locator('[data-map-can-edit="true"]')).toHaveCount(0);
   },
 };

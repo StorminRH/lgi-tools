@@ -9,17 +9,13 @@ import {
 
 export default {
   name: 'atlas-authoring-intelligence',
-  route: authoringRoute(),
+  get route() { return authoringRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
+  async run({ page, check }) {
     const mapId = authoringMapId();
-    if (!mapId) {
-      check('UX_MAP_ID is set', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
     await ensureJumpEdge(page, mapId);
@@ -27,44 +23,35 @@ export default {
     const card = signatureEditor(page);
     await card.waitFor({ state: 'attached', timeout: 15_000 });
 
-    await Promise.race([
-      card.locator('[data-map-connection-codex]').waitFor({
-        state: 'attached',
-        timeout: 8_000,
-      }),
-      page.waitForTimeout(8_000),
-    ]).catch(() => undefined);
+    const typeInput = page.getByPlaceholder('Type code — e.g. B274 or K162');
+    await typeInput.click();
+    await typeInput.fill('B');
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll('[role="option"]')].some((el) =>
+          (el.textContent ?? '').trim().startsWith('B'),
+        ),
+      null,
+      { timeout: 20_000 },
+    );
+    await typeInput.fill('B274');
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll('[role="option"]')].some(
+          (el) => (el.textContent ?? '').trim() === 'B274',
+        ),
+      null,
+      { timeout: 10_000 },
+    );
+    await typeInput.press('ArrowDown');
+    await page.waitForTimeout(150);
+    await typeInput.press('Enter');
+    await card.locator('[data-map-connection-codex]').waitFor({
+      state: 'attached',
+      timeout: 15_000,
+    });
+    await page.waitForTimeout(400);
 
-    if ((await card.locator('[data-map-connection-codex]').count()) === 0) {
-      const typeInput = page.getByPlaceholder('Type code — e.g. B274 or K162');
-      await typeInput.click();
-      await typeInput.fill('B');
-      await page.waitForFunction(
-        () =>
-          [...document.querySelectorAll('[role="option"]')].some((el) =>
-            (el.textContent ?? '').trim().startsWith('B'),
-          ),
-        null,
-        { timeout: 20_000 },
-      );
-      await typeInput.fill('B274');
-      await page.waitForFunction(
-        () =>
-          [...document.querySelectorAll('[role="option"]')].some(
-            (el) => (el.textContent ?? '').trim() === 'B274',
-          ),
-        null,
-        { timeout: 10_000 },
-      );
-      await typeInput.press('ArrowDown');
-      await page.waitForTimeout(150);
-      await typeInput.press('Enter');
-      await card.locator('[data-map-connection-codex]').waitFor({
-        state: 'attached',
-        timeout: 15_000,
-      });
-      await page.waitForTimeout(400);
-    }
     check(
       'codex panel mounts for typed hole',
       (await card.locator('[data-map-connection-codex]').count()) === 1,
@@ -89,11 +76,6 @@ export default {
       'delete control is present',
       (await card.locator('[data-map-connection-delete]').count()) === 1,
     );
-    check(
-      'the stats block carries no Codex heading',
-      !/>Codex</.test(await card.innerHTML()),
-    );
-
-    await shot('connection-intelligence');
+    check('typed connection commits B274', await card.getByPlaceholder('Type code — e.g. B274 or K162').inputValue() === 'B274');
   },
 };

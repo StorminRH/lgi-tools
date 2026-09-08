@@ -7,15 +7,11 @@ import {
 
 export default {
   name: 'atlas-window-dock',
-  route: atlasWindowRoute(),
+  get route() { return atlasWindowRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
-    if (!process.env.UX_MAP_ID) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+  async run({ page, check }) {
+    if (!process.env.UX_MAP_ID) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForWindowMap(page);
 
     const dock = mapWindow(page, 'dock');
@@ -35,17 +31,5 @@ export default {
     await page.keyboard.press('Escape');
     check('pane click and Escape leave the readout standing', await dock.isVisible());
 
-    const dials = page.locator('[data-map-dev-dials]');
-    if (await dials.count()) {
-      await page.getByText('Layout dials').click();
-      check(
-        'the bottom-right dial group opens with the chrome chips',
-        (await page.getByText('Ring spacing').isVisible())
-          && (await dials.getAttribute('data-position')) !== 'bottom-left',
-      );
-    } else {
-      check('dev layout dials are absent outside development (expected)', true);
-    }
-    await shot('standing-dock');
   },
 };

@@ -1,5 +1,5 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { calmAtlasCamera, dragNodeDisc, hittableNode, setAtlasMapPreference } from '../lib/window-helpers.mjs';
+import { convexRun } from '../lib/authoring-helpers.mjs';
 import {
   installMotionMetrics,
   readBirths,
@@ -8,7 +8,6 @@ import {
 } from '../lib/motion-metrics.mjs';
 import { readNodePositions } from '../lib/read-node-positions.mjs';
 
-const execFileAsync = promisify(execFile);
 
 const PROBE_ID_OFFSET =
   (Date.now() % 99_000) + Math.floor(Math.random() * 1_000);
@@ -21,23 +20,18 @@ const scaleAnimatedFrame = (frame) =>
 const fadeFrame = (frame) => frame.opacity !== null && frame.opacity < 0.999;
 
 async function insertSystem(mapId, systemId) {
-  await execFileAsync(
-    'pnpm',
-    [
-      'exec',
-      'convex',
-      'run',
-      'mapFixturePlace:placeSystemFixture',
-      JSON.stringify({ mapId, systemId }),
-    ],
-    { timeout: 30_000 },
-  );
+  await convexRun('mapFixturePlace:placeSystemFixture', { mapId, systemId });
 }
 
-async function sampledShift(page, stepperName) {
+async function sampledShift(page) {
+    await calmAtlasCamera(page);
+    const target = await hittableNode(page);
+    if (target === null) throw new Error('BLOCKED: motion fixture has no hittable node');
+    if (!await dragNodeDisc(page, target, { x: 80, y: 45 })) throw new Error('Motion fixture drag failed');
+
   const before = await readNodePositions(page);
   await startGeometrySample(page);
-  await page.getByRole('button', { name: stepperName }).click();
+  await setAtlasMapPreference(page, 'auto layout', true);
   await page.waitForTimeout(2500);
   const geometry = await stopGeometrySample(page);
   const settled = await readNodePositions(page);
@@ -62,19 +56,15 @@ function intermediateFrames({ before, geometry, settled }) {
 
 export default {
   name: 'atlas-motion-reduced',
-  route: process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas',
+  get route() { return process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas'; },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2500,
   async setup({ page }) {
     await installMotionMetrics(page);
   },
-  async run({ page, check, shot }) {
+  async run({ page, check }) {
     const mapId = process.env.UX_MAP_ID;
-    if (!mapId) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await page.waitForFunction(
       () => document.querySelectorAll('[data-chain-node]').length >= 1,
@@ -82,7 +72,6 @@ export default {
       { timeout: 60_000 },
     );
     await page.waitForTimeout(1600);
-    await page.getByText('Layout dials').click();
 
     await insertSystem(mapId, CONTROL_SYSTEM_ID);
     await page.waitForFunction(
@@ -98,7 +87,7 @@ export default {
       controlRecord !== undefined && controlRecord.frames.some(scaleAnimatedFrame),
     );
 
-    const controlShift = await sampledShift(page, 'Increase Ring spacing');
+    const controlShift = await sampledShift(page);
     check(
       'control: the forced shift shows at least one intermediate glide frame',
       intermediateFrames(controlShift).length >= 1,
@@ -122,7 +111,7 @@ export default {
         && !reducedRecord.frames.some(scaleAnimatedFrame),
     );
 
-    const reducedShift = await sampledShift(page, 'Increase Minimum separation');
+    const reducedShift = await sampledShift(page);
     const reducedMovers = reducedShift.settled.filter((node) => {
       const origin = reducedShift.before.find(
         (candidate) => String(candidate.id) === String(node.id),
@@ -140,6 +129,5 @@ export default {
       intermediateFrames(reducedShift).length === 0,
     );
 
-    await shot('reduced');
   },
 };

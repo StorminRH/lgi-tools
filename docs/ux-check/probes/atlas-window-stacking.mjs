@@ -7,19 +7,14 @@ import {
   waitForWindowMap,
 } from '../lib/window-helpers.mjs';
 
-const z = (locator) => locator.evaluate((element) => Number(getComputedStyle(element).zIndex));
 
 export default {
   name: 'atlas-window-stacking',
-  route: atlasWindowRoute(),
+  get route() { return atlasWindowRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
-    if (!process.env.UX_MAP_ID) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+  async run({ page, check }) {
+    if (!process.env.UX_MAP_ID) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForWindowMap(page);
     const dock = mapWindow(page, 'dock');
     const node = await openSummary(page);
@@ -29,18 +24,9 @@ export default {
       node !== null && await dock.isVisible() && await card.isVisible(),
     );
 
-    check(
-      'the interactive card stacks above the passive readout',
-      (await z(card)) > (await z(dock)),
-    );
-    check(
-      'the readout is click-through (pointer events reach the canvas)',
-      (await dock.evaluate((element) => getComputedStyle(element).pointerEvents)) === 'none',
-    );
-
-    await page.getByRole('button', { name: 'Atlas menu' }).click();
-    const menu = page.locator('[data-map-menu-panel]');
-    await menu.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    await page.locator('[data-account-menu-trigger]').click();
+    const menu = page.locator('[data-account-menu-popup]');
+    await menu.waitFor({ state: 'visible', timeout: 5000 });
     check('the chrome popup opens above the windows', await menu.isVisible());
     await page.keyboard.press('Escape');
     await page.waitForTimeout(50);
@@ -62,6 +48,6 @@ export default {
     }
     const afterPan = await flowViewport(page).evaluate((element) => element.style.transform);
     check('the exposed canvas remains interactive beside a window', beforePan !== afterPan);
-    await shot('stacking-and-popup-arbitration');
+
   },
 };

@@ -10,18 +10,14 @@ const subscriptions = new WeakMap();
 
 export default {
   name: 'atlas-signature-subscriptions',
-  route: atlasWindowRoute(),
+  get route() { return atlasWindowRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2000,
   async setup({ page }) {
     subscriptions.set(page, observeConvexQueries(page, 'mapScan:watchSystemSignatures'));
   },
   async run({ page, check }) {
-    if (!process.env.UX_MAP_ID) {
-      check('UX_MAP_ID names the live fixture', false);
-      return;
-    }
+    if (!process.env.UX_MAP_ID) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForWindowMap(page);
     const active = subscriptions.get(page);
     const initial = active();

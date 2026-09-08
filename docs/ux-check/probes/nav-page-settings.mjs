@@ -1,54 +1,28 @@
-async function openMenu(page) {
-  const toggle = page.locator('[data-nav-menu-toggle]');
-  await toggle.tap();
-  await page.waitForTimeout(250);
-  return {
-    toggle,
-    panel: page.locator('[data-nav-menu-panel]'),
-  };
-}
+import { expect } from '@playwright/test';
 
 export default {
-  name: 'nav-page-settings',
-  route: '/sites',
-  viewports: ['mobile'],
-  settle: 1200,
-  async run({ page, baseUrl, check, shot }) {
-    let { toggle, panel } = await openMenu(page);
+  name: 'nav-page-settings', route: '/sites', viewports: ['mobile'],
+  async run({ page }) {
+    const toggle = page.locator('[data-nav-menu-toggle]');
+    await toggle.tap();
+    const panel = page.locator('[data-nav-menu-panel]');
     const settings = panel.locator('[data-page-menu-section]');
-    check('sites menu includes page settings', await settings.isVisible());
-    check('page settings precede the login footer', await settings.evaluate(
-      (element) => element.nextElementSibling?.matches('[data-nav-login-footer]') ?? false,
-    ));
-
-    const groups = settings.getByRole('group');
-    check('sites menu exposes both segmented controls', (await groups.count()) === 2);
-    const firstGroup = groups.first();
-    const choices = firstGroup.getByRole('button');
-    const selected = firstGroup.getByRole('button', { pressed: true });
-    const selectedLabel = await selected.textContent();
-    const alternate = choices.filter({ hasNotText: selectedLabel ?? '' }).first();
-    await alternate.tap();
-    await page.waitForTimeout(250);
-    check('choosing a page setting keeps the menu open', await panel.isVisible());
-    check('the chosen segment becomes selected', (await alternate.getAttribute('aria-pressed')) === 'true');
-    await shot('sites-settings');
-
+    await expect(settings).toBeVisible();
+    const table = settings.getByRole('group', { name: 'Sites view' }).getByRole('button', { name: 'Table' });
+    await table.tap();
+    await expect(table).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.goto(new URL('/', baseUrl).href, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60000,
-    });
-    await page.waitForTimeout(300);
-    ({ toggle, panel } = await openMenu(page));
-    check('routes without a spec omit page settings', (await panel.locator('[data-page-menu-section]').count()) === 0);
-    const footer = panel.locator('[data-nav-login-footer]');
-    check('login footer remains visible without page settings', await footer.isVisible());
-    check(
-      'no empty settings section sits before the footer',
-      await footer.evaluate((element) => !element.previousElementSibling?.matches('[data-page-menu-section]')),
-    );
-    check('menu remains owned by the same trigger', await toggle.getAttribute('data-popup-open') !== null);
-    await shot('home-no-settings');
+    await expect(page.locator('details[data-sites-row]').first()).toBeVisible();
+    await page.reload();
+    await expect(page.locator('details[data-sites-row]').first()).toBeVisible();
+    await toggle.tap();
+    await expect(table).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await page.goto('/');
+    await toggle.tap();
+    await expect(panel.locator('[data-page-menu-section]')).toHaveCount(0);
+    await expect(panel.locator('[data-nav-login-footer]')).toBeVisible();
+    await page.keyboard.press('Escape');
   },
 };

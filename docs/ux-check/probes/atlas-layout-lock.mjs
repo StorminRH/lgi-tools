@@ -1,12 +1,10 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { convexRun } from '../lib/authoring-helpers.mjs';
 import {
   closeAtlasMenu,
   openAtlasMenu,
   setAtlasMapPreference,
 } from '../lib/window-helpers.mjs';
 
-const execFileAsync = promisify(execFile);
 
 const PROBE_ARRIVAL_SYSTEM_ID = 99_000_000 + (Date.now() % 1_000_000);
 
@@ -23,19 +21,13 @@ const viewportTransform = (page) =>
 
 export default {
   name: 'atlas-layout-lock',
-  route: process.env.UX_MAP_ID
-    ? `/atlas?map=${process.env.UX_MAP_ID}`
-    : '/atlas',
+  get route() { return `/atlas?map=${process.env.UX_MAP_ID}`; },
   viewports: ['desktop'],
   reducedMotion: true,
   requiresAuth: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
+  async run({ page, check }) {
     const mapId = process.env.UX_MAP_ID;
-    if (!mapId) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await page.waitForFunction(
       () => document.querySelectorAll('[data-chain-node]').length >= 1,
@@ -67,7 +59,6 @@ export default {
     const node = page.locator('[data-chain-node]').first();
     const before = await node.boundingBox();
     check('target node has a box', before !== null);
-    if (before === null) return;
 
     await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
     await page.mouse.down();
@@ -80,17 +71,7 @@ export default {
 
     const viewportBefore = await viewportTransform(page);
     const nodeCount = await page.locator('[data-chain-node]').count();
-    await execFileAsync(
-      'pnpm',
-      [
-        'exec',
-        'convex',
-        'run',
-        'mapFixturePlace:placeSystemFixture',
-        JSON.stringify({ mapId, systemId: PROBE_ARRIVAL_SYSTEM_ID }),
-      ],
-      { timeout: 30_000 },
-    );
+    await convexRun('mapFixturePlace:placeSystemFixture', { mapId, systemId: PROBE_ARRIVAL_SYSTEM_ID });
     await page.waitForFunction(
       (expected) => document.querySelectorAll('[data-chain-node]').length > expected,
       nodeCount,
@@ -117,6 +98,5 @@ export default {
       (await nodeTransform(page)) === kernelTransform,
     );
 
-    await shot('lock-roundtrip');
   },
 };

@@ -6,15 +6,11 @@ import {
 
 export default {
   name: 'atlas-window-reload',
-  route: atlasWindowRoute(),
+  get route() { return atlasWindowRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2000,
-  async run({ page, check, shot }) {
-    if (!process.env.UX_MAP_ID) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+  async run({ page, check }) {
+    if (!process.env.UX_MAP_ID) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForWindowMap(page);
     const dock = mapWindow(page, 'dock');
     check(
@@ -30,6 +26,6 @@ export default {
         && (await dock.getAttribute('data-map-window-placement')) === 'docked'
         && (await dock.getAttribute('data-map-window-appearance')) === 'overlay',
     );
-    await shot('persistent-system-readout');
+
   },
 };

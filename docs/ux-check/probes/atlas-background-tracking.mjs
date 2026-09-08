@@ -1,3 +1,4 @@
+import { doorbellAfter, sessionUserId, waitForTopology } from '../lib/doorbell-helpers.mjs';
 import {
   backgroundTrackingMapId,
   backgroundTrackingRoute,
@@ -6,7 +7,7 @@ import {
 } from '../lib/authoring-helpers.mjs';
 import { settleMapViewport } from '../lib/window-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001;
+const characterId = () => Number(process.env.UX_CHARACTER_ID);
 const ORIGIN_SYSTEM_ID = 31_001_677;
 const DESTINATION_SYSTEM_ID = 31_000_880;
 const SHIP_TYPE_ID = 28_606;
@@ -28,51 +29,6 @@ async function setVisibility(page, state) {
   }, state);
 }
 
-async function sessionUserId(page, baseUrl) {
-  const response = await page.request.get(
-    new URL('/api/auth/get-session', baseUrl).href,
-    { failOnStatusCode: true, timeout: 30_000 },
-  );
-  const session = await response.json();
-  return typeof session?.user?.id === 'string' ? session.user.id : null;
-}
-
-function isDoorbellResponse(response) {
-  if (
-    new URL(response.url()).pathname !== '/api/maps/jump'
-    || response.request().method() !== 'POST'
-  ) {
-    return false;
-  }
-  try {
-    return response.request().postDataJSON()?.kind === 'doorbell';
-  } catch {
-    return false;
-  }
-}
-
-async function doorbellAfter(page, trigger) {
-  const pending = page.waitForResponse(isDoorbellResponse, { timeout: 30_000 });
-  try {
-    await trigger();
-  } catch (error) {
-    void pending.catch(() => undefined);
-    throw error;
-  }
-  const response = await pending;
-  return await response.json().catch(() => null);
-}
-
-async function waitForTopology(page, nodes, edges) {
-  await page.waitForFunction(
-    ({ expectedNodes, expectedEdges }) =>
-      document.querySelectorAll('[data-chain-node]').length === expectedNodes
-      && document.querySelectorAll('.react-flow__edge').length === expectedEdges,
-    { expectedNodes: nodes, expectedEdges: edges },
-    { timeout: 30_000 },
-  );
-}
-
 const badgeIn = (page, systemId) =>
   page.locator(`.react-flow__node[data-id="${systemId}"] [data-pilot-presence]`);
 
@@ -80,11 +36,10 @@ const virtualNow = (page) => page.evaluate(() => Date.now());
 
 export default {
   name: 'atlas-background-tracking',
-  route: backgroundTrackingRoute(),
+  get route() { return backgroundTrackingRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 2500,
   async setup({ page }) {
     heartbeatFrames = 0;
     sampleFrame = null;
@@ -101,22 +56,16 @@ export default {
   },
   async run({ page, check, baseUrl }) {
     const mapId = backgroundTrackingMapId();
-    if (!mapId) {
-      check('UX_BG_MAP_ID is set for a dedicated empty map', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     const userId = await sessionUserId(page, baseUrl);
-    if (userId === null) {
-      check('authenticated storage state exposes a session user id', false);
-      return;
-    }
+    if (userId === null) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     await waitForEditableMap(page);
 
     const seed = await doorbellAfter(page, async () => {
       await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
-        characterId: CHARACTER_ID,
+        characterId: characterId(),
         solarSystemId: ORIGIN_SYSTEM_ID,
         shipTypeId: SHIP_TYPE_ID,
         transitionObservedAt: Date.now(),
@@ -127,15 +76,15 @@ export default {
     await waitForTopology(page, 1, 0);
     await badgeIn(page, ORIGIN_SYSTEM_ID)
       .waitFor({ state: 'visible', timeout: 15_000 })
-      .catch(() => undefined);
+      ;
     check(
       'live presence badge renders in the origin frame',
       (await badgeIn(page, ORIGIN_SYSTEM_ID).getAttribute('data-pilot-presence')) === 'live',
     );
     const dockRow = page.locator(
-      `[data-map-window="dock"] [data-presence-pilot="${CHARACTER_ID}"]`,
+      `[data-map-window="dock"] [data-presence-pilot="${characterId()}"]`,
     );
-    await dockRow.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
+    await dockRow.waitFor({ state: 'visible', timeout: 15_000 });
     check(
       'dock intelligence lists the pilot as In space',
       (await dockRow.locator('[data-presence-status]').getAttribute('data-presence-status'))
@@ -158,7 +107,7 @@ export default {
       await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
         userId,
-        characterId: CHARACTER_ID,
+        characterId: characterId(),
         fromSolarSystemId: ORIGIN_SYSTEM_ID,
         toSolarSystemId: DESTINATION_SYSTEM_ID,
         prevFresh: true,
@@ -173,7 +122,7 @@ export default {
     await waitForTopology(page, 2, 1);
     await badgeIn(page, DESTINATION_SYSTEM_ID)
       .waitFor({ state: 'visible', timeout: 15_000 })
-      .catch(() => undefined);
+      ;
     check(
       'presence follows the pilot to the destination while hidden',
       (await badgeIn(page, DESTINATION_SYSTEM_ID).count()) === 1
@@ -206,10 +155,10 @@ export default {
     }
     await page.mouse.click(discPoint.x, discPoint.y);
     const summary = page.locator('[data-map-window="summary"]').filter({ visible: true });
-    await summary.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
+    await summary.waitFor({ state: 'visible', timeout: 10_000 });
     const summaryHeader = summary.locator('[data-intel-section="summary"]');
-    const summaryRow = summary.locator(`[data-presence-pilot="${CHARACTER_ID}"]`);
-    await summaryRow.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
+    const summaryRow = summary.locator(`[data-presence-pilot="${characterId()}"]`);
+    await summaryRow.waitFor({ state: 'visible', timeout: 10_000 });
     check(
       'summary card intelligence header is present',
       (await summaryHeader.count()) === 1,
@@ -228,7 +177,7 @@ export default {
       await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
         userId,
-        characterId: CHARACTER_ID,
+        characterId: characterId(),
         fromSolarSystemId: DESTINATION_SYSTEM_ID,
         toSolarSystemId: ORIGIN_SYSTEM_ID,
         prevFresh: true,
@@ -239,7 +188,7 @@ export default {
     check('hidden-tab return jump is handled without new topology', returned?.status !== undefined);
     await badgeIn(page, ORIGIN_SYSTEM_ID)
       .waitFor({ state: 'visible', timeout: 15_000 })
-      .catch(() => undefined);
+      ;
     check(
       'presence returns to the origin while still hidden',
       (await badgeIn(page, ORIGIN_SYSTEM_ID).count()) === 1
@@ -256,12 +205,13 @@ export default {
 
     await page.clock.fastForward('00:31:00');
     const dialog = page.getByRole('dialog');
-    await dialog.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
-    check('AFK prompt appears past the hidden threshold', await dialog.isVisible().catch(() => false));
+    await dialog.waitFor({ state: 'visible', timeout: 10_000 });
+    check('AFK prompt appears past the hidden threshold', await dialog.isVisible());
+    await page.getByText('Tracking pauses in a few minutes', { exact: false }).waitFor({ state: 'visible', timeout: 5_000 });
 
     await page.clock.fastForward('00:06:00');
     const pausedCopy = page.getByText('location tracking is paused', { exact: false });
-    await pausedCopy.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+    await pausedCopy.waitFor({ state: 'visible', timeout: 5_000 });
     check('unanswered prompt pauses tracking', (await pausedCopy.count()) > 0);
     await page.waitForTimeout(500);
 
@@ -275,7 +225,7 @@ export default {
 
     await convexRun('mapFixtureTracking:clearTrackedCoverage', {
       userId,
-      characterId: CHARACTER_ID,
+      characterId: characterId(),
     });
     await page.waitForTimeout(500);
     check(

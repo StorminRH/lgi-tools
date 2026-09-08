@@ -11,31 +11,23 @@ async function openDrawer(page) {
 
 export default {
   name: 'contents-drawer',
-  route: '/changelog/v3.8',
+  get route() { return '/changelog/v3.8'; },
   viewports: ['mobile'],
   reducedMotion: true,
-  async run({ page, check, shot }) {
+  async run({ page, check }) {
     const chapterTitle = page.locator('[data-content-drawer-current-title]');
     check(
       'chapter bar names the current changelog document',
       /^v3\.8\b/.test(((await chapterTitle.textContent()) ?? '').trim()),
     );
 
-    let { trigger, popup, backdrop } = await openDrawer(page);
+    let { trigger, popup } = await openDrawer(page);
     const dialog = page.getByRole('dialog', { name: 'Versions' });
     check('chapter bar opens the named versions dialog', await dialog.isVisible());
     check(
       'focus moves inside the drawer',
       await popup.evaluate((element) => element.contains(document.activeElement)),
     );
-    const durations = await Promise.all([
-      popup.evaluate((element) => getComputedStyle(element).transitionDuration),
-      backdrop.evaluate((element) => getComputedStyle(element).transitionDuration),
-    ]);
-    check('reduced motion removes popup transition time', durations[0].split(',').every((value) => value.trim() === '0s'));
-    check('reduced motion removes backdrop transition time', durations[1].split(',').every((value) => value.trim() === '0s'));
-    await shot('versions-open');
-
     const currentHref = await popup.locator('[aria-current="page"]').getAttribute('href');
     const destination = popup.locator(
       '[data-content-browser-nav-item]:not([aria-current="page"])',

@@ -7,9 +7,8 @@ const ROUTES = [
 
 export default {
   name: 'instant-nav-session',
-  route: '/',
+  get route() { return '/'; },
   viewports: ['desktop'],
-  settle: 800,
   async run({ page, baseUrl, check, instant }) {
     for (const route of ROUTES) {
       await instant(async () => {
@@ -24,8 +23,8 @@ export default {
           route.title.test(text),
         );
       });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
-      await page.waitForTimeout(200);
+      await page.getByRole('button', { name: /Log in with EVE Online/i }).first().waitFor({ state: 'visible', timeout: 30_000 });
+      check(`${route.path} resolves on its exact route`, new URL(page.url()).pathname === route.path);
     }
   },
 };

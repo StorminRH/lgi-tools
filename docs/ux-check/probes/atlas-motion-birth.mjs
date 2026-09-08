@@ -1,12 +1,10 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { convexRun } from '../lib/authoring-helpers.mjs';
 import {
   installMotionMetrics,
   readBirths,
 } from '../lib/motion-metrics.mjs';
 import { readNodePositions } from '../lib/read-node-positions.mjs';
 
-const execFileAsync = promisify(execFile);
 
 const PROBE_SYSTEM_ID =
   99_100_000
@@ -29,19 +27,15 @@ const noTravel = (record, settled) =>
 
 export default {
   name: 'atlas-motion-birth',
-  route: process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas',
+  get route() { return process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas'; },
   viewports: ['desktop'],
   requiresAuth: true,
-  settle: 2500,
   async setup({ page }) {
     await installMotionMetrics(page);
   },
-  async run({ page, check, shot }) {
+  async run({ page, check }) {
     const mapId = process.env.UX_MAP_ID;
-    if (!mapId) {
-      check('UX_MAP_ID is set for the live map under test', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await page.waitForFunction(
       () => document.querySelectorAll('[data-chain-node]').length >= 1,
@@ -71,17 +65,7 @@ export default {
       witnessed.some((id) => initialBirths[id].frames.some(animatedFrame)),
     );
 
-    await execFileAsync(
-      'pnpm',
-      [
-        'exec',
-        'convex',
-        'run',
-        'mapFixturePlace:placeSystemFixture',
-        JSON.stringify({ mapId, systemId: PROBE_SYSTEM_ID }),
-      ],
-      { timeout: 30_000 },
-    );
+    await convexRun('mapFixturePlace:placeSystemFixture', { mapId, systemId: PROBE_SYSTEM_ID });
     await page.waitForFunction(
       (id) => document.querySelector(`.react-flow__node[data-id="${id}"]`) !== null,
       String(PROBE_SYSTEM_ID),
@@ -107,6 +91,5 @@ export default {
       liveRecord !== undefined && liveRecord.frames.some(animatedFrame),
     );
 
-    await shot('birth');
   },
 };

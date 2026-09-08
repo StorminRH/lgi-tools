@@ -4,9 +4,8 @@
  */
 export default {
   name: 'instant-nav-sites',
-  route: '/',
+  get route() { return '/'; },
   viewports: ['desktop'],
-  settle: 1500,
   async run({ page, check, instant }) {
     const sitesLink = page.locator('a[href="/sites"]').first();
     check('home exposes a /sites link', (await sitesLink.count()) > 0);
@@ -27,5 +26,6 @@ export default {
     });
 
     check('landed on /sites', new URL(page.url()).pathname === '/sites');
+    await page.locator('[data-site-card]').first().waitFor({ state: 'visible', timeout: 30_000 });
   },
 };

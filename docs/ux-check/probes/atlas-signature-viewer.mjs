@@ -11,7 +11,7 @@ import {
   waitForTopology,
 } from '../lib/doorbell-helpers.mjs';
 
-const CHARACTER_ID = 9_000_001;
+const characterId = () => Number(process.env.UX_CHARACTER_ID);
 const ORIGIN_SYSTEM_ID = 31_001_677;
 const SHIP_TYPE_ID = 28_606;
 
@@ -61,22 +61,15 @@ async function openSiteViewer(page) {
 
 export default {
   name: 'atlas-signature-viewer',
-  route: signatureViewerRoute(),
+  get route() { return signatureViewerRoute(); },
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
-  settle: 2000,
   async run({ page, check, baseUrl }) {
     const mapId = signatureViewerMapId();
-    if (!mapId) {
-      check('UX_SITE_VIEWER_MAP_ID is set for a dedicated empty map', false);
-      return;
-    }
+    if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
     const userId = await sessionUserId(page, baseUrl);
-    if (userId === null) {
-      check('authenticated storage state exposes a session user id', false);
-      return;
-    }
+    if (userId === null) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
     await calmMapCamera(page);
@@ -86,7 +79,7 @@ export default {
       await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
-        characterId: CHARACTER_ID,
+        characterId: characterId(),
         solarSystemId: ORIGIN_SYSTEM_ID,
         shipTypeId: SHIP_TYPE_ID,
         transitionObservedAt: seededTransitionAt,
@@ -97,7 +90,7 @@ export default {
     await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
       mapId,
       userId,
-      characterId: CHARACTER_ID,
+      characterId: characterId(),
       solarSystemId: ORIGIN_SYSTEM_ID,
       shipTypeId: SHIP_TYPE_ID,
       transitionObservedAt: seededTransitionAt,
