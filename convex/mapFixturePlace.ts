@@ -1,9 +1,14 @@
 import { ConvexError, v } from 'convex/values';
 import type {
   ConnectionMassState,
+  WormholeDestinationHint,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import { blankHallway, identityFromDoors } from '@/data/maps/connection-hallway';
+import {
+  blankHallway,
+  identityFromDoors,
+  leadsToFromHint,
+} from '@/data/maps/connection-hallway';
 import { typedDoorsFrom } from '@/data/maps/connection-door-types';
 import { internalMutation } from './_generated/server';
 import {
@@ -34,29 +39,38 @@ const connectionArgs = {
   shipSize: shipSizeValidator,
 };
 
-function hallwayFromFixture(args: {
+export function hallwayFromFixture(args: {
   readonly mapId: string;
   readonly fromSystemId: number;
-  readonly toSystemId: number;
+  readonly toSystemId: number | null;
   readonly wormholeTypeCode: string | null;
-  readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
+  readonly massState?: ConnectionMassState | null;
+  readonly fromSignatureId?: string;
+  readonly fromDestinationHint?: WormholeDestinationHint;
 }) {
   const doors = typedDoorsFrom('from', args.wormholeTypeCode);
+  const stub = args.fromSignatureId !== undefined;
   return {
     ...blankHallway({
       mapId: args.mapId,
       fromSystemId: args.fromSystemId,
       toSystemId: args.toSystemId,
     }),
-    from: doors.from,
+    from: stub
+      ? {
+          ...doors.from,
+          signatureId: args.fromSignatureId,
+          leadsTo: leadsToFromHint(args.fromDestinationHint),
+        }
+      : doors.from,
     to: doors.to,
     identity: identityFromDoors(
       doors.from.typeCode,
       doors.to.typeCode,
       args.wormholeTypeCode === null ? null : 'human',
     ),
-    massState: args.massState,
+    ...(args.massState === undefined ? {} : { massState: args.massState }),
     shipSize: args.shipSize,
   };
 }

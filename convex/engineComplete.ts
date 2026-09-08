@@ -40,36 +40,6 @@ export const chainDispatch = internalMutation({
 
 type CompletionSchedule = { nextDueAt: number | null; chainAt: number | null };
 
-function freshFailureHop(cadenceFloorMs: number, now: number): CompletionSchedule {
-  const boundary = now + cadenceFloorMs;
-  return { nextDueAt: boundary, chainAt: boundary };
-}
-
-function coldFailureReArm(cadenceFloorMs: number, now: number): CompletionSchedule {
-  return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
-}
-
-function parkUntilTargets(): CompletionSchedule {
-  return { nextDueAt: null, chainAt: null };
-}
-
-function chainHop(
-  minExpiresAt: number,
-  cadenceFloorMs: number,
-  now: number,
-): CompletionSchedule {
-  const boundary = computeChainBoundary(minExpiresAt, cadenceFloorMs, now);
-  return { nextDueAt: boundary, chainAt: boundary };
-}
-
-function jitteredScanReArm(
-  minExpiresAt: number | null,
-  cadenceFloorMs: number,
-  now: number,
-): CompletionSchedule {
-  return { nextDueAt: computeNextDueAt(minExpiresAt, cadenceFloorMs, now), chainAt: null };
-}
-
 async function resolveCompletionSchedule(
   ctx: MutationCtx,
   subject: Doc<'syncSubjects'>,
@@ -82,22 +52,27 @@ async function resolveCompletionSchedule(
   if (failed) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      return freshFailureHop(cadenceFloorMs, now);
+      const boundary = now + cadenceFloorMs;
+      return { nextDueAt: boundary, chainAt: boundary };
     }
-    return coldFailureReArm(cadenceFloorMs, now);
+    return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
   }
   if (subject.syncedCharacterIds.length === 0) {
-    return parkUntilTargets();
+    return { nextDueAt: null, chainAt: null };
   }
   const yielded =
     subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
   if (chainOnSuccess && yielded && subject.minExpiresAt !== null) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      return chainHop(subject.minExpiresAt, cadenceFloorMs, now);
+      const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
+      return { nextDueAt: boundary, chainAt: boundary };
     }
   }
-  return jitteredScanReArm(subject.minExpiresAt, cadenceFloorMs, now);
+  return {
+    nextDueAt: computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
+    chainAt: null,
+  };
 }
 
 const onSyncCompleteArgs = {
