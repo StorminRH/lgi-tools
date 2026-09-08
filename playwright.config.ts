@@ -15,6 +15,7 @@ if (targetError) throw new Error(`BLOCKED prerequisite: ${targetError}`);
 
 export default defineConfig({
   testDir: './e2e',
+  tsconfig: './e2e/tsconfig.json',
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
