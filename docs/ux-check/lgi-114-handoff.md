@@ -60,7 +60,17 @@ assertions, diagnostic disposition and teardown only. Keep operator visual
 acceptance separate. Missing backends, fixtures, selected cases or evidence are
 `BLOCKED`. Do not bypass errors with skips, allow-empty selection or retries.
 Raw screenshots/traces are not uploadable because their credential sanitization
-has not been established. Attach only sanitized-failure JSON and the report.
+has not been established. Attach only sanitized-failure JSON from
+`docs/ux-check/captures/sanitized-failures/` and the report. A body-only
+Playwright attachment is not enough; the reporter must persist that JSON next
+to the report and record the file path.
+
+The default lanes never run the persistence proof. It is a dedicated failing
+spec with no application server:
+
+```sh
+pnpm exec playwright test -c e2e/deliberate-failure.config.ts
+```
 
 ## Cloud runtime commands and prerequisites
 
