@@ -58,11 +58,33 @@ python3 tools/cli.py delivery check-receipt --record PATH --comment-file PATH --
 This command independently retrieves GitHub PR identity, frozen candidate bytes,
 current base/merge-ref, ruleset and classic required checks, review evidence and
 all review threads. Missing access, stale subjects and pending/failed required
-checks block. Required CI checks must bind the actual merge-ref SHA; successful
-source-head-only checks do not establish applicability after the base moves.
-Providers that expose only source-head check identities need an authoritative
-run-subject adapter before this gate can accept their CI proof. Criterion-specific
-head proof may still be referenced separately. It uses existing git GitHub credentials. There is no Linear token
+checks block. Current base/head and potential merge identity come from one
+GraphQL PR response, including the exact two merge parents; REST's cached merge
+SHA and workflow-run associated PR links are not applicability evidence.
+
+The Actions adapter accepts source-head check identities only when all selected
+Actions checks belong to one successful `test.yml` run and its exact current
+attempt. It downloads the unique, unexpired `ci-subject` artifact emitted by the
+workflow after verify, build and e2e pass. That isolated job runs trusted YAML
+without checking out repository code. The runtime JSON binds repository,
+workflow ref/SHA, run/attempt, PR, base/head refs and SHAs, and tested merge SHA.
+The checker verifies that immutable subject against the current GraphQL pair.
+Artifact downloads authenticate only the GitHub API hop; signed HTTPS storage
+receives no credentials. ZIP size, entry identity/type and JSON shape are bounded.
+Missing, expired, duplicate or stale proof blocks current merge eligibility. A
+full rerun is required when successful jobs remain on an earlier run attempt.
+Other providers may supply checks directly on the exact tested merge SHA; a
+source-head-only PASS has no generic applicability exception.
+
+To retain the validated CI subject, add `--ci-observation-out PATH` to a successful
+current `check-receipt` invocation. Copy the generated object into `ci_observation`
+in the final authenticated Linear receipt. It records the original observation
+time, provider, run/attempt, artifact ID/digest, exact runtime subject, selected
+check IDs and required-check contexts. Promoted/released Actions receipts require
+that observation and compare it with live evidence. Preserve it before the
+one-day artifact expires; no repository commit is needed.
+
+It uses existing git GitHub credentials. There is no Linear token
 requirement and ordinary app/fork tests have no remote dependency.
 
 The command explicitly does **not** authenticate a caller-supplied Linear JSON
@@ -113,7 +135,13 @@ The field contracts follow Vercel's official
 and [alias API](https://vercel.com/docs/rest-api/aliases/get-an-alias).
 
 Archive uses historical delivery, because later promotions replace the current
-alias. `--archive-history` requires a previously final promoted/released Linear
+alias. For Actions, the authenticated final Linear receipt's original
+`ci_observation` survives artifact expiry. Archive verifies the original successful
+run attempt, suite and selected checks through GitHub, the retained exact runtime
+subject, and immutable Git merge parents. It uses the original required-check
+contexts and does not require the current branch base, potential merge, or a
+fresh artifact. The retained observation is authenticated Linear history, not a
+new cryptographic attestation; missing original proof blocks archive. `--archive-history` requires a previously final promoted/released Linear
 receipt, including its original observation time, full subject, criteria, reviews
 and deployment proof. GitHub history verifies the recorded successful status
 against live status history, allowing a later inactive status. Vercel history

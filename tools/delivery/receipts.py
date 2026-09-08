@@ -79,10 +79,16 @@ def validate(receipt: dict, record: dict, source: dict, stage: str) -> list[str]
     for rule in required:
         matching = [check for check in checks.values() if check.get("name") == rule["context"] and
                     (rule.get("app_id") in (None, -1) or check.get("app", {}).get("id") == rule["app_id"]) and
-                    check.get("head_sha") == subject.get("merge_ref_sha")]
+                    (check.get("head_sha") == subject.get("merge_ref_sha") or check.get("tested_merge_sha") == subject.get("merge_ref_sha"))]
         latest = max(matching, key=lambda check: check["id"], default={})
         if latest.get("status") != "completed" or latest.get("conclusion") != "success":
             errors.append(f"required check {rule['context']} is missing, stale, or not successful")
+    if source.get("ci"):
+        observation = receipt.get("ci_observation")
+        if observation is None and stage in {"promoted", "released"}:
+            errors.append("final delivery receipt must retain the verified CI observation")
+        elif observation is not None and any(observation.get(key) != source["ci"].get(key) for key in ("provider", "run_id", "run_attempt", "artifact_id", "artifact_digest", "subject", "check_ids", "required_checks")):
+            errors.append("retained CI observation does not match the verified Actions evidence")
     criteria = receipt.get("criteria", {})
     if list(criteria) != values(record["Criteria"]):
         errors.append("receipt must cover every candidate criterion once in order")
@@ -145,6 +151,53 @@ def _threads(repository: str, number: int, token: str) -> bool:
         cursor = page["pageInfo"]["endCursor"]
 
 
+def _pull_identity(repository: str, number: int, token: str) -> dict:
+    owner, name = repository.split("/")
+    query = """query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){baseRefName baseRefOid headRefName headRefOid merged isDraft mergeable mergeCommit{oid} potentialMergeCommit{oid parents(first:3){nodes{oid}}}}}}"""
+    response, _ = github_api.request("POST", "/graphql", token, {"query": query, "variables": {"owner": owner, "name": name, "number": number}})
+    if response.get("errors"):
+        raise ValueError("GitHub GraphQL could not establish the current PR identity")
+    identity = response["data"]["repository"]["pullRequest"]
+    if not isinstance(identity, dict):
+        raise ValueError("GitHub PR identity is unavailable")
+    return identity
+
+
+def _apply_identity(pr: dict, identity: dict, stage: str, *, archive_history: bool = False) -> str | None:
+    comparisons = [("head", "sha", "headRefOid"), ("head", "ref", "headRefName")]
+    if not archive_history:
+        comparisons.extend((("base", "sha", "baseRefOid"), ("base", "ref", "baseRefName")))
+    if any(pr[end][key] != identity[field] for end, key, field in comparisons):
+        raise ValueError("GitHub REST and GraphQL subjects disagree; collect again")
+    pr["merged"] = identity["merged"]
+    pr["draft"] = identity["isDraft"]
+    pr["mergeable"] = {"MERGEABLE": True, "CONFLICTING": False}.get(identity["mergeable"])
+    pr["merge_commit_sha"] = (identity.get("mergeCommit") or {}).get("oid")
+    if stage != "pre-merge":
+        return None
+    merge = identity.get("potentialMergeCommit")
+    if not merge or [node["oid"] for node in merge["parents"]["nodes"]] != [identity["baseRefOid"], identity["headRefOid"]]:
+        raise ValueError("current potential merge commit is unavailable or has the wrong base/head parents")
+    return merge["oid"]
+
+
+def _actions_checks(checks: list[dict], required: list[dict], receipt: dict, head_sha: str, merge_sha: str) -> list[dict]:
+    selected = {}
+    for rule in required:
+        matching = [check for check in checks if check.get("name") == rule["context"] and
+                    rule.get("app_id") in (None, -1, check.get("app", {}).get("id")) and
+                    check.get("head_sha") in {head_sha, merge_sha}]
+        latest = max(matching, key=lambda check: check["id"], default=None)
+        if latest is not None:
+            selected[latest["id"]] = latest
+    for proof in receipt.get("criteria", {}).values():
+        for identifier in proof.get("checks", []):
+            match = next((check for check in checks if str(check["id"]) == str(identifier)), None)
+            if match is not None:
+                selected[match["id"]] = match
+    return [check for check in selected.values() if check.get("app", {}).get("slug") == "github-actions" and check.get("head_sha") == head_sha]
+
+
 def collect_github(record: dict, receipt: dict, path: Path, root: Path, stage: str, vercel_export: dict | None = None, vercel_expected: dict | None = None, *, archive_history: bool = False) -> dict:
     observation = receipt.get("deployment_observation", {})
     if archive_history and stage not in {"promoted", "released"}:
@@ -170,24 +223,44 @@ def collect_github(record: dict, receipt: dict, path: Path, root: Path, stage: s
     blob = _get(f"{prefix}/contents/{encoded_path}?ref={pr['head']['sha']}", token)
     if hashlib.sha256(base64.b64decode(blob["content"])).digest() != hashlib.sha256(path.read_bytes()).digest():
         raise ValueError("local candidate record differs from GitHub frozen head")
+    identity = _pull_identity(repository, int(number), token)
+    potential_sha = _apply_identity(pr, identity, stage, archive_history=archive_history)
     if stage == "pre-merge":
-        source["merge_ref_sha"] = _get(f"{prefix}/git/ref/pull/{number}/merge", token)["object"]["sha"]
+        source["merge_ref_sha"] = potential_sha
     else:
         source["merge"] = _get(f"{prefix}/commits/{pr['merge_commit_sha']}", token)
         ci_commit = _get(f"{prefix}/commits/{receipt['subject']['merge_ref_sha']}", token)
         source["merge_ref_valid"] = [item["sha"] for item in ci_commit.get("parents", [])] == [receipt["subject"]["base_sha"], pr["head"]["sha"]]
-    rules = github_api.get_all(f"{prefix}/rules/branches/{quote(pr['base']['ref'], safe='')}", token)
-    required = [item for rule in rules if rule["type"] == "required_status_checks" for item in rule["parameters"]["required_status_checks"]]
-    # Rulesets omit classic branch protection. An unavailable protection read fails closed.
-    try:
-        protection = _get(f"{prefix}/branches/{quote(pr['base']['ref'], safe='')}/protection/required_status_checks", token)
-        required.extend(protection.get("checks", [{"context": name} for name in protection.get("contexts", [])]))
-    except RuntimeError as error:
-        if "GitHub API 404:" not in str(error):
-            raise
-    source["required_checks"] = [dict(rule, app_id=rule.get("app_id", rule.get("integration_id"))) for rule in required]
-    subject_shas = {pr["head"]["sha"], source.get("merge_ref_sha", receipt["subject"]["merge_ref_sha"])}
-    source["checks"] = [check for sha in subject_shas for check in github_api.get_all(f"{prefix}/commits/{sha}/check-runs?filter=latest&per_page=100", token, "check_runs")]
+    retained_ci = receipt.get("ci_observation") if archive_history else None
+    if retained_ci is not None:
+        from tools.delivery.actions_subject import retained_checks
+
+        required = retained_ci.get("required_checks")
+        if not isinstance(required, list) or not required or any(not isinstance(rule, dict) or not isinstance(rule.get("context"), str) for rule in required):
+            raise ValueError("historical CI observation requires the original required-check contexts")
+        source["required_checks"] = required
+        source["checks"] = retained_checks(repository, retained_ci, token)
+    else:
+        rules = github_api.get_all(f"{prefix}/rules/branches/{quote(pr['base']['ref'], safe='')}", token)
+        required = [item for rule in rules if rule["type"] == "required_status_checks" for item in rule["parameters"]["required_status_checks"]]
+        # Rulesets omit classic branch protection. An unavailable protection read fails closed.
+        try:
+            protection = _get(f"{prefix}/branches/{quote(pr['base']['ref'], safe='')}/protection/required_status_checks", token)
+            required.extend(protection.get("checks", [{"context": name} for name in protection.get("contexts", [])]))
+        except RuntimeError as error:
+            if "GitHub API 404:" not in str(error):
+                raise
+        source["required_checks"] = [dict(rule, app_id=rule.get("app_id", rule.get("integration_id"))) for rule in required]
+        subject_shas = {pr["head"]["sha"], source.get("merge_ref_sha", receipt["subject"]["merge_ref_sha"])}
+        source["checks"] = [check for sha in subject_shas for check in github_api.get_all(f"{prefix}/commits/{sha}/check-runs?filter=latest&per_page=100", token, "check_runs")]
+    selected_actions = _actions_checks(source["checks"], source["required_checks"], receipt, pr["head"]["sha"], source.get("merge_ref_sha", receipt["subject"]["merge_ref_sha"]))
+    if selected_actions:
+        from tools.delivery.actions_subject import bind_checks
+
+        if archive_history and retained_ci is None:
+            raise ValueError("archive requires the original authenticated Linear CI observation")
+        source["ci"] = bind_checks(repository, selected_actions, pr, source.get("merge_ref_sha", receipt["subject"]["merge_ref_sha"]), pr["base"]["sha"] if stage == "pre-merge" else receipt["subject"]["base_sha"], token, historical=retained_ci)
+        source["ci"]["required_checks"] = source["required_checks"]
     source["reviews"] = [dict(item, kind=kind) for kind, endpoint in (("review", f"pulls/{number}/reviews"), ("comment", f"issues/{number}/comments")) for item in github_api.get_all(f"{prefix}/{endpoint}?per_page=100", token)]
     source["unresolved_threads"] = _threads(repository, int(number), token)
     if stage in {"promoted", "released"} and vercel_export is not None:
@@ -218,19 +291,29 @@ def collect_github(record: dict, receipt: dict, path: Path, root: Path, stage: s
             if succeeded_at.tzinfo is None or succeeded_at > observed_at:
                 raise ValueError("receipt predates its successful deployment status")
         source["deployment"] = {"id": deployment_id, "sha": deployment["sha"], "environment": deployment["environment"], "state": latest.get("state")}
+    current_identity = _pull_identity(repository, int(number), token)
+    identity_keys = ("headRefOid", "headRefName", "merged", "mergeCommit") if archive_history else tuple(identity)
+    if any(current_identity.get(key) != identity.get(key) for key in identity_keys):
+        raise ValueError("GitHub GraphQL PR identity changed during evidence collection")
     current = _get(f"{prefix}/pulls/{number}", token)
-    if any(current[key]["sha"] != pr[key]["sha"] for key in ("head", "base")) or current.get("merged") != pr.get("merged"):
+    if any(current[key]["sha"] != pr[key]["sha"] for key in (("head",) if archive_history else ("head", "base"))) or current.get("merged") != pr.get("merged"):
         raise ValueError("GitHub PR subject changed during evidence collection")
     return source
 
 
-def check_record_receipt(path: Path, root: Path, comment: dict, comment_id: str, stage: str, vercel_export: dict | None = None, vercel_expected: dict | None = None, *, archive_history: bool = False) -> list[str]:
+def check_record_receipt(path: Path, root: Path, comment: dict, comment_id: str, stage: str, vercel_export: dict | None = None, vercel_expected: dict | None = None, *, archive_history: bool = False, ci_observation_out: Path | None = None) -> list[str]:
     errors = record_violations(path, root)
     if errors:
         return errors
     record = fields(path)
     receipt = parse_comment(comment, comment_id, record)
-    return validate(receipt, record, collect_github(record, receipt, path, root, stage, vercel_export, vercel_expected, archive_history=archive_history), stage)
+    source = collect_github(record, receipt, path, root, stage, vercel_export, vercel_expected, archive_history=archive_history)
+    errors = validate(receipt, record, source, stage)
+    if not errors and ci_observation_out is not None:
+        if "ci" not in source:
+            return ["no Actions CI observation was produced"]
+        ci_observation_out.write_text(json.dumps(source["ci"], indent=2) + "\n")
+    return errors
 
 
 def main() -> int:
@@ -240,6 +323,7 @@ def main() -> int:
     parser.add_argument("--comment-file", type=Path, required=True, help="raw comment freshly retrieved by authenticated Linear connector, including issue identity")
     parser.add_argument("--comment", required=True, help="expected Linear comment UUID")
     parser.add_argument("--stage", choices=STAGES, required=True)
+    parser.add_argument("--ci-observation-out", type=Path, help="save verified Actions CI observation for the final Linear receipt")
     parser.add_argument("--archive-history", action="store_true", help="verify a prior final receipt for archive; does not assert current alias routing")
     parser.add_argument("--deployment-file", type=Path, help="fresh authenticated Vercel {deployment,alias} API exports")
     parser.add_argument("--vercel-project")
@@ -250,7 +334,7 @@ def main() -> int:
     try:
         vercel_export = json.loads(args.deployment_file.read_text()) if args.deployment_file else None
         vercel_expected = {"project_id": args.vercel_project, "team_id": args.vercel_team, "alias": args.vercel_alias, "environment_id": args.vercel_environment}
-        errors = check_record_receipt(args.record, args.root, json.loads(args.comment_file.read_text()), args.comment, args.stage, vercel_export, vercel_expected, archive_history=args.archive_history)
+        errors = check_record_receipt(args.record, args.root, json.loads(args.comment_file.read_text()), args.comment, args.stage, vercel_export, vercel_expected, archive_history=args.archive_history, ci_observation_out=args.ci_observation_out)
     except (OSError, ValueError, KeyError, TypeError, AttributeError, RuntimeError, subprocess.CalledProcessError) as error:
         errors = [f"delivery evidence unavailable or invalid: {error}"]
     result = "Historical delivery verified; current alias routing is not asserted." if args.archive_history else "Current delivery evidence verified."
