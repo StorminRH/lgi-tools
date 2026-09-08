@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools._lib.repository import ROOT
 from tools.lifecycle.verify_archive import collect_findings
@@ -127,6 +129,33 @@ class VerifyArchiveTests(unittest.TestCase):
     def test_faithful_post_copy_is_green(self) -> None:
         self.fixture.copy_bundle()
         self.assertEqual([], self.fixture.messages("post"))
+
+    def test_both_archive_phases_enforce_historical_review_authorization(self) -> None:
+        from tools.delivery.records import fields
+        from tools.tests import test_delivery_receipts as receipts
+        from tools.tests.test_delivery_records import candidate
+
+        record = candidate(self.fixture.root)
+        subject = receipts.ReceiptTests()
+        subject.setUp()
+        receipt, source = subject.receipt, subject.source
+        receipt.update(delivery_id=fields(record)["Delivery ID"], stage="promoted", merge_sha="d" * 40,
+                       deployment={"id": 200, "sha": "d" * 40, "environment": "staging", "state": "success"})
+        source["pr"].update(merged=True, merge_commit_sha="d" * 40)
+        source.update(merge={"sha": "d" * 40, "parents": [{"sha": receipts.BASE}]}, merge_ref_valid=True, deployment=receipt["deployment"])
+        comment = {"id": "archive-comment", "issue": {"identifier": "LGI-119"}, "body": "```lgi-delivery-receipt\n" + json.dumps(receipt) + "\n```"}
+        self.fixture.write(f"receipts/{receipt['delivery_id']}.json", json.dumps({"comment_id": comment["id"], "comment": comment, "stage": "promoted"}))
+        self.fixture.copy_bundle()
+        for phase in ("pre", "post"):
+            args = argparse.Namespace(phase=phase, archive_root=self.fixture.archive_root, receipt_dir=self.fixture.root / "receipts")
+            for author_id, expected in ((101, False), (999, True)):
+                source["reviews"][0]["user"]["id"] = author_id
+                with self.subTest(phase=phase, author_id=author_id), patch("tools.delivery.receipts.collect_github", return_value=source) as collect:
+                    findings = collect_findings(self.fixture.root, args)
+                    self.assertEqual(expected, bool(findings))
+                    if expected:
+                        self.assertTrue(all("unauthorized" in finding.render() for finding in findings))
+                    self.assertTrue(collect.call_args.kwargs["archive_history"])
 
     def test_check_mode_blocks_seeded_missing_copy(self) -> None:
         result = subprocess.run(

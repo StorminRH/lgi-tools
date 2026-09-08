@@ -38,7 +38,11 @@ It checks artifact readiness without contacting Linear or GitHub. Delivery-time
 validation also compares the exact record bytes with the frozen GitHub head.
 The session filename, contract and plan identify the same session; digests bind
 exact bytes. Criteria list every plan SC-N once in order. Record the selected
-review roles before freeze, including all roles required by the review policy.
+review roles before freeze, including every destination role required by the
+[review authorization policy](review-policy.md). Each selected role must be
+declared in that policy. Delivery validates these requirements against policy
+collected from GitHub at the authoritative base commit. Local record parsing
+checks role syntax and uniqueness without contacting GitHub.
 
 Ordinary records use `Scope: ordinary` and `None.` for Contract, Plan, both
 digests and Criteria. One coherent ordinary record can cover several issues.

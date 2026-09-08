@@ -11,7 +11,7 @@ import re
 import subprocess
 from urllib.parse import quote
 
-from tools.delivery import github_api
+from tools.delivery import github_api, review_policy
 from tools.delivery.records import fields, values, violations as record_violations
 
 STAGES = {"pre-merge": 0, "merged": 1, "promoted": 2, "released": 2}
@@ -101,6 +101,7 @@ def validate(receipt: dict, record: dict, source: dict, stage: str) -> list[str]
             if check.get("status") != "completed" or check.get("conclusion") != "success" or check.get("head_sha") not in {subject.get("head_sha"), subject.get("merge_ref_sha")}:
                 errors.append(f"{criterion} references missing, failed, or stale evidence")
     reviews = receipt.get("reviews", [])
+    errors.extend(review_policy.violations(receipt, record, source))
     if sorted(item.get("role", "") for item in reviews) != sorted(values(record["Review roles"])):
         errors.append("receipt must cover every required review role exactly once")
     for review in reviews:
@@ -110,6 +111,10 @@ def validate(receipt: dict, record: dict, source: dict, stage: str) -> list[str]
             errors.append("review lacks identity, verdict, or disposition")
         if any(str(value) not in body for value in (review.get("role", ""), subject.get("head_sha", ""), review.get("disposition", ""), review.get("verdict", ""))):
             errors.append("review source does not bind role, exact SHA, successful verdict, and disposition")
+        for key in ("requested", "observed"):
+            attestation = [line[len(key) + 1:] for line in body.splitlines() if line.startswith(f"{key}=")]
+            if not isinstance(review.get(key), str) or not review[key].strip() or attestation != [review[key]]:
+                errors.append(f"review source does not bind {key} runtime attestation")
         if review.get("kind") == "review" and (evidence.get("commit_id") != subject.get("head_sha") or evidence.get("state") not in {"APPROVED", "COMMENTED"}):
             errors.append("GitHub review is dismissed, stale, or requests changes")
     if source.get("unresolved_threads", True):
@@ -231,6 +236,10 @@ def collect_github(record: dict, receipt: dict, path: Path, root: Path, stage: s
         source["merge"] = _get(f"{prefix}/commits/{pr['merge_commit_sha']}", token)
         ci_commit = _get(f"{prefix}/commits/{receipt['subject']['merge_ref_sha']}", token)
         source["merge_ref_valid"] = [item["sha"] for item in ci_commit.get("parents", [])] == [receipt["subject"]["base_sha"], pr["head"]["sha"]]
+    if stage != "pre-merge" and not source["merge"].get("parents"):
+        raise ValueError("merge parent is unavailable for review policy authorization")
+    policy_base = pr["base"]["sha"] if stage == "pre-merge" else source["merge"]["parents"][0]["sha"]
+    source["review_policy"] = review_policy.collect(pr, policy_base, token)
     retained_ci = receipt.get("ci_observation") if archive_history else None
     if retained_ci is not None:
         from tools.delivery.actions_subject import retained_checks

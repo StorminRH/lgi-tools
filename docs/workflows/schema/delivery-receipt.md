@@ -33,6 +33,7 @@ identity; never infer it from the receipt's assertions.
     "SC-1": {"status": "PASS", "checks": [123456], "observable": "Specific result covering all atomic proof rows"}
   },
   "local": {"status": "PASS", "head_sha": "<full SHA>", "applicability": "Cumulative unverified delta and reuse limits", "evidence": "Reachable proof locator"},
+  "review_policy": {"path": "tools/delivery/review-policy.json", "commit_sha": "<base SHA>", "blob_sha": "<GitHub policy blob SHA>"},
   "reviews": [
     {"role": "behavior-reviewer", "kind": "comment", "id": 456789, "requested": "configured role/model", "observed": "Not observable", "verdict": "PASS", "disposition": "Accepted findings fixed; rejected finding rationale"}
   ]
@@ -47,16 +48,33 @@ infer those facts from prose. Local states are `PASS` or `NOT REQUIRED` with an
 applicability explanation; `BLOCKED` and `NOT RUN` cannot finalize. Final review
 sources must contain their role, full head SHA, successful verdict (`PASS` or
 `CLEAN`) and the recorded disposition.
-A `review` source also binds GitHub's review commit; `comment` supports internal
-review seats posting evidence on the real PR. Preserve requested versus observed
-runtime identity. Resolve all review threads with recorded dispositions.
+A `review` source also binds GitHub's review commit; `comment` supports an
+authorized operator posting native-agent evidence on the real PR. Each source
+must contain exactly one `requested=<value>` line and one `observed=<value>` line
+matching the receipt. Preserve the requested role/model/pin separately from
+observed runtime identity; use `Not observable` when unavailable. For example:
+
+```text
+behavior-reviewer <full head SHA> PASS; No accepted findings remain
+requested=gpt-5.6-sol / high
+observed=Not observable
+```
+
+The [required review authorization policy](review-policy.md) binds each role to
+GitHub's returned author ID and account type. Every format-2 receipt must retain
+the exact `review_policy` locator independently collected from the PR base, or
+the actual merge first parent after merge. The policy defines minimum required
+roles for the destination; the candidate cannot omit them. Policy configuration
+and activation are prerequisites, not evidence supplied by the receipt. Resolve
+all review threads with recorded dispositions.
 
 ```sh
 python3 tools/cli.py delivery check-receipt --record PATH --comment-file PATH --comment UUID --stage pre-merge
 ```
 
 This command independently retrieves GitHub PR identity, frozen candidate bytes,
-current base/merge-ref, ruleset and classic required checks, review evidence and
+current base/merge-ref, ruleset and classic required checks, immutable review
+policy and review author identities, review evidence and
 all review threads. Missing access, stale subjects and pending/failed required
 checks block. Current base/head and potential merge identity come from one
 GraphQL PR response, including the exact two merge parents; REST's cached merge
@@ -135,7 +153,13 @@ The field contracts follow Vercel's official
 and [alias API](https://vercel.com/docs/rest-api/aliases/get-an-alias).
 
 Archive uses historical delivery, because later promotions replace the current
-alias. For Actions, the authenticated final Linear receipt's original
+alias. Review authorization uses the policy fetched from GitHub at the actual
+merge first parent and the final receipt's matching policy locator. Current
+membership or a newer branch policy cannot change historical role authority.
+Missing historical policy blocks archive. GitHub review bodies remain editable;
+the original authenticated Linear receipt and matching source fields are still
+required, and this check does not establish the time of a review-body edit.
+For Actions, the authenticated final Linear receipt's original
 `ci_observation` survives artifact expiry. Archive verifies the original successful
 run attempt, suite and selected checks through GitHub, the retained exact runtime
 subject, and immutable Git merge parents. It uses the original required-check
