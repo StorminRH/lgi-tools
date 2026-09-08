@@ -23,7 +23,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   outputDir: 'docs/ux-check/captures/playwright',
-  reporter: [['./e2e/reporter.mjs']],
+  reporter: [['./e2e/reporter.cjs']],
   metadata: { lane, deployment: process.env.E2E_DEPLOYMENT_ID ?? 'local' },
   projects: [{
     name: lane,

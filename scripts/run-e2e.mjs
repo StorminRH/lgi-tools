@@ -2,11 +2,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolveLane } from '../e2e/lane-policy.mjs';
-import { remoteSkipSeedError } from './run-e2e-guard.mjs';
+import { isLocalBaseUrl, remoteSkipSeedError } from './run-e2e-guard.mjs';
 
 const argv = process.argv.slice(2).filter((arg) => arg !== '--');
 try {
-  const { baseURL } = resolveLane({ argv });
+  const { baseURL, local } = resolveLane({ argv });
+  if (local !== isLocalBaseUrl(baseURL)) {
+    throw new Error('BLOCKED prerequisite: lane locality does not match the target URL');
+  }
   const error = remoteSkipSeedError({
     baseUrl: baseURL,
     skipSeed: process.env.E2E_SKIP_SEED === '1',

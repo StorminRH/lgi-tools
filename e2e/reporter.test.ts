@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import AcceptanceReporter from './reporter.mjs';
+import AcceptanceReporter from './reporter.cjs';
 
 const testCase = {
   id: 'case-1', title: '[atlas-access] desktop', expectedStatus: 'passed',

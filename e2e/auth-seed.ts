@@ -6,7 +6,7 @@ import { account, characters, jwks, session, user, verification } from '@/db/aut
 import { db } from '@/db';
 import { readEnv } from '@/lib/env';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
-import { requireLocalAuthEnvironment } from './fixture-data-local.mjs';
+import { requireLocalAuthEnvironment } from './fixture-data-local.cjs';
 import type { FixtureIdentity } from './identity';
 
 export type PlaywrightStorageState = {

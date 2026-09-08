@@ -9,7 +9,7 @@ export default defineConfig({
   workers: 1,
   timeout: 30_000,
   outputDir: '../docs/ux-check/captures/playwright',
-  reporter: [['./reporter.mjs']],
+  reporter: [['./reporter.cjs']],
   metadata: { lane: 'mandatory-production', deployment: 'deliberate-failure-proof' },
   projects: [{
     name: 'mandatory-production',

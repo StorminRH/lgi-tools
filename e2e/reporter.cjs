@@ -1,15 +1,19 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { persistSanitizedFailureAttachment } from './sanitized-failure.mjs';
-const { probeRegistry, journeys } = JSON.parse(readFileSync(new URL('./probe-registry.json', import.meta.url), 'utf8'));
+/* eslint-disable @typescript-eslint/no-require-imports -- Playwright 1.62 loads reporters with require(); this file is native CommonJS. */
+const { execFileSync } = require('node:child_process');
+const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const path = require('node:path');
+const { persistSanitizedFailureAttachment } = require('./sanitized-failure.cjs');
+
+const { probeRegistry, journeys } = JSON.parse(
+  readFileSync(path.join(__dirname, 'probe-registry.json'), 'utf8'),
+);
 
 const mandatory = ['home-public', 'atlas-guest', 'route-home', 'route-industry', 'route-atlas',
   'route-skills', 'route-jobs', 'route-structures'];
 const reportPath = 'docs/ux-check/captures/e2e-report.json';
 const safeLabel = (value) => /^[\w .:@/-]{1,150}$/.test(value ?? '') ? value : '[redacted]';
 
-export default class AcceptanceReporter {
+class AcceptanceReporter {
   selected = [];
   attempts = [];
   errors = 0;
@@ -23,7 +27,7 @@ export default class AcceptanceReporter {
     this.selected = suite.allTests().map((test) => ({
       id: this.scenario(test), testId: test.id, project: test.parent.project()?.name,
     }));
-    console.log(`Selected ${this.selected.length} acceptance cases (${config.metadata.lane}).`);
+    console.log(`Selected ${this.selected.length} acceptance cases (${config.metadata?.lane}).`);
   }
 
   scenario(test) {
@@ -76,8 +80,8 @@ export default class AcceptanceReporter {
       mkdirSync(path.dirname(this.outputFile), { recursive: true });
       writeFileSync(this.outputFile, `${JSON.stringify({
         status: clean ? 'READY_FOR_REVIEW' : 'BLOCKED', visualAcceptance: 'pending-operator',
-        revision, dirty, deployment: safeLabel(this.config?.metadata.deployment),
-        lane: this.config?.metadata.lane, time: result.startTime.toISOString(),
+        revision, dirty, deployment: safeLabel(this.config?.metadata?.deployment),
+        lane: this.config?.metadata?.lane, time: result.startTime.toISOString(),
         durationMs: result.duration, selected: this.selected, skipped, blocked,
         attempts: this.attempts, discoveryErrors: this.errors, coverage: probeRegistry,
         artifactPolicy: 'sanitized failure diagnostics only; no auth, cookies, raw console, DOM or network bodies',
@@ -90,3 +94,5 @@ export default class AcceptanceReporter {
     return clean ? undefined : { status: 'failed' };
   }
 }
+
+module.exports = AcceptanceReporter;

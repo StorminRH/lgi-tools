@@ -1,9 +1,9 @@
 import { test as base, expect, devices, chromium, firefox, webkit, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from '@playwright/test';
-import { installOriginScopedBypass } from '../scripts/ux-remote-auth.mjs';
-import { isLocalBaseUrl } from '../scripts/run-e2e-guard.mjs';
-import { createDiagnostics, requireBackend } from './diagnostics.mjs';
-import { persistSanitizedFailure, sanitizedFailurePayload } from './sanitized-failure.mjs';
-import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.mjs';
+import { installOriginScopedBypass } from '../scripts/ux-remote-auth.cjs';
+import { isLocalBaseUrl } from '../scripts/run-e2e-guard.cjs';
+import { createDiagnostics, requireBackend } from './diagnostics.cjs';
+import { persistSanitizedFailure, sanitizedFailurePayload } from './sanitized-failure.cjs';
+import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.cjs';
 import { createRunFixtures } from './fixture-data';
 
 type OwnedData = Awaited<ReturnType<typeof createRunFixtures>>;

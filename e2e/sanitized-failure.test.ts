@@ -6,7 +6,7 @@ import {
   persistSanitizedFailure,
   persistSanitizedFailureAttachment,
   sanitizedFailurePayload,
-} from './sanitized-failure.mjs';
+} from './sanitized-failure.cjs';
 
 const directories: string[] = [];
 
