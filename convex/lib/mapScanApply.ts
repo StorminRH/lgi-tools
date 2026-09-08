@@ -21,6 +21,7 @@ import {
 import { claimStaticOrKeepId } from './mapStaticClaim';
 import {
   applyKnownSignatureTombstone,
+  findMapSignature,
   touchKnownSignatureActivity,
 } from './mapSignatures';
 import {
@@ -576,10 +577,10 @@ export async function identifyScannedSignature(
   if (normalizedId === undefined) {
     throw new ConvexError({ code: 'INVALID_SIGNATURE_ID' });
   }
-  const state = await readScanState(ctx, mapId, systemId);
-  const signature = rowMaps(state.signatures).get(normalizedId);
-  if (signature === undefined || isTombstoned(signature)) {
-    if (group === 'Wormhole') {
+  if (group === 'Wormhole') {
+    const state = await readScanState(ctx, mapId, systemId);
+    const signature = rowMaps(state.signatures).get(normalizedId);
+    if (signature === undefined || isTombstoned(signature)) {
       const existing = findLocalSignatureConnection(
         state.connections,
         systemId,
@@ -593,14 +594,12 @@ export async function identifyScannedSignature(
         );
         return { changed: false, connectionId: claimedId ?? existing._id };
       }
+      throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
     }
-    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
-  }
-  const currentGroup = signature.group ?? null;
-  if (currentGroup !== null && currentGroup !== group) {
-    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
-  }
-  if (group === 'Wormhole') {
+    const currentGroup = signature.group ?? null;
+    if (currentGroup !== null && currentGroup !== group) {
+      throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
+    }
     return identifyWormholeRow(
       ctx,
       state,
@@ -609,6 +608,18 @@ export async function identifyScannedSignature(
       systemId,
       wormholeTypeCode,
     );
+  }
+  const signature = await findMapSignature(ctx, {
+    mapId,
+    systemId,
+    signatureId: normalizedId,
+  });
+  if (signature === null || isTombstoned(signature)) {
+    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
+  }
+  const currentGroup = signature.group ?? null;
+  if (currentGroup !== null && currentGroup !== group) {
+    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
   }
   if (currentGroup === group) return { changed: false, connectionId: null };
   await ctx.db.patch(signature._id, { group });
