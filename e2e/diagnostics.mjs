@@ -50,13 +50,19 @@ export function createDiagnostics({ baseURL, lane, scenario, backendURL }) {
       record({ kind: 'http', url: safeURL(url), method, status,
         disposition: allowed ? 'expected' : firstParty(url) ? 'unexpected' : 'third-party' });
     },
-    recordRequestFailure({ url, method }) {
+    /** @param {{ url: string, method: string, error?: string }} failure */
+    recordRequestFailure({ url, method, error }) {
+      if (typeof error === 'string' && /ERR_ABORTED|NS_BINDING_ABORTED/.test(error)) return;
       record({ kind: 'request-failed', url: safeURL(url), method,
         disposition: firstParty(url) ? 'unexpected' : 'third-party' });
     },
     recordPageError() { record({ kind: 'page-error', disposition: 'unexpected' }); },
     recordConsoleError() { record({ kind: 'console-error', disposition: 'unexpected' }); },
-    recordCsp() { record({ kind: 'csp', disposition: 'unexpected' }); },
+    /** @param {string} [directive] */
+    recordCsp(directive) {
+      const safe = typeof directive === 'string' && /^[\w-]+$/.test(directive) ? directive : undefined;
+      record({ kind: 'csp', disposition: 'unexpected', ...(safe ? { directive: safe } : {}) });
+    },
     recordReadOnlyViolation() { record({ kind: 'read-only-write-prevented', disposition: 'unexpected' }); },
     assertClean() {
       if (failures) throw new Error(`DIAGNOSTICS: ${scenario} (${lane}) has ${failures} unexpected error(s)`);

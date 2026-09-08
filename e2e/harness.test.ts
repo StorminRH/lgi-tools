@@ -66,6 +66,29 @@ describe('acceptance selection and evidence boundaries', () => {
     expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
   });
 
+  it('ignores aborted first-party navigation and prefetch cancellations', () => {
+    const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
+    observed.recordRequestFailure({
+      url: 'http://localhost:3000/industry', method: 'GET', error: 'net::ERR_ABORTED',
+    });
+    observed.recordRequestFailure({
+      url: 'http://localhost:3000/sites', method: 'GET', error: 'NS_BINDING_ABORTED',
+    });
+    expect(observed.events).toEqual([]);
+    expect(() => observed.assertClean()).not.toThrow();
+  });
+
+  it('still fails a first-party request that did not complete', () => {
+    const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
+    observed.recordRequestFailure({
+      url: 'http://localhost:3000/atlas', method: 'GET', error: 'net::ERR_CONNECTION_REFUSED',
+    });
+    expect(observed.events).toEqual([
+      { kind: 'request-failed', url: 'http://localhost:3000/atlas', method: 'GET', disposition: 'unexpected' },
+    ]);
+    expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
+  });
+
   it('bounds evidence without losing failures after the buffer is full', () => {
     const observed = createDiagnostics({ baseURL: 'https://preview.example', lane: 'deployed-readonly', scenario: 'home' });
     for (let i = 0; i < 120; i += 1) {

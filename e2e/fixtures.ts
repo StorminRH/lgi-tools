@@ -4,7 +4,7 @@ import { isLocalBaseUrl } from '../scripts/run-e2e-guard.mjs';
 import { createDiagnostics, requireBackend } from './diagnostics.mjs';
 import { persistSanitizedFailure, sanitizedFailurePayload } from './sanitized-failure.mjs';
 import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.mjs';
-import type { createRunFixtures } from './fixture-data';
+import { createRunFixtures } from './fixture-data';
 
 type OwnedData = Awaited<ReturnType<typeof createRunFixtures>>;
 type Role = 'owner' | 'editor' | 'viewer' | 'unauthorized';
@@ -45,7 +45,9 @@ function watch(context: BrowserContext, diagnostics: Diagnostics) {
     page.on('response', (response) => diagnostics.recordHttp({
       url: response.url(), method: response.request().method(), status: response.status(),
     }));
-    page.on('requestfailed', (request) => diagnostics.recordRequestFailure({ url: request.url(), method: request.method() }));
+    page.on('requestfailed', (request) => diagnostics.recordRequestFailure({
+      url: request.url(), method: request.method(), error: request.failure()?.errorText,
+    }));
     page.on('pageerror', () => diagnostics.recordPageError());
     page.on('console', (message) => {
       // HTTP response/request events own browser-generated resource errors.
@@ -81,11 +83,13 @@ async function prepare(context: BrowserContext, baseURL: string, diagnostics: Di
       });
     });
   }
-  await context.exposeBinding('__lgiAcceptanceCsp', () => diagnostics.recordCsp());
+  await context.exposeBinding('__lgiAcceptanceCsp', (_source, directive) => {
+    diagnostics.recordCsp(typeof directive === 'string' ? directive : undefined);
+  });
   await context.addInitScript(() => {
-    document.addEventListener('securitypolicyviolation', () => {
+    document.addEventListener('securitypolicyviolation', (event) => {
       const handler: unknown = Reflect.get(window, '__lgiAcceptanceCsp');
-      if (typeof handler === 'function') handler();
+      if (typeof handler === 'function') handler(event.violatedDirective);
     });
   });
 }
@@ -128,7 +132,6 @@ export const test = base.extend<Fixtures>({
     if (!probeAuthenticated || !isLocalBaseUrl(baseURL)) { await provide(null); return; }
     const maps = ['local-mutation', 'benchmark'].includes(info.project.name) && /\[atlas-|\[fog-|\[layout-/.test(info.title);
     requireBackend({ required: maps, url: process.env.NEXT_PUBLIC_CONVEX_URL, deployment: process.env.CONVEX_DEPLOYMENT });
-    const { createRunFixtures } = await import('./fixture-data');
     const data = await createRunFixtures({ baseURL: baseURL ?? 'http://localhost:3000', maps });
     const restore = data.installProbeEnvironment();
     info.annotations.push({ type: 'fixture', description: data.runId });
