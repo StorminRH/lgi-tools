@@ -119,10 +119,10 @@ audit and code-health baseline tracking are retired.
 
 Each Ordered work step already landed on `development`. Close-out does not
 open a land PR. Record when the plan marker may become `Complete`, and that
-promote starts at 80 app-facing files versus `staging` (shown as n/100).
+promote starts at 80 app-facing files versus `staging`.
 The resolver then sends Start Session to close-out. An operator-requested
 early promotion for staging testing follows the same process below 80 files;
-the staging mirror cap remains 100. Close-out consumes completed operator
+there is no hard file cap. Close-out consumes completed operator
 looks; a test explicitly requested on staging remains pending until after
 promotion and actual operator disposition.
 
@@ -131,6 +131,7 @@ archive requires no remaining execution and completed plans plus final records
 verified on `origin/staging`; cancelled or deferred rows need no execution.
 Pending delivery requires close-out regardless of count or documentation-only
 scope; unavailable evidence blocks until fetched and verified. Versions
-through 4.0 retain their historical archive rules. Promote and
-release open an Origin draft, comments, GitHub mirror on promote, freeze,
-review with `origin pr diff`, batch, then one Depot `dispatch`.
+through 4.0 retain their historical archive rules. Promote and release use
+the active [delivery procedure](../delivery.md): one GitHub PR, a frozen
+review subject, a settled correction batch, current CI for the tested
+base/head pair, and an authenticated Linear receipt before merge.

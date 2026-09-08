@@ -1,30 +1,18 @@
 ---
 name: principle-encode-lessons-in-structure
 description: "Apply when you catch yourself writing the same instruction a second time, or notice a recurring correction. Encode the rule as a lint, metadata flag, runtime check, or script instead of more text."
+disable-model-invocation: true
 ---
 
-# Encode Lessons in Structure
+# Encode recurring lessons
 
-Encode recurring fixes in mechanisms (tools, code, metadata, automation) instead of textual instructions. Every error, human correction, and unexpected outcome is a learning signal. Capture it, route it, and close the loop.
+For a recurring, consequential failure, first look for an existing owner
+or mechanism that can prevent it. Prefer the smallest reliable improvement
+whose maintenance cost is justified by the demonstrated risk. A type,
+validator, shared helper or focused test can be appropriate; every correction
+does not require a new rule or framework.
 
-**Why:** Textual instructions are easy to miss. They require the reader to notice, remember, and comply. Structural mechanisms (lint rules, metadata flags, runtime checks, automation scripts) enforce the rule without cooperation.
-
-**Pattern:**
-When you catch yourself writing the same instruction a second time:
-1. Ask: can this be a lint rule, a metadata flag, a runtime check, or a script?
-2. If yes, encode it. Delete the instruction
-3. If no (genuinely requires judgment), make the instruction more prominent and add an example of the failure mode
-
-**Pick the strongest rung.** When more than one mechanism would work, choose the strongest the situation allows (an unrepresentable state that cannot compile, then a lint or banned API that fails CI, then a canonical helper, then a runtime check), because agents copy whatever the surrounding code already does and a weaker guard becomes the next template.
-
-**Corollary:** Don't paper over symptoms. If the fix is structural, ONLY use the structural fix. The instruction IS the symptom.
-
-**Feedback loop:**
-- **Capture every correction.** When the human intervenes or tests fail, decide if it's a one-off or a pattern.
-- **Route to the right layer.** One-off -> current task notes. Recurring fix -> proposed skill or lint rule. Systemic issue -> proposed principle. Persist memory only when the user explicitly requests it; implement other changes within the authorized task scope.
-- **Close the loop.** Don't just record. Apply now or create a concrete todo.
-
-**Anti-patterns:**
-- Acknowledging without recording ("I'll keep that in mind" does not persist)
-- Recording without routing (a task note about a lint rule that should exist is wasted unless the lint rule gets implemented)
-- Fixing without generalizing (fixing one instance while leaving the recurring pattern intact)
+Keep one-off observations in the current task's durable handoff. Preserve
+judgment calls as concise guidance with a concrete trigger. Implement only
+within authorized scope; record a bounded follow-up for wider changes.
+Update personal memory only when explicitly requested.

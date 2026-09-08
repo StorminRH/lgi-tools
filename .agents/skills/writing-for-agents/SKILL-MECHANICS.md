@@ -1,46 +1,29 @@
 # Skill mechanics
 
-Read [writing-for-agents](SKILL.md) for instruction design. This reference
-covers repository packaging, invocation, and routing.
+Canonical skill bodies and supporting resources live under `.agents/skills`.
+Each skill has YAML `name` and `description`. Explicit-only skills carry both
+Cursor `disable-model-invocation: true` frontmatter and Codex
+`policy.allow_implicit_invocation: false` in `agents/openai.yaml`: distinct
+native controls expressing the same invocation policy. Preserve all 24
+capabilities and 14 explicit-only policies unless explicitly changed.
 
-## Harness packaging
+Temporary `.cursor/skills` entrypoints contain native metadata and a pointer
+to the canonical body. They remain until actual Cursor local/Cloud discovery
+proves direct shared loading, explicit-only behavior and unambiguous names.
+Their presence is an unresolved duplicate-discovery acceptance item, not
+proof consolidation is complete. Remove them only after recorded runtime
+acceptance. Supporting references resolve from the canonical body.
 
-Keep workflow rules aligned across the two repository skill trees. Select
-invocation syntax and model pins for the running harness:
+Shared procedures use [agent calls](../_shared/agent-calls.md) for native
+launch differences. Native role TOML has no prompt-include facility; adapters
+must explicitly read shared Markdown after resolving the repository root.
+Check actual read/discovery traces and effective pin/permissions in fresh
+clients. Static metadata and self-reported identity are insufficient.
 
-| Harness | Skill tree | Explicit invocation | Explicit-only policy |
-| --- | --- | --- | --- |
-| Cursor | `.cursor/skills/<name>/SKILL.md` | `/skill-name` | `disable-model-invocation: true` in frontmatter |
-| Codex | `.agents/skills/<name>/SKILL.md` | `$skill-name` | `policy.allow_implicit_invocation: false` in `agents/openai.yaml` |
+Use concise descriptions naming the selection trigger, not the whole
+procedure. A supporting file read grants no additional execution or posting
+authority. Add a router only when distinct branches need separate procedures.
 
-Every skill has a `name` and `description` in YAML frontmatter. Preserve an
-existing invocation policy when editing or adapting it. New skills allow
-implicit invocation unless the user requests explicit-only discovery.
-
-Cursor also discovers `.agents/skills`. Follow the harness routing in root
-`AGENTS.md` when both copies are present; directory discovery alone does not
-select the correct tool syntax or model. Keep paired workflow changes in sync,
-including relative references, while retaining each harness's metadata.
-
-## Routing
-
-A description provides the trigger for automatic selection. Explicit-only
-policy limits automatic selection; it does not make supporting files
-unreadable. When an authorized workflow needs another procedure, link its
-file and state when to read and follow it. A file read grants no additional
-permission to execute that procedure or publish its results.
-
-A router selects the applicable file and keeps the steps in their owning
-skill. Split a skill when the new part has a useful independent trigger or
-workflow. Keep common reference behind a relative file link when it needs no
-independent invocation.
-
-## Verification
-
-Check frontmatter, invocation metadata, concrete reference paths, and each
-harness's exposed agent roles. Exercise changed routing with a bounded brief
-that records the selected procedure and stopping point. Keep audits and smoke
-tests separate from the delivery actions described by the files.
-
-Discovery reference: [Cursor skills](https://cursor.com/docs/skills).
-Use the active host's tool schema for agent calls.
+References: [Cursor skills](https://cursor.com/docs/skills),
+[Codex skills](https://learn.chatgpt.com/docs/build-skills),
+[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).

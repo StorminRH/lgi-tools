@@ -5,7 +5,7 @@ description: Group a master version into a few feature-sized session contracts. 
 
 # Plan a version
 
-For agent launches, follow [Codex agent calls](../_shared/codex-agents.md).
+For agent launches, follow [agent calls](../_shared/agent-calls.md).
 
 Group one master version into a few major features. Each feature is one
 session contract. `plan-session` later turns that contract into many Ordered

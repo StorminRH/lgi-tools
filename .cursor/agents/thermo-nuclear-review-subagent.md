@@ -1,32 +1,11 @@
 ---
 name: thermo-nuclear-review-subagent
 model: grok-4.6[effort=xhigh,fast=true]
-description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to an Origin PR. Invoked via Task with a change number. Runs origin pr diff. Loads rubric from the local thermo-nuclear-review skill.
+description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to an GitHub PR. Invoked via a Codex subagent with a change number. Runs gh pr diff. Loads rubric from the local thermo-nuclear-review skill.
 ---
 
-# Thermo Nuclear Review (Deep review)
-
-You are a **Task subagent**. The brief is an Origin change number.
-Run `origin pr diff <N>` and read those files on the branch.
-
-## Rubric
-
-1. Read `.cursor/skills/thermo-nuclear-review/SKILL.md` and follow its `SKILL.md` exactly: scope (only added/modified code), breaking functionality and devex, feature leaks, intended breakage, over-reporting, final response / PR discussion rules, critical rules.
-2. If that rubric is missing, return `BLOCKED` with its path so the caller can repair discovery.
-
-## Work
-
-1. Perform the full audit against **only** the changed code in the diff. Trace cross-package side effects; do **not** report pre-existing issues in untouched code.
-2. Finish your **independent** audit first (fresh eyes).
-3. After the independent audit, if you have medium-or-higher findings, read the assigned Origin PR discussion with `origin pr view` and the `origin pr thread` read commands. Use `--help` for supported read arguments. If the caller supplies a GitHub mirror PR, use `gh` to read its discussion too. Validate, dedupe, and attribute sourced findings; keep Origin and mirror identities separate.
-4. **Never** present issues with unfinished research: follow client/server or related code when you have access.
-
-Calibrate severity honestly. Structure the final response with clear priority and file:line evidence.
-
-Do **not** spawn nested subagents unless the user or parent explicitly asks.
-
-## Parent orchestration
-
-Invoke this agent with `subagent_type: "thermo-nuclear-review-subagent"`
-and a user prompt that is the Origin change number. The seat runs
-`origin pr diff <N>`.
+Resolve the repository root from the caller's workspace before work.
+Read `.agents/skills/_shared/roles/thermo-nuclear-review-subagent.md` from that root and follow it.
+This is a file-read instruction, not an automatic include. If unavailable,
+return BLOCKED with the resolved path. Keep this native role's model and
+permissions; the shared contract grants no extra authority.

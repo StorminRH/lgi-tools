@@ -3,7 +3,7 @@
 ## What this source contains
 
 - Commit history (messages, dates, authors, diffs)
-- PR descriptions, review comments, and discussion threads on Origin or a verified GitHub mirror or historical PR
+- PR descriptions, review comments, and discussion threads on the actual GitHub PR or a historically identified forge record
 - Inline code comments, TODOs, FIXMEs, deprecation notes
 - ADRs (architectural decision records) if the repo keeps them
 - Tests. Names and assertions often encode the edge cases that motivated a change
@@ -44,10 +44,10 @@ For each substantive commit, pull the PR context:
 # Find the PR number from the merge commit or branch
 git log -1 --format=%B <hash>
 
-# Origin is the land forge. Identify the forge before using a PR number.
-origin pr view <origin-number>
+# GitHub owns current PRs. Identify historical forge provenance before retrieval.
+gh pr view <number> --repo StorminRH/lgi-tools
 
-# For a verified GitHub mirror or historical GitHub PR only:
+# For a historical GitHub PR:
 gh pr view <github-number> --json title,body,author,createdAt,mergedAt,labels,closingIssuesReferences,comments,reviews,files
 
 # The --json reviews and comments fields are where the real signal is

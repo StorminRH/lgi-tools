@@ -108,8 +108,8 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
-| `pnpm build` | Production build — runs in Depot before merge and Vercel on deploy; agents do not run it locally |
-| `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + fallow. Not the land or merge gate. |
+| `pnpm build` | Production build; run with the selected verification/environment prerequisites |
+| `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + Fallow. Delivery also requires current GitHub checks. |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
 | `pnpm test:watch` | Vitest in watch mode |
@@ -145,23 +145,15 @@ boundaries, commit style, testing policy, etc.).
 
 ## Contributing
 
-Contributions are welcome. Work lands on Origin `development`. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for scope,
+commit style and conduct. The prepared [delivery procedure](docs/workflows/delivery.md)
+owns GitHub PRs, review, CI and `development` → `staging` → `main` delivery;
+it becomes authoritative at coordinated cutover acceptance.
 
-1. Agree on shape for anything non-trivial before writing code.
-2. Land on `development`. Promote is `development` → `staging`. Release
-   is `staging` → `main`.
-3. Before you land, run the local test suite in CONTRIBUTING
-   (typecheck, lint, Fallow, focused tests). A promote or release waits
-   on one Depot `dispatch` after reviews.
-4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
-   plain English in the subject line, no file paths or function names.
-5. Be civil. Reviews are conversations.
-
-Depot runs typecheck, lint, the coverage suite with real Postgres, and
-Fallow when dispatched; `build` and `e2e` run on that same run. A red
-run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
-Production. A `development` Preview is manual.
+Select local proof using the [verification contract](docs/workflows/verification.md).
+Pure prose does not rerun unchanged application suites. Required GitHub
+checks and deployed-revision evidence remain distinct from local reuse.
+For local/cloud readiness, use [development environments](docs/development-environments.md).
 
 ## License
 

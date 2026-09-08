@@ -14,6 +14,10 @@ Architecture is deny-by-default Fallow (`.fallowrc.json`) plus lint. Use the
 shared `src/components/ui/` primitives instead of importing their libraries
 from feature code. Remaining source landmines live in [`src/AGENTS.md`](src/AGENTS.md).
 Testing principles: [`docs/contributing/testing-principles.md`](docs/contributing/testing-principles.md).
+For data ownership, lifecycle, projections or schema changes, follow
+[data design](docs/contributing/data-design.md). Scheduled maintenance has
+separate [data audit](docs/workflows/data-design-audit.md) and
+[test cleanup](docs/workflows/test-cleanup.md) procedures.
 
 ## Commit style
 
@@ -33,28 +37,20 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 ## Landing and review
 
-1. Land on Origin `development`. Promote is an Origin PR
-   `development` → `staging`. After that merge, fast-forward
-   `development` to `staging` so the lines match. Release is
-   `staging` → `main`. Those merges, and any other merge onto
-   `staging` or `main`, run through close-out.
-2. Before you land, run the local test suite: `pnpm typecheck`,
-   `pnpm lint`, Fallow `dead-code` (default and `--production`), `dupes`,
-   and `health`, and focused tests for your diff. A promote or release waits on one Depot `dispatch` after
-   reviews (`verify`, `build`, and `e2e`). Laptop `pnpm verify` is not
-   done.
-3. Fill in the PR template's **test plan** — what you verified and how.
-4. Open Origin PRs as drafts after a green local suite. Leave them draft
-   through reviews and fixes. Reviewers run `origin pr diff <N>`. Open
-   GitHub dump PRs ready so Greptile and CodeRabbit can post.
-5. A GitHub dump is the app-facing files from
-   `python3 tools/cli.py lifecycle count-app-facing --list`. Pass `--base`
-   and `--head` for the two lines of that PR. Defaults are
-   `origin/staging` and `origin/development`. That list is dump isolation.
-   Skills and standing docs stay off it.
-6. Freeze the draft until every review seat has returned. Then one
-   batch: triage, dedupe, fix, note on the Origin PR. Dispatch Depot
-   once that batch is green.
+Use the canonical [delivery procedure](docs/workflows/delivery.md) for the
+prepared GitHub workflow and its coordinated activation boundary. It owns
+one actual PR per change, candidate material before freeze, required reviews,
+current CI proof, Linear receipts and integration ancestry.
+
+Select and reuse local checks with the [verification contract](docs/workflows/verification.md).
+Fill the PR template's test plan with actual executed/reused evidence and
+explicitly distinguish checks that were not required or not run. Pure prose
+needs no application suite; executable guidance and tooling receive focused
+contract checks. Application scope retains the appropriate local gates.
+
+Public requests use the contact route on [LGI.tools](https://lgi.tools).
+Maintainers track accepted work and durable handoffs in Linear. GitHub Issues
+is not a parallel project backlog.
 
 ## Conduct, security & license
 
