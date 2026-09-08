@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ownedSyncDocuments, purgeConvexFixtures, removeOwnedSyncRows } from './fixture-data-convex.mjs';
+import { ownedSyncDocuments, purgeConvexFixtures, removeOwnedSyncRows } from './fixture-data-convex.cjs';
 
 describe('fixture cleanup control flow', () => {
   it('continues purging other owned resources after one deletion fails', async () => {

@@ -6,11 +6,11 @@ import { account, characters, session, user } from '@/db/auth-schema';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { reserveMapAccessProjectionRevision } from '@/data/maps/queries';
 import type { MapRole } from '@/data/maps/access-contract';
-import { installFixtureAccessControl } from '../docs/ux-check/lib/authoring-helpers.mjs';
+import { installFixtureAccessControl } from './fixture-access-control.cjs';
 import { seedFixturePrincipal } from './auth-seed';
 import { censusFixtureProjections, purgeFixtureProjections } from './fixture-data-postgres';
-import { censusConvexFixtures, localConvexCommand, localConvexRun, purgeConvexFixtures, removeOwnedSyncRows } from './fixture-data-convex.mjs';
-import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from './fixture-data-local.mjs';
+import { censusConvexFixtures, localConvexCommand, localConvexRun, purgeConvexFixtures, removeOwnedSyncRows } from './fixture-data-convex.cjs';
+import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from './fixture-data-local.cjs';
 import { createFixtureIdentity, FIXTURE_ROLES, type FixtureRole } from './identity';
 
 export type FixturePrincipal = Awaited<ReturnType<typeof seedFixturePrincipal>>;

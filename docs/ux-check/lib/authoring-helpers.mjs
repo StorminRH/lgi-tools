@@ -1,9 +1,12 @@
-import { localConvexRun } from '../../../e2e/fixture-data-convex.mjs';
-import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from '../../../e2e/fixture-data-local.mjs';
+import { localConvexRun } from '../../../e2e/fixture-data-convex.cjs';
+import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from '../../../e2e/fixture-data-local.cjs';
+import { installFixtureAccessControl, requireFixtureAccessControl } from '../../../e2e/fixture-access-control.cjs';
 import { config as loadDotenv } from 'dotenv';
 import { calmAtlasCamera } from './window-helpers.mjs';
 
 loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
+
+export { installFixtureAccessControl };
 
 export function fixtureCharacterId() {
   const value = Number(process.env.UX_CHARACTER_ID);
@@ -11,14 +14,6 @@ export function fixtureCharacterId() {
     throw new Error('E2E_PREREQUISITE: a run-owned UX_CHARACTER_ID is required');
   }
   return value;
-}
-
-let accessControl;
-
-export function installFixtureAccessControl(control) {
-  if (accessControl) throw new Error('A fixture access controller is already installed');
-  accessControl = control;
-  return () => { accessControl = undefined; };
 }
 
 export const blankMapId = () => process.env.UX_BLANK_MAP_ID ?? null;
@@ -149,13 +144,11 @@ export async function openFirstEdgeEditor(page) {
 }
 
 export async function teardownMapAccess(mapId) {
-  if (!accessControl) throw new Error('E2E_PREREQUISITE: access changes require run-owned fixtures');
-  return accessControl.revoke('editor', mapId);
+  return requireFixtureAccessControl().revoke('editor', mapId);
 }
 
 export async function restoreMapAccess(mapId) {
-  if (!accessControl) throw new Error('E2E_PREREQUISITE: access changes require run-owned fixtures');
-  return accessControl.restore('editor', mapId);
+  return requireFixtureAccessControl().restore('editor', mapId);
 }
 
 export async function convexRun(path, args) {

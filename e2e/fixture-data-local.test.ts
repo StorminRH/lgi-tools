@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from './fixture-data-local.mjs';
+import { requireLocalAuthEnvironment, requireLocalConvexEnvironment } from './fixture-data-local.cjs';
 import { createFixtureIdentity, FIXTURE_ROLES } from './identity';
 
 const localAuth = {

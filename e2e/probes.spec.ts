@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 import inventory from './probe-registry.json';
 const { journeys } = inventory;
-import { selectJourneys } from './lane-policy.mjs';
+import { selectJourneys } from './lane-policy.cjs';
 
 const requested = (process.env.E2E_SCENARIOS ?? '').split(',').map(value => value.trim()).filter(Boolean);
 const selected = selectJourneys({

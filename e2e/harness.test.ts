@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createDiagnostics, safeURL } from './diagnostics.mjs';
-import { resolveLane, selectJourneys } from './lane-policy.mjs';
+import { createDiagnostics, safeURL } from './diagnostics.cjs';
+import { resolveLane, selectJourneys } from './lane-policy.cjs';
 import inventory from './probe-registry.json';
 const { probeRegistry, journeys } = inventory;
-import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.mjs';
+import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.cjs';
 
 const local = { PLAYWRIGHT_BASE_URL: 'http://localhost:3000' };
 

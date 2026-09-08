@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDiagnostics, requireBackend } from './diagnostics.mjs';
+import { createDiagnostics, requireBackend } from './diagnostics.cjs';
 import {
   assertMapRole,
   assertMovementOutcome,
