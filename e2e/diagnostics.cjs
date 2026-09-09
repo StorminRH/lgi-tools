@@ -71,9 +71,24 @@ function createDiagnostics({ baseURL, lane, scenario, backendURL }) {
       record({ kind: 'http', url: safeURL(url), method, status,
         disposition: allowed ? 'expected' : firstParty(url) ? 'unexpected' : 'third-party' });
     },
-    /** @param {{ url: string, method: string, error?: string }} failure */
-    recordRequestFailure({ url, method, error }) {
-      if (typeof error === 'string' && /ERR_ABORTED|NS_BINDING_ABORTED/.test(error)) return;
+    /**
+     * @param {{
+     *   url: string, method: string, error?: string,
+     *   navigation?: boolean, prefetch?: boolean, resourceType?: string,
+     * }} failure
+     */
+    recordRequestFailure({ url, method, error, navigation, prefetch, resourceType }) {
+      const aborted = typeof error === 'string' && /ERR_ABORTED|NS_BINDING_ABORTED/.test(error);
+      const expectedCancellation = aborted && method === 'GET' && (
+        navigation === true || resourceType === 'document' || prefetch === true
+      );
+      if (expectedCancellation) {
+        record({
+          kind: 'request-failed', url: safeURL(url), method, disposition: 'expected',
+          cancellation: navigation === true || resourceType === 'document' ? 'navigation' : 'prefetch',
+        });
+        return;
+      }
       record({ kind: 'request-failed', url: safeURL(url), method,
         disposition: firstParty(url) ? 'unexpected' : 'third-party' });
     },

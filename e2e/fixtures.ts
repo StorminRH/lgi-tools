@@ -45,9 +45,14 @@ function watch(context: BrowserContext, diagnostics: Diagnostics) {
     page.on('response', (response) => diagnostics.recordHttp({
       url: response.url(), method: response.request().method(), status: response.status(),
     }));
-    page.on('requestfailed', (request) => diagnostics.recordRequestFailure({
-      url: request.url(), method: request.method(), error: request.failure()?.errorText,
-    }));
+    page.on('requestfailed', (request) => {
+      const headers = request.headers();
+      diagnostics.recordRequestFailure({
+        url: request.url(), method: request.method(), error: request.failure()?.errorText,
+        navigation: request.isNavigationRequest(), resourceType: request.resourceType(),
+        prefetch: headers['next-router-prefetch'] !== undefined || headers.purpose === 'prefetch',
+      });
+    });
     page.on('pageerror', () => diagnostics.recordPageError());
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
