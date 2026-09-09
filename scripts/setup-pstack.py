@@ -7,8 +7,12 @@ import re
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
+
+if sys.version_info < (3, 11):
+    sys.exit("ERROR: Python 3.11 or later is required (docs/contributing/pstack-setup.md).")
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 
