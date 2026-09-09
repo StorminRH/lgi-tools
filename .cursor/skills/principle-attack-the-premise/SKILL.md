@@ -4,9 +4,6 @@ description: "Apply when two or more fixes that share one premise have failed th
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Attack the Premise
 
 When two or more fixes that share one premise have failed the same gate, suspect the premise, not the fixes.

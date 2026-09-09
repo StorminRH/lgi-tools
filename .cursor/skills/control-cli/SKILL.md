@@ -1,11 +1,7 @@
 ---
 name: control-cli
 description: Build or adapt a local harness to drive, inspect, and profile an interactive CLI or TUI without external services. Use for CLI UX checks, startup regressions, memory leaks, hangs, prompt flows, or terminal demos.
-disable-model-invocation: true
 ---
-
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
 
 # Control CLI
 

@@ -3,9 +3,6 @@ name: principle-guard-the-context-window
 description: "Apply when context is filling up: large outputs, long files, repeated reads, fan-out planning. Route bulk to subagents; keep summaries in the main thread, not raw payloads."
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Guard the Context Window
 
 The context window is finite and non-renewable within a session. Every token should be worth its cost.

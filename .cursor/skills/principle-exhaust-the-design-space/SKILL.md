@@ -4,9 +4,6 @@ description: "Apply when facing a novel UI interaction or architectural decision
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Exhaust the Design Space
 
 When a novel interaction or architectural decision has no established precedent, explore several concrete alternatives before implementation. Building the wrong thing costs more than exploring three options.

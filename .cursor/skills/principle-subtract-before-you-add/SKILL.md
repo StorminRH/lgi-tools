@@ -4,9 +4,6 @@ description: "Apply when sequencing an addition, refactor, or rewrite. Remove de
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Subtract Before You Add
 
 When evolving a system, remove complexity first, then build.

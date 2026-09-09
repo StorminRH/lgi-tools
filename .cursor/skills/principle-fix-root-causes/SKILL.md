@@ -4,9 +4,6 @@ description: "Apply when debugging. Trace each symptom to its root cause and fix
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Fix Root Causes
 
 When debugging, do not fix symptoms. Trace every problem to its root cause and fix it there.

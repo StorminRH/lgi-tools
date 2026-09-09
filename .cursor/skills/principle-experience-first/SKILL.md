@@ -4,9 +4,6 @@ description: "Apply when product, UX, or feature-scope tradeoffs come up. Choose
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Experience First
 
 When implementation convenience conflicts with user delight, choose delight.

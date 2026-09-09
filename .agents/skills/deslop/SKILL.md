@@ -3,12 +3,9 @@ name: deslop
 description: Remove AI-generated code slop and clean up code style
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Remove AI code slop
 
-Check the caller-scoped diff against its base branch, default `development`, and remove AI-generated slop introduced in the branch.
+Check the diff against main and remove AI-generated slop introduced in the branch.
 
 ## Focus Areas
 

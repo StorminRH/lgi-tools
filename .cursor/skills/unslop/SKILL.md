@@ -4,9 +4,6 @@ description: Cut AI tells from any writing. Must always apply.
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Unslop
 
 Edit text to remove AI patterns.

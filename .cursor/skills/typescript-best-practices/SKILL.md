@@ -5,9 +5,6 @@ paths: ["**/*.ts", "**/*.tsx"]
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # TypeScript best practices
 
 Apply the **type-system-discipline** principle skill first.

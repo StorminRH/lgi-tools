@@ -4,9 +4,6 @@ description: "Apply when refactoring, evaluating diff size, or tempted to add ab
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Laziness Protocol
 
 Aim for the most result with the least code and complexity.

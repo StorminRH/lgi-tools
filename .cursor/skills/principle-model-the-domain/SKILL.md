@@ -4,9 +4,6 @@ description: "Apply when writing stateful logic, or when code branches a lot or 
 disable-model-invocation: true
 ---
 
-Before executing this skill, read [the LGI runtime configuration](../../HARNESS.md).
-
-
 # Model the Domain
 
 Encode the real domain in a data structure instead of scattering it across conditionals.
