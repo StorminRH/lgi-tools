@@ -4,7 +4,7 @@ export default {
   viewports: ['desktop'],
   requiresAuth: true,
   async run({ page, check }) {
-    const catalogue = page.locator('[data-map-catalogue]');
+    const catalogue = page.getByRole('main').locator('[data-map-catalogue]');
     await catalogue.waitFor({ state: 'visible', timeout: 60_000 });
 
     await page.locator('[data-map-catalogue-create]').click();

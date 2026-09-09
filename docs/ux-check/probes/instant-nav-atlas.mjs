@@ -34,6 +34,6 @@ export default {
     });
 
     check('landed on /atlas', new URL(page.url()).pathname === '/atlas');
-    await page.locator('[data-atlas-guest-landing]').waitFor({ state: 'visible', timeout: 30_000 });
+    await page.getByRole('main').locator('[data-atlas-guest-landing]').waitFor({ state: 'visible', timeout: 30_000 });
   },
 };

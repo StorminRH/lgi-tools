@@ -9,7 +9,7 @@ export default {
     await expect(empty.page.locator('[data-map-catalogue-empty-hint]')).toBeVisible();
     await expect(empty.page.locator('[data-map-catalogue-card]')).toHaveCount(0);
     await expect(empty.page.locator('[data-map-canvas]')).toHaveCount(0);
-    await expect(page.locator('[data-map-catalogue]')).toBeVisible();
+    await expect(page.getByRole('main').locator('[data-map-catalogue]')).toBeVisible();
     await expect(page.locator('[data-map-canvas]')).toHaveCount(0);
     const mapId = authoringMapId();
     if (!mapId) throw new Error('BLOCKED: populated catalogue fixture missing');
@@ -18,6 +18,6 @@ export default {
     await expect(page).toHaveURL(new URL(`/atlas?map=${mapId}`, baseUrl).href);
     await expect(page.locator(`[data-map-switcher-trigger][data-map-id="${mapId}"]`)).toBeVisible();
     await expect(page.locator('[data-map-canvas]')).toBeVisible();
-    await expect(page.locator('[data-map-catalogue]')).toHaveCount(0);
+    await expect(page.getByRole('main').locator('[data-map-catalogue]')).toHaveCount(0);
   },
 };
