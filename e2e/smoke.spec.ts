@@ -43,13 +43,17 @@ function homeReady(page: Page) {
   return page.getByRole('link', { name: /^Wormhole Sites Browse wormhole/ });
 }
 
+function main(page: Page) {
+  return page.getByRole('main');
+}
+
 test('[home-public] public home exposes the tool catalogue', async ({ page, baseURL }) => {
   await expectRoute({ page, baseURL, path: '/', ready: homeReady(page) });
   await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /^Industry Planner Manufacturing/ })).toBeVisible();
   await page.locator('nav[aria-label="Tools"] a[href="/atlas"]').first().click();
   await expect(page).toHaveURL(new URL('/atlas', baseURL).href);
-  await expect(page.locator('[data-atlas-guest-landing]')).toBeVisible();
+  await expect(main(page).locator('[data-atlas-guest-landing]')).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(new URL('/', baseURL).href);
   await expect(homeReady(page)).toBeVisible();
@@ -57,14 +61,15 @@ test('[home-public] public home exposes the tool catalogue', async ({ page, base
 
 test('[atlas-guest] public Atlas explains access and tracking setup', async ({ page, baseURL }) => {
   await expectRoute({
-    page, baseURL, path: '/atlas', ready: page.locator('[data-atlas-guest-landing]'),
+    page, baseURL, path: '/atlas', ready: main(page).locator('[data-atlas-guest-landing]'),
     settle: async () => {
-      await expect(page.getByRole('heading', { name: 'Atlas', exact: true })).toBeVisible();
-      await expect(page.locator('[data-atlas-guest-steps] > li')).toHaveCount(3);
-      await expect(page.locator('[data-atlas-guest-landing]').getByRole('button', {
+      const landing = main(page).locator('[data-atlas-guest-landing]');
+      await expect(main(page).getByRole('heading', { name: 'Atlas', exact: true })).toBeVisible();
+      await expect(landing.locator('[data-atlas-guest-steps] > li')).toHaveCount(3);
+      await expect(landing.getByRole('button', {
         name: /Log in with EVE Online/i,
       })).toBeVisible();
-      await expect(page.locator('[data-map-catalogue]')).toHaveCount(0);
+      await expect(main(page).locator('[data-map-catalogue]')).toHaveCount(0);
     },
   });
 });
@@ -81,9 +86,11 @@ test('[route-industry] authenticated industry dashboard resolves its sections', 
     settle: async () => {
       await expect(page.getByRole('heading', { name: 'Industry', exact: true })).toBeVisible();
       await expect(page.locator('[aria-label^="Loading "]')).toHaveCount(0);
-      await expect(page.getByText('Templates', { exact: true })).toBeVisible();
-      await expect(page.getByText('Corporation industry jobs', { exact: true })).toBeVisible();
-      const templates = page.locator('section').filter({ has: page.getByText('Templates', { exact: true }) });
+      await expect(main(page).getByText('No saved templates yet — save one from the planner', { exact: true })).toBeVisible();
+      await expect(main(page).getByRole('button', { name: 'Grant corp jobs access', exact: true })).toBeVisible();
+      const templates = main(page).locator('section').filter({
+        has: page.getByText('No saved templates yet — save one from the planner', { exact: true }),
+      });
       await expect(templates.getByText('No saved templates yet — save one from the planner', { exact: true })
         .or(templates.locator('a[href*="?plan="]').first())).toBeVisible();
     },
@@ -94,10 +101,10 @@ test('[route-industry] authenticated industry dashboard resolves its sections', 
 test('[route-atlas] authenticated Atlas loads the authorized map catalogue', async ({ authenticatedPage: page, principal, baseURL }) => {
   await expectRoute({
     page, baseURL, path: '/atlas',
-    ready: page.getByRole('button', { name: 'Create new map', exact: true }),
+    ready: main(page).getByRole('button', { name: 'Create new map', exact: true }),
     settle: async () => {
-      await expect(page.locator('[data-map-catalogue]')).toBeVisible();
-      await expect(page.locator('[data-map-catalogue-unavailable], [data-atlas-guest-landing]')).toHaveCount(0);
+      await expect(main(page).locator('[data-map-catalogue]')).toBeVisible();
+      await expect(main(page).locator('[data-map-catalogue-unavailable], [data-atlas-guest-landing]')).toHaveCount(0);
     },
   });
   await expectSession(page, principal);
@@ -130,7 +137,7 @@ test('[route-structures] authenticated structures loads the saved-structure edit
     settle: async () => {
       await expect(page.getByRole('heading', { name: 'Structures', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save structure', exact: true })).toBeVisible();
-      await expect(page.getByText(/^Your structures \(\d+\)$/)).toBeVisible();
+      await expect(main(page).getByText(/^Your structures \(\d+\)$/)).toBeVisible();
     },
   });
   await expectSession(page, principal);
