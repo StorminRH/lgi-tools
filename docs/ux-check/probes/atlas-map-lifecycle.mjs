@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import { atlasHomePrompt, atlasMain, atlasVisible } from '../lib/authoring-helpers.mjs';
 
 export default {
@@ -37,13 +38,13 @@ export default {
     await confirm.waitFor({ state: 'visible', timeout: 10_000 });
     await confirm.getByRole('button', { name: 'Delete map' }).click();
 
-    await main.locator(`[data-map-catalogue-card="${mapId}"]`).waitFor({
-      state: 'hidden',
+    await expect(atlasVisible(page, `[data-map-catalogue-card="${mapId}"]`)).toHaveCount(0, {
       timeout: 20_000,
     });
     check(
       'delete returns the deleter to the landing catalogue',
-      await catalogue.isVisible() && (await atlasVisible(page, '[data-map-canvas]').count()) === 0,
+      (await atlasVisible(page, '[data-map-catalogue]').count()) === 1
+      && (await atlasVisible(page, '[data-map-canvas]').count()) === 0,
     );
     check(
       'the deleted map leaves the catalogue',
@@ -56,13 +57,13 @@ export default {
     check('trash lists the deleted map', await trash.getByText(mapName, { exact: true }).isVisible());
     await trash.locator('label').filter({ hasText: mapName }).click();
     await trash.getByRole('button', { name: 'Restore' }).click();
-    await main.locator(`[data-map-catalogue-card="${mapId}"]`).waitFor({
+    await atlasVisible(page, `[data-map-catalogue-card="${mapId}"]`).waitFor({
       state: 'visible',
       timeout: 20_000,
     });
     check(
       'restore returns the map to the catalogue without a confirm prompt',
-      await main.locator(`[data-map-catalogue-card="${mapId}"]`).isVisible(),
+      (await atlasVisible(page, `[data-map-catalogue-card="${mapId}"]`).count()) === 1,
     );
   },
 };
