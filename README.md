@@ -108,7 +108,7 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
-| `pnpm build` | Production build — runs in Depot before merge and Vercel on deploy; agents do not run it locally |
+| `pnpm build` | Production build — runs in GitHub Actions before merge and Vercel on deploy; agents do not run it locally |
 | `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + fallow. Not the land or merge gate. |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
@@ -145,23 +145,31 @@ boundaries, commit style, testing policy, etc.).
 
 ## Contributing
 
-Contributions are welcome. Work lands on Origin `development`. See
+Contributions are welcome. Work lands through GitHub PRs targeting `development`. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 1. Agree on shape for anything non-trivial before writing code.
 2. Land on `development`. Promote is `development` → `staging`. Release
    is `staging` → `main`.
 3. Before you land, run the local test suite in CONTRIBUTING
-   (typecheck, lint, Fallow, focused tests). A promote or release waits
-   on one Depot `dispatch` after reviews.
+   (typecheck, lint, Fallow, focused tests). Wait for GitHub Actions
+   `verify`, `build`, and `e2e` on the PR's current commit before merge.
 4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
    plain English in the subject line, no file paths or function names.
 5. Be civil. Reviews are conversations.
 
-Depot runs typecheck, lint, the coverage suite with real Postgres, and
-Fallow when dispatched; `build` and `e2e` run on that same run. A red
-run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
+GitHub Actions runs typecheck, lint, the coverage suite with real Postgres,
+and Fallow in `verify`. The `build` job runs in parallel; `e2e` tests that
+production build afterward. The workflow runs on PRs targeting
+`development`, `staging`, or `main`, pushes to `main`, and manual dispatch.
+A red run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
 Production. A `development` Preview is manual.
+
+GitHub CI landed in [PR #496](https://github.com/StorminRH/lgi-tools/pull/496).
+Required-check configuration and source-authority cutover remain tracked in
+[LGI-112](https://linear.app/lgitools/issue/LGI-112). Cloud environments,
+Vercel reconnection, and service retirement are separate migration steps;
+this documentation update does not activate them.
 
 ## License
 

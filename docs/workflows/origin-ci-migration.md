@@ -1,8 +1,13 @@
 # Origin / Depot / ship-path migration — ordinary-work plan
 
-**Live process:** `AGENTS.md` and `close-out`. Depot starts with
-`depot ci dispatch` after reviews. This file is historical migration
-notes.
+**Superseded history — 9 September 2026.** This records the earlier move
+to Origin and Depot; its commands, status claims, and remaining-work list
+are historical, not current execution instructions. For GitHub PR delivery
+and CI, see [CONTRIBUTING.md](../../CONTRIBUTING.md#landing-and-review).
+The return-to-GitHub migration is tracked in
+[LGI-112](https://linear.app/lgitools/issue/LGI-112) and
+[LGI-115](https://linear.app/lgitools/issue/LGI-115). Preserve the historical
+record below; do not resume its old ordered work.
 
 **Plan status:** Draft (operator reshapes between chats)
 **Kind:** Ordinary work — not a numbered lifecycle session. Do not run
