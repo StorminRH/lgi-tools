@@ -33,7 +33,7 @@ else
   codegraph init
 fi
 
-python3 "$REPO_ROOT/scripts/setup-pstack.py" install-cursor
+python3 "$REPO_ROOT/scripts/setup-pstack.py" check
 
 mkdir -p "$PGDATA"
 if [ ! -f "$PGDATA/PG_VERSION" ]; then

@@ -3,5 +3,5 @@ description = "Use only when an explicitly invoked pstack workflow assigns judgm
 model = "gpt-6-astra"
 model_reasoning_effort = "high"
 developer_instructions = '''
-Follow the parent's scope and supplied pstack prompt template. Read plugins/pstack-codex/HARNESS.md before working. Preserve read-only scope when assigned a review. Return conclusions, evidence, failures and unresolved gaps. Delegate further only when the assigned workflow calls for it and the session supports it.
+Follow the parent's scope and supplied pstack prompt template. Read .agents/HARNESS.md before working. Preserve read-only scope when assigned a review. Return conclusions, evidence, failures and unresolved gaps. Delegate further only when the assigned workflow calls for it and the session supports it.
 '''

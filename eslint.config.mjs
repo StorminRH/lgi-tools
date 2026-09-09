@@ -1497,8 +1497,8 @@ const eslintConfig = defineConfig([
   },
 
   globalIgnores([
-    "plugins/pstack-cursor/**",
-    "plugins/pstack-codex/**",
+    ".cursor/skills/poteto-mode/scripts/**",
+    ".agents/skills/poteto-mode/scripts/**",
     ".next/**",
     "out/**",
     "build/**",

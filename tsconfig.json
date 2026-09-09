@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "plugins/pstack-cursor", "plugins/pstack-codex"]
+  "exclude": ["node_modules", ".cursor/skills/poteto-mode/scripts", ".agents/skills/poteto-mode/scripts"]
 }
