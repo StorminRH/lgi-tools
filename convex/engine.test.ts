@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 import { RateLimiter } from '@convex-dev/rate-limiter';
 import { convexTest } from 'convex-test';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   computeChainBoundary,
   HIDDEN_PRESENCE_MAX_MS,
@@ -58,9 +58,14 @@ function subjectRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.clearAllTimers();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('engine.heartbeat', () => {
@@ -698,7 +703,6 @@ describe('engine chain-on-success', () => {
   }
 
   it('re-arms jitter-free and chainDispatch dispatches the next hop', async () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
     const t = convexTest(schema, modules);
     stubDispatch();
@@ -757,7 +761,6 @@ describe('engine chain-on-success', () => {
   });
 
   it('chains a failed completion at the cadence floor while presence is fresh, and never when cold', async () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
