@@ -1,13 +1,16 @@
+import { atlasMain } from '../lib/authoring-helpers.mjs';
+
 export default {
   name: 'atlas-map-lifecycle',
   get route() { return '/atlas'; },
   viewports: ['desktop'],
   requiresAuth: true,
   async run({ page, check }) {
-    const catalogue = page.getByRole('main').locator('[data-map-catalogue]');
+    const main = atlasMain(page);
+    const catalogue = main.locator('[data-map-catalogue]');
     await catalogue.waitFor({ state: 'visible', timeout: 60_000 });
 
-    await page.locator('[data-map-catalogue-create]').click();
+    await main.locator('[data-map-catalogue-create]').click();
     const createDialog = page.getByRole('dialog', { name: 'Create map' });
     await createDialog.waitFor({ state: 'visible', timeout: 10_000 });
     const stamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
@@ -18,9 +21,9 @@ export default {
       await removeGrant.first().click();
     }
     await createDialog.getByRole('button', { name: 'Create map' }).click();
-    await page.locator('[data-map-creation-interstitial="creating"]').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.getByRole('heading', { name: 'Creating your map' }).waitFor({ state: 'visible' });
-    await page.locator('[data-map-home-prompt]').waitFor({ state: 'visible', timeout: 30_000 });
+    await main.locator('[data-map-creation-interstitial="creating"]').waitFor({ state: 'visible', timeout: 10_000 });
+    await main.getByRole('heading', { name: 'Creating your map' }).waitFor({ state: 'visible' });
+    await main.locator('[data-map-home-prompt]').waitFor({ state: 'visible', timeout: 30_000 });
     const mapId = new URL(page.url()).searchParams.get('map');
     check('lifecycle probe created a disposable map', typeof mapId === 'string' && mapId.length > 0);
 
@@ -29,37 +32,37 @@ export default {
       timeout: 60_000,
     });
     await catalogue.waitFor({ state: 'visible', timeout: 60_000 });
-    await page.locator(`[data-map-catalogue-delete="${mapId}"]`).click();
+    await main.locator(`[data-map-catalogue-delete="${mapId}"]`).click();
     const confirm = page.getByRole('dialog', { name: 'Delete map?' });
     await confirm.waitFor({ state: 'visible', timeout: 10_000 });
     await confirm.getByRole('button', { name: 'Delete map' }).click();
 
-    await page.locator(`[data-map-catalogue-card="${mapId}"]`).waitFor({
+    await main.locator(`[data-map-catalogue-card="${mapId}"]`).waitFor({
       state: 'hidden',
       timeout: 20_000,
     });
     check(
       'delete returns the deleter to the landing catalogue',
-      await catalogue.isVisible() && (await page.locator('[data-map-canvas]').count()) === 0,
+      await catalogue.isVisible() && (await main.locator('[data-map-canvas]').count()) === 0,
     );
     check(
       'the deleted map leaves the catalogue',
-      (await page.locator(`[data-map-catalogue-card="${mapId}"]`).count()) === 0,
+      (await main.locator(`[data-map-catalogue-card="${mapId}"]`).count()) === 0,
     );
 
-    await page.locator('[data-map-catalogue-trash]').click();
+    await main.locator('[data-map-catalogue-trash]').click();
     const trash = page.getByRole('dialog', { name: 'Deleted maps' });
     await trash.waitFor({ state: 'visible', timeout: 10_000 });
     check('trash lists the deleted map', await trash.getByText(mapName, { exact: true }).isVisible());
     await trash.locator('label').filter({ hasText: mapName }).click();
     await trash.getByRole('button', { name: 'Restore' }).click();
-    await page.locator(`[data-map-catalogue-card="${mapId}"]`).waitFor({
+    await main.locator(`[data-map-catalogue-card="${mapId}"]`).waitFor({
       state: 'visible',
       timeout: 20_000,
     });
     check(
       'restore returns the map to the catalogue without a confirm prompt',
-      await page.locator(`[data-map-catalogue-card="${mapId}"]`).isVisible(),
+      await main.locator(`[data-map-catalogue-card="${mapId}"]`).isVisible(),
     );
   },
 };

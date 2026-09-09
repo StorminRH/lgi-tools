@@ -8,6 +8,7 @@ import {
   restoreMapAccess,
   teardownMapAccess,
   waitForEditableMap,
+  atlasMain,
 } from '../lib/authoring-helpers.mjs';
 
 async function pickSelect(page, ariaLabel, optionName) {
@@ -57,7 +58,7 @@ export default {
     if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
-    const home = page.locator('[data-map-home-prompt]');
+    const home = atlasMain(page).locator('[data-map-home-prompt]');
     const startedBlank = (await home.count()) > 0;
     check(
       'editor client starts on a blank map with the home prompt (re-seed or drain UX_BLANK_MAP_ID after each run)',
@@ -72,13 +73,13 @@ export default {
     await waitForEditableMap(second.page);
     check(
       'second authenticated client also sees the home prompt on the blank map',
-      (await second.page.locator('[data-map-home-prompt]').count()) === 1,
+      (await atlasMain(second.page).locator('[data-map-home-prompt]').count()) === 1,
     );
 
 
 
     await pickSystemSearch(page, 'Search systems — type a name', 'jita', {
-      root: page.locator('[data-map-home-prompt]'),
+      root: atlasMain(page).locator('[data-map-home-prompt]'),
     });
     await page.waitForFunction(
       () => document.querySelectorAll('[data-chain-node]').length >= 1,
@@ -97,7 +98,7 @@ export default {
     );
     check(
       'home prompt unmounts after the root exists',
-      (await page.locator('[data-map-home-prompt]').count()) === 0,
+      (await atlasMain(page).locator('[data-map-home-prompt]').count()) === 0,
     );
 
 
@@ -154,18 +155,21 @@ export default {
     try {
       await teardownMapAccess(mapId);
       await second.page.waitForFunction(
-        () =>
-          document.querySelector('[data-chain-no-access]') !== null
-          || document.querySelector('[data-map-can-edit="true"]') === null,
+        () => {
+          const visible = (selector) => [...document.querySelectorAll(selector)].some(
+            (element) => element.checkVisibility?.() !== false && element.getClientRects().length > 0,
+          );
+          return visible('[data-chain-no-access]') || !visible('[data-map-can-edit="true"]');
+        },
         null,
         { timeout: 30_000 },
       );
       check('owner retains editing after editor grant revocation',
-        await page.locator('[data-map-can-edit="true"]').count() === 1);
+        await atlasMain(page).locator('[data-map-can-edit="true"]').count() === 1);
       check(
         'revocation removes editor affordances on client B',
-        (await second.page.locator('[data-map-can-edit="true"]').count()) === 0
-          || (await second.page.locator('[data-chain-no-access]').count()) === 1,
+        (await atlasMain(second.page).locator('[data-map-can-edit="true"]').count()) === 0
+          || (await atlasMain(second.page).locator('[data-chain-no-access]').count()) === 1,
       );
       check(
         'the Signature Editor is gone after revocation',

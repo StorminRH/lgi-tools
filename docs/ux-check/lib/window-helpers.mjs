@@ -22,8 +22,12 @@ export async function setAtlasMapPreference(page, name, desired) {
   return result;
 }
 
+export function atlasMain(page) {
+  return page.getByRole('main');
+}
+
 export async function calmAtlasCamera(page) {
-  const homePrompt = page.locator('[data-map-home-prompt]');
+  const homePrompt = atlasMain(page).locator('[data-map-home-prompt]');
   if (await homePrompt.isVisible().catch(() => false)) {
     const input = homePrompt.getByPlaceholder(/Search systems/i);
     await input.click();

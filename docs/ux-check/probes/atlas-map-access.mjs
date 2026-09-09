@@ -1,6 +1,6 @@
 import { assertPrincipal, assertMapRole } from '../../../e2e/route-contracts.cjs';
 import { expect } from '@playwright/test';
-import { authoringMapId, authoringRoute, waitForEditableMap } from '../lib/authoring-helpers.mjs';
+import { atlasMain, authoringMapId, authoringRoute, waitForEditableMap } from '../lib/authoring-helpers.mjs';
 
 export default {
   name: 'atlas-map-access', get route() { return authoringRoute(); },
@@ -28,7 +28,7 @@ export default {
       const session = await client.page.request.get(new URL('/api/auth/get-session', baseUrl).href);
       expect(session.ok()).toBe(true);
       assertPrincipal({ session: await session.json(), expected: client.principal });
-      const card = client.page.locator(`[data-map-catalogue-card="${mapId}"]`);
+      const card = atlasMain(client.page).locator(`[data-map-catalogue-card="${mapId}"]`);
       if (client.required === null) await expect(card).toHaveCount(0);
       else {
         const role = card.getByText(/^Your access:/);
@@ -38,11 +38,11 @@ export default {
       await client.page.goto(new URL(authoringRoute(), baseUrl).href);
     }
     await waitForEditableMap(editor.page);
-    await expect(viewer.page.locator('[data-map-canvas]')).toBeVisible();
-    await expect(viewer.page.locator('[data-map-can-edit="true"]')).toHaveCount(0);
-    await expect(denied.page.locator('[data-chain-no-access]')).toBeVisible();
-    await page.locator('[data-map-switcher-trigger]').click();
-    await page.locator(`[data-map-switcher-manage="${mapId}"]`).click();
+    await expect(atlasMain(viewer.page).locator('[data-map-canvas]')).toBeVisible();
+    await expect(atlasMain(viewer.page).locator('[data-map-can-edit="true"]')).toHaveCount(0);
+    await expect(atlasMain(denied.page).locator('[data-chain-no-access]')).toBeVisible();
+    await atlasMain(page).locator('[data-map-switcher-trigger]').click();
+    await atlasMain(page).locator(`[data-map-switcher-manage="${mapId}"]`).click();
     const dialog = page.getByRole('dialog', { name: /^Manage / });
     await expect(dialog).toBeVisible();
     const grant = dialog.locator(`[data-map-access-principal="character:${fixtures.principals.editor.characterId}"]`);
@@ -56,10 +56,10 @@ export default {
     await confirm.getByRole('button', { name: /Revoke/ }).click();
     await expect(grant).toHaveCount(0);
     expect(await fixtures.readRole('editor', mapId)).toBeNull();
-    await expect(editor.page.locator('[data-chain-no-access]')).toBeVisible();
-    await expect(editor.page.locator('[data-map-can-edit="true"]')).toHaveCount(0);
-    await expect(viewer.page.locator('[data-map-canvas]')).toBeVisible();
-    await expect(page.locator('[data-map-can-edit="true"]')).toBeVisible();
+    await expect(atlasMain(editor.page).locator('[data-chain-no-access]')).toBeVisible();
+    await expect(atlasMain(editor.page).locator('[data-map-can-edit="true"]')).toHaveCount(0);
+    await expect(atlasMain(viewer.page).locator('[data-map-canvas]')).toBeVisible();
+    await expect(atlasMain(page).locator('[data-map-can-edit="true"]')).toBeVisible();
     diagnostics.expectHttp({ pathname: '/api/maps/access', method: 'POST', status: 403 });
     const rejected = await editor.page.evaluate(async ({ mapId, characterId }) => {
       const response = await fetch('/api/maps/access', {
@@ -70,6 +70,6 @@ export default {
     }, { mapId, characterId: fixtures.principals.editor.characterId });
     expect(rejected.status).toBe(403);
     expect(rejected.body).toMatchObject({ code: 'map_admin_required' });
-    await expect(editor.page.locator('[data-map-can-edit="true"]')).toHaveCount(0);
+    await expect(atlasMain(editor.page).locator('[data-map-can-edit="true"]')).toHaveCount(0);
   },
 };

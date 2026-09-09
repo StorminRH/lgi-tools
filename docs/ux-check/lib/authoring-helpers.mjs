@@ -7,6 +7,7 @@ import { calmAtlasCamera } from './window-helpers.mjs';
 loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
 export { installFixtureAccessControl };
+export { atlasMain } from './window-helpers.mjs';
 
 export function fixtureCharacterId() {
   const value = Number(process.env.UX_CHARACTER_ID);
@@ -82,7 +83,9 @@ export const signatureViewerRoute = () => {
 
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(
-    () => document.querySelector('[data-map-can-edit="true"]') !== null,
+    () => [...document.querySelectorAll('[data-map-can-edit="true"]')].some(
+      (element) => element.checkVisibility?.() !== false && element.getClientRects().length > 0,
+    ),
     null,
     { timeout },
   );

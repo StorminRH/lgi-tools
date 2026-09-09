@@ -59,7 +59,7 @@ export default {
     await waitForEditableMap(second.page);
     const clients = [page, second.page];
     const empty = await Promise.all(clients.map((client) =>
-      client.locator('[data-map-home-prompt]').count(),
+      client.getByRole('main').locator('[data-map-home-prompt]').count(),
     ));
     check('dedicated ambiguous-jump map starts empty on both clients', empty.every((count) => count === 1));
 
