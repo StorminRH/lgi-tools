@@ -1,13 +1,11 @@
 ---
 name: thermo-nuclear-review
 description: Comprehensive security and correctness audit of a branch's changes. Use for thermo nuclear, thermonuclear, or deep review requests, or branch/PR diff audits focused on bugs, breaking changes, security issues, devex regressions, and feature-gate leaks.
-disable-model-invocation: true
 ---
 
 # Thermo Nuclear Review
 
-Read [review subject](../_shared/roles/review-subject.md).
-Audit the caller's GitHub PR with `gh pr diff <N> --repo StorminRH/lgi-tools` and read the
+Audit the caller's GitHub change with `gh pr diff <N>` and read the
 changed files at that head. For an explicitly requested local branch audit,
 use the caller's base and head. Collect evidence and report findings; leave
 fixes to the caller after review.
@@ -44,8 +42,12 @@ If you report issues as High priority when they are not in fact high priority / 
 NEVER misreport the priority / importance of issues. Be extremely thorough in tracing issues end-to-end to gain complete, and total confidence before reporting.
 
 # Final Response
-After independent review, read the actual GitHub PR discussion to validate,
-deduplicate and attribute medium-or-higher findings. Keep the frozen identity.
+After the independent audit, if you have medium-or-higher findings, read
+the GitHub change discussion with `gh pr view --comments` and `gh api`
+review-thread queries. Use `--help` for supported read arguments. GitHub
+is the primary review record.
+If so, take their findings into account. If they found issues you missed, evaluate them to determine if they are valid and include them in your report. If they found some of the same issues you did, see if there is anything from their findings that are worth incorporating into your response.
+Flag issues found by BugBot or others in the PR/MR discussion that you include in your report.
 
 
 # Critical Rules

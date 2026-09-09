@@ -5,7 +5,7 @@ description: Turn one approved lifecycle session contract into a reviewed, decis
 
 # Plan a lifecycle session
 
-For agent launches, follow [agent calls](../_shared/agent-calls.md).
+For agent launches, follow [Codex agent calls](../_shared/codex-agents.md).
 
 Turn one approved feature contract into a decision-complete implementation
 plan through iterative co-authoring with the operator. The contract is a
@@ -47,8 +47,8 @@ Done when every contract `DEP-N`, `IS-N`, `OOS-N`, `HC-N`, `PD-N`, `AC-N`,
    the bundle, pause and discuss with the operator.
 
 Launch `repo-mapper` when the contract implies a code change whose callers,
-callees, or blast radius are unknown. Use an applicable current Documentation brief; launch `docs-researcher`
-for unresolved API/version claims about those external technologies.
+callees, or blast radius are unknown. Launch `docs-researcher` when a claim
+depends on React, Next.js, Convex, Base UI, React Flow, Vitest, or a peer.
 Name those agents and omit spawn `model` and `reasoning_effort`.
 
 ## 2. Co-author the plan
@@ -64,13 +64,16 @@ Iterative discussion with the operator is the default. Research in the open.
 2. Walk the plan one logical section at a time with the operator. Suggested
    order: destination and scope; key decisions; interfaces and control flow;
    ordered work; success criteria and proof; delivery and handoff.
-3. Size Ordered work around coherent outcomes and real dependencies. Each
-   step is one `start-session` execution with applicable verification,
-   structure/behavior review and canonical delivery onto `development`.
-   Place visual approvals where the operator can assess a meaningful change;
-   preserve every contract UX/operator gate. When `UX gate` is Yes, include
-   `ux-check` after a usable surface exists. Promotion and release follow
-   close-out independently of step sizing.
+3. Size Ordered work as many thin steps as the feature needs (five, ten,
+   twenty). Each step is one `start-session` execute chat: the work, the
+   local test suite, `structure-reviewer` and `behavior-reviewer`, then land
+   and clean onto `development`. The operator looks during these steps, not
+   when the session ends. Mark a visual look on about every other step, and
+   on any step that presents something the operator can see. A backend-only
+   step can skip the look. Close-out, promote, `thermos`, and `no-comments`
+   stay out of Ordered work. When `UX gate` is Yes, include `ux-check`
+   after there is something on `development` to look at. That step is not
+   the first look.
 4. A marked visual look pauses the execute chat so the operator can try
    `development` (Preview, or laptop `pnpm dev` when they choose). Their
    disposition is the gate to the next Ordered work step. They may instead
@@ -79,8 +82,7 @@ Iterative discussion with the operator is the default. Research in the open.
 5. Resolve every contract planning decision (`PD-N`) during this walk.
    Surface choices that change behavior, ownership, risk, or scope.
 6. Record delivery as land-on-`development`. The plan's `Branch` is the land
-   line `development`; preserve the schema's `ends in PR: no` lifecycle
-   marker, which does not waive the actual GitHub delivery PR. `start-session` cuts
+   line `development` and `ends in PR` is `no`. `start-session` cuts
    `lifecycle/<session>-ow-<n>` from that tip at execute time. Promote
    starts at 80 app-facing files versus `staging`. The resolver then
    sends Start Session to close-out. That promote is not this session's

@@ -53,7 +53,7 @@ this guidance. A useful audit can finish with no changes and no PR.
    alive, or weaken Fallow, coverage rules, baselines, or waivers to force a
    pass. Record larger production redesigns and policy decisions separately.
 7. Verify surviving and replacement coverage using the active harness's
-   test-runner and current change-aware verification policy. Supply the full
+   test-runner and the local suite required by `AGENTS.md`. Supply the full
    cumulative unverified diff, focused suites, prerequisites, and reusable
    evidence. Keep noisy output in the runner and return the compact result.
    Real SQL replacements must execute against the established disposable
@@ -131,14 +131,11 @@ Name the concrete failure each strengthened or replacement test can catch.
 Report a no-finding result as applying to that scope and revision under its
 stated limits, not as a certification of the whole suite.
 
-Classify cumulative changes before selecting verification. Follow the current
-runner contract for compatible focused-test batching and prerequisites. Pure
-prose is not an application test change; executable tooling or app-consumed
-content remains subject to its relevant checks. Keep full coverage before any
-coverage-fed Fallow check. Existing evidence is reusable only when relevant
-source, fixtures, dependencies, configuration, generated inputs, and environment
-remain applicable. Record its original revision and the comparison supporting
-reuse. Local reuse does not impersonate required current-head GitHub checks.
+Follow `AGENTS.md` and the active harness's `test-runner` contract for the
+required local suite, focused tests and result format. Keep full coverage
+before any coverage-fed Fallow check. Record the tested revision. Historical
+evidence retains its original scope and does not replace the required suite
+or current-head GitHub checks.
 
 Report each selected command's actual result as PASS, FAIL, BLOCKED, or NOT
 REQUIRED. An unexecuted or skipped replacement is not a fresh pass. Record exact

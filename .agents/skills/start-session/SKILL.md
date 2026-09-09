@@ -5,7 +5,7 @@ description: Resolve, dispatch, and run the next approved lifecycle action from 
 
 # Start a lifecycle session
 
-For agent launches, follow [agent calls](../_shared/agent-calls.md).
+For agent launches, follow [Codex agent calls](../_shared/codex-agents.md).
 
 Use only when the operator invokes planned lifecycle work. The resolver owns
 lifecycle state and handler selection. This skill owns branch selection,
@@ -88,13 +88,25 @@ stopped at a null handler.
 
 ## 3. Land and clean
 
-Use [delivery](../../../docs/workflows/delivery.md) for the actual GitHub PR
-onto `development`, verification, final review/check gates and ancestry-safe
-cleanup. It owns this procedure for every caller. Planning authority does
-not bypass PR gates. Preserve the resolver's branch and explicit stop.
-Done when the reviewed commit is on the destination, the current worktree
-matches it, authorized source cleanup is complete and Linear holds the
-current handoff and append-only proof receipts.
+Done when the named commit is on `origin/<line>`, this worktree is on that
+tip, and the source branch is gone from origin and this worktree.
+
+`<line>` is `development` for this skill. Close-out reuses this cleanup
+after its merge onto `staging` or `main`.
+
+1. Fetch `origin/<line>`. Rebase the source branch onto it when the line has
+   moved. Re-run the local test suite after a rebase that carries
+   implementation commits.
+2. Fast-forward `origin/<line>` to this commit
+   (`git push origin HEAD:<line>`).
+3. Check out `<line>` at that tip. Delete the source branch on origin and
+   locally (`git push origin --delete <source>` when it was pushed, then
+   `git branch -D <source>`). Leave `development`, `staging`, and `main`.
+
+A `development` land uses this push. A GitHub draft uses the
+AGENTS.md freeze, `gh pr diff`, batch, and CI loop.
+`adversarial-review` runs on that draft. `close-out` owns promote
+and release.
 
 ## 4. Execute an approved session
 
@@ -133,31 +145,35 @@ that step.
 
 ### Author
 
-Done when applicable Documentation brief and Repository map resolve the
-material API and relationship questions needed for this step. Reuse current
-applicable packets; launch `docs-researcher` or `repo-mapper` only for their
-unresolved questions under the shared agent-call contract. Use TypeScript
-guidance for consequential type/API design. A prose-only step skips code
-research. Write within the approved step once its dependencies are resolved.
+Done when the step's code is written against a Documentation brief, a
+Repository map, and `typescript-best-practices`.
+
+Before writing or editing code, launch `docs-researcher`, then `repo-mapper`.
+Name those agents and omit spawn `model` and `reasoning_effort`. Generation waits on the
+Documentation brief and the Repository map. Then invoke
+`typescript-best-practices`. Then write. A docs-only or policy-only step
+skips this prelude.
 
 ### Prove, review, and land
 
 Done when the OW commit is on `origin/development`, the source lifecycle
-branch is gone, applicable verification evidence remains valid, the
+branch is gone, the local test suite was green after the last review, the
 handoff reports the app-facing count versus `staging`, and any visual look
 the plan or the land required has an operator disposition.
 
-1. Select cumulative local proof using
-   [verification](../../../docs/workflows/verification.md). Commission
-   `test-runner` only for required execution; reuse applicable evidence.
-2. Freeze the step's exact working-tree subject. Launch fresh
-   `structure-reviewer` and `behavior-reviewer` seats with its authority,
-   source paths and proof. Preserve their native pins and permissions.
-3. Collect both final verdicts without writes. Unchanged reviewed bytes
-   do not require repeating the local suite.
-4. On findings, adjudicate once, apply the accepted batch, obtain affected
-   proof and re-review corrections until both are clean. Missing mandatory
-   evidence or unresolved material decisions return `BLOCKED`.
+1. After the step's focused proof, invoke `test-runner` with the local test
+   suite from AGENTS.md plus those focused evidence commands. Require
+   green test results for every command. Failures return `BLOCKED`.
+2. On a green suite, freeze the working tree. Launch a fresh
+   `structure-reviewer` and a fresh `behavior-reviewer` in parallel.
+   Brief: this step's working tree. Each reviewer reads the tree.
+   Launch them by those type names and omit spawn `model` and `reasoning_effort`.
+3. After both reviewers return, run the local test suite again.
+4. On `FINDINGS`, one batch: triage, dedupe, fix. Run the local test
+   suite, re-launch both reviewers, and run the local test suite again.
+   Repeat until both return `CLEAN`, or every accepted finding is
+   corrected and re-reviewed clean, and the suite after that last
+   review is green.
 5. Commit the verified OW scope, implementation and tests. On the last OW,
    set `Execution status` to `Complete` only when all session proof and required
    operator dispositions pass. If its visual or staging test is pending, keep
@@ -167,33 +183,32 @@ the plan or the land required has an operator disposition.
 6. Land and clean that commit onto `development`. Then run
    `python3 tools/cli.py lifecycle count-app-facing`. That command
    compares `origin/staging...origin/development` after this land, so
-   this step is in the number. Paste its app-facing count and promote-due status into
+   this step is in the number. Paste its `app-facing <n>/100` line into
    the handoff. When it prints `promote is due`, the next Start Session
    promotes `development` onto `staging`. Say that in the handoff.
 7. Pause for a visual look when the plan marked this step for one, or when
    the land presents something the operator can see on `development`
-   (Preview, or laptop `pnpm dev` when they choose). Preserve the approved
-   visual gates and risk-based step boundaries. Record the disposition in the
+   (Preview, or laptop `pnpm dev` when they choose). That is about every
+   other step, and any time a visual exists. Record the disposition in the
    handoff. It is the gate to the next Ordered work step. If the operator
    requests staging web testing, run the full `close-out` process for an early
    promotion, then resume the visual pause on staging. Keep that pause pending
    until the test and disposition are recorded; promotion alone does not pass
    it. A backend-only land continues without a look.
 
-Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Keep current mid-session progress and next-agent notes in one Linear
-handoff section; the copy-paste prompt links it. Delivery receipts remain
-append-only. Do not rely on chat or OS temporary files as the only handoff. When more Ordered work
+Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
+and next-agent notes live in that prompt, not in git. When more Ordered work
 remains:
 
 ```text
 Continue planned session <id> via start-session. Next branch: `lifecycle/<id>-ow-<k+1>` from origin/development.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
-Landed OW 1..<k> on development (<sha>). Source branch cleaned. App-facing vs staging: <n> (promotion due at 80).
+Landed OW 1..<k> on development (<sha>). Source branch cleaned. App-facing vs staging: <n>/100.
 <Promote line when the count printed promote is due: Next Start Session promotes development onto staging.>
 Next: Ordered work step <k+1> — <title from plan>.
 Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None>.
-Execute only that step, then applicable verification + structure-reviewer + behavior-reviewer + canonical delivery onto development + Linear handoff.
+Execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land and clean onto development + handoff.
 ```
 
 When this was the last Ordered work step and `finalSession` is true, rerun the
@@ -206,7 +221,7 @@ archive directive permits Archive a completed version. Use this handoff:
 
 ```text
 Version <X.Y> Ordered work is complete. Last OW landed on development (<sha>). Source branch cleaned.
-App-facing vs staging: <n> (promotion due at 80).
+App-facing vs staging: <n>/100.
 Fresh resolver: <action, handler, reason, staging delivery evidence>.
 Return to start-session for that directive. For version 4.1 onward, archive requires no remaining execution and completed plans plus final records delivered on origin/staging.
 Next-agent notes: <gotchas, open operator dispositions, or None>.
@@ -219,7 +234,7 @@ version's last session:
 Planned session <id> Ordered work is complete. Last OW landed on development (<sha>). Source branch cleaned.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
-App-facing vs staging: <n> (promotion due at 80).
+App-facing vs staging: <n>/100.
 Return to start-session. When the count printed promote is due, that run
 promotes development onto staging, then the next session can be planned.
 When the count is still under 80, plan the next session.
@@ -246,16 +261,12 @@ sources are gone from `docs/`.
    `origin/staging`; cancelled or deferred rows need no execution. Pending
    delivery returns to close-out; unavailable evidence blocks. Then mark
    remaining nonterminal `## Status` rows `COMPLETE` on the master plan.
-2. Collect the current authenticated Linear receipts and validate them via
-   `delivery check-receipt` under [delivery](../../../docs/workflows/delivery.md).
-   Run `python3 tools/cli.py lifecycle verify-archive --phase pre --receipt-dir <receipts>`.
-   The receipt directory contains `<Delivery ID>.json` wrappers under the
-   [receipt schema](../../../docs/workflows/schema/delivery-receipt.md).
+2. Run `python3 tools/cli.py lifecycle verify-archive --phase pre`.
 3. Copy the master plan, `docs/session-contracts/<X.Y>/`,
    `docs/session-plans/<X.Y>/`, and `docs/session-as-built/<X.Y>/` when
    that last directory exists, to
    `<repo parent>/LGI Tools Document Archive/versions/<X.Y>/`.
-4. Run `python3 tools/cli.py lifecycle verify-archive --phase post --receipt-dir <receipts>`.
+4. Run `python3 tools/cli.py lifecycle verify-archive --phase post`.
 5. Delete those live sources. Leave `docs/workflows/` in the repo.
 6. Land and clean that commit onto `development`.
 

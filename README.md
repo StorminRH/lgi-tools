@@ -108,8 +108,8 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
-| `pnpm build` | Production build; run with the selected verification/environment prerequisites |
-| `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + Fallow. Delivery also requires current GitHub checks. |
+| `pnpm build` | Production build — runs in GitHub Actions before merge and Vercel on deploy; agents run it locally only when a selected Playwright lane requires a local production build |
+| `pnpm verify` | Local coverage bundle: typecheck + lint + Vitest coverage + fallow. Not the land or merge gate. |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
 | `pnpm test:watch` | Vitest in watch mode |
@@ -120,7 +120,7 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | `pnpm db:studio` | Open Drizzle Studio against the local DB |
 | `pnpm db:refresh-sde` | Full SDE pipeline: ingest + resolve trees + seed tracked prices |
 | `pnpm db:refresh-prices` | One-shot pull of Jita prices and order-book depth from ESI |
-| `pnpm ux-check` | Scripted Playwright UX capture of the given routes |
+| `pnpm ux-check` | Selected Playwright route and interaction checks; see `docs/ux-check/README.md` |
 
 See `package.json` for the full set.
 
@@ -145,15 +145,23 @@ boundaries, commit style, testing policy, etc.).
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for scope,
-commit style and conduct. The prepared [delivery procedure](docs/workflows/delivery.md)
-owns GitHub PRs, review, CI and `development` → `staging` → `main` delivery;
-it becomes authoritative at coordinated cutover acceptance.
+Contributions are welcome. Work lands on GitHub `development` after coordinated cutover. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-Select local proof using the [verification contract](docs/workflows/verification.md).
-Pure prose does not rerun unchanged application suites. Required GitHub
-checks and deployed-revision evidence remain distinct from local reuse.
-For local/cloud readiness, use [development environments](docs/development-environments.md).
+1. Agree on shape for anything non-trivial before writing code.
+2. Land on `development`. Promote is `development` → `staging`. Release
+   is `staging` → `main`.
+3. Before you land, run the local test suite in CONTRIBUTING
+   (typecheck, lint, Fallow, focused tests). A promote or release waits
+   on one current GitHub Actions run after reviews.
+4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
+   plain English in the subject line, no file paths or function names.
+5. Be civil. Reviews are conversations.
+
+GitHub Actions runs typecheck, lint, the coverage suite with real Postgres, and
+Fallow on the PR workflow; `build` and `e2e` run on that same run. A red
+run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
+Production. A `development` Preview is manual.
 
 ## License
 

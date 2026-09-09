@@ -1,29 +1,29 @@
 ---
 name: no-comments
 description: "Spawn Comment Sicko, fix accepted findings, and offer encodings for claimed constraints."
-disable-model-invocation: true
 ---
 
-# Comment cleanup
+# No comments
 
-Use [agent calls](../_shared/agent-calls.md). Launch `comment-sicko` with
-the bounded working-tree or GitHub PR subject and authority. The seat is
-report-only; the parent applies accepted in-scope edits. Complete this pass
-before delivery freeze.
+For agent launches, follow [Codex agent calls](../_shared/codex-agents.md).
 
-1. Require each candidate to identify the comment, cause, concrete reason
-   and smallest correction. Check evidence for keep/delete decisions.
-2. Apply supported removals and in-scope root-cause fixes. Preserve required
-   markers, licenses and intentional negative-test suppressions. For a
-   non-obvious constraint, retrieve only evidence necessary to decide.
-3. A material constraint remains visible until an approved replacement
-   exists. Present a required behavior/architecture decision to the operator;
-   do not infer approval from ambiguity or delete the unresolved constraint.
-   Out-of-scope redesign remains a named issue, not authority to widen work.
-4. Select affected proof through
-   [verification](../../../docs/workflows/verification.md). Reuse applicable
-   evidence after prose-only changes; no unconditional suite rerun.
+Spawn Comment Sicko. Act on accepted findings.
 
-Return accepted removals/fixes, retained constraints with reasons, proof and
-open decisions. Missing required seat/evidence is `BLOCKED`. The parent
-reviews the result; it never defers correctness judgment to a persona.
+Authoring agents defend comments. Defer to Comment Sicko's fresh perspective.
+
+## Scope
+
+The brief is the GitHub change number when one is supplied. Comment
+Sicko runs `gh pr diff <N>`. This skill writes. Close-out runs
+it before the bot requests and the freeze.
+
+## Steps
+
+1. Use `collaboration.spawn_agent` with `agent_type: "comment-sicko"`. Pass the change
+   number, or the working-tree brief when there is no GitHub PR. Do
+   not restate its rules.
+2. Inspect its report. Reject application-code edits, scope escapes, exception-protected deletions, misstated `MUST KILL` reasons, and flags that treat kept intentional code as guilty. Reshape flags on our-code surprises stay actionable. Do not restore those comments. A keep survives only with proof it is about something we cannot change. Audit missed scoped lint and TypeScript suppressions. Correctness or safety suppressions stay actionable `MUST KILL`s. Restore deletions only with exact exceptions and scoped proof. Before accepting thin `IMPORTANT` or `do not remove` kills or keeps, run `$how` or `$why` on their symbol. If a kill is ambiguous, do not restore. If a keep is refuted or still ambiguous, delete it. Revert and rerun one rejected report with the failure named. Reject a second, report it open, and fail `$no-comments`.
+3. Fix trivial accepted flags directly by deleting a dead path, dropping a parameter, or using the real API. If any fix needs a shape, produce one architecture sketch for the accepted set and surrounding code, grounded in a Repository map. Stop at the sketch. Step 4 implements.
+4. Implement the smallest root-cause fix in scope. Remove every named workaround. If the root cause is out of scope, land the smallest in-scope fix and report the rest open. [Fix root causes](../principle-fix-root-causes/SKILL.md) and [redesign from first principles](../principle-redesign-from-first-principles/SKILL.md) guide intent only: fix real causes, redesign as if requirements always existed, never bolt on symptom guards. Neither authorizes widening the fence nor fixing instances outside it.
+5. Constraint comments say `do not remove`, `do not change wording`, or `talk to X before changing`. Leave keeps about things we cannot change. Offer the cheapest in-scope type, runtime, test, or CI lint. Wait for interactive approval. Unattended and eval require caller pre-approval. If approved, encode then delete. Otherwise delete, report the constraint open, and sketch out-of-scope work.
+6. Report the deletion count, restored comments, reruns, architect sketch, fixes, encoding offers, encodings, unenforced constraints, and other open work.

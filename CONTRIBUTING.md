@@ -14,10 +14,6 @@ Architecture is deny-by-default Fallow (`.fallowrc.json`) plus lint. Use the
 shared `src/components/ui/` primitives instead of importing their libraries
 from feature code. Remaining source landmines live in [`src/AGENTS.md`](src/AGENTS.md).
 Testing principles: [`docs/contributing/testing-principles.md`](docs/contributing/testing-principles.md).
-For data ownership, lifecycle, projections or schema changes, follow
-[data design](docs/contributing/data-design.md). Scheduled maintenance has
-separate [data audit](docs/workflows/data-design-audit.md) and
-[test cleanup](docs/workflows/test-cleanup.md) procedures.
 
 ## Commit style
 
@@ -37,20 +33,30 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 ## Landing and review
 
-Use the canonical [delivery procedure](docs/workflows/delivery.md) for the
-prepared GitHub workflow and its coordinated activation boundary. It owns
-one actual PR per change, candidate material before freeze, required reviews,
-current CI proof, Linear receipts and integration ancestry.
+The GitHub procedure below is prepared until coordinated cutover acceptance.
 
-Select and reuse local checks with the [verification contract](docs/workflows/verification.md).
-Fill the PR template's test plan with actual executed/reused evidence and
-explicitly distinguish checks that were not required or not run. Pure prose
-needs no application suite; executable guidance and tooling receive focused
-contract checks. Application scope retains the appropriate local gates.
-
-Public requests use the contact route on [LGI.tools](https://lgi.tools).
-Maintainers track accepted work and durable handoffs in Linear. GitHub Issues
-is not a parallel project backlog.
+1. Land on GitHub `development`. Promote is a GitHub PR
+   `development` → `staging`. After that merge, fast-forward
+   `development` to `staging` so the lines match. Release is
+   `staging` → `main`. Those merges, and any other merge onto
+   `staging` or `main`, run through close-out.
+2. Before you land, run the local test suite: `pnpm typecheck`,
+   `pnpm lint`, Fallow `dead-code` (default and `--production`), `dupes`,
+   and `health`, and focused tests for your diff. A promote or release waits on one current GitHub Actions run after
+   reviews (`verify`, `build`, and `e2e`). Laptop `pnpm verify` is not
+   done.
+3. Fill in the PR template's **test plan** — what you verified and how.
+4. Open GitHub PRs as drafts after a green local suite. Leave them draft
+   through reviews and fixes. Reviewers run `gh pr diff <N>`. Request
+   Greptile and CodeRabbit on the frozen GitHub PR.
+5. Measure promotion size with the app-facing files from
+   `python3 tools/cli.py lifecycle count-app-facing --list`. Pass `--base`
+   and `--head` for the two lines of that PR. Defaults are
+   `origin/staging` and `origin/development`. That list is sizing only.
+   Skills, standing docs and CI stay in the whole-PR review.
+6. Freeze the draft until every review seat has returned. Then one
+   batch: triage, dedupe, fix, note on the GitHub PR. Require a successful current Actions run
+   once that batch is green.
 
 ## Conduct, security & license
 

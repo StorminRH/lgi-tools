@@ -1,11 +1,5 @@
 # Session as-built schema
 
-New records use explicit **Record format: 2** and the
-[candidate contract](session-as-built-v2.md). The unversioned contract below
-remains the canonical legacy reader contract; its headings and historical
-binding rules remain unchanged. Final review and delivery receipts for format 2
-live in Linear, after the candidate commit freezes.
-
 This file is the canonical form for LGI.tools session as-built records. An
 as-built is the finalized record of what one executed session actually
 delivered. The contract and plan are frozen starting prompts; the as-built is

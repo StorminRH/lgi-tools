@@ -1,9 +1,87 @@
-# Selected browser acceptance
+# docs/ux-check — UX verification workspace
 
-Playwright Test owns route checks and retained interaction journeys. `pnpm test:e2e`
-runs the small production-build suite. It does not run the interaction portfolio.
-This redesign follows the unchanged-suite LGI-112 cost baseline; it does not
-change or reinterpret that historical measurement.
+Route checks, operator visual pause, and remote log-probe procedure live in
+the `ux-check` skill. This directory owns durable probe definitions, the
+Playwright Test integration, and generated capture artifacts.
+
+The durable probe harness, probe definitions, and this guide are tracked project
+tooling. Generated reports and failure artifacts under `captures/` remain
+ignored local evidence and can be deleted at any time.
+
+## Layout
+
+| Path | What | Lifecycle |
+| --- | --- | --- |
+| `e2e/probes.spec.ts` and `e2e/fixtures.ts` | Playwright Test runner and fixtures for durable interaction probes | Tracked; browser lifecycle, diagnostics, failure evidence, reports, exit gating |
+| `e2e/probe-registry.json` | Journey selection and historical probe dispositions | Tracked |
+| `probes/*.mjs` | Small durable probe definitions | Tracked; one module per recurring feature check |
+| `captures/sanitized-failures/` | Sanitized failure JSON | Ignored; uploadable failure evidence |
+| `captures/` | `e2e-report.json` from the Playwright reporter | Ignored; auth storage stays out of artifacts |
+| `docs/contributing/end-to-end-testing.md` | Tiny Playwright smoke suite policy (`pnpm test:e2e`) | Tracked |
+
+## Run durable probes
+
+For local Cursor or Codex, complete the README's local-development setup.
+The production lanes need a build and start their own server; the development
+lane starts `pnpm dev`. See [Local prerequisites](#local-prerequisites) below.
+
+In a Cursor Cloud Agent VM, use the `development` terminal from
+`.cursor/environment.json` for development work; read `.cursor/cloud-agent.md`
+for its prerequisites. The local `dev:all` command requires Docker. Stop the
+development server before a Playwright lane starts its own server.
+
+List available definitions, run the mandatory suite, or select journey names:
+
+```bash
+pnpm test:e2e --list
+E2E_LANE=local-mutation pnpm test:e2e --list
+pnpm test:e2e
+E2E_SCENARIOS=planner-materials,sites-details pnpm test:e2e:local
+```
+
+Authenticated probes use run-owned fixture sessions:
+
+```bash
+E2E_SCENARIOS=atlas-windows pnpm test:e2e:local
+```
+
+The one-shot automatic-jump gate needs a dedicated empty editable map. The
+fixture creates that map and supplies its identity to the probe:
+
+```bash
+E2E_SCENARIOS=atlas-automatic-jump pnpm test:e2e:local
+```
+
+The fixture removes authored jumps and maps during teardown and verifies their
+absence. Do not reuse another run's UUID or supply an operator-owned map.
+
+Use a different origin when needed, with matching app/auth port configuration:
+
+```bash
+PLAYWRIGHT_BASE_URL=http://localhost:3001 BETTER_AUTH_URL=http://localhost:3001 \
+  E2E_SCENARIOS=planner-materials pnpm test:e2e:local
+```
+
+With no selection, the mandatory production lane runs its smoke cases. Optional
+lanes require journey IDs from `e2e/probe-registry.json`. Each journey runs in
+an isolated browser context for its declared viewports; related definitions
+share that journey's setup and cleanup. A failure is recorded without aborting
+the remaining cases. The runner never waits for `networkidle`; the Convex
+websocket keeps live pages busy indefinitely.
+
+Every viewport run automatically records:
+
+- authored checks;
+- CSP violations;
+- console errors and uncaught page errors;
+- failed requests and HTTP 4xx/5xx responses;
+- sanitized failure diagnostics only when the run fails.
+
+The command exits non-zero when an authored check, a definition, cleanup or a
+default gate fails. Unexpected first-party network failures now fail acceptance;
+expected failures must name an exact endpoint, method and status within the
+scenario. Read the combined result at `captures/e2e-report.json`. Raw screenshots,
+traces and video are disabled; see [Results and evidence](#results-and-evidence).
 
 | Lane | Command | Contract |
 | --- | --- | --- |
@@ -25,6 +103,67 @@ The old `ux-capture` route sweep and `run-probes` browser runner have been remov
 Use `--grep` to narrow mandatory routes, or `E2E_LANE` and `E2E_SCENARIOS` for
 interactions. Arbitrary URLs are not a pass contract. Add a route-specific
 ready-content assertion when a new route needs browser coverage.
+
+## Definition format
+
+A definition imports nothing. Register it in `e2e/probe-registry.json`;
+`e2e/probes.spec.ts` loads the selected journey and injects the complete probe
+context, keeping capture paths, Playwright lifecycle, and diagnostic policy out of
+feature checks:
+
+```js
+export default {
+  name: 'feedback-dialog',
+  route: '/',
+  viewports: ['desktop', 'mobile'],  // optional; defaults to both
+  reducedMotion: true,               // optional; emulates prefers-reduced-motion
+  async setup({ page, baseUrl }) {
+    // Optional pre-navigation route mocks, permissions, or init scripts.
+  },
+  async run({ page, viewport, baseUrl, check }) {
+    const dialog = page.getByRole('dialog');
+    check('dialog opens', await dialog.isVisible());
+  },
+};
+```
+
+Authentication and journey viewports are declared in the registry. Definitions
+may narrow their supported viewports. Wait for useful UI outcomes instead of a
+fixed `settle` delay; blanket `allowConsole` filters are not part of the fixture
+contract. The fixture supplies `check`, which asserts through Playwright Test.
+
+Prefer role/label locators and behavioral checks. Do not add probes whose only
+job is a screenshot.
+
+Use `createPage()` for another tab in the primary authenticated browser context,
+including cross-tab BroadcastChannel tests. The runner attaches diagnostics and
+CSP collection and closes that tab with the context. `createContext()` instead
+creates an isolated client, optionally in another browser engine. Playwright's
+clock is shared by pages in a context; install and advance it once per context.
+
+## Instant navigations (`instant`)
+
+The runner injects Next.js 16.3's `@next/playwright` `instant(fn, options?)`
+helper on the probe context. Inside the callback, navigations render only the
+App Shell / prefetched UI; dynamic streams wait until the callback returns.
+
+```js
+async run({ page, baseUrl, check, instant }) {
+  await page.goto(new URL('/', baseUrl).href, { waitUntil: 'domcontentloaded' });
+  await instant(async () => {
+    await page.locator('a[href="/sites"]').first().click();
+    await page.waitForURL('**/sites');
+    check('sites shell is instant', await page.getByRole('heading', { name: /wormhole/i }).isVisible());
+  });
+}
+```
+
+Prefer soft `<Link>` navigations. Pass `{ baseURL: baseUrl }` only when overriding
+the runner default (it already scopes cookies to `baseUrl`). Run in the development-only lane, for example
+`E2E_SCENARIOS=dev-navigation-sites pnpm test:e2e:dev` — it owns `pnpm dev`,
+where the testing API is enabled automatically; do not rely on a local
+production build. Warm-cache is assumed: cold `'use cache'`
+misses can still wait once.
 
 ## Local prerequisites
 
