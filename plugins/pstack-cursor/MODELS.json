@@ -50,7 +50,7 @@
       "model": "glm-5.2-high"
     },
     "hardest tasks": {
-      "model": "grok-4.6[effort=xhigh,fast=true]"
+      "model": "cursor-grok-4.6-xhigh-fast"
     },
     "mechanical work": {
       "model": "composer-2.5-fast"

@@ -17,8 +17,12 @@ python3 scripts/setup-pstack.py install-cursor
 python3 scripts/setup-pstack.py install-codex
 ```
 
-The Cursor command links `plugins/pstack-cursor` into the native local-plugin folder.
-The Codex command registers this repository's marketplace and installs `pstack-codex`.
+The Cursor command copies `plugins/pstack-cursor` into the native local-plugin
+folder. Cursor's local loader currently rejects a symlink whose target is
+outside `~/.cursor/plugins/local`, so this edition copies rather than links.
+Re-run `install-cursor` after you pull plugin changes or move this checkout.
+Keep source edits in the repository edition, then refresh the copy. The Codex
+command registers this repository's marketplace and installs `pstack-codex`.
 It requires a Codex CLI release with `plugin marketplace add` and `plugin add`.
 If that command is absent, update Codex through its normal installation channel;
 do not copy the Codex skills into a directory Cursor also discovers.
@@ -29,8 +33,8 @@ Reload Cursor and verify the local plugin under Customize. Open a new Codex thre
 in this trusted checkout so its `.codex/agents/*.toml` roles are loaded.
 Disable any separately installed official pstack plugin while using this adoption.
 Remove or disable user-level copies of the same skills if they appear as duplicates.
-The installer does not delete global skills, change personal settings, or replace
-an existing Cursor plugin link.
+The installer does not delete global skills or change personal settings. It
+refreshes only this edition's `pstack-cursor` copy.
 
 Run the same installation in a cloud checkout when testing there. A local install
 does not prove cloud discovery or model entitlement. Cloud environment provisioning
@@ -118,7 +122,8 @@ Do not overwrite local adaptations with an unreviewed upstream refresh.
 For rollback before merge, disable the local plugin in each harness and return to
 the previous branch. The removed repo skills return with that branch. Re-enable
 any prior user-installed pstack only after disabling this adoption to avoid duplicates.
-The Cursor link points to this checkout; remove that link if moving or deleting it.
+The Cursor copy lives under `~/.cursor/plugins/local/pstack-cursor`; remove
+that folder if you abandon this checkout without refreshing the install.
 
 Native installation references:
 [Cursor plugins](https://cursor.com/docs/plugins),

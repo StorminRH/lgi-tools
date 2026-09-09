@@ -95,17 +95,31 @@ def check():
     print(f"PASS: {len(source['skills'])} pstack skills + 3 dependencies per edition; manual discovery; native pins; GitHub routing.")
 
 
+def _ignore_plugin_cache(_directory, names):
+    return {name for name in names if name in {"node_modules", "__pycache__", ".git"}}
+
+
+def _is_pstack_cursor_plugin(path):
+    manifest = path / ".cursor-plugin/plugin.json"
+    return manifest.is_file() and read_json(manifest).get("name") == "pstack-cursor"
+
+
 def install_cursor():
     source = ROOT / "plugins/pstack-cursor"
     target = Path.home() / ".cursor/plugins/local/pstack-cursor"
-    if target.is_symlink() and target.resolve() == source:
-        print(f"Already linked: {target}")
-        return
-    if target.exists() or target.is_symlink():
-        raise RuntimeError(f"Refusing to overwrite {target}; inspect the existing installation first.")
+    # Cursor's local loader rejects a symlink whose target is outside
+    # ~/.cursor/plugins/local. Official local testing copies the plugin there.
+    if target.is_symlink():
+        if target.resolve() != source:
+            raise RuntimeError(f"Refusing to overwrite {target}; inspect the existing installation first.")
+        target.unlink()
+    elif target.exists():
+        if not _is_pstack_cursor_plugin(target):
+            raise RuntimeError(f"Refusing to overwrite {target}; inspect the existing installation first.")
+        shutil.rmtree(target)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.symlink_to(source, target_is_directory=True)
-    print(f"Linked {target} to {source}")
+    shutil.copytree(source, target, ignore=_ignore_plugin_cache)
+    print(f"Copied {source} to {target}")
     print("Reload Cursor, enable this local plugin, and open a new chat in this checkout.")
 
 
