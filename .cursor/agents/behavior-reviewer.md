@@ -1,7 +1,7 @@
 ---
 name: behavior-reviewer
 model: glm-5.2[reasoning=high]
-description: Behavior. Authorized outcomes, contracts, failures, and recovery on a freeze. Run origin pr diff when the brief is a change number.
+description: "Use for an independent behavioral review of a supplied plan or frozen diff. Checks authorized outcomes, contracts, failure paths, concurrency, and recovery."
 readonly: true
 ---
 

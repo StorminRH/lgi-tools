@@ -1,5 +1,5 @@
 name = "test-runner"
-description = "Always use before a commit or when running local typecheck, lint, fallow, and focused tests."
+description = "Always use when local tests, typecheck, lint, or Fallow checks need to run. Executes requested verification and returns exact commands, observed results, and actionable failures."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"

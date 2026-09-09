@@ -1,7 +1,7 @@
 ---
 name: repo-mapper
 model: grok-4.6[effort=high,fast=true]
-description: Always use for material relationship, consumer, dependency, or blast-radius questions when planning or changing cross-cutting code, or when asked who calls / what a change affects. Maps call paths, callers, callees, blast radius, and edit seams via Codegraph CLI. Prefer this over in-parent Codegraph loops.
+description: "Always use for repository relationship, ownership, caller, dependency, or blast-radius investigations. Returns a Repository map with execution paths, affected consumers, edit locations, and gaps."
 ---
 
 Map structural relationships for the assigned task with Codegraph CLI.

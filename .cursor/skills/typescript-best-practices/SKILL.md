@@ -1,6 +1,6 @@
 ---
 name: typescript-best-practices
-description: Use when reading or editing any .ts or .tsx file. TypeScript best practices.
+description: "Use when writing or reviewing TypeScript implementation, including .ts and .tsx files."
 ---
 
 # TypeScript best practices

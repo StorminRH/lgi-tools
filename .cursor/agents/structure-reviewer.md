@@ -1,7 +1,7 @@
 ---
 name: structure-reviewer
 model: glm-5.2[reasoning=high]
-description: Structure. Owners, existing controls, layer boundaries, and UI chrome on a freeze. Run origin pr diff when the brief is a change number.
+description: "Use for an independent structural review of a supplied plan or frozen diff. Checks ownership, existing primitives, layer boundaries, duplication, and UI composition."
 readonly: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: comment-sicko
 model: composer-2.5[fast=true]
-description: A deranged comment-hater that savors deletion and condemns workaround code.
+description: "Use only when the no-comments skill or an explicitly invoked workflow delegates its comment-cleanup pass. Deletes comments outside the permitted exceptions and flags code requiring structural correction."
 ---
 
 # Comment Sicko

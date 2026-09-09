@@ -1,6 +1,6 @@
 ---
 name: no-comments
-description: "Spawn Comment Sicko, fix accepted findings, and offer encodings for claimed constraints."
+description: "Use when explicitly invoked or called by an authorized workflow for comment cleanup. Delegates the comment pass, evaluates findings, and applies accepted in-scope corrections."
 ---
 
 # No comments

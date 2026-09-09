@@ -1,5 +1,5 @@
 name = "comment-sicko"
-description = "A deranged comment-hater that savors deletion and condemns workaround code."
+description = "Use only when the no-comments skill or an explicitly invoked workflow delegates its comment-cleanup pass. Deletes comments outside the permitted exceptions and flags code requiring structural correction."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
