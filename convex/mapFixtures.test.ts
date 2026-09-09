@@ -9,6 +9,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import { connectionInsert } from './__tests__/connection-doc.setup';
+import { newIdleSubject } from './lib/subjects';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -508,6 +509,56 @@ describe('map chain fixtures', () => {
         feedFreshAt: NOW + 300_000,
       });
       expect((await readSubject())?.lastFinishedAt).toBe(NOW + 300_000);
+    });
+
+    it('deletes only the named user\'s leftover sync subjects and presence', async () => {
+      const t = convexTest(schema, modules);
+      await t.mutation(internal.mapFixtureTracking.seedTrackedLocationFixture, {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: 90_404_222,
+        solarSystemId: JITA,
+        shipTypeId: null,
+        transitionObservedAt: NOW,
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.insert('syncPresence', {
+          dataset: 'characterLocation',
+          userId: EDITOR,
+          lastSeenAt: NOW,
+        });
+        await ctx.db.insert('syncSubjects', newIdleSubject('onlineStatus', EDITOR));
+        await ctx.db.insert('syncSubjects', newIdleSubject('characterLocation', STRANGER));
+        await ctx.db.insert('syncPresence', {
+          dataset: 'characterLocation',
+          userId: STRANGER,
+          lastSeenAt: NOW,
+        });
+      });
+
+      await expect(
+        t.mutation(internal.mapFixtureTracking.purgeOwnedSyncRows, { userId: '' }),
+      ).rejects.toThrow('INVALID_FIXTURE_USER');
+
+      const purged = await t.mutation(internal.mapFixtureTracking.purgeOwnedSyncRows, {
+        userId: EDITOR,
+      });
+      expect(purged).toEqual({ deletedSubjects: 2, deletedPresence: 1 });
+
+      const remaining = await t.run(async (ctx) => ({
+        subjects: await ctx.db.query('syncSubjects').collect(),
+        presence: await ctx.db.query('syncPresence').collect(),
+      }));
+      expect(remaining.subjects).toHaveLength(1);
+      expect(remaining.subjects[0]).toMatchObject({
+        userId: STRANGER,
+        dataset: 'characterLocation',
+      });
+      expect(remaining.presence).toHaveLength(1);
+      expect(remaining.presence[0]).toMatchObject({
+        userId: STRANGER,
+        dataset: 'characterLocation',
+      });
     });
   });
 

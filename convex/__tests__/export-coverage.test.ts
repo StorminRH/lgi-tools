@@ -102,6 +102,7 @@ import {
 import {
   advanceTrackedLocationFixture,
   clearTrackedCoverage,
+  purgeOwnedSyncRows,
   seedTrackedLocationFixture,
 } from '../mapFixtureTracking';
 import { readMapCollection } from '../mapFixtures';
@@ -218,6 +219,7 @@ describe('convex runtime exports', () => {
       watchUnresolvedHoles,
       advanceTrackedLocationFixture,
       clearTrackedCoverage,
+      purgeOwnedSyncRows,
       collapseJumpFixture,
       insertConnectionFixture,
       insertNoteFixture,

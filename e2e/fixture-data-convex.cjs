@@ -17,6 +17,19 @@ function requireSupportedConvexCleanup() {
   }
 }
 
+function convexCommandFailure(error) {
+  const timedOut = error && typeof error === 'object'
+    && (error.killed === true || error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM');
+  if (timedOut) return 'the Convex CLI timed out';
+  const stderr = error && typeof error === 'object' && 'stderr' in error
+    ? String(error.stderr)
+    : '';
+  if (stderr.includes('Could not find function')) {
+    return 'the requested function is not deployed';
+  }
+  return 'verify the running backend and deployed functions';
+}
+
 async function localConvexCommand(args) {
   requireLocalConvexEnvironment();
   requireSupportedConvexCleanup();
@@ -29,8 +42,9 @@ async function localConvexCommand(args) {
       timeout: 30_000, maxBuffer: 4 * 1024 * 1024,
     });
     return stdout.trim();
-  } catch {
-    throw new Error('E2E_PREREQUISITE: local Convex command failed; verify the running backend and deployed functions');
+  } catch (error) {
+    const detail = convexCommandFailure(error);
+    throw new Error(`E2E_PREREQUISITE: local Convex command failed; ${detail}`);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -120,12 +134,25 @@ function ownedSyncDocuments({ rows, userIds }) {
 }
 
 async function removeOwnedSyncRows(scope, run = localConvexRun) {
-  const toDelete = ownedSyncDocuments(scope);
-  if (toDelete.length === 0) return;
-  const result = await run('_system/frontend/deleteDocuments', { componentId: null, toDelete });
-  if (result === null || typeof result !== 'object' || result.success !== true) {
-    throw new Error('E2E_CLEANUP: Convex did not confirm scoped sync-row deletion');
+  const leftover = ownedSyncDocuments(scope);
+  if (leftover.length === 0) return;
+  const errors = [];
+  for (const userId of scope.userIds) {
+    try {
+      const result = await run('mapFixtureTracking:purgeOwnedSyncRows', { userId });
+      if (
+        result === null
+        || typeof result !== 'object'
+        || typeof result.deletedSubjects !== 'number'
+        || typeof result.deletedPresence !== 'number'
+      ) {
+        throw new Error('E2E_CLEANUP: invalid owned-sync purge response');
+      }
+    } catch (error) {
+      errors.push(error);
+    }
   }
+  if (errors.length > 0) throw new AggregateError(errors, 'E2E_CLEANUP: owned sync-row purge failed');
 }
 
 module.exports = {

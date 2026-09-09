@@ -54,10 +54,35 @@ describe('source-verified scoped sync cleanup', () => {
     ]);
   });
 
-  it('refuses a success:false response instead of claiming deletion', async () => {
+  it('refuses an invalid purge response instead of claiming deletion', async () => {
     await expect(removeOwnedSyncRows({ rows: [ownedRow], userIds: ['owner'] }, async () => ({
       success: false, error: 'injected rejection',
-    }))).rejects.toThrow('did not confirm');
+    }))).rejects.toThrow('owned sync-row purge failed');
+  });
+
+  it('continues other fixture users after one owned-sync purge fails', async () => {
+    const attempted = [];
+    await expect(removeOwnedSyncRows({ rows: [ownedRow], userIds: ['owner', 'editor'] }, async (name, args) => {
+      attempted.push(`${name}:${args.userId}`);
+      if (args.userId === 'owner') throw new Error('injected purge failure');
+      return { deletedSubjects: 0, deletedPresence: 0 };
+    })).rejects.toThrow('owned sync-row purge failed');
+    expect(attempted).toEqual([
+      'mapFixtureTracking:purgeOwnedSyncRows:owner',
+      'mapFixtureTracking:purgeOwnedSyncRows:editor',
+    ]);
+  });
+
+  it('purges leftover sync rows through the deployed fixture mutation', async () => {
+    const attempted = [];
+    await removeOwnedSyncRows({ rows: [ownedRow], userIds: ['owner', 'editor'] }, async (name, args) => {
+      attempted.push(`${name}:${args.userId}`);
+      return { deletedSubjects: 1, deletedPresence: 0 };
+    });
+    expect(attempted).toEqual([
+      'mapFixtureTracking:purgeOwnedSyncRows:owner',
+      'mapFixtureTracking:purgeOwnedSyncRows:editor',
+    ]);
   });
 
   it('rejects malformed and oversized censuses before invoking deletion', async () => {

@@ -3,7 +3,9 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
-import { getSyncSubject, newIdleSubject } from './lib/subjects';
+import { getPresence, getSyncSubject, newIdleSubject, type StoredDataset } from './lib/subjects';
+
+const FIXTURE_SYNC_DATASETS = ['characterLocation', 'onlineStatus'] as const satisfies readonly StoredDataset[];
 
 function requireTrackedFixtureIdentity(
   userId: string,
@@ -66,6 +68,39 @@ async function stampCoverage(
     await ctx.db.insert('characterLocationCovered', { userId, characterId });
   }
 }
+
+export const purgeOwnedSyncRows = internalMutation({
+  args: {
+    userId: v.string(),
+  },
+  returns: v.object({
+    deletedSubjects: v.number(),
+    deletedPresence: v.number(),
+  }),
+  handler: async (ctx, { userId }) => {
+    if (userId.trim().length === 0) {
+      throw new ConvexError({
+        code: 'INVALID_FIXTURE_USER',
+        detail: 'Owned sync cleanup needs a non-empty user id.',
+      });
+    }
+    let deletedSubjects = 0;
+    let deletedPresence = 0;
+    for (const dataset of FIXTURE_SYNC_DATASETS) {
+      const subject = await getSyncSubject(ctx.db, dataset, userId);
+      if (subject !== null) {
+        await ctx.db.delete(subject._id);
+        deletedSubjects += 1;
+      }
+      const presence = await getPresence(ctx.db, dataset, userId);
+      if (presence !== null) {
+        await ctx.db.delete(presence._id);
+        deletedPresence += 1;
+      }
+    }
+    return { deletedSubjects, deletedPresence };
+  },
+});
 
 export const clearTrackedCoverage = internalMutation({
   args: {
