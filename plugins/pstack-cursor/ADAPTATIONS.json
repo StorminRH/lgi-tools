@@ -353,7 +353,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/how/SKILL.md",
       "status": "adapted",
       "source_sha256": "06b714dbd830bc829bfb89e33a1c39daf6d72ea412e488ea9d65f5f33b885a0c",
-      "adopted_sha256": "a0e61d6fe2470f1b2bbca0e3a40856cb4f8c76a9a5807ff43dedbc69964c92dc"
+      "adopted_sha256": "c542732eeef822c3719d8316f55652163d74cf793fd4b18ab9d14453b79afc7b"
     },
     {
       "source": "pstack/skills/how/references/explainer-prompt.md",
@@ -430,7 +430,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/SKILL.md",
       "status": "adapted",
       "source_sha256": "dc166350bc3bb3b9a061930380e971b3ca8c9f55822c52d7249b92b43f5cb865",
-      "adopted_sha256": "131f15ee2ef6601baca803e170885f1fb15d1f39319dcac04de70624319e0903"
+      "adopted_sha256": "7f2e737799082e970e9d2d58825005c859cfb4c6b5c92dfc87cbfa1b0fb9494b"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/authoring-a-skill.md",
@@ -472,7 +472,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/playbooks/bug-fix.md",
       "status": "adapted",
       "source_sha256": "e958c67d5454fc12d76ec645b50dfd85c423082aac13a49e2913ef2815948216",
-      "adopted_sha256": "d484f8f561f5942fda0aae5f192662b35285cbd36553b364574931ea8331b1b0"
+      "adopted_sha256": "8f3f65f691072b0b439cfdfcb2d6d2cc7da7613e3430ac9f421407a91a7fb691"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/eval.md",
@@ -486,14 +486,14 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/playbooks/feature.md",
       "status": "adapted",
       "source_sha256": "430dae0fd736554ff7dffc3ef0644c9f0c845e25742f69e598c35b9b89660301",
-      "adopted_sha256": "5b5501f7cde2b7be8ee8e2820c88f84babac5cfe4bf0b11ae86ac6ce22e746ab"
+      "adopted_sha256": "cc8e9aeab52da35462b15a84e337dd7fe1cedc26e0457cb980e048f825848326"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/hillclimb.md",
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/playbooks/hillclimb.md",
       "status": "adapted",
       "source_sha256": "bc1fc4052c1ee918a56115a219cbcbbc4c147fa1a8080e77c7d58068eecac299",
-      "adopted_sha256": "4c3311152f1557dec0ac10282dc35ea4eecdd7ab75b6da9d980053b104a3e834"
+      "adopted_sha256": "4a9433af2507e0304dc3319b93126a865eed780767c4911d458faca884ff77b3"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/investigation.md",
@@ -507,7 +507,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/playbooks/multi-phase-plan.md",
       "status": "adapted",
       "source_sha256": "63426a55519fbc4fb9f00baf5cc7b1148f70dfb62ad360a0f6533d287dd36edf",
-      "adopted_sha256": "df2c01bc6c6bfae6c558704bbe138ffcc19580c0eae1b4039cd11079dcc456d9"
+      "adopted_sha256": "f281f4149aa86725b5e77e009ae8ece40bc0bb452e160472f77cb64888302db2"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/opening-a-pr.md",
@@ -535,7 +535,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/playbooks/perf-issue.md",
       "status": "adapted",
       "source_sha256": "b2ee9aed1466583361cb61b4e8d79ebb3b61f7f9f6540be7633852afacab1d89",
-      "adopted_sha256": "a137a8cbf2c849e733eeb18e2fa3e39358393712660ceeea243be781ceb15ea5"
+      "adopted_sha256": "1e644d2ff98aa503d7f326c8c70c06650d906ae5be4db8c7e707614377277998"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/prototype.md",
@@ -549,7 +549,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/playbooks/refactoring.md",
       "status": "adapted",
       "source_sha256": "53bac1f1fe886600dd1991b5511b7975e6a206168038f9d282d88e45408e93cf",
-      "adopted_sha256": "04b2b1982e68fc6c8ca1391a1570c350fc67857baacaf012e658757e60b306d5"
+      "adopted_sha256": "47377af0f9241e3543cadd27bf2968e6be062b21d27d57ec1d623619eec9c0b7"
     },
     {
       "source": "pstack/skills/poteto-mode/playbooks/runtime-forensics.md",
@@ -619,7 +619,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/poteto-mode/scripts/check-plan.mjs",
       "status": "adapted",
       "source_sha256": "4f5118edf719b481983dc87dfadd5b4b5473d05aad04a7ba65191ff9c73faf1b",
-      "adopted_sha256": "c82b2ebadcee6483f53fe239cc74398af7ab786ef972d0cba232cbea4a780ffd"
+      "adopted_sha256": "f94b1410dc22ac2bb6ac69d2f49a2d4cf60bc0cf59cb2c4a20ab02ae07de5162"
     },
     {
       "source": "pstack/skills/poteto-mode/scripts/orch/orch.test.ts",
@@ -913,7 +913,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/reflect/SKILL.md",
       "status": "adapted",
       "source_sha256": "6a4d4ccaace9ce88c3e268fcbedf3cfd40e527162a5e5aad6de8edbaf5e2b83f",
-      "adopted_sha256": "4791ad18ecc150d521683e8a378a72576fe953509ff25065950b381609dd08e5"
+      "adopted_sha256": "4bce21832fef826ccb563904e160844f1d9f939b395c54d2241a58f8132016ee"
     },
     {
       "source": "pstack/skills/reflect/references/divergent-reviewer.md",
@@ -1025,7 +1025,7 @@
       "adopted_path": "plugins/pstack-cursor/skills/why/SKILL.md",
       "status": "adapted",
       "source_sha256": "222b93789754ba6ee901835137184acdca667f7e47c523bcc85aca86675fb249",
-      "adopted_sha256": "60bcd064fe311642d96a2d4cc1ad6ba5a75d5ad51a55b85dc7fb788f82a28c0c"
+      "adopted_sha256": "15123e0ed09855a01ec76dcd9a5604f5ac3616e43f3239a05ade187c8a63ac84"
     },
     {
       "source": "pstack/skills/why/references/epistemics.md",

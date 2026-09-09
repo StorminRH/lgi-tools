@@ -4,7 +4,7 @@ import process from "node:process";
 
 const RULE =
 	"Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.";
-const LANES = "Ten lanes on `grok-4.6[effort=high,fast=true]` at the PR head";
+const LANES = "Ten lanes using the configured `swarm workers` model at the PR head";
 const SUB_BLOCKS = [
 	"Depends on.",
 	"Files.",

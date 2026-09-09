@@ -1,6 +1,6 @@
 # Cursor runtime
 
-Use native Task and the discovered agent names. The MODELS.json role's `model` is the complete configured slug, including modifiers. Use it for Task only if that session accepts the slug. `poteto-agent` remains an unpinned routing wrapper so it can inherit the requested role model; comment-sicko retains the existing Composer pin. General-purpose workflow reviewers use their own prompt templates, not the poteto wrapper.
+Use native Task and the discovered agent names. The MODELS.json role's `model` is the Task identifier confirmed in this Cursor session. Task identifiers differ from the pin syntax in agent frontmatter; do not substitute one format for the other. `poteto-agent` remains an unpinned routing wrapper so it can inherit the requested role model; comment-sicko retains the existing Composer pin. General-purpose workflow reviewers use their own prompt templates, not the poteto wrapper.
 
 Use local agents by default. A cloud Task requires that capability, an already-configured LGI environment, and user-selected cloud work. Respect actual depth and concurrency limits. Where `/loop`, `/goal`, sticky mode or an agent store is unavailable, report that capability gap and keep the work in the current session; do not pretend to arm it. Read only the active workspace's transcript paths. No global pstack-models rule is written or needed.
 
