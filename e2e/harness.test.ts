@@ -66,16 +66,44 @@ describe('acceptance selection and evidence boundaries', () => {
     expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
   });
 
-  it('ignores aborted first-party navigation and prefetch cancellations', () => {
+  it('records expected disposition for aborted first-party navigation and prefetch cancellations', () => {
     const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
     observed.recordRequestFailure({
       url: 'http://localhost:3000/industry', method: 'GET', error: 'net::ERR_ABORTED',
+      navigation: true, resourceType: 'document',
     });
     observed.recordRequestFailure({
       url: 'http://localhost:3000/sites', method: 'GET', error: 'NS_BINDING_ABORTED',
+      prefetch: true, resourceType: 'fetch',
     });
-    expect(observed.events).toEqual([]);
+    expect(observed.events).toEqual([
+      {
+        kind: 'request-failed', url: 'http://localhost:3000/industry', method: 'GET',
+        disposition: 'expected', cancellation: 'navigation',
+      },
+      {
+        kind: 'request-failed', url: 'http://localhost:3000/sites', method: 'GET',
+        disposition: 'expected', cancellation: 'prefetch',
+      },
+    ]);
     expect(() => observed.assertClean()).not.toThrow();
+  });
+
+  it('fails aborted POST and aborted required API GET without navigation or prefetch context', () => {
+    const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
+    observed.recordRequestFailure({
+      url: 'http://localhost:3000/api/maps/owned-map', method: 'POST', error: 'net::ERR_ABORTED',
+      resourceType: 'fetch',
+    });
+    observed.recordRequestFailure({
+      url: 'http://localhost:3000/api/session', method: 'GET', error: 'NS_BINDING_ABORTED',
+      resourceType: 'fetch',
+    });
+    expect(observed.events).toEqual([
+      { kind: 'request-failed', url: 'http://localhost:3000/api/maps/owned-map', method: 'POST', disposition: 'unexpected' },
+      { kind: 'request-failed', url: 'http://localhost:3000/api/session', method: 'GET', disposition: 'unexpected' },
+    ]);
+    expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
   });
 
   it('treats loopback http and https as the same first party', () => {

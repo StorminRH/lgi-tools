@@ -56,6 +56,21 @@ describe('mandatory acceptance falsifiers', () => {
     expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
   });
 
+  it('fails aborted writes and aborted required API reads even when the abort string matches navigation cancels', () => {
+    const observed = diagnostics();
+    observed.recordRequestFailure({
+      url: 'http://127.0.0.1:3000/api/maps/owned-map', method: 'POST', error: 'net::ERR_ABORTED',
+      resourceType: 'fetch',
+    });
+    expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
+    const requiredGet = diagnostics();
+    requiredGet.recordRequestFailure({
+      url: 'http://127.0.0.1:3000/api/session', method: 'GET', error: 'NS_BINDING_ABORTED',
+      resourceType: 'fetch',
+    });
+    expect(() => requiredGet.assertClean()).toThrow('DIAGNOSTICS');
+  });
+
   it('rejects the wrong principal despite a valid authenticated session', () => {
     expect(() => assertPrincipal({ session, expected: principal })).not.toThrow();
     expect(() => assertPrincipal({ session: { ...session, user: { id: 'different-account' } }, expected: principal }))
