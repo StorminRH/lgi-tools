@@ -26,8 +26,16 @@ export function atlasMain(page) {
   return page.getByRole('main');
 }
 
+export function atlasVisible(page, selector) {
+  return page.locator(selector).filter({ visible: true });
+}
+
+export function atlasHomePrompt(page) {
+  return atlasVisible(page, '[data-map-home-prompt]');
+}
+
 export async function calmAtlasCamera(page) {
-  const homePrompt = atlasMain(page).locator('[data-map-home-prompt]');
+  const homePrompt = atlasHomePrompt(page);
   if (await homePrompt.isVisible().catch(() => false)) {
     const input = homePrompt.getByPlaceholder(/Search systems/i);
     await input.click();

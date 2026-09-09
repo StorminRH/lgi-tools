@@ -1,6 +1,6 @@
 import { assertPrincipal, assertMapRole } from '../../../e2e/route-contracts.cjs';
 import { expect } from '@playwright/test';
-import { atlasMain, authoringMapId, authoringRoute, waitForEditableMap } from '../lib/authoring-helpers.mjs';
+import { atlasMain, atlasVisible, authoringMapId, authoringRoute, waitForEditableMap } from '../lib/authoring-helpers.mjs';
 
 export default {
   name: 'atlas-map-access', get route() { return authoringRoute(); },
@@ -42,7 +42,7 @@ export default {
     await expect(atlasMain(viewer.page).locator('[data-map-can-edit="true"]')).toHaveCount(0);
     await expect(atlasMain(denied.page).locator('[data-chain-no-access]')).toBeVisible();
     await atlasMain(page).locator('[data-map-switcher-trigger]').click();
-    await atlasMain(page).locator(`[data-map-switcher-manage="${mapId}"]`).click();
+    await atlasVisible(page, `[data-map-switcher-manage="${mapId}"]`).click();
     const dialog = page.getByRole('dialog', { name: /^Manage / });
     await expect(dialog).toBeVisible();
     const grant = dialog.locator(`[data-map-access-principal="character:${fixtures.principals.editor.characterId}"]`);

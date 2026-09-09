@@ -8,6 +8,7 @@ import {
   restoreMapAccess,
   teardownMapAccess,
   waitForEditableMap,
+  atlasHomePrompt,
   atlasMain,
 } from '../lib/authoring-helpers.mjs';
 
@@ -58,7 +59,7 @@ export default {
     if (!mapId) throw new Error(`BLOCKED: required run-owned fixture unavailable`);
 
     await waitForEditableMap(page);
-    const home = atlasMain(page).locator('[data-map-home-prompt]');
+    const home = atlasHomePrompt(page);
     const startedBlank = (await home.count()) > 0;
     check(
       'editor client starts on a blank map with the home prompt (re-seed or drain UX_BLANK_MAP_ID after each run)',
@@ -73,13 +74,13 @@ export default {
     await waitForEditableMap(second.page);
     check(
       'second authenticated client also sees the home prompt on the blank map',
-      (await atlasMain(second.page).locator('[data-map-home-prompt]').count()) === 1,
+      (await atlasHomePrompt(second.page).count()) === 1,
     );
 
 
 
     await pickSystemSearch(page, 'Search systems — type a name', 'jita', {
-      root: atlasMain(page).locator('[data-map-home-prompt]'),
+      root: atlasHomePrompt(page),
     });
     await page.waitForFunction(
       () => document.querySelectorAll('[data-chain-node]').length >= 1,
@@ -98,7 +99,7 @@ export default {
     );
     check(
       'home prompt unmounts after the root exists',
-      (await atlasMain(page).locator('[data-map-home-prompt]').count()) === 0,
+      (await atlasHomePrompt(page).count()) === 0,
     );
 
 

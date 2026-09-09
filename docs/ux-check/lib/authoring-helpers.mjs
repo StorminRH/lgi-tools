@@ -7,7 +7,7 @@ import { calmAtlasCamera } from './window-helpers.mjs';
 loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
 export { installFixtureAccessControl };
-export { atlasMain } from './window-helpers.mjs';
+export { atlasHomePrompt, atlasMain, atlasVisible } from './window-helpers.mjs';
 
 export function fixtureCharacterId() {
   const value = Number(process.env.UX_CHARACTER_ID);
