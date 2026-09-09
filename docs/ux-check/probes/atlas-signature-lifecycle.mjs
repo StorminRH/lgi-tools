@@ -126,6 +126,10 @@ export default {
         shipTypeId: SHIP_TYPE_ID,
         transitionObservedAt: seededTransitionAt,
       });
+      await convexRun('mapStatics:fetchSystemStatics', {
+        mapId,
+        systemId: ORIGIN_SYSTEM_ID,
+      });
     });
     const restampFreshness = () =>
       convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
