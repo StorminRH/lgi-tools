@@ -47,10 +47,15 @@ function watch(context: BrowserContext, diagnostics: Diagnostics) {
     }));
     page.on('requestfailed', (request) => {
       const headers = request.headers();
+      let api = false;
+      try { api = new URL(request.url()).pathname.startsWith('/api/'); } catch { api = true; }
       diagnostics.recordRequestFailure({
         url: request.url(), method: request.method(), error: request.failure()?.errorText,
         navigation: request.isNavigationRequest(), resourceType: request.resourceType(),
-        prefetch: headers['next-router-prefetch'] !== undefined || headers.purpose === 'prefetch',
+        prefetch: headers['next-router-prefetch'] !== undefined
+          || headers['next-router-segment-prefetch'] !== undefined
+          || headers.purpose === 'prefetch',
+        flight: headers.rsc !== undefined && !api,
       });
     });
     page.on('pageerror', () => diagnostics.recordPageError());

@@ -69,6 +69,12 @@ describe('mandatory acceptance falsifiers', () => {
       resourceType: 'fetch',
     });
     expect(() => requiredGet.assertClean()).toThrow('DIAGNOSTICS');
+    const flightApi = diagnostics();
+    flightApi.recordRequestFailure({
+      url: 'http://127.0.0.1:3000/api/session', method: 'GET', error: 'net::ERR_ABORTED',
+      resourceType: 'fetch',
+    });
+    expect(() => flightApi.assertClean()).toThrow('DIAGNOSTICS');
   });
 
   it('rejects the wrong principal despite a valid authenticated session', () => {
