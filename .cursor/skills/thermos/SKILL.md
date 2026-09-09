@@ -1,6 +1,6 @@
 ---
 name: thermos
-description: "Launch both thermo-nuclear review subagents within available slots, then synthesize their findings. Use for thermos, double thermo review, or combined bug/security and code-quality branch audits."
+description: "Use when explicitly invoked or called by an authorized workflow for combined correctness/security and maintainability reviews. Delegates both thermo reviewers and synthesizes their findings."
 disable-model-invocation: true
 ---
 

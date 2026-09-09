@@ -1,0 +1,6 @@
+interface:
+  display_name: "unslop"
+  short_description: "Use the unslop workflow in LGI."
+  default_prompt: "Use $unslop for the requested task."
+policy:
+  allow_implicit_invocation: false

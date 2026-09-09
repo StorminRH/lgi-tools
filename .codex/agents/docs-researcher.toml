@@ -1,5 +1,5 @@
 name = "docs-researcher"
-description = "Retrieves version-matched official docs and examples for external libraries and frameworks via the Context7 CLI or MCP. Always use before writing or editing production or test code that touches material external technologies (React, Next.js, Convex, Base UI, React Flow, Vitest, and peers). Always prefer this over remembered API details or in-parent Context7 / docs loops. Skip only for docs-only, policy-only, or other pure non-code edits."
+description = "Always use for external documentation research and before writing production or test code involving external libraries or frameworks. Returns a version-matched Documentation brief with official guidance, relevant examples, and unresolved gaps."
 model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"

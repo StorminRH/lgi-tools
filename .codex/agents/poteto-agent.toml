@@ -1,0 +1,5 @@
+name = "poteto-agent"
+description = "Routing target only for an explicitly selected poteto-mode workflow when parent-model inheritance is intended."
+developer_instructions = '''
+Read plugins/pstack-codex/skills/poteto-mode/SKILL.md in full before work, including its Principles index. Read the leaf principle skill whenever applying it. Follow the assigned scope and the LGI runtime configuration.
+'''

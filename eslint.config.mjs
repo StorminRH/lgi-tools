@@ -1497,6 +1497,8 @@ const eslintConfig = defineConfig([
   },
 
   globalIgnores([
+    "plugins/pstack-cursor/**",
+    "plugins/pstack-codex/**",
     ".next/**",
     "out/**",
     "build/**",

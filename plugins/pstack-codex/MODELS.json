@@ -1,0 +1,148 @@
+{
+  "status": "configured; runtime availability requires the smoke check",
+  "roles": {
+    "feature": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "refactoring": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "how explorer": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "why investigators": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "reflect tooling": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "swarm workers": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "recall": {
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "agent": "pstack-worker"
+    },
+    "bug-fix": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "perf-issue": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "hillclimb": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "judgment and prose": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "how explainer": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "why synthesizer": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "reflect judgment": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "reflect divergent": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "reflect synthesizer": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "hardest tasks": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "agent": "pstack-reviewer"
+    },
+    "mechanical work": {
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "medium",
+      "agent": "pstack-fast"
+    },
+    "comment cleanup": {
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "medium",
+      "agent": "comment-sicko"
+    },
+    "arena runners": [
+      {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "high",
+        "agent": "pstack-worker"
+      },
+      {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "high",
+        "agent": "pstack-reviewer"
+      }
+    ],
+    "arena cross-judge pool": [
+      {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "high",
+        "agent": "pstack-worker"
+      },
+      {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "high",
+        "agent": "pstack-reviewer"
+      }
+    ],
+    "architect runners": [
+      {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "high",
+        "agent": "pstack-worker"
+      },
+      {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "high",
+        "agent": "pstack-reviewer"
+      }
+    ],
+    "interrogate reviewers": [
+      {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "high",
+        "agent": "pstack-worker"
+      },
+      {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "high",
+        "agent": "pstack-reviewer"
+      }
+    ]
+  }
+}

@@ -1,184 +1,59 @@
 # LGI.tools
 
-EVE Online multi-tool. Work lands in slices.
+EVE Online multi-tool. GitHub hosts code and PRs.
+Linear owns work tracking and durable handoffs.
 
-## Workflow
+## Work routing
 
-- Ordinary work starts from a direct request. Skip lifecycle state and the
-  resolver.
-- Planned lifecycle work starts only through `start-session`. Use the
-  resolver-selected branch and handler.
+Ordinary requests do not use lifecycle state or the resolver.
+Planned lifecycle work begins through `start-session`.
+When the user selects `poteto-mode`, use that workflow instead; do not also start lifecycle.
 
-## Agent guidance
+Feature work targets `development`. Promote is `development` → `staging`;
+release is `staging` → `main`. Every merge onto `staging` or `main`
+uses `close-out`. Preserve the promote threshold of 80 app-facing files.
 
-Use the repository instructions for the active harness:
+## Context isolation
 
-| Harness | Skills | Named agents |
-| --- | --- | --- |
-| Cursor | `.cursor/skills/` | `.cursor/agents/` |
-| Codex | `.agents/skills/` | `.codex/agents/` |
-
-When both skill copies are discoverable, select the active harness's path.
-Keep shared workflow changes aligned across both copies; invocation syntax
-and model mappings belong to their harness. Before editing agent guidance,
-read that harness's `writing-for-agents` skill.
-
-## Agents
-
-Use a listed agent when the work isolates to it. Other sub-agents are fine
-when they help.
-
-Launch `docs-researcher` before writing or editing production or test code that
-touches React, Next.js, Convex, Base UI, React Flow, Vitest, or peers.
-Generation waits on a Documentation brief.
-
-Launch `repo-mapper` for relationship, consumer, dependency, or blast-radius
-questions. It uses Codegraph (`callers`, `callees`, `impact`, `query`;
-`status`/`sync` if needed) and returns a Repository map.
-
-Launch `test-runner` before commits, and whenever the local test suite
-needs test results: `pnpm typecheck`, `pnpm lint`, Fallow
-`dead-code` (default and `--production`), `dupes`, and `health`, plus
-caller-supplied focused tests for the diff.
-
-Launch by the exact role name and keep the definition's model pin. In Cursor,
-omit Task `model`. In Codex, use `agent_type` and omit `model` and
-`reasoning_effort`; read `.agents/skills/_shared/codex-agents.md` before
-launching seats. A missing required role blocks that seat; report the loading
-failure and repair discovery before retrying.
-
-## Done
-
-Land on Origin `development` when the local test suite is green. Promote
-(`development` → `staging`) and release (`staging` → `main`) wait on
-`close-out`, including one Depot `dispatch` after reviews.
-
-## Tools
-
-Origin is the land forge. GitHub is a manual mirror for bot review.
-Linear is the ticket home. GitHub issues are not in use. Update watch
-comments on standing `LGI-6`.
-
-**origin** — Origin PRs stay draft. Local suite green, then create:
-`origin pr create --head <head> --base <destination>`
-Create defaults to draft. Leave it draft through reviews and fixes.
-Always pass `--head` and `--base`; after `test-runner` the checkout can
-be detached. `no-comments` and `comment-sicko` write first. Then the
-GitHub mirror. Freeze that head. Reviewers run `origin pr diff <N>`.
-The brief is the change number. Keep that freeze until every seat
-has returned. Then one batch: triage, dedupe, fix, note on the PR.
-A push is a version.
-`refresh` when `view` still shows the previous one. Bugbot reviews
-once on open. Accumulating drafts stay draft; `dispatch` waits until
-that PR is finishing. Origin assigns a thread id. A review is a
-verdict on a version.
-`origin pr create --head <head> --base <destination>`
-`origin pr diff <N>`
-`origin pr refresh`
-`origin pr view --json latestVersion`
-`origin pr comment -b "..."`
-`origin pr thread list --unresolved`
-`origin pr thread reply <id>`
-`origin pr thread resolve <id>`
-`origin pr merge <N>`
-`origin pr view` / `list` / `diff`
-
-Merge is `origin pr merge <N>`. A Cloud Agent token that refuses
-that call is BLOCKED. Leave the Origin PR open. The operator
-reviews and merges. Token limits live in `.cursor/cloud-agent.md`.
-
-**gh** — GitHub mirror PRs and branches only. Manual. Add a `github`
-remote to `https://github.com/StorminRH/lgi-tools.git` when it is
-missing. `gh pr create` (`dump/...` → `staging`)
-
-**depot** — Manual last step. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
-workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. Dispatch
-once the reviews on that PR are idle and the local suite is green on
-that head. Depot starts only from `dispatch`. Dispatch runs
-the branch tip. Watch with `status`. `run list` defaults to queued
-and running. `origin pr checks` stays empty on dispatch. On red,
-`diagnose` then `logs`. The fix is a new batch, then one more
-`dispatch`. Skip `auth-storage.json` in artifacts.
-`depot ci dispatch --repo stormin/lgi-tools --workflow test.yml --ref <head-branch> --org k2f4dzqwd4`
-`depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
-`depot ci status <run-id> --org k2f4dzqwd4`
-`depot ci diagnose --run <run-id> --org k2f4dzqwd4`
-`depot ci logs <run-id> --job <job> --org k2f4dzqwd4`
-
-**vercel** — Manual `development` Preview and the Vercel API.
-`vercel deploy`
-`vercel ls`
-`vercel api`
-
-**neon** — Branch policy. Nothing auto-applies `neon.ts`. Protected `main`
-needs `--allow-protected`.
-`neon config plan`
-`pnpm neon:apply`
-`neon branches delete preview/<branch>`
-
-**convex** — Local and anonymous stay `pnpm exec convex`. Hosted preview
-delete is the HTTP path under Delivery.
-`pnpm exec convex dev`
-`pnpm exec convex run`
-`pnpm exec convex env set`
+Delegate documentation research, repository exploration, and test execution
+to their configured subagents. Keep raw tool output and investigation
+history in the child context. Bring conclusions, decisive evidence,
+failures, and unresolved questions back to the parent.
 
 ## Architecture
 
-Neon holds durable account, character, and ESI data. Convex holds live
-projections plus the mapper collaborative-chain exception in `docs/CONVEX.md`.
-
-Production source lives in the deny-by-default Fallow zones. `.fallowrc.json`
-is the boundary. No new cross-layer exceptions.
-
-Use existing primitives and configuration. Extract shared code only for a real
+[`.fallowrc.json`](.fallowrc.json) defines the production-layer boundaries.
+Preserve them. Use existing primitives; extract shared code for a real
 second consumer.
 
-## Atlas connections
+Neon holds durable account, character, and ESI data. For changes to
+data ownership or live state, read [Convex architecture](docs/CONVEX.md),
+including the mapper's collaborative-chain exception.
 
-When discussing Atlas connections, use the glossary at the top of
-`src/data/maps/connection-door-types.ts`. Talk about a system and its class
-when the class matters, the wormholes in that system, outgoing named holes vs
-incoming K162s. Example: jump a P060, land in a C1, the way back is the K162.
-Stored `from`/`to` are document ends, not incoming vs outgoing. Call them
-systems, not origin or far side.
+For Atlas connections, use the glossary in
+[`connection-door-types.ts`](src/data/maps/connection-door-types.ts).
+Stored `from` and `to` are document ends, not outgoing versus incoming wormholes.
 
-## Delivery
+## Testing
 
-Feature work lands on Origin `development`. A `development` Preview is
-manual (Vercel dashboard or CLI): Neon `preview/development` (3-day TTL,
-0.25-1 CU from `neon.ts`) and Convex `preview/development`. Delete that
-Neon branch, Convex preview, and Vercel Preview when the test cycle ends.
+When writing or changing tests, follow
+[testing principles](docs/contributing/testing-principles.md).
+For browser tests, also read
+[end-to-end testing](docs/contributing/end-to-end-testing.md).
 
-Promote at 80 app-facing files versus `staging`. That Origin PR updates the
-long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
-Durable origin `https://staging.lgi.tools`. EVE SSO callback is
-`https://staging.lgi.tools/api/auth/oauth2/callback/eve`.
+Local verification requirements live in [CONTRIBUTING.md](CONTRIBUTING.md).
+Production builds run in CI and Vercel; agents do not run them locally.
 
-`main` is the only Production auto-deploy. Every merge onto `staging`
-or `main` goes through `close-out`.
+## Environments
 
-`vercel.json` auto-deploys `main` and `staging` only. Neon
-project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
-`lgi-tools`. Connection strings use role `neondb_owner`.
+For local setup, read [Local development](README.md#local-development).
+For Cursor Cloud provisioning, secrets, or VM-local e2e, read
+[the cloud guide](.cursor/cloud-agent.md); its provisioning scripts apply
+only to that VM.
 
-Convex has no CLI list or delete. Ending a Vercel Preview leaves Convex
-running. List and delete with a team access token or PAT, never
-`CONVEX_DEPLOY_KEY`, against `https://api.convex.dev/v1`:
-
-```text
-GET  /teams/stormin-s-projects/projects/lgi-tools
-GET  /projects/<numeric-id>/list_deployments?deploymentType=preview
-POST /deployments/<animal-name>/delete
-```
-
-The delete path is the animal name (`robust-puffin-832`), not
-`preview/development`. Preview Convex expires 5d or 14d from create.
-
-## Cloud Agent
-
-For Cursor Cloud Agent VM setup, secrets, or VM-local e2e, read
-`.cursor/cloud-agent.md`. Those Linux provisioning scripts apply only to that
-VM. For local Cursor or Codex development, use `README.md#local-development`.
+Changes to `neon.ts` require an explicit apply.
+Preview cleanup covers Vercel, Neon, and Convex separately;
+deleting a Vercel Preview leaves its Convex deployment running.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

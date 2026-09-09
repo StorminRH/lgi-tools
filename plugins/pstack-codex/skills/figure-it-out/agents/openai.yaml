@@ -1,0 +1,6 @@
+interface:
+  display_name: "figure-it-out"
+  short_description: "Use the figure-it-out workflow in LGI."
+  default_prompt: "Use $figure-it-out for the requested task."
+policy:
+  allow_implicit_invocation: false

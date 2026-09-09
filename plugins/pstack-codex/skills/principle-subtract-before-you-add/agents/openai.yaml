@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-subtract-before-you-add"
+  short_description: "Use the principle-subtract-before-you-add workflow in LGI."
+  default_prompt: "Use $principle-subtract-before-you-add for the requested task."
+policy:
+  allow_implicit_invocation: false

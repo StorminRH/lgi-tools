@@ -1,0 +1,95 @@
+{
+  "status": "configured; runtime availability requires the smoke check",
+  "roles": {
+    "feature": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "refactoring": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "how explorer": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "why investigators": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "reflect tooling": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "swarm workers": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "recall": {
+      "model": "cursor-grok-4.6-high-fast"
+    },
+    "bug-fix": {
+      "model": "glm-5.2-high"
+    },
+    "perf-issue": {
+      "model": "glm-5.2-high"
+    },
+    "hillclimb": {
+      "model": "glm-5.2-high"
+    },
+    "judgment and prose": {
+      "model": "glm-5.2-high"
+    },
+    "how explainer": {
+      "model": "glm-5.2-high"
+    },
+    "why synthesizer": {
+      "model": "glm-5.2-high"
+    },
+    "reflect judgment": {
+      "model": "glm-5.2-high"
+    },
+    "reflect divergent": {
+      "model": "glm-5.2-high"
+    },
+    "reflect synthesizer": {
+      "model": "glm-5.2-high"
+    },
+    "hardest tasks": {
+      "model": "cursor-grok-4.6-xhigh-fast"
+    },
+    "mechanical work": {
+      "model": "composer-2.5-fast"
+    },
+    "comment cleanup": {
+      "model": "composer-2.5-fast",
+      "agent": "comment-sicko"
+    },
+    "arena runners": [
+      {
+        "model": "cursor-grok-4.6-high-fast"
+      },
+      {
+        "model": "glm-5.2-high"
+      }
+    ],
+    "arena cross-judge pool": [
+      {
+        "model": "cursor-grok-4.6-high-fast"
+      },
+      {
+        "model": "glm-5.2-high"
+      }
+    ],
+    "architect runners": [
+      {
+        "model": "cursor-grok-4.6-high-fast"
+      },
+      {
+        "model": "glm-5.2-high"
+      }
+    ],
+    "interrogate reviewers": [
+      {
+        "model": "cursor-grok-4.6-high-fast"
+      },
+      {
+        "model": "glm-5.2-high"
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 ---
 name: thermo-nuclear-review-subagent
 model: grok-4.6[effort=xhigh,fast=true]
-description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to an Origin PR. Invoked via Task with a change number. Runs origin pr diff. Loads rubric from the local thermo-nuclear-review skill.
+description: "Use only when the thermo-nuclear-review skill, thermos, or an explicitly invoked workflow delegates its deep correctness and security review. Audits the supplied diff for bugs, breaking changes, security issues, and feature-gate leaks."
 ---
 
 # Thermo Nuclear Review (Deep review)

@@ -1,0 +1,6 @@
+interface:
+  display_name: "blast-radius"
+  short_description: "Use the blast-radius workflow in LGI."
+  default_prompt: "Use $blast-radius for the requested task."
+policy:
+  allow_implicit_invocation: false

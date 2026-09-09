@@ -1,0 +1,6 @@
+interface:
+  display_name: "make-bot-ui"
+  short_description: "Use the make-bot-ui workflow in LGI."
+  default_prompt: "Use $make-bot-ui for the requested task."
+policy:
+  allow_implicit_invocation: false
