@@ -160,9 +160,9 @@ jobs:
       - name: Package production build
         run: |
           tar --exclude='.next/cache' --exclude='.next/dev' --exclude='.next/diagnostics' -czf "$RUNNER_TEMP/next-build.tgz" .next
-          git rev-parse HEAD > "$RUNNER_TEMP/next-build-subject.txt"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/next-build-subject.txt"
           du -b "$RUNNER_TEMP/next-build.tgz" >> "$GITHUB_STEP_SUMMARY"
-          git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           df -h / >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
@@ -210,7 +210,7 @@ jobs:
 
       - name: Restore this subject's production build
         run: |
-          test "$(cat "$RUNNER_TEMP/next-build-subject.txt")" = "$(git rev-parse HEAD)"
+          test "$(cat "$RUNNER_TEMP/next-build-subject.txt")" = "$GITHUB_SHA"
           tar -xzf "$RUNNER_TEMP/next-build.tgz"
 
       - run: pnpm install --frozen-lockfile
