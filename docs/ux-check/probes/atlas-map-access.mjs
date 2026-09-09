@@ -1,4 +1,4 @@
-import { assertPrincipal, assertMapRole } from '../../../e2e/route-contracts.ts';
+import { assertPrincipal, assertMapRole } from '../../../e2e/route-contracts.cjs';
 import { expect } from '@playwright/test';
 import { authoringMapId, authoringRoute, waitForEditableMap } from '../lib/authoring-helpers.mjs';
 

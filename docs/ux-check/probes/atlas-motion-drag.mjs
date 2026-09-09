@@ -1,4 +1,4 @@
-import { assertMovementOutcome } from '../../../e2e/route-contracts.ts';
+import { assertMovementOutcome } from '../../../e2e/route-contracts.cjs';
 import { expect } from '@playwright/test';
 import { atlasWindowRoute, dragNodeDisc, hittableNode, settleMapViewport, waitForWindowMap } from '../lib/window-helpers.mjs';
 
