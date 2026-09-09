@@ -8,6 +8,7 @@ source "$REPO_ROOT/.cursor/lib.sh"
 
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
+lgi_require_anonymous_convex_file .env.local
 
 PGBIN="$(lgi_pg16_bin)"
 

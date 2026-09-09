@@ -9,6 +9,7 @@ source "$REPO_ROOT/.cursor/clis.sh"
 
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
+lgi_require_anonymous_convex_file "$REPO_ROOT/.env.local"
 lgi_eve_runtime_secret_presence
 
 # GITHUB_TOKEN already drives `gh`. setup-git is the credential helper so
@@ -18,8 +19,4 @@ if [ -n "${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
 fi
 
 rm -f "$LGI_AUTH_STATUS"
-nohup bash "$REPO_ROOT/.cursor/configure-convex-auth.sh" \
-  >/tmp/lgi-convex-auth.log 2>&1 &
-echo "configure-convex-auth pid $! (status $LGI_AUTH_STATUS; log /tmp/lgi-convex-auth.log)"
-
-echo "start.sh complete."
+echo "start.sh finished. AUTH reconcile is the configure-convex-auth terminal."

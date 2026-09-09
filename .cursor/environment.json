@@ -16,7 +16,12 @@
     {
       "name": "convex-dev",
       "command": "bash .cursor/convex.sh",
-      "description": "Anonymous local Convex backend on http://127.0.0.1:3210 (CONVEX_AGENT_MODE=anonymous). Required for Atlas mapper probes and `convex run` against the selected anonymous/local deployment. Do not point the app at a hosted Convex URL."
+      "description": "Anonymous local Convex backend on http://127.0.0.1:3210 (CONVEX_AGENT_MODE=anonymous). Required for Atlas mapper probes and `convex run` against anonymous:anonymous-agent."
+    },
+    {
+      "name": "configure-convex-auth",
+      "command": "bash .cursor/configure-convex-auth.sh",
+      "description": "Owns AUTH reconcile: waits for Next /api/auth/jwks (nonempty signing keys) and Convex :3210, then sets AUTH_* on the anonymous deployment. Readiness is /tmp/lgi-convex-auth.status (0 = ready). Failures stay in this terminal."
     }
   ],
   "ports": [

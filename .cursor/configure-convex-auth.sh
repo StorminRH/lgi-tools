@@ -6,6 +6,12 @@ cd "$REPO_ROOT"
 # shellcheck source=lib.sh
 source "$REPO_ROOT/.cursor/lib.sh"
 
+auth_ok=0
+trap 'if [ "$auth_ok" != 1 ]; then
+  lgi_write_auth_status 1
+  echo "ERROR: configure-convex-auth failed (status $LGI_AUTH_STATUS)" >&2
+fi' EXIT
+
 lgi_pin_anonymous_convex_env
 lgi_require_anonymous_convex_file .env.local
 
@@ -23,7 +29,7 @@ for _ in $(seq 1 180); do
   if curl -sf -o /dev/null http://127.0.0.1:3210 >/dev/null 2>&1 \
     || curl -sf -o /dev/null http://127.0.0.1:3210/version >/dev/null 2>&1; then
     if jwks_json="$(curl -sf http://localhost:3000/api/auth/jwks 2>/dev/null)"; then
-      if printf '%s' "$jwks_json" | grep -q '"keys"'; then
+      if lgi_jwks_has_signing_keys "$jwks_json"; then
         break
       fi
     fi
@@ -32,8 +38,8 @@ for _ in $(seq 1 180); do
   sleep 2
 done
 
-if ! printf '%s' "$jwks_json" | grep -q '"keys"'; then
-  fail_auth "configure-convex-auth: Next JWKS not ready; refusing placeholder AUTH_JWKS"
+if ! lgi_jwks_has_signing_keys "$jwks_json"; then
+  fail_auth "configure-convex-auth: Next JWKS missing nonempty signing keys; refusing placeholder AUTH_JWKS"
 fi
 
 jwks_uri="data:text/plain;charset=utf-8;base64,$(printf '%s' "$jwks_json" | base64 -w0)"
@@ -66,4 +72,6 @@ printf '%s' "$jwks_uri" | convex_env AUTH_JWKS
 printf '%s' "$secret" | convex_env CONVEX_SERVICE_SECRET
 
 lgi_write_auth_status 0
+lgi_require_auth_ready
+auth_ok=1
 echo "configure-convex-auth: set AUTH_ISSUER_URL, SITE_URL, AUTH_JWKS, CONVEX_SERVICE_SECRET on local Convex."

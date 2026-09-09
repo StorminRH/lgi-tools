@@ -62,6 +62,8 @@ fi
   || "$PGBIN/createdb" -h localhost -p 5433 -U lgi lgi_tools
 
 [ -f .env.local ] || cp .env.example .env.local
+lgi_strip_empty_env_local_key .env.local CONVEX_DEPLOYMENT
+lgi_strip_empty_env_local_key .env.local NEXT_PUBLIC_CONVEX_URL
 set_var() {
   local k="$1" v="$2"
   if lgi_forbidden_env_local_key "$k"; then
@@ -117,10 +119,9 @@ printf '%s' "$AUTH_JWKS" | pnpm exec convex env set AUTH_JWKS
 printf '%s' "$CONVEX_SERVICE_SECRET" | pnpm exec convex env set CONVEX_SERVICE_SECRET
 pnpm exec convex dev --once
 
+echo "install.sh complete: postgres 16 :5433 provisioned; SDE census ready."
+lgi_sde_report "$LGI_LOCAL_DB_URL"
 if [ "$started_pg" = 1 ]; then
   lgi_stop_owned_postgres "$PGBIN" "$PGDATA" 1
   started_pg=0
 fi
-
-echo "install.sh complete: postgres 16 :5433 provisioned; SDE census ready."
-lgi_sde_report "$LGI_LOCAL_DB_URL" || true
