@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { account, characters, jwks, session, user, verification } from '@/db/auth-schema';
 import { db } from '@/db';
 import { readEnv } from '@/lib/env';
+import { characterPortraitUrl } from '@/lib/eve-image';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { requireLocalAuthEnvironment } from './fixture-data-local.cjs';
 import type { FixtureIdentity } from './identity';
@@ -52,12 +53,13 @@ export async function seedFixturePrincipal(
   await helpers.saveUser(helpers.createUser({
     id: identity.userId, name: identity.name,
     email: syntheticEmail(identity.characterId), emailVerified: true,
-    image: '/logo.png',
+    image: characterPortraitUrl(identity.characterId, 128),
   }));
   ownership.userCreated();
   const now = new Date();
   await db.insert(characters).values({
-    characterId: identity.characterId, name: identity.name, portraitUrl: '/logo.png',
+    characterId: identity.characterId, name: identity.name,
+    portraitUrl: characterPortraitUrl(identity.characterId, 128),
     affiliationRefreshedAt: now, createdAt: now, updatedAt: now, lastLoginAt: now,
   });
   ownership.characterCreated();
