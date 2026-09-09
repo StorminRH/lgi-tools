@@ -1,0 +1,95 @@
+{
+  "status": "configured; runtime availability requires the smoke check",
+  "roles": {
+    "feature": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "refactoring": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "how explorer": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "why investigators": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "reflect tooling": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "swarm workers": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "recall": {
+      "model": "grok-4.6[effort=high,fast=true]"
+    },
+    "bug-fix": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "perf-issue": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "hillclimb": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "judgment and prose": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "how explainer": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "why synthesizer": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "reflect judgment": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "reflect divergent": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "reflect synthesizer": {
+      "model": "glm-5.2[reasoning=high]"
+    },
+    "hardest tasks": {
+      "model": "grok-4.6[effort=xhigh,fast=true]"
+    },
+    "mechanical work": {
+      "model": "composer-2.5[fast=true]"
+    },
+    "comment cleanup": {
+      "model": "composer-2.5[fast=true]",
+      "agent": "comment-sicko"
+    },
+    "arena runners": [
+      {
+        "model": "grok-4.6[effort=high,fast=true]"
+      },
+      {
+        "model": "glm-5.2[reasoning=high]"
+      }
+    ],
+    "arena cross-judge pool": [
+      {
+        "model": "grok-4.6[effort=high,fast=true]"
+      },
+      {
+        "model": "glm-5.2[reasoning=high]"
+      }
+    ],
+    "architect runners": [
+      {
+        "model": "grok-4.6[effort=high,fast=true]"
+      },
+      {
+        "model": "glm-5.2[reasoning=high]"
+      }
+    ],
+    "interrogate reviewers": [
+      {
+        "model": "grok-4.6[effort=high,fast=true]"
+      },
+      {
+        "model": "glm-5.2[reasoning=high]"
+      }
+    ]
+  }
+}

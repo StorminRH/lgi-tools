@@ -1,0 +1,6 @@
+interface:
+  display_name: "reflect"
+  short_description: "Use the reflect workflow in LGI."
+  default_prompt: "Use $reflect for the requested task."
+policy:
+  allow_implicit_invocation: false

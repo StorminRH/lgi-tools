@@ -1,0 +1,6 @@
+interface:
+  display_name: "create-verification-skill"
+  short_description: "Use the create-verification-skill workflow in LGI."
+  default_prompt: "Use $create-verification-skill for the requested task."
+policy:
+  allow_implicit_invocation: false

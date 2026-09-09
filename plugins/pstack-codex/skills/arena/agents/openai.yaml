@@ -1,0 +1,6 @@
+interface:
+  display_name: "arena"
+  short_description: "Use the arena workflow in LGI."
+  default_prompt: "Use $arena for the requested task."
+policy:
+  allow_implicit_invocation: false

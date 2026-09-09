@@ -1,0 +1,6 @@
+interface:
+  display_name: "poteto-mode"
+  short_description: "Use the poteto-mode workflow in LGI."
+  default_prompt: "Use $poteto-mode for the requested task."
+policy:
+  allow_implicit_invocation: false

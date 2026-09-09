@@ -1,0 +1,6 @@
+interface:
+  display_name: "how"
+  short_description: "Use the how workflow in LGI."
+  default_prompt: "Use $how for the requested task."
+policy:
+  allow_implicit_invocation: false

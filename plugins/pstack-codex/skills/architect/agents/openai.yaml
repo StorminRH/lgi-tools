@@ -1,0 +1,6 @@
+interface:
+  display_name: "architect"
+  short_description: "Use the architect workflow in LGI."
+  default_prompt: "Use $architect for the requested task."
+policy:
+  allow_implicit_invocation: false

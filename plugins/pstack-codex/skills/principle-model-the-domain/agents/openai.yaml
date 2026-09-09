@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-model-the-domain"
+  short_description: "Use the principle-model-the-domain workflow in LGI."
+  default_prompt: "Use $principle-model-the-domain for the requested task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-laziness-protocol"
+  short_description: "Use the principle-laziness-protocol workflow in LGI."
+  default_prompt: "Use $principle-laziness-protocol for the requested task."
+policy:
+  allow_implicit_invocation: false

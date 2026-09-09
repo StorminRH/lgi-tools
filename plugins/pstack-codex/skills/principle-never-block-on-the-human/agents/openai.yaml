@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-never-block-on-the-human"
+  short_description: "Use the principle-never-block-on-the-human workflow in LGI."
+  default_prompt: "Use $principle-never-block-on-the-human for the requested task."
+policy:
+  allow_implicit_invocation: false

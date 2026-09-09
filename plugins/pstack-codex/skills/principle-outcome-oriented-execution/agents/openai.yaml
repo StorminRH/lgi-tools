@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-outcome-oriented-execution"
+  short_description: "Use the principle-outcome-oriented-execution workflow in LGI."
+  default_prompt: "Use $principle-outcome-oriented-execution for the requested task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-test-behavior-not-implementation"
+  short_description: "Use the principle-test-behavior-not-implementation workflow in LGI."
+  default_prompt: "Use $principle-test-behavior-not-implementation for the requested task."
+policy:
+  allow_implicit_invocation: false

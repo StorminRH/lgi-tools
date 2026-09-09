@@ -1,0 +1,6 @@
+interface:
+  display_name: "no-comments"
+  short_description: "Use the no-comments workflow in LGI."
+  default_prompt: "Use $no-comments for the requested task."
+policy:
+  allow_implicit_invocation: false

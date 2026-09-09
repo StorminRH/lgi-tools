@@ -7,6 +7,7 @@ Linear owns work tracking and durable handoffs.
 
 Ordinary requests do not use lifecycle state or the resolver.
 Planned lifecycle work begins through `start-session`.
+When the user selects `poteto-mode`, use that workflow instead; do not also start lifecycle.
 
 Feature work targets `development`. Promote is `development` → `staging`;
 release is `staging` → `main`. Every merge onto `staging` or `main`

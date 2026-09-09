@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-minimize-reader-load"
+  short_description: "Use the principle-minimize-reader-load workflow in LGI."
+  default_prompt: "Use $principle-minimize-reader-load for the requested task."
+policy:
+  allow_implicit_invocation: false

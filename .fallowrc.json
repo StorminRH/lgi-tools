@@ -11,6 +11,8 @@
   "entry": [],
 
   "ignorePatterns": [
+    "plugins/pstack-cursor/**",
+    "plugins/pstack-codex/**",
     "convex/_generated/**",
     ".next/**",
     "out/**",
@@ -79,6 +81,8 @@
     "threshold": 0.000001,
     "ignoreDefaults": true,
     "ignore": [
+      "plugins/pstack-cursor/**",
+      "plugins/pstack-codex/**",
       "**/*.test.ts",
       "**/*.test.tsx",
       "convex/_generated/**",

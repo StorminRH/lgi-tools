@@ -1,0 +1,6 @@
+interface:
+  display_name: "principle-migrate-callers-then-delete-legacy-apis"
+  short_description: "Use the principle-migrate-callers-then-delete-legacy-apis workflow in LGI."
+  default_prompt: "Use $principle-migrate-callers-then-delete-legacy-apis for the requested task."
+policy:
+  allow_implicit_invocation: false
