@@ -43,11 +43,11 @@ export default {
     });
     check(
       'delete returns the deleter to the landing catalogue',
-      await catalogue.isVisible() && (await main.locator('[data-map-canvas]').count()) === 0,
+      await catalogue.isVisible() && (await atlasVisible(page, '[data-map-canvas]').count()) === 0,
     );
     check(
       'the deleted map leaves the catalogue',
-      (await main.locator(`[data-map-catalogue-card="${mapId}"]`).count()) === 0,
+      (await atlasVisible(page, `[data-map-catalogue-card="${mapId}"]`).count()) === 0,
     );
 
     await main.locator('[data-map-catalogue-trash]').click();

@@ -1,3 +1,6 @@
+import { expect } from '@playwright/test';
+import { atlasVisible } from './window-helpers.mjs';
+
 function isDoorbellResponse(response) {
   if (
     new URL(response.url()).pathname !== '/api/maps/jump'
@@ -41,11 +44,6 @@ export async function sessionUserId(page, baseUrl) {
 }
 
 export async function waitForTopology(page, nodes, edges) {
-  await page.waitForFunction(
-    ({ expectedNodes, expectedEdges }) =>
-      document.querySelectorAll('[data-chain-node]').length === expectedNodes
-      && document.querySelectorAll('.react-flow__edge').length === expectedEdges,
-    { expectedNodes: nodes, expectedEdges: edges },
-    { timeout: 30_000 },
-  );
+  await expect(atlasVisible(page, '[data-chain-node]')).toHaveCount(nodes, { timeout: 30_000 });
+  await expect(atlasVisible(page, '.react-flow__edge')).toHaveCount(edges, { timeout: 30_000 });
 }

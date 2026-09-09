@@ -1,4 +1,6 @@
+import { expect } from '@playwright/test';
 import {
+  atlasVisible,
   calmMapCamera,
   convexRun,
   signatureLifecycleMapId,
@@ -44,27 +46,23 @@ async function pasteScan(page, text) {
 }
 
 const signatureRow = (page, signatureId) =>
-  page.locator(`[data-signature-row][data-signature-id="${signatureId}"]`);
+  atlasVisible(page, `[data-signature-row][data-signature-id="${signatureId}"]`);
 
 async function waitForSignatureRows(page, expected) {
-  await page.waitForFunction(
-    (count) => document.querySelectorAll('[data-signature-row]').length === count,
-    expected,
-    { timeout: 30_000 },
-  );
+  await expect(atlasVisible(page, '[data-signature-row]')).toHaveCount(expected, { timeout: 30_000 });
 }
 
 async function waitForSignatureText(page, signatureId, expected) {
   await page.waitForFunction(
     ({ id, text }) => {
-      const row = document.querySelector(
-        `[data-signature-row][data-signature-id="${id}"]`,
-      );
-      if (row === null) return false;
+      const row = [...document.querySelectorAll(`[data-signature-row][data-signature-id="${id}"]`)]
+        .find((element) =>
+          element.getClientRects().length > 0
+          && getComputedStyle(element).visibility !== 'hidden',
+        );
+      if (row === undefined) return false;
       if (row.textContent?.includes(text) === true) return true;
-      return [...row.querySelectorAll('input')].some((input) =>
-        input.value.includes(text),
-      );
+      return [...row.querySelectorAll('input')].some((input) => input.value.includes(text));
     },
     { id: signatureId, text: expected },
     { timeout: 30_000 },
@@ -74,21 +72,21 @@ async function waitForSignatureText(page, signatureId, expected) {
 async function signatureRowShows(page, signatureId, expected) {
   return page.evaluate(
     ({ id, text }) => {
-      const row = document.querySelector(
-        `[data-signature-row][data-signature-id="${id}"]`,
-      );
-      if (row === null) return false;
+      const row = [...document.querySelectorAll(`[data-signature-row][data-signature-id="${id}"]`)]
+        .find((element) =>
+          element.getClientRects().length > 0
+          && getComputedStyle(element).visibility !== 'hidden',
+        );
+      if (row === undefined) return false;
       if (row.textContent?.includes(text) === true) return true;
-      return [...row.querySelectorAll('input')].some((input) =>
-        input.value.includes(text),
-      );
+      return [...row.querySelectorAll('input')].some((input) => input.value.includes(text));
     },
     { id: signatureId, text: expected },
   );
 }
 
 async function stubCount(page) {
-  return await page.locator('[data-chain-node-stub]').count();
+  return await atlasVisible(page, '[data-chain-node-stub]').count();
 }
 
 async function hasStubReadout(stub, name, classification) {
@@ -143,7 +141,7 @@ export default {
       waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
     ]);
-    const initialStaticStubs = page.locator('[data-chain-node-static-stub]');
+    const initialStaticStubs = atlasVisible(page, '[data-chain-node-static-stub]');
     check(
       'identified J-space draws both guaranteed statics before any scan',
       (await initialStaticStubs.count()) === 2
@@ -168,9 +166,9 @@ export default {
     );
     check(
       'scanner groups render as cards',
-      (await page.locator('[data-scanner-section="wormholes"]').count()) === 1
-      && (await page.locator('[data-scanner-section="harvestables"]').count()) === 1
-      && (await page.locator('[data-scanner-section="unknown"]').count()) === 1,
+      (await atlasVisible(page, '[data-scanner-section="wormholes"]').count()) === 1
+      && (await atlasVisible(page, '[data-scanner-section="harvestables"]').count()) === 1
+      && (await atlasVisible(page, '[data-scanner-section="unknown"]').count()) === 1,
     );
     check(
       'unidentified wormhole rows reuse exactly two believed-hole ghosts',
@@ -178,9 +176,7 @@ export default {
     );
     check(
       'stub nodes are derived, interaction-inert presentation',
-      (await page
-        .locator('[data-chain-node-stub][data-chain-node-derived]')
-        .count()) === 2,
+      (await atlasVisible(page, '[data-chain-node-stub][data-chain-node-derived]').count()) === 2,
     );
 
     await restampFreshness();
@@ -188,9 +184,9 @@ export default {
     await page.waitForTimeout(1_500);
     check(
       'unchanged re-paste leaves rows, stubs, and edges untouched',
-      (await page.locator('[data-signature-row]').count()) === 5
+      (await atlasVisible(page, '[data-signature-row]').count()) === 5
       && (await stubCount(page)) === 2
-      && (await page.locator('.react-flow__edge').count()) === 2,
+      && (await atlasVisible(page, '.react-flow__edge').count()) === 2,
     );
 
     await restampFreshness();
@@ -201,8 +197,7 @@ export default {
       .waitFor({ state: 'attached', timeout: 15_000 });
     check(
       'missing highlight is local to the pasting client',
-      (await second.page
-        .locator('[data-signature-id="EAR-696"][data-signature-missing]')
+      (await atlasVisible(second.page, '[data-signature-id="EAR-696"][data-signature-missing]')
         .count()) === 0,
     );
     const missingPrompt = () => page.locator('[data-signature-missing-prompt]');
@@ -211,8 +206,7 @@ export default {
     check(
       'dismiss keeps the row and clears the highlight',
       (await earRow.count()) === 1
-      && (await page
-        .locator('[data-signature-id="EAR-696"][data-signature-missing]')
+      && (await atlasVisible(page, '[data-signature-id="EAR-696"][data-signature-missing]')
         .count()) === 0
       && (await missingPrompt().count()) === 0,
     );
@@ -225,21 +219,17 @@ export default {
     await missingPrompt().waitFor({ state: 'visible', timeout: 10_000 });
     await missingPrompt().getByRole('button', { name: 'Remove' }).click();
     await Promise.all([
-      page
-        .locator('[data-signature-id="EAR-696"]')
-        .waitFor({ state: 'detached', timeout: 15_000 }),
-      second.page
-        .locator('[data-signature-id="EAR-696"]')
-        .waitFor({ state: 'detached', timeout: 15_000 }),
+      expect(atlasVisible(page, '[data-signature-id="EAR-696"]')).toHaveCount(0, { timeout: 15_000 }),
+      expect(atlasVisible(second.page, '[data-signature-id="EAR-696"]')).toHaveCount(0, { timeout: 15_000 }),
     ]);
     check('prompt Remove leaves both clients', true);
     const undo = page.getByRole('button', { name: 'Undo' });
     await undo.waitFor({ state: 'visible', timeout: 5_000 });
     await undo.click();
     await Promise.all([
-      signatureRow(page, 'EAR-696').waitFor({ state: 'attached', timeout: 15_000 }),
+      signatureRow(page, 'EAR-696').waitFor({ state: 'visible', timeout: 15_000 }),
       signatureRow(second.page, 'EAR-696').waitFor({
-        state: 'attached',
+        state: 'visible',
         timeout: 15_000,
       }),
     ]);
@@ -299,10 +289,10 @@ export default {
     ]);
     check(
       'wormhole removal restores its guaranteed static on both clients',
-      (await page.locator('[data-chain-node-static-stub]').count()) === 1
-      && (await second.page.locator('[data-chain-node-static-stub]').count()) === 1
+      (await atlasVisible(page, '[data-chain-node-static-stub]').count()) === 1
+      && (await atlasVisible(second.page, '[data-chain-node-static-stub]').count()) === 1
       && await hasStubReadout(
-        page.locator('[data-chain-node-static-stub]'),
+        atlasVisible(page, '[data-chain-node-static-stub]'),
         'N766',
         'C2',
       ),
@@ -331,24 +321,24 @@ export default {
     check(
       'jump resolution retires C247 while both systems keep their open statics',
       (await stubCount(page)) === 2 && (await stubCount(second.page)) === 2
-      && (await page.locator('[data-chain-node-static-stub]').allTextContents())
+      &&       (await atlasVisible(page, '[data-chain-node-static-stub]').allTextContents())
         .some((text) => text.includes('N766') && text.includes('C2'))
-      && (await page.locator('[data-chain-node-static-stub]').allTextContents())
+      && (await atlasVisible(page, '[data-chain-node-static-stub]').allTextContents())
         .some((text) => text.includes('U210')),
     );
 
     check(
       'unique survivor auto-resolves without a jump prompt',
-      (await page.locator('[data-signature-jump-prompt]').count()) === 0,
+      (await atlasVisible(page, '[data-signature-jump-prompt]').count()) === 0,
     );
     check(
       'the unique match settles two systems plus both remaining statics',
-      (await page.locator('[data-chain-node]').count()) === 4
-      && (await page.locator('.react-flow__edge').count()) === 3,
+      (await atlasVisible(page, '[data-chain-node]').count()) === 4
+      && (await atlasVisible(page, '.react-flow__edge').count()) === 3,
     );
 
     const scannerText =
-      (await page.locator('[data-signature-window]').textContent()) ?? '';
+      (await atlasVisible(page, '[data-signature-window]').textContent()) ?? '';
     check(
       'scanner window lists the destination after the jump, not the origin scan',
       !/CBA-120/.test(scannerText) && !/LXX-844/.test(scannerText),
