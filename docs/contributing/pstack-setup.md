@@ -26,8 +26,9 @@ command registers this repository's marketplace and installs `pstack-codex`.
 It requires a Codex CLI release with `plugin marketplace add` and `plugin add`.
 If that command is absent, update Codex through its normal installation channel;
 do not copy the Codex skills into a directory Cursor also discovers.
-If the marketplace name `personal` already belongs to another explicit marketplace,
-stop and resolve that registration in Codex rather than replacing it.
+The repository uses the `lgi-pstack` marketplace name to preserve the existing
+`personal` catalog and unrelated plugins. If `lgi-pstack` already belongs to
+another checkout, stop and resolve that registration in Codex rather than replacing it.
 
 Reload Cursor and verify the local plugin under Customize. Open a new Codex thread
 in this trusted checkout so its `.codex/agents/*.toml` roles are loaded.
@@ -51,6 +52,9 @@ remains its own migration step.
    one line. Inspect the harness's actual task details, trace or model metadata for
    the requested model and reasoning settings. A child's statement of its own model
    is not proof. Record settings that the harness does not expose as unverified.
+   On Codex surfaces with `fork_turns`, use `fork_turns: "none"` for pinned roles
+   and supply the task and file pointers explicitly. Full-history forks inherit
+   the parent model and effort even when a named role has different pins.
 4. Invoke poteto-mode with: "Investigate a small change to this function. Present
    the design and scope, then stop before implementation. No PR or app test run."
    Confirm it follows the checkpoint and uses this edition's models.

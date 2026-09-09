@@ -1,7 +1,7 @@
 {
-  "name": "personal",
+  "name": "lgi-pstack",
   "interface": {
-    "displayName": "Personal"
+    "displayName": "LGI pstack"
   },
   "plugins": [
     {
