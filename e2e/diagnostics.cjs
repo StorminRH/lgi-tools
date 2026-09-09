@@ -74,23 +74,25 @@ function createDiagnostics({ baseURL, lane, scenario, backendURL }) {
     /**
      * @param {{
      *   url: string, method: string, error?: string,
-     *   navigation?: boolean, prefetch?: boolean, resourceType?: string,
+     *   navigation?: boolean, prefetch?: boolean, flight?: boolean, resourceType?: string,
      * }} failure
      */
-    recordRequestFailure({ url, method, error, navigation, prefetch, resourceType }) {
+    recordRequestFailure({ url, method, error, navigation, prefetch, flight, resourceType }) {
       const aborted = typeof error === 'string' && /ERR_ABORTED|NS_BINDING_ABORTED/.test(error);
-      const expectedCancellation = aborted && method === 'GET' && (
-        navigation === true || resourceType === 'document' || prefetch === true
-      );
+      const navigated = navigation === true || resourceType === 'document' || flight === true;
+      const expectedCancellation = aborted && method === 'GET' && (navigated || prefetch === true);
       if (expectedCancellation) {
         record({
           kind: 'request-failed', url: safeURL(url), method, disposition: 'expected',
-          cancellation: navigation === true || resourceType === 'document' ? 'navigation' : 'prefetch',
+          cancellation: navigated ? 'navigation' : 'prefetch',
         });
         return;
       }
+      const type = typeof resourceType === 'string' && /^[a-z]+$/.test(resourceType)
+        ? resourceType : undefined;
       record({ kind: 'request-failed', url: safeURL(url), method,
-        disposition: firstParty(url) ? 'unexpected' : 'third-party' });
+        disposition: firstParty(url) ? 'unexpected' : 'third-party',
+        ...(type ? { resourceType: type } : {}) });
     },
     recordPageError() { record({ kind: 'page-error', disposition: 'unexpected' }); },
     recordConsoleError() { record({ kind: 'console-error', disposition: 'unexpected' }); },

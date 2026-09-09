@@ -89,6 +89,21 @@ describe('acceptance selection and evidence boundaries', () => {
     expect(() => observed.assertClean()).not.toThrow();
   });
 
+  it('records expected disposition for aborted App Router page flights', () => {
+    const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
+    observed.recordRequestFailure({
+      url: 'http://localhost:3000/atlas', method: 'GET', error: 'net::ERR_ABORTED',
+      flight: true, resourceType: 'fetch',
+    });
+    expect(observed.events).toEqual([
+      {
+        kind: 'request-failed', url: 'http://localhost:3000/atlas', method: 'GET',
+        disposition: 'expected', cancellation: 'navigation',
+      },
+    ]);
+    expect(() => observed.assertClean()).not.toThrow();
+  });
+
   it('fails aborted POST and aborted required API GET without navigation or prefetch context', () => {
     const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
     observed.recordRequestFailure({
@@ -100,8 +115,14 @@ describe('acceptance selection and evidence boundaries', () => {
       resourceType: 'fetch',
     });
     expect(observed.events).toEqual([
-      { kind: 'request-failed', url: 'http://localhost:3000/api/maps/owned-map', method: 'POST', disposition: 'unexpected' },
-      { kind: 'request-failed', url: 'http://localhost:3000/api/session', method: 'GET', disposition: 'unexpected' },
+      {
+        kind: 'request-failed', url: 'http://localhost:3000/api/maps/owned-map', method: 'POST',
+        disposition: 'unexpected', resourceType: 'fetch',
+      },
+      {
+        kind: 'request-failed', url: 'http://localhost:3000/api/session', method: 'GET',
+        disposition: 'unexpected', resourceType: 'fetch',
+      },
     ]);
     expect(() => observed.assertClean()).toThrow('DIAGNOSTICS');
   });
