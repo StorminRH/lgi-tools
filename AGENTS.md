@@ -3,6 +3,16 @@
 EVE Online multi-tool. GitHub hosts code and PRs.
 Linear owns work tracking and durable handoffs.
 
+## Work routing
+
+Ordinary requests do not use lifecycle state or the resolver.
+Planned lifecycle work begins through `start-session`.
+When the user selects `poteto-mode`, use that workflow instead; do not also start lifecycle.
+
+Feature work targets `development`. Promote is `development` → `staging`;
+release is `staging` → `main`. Every merge onto `staging` or `main`
+uses `close-out`. Preserve the promote threshold of 80 app-facing files.
+
 ## Context isolation
 
 Delegate documentation research, repository exploration, and test execution
