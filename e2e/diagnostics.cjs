@@ -20,10 +20,31 @@ function safeURL(value) {
   }
 }
 
+function loopbackOrigins(value) {
+  try {
+    const url = new URL(value);
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return [url.origin];
+    return [`http://${url.host}`, `https://${url.host}`];
+  } catch {
+    return [];
+  }
+}
+
+function cspDirectiveFromConsole(text) {
+  if (typeof text !== 'string') return undefined;
+  const match = /Content Security Policy directive: "([\w-]+)/.exec(text);
+  return match?.[1];
+}
+
 /** @param {{baseURL: string, lane: string, scenario: string, backendURL?: string}} options */
 function createDiagnostics({ baseURL, lane, scenario, backendURL }) {
-  const origins = new Set([new URL(baseURL).origin]);
-  if (backendURL) origins.add(new URL(backendURL).origin);
+  const origins = new Set(loopbackOrigins(baseURL));
+  if (origins.size === 0) origins.add(new URL(baseURL).origin);
+  if (backendURL) {
+    const backendOrigins = loopbackOrigins(backendURL);
+    if (backendOrigins.length === 0) origins.add(new URL(backendURL).origin);
+    else for (const origin of backendOrigins) origins.add(origin);
+  }
   const events = [];
   const expected = [];
   let failures = 0;
@@ -70,4 +91,6 @@ function createDiagnostics({ baseURL, lane, scenario, backendURL }) {
   };
 }
 
-module.exports = { requireBackend, safeURL, createDiagnostics };
+module.exports = {
+  requireBackend, safeURL, loopbackOrigins, cspDirectiveFromConsole, createDiagnostics,
+};

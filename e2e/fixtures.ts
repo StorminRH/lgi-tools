@@ -1,7 +1,7 @@
 import { test as base, expect, devices, chromium, firefox, webkit, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from '@playwright/test';
 import { installOriginScopedBypass } from '../scripts/ux-remote-auth.cjs';
 import { isLocalBaseUrl } from '../scripts/run-e2e-guard.cjs';
-import { createDiagnostics, requireBackend } from './diagnostics.cjs';
+import { createDiagnostics, cspDirectiveFromConsole, requireBackend } from './diagnostics.cjs';
 import { persistSanitizedFailure, sanitizedFailurePayload } from './sanitized-failure.cjs';
 import { permitsReadOnlyHttp, permitsReadOnlySocket } from './readonly-policy.cjs';
 import { createRunFixtures } from './fixture-data';
@@ -50,8 +50,15 @@ function watch(context: BrowserContext, diagnostics: Diagnostics) {
     }));
     page.on('pageerror', () => diagnostics.recordPageError());
     page.on('console', (message) => {
+      if (message.type() !== 'error') return;
+      const text = message.text();
+      const directive = cspDirectiveFromConsole(text);
+      if (directive) {
+        diagnostics.recordCsp(directive);
+        return;
+      }
       // HTTP response/request events own browser-generated resource errors.
-      if (message.type() === 'error' && !message.text().startsWith('Failed to load resource:')) diagnostics.recordConsoleError();
+      if (!text.startsWith('Failed to load resource:')) diagnostics.recordConsoleError();
     });
   };
   context.on('page', observe);
@@ -83,15 +90,6 @@ async function prepare(context: BrowserContext, baseURL: string, diagnostics: Di
       });
     });
   }
-  await context.exposeBinding('__lgiAcceptanceCsp', (_source, directive) => {
-    diagnostics.recordCsp(typeof directive === 'string' ? directive : undefined);
-  });
-  await context.addInitScript(() => {
-    document.addEventListener('securitypolicyviolation', (event) => {
-      const handler: unknown = Reflect.get(window, '__lgiAcceptanceCsp');
-      if (typeof handler === 'function') handler(event.violatedDirective);
-    });
-  });
 }
 
 export const test = base.extend<Fixtures>({

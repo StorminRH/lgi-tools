@@ -1,1 +1,3 @@
-export { requireBackend, safeURL, createDiagnostics } from './diagnostics.cjs';
+export {
+  requireBackend, safeURL, loopbackOrigins, cspDirectiveFromConsole, createDiagnostics,
+} from './diagnostics.cjs';
