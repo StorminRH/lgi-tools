@@ -16,8 +16,9 @@ this guidance. A useful audit can finish with no changes and no PR.
 1. Read the applicable repository rules, contributor standards, and configured
    Linear checkpoint. Resolve the authoritative repository and development
    branch. A forge mismatch, missing branch, or missing required environment is
-   blocked; do not substitute `main` or a stale mirror. Confirm that no other
-   cleanup run is active before taking the configured single-run guard.
+   blocked; do not substitute `main` or a stale mirror. Record the automation
+   and run identity in Linear. Follow the run-ownership rules below for manual
+   starts and interrupted work.
 2. Fetch the current development tip and record its SHA. For the first run,
    inspect the preceding 24 hours of landed production and test changes,
    including direct commits. Later runs inspect changes since the last
@@ -60,9 +61,9 @@ this guidance. A useful audit can finish with no changes and no PR.
    For an uncertain high-risk replacement, demonstrate one representative
    failure it catches. Broad mutation testing is not a daily requirement.
 8. Apply the draft rules below, then persist results and the next checkpoint to
-   Linear. Record the completed step before interruption or timeout. Release
-   the run guard after the checkpoint is durable. If nothing useful changes,
-   report the bounded no-finding result and create no cosmetic PR.
+   Linear. Make the checkpoint durable before yielding or ending the run,
+   including at the time limit. If nothing useful changes, report the bounded
+   no-finding result and create no cosmetic PR.
 
 Keep cleanup separate from test-file reorganization. Splitting a large suite
 can improve ownership, but it is a different outcome from reducing redundant
@@ -88,7 +89,7 @@ require repository commits.
 
 The checkpoint contains:
 
-- Run identity and guard owner; authoritative repository/branch; selected base,
+- Automation and run identity; authoritative repository/branch; selected base,
   observed tip, last completed audit SHA, and source PR/commit identities.
 - Selected behaviors and paths; reviewed decisions and surviving test evidence;
   last completed step and remaining investigation boundary.
@@ -105,9 +106,22 @@ resolves it. On interruption, reconcile changed source and resume from the saved
 boundary. A merged draft does not imply that omitted files were audited; a
 closed-unmerged draft does not mean its findings were fixed.
 
-Use the run identity to recognize duplicate delivery. Recover a stale guard
-only after establishing that its worker has ended. If the scheduler cannot
-provide a reliable single-run guard, activation remains blocked.
+Cursor's schedule owns recurring active-run exclusion for this automation.
+It skips a scheduled fire while the previous run remains active and releases
+that exclusion when the run completes. The 2026-09-09 scheduler probe
+corroborated this with a 150-second command that exited 0 and no second run at
+the intervening two-minute tick. This is scheduler proof, not a cleanup trial
+or proof of every failure/recovery mode. There is no worker acquire/release
+API to call.
+
+Manual Test/Play starts are outside that proof. Before a manual start, the
+operator must establish that no run is active and control the start so a
+scheduled fire cannot overlap it. A stale or unknown run state blocks takeover
+until its worker is confirmed ended; a final response alone is insufficient
+while runtime status still shows Running. Use the recorded run identity to
+recognize duplicate delivery. Scheduler completion releases exclusion even
+when work is partial or failed; only the durable checkpoint establishes audit
+coverage and the next runnable work.
 
 ## Evidence and reporting
 
@@ -149,16 +163,23 @@ ownership so the old worker cannot commission overlapping cleanup.
 
 Coordinate activation with [LGI-116](https://linear.app/lgitools/issue/LGI-116).
 Require accepted GitHub repository access and the Cursor environment, including
-actual local PostgreSQL provisioning. Confirm native tool permissions, the
-single-run guard, persistent checkpoint access, explicit model selection, and
-usage settings. Select the schedule in Cursor's own editor. The proposed slot
-is daily at 05:00 `America/New_York`, including daylight-saving behavior; this
-is a setup proposal, not recovered or active configuration. Cursor usage is
-separate from GitHub CI cost.
+actual local PostgreSQL provisioning. Confirm native tool permissions,
+persistent checkpoint access, explicit model selection, and usage settings.
+The supported Copy as JSON export verifies the saved GitHub environment
+`0a58f99f-9e20-11f1-a7d1-d6b4613131ce` and cron `0 9 * * *`.
+The chosen cadence is daily at 09:00 UTC, which is 05:00 New York time in EDT
+and 04:00 in EST. The observed editor offers UTC cron only; no IANA timezone
+or daylight-saving control was observed. This fixed UTC schedule is the
+selected setup, replacing the proposed year-round 05:00 New York slot. Do not
+add duplicate daily runs with timezone filters. The automation remains saved
+and inactive pending acceptance. Cursor usage is separate from GitHub CI cost.
 
-Run a manual Cursor trial before recurring activation. A ChatGPT automation is
-not a substitute for this execution environment. The historical Cursor dashboard
-configuration was not recovered, so do not claim its exact prompt, model, or
+Run a manual Cursor trial under the run-ownership rules before recurring
+activation. Verify the saved prompt after reload and in the actual trial;
+editor readback alone did not establish the executed prompt in the scheduler
+probe. A ChatGPT automation is not a substitute for this execution environment.
+The historical Cursor dashboard configuration was not recovered, so do not
+claim its exact prompt, model, or
 permissions. Review the first three useful runs for landed-change coverage,
 meaningful failures, reduced redundant work, draft coordination, verification,
 and usage. After backlog cleanup and clean cycles, reduce repeated unchanged

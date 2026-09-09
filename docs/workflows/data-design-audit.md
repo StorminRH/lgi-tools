@@ -15,8 +15,8 @@ transition. Repository guidance does not schedule a worker.
    the authoritative forge, repository, and development branch from the current
    delivery workflow. Record the base SHA. After the GitHub cutover is verified,
    target GitHub `development`. Before then, preserve Origin drafts and links.
-   Confirm no other run owns this rotation before taking its single-run guard.
-   If the scheduler cannot enforce one active run, activation remains blocked.
+   Record the automation and run identity in Linear. Follow the run-ownership
+   rules below for manual starts and interrupted work.
 2. Reconcile the prior run and open or rejected findings. Check whether proposals
    were merged, closed without merging, rejected with an accepted rationale, or
    remain open. Check relevant code and deployment evidence. A merged PR alone
@@ -49,9 +49,9 @@ transition. Repository guidance does not schedule a worker.
    migration proposal with rollout gates. This automation does not merge or
    execute production migrations.
 8. Persist the result and next cursor to Linear, even when no PR exists. Record
-   the completed step before yielding or ending a timed-out run. Release the
-   run guard after the checkpoint is durable. Stop at the selected scope; a run
-   need not find a defect to justify its work.
+   the completed step and make the checkpoint durable before yielding or ending a
+   timed-out run. Stop at the selected scope; a run need not find a defect to
+   justify its work.
 
 ## Outcomes and review capacity
 
@@ -85,7 +85,7 @@ The current index contains these fields:
 - Cycle, ordered family and sub-slice IDs, and the next runnable cursor.
 - Inventory revision, newly discovered tables or changed consumers, and their
   queued family/sub-slice. Derive changes from the inventory's source owners.
-- Active run identity, guard owner, start time, audited base SHA, and last
+- Automation and active run identity, start time, audited base SHA, and last
   completed step. Re-delivery of the same run updates its existing checkpoint.
 - Scope tables and paths; deployed environment/schema identity and observation
   time where inspected; explicit source-only or inaccessible portions.
@@ -99,10 +99,22 @@ all five lens conclusions, proposed change or no-finding rationale, tradeoffs,
 verification actually performed, gaps, source/artifact links, and next cursor.
 Keep test execution distinct from static reasoning and prior test evidence.
 
-On interruption, reconcile the recorded SHA and last step before resuming.
-Repeat only invalidated investigation. A stale guard requires checking that its
-worker has ended before takeover. If that cannot be established, leave the
-rotation blocked rather than run concurrently.
+Cursor's schedule owns recurring active-run exclusion for this automation.
+It skips a scheduled fire while the previous run remains active and releases
+that exclusion when the run completes. The 2026-09-09 scheduler probe
+corroborated this with a 150-second command that exited 0 and no second run at
+the intervening two-minute tick. This is scheduler proof, not a data-design
+trial or proof of every failure/recovery mode. There is no worker
+acquire/release API to call.
+
+Manual Test/Play starts are outside that proof. Before a manual start, the
+operator must establish that no run is active and control the start so a
+scheduled fire cannot overlap it. A stale or unknown run state blocks takeover
+until its worker is confirmed ended; a final response alone is insufficient
+while runtime status still shows Running. Scheduler completion releases
+exclusion even when work is partial or failed; it does not mark the slice
+audited or its findings fixed. On interruption, reconcile the recorded SHA
+and last durable step before resuming. Repeat only invalidated investigation.
 
 After a full cycle, enqueue new and materially changed domains first and retain
 an age-based full sweep of unchanged domains. After two clean complete cycles,
@@ -130,22 +142,31 @@ their live states before activation or a related audit.
 Activate only after the shared guidance and entrypoints are available on the
 authoritative branch, the Linear index is initialized, dry-runs are reviewed,
 Cursor repository/Linear access and model/usage settings are verified, and the
-GitHub cutover is ready. Verify the supported single-run guard. Then disable
-only the overlapping Grok Thursday representation responsibility, update Project
-Lead routing and the house guide, and enable the replacement. Preserve other
+GitHub cutover is ready. Verify that the saved automation points to LGI-118 as
+its rotation checkpoint; LGI-99 retains Data Store morning packet ownership.
+Then disable only the overlapping Grok Thursday representation responsibility,
+update Project Lead routing and the house guide, and enable the replacement.
+Preserve other
 Data Store work and confirm the old and new workers cannot write the same scope
 concurrently.
 
-The proposed initial slot is Thursday at 14:00 `America/New_York`, weekly. The
-schedule must retain that timezone through daylight-saving changes. Adjust
-cadence only after reviewing actual slice size, review backlog, and Cursor usage.
-Track that usage separately from GitHub CI costs.
+The chosen cadence is Thursday at 18:00 UTC, cron `0 18 * * 4`, which is 14:00
+New York time in EDT and 13:00 in EST. The observed editor offers UTC cron
+only; no IANA timezone or daylight-saving control was observed. This fixed UTC
+schedule replaces the proposed year-round Thursday 14:00 New York slot.
+Verify the chosen cron in the saved configuration. Do not add duplicate runs
+with timezone filters. The automation remains saved and inactive pending
+acceptance. Adjust cadence only after reviewing actual slice size, review
+backlog, and Cursor usage. Track that usage separately from GitHub CI costs.
 
 ## Dry-run contract
 
-Before activation, record evidence for a historical invalid-state slice, its
-already-fixed current form, a legitimate projection, unavailable live access,
-interruption/resume, an overlapping open PR, and a no-finding slice. The
+Before activation, use the manual-start rules above and verify the saved
+prompt after reload and in the actual trial. Editor readback alone did not
+establish the executed prompt in the scheduler probe. Record evidence for a
+historical invalid-state slice, its already-fixed current form, a legitimate
+projection, unavailable live access, interruption/resume, an overlapping open
+PR, and a no-finding slice. The
 [inventory's historical probes](data-design-inventory.md#historical-probes)
 provide source-backed starting cases. Static walkthroughs are useful design
 checks; label them static. They do not prove Cursor model binding, access,
