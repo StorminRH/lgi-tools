@@ -3,14 +3,18 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools.lifecycle.count_app_facing import (
     PROMOTE_BAR,
     PROMOTE_TRIGGER,
     classify_paths,
+    main,
     path_is_excluded,
     render_count,
     try_app_facing_count,
@@ -51,16 +55,81 @@ class CountAppFacingTests(unittest.TestCase):
             self.assertTrue(path_is_excluded(path), path)
         self.assertTrue(path_is_excluded("./.cursor/skills/start-session/SKILL.md"))
 
-    def test_runtime_tests_and_ci_are_included(self) -> None:
+    def test_process_and_ci_changes_do_not_trigger_promotion(self) -> None:
+        app_paths = [f"src/f{index}.ts" for index in range(PROMOTE_TRIGGER - 1)]
+        process_paths = [
+            ".github/workflows/test.yml",
+            ".github/actions/setup-node-pnpm/action.yml",
+            ".depot/workflows/test.yml",
+            ".depot/actions/setup-node-pnpm/action.yml",
+            ".greptile/config.json",
+            ".coderabbit.yaml",
+            ".agent-local/resolve_development_state.py",
+            "tools/lifecycle/count_app_facing.py",
+            "tools/tests/test_count_app_facing.py",
+            "tools/delivery/review-policy.json",
+            "e2e/probes.spec.ts",
+            "e2e/fixtures.ts",
+            "playwright.config.ts",
+            "vitest.config.ts",
+            "eslint.config.mjs",
+            "docker-compose.yml",
+            ".gitignore",
+            "README.md",
+            "CHANGELOG.md",
+            "LICENSE",
+        ]
+
+        count = classify_paths(app_paths + process_paths)
+
+        self.assertEqual(tuple(app_paths), count.included)
+        self.assertEqual(tuple(process_paths), count.excluded)
+        self.assertEqual(PROMOTE_TRIGGER - 1, count.app_facing)
+        self.assertNotIn("promote is due", render_count(count))
+
+    def test_app_owned_tests_content_and_runtime_config_are_included(self) -> None:
         for path in (
             "src/features/changelog/parse.ts",
+            "src/features/changelog/parse.test.ts",
+            "src/scripts/migrate.ts",
             "convex/schema.ts",
-            "tools/lifecycle/count_app_facing.py",
-            ".depot/workflows/test.yml",
+            "convex/engine.test.ts",
+            "drizzle/0060_changes.sql",
+            "public/icon.svg",
+            "assets/fonts/BarlowCondensed-Bold.ttf",
             "package.json",
+            "pnpm-lock.yaml",
+            "pnpm-workspace.yaml",
+            "next.config.ts",
+            "tsconfig.json",
+            "postcss.config.mjs",
+            "vercel.json",
+            "neon.ts",
+            "drizzle.config.ts",
+            ".env.example",
             "content/devlog/00-introduction.md",
+            "content/devlog/README.md",
         ):
-            self.assertFalse(path_is_excluded(path), path)
+            with self.subTest(path=path):
+                self.assertFalse(path_is_excluded(path))
+
+    def test_process_exclusions_respect_ownership_boundaries_and_normalization(self) -> None:
+        count = classify_paths([
+            r".\.github\workflows\test.yml",
+            "./tools/cli.py",
+            ".github-app/config.json",
+            "toolshed/runtime.py",
+            "src/tools/runtime.ts",
+            "src/fixtures/vitest.config.ts",
+        ])
+        self.assertEqual(
+            (".github/workflows/test.yml", "tools/cli.py"), count.excluded,
+        )
+        self.assertEqual(
+            (".github-app/config.json", "toolshed/runtime.py",
+             "src/tools/runtime.ts", "src/fixtures/vitest.config.ts"),
+            count.included,
+        )
 
     def test_classify_totals_and_directory_breakdown(self) -> None:
         count = classify_paths(
@@ -98,6 +167,16 @@ class CountAppFacingTests(unittest.TestCase):
     def test_unmeasurable_tree_returns_none(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             self.assertIsNone(try_app_facing_count(Path(tmp)))
+
+    def test_cli_has_no_hard_cap_above_reference_scale(self) -> None:
+        paths = [f"src/f{index}.ts" for index in range(PROMOTE_BAR + 1)]
+        output = StringIO()
+        with patch("tools.lifecycle.count_app_facing.list_changed_paths", return_value=paths):
+            with redirect_stdout(output):
+                result = main([])
+        self.assertEqual(0, result)
+        self.assertIn(f"app-facing {PROMOTE_BAR + 1}/{PROMOTE_BAR}", output.getvalue())
+        self.assertIn("promote is due", output.getvalue())
 
     def test_list_appends_included_paths(self) -> None:
         count = classify_paths(["src/a.ts", "docs/x.md"])

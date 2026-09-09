@@ -2,8 +2,10 @@
 """Count app-facing files on development that staging does not have yet.
 
 Run after a land onto ``development``. That is when ``origin/development``
-includes this Ordered work step. Display is ``n/100``. Promote is due at
-80. Documentation, policy, and agent files do not count.
+includes this Ordered work step. Display is ``n/100`` as a reference scale,
+not a cap. Promote is due at 80. Documentation, CI, process tooling and agent
+files do not count. These exclusions apply only to promotion sizing, never
+to review or verification scope.
 """
 
 from __future__ import annotations
@@ -26,11 +28,29 @@ EXCLUDED_PREFIXES = (
     ".cursor/",
     ".agents/",
     ".codex/",
+    ".agent-local/",
+    ".github/",
+    ".depot/",
+    ".greptile/",
     "docs/",
     "scripts/",
+    "tools/",
+    "e2e/",
     "content/changelog/",
-    ".github/PULL_REQUEST_TEMPLATE",
-    ".github/ISSUE_TEMPLATE/",
+)
+
+EXCLUDED_ROOT_FILES = frozenset(
+    {
+        ".coderabbit.yaml",
+        ".gitignore",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "docker-compose.yml",
+        "eslint.config.mjs",
+        "playwright.config.ts",
+        "vitest.config.ts",
+    }
 )
 
 EXCLUDED_BASENAMES = frozenset(
@@ -70,9 +90,9 @@ def normalize_path(relpath: str) -> str:
     return path
 
 def path_is_excluded(relpath: str) -> bool:
-    """Return whether this path is documentation, policy, or agent material."""
+    """Return whether ownership excludes this path from promotion sizing."""
     path = normalize_path(relpath)
-    if path.rsplit("/", 1)[-1] in EXCLUDED_BASENAMES:
+    if path in EXCLUDED_ROOT_FILES or path.rsplit("/", 1)[-1] in EXCLUDED_BASENAMES:
         return True
     for prefix in EXCLUDED_PREFIXES:
         bare = prefix.rstrip("/")
