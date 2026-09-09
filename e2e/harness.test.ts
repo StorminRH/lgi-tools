@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDiagnostics, safeURL } from './diagnostics.cjs';
+import { createDiagnostics, cspDirectiveFromConsole, safeURL } from './diagnostics.cjs';
 import { resolveLane, selectJourneys } from './lane-policy.cjs';
 import inventory from './probe-registry.json';
 const { probeRegistry, journeys } = inventory;
@@ -76,6 +76,29 @@ describe('acceptance selection and evidence boundaries', () => {
     });
     expect(observed.events).toEqual([]);
     expect(() => observed.assertClean()).not.toThrow();
+  });
+
+  it('treats loopback http and https as the same first party', () => {
+    const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
+    observed.recordRequestFailure({
+      url: 'https://localhost:3000/_next/static/chunk.js', method: 'GET', error: 'net::ERR_SSL_PROTOCOL_ERROR',
+    });
+    expect(observed.events).toEqual([
+      { kind: 'request-failed', url: 'https://localhost:3000/_next/static/chunk.js', method: 'GET', disposition: 'unexpected' },
+    ]);
+  });
+
+  it('records a sanitized CSP directive from a browser console message', () => {
+    expect(cspDirectiveFromConsole(
+      'Refused to execute inline script because it violates the following Content Security Policy directive: "script-src \'self\' \'unsafe-inline\'".',
+    )).toBe('script-src');
+    const observed = createDiagnostics({ baseURL: 'http://localhost:3000', lane: 'mandatory', scenario: 'home' });
+    observed.recordCsp(cspDirectiveFromConsole(
+      'Refused to execute inline script because it violates the following Content Security Policy directive: "script-src-elem \'self\'". Note that \'unsafe-inline\' is ignored.',
+    ));
+    expect(observed.events).toEqual([
+      { kind: 'csp', disposition: 'unexpected', directive: 'script-src-elem' },
+    ]);
   });
 
   it('still fails a first-party request that did not complete', () => {
