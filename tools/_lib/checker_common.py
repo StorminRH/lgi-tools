@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Shared delivery contract for the local lifecycle checkers.
+"""Shared delivery contract for local checkers.
 
 Owns one decision: how a checker finding is represented and reported. Findings
 are anchored to a repo-relative path and 1-based line, and are either errors
 (contradictions that block) or warnings (suspicious timing/state that reports
-without blocking). Markdown parsing remains owned by the lifecycle resolver.
+without blocking).
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ class Finding:
             raise ValueError("finding severity must be 'error' or 'warn'")
 
     def render(self) -> str:
-        """Return the stable file-and-line form consumed by the drift harness."""
+        """Return the stable file-and-line form consumed by checkers."""
         return f"{self.path}:{self.line}: {self.message}"
 
 def find_line(path: Path, needle: str) -> int:

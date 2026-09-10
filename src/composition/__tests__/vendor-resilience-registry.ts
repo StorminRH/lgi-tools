@@ -141,7 +141,7 @@ const vercelPlatform = noSurface('The app makes no Vercel API call. Its only src
 const githubTooling = policy({
   wrapper: { module: 'tools/delivery/github_api.py', symbol: 'request' },
   timeout:
-    'Explicit on every call: 30s (github_api.py, and _FETCH_TIMEOUT in update_watch_collect.py). Outside ESLint scope, so the census asserts the timeout argument directly.',
+    'Explicit on every call: 30s (github_api.py). Outside ESLint scope, so the census asserts the timeout argument directly.',
   retryableErrors: 'None; a failed call is a named failure the tooling reports.',
   backoff: 'None.',
   rateLimit:

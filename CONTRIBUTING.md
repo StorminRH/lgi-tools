@@ -36,8 +36,7 @@ feat: add API endpoints for browsing and filtering wormhole sites
 1. Land through a GitHub PR targeting `development`. Promote is a GitHub PR
    `development` → `staging`. After that merge, fast-forward
    `development` to `staging` so the lines match. Release is
-   `staging` → `main`. Those merges, and any other merge onto
-   `staging` or `main`, run through close-out.
+   `staging` → `main`.
 2. Before you land, run the local test suite: `pnpm typecheck`,
    `pnpm lint`, Fallow `dead-code` (default and `--production`), `dupes`,
    and `health`, and focused tests for your diff. Before merge, wait for
@@ -48,8 +47,7 @@ feat: add API endpoints for browsing and filtering wormhole sites
    `gh pr diff <N> --repo StorminRH/lgi-tools`. Mark it ready when review
    should begin, and confirm the configured review bots actually run.
 5. Review the delivering GitHub PR itself; no separate mirror or dump PR
-   is needed. Keep the existing promote size gate and app-facing file
-   count; Git remote aliases such as `origin/staging` still mean Git refs.
+   is needed. Git remote aliases such as `origin/staging` still mean Git refs.
 6. Freeze the review commit until every review seat has returned. Then one
    batch: triage, dedupe, fix, and note dispositions on the same GitHub PR.
    Confirm reviews and CI apply to the updated commit before merge.

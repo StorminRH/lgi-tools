@@ -15,10 +15,8 @@ from tools import cli
 class CliTests(unittest.TestCase):
     def test_help_lists_public_groups(self) -> None:
         text = cli.usage()
-        self.assertIn("lifecycle resolve", text)
         self.assertIn("quality check-env-example", text)
-        self.assertIn("update-watch collector", text)
-        self.assertIn("update-watch check-baseline", text)
+        self.assertNotIn("update-watch collector", text)
         self.assertNotIn("poll-pr-gate", text)
         self.assertNotIn("merge-clean-pr", text)
         self.assertNotIn("fold-pending-changelog", text)
@@ -60,13 +58,13 @@ class CliTests(unittest.TestCase):
             call.call_args.args[0],
         )
 
-    def test_update_watch_help_runs_through_public_dispatcher(self) -> None:
+    def test_quality_help_runs_through_public_dispatcher(self) -> None:
         result = subprocess.run(
             [
                 cli.sys.executable,
                 str(ROOT / "tools/cli.py"),
-                "update-watch",
-                "collector",
+                "quality",
+                "check-env-example",
                 "--help",
             ],
             cwd=ROOT,
@@ -75,8 +73,7 @@ class CliTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("collect", result.stdout)
-        self.assertIn("finalize", result.stdout)
+        self.assertIn("check", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

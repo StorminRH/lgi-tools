@@ -1,6 +1,6 @@
 ---
 name: ux-check
-description: Exercise changed user-facing routes with log-driven Playwright (assertions, console/network diagnostics, failure-only artifacts) and pause for operator visual review. Use as the Ordered-work / pre-close-out UI gate for UI or interaction changes; close-out consumes the recorded disposition and does not re-run this sweep.
+description: Exercise changed user-facing routes with log-driven Playwright (assertions, console/network diagnostics, failure-only artifacts) and pause for operator visual review.
 ---
 
 # Run the UX check
@@ -11,7 +11,7 @@ console, page errors, network). Write screenshots/traces under
 their browser — never always-on screenshots or agent visual approval.
 
 Development and operator-requested staging aid; independent of the local test
-suite and the standing Depot pipeline.
+suite and GitHub Actions.
 Sweeps/probes exit non-zero on hard assertion/console/page failures; network
 findings still need disposition.
 
@@ -28,7 +28,7 @@ Output: `UX_EVIDENCE` naming probed routes/viewports, diagnostics, failure
 artifact paths, an **operator visual checklist**, and review status. `BLOCKED`
 when the stack cannot represent required behavior or a diagnostic stays
 unexplained. Clean sweep → `READY_FOR_REVIEW` with review `Pending`, then
-pause. Do not open a PR from this skill. Close-out consumes the disposition.
+pause. Do not open a PR from this skill.
 
 Agents must not visually approve the UI (local or production). Use Playwright
 logs and any failure screenshots/traces under `docs/ux-check/captures/` only to
@@ -60,12 +60,11 @@ Anonymous sweeps verify signed-out gates. Signed-in: `pnpm e2e:seed`, then
 ## 2. Establish the test environment
 
 Use local `development` by default. If the operator requests staging web
-validation, follow `close-out` to promote first, retaining this test as a
-pending post-promotion pause. Full reviews and gates still apply below the
-80-file promotion trigger. Verify the deployed revision, use its staging URL
-with `--base-url`, and use remote authentication per the remote-probes section.
-Resume this sweep after promotion; a successful merge does not supply an
-operator disposition. For local testing:
+validation, wait until the work is on `staging`, then verify the deployed
+revision, use its staging URL with `--base-url`, and use remote
+authentication per the remote-probes section. Resume this sweep after
+promotion; a successful merge does not supply an operator disposition.
+For local testing:
 
 ```bash
 curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
@@ -108,7 +107,7 @@ Isolated desktop/mobile contexts; writes
 crash, `style-src` violation, unfiltered console error, or uncaught page error.
 Add recurring interactions under `docs/ux-check/probes/` per
 `docs/ux-check/README.md`. No standalone Playwright launchers. Delete temporary
-`*-probe.mjs` scripts before close-out.
+`*-probe.mjs` scripts before merge.
 
 ## 5. Optional authenticated smoke
 
@@ -125,12 +124,8 @@ When account-adjacent shells matter and Vitest cannot falsify them:
    routes/interactions to open in the selected environment.
 4. Return `UX_EVIDENCE`, pause for operator browser review. Do not open a PR.
 
-Planned lifecycle with `UX gate: Yes`: dedicated Ordered work step under
-`start-session` — finish the operator pause before the next OW. With explicit
-operator direction to test on staging, promote through `close-out` first and
-return to this pending pause for the actual test and disposition. Ordinary
-work follows the same environment choice and returns to its owning delivery
-workflow. `close-out` owns merges onto `staging` or `main`.
+With explicit operator direction to test on staging, promote first and
+return to this pending pause for the actual test and disposition.
 
 ## Remote / production log probes
 
@@ -156,5 +151,5 @@ second summary. Remaining detail stays in the report JSON files.
 - **Result:** <diagnostics/probe summary, naming any authenticated-state limitation and failure artifacts; ≤2 sentences>
 - **Operator checklist:** <routes/interactions for the operator to open visually>
 - **Disposition:** `Pending` after a clean sweep; `Approved` or `Changes requested` only after the operator visual pause
-- **Action:** <Pause for operator review (`Pending`), return to implementation, hand off to the next Ordered work step, or continue to close-out>
+- **Action:** <Pause for operator review (`Pending`), or return to implementation>
 - **Blocker:** <exact blocker or `None`>

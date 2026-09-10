@@ -76,10 +76,10 @@ Use the Cursor skill and agent paths listed in AGENTS.md. Codex paths are
 separate harness adaptations; they do not provision this VM.
 
 `.cursor/clis.sh` (install + start) puts Codegraph (`@colbymchenry/codegraph@1.5.0`),
-Depot, Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
+Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
 `convex` and `fallow` stay `pnpm exec`. `.codegraph/` is snapshotted.
 `repo-mapper` can run `codegraph sync` after material source edits.
-Codegraph does not need a token. Depot, Vercel, and Neon use Cloud Agent
+Codegraph does not need a token. Vercel and Neon use Cloud Agent
 Secrets when a command needs them.
 
 The Cloud Agent Origin token was observed to allow create, comment, and watch
@@ -91,7 +91,5 @@ error, report `BLOCKED` and leave the Origin PR open for the operator to merge
 or upgrade the token. Check the actual command result on the current host;
 this observation does not establish a local Cursor or Codex token's scope.
 
-Depot wait is `depot ci dispatch` on the head branch, then
-`depot ci status <run-id>` until it returns. Dispatch once reviews
-are idle and the local suite is green. `--head` and `--base` are
-create flags. `origin pr checks` stays empty on dispatch.
+CI wait is GitHub Actions on the delivering PR (`verify`, `build`, and
+`e2e`). Wait until those checks are green on the current commit.

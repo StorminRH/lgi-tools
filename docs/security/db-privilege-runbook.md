@@ -159,7 +159,7 @@ inert at merge (a `NOLOGIN` role + grants; no existing credential changes).
 3. In Vercel, repoint **`DATABASE_URL`** and **`DATABASE_URL_UNPOOLED`** to the
    `lgi_runtime_login` connection strings (pooled and unpooled respectively), and
    set **`DATABASE_MIGRATION_URL`** to the existing owner connection string.
-4. Redeploy. The post-cutover close-out browser smoke doubles as verification.
+4. Redeploy. The post-cutover browser smoke doubles as verification.
 
 **Rollback:** repoint `DATABASE_URL` / `DATABASE_URL_UNPOOLED` back to the owner
 connection strings and remove `DATABASE_MIGRATION_URL`; `resolveMigrationUrl`
