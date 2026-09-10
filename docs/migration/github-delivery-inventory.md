@@ -1,10 +1,10 @@
 # GitHub delivery inventory
 
-Snapshot taken 10 September 2026 from `StorminRH/lgi-tools`. This file records
-GitHub refs, unique commits, and named Origin-to-GitHub pull request pairs.
-It moves no refs, tags, or remotes.
+Counts from `StorminRH/lgi-tools` on 10 September 2026. GitHub refs, unique
+commits, and Origin-to-GitHub pull request pairs. Nothing here moves refs,
+tags, or remotes.
 
-Regenerate the counts with:
+Refresh the counts with:
 
 ```bash
 git ls-remote --heads origin
@@ -58,10 +58,9 @@ GitHub reports no tags. Local `git ls-remote --tags origin` is empty.
 
 ## Named Origin to GitHub pull request pairs
 
-Origin CLI was not authenticated in the snapshot environment
-(`origin repo view` returned Not authenticated). The pairs below come from
-GitHub pull request titles. They are a prepared table, not a live Origin
-export.
+Origin CLI was not authenticated here (`origin repo view` returned Not
+authenticated). The pairs below come from GitHub pull request titles, not a
+live Origin export.
 
 | Origin PR | GitHub PR | GitHub title |
 | --- | --- | --- |
@@ -72,18 +71,18 @@ export.
 
 Linear [LGI-46](https://linear.app/lgitools/issue/LGI-46) still names Origin
 [#21](https://cursor.com/codebase/stormin/lgi-tools/pull/21). That Origin
-number has no matching GitHub title in this snapshot.
+number has no matching GitHub title in these counts.
 
 Closed GitHub migration drafts that later work split out of, not Origin
 numbers: [#486](https://github.com/StorminRH/lgi-tools/pull/486),
 [#488](https://github.com/StorminRH/lgi-tools/pull/488).
 
-## Sync Manager write, to-retire
+## Sync Manager write we should stop
 
 Sync Manager still has a documented 3:30am ET Origin-to-GitHub branch-tip
-write, plus a 12:30am ET dependency-draft create. That 3:30am write is
-to-retire after GitHub is the source of authority. This file does not change
-the schedule, the Cursor automation, or the destination.
+write, plus a 12:30am ET dependency-draft create. Turn off the 3:30am write
+once work lands only on GitHub. This file does not change the schedule, the
+Cursor automation, or the destination.
 
 No repository workflow currently names Sync Manager or 3:30am ET. The
 schedule lives in Cursor dashboard configuration, not in this tree.

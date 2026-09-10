@@ -167,7 +167,7 @@ dispatch. `staging` auto-deploys a Preview. `main` auto-deploys
 Production. A `development` Preview is manual.
 
 GitHub CI landed in [PR #496](https://github.com/StorminRH/lgi-tools/pull/496).
-Required-check configuration and source-authority cutover remain tracked in
+Required-check configuration and the rest of the GitHub cutover remain tracked in
 [LGI-112](https://linear.app/lgitools/issue/LGI-112). Cloud environments,
 Vercel reconnection, and service retirement are separate migration steps;
 this documentation update does not activate them.
