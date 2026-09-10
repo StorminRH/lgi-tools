@@ -1,1 +1,1 @@
-"""Visible repository automation for lifecycle, delivery, policy, and quality."""
+"""Visible repository automation for delivery, quality, and update-watch."""

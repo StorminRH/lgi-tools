@@ -2,7 +2,7 @@
 """Validate docs/UPDATE_WATCH_BASELINE.md against package.json.
 
 The baseline records operator-acknowledged state, never installed state.
-This checker owns the completeness contract from session contract 3.9.3.5 §3:
+This checker owns the completeness contract:
 the fenced update-watch-baseline block parses as the documented schema; the
 dependency map equals the exact union of package.json dependencies and
 devDependencies; the required sources from the collector's shared registry —

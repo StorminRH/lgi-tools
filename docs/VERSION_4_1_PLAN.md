@@ -4,9 +4,9 @@
 same: open a map, paste, jump, click a system. People see more of what is
 already scanned and already in universe data.
 
-`plan-version` grouped this file into two session contracts. Goals,
-outcomes, invariants, and decisions below are fixed. The Status table is
-the approved delivery topology.
+Two session contracts split this file. Goals, outcomes, invariants, and
+decisions below are fixed. The Status table is the approved delivery
+topology.
 
 **DONE for the version =** a corp watching a live chain can see which systems
 hold harvestables, hacking, or combat, read identified site totals on the
@@ -113,8 +113,6 @@ Closest-hub text and the card list use these five systems, gate jumps only:
 - Each landed sub-version bumps `APP_VERSION` and writes
   `content/changelog/v4.1.md` (create the file on the first bump).
 - `UX gate: Yes` sessions run `ux-check` once there is something to look at.
-- Promote at 80 app-facing files versus `staging`. The last session of the
-  version archives this plan after any due promote.
 
 ## 4.1.1 — Seats stay put
 
@@ -269,6 +267,5 @@ and live intel feeds stay out.
 
 ## Close
 
-The last Ordered work step of the last session archives this plan after any
-due promote. Next Start Session then waits on product direction for the
-next master plan.
+After 4.1.2 lands, this plan is done. The next master plan waits on product
+direction.

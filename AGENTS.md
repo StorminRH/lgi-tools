@@ -4,12 +4,8 @@ EVE Online multi-tool.
 
 ## Work routing
 
-Ordinary requests do not use lifecycle state or the resolver.
-Planned lifecycle work begins through `start-session`.
-
 Feature work targets `development`. Promote is `development` → `staging`;
-release is `staging` → `main`. Every merge onto `staging` or `main`
-uses `close-out`.
+release is `staging` → `main`.
 
 ## Architecture
 

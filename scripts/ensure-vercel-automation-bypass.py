@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bootstrap or rotate VERCEL_AUTOMATION_BYPASS_SECRET into .env.local.
 
-Day-to-day close-out / Playwright prod probes do **not** need this script once
+Day-to-day Playwright prod probes do **not** need this script once
 `.env.local` already has the key — `scripts/ux-remote-auth.mjs` loads it.
 Use this only to create the secret the first time, rotate after a leak, or
 seed a new machine. Never prints the secret value. Uses the local Vercel CLI

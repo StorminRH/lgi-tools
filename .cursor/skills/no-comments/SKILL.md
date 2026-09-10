@@ -13,8 +13,7 @@ Authoring agents defend comments. Defer to Comment Sicko's fresh perspective.
 ## Scope
 
 The brief is the Origin change number when one is supplied. Comment
-Sicko runs `origin pr diff <N>`. This skill writes. Close-out runs
-it before the GitHub mirror and the freeze.
+Sicko runs `origin pr diff <N>`. This skill writes.
 
 ## Steps
 

@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Use on an Origin draft and before every merge onto staging or main. Independent structure, behavior, and thermo reviews on one freeze after the comment pass. Reviewers run origin pr diff.
+description: Independent structure, behavior, and thermo reviews on one freeze after the comment pass.
 ---
 
 # Adversarial review
@@ -25,10 +25,7 @@ only, edge cases absorbed below stable seams, behavior-preserving
 refactors, and metrics as signals not design instructions.
 
 This skill is the freeze review on an Origin draft, including every
-merge onto `staging` or `main`. Close-out runs `no-comments` and
-`comment-sicko` before the GitHub mirror and this freeze. Plans and
-Ordered work use `structure-reviewer` and `behavior-reviewer` from
-those skills.
+merge onto `staging` or `main`.
 
 ## 1. Freeze
 

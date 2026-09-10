@@ -15,7 +15,6 @@ from tools import cli
 class CliTests(unittest.TestCase):
     def test_help_lists_public_groups(self) -> None:
         text = cli.usage()
-        self.assertIn("lifecycle resolve", text)
         self.assertIn("quality check-env-example", text)
         self.assertIn("update-watch collector", text)
         self.assertIn("update-watch check-baseline", text)
