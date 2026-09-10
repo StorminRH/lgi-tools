@@ -66,9 +66,12 @@ fail rather than skip without SDE data. A cold or unreachable database makes
 the harness skip those suites. Report which suites actually ran; a skipped
 DB suite is not evidence for its behavior.
 
-Playwright Chromium is installed by `.cursor/install.sh`. Use
-`http://localhost:3000` (the `next-dev` terminal). Seed auth with
-`pnpm e2e:seed` on this VM. Do not upload `auth-storage.json` or cookie jars.
+Playwright Chromium is installed by `.cursor/install.sh`. Browse
+`http://localhost:3000` (the `next-dev` terminal), never `127.0.0.1`. After
+Next is up, GET `/api/dev/synthetic-pilot` or click Continue as E2E Pilot next
+to EVE login. That is the reserved `e2e-pilot` / `9000001` account, no ESI
+tokens. Playwright and ux-check still run `pnpm e2e:seed` for
+`auth-storage.json`. Do not upload cookie jars.
 
 ## Tooling
 

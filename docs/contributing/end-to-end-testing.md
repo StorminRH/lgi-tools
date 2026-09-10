@@ -27,8 +27,10 @@ Prefer `getByRole`, `getByLabel`, and brief stable `getByText`. Avoid
 
 ## Auth and remote
 
-- Local authenticated runs seed a test-only Better Auth session with
-  `pnpm e2e:seed`. Never put `testUtils()` on the production `auth` export.
+- Local authenticated Playwright runs call `becomeSyntheticPilot()` through
+  `pnpm e2e:seed` and write the jar. Headed Chromium on localhost mints the
+  same session with `GET /api/dev/synthetic-pilot`. Never put `testUtils()` on
+  the production `auth` export.
 - Remote preview/production runs cannot forge that cookie against production
   DB — use an operator-exported `storageState` with `E2E_SKIP_SEED=1`.
 - Do not set a Vercel protection bypass via Playwright `extraHTTPHeaders` —

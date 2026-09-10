@@ -54,8 +54,10 @@ Map route files directly. For shared feature/UI code, use the named `repo-mapper
 dynamic segments with real local identifiers from the owning list page or
 database — never example ids as fixtures.
 
-Anonymous sweeps verify signed-out gates. Signed-in: `pnpm e2e:seed`, then
-`--storage-state=docs/ux-check/captures/auth-storage.json`.
+Anonymous sweeps verify signed-out gates. Signed-in Playwright: `pnpm e2e:seed`,
+then `--storage-state=docs/ux-check/captures/auth-storage.json`. Computer-use
+Chromium on localhost mints via `GET /api/dev/synthetic-pilot` instead of
+loading that jar.
 
 ## 2. Establish the test environment
 

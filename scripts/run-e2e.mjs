@@ -23,7 +23,7 @@ if (guardError) {
 }
 
 if (!skipSeed) {
-  run('pnpm', ['exec', 'tsx', 'e2e/seed-storage-state.ts']);
+  run('pnpm', ['e2e:seed']);
 }
 
 run('pnpm', ['exec', 'playwright', 'test', ...process.argv.slice(2)]);

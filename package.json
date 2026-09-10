@@ -46,7 +46,7 @@
     "profile:sites-dev": "node scripts/profile-sites-dev.mjs",
     "profile:sites-suite": "node scripts/profile-sites-suite.mjs",
     "ux-check": "node scripts/ux-capture.mjs",
-    "e2e:seed": "tsx e2e/seed-storage-state.ts",
+    "e2e:seed": "tsx --conditions=react-server e2e/seed-storage-state.ts",
     "test:e2e": "node scripts/run-e2e.mjs",
     "map:replay": "tsx --conditions=react-server src/scripts/map-replay.ts",
     "map:project-access": "tsx --conditions=react-server src/scripts/project-map-access.ts",
