@@ -1,34 +1,27 @@
 # [LGI.tools](http://LGI.tools)
 
-EVE Online multi-tool.
+An EVE Online multi-tool focused on simplifying complex tasks.
 
-## Work routing
+## Work Flow
 
-Feature work targets `development`. Promote is `development` → `staging`;
+Work targets `development`. Promote is `development` → `staging`;
 release is `staging` → `main`.
+
+Sub-agent usage is encouraged, especially for context isolation.
+For noisy work such as testing, documentation lookup, and exploring
+the repository, isolate those tasks to a sub-agent.
+
+Production builds run in CI and on Vercel; do not run them locally.
+Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
 
 ## Architecture
 
-[.fallowrc.json](.fallowrc.json) defines the production-layer boundaries.
-Preserve them. Use existing primitives; extract shared code for a real
-second consumer.
+[.fallowrc.json](.fallowrc.json) defines the production-layer
+boundaries. Preserve them. Use existing primitives; extract shared
+code for a real second consumer.
 
-Neon holds durable account, character, and ESI data. Convex is a live
-projection plus the mapper's collaborative-chain exception.
-
-## Testing
-
-Production builds run in CI and Vercel; agents do not run them locally.
-
-## Environments
-
-For Cursor Cloud provisioning, secrets, or VM-local e2e, read
-[the cloud guide](.cursor/cloud-agent.md); its provisioning scripts apply
-only to that VM.
-
-Changes to `neon.ts` require an explicit apply.
-Preview cleanup covers Vercel, Neon, and Convex separately;
-deleting a Vercel Preview leaves its Convex deployment running.
+Neon holds durable account, character, SDE, and ESI data. Convex is a
+live projection layer for Atlas and other live data shapes.
 
 # This is NOT the Next.js you know
 
