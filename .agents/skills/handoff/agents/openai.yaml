@@ -1,4 +1,0 @@
-interface:
-  default_prompt: "Use $handoff to prepare a handoff for the next session, tailored to its intended focus."
-policy:
-  allow_implicit_invocation: false

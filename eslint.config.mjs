@@ -7,7 +7,7 @@ const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
-      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default). See CONTRIBUTING.md (Security & CSP).",
+      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
   },
 ];
 
@@ -15,13 +15,13 @@ const rawHtmlSelectors = [
   {
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
     message:
-      "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead. See CONTRIBUTING.md (Security & CSP).",
+      "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead.",
   },
   {
     selector:
       "AssignmentExpression[left.property.name=/^(inner|outer)HTML$/]",
     message:
-      "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CONTRIBUTING.md (Security & CSP).",
+      "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead.",
   },
 ];
 
@@ -31,17 +31,17 @@ const hexColorSelectors = [
   {
     selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
     message:
-      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts. See CONTRIBUTING.md (Color tokens).",
+      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts.",
   },
   {
     selector: "TemplateElement[value.raw=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
     message:
-      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts. See CONTRIBUTING.md (Color tokens).",
+      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts.",
   },
   {
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message:
-      "No raw hex color constants — SVG fills/strokes read from tones.ts (toneHex) or a Tailwind `fill-…`/`stroke-…` utility backed by a `--color-*` token. See CONTRIBUTING.md (Color tokens).",
+      "No raw hex color constants — SVG fills/strokes read from tones.ts (toneHex) or a Tailwind `fill-…`/`stroke-…` utility backed by a `--color-*` token.",
   },
 ];
 
@@ -49,12 +49,12 @@ const rgbaColorSelectors = [
   {
     selector: "Literal[value=/rgba\\s*\\(/]",
     message:
-      "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility. See CONTRIBUTING.md (Color tokens).",
+      "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
   },
   {
     selector: "TemplateElement[value.raw=/rgba\\s*\\(/]",
     message:
-      "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility. See CONTRIBUTING.md (Color tokens).",
+      "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility.",
   },
 ];
 
@@ -62,12 +62,12 @@ const textSizeSelectors = [
   {
     selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
     message:
-      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`. See CONTRIBUTING.md (Type scale).",
+      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`.",
   },
   {
     selector: "TemplateElement[value.raw=/text-\\[[0-9.]+(px|rem|em)\\]/]",
     message:
-      "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`). See CONTRIBUTING.md (Type scale).",
+      "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`).",
   },
 ];
 
@@ -90,12 +90,12 @@ const roundedSizeSelectors = [
   {
     selector: "Literal[value=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
     message:
-      "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`. See CONTRIBUTING.md (Radius scale).",
+      "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`.",
   },
   {
     selector: "TemplateElement[value.raw=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
     message:
-      "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card). See CONTRIBUTING.md (Radius scale).",
+      "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card).",
   },
 ];
 
@@ -103,14 +103,14 @@ const selectElementSelectors = [
   {
     selector: "JSXOpeningElement[name.name='select']",
     message:
-      "No raw <select> — use the Select primitive (@/components/ui/select), which owns the engraved field + dropdown-panel look. See CONTRIBUTING.md (Component system).",
+      "No raw <select> — use the Select primitive (@/components/ui/select), which owns the engraved field + dropdown-panel look.",
   },
 ];
 const inputClassSelectors = [
   {
     selector: "VariableDeclarator[id.name=/[iI]nputClass$/]",
     message:
-      "No ad-hoc field-style constants — the Input/Select/Textarea primitives (@/components/ui/input) own the field styling. See CONTRIBUTING.md (Component system).",
+      "No ad-hoc field-style constants — the Input/Select/Textarea primitives (@/components/ui/input) own the field styling.",
   },
 ];
 
@@ -278,12 +278,12 @@ const apiFetchSelectors = [
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.value=/^\/api\//]`,
     message:
-      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
+      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts.",
   },
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.quasis.0.value.raw=/^\/api\//]`,
     message:
-      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
+      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts.",
   },
   {
     selector: "CallExpression[callee.name='apiFetch'] > ObjectExpression:first-child",
@@ -322,12 +322,12 @@ const esiHostSelectors = [
   {
     selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
     message:
-      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
+      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
   },
   {
     selector: String.raw`TemplateElement[value.raw=/esi\.evetech\.net/]`,
     message:
-      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
+      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget.",
   },
 ];
 
@@ -370,7 +370,7 @@ const processEnvSelectors = [
     selector:
       "MemberExpression[object.object.name='process'][object.property.name='env'][property.name!='NODE_ENV']:not([property.name=/^NEXT_PUBLIC_/])",
     message:
-      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads. See CONTRIBUTING.md (Architecture invariants).",
+      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads.",
   },
 ];
 
@@ -406,7 +406,7 @@ const baseUiImportPatterns = [
   {
     group: ["@base-ui/react", "@base-ui/react/*"],
     message:
-      "Base UI is consumed only through the shared wrappers in @/components/ui — import the primitive (Dialog, Select, Tooltip, …), not the package. See CONTRIBUTING.md (Component system).",
+      "Base UI is consumed only through the shared wrappers in @/components/ui — import the primitive (Dialog, Select, Tooltip, …), not the package.",
   },
 ];
 
@@ -422,7 +422,7 @@ const sonnerImportPatterns = [
   {
     group: ["sonner"],
     message:
-      "sonner is consumed only through @/components/ui/toast (the sole Toaster owner) — import its toast helpers instead. See CONTRIBUTING.md (Component system).",
+      "sonner is consumed only through @/components/ui/toast (the sole Toaster owner) — import its toast helpers instead.",
   },
 ];
 

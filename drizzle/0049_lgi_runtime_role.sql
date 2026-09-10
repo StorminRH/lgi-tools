@@ -11,7 +11,7 @@
 -- operator, via SQL only (`CREATE ROLE ... LOGIN ... IN ROLE lgi_runtime`) —
 -- never `neon roles create`/Console/API, which auto-grant `neon_superuser` and
 -- would silently defeat the split. Custody, rotation, and the operator-gated
--- production cutover live in docs/security/db-privilege-runbook.md.
+-- production cutover stay out-of-band.
 --
 -- This migration is additive and INERT until an operator repoints DATABASE_URL
 -- at a login member of lgi_runtime; shipping it changes no existing credential,

@@ -12,16 +12,13 @@ PGDATA="$HOME/.local/share/lgi-pgdata"
 export PGDATA
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
-# Snapshot the pstack role map into the user rules path. start.sh recopies
-# from the checkout on every boot so later commits win without a rebuild.
-lgi_install_pstack_models "$REPO_ROOT/.cursor/rules/pstack-models.mdc"
 
 started_pg=0
 trap 'lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"' EXIT
 
 pnpm install --frozen-lockfile
 
-# Playwright Chromium for `pnpm test:e2e` / ux-check on this VM. Chrome is
+# Playwright Chromium for `pnpm test:e2e` on this VM. Chrome is
 # already present for computer-use screenshots; this is the Playwright cache
 # the test runner actually launches. Idempotent: skips downloads when current.
 pnpm exec playwright install --with-deps chromium

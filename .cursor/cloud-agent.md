@@ -2,9 +2,9 @@
 
 Read when running or setting up the Cursor Cloud Agent Linux VM defined by
 `.cursor/environment.json`. Its install/start scripts provision the VM stack;
-local Cursor and Codex sessions use `README.md#local-development` instead.
-CLI commands live in AGENTS.md Tools. These notes describe the VM environment,
-not permissions or credentials granted to other hosts.
+local Cursor and Codex sessions do not use these scripts.
+These notes describe the VM environment, not permissions or credentials
+granted to other hosts.
 
 ## Postgres
 
@@ -38,8 +38,8 @@ deployment. Readiness is `/tmp/lgi-convex-auth.status`: `0` means reconcile
 succeeded. `start.sh` pins local DB / anonymous Convex and sets up `gh`; it
 does not own AUTH reconcile.
 
-Atlas `atlas-*` probes need Next, Convex, and a `0` auth status. `pnpm verify`,
-public e2e, and synthetic-auth smoke do not.
+`pnpm verify`, public e2e, and synthetic-auth smoke do not require
+Convex AUTH reconcile.
 
 ## Env and secrets
 
@@ -72,20 +72,12 @@ Playwright Chromium is installed by `.cursor/install.sh`. Use
 
 ## Tooling
 
-Use the Cursor skill and agent paths listed in AGENTS.md. Codex paths are
-separate harness adaptations; they do not provision this VM.
-
 `.cursor/clis.sh` (install + start) puts Codegraph (`@colbymchenry/codegraph@1.5.0`),
 Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
 
-`start.sh` (and `install.sh` on snapshot bake) copies
-`.cursor/rules/pstack-models.mdc` to `~/.cursor/rules/pstack-models.mdc`.
-pstack reads that user-rules path. A new Cloud VM does not inherit another
-pod's home directory, and environment builds do not rerun `install.sh`, so
-the copy lives in `start.sh` and follows the checked-out revision.
 `convex` and `fallow` stay `pnpm exec`. `.codegraph/` is snapshotted.
-`repo-mapper` can run `codegraph sync` after material source edits.
-Codegraph does not need a token. Vercel and Neon use Cloud Agent
+`install.sh` runs `codegraph sync` (or `codegraph init` when the index is
+missing). Codegraph does not need a token. Vercel and Neon use Cloud Agent
 Secrets when a command needs them.
 
 The Cloud Agent Origin token was observed to allow create, comment, and watch

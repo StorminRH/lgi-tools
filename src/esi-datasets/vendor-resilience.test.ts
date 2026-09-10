@@ -94,25 +94,6 @@ function exportsSymbol(source: string, symbol: string): boolean {
   return declared.test(source) || reExported.test(source);
 }
 
-function urlopenCallArguments(source: string): string[] {
-  const calls: string[] = [];
-  const marker = 'urlopen(';
-  for (let index = source.indexOf(marker); index !== -1; index = source.indexOf(marker, index + 1)) {
-    let depth = 0;
-    let cursor = index + marker.length - 1;
-    for (; cursor < source.length; cursor++) {
-      const char = source[cursor];
-      if (char === '(') depth++;
-      else if (char === ')') {
-        depth--;
-        if (depth === 0) break;
-      }
-    }
-    calls.push(source.slice(index + marker.length, cursor));
-  }
-  return calls;
-}
-
 function isFieldPopulated(
   policy: VendorResiliencePolicy,
   field: keyof VendorResiliencePolicy,
@@ -148,11 +129,11 @@ describe('vendor resilience registry', () => {
     expect(incomplete).toEqual([]);
   });
 
-  it('declares exactly one integration with no programmatic call surface', () => {
+  it('declares the integrations with no programmatic call surface', () => {
     const absent = EXPECTED_INTEGRATIONS.filter((id) =>
       isNoProgrammaticSurface(vendorResilienceRegistry[id]),
     );
-    expect(absent).toEqual(['vercel-platform']);
+    expect(absent).toEqual(['vercel-platform', 'github-tooling']);
   });
 
   it('names a wrapper module that exists and exports the declared symbol', () => {
@@ -209,32 +190,5 @@ describe('vendor client construction sites', () => {
   it('routes outbound HTTP only through the two sanctioned transport modules', () => {
     const callers = filesMatching(/(?<![\w.'"])fetch\(/);
     expect(callers).toEqual(['src/lib/fetch-with-timeout.ts', 'src/transport/api-client.ts']);
-  });
-});
-
-describe('agent tooling outbound calls', () => {
-  it('passes an explicit timeout to every urlopen call', () => {
-    const pythonFiles: string[] = [];
-    const walk = (directory: string): void => {
-      for (const entry of readdirSync(directory, { withFileTypes: true })) {
-        const path = `${directory}/${entry.name}`;
-        if (entry.isDirectory()) walk(path);
-        else if (entry.name.endsWith('.py')) pythonFiles.push(path);
-      }
-    };
-    walk('tools');
-    pythonFiles.sort();
-    expect(pythonFiles.length).toBeGreaterThan(0);
-
-    const calls: string[] = [];
-    const unbounded: string[] = [];
-    for (const file of pythonFiles) {
-      for (const args of urlopenCallArguments(readFileSync(file, 'utf8'))) {
-        calls.push(file);
-        if (!args.includes('timeout=')) unbounded.push(`${file}: ${args.trim()}`);
-      }
-    }
-    expect(calls.length).toBeGreaterThan(0);
-    expect(unbounded).toEqual([]);
   });
 });

@@ -7,14 +7,12 @@ import {
 
 afterEach(() => {
   delete process.env.E2E_STORAGE_STATE;
-  delete process.env.UX_STORAGE_STATE;
 });
 
 describe('e2e identity storage', () => {
   it('resolves storage paths and marks the synthetic seed pilot', () => {
     expect(resolveE2eStorageStatePath()).toBe(DEFAULT_STORAGE_STATE_PATH);
 
-    process.env.UX_STORAGE_STATE = 'from-ux.json';
     process.env.E2E_STORAGE_STATE = 'from-e2e.json';
     expect(resolveE2eStorageStatePath()).toBe('from-e2e.json');
 

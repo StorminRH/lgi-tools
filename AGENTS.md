@@ -1,42 +1,24 @@
 # [LGI.tools](http://LGI.tools)
 
-EVE Online multi-tool.
+An EVE Online multi-tool focused on simplifying complex tasks.
 
-## Work routing
+## Work Flow
 
-Feature work targets `development`. Promote is `development` → `staging`;
+Work targets `development`. Promote is `development` → `staging`;
 release is `staging` → `main`.
+
+Sub-agent usage is encouraged, especially for context isolation.
+For noisy work such as testing, documentation lookup, and exploring
+the repository, isolate those tasks to a sub-agent.
+
+Production builds run in CI and on Vercel; do not run them locally.
+Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
 
 ## Architecture
 
-[.fallowrc.json](.fallowrc.json) defines the production-layer boundaries.
-Preserve them. Use existing primitives; extract shared code for a real
-second consumer.
-
-Neon holds durable account, character, and ESI data. For changes to
-data ownership or live state, read [Convex architecture](docs/CONVEX.md),
-including the mapper's collaborative-chain exception.
-
-## Testing
-
-When writing or changing tests, follow
-[testing principles](docs/contributing/testing-principles.md).
-For browser tests, also read
-[end-to-end testing](docs/contributing/end-to-end-testing.md).
-
-Local verification requirements live in [CONTRIBUTING.md](CONTRIBUTING.md).
-Production builds run in CI and Vercel; agents do not run them locally.
-
-## Environments
-
-For local setup, read [Local development](README.md#local-development).
-For Cursor Cloud provisioning, secrets, or VM-local e2e, read
-[the cloud guide](.cursor/cloud-agent.md); its provisioning scripts apply
-only to that VM.
-
-Changes to `neon.ts` require an explicit apply.
-Preview cleanup covers Vercel, Neon, and Convex separately;
-deleting a Vercel Preview leaves its Convex deployment running.
+[.fallowrc.json](.fallowrc.json) defines the production-layer
+boundaries. Preserve them. Use existing primitives; extract shared
+code for a real second consumer.
 
 # This is NOT the Next.js you know
 
