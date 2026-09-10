@@ -1,8 +1,7 @@
 # docs/ux-check — UX verification workspace
 
-Route sweeps, operator visual pause, and remote log-probe procedure live in
-the `ux-check` skill. This directory owns durable probe definitions, the
-shared probe runner, and generated capture artifacts.
+This directory owns durable probe definitions, the shared probe runner, and
+generated capture artifacts.
 
 The durable probe harness, probe definitions, and this guide are tracked project
 tooling. Generated reports and failure artifacts under `captures/` remain
@@ -16,12 +15,10 @@ ignored local evidence and can be deleted at any time.
 | `probes/*.mjs` | Small durable probe definitions | Tracked; one module per recurring feature check |
 | `captures/probes/` | Probe failure screenshots plus `report.json` | Ignored; wiped when the probe runner starts |
 | `captures/` | `pnpm ux-check` report + failure PNGs; `auth-storage.json` from `pnpm e2e:seed` | Ignored |
-| `docs/contributing/end-to-end-testing.md` | Tiny Playwright smoke suite policy (`pnpm test:e2e`) | Tracked |
 
 ## Run durable probes
 
-For local Cursor or Codex, complete the README's local-development setup,
-then start the app:
+For local Cursor or Codex, start the app:
 
 ```bash
 pnpm dev

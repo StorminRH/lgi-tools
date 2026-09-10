@@ -15,8 +15,8 @@ that lint, Fallow, and nearby code do not catch. Do not grow it.
 - One Better Auth user is one human. Linked EVE characters are account rows.
   EVE SSO is the only login. Keep Better Auth `encryptOAuthTokens` off —
   application AES-256-GCM already wraps EVE tokens.
-- Before placing data in Convex, read `docs/CONVEX.md`. Neon is the source of
-  truth; Convex is a live projection plus a narrow mapper exception.
+- Neon is the source of truth; Convex is a live projection plus a narrow
+  mapper exception.
 - An informational `(?)` hint is a Popover with `openOnHover`, not a Tooltip.
   Base UI Tooltip does not open on touch.
 - Runtime-dynamic CSS: set a custom property with

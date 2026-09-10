@@ -13,23 +13,15 @@ release is `staging` → `main`.
 Preserve them. Use existing primitives; extract shared code for a real
 second consumer.
 
-Neon holds durable account, character, and ESI data. For changes to
-data ownership or live state, read [Convex architecture](docs/CONVEX.md),
-including the mapper's collaborative-chain exception.
+Neon holds durable account, character, and ESI data. Convex is a live
+projection plus the mapper's collaborative-chain exception.
 
 ## Testing
 
-When writing or changing tests, follow
-[testing principles](docs/contributing/testing-principles.md).
-For browser tests, also read
-[end-to-end testing](docs/contributing/end-to-end-testing.md).
-
-Local verification requirements live in [CONTRIBUTING.md](CONTRIBUTING.md).
 Production builds run in CI and Vercel; agents do not run them locally.
 
 ## Environments
 
-For local setup, read [Local development](README.md#local-development).
 For Cursor Cloud provisioning, secrets, or VM-local e2e, read
 [the cloud guide](.cursor/cloud-agent.md); its provisioning scripts apply
 only to that VM.

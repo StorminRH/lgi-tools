@@ -280,16 +280,3 @@ lgi_eve_runtime_secret_presence() {
     echo "EVE runtime secrets: absent"
   fi
 }
-
-# pstack skills read ~/.cursor/rules/pstack-models.mdc. Cloud start copies
-# the repo file there so a new VM has the same role map as the checkout.
-lgi_install_pstack_models() {
-  local src="${1:-}"
-  local dest="${2:-${HOME}/.cursor/rules/pstack-models.mdc}"
-  if [ -z "$src" ] || [ ! -f "$src" ]; then
-    echo "ERROR: missing pstack models rule at ${src:-<empty>}" >&2
-    return 1
-  fi
-  mkdir -p "$(dirname "$dest")"
-  cp -f "$src" "$dest"
-}

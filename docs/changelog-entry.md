@@ -32,9 +32,9 @@ open a blank map.>
 
 The version heading uses `v` plus the version already on `staging`, an em
 dash (a hyphen is also accepted by the parser), and the ISO ship date. The
-overview sits between that heading and the first `####` group. Invoke
-`unslop`. Do not use bold, inline code, or links. The renderer displays
-that Markdown literally.
+overview sits between that heading and the first `####` group. Do not
+use bold, inline code, or links. The renderer displays that Markdown
+literally.
 
 Allowed groups are exactly `Added`, `Changed`, `Fixed`, and `Removed`.
 Each retained group has one or more `- ` bullets. Rewrite into *player
