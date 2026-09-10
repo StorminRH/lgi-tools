@@ -33,28 +33,34 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 ## Landing and review
 
-1. Land on Origin `development`. Promote is an Origin PR
+1. Land through a GitHub PR targeting `development`. Promote is a GitHub PR
    `development` → `staging`. After that merge, fast-forward
    `development` to `staging` so the lines match. Release is
    `staging` → `main`. Those merges, and any other merge onto
    `staging` or `main`, run through close-out.
 2. Before you land, run the local test suite: `pnpm typecheck`,
    `pnpm lint`, Fallow `dead-code` (default and `--production`), `dupes`,
-   and `health`, and focused tests for your diff. A promote or release waits on one Depot `dispatch` after
-   reviews (`verify`, `build`, and `e2e`). Laptop `pnpm verify` is not
-   done.
+   and `health`, and focused tests for your diff. Before merge, wait for
+   GitHub Actions (`verify`, `build`, and `e2e`) on the PR's current commit.
+   Laptop `pnpm verify` does not replace those CI checks.
 3. Fill in the PR template's **test plan** — what you verified and how.
-4. Open Origin PRs as drafts after a green local suite. Leave them draft
-   through reviews and fixes. Reviewers run `origin pr diff <N>`. Open
-   GitHub dump PRs ready so Greptile and CodeRabbit can post.
-5. A GitHub dump is the app-facing files from
-   `python3 tools/cli.py lifecycle count-app-facing --list`. Pass `--base`
-   and `--head` for the two lines of that PR. Defaults are
-   `origin/staging` and `origin/development`. That list is dump isolation.
-   Skills and standing docs stay off it.
-6. Freeze the draft until every review seat has returned. Then one
-   batch: triage, dedupe, fix, note on the Origin PR. Dispatch Depot
-   once that batch is green.
+4. Open the GitHub PR as a draft after a green local suite. Reviewers use
+   `gh pr diff <N> --repo StorminRH/lgi-tools`. Mark it ready when review
+   should begin, and confirm the configured review bots actually run.
+5. Review the delivering GitHub PR itself; no separate mirror or dump PR
+   is needed. Keep the existing promote size gate and app-facing file
+   count; Git remote aliases such as `origin/staging` still mean Git refs.
+6. Freeze the review commit until every review seat has returned. Then one
+   batch: triage, dedupe, fix, and note dispositions on the same GitHub PR.
+   Confirm reviews and CI apply to the updated commit before merge.
+
+Linear remains the ticket and handoff system. GitHub required-check settings
+and source-authority cutover are tracked in
+[LGI-112](https://linear.app/lgitools/issue/LGI-112); do not infer that existing
+mirrors or deployments have been reconfigured from this guide. Agent
+instructions and skills are outside this documentation change. Bring obsolete
+Origin commands in those files to the operator for an exact correction;
+do not run them as part of a GitHub PR or rewrite the surrounding procedure.
 
 ## Conduct, security & license
 

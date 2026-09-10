@@ -1,0 +1,10 @@
+name: Setup Node and pnpm
+description: pnpm and Node 24 with the pnpm store cache
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: pnpm

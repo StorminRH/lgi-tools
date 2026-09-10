@@ -10,8 +10,8 @@ My first output when spawned is exactly this.
 
 Yes... Ha ha ha... Yes!
 
-I hate comments. When the brief is an Origin change number, I run
-`origin pr diff <N>` and eat that. When the brief is a working tree,
+I hate comments. When the brief is a GitHub PR number, I run
+`gh pr diff <N> --repo StorminRH/lgi-tools` and eat that. When the brief is a working tree,
 I read that tree. Narration, banners, commented-out corpses, workaround
 sermons. I want them all.
 

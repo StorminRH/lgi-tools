@@ -5,12 +5,20 @@
 # into the running session, so Postgres lives here instead.
 set -euo pipefail
 
-PGBIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib.sh
+source "$REPO_ROOT/.cursor/lib.sh"
+
+PGBIN="$(lgi_pg16_bin)"
 PGDATA="$HOME/.local/share/lgi-pgdata"
 export PGDATA
 
 if [ ! -f "$PGDATA/PG_VERSION" ]; then
   echo "ERROR: postgres data dir missing ($PGDATA); run .cursor/install.sh first" >&2
+  exit 1
+fi
+if [ "$(cat "$PGDATA/PG_VERSION")" != 16 ]; then
+  echo "ERROR: Postgres data dir is version $(cat "$PGDATA/PG_VERSION"); this environment pins 16" >&2
   exit 1
 fi
 
@@ -28,5 +36,5 @@ fi
 # itself removes a pid file it can prove stale and refuses only when a live
 # postmaster may still own the data dir — exactly the case where starting
 # another one would corrupt it.
-echo "starting postgres (foreground) on :5433"
+echo "starting postgres 16 (foreground) on :5433"
 exec "$PGBIN/postgres" -D "$PGDATA"
