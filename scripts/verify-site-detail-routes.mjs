@@ -29,7 +29,7 @@ baseUrl.pathname = '/';
 baseUrl.search = '';
 baseUrl.hash = '';
 
-const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
+const OUT_DIR = path.resolve(process.cwd(), 'test-results');
 const rel = (file) => path.relative(process.cwd(), file);
 
 const CASES = [

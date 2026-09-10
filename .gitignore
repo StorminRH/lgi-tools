@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test-results/
+e2e/auth-storage.json
 
 # next.js
 /.next/
@@ -47,8 +49,7 @@ yarn-error.log*
 /.codex/agents/local-only/
 /.codex/skills/local-only/
 .local/agent/
-docs/ux-check/captures/
-docs/ux-check/profiles/
+.local/site-profiles/
 docs/margin-audit/
 .codegraph/
 

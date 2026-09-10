@@ -30,7 +30,7 @@ import {
 
 const ROOT = process.cwd();
 const BASE_URL = 'http://localhost:3000';
-const PROFILE_DIR = path.join(ROOT, 'docs/ux-check/profiles');
+const PROFILE_DIR = path.join(ROOT, '.local/site-profiles');
 const SAMPLE_INTERVAL_MS = 500;
 const SWAP_INTERVAL_MS = 5000;
 const READY_TIMEOUT_MS = 180_000;

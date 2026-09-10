@@ -1,7 +1,6 @@
 # Changelog entry form
 
 A public changelog entry is written when `staging` merges onto `main`.
-Pending fragments are retired.
 
 Prepend one entry to the master-version file at `content/changelog/vX.Y.md`,
 directly below that file's `## vX.Y — Theme` heading and summary. Entries

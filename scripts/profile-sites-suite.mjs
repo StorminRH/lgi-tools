@@ -4,7 +4,7 @@ import path from 'node:path';
 import { summariseProfileSuite } from './profile-parse.mjs';
 
 const ROOT = process.cwd();
-const PROFILE_DIR = path.join(ROOT, 'docs/ux-check/profiles');
+const PROFILE_DIR = path.join(ROOT, '.local/site-profiles');
 const PROFILER = path.join(ROOT, 'scripts/profile-sites-dev.mjs');
 const RUN_ORDER = Object.freeze([
   { label: 'after-1', sampleEnv: false },
