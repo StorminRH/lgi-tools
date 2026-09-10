@@ -1,8 +1,8 @@
 # Vercel cutover prep
 
-Read-only checklist for [LGI-116](https://linear.app/lgitools/issue/LGI-116).
-No freeze, reconnect, or deploy runs from this file. Snapshot 10 September
-2026.
+What the repo already encodes for [LGI-116](https://linear.app/lgitools/issue/LGI-116).
+Do not freeze writers, reconnect Vercel, or deploy from this file. Written
+10 September 2026.
 
 ## `VERCEL_GIT_COMMIT_REF` routing
 
@@ -47,7 +47,7 @@ them from this prep.
 | Deploy protection | `VERCEL_AUTOMATION_BYPASS_SECRET` on staging and protected Previews. App auth still needs a cookie jar. | `.env.example`, `docs/ux-check/README.md` |
 | Cron | `vercel.json` crons stay Production-only on Hobby. Paths use `CRON_SECRET` bearer auth. Sub-daily Convex sync is not a Vercel cron. | `vercel.json`, `src/composition/__tests__/idempotency-registry.ts` |
 
-## Out of scope
+## Left for Ryan
 
 Reconnect of the Vercel git source, writer freeze, Sync Manager retirement,
 and live staging or production deploys stay with Ryan on LGI-116.
