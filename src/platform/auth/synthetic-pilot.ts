@@ -8,12 +8,13 @@ export const SYNTHETIC_PILOT = {
 export const SYNTHETIC_PILOT_MINT_PATH = '/api/dev/synthetic-pilot' as const;
 
 export function canMintSyntheticPilot(input: {
-  requestUrl: string;
+  hostHeader: string | null;
   nodeEnv: string | undefined;
 }): boolean {
   if (input.nodeEnv !== 'development') return false;
+  if (input.hostHeader === null || input.hostHeader.length === 0) return false;
   try {
-    return new URL(input.requestUrl).hostname === 'localhost';
+    return new URL(`http://${input.hostHeader}`).hostname === 'localhost';
   } catch {
     return false;
   }

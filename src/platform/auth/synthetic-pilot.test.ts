@@ -5,47 +5,59 @@ describe('canMintSyntheticPilot', () => {
   it.each([
     {
       name: 'allows development on localhost',
-      requestUrl: 'http://localhost:3000/api/dev/synthetic-pilot',
+      hostHeader: 'localhost:3000',
+      nodeEnv: 'development',
+      allowed: true,
+    },
+    {
+      name: 'allows localhost without a port',
+      hostHeader: 'localhost',
       nodeEnv: 'development',
       allowed: true,
     },
     {
       name: 'refuses 127.0.0.1 so the localhost cookie is never set on the wrong origin',
-      requestUrl: 'http://127.0.0.1:3000/api/dev/synthetic-pilot',
+      hostHeader: '127.0.0.1:3000',
       nodeEnv: 'development',
       allowed: false,
     },
     {
       name: 'refuses IPv6 loopback',
-      requestUrl: 'http://[::1]:3000/api/dev/synthetic-pilot',
+      hostHeader: '[::1]:3000',
       nodeEnv: 'development',
       allowed: false,
     },
     {
       name: 'refuses production even on localhost',
-      requestUrl: 'http://localhost:3000/api/dev/synthetic-pilot',
+      hostHeader: 'localhost:3000',
       nodeEnv: 'production',
       allowed: false,
     },
     {
       name: 'refuses a missing node env',
-      requestUrl: 'http://localhost:3000/api/dev/synthetic-pilot',
+      hostHeader: 'localhost:3000',
       nodeEnv: undefined,
       allowed: false,
     },
     {
-      name: 'refuses a preview host',
-      requestUrl: 'https://lgi-tools.vercel.app/api/dev/synthetic-pilot',
+      name: 'refuses a missing host header',
+      hostHeader: null,
       nodeEnv: 'development',
       allowed: false,
     },
     {
-      name: 'refuses an unparseable url',
-      requestUrl: 'not-a-url',
+      name: 'refuses a preview host',
+      hostHeader: 'lgi-tools.vercel.app',
       nodeEnv: 'development',
       allowed: false,
     },
-  ])('$name', ({ requestUrl, nodeEnv, allowed }) => {
-    expect(canMintSyntheticPilot({ requestUrl, nodeEnv })).toBe(allowed);
+    {
+      name: 'refuses an unparseable host header',
+      hostHeader: 'not a host',
+      nodeEnv: 'development',
+      allowed: false,
+    },
+  ])('$name', ({ hostHeader, nodeEnv, allowed }) => {
+    expect(canMintSyntheticPilot({ hostHeader, nodeEnv })).toBe(allowed);
   });
 });

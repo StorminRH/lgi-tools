@@ -9,7 +9,7 @@ import { canMintSyntheticPilot } from '@/platform/auth/synthetic-pilot';
 export async function GET(request: Request): Promise<Response> {
   if (
     !canMintSyntheticPilot({
-      requestUrl: request.url,
+      hostHeader: request.headers.get('host'),
       nodeEnv: process.env.NODE_ENV,
     })
   ) {
