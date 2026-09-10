@@ -77,6 +77,12 @@ separate harness adaptations; they do not provision this VM.
 
 `.cursor/clis.sh` (install + start) puts Codegraph (`@colbymchenry/codegraph@1.5.0`),
 Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
+
+`start.sh` (and `install.sh` on snapshot bake) copies
+`.cursor/rules/pstack-models.mdc` to `~/.cursor/rules/pstack-models.mdc`.
+pstack reads that user-rules path. A new Cloud VM does not inherit another
+pod's home directory, and environment builds do not rerun `install.sh`, so
+the copy lives in `start.sh` and follows the checked-out revision.
 `convex` and `fallow` stay `pnpm exec`. `.codegraph/` is snapshotted.
 `repo-mapper` can run `codegraph sync` after material source edits.
 Codegraph does not need a token. Vercel and Neon use Cloud Agent
