@@ -88,14 +88,12 @@ the copy lives in `start.sh` and follows the checked-out revision.
 Codegraph does not need a token. Vercel and Neon use Cloud Agent
 Secrets when a command needs them.
 
-The Cloud Agent Origin token was observed to allow create, comment, and watch
-but refuse `origin pr merge` and `origin ruleset list`. Default
-merge, `--merge`, `--squash`, `--auto`, and `--branch` all returned
-"not scoped for this operation"; `origin api` merge calls returned 401.
-The PR can still be mergeable. If the authorized merge returns that scope
-error, report `BLOCKED` and leave the Origin PR open for the operator to merge
-or upgrade the token. Check the actual command result on the current host;
-this observation does not establish a local Cursor or Codex token's scope.
+GitHub is the source forge for this VM. `start.sh` wires `gh` through
+`GITHUB_TOKEN`. Open and land pull requests on GitHub. The older Cloud
+Agent Origin-token note (create, comment, and watch worked; merge and
+ruleset list returned not scoped) is historical. Do not treat it as a
+live merge path. Check the actual GitHub command result on the current
+host.
 
 CI wait is GitHub Actions (`verify`, `build`, and `e2e`) after someone
 starts Verify on the delivering PR branch. The workflow does not start

@@ -14,7 +14,7 @@ lgi_eve_runtime_secret_presence
 lgi_install_pstack_models "$REPO_ROOT/.cursor/rules/pstack-models.mdc"
 
 # GITHUB_TOKEN already drives `gh`. setup-git is the credential helper so
-# `git push github` works against the bare HTTPS remote.
+# `git push` works against the GitHub HTTPS remote named `origin`.
 if [ -n "${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
   gh auth setup-git
 fi
