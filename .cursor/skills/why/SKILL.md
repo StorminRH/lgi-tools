@@ -66,7 +66,7 @@ Before spawning investigators, anchor the investigation in concrete code. You ne
 - The relevant file path(s) and line range(s)
 - The key symbols (function names, class names, constants)
 - An initial commit list. The last few commits touching the target.
-- PR references from commit messages, with their forge identified. A bare
+- PR references from commit messages, with GitHub or Origin named. A bare
   number does not establish whether it belongs to current GitHub or a
   historical Origin record.
 
@@ -86,12 +86,11 @@ git log --oneline -20 -- <file>
 git log -1 --format=%B <commit>
 ```
 
-Read substantive PRs on GitHub, the source forge:
-use `gh pr view <number>` and read its review threads. Consult the
-installed CLI help for additional read commands. Cite a historical Origin
-PR only when a commit message or Linear ticket names that older number.
-Linear owns tickets.
-Keep forge names in citations so matching PR numbers cannot be confused.
+Read substantive PRs on GitHub with `gh pr view <number>` and its review
+threads. Consult the installed CLI help for additional read commands. Cite
+a historical Origin PR only when a commit message or Linear ticket names
+that older number. Linear owns tickets. Say GitHub or Origin in citations
+so matching PR numbers cannot be confused.
 
 Capture this as seed context (file paths, symbols, commits, PR numbers, linked ticket IDs). Pass it to the investigators so they don't rediscover it.
 
@@ -141,7 +140,7 @@ Each investigator gets:
 
 Spawn one investigator per category with readable sources. Each owns that
 category and may use its matching connectors and CLIs. For example, the
-source-control investigator reads git and the owning forge together.
+source-control investigator reads git and GitHub PRs together.
 
 Each entry lists what the category physically contains and the kind of "why" it uniquely surfaces. Use it to know what to expect back, how to name a gap when a category returns empty, and (only in the rare provably-irrelevant case) to justify a skip. Every category overlaps, but each owns a kind of evidence the others cannot recover.
 

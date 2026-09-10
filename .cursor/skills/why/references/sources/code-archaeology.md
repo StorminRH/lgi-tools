@@ -44,7 +44,7 @@ For each substantive commit, pull the PR context:
 # Find the PR number from the merge commit or branch
 git log -1 --format=%B <hash>
 
-# GitHub is the source forge. Identify the forge before using a PR number.
+# Read GitHub PRs. Say GitHub or Origin before using a PR number.
 gh pr view <github-number> --json title,body,author,createdAt,mergedAt,labels,closingIssuesReferences,comments,reviews,files
 
 # Historical Origin PR numbers appear in older commit messages and Linear
