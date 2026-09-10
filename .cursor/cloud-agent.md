@@ -38,8 +38,8 @@ deployment. Readiness is `/tmp/lgi-convex-auth.status`: `0` means reconcile
 succeeded. `start.sh` pins local DB / anonymous Convex and sets up `gh`; it
 does not own AUTH reconcile.
 
-Atlas `atlas-*` probes need Next, Convex, and a `0` auth status. `pnpm verify`,
-public e2e, and synthetic-auth smoke do not.
+`pnpm verify`, public e2e, and synthetic-auth smoke do not require
+Convex AUTH reconcile.
 
 ## Env and secrets
 

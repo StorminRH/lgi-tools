@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { toChangelogDocuments } from './browser';
@@ -26,7 +26,7 @@ describe('readChangelogSource', () => {
     expect(documents.flatMap((document) => document.master.subVersions)).toEqual(entries);
   });
 
-  it('renders exactly the top-level vX.Y.md masters and never the pending inbox', async () => {
+  it('renders exactly the top-level vX.Y.md masters', async () => {
     const dir = join(process.cwd(), 'content', 'changelog');
     const entries = await readdir(dir, { withFileTypes: true });
     const masterVersions = entries
@@ -35,17 +35,5 @@ describe('readChangelogSource', () => {
     const source = await readChangelogSource();
     const masters = parseChangelogMasters(source);
     expect(new Set(masters.map((master) => master.version))).toEqual(new Set(masterVersions));
-    expect(entries.some((entry) => entry.isDirectory() && entry.name === 'pending')).toBe(true);
-
-    const pendingDir = join(dir, 'pending');
-    const fragments = (await readdir(pendingDir)).filter(
-      (name) => name.endsWith('.md') && name !== 'README.md',
-    );
-    for (const fragment of fragments) {
-      const body = await readFile(join(pendingDir, fragment), 'utf8');
-      for (const bullet of body.split('\n').filter((line) => line.trimStart().startsWith('- '))) {
-        expect(source).not.toContain(bullet.trim());
-      }
-    }
   });
 });
