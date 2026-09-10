@@ -1,6 +1,6 @@
 ---
 name: thermo-nuclear-code-quality-review-subagent
-model: claude-fable-5-1[thinking=true,context=1m,effort=high]
+model: muse-spark-1.3[effort=max]
 description: "Use only when the thermo-nuclear-code-quality-review skill, thermos, or an explicitly invoked workflow delegates its deep maintainability review. Audits the supplied diff for abstraction quality, oversized files, and tangled control flow."
 ---
 
