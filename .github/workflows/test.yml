@@ -1,20 +1,17 @@
 # Three jobs: verify and build in parallel, e2e after build.
 # Existing `pnpm test:e2e` smoke stays; do not invoke vercel-build /
-# build:vercel.
+# build:vercel. Starts only from Actions → Verify → Run workflow or
+# `gh workflow run Verify`.
 
 name: Verify
 on:
-  pull_request:
-    branches: [development, staging, main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-${{ github.event.pull_request.number || github.ref }}
+  group: verify-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -91,7 +88,7 @@ jobs:
             >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/cache/save@v6
-        if: steps.seed-result.outputs.changed == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: steps.seed-result.outputs.changed == 'true'
         with:
           path: ${{ runner.temp }}/sde-cache
           key: ${{ steps.seed-cache.outputs.cache-primary-key }}
@@ -229,46 +226,3 @@ jobs:
             docs/ux-check/captures/e2e-report.json
           if-no-files-found: ignore
           retention-days: 7
-
-  subject:
-    needs: [verify, build, e2e]
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Record the tested pull request subject
-        env:
-          SUBJECT_REPOSITORY: ${{ github.repository }}
-          SUBJECT_WORKFLOW_REF: ${{ github.workflow_ref }}
-          SUBJECT_WORKFLOW_SHA: ${{ github.workflow_sha }}
-          SUBJECT_RUN_ID: ${{ github.run_id }}
-          SUBJECT_RUN_ATTEMPT: ${{ github.run_attempt }}
-          SUBJECT_EVENT_NAME: ${{ github.event_name }}
-          SUBJECT_PR_NUMBER: ${{ github.event.pull_request.number }}
-          SUBJECT_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          SUBJECT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SUBJECT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          SUBJECT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          SUBJECT_MERGE_SHA: ${{ github.sha }}
-        run: |
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          keys = {
-              'repository': 'REPOSITORY', 'workflow_ref': 'WORKFLOW_REF',
-              'workflow_sha': 'WORKFLOW_SHA', 'run_id': 'RUN_ID',
-              'run_attempt': 'RUN_ATTEMPT', 'event_name': 'EVENT_NAME',
-              'pull_request_number': 'PR_NUMBER', 'base_ref': 'BASE_REF',
-              'base_sha': 'BASE_SHA', 'head_ref': 'HEAD_REF',
-              'head_sha': 'HEAD_SHA', 'merge_sha': 'MERGE_SHA',
-          }
-          subject = {'schema': 1, **{key: os.environ['SUBJECT_' + value] for key, value in keys.items()}}
-          Path(os.environ['RUNNER_TEMP'], 'ci-subject.json').write_text(json.dumps(subject) + '\n')
-          PY
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ci-subject
-          path: ${{ runner.temp }}/ci-subject.json
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 1

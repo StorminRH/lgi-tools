@@ -39,9 +39,12 @@ feat: add API endpoints for browsing and filtering wormhole sites
    `staging` → `main`.
 2. Before you land, run the local test suite: `pnpm typecheck`,
    `pnpm lint`, Fallow `dead-code` (default and `--production`), `dupes`,
-   and `health`, and focused tests for your diff. Before merge, wait for
-   GitHub Actions (`verify`, `build`, and `e2e`) on the PR's current commit.
-   Laptop `pnpm verify` does not replace those CI checks.
+   and `health`, and focused tests for your diff. Before merge, start
+   GitHub Actions Verify on the PR branch (Actions → Verify → Run
+   workflow, or `gh workflow run Verify --ref <branch>`) and wait for
+   `verify`, `build`, and `e2e` on that commit. Laptop `pnpm verify`
+   does not replace those CI checks. Verify does not start on push or
+   pull request.
 3. Fill in the PR template's **test plan** — what you verified and how.
 4. Open the GitHub PR as a draft after a green local suite. Reviewers use
    `gh pr diff <N> --repo StorminRH/lgi-tools`. Mark it ready when review

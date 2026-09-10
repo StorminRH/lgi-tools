@@ -152,17 +152,18 @@ Contributions are welcome. Work lands through GitHub PRs targeting `development`
 2. Land on `development`. Promote is `development` → `staging`. Release
    is `staging` → `main`.
 3. Before you land, run the local test suite in CONTRIBUTING
-   (typecheck, lint, Fallow, focused tests). Wait for GitHub Actions
-   `verify`, `build`, and `e2e` on the PR's current commit before merge.
+   (typecheck, lint, Fallow, focused tests). Start GitHub Actions
+   Verify on the PR branch and wait for `verify`, `build`, and `e2e`
+   before merge. The workflow does not start on push or pull request.
 4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
    plain English in the subject line, no file paths or function names.
 5. Be civil. Reviews are conversations.
 
 GitHub Actions runs typecheck, lint, the coverage suite with real Postgres,
 and Fallow in `verify`. The `build` job runs in parallel; `e2e` tests that
-production build afterward. The workflow runs on PRs targeting
-`development`, `staging`, or `main`, pushes to `main`, and manual dispatch.
-A red run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
+production build afterward. The workflow starts only from Actions → Verify
+→ Run workflow (or `gh workflow run Verify`). A red run fails that
+dispatch. `staging` auto-deploys a Preview. `main` auto-deploys
 Production. A `development` Preview is manual.
 
 GitHub CI landed in [PR #496](https://github.com/StorminRH/lgi-tools/pull/496).
