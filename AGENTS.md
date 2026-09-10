@@ -20,9 +20,6 @@ Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
 boundaries. Preserve them. Use existing primitives; extract shared
 code for a real second consumer.
 
-Neon holds durable account, character, SDE, and ESI data. Convex is a
-live projection layer for Atlas and other live data shapes.
-
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.

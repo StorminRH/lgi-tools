@@ -1,16 +1,9 @@
-# Convex guidance
+# Convex
 
-- Neon is the source of truth for durable account, character, and ESI data.
-  Convex live projections stay regenerable and never write to Neon.
-- Mapper collaborative chain state (systems, connections, signatures, notes,
-  map events) is the approved Convex-native durability exception. The
-  `mapTracking` opt-in registry rides that same exception. Do not
-  generalize it to other data.
-- Gate every public map operation through the established access owner.
-- Use Convex for collaborative live state and ESI data whose upstream cache is
-  at most two minutes. Slower personal datasets belong in Neon with stale-gated
-  refresh.
-- Store timers as absolute end timestamps. Do not persist client-relative
+Landmines that lint, Fallow, and nearby tests do not catch.
+
+- Durable account, character, SDE, and ESI data stays in Neon. Convex
+  holds Atlas collaborative chain state.
+- Public map operations go through `requireMapAccess`.
+- Persist timers as absolute end timestamps, not client-relative
   countdown state.
-- A new ESI scope needs an explicit batched placement, refresh, cost, and
-  authorization decision. Do not add per-row or per-signature ESI calls.
