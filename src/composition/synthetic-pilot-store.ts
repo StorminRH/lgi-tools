@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { makeSignature } from 'better-auth/crypto';
 import { auth } from '@/composition/auth';
 import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { upsertCharacterLoginIdentity } from '@/platform/auth/linked-characters';
+import { signSessionToken } from '@/platform/auth/sign-session-token';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { SYNTHETIC_PILOT } from '@/platform/auth/synthetic-pilot';
 
@@ -117,7 +117,7 @@ async function issueSyntheticPilotSessionCookie(): Promise<SyntheticPilotSession
 
   return {
     name: ctx.authCookies.sessionToken.name,
-    value: `${token}.${await makeSignature(token, secret)}`,
+    value: await signSessionToken(token, secret),
     domain: 'localhost',
     path: attributes.path ?? '/',
     httpOnly: attributes.httpOnly ?? true,
