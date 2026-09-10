@@ -1,10 +1,10 @@
 # Four-environment capability matrix
 
-Shell for later evidence. Empty cells mean not yet proven on that
-environment. Snapshot 10 September 2026.
+Empty cells mean that capability is not yet proven on that environment.
+Written 10 September 2026.
 
 Permissions stay separate from technical ability. No production access is
-granted for parity.
+granted just to fill a cell.
 
 | Capability | Cursor local | Cursor cloud | Codex local | Codex cloud |
 | --- | --- | --- | --- | --- |

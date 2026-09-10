@@ -1,7 +1,8 @@
 # Codex Cloud GitHub prep
 
-Native Codex notes. Separate from `.cursor/environment.json`. No Codex
-dashboard setting is changed here. Snapshot 10 September 2026.
+Notes for running Codex on this repo without reading
+`.cursor/environment.json`. No Codex dashboard setting is changed here.
+Written 10 September 2026.
 
 ## What to run
 
@@ -35,9 +36,9 @@ owns pin proof.
 
 Empty evidence cells live in
 [four-environment-capability-matrix.md](./four-environment-capability-matrix.md).
-Fill them after a Codex cloud run. Full parity is a later goal, not a claim
-from this file.
+Fill them after a Codex cloud run. This file does not claim Codex matches
+Cursor yet.
 
-## Out of scope
+## Left for Ryan
 
 Codex dashboard images, secrets, and paid capacity stay with Ryan.
