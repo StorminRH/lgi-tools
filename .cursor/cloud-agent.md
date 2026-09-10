@@ -88,12 +88,11 @@ the copy lives in `start.sh` and follows the checked-out revision.
 Codegraph does not need a token. Vercel and Neon use Cloud Agent
 Secrets when a command needs them.
 
-GitHub is the source forge for this VM. `start.sh` wires `gh` through
-`GITHUB_TOKEN`. Open and land pull requests on GitHub. The older Cloud
-Agent Origin-token note (create, comment, and watch worked; merge and
-ruleset list returned not scoped) is historical. Do not treat it as a
-live merge path. Check the actual GitHub command result on the current
-host.
+This VM uses GitHub. `start.sh` wires `gh` through `GITHUB_TOKEN`. Open
+and land pull requests on GitHub. The older Cloud Agent Origin-token
+note (create, comment, and watch worked; merge and ruleset list returned
+not scoped) is history. Do not treat it as a live merge path. Check the
+actual GitHub command result on the current host.
 
 CI wait is GitHub Actions (`verify`, `build`, and `e2e`) after someone
 starts Verify on the delivering PR branch. The workflow does not start
