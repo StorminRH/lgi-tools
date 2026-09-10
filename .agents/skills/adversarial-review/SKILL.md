@@ -24,24 +24,24 @@ Prefer small deep interfaces, one owner per decision, current callers
 only, edge cases absorbed below stable seams, behavior-preserving
 refactors, and metrics as signals not design instructions.
 
-This skill is the freeze review on an Origin draft, including every
+This skill is the freeze review on a GitHub pull request, including every
 merge onto `staging` or `main`.
 
 ## 1. Freeze
 
-Done when the Origin change has a frozen identity, the tree is
+Done when the GitHub pull request has a frozen identity, the tree is
 still, the comment pass already wrote, and every change group has
 authority.
 
-The subject is that Origin change. Brief every freeze seat with the
-change number. Each seat runs `origin pr diff <N>`.
+The subject is that GitHub pull request. Brief every freeze seat with the
+change number. Each seat runs `gh pr diff <N>`.
 
 Use the caller's change number when one is supplied. Otherwise
-the open draft for this head:
+the open pull request for this head:
 
 - Merge to staging. Usual head is `development`.
 - Merge to main. Usual head is `staging`.
-- Another Origin draft. That change number.
+- Another GitHub pull request. That change number.
 
 Record authority and any operator emphasis. Stop if a change
 group has no authority. Note which verification ran, and which
@@ -99,11 +99,11 @@ in chat.
 
 Render this form in chat. Exactly these four bullets. No fence,
 no second summary above them. The caller batches accepted
-findings after Bugbot and GitHub mirror review are idle.
+findings after Bugbot and GitHub review are idle.
 
 ## Adversarial review: `PASS` | `CORRECTIONS_REQUIRED` | `BLOCKED`
 
-- **Subject:** Origin `<N>`; `origin pr diff <N>`
+- **Subject:** GitHub `<N>`; `gh pr diff <N>`
 - **Result:**
 - **Action:** <continue, batch listed items, or operator decision>
 - **Blocker:** <exact blocker or `None`>

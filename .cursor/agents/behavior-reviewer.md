@@ -8,8 +8,8 @@ readonly: true
 # Behavior
 
 Check what the frozen subject does, and whether that matches what was
-authorized. When the brief is an Origin change number, run
-`origin pr diff <N>` and read those files on the branch. When the brief
+authorized. When the brief is a GitHub pull request number, run
+`gh pr diff <N>` and read those files on the branch. When the brief
 is a working tree or a plan, read that subject. Use nested `AGENTS.md`
 and established owners when they are already loaded.
 

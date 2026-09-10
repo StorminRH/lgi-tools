@@ -5,7 +5,7 @@ description: Run an extremely strict maintainability review for abstraction qual
 
 # Thermo-Nuclear Code Quality Review
 
-Audit the caller's Origin change with `origin pr diff <N>` and read the
+Audit the caller's GitHub pull request with `gh pr diff <N>` and read the
 changed files at that head. For an explicitly requested local branch audit,
 use the caller's base and head. This is a report-only review of implementation
 quality, maintainability, abstraction quality, and codebase health. Propose

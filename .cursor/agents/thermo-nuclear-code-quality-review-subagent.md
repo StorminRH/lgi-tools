@@ -6,8 +6,8 @@ description: "Use only when the thermo-nuclear-code-quality-review skill, thermo
 
 # Thermo-Nuclear Code Quality Review
 
-You are a **Task subagent**. The brief is an Origin change number.
-Run `origin pr diff <N>` and read those files on the branch.
+You are a **Task subagent**. The brief is a GitHub pull request number.
+Run `gh pr diff <N>` and read those files on the branch.
 
 ## Rubric
 
@@ -23,5 +23,5 @@ Run `origin pr diff <N>` and read those files on the branch.
 ## Parent orchestration
 
 Invoke this agent with `subagent_type: "thermo-nuclear-code-quality-review-subagent"`
-and a user prompt that is the Origin change number. The seat runs
-`origin pr diff <N>`.
+and a user prompt that is the GitHub pull request number. The seat runs
+`gh pr diff <N>`.

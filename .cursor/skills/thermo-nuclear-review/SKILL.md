@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Thermo Nuclear Review
 
-Audit the caller's Origin change with `origin pr diff <N>` and read the
+Audit the caller's GitHub pull request with `gh pr diff <N>` and read the
 changed files at that head. For an explicitly requested local branch audit,
 use the caller's base and head. Collect evidence and report findings; leave
 fixes to the caller after review.
@@ -44,9 +44,8 @@ NEVER misreport the priority / importance of issues. Be extremely thorough in tr
 
 # Final Response
 After the independent audit, if you have medium-or-higher findings, read
-the Origin change discussion with `origin pr view` and `origin pr thread`
-commands. Use `--help` for supported read arguments. If the caller names a
-GitHub mirror, also read its discussion with `gh`; Origin is the primary
+the GitHub pull request discussion with `gh pr view` and `gh api` review
+comment reads. Use `--help` for supported read arguments. GitHub is the
 review record.
 If so, take their findings into account. If they found issues you missed, evaluate them to determine if they are valid and include them in your report. If they found some of the same issues you did, see if there is anything from their findings that are worth incorporating into your response.
 Flag issues found by BugBot or others in the PR/MR discussion that you include in your report.
