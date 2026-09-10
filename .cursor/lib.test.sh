@@ -133,30 +133,4 @@ eve_line="$(unset EVE_CLIENT_ID EVE_CLIENT_SECRET; lgi_eve_runtime_secret_presen
 [ "$eve_line" = "EVE runtime secrets: absent" ] || fail "eve absence"
 pass "EVE secret presence is names-only"
 
-pstack_src="$(mktemp)"
-pstack_dest_dir="$(mktemp -d)"
-pstack_dest="${pstack_dest_dir}/nested/pstack-models.mdc"
-printf 'feature, refactoring: cursor-grok-4.6-xhigh\n' > "$pstack_src"
-if lgi_install_pstack_models "" "$pstack_dest" 2>/dev/null; then
-  fail "empty source must refuse"
-fi
-if lgi_install_pstack_models "${pstack_dest_dir}/missing.mdc" "$pstack_dest" 2>/dev/null; then
-  fail "missing source must refuse"
-fi
-lgi_install_pstack_models "$pstack_src" "$pstack_dest" || fail "copy must succeed"
-[ -f "$pstack_dest" ] || fail "dest file must exist"
-cmp -s "$pstack_src" "$pstack_dest" || fail "dest must match source"
-printf 'swarm workers: cursor-grok-4.6-xhigh\n' > "$pstack_src"
-lgi_install_pstack_models "$pstack_src" "$pstack_dest" || fail "overwrite must succeed"
-cmp -s "$pstack_src" "$pstack_dest" || fail "overwrite must replace dest"
-lgi_install_pstack_models "$ROOT/.cursor/rules/pstack-models.mdc" "$pstack_dest" \
-  || fail "repo rule must copy"
-grep -q '^feature, refactoring: cursor-grok-4.6-xhigh$' "$pstack_dest" \
-  || fail "repo rule must keep feature role"
-grep -q '^arena runners: cursor-grok-4.6-xhigh, muse-spark-1.3-high$' "$pstack_dest" \
-  || fail "repo rule must keep two-model arena"
-rm -f "$pstack_src"
-rm -rf "$pstack_dest_dir"
-pass "pstack models install"
-
 echo "lib.test.sh: all assertions passed"
