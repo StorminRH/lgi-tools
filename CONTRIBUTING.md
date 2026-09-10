@@ -58,10 +58,14 @@ feat: add API endpoints for browsing and filtering wormhole sites
 Linear remains the ticket and handoff system. GitHub required-check settings
 and source-authority cutover are tracked in
 [LGI-112](https://linear.app/lgitools/issue/LGI-112); do not infer that existing
-mirrors or deployments have been reconfigured from this guide. Agent
-instructions and skills are outside this documentation change. Bring obsolete
-Origin commands in those files to the operator for an exact correction;
-do not run them as part of a GitHub PR or rewrite the surrounding procedure.
+mirrors or deployments have been reconfigured from this guide. The Sync
+Manager 3:30am ET Origin-to-GitHub branch-tip write is documented as
+to-retire in
+[docs/migration/github-delivery-inventory.md](docs/migration/github-delivery-inventory.md).
+This guide does not change that schedule. Agent instructions and skills are
+outside this documentation change. Bring obsolete Origin commands in those
+files to the operator for an exact correction; do not run them as part of a
+GitHub PR or rewrite the surrounding procedure.
 
 ## Conduct, security & license
 

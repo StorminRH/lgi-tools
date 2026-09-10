@@ -1,7 +1,7 @@
 # Three jobs: verify and build in parallel, e2e after build.
 # Existing `pnpm test:e2e` smoke stays; do not invoke vercel-build /
-# build:vercel. Starts only from Actions → Verify → Run workflow or
-# `gh workflow run Verify`.
+# build:vercel. Starts only from Actions → Verify → Run workflow, or
+# `gh workflow run Verify --ref <branch>`.
 
 name: Verify
 on:

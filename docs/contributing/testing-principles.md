@@ -67,7 +67,9 @@ arrange steps in shared hooks beyond what the harness owns.
   internet.
 - Keep the bar for adding tests high, especially slower DB and browser surfaces.
 - Real-Postgres suites stay `*.db.test.ts` with `createDbTestHarness`. GitHub
-  Actions `verify` (manual dispatch) is the gate of record for that layer.
+  Actions Verify is the gate of record for that layer. Start it from
+  Actions → Verify → Run workflow, or
+  `gh workflow run Verify --ref <branch>`.
 - House registry / Fallow / ESI-dataset declaration suites are load-bearing
   gates — do not delete them as "cruft" without an explicit replacement.
 

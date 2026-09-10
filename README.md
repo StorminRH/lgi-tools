@@ -162,7 +162,7 @@ Contributions are welcome. Work lands through GitHub PRs targeting `development`
 GitHub Actions runs typecheck, lint, the coverage suite with real Postgres,
 and Fallow in `verify`. The `build` job runs in parallel; `e2e` tests that
 production build afterward. The workflow starts only from Actions → Verify
-→ Run workflow (or `gh workflow run Verify`). A red run fails that
+→ Run workflow, or `gh workflow run Verify --ref <branch>`. A red run fails that
 dispatch. `staging` auto-deploys a Preview. `main` auto-deploys
 Production. A `development` Preview is manual.
 
