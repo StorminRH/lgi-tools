@@ -91,5 +91,7 @@ error, report `BLOCKED` and leave the Origin PR open for the operator to merge
 or upgrade the token. Check the actual command result on the current host;
 this observation does not establish a local Cursor or Codex token's scope.
 
-CI wait is GitHub Actions on the delivering PR (`verify`, `build`, and
-`e2e`). Wait until those checks are green on the current commit.
+CI wait is GitHub Actions (`verify`, `build`, and `e2e`) after someone
+starts Verify on the delivering PR branch. The workflow does not start
+on push or pull request. Wait until those checks are green on the
+current commit.
