@@ -19,8 +19,6 @@ COMMANDS = {
     ("delivery", "scrub-pr-body"): "tools.delivery.scrub_pr_body",
     ("delivery", "wait-prod-deploy"): "tools.delivery.wait_prod_deploy",
     ("quality", "check-env-example"): "tools.quality.check_env_example",
-    ("update-watch", "check-baseline"): "tools.update_watch.check_update_watch_baseline",
-    ("update-watch", "collector"): "tools.update_watch.update_watch_collect",
 }
 
 def usage() -> str:
