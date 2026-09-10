@@ -11,7 +11,7 @@ console, page errors, network). Write screenshots/traces under
 their browser — never always-on screenshots or agent visual approval.
 
 Development and operator-requested staging aid; independent of the local test
-suite and the standing Depot pipeline.
+suite and GitHub Actions.
 Sweeps/probes exit non-zero on hard assertion/console/page failures; network
 findings still need disposition.
 

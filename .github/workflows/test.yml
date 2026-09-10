@@ -1,7 +1,6 @@
-# GitHub Actions port of `.depot/workflows/test.yml`.
 # Three jobs: verify and build in parallel, e2e after build.
-# GitHub cache replaces depot/cache-mount. Existing `pnpm test:e2e` smoke
-# stays; do not invoke vercel-build / build:vercel.
+# Existing `pnpm test:e2e` smoke stays; do not invoke vercel-build /
+# build:vercel.
 
 name: Verify
 on:

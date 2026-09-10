@@ -66,6 +66,6 @@ next-env.d.ts
 /fallow-out/
 /fallow-backstop/
 
-# python bytecode (agent-local tooling + tests)
+# python bytecode (tools tests)
 __pycache__/
 *.py[cod]

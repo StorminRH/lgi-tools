@@ -6,9 +6,9 @@ const isCi = Boolean(process.env.CI);
 /**
  * Log-driven Playwright config. Artifacts (screenshot/trace) only on failure,
  * written under the existing gitignored ux-check captures tree. Local runs
- * prefer an already-running `pnpm dev` / `pnpm dev:all` and reuse it. Depot
- * job `e2e` sets `CI` so webServer starts `pnpm start` (requires `next build`)
- * and refuses a leftover listener.
+ * prefer an already-running `pnpm dev` / `pnpm dev:all` and reuse it. The
+ * GitHub Actions `e2e` job sets `CI` so webServer starts `pnpm start`
+ * (requires `next build`) and refuses a leftover listener.
  *
  * Do not set Vercel bypass via `extraHTTPHeaders` here — that leaks the secret
  * to every third-party origin. Local e2e targets localhost; protected remote
