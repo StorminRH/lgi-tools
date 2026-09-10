@@ -1,6 +1,0 @@
-interface:
-  display_name: "interrogate"
-  short_description: "Use the interrogate workflow in LGI."
-  default_prompt: "Use $interrogate for the requested task."
-policy:
-  allow_implicit_invocation: false

@@ -1,6 +1,0 @@
-interface:
-  display_name: "control-ui"
-  short_description: "Use the control-ui workflow in LGI."
-  default_prompt: "Use $control-ui for the requested task."
-policy:
-  allow_implicit_invocation: false

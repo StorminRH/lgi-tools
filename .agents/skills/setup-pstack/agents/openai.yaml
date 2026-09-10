@@ -1,6 +1,0 @@
-interface:
-  display_name: "setup-pstack"
-  short_description: "Use the setup-pstack workflow in LGI."
-  default_prompt: "Use $setup-pstack for the requested task."
-policy:
-  allow_implicit_invocation: false

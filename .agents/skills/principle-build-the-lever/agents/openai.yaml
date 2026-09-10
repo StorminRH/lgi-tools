@@ -1,6 +1,0 @@
-interface:
-  display_name: "principle-build-the-lever"
-  short_description: "Use the principle-build-the-lever workflow in LGI."
-  default_prompt: "Use $principle-build-the-lever for the requested task."
-policy:
-  allow_implicit_invocation: false

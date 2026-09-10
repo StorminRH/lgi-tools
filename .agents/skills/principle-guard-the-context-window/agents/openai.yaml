@@ -1,6 +1,0 @@
-interface:
-  display_name: "principle-guard-the-context-window"
-  short_description: "Use the principle-guard-the-context-window workflow in LGI."
-  default_prompt: "Use $principle-guard-the-context-window for the requested task."
-policy:
-  allow_implicit_invocation: false

@@ -11,8 +11,6 @@
   "entry": [],
 
   "ignorePatterns": [
-    ".cursor/skills/poteto-mode/scripts/**",
-    ".agents/skills/poteto-mode/scripts/**",
     "convex/_generated/**",
     ".next/**",
     "out/**",
@@ -81,8 +79,6 @@
     "threshold": 0.000001,
     "ignoreDefaults": true,
     "ignore": [
-      ".cursor/skills/poteto-mode/scripts/**",
-    ".agents/skills/poteto-mode/scripts/**",
       "**/*.test.ts",
       "**/*.test.tsx",
       "convex/_generated/**",

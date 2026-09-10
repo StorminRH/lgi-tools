@@ -1,6 +1,2 @@
-interface:
-  display_name: "why"
-  short_description: "Use the why workflow in LGI."
-  default_prompt: "Use $why for the requested task."
 policy:
   allow_implicit_invocation: false

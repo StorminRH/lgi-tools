@@ -1,6 +1,2 @@
-interface:
-  display_name: "principle-type-system-discipline"
-  short_description: "Use the principle-type-system-discipline workflow in LGI."
-  default_prompt: "Use $principle-type-system-discipline for the requested task."
 policy:
   allow_implicit_invocation: false

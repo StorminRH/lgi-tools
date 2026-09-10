@@ -1,6 +1,0 @@
-interface:
-  display_name: "principle-foundational-thinking"
-  short_description: "Use the principle-foundational-thinking workflow in LGI."
-  default_prompt: "Use $principle-foundational-thinking for the requested task."
-policy:
-  allow_implicit_invocation: false

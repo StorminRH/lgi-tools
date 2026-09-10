@@ -1,6 +1,0 @@
-interface:
-  display_name: "swarm"
-  short_description: "Use the swarm workflow in LGI."
-  default_prompt: "Use $swarm for the requested task."
-policy:
-  allow_implicit_invocation: false

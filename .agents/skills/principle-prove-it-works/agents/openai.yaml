@@ -1,6 +1,0 @@
-interface:
-  display_name: "principle-prove-it-works"
-  short_description: "Use the principle-prove-it-works workflow in LGI."
-  default_prompt: "Use $principle-prove-it-works for the requested task."
-policy:
-  allow_implicit_invocation: false

@@ -1,6 +1,2 @@
-interface:
-  display_name: "principle-encode-lessons-in-structure"
-  short_description: "Use the principle-encode-lessons-in-structure workflow in LGI."
-  default_prompt: "Use $principle-encode-lessons-in-structure for the requested task."
 policy:
   allow_implicit_invocation: false

@@ -3,7 +3,7 @@
 ## What this source contains
 
 - Commit history (messages, dates, authors, diffs)
-- PR descriptions, review comments, and discussion threads (via `gh`)
+- PR descriptions, review comments, and discussion threads on Origin or a verified GitHub mirror or historical PR
 - Inline code comments, TODOs, FIXMEs, deprecation notes
 - ADRs (architectural decision records) if the repo keeps them
 - Tests. Names and assertions often encode the edge cases that motivated a change
@@ -11,7 +11,8 @@
 - CHANGELOG entries, release notes in the repo
 - Issue/ticket IDs mentioned in commit messages and PR bodies
 
-The most trustworthy source, tied directly to the code, and the most complete. Everything that went through the repo should be here.
+These records tie rationale to code changes. Squashes, deleted branches,
+inaccessible reviews, and incomplete commit messages can leave gaps.
 
 ## How to search it
 
@@ -43,8 +44,11 @@ For each substantive commit, pull the PR context:
 # Find the PR number from the merge commit or branch
 git log -1 --format=%B <hash>
 
-# Full PR context: body, review comments, linked issues
-gh pr view <number> --json title,body,author,createdAt,mergedAt,labels,closingIssuesReferences,comments,reviews,files
+# Origin is the land forge. Identify the forge before using a PR number.
+origin pr view <origin-number>
+
+# For a verified GitHub mirror or historical GitHub PR only:
+gh pr view <github-number> --json title,body,author,createdAt,mergedAt,labels,closingIssuesReferences,comments,reviews,files
 
 # The --json reviews and comments fields are where the real signal is
 ```

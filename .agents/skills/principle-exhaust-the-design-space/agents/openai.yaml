@@ -1,6 +1,0 @@
-interface:
-  display_name: "principle-exhaust-the-design-space"
-  short_description: "Use the principle-exhaust-the-design-space workflow in LGI."
-  default_prompt: "Use $principle-exhaust-the-design-space for the requested task."
-policy:
-  allow_implicit_invocation: false

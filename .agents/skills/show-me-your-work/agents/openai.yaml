@@ -1,6 +1,0 @@
-interface:
-  display_name: "show-me-your-work"
-  short_description: "Use the show-me-your-work workflow in LGI."
-  default_prompt: "Use $show-me-your-work for the requested task."
-policy:
-  allow_implicit_invocation: false

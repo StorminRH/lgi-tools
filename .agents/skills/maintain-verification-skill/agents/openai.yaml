@@ -1,6 +1,0 @@
-interface:
-  display_name: "maintain-verification-skill"
-  short_description: "Use the maintain-verification-skill workflow in LGI."
-  default_prompt: "Use $maintain-verification-skill for the requested task."
-policy:
-  allow_implicit_invocation: false

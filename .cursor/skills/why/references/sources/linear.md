@@ -8,7 +8,7 @@
 - Comments on issues (clarifications, scope changes, "why we're doing this" rationale)
 - Labels (e.g., `compliance`, `customer-request`, `perf`) that signal the type of motivation
 - Status updates that explain scope changes
-- Attachments and linked GitHub PRs
+- Attachments and linked Origin or GitHub PRs
 
 Linear is where the product/business context often lives: the "we're doing this because customer X asked" or "this is for the Q3 compliance initiative" layer.
 
@@ -18,7 +18,7 @@ Use the Linear MCP.
 
 1. **Start with linked tickets.** If the seed commits or PRs reference ticket IDs (e.g., `ENG-1234`, `[BUG-567]`), fetch those first with `get_issue`. Read the full issue including comments.
 2. **List related issues by keyword.** Use `list_issues` with text search for the feature name, key symbol, or business term. Try multiple phrasings.
-3. **Walk the issue tree.** If you land on a sub-issue, fetch its parent. Sub-issues are tactical. Parents often carry the "why."
+3. **Walk the issue tree.** If you land on a sub-issue, fetch its parent. Sub-issues are tactical; parents often carry the "why."
 4. **Read project docs.** If the issue belongs to a project, use `get_project` and check attached docs. Project-level documents are where specs and rationale are most often captured.
 5. **Check labels and milestones.** Labels hint at the category of motivation (customer-request, incident-followup, compliance). Milestones tie work to deadlines, which often reveal motivation.
 
@@ -42,7 +42,7 @@ Use the Linear MCP.
 
 For each relevant ticket:
 - Ticket ID and title
-- The problem/motivation quoted from the description or comments (not paraphrased. The synthesizer needs the exact text to cite)
+- The problem/motivation quoted from the description or comments (not paraphrased; the synthesizer needs the exact text to cite)
 - Labels, parent issue, project
 - Author, created date, closed date
 - Link to the ticket if available

@@ -1,10 +1,10 @@
 # TypeScript patterns
 
-Code examples for each rule in `SKILL.md`. The underlying principles are language-agnostic. See the **type-system-discipline** and **boundary-discipline** principle skills.
+Code examples for each rule in `SKILL.md`. The underlying principles are language-agnostic; read [type system discipline](../../principle-type-system-discipline/SKILL.md) and [boundary discipline](../../principle-boundary-discipline/SKILL.md).
 
 ## Branded types
 
-Brand primitives so they can't be mixed up. Validate once at the boundary. Downstream code trusts the type.
+Brand primitives so they can't be mixed up. Validate once at creation; downstream code trusts the type.
 
 ```ts
 type AgentId = string & { readonly __brand: "AgentId" };
@@ -19,11 +19,11 @@ function focusAgent(id: AgentId): void {
 }
 ```
 
-Match the `readonly __brand: 'X'` shape. Don't invent a new convention.
+Match the `readonly __brand: 'X'` shape; don't invent a new convention.
 
 ## Discriminated unions
 
-Model variants with a literal discriminant. Every variant shares the field name and each variant's value is unique, so impossible combos can't be represented.
+If a bug forces the question "wait, can this combination actually happen?", the type is too loose. Model variants with a literal discriminant: every variant shares the field name and each variant's value is unique, so impossible combos can't be represented.
 
 ```ts
 // Don't. Boolean + optionals lets contradictory states exist.
@@ -40,7 +40,7 @@ Pick one discriminant name (`kind`, `type`, `tag`) and stick to it.
 
 ## Constructive modeling
 
-Build the type from parts that are all legal instead of restricting a loose type with runtime checks.
+Build the type from parts that are all legal instead of restricting a loose type with runtime checks. Adding is easier than subtracting.
 
 Non-empty, via a variadic tuple:
 
@@ -55,7 +55,8 @@ function pickWinner(entries: string[]): string {
 
 // Do: an empty value of the type can't exist
 function pickWinner(entries: NonEmpty<string>): string {
-  return entries[Math.floor(Math.random() * entries.length)];
+  const index = Math.floor(Math.random() * entries.length);
+  return entries[index] ?? entries[0];
 }
 ```
 
@@ -65,7 +66,7 @@ Where a plain `T[]` arrives, narrow once with a guard. The fact then travels in 
 const isNonEmpty = <T>(arr: T[]): arr is NonEmpty<T> => arr.length > 0;
 ```
 
-Even length, as pairs:
+Even length, as pairs. TypeScript has no refinement types (no `arr.length % 2 === 0` at the type level); you don't need one:
 
 ```ts
 type Pairs<T> = [T, T][];
@@ -77,11 +78,13 @@ A time range, as start plus duration:
 // Don't: a comment holds the invariant
 type TimeRange = { start: Date; end: Date }; // start <= end
 
-// Do: a negative range can't be written; derive end when needed
+// Store duration directly; validate its sign and finiteness at the boundary
 type TimeRange = { start: Date; durationMs: number };
 ```
 
-Keep `durationMs` a plain number. Brand it (per Branded types) only if a raw number could be passed where a duration is expected, not by reflex. Pick the representation that makes the bad state unconstructable, then expose the reading you need on top (`pairs.flat()`, a `rangeEnd()` helper).
+A plain `number` still admits negative values, `NaN`, and infinity. Validate
+finite, nonnegative durations at the boundary. Use a validated branded
+duration when callers must carry that invariant in the type. A `Pairs<T>` is an even-length list under the interpretation you give it, the same way `{ start, durationMs }` is a range. Pick the representation that makes the bad state unconstructable, then expose the reading you need on top (`pairs.flat()`, a `rangeEnd()` helper).
 
 ## Simplest total type
 
@@ -105,11 +108,11 @@ function newestSession(sessions: NonEmpty<Session>): Session {
 }
 ```
 
-Weakening the result to `Session | undefined` is the other total signature.
+Weakening the result to `Session | undefined` is the other total signature. Either way the empty case lands at the call site, the one place that knows what empty means.
 
 ## `unknown` over `any`
 
-External data is always `unknown`. Narrow before use.
+`any` disables type checking for everything it touches. External data is always `unknown`. Narrow before use.
 
 ```ts
 // Don't
@@ -127,45 +130,27 @@ function handle(input: unknown) {
 
 External sources include RPC payloads, `JSON.parse`, `postMessage`, IPC, file contents, environment variables, database results.
 
-## Schemas before hand-rolled guards
-
-Before writing a property-by-property type guard for external data, look for the repository's runtime schema library and existing schemas. Let one schema own validation and derive the TypeScript type from it. Do not maintain a schema, a duplicate interface, and a guard that can drift apart.
-
-```ts
-import { z } from "zod";
-
-const UserSchema = z.object({
-  id: z.string().uuid(),
-  role: z.enum(["admin", "member"]),
-});
-
-type User = z.infer<typeof UserSchema>;
-
-function parseUser(input: unknown): User {
-  return UserSchema.parse(input);
-}
-```
-
-Use `safeParse` when failure is an expected branch. Use the equivalent inference helper when the repository uses another schema library. Do not add a new schema dependency for one guard. This rule prefers the schema system the codebase already trusts.
-
 ## No `as` casts
 
-Every `as` is a potential runtime crash. Cast only after the type system has verified the claim.
+Type assertions do not validate runtime values. Parse external data and
+construct the validated result. Use a boundary assertion only for a fact
+the compiler cannot express, such as a validated brand.
 
 ```ts
 // Don't
 const user = data as User;
 
-// Do. Earn the cast at the boundary.
+// Do. Validate every field and construct the declared shape.
+type User = { id: string };
+
 function parseUser(data: unknown): User {
   if (typeof data !== "object" || data === null) {
     throw new Error("expected object");
   }
-  if (!("id" in data) || typeof (data as Record<string, unknown>).id !== "string") {
+  if (!("id" in data) || typeof data.id !== "string") {
     throw new Error("expected id");
   }
-  // ... validate all fields
-  return data as User; // OK, earned cast after full validation
+  return { id: data.id };
 }
 ```
 
@@ -195,7 +180,7 @@ function area(s: Shape): number {
 
 ## Type guards
 
-A guard must actually verify the claim. A lying guard is worse than `as`.
+A guard must actually verify the claim. A lying guard is worse than `as` because the bug hides behind a name that says it's safe.
 
 ```ts
 function isCircle(s: Shape): s is Shape & { kind: "circle" } {
@@ -203,11 +188,11 @@ function isCircle(s: Shape): s is Shape & { kind: "circle" } {
 }
 ```
 
-Prefer discriminant narrowing when possible.
+Prefer discriminant narrowing when possible. The guard adds a layer the reader has to follow.
 
 ## Exhaustiveness
 
-In default arms, assign the discriminant to a `never`-typed local.
+In default arms, assign the discriminant to a `never`-typed local. The compiler errors if a new variant is added without handling.
 
 ```ts
 // Value-returning switch
@@ -241,7 +226,7 @@ function handle(s: Shape): void {
 }
 ```
 
-Return-style in value-returning switches, void-style in statement switches.
+Return-style in value-returning switches; void-style in statement switches.
 
 ## `satisfies` over `as`
 
@@ -258,9 +243,9 @@ const config = { theme: "dark", cols: 3 } satisfies Config;
 
 ## Boundary validation
 
-Validate once where data crosses in. Trust types inside. See the **boundary-discipline** principle skill.
+Validate once where data crosses in; trust types inside. See [boundary discipline](../../principle-boundary-discipline/SKILL.md).
 
-- **Wire formats** (proto, JSON-RPC): parse with `ignoreUnknownFields` so forward-compatible changes don't break old clients.
+- **Wire formats**: use the protocol owner's unknown-field policy. Only use parser options supported by the installed library and the relevant protocol.
 - **Persisted JSON:** versioned blob with a try/catch around the parse.
 - **Don't re-validate** deep in call chains.
 

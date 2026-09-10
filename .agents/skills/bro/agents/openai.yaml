@@ -1,6 +1,0 @@
-interface:
-  display_name: "bro"
-  short_description: "Use the bro workflow in LGI."
-  default_prompt: "Use $bro for the requested task."
-policy:
-  allow_implicit_invocation: false

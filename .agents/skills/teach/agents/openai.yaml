@@ -1,6 +1,2 @@
-interface:
-  display_name: "teach"
-  short_description: "Use the teach workflow in LGI."
-  default_prompt: "Use $teach for the requested task."
 policy:
   allow_implicit_invocation: false

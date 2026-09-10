@@ -1,6 +1,0 @@
-interface:
-  display_name: "control-cli"
-  short_description: "Use the control-cli workflow in LGI."
-  default_prompt: "Use $control-cli for the requested task."
-policy:
-  allow_implicit_invocation: false

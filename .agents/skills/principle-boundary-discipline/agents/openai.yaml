@@ -1,6 +1,2 @@
-interface:
-  display_name: "principle-boundary-discipline"
-  short_description: "Use the principle-boundary-discipline workflow in LGI."
-  default_prompt: "Use $principle-boundary-discipline for the requested task."
 policy:
   allow_implicit_invocation: false

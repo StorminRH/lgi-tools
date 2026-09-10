@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: "Use for a GitHub draft PR review and before every merge onto staging or main. Coordinates independent structure, behavior, and thermo reviews of one frozen revision after the comment pass."
+description: Use on an Origin draft and before every merge onto staging or main. Independent structure, behavior, and thermo reviews on one freeze after the comment pass. Reviewers run origin pr diff.
 ---
 
 # Adversarial review

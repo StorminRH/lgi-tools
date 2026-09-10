@@ -1,6 +1,0 @@
-interface:
-  display_name: "tdd"
-  short_description: "Use the tdd workflow in LGI."
-  default_prompt: "Use $tdd for the requested task."
-policy:
-  allow_implicit_invocation: false

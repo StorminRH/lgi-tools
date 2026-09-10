@@ -1,6 +1,2 @@
-interface:
-  display_name: "principle-redesign-from-first-principles"
-  short_description: "Use the principle-redesign-from-first-principles workflow in LGI."
-  default_prompt: "Use $principle-redesign-from-first-principles for the requested task."
 policy:
   allow_implicit_invocation: false

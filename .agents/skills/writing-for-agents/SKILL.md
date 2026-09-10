@@ -1,6 +1,6 @@
 ---
 name: writing-for-agents
-description: "Always use when authoring, reviewing, or editing AGENTS.md, skill descriptions or instructions, subagent definitions, or other agent-facing guidance."
+description: Use when creating or editing skills, or modifying AGENTS.md, skills, subagents, or any other directly agent facing guidance and documentation. Writing documents for agents.
 ---
 
 Reference for writing any document an agent consumes: a skill, an `AGENTS.md` / `CLAUDE.md`, a doc reached by a pointer. The packaging differs; the writing does not: the same levers make each one predictable, since the agent takes the same *process* every run rather than producing the same output.

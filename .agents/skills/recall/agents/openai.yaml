@@ -1,6 +1,0 @@
-interface:
-  display_name: "recall"
-  short_description: "Use the recall workflow in LGI."
-  default_prompt: "Use $recall for the requested task."
-policy:
-  allow_implicit_invocation: false

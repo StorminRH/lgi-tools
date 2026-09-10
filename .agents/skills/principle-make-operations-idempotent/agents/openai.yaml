@@ -1,6 +1,0 @@
-interface:
-  display_name: "principle-make-operations-idempotent"
-  short_description: "Use the principle-make-operations-idempotent workflow in LGI."
-  default_prompt: "Use $principle-make-operations-idempotent for the requested task."
-policy:
-  allow_implicit_invocation: false

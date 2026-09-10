@@ -1,6 +1,0 @@
-interface:
-  display_name: "automate-me"
-  short_description: "Use the automate-me workflow in LGI."
-  default_prompt: "Use $automate-me for the requested task."
-policy:
-  allow_implicit_invocation: false

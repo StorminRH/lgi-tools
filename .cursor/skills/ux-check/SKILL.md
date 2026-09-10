@@ -1,6 +1,6 @@
 ---
 name: ux-check
-description: "Use for changed UI or interactions at the pre-close-out UI gate. Exercises affected routes with Playwright and records the operator visual-review disposition for close-out."
+description: Exercise changed user-facing routes with log-driven Playwright (assertions, console/network diagnostics, failure-only artifacts) and pause for operator visual review. Use as the Ordered-work / pre-close-out UI gate for UI or interaction changes; close-out consumes the recorded disposition and does not re-run this sweep.
 ---
 
 # Run the UX check
