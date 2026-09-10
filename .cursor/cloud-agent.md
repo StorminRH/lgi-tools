@@ -15,22 +15,31 @@ No Docker, no systemd. `.cursor/install.sh` provisions PostgreSQL 16 on
 does not reliably survive boot.
 
 The migrated schema and ingested EVE SDE are baked into the snapshot. A normal
-boot needs no migration, no ingest, and no CCP network call.
+boot needs no migration, no ingest, and no CCP network call. Install prints the
+SDE census (including `market_prices` and `sites`) while the install-owned
+postmaster is still up, then stops that cluster so the `postgres` terminal owns
+the session.
 
 ## Next and Convex
 
 Use `pnpm dev`, not `pnpm dev:all`. `dev:all` runs `docker compose up -d`.
 
 Convex is the sibling `convex-dev` terminal. `.cursor/convex.sh` runs
-`CONVEX_AGENT_MODE=anonymous pnpm exec convex dev` on `:3210`. Do not copy a
-laptop `local:` pair, a hosted `*.convex.cloud` URL, or `CONVEX_DEPLOY_KEY`.
-Fixture probes call `convex run` against the selected `local:` or `anonymous:`
-deployment and refuse a hosted URL.
+`CONVEX_AGENT_MODE=anonymous pnpm exec convex dev` on `:3210`. Selectors are
+`anonymous:anonymous-agent` or unset/empty (so dotenv can choose). `start.sh`
+and `dev.sh` refuse a hosted, `local:`, or non-loopback Convex URL before Next
+starts. An empty inherited `CONVEX_DEPLOYMENT` is unset.
 
-After Next is up, `.cursor/start.sh` reconciles `AUTH_ISSUER_URL`, `SITE_URL`,
-`AUTH_JWKS` (from `/api/auth/jwks`), and a VM-generated `CONVEX_SERVICE_SECRET`
-onto the local deployment. Atlas `atlas-*` probes need both Next and Convex
-terminals. `pnpm verify`, public e2e, and synthetic-auth smoke do not.
+AUTH reconcile is the `configure-convex-auth` terminal
+(`.cursor/configure-convex-auth.sh`). It waits for Next `/api/auth/jwks`
+(parsed nonempty signing keys) and Convex `:3210`, then sets `AUTH_ISSUER_URL`,
+`SITE_URL`, `AUTH_JWKS`, and `CONVEX_SERVICE_SECRET` on the anonymous
+deployment. Readiness is `/tmp/lgi-convex-auth.status`: `0` means reconcile
+succeeded. `start.sh` pins local DB / anonymous Convex and sets up `gh`; it
+does not own AUTH reconcile.
+
+Atlas `atlas-*` probes need Next, Convex, and a `0` auth status. `pnpm verify`,
+public e2e, and synthetic-auth smoke do not.
 
 ## Env and secrets
 
