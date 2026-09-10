@@ -2,9 +2,9 @@
 
 Read when running or setting up the Cursor Cloud Agent Linux VM defined by
 `.cursor/environment.json`. Its install/start scripts provision the VM stack;
-local Cursor and Codex sessions use `README.md#local-development` instead.
-CLI commands live in AGENTS.md Tools. These notes describe the VM environment,
-not permissions or credentials granted to other hosts.
+local Cursor and Codex sessions do not use these scripts.
+These notes describe the VM environment, not permissions or credentials
+granted to other hosts.
 
 ## Postgres
 
@@ -22,10 +22,12 @@ the session.
 
 ## Next and Convex
 
-Use `pnpm dev`, not `pnpm dev:all`. `dev:all` runs `docker compose up -d`.
+Start Next through the VM's `next-dev` terminal. Use the VM's existing
+database and Convex terminals; the combined local-development setup
+depends on Docker, which is unavailable here.
 
-Convex is the sibling `convex-dev` terminal. `.cursor/convex.sh` runs
-`CONVEX_AGENT_MODE=anonymous pnpm exec convex dev` on `:3210`. Selectors are
+Convex is the sibling `convex-dev` terminal. `.cursor/convex.sh` starts
+anonymous Convex on `:3210`. Selectors are
 `anonymous:anonymous-agent` or unset/empty (so dotenv can choose). `start.sh`
 and `dev.sh` refuse a hosted, `local:`, or non-loopback Convex URL before Next
 starts. An empty inherited `CONVEX_DEPLOYMENT` is unset.
@@ -35,11 +37,11 @@ AUTH reconcile is the `configure-convex-auth` terminal
 (parsed nonempty signing keys) and Convex `:3210`, then sets `AUTH_ISSUER_URL`,
 `SITE_URL`, `AUTH_JWKS`, and `CONVEX_SERVICE_SECRET` on the anonymous
 deployment. Readiness is `/tmp/lgi-convex-auth.status`: `0` means reconcile
-succeeded. `start.sh` pins local DB / anonymous Convex and sets up `gh`; it
-does not own AUTH reconcile.
+succeeded. `start.sh` pins local DB / anonymous Convex and configures
+GitHub authentication; it does not own AUTH reconcile.
 
-Atlas `atlas-*` probes need Next, Convex, and a `0` auth status. `pnpm verify`,
-public e2e, and synthetic-auth smoke do not.
+The verification suite, public e2e, and synthetic-auth smoke do not require
+Convex AUTH reconcile.
 
 ## Env and secrets
 
@@ -48,8 +50,8 @@ local DB URLs. A Cloud Agent Secret is injected as a real env var and overrides
 the `.env.local` fallback at runtime. A production `DATABASE_URL` makes the
 app talk to prod.
 
-`DATABASE_URL_UNPOOLED` must be set. The lock-holder scripts (`db:refresh-sde`,
-`db:refresh-prices`) resolve it with `??`, so the blank value in `.env.example`
+`DATABASE_URL_UNPOOLED` must be set. The SDE and price refresh scripts
+resolve it with `??`, so the blank value in `.env.example`
 does not fall back to `DATABASE_URL`. The install script points it at the same
 local cluster.
 
@@ -66,35 +68,37 @@ fail rather than skip without SDE data. A cold or unreachable database makes
 the harness skip those suites. Report which suites actually ran; a skipped
 DB suite is not evidence for its behavior.
 
-Playwright Chromium is installed by `.cursor/install.sh`. Use
-`http://localhost:3000` (the `next-dev` terminal). Seed auth with
-`pnpm e2e:seed` on this VM. Do not upload `auth-storage.json` or cookie jars.
+Playwright Chromium is installed by `.cursor/install.sh`. Browse the app at
+`http://localhost:3000` after the `next-dev` terminal is ready. Before
+authenticated browser tests, seed the test account and its browser storage
+state on this VM using the repository's e2e setup. Do not upload
+`auth-storage.json` or cookie jars.
 
 ## Tooling
 
-Use the Cursor skill and agent paths listed in AGENTS.md. Codex paths are
-separate harness adaptations; they do not provision this VM.
+`.cursor/clis.sh` makes Codegraph, Vercel, and Neon available during install
+and startup. Use the repository's installed Convex and Fallow tooling.
 
-`.cursor/clis.sh` (install + start) puts Codegraph (`@colbymchenry/codegraph@1.5.0`),
-Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
+The Codegraph index is included in the snapshot. Installation refreshes it
+or creates it when missing. Codegraph does not need a token. Vercel and
+Neon use Cloud Agent Secrets for authenticated operations.
 
-`start.sh` (and `install.sh` on snapshot bake) copies
-`.cursor/rules/pstack-models.mdc` to `~/.cursor/rules/pstack-models.mdc`.
-pstack reads that user-rules path. A new Cloud VM does not inherit another
-pod's home directory, and environment builds do not rerun `install.sh`, so
-the copy lives in `start.sh` and follows the checked-out revision.
-`convex` and `fallow` stay `pnpm exec`. `.codegraph/` is snapshotted.
-`repo-mapper` can run `codegraph sync` after material source edits.
-Codegraph does not need a token. Vercel and Neon use Cloud Agent
-Secrets when a command needs them.
+## Delivering changes
 
-This VM uses GitHub. `start.sh` wires `gh` through `GITHUB_TOKEN`. Open
-and land pull requests on GitHub. The older Cloud Agent Origin-token
-note (create, comment, and watch worked; merge and ruleset list returned
-not scoped) is history. Do not treat it as a live merge path. Check the
-actual GitHub command result on the current host.
-
-CI wait is GitHub Actions (`verify`, `build`, and `e2e`) after someone
-starts Verify on the delivering PR branch. The workflow does not start
-on push or pull request. Wait until those checks are green on the
-current commit.
+1. Confirm that the checkout's GitHub remote points to the intended
+   repository. Remote names can differ between environments; identify it
+   by its URL rather than assuming a particular name.
+2. Confirm that GitHub access works on this VM. Startup uses the injected
+   GitHub token to configure authentication. If an operation fails, report
+   the actual failure from this environment.
+3. Push the work to its GitHub branch and open or update the pull request
+   against `development`. Follow the user's requested scope for reviews
+   and merging.
+4. Start the GitHub Actions Verify workflow for the PR branch when
+   verification is required. It does not start automatically on a push
+   or pull request.
+5. Wait for verification, the production build, and end-to-end tests to
+   finish. Confirm that their results apply to the PR's current commit.
+   If the branch changes, obtain fresh results for the updated commit.
+6. Report the PR and verification results. Merge only when authorized;
+   after merging, confirm the target branch contains the change.
