@@ -24,10 +24,6 @@ const HUB_ORDER = new Map(
   TRADE_HUBS.map((hub, index) => [hub.id, index]),
 );
 
-function hubKey(hubId: number, systemId: number): string {
-  return `${hubId}:${systemId}`;
-}
-
 function compareHubJumps(left: HubJump, right: HubJump): number {
   if (left.jumps === null && right.jumps === null) {
     return (HUB_ORDER.get(left.id) ?? 0) - (HUB_ORDER.get(right.id) ?? 0);
@@ -38,46 +34,65 @@ function compareHubJumps(left: HubJump, right: HubJump): number {
   return (HUB_ORDER.get(left.id) ?? 0) - (HUB_ORDER.get(right.id) ?? 0);
 }
 
-export function hubJumpsFrom(
-  systemId: number,
+function distancesFrom(
+  origin: number,
   neighbours: (id: number) => readonly number[],
-): HubJumpTuple {
-  const jumpsByHub = new Map<number, number | null>(
-    TRADE_HUBS.map((hub) => [hub.id, null]),
-  );
-  const queue: { systemId: number; hubId: number; jumps: number }[] = [];
-  const seen = new Set<string>();
-  for (const hub of TRADE_HUBS) {
-    queue.push({ systemId: hub.id, hubId: hub.id, jumps: 0 });
-    seen.add(hubKey(hub.id, hub.id));
-  }
-
-  let remaining = TRADE_HUBS.length;
-  for (let index = 0; index < queue.length && remaining > 0; index += 1) {
+): ReadonlyMap<number, number> {
+  const distances = new Map<number, number>([[origin, 0]]);
+  const queue = [origin];
+  for (let index = 0; index < queue.length; index += 1) {
     const current = queue[index];
     if (current === undefined) continue;
-    if (current.systemId === systemId) {
-      jumpsByHub.set(current.hubId, current.jumps);
-      remaining -= 1;
-      continue;
-    }
-    for (const next of neighbours(current.systemId)) {
-      const key = hubKey(current.hubId, next);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      queue.push({
-        systemId: next,
-        hubId: current.hubId,
-        jumps: current.jumps + 1,
-      });
+    const jumps = distances.get(current);
+    if (jumps === undefined) continue;
+    for (const next of neighbours(current)) {
+      if (distances.has(next)) continue;
+      distances.set(next, jumps + 1);
+      queue.push(next);
     }
   }
+  return distances;
+}
 
+function tupleFromJumps(
+  jumpsByHub: ReadonlyMap<number, number | null>,
+): HubJumpTuple {
   const rows = TRADE_HUBS.map((hub) => ({
     id: hub.id,
     name: hub.name,
     jumps: jumpsByHub.get(hub.id) ?? null,
   })).sort(compareHubJumps);
-
   return [rows[0]!, rows[1]!, rows[2]!, rows[3]!, rows[4]!];
+}
+
+export function buildHubJumpIndex(
+  neighbours: (id: number) => readonly number[],
+): (systemId: number) => HubJumpTuple {
+  const distanceByHub = TRADE_HUBS.map((hub) => ({
+    id: hub.id,
+    distances: distancesFrom(hub.id, neighbours),
+  }));
+  return (systemId) =>
+    tupleFromJumps(
+      new Map(
+        distanceByHub.map((hub) => [hub.id, hub.distances.get(systemId) ?? null]),
+      ),
+    );
+}
+
+export function hubJumpsFrom(
+  systemId: number,
+  neighbours: (id: number) => readonly number[],
+): HubJumpTuple {
+  return buildHubJumpIndex(neighbours)(systemId);
+}
+
+export function formatHubJump(hub: HubJump): string {
+  return hub.jumps === null ? `${hub.name} —` : `${hub.name} ${hub.jumps}`;
+}
+
+export function closestHubLabel(hubs: HubJumpTuple): string | null {
+  const closest = hubs[0];
+  if (closest.jumps === null) return null;
+  return `${closest.name} ${closest.jumps}`;
 }

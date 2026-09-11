@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { hubJumpsFrom, TRADE_HUBS } from './trade-hubs';
+import {
+  buildHubJumpIndex,
+  closestHubLabel,
+  formatHubJump,
+  hubJumpsFrom,
+  TRADE_HUBS,
+} from './trade-hubs';
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
@@ -102,5 +108,24 @@ describe('hubJumpsFrom', () => {
       { id: RENS, name: 'Rens', jumps: null },
       { id: HEK, name: 'Hek', jumps: null },
     ]);
+  });
+});
+
+describe('buildHubJumpIndex', () => {
+  it('matches hubJumpsFrom for every system on the graph', () => {
+    const lookup = buildHubJumpIndex(GRAPH);
+    for (const systemId of [JITA, AMARR, B, FAR, ISOLATED]) {
+      expect(lookup(systemId)).toEqual(hubJumpsFrom(systemId, GRAPH));
+    }
+  });
+});
+
+describe('hub labels', () => {
+  it('formats reachable jumps and omits an unreachable closest hub', () => {
+    const hops = hubJumpsFrom(B, GRAPH);
+    expect(formatHubJump(hops[0]!)).toBe('Amarr 1');
+    expect(formatHubJump(hops[3]!)).toBe('Rens —');
+    expect(closestHubLabel(hops)).toBe('Amarr 1');
+    expect(closestHubLabel(hubJumpsFrom(ISOLATED, GRAPH))).toBeNull();
   });
 });

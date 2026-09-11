@@ -81,6 +81,11 @@ describe('universe asset client loaders', () => {
     expect(first.systemInfo(0)).toBeNull();
     expect(first.neighbours(30000142)).toEqual([30000144]);
     expect(first.neighbours(0)).toEqual([]);
+    expect(first.hubJumps(30000142)[0]).toEqual({
+      id: 30000142,
+      name: 'Jita',
+      jumps: 0,
+    });
   });
 
   it('refetches the manifest exactly once after a stale versioned asset', async () => {
