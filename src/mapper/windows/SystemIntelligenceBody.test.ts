@@ -50,7 +50,7 @@ vi.mock('../signatures/signature-context', () => ({
 vi.mock('../signatures/use-system-statics', () => ({
   useSystemStaticSlots: () => intel.statics,
 }));
-vi.mock('@/features/wormhole-sites/widget', () => ({
+vi.mock('@/features/wormhole-sites/scanner-live-prices', () => ({
   ScannerLivePricesProvider: ({
     children,
   }: {

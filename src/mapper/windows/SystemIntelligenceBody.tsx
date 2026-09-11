@@ -14,7 +14,7 @@ import { formatIskShort } from '@/lib/format/isk';
 import {
   ScannerLivePricesProvider,
   useScannerEstIskSum,
-} from '@/features/wormhole-sites/widget';
+} from '@/features/wormhole-sites/scanner-live-prices';
 import { useSignatureRows } from '../signatures/signature-context';
 import { useSystemStaticSlots } from '../signatures/use-system-statics';
 import {

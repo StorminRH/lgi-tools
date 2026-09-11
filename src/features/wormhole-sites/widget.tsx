@@ -11,7 +11,6 @@ import { SiteCard } from './components/SiteCard';
 export {
   ScannerEstIskCell,
   ScannerLivePricesProvider,
-  useScannerEstIskSum,
 } from './components/ScannerLivePrices';
 
 export { useSiteCatalogue } from './site-catalogue';
