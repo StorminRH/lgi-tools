@@ -21,7 +21,7 @@ export function GlanceMarkIndexProvider({
   children,
 }: {
   readonly mapId: string;
-  readonly children: ReactNode;
+  readonly children?: ReactNode;
 }) {
   const pages = useDrainedPages(
     api.mapScan.watchMapSignatures,
