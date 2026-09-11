@@ -12,6 +12,8 @@ import {
   isEditablePasteTarget,
   scannerPasteDecision,
   scannerPasteRefusalToast,
+  glanceMarksFromRows,
+  identifiedGlanceBucket,
   scannerGroupTypeLabel,
   scannerSectionForGroup,
   scannerLifeUpperBound,
@@ -348,6 +350,36 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(legacySections).toHaveLength(1);
     expect(legacySections[0]?.id).toBe('unknown');
     expect(legacySections[0]?.rows.map((row) => row.signatureId)).toEqual(['LEG-001']);
+
+    expect(identifiedGlanceBucket(null)).toBeNull();
+    expect(identifiedGlanceBucket('Wormhole')).toBeNull();
+    expect(identifiedGlanceBucket(legacy.group)).toBeNull();
+    expect(identifiedGlanceBucket('Gas Site')).toBe('harvestables');
+    expect(identifiedGlanceBucket('Ore Site')).toBe('harvestables');
+    expect(identifiedGlanceBucket('Data Site')).toBe('hacking');
+    expect(identifiedGlanceBucket('Relic Site')).toBe('hacking');
+    expect(identifiedGlanceBucket('Combat Site')).toBe('combat');
+    expect(glanceMarksFromRows(rows, SYSTEM)).toEqual([
+      'harvestables',
+      'hacking',
+      'combat',
+    ]);
+    expect(glanceMarksFromRows(rows, SYSTEM + 1)).toEqual([]);
+    expect(
+      glanceMarksFromRows(
+        rows.filter((row) => row.group === null || row.group === 'Wormhole'),
+        SYSTEM,
+      ),
+    ).toEqual([]);
+    expect(
+      glanceMarksFromRows(
+        [{
+          ...rows[4]!,
+          name: null,
+        }],
+        SYSTEM,
+      ),
+    ).toEqual(['hacking']);
   });
 
   it('reads wormhole size, remaining lifetime, and shared age clock like the row editor', () => {

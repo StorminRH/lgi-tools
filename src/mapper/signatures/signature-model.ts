@@ -188,6 +188,37 @@ export function scannerSectionForGroup(
   }
 }
 
+export const GLANCE_BUCKETS = ['harvestables', 'hacking', 'combat'] as const;
+
+export type GlanceBucket = (typeof GLANCE_BUCKETS)[number];
+
+export function identifiedGlanceBucket(
+  group: SigGroup | null,
+): GlanceBucket | null {
+  const section = scannerSectionForGroup(group);
+  if (
+    section === 'harvestables'
+    || section === 'hacking'
+    || section === 'combat'
+  ) {
+    return section;
+  }
+  return null;
+}
+
+export function glanceMarksFromRows(
+  rows: readonly SignatureWindowRow[],
+  systemId: number,
+): readonly GlanceBucket[] {
+  const present = new Set<GlanceBucket>();
+  for (const row of rows) {
+    if (row.systemId !== systemId) continue;
+    const bucket = identifiedGlanceBucket(row.group);
+    if (bucket !== null) present.add(bucket);
+  }
+  return GLANCE_BUCKETS.filter((bucket) => present.has(bucket));
+}
+
 export function filterSignatureRows(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,
