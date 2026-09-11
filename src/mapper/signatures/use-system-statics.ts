@@ -49,9 +49,11 @@ export function useWormholeCodex(): WormholeCodex | null {
   return codex;
 }
 
-export function useSystemStaticSlots(systemId: number): readonly StaticSlot[] {
-  const codex = useWormholeCodex();
-  const [codes, setCodes] = useState<readonly string[]>([]);
+export function useSystemStaticCodes(systemId: number): readonly string[] {
+  const [codes, setCodes] = useState<{
+    readonly systemId: number;
+    readonly codes: readonly string[];
+  } | null>(null);
 
   useEffect(() => {
     if (systemId <= 0) return;
@@ -59,7 +61,7 @@ export function useSystemStaticSlots(systemId: number): readonly StaticSlot[] {
     let alive = true;
     loadSystemStatics(systemId, controller.signal).then(
       (statics) => {
-        if (alive) setCodes(statics);
+        if (alive) setCodes({ systemId, codes: statics });
       },
       () => {},
     );
@@ -69,6 +71,12 @@ export function useSystemStaticSlots(systemId: number): readonly StaticSlot[] {
     };
   }, [systemId]);
 
+  return codes?.systemId === systemId ? codes.codes : [];
+}
+
+export function useSystemStaticSlots(systemId: number): readonly StaticSlot[] {
+  const codex = useWormholeCodex();
+  const codes = useSystemStaticCodes(systemId);
   return useMemo(
     () =>
       staticSlotsFromCodes(

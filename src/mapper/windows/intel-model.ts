@@ -16,7 +16,7 @@ export function intelLocationKind(
   return 'none';
 }
 
-export const INTEL_CATEGORY_LABEL: Record<GlanceBucket, string> = {
+const INTEL_CATEGORY_LABEL: Record<GlanceBucket, string> = {
   harvestables: 'Harvestables',
   hacking: 'Hacking',
   combat: 'Combat',
