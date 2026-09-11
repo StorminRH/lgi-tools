@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { useEntityNames } from '@/components/use-entity-names';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
@@ -135,11 +136,11 @@ function CategoryBlock({ block }: { readonly block: IntelCategoryBlock }) {
   const isk = useScannerEstIskSum(block.names, block.bucket === 'harvestables');
   return (
     <div data-intel-category={block.bucket} className="flex flex-col gap-0.5">
-      <button
-        type="button"
+      <Button
+        variant="bare"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="pointer-events-auto flex w-full items-baseline justify-between gap-3 text-left"
+        className="pointer-events-auto flex h-auto w-full items-baseline justify-between gap-3 text-left"
       >
         <span className="font-data text-micro text-name">
           {block.label} ×{block.count}
@@ -153,7 +154,7 @@ function CategoryBlock({ block }: { readonly block: IntelCategoryBlock }) {
         >
           {formatIskShort(isk)}
         </span>
-      </button>
+      </Button>
       {open
         ? block.names.map((name) => (
             <p key={name} className="font-data text-micro text-muted">
