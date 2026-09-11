@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { entityNamesRequestSchema } from './api-contract';
+import { entityNamesRequestSchema, typeNamesRequestSchema } from './api-contract';
 import { getCachedBlueprintCount, getSystemSearchIndex } from './queries';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
       entityNamesRequestSchema,
+      typeNamesRequestSchema,
       getCachedBlueprintCount,
       getSystemSearchIndex,
     ];

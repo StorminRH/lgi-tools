@@ -141,16 +141,22 @@ export function presenceStatusWord(pilot: PresencePilot): PresenceStatusWord {
 export interface FriendlyRowModel {
   readonly characterId: number;
   readonly label: string;
+  readonly shipName: string | null;
   readonly word: PresenceStatusWord;
 }
 
 export function friendlyRows(
   pilots: readonly PresencePilot[],
   names: Record<string, string>,
+  shipNames: Record<string, string> = {},
 ): readonly FriendlyRowModel[] {
   return pilots.map((pilot) => ({
     characterId: pilot.characterId,
     label: names[String(pilot.characterId)] ?? String(pilot.characterId),
+    shipName:
+      pilot.shipTypeId === null
+        ? null
+        : shipNames[String(pilot.shipTypeId)] ?? null,
     word: presenceStatusWord(pilot),
   }));
 }

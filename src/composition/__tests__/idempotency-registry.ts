@@ -352,6 +352,10 @@ const eveNamesRoute = readRoute({
   route: 'src/app/api/eve/names/route.ts',
   evidence: 'Pure resolution of posted ids through the ESI gate; writes nothing.',
 });
+const eveTypeNamesRoute = readRoute({
+  route: 'src/app/api/eve/type-names/route.ts',
+  evidence: 'Pure resolution of posted type ids through ingested eveTypes; writes nothing.',
+});
 const industryBuildLocationRoute = readRoute({
   route: 'src/app/api/industry/build-location/route.ts',
   evidence: 'Pure resolution over reference data; writes nothing.',
@@ -593,6 +597,7 @@ const syncLeaveRoute = mutationRoute({
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mapsSearchCharactersRoute,
   eveNamesRoute,
+  eveTypeNamesRoute,
   industryBuildLocationRoute,
   industryOwnedAssetsRoute,
   industryOwnedBlueprintsRoute,

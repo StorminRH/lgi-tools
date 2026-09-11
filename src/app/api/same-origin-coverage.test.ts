@@ -67,6 +67,10 @@ const EXEMPT_MUTATIONS = {
     authz: 'public',
     reason: 'public stateless name resolution',
   },
+  'eve/type-names/route.ts': {
+    authz: 'public',
+    reason: 'public stateless type name resolution',
+  },
   'industry/build-location/route.ts': {
     authz: 'public',
     reason: 'public stateless planner computation',

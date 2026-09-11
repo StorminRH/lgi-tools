@@ -58,7 +58,7 @@ export const CAPABILITIES = catalogueFromSpec({
   account: { mutation: ['switch-active-character', 'unlink-character', 'purge-character', 'revoke-own-sessions', 'save-preferences', 'delete-account'] },
   structures: { mutation: ['set-corp-structure-rigs', 'set-corp-structure-sharing', 'create-custom-structure', 'delete-custom-structure', 'set-custom-structure-pin', 'set-custom-structure-tax'], read: ['parse-structure-fit'] },
   planner: { mutation: ['create-saved-plan', 'delete-saved-plan', 'rename-saved-plan', 'favorite-saved-plan'], read: ['resolve-entity-names', 'resolve-build-location', 'read-owned-assets', 'read-owned-blueprints', 'read-skill-levels'] },
-  maps: { mutation: ['create-map', 'update-access', 'delete-map', 'restore-map', 'request-map-purge', 'eliminate-signatures', 'resolve-jump'], read: ['search-characters'] },
+  maps: { mutation: ['create-map', 'update-access', 'delete-map', 'restore-map', 'request-map-purge', 'eliminate-signatures', 'resolve-jump'], read: ['search-characters', 'resolve-type-names'] },
   admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'requeue-esi-job', 'set-user-role', 'wh-statics-review'] },
   cron: { cron: ['drain-esi-refresh-jobs', 'refresh-affiliations', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'sync-sweeper', 'purge-maps'] },
   market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },

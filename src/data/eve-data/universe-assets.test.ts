@@ -3,6 +3,7 @@ import {
   buildAdjacencyGraph,
   buildSystemDirectory,
   buildWormholeCodex,
+  composeUniverseAssetVersion,
   resolveWormholeAttributeIds,
 } from './universe-assets';
 import { wormholeSizeClass } from './wormhole-contract';
@@ -24,15 +25,19 @@ const B274_ATTRIBUTES = {
 };
 
 describe('universe asset builders', () => {
+  it('stamps the immutable layout onto the raw SDE version', () => {
+    expect(composeUniverseAssetVersion('3444265')).toBe('3444265+u2');
+  });
+
   it('sorts the system directory and adjacency graph deterministically', () => {
     expect(
       buildSystemDirectory([
-        { id: 2, name: 'Perimeter', whClassId: 7, security: 1 },
-        { id: 1, name: 'Jita', whClassId: 7, security: 0.9 },
+        { id: 2, name: 'Perimeter', regionName: 'The Forge', whClassId: 7, security: 1 },
+        { id: 1, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9 },
       ]),
     ).toEqual([
-      { id: 1, name: 'Jita', whClassId: 7, security: 0.9 },
-      { id: 2, name: 'Perimeter', whClassId: 7, security: 1 },
+      { id: 1, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9 },
+      { id: 2, name: 'Perimeter', regionName: 'The Forge', whClassId: 7, security: 1 },
     ]);
     expect(
       buildAdjacencyGraph([

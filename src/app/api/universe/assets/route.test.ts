@@ -22,13 +22,18 @@ vi.mock('@/data/eve-data/meta', () => ({
   getCachedSdeVersion: getCachedSdeVersionMock,
 }));
 
-vi.mock('@/data/eve-data/universe-assets', () => ({
-  getSystemDirectory: getSystemDirectoryMock,
-  getAdjacencyGraph: getAdjacencyGraphMock,
-  getWormholeCodex: getWormholeCodexMock,
-}));
+vi.mock('@/data/eve-data/universe-assets', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/data/eve-data/universe-assets')>();
+  return {
+    ...actual,
+    getSystemDirectory: getSystemDirectoryMock,
+    getAdjacencyGraph: getAdjacencyGraphMock,
+    getWormholeCodex: getWormholeCodexMock,
+  };
+});
 
-const VERSION = '3444265';
+const SDE_VERSION = '3444265';
+const VERSION = '3444265+u2';
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 describe('GET /api/universe/assets', () => {
@@ -43,7 +48,7 @@ describe('GET /api/universe/assets', () => {
 
   it('returns the current version with no-store caching', async () => {
     getCachedSdeVersionMock.mockResolvedValue({
-      version: VERSION,
+      version: SDE_VERSION,
       ingestedAt: new Date(),
     });
     const { GET } = await import('./route');
@@ -110,6 +115,16 @@ describe('GET /api/universe/assets', () => {
       );
       expect(stale.status).toBe(404);
       await expect(stale.json()).resolves.toMatchObject({
+        status: 404,
+        code: 'asset_version_not_found',
+      });
+
+      const sdeOnly = await GET(
+        new Request('http://localhost'),
+        { params: Promise.resolve({ version: SDE_VERSION }) },
+      );
+      expect(sdeOnly.status).toBe(404);
+      await expect(sdeOnly.json()).resolves.toMatchObject({
         status: 404,
         code: 'asset_version_not_found',
       });

@@ -108,6 +108,15 @@ export function systemClassificationReadout(
   };
 }
 
+export function isSecurityChip(
+  facts: Pick<SystemIdentityFacts, 'security' | 'whClassId'>,
+): boolean {
+  return (
+    systemClassificationReadout(facts) !== null
+    && (facts.whClassId === null || !CLASS_TONES_BY_ID.has(facts.whClassId))
+  );
+}
+
 export function systemIdentityReadout(
   facts: SystemIdentityFacts,
 ): SystemIdentityReadout {

@@ -10,6 +10,7 @@ import {
 import { getSdeMetaValue } from './meta';
 import {
   dgmAttributeTypes,
+  eveRegions,
   eveSolarSystems,
   eveSystemJumps,
   eveTypes,
@@ -44,8 +45,13 @@ type WormholeAttributeName =
 export interface SystemDirectoryEntry {
   id: number;
   name: string;
+  regionName: string;
   whClassId: number | null;
   security: number | null;
+}
+
+export function composeUniverseAssetVersion(sdeVersion: string): string {
+  return `${sdeVersion}+u2`;
 }
 
 export type AdjacencyEntry = [
@@ -235,19 +241,25 @@ async function requireSdeVersion(database: AnyPgDb): Promise<string> {
   return version;
 }
 
+async function requireUniverseAssetVersion(database: AnyPgDb): Promise<string> {
+  return composeUniverseAssetVersion(await requireSdeVersion(database));
+}
+
 export async function readSystemDirectory(
   database: AnyPgDb,
 ): Promise<SystemDirectoryAsset> {
   const [version, systems] = await Promise.all([
-    requireSdeVersion(database),
+    requireUniverseAssetVersion(database),
     database
       .select({
         id: eveSolarSystems.id,
         name: eveSolarSystems.name,
+        regionName: eveRegions.name,
         whClassId: eveSolarSystems.wormholeClassId,
         security: eveSolarSystems.securityStatus,
       })
-      .from(eveSolarSystems),
+      .from(eveSolarSystems)
+      .innerJoin(eveRegions, eq(eveSolarSystems.regionId, eveRegions.id)),
   ]);
   return { version, systems: buildSystemDirectory(systems) };
 }
@@ -256,7 +268,7 @@ export async function readAdjacencyGraph(
   database: AnyPgDb,
 ): Promise<AdjacencyAsset> {
   const [version, jumps] = await Promise.all([
-    requireSdeVersion(database),
+    requireUniverseAssetVersion(database),
     database
       .select({
         fromSystemId: eveSystemJumps.fromSystemId,
@@ -271,7 +283,7 @@ export async function readWormholeCodex(
   database: AnyPgDb,
 ): Promise<WormholeCodexAsset> {
   const [version, attributeRows, typeRows] = await Promise.all([
-    requireSdeVersion(database),
+    requireUniverseAssetVersion(database),
     database
       .select({ id: dgmAttributeTypes.id, name: dgmAttributeTypes.name })
       .from(dgmAttributeTypes)

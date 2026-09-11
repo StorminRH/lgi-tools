@@ -7,6 +7,7 @@ import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
 import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
+import type { HubJumpTuple } from '@/data/eve-data/trade-hubs';
 import {
   CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
@@ -14,6 +15,24 @@ import {
   edgePresentation,
   outboundArrowFraction,
 } from './ChainLinkEdge';
+
+const chrome = vi.hoisted(() => ({
+  marks: [] as string[],
+  assets: null as {
+    systemInfo: (id: number) => {
+      readonly regionName: string;
+    } | null;
+    hubJumps: (id: number) => HubJumpTuple;
+  } | null,
+}));
+
+vi.mock('../signatures/use-glance-mark-index', () => ({
+  useGlanceMarks: () => chrome.marks,
+}));
+
+vi.mock('../chain/use-universe-assets', () => ({
+  useUniverseAssets: () => chrome.assets,
+}));
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import { PresenceBadgeView } from './PilotPresenceBadge';
 import {
@@ -49,6 +68,8 @@ function markup(motion: NodeMotion | undefined): string {
 }
 
 test('widget frame carries header, disc, slots, and pointer-inert chrome rules', () => {
+  chrome.marks = [];
+  chrome.assets = null;
   const still = markup(undefined);
   expect(still).toContain('data-chain-node-name');
   expect(still).toContain('>J123456<');
@@ -109,10 +130,12 @@ test('the header keeps the plain name while the disc owns the colored classifica
     security: 0.946,
     whClassId: null,
   });
+  expect(kspaceNode).toContain('data-chain-node-kspace-title');
   expect(kspaceNode).toContain('>Jita<');
   expect(kspaceNode).toContain('>0.9<');
   expect(kspaceNode).toContain('text-sec-09');
   expect(kspaceNode).not.toContain('Jita - 0.9');
+  expect(kspaceNode).not.toContain('inset-x-1 top-1');
 
   const halo = nodeMarkup({
     name: 'Perimeter',
@@ -390,6 +413,58 @@ test('edge motion classes map fade/grow/rev/heavy/dying and loop dash', () => {
   expect(edgePresentation({ loop: false, tombstoneState: 'active' }).className).toBeUndefined();
   expect(edgePresentation({ loop: false, stub: true }).className).toBe('map-edge-derived');
   expect(CHAIN_EDGE_INTERACTION_WIDTH).toBeGreaterThan(20);
+});
+
+test('glance marks sit in the widget slot and stay off stubs', () => {
+  chrome.marks = ['harvestables', 'combat'];
+  const marked = markup(undefined);
+  expect(marked).toContain('data-glance-marks');
+  expect(marked).toContain('data-glance-mark="harvestables"');
+  expect(marked).toContain('data-glance-mark="combat"');
+  expect(marked).toContain('size-icon-sm');
+
+  const stub = renderToStaticMarkup(
+    createElement(SystemNode, {
+      id: 'stub:c1',
+      data: {
+        name: 'ABC-123',
+        className: null,
+        stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+      },
+    } as unknown as NodeProps<ChainNode>),
+  );
+  expect(stub).not.toContain('data-glance-mark');
+  chrome.marks = [];
+});
+
+test('security-chip titles overflow above the unchanged 150x110 frame', () => {
+  chrome.assets = {
+    systemInfo: () => ({ regionName: 'The Forge' }),
+    hubJumps: () => [
+      { id: 30_000_142, name: 'Jita', jumps: 5 },
+      { id: 30_002_187, name: 'Amarr', jumps: 10 },
+      { id: 30_002_659, name: 'Dodixie', jumps: 15 },
+      { id: 30_002_510, name: 'Rens', jumps: 16 },
+      { id: 30_002_053, name: 'Hek', jumps: null },
+    ],
+  };
+  const rendered = renderToStaticMarkup(
+    createElement(SystemNode, {
+      id: '30000142',
+      data: { name: 'Jita', className: null, security: 0.946, whClassId: null },
+    } as unknown as NodeProps<ChainNode>),
+  );
+  expect(SYSTEM_FRAME_WIDTH).toBe(150);
+  expect(SYSTEM_FRAME_HEIGHT).toBe(110);
+  expect(rendered).toContain('data-chain-node-kspace-title');
+  expect(rendered).toContain('bottom-full');
+  expect(rendered).toContain('data-chain-node-region');
+  expect(rendered).toContain('The Forge');
+  expect(rendered).toContain('data-chain-node-hub');
+  expect(rendered).toContain('Jita 5');
+  expect(rendered).toContain('size-[55px]');
+  expect(rendered).toContain('top-1/2');
+  chrome.assets = null;
 });
 
 test('chip font size keeps short labels and shrinks overflow to the disc', () => {

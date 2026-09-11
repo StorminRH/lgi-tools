@@ -109,6 +109,7 @@
     "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-industry-indices": "dynamic",
     "/api/eve/names": "dynamic",
+    "/api/eve/type-names": "dynamic",
     "/api/cron/refresh-prices": "dynamic",
     "/api/cron/refresh-sde": "dynamic",
     "/api/cron/refresh-wh-statics": "dynamic",
