@@ -1,9 +1,11 @@
 import { expect, test } from 'vitest';
 import {
   recipeLiveIsk,
+  scannerEstIskValue,
   scannerLiveEstIsk,
   scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
+  sumKnownIsk,
 } from './scanner-live-isk';
 import type { SiteLiveRecipe } from './site-name-lookup';
 
@@ -58,4 +60,21 @@ test('scanner live Est. ISK sums recipes, tracks pending, and keys unique type i
   ).toEqual([30370, 1]);
   expect(scannerLiveTypeIdKey([3, 1, 2, 1])).toBe('1,2,3');
   expect(scannerLiveTypeIdKey([])).toBe('');
+
+  const lookups = {
+    estIskForName: (name: string) => (name === 'Sansha Hideout' ? 12_000_000 : 28_100_000),
+    liveRecipesForName: (name: string) => (name === 'Barren Perimeter Reservoir' ? [RECIPE] : []),
+  };
+  const livePrices = {
+    priceOf: (typeId: number) => (typeId === 30370 ? { bestSell: 25_000 } : undefined),
+    isPending: () => false,
+  };
+  expect(scannerEstIskValue(null, true, lookups, livePrices)).toBeNull();
+  expect(scannerEstIskValue('Sansha Hideout', false, lookups, livePrices)).toBe(12_000_000);
+  expect(scannerEstIskValue('Sansha Hideout', true, lookups, livePrices)).toBe(12_000_000);
+  expect(
+    scannerEstIskValue('Barren Perimeter Reservoir', true, lookups, livePrices),
+  ).toBe(25_000_000);
+  expect(sumKnownIsk([12_000_000, null, 3_000_000])).toBe(15_000_000);
+  expect(sumKnownIsk([null, null])).toBeNull();
 });

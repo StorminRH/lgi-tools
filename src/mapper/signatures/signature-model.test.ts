@@ -12,6 +12,7 @@ import {
   isEditablePasteTarget,
   scannerPasteDecision,
   scannerPasteRefusalToast,
+  glanceMarkIndex,
   glanceMarksFromRows,
   identifiedGlanceBucket,
   scannerGroupTypeLabel,
@@ -380,6 +381,12 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         SYSTEM,
       ),
     ).toEqual(['hacking']);
+    expect(glanceMarkIndex(rows).get(SYSTEM)).toEqual([
+      'harvestables',
+      'hacking',
+      'combat',
+    ]);
+    expect(glanceMarkIndex(rows).has(SYSTEM + 1)).toBe(false);
   });
 
   it('reads wormhole size, remaining lifetime, and shared age clock like the row editor', () => {

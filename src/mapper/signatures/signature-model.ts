@@ -206,17 +206,32 @@ export function identifiedGlanceBucket(
   return null;
 }
 
+export function glanceMarkIndex(
+  rows: readonly { readonly systemId: number; readonly group: SigGroup | null }[],
+): ReadonlyMap<number, readonly GlanceBucket[]> {
+  const presentBySystem = new Map<number, Set<GlanceBucket>>();
+  for (const row of rows) {
+    const bucket = identifiedGlanceBucket(row.group);
+    if (bucket === null) continue;
+    const present = presentBySystem.get(row.systemId) ?? new Set<GlanceBucket>();
+    present.add(bucket);
+    presentBySystem.set(row.systemId, present);
+  }
+  const index = new Map<number, readonly GlanceBucket[]>();
+  for (const [systemId, present] of presentBySystem) {
+    index.set(
+      systemId,
+      GLANCE_BUCKETS.filter((bucket) => present.has(bucket)),
+    );
+  }
+  return index;
+}
+
 export function glanceMarksFromRows(
   rows: readonly SignatureWindowRow[],
   systemId: number,
 ): readonly GlanceBucket[] {
-  const present = new Set<GlanceBucket>();
-  for (const row of rows) {
-    if (row.systemId !== systemId) continue;
-    const bucket = identifiedGlanceBucket(row.group);
-    if (bucket !== null) present.add(bucket);
-  }
-  return GLANCE_BUCKETS.filter((bucket) => present.has(bucket));
+  return glanceMarkIndex(rows).get(systemId) ?? [];
 }
 
 export function filterSignatureRows(

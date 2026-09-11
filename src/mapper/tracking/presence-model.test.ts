@@ -126,8 +126,17 @@ test('presence shape groups, dedupes, isolates owners, and labels friendlies', (
     derive([row({ characterId: 7 }), row({ characterId: 8 })], {
       coverage: new Map([[7, true], [8, false]]),
     }).get(JITA)?.pilots ?? [];
-  expect(friendlyRows(pilots, { '7': 'E2E Pilot' })).toEqual([
-    { characterId: 7, label: 'E2E Pilot', word: 'In space' },
+  expect(friendlyRows(pilots, { '7': 'E2E Pilot' }, { '1': 'Harbinger' })).toEqual([
+    { characterId: 7, label: 'E2E Pilot', shipName: null, word: 'In space' },
+  ]);
+  expect(
+    friendlyRows(
+      [{ ...pilots[0]!, characterId: 9, shipTypeId: 1 }],
+      { '9': 'Scout' },
+      { '1': 'Harbinger' },
+    ),
+  ).toEqual([
+    { characterId: 9, label: 'Scout', shipName: 'Harbinger', word: 'In space' },
   ]);
 });
 
