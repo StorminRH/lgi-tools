@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { entityNamesRequestSchema } from './api-contract';
+import { entityNamesRequestSchema, typeNamesRequestSchema } from './api-contract';
 import { getCachedBlueprintCount, getSystemSearchIndex } from './queries';
+import { useTypeNames } from './use-type-names';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
       entityNamesRequestSchema,
+      typeNamesRequestSchema,
       getCachedBlueprintCount,
       getSystemSearchIndex,
+      useTypeNames,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

@@ -30,6 +30,7 @@ function directoryEntry(): SystemDirectoryEntry {
   return {
     id: 1,
     name: fields.name,
+    regionName: 'A-R00001',
     security: fields.security,
     whClassId: fields.whClassId,
   };

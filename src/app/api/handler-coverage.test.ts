@@ -76,6 +76,7 @@ import { GET as AppApiCronRefreshPricesRouteGET, maxDuration as AppApiCronRefres
 import { GET as AppApiCronRefreshSdeRouteGET, maxDuration as AppApiCronRefreshSdeRouteMaxDuration } from '@/app/api/cron/refresh-sde/route';
 import { GET as AppApiCronRefreshWhStaticsRouteGET, maxDuration as AppApiCronRefreshWhStaticsRouteMaxDuration } from '@/app/api/cron/refresh-wh-statics/route';
 import { POST as AppApiEveNamesRoutePOST } from '@/app/api/eve/names/route';
+import { POST as AppApiEveTypeNamesRoutePOST } from '@/app/api/eve/type-names/route';
 import { GET as AppApiIndustryBlueprintsRouteGET } from '@/app/api/industry/blueprints/route';
 import { POST as AppApiIndustryBuildLocationRoutePOST } from '@/app/api/industry/build-location/route';
 import { POST as AppApiIndustryOwnedAssetsRoutePOST } from '@/app/api/industry/owned-assets/route';
@@ -123,6 +124,7 @@ describe('coverage-gaps', () => {
       AppApiCronRefreshWhStaticsRouteGET,
       AppApiCronRefreshWhStaticsRouteMaxDuration,
       AppApiEveNamesRoutePOST,
+      AppApiEveTypeNamesRoutePOST,
       AppApiIndustryBlueprintsRouteGET,
       AppApiIndustryBuildLocationRoutePOST,
       AppApiIndustryOwnedAssetsRoutePOST,

@@ -7,7 +7,7 @@ vi.mock('@/transport/api-client', () => ({
 }));
 
 const SYSTEMS = [
-  { id: 30000142, name: 'Jita', whClassId: 7, security: 0.9 },
+  { id: 30000142, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9 },
 ];
 const ADJACENCY = [[30000142, [30000144]]] as const;
 const CODEX = [
