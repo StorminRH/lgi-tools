@@ -39,11 +39,11 @@ export const applySyncResults = internalMutation({
 
     const docs = await ctx.db
       .query('characterLocation')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .withIndex('by_user_character', (q) => q.eq('userId', args.userId))
       .collect();
     const onlineDocs = await ctx.db
       .query('characterLocationOnline')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .withIndex('by_user_character', (q) => q.eq('userId', args.userId))
       .collect();
     const byCharacter = indexByCharacter(docs);
     const onlineByCharacter = indexByCharacter(onlineDocs);

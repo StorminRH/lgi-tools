@@ -6,11 +6,11 @@ export const heldState = internalQuery({
   handler: async (ctx, { userId }) => {
     const locations = await ctx.db
       .query('characterLocation')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .withIndex('by_user_character', (q) => q.eq('userId', userId))
       .collect();
     const online = await ctx.db
       .query('characterLocationOnline')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .withIndex('by_user_character', (q) => q.eq('userId', userId))
       .collect();
     return {
       locations: locations.map((doc) => ({

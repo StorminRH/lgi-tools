@@ -344,7 +344,7 @@ describe('characterLocationApply.applySyncResults', () => {
     const covered = await t.run((ctx) =>
       ctx.db
         .query('characterLocationCovered')
-        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .withIndex('by_user_character', (q) => q.eq('userId', USER))
         .collect(),
     );
     expect(covered.map((doc) => doc.characterId)).toEqual([CHAR_A]);
@@ -378,7 +378,7 @@ describe('characterLocationApply.applySyncResults', () => {
     });
 
     const remaining = await t.run((ctx) =>
-      ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
+      ctx.db.query('characterLocation').withIndex('by_user_character', (q) => q.eq('userId', USER)).collect(),
     );
     expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
   });
@@ -543,7 +543,7 @@ describe('characterLocationApply.applySyncResults', () => {
     const remaining = await t.run((ctx) =>
       ctx.db
         .query('characterLocationOnline')
-        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .withIndex('by_user_character', (q) => q.eq('userId', USER))
         .collect(),
     );
     expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
