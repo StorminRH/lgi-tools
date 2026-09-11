@@ -280,3 +280,17 @@ lgi_eve_runtime_secret_presence() {
     echo "EVE runtime secrets: absent"
   fi
 }
+
+# Overlay .cursor/vm-home onto ~/.cursor. Cursor does not load vm-home as
+# project rules or skills; Cloud start copies it to the user paths pstack
+# and other user-level tools actually read. Later commits overwrite.
+lgi_install_vm_home() {
+  local src="${1:-}"
+  local dest="${2:-${HOME}/.cursor}"
+  if [ -z "$src" ] || [ ! -d "$src" ]; then
+    echo "ERROR: missing VM home overlay at ${src:-<empty>}" >&2
+    return 1
+  fi
+  mkdir -p "$dest"
+  cp -R "$src/." "$dest/"
+}

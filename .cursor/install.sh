@@ -12,6 +12,9 @@ PGDATA="$HOME/.local/share/lgi-pgdata"
 export PGDATA
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
+# Snapshot user-level Cursor files from the VM overlay. start.sh recopies
+# from the checkout on every boot so later commits win without a rebuild.
+lgi_install_vm_home "$REPO_ROOT/.cursor/vm-home"
 
 started_pg=0
 trap 'lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"' EXIT

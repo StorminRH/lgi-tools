@@ -11,6 +11,7 @@ lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
 lgi_require_anonymous_convex_file "$REPO_ROOT/.env.local"
 lgi_eve_runtime_secret_presence
+lgi_install_vm_home "$REPO_ROOT/.cursor/vm-home"
 
 # Configure Git authentication for the checkout's GitHub HTTPS remote
 # using the injected GitHub token, regardless of the remote's name.
