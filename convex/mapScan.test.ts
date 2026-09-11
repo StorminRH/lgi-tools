@@ -325,6 +325,204 @@ describe('mapScan paste application and lifecycle', () => {
     expect(after?.resolution).toEqual({ kind: 'destination', provenance: 'assumed' });
   });
 
+  it('identifies an ordinary site in a busy system', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const busyRows = [
+      signature('GAS-001'),
+      ...Array.from({ length: 12 }, (_, index) => signature(`LST-${String(index + 1).padStart(3, '0')}`)),
+      signature('WHL-010', { group: 'Wormhole' }),
+      signature('WHL-011', { group: 'Wormhole' }),
+      signature('WHL-012', { group: 'Wormhole' }),
+    ];
+    await apply(t, busyRows);
+
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'GAS-001',
+        group: 'Gas Site',
+      }),
+    ).toEqual({ changed: true, connectionId: null });
+    expect(await readSignature(t, 'GAS-001')).toMatchObject({ group: 'Gas Site' });
+    expect((await readState(t)).signatures).toHaveLength(13);
+  });
+
+  it('repeat ordinary identification is a no-op', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('GAS-002')]);
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'GAS-002',
+        group: 'Gas Site',
+      }),
+    ).toEqual({ changed: true, connectionId: null });
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'GAS-002',
+        group: 'Gas Site',
+      }),
+    ).toEqual({ changed: false, connectionId: null });
+    expect(await readSignature(t, 'GAS-002')).toMatchObject({ group: 'Gas Site' });
+  });
+
+  it('ordinary identify rejects an already-identified group', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('GAS-003', { group: 'Gas Site' })]);
+    await expect(
+      asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'GAS-003',
+        group: 'Relic Site',
+      }),
+    ).rejects.toThrow('SIGNATURE_ALREADY_IDENTIFIED');
+    expect(await readSignature(t, 'GAS-003')).toMatchObject({ group: 'Gas Site' });
+  });
+
+  it('ordinary identify of a missing signature', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await expect(
+      asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'MIS-001',
+        group: 'Gas Site',
+      }),
+    ).rejects.toThrow('UNKNOWN_SIGNATURE');
+  });
+
+  it('ordinary identify of a tombstoned signature', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('TOM-001')]);
+    expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['TOM-001'],
+    })).toEqual({ changed: 1 });
+    await expect(
+      asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'TOM-001',
+        group: 'Gas Site',
+      }),
+    ).rejects.toThrow('UNKNOWN_SIGNATURE');
+    expect(await readSignature(t, 'TOM-001')).toMatchObject({
+      deletedAt: NOW,
+      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+    });
+  });
+
+  it('wormhole identify associates an inbound connection', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('INB-001')]);
+    const inboundId = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: AMARR,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      return await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        toSignatureId: 'INB-001',
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        deletedAt: null,
+        purgeAfter: null,
+      }));
+    });
+    const identified = await asEditor(t).mutation(api.mapScan.identifySignature, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureId: 'INB-001',
+      group: 'Wormhole',
+    });
+    expect(identified).toEqual({ changed: true, connectionId: inboundId });
+    expect(await readSignature(t, 'INB-001')).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      to: expect.objectContaining({ signatureId: 'INB-001' }),
+      from: expect.objectContaining({ typeCode: 'B274' }),
+    });
+  });
+
+  it('wormhole identify claims a static placeholder', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+      mapId: MAP,
+      systemId: JITA,
+      codes: ['C247'],
+    });
+    const placeholderId = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query('mapConnections')
+        .withIndex('by_map_from', (q) => q.eq('mapId', MAP).eq('fromSystemId', JITA))
+        .collect();
+      const placeholder = rows.find((row) => row.staticCode === 'C247');
+      if (placeholder === undefined) throw new Error('missing C247 placeholder');
+      return placeholder._id;
+    });
+    await apply(t, [signature('STA-109')]);
+    const identified = await asEditor(t).mutation(api.mapScan.identifySignature, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureId: 'STA-109',
+      group: 'Wormhole',
+      wormholeTypeCode: 'C247',
+    });
+    expect(identified).toEqual({ changed: true, connectionId: placeholderId });
+    expect(await readSignature(t, 'STA-109')).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(placeholderId))).toMatchObject({
+      staticCode: 'C247',
+      from: expect.objectContaining({ signatureId: 'STA-109', typeCode: 'C247' }),
+      identity: { kind: 'typed', provenance: 'human' },
+    });
+    expect(await t.run(async (ctx) =>
+      (await ctx.db.query('mapConnections').collect()).filter((row) =>
+        row.from.signatureId === 'STA-109' && row._id !== placeholderId,
+      ),
+    )).toEqual([]);
+  });
+
+  it('ordinary identify on a live untracked system', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('UNT-001')]);
+    await t.run(async (ctx) => {
+      const tracking = await ctx.db
+        .query('mapTracking')
+        .withIndex('by_map_user', (q) => q.eq('mapId', MAP).eq('userId', EDITOR))
+        .unique();
+      await ctx.db.delete(tracking!._id);
+    });
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'UNT-001',
+        group: 'Gas Site',
+      }),
+    ).toEqual({ changed: true, connectionId: null });
+    expect(await readSignature(t, 'UNT-001')).toMatchObject({ group: 'Gas Site' });
+  });
+
   it('projects live elimination evidence and tier-gates one atomic deduction batch', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
