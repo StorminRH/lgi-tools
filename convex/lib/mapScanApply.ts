@@ -21,6 +21,7 @@ import {
 import { claimStaticOrKeepId } from './mapStaticClaim';
 import {
   applyKnownSignatureTombstone,
+  findMapSignature,
   touchKnownSignatureActivity,
 } from './mapSignatures';
 import {
@@ -563,6 +564,18 @@ async function identifyWormholeRow(
   };
 }
 
+function assertAssignableGroup(
+  signature: Doc<'mapSignatures'> | null | undefined,
+  group: Infer<typeof sigGroupValidator>,
+): asserts signature is Doc<'mapSignatures'> {
+  if (signature == null || isTombstoned(signature)) {
+    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
+  }
+  if (signature.group !== null && signature.group !== group) {
+    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
+  }
+}
+
 export async function identifyScannedSignature(
   ctx: MutationCtx,
   mapId: string,
@@ -576,10 +589,10 @@ export async function identifyScannedSignature(
   if (normalizedId === undefined) {
     throw new ConvexError({ code: 'INVALID_SIGNATURE_ID' });
   }
-  const state = await readScanState(ctx, mapId, systemId);
-  const signature = rowMaps(state.signatures).get(normalizedId);
-  if (signature === undefined || isTombstoned(signature)) {
-    if (group === 'Wormhole') {
+  if (group === 'Wormhole') {
+    const state = await readScanState(ctx, mapId, systemId);
+    const signature = rowMaps(state.signatures).get(normalizedId);
+    if (signature === undefined || isTombstoned(signature)) {
       const existing = findLocalSignatureConnection(
         state.connections,
         systemId,
@@ -594,13 +607,7 @@ export async function identifyScannedSignature(
         return { changed: false, connectionId: claimedId ?? existing._id };
       }
     }
-    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
-  }
-  const currentGroup = signature.group ?? null;
-  if (currentGroup !== null && currentGroup !== group) {
-    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
-  }
-  if (group === 'Wormhole') {
+    assertAssignableGroup(signature, group);
     return identifyWormholeRow(
       ctx,
       state,
@@ -610,7 +617,13 @@ export async function identifyScannedSignature(
       wormholeTypeCode,
     );
   }
-  if (currentGroup === group) return { changed: false, connectionId: null };
+  const signature = await findMapSignature(ctx, {
+    mapId,
+    systemId,
+    signatureId: normalizedId,
+  });
+  assertAssignableGroup(signature, group);
+  if (signature.group === group) return { changed: false, connectionId: null };
   await ctx.db.patch(signature._id, { group });
   return { changed: true, connectionId: null };
 }
