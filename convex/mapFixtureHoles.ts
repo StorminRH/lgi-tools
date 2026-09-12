@@ -1,12 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
-import {
-  blankHallway,
-  identityFromDoors,
-  leadsToEquals,
-  leadsToFromHint,
-} from '@/data/maps/connection-hallway';
+import { connectionTypePatch } from '@/data/maps/connection-door-types';
+import { leadsToEquals, leadsToFromHint } from '@/data/maps/connection-hallway';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
@@ -22,6 +17,7 @@ import {
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
 import { findSystem } from './lib/mapSystemLookup';
+import { hallwayFromFixture } from './mapFixturePlace';
 
 interface UnresolvedHoleFixtureArgs {
   readonly mapId: string;
@@ -146,26 +142,18 @@ async function insertUnresolvedHole(
   ctx: MutationCtx,
   args: NormalizedUnresolvedHole,
 ) {
-  const doors = typedDoorsFrom('from', args.wormholeTypeCode);
-  return await ctx.db.insert('mapConnections', {
-    ...blankHallway({
+  return await ctx.db.insert(
+    'mapConnections',
+    hallwayFromFixture({
       mapId: args.mapId,
       fromSystemId: args.fromSystemId,
       toSystemId: null,
+      wormholeTypeCode: args.wormholeTypeCode,
+      shipSize: args.shipSize,
+      fromSignatureId: args.fromSignatureId,
+      fromDestinationHint: args.fromDestinationHint,
     }),
-    from: {
-      ...doors.from,
-      signatureId: args.fromSignatureId,
-      leadsTo: leadsToFromHint(args.fromDestinationHint),
-    },
-    to: doors.to,
-    identity: identityFromDoors(
-      doors.from.typeCode,
-      doors.to.typeCode,
-      args.wormholeTypeCode === null ? null : 'human',
-    ),
-    shipSize: args.shipSize,
-  });
+  );
 }
 
 export const upsertUnresolvedHole = internalMutation({

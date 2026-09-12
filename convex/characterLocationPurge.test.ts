@@ -133,7 +133,7 @@ describe('characterLocationPurge.purgeForUser', () => {
     expect(out).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 1 });
 
     const locations = await t.run((ctx) =>
-      ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
+      ctx.db.query('characterLocation').withIndex('by_user_character', (q) => q.eq('userId', USER)).collect(),
     );
     const tracking = await t.run((ctx) =>
       ctx.db
@@ -146,7 +146,7 @@ describe('characterLocationPurge.purgeForUser', () => {
     const leases = await t.run((ctx) =>
       ctx.db
         .query('characterLocationAccess')
-        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .withIndex('by_user_character', (q) => q.eq('userId', USER))
         .collect(),
     );
     expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
