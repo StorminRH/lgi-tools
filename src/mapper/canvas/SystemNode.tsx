@@ -1,7 +1,7 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import {
   systemClassificationReadout,
@@ -198,13 +198,16 @@ function KSpaceTitle({
   const entry = assets?.systemInfo(systemId);
   const hub = assets === null ? null : closestHubLabel(assets.hubJumps(systemId));
   const offset = kspaceTitleOffset();
+  const titleRef = useRef<HTMLDivElement>(null);
+  const transform = `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`;
+  useLayoutEffect(() => {
+    titleRef.current?.style.setProperty('--kspace-title-transform', transform);
+  }, [transform]);
   return (
     <div
+      ref={titleRef}
       data-chain-node-kspace-title
-      className="absolute left-1/2 top-1/2 flex w-full flex-col items-center text-center"
-      style={{
-        transform: `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`,
-      }}
+      className="absolute left-1/2 top-1/2 flex w-full flex-col items-center text-center [transform:var(--kspace-title-transform)]"
     >
       <span
         data-chain-node-name

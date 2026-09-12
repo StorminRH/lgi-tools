@@ -1,5 +1,6 @@
 'use client';
 
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { GlanceMark } from './GlanceMark';
 import {
   widgetKey,
@@ -21,21 +22,35 @@ export function NodeWidgetTrack({
       }
       className="pointer-events-none absolute inset-0"
     >
-      {widgets.map((widget, index) => {
-        const seat = widgetSeatOffset(index);
-        return (
-          <div
-            key={widgetKey(widget)}
-            data-chain-node-widget-seat={index}
-            className="absolute left-1/2 top-1/2"
-            style={{
-              transform: `translate(-50%, -50%) translate(${seat.x}px, ${seat.y}px)`,
-            }}
-          >
-            <NodeWidgetOccupant widget={widget} />
-          </div>
-        );
-      })}
+      {widgets.map((widget, index) => (
+        <WidgetSeat key={widgetKey(widget)} index={index}>
+          <NodeWidgetOccupant widget={widget} />
+        </WidgetSeat>
+      ))}
+    </div>
+  );
+}
+
+function WidgetSeat({
+  index,
+  children,
+}: {
+  readonly index: number;
+  readonly children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const seat = widgetSeatOffset(index);
+  const transform = `translate(-50%, -50%) translate(${seat.x}px, ${seat.y}px)`;
+  useLayoutEffect(() => {
+    ref.current?.style.setProperty('--node-widget-seat-transform', transform);
+  }, [transform]);
+  return (
+    <div
+      ref={ref}
+      data-chain-node-widget-seat={index}
+      className="absolute left-1/2 top-1/2 [transform:var(--node-widget-seat-transform)]"
+    >
+      {children}
     </div>
   );
 }
