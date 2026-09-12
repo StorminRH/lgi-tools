@@ -228,6 +228,12 @@ export const advanceTrackedLocationFixture = internalMutation({
         detail: `Character ${args.characterId} is not in ${args.fromSolarSystemId}.`,
       });
     }
+    if (tracking === null) {
+      throw new ConvexError({
+        code: 'FIXTURE_TRACKING_MISSING',
+        detail: `Character ${args.characterId} has no seeded tracking row.`,
+      });
+    }
 
     await ctx.db.patch('characterLocation', location._id, {
       solarSystemId: args.toSolarSystemId,
@@ -239,12 +245,6 @@ export const advanceTrackedLocationFixture = internalMutation({
       observedAt: args.transitionObservedAt,
       etagLocation: null,
     });
-    if (tracking === null) {
-      throw new ConvexError({
-        code: 'FIXTURE_TRACKING_MISSING',
-        detail: `Character ${args.characterId} has no seeded tracking row.`,
-      });
-    }
     await stampSubjectFreshness(
       ctx,
       args.userId,

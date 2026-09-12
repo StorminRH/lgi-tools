@@ -111,6 +111,10 @@ async function applyDueAction(
       return;
     case 'skip':
       return;
+    default: {
+      const unhandled: never = action;
+      throw new Error(`Unhandled due action: ${String(unhandled)}`);
+    }
   }
 }
 
