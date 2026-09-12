@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { fetchAffiliations } from './affiliation-source';
+import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
 const permissiveScoreboard = {
   async preDispatch() {
@@ -139,7 +140,7 @@ describe('fetchAffiliations', () => {
   it('in development, omits the local synthetic E2E character before calling ESI', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
-    await expect(fetchAffiliations([9_000_001])).resolves.toEqual({
+    await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId])).resolves.toEqual({
       rows: [],
       transientFailure: false,
     });
@@ -148,7 +149,7 @@ describe('fetchAffiliations', () => {
     fetchMock.mockResolvedValue(
       jsonResponse([{ character_id: 102, corporation_id: 3000 }]),
     );
-    const result = await fetchAffiliations([9_000_001, 102]);
+    const result = await fetchAffiliations([SYNTHETIC_PILOT.characterId, 102]);
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual([102]);
     expect(result).toEqual({
       rows: [{ characterId: 102, corporationId: 3000, allianceId: null, factionId: null }],
@@ -162,10 +163,13 @@ describe('fetchAffiliations', () => {
       new Response(JSON.stringify({ error: 'Invalid character ID' }), { status: 400 }),
     );
 
-    await expect(fetchAffiliations([9_000_001, 102])).resolves.toEqual({
+    await expect(fetchAffiliations([SYNTHETIC_PILOT.characterId, 102])).resolves.toEqual({
       rows: [],
       transientFailure: true,
     });
-    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual([9_000_001, 102]);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual([
+      SYNTHETIC_PILOT.characterId,
+      102,
+    ]);
   });
 });

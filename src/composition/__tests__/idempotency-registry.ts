@@ -565,6 +565,12 @@ const authCatchAllRoute = mutationRoute({
   evidence:
     'Better Auth owns its own request lifecycle; session creation is keyed on its own token and a repeated callback is rejected or replaces the same session.',
 });
+const syntheticPilotRoute = mutationRoute({
+  route: 'src/app/api/dev/synthetic-pilot/route.ts',
+  verdict: 'accepted-risk',
+  evidence:
+    'Same-origin localhost development POST resets the fixed test pilot and replaces all prior sessions. Repeating the request intentionally erases new fixture data and rotates the cookie again. Concurrent resets are not serialized.',
+});
 const internalEveCharactersRoute = mutationRoute({
   route: 'src/app/api/internal/eve-characters/route.ts',
   verdict: 'inherently-idempotent',
@@ -631,6 +637,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   marketPricesRefreshRoute,
   marketHistoryRefreshRoute,
   authCatchAllRoute,
+  syntheticPilotRoute,
   internalEveCharactersRoute,
   internalEveTokenRoute,
   telemetryRoute,

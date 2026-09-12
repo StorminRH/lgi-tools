@@ -1,6 +1,8 @@
-export const E2E_CHARACTER_ID = 9_000_001;
-export const E2E_USER_ID = 'e2e-pilot';
-export const E2E_CHARACTER_NAME = 'E2E Pilot';
+import { SYNTHETIC_PILOT } from '@/platform/auth/synthetic-pilot';
+
+export const E2E_CHARACTER_ID = SYNTHETIC_PILOT.characterId;
+export const E2E_USER_ID = SYNTHETIC_PILOT.userId;
+export const E2E_CHARACTER_NAME = SYNTHETIC_PILOT.name;
 
 export const DEFAULT_STORAGE_STATE_PATH = 'e2e/auth-storage.json';
 
