@@ -325,28 +325,42 @@ describe('mapScan paste application and lifecycle', () => {
     expect(after?.resolution).toEqual({ kind: 'destination', provenance: 'assumed' });
   });
 
-  it('identifies an ordinary site in a busy system', async () => {
+  it('ordinary identify stays available beyond the whole-system scan bound', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
-    const busyRows = [
-      signature('GAS-001'),
-      ...Array.from({ length: 12 }, (_, index) => signature(`LST-${String(index + 1).padStart(3, '0')}`)),
-      signature('WHL-010', { group: 'Wormhole' }),
-      signature('WHL-011', { group: 'Wormhole' }),
-      signature('WHL-012', { group: 'Wormhole' }),
-    ];
-    await apply(t, busyRows);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 257; i += 1) {
+        await ctx.db.insert('mapSignatures', {
+          mapId: MAP,
+          systemId: JITA,
+          signatureId: `AAA-${String(i).padStart(3, '0')}`,
+          group: null,
+          typeName: null,
+          wormholeTypeCode: null,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      }
+    });
 
+    await expect(apply(t, [signature('SIG-001')])).rejects.toThrow('MAP_SIGNATURE_SCAN_LIMIT');
     expect(
       await asEditor(t).mutation(api.mapScan.identifySignature, {
         mapId: MAP,
         systemId: JITA,
-        signatureId: 'GAS-001',
+        signatureId: 'AAA-000',
         group: 'Gas Site',
       }),
     ).toEqual({ changed: true, connectionId: null });
-    expect(await readSignature(t, 'GAS-001')).toMatchObject({ group: 'Gas Site' });
-    expect((await readState(t)).signatures).toHaveLength(13);
+    expect(await readSignature(t, 'AAA-000')).toMatchObject({ group: 'Gas Site' });
+    await expect(
+      asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'AAA-001',
+        group: 'Wormhole',
+      }),
+    ).rejects.toThrow('MAP_SIGNATURE_SCAN_LIMIT');
   });
 
   it('repeat ordinary identification is a no-op', async () => {
@@ -510,7 +524,8 @@ describe('mapScan paste application and lifecycle', () => {
         .query('mapTracking')
         .withIndex('by_map_user', (q) => q.eq('mapId', MAP).eq('userId', EDITOR))
         .unique();
-      await ctx.db.delete(tracking!._id);
+      if (tracking === null) throw new Error('missing tracking');
+      await ctx.db.delete(tracking._id);
     });
     expect(
       await asEditor(t).mutation(api.mapScan.identifySignature, {
