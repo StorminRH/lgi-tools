@@ -258,7 +258,7 @@ const inFlight: DoorbellMemoryEntry = {
 };
 
 describe('doorbell remount memory', () => {
-  it('hydrates settled memory per map after remount and ignores missing or corrupt snapshots', () => {
+    it('hydrates settled memory per map, isolates map B, and ignores missing or corrupt snapshots', () => {
     const storage = new MemoryStorage();
     persistDoorbellMemory(
       storage,

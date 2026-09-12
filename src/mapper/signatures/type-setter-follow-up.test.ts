@@ -51,6 +51,7 @@ describe('type setter follow-up recovery', () => {
 
   it.each<SignatureEliminationResponse | null>([
     null,
+    { results: [{ systemId: 1, status: 'statics-unavailable' }] },
     { results: [{ systemId: 2, status: 'quiet' }] },
   ])('retries an unfinished elimination independently of typed-hole: %j', async (outcome) => {
     const input = { mapId: 'elimination-retry', connectionId: 'c1', systemId: 1 };
