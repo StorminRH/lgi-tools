@@ -11,7 +11,7 @@ export async function applyCoverageSet(
   const covered = new Set(coveredCharacterIds);
   const existing = await ctx.db
     .query('characterLocationCovered')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
+    .withIndex('by_user_character', (q) => q.eq('userId', userId))
     .collect();
   const held = new Set(existing.map((doc) => doc.characterId));
 
@@ -31,7 +31,7 @@ export async function clearCoverageForUser(
 ): Promise<void> {
   const existing = await ctx.db
     .query('characterLocationCovered')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
+    .withIndex('by_user_character', (q) => q.eq('userId', userId))
     .collect();
   for (const doc of existing) await ctx.db.delete(doc._id);
 }

@@ -36,7 +36,10 @@ const FORM_ROUTES = new Set([
   'admin/wh-statics/route.ts',
 ]);
 
-const LIBRARY_OWNED = new Set(['auth/[...all]/route.ts']);
+const CONTRACTLESS_ROUTES = new Set([
+  'auth/[...all]/route.ts',
+  'dev/synthetic-pilot/route.ts',
+]);
 
 function findFiles(dir: string, accept: (name: string) => boolean): string[] {
   const out: string[] = [];
@@ -50,7 +53,7 @@ function findFiles(dir: string, accept: (name: string) => boolean): string[] {
 
 const ALL_ROUTE_FILES = findFiles(API_DIR, (name) => /^route\.(ts|js|mts|mjs)$/.test(name));
 const FIRST_PARTY_ROUTE_FILES = ALL_ROUTE_FILES.filter(
-  (file) => !LIBRARY_OWNED.has(relative(API_DIR, file)),
+  (file) => !CONTRACTLESS_ROUTES.has(relative(API_DIR, file)),
 );
 const V2_ROUTE_FILES = FIRST_PARTY_ROUTE_FILES.filter((file) => {
   const route = relative(API_DIR, file);

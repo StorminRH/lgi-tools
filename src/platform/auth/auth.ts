@@ -91,7 +91,10 @@ export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps)
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       freshAge: 0,
-      cookieCache: { enabled: true, maxAge: 300 },
+      cookieCache: {
+        enabled: process.env.NODE_ENV === 'production',
+        maxAge: 300,
+      },
     },
     plugins: [
       genericOAuth({

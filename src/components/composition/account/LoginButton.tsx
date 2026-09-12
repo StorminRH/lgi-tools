@@ -5,10 +5,11 @@ import { EveImage } from '@/components/eve-image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip } from '@/components/ui/tooltip';
+import { LocalSyntheticPilotControl } from '@/components/composition/LocalSyntheticPilotControl';
 import { authClient } from '@/platform/auth/auth-client';
 import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
-import { AccountMenu } from './AccountMenu';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { AccountMenu } from './AccountMenu';
 
 type SignedInSession = NonNullable<ReturnType<typeof useAuth>['session']>;
 
@@ -106,7 +107,12 @@ export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' })
   }
 
   if (!session) {
-    return <EveSignInButton />;
+    return (
+      <div className="flex items-center gap-3">
+        <EveSignInButton />
+        <LocalSyntheticPilotControl />
+      </div>
+    );
   }
 
   return <SignedInCluster variant={variant} session={session} showAdminLink={showAdminLink} />;

@@ -182,14 +182,12 @@ export default defineSchema({
     etagLocation: v.union(v.string(), v.null()),
     etagShip: v.union(v.string(), v.null()),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
   characterLocationCovered: defineTable({
     userId: v.string(),
     characterId: v.number(),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
   characterLocationOnline: defineTable({
@@ -199,7 +197,6 @@ export default defineSchema({
     etagOnline: v.union(v.string(), v.null()),
     onlineExpiresAt: v.number(),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
   characterLocationAccess: defineTable({
@@ -209,6 +206,5 @@ export default defineSchema({
     expiresAt: v.number(),
     updatedAt: v.number(),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 });

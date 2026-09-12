@@ -25,3 +25,9 @@ For startup or local-service selection failures, inspect
 [dev.sh](dev.sh), [convex.sh](convex.sh), and their shared checks in
 [lib.sh](lib.sh). These wrappers select the VM's local services; preserve
 that setup when investigating failures.
+
+To sign in without CCP SSO, open `http://localhost:3000` and choose
+**Reset and continue as E2E Pilot**. This resets the reserved test pilot,
+including its maps, permissions, linked accounts, and earlier sessions.
+The pilot has no ESI tokens. Playwright uses `pnpm e2e:seed` for the same
+reset and writes its cookie jar to `e2e/auth-storage.json`.

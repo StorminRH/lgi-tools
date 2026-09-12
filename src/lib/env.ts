@@ -21,6 +21,7 @@ const REQUIRED_ENV = {
 } as const;
 
 const VERBATIM_ENV = {
+  CI: verbatim,
   DATABASE_URL_UNPOOLED: verbatim,
   DATABASE_MIGRATION_URL: verbatim,
   LOCAL_DB_DRIVER: verbatim,

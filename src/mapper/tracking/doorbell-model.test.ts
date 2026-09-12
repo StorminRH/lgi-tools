@@ -4,7 +4,6 @@ import {
   DOORBELL_ATTEMPT_CAP,
   DOORBELL_CHANNEL_PREFIX,
   DOORBELL_RETRY_INTERVAL_MS,
-  doorbellChannelName,
   hydrateDoorbellMemory,
   joinDoorbellChannel,
   ownTrackedDoorbellRows,
@@ -258,25 +257,19 @@ const inFlight: DoorbellMemoryEntry = {
 };
 
 describe('doorbell remount memory', () => {
-  it('hydrates settled memory for the same map after remount', () => {
-    const storage = new MemoryStorage();
-    const memory = new Map<number, DoorbellMemoryEntry>([[101, settled]]);
-    persistDoorbellMemory(storage, 'map-a', memory);
-
-    const remounted = hydrateDoorbellMemory(storage, 'map-a');
-    expect(pendingDoorbells([tracked(101, 5_000)], remounted)).toEqual([]);
-    expect(hydrateDoorbellMemory(storage, 'map-missing').size).toBe(0);
-    storage.setItem(JSON.stringify([DOORBELL_CHANNEL_PREFIX, 'map-bad']), '{');
-    expect(hydrateDoorbellMemory(storage, 'map-bad').size).toBe(0);
-  });
-
-  it('isolates map A from map B and restores A', () => {
+    it('hydrates settled memory per map, isolates map B, and ignores missing or corrupt snapshots', () => {
     const storage = new MemoryStorage();
     persistDoorbellMemory(
       storage,
       'map-a',
       new Map<number, DoorbellMemoryEntry>([[101, settled]]),
     );
+
+    const remounted = hydrateDoorbellMemory(storage, 'map-a');
+    expect(pendingDoorbells([tracked(101, 5_000)], remounted)).toEqual([]);
+    expect(hydrateDoorbellMemory(storage, 'map-missing').size).toBe(0);
+    storage.setItem(JSON.stringify([DOORBELL_CHANNEL_PREFIX, 'map-bad']), '{');
+    expect(hydrateDoorbellMemory(storage, 'map-bad').size).toBe(0);
 
     const mapB = hydrateDoorbellMemory(storage, 'map-b');
     expect(pendingDoorbells([tracked(101, 5_000)], mapB)).toEqual([
@@ -316,8 +309,7 @@ describe('doorbell tab memory', () => {
       persist: () => undefined,
     });
 
-    expect(bus.channels[0]?.name).toBe(doorbellChannelName('user-a'));
-    expect(doorbellChannelName('user-a')).toContain(DOORBELL_CHANNEL_PREFIX);
+    expect(bus.channels[0]?.name).toBe(JSON.stringify(['lgi-atlas-doorbell-v1', 'user-a']));
 
     firstMemory.set(101, inFlight);
     first.share();
