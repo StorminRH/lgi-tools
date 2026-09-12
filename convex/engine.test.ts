@@ -483,7 +483,7 @@ describe('engine.scan', () => {
     const covered = await t.run((ctx) =>
       ctx.db
         .query('characterLocationCovered')
-        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .withIndex('by_user_character', (q) => q.eq('userId', USER))
         .collect(),
     );
     expect(covered).toEqual([]);

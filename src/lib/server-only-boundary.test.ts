@@ -83,6 +83,7 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
 
 const EXPECTED_MARKERS = [
   'src/composition/auth.ts',
+  'src/composition/synthetic-pilot-store.ts',
   'src/data/gsc/source.ts',
   'src/data/wh-statics/source.ts',
   'src/features/feedback/create-linear-issue.ts',

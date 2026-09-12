@@ -16,7 +16,7 @@ const DOORBELL_JOIN_WAIT_MS = 100;
 
 export const DOORBELL_CHANNEL_PREFIX = 'lgi-atlas-doorbell-v1';
 
-export function doorbellChannelName(userId: string): string {
+function doorbellChannelName(userId: string): string {
   return JSON.stringify([DOORBELL_CHANNEL_PREFIX, userId]);
 }
 
