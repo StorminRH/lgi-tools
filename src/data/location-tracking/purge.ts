@@ -4,15 +4,27 @@ import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 import type { PurgeContributor } from '@/platform/purge/types';
 
+function isSafePurgeUrl(siteUrl: string | null): siteUrl is string {
+  if (siteUrl === null) return false;
+  try {
+    const url = new URL(siteUrl);
+    return url.protocol === 'https:' || (
+      url.protocol === 'http:'
+      && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function purgeLocationTracking(
   userId: string,
   characterId: number | null,
 ): Promise<void> {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (!convexUrl) return;
-  const siteUrl = deriveConvexSiteUrl(convexUrl);
+  const siteUrl = convexUrl ? deriveConvexSiteUrl(convexUrl) : null;
   const secret = readEnv('CONVEX_SERVICE_SECRET');
-  if (siteUrl === null || !secret) {
+  if (!isSafePurgeUrl(siteUrl) || !secret) {
     throw new Error('Location tracking purge requires a valid Convex URL and service secret');
   }
   const response = await fetchWithTimeout(`${siteUrl}/purge-location-tracking`, {
@@ -32,6 +44,7 @@ export async function teardownLocationTracking(
   userId: string,
   characterId: number | null,
 ): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) return;
   const subject = characterId === null ? userId : `${userId}:${characterId}`;
   await bestEffort('location-tracking/purge', 'convex-teardown', subject, () =>
     purgeLocationTracking(userId, characterId),

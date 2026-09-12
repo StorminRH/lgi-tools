@@ -143,7 +143,7 @@ expect(adminMap.adminUserList).toBeTruthy()
 expect(userMap.adminUserList).toBeUndefined()
 ```
 
-### `Symbol.dispose` with `using`
+### File cleanup with `Symbol.asyncDispose` and `await using`
 
 ```ts
 import { writeFile, readFile, rm } from 'node:fs/promises'
