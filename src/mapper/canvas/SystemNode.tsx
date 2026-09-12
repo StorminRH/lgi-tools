@@ -182,7 +182,7 @@ function NodeDisc({
         isConnectable={isConnectable}
         className={CENTER_HANDLE_CLASS}
       />
-      <NodeWidgetTrack widgets={widgets} />
+      <NodeWidgetTrack widgets={widgets} systemId={systemId} />
     </div>
   );
 }

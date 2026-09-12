@@ -18,6 +18,7 @@ import {
 
 const chrome = vi.hoisted(() => ({
   marks: [] as string[],
+  presence: null as SystemPresence | null,
   assets: null as {
     systemInfo: (id: number) => {
       readonly regionName: string;
@@ -28,6 +29,10 @@ const chrome = vi.hoisted(() => ({
 
 vi.mock('../signatures/use-glance-mark-index', () => ({
   useGlanceMarks: () => chrome.marks,
+}));
+
+vi.mock('../tracking/presence-context', () => ({
+  useSystemPresence: () => chrome.presence,
 }));
 
 vi.mock('../chain/use-universe-assets', () => ({
@@ -413,6 +418,23 @@ test('edge motion classes map fade/grow/rev/heavy/dying and loop dash', () => {
   expect(edgePresentation({ loop: false, tombstoneState: 'active' }).className).toBeUndefined();
   expect(edgePresentation({ loop: false, stub: true }).className).toBe('map-edge-derived');
   expect(CHAIN_EDGE_INTERACTION_WIDTH).toBeGreaterThan(20);
+});
+
+test('pilot presence sits on the widget track', () => {
+  chrome.presence = {
+    pilots: [
+      {
+        characterId: 1,
+        shipTypeId: null,
+        docked: false,
+        lastMovementAt: 0,
+      },
+    ],
+  };
+  const live = markup(undefined);
+  expect(live).toContain('data-pilot-presence="live"');
+  expect(live).toContain('data-chain-node-widget-seat');
+  chrome.presence = null;
 });
 
 test('glance marks sit in the widget slot and stay off stubs', () => {

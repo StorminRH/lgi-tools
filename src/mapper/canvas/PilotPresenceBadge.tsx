@@ -1,19 +1,27 @@
 'use client';
 
+import { cn } from '@/components/ui/cn';
 import type { SystemPresence } from '../tracking/presence-model';
+import { useSystemPresence } from '../tracking/presence-context';
 
-function FriendlySilhouette() {
+function FriendlySilhouette({ className }: { readonly className?: string }) {
   return (
     <svg
       viewBox="0 0 16 16"
       fill="currentColor"
       aria-hidden="true"
-      className="size-icon-sm shrink-0"
+      className={cn('size-icon-sm shrink-0', className)}
     >
       <circle cx="8" cy="5" r="3" />
       <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5v1H3v-1Z" />
     </svg>
   );
+}
+
+export function PilotPresenceBadge({ systemId }: { readonly systemId: number }) {
+  const presence = useSystemPresence(systemId);
+  if (presence === null || presence.pilots.length === 0) return null;
+  return <PresenceBadgeView presence={presence} />;
 }
 
 export function PresenceBadgeView({ presence }: { readonly presence: SystemPresence }) {

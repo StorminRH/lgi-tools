@@ -7,12 +7,14 @@ import {
   widgetSeatOffset,
   type NodeWidget,
 } from './disc-chrome';
-import { PresenceBadgeView } from './PilotPresenceBadge';
+import { PilotPresenceBadge } from './PilotPresenceBadge';
 
 export function NodeWidgetTrack({
   widgets,
+  systemId,
 }: {
   readonly widgets: readonly NodeWidget[];
+  readonly systemId: number;
 }) {
   return (
     <div
@@ -24,7 +26,7 @@ export function NodeWidgetTrack({
     >
       {widgets.map((widget, index) => (
         <WidgetSeat key={widgetKey(widget)} index={index}>
-          <NodeWidgetOccupant widget={widget} />
+          <NodeWidgetOccupant widget={widget} systemId={systemId} />
         </WidgetSeat>
       ))}
     </div>
@@ -55,12 +57,18 @@ function WidgetSeat({
   );
 }
 
-function NodeWidgetOccupant({ widget }: { readonly widget: NodeWidget }) {
+function NodeWidgetOccupant({
+  widget,
+  systemId,
+}: {
+  readonly widget: NodeWidget;
+  readonly systemId: number;
+}) {
   switch (widget.kind) {
     case 'glance':
       return <GlanceMark bucket={widget.bucket} />;
     case 'presence':
-      return <PresenceBadgeView presence={widget.presence} />;
+      return <PilotPresenceBadge systemId={systemId} />;
     default: {
       const _never: never = widget;
       return _never;
