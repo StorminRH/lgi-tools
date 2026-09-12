@@ -39,6 +39,8 @@ const DIRECT_MUTATIONS = [
   'feedback/route.ts',
 ] as const;
 
+const LOCAL_SYNTHETIC_MUTATIONS = ['dev/synthetic-pilot/route.ts'] as const;
+
 const ADMIN_MUTATIONS = [
   'admin/characters/reassign/route.ts',
   'admin/esi-jobs/retry/route.ts',
@@ -126,6 +128,7 @@ describe('same-origin mutation coverage', () => {
       ...PIPELINE_MUTATIONS,
       ...DIRECT_MUTATIONS,
       ...ADMIN_MUTATIONS,
+      ...LOCAL_SYNTHETIC_MUTATIONS,
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
 
@@ -150,6 +153,17 @@ describe('same-origin mutation coverage', () => {
       "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
     expect(source).toContain('const originCheck = requireSameOrigin(request);');
+  });
+
+  it.each(LOCAL_SYNTHETIC_MUTATIONS)('%s requires matching localhost origin before reset', (route) => {
+    const source = readFileSync(join(API_DIR, route), 'utf8');
+
+    expect(source).toContain("from '@/platform/auth/synthetic-pilot';");
+    expect(source).toContain('!canMintSyntheticPilot({');
+    expect(source).toContain('nodeEnv: process.env.NODE_ENV');
+    expect(source).toContain("url.hostname !== 'localhost'");
+    expect(source).toContain("request.headers.get('host') !== url.host");
+    expect(source).toContain("request.headers.get('origin') !== url.origin");
   });
 
   it.each(ADMIN_MUTATIONS)(

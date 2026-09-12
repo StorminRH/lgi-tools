@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { locationTrackingPurgeContributor, teardownLocationTracking } from './purge';
+import { locationTrackingPurgeContributor, purgeLocationTracking, teardownLocationTracking } from './purge';
 
 const USER = 'eve-user-1';
 const CHAR = 90_000_001;
@@ -98,5 +98,29 @@ describe('teardownLocationTracking', () => {
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/purge-location-tracking');
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: CHAR });
+  });
+});
+
+describe('purgeLocationTracking', () => {
+  it('fails when configured Convex has no service secret', async () => {
+    delete process.env.CONVEX_SERVICE_SECRET;
+    await expect(purgeLocationTracking(USER, null)).rejects.toThrow('service secret');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('fails when the configured URL cannot address an HTTP door', async () => {
+    process.env.NEXT_PUBLIC_CONVEX_URL = 'not-a-url';
+    await expect(purgeLocationTracking(USER, null)).rejects.toThrow('valid Convex URL');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('propagates a refused purge instead of reporting success', async () => {
+    fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
+    await expect(purgeLocationTracking(USER, null)).rejects.toThrow('purge-location-tracking 401');
+  });
+
+  it('propagates a network failure', async () => {
+    fetchSpy.mockRejectedValue(new Error('convex down'));
+    await expect(purgeLocationTracking(USER, null)).rejects.toThrow('convex down');
   });
 });
