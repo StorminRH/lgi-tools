@@ -54,3 +54,14 @@ test('k-space title sits 6px above the disc rim', () => {
 test('track radius matches the live disc plus icon air gap', () => {
   expect(27.5 + 7 + 4).toBe(SYSTEM_DISC_SIZE / 2 + 14 / 2 + 4);
 });
+
+test('the first five seats stay below the title and seat 5 does not', () => {
+  const iconHalf = 14 / 2;
+  const titleBottom = kspaceTitleOffset().y;
+  const iconTop = (index: number) => widgetSeatOffset(index).y - iconHalf;
+  const maxClearSeats = 5;
+  for (let index = 0; index < maxClearSeats; index += 1) {
+    expect(iconTop(index)).toBeGreaterThan(titleBottom);
+  }
+  expect(iconTop(maxClearSeats)).toBeLessThan(titleBottom);
+});
