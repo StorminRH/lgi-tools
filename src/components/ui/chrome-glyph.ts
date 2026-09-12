@@ -46,9 +46,13 @@ function ringCircle(cx: number, cy: number, r: number, wall: number): GlyphNode 
 
 export const CHROME_GLYPHS: { readonly [K in ChromeGlyph]: readonly GlyphNode[] } = {
   'gas-cloud': [
-    ringCircle(5.2, 9, 3.4, 1.5),
-    ringCircle(10.8, 9, 3.4, 1.5),
-    ringCircle(8, 6.2, 3.8, 1.5),
+    {
+      kind: 'path',
+      d: 'M11.05 12.5H6.2a4 4 0 1 1 3.83-5.14h1.02a2.57 2.57 0 1 1 0 5.14Z',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.5,
+    },
   ],
   'hacking-chip': [
     {

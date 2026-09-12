@@ -23,8 +23,8 @@ describe('chrome glyphs', () => {
     }
   });
 
-  it('cuts gas and pilot as evenodd rings like the hacking chip', () => {
-    for (const glyph of ['gas-cloud', 'hacking-chip', 'pilot'] as const) {
+  it('cuts pilot as an evenodd ring like the hacking chip', () => {
+    for (const glyph of ['hacking-chip', 'pilot'] as const) {
       expect(
         CHROME_GLYPHS[glyph].some(
           (node) => node.kind === 'path' && node.fillRule === 'evenodd',
@@ -36,6 +36,20 @@ describe('chrome glyphs', () => {
         (node) => node.kind !== 'path' || node.fillRule === undefined,
       ),
     ).toBe(true);
+  });
+
+  it('draws gas as a hollow cloud outline', () => {
+    const nodes = CHROME_GLYPHS['gas-cloud'];
+    expect(nodes).toHaveLength(1);
+    const node = nodes[0];
+    expect(node?.kind).toBe('path');
+    if (node?.kind !== 'path') throw new Error('gas-cloud must be a path');
+    expect(node.fill).toBe('none');
+    expect(node.stroke).toBe('currentColor');
+    expect(node.strokeWidth).toBeGreaterThanOrEqual(1.4);
+    expect(node.strokeWidth).toBeLessThanOrEqual(1.6);
+    expect(node.d).toContain('H');
+    expect(node.d).toContain('a');
   });
 
   it('maps widget tones onto named color classes', () => {
