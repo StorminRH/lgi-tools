@@ -72,6 +72,7 @@
     "@visx/tooltip": "^4.0.0",
     "@xyflow/react": "12.11.6",
     "better-auth": "1.6.30",
+    "better-call": "1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.45.0",

@@ -564,6 +564,18 @@ async function identifyWormholeRow(
   };
 }
 
+function assertAssignableGroup(
+  signature: Doc<'mapSignatures'> | null | undefined,
+  group: Infer<typeof sigGroupValidator>,
+): asserts signature is Doc<'mapSignatures'> {
+  if (signature == null || isTombstoned(signature)) {
+    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
+  }
+  if (signature.group !== null && signature.group !== group) {
+    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
+  }
+}
+
 export async function identifyScannedSignature(
   ctx: MutationCtx,
   mapId: string,
@@ -594,12 +606,8 @@ export async function identifyScannedSignature(
         );
         return { changed: false, connectionId: claimedId ?? existing._id };
       }
-      throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
     }
-    const currentGroup = signature.group ?? null;
-    if (currentGroup !== null && currentGroup !== group) {
-      throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
-    }
+    assertAssignableGroup(signature, group);
     return identifyWormholeRow(
       ctx,
       state,
@@ -614,14 +622,8 @@ export async function identifyScannedSignature(
     systemId,
     signatureId: normalizedId,
   });
-  if (signature === null || isTombstoned(signature)) {
-    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
-  }
-  const currentGroup = signature.group ?? null;
-  if (currentGroup !== null && currentGroup !== group) {
-    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
-  }
-  if (currentGroup === group) return { changed: false, connectionId: null };
+  assertAssignableGroup(signature, group);
+  if (signature.group === group) return { changed: false, connectionId: null };
   await ctx.db.patch(signature._id, { group });
   return { changed: true, connectionId: null };
 }

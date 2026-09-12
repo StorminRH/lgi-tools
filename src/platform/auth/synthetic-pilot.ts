@@ -7,6 +7,16 @@ export const SYNTHETIC_PILOT = {
 
 export const SYNTHETIC_PILOT_MINT_PATH = '/api/dev/synthetic-pilot' as const;
 
+export function canMintSyntheticPilotRequest(request: Request): boolean {
+  const url = new URL(request.url);
+  return canMintSyntheticPilot({
+    hostHeader: request.headers.get('host'),
+    nodeEnv: process.env.NODE_ENV,
+  }) && url.hostname === 'localhost'
+    && request.headers.get('host') === url.host
+    && request.headers.get('origin') === url.origin;
+}
+
 export function canMintSyntheticPilot(input: {
   hostHeader: string | null;
   nodeEnv: string | undefined;

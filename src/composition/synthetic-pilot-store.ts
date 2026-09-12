@@ -15,7 +15,7 @@ import { readEnv, isHostedVercel } from '@/lib/env';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
-import { createLocalSession } from '@/platform/auth/local-session';
+import { createLocalSession, type LocalSession } from '@/platform/auth/local-session';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { SYNTHETIC_PILOT } from '@/platform/auth/synthetic-pilot';
 
@@ -33,22 +33,28 @@ function isLocalUrl(
 }
 
 function assertLocalSyntheticEnvironment(): string {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Synthetic pilot reset is disabled in production');
+  }
+  if (isHostedVercel()) {
+    throw new Error('Synthetic pilot reset is disabled on hosted Vercel');
+  }
+  if (readEnv('LOCAL_DB_DRIVER') !== 'postgres-js') {
+    throw new Error('Synthetic pilot reset requires LOCAL_DB_DRIVER=postgres-js');
+  }
   const databaseUrl = readEnv('DATABASE_URL');
   const ciDatabase =
     readEnv('CI') === 'true' &&
     isLocalUrl(databaseUrl, ['postgres:', 'postgresql:'], ['postgres']);
+  if (!isLocalUrl(databaseUrl, ['postgres:', 'postgresql:']) && !ciDatabase) {
+    throw new Error('Synthetic pilot reset requires a local Postgres DATABASE_URL');
+  }
+  if (!isLocalUrl(readEnv('BETTER_AUTH_URL'), ['http:'], ['localhost'])) {
+    throw new Error('Synthetic pilot reset requires BETTER_AUTH_URL on http://localhost');
+  }
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (
-    process.env.NODE_ENV === 'production' ||
-    isHostedVercel() ||
-    readEnv('LOCAL_DB_DRIVER') !== 'postgres-js' ||
-    (!isLocalUrl(databaseUrl, ['postgres:', 'postgresql:']) && !ciDatabase) ||
-    !isLocalUrl(readEnv('BETTER_AUTH_URL'), ['http:'], ['localhost']) ||
-    (convexUrl && !isLocalUrl(convexUrl, ['http:']))
-  ) {
-    throw new Error(
-      'Synthetic pilot reset requires a local development or test database and auth server',
-    );
+  if (convexUrl && !isLocalUrl(convexUrl, ['http:'])) {
+    throw new Error('Synthetic pilot reset requires a local HTTP NEXT_PUBLIC_CONVEX_URL');
   }
   const secret = readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET');
   if (!secret) {
@@ -62,7 +68,7 @@ function assertLocalSyntheticEnvironment(): string {
   return secret;
 }
 
-export async function becomeSyntheticPilot(requestHeaders?: Headers) {
+export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<LocalSession> {
   const secret = assertLocalSyntheticEnvironment();
   const ctx = await auth.$context;
   if (ctx.secret !== secret) {
@@ -95,23 +101,25 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers) {
     await purgeUserMapAccessProjection(SYNTHETIC_PILOT.userId);
     await purgeLocationTracking(SYNTHETIC_PILOT.userId, null);
   }
-  await db
-    .delete(mapAccess)
-    .where(
-      and(
-        eq(mapAccess.ownerType, 'character'),
-        eq(mapAccess.ownerId, SYNTHETIC_PILOT.characterId),
-      ),
-    );
-  await db.delete(user).where(eq(user.id, SYNTHETIC_PILOT.userId));
-  await createSyntheticPilotRows();
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(mapAccess)
+      .where(
+        and(
+          eq(mapAccess.ownerType, 'character'),
+          eq(mapAccess.ownerId, SYNTHETIC_PILOT.characterId),
+        ),
+      );
+    await tx.delete(user).where(eq(user.id, SYNTHETIC_PILOT.userId));
+    await createSyntheticPilotRows(tx);
+  });
   return createLocalSession(ctx, SYNTHETIC_PILOT.userId, requestHeaders);
 }
 
-async function createSyntheticPilotRows(): Promise<void> {
+async function createSyntheticPilotRows(tx: Pick<typeof db, 'insert'>): Promise<void> {
   const now = new Date();
   const portraitUrl = characterPortraitUrl(SYNTHETIC_PILOT.characterId, 128);
-  await db.insert(user).values({
+  await tx.insert(user).values({
     id: SYNTHETIC_PILOT.userId,
     name: SYNTHETIC_PILOT.name,
     email: syntheticEmail(SYNTHETIC_PILOT.characterId),
@@ -130,14 +138,14 @@ async function createSyntheticPilotRows(): Promise<void> {
     updatedAt: now,
     lastLoginAt: now,
   };
-  await db
+  await tx
     .insert(characters)
     .values({
       characterId: SYNTHETIC_PILOT.characterId,
       ...identity,
     })
     .onConflictDoUpdate({ target: characters.characterId, set: identity });
-  await db.insert(account).values({
+  await tx.insert(account).values({
     id: `e2e-eve-${SYNTHETIC_PILOT.characterId}`,
     accountId: String(SYNTHETIC_PILOT.characterId),
     providerId: EVE_PROVIDER_ID,

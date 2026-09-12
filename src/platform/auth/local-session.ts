@@ -1,13 +1,27 @@
 import { parseCookies } from 'better-auth/cookies';
 import { makeSignature } from 'better-auth/crypto';
-import { NextResponse } from 'next/server';
+import { serializeCookie } from 'better-call';
 import type { createAuth } from './auth';
+
+export interface LocalSession {
+  cookies: Array<{
+    name: string;
+    value: string;
+    domain: string;
+    path: string;
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: 'Strict' | 'Lax' | 'None';
+    maxAgeSec: number;
+  }>;
+  headers: Headers;
+}
 
 export async function createLocalSession(
   ctx: Awaited<ReturnType<typeof createAuth>['$context']>,
   userId: string,
   requestHeaders?: Headers,
-) {
+): Promise<LocalSession> {
   const session = await ctx.internalAdapter.createSession(userId);
   const { name, attributes } = ctx.authCookies.sessionToken;
   const value = `${session.token}.${await makeSignature(session.token, ctx.secret)}`;
@@ -22,7 +36,7 @@ export async function createLocalSession(
       : nativeSameSite === 'none'
         ? 'None' as const
         : 'Lax' as const;
-  const cookie = {
+  const cookie: LocalSession['cookies'][number] = {
     name,
     value,
     domain: 'localhost',
@@ -32,7 +46,7 @@ export async function createLocalSession(
     sameSite,
     maxAgeSec,
   };
-  const response = new NextResponse();
+  const headers = new Headers();
   const existingCookies = parseCookies(requestHeaders?.get('cookie') ?? '');
   for (const cached of [
     ctx.authCookies.sessionData,
@@ -44,30 +58,21 @@ export async function createLocalSession(
       ...[...existingCookies.keys()].filter((key) => key.startsWith(`${cached.name}.`)),
     ]);
     for (const key of names) {
-      const cachedSameSite = cached.attributes.sameSite?.toLowerCase();
-      response.cookies.set(key, '', {
+      headers.append('Set-Cookie', serializeCookie(key, '', {
         ...cached.attributes,
         path: cached.attributes.path ?? '/',
         maxAge: 0,
-        sameSite:
-          cachedSameSite === 'strict'
-            ? 'strict'
-            : cachedSameSite === 'none'
-              ? 'none'
-              : 'lax',
-      });
+      }));
     }
   }
-  response.cookies.set(name, value, {
+  headers.append('Set-Cookie', serializeCookie(cookie.name, cookie.value, {
     ...attributes,
     domain: cookie.domain,
-    maxAge: maxAgeSec,
-    sameSite:
-      nativeSameSite === 'strict'
-        ? 'strict'
-        : nativeSameSite === 'none'
-          ? 'none'
-          : 'lax',
-  });
-  return { cookies: [cookie], headers: response.headers };
+    path: cookie.path,
+    httpOnly: cookie.httpOnly,
+    secure: cookie.secure,
+    maxAge: cookie.maxAgeSec,
+    sameSite: cookie.sameSite,
+  }));
+  return { cookies: [cookie], headers };
 }

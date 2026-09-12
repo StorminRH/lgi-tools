@@ -159,11 +159,7 @@ describe('same-origin mutation coverage', () => {
     const source = readFileSync(join(API_DIR, route), 'utf8');
 
     expect(source).toContain("from '@/platform/auth/synthetic-pilot';");
-    expect(source).toContain('!canMintSyntheticPilot({');
-    expect(source).toContain('nodeEnv: process.env.NODE_ENV');
-    expect(source).toContain("url.hostname !== 'localhost'");
-    expect(source).toContain("request.headers.get('host') !== url.host");
-    expect(source).toContain("request.headers.get('origin') !== url.origin");
+    expect(source).toContain('!canMintSyntheticPilotRequest(request)');
   });
 
   it.each(ADMIN_MUTATIONS)(

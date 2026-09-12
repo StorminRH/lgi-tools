@@ -1,12 +1,11 @@
-import { config } from 'dotenv';
+import './load-env';
+
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readEnv } from '@/lib/env';
+import { becomeSyntheticPilot } from '@/composition/synthetic-pilot-store';
 import { DEFAULT_STORAGE_STATE_PATH as DEFAULT_STORAGE_STATE_RELATIVE } from './identity';
 
 export { E2E_CHARACTER_ID, E2E_CHARACTER_NAME, E2E_USER_ID } from './identity';
-
-config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
 export const DEFAULT_STORAGE_STATE_PATH = path.resolve(
   process.cwd(),
@@ -30,14 +29,6 @@ export type PlaywrightStorageState = {
 export async function seedE2eStorageState(
   outPath: string = DEFAULT_STORAGE_STATE_PATH,
 ): Promise<string> {
-  const secret = readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET');
-  if (!secret) {
-    throw new Error(
-      'BETTER_AUTH_SECRET or SESSION_SECRET is required to seed E2E auth cookies',
-    );
-  }
-
-  const { becomeSyntheticPilot } = await import('@/composition/synthetic-pilot-store');
   const { cookies } = await becomeSyntheticPilot();
   const storageState: PlaywrightStorageState = {
     cookies: cookies.map((cookie) => ({

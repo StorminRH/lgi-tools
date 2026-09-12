@@ -1,15 +1,4 @@
 import { ConvexError, v } from 'convex/values';
-import type {
-  ConnectionMassState,
-  WormholeDestinationHint,
-  WormholeSizeClass,
-} from '@/data/eve-data/wormhole-contract';
-import {
-  blankHallway,
-  identityFromDoors,
-  leadsToFromHint,
-} from '@/data/maps/connection-hallway';
-import { typedDoorsFrom } from '@/data/maps/connection-door-types';
 import { internalMutation } from './_generated/server';
 import {
   massStateValidator,
@@ -17,6 +6,7 @@ import {
   validateConnectionInput,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
+import { hallwayFromFixture } from './lib/mapFixtureHallway';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 
 export const placeSystemFixture = internalMutation({
@@ -39,42 +29,6 @@ const connectionArgs = {
   shipSize: shipSizeValidator,
 };
 
-export function hallwayFromFixture(args: {
-  readonly mapId: string;
-  readonly fromSystemId: number;
-  readonly toSystemId: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly shipSize: WormholeSizeClass | null;
-  readonly massState?: ConnectionMassState | null;
-  readonly fromSignatureId?: string;
-  readonly fromDestinationHint?: WormholeDestinationHint;
-}) {
-  const doors = typedDoorsFrom('from', args.wormholeTypeCode);
-  const stub = args.fromSignatureId !== undefined;
-  return {
-    ...blankHallway({
-      mapId: args.mapId,
-      fromSystemId: args.fromSystemId,
-      toSystemId: args.toSystemId,
-    }),
-    from: stub
-      ? {
-          ...doors.from,
-          signatureId: args.fromSignatureId,
-          leadsTo: leadsToFromHint(args.fromDestinationHint),
-        }
-      : doors.from,
-    to: doors.to,
-    identity: identityFromDoors(
-      doors.from.typeCode,
-      doors.to.typeCode,
-      args.wormholeTypeCode === null ? null : 'human',
-    ),
-    ...(args.massState === undefined ? {} : { massState: args.massState }),
-    shipSize: args.shipSize,
-  };
-}
-
 export const insertConnectionFixture = internalMutation({
   args: connectionArgs,
   handler: async (ctx, args) => {
@@ -89,7 +43,7 @@ export const insertConnectionFixture = internalMutation({
       }
     }
 
-    return await ctx.db.insert('mapConnections', hallwayFromFixture(args));
+    return await ctx.db.insert('mapConnections', hallwayFromFixture({ kind: 'connected', ...args }));
   },
 });
 
@@ -114,6 +68,6 @@ export const placeJumpFixture = internalMutation({
       }
     }
 
-    return await ctx.db.insert('mapConnections', hallwayFromFixture(args));
+    return await ctx.db.insert('mapConnections', hallwayFromFixture({ kind: 'connected', ...args }));
   },
 });

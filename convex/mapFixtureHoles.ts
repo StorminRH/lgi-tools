@@ -17,7 +17,7 @@ import {
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
 import { findSystem } from './lib/mapSystemLookup';
-import { hallwayFromFixture } from './mapFixturePlace';
+import { hallwayFromFixture } from './lib/mapFixtureHallway';
 
 interface UnresolvedHoleFixtureArgs {
   readonly mapId: string;
@@ -145,6 +145,7 @@ async function insertUnresolvedHole(
   return await ctx.db.insert(
     'mapConnections',
     hallwayFromFixture({
+      kind: 'unresolved',
       mapId: args.mapId,
       fromSystemId: args.fromSystemId,
       toSystemId: null,

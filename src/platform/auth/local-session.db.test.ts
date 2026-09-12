@@ -1,6 +1,6 @@
 import { parseSetCookieHeader } from 'better-auth/cookies';
 import { eq } from 'drizzle-orm';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness, seedUser } from '@/db/__tests__/support/db-test-harness';
 import { session } from '@/db/auth-schema';
 
@@ -17,9 +17,11 @@ const harness = await createDbTestHarness({
 
 describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)', () => {
   it.each([
-    ['e2e-pilot', false],
-    ['ordinary-user', true],
-  ] as const)('checks revocation for %s without changing ordinary caching', async (userId, retainsCache) => {
+    ['development', false],
+    ['production', true],
+  ] as const)('uses live sessions in %s and retains production caching', async (nodeEnv, retainsCache) => {
+    vi.stubEnv('NODE_ENV', nodeEnv);
+    const userId = 'ordinary-user';
     await seedUser(harness.db, userId);
     const { createAuth } = await import('./auth');
     const { createLocalSession } = await import('./local-session');
@@ -40,8 +42,10 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
     expect(first.response?.user.id).toBe(userId);
     const cacheName = (await auth.$context).authCookies.sessionData.name;
     const cacheCookie = first.headers.getSetCookie().find((value) => value.startsWith(`${cacheName}=`));
-    expect(cacheCookie).toBeDefined();
-    const browserCookies = `${tokenHeader}; ${cacheCookie!.split(';')[0]}`;
+    expect(Boolean(cacheCookie)).toBe(retainsCache);
+    const browserCookies = cacheCookie
+      ? `${tokenHeader}; ${cacheCookie.split(';')[0]}`
+      : tokenHeader;
     await harness.db.delete(session).where(eq(session.userId, userId));
     const afterRevocation = await auth.api.getSession({
       headers: new Headers({ cookie: browserCookies }),
@@ -51,6 +55,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
   });
 
   it.each([false, true])('replaces another user cache when chunked is %s', async (chunked) => {
+    vi.stubEnv('NODE_ENV', 'production');
     await seedUser(harness.db, 'ordinary-user');
     await seedUser(harness.db, 'e2e-pilot');
     const { createAuth } = await import('./auth');

@@ -19,7 +19,13 @@ async function cleanup(stage: string, id: string) {
   h.remaining.delete(`${stage}:${id}`);
 }
 
-vi.mock('@/db', () => ({ db: { select: h.select, insert: h.insert, delete: h.delete } }));
+vi.mock('@/db', () => ({
+  db: {
+    select: h.select,
+    transaction: async (work: (tx: { insert: typeof h.insert; delete: typeof h.delete }) => Promise<void>) =>
+      work({ insert: h.insert, delete: h.delete }),
+  },
+}));
 vi.mock('@/composition/auth', () => ({
   auth: {
     $context: Promise.resolve({
@@ -106,6 +112,15 @@ describe('synthetic pilot cleanup before remint', () => {
       expect(h.userRole).toBe('ADMIN');
       expect(h.remaining.has('sql-acl')).toBe(true);
       expect(h.remaining.has(`${stage}:${stage === 'chain' || stage === 'projection' ? 'owned-map' : 'e2e-pilot'}`)).toBe(true);
+
+      h.failure = '';
+      await becomeSyntheticPilot();
+      expect([...h.remaining]).toEqual([]);
+      expect(h.remainingAtMint).toEqual([]);
+      expect([...h.sessions]).toEqual([
+        ['unrelated-session', 'other-user'],
+        ['new-session', 'e2e-pilot'],
+      ]);
     },
   );
 

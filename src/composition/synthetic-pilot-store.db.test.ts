@@ -42,6 +42,61 @@ const harness = await createDbTestHarness({
 });
 
 describe.skipIf(!harness.reachable)('becomeSyntheticPilot (real Postgres)', () => {
+  it('rolls back the SQL identity and grants when the replacement account insert fails', async () => {
+    await seedUser(harness.db, SYNTHETIC_PILOT.userId, {
+      name: 'Preserve Pilot', role: 'ADMIN', activeCharacterId: 42,
+    });
+    await seedEveAccount(harness.db, {
+      id: 'prior-pilot-account',
+      characterId: SYNTHETIC_PILOT.characterId,
+      userId: SYNTHETIC_PILOT.userId,
+    }, { accessToken: 'prior-access-token' });
+    await harness.db.insert(characters).values({
+      characterId: SYNTHETIC_PILOT.characterId,
+      name: 'Prior Character', portraitUrl: '', corporationId: 123,
+    });
+    await seedUser(harness.db, 'unrelated-user');
+    const ownedMap = '50300000-0000-4000-8000-000000000003';
+    const otherMap = '50300000-0000-4000-8000-000000000004';
+    await harness.db.insert(maps).values([
+      { id: ownedMap, userId: SYNTHETIC_PILOT.userId, name: 'Prior fixture' },
+      { id: otherMap, userId: 'unrelated-user', name: 'Other fixture' },
+    ]);
+    await harness.db.insert(mapAccess).values({
+      mapId: otherMap, ownerType: 'character',
+      ownerId: SYNTHETIC_PILOT.characterId, role: 'viewer',
+    });
+    const { auth } = await import('./auth');
+    await (await auth.$context).internalAdapter.createSession(SYNTHETIC_PILOT.userId);
+    const before = {
+      users: await harness.db.select().from(user).orderBy(user.id),
+      accounts: await harness.db.select().from(account),
+      characters: await harness.db.select().from(characters),
+      maps: await harness.db.select().from(maps).orderBy(maps.id),
+      grants: await harness.db.select().from(mapAccess),
+    };
+    await harness.sql`
+      ALTER TABLE account ADD CONSTRAINT fail_token_free_pilot
+      CHECK (user_id <> 'e2e-pilot' OR access_token IS NOT NULL)
+    `;
+    try {
+      const { becomeSyntheticPilot } = await import('./synthetic-pilot-store');
+      await expect(becomeSyntheticPilot()).rejects.toMatchObject({
+        cause: expect.objectContaining({ constraint_name: 'fail_token_free_pilot' }),
+      });
+      expect({
+        users: await harness.db.select().from(user).orderBy(user.id),
+        accounts: await harness.db.select().from(account),
+        characters: await harness.db.select().from(characters),
+        maps: await harness.db.select().from(maps).orderBy(maps.id),
+        grants: await harness.db.select().from(mapAccess),
+      }).toEqual(before);
+      expect(await harness.db.select().from(sessions)).toEqual([]);
+    } finally {
+      await harness.sql`ALTER TABLE account DROP CONSTRAINT fail_token_free_pilot`;
+    }
+  });
+
   it('converges dirty rows to the reserved disconnected pilot and issues a session cookie Better Auth accepts', async () => {
     await seedUser(harness.db, SYNTHETIC_PILOT.userId, {
       name: 'Dirty Pilot',
