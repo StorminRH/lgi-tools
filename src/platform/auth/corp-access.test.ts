@@ -29,7 +29,7 @@ function rowFor(characterId: number, corporationId: number, refreshedAt: Date | 
 
 beforeEach(() => {
   fetchAffiliationsMock.mockReset().mockResolvedValue({ rows: [], transientFailure: false });
-  updateAffiliationsMock.mockReset().mockResolvedValue(undefined);
+  updateAffiliationsMock.mockReset().mockResolvedValue([]);
   getUserAffiliationsMock.mockReset();
   recordCorpAccessDecisionMock.mockReset().mockResolvedValue(undefined);
 });

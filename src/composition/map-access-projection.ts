@@ -11,7 +11,7 @@ import {
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
-import { resolveMapPrincipalsWithOutcome } from './map-access';
+import { resolveMapPrincipalsWithOutcome } from './map-access-principals';
 
 export interface MapAccessClaim {
   readonly userId: string;

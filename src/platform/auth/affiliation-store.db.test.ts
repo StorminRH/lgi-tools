@@ -105,21 +105,23 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
   it('updates existing character rows, creates no missing row, and treats empty input as a no-op', async () => {
     await seedCharacter(FIRST_CHAR);
 
-    await updateAffiliations([
-      {
-        characterId: FIRST_CHAR,
-        corporationId: 98000021,
-        allianceId: 99000021,
-        factionId: null,
-      },
-      {
-        characterId: SECOND_CHAR,
-        corporationId: 98000022,
-        allianceId: null,
-        factionId: null,
-      },
-    ]);
-    await updateAffiliations([]);
+    await expect(
+      updateAffiliations([
+        {
+          characterId: FIRST_CHAR,
+          corporationId: 98000021,
+          allianceId: 99000021,
+          factionId: null,
+        },
+        {
+          characterId: SECOND_CHAR,
+          corporationId: 98000022,
+          allianceId: null,
+          factionId: null,
+        },
+      ]),
+    ).resolves.toEqual([98000021]);
+    await expect(updateAffiliations([])).resolves.toEqual([]);
 
     const rows = await harness.db.select().from(characters).orderBy(asc(characters.characterId));
     expect(rows).toHaveLength(1);
@@ -130,6 +132,45 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
       factionId: null,
     });
     expect(rows[0]?.affiliationRefreshedAt).toBeInstanceOf(Date);
+  });
+
+  it('returns previous and next corporation ids only when a stored corp actually changes', async () => {
+    await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });
+    await seedCharacter(SECOND_CHAR, { corporationId: 98000012 });
+
+    await expect(
+      updateAffiliations([
+        {
+          characterId: FIRST_CHAR,
+          corporationId: 98000021,
+          allianceId: null,
+          factionId: null,
+        },
+        {
+          characterId: SECOND_CHAR,
+          corporationId: 98000012,
+          allianceId: 99000012,
+          factionId: null,
+        },
+        {
+          characterId: 90000099,
+          corporationId: 98000099,
+          allianceId: null,
+          factionId: null,
+        },
+      ]),
+    ).resolves.toEqual([98000011, 98000021]);
+
+    await expect(
+      updateAffiliations([
+        {
+          characterId: FIRST_CHAR,
+          corporationId: 98000021,
+          allianceId: null,
+          factionId: null,
+        },
+      ]),
+    ).resolves.toEqual([]);
   });
 
   it('records the complete allow and deny decision provenance', async () => {

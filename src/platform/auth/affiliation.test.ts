@@ -22,6 +22,7 @@ import {
   isCharacterCurrentMemberOfCorp,
   isUserCurrentMemberOfCorp,
   refreshAffiliations,
+  refreshAffiliationsWithOutcome,
   refreshStaleAffiliationsForUser,
 } from './affiliation';
 
@@ -59,7 +60,7 @@ afterEach(() => vi.restoreAllMocks());
 test('refreshAffiliations fetches then upserts, short-circuits empty input, and swallows source failures', async () => {
   const rows = [{ characterId: 101, corporationId: 2000, allianceId: null, factionId: null }];
   fetchAffiliationsMock.mockResolvedValue({ rows, transientFailure: false });
-  updateAffiliationsMock.mockResolvedValue(undefined);
+  updateAffiliationsMock.mockResolvedValue([2000, 3000]);
 
   expect(await refreshAffiliations([101])).toBe(1);
   expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
@@ -76,6 +77,18 @@ test('refreshAffiliations fetches then upserts, short-circuits empty input, and 
   expect(updateAffiliationsMock).not.toHaveBeenCalled();
 });
 
+test('refreshAffiliationsWithOutcome forwards corporation ids that actually changed', async () => {
+  const rows = [{ characterId: 101, corporationId: 3000, allianceId: null, factionId: null }];
+  fetchAffiliationsMock.mockResolvedValue({ rows, transientFailure: false });
+  updateAffiliationsMock.mockResolvedValue([2000, 3000]);
+
+  await expect(refreshAffiliationsWithOutcome([101])).resolves.toEqual({
+    refreshed: 1,
+    transientFailure: false,
+    changedCorporationIds: [2000, 3000],
+  });
+});
+
 test('refreshStaleAffiliationsForUser refreshes only stale and never-refreshed characters', async () => {
   const FRESH_AT = new Date(Date.now() - 1_000);
   const STALE_AT = new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000);
@@ -89,7 +102,7 @@ test('refreshStaleAffiliationsForUser refreshes only stale and never-refreshed c
     rows: [{ characterId: 102, corporationId: 2000, allianceId: null, factionId: null }],
     transientFailure: false,
   });
-  updateAffiliationsMock.mockResolvedValue(undefined);
+  updateAffiliationsMock.mockResolvedValue([]);
 
   expect(await refreshStaleAffiliationsForUser('u1')).toBe(1);
   expect(fetchAffiliationsMock).toHaveBeenCalledWith([102, 103]);

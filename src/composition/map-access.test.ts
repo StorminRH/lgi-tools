@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getUserAffiliations: vi.fn(),
   refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
   resolveEntityNames: vi.fn(),
+  reprojectMapsForCorporations: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -23,6 +24,9 @@ vi.mock('@/platform/auth/affiliation', () => ({
 }));
 vi.mock('@/data/eve-data/entity-names', () => ({
   resolveEntityNames: mocks.resolveEntityNames,
+}));
+vi.mock('./map-access-identity', () => ({
+  reprojectMapsForCorporations: mocks.reprojectMapsForCorporations,
 }));
 
 import {
@@ -49,7 +53,9 @@ beforeEach(() => {
   mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
     refreshed: 0,
     transientFailure: false,
+    changedCorporationIds: [],
   });
+  mocks.reprojectMapsForCorporations.mockResolvedValue(undefined);
   mocks.getUserAffiliations.mockResolvedValue([]);
   mocks.getAuthorizedMapGrantsForMaps.mockResolvedValue([]);
   mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([]);
@@ -149,6 +155,25 @@ describe('map chrome data', () => {
     );
     expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100]);
     expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledOnce();
+    expect(mocks.reprojectMapsForCorporations).toHaveBeenCalledWith([]);
+  });
+
+  it('re-projects maps for corporations that changed during the listing refresh', async () => {
+    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
+      refreshed: 1,
+      transientFailure: false,
+      changedCorporationIds: [99, 100],
+    });
+    mocks.getUserAffiliations.mockResolvedValue([
+      affiliation(42, 100, new Date()),
+    ]);
+
+    await listMapChromeData('user-1');
+
+    expect(mocks.reprojectMapsForCorporations).toHaveBeenCalledWith([99, 100]);
+    expect(
+      mocks.reprojectMapsForCorporations.mock.invocationCallOrder[0],
+    ).toBeLessThan(mocks.listAuthorizedMapsForPrincipals.mock.invocationCallOrder[0] ?? 0);
   });
 });
 

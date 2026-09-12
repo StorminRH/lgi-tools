@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const listStaleLinkedCharacterIdsMock = vi.fn();
-const refreshAffiliationsMock = vi.fn();
+const refreshAffiliationsAndReprojectMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 let lockGot = true;
@@ -13,7 +13,11 @@ const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag))
 
 vi.mock('@/platform/auth/affiliation', () => ({
   ADVISORY_LOCK_AFFILIATION_REFRESH: 31,
-  refreshAffiliations: (...args: unknown[]) => refreshAffiliationsMock(...args),
+}));
+
+vi.mock('@/composition/map-access-identity', () => ({
+  refreshAffiliationsAndReproject: (...args: unknown[]) =>
+    refreshAffiliationsAndReprojectMock(...args),
 }));
 
 vi.mock('@/platform/auth/affiliation-store', () => ({
@@ -45,7 +49,7 @@ describe('GET /api/cron/refresh-affiliations', () => {
   beforeEach(() => {
     vi.resetModules();
     listStaleLinkedCharacterIdsMock.mockReset();
-    refreshAffiliationsMock.mockReset();
+    refreshAffiliationsAndReprojectMock.mockReset();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     reserveMock.mockClear();
     reservedTag.mockClear();
@@ -76,7 +80,7 @@ describe('GET /api/cron/refresh-affiliations', () => {
     const response = await GET(authedRequest());
 
     expect(await response.json()).toEqual({ status: 'busy' });
-    expect(refreshAffiliationsMock).not.toHaveBeenCalled();
+    expect(refreshAffiliationsAndReprojectMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_affiliations',
       metadata: {
@@ -88,7 +92,7 @@ describe('GET /api/cron/refresh-affiliations', () => {
 
   it('returns stale and refreshed counts and records them', async () => {
     listStaleLinkedCharacterIdsMock.mockResolvedValue([101, 202, 303]);
-    refreshAffiliationsMock.mockResolvedValue(2);
+    refreshAffiliationsAndReprojectMock.mockResolvedValue(2);
     const { GET } = await importRoute();
     const response = await GET(authedRequest());
 
@@ -97,7 +101,7 @@ describe('GET /api/cron/refresh-affiliations', () => {
       stale: 3,
       refreshed: 2,
     });
-    expect(refreshAffiliationsMock).toHaveBeenCalledWith([101, 202, 303]);
+    expect(refreshAffiliationsAndReprojectMock).toHaveBeenCalledWith([101, 202, 303]);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_affiliations',
       metadata: {

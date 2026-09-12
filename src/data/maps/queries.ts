@@ -590,8 +590,8 @@ export async function getUserIdsInCorporations(
   return new Set(owners.values());
 }
 
-async function getMapIdsWithCorporationGrants(
-  corporationIds: number[],
+export async function affectedMapIdsForCorporations(
+  corporationIds: readonly number[],
   database: AnyPgDb = db,
 ): Promise<string[]> {
   if (corporationIds.length === 0) return [];
@@ -602,7 +602,7 @@ async function getMapIdsWithCorporationGrants(
     .where(
       and(
         eq(mapAccess.ownerType, 'corporation'),
-        inArray(mapAccess.ownerId, corporationIds),
+        inArray(mapAccess.ownerId, [...corporationIds]),
       ),
     );
   return rows.map((row) => row.mapId);
@@ -658,6 +658,6 @@ export async function affectedMapIdsForCharacter(
   const corporationMaps =
     corporationId === null
       ? []
-      : await getMapIdsWithCorporationGrants([corporationId], database);
+      : await affectedMapIdsForCorporations([corporationId], database);
   return [...new Set([...characterMaps, ...corporationMaps])];
 }

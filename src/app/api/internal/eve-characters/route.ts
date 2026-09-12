@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { refreshAffiliations } from '@/platform/auth/affiliation';
+import { refreshAffiliationsAndReproject } from '@/composition/map-access-identity';
 import {
   eveCharactersEndpoint,
   eveCharactersRequestSchema,
@@ -31,7 +31,7 @@ export async function POST(req: Request): Promise<Response> {
     )
     .map((character) => character.characterId);
   if (staleIds.length > 0) {
-    after(() => refreshAffiliations(staleIds));
+    after(() => refreshAffiliationsAndReproject(staleIds));
   }
 
   return apiResponse(eveCharactersEndpoint, 200, {

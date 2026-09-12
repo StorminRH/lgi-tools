@@ -16,7 +16,6 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
-import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
@@ -42,9 +41,14 @@ export interface CreateAuthDeps {
     characterId: number,
     jwtOwnerHash: string | null | undefined,
   ) => Promise<void>;
+  readonly refreshCharacterAffiliations: (characterIds: number[]) => Promise<number>;
 }
 
-export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps) {
+export function createAuth({
+  runners,
+  reconcileCharacterOwner,
+  refreshCharacterAffiliations,
+}: CreateAuthDeps) {
   const options = {
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -148,7 +152,7 @@ export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps)
               );
               if (absorbed) recordAbsorb(character.characterId);
               await upsertCharacterLoginIdentity(character);
-              void refreshAffiliations([character.characterId]).catch((err) =>
+              void refreshCharacterAffiliations([character.characterId]).catch((err) =>
                 console.error('[auth] affiliation refresh failed', err),
               );
               void logUsageEvent({

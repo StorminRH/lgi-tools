@@ -12,6 +12,7 @@ import {
   compensateFailedMapCreation,
   createMapAtomic,
   getAuthorizedMapGrantsForMaps,
+  affectedMapIdsForCorporations,
   getUserIdsInCorporations,
   getUserIdsOwningCharacters,
   listAuthorizedMapsForPrincipals,
@@ -94,6 +95,54 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
 
   it('returns an empty set without querying when corporation ids are empty', async () => {
     await expect(getUserIdsInCorporations([])).resolves.toEqual(new Set());
+  });
+
+  it('lists maps granted to the named corporations and ignores character grants', async () => {
+    await seedUser(harness.db, 'creator');
+    await harness.db.insert(maps).values([
+      {
+        id: '40000000-0000-4000-8000-000000000001',
+        userId: 'creator',
+        name: 'Old corp',
+      },
+      {
+        id: '40000000-0000-4000-8000-000000000002',
+        userId: 'creator',
+        name: 'New corp',
+      },
+      {
+        id: '40000000-0000-4000-8000-000000000003',
+        userId: 'creator',
+        name: 'Direct only',
+      },
+    ]);
+    await harness.db.insert(mapAccess).values([
+      {
+        mapId: '40000000-0000-4000-8000-000000000001',
+        ownerType: 'corporation',
+        ownerId: 98000011,
+        role: 'viewer',
+      },
+      {
+        mapId: '40000000-0000-4000-8000-000000000002',
+        ownerType: 'corporation',
+        ownerId: 98000021,
+        role: 'editor',
+      },
+      {
+        mapId: '40000000-0000-4000-8000-000000000003',
+        ownerType: 'character',
+        ownerId: 42,
+        role: 'viewer',
+      },
+    ]);
+
+    const mapIds = await affectedMapIdsForCorporations([98000011, 98000021]);
+    expect([...mapIds].sort()).toEqual([
+      '40000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000002',
+    ]);
+    await expect(affectedMapIdsForCorporations([])).resolves.toEqual([]);
   });
 
   it('creates a map and selected grants in one statement, including a private map', async () => {

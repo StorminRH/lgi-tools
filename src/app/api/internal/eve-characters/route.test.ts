@@ -4,15 +4,15 @@ import { problemBodySchema } from '@/lib/problem';
 const h = vi.hoisted(() => ({
   afterMock: vi.fn(),
   listLinkedCharactersMock: vi.fn(),
-  refreshAffiliationsMock: vi.fn(),
+  refreshAffiliationsAndReprojectMock: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({
   after: (callback: () => unknown) => h.afterMock(callback),
   connection: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/platform/auth/affiliation', () => ({
-  refreshAffiliations: h.refreshAffiliationsMock,
+vi.mock('@/composition/map-access-identity', () => ({
+  refreshAffiliationsAndReproject: h.refreshAffiliationsAndReprojectMock,
 }));
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: h.listLinkedCharactersMock,
@@ -38,7 +38,7 @@ beforeEach(() => {
   vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
   h.afterMock.mockReset();
   h.listLinkedCharactersMock.mockReset().mockResolvedValue([]);
-  h.refreshAffiliationsMock.mockReset().mockResolvedValue(undefined);
+  h.refreshAffiliationsAndReprojectMock.mockReset().mockResolvedValue(0);
 });
 
 afterEach(() => {
@@ -113,5 +113,27 @@ describe('POST /api/internal/eve-characters', () => {
     expect(body.characters[0]).not.toHaveProperty('refreshToken');
     expect(h.listLinkedCharactersMock).toHaveBeenCalledWith('user-1');
     expect(h.afterMock).not.toHaveBeenCalled();
+  });
+
+  it('refreshes stale affiliations and re-projects after the response', async () => {
+    h.listLinkedCharactersMock.mockResolvedValue([
+      {
+        characterId: 90000001,
+        name: 'Alice',
+        portraitUrl: 'https://images.evetech.net/characters/90000001/portrait',
+        scope: null,
+        hasRefreshToken: false,
+        linkedAt: new Date(),
+        corporationId: 98000001,
+        affiliationRefreshedAt: new Date(0),
+      },
+    ]);
+
+    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+    expect(res.status).toBe(200);
+    expect(h.afterMock).toHaveBeenCalledOnce();
+    const scheduled = h.afterMock.mock.calls[0]?.[0] as () => unknown;
+    await scheduled();
+    expect(h.refreshAffiliationsAndReprojectMock).toHaveBeenCalledWith([90000001]);
   });
 });

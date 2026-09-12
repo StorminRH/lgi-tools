@@ -9,18 +9,14 @@ import {
   type AuthorizedMapRow,
   type DeletedRestorableMapRow,
 } from '@/data/maps/queries';
-import {
-  getUserAffiliations,
-} from '@/platform/auth/affiliation-store';
-import { refreshStaleAffiliationsForUserWithOutcome } from '@/platform/auth/affiliation';
-import { memberCorpIds } from '@/platform/auth/membership';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import type { MapPrincipals } from '@/data/maps/access';
+import { reprojectMapsForCorporations } from './map-access-identity';
+import {
+  resolveMapPrincipalsWithOutcome,
+  type ResolvedMapPrincipals,
+} from './map-access-principals';
 
-export interface ResolvedMapPrincipals {
-  readonly principals: MapPrincipals;
-  readonly refreshTransientFailure: boolean;
-}
+export { resolveMapPrincipals } from './map-access-principals';
 
 export interface MapChromeData {
   readonly maps: readonly AuthorizedMapRow[];
@@ -29,27 +25,10 @@ export interface MapChromeData {
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
 }
 
-export async function resolveMapPrincipalsWithOutcome(
-  userId: string,
-): Promise<ResolvedMapPrincipals> {
-  const { transientFailure } = await refreshStaleAffiliationsForUserWithOutcome(userId);
-  const affiliations = await getUserAffiliations(userId);
-  return {
-    principals: {
-      characterIds: affiliations.map((affiliation) => affiliation.characterId),
-      corporationIds: memberCorpIds(affiliations, new Date()),
-    },
-    refreshTransientFailure: transientFailure,
-  };
-}
-
-export async function resolveMapPrincipals(userId: string): Promise<MapPrincipals> {
-  const { principals } = await resolveMapPrincipalsWithOutcome(userId);
-  return principals;
-}
-
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {
-  const principals = await resolveMapPrincipals(userId);
+  const { principals, changedCorporationIds }: ResolvedMapPrincipals =
+    await resolveMapPrincipalsWithOutcome(userId);
+  await reprojectMapsForCorporations(changedCorporationIds);
   const [maps, deletedMaps] = await Promise.all([
     listAuthorizedMapsForPrincipals(userId, principals),
     listDeletedRestorableMapsForPrincipals(userId, principals),

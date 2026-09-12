@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
@@ -85,10 +85,33 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-export async function updateAffiliations(rows: AffiliationRow[]): Promise<void> {
-  if (rows.length === 0) return;
+export async function updateAffiliations(
+  rows: AffiliationRow[],
+): Promise<readonly number[]> {
+  if (rows.length === 0) return [];
+
+  const characterIds = [...new Set(rows.map((row) => row.characterId))];
+  const previousRows = await db
+    .select({
+      characterId: characters.characterId,
+      corporationId: characters.corporationId,
+    })
+    .from(characters)
+    .where(inArray(characters.characterId, characterIds));
+  const previousCorporationIdByCharacter = new Map(
+    previousRows.map((row) => [row.characterId, row.corporationId] as const),
+  );
+
   const now = new Date();
+  const changedCorporationIds = new Set<number>();
   for (const r of rows) {
+    const previousCorporationId = previousCorporationIdByCharacter.get(r.characterId);
+    if (previousCorporationId !== undefined && previousCorporationId !== r.corporationId) {
+      if (previousCorporationId !== null) {
+        changedCorporationIds.add(previousCorporationId);
+      }
+      changedCorporationIds.add(r.corporationId);
+    }
     await db
       .update(characters)
       .set({
@@ -100,6 +123,7 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<void> 
       })
       .where(eq(characters.characterId, r.characterId));
   }
+  return [...changedCorporationIds].sort((left, right) => left - right);
 }
 
 export async function recordCorpAccessDecision(entry: {

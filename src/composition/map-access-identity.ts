@@ -4,9 +4,35 @@ import {
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
-import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries';
+import {
+  affectedMapIdsForCharacter,
+  affectedMapIdsForCorporations,
+  getOwnedMapIds,
+} from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
+import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
+
+export async function reprojectMapsForCorporations(
+  corporationIds: readonly number[],
+): Promise<void> {
+  if (corporationIds.length === 0) return;
+  const mapIds = await affectedMapIdsForCorporations(corporationIds);
+  for (const mapId of mapIds) {
+    await bestEffort('map-access-identity', 'projection', mapId, () =>
+      projectMapAccess(mapId),
+    );
+  }
+}
+
+export async function refreshAffiliationsAndReproject(
+  characterIds: number[],
+): Promise<number> {
+  const { refreshed, changedCorporationIds } =
+    await refreshAffiliationsWithOutcome(characterIds);
+  await reprojectMapsForCorporations(changedCorporationIds);
+  return refreshed;
+}
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
   const mapIds = await affectedMapIdsForCharacter(characterId);

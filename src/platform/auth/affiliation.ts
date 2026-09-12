@@ -18,19 +18,22 @@ export const ADVISORY_LOCK_AFFILIATION_REFRESH = BigInt(8273619016);
 export interface AffiliationRefreshOutcome {
   readonly refreshed: number;
   readonly transientFailure: boolean;
+  readonly changedCorporationIds: readonly number[];
 }
 
 export async function refreshAffiliationsWithOutcome(
   characterIds: number[],
 ): Promise<AffiliationRefreshOutcome> {
-  if (characterIds.length === 0) return { refreshed: 0, transientFailure: false };
+  if (characterIds.length === 0) {
+    return { refreshed: 0, transientFailure: false, changedCorporationIds: [] };
+  }
   try {
     const { rows, transientFailure } = await fetchAffiliations(characterIds);
-    await updateAffiliations(rows);
-    return { refreshed: rows.length, transientFailure };
+    const changedCorporationIds = await updateAffiliations(rows);
+    return { refreshed: rows.length, transientFailure, changedCorporationIds };
   } catch (err) {
     console.error('[auth/affiliation] refresh failed', err);
-    return { refreshed: 0, transientFailure: true };
+    return { refreshed: 0, transientFailure: true, changedCorporationIds: [] };
   }
 }
 

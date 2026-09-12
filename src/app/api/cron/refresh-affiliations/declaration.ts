@@ -1,9 +1,7 @@
 import type { CronRefreshAffiliationsResponse } from '@/platform/auth/api-contract';
-import {
-  ADVISORY_LOCK_AFFILIATION_REFRESH,
-  refreshAffiliations,
-} from '@/platform/auth/affiliation';
+import { ADVISORY_LOCK_AFFILIATION_REFRESH } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
+import { refreshAffiliationsAndReproject } from '@/composition/map-access-identity';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 
 export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAffiliationsResponse> = {
@@ -21,7 +19,7 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
   },
   work: async () => {
     const staleIds = await listStaleLinkedCharacterIds();
-    const refreshed = await refreshAffiliations(staleIds);
+    const refreshed = await refreshAffiliationsAndReproject(staleIds);
 
     return {
       outcome: 'refreshed',
