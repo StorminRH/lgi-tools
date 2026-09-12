@@ -2,20 +2,22 @@
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { memo, useEffect, useLayoutEffect, useRef } from 'react';
+import { TitleMetric } from '@/components/ui/chrome-mark';
 import { cn } from '@/components/ui/cn';
 import {
+  isSecurityChip,
   systemClassificationReadout,
   systemDestinationClassReadout,
   systemDestinationHintReadout,
 } from '@/data/eve-data/system-identity';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
-import type { NodeMotion } from '../motion/motion-contract';
-import { isSecurityChip } from '@/data/eve-data/system-identity';
 import { closestHubLabel } from '@/data/eve-data/trade-hubs';
+import type { NodeMotion } from '../motion/motion-contract';
 import { useUniverseAssets } from '../chain/use-universe-assets';
 import { useGlanceMarks } from '../signatures/use-glance-mark-index';
 import { useSystemPresence } from '../tracking/presence-context';
-import { kspaceTitleOffset, visibleNodeWidgets } from './disc-chrome';
+import { kspaceTitleOffset } from './disc-chrome';
+import { HUB_FACE, visibleTrackOccupants } from './node-chrome';
 import { NodeWidgetTrack } from './NodeWidgetTrack';
 
 export type ChainNodeData = {
@@ -155,7 +157,7 @@ function NodeDisc({
 }) {
   const marks = useGlanceMarks(systemId);
   const presence = useSystemPresence(systemId);
-  const widgets = stub ? [] : visibleNodeWidgets(marks, presence);
+  const occupants = stub ? [] : visibleTrackOccupants(marks, presence);
   return (
     <div
       className={cn(
@@ -182,7 +184,7 @@ function NodeDisc({
         isConnectable={isConnectable}
         className={CENTER_HANDLE_CLASS}
       />
-      <NodeWidgetTrack widgets={widgets} systemId={systemId} />
+      <NodeWidgetTrack occupants={occupants} />
     </div>
   );
 }
@@ -224,9 +226,7 @@ function KSpaceTitle({
         </span>
       ) : null}
       {hub !== null ? (
-        <span data-chain-node-hub className="font-data text-micro leading-none text-muted">
-          {hub}
-        </span>
+        <TitleMetric {...HUB_FACE} caption={hub} dataAttr="data-chain-node-hub" />
       ) : null}
     </div>
   );

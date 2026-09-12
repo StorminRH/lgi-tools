@@ -39,7 +39,6 @@ vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => chrome.assets,
 }));
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
-import { PresenceBadgeView } from './PilotPresenceBadge';
 import {
   SYSTEM_FRAME_HEIGHT,
   SYSTEM_FRAME_WIDTH,
@@ -335,19 +334,20 @@ test('presence badge tones, counts, and motion markup', () => {
     lastMovementAt: 0,
     ...overrides,
   });
-  const badge = (presence: SystemPresence) =>
-    renderToStaticMarkup(createElement(PresenceBadgeView, { presence }));
 
-  const live = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
-  expect(live).toContain('data-pilot-presence="live"');
-  expect(live).toContain('text-isk');
-  expect(live).toContain('<svg');
-
-  const one = badge({ pilots: [pilot({})] });
-  const two = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
-  expect(one).not.toContain('data-pilot-presence-count');
+  chrome.presence = { pilots: [pilot({}), pilot({ characterId: 2 })] };
+  const two = markup(undefined);
+  expect(two).toContain('data-pilot-presence="live"');
+  expect(two).toContain('text-isk');
+  expect(two).toContain('<svg');
   expect(two).toContain('data-pilot-presence-count');
   expect(two).toContain('>2<');
+
+  chrome.presence = { pilots: [pilot({})] };
+  const one = markup(undefined);
+  expect(one).toContain('data-pilot-presence="live"');
+  expect(one).not.toContain('data-pilot-presence-count');
+  chrome.presence = null;
 
   const entering = markup({ phase: 'entering' });
   expect(entering).toContain('map-node-enter');
@@ -445,6 +445,9 @@ test('glance marks sit in the widget slot and stay off stubs', () => {
   expect(marked).toContain('data-glance-mark="combat"');
   expect(marked).toContain('data-chain-node-widget-seat');
   expect(marked).toContain('size-icon-sm');
+  expect(marked).toContain('text-tone-teal');
+  expect(marked).toContain('text-tone-red');
+  expect(marked).not.toContain('text-isk');
 
   const stub = renderToStaticMarkup(
     createElement(SystemNode, {
@@ -485,6 +488,7 @@ test('security-chip titles overflow above the unchanged 150x110 frame', () => {
   expect(rendered).toContain('The Forge');
   expect(rendered).toContain('data-chain-node-hub');
   expect(rendered).toContain('Jita 5');
+  expect(rendered).toContain('text-tone-yellow');
   expect(rendered).toContain('size-[55px]');
   expect(rendered).toContain('top-1/2');
   chrome.assets = null;
