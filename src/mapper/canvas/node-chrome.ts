@@ -3,7 +3,7 @@ import type { GlanceBucket } from '../signatures/signature-model';
 import type { SystemPresence } from '../tracking/presence-model';
 
 export const HUB_FACE = {
-  glyph: 'station',
+  glyph: 'market',
   tone: 'yellow',
 } as const satisfies ChromeFace;
 

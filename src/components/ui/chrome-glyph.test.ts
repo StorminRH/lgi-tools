@@ -12,7 +12,7 @@ const GLYPHS = [
   'hacking-chip',
   'combat-reticle',
   'pilot',
-  'station',
+  'market',
 ] as const satisfies readonly ChromeGlyph[];
 
 describe('chrome glyphs', () => {
@@ -32,10 +32,31 @@ describe('chrome glyphs', () => {
       ).toBe(true);
     }
     expect(
-      CHROME_GLYPHS.station.every(
+      CHROME_GLYPHS.market.every(
         (node) => node.kind !== 'path' || node.fillRule === undefined,
       ),
     ).toBe(true);
+  });
+
+  it('traces the official market graph: axes, zigzag trend, endpoint dot', () => {
+    const nodes = CHROME_GLYPHS.market;
+    expect(nodes).toHaveLength(3);
+    const [axes, trend, dot] = nodes;
+    expect(axes?.kind).toBe('path');
+    if (axes?.kind !== 'path') throw new Error('market axes must be a path');
+    expect(axes.fill).toBe('none');
+    expect(axes.stroke).toBe('currentColor');
+    expect(axes.d).toContain('V');
+    expect(axes.d).toContain('H');
+    expect(trend?.kind).toBe('path');
+    if (trend?.kind !== 'path') throw new Error('market trend must be a path');
+    expect(trend.fill).toBe('none');
+    expect(trend.stroke).toBe('currentColor');
+    expect(trend.d).toContain('L');
+    expect(dot?.kind).toBe('circle');
+    if (dot?.kind !== 'circle') throw new Error('market dot must be a circle');
+    expect(dot.r).toBeGreaterThan(0.9);
+    expect(dot.r).toBeLessThan(1.3);
   });
 
   it('draws gas as a hollow cloud outline', () => {

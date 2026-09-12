@@ -5,7 +5,7 @@ export type ChromeGlyph =
   | 'hacking-chip'
   | 'combat-reticle'
   | 'pilot'
-  | 'station';
+  | 'market';
 
 export type GlyphNode =
   | {
@@ -85,11 +85,22 @@ export const CHROME_GLYPHS: { readonly [K in ChromeGlyph]: readonly GlyphNode[] 
       d: 'M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5v1H3v-1ZM4.5 13.5c0-1.6 1.55-2.9 3.5-2.9s3.5 1.3 3.5 2.9v.4H4.5v-.4Z',
     },
   ],
-  station: [
-    { kind: 'path', d: 'M7.2 1.6h1.6v1.2H7.2z' },
-    { kind: 'path', d: 'M6.4 2.8h3.2v9.6H6.4z' },
-    { kind: 'path', d: 'M3.2 6.4h2.6v5.2H3.2z' },
-    { kind: 'path', d: 'M10.2 6.4h2.6v5.2h-2.6z' },
+  market: [
+    {
+      kind: 'path',
+      d: 'M2.8 2.5V13.5H13.5',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.3,
+    },
+    {
+      kind: 'path',
+      d: 'M2.8 8.2L4.8 6.3L6.3 10.8L8.6 8.3L10.4 8.8L12.2 5.2',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.4,
+    },
+    { kind: 'circle', cx: 12.9, cy: 4.5, r: 1.1 },
   ],
 };
 

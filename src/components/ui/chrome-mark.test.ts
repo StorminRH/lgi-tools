@@ -65,7 +65,7 @@ describe('chrome catalog paint', () => {
       { glyph: 'hacking-chip', tone: 'blue' },
       { glyph: 'combat-reticle', tone: 'red' },
       { glyph: 'pilot', tone: 'green' },
-      { glyph: 'station', tone: 'yellow' },
+      { glyph: 'market', tone: 'yellow' },
     ] as const;
     for (const face of faces) {
       const html = renderToStaticMarkup(
@@ -78,10 +78,10 @@ describe('chrome catalog paint', () => {
 });
 
 describe('TitleMetric', () => {
-  it('pairs a toned station glyph with a muted caption', () => {
+  it('pairs a toned market glyph with a muted caption', () => {
     const html = renderToStaticMarkup(
       createElement(TitleMetric, {
-        glyph: 'station',
+        glyph: 'market',
         tone: 'yellow',
         caption: 'Jita 5',
         dataAttr: 'data-chain-node-hub',
