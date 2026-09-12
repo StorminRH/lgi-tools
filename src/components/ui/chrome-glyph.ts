@@ -35,11 +35,20 @@ export type GlyphNode =
       readonly strokeWidth: number;
     };
 
+function ringCircle(cx: number, cy: number, r: number, wall: number): GlyphNode {
+  const inner = r - wall;
+  return {
+    kind: 'path',
+    fillRule: 'evenodd',
+    d: `M${cx} ${cy - r}a${r} ${r} 0 1 1 0 ${2 * r}a${r} ${r} 0 1 1 0 ${-2 * r}ZM${cx} ${cy - inner}a${inner} ${inner} 0 1 0 0 ${2 * inner}a${inner} ${inner} 0 1 0 0 ${-2 * inner}Z`,
+  };
+}
+
 export const CHROME_GLYPHS: { readonly [K in ChromeGlyph]: readonly GlyphNode[] } = {
   'gas-cloud': [
-    { kind: 'circle', cx: 5.2, cy: 9, r: 3.4 },
-    { kind: 'circle', cx: 10.8, cy: 9, r: 3.4 },
-    { kind: 'circle', cx: 8, cy: 6.2, r: 3.8 },
+    ringCircle(5.2, 9, 3.4, 1.5),
+    ringCircle(10.8, 9, 3.4, 1.5),
+    ringCircle(8, 6.2, 3.8, 1.5),
   ],
   'hacking-chip': [
     {
@@ -65,8 +74,12 @@ export const CHROME_GLYPHS: { readonly [K in ChromeGlyph]: readonly GlyphNode[] 
     { kind: 'circle', cx: 8, cy: 8, r: 1 },
   ],
   pilot: [
-    { kind: 'circle', cx: 8, cy: 5, r: 3 },
-    { kind: 'path', d: 'M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5v1H3v-1Z' },
+    ringCircle(8, 5, 3, 1.5),
+    {
+      kind: 'path',
+      fillRule: 'evenodd',
+      d: 'M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5v1H3v-1ZM4.5 13.5c0-1.6 1.55-2.9 3.5-2.9s3.5 1.3 3.5 2.9v.4H4.5v-.4Z',
+    },
   ],
   station: [
     { kind: 'path', d: 'M7.2 1.6h1.6v1.2H7.2z' },

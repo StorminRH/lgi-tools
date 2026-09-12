@@ -23,6 +23,21 @@ describe('chrome glyphs', () => {
     }
   });
 
+  it('cuts gas and pilot as evenodd rings like the hacking chip', () => {
+    for (const glyph of ['gas-cloud', 'hacking-chip', 'pilot'] as const) {
+      expect(
+        CHROME_GLYPHS[glyph].some(
+          (node) => node.kind === 'path' && node.fillRule === 'evenodd',
+        ),
+      ).toBe(true);
+    }
+    expect(
+      CHROME_GLYPHS.station.every(
+        (node) => node.kind !== 'path' || node.fillRule === undefined,
+      ),
+    ).toBe(true);
+  });
+
   it('maps widget tones onto named color classes', () => {
     expect(chromeToneClass('green' satisfies ChromeTone)).toBe('text-isk');
     expect(chromeToneClass('teal')).toBe('text-tone-teal');

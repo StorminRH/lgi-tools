@@ -24,6 +24,7 @@ describe('NodeMark', () => {
     expect(html).toContain('size-icon-sm');
     expect(html).toContain('text-tone-teal');
     expect(html).toContain('<svg');
+    expect(html).toContain('fill-rule="evenodd"');
     expect(html).not.toContain('text-isk');
     expect(html).not.toContain('data-pilot-presence-count');
   });
@@ -37,6 +38,7 @@ describe('NodeMark', () => {
       }),
     );
     expect(html).toContain('text-isk');
+    expect(html).toContain('fill-rule="evenodd"');
     expect(html).toContain('data-pilot-presence-count');
     expect(html).toContain('>2<');
     expect(html).toContain('text-muted');
