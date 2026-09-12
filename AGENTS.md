@@ -11,11 +11,6 @@ Sub-agent usage is encouraged, especially for context isolation.
 For noisy work such as testing, documentation lookup, and exploring
 the repository, isolate those tasks to a sub-agent.
 
-Task-specific standards live in [docs/principles](docs/principles/).
-Point agents at the relevant file when the work should follow it —
-[testing principles](docs/principles/testing-principles.md) and
-[end-to-end testing](docs/principles/end-to-end-testing.md) for test work.
-
 Production builds run in CI and on Vercel; do not run them locally.
 Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
 
