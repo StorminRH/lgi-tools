@@ -421,6 +421,7 @@ test('glance marks sit in the widget slot and stay off stubs', () => {
   expect(marked).toContain('data-glance-marks');
   expect(marked).toContain('data-glance-mark="harvestables"');
   expect(marked).toContain('data-glance-mark="combat"');
+  expect(marked).toContain('data-chain-node-widget-seat');
   expect(marked).toContain('size-icon-sm');
 
   const stub = renderToStaticMarkup(
@@ -457,7 +458,7 @@ test('security-chip titles overflow above the unchanged 150x110 frame', () => {
   expect(SYSTEM_FRAME_WIDTH).toBe(150);
   expect(SYSTEM_FRAME_HEIGHT).toBe(110);
   expect(rendered).toContain('data-chain-node-kspace-title');
-  expect(rendered).toContain('bottom-full');
+  expect(rendered).not.toContain('bottom-full');
   expect(rendered).toContain('data-chain-node-region');
   expect(rendered).toContain('The Forge');
   expect(rendered).toContain('data-chain-node-hub');

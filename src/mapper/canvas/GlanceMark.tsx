@@ -2,7 +2,6 @@
 
 import { cn } from '@/components/ui/cn';
 import type { GlanceBucket } from '../signatures/signature-model';
-import { useGlanceMarks } from '../signatures/use-glance-mark-index';
 
 function HarvestablesIcon() {
   return (
@@ -43,20 +42,13 @@ function GlanceIcon({ bucket }: { readonly bucket: GlanceBucket }) {
   }
 }
 
-export function GlanceMarkStrip({ systemId }: { readonly systemId: number }) {
-  const marks = useGlanceMarks(systemId);
-  if (marks.length === 0) return null;
+export function GlanceMark({ bucket }: { readonly bucket: GlanceBucket }) {
   return (
-    <span data-glance-marks className="flex items-center gap-0.5 text-isk">
-      {marks.map((bucket) => (
-        <span
-          key={bucket}
-          data-glance-mark={bucket}
-          className={cn('inline-flex size-icon-sm items-center justify-center')}
-        >
-          <GlanceIcon bucket={bucket} />
-        </span>
-      ))}
+    <span
+      data-glance-mark={bucket}
+      className={cn('inline-flex size-icon-sm items-center justify-center text-isk')}
+    >
+      <GlanceIcon bucket={bucket} />
     </span>
   );
 }

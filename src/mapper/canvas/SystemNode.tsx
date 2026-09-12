@@ -13,8 +13,10 @@ import type { NodeMotion } from '../motion/motion-contract';
 import { isSecurityChip } from '@/data/eve-data/system-identity';
 import { closestHubLabel } from '@/data/eve-data/trade-hubs';
 import { useUniverseAssets } from '../chain/use-universe-assets';
-import { GlanceMarkStrip } from './GlanceMarkStrip';
-import { PilotPresenceBadge } from './PilotPresenceBadge';
+import { useGlanceMarks } from '../signatures/use-glance-mark-index';
+import { useSystemPresence } from '../tracking/presence-context';
+import { kspaceTitleOffset, visibleNodeWidgets } from './disc-chrome';
+import { NodeWidgetTrack } from './NodeWidgetTrack';
 
 export type ChainNodeData = {
   name: string;
@@ -151,6 +153,9 @@ function NodeDisc({
   readonly stub: boolean;
   readonly systemId: number;
 }) {
+  const marks = useGlanceMarks(systemId);
+  const presence = useSystemPresence(systemId);
+  const widgets = stub ? [] : visibleNodeWidgets(marks, presence);
   return (
     <div
       className={cn(
@@ -177,17 +182,7 @@ function NodeDisc({
         isConnectable={isConnectable}
         className={CENTER_HANDLE_CLASS}
       />
-      <div
-        data-chain-node-widgets
-        className="absolute -right-[16px] -top-[4px] flex items-center justify-end gap-0.5"
-      >
-        {stub ? null : (
-          <>
-            <GlanceMarkStrip systemId={systemId} />
-            <PilotPresenceBadge systemId={systemId} />
-          </>
-        )}
-      </div>
+      <NodeWidgetTrack widgets={widgets} />
     </div>
   );
 }
@@ -202,27 +197,31 @@ function KSpaceTitle({
   const assets = useUniverseAssets();
   const entry = assets?.systemInfo(systemId);
   const hub = assets === null ? null : closestHubLabel(assets.hubJumps(systemId));
+  const offset = kspaceTitleOffset();
   return (
     <div
       data-chain-node-kspace-title
-      className="absolute inset-x-0 bottom-full mb-0.5 flex flex-col items-center text-center"
+      className="absolute left-1/2 top-1/2 flex w-full flex-col items-center text-center"
+      style={{
+        transform: `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`,
+      }}
     >
       <span
         data-chain-node-name
-        className="w-full truncate px-1 font-ui text-nav font-bold text-name"
+        className="w-full truncate px-1 font-ui text-nav font-bold leading-none text-name"
       >
         {name}
       </span>
       {entry !== null && entry !== undefined ? (
         <span
           data-chain-node-region
-          className="w-full truncate px-1 font-data text-micro text-muted"
+          className="w-full truncate px-1 font-data text-micro leading-none text-muted"
         >
           {entry.regionName}
         </span>
       ) : null}
       {hub !== null ? (
-        <span data-chain-node-hub className="font-data text-micro text-muted">
+        <span data-chain-node-hub className="font-data text-micro leading-none text-muted">
           {hub}
         </span>
       ) : null}
