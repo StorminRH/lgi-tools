@@ -14,7 +14,7 @@
     "/admin/statics": "Per-user: the admin gate and pending statics snapshot read are isolated in a request-time Suspense hole; the operator page container prerenders.",
     "/api/admin/wh-statics": "Dynamic admin form mutation: same-origin refresh, promote, or reject action followed by a 303 redirect.",
     "/api/cron/refresh-wh-statics": "Dynamic weekly cron: conditional community-feed probe and lock-guarded pending snapshot write.",
-    "/api/dev/synthetic-pilot": "Development localhost mint: upserts the reserved E2E pilot, sets the Better Auth session cookie, and 303s home. Any other host or NODE_ENV is an empty 404.",
+    "/api/dev/synthetic-pilot": "Development localhost POST: resets the reserved test pilot and its access, then issues a session cookie and redirects home. Requires matching Host and Origin. GET is inert.",
     "/preview/primitives": "Admin-gated primitive reference: the page chrome prerenders and the session check plus rendered interactive sheet stream from a request-time Suspense hole.",
     "/preview/widgets": "Widget isolation page: SDE-backed site identifier is cached into the prerender and widgets load their public detail endpoint after mount; partial because the shared header's Tranquility chip is a request-time io() hole.",
     "/characters": "Per-user: PageHead stays in the static shell; the session-gated character-management list (link / switch active / unlink) is a request-time dynamic hole with a content-shaped skeleton.",

@@ -8,57 +8,56 @@ vi.mock('@/composition/synthetic-pilot-store', () => ({
   becomeSyntheticPilot: (...args: unknown[]) => h.becomeSyntheticPilot(...args),
 }));
 
-import { GET } from './route';
+import { POST } from './route';
 
-const ISSUED = {
-  cookies: [
-    {
-      name: 'better-auth.session_token',
-      value: 'tok.sig',
-      domain: 'localhost' as const,
-      path: '/',
-      httpOnly: true,
-      secure: false,
-      sameSite: 'Lax' as const,
-      maxAgeSec: 604800,
-    },
-  ],
-};
+const COOKIE = 'better-auth.session_token=tok.sig; Domain=localhost; Path=/; Max-Age=604800; SameSite=Lax; HttpOnly';
+const URL = 'http://localhost:3000/api/dev/synthetic-pilot';
 
 beforeEach(() => {
-  h.becomeSyntheticPilot.mockReset().mockResolvedValue(ISSUED);
+  h.becomeSyntheticPilot.mockReset().mockResolvedValue({
+    cookies: [],
+    headers: new Headers({ 'Set-Cookie': COOKIE }),
+  });
   vi.unstubAllEnvs();
+  vi.stubEnv('NODE_ENV', 'development');
 });
 
-function request(url: string, host: string): Request {
-  return new Request(url, { headers: { host } });
+function request(url: string, host: string, origin: string | null): Request {
+  const headers = new Headers({ host });
+  if (origin !== null) headers.set('origin', origin);
+  return new Request(url, { method: 'POST', headers });
 }
 
-describe('GET /api/dev/synthetic-pilot', () => {
-  it('returns an empty 404 outside development localhost and mints on the allowed origin', async () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    const production = await GET(
-      request('http://localhost:3000/api/dev/synthetic-pilot', 'localhost:3000'),
-    );
-    expect(production.status).toBe(404);
-    expect(await production.text()).toBe('');
+describe('POST /api/dev/synthetic-pilot', () => {
+  it.each([
+    ['production', URL, 'localhost:3000', 'http://localhost:3000'],
+    ['test', URL, 'localhost:3000', 'http://localhost:3000'],
+    ['development', URL, '127.0.0.1:3000', 'http://localhost:3000'],
+    ['development', URL, 'localhost:4000', 'http://localhost:3000'],
+    ['development', URL, 'user@localhost:3000', 'http://localhost:3000'],
+    ['development', URL, 'localhost:3000/path', 'http://localhost:3000'],
+    ['development', 'http://evil.test/api/dev/synthetic-pilot', 'localhost:3000', 'http://evil.test'],
+    ['development', URL, 'localhost:3000', null],
+    ['development', URL, 'localhost:3000', 'null'],
+    ['development', URL, 'localhost:3000', 'https://evil.test'],
+    ['development', URL, 'localhost:3000', 'http://localhost:3001'],
+    ['development', URL, 'localhost:3000', 'https://localhost:3000'],
+    ['development', URL, 'localhost:3000', 'http://localhost:3000/path'],
+  ])('rejects %s request to %s with Host %s and Origin %s', async (nodeEnv, url, host, origin) => {
+    vi.stubEnv('NODE_ENV', nodeEnv);
+    const response = await POST(request(url, host, origin));
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe('');
+    expect(response.headers.has('Set-Cookie')).toBe(false);
     expect(h.becomeSyntheticPilot).not.toHaveBeenCalled();
+  });
 
-    vi.stubEnv('NODE_ENV', 'development');
-    const loopback = await GET(
-      request('http://localhost:3000/api/dev/synthetic-pilot', '127.0.0.1:3000'),
-    );
-    expect(loopback.status).toBe(404);
-    expect(await loopback.text()).toBe('');
-    expect(h.becomeSyntheticPilot).not.toHaveBeenCalled();
-
-    const minted = await GET(
-      request('http://localhost:3000/api/dev/synthetic-pilot', 'localhost:3000'),
-    );
-    expect(minted.status).toBe(303);
-    expect(minted.headers.get('Location')).toBe('http://localhost:3000/');
-    expect(minted.headers.get('Set-Cookie')).toContain('better-auth.session_token=tok.sig');
-    expect(minted.headers.get('Set-Cookie')).toContain('Domain=localhost');
+  it('sets the issued cookie and redirects a same-origin development form home', async () => {
+    const response = await POST(request(URL, 'localhost:3000', 'http://localhost:3000'));
+    expect(response.status).toBe(303);
+    expect(await response.text()).toBe('');
+    expect(response.headers.get('Location')).toBe('/');
+    expect(response.headers.get('Set-Cookie')).toBe(COOKIE);
     expect(h.becomeSyntheticPilot).toHaveBeenCalledOnce();
   });
 });

@@ -8,14 +8,12 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const baseUrl =
-  process.env.PLAYWRIGHT_BASE_URL ?? process.env.UX_BASE_URL ?? 'http://localhost:3000';
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 const skipSeed = process.env.E2E_SKIP_SEED === '1';
 const guardError = remoteSkipSeedError({
   baseUrl,
   skipSeed,
   e2eStorageState: process.env.E2E_STORAGE_STATE,
-  uxStorageState: process.env.UX_STORAGE_STATE,
 });
 if (guardError) {
   console.error(`✗ ${guardError}`);

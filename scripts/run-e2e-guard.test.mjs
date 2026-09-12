@@ -8,7 +8,6 @@ describe('run-e2e guard', () => {
         baseUrl: 'http://localhost:3000',
         skipSeed: true,
         e2eStorageState: undefined,
-        uxStorageState: undefined,
       }),
     ).toBeNull();
 
@@ -17,16 +16,14 @@ describe('run-e2e guard', () => {
         baseUrl: 'https://lgi.tools',
         skipSeed: true,
         e2eStorageState: undefined,
-        uxStorageState: undefined,
       }),
-    ).toMatch(/E2E_STORAGE_STATE or UX_STORAGE_STATE/);
+    ).toMatch(/E2E_STORAGE_STATE/);
 
     expect(
       remoteSkipSeedError({
         baseUrl: 'https://lgi.tools',
         skipSeed: true,
         e2eStorageState: 'operator.json',
-        uxStorageState: undefined,
       }),
     ).toBeNull();
   });

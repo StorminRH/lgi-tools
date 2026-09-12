@@ -3,6 +3,21 @@ import { canMintSyntheticPilot } from './synthetic-pilot';
 
 describe('canMintSyntheticPilot', () => {
   it.each([
+    'user@localhost:3000',
+    'localhost:3000/path',
+    'localhost:3000?query',
+    'localhost:3000#fragment',
+    ' localhost:3000',
+    'localhost:3000 ',
+    'localhost:65536',
+    'localhost:',
+    'localhost:abc',
+    'localhost.evil.test',
+  ])('rejects malformed localhost authority %s', (hostHeader) => {
+    expect(canMintSyntheticPilot({ hostHeader, nodeEnv: 'development' })).toBe(false);
+  });
+
+  it.each([
     {
       name: 'allows development on localhost',
       hostHeader: 'localhost:3000',

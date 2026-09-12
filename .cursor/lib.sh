@@ -281,15 +281,16 @@ lgi_eve_runtime_secret_presence() {
   fi
 }
 
-# pstack skills read ~/.cursor/rules/pstack-models.mdc. Cloud start copies
-# the repo file there so a new VM has the same role map as the checkout.
-lgi_install_pstack_models() {
+# Overlay .cursor/vm-home onto ~/.cursor. Cursor does not load vm-home as
+# project rules or skills; Cloud start copies it to the user paths pstack
+# and other user-level tools actually read. Later commits overwrite.
+lgi_install_vm_home() {
   local src="${1:-}"
-  local dest="${2:-${HOME}/.cursor/rules/pstack-models.mdc}"
-  if [ -z "$src" ] || [ ! -f "$src" ]; then
-    echo "ERROR: missing pstack models rule at ${src:-<empty>}" >&2
+  local dest="${2:-${HOME}/.cursor}"
+  if [ -z "$src" ] || [ ! -d "$src" ]; then
+    echo "ERROR: missing VM home overlay at ${src:-<empty>}" >&2
     return 1
   fi
-  mkdir -p "$(dirname "$dest")"
-  cp -f "$src" "$dest"
+  mkdir -p "$dest"
+  cp -R "$src/." "$dest/"
 }

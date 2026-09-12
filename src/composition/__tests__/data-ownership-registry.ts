@@ -26,6 +26,7 @@ export type SliceId =
   | 'platform/auth'
   | 'composition/account-lifecycle'
   | 'composition/pipelines'
+  | 'composition/synthetic-pilot-store.ts'
   | 'scripts';
 
 export type DataClassId =
@@ -457,6 +458,11 @@ export const DATA_OWNERSHIP = [
     ],
     writers: [
       {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Resets and recreates only the reserved synthetic user after local environment checks, session revocation, and owned map cleanup.',
+      },
+      {
         by: 'composition/account-lifecycle',
         reason:
           'Owns the whole-account deletion that must run after every slice purge contributor; sequencing it inside the auth slice would invert the composition direction.',
@@ -485,6 +491,11 @@ export const DATA_OWNERSHIP = [
       },
     ],
     writers: [
+      {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Creates the reserved token-free EVE account after rejecting conflicting character ownership and resetting the synthetic user.',
+      },
       {
         by: 'composition/account-lifecycle',
         reason:
@@ -519,6 +530,13 @@ export const DATA_OWNERSHIP = [
         by: 'data/telemetry',
         purpose:
           'Joins the character profile onto usage-log rows for the admin activity readout; telemetry holds the foreign key and never writes back.',
+      },
+    ],
+    writers: [
+      {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Clears the reserved synthetic character affiliations and restores its fixed profile during the local fixture reset.',
       },
     ],
     invariants: ['pk(character_id)'],
@@ -562,6 +580,13 @@ export const DATA_OWNERSHIP = [
     table: schema.mapAccess,
     owner: 'data/maps',
     reads: [],
+    writers: [
+      {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Removes direct grants for the reserved synthetic character because those grants have no user foreign key.',
+      },
+    ],
     invariants: [
       'fk(map_id→maps.id)',
       'unique(map_id,owner_type,owner_id)',

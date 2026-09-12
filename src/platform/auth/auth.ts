@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { and, eq } from 'drizzle-orm';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { logUsageEvent } from '@/data/telemetry/queries';
@@ -23,6 +24,7 @@ import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
+import { SYNTHETIC_PILOT } from './synthetic-pilot';
 import { encryptToken } from './token-crypto';
 import { encryptAccountTokens } from './account-token-encryption';
 import { deriveSessionIdentity } from './session-identity';
@@ -91,7 +93,18 @@ export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps)
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       freshAge: 0,
-      cookieCache: { enabled: true, maxAge: 300 },
+      cookieCache: {
+        enabled: true,
+        maxAge: 300,
+        version: async (cachedSession, cachedUser) => {
+          if (cachedUser.id !== SYNTHETIC_PILOT.userId) return '1';
+          const [stored] = await db.select({ id: session.id }).from(session).where(and(
+            eq(session.id, cachedSession.id),
+            eq(session.userId, SYNTHETIC_PILOT.userId),
+          )).limit(1);
+          return stored ? 'synthetic-pilot' : 'revoked';
+        },
+      },
     },
     plugins: [
       genericOAuth({

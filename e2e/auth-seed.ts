@@ -1,7 +1,6 @@
 import { config } from 'dotenv';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { becomeSyntheticPilot } from '@/composition/synthetic-pilot-store';
 import { readEnv } from '@/lib/env';
 import { DEFAULT_STORAGE_STATE_PATH as DEFAULT_STORAGE_STATE_RELATIVE } from './identity';
 
@@ -38,6 +37,7 @@ export async function seedE2eStorageState(
     );
   }
 
+  const { becomeSyntheticPilot } = await import('@/composition/synthetic-pilot-store');
   const { cookies } = await becomeSyntheticPilot();
   const storageState: PlaywrightStorageState = {
     cookies: cookies.map((cookie) => ({

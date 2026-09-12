@@ -11,6 +11,10 @@ const EXCLUSIONS = new Map<string, string>([
     'Better Auth owns its own request lifecycle end to end.',
   ],
   [
+    'src/app/api/dev/synthetic-pilot/route.ts',
+    'Resets a fixed local test fixture in development. It is unavailable to hosted production users and does not represent product usage.',
+  ],
+  [
     'src/app/api/internal/eve-characters/route.ts',
     'Machine-to-machine; already accounted for by the calling capability.',
   ],
@@ -80,6 +84,7 @@ describe('capability coverage', () => {
     const present = new Set(postRoutes.map(({ relative }) => relative));
     expect([...EXCLUSIONS.keys()].sort()).toEqual([
       'src/app/api/auth/[...all]/route.ts',
+      'src/app/api/dev/synthetic-pilot/route.ts',
       'src/app/api/internal/eve-characters/route.ts',
       'src/app/api/internal/eve-token/route.ts',
       'src/app/api/telemetry/route.ts',

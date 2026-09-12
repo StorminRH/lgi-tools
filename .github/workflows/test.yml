@@ -222,7 +222,7 @@ jobs:
         with:
           name: playwright-failure
           path: |
-            docs/ux-check/captures/playwright
-            docs/ux-check/captures/e2e-report.json
+            test-results
+            test-results/e2e-report.json
           if-no-files-found: ignore
           retention-days: 7

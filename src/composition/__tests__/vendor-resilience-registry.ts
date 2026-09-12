@@ -138,20 +138,9 @@ const neonPostgres = policy({
   telemetryFields: "'neon_cold_start_retry' (outcome, attempts, totalDelayMs).",
 });
 const vercelPlatform = noSurface('The app makes no Vercel API call. Its only src artifact is the build-injected @vercel/speed-insights beacon component in src/app/layout.tsx, which reports from the browser and exposes no app-controlled request. Deployment and environment actions are operator CLI work, outside the request path.');
-const githubTooling = policy({
-  wrapper: { module: 'tools/delivery/github_api.py', symbol: 'request' },
-  timeout:
-    'Explicit on every call: 30s (github_api.py). Outside ESLint scope, so the census asserts the timeout argument directly.',
-  retryableErrors: 'None; a failed call is a named failure the tooling reports.',
-  backoff: 'None.',
-  rateLimit:
-    "GitHub's own limits; the tooling makes single low-volume calls and passes a token when one is present.",
-  idempotency:
-    'Reads are idempotent. Mutations (opening or closing an issue) are never auto-retried, which is why no retry policy exists here.',
-  degradation:
-    'Fail-closed: a missing binary, an unreadable repo identity, or a failed request is a refusal, never a crash and never a silently-clean result.',
-  telemetryFields: "None; outcomes are the routine's own reported verdict.",
-});
+const githubTooling = noSurface(
+  'The app makes no GitHub API call. Repository create, comment, and merge actions are operator CLI work, outside the request path.',
+);
 const linearIssues = policy({
   wrapper: {
     module: 'src/features/feedback/create-linear-issue.ts',

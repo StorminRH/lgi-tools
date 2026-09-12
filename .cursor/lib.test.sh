@@ -133,4 +133,22 @@ eve_line="$(unset EVE_CLIENT_ID EVE_CLIENT_SECRET; lgi_eve_runtime_secret_presen
 [ "$eve_line" = "EVE runtime secrets: absent" ] || fail "eve absence"
 pass "EVE secret presence is names-only"
 
+overlay_src="$(mktemp -d)"
+overlay_dest="$(mktemp -d)"
+mkdir -p "$overlay_src/rules"
+printf 'first\n' > "$overlay_src/rules/pstack-models.mdc"
+lgi_install_vm_home "$overlay_src" "$overlay_dest" || fail "overlay copy"
+[ "$(cat "$overlay_dest/rules/pstack-models.mdc")" = first ] || fail "overlay dest content"
+printf 'second\n' > "$overlay_src/rules/pstack-models.mdc"
+lgi_install_vm_home "$overlay_src" "$overlay_dest" || fail "overlay overwrite"
+[ "$(cat "$overlay_dest/rules/pstack-models.mdc")" = second ] || fail "overlay overwrite content"
+if lgi_install_vm_home "" "$overlay_dest" 2>/dev/null; then
+  fail "empty overlay src must refuse"
+fi
+if lgi_install_vm_home "$overlay_src/missing" "$overlay_dest" 2>/dev/null; then
+  fail "missing overlay src must refuse"
+fi
+rm -rf "$overlay_src" "$overlay_dest"
+pass "VM home overlay copy"
+
 echo "lib.test.sh: all assertions passed"

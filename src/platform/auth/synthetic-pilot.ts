@@ -12,7 +12,9 @@ export function canMintSyntheticPilot(input: {
   nodeEnv: string | undefined;
 }): boolean {
   if (input.nodeEnv !== 'development') return false;
-  if (input.hostHeader === null || input.hostHeader.length === 0) return false;
+  if (input.hostHeader === null || !/^localhost(?::[0-9]{1,5})?$/.test(input.hostHeader)) {
+    return false;
+  }
   try {
     return new URL(`http://${input.hostHeader}`).hostname === 'localhost';
   } catch {
