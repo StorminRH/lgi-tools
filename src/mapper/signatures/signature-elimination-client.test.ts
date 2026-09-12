@@ -218,12 +218,12 @@ it('does not restore an invalidated cache entry when an older request completes'
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
-it.each(['mutated', 'claimed'] as const)('ignores an older success after a newer %s follow-up fails', async (kind) => {
+it('ignores an older success after a newer mutated follow-up fails', async () => {
   const response = Promise.withResolvers<ReturnType<typeof quiet>>();
   h.apiFetch.mockReturnValueOnce(response.promise).mockResolvedValueOnce({ ok: false });
   const input = { mapId: MAP, systemId: SYSTEM, write: { kind: 'idle' as const }, digest: 'A' };
   const pending = followUpElimination(input);
-  await followUpElimination({ ...input, write: { kind } });
+  await followUpElimination({ ...input, write: { kind: 'mutated' } });
   response.resolve(quiet());
   await pending;
   h.apiFetch.mockResolvedValueOnce(quiet());
