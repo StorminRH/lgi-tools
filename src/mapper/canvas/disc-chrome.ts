@@ -5,16 +5,14 @@ const TRACK_SEAT_STEP_RAD = Math.PI / 4;
 
 export const KSPACE_TITLE_GAP_PX = 6;
 
-type DiscOffset = {
-  readonly x: number;
-  readonly y: number;
-};
-
 function cleanAxis(value: number): number {
   return Math.abs(value) < 1e-10 ? 0 : value;
 }
 
-export function widgetSeatOffset(index: number): DiscOffset {
+export function widgetSeatOffset(index: number): {
+  readonly x: number;
+  readonly y: number;
+} {
   const heading = TRACK_START_HEADING_RAD + index * TRACK_SEAT_STEP_RAD;
   return {
     x: cleanAxis(TRACK_RADIUS_PX * Math.sin(heading)),
@@ -22,6 +20,9 @@ export function widgetSeatOffset(index: number): DiscOffset {
   };
 }
 
-export function kspaceTitleOffset(): DiscOffset {
+export function kspaceTitleOffset(): {
+  readonly x: number;
+  readonly y: number;
+} {
   return { x: 0, y: -(DISC_SIZE_PX / 2 + KSPACE_TITLE_GAP_PX) };
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CHROME_GLYPHS, chromeToneClass, type ChromeGlyph } from './chrome-glyph';
+import {
+  CHROME_GLYPHS,
+  chromeToneClass,
+  type ChromeGlyph,
+  type GlyphNode,
+} from './chrome-glyph';
 
 const GLYPHS = [
   'gas-cloud',
@@ -12,7 +17,8 @@ const GLYPHS = [
 describe('chrome glyphs', () => {
   it('catalogues a drawing for every chrome glyph', () => {
     for (const glyph of GLYPHS) {
-      expect(CHROME_GLYPHS[glyph].length).toBeGreaterThan(0);
+      const nodes: readonly GlyphNode[] = CHROME_GLYPHS[glyph];
+      expect(nodes.length).toBeGreaterThan(0);
     }
   });
 

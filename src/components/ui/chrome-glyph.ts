@@ -7,7 +7,7 @@ export type ChromeGlyph =
   | 'pilot'
   | 'station';
 
-type GlyphNode =
+export type GlyphNode =
   | {
       readonly kind: 'path';
       readonly d: string;

@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { NodeMark } from '@/components/ui/chrome-mark';
 import { widgetSeatOffset } from './disc-chrome';
-import type { TrackOccupant } from './node-chrome';
+import type { TrackOccupant, TrackProbe } from './node-chrome';
 
 export function NodeWidgetTrack({
   occupants,
@@ -44,7 +44,7 @@ function WidgetSeat({
     <div
       ref={ref}
       data-chain-node-widget-seat={index}
-      {...seatProbe(occupant)}
+      {...seatProbe(occupant.probe)}
       className="absolute left-1/2 top-1/2 [transform:var(--node-widget-seat-transform)]"
     >
       <NodeMark {...occupant.token} />
@@ -52,14 +52,14 @@ function WidgetSeat({
   );
 }
 
-function seatProbe(occupant: TrackOccupant) {
-  switch (occupant.probe.kind) {
+function seatProbe(probe: TrackProbe) {
+  switch (probe.kind) {
     case 'glance':
-      return { 'data-glance-mark': occupant.probe.bucket };
+      return { 'data-glance-mark': probe.bucket };
     case 'presence':
-      return { 'data-pilot-presence': 'live' };
+      return { 'data-pilot-presence': 'live' as const };
     default: {
-      const _never: never = occupant.probe;
+      const _never: never = probe;
       return _never;
     }
   }

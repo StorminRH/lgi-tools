@@ -15,7 +15,7 @@ const GLANCE_FACE = {
 
 const PRESENCE_FACE = { glyph: 'pilot', tone: 'green' } as const satisfies ChromeFace;
 
-type TrackProbe =
+export type TrackProbe =
   | { readonly kind: 'glance'; readonly bucket: GlanceBucket }
   | { readonly kind: 'presence' };
 
