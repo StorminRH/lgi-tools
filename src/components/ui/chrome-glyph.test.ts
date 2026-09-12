@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHROME_GLYPHS,
+  chromeGlyphSprite,
   chromeToneClass,
   type ChromeGlyph,
   type ChromeTone,
@@ -59,18 +60,23 @@ describe('chrome glyphs', () => {
     expect(dot.r).toBeLessThan(1.3);
   });
 
-  it('draws gas as a hollow cloud outline', () => {
+  it('serves gas as the official CCP scanner sprite', () => {
     const nodes = CHROME_GLYPHS['gas-cloud'];
     expect(nodes).toHaveLength(1);
-    const node = nodes[0];
-    expect(node?.kind).toBe('path');
-    if (node?.kind !== 'path') throw new Error('gas-cloud must be a path');
-    expect(node.fill).toBe('none');
-    expect(node.stroke).toBe('currentColor');
-    expect(node.strokeWidth).toBeGreaterThanOrEqual(1.4);
-    expect(node.strokeWidth).toBeLessThanOrEqual(1.6);
-    expect(node.d).toContain('H');
-    expect(node.d).toContain('a');
+    const [node] = nodes;
+    expect(node?.kind).toBe('sprite');
+    if (node?.kind !== 'sprite') throw new Error('gas-cloud must be a sprite');
+    expect(node.src).toBe('/eve/gas-scanned.png');
+    expect(node.alt.length).toBeGreaterThan(0);
+  });
+
+  it('resolves sprite art only for sprite-backed glyphs', () => {
+    expect(chromeGlyphSprite('gas-cloud')).toEqual({
+      src: '/eve/gas-scanned.png',
+      alt: 'Gas',
+    });
+    expect(chromeGlyphSprite('market')).toBeNull();
+    expect(chromeGlyphSprite('pilot')).toBeNull();
   });
 
   it('maps widget tones onto named color classes', () => {

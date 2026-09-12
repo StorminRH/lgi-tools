@@ -1,7 +1,9 @@
 'use client';
 
 import { useLayoutEffect, useRef } from 'react';
-import { NodeMark } from '@/components/ui/chrome-mark';
+import { EveImage } from '@/components/eve-image';
+import { MarkFrame, NodeMark } from '@/components/ui/chrome-mark';
+import { chromeGlyphSprite } from '@/components/ui/chrome-glyph';
 import { widgetSeatOffset } from './disc-chrome';
 import type { TrackOccupant, TrackProbe } from './node-chrome';
 
@@ -50,6 +52,7 @@ function WidgetSeat({
   useLayoutEffect(() => {
     ref.current?.style.setProperty('--node-widget-seat-transform', transform);
   }, [transform]);
+  const sprite = chromeGlyphSprite(occupant.token.glyph);
   return (
     <div
       ref={ref}
@@ -57,7 +60,21 @@ function WidgetSeat({
       {...probeAttrs}
       className="absolute left-1/2 top-1/2 [transform:var(--node-widget-seat-transform)]"
     >
-      <NodeMark {...occupant.token} />
+      {sprite === null ? (
+        <NodeMark {...occupant.token} />
+      ) : (
+        <MarkFrame tone={occupant.token.tone}>
+          <EveImage
+            source="static"
+            src={sprite.src}
+            alt={sprite.alt}
+            width={64}
+            height={60}
+            draggable={false}
+            className="size-full object-contain"
+          />
+        </MarkFrame>
+      )}
     </div>
   );
 }

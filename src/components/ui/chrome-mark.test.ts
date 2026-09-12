@@ -16,13 +16,13 @@ describe('NodeMark', () => {
   it('paints a 14px currentColor glyph in the face tone', () => {
     const html = renderToStaticMarkup(
       createElement(NodeMark, {
-        glyph: 'gas-cloud',
-        tone: 'teal',
+        glyph: 'combat-reticle',
+        tone: 'red',
         info: BARE,
       }),
     );
     expect(html).toContain('size-icon-sm');
-    expect(html).toContain('text-tone-teal');
+    expect(html).toContain('text-tone-red');
     expect(html).toContain('<svg');
     expect(html).toContain('fill="none"');
     expect(html).toContain('stroke="currentColor"');
@@ -59,9 +59,8 @@ describe('NodeMark', () => {
 });
 
 describe('chrome catalog paint', () => {
-  it('draws every catalogued glyph through NodeMark', () => {
+  it('draws every vector glyph through NodeMark', () => {
     const faces = [
-      { glyph: 'gas-cloud', tone: 'teal' },
       { glyph: 'hacking-chip', tone: 'blue' },
       { glyph: 'combat-reticle', tone: 'red' },
       { glyph: 'pilot', tone: 'green' },

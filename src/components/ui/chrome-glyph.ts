@@ -33,6 +33,11 @@ export type GlyphNode =
       readonly y2: number;
       readonly stroke: 'currentColor';
       readonly strokeWidth: number;
+    }
+  | {
+      readonly kind: 'sprite';
+      readonly src: string;
+      readonly alt: string;
     };
 
 function ringCircle(cx: number, cy: number, r: number, wall: number): GlyphNode {
@@ -45,15 +50,9 @@ function ringCircle(cx: number, cy: number, r: number, wall: number): GlyphNode 
 }
 
 export const CHROME_GLYPHS: { readonly [K in ChromeGlyph]: readonly GlyphNode[] } = {
-  'gas-cloud': [
-    {
-      kind: 'path',
-      d: 'M11.05 12.5H6.2a4 4 0 1 1 3.83-5.14h1.02a2.57 2.57 0 1 1 0 5.14Z',
-      fill: 'none',
-      stroke: 'currentColor',
-      strokeWidth: 1.5,
-    },
-  ],
+  // Official CCP scanner icon (Icons/Scanner/Gas-scanned.png), vendored at
+  // public/eve/gas-scanned.png under the project EVE developer license.
+  'gas-cloud': [{ kind: 'sprite', src: '/eve/gas-scanned.png', alt: 'Gas' }],
   'hacking-chip': [
     {
       kind: 'path',
@@ -120,6 +119,18 @@ export type MarkInfo =
     };
 
 export type NodeMarkToken = ChromeFace & { readonly info: MarkInfo };
+
+export type ChromeSprite = {
+  readonly src: string;
+  readonly alt: string;
+};
+
+export function chromeGlyphSprite(glyph: ChromeGlyph): ChromeSprite | null {
+  const nodes = CHROME_GLYPHS[glyph];
+  const [first] = nodes;
+  if (nodes.length !== 1 || first?.kind !== 'sprite') return null;
+  return { src: first.src, alt: first.alt };
+}
 
 export function chromeToneClass(tone: ChromeTone): string {
   switch (tone) {

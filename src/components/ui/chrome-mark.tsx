@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import { cn } from './cn';
 import {
   CHROME_GLYPHS,
   chromeToneClass,
   type ChromeFace,
   type ChromeGlyph,
+  type ChromeTone,
   type NodeMarkToken,
 } from './chrome-glyph';
 
@@ -47,6 +49,10 @@ function ChromeIcon({ glyph }: { readonly glyph: ChromeGlyph }) {
                 strokeWidth={node.strokeWidth}
               />
             );
+          case 'sprite':
+            // Sprites never reach the svg renderer; the mapper layer paints
+            // them with EveImage instead. Kept for switch exhaustiveness.
+            return null;
           default: {
             const _never: never = node;
             return _never;
@@ -57,7 +63,13 @@ function ChromeIcon({ glyph }: { readonly glyph: ChromeGlyph }) {
   );
 }
 
-function ChromeGlyphMark({ glyph, tone }: ChromeFace) {
+export function MarkFrame({
+  tone,
+  children,
+}: {
+  readonly tone: ChromeTone;
+  readonly children: ReactNode;
+}) {
   return (
     <span
       className={cn(
@@ -65,8 +77,16 @@ function ChromeGlyphMark({ glyph, tone }: ChromeFace) {
         chromeToneClass(tone),
       )}
     >
-      <ChromeIcon glyph={glyph} />
+      {children}
     </span>
+  );
+}
+
+function ChromeGlyphMark({ glyph, tone }: ChromeFace) {
+  return (
+    <MarkFrame tone={tone}>
+      <ChromeIcon glyph={glyph} />
+    </MarkFrame>
   );
 }
 
