@@ -1,5 +1,7 @@
-const DISC_SIZE_PX = 55;
-const TRACK_RADIUS_PX = 27.5 + 7 + 4;
+export const SYSTEM_DISC_SIZE = 55;
+const TRACK_ICON_PX = 14;
+const TRACK_AIR_GAP_PX = 4;
+const TRACK_RADIUS_PX = SYSTEM_DISC_SIZE / 2 + TRACK_ICON_PX / 2 + TRACK_AIR_GAP_PX;
 const TRACK_START_HEADING_RAD = Math.PI / 2;
 const TRACK_SEAT_STEP_RAD = Math.PI / 4;
 
@@ -24,5 +26,5 @@ export function kspaceTitleOffset(): {
   readonly x: number;
   readonly y: number;
 } {
-  return { x: 0, y: -(DISC_SIZE_PX / 2 + KSPACE_TITLE_GAP_PX) };
+  return { x: 0, y: -(SYSTEM_DISC_SIZE / 2 + KSPACE_TITLE_GAP_PX) };
 }

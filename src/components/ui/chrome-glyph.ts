@@ -76,9 +76,24 @@ export const CHROME_GLYPHS: { readonly [K in ChromeGlyph]: readonly GlyphNode[] 
   ],
 };
 
-export type WidgetTone = Extract<Tone, 'teal' | 'blue' | 'red' | 'green' | 'yellow'>;
+export type ChromeTone = Extract<Tone, 'teal' | 'blue' | 'red' | 'green' | 'yellow'>;
 
-export function chromeToneClass(tone: WidgetTone): string {
+export type ChromeFace = {
+  readonly glyph: ChromeGlyph;
+  readonly tone: ChromeTone;
+};
+
+export type MarkInfo =
+  | { readonly kind: 'bare' }
+  | {
+      readonly kind: 'count';
+      readonly value: number;
+      readonly dataKey?: string;
+    };
+
+export type NodeMarkToken = ChromeFace & { readonly info: MarkInfo };
+
+export function chromeToneClass(tone: ChromeTone): string {
   switch (tone) {
     case 'teal':
       return 'text-tone-teal';

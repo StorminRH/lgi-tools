@@ -2,22 +2,10 @@ import { cn } from './cn';
 import {
   CHROME_GLYPHS,
   chromeToneClass,
+  type ChromeFace,
   type ChromeGlyph,
-  type WidgetTone,
+  type NodeMarkToken,
 } from './chrome-glyph';
-
-export type ChromeFace = {
-  readonly glyph: ChromeGlyph;
-  readonly tone: WidgetTone;
-};
-
-export type MarkInfo =
-  | { readonly kind: 'bare' }
-  | {
-      readonly kind: 'count';
-      readonly value: number;
-      readonly dataKey?: string;
-    };
 
 function ChromeIcon({ glyph }: { readonly glyph: ChromeGlyph }) {
   return (
@@ -86,7 +74,7 @@ export function NodeMark({
   glyph,
   tone,
   info,
-}: ChromeFace & { readonly info: MarkInfo }) {
+}: NodeMarkToken) {
   return (
     <span className="inline-flex items-center gap-0.5">
       <ChromeGlyphMark glyph={glyph} tone={tone} />

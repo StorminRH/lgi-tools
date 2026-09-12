@@ -3,6 +3,7 @@ import {
   CHROME_GLYPHS,
   chromeToneClass,
   type ChromeGlyph,
+  type ChromeTone,
   type GlyphNode,
 } from './chrome-glyph';
 
@@ -23,7 +24,7 @@ describe('chrome glyphs', () => {
   });
 
   it('maps widget tones onto named color classes', () => {
-    expect(chromeToneClass('green')).toBe('text-isk');
+    expect(chromeToneClass('green' satisfies ChromeTone)).toBe('text-isk');
     expect(chromeToneClass('teal')).toBe('text-tone-teal');
     expect(chromeToneClass('blue')).toBe('text-tone-blue');
     expect(chromeToneClass('red')).toBe('text-tone-red');

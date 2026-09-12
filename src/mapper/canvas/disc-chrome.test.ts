@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { SYSTEM_DISC_SIZE } from './SystemNode';
 import {
   KSPACE_TITLE_GAP_PX,
+  SYSTEM_DISC_SIZE,
   kspaceTitleOffset,
   widgetSeatOffset,
 } from './disc-chrome';

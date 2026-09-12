@@ -1,4 +1,4 @@
-import type { ChromeFace, MarkInfo } from '@/components/ui/chrome-mark';
+import type { ChromeFace, NodeMarkToken } from '@/components/ui/chrome-glyph';
 import type { GlanceBucket } from '../signatures/signature-model';
 import type { SystemPresence } from '../tracking/presence-model';
 
@@ -20,24 +20,21 @@ export type TrackProbe =
   | { readonly kind: 'presence' };
 
 export type TrackOccupant = {
-  readonly key: string;
-  readonly token: ChromeFace & { readonly info: MarkInfo };
+  readonly token: NodeMarkToken;
   readonly probe: TrackProbe;
 };
 
 function glanceOccupant(bucket: GlanceBucket): TrackOccupant {
   return {
-    key: bucket,
     token: { ...GLANCE_FACE[bucket], info: { kind: 'bare' } },
     probe: { kind: 'glance', bucket },
   };
 }
 
-function presenceOccupant(presence: SystemPresence): TrackOccupant | null {
-  const count = presence.pilots.length;
+function presenceOccupant(presence: SystemPresence | null): TrackOccupant | null {
+  const count = presence?.pilots.length ?? 0;
   if (count === 0) return null;
   return {
-    key: 'presence',
     token: {
       ...PRESENCE_FACE,
       info:
@@ -53,8 +50,7 @@ export function visibleTrackOccupants(
   marks: readonly GlanceBucket[],
   presence: SystemPresence | null,
 ): readonly TrackOccupant[] {
-  const occupants = marks.map(glanceOccupant);
-  const presenceSeat = presence === null ? null : presenceOccupant(presence);
-  if (presenceSeat !== null) occupants.push(presenceSeat);
-  return occupants;
+  const glances = marks.map(glanceOccupant);
+  const presenceSeat = presenceOccupant(presence);
+  return presenceSeat === null ? glances : [...glances, presenceSeat];
 }

@@ -1,7 +1,16 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import type { MarkInfo } from './chrome-glyph';
 import { NodeMark, TitleMetric } from './chrome-mark';
+
+const BARE: MarkInfo = { kind: 'bare' };
+const PILOT_COUNT: MarkInfo = {
+  kind: 'count',
+  value: 2,
+  dataKey: 'data-pilot-presence-count',
+};
+const BARE_COUNT: MarkInfo = { kind: 'count', value: 3 };
 
 describe('NodeMark', () => {
   it('paints a 14px currentColor glyph in the face tone', () => {
@@ -9,7 +18,7 @@ describe('NodeMark', () => {
       createElement(NodeMark, {
         glyph: 'gas-cloud',
         tone: 'teal',
-        info: { kind: 'bare' },
+        info: BARE,
       }),
     );
     expect(html).toContain('size-icon-sm');
@@ -24,7 +33,7 @@ describe('NodeMark', () => {
       createElement(NodeMark, {
         glyph: 'pilot',
         tone: 'green',
-        info: { kind: 'count', value: 2, dataKey: 'data-pilot-presence-count' },
+        info: PILOT_COUNT,
       }),
     );
     expect(html).toContain('text-isk');
@@ -38,7 +47,7 @@ describe('NodeMark', () => {
       createElement(NodeMark, {
         glyph: 'pilot',
         tone: 'green',
-        info: { kind: 'count', value: 3 },
+        info: BARE_COUNT,
       }),
     );
     expect(html).toContain('>3<');
@@ -57,7 +66,7 @@ describe('chrome catalog paint', () => {
     ] as const;
     for (const face of faces) {
       const html = renderToStaticMarkup(
-        createElement(NodeMark, { ...face, info: { kind: 'bare' } }),
+        createElement(NodeMark, { ...face, info: BARE }),
       );
       expect(html).toContain('<svg');
       expect(html).toContain('viewBox="0 0 16 16"');

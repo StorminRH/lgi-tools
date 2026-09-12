@@ -18,17 +18,14 @@ test('visible occupants follow glance order then one presence seat', () => {
     visibleTrackOccupants(['harvestables', 'combat'], presenceWithPilots),
   ).toEqual([
     {
-      key: 'harvestables',
       token: { glyph: 'gas-cloud', tone: 'teal', info: { kind: 'bare' } },
       probe: { kind: 'glance', bucket: 'harvestables' },
     },
     {
-      key: 'combat',
       token: { glyph: 'combat-reticle', tone: 'red', info: { kind: 'bare' } },
       probe: { kind: 'glance', bucket: 'combat' },
     },
     {
-      key: 'presence',
       token: { glyph: 'pilot', tone: 'green', info: { kind: 'bare' } },
       probe: { kind: 'presence' },
     },
@@ -47,7 +44,6 @@ test('presence counts only when more than one pilot is in system', () => {
     }),
   ).toEqual([
     {
-      key: 'presence',
       token: {
         glyph: 'pilot',
         tone: 'green',
@@ -61,7 +57,6 @@ test('presence counts only when more than one pilot is in system', () => {
 test('hacking uses the analyzer chip face', () => {
   expect(visibleTrackOccupants(['hacking'], null)).toEqual([
     {
-      key: 'hacking',
       token: { glyph: 'hacking-chip', tone: 'blue', info: { kind: 'bare' } },
       probe: { kind: 'glance', bucket: 'hacking' },
     },
