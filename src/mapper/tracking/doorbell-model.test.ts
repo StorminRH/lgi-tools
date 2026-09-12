@@ -4,7 +4,6 @@ import {
   DOORBELL_ATTEMPT_CAP,
   DOORBELL_CHANNEL_PREFIX,
   DOORBELL_RETRY_INTERVAL_MS,
-  doorbellChannelName,
   hydrateDoorbellMemory,
   joinDoorbellChannel,
   ownTrackedDoorbellRows,
@@ -310,7 +309,7 @@ describe('doorbell tab memory', () => {
       persist: () => undefined,
     });
 
-    expect(bus.channels[0]?.name).toBe(doorbellChannelName('user-a'));
+    expect(bus.channels[0]?.name).toBe(JSON.stringify(['lgi-atlas-doorbell-v1', 'user-a']));
 
     firstMemory.set(101, inFlight);
     first.share();
