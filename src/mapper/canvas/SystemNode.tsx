@@ -1,16 +1,20 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import {
   systemClassificationReadout,
   systemDestinationClassReadout,
   systemDestinationHintReadout,
 } from '@/data/eve-data/system-identity';
-import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
+import {
+  destinationHintSoleClassId,
+  type WormholeDestinationHint,
+} from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
+import { WormholeVisual } from './wormhole/WormholeVisual';
 
 export type ChainNodeData = {
   name: string;
@@ -132,6 +136,18 @@ function nodeClassification(data: ChainNodeData, stub: boolean) {
   });
 }
 
+const VISUAL_WORMHOLE_CLASSES = new Set([1, 2, 3, 4, 5, 6, 12, 13, 14, 15, 16, 17, 18]);
+
+function visualWormholeClass(data: ChainNodeData): number | null | undefined {
+  const classId = data.whClassId ?? (
+    data.stub !== undefined && data.destinationHint != null
+      ? destinationHintSoleClassId(data.destinationHint)
+      : null
+  );
+  if (classId !== null) return VISUAL_WORMHOLE_CLASSES.has(classId) ? classId : undefined;
+  return data.stub === undefined ? undefined : null;
+}
+
 function NodeDisc({
   derived,
   chromeClass,
@@ -139,6 +155,7 @@ function NodeDisc({
   classification,
   stub,
   systemId,
+  visual,
 }: {
   readonly derived: boolean;
   readonly chromeClass: string | null;
@@ -146,15 +163,18 @@ function NodeDisc({
   readonly classification: { readonly label: string; readonly tone: string } | null;
   readonly stub: boolean;
   readonly systemId: number;
+  readonly visual: ReactNode;
 }) {
   return (
     <div
       className={cn(
         'map-node-disc absolute left-1/2 top-1/2 flex size-[55px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
         derived && 'border-dashed',
+        visual !== null && 'map-node-disc-wormhole',
         chromeClass,
       )}
     >
+      {visual}
       <Handle
         type="target"
         position={Position.Left}
@@ -183,10 +203,14 @@ function NodeDisc({
   );
 }
 
-function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) {
+function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: NodeProps<ChainNode>) {
+  const [hovered, setHovered] = useState(false);
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
+  const visualClassId = visualWormholeClass(data);
+  const paused = dragging === true || chromeClass === null;
+  const active = !paused && (hovered || selected === true);
   return (
     <div
       data-chain-node
@@ -195,6 +219,11 @@ function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) 
       data-chain-node-fogged={fogged || undefined}
       data-chain-node-stub={stub || undefined}
       data-chain-node-static-stub={staticStub || undefined}
+      onPointerEnter={(event) => {
+        if (event.pointerType !== 'touch') setHovered(true);
+      }}
+      onPointerLeave={() => setHovered(false)}
+      onPointerCancel={() => setHovered(false)}
       className={cn(
         'relative h-full w-full',
         derived && (fogged ? 'opacity-0' : 'opacity-75'),
@@ -218,6 +247,15 @@ function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) 
         classification={classification}
         stub={stub}
         systemId={Number(id)}
+        visual={visualClassId === undefined ? null : (
+          <WormholeVisual
+            whClassId={visualClassId}
+            active={active}
+            paused={paused}
+            seed={id}
+            size={146}
+          />
+        )}
       />
     </div>
   );
