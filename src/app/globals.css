@@ -1263,11 +1263,26 @@ details[data-collapsible][open] > summary [data-chevron] {
   0%, 100% { scale: 1; }
   50% { scale: 1.045; }
 }
-[data-chain-node]:hover .map-node-disc {
+[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
   animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
   box-shadow:
     0 0 0 1px var(--color-card-glow-ring),
     0 0 12px var(--color-card-glow-shadow);
+}
+
+.map-node-disc-wormhole {
+  background: transparent;
+}
+
+.map-node-disc-wormhole [data-chain-node-classification] {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 3px #000, 0 0 5px #000;
+}
+
+.map-node-disc-wormhole [data-chain-node-widgets],
+[data-chain-node]:has(.map-node-disc-wormhole) [data-chain-node-name] {
+  z-index: 1;
 }
 
 /* Disc chips start at nav size and shrink via `--chip-fs` (set after mount)
@@ -1443,7 +1458,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   .map-node-exit-heavy {
     animation: map-fade-out var(--map-motion-slow) linear both;
   }
-  [data-chain-node]:hover .map-node-disc {
+  [data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
     animation: none;
   }
   .map-edge-grow-enter,
