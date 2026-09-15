@@ -6,10 +6,12 @@ import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
 import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
+import { enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
   const mapIds = await affectedMapIdsForCharacter(characterId);
+  if (mapIds.length > 0) await enqueueMapAccessChanges(mapIds);
   for (const mapId of mapIds) {
     await bestEffort('map-access-identity', 'projection', mapId, () =>
       projectMapAccess(mapId),

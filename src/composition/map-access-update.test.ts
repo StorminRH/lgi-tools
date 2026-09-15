@@ -23,6 +23,9 @@ describe('applyMapAccessUpdate', () => {
       order.push('neon');
       return true;
     });
+    const enqueueAccess = vi.fn(async () => {
+      order.push('enqueue');
+    });
     const projectAccess = vi.fn(async () => {
       order.push('projection');
       return {
@@ -38,6 +41,7 @@ describe('applyMapAccessUpdate', () => {
       applyMapAccessUpdate('user-1', UPSERT, {
         resolvePrincipals,
         applyGrantChange,
+        enqueueAccess,
         projectAccess,
       }),
     ).resolves.toEqual({ ok: true });
@@ -49,7 +53,8 @@ describe('applyMapAccessUpdate', () => {
       { operation: 'upsert', grant: UPSERT.grant },
     );
     expect(projectAccess).toHaveBeenCalledWith('map-1');
-    expect(order).toEqual(['neon', 'projection']);
+    expect(enqueueAccess).toHaveBeenCalledWith(['map-1']);
+    expect(order).toEqual(['neon', 'enqueue', 'projection']);
 
     const revoke = {
       operation: 'revoke' as const,
@@ -63,6 +68,7 @@ describe('applyMapAccessUpdate', () => {
           corporationIds: [99],
         }),
         applyGrantChange: vi.fn().mockResolvedValue(true),
+        enqueueAccess: vi.fn().mockResolvedValue(undefined),
         projectAccess: vi.fn().mockResolvedValue({
           inserted: 0,
           updated: 0,
@@ -74,6 +80,7 @@ describe('applyMapAccessUpdate', () => {
     ).resolves.toEqual({ ok: true });
 
     const refusedProject = vi.fn();
+    const refusedEnqueue = vi.fn();
     await expect(
       applyMapAccessUpdate('user-1', UPSERT, {
         resolvePrincipals: vi.fn().mockResolvedValue({
@@ -81,10 +88,12 @@ describe('applyMapAccessUpdate', () => {
           corporationIds: [],
         }),
         applyGrantChange: vi.fn().mockResolvedValue(false),
+        enqueueAccess: refusedEnqueue,
         projectAccess: refusedProject,
       }),
     ).resolves.toEqual({ ok: false, reason: 'forbidden' });
     expect(refusedProject).not.toHaveBeenCalled();
+    expect(refusedEnqueue).not.toHaveBeenCalled();
   });
 
   it('surfaces typed projection unavailability after the durable write and rethrows unexpected failures', async () => {
@@ -98,6 +107,7 @@ describe('applyMapAccessUpdate', () => {
           corporationIds: [],
         }),
         applyGrantChange,
+        enqueueAccess: vi.fn().mockResolvedValue(undefined),
         projectAccess: vi.fn().mockRejectedValue(unavailable),
       }),
     ).resolves.toEqual({
@@ -115,6 +125,7 @@ describe('applyMapAccessUpdate', () => {
           corporationIds: [],
         }),
         applyGrantChange: vi.fn().mockRejectedValue(failure),
+        enqueueAccess: vi.fn(),
         projectAccess: vi.fn(),
       }),
     ).rejects.toBe(failure);

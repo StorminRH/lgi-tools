@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   purgeMapChain: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
   teardownLocationTracking: vi.fn(),
+  enqueueMapAccessChanges: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -25,6 +26,10 @@ vi.mock('@/composition/map-purge', () => ({
 
 vi.mock('@/data/location-tracking/purge', () => ({
   teardownLocationTracking: mocks.teardownLocationTracking,
+}));
+
+vi.mock('@/platform/auth/affiliation-store', () => ({
+  enqueueMapAccessChanges: mocks.enqueueMapAccessChanges,
 }));
 
 import {
@@ -47,6 +52,7 @@ beforeEach(() => {
   mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
   mocks.teardownLocationTracking.mockResolvedValue(undefined);
+  mocks.enqueueMapAccessChanges.mockResolvedValue(undefined);
 });
 
 describe('map-access-identity', () => {
@@ -65,6 +71,7 @@ describe('map-access-identity', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await reprojectMapsForCharacter(100);
     expect(mocks.affectedMapIdsForCharacter).toHaveBeenCalledWith(100);
+    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(['map-a', 'map-b']);
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-a');
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-b');
     expect(errorSpy).toHaveBeenCalled();

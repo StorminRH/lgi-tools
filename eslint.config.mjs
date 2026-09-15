@@ -581,6 +581,62 @@ function primitiveSyntaxSelectorsExcept(...exemptions) {
   ];
 }
 
+const corpAccessBoundary = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: { raw: "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution." },
+  },
+  create(context) {
+    const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations", "getCharacterAffiliation"];
+    const isMembershipSource = (source) => /platform\/auth\/membership$/.test(source);
+    const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
+    const reportIfBoundarySource = (node) => {
+      const source = node.source?.value;
+      if (typeof source !== "string") return;
+      if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
+        context.report({ node, messageId: "raw" });
+      }
+    };
+    return {
+      ImportDeclaration(node) {
+        const source = node.source.value;
+        if (isMembershipSource(source)) {
+          context.report({ node, messageId: "raw" });
+        }
+        if (!isAffiliationStoreSource(source)) return;
+        for (const specifier of node.specifiers) {
+          if (specifier.type === "ImportNamespaceSpecifier" ||
+              (specifier.type === "ImportSpecifier" &&
+               RAW_READERS.includes(specifier.imported.name))) {
+            context.report({ node: specifier, messageId: "raw" });
+          }
+        }
+      },
+      ImportExpression(node) {
+        reportIfBoundarySource(node);
+      },
+      ExportNamedDeclaration(node) {
+        const source = node.source?.value;
+        if (typeof source !== "string") return;
+        if (isMembershipSource(source)) {
+          context.report({ node, messageId: "raw" });
+          return;
+        }
+        if (!isAffiliationStoreSource(source)) return;
+        for (const specifier of node.specifiers) {
+          if (specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name)) {
+            context.report({ node: specifier, messageId: "raw" });
+          }
+        }
+      },
+      ExportAllDeclaration(node) {
+        reportIfBoundarySource(node);
+      },
+    };
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -1494,6 +1550,18 @@ const eslintConfig = defineConfig([
         { terms: ["todo", "fixme"], location: "anywhere" },
       ],
     },
+  },
+
+  {
+    files: ["src/**/*.{ts,tsx,mts}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "src/platform/auth/affiliation-store.ts",
+      "src/composition/corp-access.ts",
+      "src/composition/map-access-projection.ts",
+    ],
+    plugins: { "corp-access": { rules: { "boundary": corpAccessBoundary } } },
+    rules: { "corp-access/boundary": "error" },
   },
 
   globalIgnores([
