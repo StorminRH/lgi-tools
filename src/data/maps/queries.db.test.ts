@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { account } from '@/db/auth-schema';
 import {
@@ -22,11 +22,11 @@ import {
   purgeQueuedMapLifecycle,
   tombstonedMapLifecycle,
 } from './lifecycle-contract';
-import { mapAccess, maps } from './schema';
+import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_queries',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'account',
@@ -300,7 +300,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         upsert,
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId, version: expect.any(String) });
     await expect(
       applyAuthorizedMapGrantChange(
         'creator',
@@ -309,7 +309,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         upsert,
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId, version: expect.any(String) });
     await applyAuthorizedMapGrantChange(
       'creator',
       { characterIds: [], corporationIds: [] },
@@ -332,7 +332,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         },
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId, version: expect.any(String) });
 
     await expect(
       harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, mapId)),
@@ -349,6 +349,9 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
       }),
     ]);
 
+    const [queued] = await harness.db.select().from(pendingMapAccessChanges);
+    expect(queued).toMatchObject({ mapId, version: expect.any(String) });
+
     await harness.db
       .update(maps)
       .set(archivedMapLifecycle(new Date()))
@@ -364,7 +367,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         },
         harness.db,
       ),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     await harness.db
       .update(maps)
       .set(tombstonedMapLifecycle(new Date()))
@@ -380,13 +383,41 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         },
         harness.db,
       ),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     await expect(
       harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, mapId)),
     ).resolves.toHaveLength(2);
     await expect(
       harness.db.select().from(maps).where(eq(maps.id, mapId)),
     ).resolves.toHaveLength(1);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([queued]);
+  });
+
+  it.each(['upsert', 'revoke'] as const)('rolls back %s when its durable queue write fails', async (operation) => {
+    await seedUser(harness.db, 'creator');
+    const mapId = '30000000-0000-4000-8000-000000000002';
+    await harness.db.insert(maps).values({ id: mapId, userId: 'creator', name: 'Atomic access' });
+    const principal = { ownerType: 'character' as const, ownerId: 42 };
+    await harness.db.insert(mapAccess).values({ mapId, ...principal, role: 'viewer' });
+    await harness.db.execute(sql`
+      ALTER TABLE map_access_changes ADD CONSTRAINT reject_test_queue CHECK (false)
+    `);
+    try {
+      const change = operation === 'upsert'
+        ? { operation, grant: { ...principal, role: 'admin' as const } }
+        : { operation, principal };
+      await expect(applyAuthorizedMapGrantChange(
+        'creator', { characterIds: [], corporationIds: [] }, mapId, change, harness.db,
+      )).rejects.toThrow();
+      expect(await harness.db.select().from(mapAccess)).toEqual([
+        expect.objectContaining({ mapId, ...principal, role: 'viewer' }),
+      ]);
+      expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+    } finally {
+      await harness.db.execute(sql`
+        ALTER TABLE map_access_changes DROP CONSTRAINT reject_test_queue
+      `);
+    }
   });
 
   it('reads management grants only while current active-map admin authority holds', async () => {

@@ -1,12 +1,13 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { account, characters, corpAccessAudit } from '@/db/auth-schema';
+import { enqueuePendingMapAccessSelection } from '@/data/maps/authorization-sql';
+import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import { account, characters, corpAccessAudit } from '@/db/auth-schema';
-import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 
 export interface CachedAffiliation {
   characterId: number;
@@ -21,7 +22,7 @@ export interface PendingMapAccessChange {
   version: string;
 }
 
-const MAX_PENDING_BATCH = 100;
+export const MAX_PENDING_BATCH = 100;
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 function rowToCachedAffiliation(
@@ -91,7 +92,27 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
+function formatAffiliationObservedAt(observedAt: Date | string): string {
+  if (typeof observedAt === 'string') return observedAt;
+  return observedAt.toISOString().replace('T', ' ').replace('Z', '');
+}
+
+export async function captureAffiliationObservedAt(): Promise<string> {
+  const result = await db.execute<{ now: string }>(sql`
+    SELECT to_char(timezone('utc', clock_timestamp()), 'YYYY-MM-DD HH24:MI:SS.US') AS now
+  `);
+  const rows = Array.isArray(result) ? result : result.rows;
+  const now = rows[0]?.now;
+  if (typeof now !== 'string' || now.length === 0) {
+    throw new Error('Affiliation observation clock returned an invalid timestamp.');
+  }
+  return now;
+}
+
+export async function updateAffiliations(
+  rows: AffiliationRow[],
+  observedAt: Date | string,
+): Promise<{
   refreshed: number;
   accessChanged: boolean;
 }> {
@@ -100,6 +121,7 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
   const now = new Date();
   const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
   const nowIso = now.toISOString().replace('T', ' ').replace('Z', '');
+  const observedIso = formatAffiliationObservedAt(observedAt);
   const cutoffIso = cutoff.toISOString().replace('T', ' ').replace('Z', '');
   const result = await db.execute<{
     refreshed: number;
@@ -115,26 +137,26 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
     ), updated AS (
       UPDATE ${characters} c
       SET corporation_id = i."corporationId", alliance_id = i."allianceId",
-          faction_id = i."factionId", affiliation_refreshed_at = ${nowIso}::timestamp,
+          faction_id = i."factionId", affiliation_refreshed_at = ${observedIso}::timestamp,
           updated_at = ${nowIso}::timestamp
       FROM incoming i JOIN previous p ON p.character_id = i."characterId"
       WHERE c.character_id = i."characterId"
+        AND (c.affiliation_refreshed_at IS NULL OR c.affiliation_refreshed_at < ${observedIso}::timestamp)
       RETURNING c.*, p.corporation_id AS previous_corporation_id,
                 p.affiliation_refreshed_at AS previous_refreshed_at
     ), changed AS (
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
         OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoffIso}::timestamp
     ), queued AS (
-      INSERT INTO ${pendingMapAccessChanges} (map_id)
-      SELECT DISTINCT grants.map_id FROM (
-        SELECT previous_corporation_id AS corporation_id FROM changed
-        UNION ALL
-        SELECT corporation_id FROM changed
-      ) changed JOIN ${mapAccess} grants
-        ON grants.owner_type = 'corporation' AND grants.owner_id = changed.corporation_id
-      ORDER BY grants.map_id
-      ON CONFLICT (map_id) DO UPDATE SET version = gen_random_uuid()
-      RETURNING map_id
+      ${enqueuePendingMapAccessSelection(sql`
+        SELECT DISTINCT grants.map_id FROM (
+          SELECT previous_corporation_id AS corporation_id FROM changed
+          UNION ALL
+          SELECT corporation_id FROM changed
+        ) changed JOIN ${mapAccess} grants
+          ON grants.owner_type = 'corporation' AND grants.owner_id = changed.corporation_id
+        ORDER BY grants.map_id
+      `)}
     )
     SELECT count(*)::integer AS "refreshed",
            EXISTS (SELECT 1 FROM queued) AS "accessChanged"
@@ -161,17 +183,17 @@ export async function readPendingMapAccessChanges(
     .limit(limit);
 }
 
-export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promise<void> {
+export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promise<PendingMapAccessChange[]> {
   const unique = [...new Set(mapIds)];
-  if (unique.length === 0) return;
-  if (unique.length > MAX_PENDING_BATCH) throw new RangeError('Pending affiliation batch exceeds limit');
-  await db
+  if (unique.length === 0) return [];
+  return db
     .insert(pendingMapAccessChanges)
     .values(unique.map((mapId) => ({ mapId })))
     .onConflictDoUpdate({
       target: pendingMapAccessChanges.mapId,
-      set: { version: sql`gen_random_uuid()`, queuedAt: sql`clock_timestamp()` },
-    });
+      set: { version: sql`gen_random_uuid()` },
+    })
+    .returning({ mapId: pendingMapAccessChanges.mapId, version: pendingMapAccessChanges.version });
 }
 
 export async function acknowledgeMapAccessChanges(

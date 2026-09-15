@@ -1,7 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
-import { mapAccess, maps } from './schema';
+import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 export function mapAuthorizationRows(
   result: Awaited<ReturnType<AnyPgDb['execute']>>,
@@ -51,5 +51,14 @@ export function authorizedAdminMapsSelection(
             )
         )
       )
+  `;
+}
+
+export function enqueuePendingMapAccessSelection(mapIds: SQL) {
+  return sql`
+    INSERT INTO ${pendingMapAccessChanges} (map_id)
+    ${mapIds}
+    ON CONFLICT (map_id) DO UPDATE SET version = gen_random_uuid()
+    RETURNING map_id AS "mapId", version
   `;
 }
