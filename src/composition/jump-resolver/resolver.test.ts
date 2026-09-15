@@ -28,10 +28,10 @@ const C247 = {
 const systems = {
   version: 'test',
   systems: [
-    { id: ORIGIN, name: 'J100001', whClassId: 1, security: -1 },
-    { id: DESTINATION, name: 'J100002', whClassId: 1, security: -1 },
-    { id: KSPACE_A, name: 'Known A', whClassId: 7, security: 0.9 },
-    { id: KSPACE_B, name: 'Known B', whClassId: 7, security: 0.8 },
+    { id: ORIGIN, name: 'J100001', regionName: 'A-R00001', whClassId: 1, security: -1 },
+    { id: DESTINATION, name: 'J100002', regionName: 'A-R00001', whClassId: 1, security: -1 },
+    { id: KSPACE_A, name: 'Known A', regionName: 'The Forge', whClassId: 7, security: 0.9 },
+    { id: KSPACE_B, name: 'Known B', regionName: 'The Forge', whClassId: 7, security: 0.8 },
   ],
 };
 
@@ -404,7 +404,7 @@ describe('jump resolver composition', () => {
       version: 'test',
       systems: [
         systems.systems[0],
-        { id: DESTINATION, name: 'J400001', whClassId: 4, security: -1 },
+        { id: DESTINATION, name: 'J400001', regionName: 'A-R00004', whClassId: 4, security: -1 },
       ],
     });
     const result = await resolveJumpRequest(

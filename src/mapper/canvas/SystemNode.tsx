@@ -1,16 +1,24 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef } from 'react';
+import { TitleMetric } from '@/components/ui/chrome-mark';
 import { cn } from '@/components/ui/cn';
 import {
+  isSecurityChip,
   systemClassificationReadout,
   systemDestinationClassReadout,
   systemDestinationHintReadout,
 } from '@/data/eve-data/system-identity';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
+import { closestHubLabel } from '@/data/eve-data/trade-hubs';
 import type { NodeMotion } from '../motion/motion-contract';
-import { PilotPresenceBadge } from './PilotPresenceBadge';
+import { useUniverseAssets } from '../chain/use-universe-assets';
+import { useGlanceMarks } from '../signatures/use-glance-mark-index';
+import { useSystemPresence } from '../tracking/presence-context';
+import { kspaceTitleOffset } from './disc-chrome';
+import { HUB_FACE, visibleTrackOccupants } from './node-chrome';
+import { NodeWidgetTrack } from './NodeWidgetTrack';
 
 export type ChainNodeData = {
   name: string;
@@ -43,7 +51,7 @@ export const SYSTEM_FRAME_WIDTH = 150;
 
 export const SYSTEM_FRAME_HEIGHT = 110;
 
-export const SYSTEM_DISC_SIZE = 55;
+export { SYSTEM_DISC_SIZE } from './disc-chrome';
 
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
@@ -147,6 +155,9 @@ function NodeDisc({
   readonly stub: boolean;
   readonly systemId: number;
 }) {
+  const marks = useGlanceMarks(systemId);
+  const presence = useSystemPresence(systemId);
+  const occupants = stub ? [] : visibleTrackOccupants(marks, presence);
   return (
     <div
       className={cn(
@@ -173,12 +184,50 @@ function NodeDisc({
         isConnectable={isConnectable}
         className={CENTER_HANDLE_CLASS}
       />
-      <div
-        data-chain-node-widgets
-        className="absolute -right-[16px] -top-[4px] flex items-center justify-end gap-0.5"
+      <NodeWidgetTrack occupants={occupants} />
+    </div>
+  );
+}
+
+function KSpaceTitle({
+  systemId,
+  name,
+}: {
+  readonly systemId: number;
+  readonly name: string;
+}) {
+  const assets = useUniverseAssets();
+  const entry = assets?.systemInfo(systemId);
+  const hub = assets === null ? null : closestHubLabel(assets.hubJumps(systemId));
+  const offset = kspaceTitleOffset();
+  const titleRef = useRef<HTMLDivElement>(null);
+  const transform = `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`;
+  useLayoutEffect(() => {
+    titleRef.current?.style.setProperty('--kspace-title-transform', transform);
+  }, [transform]);
+  return (
+    <div
+      ref={titleRef}
+      data-chain-node-kspace-title
+      className="absolute left-1/2 top-1/2 flex w-full flex-col items-center text-center [transform:var(--kspace-title-transform)]"
+    >
+      <span
+        data-chain-node-name
+        className="w-full truncate px-1 font-ui text-nav font-bold leading-none text-name"
       >
-        {stub ? null : <PilotPresenceBadge systemId={systemId} />}
-      </div>
+        {name}
+      </span>
+      {entry !== null && entry !== undefined ? (
+        <span
+          data-chain-node-region
+          className="w-full truncate px-1 font-data text-micro leading-none text-muted"
+        >
+          {entry.regionName}
+        </span>
+      ) : null}
+      {hub !== null ? (
+        <TitleMetric {...HUB_FACE} caption={hub} dataAttr="data-chain-node-hub" />
+      ) : null}
     </div>
   );
 }
@@ -187,6 +236,10 @@ function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) 
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
+  const securityChip = !stub && isSecurityChip({
+    security: data.security ?? null,
+    whClassId: data.whClassId ?? null,
+  });
   return (
     <div
       data-chain-node
@@ -201,16 +254,20 @@ function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) 
         nodeMotionClass(data.motion),
       )}
     >
-      <span
-        data-chain-node-name
-        className={cn(
-          'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
-          header.toneClass,
-          chromeClass,
-        )}
-      >
-        {header.text}
-      </span>
+      {securityChip ? (
+        <KSpaceTitle systemId={Number(id)} name={header.text} />
+      ) : (
+        <span
+          data-chain-node-name
+          className={cn(
+            'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
+            header.toneClass,
+            chromeClass,
+          )}
+        >
+          {header.text}
+        </span>
+      )}
       <NodeDisc
         derived={derived}
         chromeClass={chromeClass}

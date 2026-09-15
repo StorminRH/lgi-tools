@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import {
+  isSecurityChip,
   systemClassificationReadout,
   systemClassText,
   systemDestinationClassReadout,
@@ -108,6 +109,19 @@ it('renders independently placeable classification chips and omits unresolved fa
   expect(
     systemClassificationReadout({ security: null, whClassId: null }),
   ).toBeNull();
+});
+
+it('treats only a security-number chip as a k-space title system', () => {
+  expect(isSecurityChip({ security: 0.946, whClassId: null })).toBe(true);
+  expect(isSecurityChip({ security: 1, whClassId: 7 })).toBe(true);
+  expect(isSecurityChip({ security: 0.4, whClassId: 8 })).toBe(true);
+  expect(isSecurityChip({ security: -0.1, whClassId: 9 })).toBe(true);
+  expect(isSecurityChip({ security: -1, whClassId: 4 })).toBe(false);
+  expect(isSecurityChip({ security: -0.5, whClassId: 12 })).toBe(false);
+  expect(isSecurityChip({ security: -0.5, whClassId: 16 })).toBe(false);
+  expect(isSecurityChip({ security: -0.5, whClassId: 25 })).toBe(false);
+  expect(isSecurityChip({ security: null, whClassId: null })).toBe(false);
+  expect(isSecurityChip({ security: null, whClassId: 7 })).toBe(false);
 });
 
 it.each([

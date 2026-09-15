@@ -32,10 +32,10 @@ describe('useSystemLabel', () => {
   it('names any directory system, including k-space that is not a map node', () => {
     assets.systemInfo.mockImplementation((id) => {
       if (id === JITA) {
-        return { id: JITA, name: 'Jita', whClassId: null, security: 0.946 };
+        return { id: JITA, name: 'Jita', regionName: 'The Forge', whClassId: null, security: 0.946 };
       }
       if (id === HOLE) {
-        return { id: HOLE, name: 'J123456', whClassId: 5, security: -1 };
+        return { id: HOLE, name: 'J123456', regionName: 'A-R00001', whClassId: 5, security: -1 };
       }
       return null;
     });

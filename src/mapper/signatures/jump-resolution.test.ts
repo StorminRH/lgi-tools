@@ -75,7 +75,7 @@ describe('jump resolution', () => {
       connectionId: 'claimed-static' as Id<'mapConnections'>,
     };
     const first: UnresolvedHoleSummary = { ...pending(), toSystemId: null, resolution: { kind: 'open' } };
-    const systemInfo = (id: number) => ({ id, name: 'J123456', security: -1, whClassId: 4 });
+    const systemInfo = (id: number) => ({ id, name: 'J123456', regionName: 'A-R00001', security: -1, whClassId: 4 });
     const model = pendingJumpResolution(
       new Map(), [first, claimed], new Set(), systemInfo, OWN, [awaiting],
     );
@@ -106,7 +106,7 @@ describe('jump resolution', () => {
         ],
       },
     };
-    const systemInfo = (id: number) => ({ id, name: 'J123456', security: -1, whClassId: 4 });
+    const systemInfo = (id: number) => ({ id, name: 'J123456', regionName: 'A-R00001', security: -1, whClassId: 4 });
     const model = pendingJumpResolution(new Map(), [remaining, ...HOLES], new Set(), systemInfo, OWN, [awaiting]);
     expect(model?.candidates.map(jumpAnswerTarget)).toEqual([C1, STUB]);
   });
@@ -170,7 +170,7 @@ describe('jump resolution', () => {
 
     const systemInfo = (id: number) =>
       id === 2
-        ? { id, name: 'J123456', security: -1, whClassId: 4 }
+        ? { id, name: 'J123456', regionName: 'A-R00001', security: -1, whClassId: 4 }
         : null;
     expect(pendingJumpResolution(details, HOLES, new Set(), systemInfo, OWN)).toEqual(
       expect.objectContaining({

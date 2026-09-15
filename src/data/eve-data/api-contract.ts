@@ -20,12 +20,21 @@ import {
 } from './wormhole-contract';
 
 export const ENTITY_NAMES_MAX_IDS = 200;
+export const TYPE_NAMES_MAX_IDS = ENTITY_NAMES_MAX_IDS;
 
 export const entityNamesRequestSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
 });
 
+export const typeNamesRequestSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(TYPE_NAMES_MAX_IDS),
+});
+
 const entityNamesResponseSchema = z.object({
+  names: z.record(z.string(), z.string()),
+});
+
+const typeNamesResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
 export type SdePipelineSummary = {
@@ -46,6 +55,16 @@ export const entityNamesEndpoint = defineEndpoint({
   request: entityNamesRequestSchema,
   responses: {
     200: jsonBody(entityNamesResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
+
+export const typeNamesEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/eve/type-names',
+  request: typeNamesRequestSchema,
+  responses: {
+    200: jsonBody(typeNamesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
   },
 });
@@ -80,7 +99,11 @@ export const systemsEndpoint = defineEndpoint({
   },
 });
 
-const universeAssetVersionSchema = z.string().min(1).max(64);
+const universeAssetVersionSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/.+\+u2$/);
 
 export const UNIVERSE_ASSET_CACHE_CONTROL =
   'public, max-age=31536000, immutable';
@@ -96,6 +119,7 @@ const universeAssetManifestResponseSchema = z.object({
 const systemDirectoryEntrySchema = z.object({
   id: z.number().int(),
   name: z.string(),
+  regionName: z.string(),
   whClassId: z.number().int().nullable(),
   security: z.number().nullable(),
 });

@@ -17,6 +17,7 @@ import {
   SignatureDataProvider,
   type ScannerPanelTarget,
 } from './signature-context';
+import { GlanceMarkIndexProvider } from './use-glance-mark-index';
 import { SignatureWindow } from './SignatureWindow';
 import { useIdentifySignature } from './use-identify-signature';
 import { useSignatureJumpFlow } from './use-signature-jump-flow';
@@ -88,6 +89,7 @@ export function SignatureProvider({
 
   return (
     <SignatureDataProvider value={signatureData}>
+      <GlanceMarkIndexProvider mapId={mapId}>
       {children}
       <SignatureWindow
         scannerSystemId={scannerSystemId}
@@ -117,6 +119,7 @@ export function SignatureProvider({
         now={panel.now}
         onClose={panel.closePanel}
       />
+      </GlanceMarkIndexProvider>
     </SignatureDataProvider>
   );
 }

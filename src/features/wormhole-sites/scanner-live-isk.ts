@@ -30,6 +30,35 @@ export function scannerLiveTypeIdKey(typeIds: readonly number[]): string {
   return [...new Set(typeIds)].sort((a, b) => a - b).join(',');
 }
 
+export function scannerEstIskValue(
+  siteName: string | null,
+  live: boolean,
+  lookups: {
+    readonly estIskForName: (name: string) => number | null;
+    readonly liveRecipesForName: (name: string) => readonly SiteLiveRecipe[];
+  },
+  livePrices: {
+    readonly priceOf: (typeId: number) => { bestSell: number | null } | undefined;
+    readonly isPending: (typeId: number) => boolean;
+  },
+): number | null {
+  if (siteName === null) return null;
+  const seed = lookups.estIskForName(siteName);
+  if (!live) return seed;
+  const recipes = lookups.liveRecipesForName(siteName);
+  if (recipes.length === 0) return seed;
+  return scannerLiveEstIsk(recipes, livePrices.priceOf, livePrices.isPending).total;
+}
+
+export function sumKnownIsk(values: readonly (number | null)[]): number | null {
+  let total: number | null = null;
+  for (const value of values) {
+    if (value === null) continue;
+    total = (total ?? 0) + value;
+  }
+  return total;
+}
+
 export function scannerLiveTypeIdsForNames(
   names: readonly string[],
   recipesForName: (name: string) => readonly SiteLiveRecipe[],

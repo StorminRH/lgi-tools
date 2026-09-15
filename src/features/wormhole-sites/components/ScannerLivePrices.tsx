@@ -14,9 +14,10 @@ import {
 } from '@/data/market-prices/use-refresh-on-view';
 import { formatIskShort } from '@/lib/format/isk';
 import {
-  scannerLiveEstIsk,
+  scannerEstIskValue,
   scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
+  sumKnownIsk,
 } from '../scanner-live-isk';
 import { useSiteCatalogue } from '../site-catalogue';
 
@@ -79,6 +80,17 @@ function ScannerLivePricesEngine({
   );
 }
 
+export function useScannerEstIskSum(
+  names: readonly string[],
+  live: boolean,
+): number | null {
+  const scannerLive = useScannerLive();
+  const catalogue = useSiteCatalogue();
+  return sumKnownIsk(
+    names.map((name) => scannerEstIskValue(name, live, catalogue, scannerLive)),
+  );
+}
+
 export function ScannerEstIskCell({
   siteName,
   live,
@@ -88,34 +100,23 @@ export function ScannerEstIskCell({
 }) {
   const scannerLive = useScannerLive();
   const catalogue = useSiteCatalogue();
-  if (siteName === null) {
-    return <StaticEstIsk isk={null} />;
+  const isk = scannerEstIskValue(siteName, live, catalogue, scannerLive);
+  if (siteName === null || !live || catalogue.liveRecipesForName(siteName).length === 0) {
+    return <StaticEstIsk isk={isk} />;
   }
 
-  const seed = catalogue.estIskForName(siteName);
-  if (!live) {
-    return <StaticEstIsk isk={seed} />;
-  }
-
-  const recipes = catalogue.liveRecipesForName(siteName);
-  if (recipes.length === 0) {
-    return <StaticEstIsk isk={seed} />;
-  }
-
-  const { total, pending } = scannerLiveEstIsk(
-    recipes,
-    scannerLive.priceOf,
-    scannerLive.isPending,
+  const pending = catalogue.liveRecipesForName(siteName).some((recipe) =>
+    scannerLive.isPending(recipe.typeId),
   );
   return (
     <span
-      data-signature-isk={total === null ? 'empty' : 'value'}
+      data-signature-isk={isk === null ? 'empty' : 'value'}
       className="justify-self-end text-right"
     >
       <LivePrice
-        value={formatIskShort(total)}
+        value={formatIskShort(isk)}
         pending={pending}
-        className={total === null ? 'text-muted' : 'text-isk'}
+        className={isk === null ? 'text-muted' : 'text-isk'}
       />
     </span>
   );

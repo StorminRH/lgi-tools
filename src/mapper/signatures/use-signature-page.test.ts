@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import type { ConnectionDetail, UnresolvedHoleSummary } from '../chain/connection-detail';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
-import { SignatureDataProvider, useSignatureCounts } from './signature-context';
+import {
+  SignatureDataProvider,
+  useSignatureCounts,
+  useSignatureRows,
+} from './signature-context';
 import type { SignatureWindowRow } from './signature-model';
 import { useSignaturePage } from './use-signature-page';
 
@@ -53,6 +57,13 @@ function CountProbe({ systemId }: { readonly systemId: number }) {
   return createElement('output', null, `${counts.signatures}/${counts.anomalies}`);
 }
 
+function RowsProbe({ systemId }: { readonly systemId: number }) {
+  const rows = useSignatureRows(systemId);
+  return createElement('output', {
+    'data-ids': rows.map((row) => row.signatureId).join(','),
+  });
+}
+
 function countMarkup(systemIds: readonly number[], scannerSystemId: number | null = SYSTEM) {
   return renderToStaticMarkup(createElement(SignatureDataProvider, {
     value: { mapId: 'map-a', scannerSystemId, scannerRows, connectionDetails: connections, unresolvedHoles: holes },
@@ -84,6 +95,16 @@ describe('system-local signature pages', () => {
     ]);
     expect(markup).toContain('<output>0/1</output>');
     expect(markup).toContain('<output>1/0</output>');
+    const rows = renderToStaticMarkup(createElement(SignatureDataProvider, {
+      value: {
+        mapId: 'map-a',
+        scannerSystemId: SYSTEM,
+        scannerRows,
+        connectionDetails: connections,
+        unresolvedHoles: holes,
+      },
+    }, createElement(RowsProbe, { systemId: SYSTEM })));
+    expect(rows).toContain('data-ids="ANO-001"');
   });
 
   it('reads mounted intelligence without a scanner and preserves ghost counts', () => {

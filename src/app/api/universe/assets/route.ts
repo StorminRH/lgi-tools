@@ -1,6 +1,7 @@
 import { connection } from 'next/server';
 import { universeAssetManifestEndpoint } from '@/data/eve-data/api-contract';
 import { getCachedSdeVersion } from '@/data/eve-data/meta';
+import { composeUniverseAssetVersion } from '@/data/eve-data/universe-assets';
 import { dependencyUnavailableFailure } from '@/lib/failure';
 import {
   apiResponse,
@@ -27,7 +28,9 @@ export async function GET(): Promise<Response> {
     );
   }
   return withCacheControl(
-    apiResponse(universeAssetManifestEndpoint, 200, { version }),
+    apiResponse(universeAssetManifestEndpoint, 200, {
+      version: composeUniverseAssetVersion(version),
+    }),
     'no-store',
   );
 }

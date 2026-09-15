@@ -159,6 +159,7 @@ it('restores inside the undo window, closes when the row left the feed, and keep
   assets.systemInfo.mockReturnValue({
     id: 31_000_002,
     name: 'J123456',
+    regionName: 'A-R00001',
     security: -1,
     whClassId: 4,
   });
@@ -179,9 +180,10 @@ it('destinationReadout covers unresolved, known, and bare-id fallback', () => {
       directory({
         id: 31_000_002,
         name: 'J123456',
+        regionName: 'A-R00001',
         security: -1,
         whClassId: 4,
-      } as SystemDirectoryEntry),
+      }),
     ),
   ).toEqual({ label: 'J123456 - C4', tone: 'text-wh-c4' });
   expect(destinationReadout(31_000_002, null)).toEqual({

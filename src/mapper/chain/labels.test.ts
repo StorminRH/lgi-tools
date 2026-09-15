@@ -17,7 +17,7 @@ function entry(
   name: string,
   whClassId: number | null,
 ): SystemDirectoryEntry {
-  return { id, name, whClassId, security: null };
+  return { id, name, regionName: 'The Forge', whClassId, security: null };
 }
 
 describe('node label resolution', () => {
@@ -43,7 +43,7 @@ describe('node label resolution', () => {
     expect(
       resolveSystemLabel(
         JITA,
-        directory([{ id: JITA, name: 'Jita', whClassId: null, security: 0.946 }]),
+        directory([{ id: JITA, name: 'Jita', regionName: 'The Forge', whClassId: null, security: 0.946 }]),
       ),
     ).toEqual({
       name: 'Jita',

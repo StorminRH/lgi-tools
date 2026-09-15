@@ -179,15 +179,23 @@ describe.skipIf(!harness.reachable)('universe asset database reads', () => {
     const directory = await readSystemDirectory(harness.db);
     const adjacency = await readAdjacencyGraph(harness.db);
 
-    expect(directory.version).toBe('3444265');
+    expect(directory.version).toBe('3444265+u2');
     expect(directory.systems).toContainEqual({
       id: 31_000_001,
       name: 'J100001',
+      regionName: 'The Forge',
       security: -0.99,
       whClassId: 1,
     });
+    expect(directory.systems).toContainEqual({
+      id: 30_000_142,
+      name: 'Jita',
+      regionName: 'The Forge',
+      security: 0.9,
+      whClassId: 7,
+    });
     expect(adjacency).toEqual({
-      version: '3444265',
+      version: '3444265+u2',
       adjacency: [
         [30_000_142, [30_000_144]],
         [30_000_144, [30_000_142]],
@@ -200,7 +208,7 @@ describe.skipIf(!harness.reachable)('universe asset database reads', () => {
 
   it('includes unpublished K162 without dogma and resolves typed attributes by name', async () => {
     await expect(readWormholeCodex(harness.db)).resolves.toEqual({
-      version: '3444265',
+      version: '3444265+u2',
       types: [
         {
           code: 'B274',
