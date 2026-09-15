@@ -1,7 +1,7 @@
 # WormholeVisual
 
 Decorative Atlas primitive extracted from the approved liquid sphere prototype:
-small glassy core, broad outward wisps, and simultaneous center ripples / damped
+original compact lensed sphere, narrow rim glow, and simultaneous center ripples / damped
 wobble on activation. `SystemNode` owns its labels, handles and React Flow state.
 
 ```tsx
@@ -10,17 +10,17 @@ wobble on activation. `SystemNode` owns its labels, handles and React Flow state
   active={hovered || selected}
   paused={dragging}
   seed={id}
-  size={146}
+  size={75}
 />
 ```
 
 | Input | Meaning |
 | --- | --- |
 | `whClassId` | Numeric SDE destination/system class; null or unsupported values use neutral colors. |
-| `active` | Parent-controlled hover or selection. False→true starts the impulse; sustained true continues wisps after settling. |
+| `active` | Parent-controlled hover or selection. False→true starts the impulse; sustained true continues slow internal drift after settling. |
 | `paused` | Immediately stills all motion, even when active. Used during drag and for inert nodes. |
 | `seed` | Stable string, normally the system/node ID, for deterministic internal texture variation. |
-| `size` | Entire visual diameter in CSS pixels, including wisps. Default 146; the core is approximately 55px. Clamped to 32–512. |
+| `size` | Entire visual diameter in CSS pixels, including the narrow rim glow. Default 75; the core is approximately 55px. Clamped to 32–512. |
 | `shipSize` | Optional `small`, `medium`, `large`, `capital`, or `unknown` aura palette. Default unknown. Supply only for a particular connection. |
 
 Do not infer ship size from class. A system can have several wormholes with
@@ -60,7 +60,7 @@ Sources:
 All mounted visuals share one lazy, bounded 256×256 WebGL surface. Each node has
 a 2D canvas retaining its last frame, so idle nodes schedule no animation work.
 Offscreen nodes and hidden tabs stop; dragging and reduced-motion preferences
-immediately still the effect. Release eases the wisps to rest. Unmount cleans
+immediately still the effect. Release eases the internal drift to rest. Unmount cleans
 observers/listeners/frames; the final consumer releases GPU resources.
 
 Static CSS fallback remains available before hydration, without WebGL, or after

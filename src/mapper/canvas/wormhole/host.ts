@@ -12,7 +12,7 @@ export interface WormholeInputs {
 }
 
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
-  const size = Number.isFinite(inputs.size) ? Math.min(512, Math.max(32, inputs.size!)) : 146;
+  const size = Number.isFinite(inputs.size) ? Math.min(512, Math.max(32, inputs.size!)) : 75;
   const backing = Math.min(256, Math.round(size * Math.min(2, window.devicePixelRatio || 1)));
   if (canvas.width !== backing || canvas.height !== backing) {
     canvas.width = canvas.height = backing;

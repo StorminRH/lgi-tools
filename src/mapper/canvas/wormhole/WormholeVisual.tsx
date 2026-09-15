@@ -13,7 +13,7 @@ function WormholeVisualComponent({
   active,
   paused = false,
   seed = '',
-  size = 146,
+  size = 75,
   shipSize = 'unknown',
 }: WormholeInputs) {
   const canvasRef = useRef<HTMLCanvasElement>(null);

@@ -253,7 +253,7 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
             active={active}
             paused={paused}
             seed={id}
-            size={146}
+            size={75}
           />
         )}
       />
