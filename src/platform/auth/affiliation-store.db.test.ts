@@ -8,7 +8,6 @@ import {
 } from '@/db/__tests__/support/db-test-harness';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
-  getCharacterAffiliation,
   getUserAffiliations,
   listStaleLinkedCharacterIds,
   recordCorpAccessDecision,
@@ -77,11 +76,6 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
         refreshedAt: null,
       },
     ]);
-    await expect(getCharacterAffiliation(FIRST_CHAR)).resolves.toMatchObject({
-      corporationId: 98000011,
-      refreshedAt,
-    });
-    await expect(getCharacterAffiliation(99999999)).resolves.toBeNull();
   });
 
   it('returns only missing or older-than-TTL linked characters without duplicates', async () => {

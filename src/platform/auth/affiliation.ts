@@ -1,7 +1,6 @@
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { fetchAffiliations } from './affiliation-source';
-import { characterIsInCorp, isMemberOfCorp } from './membership';
-import { getCharacterAffiliation, getUserAffiliations, updateAffiliations } from './affiliation-store';
+import { getUserAffiliations, updateAffiliations } from './affiliation-store';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
@@ -67,20 +66,4 @@ export async function refreshStaleAffiliationsForUserWithOutcome(
  */
 export async function refreshStaleAffiliationsForUser(userId: string): Promise<number> {
   return (await refreshStaleAffiliationsForUserWithOutcome(userId)).refreshed;
-}
-
-export async function isUserCurrentMemberOfCorp(
-  userId: string,
-  corporationId: number,
-): Promise<boolean> {
-  const affiliations = await getUserAffiliations(userId);
-  return isMemberOfCorp(affiliations, corporationId, new Date());
-}
-
-export async function isCharacterCurrentMemberOfCorp(
-  characterId: number,
-  corporationId: number,
-): Promise<boolean> {
-  const affiliation = await getCharacterAffiliation(characterId);
-  return characterIsInCorp(affiliation, corporationId, new Date());
 }
