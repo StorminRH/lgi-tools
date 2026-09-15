@@ -92,16 +92,26 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-function formatAffiliationObservedAt(observedAt: Date, sequence = 0): string {
-  const base = observedAt.toISOString().replace('T', ' ').replace('Z', '');
-  if (sequence === 0) return base;
-  return `${base}${String(sequence % 1000).padStart(3, '0')}`;
+function formatAffiliationObservedAt(observedAt: Date | string): string {
+  if (typeof observedAt === 'string') return observedAt;
+  return observedAt.toISOString().replace('T', ' ').replace('Z', '');
+}
+
+export async function captureAffiliationObservedAt(): Promise<string> {
+  const result = await db.execute<{ now: string }>(sql`
+    SELECT to_char(timezone('utc', clock_timestamp()), 'YYYY-MM-DD HH24:MI:SS.US') AS now
+  `);
+  const rows = Array.isArray(result) ? result : result.rows;
+  const now = rows[0]?.now;
+  if (typeof now !== 'string' || now.length === 0) {
+    throw new Error('Affiliation observation clock returned an invalid timestamp.');
+  }
+  return now;
 }
 
 export async function updateAffiliations(
   rows: AffiliationRow[],
-  observedAt: Date,
-  sequence = 0,
+  observedAt: Date | string,
 ): Promise<{
   refreshed: number;
   accessChanged: boolean;
@@ -111,7 +121,7 @@ export async function updateAffiliations(
   const now = new Date();
   const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
   const nowIso = now.toISOString().replace('T', ' ').replace('Z', '');
-  const observedIso = formatAffiliationObservedAt(observedAt, sequence);
+  const observedIso = formatAffiliationObservedAt(observedAt);
   const cutoffIso = cutoff.toISOString().replace('T', ' ').replace('Z', '');
   const result = await db.execute<{
     refreshed: number;

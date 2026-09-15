@@ -9,6 +9,7 @@ import {
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
   acknowledgeMapAccessChanges,
+  captureAffiliationObservedAt,
   enqueueMapAccessChanges,
   getUsersAffiliations,
   MAX_PENDING_BATCH,
@@ -312,6 +313,13 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
       expect(pending.map((row) => row.mapId).sort()).toEqual(expectedMaps.sort());
     },
   );
+
+  it('captures distinct UTC observation clocks from the database', async () => {
+    const first = await captureAffiliationObservedAt();
+    const second = await captureAffiliationObservedAt();
+    expect(first).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$/);
+    expect(second > first).toBe(true);
+  });
 
   it('rejects a later write that reuses the same observation timestamp', async () => {
     await seedCorpMap(98000011);

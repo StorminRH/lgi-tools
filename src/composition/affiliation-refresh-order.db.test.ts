@@ -8,6 +8,7 @@ import {
 import { mapAccess, maps } from '@/data/maps/schema';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import type { AffiliationFetchResult } from '@/platform/auth/affiliation-source';
+import * as affiliationStore from '@/platform/auth/affiliation-store';
 import { getUserAffiliations, readPendingMapAccessChanges } from '@/platform/auth/affiliation-store';
 import { computeMapAccessClaims } from './map-access-projection';
 
@@ -33,6 +34,10 @@ const NEW_CORPORATION = 98000043;
 const MAP_ID = '12345678-0000-4000-8000-123456789000';
 const STARTED_AT = new Date('2026-09-15T12:00:00.000Z');
 const NEWER_STARTED_AT = new Date(STARTED_AT.getTime() + 1_000);
+const OLDER_STAMP = '2026-09-15 12:00:00.000000';
+const NEWER_STAMP = '2026-09-15 12:00:01.000000';
+const SAME_MS_FIRST = '2026-09-15 12:00:00.000001';
+const SAME_MS_SECOND = '2026-09-15 12:00:00.000002';
 
 function response(corporationId: number): AffiliationFetchResult {
   return {
@@ -59,7 +64,10 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
     vi.setSystemTime(STARTED_AT);
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it.each(['older first', 'newer first'] as const)(
     'keeps the newer observation and revoked map access when responses finish %s',
@@ -67,6 +75,9 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
       const older = Promise.withResolvers<AffiliationFetchResult>();
       const newer = Promise.withResolvers<AffiliationFetchResult>();
       mocks.fetch.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+      vi.spyOn(affiliationStore, 'captureAffiliationObservedAt')
+        .mockResolvedValueOnce(OLDER_STAMP)
+        .mockResolvedValueOnce(NEWER_STAMP);
       const olderRefresh = refreshAffiliationsWithOutcome([CHARACTER_ID]);
       vi.setSystemTime(NEWER_STARTED_AT);
       const newerRefresh = refreshAffiliationsWithOutcome([CHARACTER_ID]);
@@ -107,6 +118,9 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
     const first = Promise.withResolvers<AffiliationFetchResult>();
     const second = Promise.withResolvers<AffiliationFetchResult>();
     mocks.fetch.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    vi.spyOn(affiliationStore, 'captureAffiliationObservedAt')
+      .mockResolvedValueOnce(SAME_MS_FIRST)
+      .mockResolvedValueOnce(SAME_MS_SECOND);
     const firstRefresh = refreshAffiliationsWithOutcome([CHARACTER_ID]);
     const secondRefresh = refreshAffiliationsWithOutcome([CHARACTER_ID]);
     second.resolve(response(NEW_CORPORATION));

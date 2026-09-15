@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   reconcile: vi.fn(),
   fetchAffiliations: vi.fn(),
   updateAffiliations: vi.fn(),
+  captureAffiliationObservedAt: vi.fn(),
   getUserAffiliations: vi.fn(),
   recordCorpAccessDecision: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock('@/platform/auth/affiliation-source', () => ({ fetchAffiliations: mocks.
 vi.mock('@/platform/auth/affiliation-store', () => ({
   getUserAffiliations: mocks.getUserAffiliations,
   updateAffiliations: mocks.updateAffiliations,
+  captureAffiliationObservedAt: mocks.captureAffiliationObservedAt,
   recordCorpAccessDecision: mocks.recordCorpAccessDecision,
 }));
 vi.mock('next/server', () => ({ after: mocks.after }));
@@ -34,6 +36,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.fetchAffiliations.mockResolvedValue({ rows: [], transientFailure: false });
   mocks.updateAffiliations.mockResolvedValue({ refreshed: 0, accessChanged: false });
+  mocks.captureAffiliationObservedAt.mockResolvedValue('2026-09-15 12:00:00.000001');
   mocks.getUserAffiliations.mockResolvedValue([]);
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });

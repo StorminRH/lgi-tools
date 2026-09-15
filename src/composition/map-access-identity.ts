@@ -7,12 +7,11 @@ import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries'
 import { bestEffort } from '@/lib/best-effort';
 import { enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
-import { reconcileAffiliationAccess } from './map-affiliation-access';
+import { deliverCapturedMapAccessChanges } from './map-affiliation-access';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
-  const mapIds = await affectedMapIdsForCharacter(characterId);
-  await enqueueMapAccessChanges(mapIds);
-  if (mapIds.length > 0) await reconcileAffiliationAccess();
+  const pending = await enqueueMapAccessChanges(await affectedMapIdsForCharacter(characterId));
+  if (pending.length > 0) await deliverCapturedMapAccessChanges(pending);
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {

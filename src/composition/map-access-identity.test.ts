@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   teardownLocationTracking: vi.fn(),
   enqueueMapAccessChanges: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
-  readPendingMapAccessChanges: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -35,9 +34,9 @@ vi.mock('@/data/location-tracking/purge', () => ({
 }));
 
 vi.mock('@/platform/auth/affiliation-store', () => ({
+  MAX_PENDING_BATCH: 100,
   enqueueMapAccessChanges: mocks.enqueueMapAccessChanges,
   acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
-  readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
 }));
 
 import {
@@ -60,12 +59,7 @@ beforeEach(() => {
   mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
   mocks.teardownLocationTracking.mockResolvedValue(undefined);
-  mocks.enqueueMapAccessChanges.mockImplementation(async (ids: string[]) => {
-    const pending = ids.map((mapId) => ({ mapId, version: mapId }));
-    mocks.readPendingMapAccessChanges.mockResolvedValue(pending.slice(0, 100));
-    return pending;
-  });
-  mocks.readPendingMapAccessChanges.mockResolvedValue([]);
+  mocks.enqueueMapAccessChanges.mockImplementation(async (ids: string[]) => ids.map((mapId) => ({ mapId, version: mapId })));
 });
 
 describe('map-access-identity', () => {
