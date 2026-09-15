@@ -503,7 +503,6 @@ export async function applyAuthorizedMapGrantChange(
       AND ${mapAccess.ownerType} = ${change.principal.ownerType}
       AND ${mapAccess.ownerId} = ${change.principal.ownerId}
   `;
-  // Authorization, mutation, and its retry signal commit or roll back together.
   const result = await database.execute<{ mapId: string; version: string }>(sql`
     WITH authorized_map AS (
       ${activeMapAdminSelection(userId, principals, mapId)}

@@ -15,7 +15,6 @@ export async function reconcileAffiliationAccess(
   changes?: PendingMapAccessChange[],
 ): Promise<{ processed: number; failed: number }> {
   const deadline = Date.now() + RECONCILE_BUDGET_MS;
-  // Producers record every affected map; work beyond this batch remains queued.
   const pending = changes?.slice(0, 100) ?? await readPendingMapAccessChanges();
   if (pending.length === 0) return { processed: 0, failed: 0 };
   const mapIds = pending.map((row) => row.mapId);

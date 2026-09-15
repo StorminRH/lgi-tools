@@ -74,7 +74,6 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
   if (!parsed.success) return { rows: [], transientFailure: true };
   const returned = new Map(parsed.data.map((entry) => [entry.character_id, entry]));
   return {
-    // Only a successful response can confirm an omitted character's departure.
     rows: batch.map((id) => {
       const entry = returned.get(id);
       return entry ? toAffiliationRow(entry) : absentAffiliation(id);

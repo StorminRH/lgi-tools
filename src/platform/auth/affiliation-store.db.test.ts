@@ -301,8 +301,6 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     expect(stored).toMatchObject({ corporationId: 98000031, affiliationRefreshedAt: newerObservedAt });
     const pending = await readPendingMapAccessChanges();
     const expectedMaps = [mapId(98000011), mapId(98000031)];
-    // The intermediate corporation only existed if the older writer acquired
-    // the lock first. Rejected observations must not create projection work.
     if (older.refreshed === 1) expectedMaps.push(mapId(98000021));
     expect(pending.map((row) => row.mapId).sort()).toEqual(expectedMaps.sort());
   });
