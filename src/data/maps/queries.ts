@@ -27,6 +27,7 @@ import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
   maps,
+  pendingMapAccessChanges,
 } from './schema';
 import {
   authorizedAdminMapsSelection,
@@ -459,9 +460,6 @@ export async function getAuthorizedMapGrantsForMaps(
   );
 }
 
-type MapGrantUpsert = Extract<MapGrantChange, { readonly operation: 'upsert' }>;
-type MapGrantRevoke = Extract<MapGrantChange, { readonly operation: 'revoke' }>;
-
 function activeMapsAdminSelection(
   userId: string,
   principals: MapPrincipals,
@@ -483,63 +481,41 @@ function activeMapAdminSelection(
   return activeMapsAdminSelection(userId, principals, [mapId]);
 }
 
-async function applyAuthorizedMapGrantUpsert(
-  userId: string,
-  principals: MapPrincipals,
-  mapId: string,
-  change: MapGrantUpsert,
-  database: AnyPgDb,
-): Promise<boolean> {
-  const result = await database.execute<{ authorized: boolean }>(sql`
-      WITH authorized_map AS (
-        ${activeMapAdminSelection(userId, principals, mapId)}
-      ), changed AS (
-        INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
-        SELECT
-          authorized_map.id,
-          ${change.grant.ownerType}::"public"."map_access_owner_type",
-          ${change.grant.ownerId},
-          ${change.grant.role}::"public"."map_role"
-        FROM authorized_map
-        ON CONFLICT (map_id, owner_type, owner_id)
-        DO UPDATE SET role = EXCLUDED.role
-      )
-      SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
-    `);
-  return mapAuthorizationRows(result)[0]?.authorized === true;
-}
-
-async function applyAuthorizedMapGrantRevoke(
-  userId: string,
-  principals: MapPrincipals,
-  mapId: string,
-  change: MapGrantRevoke,
-  database: AnyPgDb,
-): Promise<boolean> {
-  const result = await database.execute<{ authorized: boolean }>(sql`
-    WITH authorized_map AS (
-      ${activeMapAdminSelection(userId, principals, mapId)}
-    ), changed AS (
-      DELETE FROM ${mapAccess}
-      WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
-        AND ${mapAccess.ownerType} = ${change.principal.ownerType}
-        AND ${mapAccess.ownerId} = ${change.principal.ownerId}
-    )
-    SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
-  `);
-  return mapAuthorizationRows(result)[0]?.authorized === true;
-}
-
-export function applyAuthorizedMapGrantChange(
+export async function applyAuthorizedMapGrantChange(
   userId: string,
   principals: MapPrincipals,
   mapId: string,
   change: MapGrantChange,
   database: AnyPgDb = db,
-): Promise<boolean> {
-  return change.operation === 'upsert'
-    ? applyAuthorizedMapGrantUpsert(userId, principals, mapId, change, database)
-    : applyAuthorizedMapGrantRevoke(userId, principals, mapId, change, database);
+): Promise<{ mapId: string; version: string } | null> {
+  const mutation = change.operation === 'upsert' ? sql`
+    INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
+    SELECT authorized_map.id,
+      ${change.grant.ownerType}::"public"."map_access_owner_type",
+      ${change.grant.ownerId}, ${change.grant.role}::"public"."map_role"
+    FROM authorized_map
+    WHERE true
+    ON CONFLICT (map_id, owner_type, owner_id)
+    DO UPDATE SET role = EXCLUDED.role
+  ` : sql`
+    DELETE FROM ${mapAccess}
+    WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
+      AND ${mapAccess.ownerType} = ${change.principal.ownerType}
+      AND ${mapAccess.ownerId} = ${change.principal.ownerId}
+  `;
+  // Authorization, mutation, and its retry signal commit or roll back together.
+  const result = await database.execute<{ mapId: string; version: string }>(sql`
+    WITH authorized_map AS (
+      ${activeMapAdminSelection(userId, principals, mapId)}
+    ), changed AS (${mutation})
+    INSERT INTO ${pendingMapAccessChanges} (map_id)
+    SELECT id FROM authorized_map
+    WHERE true
+    ON CONFLICT (map_id) DO UPDATE
+      SET version = gen_random_uuid(), queued_at = clock_timestamp()
+    RETURNING map_id AS "mapId", version
+  `);
+  return mapAuthorizationRows(result)[0] ?? null;
 }
 
 export async function getMapAccessCandidateUserIds(

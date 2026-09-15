@@ -91,7 +91,7 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
+export async function updateAffiliations(rows: AffiliationRow[], observedAt = new Date()): Promise<{
   refreshed: number;
   accessChanged: boolean;
 }> {
@@ -100,6 +100,7 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
   const now = new Date();
   const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
   const nowIso = now.toISOString().replace('T', ' ').replace('Z', '');
+  const observedIso = observedAt.toISOString().replace('T', ' ').replace('Z', '');
   const cutoffIso = cutoff.toISOString().replace('T', ' ').replace('Z', '');
   const result = await db.execute<{
     refreshed: number;
@@ -115,10 +116,11 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
     ), updated AS (
       UPDATE ${characters} c
       SET corporation_id = i."corporationId", alliance_id = i."allianceId",
-          faction_id = i."factionId", affiliation_refreshed_at = ${nowIso}::timestamp,
+          faction_id = i."factionId", affiliation_refreshed_at = ${observedIso}::timestamp,
           updated_at = ${nowIso}::timestamp
       FROM incoming i JOIN previous p ON p.character_id = i."characterId"
       WHERE c.character_id = i."characterId"
+        AND (c.affiliation_refreshed_at IS NULL OR c.affiliation_refreshed_at < ${observedIso}::timestamp)
       RETURNING c.*, p.corporation_id AS previous_corporation_id,
                 p.affiliation_refreshed_at AS previous_refreshed_at
     ), changed AS (
@@ -161,17 +163,17 @@ export async function readPendingMapAccessChanges(
     .limit(limit);
 }
 
-export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promise<void> {
+export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promise<PendingMapAccessChange[]> {
   const unique = [...new Set(mapIds)];
-  if (unique.length === 0) return;
-  if (unique.length > MAX_PENDING_BATCH) throw new RangeError('Pending affiliation batch exceeds limit');
-  await db
+  if (unique.length === 0) return [];
+  return db
     .insert(pendingMapAccessChanges)
     .values(unique.map((mapId) => ({ mapId })))
     .onConflictDoUpdate({
       target: pendingMapAccessChanges.mapId,
       set: { version: sql`gen_random_uuid()`, queuedAt: sql`clock_timestamp()` },
-    });
+    })
+    .returning({ mapId: pendingMapAccessChanges.mapId, version: pendingMapAccessChanges.version });
 }
 
 export async function acknowledgeMapAccessChanges(

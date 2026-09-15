@@ -17,7 +17,7 @@ test('returns database-confirmed counts, preserving partial source failure', asy
   mocks.fetchAffiliations.mockResolvedValue({ rows, transientFailure: true });
   mocks.updateAffiliations.mockResolvedValue({ refreshed: 1, accessChanged: true });
   await expect(refreshAffiliationsWithOutcome([101, 102])).resolves.toEqual({ refreshed: 1, accessChanged: true, transientFailure: true });
-  expect(mocks.updateAffiliations).toHaveBeenCalledWith(rows);
+  expect(mocks.updateAffiliations).toHaveBeenCalledWith(rows, expect.any(Date));
   await expect(refreshAffiliations([101, 102])).resolves.toBe(1);
 });
 
@@ -31,17 +31,15 @@ test('does no work for empty input and fails closed when persistence fails', asy
   await expect(refreshAffiliationsWithOutcome([101])).resolves.toEqual({ refreshed: 0, accessChanged: false, transientFailure: true });
 });
 
-test('queues confirmed omissions as departures but preserves transient gaps', async () => {
-  const present = { characterId: 101, corporationId: 2000, allianceId: null, factionId: null };
-  mocks.fetchAffiliations.mockResolvedValue({ rows: [present], transientFailure: false });
-  mocks.updateAffiliations.mockResolvedValue({ refreshed: 2, accessChanged: true });
-  await refreshAffiliationsWithOutcome([101, 102]);
-  expect(mocks.updateAffiliations).toHaveBeenCalledWith([
-    present,
+test('persists confirmed departures even alongside transient gaps', async () => {
+  const rows = [
+    { characterId: 101, corporationId: 2000, allianceId: null, factionId: null },
     { characterId: 102, corporationId: null, allianceId: null, factionId: null },
-  ]);
-  mocks.fetchAffiliations.mockResolvedValue({ rows: [present], transientFailure: true });
-  mocks.updateAffiliations.mockClear();
-  await refreshAffiliationsWithOutcome([101, 102]);
-  expect(mocks.updateAffiliations).toHaveBeenCalledWith([present]);
+  ];
+  mocks.fetchAffiliations.mockResolvedValue({ rows, transientFailure: true });
+  mocks.updateAffiliations.mockResolvedValue({ refreshed: 2, accessChanged: true });
+  await expect(refreshAffiliationsWithOutcome([101, 102, 103])).resolves.toEqual({
+    refreshed: 2, accessChanged: true, transientFailure: true,
+  });
+  expect(mocks.updateAffiliations).toHaveBeenCalledWith(rows, expect.any(Date));
 });

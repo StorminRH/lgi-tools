@@ -264,25 +264,47 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
   it('coalesces direct enqueues and rotates generations for retry', async () => {
     await harness.db.insert(maps).values({ id: mapId(1), userId: USER_ID, name: 'Map' });
     await enqueueMapAccessChanges([]);
-    await enqueueMapAccessChanges([mapId(1), mapId(1)]);
-    const first = await readPendingMapAccessChanges();
+    const first = await enqueueMapAccessChanges([mapId(1), mapId(1)]);
+    expect(await readPendingMapAccessChanges()).toEqual(first);
     expect(first).toHaveLength(1);
-    await enqueueMapAccessChanges([mapId(1)]);
-    const second = await readPendingMapAccessChanges();
+    const second = await enqueueMapAccessChanges([mapId(1)]);
+    expect(await readPendingMapAccessChanges()).toEqual(second);
     expect(second).toHaveLength(1);
     expect(second[0]?.version).not.toBe(first[0]?.version);
-    await expect(enqueueMapAccessChanges(Array.from({ length: 101 }, (_, i) => mapId(i)))).rejects.toThrow(RangeError);
+    await acknowledgeMapAccessChanges(first);
+    expect(await readPendingMapAccessChanges()).toEqual(second);
+    await acknowledgeMapAccessChanges(second);
+    expect(await readPendingMapAccessChanges()).toEqual([]);
   });
 
-  it('captures intermediate corporation maps across concurrent refreshes', async () => {
+  it('enqueues all 101 maps in one producer batch while drain reads stay bounded', async () => {
+    const ids = Array.from({ length: 101 }, (_, i) => mapId(i));
+    await harness.db.insert(maps).values(ids.map((id) => ({ id, userId: USER_ID, name: 'Map' })));
+    const captured = await enqueueMapAccessChanges(ids);
+    expect(captured).toHaveLength(101);
+    expect(await readPendingMapAccessChanges()).toHaveLength(100);
+    await acknowledgeMapAccessChanges(captured.slice(0, 100));
+    expect(await readPendingMapAccessChanges()).toEqual(captured.slice(100));
+  });
+
+  it('keeps the newest concurrent observation and queues every persisted corporation transition', async () => {
     for (const corp of [98000011, 98000021, 98000031]) await seedCorpMap(corp);
     await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });
-    await Promise.all([
-      updateAffiliations([affiliation(98000021)]),
-      updateAffiliations([affiliation(98000031)]),
+    const observedAt = new Date();
+    const newerObservedAt = new Date(observedAt.getTime() + 1);
+    const [older, newer] = await Promise.all([
+      updateAffiliations([affiliation(98000021)], observedAt),
+      updateAffiliations([affiliation(98000031)], newerObservedAt),
     ]);
+    expect(newer).toEqual({ refreshed: 1, accessChanged: true });
+    const [stored] = await harness.db.select().from(characters).where(eq(characters.characterId, FIRST_CHAR));
+    expect(stored).toMatchObject({ corporationId: 98000031, affiliationRefreshedAt: newerObservedAt });
     const pending = await readPendingMapAccessChanges();
-    expect(pending.map((row) => row.mapId).sort()).toEqual([mapId(98000011), mapId(98000021), mapId(98000031)]);
+    const expectedMaps = [mapId(98000011), mapId(98000031)];
+    // The intermediate corporation only existed if the older writer acquired
+    // the lock first. Rejected observations must not create projection work.
+    if (older.refreshed === 1) expectedMaps.push(mapId(98000021));
+    expect(pending.map((row) => row.mapId).sort()).toEqual(expectedMaps.sort());
   });
 
   it('removes pending work when its map is deleted', async () => {

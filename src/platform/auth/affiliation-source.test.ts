@@ -99,18 +99,83 @@ describe('fetchAffiliations', () => {
     const result = await fetchAffiliations([101, 102]);
 
     expect(result).toEqual({
-      rows: [{ characterId: 102, corporationId: 3000, allianceId: null, factionId: null }],
+      rows: [
+        { characterId: 101, corporationId: null, allianceId: null, factionId: null },
+        { characterId: 102, corporationId: 3000, allianceId: null, factionId: null },
+      ],
       transientFailure: false,
     });
   });
 
-  it('treats a single-id 404 as completed with omissions, not transient', async () => {
+  it('confirms a single-id 404 as a departure, not a transient failure', async () => {
     fetchMock.mockResolvedValue(new Response('not found', { status: 404 }));
     await expect(fetchAffiliations([101])).resolves.toEqual({
-      rows: [],
+      rows: [{ characterId: 101, corporationId: null, allianceId: null, factionId: null }],
       transientFailure: false,
     });
   });
+
+  it('confirms successful omissions while excluding unexpected response IDs', async () => {
+    fetchMock.mockResolvedValue(jsonResponse([{ character_id: 999, corporation_id: 3000 }]));
+
+    await expect(fetchAffiliations([101])).resolves.toEqual({
+      rows: [{ characterId: 101, corporationId: null, allianceId: null, factionId: null }],
+      transientFailure: false,
+    });
+  });
+
+  it.each(['departure', 'changed corporation'] as const)(
+    'preserves a confirmed %s when the other recursive half returns 503',
+    async (confirmed) => {
+      fetchMock.mockImplementation(async (_url: unknown, init: { body: string }) => {
+        const ids = JSON.parse(init.body) as number[];
+        if (ids.length > 1) return new Response('not found', { status: 404 });
+        if (ids[0] === 101) {
+          return confirmed === 'departure'
+            ? new Response('not found', { status: 404 })
+            : jsonResponse([{ character_id: 101, corporation_id: 3000 }]);
+        }
+        return new Response('unavailable', { status: 503 });
+      });
+
+      await expect(fetchAffiliations([101, 102])).resolves.toEqual({
+        rows: [{
+          characterId: 101,
+          corporationId: confirmed === 'departure' ? null : 3000,
+          allianceId: null,
+          factionId: null,
+        }],
+        transientFailure: true,
+      });
+    },
+  );
+
+  it.each(['503', 'network', 'invalid JSON'] as const)(
+    'preserves confirmed top-level batch results when another batch fails with %s',
+    async (failure) => {
+      const ids = Array.from({ length: 1001 }, (_, i) => i + 1);
+      fetchMock.mockImplementation(async (_url: unknown, init: { body: string }) => {
+        const batch = JSON.parse(init.body) as number[];
+        if (batch.length === 1000) {
+          return jsonResponse([{ character_id: 1, corporation_id: 3000 }]);
+        }
+        if (failure === 'network') throw new TypeError('fetch failed');
+        if (failure === 'invalid JSON') return new Response('broken JSON', { status: 200 });
+        return new Response('unavailable', { status: 503 });
+      });
+
+      const result = await fetchAffiliations(ids);
+      expect(result.transientFailure).toBe(true);
+      expect(result.rows).toHaveLength(1000);
+      expect(result.rows[0]).toEqual({
+        characterId: 1, corporationId: 3000, allianceId: null, factionId: null,
+      });
+      expect(result.rows[999]).toEqual({
+        characterId: 1000, corporationId: null, allianceId: null, factionId: null,
+      });
+      expect(result.rows.some((row) => row.characterId === 1001)).toBe(false);
+    },
+  );
 
   it('marks a budget refusal as transient without throwing', async () => {
     __setScoreboardForTests('unavailable');

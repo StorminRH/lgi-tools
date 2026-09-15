@@ -47,6 +47,15 @@ it('projects each pending map once and acknowledges captured generations after d
   );
 });
 
+it('uses captured generations without a queue read and leaves overflow for another run', async () => {
+  const captured = Array.from({ length: 101 }, (_, i) => ({ mapId: `map-${i}`, version: `v-${i}` }));
+  expect(await reconcileAffiliationAccess(captured)).toEqual({ processed: 100, failed: 0 });
+  expect(mocks.readPendingMapAccessChanges).not.toHaveBeenCalled();
+  expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
+  expect(mocks.projectMapAccess).not.toHaveBeenCalledWith('map-100', expect.anything());
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(captured.slice(0, 100), []);
+});
+
 it.each(['throw', 'stale'])('retains failed work (%s) while completing independent maps', async (failure) => {
   mocks.projectMapAccess.mockImplementation(async (mapId: string) => {
     if (mapId === 'first-map') {
