@@ -124,9 +124,14 @@ describe('fetchAffiliations', () => {
     });
   });
 
-  it.each(['departure', 'changed corporation'] as const)(
-    'preserves a confirmed %s when the other recursive half returns 503',
-    async (confirmed) => {
+  it.each([
+    ['departure', '503'],
+    ['departure', 'timeout'],
+    ['changed corporation', '503'],
+    ['changed corporation', 'timeout'],
+  ] as const)(
+    'preserves a confirmed %s when the other recursive half fails with %s',
+    async (confirmed, failure) => {
       fetchMock.mockImplementation(async (_url: unknown, init: { body: string }) => {
         const ids = JSON.parse(init.body) as number[];
         if (ids.length > 1) return new Response('not found', { status: 404 });
@@ -135,6 +140,7 @@ describe('fetchAffiliations', () => {
             ? new Response('not found', { status: 404 })
             : jsonResponse([{ character_id: 101, corporation_id: 3000 }]);
         }
+        if (failure === 'timeout') throw new DOMException('signal timed out', 'TimeoutError');
         return new Response('unavailable', { status: 503 });
       });
 
@@ -150,7 +156,7 @@ describe('fetchAffiliations', () => {
     },
   );
 
-  it.each(['503', 'network', 'invalid JSON'] as const)(
+  it.each(['503', 'network', 'timeout', 'invalid JSON'] as const)(
     'preserves confirmed top-level batch results when another batch fails with %s',
     async (failure) => {
       const ids = Array.from({ length: 1001 }, (_, i) => i + 1);
@@ -160,6 +166,7 @@ describe('fetchAffiliations', () => {
           return jsonResponse([{ character_id: 1, corporation_id: 3000 }]);
         }
         if (failure === 'network') throw new TypeError('fetch failed');
+        if (failure === 'timeout') throw new DOMException('signal timed out', 'TimeoutError');
         if (failure === 'invalid JSON') return new Response('broken JSON', { status: 200 });
         return new Response('unavailable', { status: 503 });
       });

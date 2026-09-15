@@ -314,6 +314,70 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     },
   );
 
+  it.each(['older first', 'newer first'] as const)(
+    'preserves observation ordering and intermediate maps under row-lock contention with %s',
+    async (order) => {
+      for (const corp of [98000011, 98000021, 98000031]) await seedCorpMap(corp);
+      await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });
+      const observedAt = new Date();
+      const newerObservedAt = new Date(observedAt.getTime() + 1);
+      const write = (corporationId: number, stamp: Date) =>
+        updateAffiliations([affiliation(corporationId)], stamp).then(
+          (value) => ({ status: 'fulfilled' as const, value }),
+          (reason: unknown) => ({ status: 'rejected' as const, reason }),
+        );
+      const writers: ReturnType<typeof write>[] = [];
+      const blocker = await harness.sql.reserve();
+      try {
+        await blocker`BEGIN`;
+        await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
+        await blocker`SELECT character_id FROM characters
+          WHERE character_id = ${FIRST_CHAR} FOR UPDATE`;
+        const [holder] = await blocker<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+        const waitForWriters = async (count: number) => {
+          await expect.poll(async () => {
+            const [row] = await harness.sql<{ count: number }[]>`
+              WITH RECURSIVE blocked(pid) AS (
+                SELECT pid FROM pg_stat_activity
+                WHERE ${holder!.pid} = ANY(pg_blocking_pids(pid))
+                UNION
+                SELECT activity.pid FROM pg_stat_activity activity
+                JOIN blocked ON blocked.pid = ANY(pg_blocking_pids(activity.pid))
+              )
+              SELECT count(*)::integer AS count FROM blocked
+            `;
+            return row?.count;
+          }, { timeout: 3_000, interval: 20 }).toBe(count);
+        };
+        writers.push(order === 'older first'
+          ? write(98000021, observedAt) : write(98000031, newerObservedAt));
+        await waitForWriters(1);
+        writers.push(order === 'older first'
+          ? write(98000031, newerObservedAt) : write(98000021, observedAt));
+        // Observe actual database contention before releasing the row lock.
+        await waitForWriters(2);
+      } finally {
+        try {
+          await blocker`ROLLBACK`;
+        } finally {
+          blocker.release();
+          await Promise.all(writers);
+        }
+      }
+      const persisted = { status: 'fulfilled', value: { refreshed: 1, accessChanged: true } };
+      const rejectedStale = { status: 'fulfilled', value: { refreshed: 0, accessChanged: false } };
+      await expect(Promise.all(writers)).resolves.toEqual(
+        order === 'older first' ? [persisted, persisted] : [persisted, rejectedStale],
+      );
+      const [stored] = await harness.db.select().from(characters).where(eq(characters.characterId, FIRST_CHAR));
+      expect(stored).toMatchObject({ corporationId: 98000031, affiliationRefreshedAt: newerObservedAt });
+      const expectedMaps = [mapId(98000011), mapId(98000031)];
+      if (order === 'older first') expectedMaps.push(mapId(98000021));
+      expect((await readPendingMapAccessChanges()).map((row) => row.mapId).sort()).toEqual(expectedMaps.sort());
+    },
+    15_000,
+  );
+
   it('captures distinct UTC observation clocks from the database', async () => {
     const first = await captureAffiliationObservedAt();
     const second = await captureAffiliationObservedAt();
@@ -389,3 +453,4 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     ]);
   });
 });
+

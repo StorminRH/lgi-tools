@@ -45,6 +45,7 @@ function isTransientFetchFailure(error: unknown): boolean {
     error instanceof EsiBudgetExhaustedError
     || error instanceof EsiServerError
     || error instanceof TypeError
+    || (error instanceof DOMException && error.name === 'TimeoutError')
   );
 }
 
