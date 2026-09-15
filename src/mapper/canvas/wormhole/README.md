@@ -66,8 +66,9 @@ observers/listeners/frames; the final consumer releases GPU resources.
 
 Static CSS fallback remains available before hydration, without WebGL, or after
 first-paint GPU failure. A later lost GPU context keeps the last 2D bitmap and
-drops the shared painter so the next paint can rebuild it. Hidden-tab and
-offscreen hosts retry on the next synchronize; they do not spin while lost.
+drops the shared painter so the next paint can rebuild it. A visible unpaused
+host schedules one delayed retry; hidden-tab and offscreen hosts wait for the
+next synchronize. They do not spin while lost.
 Remounting after all consumers release also recreates the renderer. The primitive
 performs no fetching or persistence.
 

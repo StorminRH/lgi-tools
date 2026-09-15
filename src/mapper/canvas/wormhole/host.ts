@@ -41,19 +41,33 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
   let visible = false;
   let destroyed = false;
   let frame = 0;
+  let recover = 0;
+  let recoverAttempts = 0;
   let last = 0;
 
   function paused() { return inputs.paused === true || media.matches || document.hidden || !visible; }
+  function cancelRecover() { window.clearTimeout(recover); recover = 0; }
+  function scheduleRecover() {
+    if (recover !== 0 || destroyed || paused() || recoverAttempts >= 4) return;
+    recoverAttempts += 1;
+    recover = window.setTimeout(() => {
+      recover = 0;
+      synchronize();
+    }, 1000);
+  }
   function paint() {
     if (context === null) return false;
     const ready = painter.paint(context, { ...appearance, time: motion.time, age: motion.age });
     if (ready) {
       canvas.dataset.ready = 'true';
+      recoverAttempts = 0;
       return true;
     }
     if (canvas.dataset.ready !== 'true') {
       context.clearRect(0, 0, canvas.width, canvas.height);
       canvas.dataset.ready = 'false';
+    } else {
+      scheduleRecover();
     }
     return false;
   }
@@ -67,6 +81,7 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
   }
   function synchronize() {
     cancel();
+    cancelRecover();
     motion = stepWormholeMotion(motion, 0, inputs.active, paused());
     if (!visible || document.hidden || destroyed) return;
     const ready = paint();
@@ -92,6 +107,7 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
     dispose() {
       destroyed = true;
       cancel();
+      cancelRecover();
       observer.disconnect();
       media.removeEventListener('change', synchronize);
       document.removeEventListener('visibilitychange', synchronize);

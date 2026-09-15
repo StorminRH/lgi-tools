@@ -14,7 +14,9 @@ afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 function browser() {
   let now = 0;
   let next = 0;
+  let timeout = 0;
   const frames = new Map<number, FrameRequestCallback>();
+  const timeouts = new Map<number, () => void>();
   let intersect: (entries: { isIntersecting: boolean }[]) => void = () => {};
   let preference: () => void = () => {};
   let visibility: () => void = () => {};
@@ -27,6 +29,8 @@ function browser() {
     devicePixelRatio: 2, matchMedia: () => media,
     requestAnimationFrame: (fn: FrameRequestCallback) => { frames.set(++next, fn); return next; },
     cancelAnimationFrame: (id: number) => { frames.delete(id); },
+    setTimeout: (fn: () => void) => { timeouts.set(++timeout, fn); return timeout; },
+    clearTimeout: (id: number) => { timeouts.delete(id); },
   });
   vi.stubGlobal('IntersectionObserver', class {
     constructor(fn: typeof intersect) { intersect = fn; }
@@ -46,6 +50,10 @@ function browser() {
         const pending = [...frames.values()]; frames.clear();
         pending.forEach((fn) => fn(now));
       }
+    },
+    recover() {
+      const pending = [...timeouts.values()]; timeouts.clear();
+      pending.forEach((fn) => fn());
     },
   };
 }
@@ -105,7 +113,7 @@ test('GPU failure exposes a static fallback and does not spin an animation loop'
   host.dispose();
 });
 
-test('later GPU failure keeps the last bitmap and does not resume a loop', () => {
+test('later GPU failure keeps the last bitmap and retries once the context can paint again', () => {
   const env = browser();
   const host = createWormholeHost(env.canvas, { active: true, whClassId: 5 });
   env.visible(true);
@@ -116,5 +124,8 @@ test('later GPU failure keeps the last bitmap and does not resume a loop', () =>
   expect(env.canvas.dataset.ready).toBe('true');
   expect(env.context.clearRect).not.toHaveBeenCalled();
   expect(env.frames.size).toBe(0);
+  env.recover();
+  expect(env.canvas.dataset.ready).toBe('true');
+  expect(env.frames.size).toBe(1);
   host.dispose();
 });
