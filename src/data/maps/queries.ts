@@ -44,7 +44,7 @@ export async function reserveMapAccessProjectionRevision(
 ): Promise<number> {
   const result = await database.execute(sql`
     SELECT nextval(
-      ${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}::regclass
+      ${`public.${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}`}::regclass
     )::text AS revision
   `);
   const row = mapAuthorizationRows(result)[0];

@@ -591,6 +591,13 @@ const corpAccessBoundary = {
     const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations", "getCharacterAffiliation"];
     const isMembershipSource = (source) => /platform\/auth\/membership$/.test(source);
     const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
+    const reportIfBoundarySource = (node) => {
+      const source = node.source?.value;
+      if (typeof source !== "string") return;
+      if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
+        context.report({ node, messageId: "raw" });
+      }
+    };
     return {
       ImportDeclaration(node) {
         const source = node.source.value;
@@ -607,11 +614,7 @@ const corpAccessBoundary = {
         }
       },
       ImportExpression(node) {
-        const source = node.source?.value;
-        if (typeof source !== "string") return;
-        if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
-          context.report({ node, messageId: "raw" });
-        }
+        reportIfBoundarySource(node);
       },
       ExportNamedDeclaration(node) {
         const source = node.source?.value;
@@ -628,11 +631,7 @@ const corpAccessBoundary = {
         }
       },
       ExportAllDeclaration(node) {
-        const source = node.source?.value;
-        if (typeof source !== "string") return;
-        if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
-          context.report({ node, messageId: "raw" });
-        }
+        reportIfBoundarySource(node);
       },
     };
   },

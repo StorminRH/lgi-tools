@@ -99,6 +99,8 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
   const incoming = [...new Map(rows.map((row) => [row.characterId, row])).values()];
   const now = new Date();
   const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
+  const nowIso = now.toISOString().replace('T', ' ').replace('Z', '');
+  const cutoffIso = cutoff.toISOString().replace('T', ' ').replace('Z', '');
   const result = await db.execute<{
     refreshed: number;
     accessChanged: boolean;
@@ -113,15 +115,15 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
     ), updated AS (
       UPDATE ${characters} c
       SET corporation_id = i."corporationId", alliance_id = i."allianceId",
-          faction_id = i."factionId", affiliation_refreshed_at = ${now},
-          updated_at = ${now}
+          faction_id = i."factionId", affiliation_refreshed_at = ${nowIso}::timestamp,
+          updated_at = ${nowIso}::timestamp
       FROM incoming i JOIN previous p ON p.character_id = i."characterId"
       WHERE c.character_id = i."characterId"
       RETURNING c.*, p.corporation_id AS previous_corporation_id,
                 p.affiliation_refreshed_at AS previous_refreshed_at
     ), changed AS (
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
-        OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoff}
+        OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoffIso}::timestamp
     ), queued AS (
       INSERT INTO ${pendingMapAccessChanges} (map_id)
       SELECT DISTINCT grants.map_id FROM (
