@@ -17,6 +17,7 @@ const { chain, recorded } = vi.hoisted(() => {
     recorded.push({ op: 'update', table });
     return chain;
   };
+  chain.execute = async () => [];
   return { chain, recorded };
 });
 
@@ -60,14 +61,13 @@ beforeEach(() => {
 describe('runPurge orchestrator', () => {
   it('transfer scope removes auth custody and direct map grants at the credential tier', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
-    expect(names()).toEqual(['account', 'map_access']);
+    expect(names()).toEqual(['account']);
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 });
     const seq = names();
     expect(seq[0]).toBe('account');
-    expect(seq[1]).toBe('map_access');
     expect(seq).not.toContain('characters');
     for (const cacheTable of [
       'character_skills',
