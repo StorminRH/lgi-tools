@@ -10,7 +10,6 @@ const DELIVERY_TIMEOUT_MS = 4_000;
 const FINALIZE_RESERVE_MS = 1_000;
 const DELIVERY_CONCURRENCY = 4;
 
-/** Durable work survives failures and concurrent refreshes; no ESI in the projection path. */
 export async function reconcileAffiliationAccess(): Promise<{ processed: number; failed: number }> {
   const deadline = Date.now() + RECONCILE_BUDGET_MS;
   const pending = await readPendingMapAccessChanges();
@@ -39,7 +38,6 @@ export async function reconcileAffiliationAccess(): Promise<{ processed: number;
   return { processed: completed.length, failed: pending.length - completed.length };
 }
 
-/** Used by login and internal write-behind; unchanged refreshes do no queue reads. */
 export async function refreshAffiliationsAndReconcile(characterIds: number[]): Promise<void> {
   const result = await refreshAffiliationsWithOutcome(characterIds);
   if (result.accessChanged) await reconcileAffiliationAccess();

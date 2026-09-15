@@ -80,9 +80,10 @@ export const mapAccess = pgTable(
   ],
 );
 
-/** Durable, coalesced affiliation invalidation; generations protect concurrent acknowledgements. */
 export const pendingMapAccessChanges = pgTable('map_access_changes', {
   mapId: uuid('map_id').primaryKey().references(() => maps.id, { onDelete: 'cascade' }),
   version: uuid('version').defaultRandom().notNull(),
   queuedAt: timestamp('queued_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('map_access_changes_queued_idx').on(table.queuedAt, table.mapId),
+]);

@@ -20,7 +20,6 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
   work: async () => {
     const staleIds = await listStaleLinkedCharacterIds();
     const refreshed = await refreshAffiliations(staleIds);
-    // Drain even if nothing refreshed: failed delivery must not consume its only retry signal.
     const access = await reconcileAffiliationAccess();
 
     return {

@@ -196,6 +196,16 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(98000011)]);
   });
 
+  it('treats a near-boundary fresh affiliation as unchanged with no queue writes', async () => {
+    await seedCorpMap(98000011);
+    await seedCharacter(FIRST_CHAR, {
+      corporationId: 98000011,
+      affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS + 60_000),
+    });
+    expect((await updateAffiliations([affiliation(98000011)])).accessChanged).toBe(false);
+    await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
+  });
+
   it('rolls the affiliation write back when durable enqueue fails', async () => {
     await seedCorpMap(98000021);
     const refreshedAt = new Date('2026-07-15T12:00:00Z');

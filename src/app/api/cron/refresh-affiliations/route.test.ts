@@ -5,15 +5,9 @@ const refreshAffiliationsMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 const reconcileAffiliationAccessMock = vi.fn();
-let lockGot = true;
-const reservedTag = Object.assign(
-  vi.fn(() => Promise.resolve([{ got: lockGot }])),
-  { release: vi.fn() },
-);
-const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
+const reserveMock = vi.fn();
 
 vi.mock('@/platform/auth/affiliation', () => ({
-  ADVISORY_LOCK_AFFILIATION_REFRESH: 31,
   refreshAffiliations: (...args: unknown[]) => refreshAffiliationsMock(...args),
 }));
 
@@ -52,8 +46,6 @@ describe('GET /api/cron/refresh-affiliations', () => {
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
     reconcileAffiliationAccessMock.mockReset().mockResolvedValue({ processed: 0, failed: 0 });
     reserveMock.mockClear();
-    reservedTag.mockClear();
-    lockGot = true;
     vi.stubEnv('CRON_SECRET', 'test-secret');
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });

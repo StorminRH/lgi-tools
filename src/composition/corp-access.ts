@@ -7,7 +7,6 @@ import { reconcileAffiliationAccess } from './map-affiliation-access';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
-/** Fresh requests read once; after ESI, recheck links so an in-flight unlink cannot grant access. */
 export async function resolveUserCorpAccess(userId: string): Promise<UserCorpAccess> {
   const affiliations = await getUserAffiliations(userId);
   const now = new Date();

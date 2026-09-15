@@ -588,19 +588,50 @@ const corpAccessBoundary = {
     messages: { raw: "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution." },
   },
   create(context) {
+    const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations", "getCharacterAffiliation"];
+    const isMembershipSource = (source) => /platform\/auth\/membership$/.test(source);
+    const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
     return {
       ImportDeclaration(node) {
         const source = node.source.value;
-        if (/(?:^|\/)membership$/.test(source)) {
+        if (isMembershipSource(source)) {
           context.report({ node, messageId: "raw" });
         }
-        if (!/(?:^|\/)affiliation-store$/.test(source)) return;
+        if (!isAffiliationStoreSource(source)) return;
         for (const specifier of node.specifiers) {
           if (specifier.type === "ImportNamespaceSpecifier" ||
               (specifier.type === "ImportSpecifier" &&
-               ["getUserAffiliations", "getUsersAffiliations", "getCharacterAffiliation"].includes(specifier.imported.name))) {
+               RAW_READERS.includes(specifier.imported.name))) {
             context.report({ node: specifier, messageId: "raw" });
           }
+        }
+      },
+      ImportExpression(node) {
+        const source = node.source?.value;
+        if (typeof source !== "string") return;
+        if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
+          context.report({ node, messageId: "raw" });
+        }
+      },
+      ExportNamedDeclaration(node) {
+        const source = node.source?.value;
+        if (typeof source !== "string") return;
+        if (isMembershipSource(source)) {
+          context.report({ node, messageId: "raw" });
+          return;
+        }
+        if (!isAffiliationStoreSource(source)) return;
+        for (const specifier of node.specifiers) {
+          if (specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name)) {
+            context.report({ node: specifier, messageId: "raw" });
+          }
+        }
+      },
+      ExportAllDeclaration(node) {
+        const source = node.source?.value;
+        if (typeof source !== "string") return;
+        if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
+          context.report({ node, messageId: "raw" });
         }
       },
     };

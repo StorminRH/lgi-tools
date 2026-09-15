@@ -11,7 +11,11 @@ const mocks = vi.hoisted(() => ({
   recordCorpAccessDecision: vi.fn(),
 }));
 vi.mock('@/platform/auth/affiliation-source', () => ({ fetchAffiliations: mocks.fetchAffiliations }));
-vi.mock('@/platform/auth/affiliation-store', () => mocks);
+vi.mock('@/platform/auth/affiliation-store', () => ({
+  getUserAffiliations: mocks.getUserAffiliations,
+  updateAffiliations: mocks.updateAffiliations,
+  recordCorpAccessDecision: mocks.recordCorpAccessDecision,
+}));
 vi.mock('next/server', () => ({ after: mocks.after }));
 vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: mocks.reconcile }));
 

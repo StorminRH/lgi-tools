@@ -542,7 +542,6 @@ export function applyAuthorizedMapGrantChange(
     : applyAuthorizedMapGrantRevoke(userId, principals, mapId, change, database);
 }
 
-/** Discover possible claim holders in one read; freshness is checked by the access snapshot. */
 export async function getMapAccessCandidateUserIds(
   characterIds: readonly number[],
   corporationIds: readonly number[],

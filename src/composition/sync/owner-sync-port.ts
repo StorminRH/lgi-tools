@@ -14,7 +14,6 @@ export interface LinkedCharacterHealth {
   missingScopes: string[];
 }
 
-/** Cached sync candidates only; viewer authorization uses resolveUserCorpAccess. */
 export async function listCharactersWithHealth(userId: string): Promise<LinkedCharacterHealth[]> {
   const linked = await listLinkedCharacters(userId);
   return linked.map((character) => ({

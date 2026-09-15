@@ -93,7 +93,6 @@ async function computeMapAccessClaimsForState(
     byUser.set(row.userId, rows);
   }
 
-  // Projection consumes confirmed local state. ESI failures elsewhere cannot block revocation.
   const resolvedAt = Date.now();
   const claims: MapAccessClaim[] = [{ userId: map.userId, roles: ['admin'] }];
   for (const userId of candidateUserIds) {
@@ -143,11 +142,11 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before computation');
   }
-  const revision = await reserveMapAccessProjectionRevision();
   const claims = await computeMapAccessClaimsForState(mapId, allowArchived);
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
+  const revision = await reserveMapAccessProjectionRevision();
   return postMapAccessProjection({ mapId, revision, claims }, options);
 }
 

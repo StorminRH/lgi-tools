@@ -97,7 +97,6 @@ describe('computeMapAccessClaims', () => {
     mocks.getMapGrants.mockResolvedValue([
       { ownerType: 'corporation', ownerId: 990, role: 'editor' },
     ]);
-    // A departure after candidate discovery must still remove the old corporation claim.
     mocks.getMapAccessCandidateUserIds.mockResolvedValue(['departed']);
     mocks.getUsersAffiliations.mockResolvedValue([affiliation('departed', 42, 991)]);
     mocks.fetchWithTimeout.mockResolvedValue(Response.json({
@@ -182,8 +181,11 @@ describe('projectMapAccess transport', () => {
       unchanged: 0,
       outcome: 'applied',
     });
+    expect(mocks.getMapAccessSubject.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]!,
+    );
     expect(mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.getMapAccessSubject.mock.invocationCallOrder[0]!,
+      mocks.fetchWithTimeout.mock.invocationCallOrder[0]!,
     );
     expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
       'http://127.0.0.1:3211/project-map-access',

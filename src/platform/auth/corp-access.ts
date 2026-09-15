@@ -3,7 +3,14 @@ import { recordCorpAccessDecision, type CachedAffiliation } from './affiliation-
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
-/** Request-local authorization: linked identity survives an expired corporation membership. */
+export type CorpAccessReason = 'member' | 'not_member';
+
+export interface CorpAccessDecision {
+  readonly allowed: boolean;
+  readonly reason: CorpAccessReason;
+  readonly characterId: number | null;
+}
+
 export interface UserCorpAccess {
   readonly userId: string;
   readonly resolvedAt: number;
@@ -37,11 +44,10 @@ export function createCorpAccessSnapshot(
   });
 }
 
-/** Mutation authorization is audited; audit failure prevents the mutation from proceeding. */
-export async function authorizeCorpMutation(access: UserCorpAccess, corporationId: number) {
+export async function authorizeCorpMutation(access: UserCorpAccess, corporationId: number): Promise<CorpAccessDecision> {
   const characterId = access.characterIdsByCorporation[corporationId]?.[0] ?? null;
   const allowed = characterId !== null;
-  const reason = allowed ? 'member' : 'not_member';
+  const reason: CorpAccessReason = allowed ? 'member' : 'not_member';
   await recordCorpAccessDecision({ userId: access.userId, corporationId, characterId, allowed, reason });
   return { allowed, reason, characterId };
 }

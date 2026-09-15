@@ -1,5 +1,5 @@
 {
-  "id": "512256f0-4f22-4cb7-abc4-73e61d8dd225",
+  "id": "b87f34b9-89ef-4e2e-8347-ab2de66b59f2",
   "prevId": "04406a4d-a29b-4d94-b0fe-3b1771d9a2fd",
   "version": "7",
   "dialect": "postgresql",
@@ -1993,21 +1993,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "role": {
-          "name": "role",
-          "type": "character_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'USER'"
-        },
-        "preferences": {
-          "name": "preferences",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
         "corporation_id": {
           "name": "corporation_id",
           "type": "bigint",
@@ -2054,7 +2039,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "characters_corporation_id_idx": {
+          "name": "characters_corporation_id_idx",
+          "columns": [
+            {
+              "expression": "corporation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -4312,6 +4313,27 @@
         }
       },
       "indexes": {
+        "map_access_grantee_idx": {
+          "name": "map_access_grantee_idx",
+          "columns": [
+            {
+              "expression": "owner_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "map_access_map_grantee_unique": {
           "name": "map_access_map_grantee_unique",
           "columns": [
@@ -4335,27 +4357,6 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "map_access_grantee_idx": {
-          "name": "map_access_grantee_idx",
-          "columns": [
-            {
-              "expression": "owner_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "owner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4483,6 +4484,75 @@
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.map_access_changes": {
+      "name": "map_access_changes",
+      "schema": "",
+      "columns": {
+        "map_id": {
+          "name": "map_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "queued_at": {
+          "name": "queued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "map_access_changes_queued_idx": {
+          "name": "map_access_changes_queued_idx",
+          "columns": [
+            {
+              "expression": "queued_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "map_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "map_access_changes_map_id_maps_id_fk": {
+          "name": "map_access_changes_map_id_maps_id_fk",
+          "tableFrom": "map_access_changes",
+          "tableTo": "maps",
+          "columnsFrom": [
+            "map_id"
           ],
           "columnsTo": [
             "id"
@@ -4714,53 +4784,6 @@
           "value": "\"wh_observations\".\"observed_at\" = date_trunc('hour', \"wh_observations\".\"observed_at\")"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.map_access_changes": {
-      "name": "map_access_changes",
-      "schema": "",
-      "columns": {
-        "map_id": {
-          "name": "map_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "queued_at": {
-          "name": "queued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "map_access_changes_map_id_maps_id_fk": {
-          "name": "map_access_changes_map_id_maps_id_fk",
-          "tableFrom": "map_access_changes",
-          "tableTo": "maps",
-          "columnsFrom": [
-            "map_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

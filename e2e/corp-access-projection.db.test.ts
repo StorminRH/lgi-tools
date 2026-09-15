@@ -66,7 +66,6 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
     const t = convexTest(schema, modules);
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://pipeline.convex.cloud');
     vi.stubEnv('CONVEX_SERVICE_SECRET', 'test-pipeline-secret');
-    // Replace only network transport; execute the actual Convex HTTP handler and mutations.
     const deliver: typeof fetch = async (input, init) => {
       const url = input instanceof Request ? input.url : String(input);
       return t.fetch(new URL(url).pathname, init);
@@ -87,7 +86,6 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
     expect(await reconcileAffiliationAccess()).toEqual({ processed: 0, failed: 1 });
     expect(await readPendingMapAccessChanges()).toHaveLength(1);
 
-    // The affiliation is already fresh: durable work must survive until delivery succeeds.
     vi.stubGlobal('fetch', vi.fn(deliver));
     expect(await reconcileAffiliationAccess()).toEqual({ processed: 1, failed: 0 });
     expect(await readPendingMapAccessChanges()).toEqual([]);

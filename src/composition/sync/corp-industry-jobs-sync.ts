@@ -50,7 +50,7 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
         listCorpJobSyncStates(uid),
       ]);
       const owners: OwnerRow[] = syncStates
-        .filter((state) => access.characterIdsByCorporation[state.corporationId])
+        .filter((state) => access.characterIdsByCorporation[state.corporationId] !== undefined)
         .map((state) => ({
           id: state.corporationId,
           lastRefreshedAt: state.lastRefreshedAt,

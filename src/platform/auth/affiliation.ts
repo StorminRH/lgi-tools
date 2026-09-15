@@ -7,7 +7,6 @@ export interface AffiliationRefreshOutcome {
   readonly transientFailure: boolean;
 }
 
-/** Fetch and persist once; counts reflect confirmed writes, not unpersisted ESI rows. */
 export async function refreshAffiliationsWithOutcome(
   characterIds: number[],
 ): Promise<AffiliationRefreshOutcome> {
@@ -22,7 +21,6 @@ export async function refreshAffiliationsWithOutcome(
   }
 }
 
-/** Best-effort refresh for login and background sync; stale access still fails closed. */
 export async function refreshAffiliations(characterIds: number[]): Promise<number> {
   return (await refreshAffiliationsWithOutcome(characterIds)).refreshed;
 }

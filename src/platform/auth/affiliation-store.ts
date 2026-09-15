@@ -61,7 +61,8 @@ export async function getUsersAffiliations(
     })
     .from(account)
     .leftJoin(characters, characterProfileJoin)
-    .where(and(inArray(account.userId, [...userIds]), eq(account.providerId, EVE_PROVIDER_ID)));
+    .where(and(inArray(account.userId, [...userIds]), eq(account.providerId, EVE_PROVIDER_ID)))
+    .orderBy(asc(account.userId), asc(account.accountId));
 
   return rows.flatMap((r) => {
     const characterId = parseLinkedAccountId(r.accountId);
@@ -90,7 +91,6 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-/** Persist and enqueue atomically in one round trip; missing profiles never become members. */
 export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
   refreshed: number;
   accessChanged: boolean;
@@ -98,7 +98,7 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
   if (rows.length === 0) return { refreshed: 0, accessChanged: false };
   const incoming = [...new Map(rows.map((row) => [row.characterId, row])).values()];
   const now = new Date();
-  const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs).toISOString();
+  const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
   const result = await db.execute<{
     refreshed: number;
     accessChanged: boolean;
@@ -113,15 +113,15 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<{
     ), updated AS (
       UPDATE ${characters} c
       SET corporation_id = i."corporationId", alliance_id = i."allianceId",
-          faction_id = i."factionId", affiliation_refreshed_at = ${now.toISOString()}::timestamp,
-          updated_at = ${now.toISOString()}::timestamp
+          faction_id = i."factionId", affiliation_refreshed_at = ${now},
+          updated_at = ${now}
       FROM incoming i JOIN previous p ON p.character_id = i."characterId"
       WHERE c.character_id = i."characterId"
       RETURNING c.*, p.corporation_id AS previous_corporation_id,
                 p.affiliation_refreshed_at AS previous_refreshed_at
     ), changed AS (
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
-        OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoff}::timestamp
+        OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoff}
     ), queued AS (
       INSERT INTO ${pendingMapAccessChanges} (map_id)
       SELECT DISTINCT grants.map_id FROM (
@@ -159,13 +159,16 @@ export async function readPendingMapAccessChanges(
     .limit(limit);
 }
 
-/** A newer affiliation change survives acknowledgement of an older projection. */
 export async function acknowledgeMapAccessChanges(
   changes: PendingMapAccessChange[],
   retry: PendingMapAccessChange[] = [],
 ): Promise<void> {
   if (changes.length + retry.length === 0) return;
   if (changes.length + retry.length > MAX_PENDING_BATCH) throw new RangeError('Pending affiliation batch exceeds limit');
+  const seen = new Set(changes.map((row) => `${row.mapId}:${row.version}`));
+  if (retry.some((row) => seen.has(`${row.mapId}:${row.version}`))) {
+    throw new RangeError('Pending affiliation batch must not overlap completed and retried work');
+  }
   await db.execute(sql`
     WITH retried AS (
       UPDATE ${pendingMapAccessChanges} pending SET queued_at = clock_timestamp()

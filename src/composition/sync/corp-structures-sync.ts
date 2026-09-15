@@ -165,7 +165,6 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
   });
 }
 
-/** Checks ESI roles using the same fresh member set that authorized this request. */
 async function userHoldsCorpRole(
   access: UserCorpAccess,
   corporationId: number,

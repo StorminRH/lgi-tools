@@ -6,7 +6,10 @@ const mocks = vi.hoisted(() => ({
   projectMapAccess: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
 }));
-vi.mock('@/platform/auth/affiliation-store', () => mocks);
+vi.mock('@/platform/auth/affiliation-store', () => ({
+  readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
+  acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
+}));
 vi.mock('@/platform/auth/affiliation', () => ({ refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome }));
 vi.mock('./map-access-projection', () => ({
   projectMapAccess: mocks.projectMapAccess,
