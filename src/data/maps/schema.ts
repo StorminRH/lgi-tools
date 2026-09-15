@@ -71,6 +71,7 @@ export const mapAccess = pgTable(
     grantedAt: timestamp('granted_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    index('map_access_grantee_idx').on(table.ownerType, table.ownerId),
     uniqueIndex('map_access_map_grantee_unique').on(
       table.mapId,
       table.ownerType,
@@ -78,3 +79,10 @@ export const mapAccess = pgTable(
     ),
   ],
 );
+
+/** Durable, coalesced affiliation invalidation; generations protect concurrent acknowledgements. */
+export const pendingMapAccessChanges = pgTable('map_access_changes', {
+  mapId: uuid('map_id').primaryKey().references(() => maps.id, { onDelete: 'cascade' }),
+  version: uuid('version').defaultRandom().notNull(),
+  queuedAt: timestamp('queued_at', { withTimezone: true }).defaultNow().notNull(),
+});

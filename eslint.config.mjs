@@ -581,6 +581,32 @@ function primitiveSyntaxSelectorsExcept(...exemptions) {
   ];
 }
 
+const corpAccessBoundary = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: { raw: "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution." },
+  },
+  create(context) {
+    return {
+      ImportDeclaration(node) {
+        const source = node.source.value;
+        if (/(?:^|\/)membership$/.test(source)) {
+          context.report({ node, messageId: "raw" });
+        }
+        if (!/(?:^|\/)affiliation-store$/.test(source)) return;
+        for (const specifier of node.specifiers) {
+          if (specifier.type === "ImportNamespaceSpecifier" ||
+              (specifier.type === "ImportSpecifier" &&
+               ["getUserAffiliations", "getUsersAffiliations", "getCharacterAffiliation"].includes(specifier.imported.name))) {
+            context.report({ node: specifier, messageId: "raw" });
+          }
+        }
+      },
+    };
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -1494,6 +1520,18 @@ const eslintConfig = defineConfig([
         { terms: ["todo", "fixme"], location: "anywhere" },
       ],
     },
+  },
+
+  {
+    files: ["src/**/*.{ts,tsx,mts}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "src/platform/auth/affiliation-store.ts",
+      "src/composition/corp-access.ts",
+      "src/composition/map-access-projection.ts",
+    ],
+    plugins: { "corp-access": { rules: { "boundary": corpAccessBoundary } } },
+    rules: { "corp-access/boundary": "error" },
   },
 
   globalIgnores([

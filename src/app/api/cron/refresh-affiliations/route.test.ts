@@ -4,6 +4,7 @@ const listStaleLinkedCharacterIdsMock = vi.fn();
 const refreshAffiliationsMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
+const reconcileAffiliationAccessMock = vi.fn();
 let lockGot = true;
 const reservedTag = Object.assign(
   vi.fn(() => Promise.resolve([{ got: lockGot }])),
@@ -15,6 +16,8 @@ vi.mock('@/platform/auth/affiliation', () => ({
   ADVISORY_LOCK_AFFILIATION_REFRESH: 31,
   refreshAffiliations: (...args: unknown[]) => refreshAffiliationsMock(...args),
 }));
+
+vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: reconcileAffiliationAccessMock }));
 
 vi.mock('@/platform/auth/affiliation-store', () => ({
   listStaleLinkedCharacterIds: (...args: unknown[]) =>
@@ -47,6 +50,7 @@ describe('GET /api/cron/refresh-affiliations', () => {
     listStaleLinkedCharacterIdsMock.mockReset();
     refreshAffiliationsMock.mockReset();
     logUsageEventMock.mockReset().mockResolvedValue(undefined);
+    reconcileAffiliationAccessMock.mockReset().mockResolvedValue({ processed: 0, failed: 0 });
     reserveMock.mockClear();
     reservedTag.mockClear();
     lockGot = true;
@@ -70,20 +74,14 @@ describe('GET /api/cron/refresh-affiliations', () => {
     expect(listStaleLinkedCharacterIdsMock).not.toHaveBeenCalled();
   });
 
-  it('returns busy and records the contention metadata', async () => {
-    lockGot = false;
+  it('retries pending access changes even when affiliations are fresh, without reserving a connection', async () => {
+    listStaleLinkedCharacterIdsMock.mockResolvedValue([]);
+    refreshAffiliationsMock.mockResolvedValue(0);
+    reconcileAffiliationAccessMock.mockResolvedValue({ processed: 2, failed: 0 });
     const { GET } = await importRoute();
-    const response = await GET(authedRequest());
-
-    expect(await response.json()).toEqual({ status: 'busy' });
-    expect(refreshAffiliationsMock).not.toHaveBeenCalled();
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_affiliations',
-      metadata: {
-        outcome: 'busy',
-        durationMs: expect.any(Number),
-      },
-    });
+    expect(await (await GET(authedRequest())).json()).toEqual({ status: 'refreshed', stale: 0, refreshed: 0 });
+    expect(reconcileAffiliationAccessMock).toHaveBeenCalledOnce();
+    expect(reserveMock).not.toHaveBeenCalled();
   });
 
   it('returns stale and refreshed counts and records them', async () => {
@@ -102,6 +100,7 @@ describe('GET /api/cron/refresh-affiliations', () => {
       action: 'cron_affiliations',
       metadata: {
         outcome: 'refreshed',
+        access: { processed: 0, failed: 0 },
         stale: 3,
         refreshed: 2,
         durationMs: expect.any(Number),

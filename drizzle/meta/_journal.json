@@ -428,6 +428,13 @@
       "when": 1788562847655,
       "tag": "0060_retire_atlas_auto_layout",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1789472176571,
+      "tag": "0061_affiliation_access_changes",
+      "breakpoints": true
     }
   ]
 }

@@ -542,52 +542,29 @@ export function applyAuthorizedMapGrantChange(
     : applyAuthorizedMapGrantRevoke(userId, principals, mapId, change, database);
 }
 
-export async function getUserIdsOwningCharacters(
-  characterIds: number[],
+/** Discover possible claim holders in one read; freshness is checked by the access snapshot. */
+export async function getMapAccessCandidateUserIds(
+  characterIds: readonly number[],
+  corporationIds: readonly number[],
   database: AnyPgDb = db,
-): Promise<Map<number, string>> {
-  if (characterIds.length === 0) return new Map();
-
-  const accountIds = characterIds.map(String);
+): Promise<string[]> {
+  if (characterIds.length === 0 && corporationIds.length === 0) return [];
   const rows = await database
-    .select({
-      accountId: account.accountId,
-      userId: account.userId,
-    })
+    .selectDistinct({ userId: account.userId })
     .from(account)
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        inArray(account.accountId, accountIds),
+    .where(and(
+      eq(account.providerId, EVE_PROVIDER_ID),
+      or(
+        characterIds.length === 0 ? undefined : inArray(account.accountId, characterIds.map(String)),
+        corporationIds.length === 0 ? undefined : inArray(
+          account.accountId,
+          database.select({ accountId: sql<string>`${characters.characterId}::text` })
+            .from(characters)
+            .where(inArray(characters.corporationId, [...corporationIds])),
+        ),
       ),
-    );
-
-  const owners = new Map<number, string>();
-  for (const row of rows) {
-    const characterId = Number(row.accountId);
-    if (Number.isFinite(characterId)) {
-      owners.set(characterId, row.userId);
-    }
-  }
-  return owners;
-}
-
-export async function getUserIdsInCorporations(
-  corporationIds: number[],
-  database: AnyPgDb = db,
-): Promise<Set<string>> {
-  if (corporationIds.length === 0) return new Set();
-
-  const characterRows = await database
-    .select({ characterId: characters.characterId })
-    .from(characters)
-    .where(inArray(characters.corporationId, corporationIds));
-
-  const owners = await getUserIdsOwningCharacters(
-    characterRows.map((row) => row.characterId),
-    database,
-  );
-  return new Set(owners.values());
+    ));
+  return rows.map((row) => row.userId);
 }
 
 async function getMapIdsWithCorporationGrants(

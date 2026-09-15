@@ -11,8 +11,8 @@ vi.mock('next/server', () => ({
   after: (callback: () => unknown) => h.afterMock(callback),
   connection: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/platform/auth/affiliation', () => ({
-  refreshAffiliations: h.refreshAffiliationsMock,
+vi.mock('@/composition/map-affiliation-access', () => ({
+  refreshAffiliationsAndReconcile: h.refreshAffiliationsMock,
 }));
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: h.listLinkedCharactersMock,

@@ -1,8 +1,6 @@
 import { after, connection } from 'next/server';
-import { refreshStaleAffiliationsForUser } from '@/platform/auth/affiliation';
-import { decideCorpAccess } from '@/platform/auth/corp-access';
-import { memberCharacterIdsInCorp, memberCorpIds } from '@/platform/auth/membership';
-import { getUserAffiliations } from '@/platform/auth/affiliation-store';
+import { resolveUserCorpAccess } from '@/composition/corp-access';
+import { authorizeCorpMutation, type UserCorpAccess } from '@/platform/auth/corp-access';
 import {
   getCorpStructureRigs,
   getCorpStructures,
@@ -54,10 +52,9 @@ function scheduleCorpStructuresRefresh(userId: string): void {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
 }
 
-async function loadFreshUserAffiliations(userId: string) {
+async function loadUserCorpAccess(userId: string) {
   await connection();
-  await refreshStaleAffiliationsForUser(userId);
-  return getUserAffiliations(userId);
+  return resolveUserCorpAccess(userId);
 }
 
 function freshnessMapOf(
@@ -67,8 +64,8 @@ function freshnessMapOf(
 }
 
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
-  const affiliations = await loadFreshUserAffiliations(userId);
-  const corporationIds = memberCorpIds(affiliations, new Date());
+  const access = await loadUserCorpAccess(userId);
+  const corporationIds = [...access.corporationIds];
   const [structuresByCorp, syncStates, sharings] = await Promise.all([
     getCorpStructures(corporationIds),
     listCorpStructureSyncStates(corporationIds),
@@ -128,8 +125,8 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
  * the sharing state, and (when enabled) the shared structures joined with authored rigs.
  */
 export async function getCorpStructuresPageData(userId: string): Promise<CorpStructurePageView[]> {
-  const affiliations = await loadFreshUserAffiliations(userId);
-  const corporationIds = memberCorpIds(affiliations, new Date());
+  const access = await loadUserCorpAccess(userId);
+  const corporationIds = [...access.corporationIds];
   if (corporationIds.length === 0) return [];
 
   const [structuresByCorp, syncStates, sharings, rigsByStructure, names] = await Promise.all([
@@ -145,7 +142,7 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
   const smFlags = await Promise.all(
     corporationIds.map(
       async (corporationId) =>
-        [corporationId, await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES)] as const,
+        [corporationId, await userHoldsCorpRole(access, corporationId, CORP_STRUCTURES_REQUIRED_ROLES)] as const,
     ),
   );
   const isStationManagerByCorp = new Map(smFlags);
@@ -168,23 +165,13 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
   });
 }
 
-/**
- * Whether the user holds one of `requiredRoles` in the corp via ANY of their linked
- * pilots in it — the Station_Manager gate on the sharing + rig-completion mutations.
- * Composes the auth membership set (which pilots are in the corp) with the ESI roles
- * read (the same vend + readRoles the sync engine's Director resolution uses), so it
- * belongs here in the composition layer, not in either feature slice. Assumes the
- * caller already refreshed affiliations (decideCorpAccess does); reads the fresh set.
- * Returns true on the FIRST in-corp pilot that holds the role; a pilot whose token
- * can't be vended or whose roles can't be read simply doesn't contribute.
- */
+/** Checks ESI roles using the same fresh member set that authorized this request. */
 async function userHoldsCorpRole(
-  userId: string,
+  access: UserCorpAccess,
   corporationId: number,
   requiredRoles: readonly string[],
 ): Promise<boolean> {
-  const affiliations = await getUserAffiliations(userId);
-  const memberCharacterIds = memberCharacterIdsInCorp(affiliations, corporationId, new Date());
+  const memberCharacterIds = access.characterIdsByCorporation[corporationId] ?? [];
   for (const characterId of memberCharacterIds) {
     const accessToken = await vendTokenFor(characterId);
     if (accessToken === null) continue;
@@ -198,14 +185,15 @@ export async function stationManagerGate(
   userId: string,
   corporationId: number,
 ): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
-  const access = await decideCorpAccess({ userId, corporationId });
-  if (!access.allowed) {
+  const access = await resolveUserCorpAccess(userId);
+  const decision = await authorizeCorpMutation(access, corporationId);
+  if (!decision.allowed) {
     return {
       ok: false,
       failure: forbiddenFailure('not_corp_member', 'Not a member of this corporation'),
     };
   }
-  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
+  if (!(await userHoldsCorpRole(access, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
     return {
       ok: false,
       failure: forbiddenFailure(

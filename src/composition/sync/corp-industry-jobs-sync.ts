@@ -1,3 +1,4 @@
+import { resolveUserCorpAccess } from '@/composition/corp-access';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import {
@@ -44,12 +45,17 @@ export interface ViewerCorpJobsResult {
 export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCorpJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
     read: async (uid) => {
-      const syncStates = await listCorpJobSyncStates(uid);
-      const owners: OwnerRow[] = syncStates.map((state) => ({
-        id: state.corporationId,
-        lastRefreshedAt: state.lastRefreshedAt,
-        syncError: state.syncError,
-      }));
+      const [access, syncStates] = await Promise.all([
+        resolveUserCorpAccess(uid),
+        listCorpJobSyncStates(uid),
+      ]);
+      const owners: OwnerRow[] = syncStates
+        .filter((state) => access.characterIdsByCorporation[state.corporationId])
+        .map((state) => ({
+          id: state.corporationId,
+          lastRefreshedAt: state.lastRefreshedAt,
+          syncError: state.syncError,
+        }));
       const data = await getCorpJobsForUser(
         uid,
         owners.map((owner) => owner.id),
