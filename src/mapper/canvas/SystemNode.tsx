@@ -1,8 +1,9 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   systemClassificationReadout,
   systemDestinationClassReadout,
@@ -136,16 +137,18 @@ function nodeClassification(data: ChainNodeData, stub: boolean) {
   });
 }
 
-const VISUAL_WORMHOLE_CLASSES = new Set([1, 2, 3, 4, 5, 6, 12, 13, 14, 15, 16, 17, 18]);
+type WormholeAppearance = { readonly classId: number | null };
 
-function visualWormholeClass(data: ChainNodeData): number | null | undefined {
+function wormholeAppearance(data: ChainNodeData): WormholeAppearance | null {
   const classId = data.whClassId ?? (
     data.stub !== undefined && data.destinationHint != null
       ? destinationHintSoleClassId(data.destinationHint)
       : null
   );
-  if (classId !== null) return VISUAL_WORMHOLE_CLASSES.has(classId) ? classId : undefined;
-  return data.stub === undefined ? undefined : null;
+  if (classId !== null) {
+    return systemSecurityClass(null, classId) === 'wormhole' ? { classId } : null;
+  }
+  return data.stub === undefined ? null : { classId: null };
 }
 
 function NodeDisc({
@@ -155,7 +158,10 @@ function NodeDisc({
   classification,
   stub,
   systemId,
-  visual,
+  appearance,
+  active,
+  paused,
+  seed,
 }: {
   readonly derived: boolean;
   readonly chromeClass: string | null;
@@ -163,18 +169,29 @@ function NodeDisc({
   readonly classification: { readonly label: string; readonly tone: string } | null;
   readonly stub: boolean;
   readonly systemId: number;
-  readonly visual: ReactNode;
+  readonly appearance: WormholeAppearance | null;
+  readonly active: boolean;
+  readonly paused: boolean;
+  readonly seed: string;
 }) {
   return (
     <div
       className={cn(
         'map-node-disc absolute left-1/2 top-1/2 flex size-[55px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
         derived && 'border-dashed',
-        visual !== null && 'map-node-disc-wormhole',
+        appearance !== null && 'map-node-disc-wormhole',
         chromeClass,
       )}
     >
-      {visual}
+      {appearance !== null ? (
+        <WormholeVisual
+          whClassId={appearance.classId}
+          active={active}
+          paused={paused}
+          seed={seed}
+          size={75}
+        />
+      ) : null}
       <Handle
         type="target"
         position={Position.Left}
@@ -208,12 +225,13 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
-  const visualClassId = visualWormholeClass(data);
+  const appearance = wormholeAppearance(data);
   const paused = dragging === true || chromeClass === null;
-  const active = !paused && (hovered || selected === true);
+  const active = hovered || selected === true;
   return (
     <div
       data-chain-node
+      data-chain-node-selected={selected === true || undefined}
       aria-hidden={fogged || undefined}
       data-chain-node-derived={derived || undefined}
       data-chain-node-fogged={fogged || undefined}
@@ -247,15 +265,10 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
         classification={classification}
         stub={stub}
         systemId={Number(id)}
-        visual={visualClassId === undefined ? null : (
-          <WormholeVisual
-            whClassId={visualClassId}
-            active={active}
-            paused={paused}
-            seed={id}
-            size={75}
-          />
-        )}
+        appearance={appearance}
+        active={active}
+        paused={paused}
+        seed={id}
       />
     </div>
   );

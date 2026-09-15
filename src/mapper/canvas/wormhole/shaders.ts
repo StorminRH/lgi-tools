@@ -1,3 +1,5 @@
+import { WORMHOLE_IMPULSE_SETTLE_S } from './motion';
+
 // Original procedural Atlas visual; no CCP image assets are embedded.
 export const WORMHOLE_VERTEX = `attribute vec2 p;varying vec2 uv;void main(){uv=p;gl_Position=vec4(p,0.,1.);}`;
 
@@ -10,7 +12,7 @@ void main(){
 vec2 p=uv*1.36;float raw=length(p);float tm=clock*.024;
 vec2 q=vec2(dot(p,vec2(.8,.6)),dot(p,vec2(-.6,.8)));
 // The same interaction clock starts the elastic wobble and center ripple.
-float wobbleEnvelope=exp(-2.15*rippleAge)*(1.-smoothstep(1.8,2.8,rippleAge));
+float wobbleEnvelope=exp(-2.15*rippleAge)*(1.-smoothstep(1.8,${WORMHOLE_IMPULSE_SETTLE_S},rippleAge));
 float stretch=.105*wobbleEnvelope*sin(rippleAge*10.5);
 q.x/=1.+stretch;q.y*=1.+stretch;
 float angle=atan(q.y,q.x);

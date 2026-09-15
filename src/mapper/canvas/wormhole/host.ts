@@ -12,7 +12,10 @@ export interface WormholeInputs {
 }
 
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
-  const size = Number.isFinite(inputs.size) ? Math.min(512, Math.max(32, inputs.size!)) : 75;
+  const requested = inputs.size;
+  const size = requested !== undefined && Number.isFinite(requested)
+    ? Math.min(512, Math.max(32, requested))
+    : 75;
   const backing = Math.min(256, Math.round(size * Math.min(2, window.devicePixelRatio || 1)));
   if (canvas.width !== backing || canvas.height !== backing) {
     canvas.width = canvas.height = backing;
@@ -44,9 +47,15 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
   function paint() {
     if (context === null) return false;
     const ready = painter.paint(context, { ...appearance, time: motion.time, age: motion.age });
-    canvas.dataset.ready = String(ready);
-    if (!ready) context.clearRect(0, 0, canvas.width, canvas.height);
-    return ready;
+    if (ready) {
+      canvas.dataset.ready = 'true';
+      return true;
+    }
+    if (canvas.dataset.ready !== 'true') {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.dataset.ready = 'false';
+    }
+    return false;
   }
   function cancel() { window.cancelAnimationFrame(frame); frame = 0; }
   function tick(now: number) {
@@ -76,7 +85,7 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
 
   return {
     update(next: WormholeInputs) {
-      inputs = next;
+      inputs = { ...inputs, ...next };
       appearance = applyAppearance(canvas, inputs);
       synchronize();
     },

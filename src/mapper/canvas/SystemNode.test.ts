@@ -85,9 +85,9 @@ test.each([7, 8, 9, 25, null])(
 test.each([
   { selected: false, dragging: false, paused: false, active: false },
   { selected: true, dragging: false, paused: false, active: true },
-  { selected: true, dragging: true, paused: true, active: false },
-  { selected: true, dragging: false, motion: { phase: 'departing' }, paused: true, active: false },
-  { selected: true, dragging: false, halo: { ring: 3, fogged: true }, paused: true, active: false },
+  { selected: true, dragging: true, paused: true, active: true },
+  { selected: true, dragging: false, motion: { phase: 'departing' }, paused: true, active: true },
+  { selected: true, dragging: false, halo: { ring: 3, fogged: true }, paused: true, active: true },
 ])('visual respects selection and inert states: %j', ({ paused, active, motion, halo, ...props }) => {
   const rendered = renderToStaticMarkup(createElement(SystemNode, {
     ...props,
@@ -96,6 +96,7 @@ test.each([
   } as unknown as NodeProps<ChainNode>));
   expect(rendered).toContain(`data-visual-active="${active}"`);
   expect(rendered).toContain(`data-visual-paused="${paused}"`);
+  if (props.selected === true) expect(rendered).toContain('data-chain-node-selected');
 });
 
 test.each([
@@ -122,7 +123,7 @@ test.each([
   }
   expect(rendered).toContain(`data-wormhole-visual="${visualClass}"`);
   expect(rendered).toContain('data-visual-paused="true"');
-  expect(rendered).toContain('data-visual-active="false"');
+  expect(rendered).toContain('data-visual-active="true"');
 });
 
 function markup(motion: NodeMotion | undefined): string {
