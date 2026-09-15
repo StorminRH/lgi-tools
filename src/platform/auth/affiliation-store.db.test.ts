@@ -453,4 +453,3 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     ]);
   });
 });
-
