@@ -593,7 +593,7 @@ export const DATA_OWNERSHIP = [
     ],
     boundary: {
       kind: 'single-statement',
-      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds. Lifecycle archive tears the projection down only after the durable guard succeeds; restore re-projects only after its durable guard succeeds.',
+      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds. Lifecycle archive and restore enqueue the captured generation in the same statement as the lifecycle write, then tear down or re-project only after that write succeeds. Character-grant purge captures affected map ids, deletes those grants, and enqueues in one statement before captured delivery.',
     },
     dataClass: 'personal',
   },
@@ -608,7 +608,7 @@ export const DATA_OWNERSHIP = [
       },
       {
         by: 'data/maps',
-        reason: 'Authorized grant edits enqueue the same pending generation in the same statement as the mutation.',
+        reason: 'Authorized grant edits, lifecycle archive and restore, and character-grant purge enqueue the same pending generation in the same statement as the mutation.',
       },
     ],
     invariants: ['fk(map_id→maps.id)', 'pk(map_id)'],
