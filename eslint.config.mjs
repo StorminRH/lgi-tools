@@ -434,6 +434,16 @@ const nextImageImportPaths = [
   },
 ];
 
+const membershipKernelImportPath = {
+  name: "@/platform/auth/membership",
+  importNames: [
+    "memberCorpIds",
+    "memberCharacterIdInCorp",
+    "memberCharacterIdsInCorp",
+  ],
+  message: "Ask UserCorpAccess. membership.ts is the construction kernel only.",
+};
+
 const stalenessImportPatterns = [
   {
     group: ["**/staleness"],
@@ -604,6 +614,7 @@ const eslintConfig = defineConfig([
       ...baseUiWrapperFiles,
       "src/components/ui/toast.tsx",
       "src/lib/esi-datasets/**/*.{ts,tsx,mts}",
+      "src/platform/auth/**/*.{ts,tsx,mts}",
     ],
     rules: {
       "no-restricted-imports": [
@@ -611,6 +622,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...nextImageImportPaths,
+            membershipKernelImportPath,
           ],
           patterns: [
             ...vendorImportPatterns,
@@ -639,6 +651,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...nextImageImportPaths,
+            membershipKernelImportPath,
           ],
           patterns: [
             ...vendorImportPatterns,
@@ -660,6 +673,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...nextImageImportPaths,
+            membershipKernelImportPath,
           ],
           patterns: [
             ...vendorImportPatterns,
@@ -759,6 +773,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...nextImageImportPaths,
+            membershipKernelImportPath,
             {
               name: "@/transport/cron",
               importNames: ["requireCronAuth"],

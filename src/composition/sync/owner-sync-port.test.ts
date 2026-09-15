@@ -13,8 +13,10 @@ vi.mock('@/platform/auth/user-corp-access', () => ({
   loadUserCorpAccess: (...args: unknown[]) => loadUserCorpAccessMock(...args),
 }));
 
+const listLinkedCharactersMock = vi.hoisted(() => vi.fn());
+
 vi.mock('@/platform/auth/linked-characters', () => ({
-  listLinkedCharacters: vi.fn(),
+  listLinkedCharacters: (...args: unknown[]) => listLinkedCharactersMock(...args),
 }));
 
 vi.mock('@/platform/esi/authed-read', () => ({
@@ -22,7 +24,7 @@ vi.mock('@/platform/esi/authed-read', () => ({
   readEsiPagedAuthed: vi.fn(),
 }));
 
-import { readRolesFor, resolveOwnedOwnersForUser } from './owner-sync-port';
+import { listCharactersWithHealth, readRolesFor, resolveOwnedOwnersForUser } from './owner-sync-port';
 
 describe('resolveOwnedOwnersForUser', () => {
   beforeEach(() => {
@@ -60,6 +62,45 @@ describe('resolveOwnedOwnersForUser', () => {
 
     await expect(resolveOwnedOwnersForUser('u1')).resolves.toEqual([
       { ownerType: 'character', ownerId: 101 },
+    ]);
+  });
+});
+
+describe('listCharactersWithHealth', () => {
+  beforeEach(() => {
+    loadUserCorpAccessMock.mockReset();
+    listLinkedCharactersMock.mockReset();
+  });
+
+  it('uses the membership snapshot, not the cached affiliation column', async () => {
+    listLinkedCharactersMock.mockResolvedValue([
+      {
+        characterId: 101,
+        corporationId: 9999,
+        scope: 'esi-assets.read_assets.v1',
+        hasRefreshToken: true,
+      },
+      {
+        characterId: 202,
+        corporationId: 3000,
+        scope: 'esi-assets.read_assets.v1',
+        hasRefreshToken: true,
+      },
+    ]);
+    loadUserCorpAccessMock.mockResolvedValue({
+      userId: 'u1',
+      characterIds: [101, 202],
+      corporationIds: [2000],
+      refreshTransientFailure: false,
+      has: (corporationId: number) => corporationId === 2000,
+      characterIdsIn: (corporationId: number) => (corporationId === 2000 ? [101] : []),
+      decide: async () => ({ allowed: true, reason: 'member', characterId: 101 }),
+    });
+
+    const rows = await listCharactersWithHealth('u1');
+    expect(rows.map((row) => ({ characterId: row.characterId, corporationId: row.corporationId }))).toEqual([
+      { characterId: 101, corporationId: 2000 },
+      { characterId: 202, corporationId: null },
     ]);
   });
 });

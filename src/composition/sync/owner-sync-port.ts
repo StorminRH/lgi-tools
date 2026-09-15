@@ -1,6 +1,6 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { loadUserCorpAccess } from '@/platform/auth/user-corp-access';
+import { loadUserCorpAccess, type UserCorpAccess } from '@/platform/auth/user-corp-access';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiPagedAuthed } from '@/platform/esi/authed-read';
@@ -14,11 +14,21 @@ export interface LinkedCharacterHealth {
   missingScopes: string[];
 }
 
+function currentCorporationId(access: UserCorpAccess, characterId: number): number | null {
+  for (const corporationId of access.corporationIds) {
+    if (access.characterIdsIn(corporationId).includes(characterId)) return corporationId;
+  }
+  return null;
+}
+
 export async function listCharactersWithHealth(userId: string): Promise<LinkedCharacterHealth[]> {
-  const linked = await listLinkedCharacters(userId);
+  const [linked, access] = await Promise.all([
+    listLinkedCharacters(userId),
+    loadUserCorpAccess(userId),
+  ]);
   return linked.map((character) => ({
     characterId: character.characterId,
-    corporationId: character.corporationId,
+    corporationId: currentCorporationId(access, character.characterId),
     hasRefreshToken: character.hasRefreshToken,
     missingScopes: deriveCharacterHealth({
       scope: character.scope,
