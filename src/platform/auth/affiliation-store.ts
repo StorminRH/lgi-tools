@@ -161,6 +161,19 @@ export async function readPendingMapAccessChanges(
     .limit(limit);
 }
 
+export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promise<void> {
+  const unique = [...new Set(mapIds)];
+  if (unique.length === 0) return;
+  if (unique.length > MAX_PENDING_BATCH) throw new RangeError('Pending affiliation batch exceeds limit');
+  await db
+    .insert(pendingMapAccessChanges)
+    .values(unique.map((mapId) => ({ mapId })))
+    .onConflictDoUpdate({
+      target: pendingMapAccessChanges.mapId,
+      set: { version: sql`gen_random_uuid()`, queuedAt: sql`clock_timestamp()` },
+    });
+}
+
 export async function acknowledgeMapAccessChanges(
   changes: PendingMapAccessChange[],
   retry: PendingMapAccessChange[] = [],

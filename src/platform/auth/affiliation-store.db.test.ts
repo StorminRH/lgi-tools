@@ -9,6 +9,7 @@ import {
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
   acknowledgeMapAccessChanges,
+  enqueueMapAccessChanges,
   getUsersAffiliations,
   readPendingMapAccessChanges,
   getUserAffiliations,
@@ -258,6 +259,19 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await expect(readPendingMapAccessChanges(1.5)).rejects.toThrow(RangeError);
     await expect(acknowledgeMapAccessChanges(batch, batch.slice(0, 1))).rejects.toThrow(RangeError);
     await acknowledgeMapAccessChanges([]);
+  });
+
+  it('coalesces direct enqueues and rotates generations for retry', async () => {
+    await harness.db.insert(maps).values({ id: mapId(1), userId: USER_ID, name: 'Map' });
+    await enqueueMapAccessChanges([]);
+    await enqueueMapAccessChanges([mapId(1), mapId(1)]);
+    const first = await readPendingMapAccessChanges();
+    expect(first).toHaveLength(1);
+    await enqueueMapAccessChanges([mapId(1)]);
+    const second = await readPendingMapAccessChanges();
+    expect(second).toHaveLength(1);
+    expect(second[0]?.version).not.toBe(first[0]?.version);
+    await expect(enqueueMapAccessChanges(Array.from({ length: 101 }, (_, i) => mapId(i)))).rejects.toThrow(RangeError);
   });
 
   it('captures intermediate corporation maps across concurrent refreshes', async () => {

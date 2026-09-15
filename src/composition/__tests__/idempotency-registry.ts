@@ -445,7 +445,7 @@ const mapsAccessRoute = mutationRoute({
   route: 'src/app/api/maps/access/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, then reserves a newer durable projection revision before recomputing the complete one-way access projection.',
+    'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, durably queues the map for reconciliation, then reserves a newer durable projection revision before recomputing the complete one-way access projection.',
 });
 const mapsDeleteRoute = mutationRoute({
   route: 'src/app/api/maps/delete/route.ts',

@@ -181,8 +181,8 @@ describe('projectMapAccess transport', () => {
       unchanged: 0,
       outcome: 'applied',
     });
-    expect(mocks.getMapAccessSubject.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]!,
+    expect(mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.getMapAccessSubject.mock.invocationCallOrder[0]!,
     );
     expect(mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.fetchWithTimeout.mock.invocationCallOrder[0]!,

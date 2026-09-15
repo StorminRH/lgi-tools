@@ -142,11 +142,11 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before computation');
   }
+  const revision = await reserveMapAccessProjectionRevision();
   const claims = await computeMapAccessClaimsForState(mapId, allowArchived);
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
-  const revision = await reserveMapAccessProjectionRevision();
   return postMapAccessProjection({ mapId, revision, claims }, options);
 }
 

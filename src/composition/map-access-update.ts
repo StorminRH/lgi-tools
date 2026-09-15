@@ -5,15 +5,18 @@ import {
 } from '@/composition/map-access-projection';
 import type { UpdateMapAccessRequest } from '@/data/maps/api-contract';
 import { applyAuthorizedMapGrantChange } from '@/data/maps/queries';
+import { enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
 
 export type ResolvePrincipals = typeof resolveMapPrincipals;
 export type ApplyGrantChange = typeof applyAuthorizedMapGrantChange;
 export type ProjectAccess = typeof projectMapAccess;
+export type EnqueueAccess = typeof enqueueMapAccessChanges;
 
 export interface MapAccessUpdateDependencies {
   readonly resolvePrincipals?: ResolvePrincipals;
   readonly applyGrantChange?: ApplyGrantChange;
   readonly projectAccess?: ProjectAccess;
+  readonly enqueueAccess?: EnqueueAccess;
 }
 
 export type MapAccessUpdateResult =
@@ -34,6 +37,7 @@ export async function applyMapAccessUpdate(
   const applyGrantChange =
     dependencies.applyGrantChange ?? applyAuthorizedMapGrantChange;
   const projectAccess = dependencies.projectAccess ?? projectMapAccess;
+  const enqueueAccess = dependencies.enqueueAccess ?? enqueueMapAccessChanges;
   const principals = await resolvePrincipals(userId);
 
   const change = input.operation === 'upsert'
@@ -41,6 +45,7 @@ export async function applyMapAccessUpdate(
     : { operation: input.operation, principal: input.principal };
   const authorized = await applyGrantChange(userId, principals, input.mapId, change);
   if (!authorized) return { ok: false, reason: 'forbidden' };
+  await enqueueAccess([input.mapId]);
   try {
     await projectAccess(input.mapId);
     return { ok: true };
