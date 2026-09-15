@@ -113,16 +113,6 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
   return out;
 }
 
-/**
- * The structures page's corp section, server-resolved (the CorpStructurePageView
- * shape lives in the owned-structures slice so the client section shares it). Unlike
- * the planner read, this lists ALL member corps (a Station_Manager must see a disabled
- * corp to enable it). Refreshes affiliations + fires
- * the same stale-gated write-behind the planner does, then assembles per member corp:
- * the resolved name, the viewer's Station_Manager flag (one ESI roles read per corp —
- * acceptable for this low-traffic settings page; the mutation re-checks authoritatively),
- * the sharing state, and (when enabled) the shared structures joined with authored rigs.
- */
 export async function getCorpStructuresPageData(userId: string): Promise<CorpStructurePageView[]> {
   const access = await loadViewerCorpAccess(userId);
   const corporationIds = [...access.corporationIds];
