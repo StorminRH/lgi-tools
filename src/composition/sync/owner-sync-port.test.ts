@@ -7,8 +7,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/affiliation-store', () => ({
-  getUserAffiliations: vi.fn(),
+const loadUserCorpAccessMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/platform/auth/user-corp-access', () => ({
+  loadUserCorpAccess: (...args: unknown[]) => loadUserCorpAccessMock(...args),
 }));
 
 vi.mock('@/platform/auth/linked-characters', () => ({
@@ -20,7 +22,47 @@ vi.mock('@/platform/esi/authed-read', () => ({
   readEsiPagedAuthed: vi.fn(),
 }));
 
-import { readRolesFor } from './owner-sync-port';
+import { readRolesFor, resolveOwnedOwnersForUser } from './owner-sync-port';
+
+describe('resolveOwnedOwnersForUser', () => {
+  beforeEach(() => {
+    loadUserCorpAccessMock.mockReset();
+  });
+
+  it('enumerates linked characters and current corporations only', async () => {
+    loadUserCorpAccessMock.mockResolvedValue({
+      userId: 'u1',
+      characterIds: [101, 202],
+      corporationIds: [2000],
+      refreshTransientFailure: false,
+      has: (corporationId: number) => corporationId === 2000,
+      characterIdsIn: (corporationId: number) => (corporationId === 2000 ? [101] : []),
+      decide: async () => ({ allowed: true, reason: 'member', characterId: 101 }),
+    });
+
+    await expect(resolveOwnedOwnersForUser('u1')).resolves.toEqual([
+      { ownerType: 'character', ownerId: 101 },
+      { ownerType: 'character', ownerId: 202 },
+      { ownerType: 'corporation', ownerId: 2000 },
+    ]);
+  });
+
+  it('omits a stale corporation from the owner set', async () => {
+    loadUserCorpAccessMock.mockResolvedValue({
+      userId: 'u1',
+      characterIds: [101],
+      corporationIds: [],
+      refreshTransientFailure: false,
+      has: () => false,
+      characterIdsIn: () => [],
+      decide: async () => ({ allowed: false, reason: 'not_member', characterId: null }),
+    });
+
+    await expect(resolveOwnedOwnersForUser('u1')).resolves.toEqual([
+      { ownerType: 'character', ownerId: 101 },
+    ]);
+  });
+});
 
 describe('readRolesFor', () => {
   beforeEach(() => {

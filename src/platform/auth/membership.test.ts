@@ -2,8 +2,6 @@ import { expect, test } from 'vitest';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
   type CachedAffiliation,
-  characterIsInCorp,
-  isMemberOfCorp,
   memberCharacterIdInCorp,
   memberCharacterIdsInCorp,
   memberCorpIds,
@@ -42,35 +40,28 @@ test('membership predicates fail closed on stale, never-refreshed, empty, and nu
   const empty: CachedAffiliation[] = [];
   const nullCorp = [aff({ corporationId: null })];
 
-  expect(isMemberOfCorp(stale, 2000, NOW)).toBe(false);
-  expect(isMemberOfCorp(never, 2000, NOW)).toBe(false);
-  expect(isMemberOfCorp(empty, 2000, NOW)).toBe(false);
-  expect(isMemberOfCorp(nullCorp, 2000, NOW)).toBe(false);
-
   expect(memberCharacterIdInCorp(stale, 2000, NOW)).toBeNull();
   expect(memberCharacterIdInCorp(never, 2000, NOW)).toBeNull();
   expect(memberCharacterIdInCorp(empty, 2000, NOW)).toBeNull();
+  expect(memberCharacterIdInCorp(nullCorp, 2000, NOW)).toBeNull();
 
   expect(memberCorpIds(stale, NOW)).toEqual([]);
   expect(memberCorpIds(never, NOW)).toEqual([]);
   expect(memberCorpIds(nullCorp, NOW)).toEqual([]);
   expect(memberCorpIds(empty, NOW)).toEqual([]);
-
-  expect(characterIsInCorp(staleRow, 2000, NOW)).toBe(false);
-  expect(characterIsInCorp(null, 2000, NOW)).toBe(false);
 });
 
-test('isMemberOfCorp allows any fresh linked member and revokes after a corp change', () => {
-  expect(isMemberOfCorp([aff({ corporationId: 2000 })], 2000, NOW)).toBe(true);
-  expect(isMemberOfCorp([aff({ corporationId: 2000 })], 3000, NOW)).toBe(false);
-  expect(isMemberOfCorp([aff({ corporationId: 3000 })], 2000, NOW)).toBe(false);
+test('memberCharacterIdInCorp allows any fresh linked member and revokes after a corp change', () => {
+  expect(memberCharacterIdInCorp([aff({ corporationId: 2000 })], 2000, NOW)).toBe(101);
+  expect(memberCharacterIdInCorp([aff({ corporationId: 2000 })], 3000, NOW)).toBeNull();
+  expect(memberCharacterIdInCorp([aff({ corporationId: 3000 })], 2000, NOW)).toBeNull();
   expect(
-    isMemberOfCorp(
+    memberCharacterIdInCorp(
       [aff({ characterId: 101, corporationId: 3000 }), aff({ characterId: 102, corporationId: 2000 })],
       2000,
       NOW,
     ),
-  ).toBe(true);
+  ).toBe(102);
 });
 
 test('memberCharacterIdInCorp returns the first fresh matching pilot for the audit', () => {
@@ -116,7 +107,3 @@ test('memberCharacterIdsInCorp and memberCorpIds collect distinct fresh members'
   expect(memberCorpIds(affiliations, NOW).sort((a, b) => a - b)).toEqual([2000, 3000]);
 });
 
-test('characterIsInCorp allows a fresh match and denies a mismatched corp', () => {
-  expect(characterIsInCorp(aff({ corporationId: 2000 }), 2000, NOW)).toBe(true);
-  expect(characterIsInCorp(aff({ corporationId: 3000 }), 2000, NOW)).toBe(false);
-});

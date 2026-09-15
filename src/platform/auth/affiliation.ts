@@ -1,7 +1,6 @@
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { fetchAffiliations } from './affiliation-source';
-import { characterIsInCorp, isMemberOfCorp } from './membership';
-import { getCharacterAffiliation, getUserAffiliations, updateAffiliations } from './affiliation-store';
+import { getUserAffiliations, updateAffiliations } from './affiliation-store';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
@@ -55,32 +54,4 @@ export async function refreshStaleAffiliationsForUserWithOutcome(
     .filter((a) => AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now))
     .map((a) => a.characterId);
   return refreshAffiliationsWithOutcome(staleIds);
-}
-
-/**
- * Refresh every stale / never-refreshed affiliation among a user's linked
- * characters, so a membership decision taken straight after runs on ≤1h-fresh data
- * — the audited gate's refresh-then-decide step. Best-effort: delegates to
- * refreshAffiliations (which swallows ESI failures), so a refresh that can't reach
- * ESI leaves the cache stale and the following decision fails closed. Returns the
- * number of rows refreshed.
- */
-export async function refreshStaleAffiliationsForUser(userId: string): Promise<number> {
-  return (await refreshStaleAffiliationsForUserWithOutcome(userId)).refreshed;
-}
-
-export async function isUserCurrentMemberOfCorp(
-  userId: string,
-  corporationId: number,
-): Promise<boolean> {
-  const affiliations = await getUserAffiliations(userId);
-  return isMemberOfCorp(affiliations, corporationId, new Date());
-}
-
-export async function isCharacterCurrentMemberOfCorp(
-  characterId: number,
-  corporationId: number,
-): Promise<boolean> {
-  const affiliation = await getCharacterAffiliation(characterId);
-  return characterIsInCorp(affiliation, corporationId, new Date());
 }

@@ -47,23 +47,6 @@ export async function getUserAffiliations(userId: string): Promise<CachedAffilia
   });
 }
 
-export async function getCharacterAffiliation(
-  characterId: number,
-): Promise<CachedAffiliation | null> {
-  const [row] = await db
-    .select({
-      corporationId: characters.corporationId,
-      allianceId: characters.allianceId,
-      factionId: characters.factionId,
-      refreshedAt: characters.affiliationRefreshedAt,
-    })
-    .from(characters)
-    .where(eq(characters.characterId, characterId))
-    .limit(1);
-  if (!row) return null;
-  return rowToCachedAffiliation(characterId, row);
-}
-
 export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   const cutoff = new Date(Date.now() - AFFILIATION_FRESHNESS.ttlMs);
   const rows = await db

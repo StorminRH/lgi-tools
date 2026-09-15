@@ -49,23 +49,3 @@ export function memberCorpIds(affiliations: CachedAffiliation[], now: Date): num
   }
   return [...ids];
 }
-
-export function isMemberOfCorp(
-  affiliations: CachedAffiliation[],
-  corporationId: number,
-  now: Date,
-): boolean {
-  return memberCharacterIdInCorp(affiliations, corporationId, now) !== null;
-}
-
-export function characterIsInCorp(
-  affiliation: CachedAffiliation | null,
-  corporationId: number,
-  now: Date,
-): boolean {
-  return (
-    affiliation !== null &&
-    affiliation.corporationId === corporationId &&
-    !AFFILIATION_FRESHNESS.isStale(affiliation.refreshedAt, now)
-  );
-}

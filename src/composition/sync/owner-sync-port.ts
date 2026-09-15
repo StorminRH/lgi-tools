@@ -1,6 +1,6 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { getUserAffiliations } from '@/platform/auth/affiliation-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { loadUserCorpAccess } from '@/platform/auth/user-corp-access';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiPagedAuthed } from '@/platform/esi/authed-read';
@@ -28,19 +28,11 @@ export async function listCharactersWithHealth(userId: string): Promise<LinkedCh
 }
 
 export async function resolveOwnedOwnersForUser(userId: string): Promise<OwnerKey[]> {
-  const [linked, affiliations] = await Promise.all([
-    listLinkedCharacters(userId),
-    getUserAffiliations(userId),
-  ]);
-  const owners: OwnerKey[] = linked.map((c) => ({ ownerType: 'character', ownerId: c.characterId }));
-  const corpIds = new Set<number>();
-  for (const affiliation of affiliations) {
-    if (affiliation.corporationId !== null) corpIds.add(affiliation.corporationId);
-  }
-  for (const corporationId of corpIds) {
-    owners.push({ ownerType: 'corporation', ownerId: corporationId });
-  }
-  return owners;
+  const access = await loadUserCorpAccess(userId);
+  return [
+    ...access.characterIds.map((ownerId) => ({ ownerType: 'character' as const, ownerId })),
+    ...access.corporationIds.map((ownerId) => ({ ownerType: 'corporation' as const, ownerId })),
+  ];
 }
 
 export async function vendTokenFor(characterId: number): Promise<string | null> {
