@@ -2,8 +2,8 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--wormhole-size, 146px);
-  height: var(--wormhole-size, 146px);
+  width: var(--wormhole-size, 75px);
+  height: var(--wormhole-size, 75px);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -18,11 +18,11 @@
 /* Static, class-tinted fallback also covers SSR, GPU failure and reduced hardware. */
 .fallback {
   position: absolute;
-  inset: 31.2%;
+  inset: 13.235%;
   border-radius: 50%;
   background: radial-gradient(ellipse at 35% 30%, var(--wormhole-accent, #adb8bf), transparent 52%),
     radial-gradient(ellipse at 70% 70%, var(--wormhole-core, #8996a1), var(--wormhole-dark, #030507) 78%);
-  box-shadow: 0 0 12px 4px color-mix(in srgb, var(--wormhole-halo, #879cab) 24%, transparent);
+  box-shadow: 0 0 5px 1px color-mix(in srgb, var(--wormhole-halo, #879cab) 24%, transparent);
 }
 
 .canvas[data-ready='true'] + .fallback { display: none; }
