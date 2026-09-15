@@ -1,16 +1,21 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   systemClassificationReadout,
   systemDestinationClassReadout,
   systemDestinationHintReadout,
 } from '@/data/eve-data/system-identity';
-import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
+import {
+  destinationHintSoleClassId,
+  type WormholeDestinationHint,
+} from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
+import { WormholeVisual } from './wormhole/WormholeVisual';
 
 export type ChainNodeData = {
   name: string;
@@ -132,6 +137,20 @@ function nodeClassification(data: ChainNodeData, stub: boolean) {
   });
 }
 
+type WormholeAppearance = { readonly classId: number | null };
+
+function wormholeAppearance(data: ChainNodeData): WormholeAppearance | null {
+  const classId = data.whClassId ?? (
+    data.stub !== undefined && data.destinationHint != null
+      ? destinationHintSoleClassId(data.destinationHint)
+      : null
+  );
+  if (classId !== null) {
+    return systemSecurityClass(null, classId) === 'wormhole' ? { classId } : null;
+  }
+  return data.stub === undefined ? null : { classId: null };
+}
+
 function NodeDisc({
   derived,
   chromeClass,
@@ -139,6 +158,10 @@ function NodeDisc({
   classification,
   stub,
   systemId,
+  appearance,
+  active,
+  paused,
+  seed,
 }: {
   readonly derived: boolean;
   readonly chromeClass: string | null;
@@ -146,15 +169,29 @@ function NodeDisc({
   readonly classification: { readonly label: string; readonly tone: string } | null;
   readonly stub: boolean;
   readonly systemId: number;
+  readonly appearance: WormholeAppearance | null;
+  readonly active: boolean;
+  readonly paused: boolean;
+  readonly seed: string;
 }) {
   return (
     <div
       className={cn(
         'map-node-disc absolute left-1/2 top-1/2 flex size-[55px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
         derived && 'border-dashed',
+        appearance !== null && 'map-node-disc-wormhole',
         chromeClass,
       )}
     >
+      {appearance !== null ? (
+        <WormholeVisual
+          whClassId={appearance.classId}
+          active={active}
+          paused={paused}
+          seed={seed}
+          size={75}
+        />
+      ) : null}
       <Handle
         type="target"
         position={Position.Left}
@@ -183,18 +220,28 @@ function NodeDisc({
   );
 }
 
-function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) {
+function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: NodeProps<ChainNode>) {
+  const [hovered, setHovered] = useState(false);
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
+  const appearance = wormholeAppearance(data);
+  const paused = dragging === true || chromeClass === null;
+  const active = hovered || selected === true;
   return (
     <div
       data-chain-node
+      data-chain-node-selected={selected === true || undefined}
       aria-hidden={fogged || undefined}
       data-chain-node-derived={derived || undefined}
       data-chain-node-fogged={fogged || undefined}
       data-chain-node-stub={stub || undefined}
       data-chain-node-static-stub={staticStub || undefined}
+      onPointerEnter={(event) => {
+        if (event.pointerType !== 'touch') setHovered(true);
+      }}
+      onPointerLeave={() => setHovered(false)}
+      onPointerCancel={() => setHovered(false)}
       className={cn(
         'relative h-full w-full',
         derived && (fogged ? 'opacity-0' : 'opacity-75'),
@@ -218,6 +265,10 @@ function SystemNodeComponent({ id, data, isConnectable }: NodeProps<ChainNode>) 
         classification={classification}
         stub={stub}
         systemId={Number(id)}
+        appearance={appearance}
+        active={active}
+        paused={paused}
+        seed={id}
       />
     </div>
   );
