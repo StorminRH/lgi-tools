@@ -1,7 +1,8 @@
 # WormholeVisual
 
 Decorative Atlas primitive extracted from the approved liquid sphere prototype:
-original compact lensed sphere, narrow rim glow, and simultaneous center ripples / damped
+compact lensed sphere with a smooth dark interior, muted class color at the rim,
+and simultaneous center ripples / damped
 wobble on activation. `SystemNode` owns its labels, handles and React Flow state.
 
 ```tsx
@@ -19,7 +20,7 @@ wobble on activation. `SystemNode` owns its labels, handles and React Flow state
 | `whClassId` | Numeric SDE destination/system class; null or unsupported values use neutral colors. |
 | `active` | Parent-controlled hover or selection. False→true starts the impulse; sustained true continues slow internal drift after settling. |
 | `paused` | Immediately stills all motion, even when active. Used during drag and for inert nodes. |
-| `seed` | Stable string, normally the system/node ID, for deterministic internal texture variation. |
+| `seed` | Stable string, normally the system/node ID, for deterministic lighting variation. |
 | `size` | Entire visual diameter in CSS pixels, including the narrow rim glow. Default 75; the core is approximately 55px. Clamped to 32–512. |
 | `shipSize` | Optional `small`, `medium`, `large`, `capital`, or `unknown` aura palette. Default unknown. Supply only for a particular connection. |
 
