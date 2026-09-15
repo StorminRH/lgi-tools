@@ -9,11 +9,7 @@ import {
   type AuthorizedMapRow,
   type DeletedRestorableMapRow,
 } from '@/data/maps/queries';
-import {
-  getUserAffiliations,
-} from '@/platform/auth/affiliation-store';
-import { refreshStaleAffiliationsForUserWithOutcome } from '@/platform/auth/affiliation';
-import { memberCorpIds } from '@/platform/auth/membership';
+import { resolveUserCorpAccess } from '@/platform/auth/corp-access';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { MapPrincipals } from '@/data/maps/access';
 
@@ -32,14 +28,13 @@ export interface MapChromeData {
 export async function resolveMapPrincipalsWithOutcome(
   userId: string,
 ): Promise<ResolvedMapPrincipals> {
-  const { transientFailure } = await refreshStaleAffiliationsForUserWithOutcome(userId);
-  const affiliations = await getUserAffiliations(userId);
+  const access = await resolveUserCorpAccess(userId);
   return {
     principals: {
-      characterIds: affiliations.map((affiliation) => affiliation.characterId),
-      corporationIds: memberCorpIds(affiliations, new Date()),
+      characterIds: [...access.allCharacterIds],
+      corporationIds: [...access.memberCorpIds],
     },
-    refreshTransientFailure: transientFailure,
+    refreshTransientFailure: access.transientFailure,
   };
 }
 

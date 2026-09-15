@@ -15,15 +15,15 @@ const mocks = vi.hoisted(() => ({
     refreshed: 0,
     transientFailure: false,
   }),
-  refreshStaleAffiliationsForUserWithOutcome: vi.fn().mockResolvedValue({
-    refreshed: 0,
+  refreshAffiliationsWithRows: vi.fn().mockResolvedValue({
+    rows: [],
     transientFailure: false,
   }),
 }));
 
 vi.mock('@/platform/auth/affiliation', () => ({
   refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
-  refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
+  refreshAffiliationsWithRows: mocks.refreshAffiliationsWithRows,
 }));
 
 const harness = await createDbTestHarness({
@@ -62,9 +62,9 @@ beforeEach(() => {
     refreshed: 0,
     transientFailure: false,
   });
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockReset();
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-    refreshed: 0,
+  mocks.refreshAffiliationsWithRows.mockReset();
+  mocks.refreshAffiliationsWithRows.mockResolvedValue({
+    rows: [],
     transientFailure: false,
   });
 });

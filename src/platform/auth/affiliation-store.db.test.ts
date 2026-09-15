@@ -99,21 +99,23 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
   it('updates existing character rows, creates no missing row, and treats empty input as a no-op', async () => {
     await seedCharacter(FIRST_CHAR);
 
-    await updateAffiliations([
-      {
-        characterId: FIRST_CHAR,
-        corporationId: 98000021,
-        allianceId: 99000021,
-        factionId: null,
-      },
-      {
-        characterId: SECOND_CHAR,
-        corporationId: 98000022,
-        allianceId: null,
-        factionId: null,
-      },
-    ]);
-    await updateAffiliations([]);
+    await expect(
+      updateAffiliations([
+        {
+          characterId: FIRST_CHAR,
+          corporationId: 98000021,
+          allianceId: 99000021,
+          factionId: null,
+        },
+        {
+          characterId: SECOND_CHAR,
+          corporationId: 98000022,
+          allianceId: null,
+          factionId: null,
+        },
+      ]),
+    ).resolves.toEqual([FIRST_CHAR]);
+    await expect(updateAffiliations([])).resolves.toEqual([]);
 
     const rows = await harness.db.select().from(characters).orderBy(asc(characters.characterId));
     expect(rows).toHaveLength(1);

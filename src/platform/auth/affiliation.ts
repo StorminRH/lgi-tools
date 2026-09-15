@@ -1,8 +1,5 @@
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import { fetchAffiliations } from './affiliation-source';
-import { getUserAffiliations, updateAffiliations } from './affiliation-store';
-
-const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
+import { fetchAffiliations, type AffiliationRow } from './affiliation-source';
+import { updateAffiliations } from './affiliation-store';
 
 /**
  * Postgres advisory-lock key for the nightly affiliation refresh cron. Held only
@@ -16,6 +13,11 @@ export const ADVISORY_LOCK_AFFILIATION_REFRESH = BigInt(8273619016);
 /** Detailed refresh outcome for callers that must distinguish transient ESI failure. */
 export interface AffiliationRefreshOutcome {
   readonly refreshed: number;
+  readonly transientFailure: boolean;
+}
+
+export interface AffiliationRefreshRows {
+  readonly rows: AffiliationRow[];
   readonly transientFailure: boolean;
 }
 
@@ -45,25 +47,22 @@ export async function refreshAffiliations(characterIds: number[]): Promise<numbe
   return (await refreshAffiliationsWithOutcome(characterIds)).refreshed;
 }
 
-export async function refreshStaleAffiliationsForUserWithOutcome(
-  userId: string,
-): Promise<AffiliationRefreshOutcome> {
-  const affiliations = await getUserAffiliations(userId);
-  const now = new Date();
-  const staleIds = affiliations
-    .filter((a) => AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now))
-    .map((a) => a.characterId);
-  return refreshAffiliationsWithOutcome(staleIds);
-}
-
 /**
- * Refresh every stale / never-refreshed affiliation among a user's linked
- * characters, so a membership decision taken straight after runs on ≤1h-fresh data
- * — the audited gate's refresh-then-decide step. Best-effort: delegates to
- * refreshAffiliations (which swallows ESI failures), so a refresh that can't reach
- * ESI leaves the cache stale and the following decision fails closed. Returns the
- * number of rows refreshed.
+ * Refresh + return the confirmed rows, so the corp-access resolver can merge
+ * fresh ESI state in memory without a second broad read. Only rows whose write
+ * was confirmed are returned — an unconfirmed write stays stale and the
+ * membership decision fails closed.
  */
-export async function refreshStaleAffiliationsForUser(userId: string): Promise<number> {
-  return (await refreshStaleAffiliationsForUserWithOutcome(userId)).refreshed;
+export async function refreshAffiliationsWithRows(
+  characterIds: number[],
+): Promise<AffiliationRefreshRows> {
+  if (characterIds.length === 0) return { rows: [], transientFailure: false };
+  try {
+    const { rows, transientFailure } = await fetchAffiliations(characterIds);
+    const confirmed = new Set(await updateAffiliations(rows));
+    return { rows: rows.filter((row) => confirmed.has(row.characterId)), transientFailure };
+  } catch (err) {
+    console.error('[auth/affiliation] refresh failed', err);
+    return { rows: [], transientFailure: true };
+  }
 }

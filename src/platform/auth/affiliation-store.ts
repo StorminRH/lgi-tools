@@ -5,8 +5,15 @@ import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import type { CachedAffiliation } from './membership';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
+
+export interface CachedAffiliation {
+  characterId: number;
+  corporationId: number | null;
+  allianceId: number | null;
+  factionId: number | null;
+  refreshedAt: Date | null;
+}
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
@@ -28,6 +35,10 @@ function rowToCachedAffiliation(
   };
 }
 
+/**
+ * @internal Only the corp-access resolver and tests read raw affiliation rows.
+ * Membership decisions go through `resolveUserCorpAccess`.
+ */
 export async function getUserAffiliations(userId: string): Promise<CachedAffiliation[]> {
   const rows = await db
     .select({
@@ -68,11 +79,12 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-export async function updateAffiliations(rows: AffiliationRow[]): Promise<void> {
-  if (rows.length === 0) return;
+export async function updateAffiliations(rows: AffiliationRow[]): Promise<number[]> {
+  if (rows.length === 0) return [];
   const now = new Date();
+  const confirmed: number[] = [];
   for (const r of rows) {
-    await db
+    const updated = await db
       .update(characters)
       .set({
         corporationId: r.corporationId,
@@ -81,8 +93,11 @@ export async function updateAffiliations(rows: AffiliationRow[]): Promise<void> 
         affiliationRefreshedAt: now,
         updatedAt: now,
       })
-      .where(eq(characters.characterId, r.characterId));
+      .where(eq(characters.characterId, r.characterId))
+      .returning({ characterId: characters.characterId });
+    for (const row of updated) confirmed.push(row.characterId);
   }
+  return confirmed;
 }
 
 export async function recordCorpAccessDecision(entry: {

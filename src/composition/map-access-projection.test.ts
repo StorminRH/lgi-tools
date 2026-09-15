@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CachedAffiliation } from '@/platform/auth/membership';
+import type { UserCorpAccess } from '@/platform/auth/corp-access';
 
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
@@ -7,10 +7,9 @@ const mocks = vi.hoisted(() => ({
   reserveMapAccessProjectionRevision: vi.fn(),
   getUserIdsOwningCharacters: vi.fn(),
   getUserIdsInCorporations: vi.fn(),
-  getUserAffiliations: vi.fn(),
+  resolveUserCorpAccess: vi.fn(),
   listStaleLinkedCharacterIds: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
-  refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
   fetchWithTimeout: vi.fn(),
   deriveConvexSiteUrl: vi.fn(),
   readEnv: vi.fn(),
@@ -23,13 +22,14 @@ vi.mock('@/data/maps/queries', () => ({
   getUserIdsOwningCharacters: mocks.getUserIdsOwningCharacters,
   getUserIdsInCorporations: mocks.getUserIdsInCorporations,
 }));
+vi.mock('@/platform/auth/corp-access', () => ({
+  resolveUserCorpAccess: mocks.resolveUserCorpAccess,
+}));
 vi.mock('@/platform/auth/affiliation-store', () => ({
-  getUserAffiliations: mocks.getUserAffiliations,
   listStaleLinkedCharacterIds: mocks.listStaleLinkedCharacterIds,
 }));
 vi.mock('@/platform/auth/affiliation', () => ({
   refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
-  refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
 }));
 vi.mock('@/lib/fetch-with-timeout', () => ({
   fetchWithTimeout: mocks.fetchWithTimeout,
@@ -56,32 +56,32 @@ import {
   teardownMapAccessProjection,
 } from './map-access-projection';
 
-function affiliation(
-  characterId: number,
-  corporationId: number,
-  refreshedAt: Date | null,
-): CachedAffiliation {
+function accessFor(userId: string, overrides: Partial<UserCorpAccess> = {}): UserCorpAccess {
   return {
-    characterId,
-    corporationId,
-    allianceId: null,
-    factionId: null,
-    refreshedAt,
+    userId,
+    resolvedAt: new Date(),
+    transientFailure: false,
+    memberCorpIds: [],
+    memberCharacterIdsByCorp: new Map(),
+    allCharacterIds: [],
+    ...overrides,
   };
+}
+
+function accessByUser(entries: Record<string, Partial<UserCorpAccess>>): void {
+  mocks.resolveUserCorpAccess.mockImplementation(async (userId: string) =>
+    accessFor(userId, entries[userId] ?? {}),
+  );
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  });
+  mocks.resolveUserCorpAccess.mockImplementation(async (userId: string) => accessFor(userId));
   mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
     refreshed: 0,
     transientFailure: false,
   });
   mocks.listStaleLinkedCharacterIds.mockResolvedValue([]);
-  mocks.getUserAffiliations.mockResolvedValue([]);
   mocks.getMapAccessSubject.mockResolvedValue({
     userId: 'creator',
     archivedAt: null,
@@ -109,10 +109,7 @@ describe('computeMapAccessClaims', () => {
       { ownerType: 'character', ownerId: 42, role: 'editor' },
     ]);
     mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'grantee']]));
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'grantee') return [affiliation(42, 99, new Date())];
-      return [];
-    });
+    accessByUser({ grantee: { allCharacterIds: [42] } });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
@@ -125,9 +122,12 @@ describe('computeMapAccessClaims', () => {
       { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
     ]);
     mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['member']));
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'member') return [affiliation(42, 990, new Date())];
-      return [];
+    accessByUser({
+      member: {
+        allCharacterIds: [42],
+        memberCorpIds: [990],
+        memberCharacterIdsByCorp: new Map([[990, [42]]]),
+      },
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
@@ -147,9 +147,12 @@ describe('computeMapAccessClaims', () => {
       mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['joined']));
       return { refreshed: 1, transientFailure: false };
     });
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'joined') return [affiliation(77, 990, new Date())];
-      return [];
+    accessByUser({
+      joined: {
+        allCharacterIds: [77],
+        memberCorpIds: [990],
+        memberCharacterIdsByCorp: new Map([[990, [77]]]),
+      },
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
@@ -183,7 +186,13 @@ describe('computeMapAccessClaims', () => {
     ]);
     mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'multi']]));
     mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['multi']));
-    mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 990, new Date())]);
+    mocks.resolveUserCorpAccess.mockResolvedValue(
+      accessFor('multi', {
+        allCharacterIds: [42],
+        memberCorpIds: [990],
+        memberCharacterIdsByCorp: new Map([[990, [42]]]),
+      }),
+    );
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
@@ -219,16 +228,7 @@ describe('computeMapAccessClaims', () => {
       { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
     ]);
     mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['stale-member']));
-    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: false,
-    });
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'stale-member') {
-        return [affiliation(42, 990, new Date(Date.now() - 2 * 60 * 60 * 1000))];
-      }
-      return [];
-    });
+    accessByUser({ 'stale-member': { allCharacterIds: [42], memberCorpIds: [] } });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
@@ -240,13 +240,9 @@ describe('computeMapAccessClaims', () => {
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
     ]);
     mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'transient']]));
-    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: true,
+    accessByUser({
+      transient: { allCharacterIds: [42], memberCorpIds: [], transientFailure: true },
     });
-    mocks.getUserAffiliations.mockResolvedValue([
-      affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
-    ]);
 
     await expect(computeMapAccessClaims('map-1')).rejects.toBeInstanceOf(
       ProjectionUnavailableError,
@@ -258,13 +254,7 @@ describe('computeMapAccessClaims', () => {
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
     ]);
     mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'stale']]));
-    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: false,
-    });
-    mocks.getUserAffiliations.mockResolvedValue([
-      affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
-    ]);
+    accessByUser({ stale: { allCharacterIds: [42], memberCorpIds: [] } });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },

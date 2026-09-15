@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UserCorpAccess } from '@/platform/auth/corp-access';
 
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   connection: vi.fn(),
-  refreshStaleAffiliationsForUser: vi.fn(),
-  getUserAffiliations: vi.fn(),
+  resolveUserCorpAccess: vi.fn(),
   getCorpStructures: vi.fn(),
   listCorpStructureSyncStates: vi.fn(),
   readCorpStructureSharings: vi.fn(),
@@ -15,13 +15,10 @@ vi.mock('next/server', () => ({
   connection: mocks.connection,
 }));
 
-vi.mock('@/platform/auth/affiliation', () => ({
-  refreshStaleAffiliationsForUser: mocks.refreshStaleAffiliationsForUser,
-}));
-
-vi.mock('@/platform/auth/affiliation-store', () => ({
-  getUserAffiliations: mocks.getUserAffiliations,
-  recordCorpAccessDecision: vi.fn(),
+vi.mock('@/platform/auth/corp-access', () => ({
+  resolveUserCorpAccess: mocks.resolveUserCorpAccess,
+  memberCharacterIdsForCorp: vi.fn(),
+  authorizeCorpMutation: vi.fn(),
 }));
 
 vi.mock('@/features/owned-structures/queries', () => ({
@@ -55,11 +52,22 @@ import {
   getCorpStructuresPageData,
 } from './corp-structures-sync';
 
+function accessFor(overrides: Partial<UserCorpAccess> = {}): UserCorpAccess {
+  return {
+    userId: 'user-1',
+    resolvedAt: new Date(),
+    transientFailure: false,
+    memberCorpIds: [],
+    memberCharacterIdsByCorp: new Map(),
+    allCharacterIds: [],
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.connection.mockResolvedValue(undefined);
-  mocks.refreshStaleAffiliationsForUser.mockResolvedValue(0);
-  mocks.getUserAffiliations.mockResolvedValue([]);
+  mocks.resolveUserCorpAccess.mockResolvedValue(accessFor());
   mocks.getCorpStructures.mockResolvedValue(new Map());
   mocks.listCorpStructureSyncStates.mockResolvedValue([]);
   mocks.readCorpStructureSharings.mockResolvedValue(new Map());
@@ -73,12 +81,12 @@ describe('corp structure affiliation refresh', () => {
     });
 
     expect(mocks.connection).toHaveBeenCalledTimes(2);
-    expect(mocks.refreshStaleAffiliationsForUser).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveUserCorpAccess).toHaveBeenCalledTimes(2);
     expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.refreshStaleAffiliationsForUser.mock.invocationCallOrder[0]!,
+      mocks.resolveUserCorpAccess.mock.invocationCallOrder[0]!,
     );
     expect(mocks.connection.mock.invocationCallOrder[1]).toBeLessThan(
-      mocks.refreshStaleAffiliationsForUser.mock.invocationCallOrder[1]!,
+      mocks.resolveUserCorpAccess.mock.invocationCallOrder[1]!,
     );
   });
 });

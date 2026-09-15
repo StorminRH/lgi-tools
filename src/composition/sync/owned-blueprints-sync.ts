@@ -9,12 +9,13 @@ import {
 import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
+import { resolveUserCorpAccess } from '@/platform/auth/corp-access';
+import type { OwnerKey, OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import {
   listCharactersWithHealth,
+  ownedOwnersForAccess,
   readPagedEndpoint,
   readRolesFor,
-  resolveOwnedOwnersForUser,
   vendTokenFor,
 } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
@@ -36,7 +37,8 @@ export async function getOwnedBlueprintDetailOnView(
   userId: string,
   requestedTypeIds: number[],
 ): Promise<OwnedBlueprintDetailEntry[]> {
-  const owners = await resolveOwnedOwnersForUser(userId);
+  const access = await resolveUserCorpAccess(userId);
+  const owners: OwnerKey[] = ownedOwnersForAccess(access);
   const map = await getOwnedBlueprintMap(owners);
   after(() =>
     refreshOwnedBlueprintsForUser(

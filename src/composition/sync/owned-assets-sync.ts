@@ -9,12 +9,13 @@ import {
 import { getOwnedAssetMap, readOwnerSyncState, stampOwnerFresh } from '@/features/owned-assets/queries';
 import { refreshOwnedAssetsForUser } from '@/features/owned-assets/refresh';
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
+import { resolveUserCorpAccess } from '@/platform/auth/corp-access';
+import type { OwnerKey, OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import {
   listCharactersWithHealth,
+  ownedOwnersForAccess,
   readPagedEndpoint,
   readRolesFor,
-  resolveOwnedOwnersForUser,
   vendTokenFor,
 } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
@@ -37,7 +38,8 @@ export async function getOwnedAssetDetailOnView(
   userId: string,
   requestedTypeIds: number[],
 ): Promise<OwnedAssetDetailEntry[]> {
-  const owners = await resolveOwnedOwnersForUser(userId);
+  const access = await resolveUserCorpAccess(userId);
+  const owners: OwnerKey[] = ownedOwnersForAccess(access);
   const map = await getOwnedAssetMap(owners, requestedTypeIds);
   after(() =>
     refreshOwnedAssetsForUser(
