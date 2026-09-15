@@ -11,8 +11,8 @@ import { reconcileAffiliationAccess } from './map-affiliation-access';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
   const mapIds = await affectedMapIdsForCharacter(characterId);
-  const pending = await enqueueMapAccessChanges(mapIds);
-  await reconcileAffiliationAccess(pending);
+  await enqueueMapAccessChanges(mapIds);
+  if (mapIds.length > 0) await reconcileAffiliationAccess();
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {

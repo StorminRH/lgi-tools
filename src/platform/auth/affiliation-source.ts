@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { chunk, dedupe } from '@/lib/array';
-import { esiFetch, esiUrl } from '@/platform/esi';
+import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 import { SYNTHETIC_PILOT } from './synthetic-pilot';
 
 const AFFILIATION_BATCH_MAX = 1000;
@@ -40,6 +40,14 @@ function absentAffiliation(characterId: number): AffiliationRow {
   return { characterId, corporationId: null, allianceId: null, factionId: null };
 }
 
+function isTransientFetchFailure(error: unknown): boolean {
+  return (
+    error instanceof EsiBudgetExhaustedError
+    || error instanceof EsiServerError
+    || error instanceof TypeError
+  );
+}
+
 async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchResult> {
   let res: Response;
   try {
@@ -48,8 +56,11 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch),
     });
-  } catch {
-    return { rows: [], transientFailure: true };
+  } catch (error) {
+    if (isTransientFetchFailure(error)) {
+      return { rows: [], transientFailure: true };
+    }
+    throw error;
   }
   if (res.status === 404) {
     if (batch.length === 1) {

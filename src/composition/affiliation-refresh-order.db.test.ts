@@ -103,13 +103,18 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
     },
   );
 
-  it('rejects conflicting observations with the same timestamp without rotating pending work', async () => {
-    mocks.fetch.mockResolvedValueOnce(response(NEW_CORPORATION))
-      .mockResolvedValueOnce(response(OLD_CORPORATION));
-    expect((await refreshAffiliationsWithOutcome([CHARACTER_ID])).refreshed).toBe(1);
-    const pending = await readPendingMapAccessChanges();
-
-    await expect(refreshAffiliationsWithOutcome([CHARACTER_ID])).resolves.toEqual({
+  it('keeps the later-started observation when both refreshes capture the same millisecond', async () => {
+    const first = Promise.withResolvers<AffiliationFetchResult>();
+    const second = Promise.withResolvers<AffiliationFetchResult>();
+    mocks.fetch.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const firstRefresh = refreshAffiliationsWithOutcome([CHARACTER_ID]);
+    const secondRefresh = refreshAffiliationsWithOutcome([CHARACTER_ID]);
+    second.resolve(response(NEW_CORPORATION));
+    await expect(secondRefresh).resolves.toEqual({
+      refreshed: 1, accessChanged: true, transientFailure: false,
+    });
+    first.resolve(response(OLD_CORPORATION));
+    await expect(firstRefresh).resolves.toEqual({
       refreshed: 0, accessChanged: false, transientFailure: false,
     });
     expect((await getUserAffiliations('member'))[0]).toMatchObject({
@@ -118,6 +123,5 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
     await expect(computeMapAccessClaims(MAP_ID)).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
     ]);
-    await expect(readPendingMapAccessChanges()).resolves.toEqual(pending);
   });
 });

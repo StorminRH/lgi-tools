@@ -194,6 +194,11 @@ describe('fetchAffiliations', () => {
     });
   });
 
+  it('fails closed when ESI dispatch throws an unexpected error', async () => {
+    fetchMock.mockRejectedValue(new Error('programmer bug'));
+    await expect(fetchAffiliations([101])).rejects.toThrow('programmer bug');
+  });
+
   it('marks a body that fails the contract parse as transient', async () => {
     fetchMock.mockResolvedValue(jsonResponse([{ character_id: 'bad' }]));
     await expect(fetchAffiliations([101])).resolves.toEqual({

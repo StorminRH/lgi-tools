@@ -11,6 +11,7 @@ import {
   acknowledgeMapAccessChanges,
   enqueueMapAccessChanges,
   getUsersAffiliations,
+  MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
   getUserAffiliations,
   listStaleLinkedCharacterIds,
@@ -125,8 +126,8 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
         allianceId: null,
         factionId: null,
       },
-    ]);
-    await expect(updateAffiliations([])).resolves.toEqual({ refreshed: 0, accessChanged: false });
+    ], new Date());
+    await expect(updateAffiliations([], new Date())).resolves.toEqual({ refreshed: 0, accessChanged: false });
     expect(result).toEqual({ refreshed: 1, accessChanged: false });
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
 
@@ -168,7 +169,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await seedCharacter(SECOND_CHAR, { corporationId: 98000011 });
     const result = await updateAffiliations([
       affiliation(98000021), affiliation(98000031), affiliation(98000031, SECOND_CHAR),
-    ]);
+    ], new Date());
     expect(result.refreshed).toBe(2);
     expect(result.accessChanged).toBe(true);
     expect((await readPendingMapAccessChanges()).map((row) => row.mapId))
@@ -179,11 +180,11 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await seedCorpMap(98000011);
     await seedCorpMap(98000021);
     await seedCharacter(FIRST_CHAR, { corporationId: 98000011, affiliationRefreshedAt: new Date() });
-    expect((await updateAffiliations([affiliation(98000011)])).accessChanged).toBe(false);
+    expect((await updateAffiliations([affiliation(98000011)], new Date())).accessChanged).toBe(false);
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
-    await updateAffiliations([affiliation(98000021)]);
+    await updateAffiliations([affiliation(98000021)], new Date());
     const pending = await readPendingMapAccessChanges();
-    expect((await updateAffiliations([affiliation(98000021)])).accessChanged).toBe(false);
+    expect((await updateAffiliations([affiliation(98000021)], new Date())).accessChanged).toBe(false);
     await expect(readPendingMapAccessChanges()).resolves.toEqual(pending);
   });
 
@@ -193,7 +194,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
       corporationId: 98000011,
       affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS - 1000),
     });
-    expect((await updateAffiliations([affiliation(98000011)])).accessChanged).toBe(true);
+    expect((await updateAffiliations([affiliation(98000011)], new Date())).accessChanged).toBe(true);
     expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(98000011)]);
   });
 
@@ -203,7 +204,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
       corporationId: 98000011,
       affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS + 60_000),
     });
-    expect((await updateAffiliations([affiliation(98000011)])).accessChanged).toBe(false);
+    expect((await updateAffiliations([affiliation(98000011)], new Date())).accessChanged).toBe(false);
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
   });
 
@@ -214,7 +215,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await harness.sql`ALTER TABLE map_access_changes ADD CONSTRAINT reject_test_map
       CHECK (map_id <> '00000000-0000-4000-8000-000098000021')`;
     try {
-      await expect(updateAffiliations([affiliation(98000021)])).rejects.toThrow();
+      await expect(updateAffiliations([affiliation(98000021)], new Date())).rejects.toThrow();
       const [stored] = await harness.db.select().from(characters);
       expect(stored).toMatchObject({ corporationId: 98000011, affiliationRefreshedAt: refreshedAt });
       await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
@@ -227,9 +228,9 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await seedCorpMap(98000011);
     await seedCorpMap(98000021);
     await seedCharacter(FIRST_CHAR);
-    await updateAffiliations([affiliation(98000011)]);
+    await updateAffiliations([affiliation(98000011)], new Date());
     const old = await readPendingMapAccessChanges();
-    await updateAffiliations([affiliation(98000021)]);
+    await updateAffiliations([affiliation(98000021)], new Date());
     await acknowledgeMapAccessChanges(old);
     expect(await readPendingMapAccessChanges()).toHaveLength(2);
     const beforeRetry = await harness.db.select().from(pendingMapAccessChanges).orderBy(asc(pendingMapAccessChanges.mapId));
@@ -237,24 +238,24 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     expect(await harness.db.select().from(pendingMapAccessChanges).orderBy(asc(pendingMapAccessChanges.mapId))).toEqual(beforeRetry);
     await acknowledgeMapAccessChanges(await readPendingMapAccessChanges());
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
-    await updateAffiliations([affiliation(98000011)]);
+    await updateAffiliations([affiliation(98000011)], new Date());
     await acknowledgeMapAccessChanges(old);
     expect(await readPendingMapAccessChanges()).toHaveLength(2);
   });
 
   it('bounds reads and rotates failed maps behind untouched work while acknowledging successes', async () => {
-    const seeded = Array.from({ length: 101 }, (_, i) => ({ id: mapId(i), userId: USER_ID, name: 'Map' }));
+    const seeded = Array.from({ length: MAX_PENDING_BATCH + 1 }, (_, i) => ({ id: mapId(i), userId: USER_ID, name: 'Map' }));
     await harness.db.insert(maps).values(seeded);
     await harness.db.insert(pendingMapAccessChanges).values(
       seeded.map((map) => ({ mapId: map.id, queuedAt: new Date('2026-01-01') })),
     );
     const batch = await readPendingMapAccessChanges();
-    expect(batch).toHaveLength(100);
+    expect(batch).toHaveLength(MAX_PENDING_BATCH);
     expect(batch[0]?.mapId).toBe(mapId(0));
     expect(await readPendingMapAccessChanges(1)).toEqual(batch.slice(0, 1));
     await acknowledgeMapAccessChanges(batch.slice(1), batch.slice(0, 1));
-    expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(100), mapId(0)]);
-    await expect(readPendingMapAccessChanges(101)).rejects.toThrow(RangeError);
+    expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(MAX_PENDING_BATCH), mapId(0)]);
+    await expect(readPendingMapAccessChanges(MAX_PENDING_BATCH + 1)).rejects.toThrow(RangeError);
     await expect(readPendingMapAccessChanges(0)).rejects.toThrow(RangeError);
     await expect(readPendingMapAccessChanges(1.5)).rejects.toThrow(RangeError);
     await expect(acknowledgeMapAccessChanges(batch, batch.slice(0, 1))).rejects.toThrow(RangeError);
@@ -277,38 +278,62 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     expect(await readPendingMapAccessChanges()).toEqual([]);
   });
 
-  it('enqueues all 101 maps in one producer batch while drain reads stay bounded', async () => {
-    const ids = Array.from({ length: 101 }, (_, i) => mapId(i));
+  it('enqueues all overflow maps in one producer batch while drain reads stay bounded', async () => {
+    const ids = Array.from({ length: MAX_PENDING_BATCH + 1 }, (_, i) => mapId(i));
     await harness.db.insert(maps).values(ids.map((id) => ({ id, userId: USER_ID, name: 'Map' })));
     const captured = await enqueueMapAccessChanges(ids);
-    expect(captured).toHaveLength(101);
-    expect(await readPendingMapAccessChanges()).toHaveLength(100);
-    await acknowledgeMapAccessChanges(captured.slice(0, 100));
-    expect(await readPendingMapAccessChanges()).toEqual(captured.slice(100));
+    expect(captured).toHaveLength(MAX_PENDING_BATCH + 1);
+    expect(await readPendingMapAccessChanges()).toHaveLength(MAX_PENDING_BATCH);
+    await acknowledgeMapAccessChanges(captured.slice(0, MAX_PENDING_BATCH));
+    expect(await readPendingMapAccessChanges()).toEqual(captured.slice(MAX_PENDING_BATCH));
   });
 
-  it('keeps the newest concurrent observation and queues every persisted corporation transition', async () => {
-    for (const corp of [98000011, 98000021, 98000031]) await seedCorpMap(corp);
+  it.each(['older first', 'newer first'] as const)(
+    'keeps the newest observation and queues persisted corporation transitions when writers finish %s',
+    async (order) => {
+      for (const corp of [98000011, 98000021, 98000031]) await seedCorpMap(corp);
+      await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });
+      const observedAt = new Date();
+      const newerObservedAt = new Date(observedAt.getTime() + 1);
+      const writeOlder = () => updateAffiliations([affiliation(98000021)], observedAt);
+      const writeNewer = () => updateAffiliations([affiliation(98000031)], newerObservedAt);
+      if (order === 'older first') {
+        expect(await writeOlder()).toEqual({ refreshed: 1, accessChanged: true });
+        expect(await writeNewer()).toEqual({ refreshed: 1, accessChanged: true });
+      } else {
+        expect(await writeNewer()).toEqual({ refreshed: 1, accessChanged: true });
+        expect(await writeOlder()).toEqual({ refreshed: 0, accessChanged: false });
+      }
+      const [stored] = await harness.db.select().from(characters).where(eq(characters.characterId, FIRST_CHAR));
+      expect(stored).toMatchObject({ corporationId: 98000031, affiliationRefreshedAt: newerObservedAt });
+      const pending = await readPendingMapAccessChanges();
+      const expectedMaps = [mapId(98000011), mapId(98000031)];
+      if (order === 'older first') expectedMaps.push(mapId(98000021));
+      expect(pending.map((row) => row.mapId).sort()).toEqual(expectedMaps.sort());
+    },
+  );
+
+  it('rejects a later write that reuses the same observation timestamp', async () => {
+    await seedCorpMap(98000011);
+    await seedCorpMap(98000021);
     await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });
     const observedAt = new Date();
-    const newerObservedAt = new Date(observedAt.getTime() + 1);
-    const [older, newer] = await Promise.all([
-      updateAffiliations([affiliation(98000021)], observedAt),
-      updateAffiliations([affiliation(98000031)], newerObservedAt),
-    ]);
-    expect(newer).toEqual({ refreshed: 1, accessChanged: true });
-    const [stored] = await harness.db.select().from(characters).where(eq(characters.characterId, FIRST_CHAR));
-    expect(stored).toMatchObject({ corporationId: 98000031, affiliationRefreshedAt: newerObservedAt });
+    expect(await updateAffiliations([affiliation(98000021)], observedAt)).toEqual({
+      refreshed: 1, accessChanged: true,
+    });
     const pending = await readPendingMapAccessChanges();
-    const expectedMaps = [mapId(98000011), mapId(98000031)];
-    if (older.refreshed === 1) expectedMaps.push(mapId(98000021));
-    expect(pending.map((row) => row.mapId).sort()).toEqual(expectedMaps.sort());
+    expect(await updateAffiliations([affiliation(98000011)], observedAt)).toEqual({
+      refreshed: 0, accessChanged: false,
+    });
+    const [stored] = await harness.db.select().from(characters).where(eq(characters.characterId, FIRST_CHAR));
+    expect(stored).toMatchObject({ corporationId: 98000021, affiliationRefreshedAt: observedAt });
+    await expect(readPendingMapAccessChanges()).resolves.toEqual(pending);
   });
 
   it('removes pending work when its map is deleted', async () => {
     await seedCorpMap(98000011);
     await seedCharacter(FIRST_CHAR);
-    await updateAffiliations([affiliation(98000011)]);
+    await updateAffiliations([affiliation(98000011)], new Date());
     await harness.db.delete(maps).where(eq(maps.id, mapId(98000011)));
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
   });

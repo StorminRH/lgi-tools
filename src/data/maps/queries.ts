@@ -27,10 +27,10 @@ import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
   maps,
-  pendingMapAccessChanges,
 } from './schema';
 import {
   authorizedAdminMapsSelection,
+  enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
 
@@ -494,7 +494,6 @@ export async function applyAuthorizedMapGrantChange(
       ${change.grant.ownerType}::"public"."map_access_owner_type",
       ${change.grant.ownerId}, ${change.grant.role}::"public"."map_role"
     FROM authorized_map
-    WHERE true
     ON CONFLICT (map_id, owner_type, owner_id)
     DO UPDATE SET role = EXCLUDED.role
   ` : sql`
@@ -507,12 +506,7 @@ export async function applyAuthorizedMapGrantChange(
     WITH authorized_map AS (
       ${activeMapAdminSelection(userId, principals, mapId)}
     ), changed AS (${mutation})
-    INSERT INTO ${pendingMapAccessChanges} (map_id)
-    SELECT id FROM authorized_map
-    WHERE true
-    ON CONFLICT (map_id) DO UPDATE
-      SET version = gen_random_uuid(), queued_at = clock_timestamp()
-    RETURNING map_id AS "mapId", version
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM authorized_map`)}
   `);
   return mapAuthorizationRows(result)[0] ?? null;
 }

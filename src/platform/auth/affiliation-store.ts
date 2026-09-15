@@ -1,12 +1,13 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { account, characters, corpAccessAudit } from '@/db/auth-schema';
+import { enqueuePendingMapAccessSelection } from '@/data/maps/authorization-sql';
+import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import { account, characters, corpAccessAudit } from '@/db/auth-schema';
-import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 
 export interface CachedAffiliation {
   characterId: number;
@@ -21,7 +22,7 @@ export interface PendingMapAccessChange {
   version: string;
 }
 
-const MAX_PENDING_BATCH = 100;
+export const MAX_PENDING_BATCH = 100;
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 function rowToCachedAffiliation(
@@ -91,7 +92,17 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-export async function updateAffiliations(rows: AffiliationRow[], observedAt = new Date()): Promise<{
+function formatAffiliationObservedAt(observedAt: Date, sequence = 0): string {
+  const base = observedAt.toISOString().replace('T', ' ').replace('Z', '');
+  if (sequence === 0) return base;
+  return `${base}${String(sequence % 1000).padStart(3, '0')}`;
+}
+
+export async function updateAffiliations(
+  rows: AffiliationRow[],
+  observedAt: Date,
+  sequence = 0,
+): Promise<{
   refreshed: number;
   accessChanged: boolean;
 }> {
@@ -100,7 +111,7 @@ export async function updateAffiliations(rows: AffiliationRow[], observedAt = ne
   const now = new Date();
   const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
   const nowIso = now.toISOString().replace('T', ' ').replace('Z', '');
-  const observedIso = observedAt.toISOString().replace('T', ' ').replace('Z', '');
+  const observedIso = formatAffiliationObservedAt(observedAt, sequence);
   const cutoffIso = cutoff.toISOString().replace('T', ' ').replace('Z', '');
   const result = await db.execute<{
     refreshed: number;
@@ -127,16 +138,15 @@ export async function updateAffiliations(rows: AffiliationRow[], observedAt = ne
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
         OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoffIso}::timestamp
     ), queued AS (
-      INSERT INTO ${pendingMapAccessChanges} (map_id)
-      SELECT DISTINCT grants.map_id FROM (
-        SELECT previous_corporation_id AS corporation_id FROM changed
-        UNION ALL
-        SELECT corporation_id FROM changed
-      ) changed JOIN ${mapAccess} grants
-        ON grants.owner_type = 'corporation' AND grants.owner_id = changed.corporation_id
-      ORDER BY grants.map_id
-      ON CONFLICT (map_id) DO UPDATE SET version = gen_random_uuid()
-      RETURNING map_id
+      ${enqueuePendingMapAccessSelection(sql`
+        SELECT DISTINCT grants.map_id FROM (
+          SELECT previous_corporation_id AS corporation_id FROM changed
+          UNION ALL
+          SELECT corporation_id FROM changed
+        ) changed JOIN ${mapAccess} grants
+          ON grants.owner_type = 'corporation' AND grants.owner_id = changed.corporation_id
+        ORDER BY grants.map_id
+      `)}
     )
     SELECT count(*)::integer AS "refreshed",
            EXISTS (SELECT 1 FROM queued) AS "accessChanged"
@@ -171,7 +181,7 @@ export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promis
     .values(unique.map((mapId) => ({ mapId })))
     .onConflictDoUpdate({
       target: pendingMapAccessChanges.mapId,
-      set: { version: sql`gen_random_uuid()`, queuedAt: sql`clock_timestamp()` },
+      set: { version: sql`gen_random_uuid()` },
     })
     .returning({ mapId: pendingMapAccessChanges.mapId, version: pendingMapAccessChanges.version });
 }
