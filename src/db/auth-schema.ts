@@ -25,7 +25,9 @@ export const characters = pgTable('characters', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('characters_corporation_id_idx').on(table.corporationId),
+]);
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),

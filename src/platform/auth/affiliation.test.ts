@@ -1,119 +1,47 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import type { CachedAffiliation } from './membership';
 
-const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
+const mocks = vi.hoisted(() => ({ fetchAffiliations: vi.fn(), updateAffiliations: vi.fn() }));
+vi.mock('./affiliation-source', () => ({ fetchAffiliations: mocks.fetchAffiliations }));
+vi.mock('./affiliation-store', () => ({ updateAffiliations: mocks.updateAffiliations }));
 
-const fetchAffiliationsMock = vi.fn();
-const updateAffiliationsMock = vi.fn();
-const getUserAffiliationsMock = vi.fn();
-const getCharacterAffiliationMock = vi.fn();
+import { refreshAffiliations, refreshAffiliationsWithOutcome } from './affiliation';
 
-vi.mock('./affiliation-source', () => ({
-  fetchAffiliations: (...args: unknown[]) => fetchAffiliationsMock(...args),
-}));
-vi.mock('./affiliation-store', () => ({
-  updateAffiliations: (...args: unknown[]) => updateAffiliationsMock(...args),
-  getUserAffiliations: (...args: unknown[]) => getUserAffiliationsMock(...args),
-  getCharacterAffiliation: (...args: unknown[]) => getCharacterAffiliationMock(...args),
-}));
-
-import {
-  isCharacterCurrentMemberOfCorp,
-  isUserCurrentMemberOfCorp,
-  refreshAffiliations,
-  refreshStaleAffiliationsForUser,
-} from './affiliation';
-
-function freshRow(corporationId: number): CachedAffiliation {
-  return {
-    characterId: 101,
-    corporationId,
-    allianceId: null,
-    factionId: null,
-    refreshedAt: new Date(Date.now() - 1_000),
-  };
-}
-function staleRow(corporationId: number): CachedAffiliation {
-  return {
-    characterId: 101,
-    corporationId,
-    allianceId: null,
-    factionId: null,
-    refreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000),
-  };
-}
-
-function rowFor(characterId: number, refreshedAt: Date | null): CachedAffiliation {
-  return { characterId, corporationId: 2000, allianceId: null, factionId: null, refreshedAt };
-}
-
-beforeEach(() => {
-  fetchAffiliationsMock.mockReset();
-  updateAffiliationsMock.mockReset();
-  getUserAffiliationsMock.mockReset();
-  getCharacterAffiliationMock.mockReset();
-});
+beforeEach(() => vi.resetAllMocks());
 afterEach(() => vi.restoreAllMocks());
 
-test('refreshAffiliations fetches then upserts, short-circuits empty input, and swallows source failures', async () => {
-  const rows = [{ characterId: 101, corporationId: 2000, allianceId: null, factionId: null }];
-  fetchAffiliationsMock.mockResolvedValue({ rows, transientFailure: false });
-  updateAffiliationsMock.mockResolvedValue(undefined);
-
-  expect(await refreshAffiliations([101])).toBe(1);
-  expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
-  expect(updateAffiliationsMock).toHaveBeenCalledWith(rows);
-
-  fetchAffiliationsMock.mockClear();
-  updateAffiliationsMock.mockClear();
-  expect(await refreshAffiliations([])).toBe(0);
-  expect(fetchAffiliationsMock).not.toHaveBeenCalled();
-  expect(updateAffiliationsMock).not.toHaveBeenCalled();
-
-  fetchAffiliationsMock.mockRejectedValue(new Error('boom'));
-  expect(await refreshAffiliations([101])).toBe(0);
-  expect(updateAffiliationsMock).not.toHaveBeenCalled();
+test('returns database-confirmed counts, preserving partial source failure', async () => {
+  const rows = [
+    { characterId: 101, corporationId: 2000, allianceId: null, factionId: null },
+    { characterId: 102, corporationId: 2000, allianceId: null, factionId: null },
+  ];
+  mocks.fetchAffiliations.mockResolvedValue({ rows, transientFailure: true });
+  mocks.updateAffiliations.mockResolvedValue({ refreshed: 1, accessChanged: true });
+  await expect(refreshAffiliationsWithOutcome([101, 102])).resolves.toEqual({ refreshed: 1, accessChanged: true, transientFailure: true });
+  expect(mocks.updateAffiliations).toHaveBeenCalledWith(rows);
+  await expect(refreshAffiliations([101, 102])).resolves.toBe(1);
 });
 
-test('refreshStaleAffiliationsForUser refreshes only stale and never-refreshed characters', async () => {
-  const FRESH_AT = new Date(Date.now() - 1_000);
-  const STALE_AT = new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000);
+test('does no work for empty input and fails closed when persistence fails', async () => {
+  await expect(refreshAffiliationsWithOutcome([])).resolves.toEqual({ refreshed: 0, accessChanged: false, transientFailure: false });
+  expect(mocks.fetchAffiliations).not.toHaveBeenCalled();
+  expect(mocks.updateAffiliations).not.toHaveBeenCalled();
+  mocks.fetchAffiliations.mockResolvedValue({ rows: [{ characterId: 101 }], transientFailure: false });
+  mocks.updateAffiliations.mockRejectedValue(new Error('database unavailable'));
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  await expect(refreshAffiliationsWithOutcome([101])).resolves.toEqual({ refreshed: 0, accessChanged: false, transientFailure: true });
+});
 
-  getUserAffiliationsMock.mockResolvedValue([
-    rowFor(101, FRESH_AT),
-    rowFor(102, STALE_AT),
-    rowFor(103, null),
+test('queues confirmed omissions as departures but preserves transient gaps', async () => {
+  const present = { characterId: 101, corporationId: 2000, allianceId: null, factionId: null };
+  mocks.fetchAffiliations.mockResolvedValue({ rows: [present], transientFailure: false });
+  mocks.updateAffiliations.mockResolvedValue({ refreshed: 2, accessChanged: true });
+  await refreshAffiliationsWithOutcome([101, 102]);
+  expect(mocks.updateAffiliations).toHaveBeenCalledWith([
+    present,
+    { characterId: 102, corporationId: null, allianceId: null, factionId: null },
   ]);
-  fetchAffiliationsMock.mockResolvedValue({
-    rows: [{ characterId: 102, corporationId: 2000, allianceId: null, factionId: null }],
-    transientFailure: false,
-  });
-  updateAffiliationsMock.mockResolvedValue(undefined);
-
-  expect(await refreshStaleAffiliationsForUser('u1')).toBe(1);
-  expect(fetchAffiliationsMock).toHaveBeenCalledWith([102, 103]);
-
-  getUserAffiliationsMock.mockResolvedValue([rowFor(101, FRESH_AT)]);
-  fetchAffiliationsMock.mockClear();
-  expect(await refreshStaleAffiliationsForUser('u1')).toBe(0);
-  expect(fetchAffiliationsMock).not.toHaveBeenCalled();
-});
-
-test('membership wrappers load cached rows and apply the fail-closed predicates', async () => {
-  getUserAffiliationsMock
-    .mockResolvedValueOnce([freshRow(2000)])
-    .mockResolvedValueOnce([freshRow(2000)])
-    .mockResolvedValueOnce([staleRow(2000)]);
-  expect(await isUserCurrentMemberOfCorp('u1', 2000)).toBe(true);
-  expect(await isUserCurrentMemberOfCorp('u1', 3000)).toBe(false);
-  expect(await isUserCurrentMemberOfCorp('u1', 2000)).toBe(false);
-
-  getCharacterAffiliationMock
-    .mockResolvedValueOnce(freshRow(2000))
-    .mockResolvedValueOnce(null)
-    .mockResolvedValueOnce(staleRow(2000));
-  expect(await isCharacterCurrentMemberOfCorp(101, 2000)).toBe(true);
-  expect(await isCharacterCurrentMemberOfCorp(101, 2000)).toBe(false);
-  expect(await isCharacterCurrentMemberOfCorp(101, 2000)).toBe(false);
+  mocks.fetchAffiliations.mockResolvedValue({ rows: [present], transientFailure: true });
+  mocks.updateAffiliations.mockClear();
+  await refreshAffiliationsWithOutcome([101, 102]);
+  expect(mocks.updateAffiliations).toHaveBeenCalledWith([present]);
 });

@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CachedAffiliation } from '@/platform/auth/membership';
 
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
   getMapGrants: vi.fn(),
   reserveMapAccessProjectionRevision: vi.fn(),
-  getUserIdsOwningCharacters: vi.fn(),
-  getUserIdsInCorporations: vi.fn(),
-  getUserAffiliations: vi.fn(),
-  listStaleLinkedCharacterIds: vi.fn(),
+  getMapAccessCandidateUserIds: vi.fn(),
+  getUsersAffiliations: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
-  refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
   fetchWithTimeout: vi.fn(),
   deriveConvexSiteUrl: vi.fn(),
   readEnv: vi.fn(),
@@ -20,16 +16,13 @@ vi.mock('@/data/maps/queries', () => ({
   getMapAccessSubject: mocks.getMapAccessSubject,
   getMapGrants: mocks.getMapGrants,
   reserveMapAccessProjectionRevision: mocks.reserveMapAccessProjectionRevision,
-  getUserIdsOwningCharacters: mocks.getUserIdsOwningCharacters,
-  getUserIdsInCorporations: mocks.getUserIdsInCorporations,
+  getMapAccessCandidateUserIds: mocks.getMapAccessCandidateUserIds,
 }));
 vi.mock('@/platform/auth/affiliation-store', () => ({
-  getUserAffiliations: mocks.getUserAffiliations,
-  listStaleLinkedCharacterIds: mocks.listStaleLinkedCharacterIds,
+  getUsersAffiliations: mocks.getUsersAffiliations,
 }));
 vi.mock('@/platform/auth/affiliation', () => ({
   refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
-  refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
 }));
 vi.mock('@/lib/fetch-with-timeout', () => ({
   fetchWithTimeout: mocks.fetchWithTimeout,
@@ -37,14 +30,9 @@ vi.mock('@/lib/fetch-with-timeout', () => ({
 }));
 vi.mock('@/lib/sync-engine', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/sync-engine')>();
-  return {
-    ...actual,
-    deriveConvexSiteUrl: mocks.deriveConvexSiteUrl,
-  };
+  return { ...actual, deriveConvexSiteUrl: mocks.deriveConvexSiteUrl };
 });
-vi.mock('@/lib/env', () => ({
-  readEnv: mocks.readEnv,
-}));
+vi.mock('@/lib/env', () => ({ readEnv: mocks.readEnv }));
 
 import {
   computeMapAccessClaims,
@@ -56,40 +44,21 @@ import {
   teardownMapAccessProjection,
 } from './map-access-projection';
 
-function affiliation(
-  characterId: number,
-  corporationId: number,
-  refreshedAt: Date | null,
-): CachedAffiliation {
+function affiliation(userId: string, characterId: number, corporationId: number | null, fresh = true) {
   return {
-    characterId,
-    corporationId,
-    allianceId: null,
-    factionId: null,
-    refreshedAt,
+    userId, characterId, corporationId, allianceId: null, factionId: null,
+    refreshedAt: fresh ? new Date() : new Date(Date.now() - 2 * 60 * 60 * 1000),
   };
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  });
-  mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  });
-  mocks.listStaleLinkedCharacterIds.mockResolvedValue([]);
-  mocks.getUserAffiliations.mockResolvedValue([]);
-  mocks.getMapAccessSubject.mockResolvedValue({
-    userId: 'creator',
-    archivedAt: null,
-  });
+  mocks.refreshAffiliationsWithOutcome.mockRejectedValue(new Error('ESI unavailable'));
+  mocks.getUsersAffiliations.mockResolvedValue([]);
+  mocks.getMapAccessSubject.mockResolvedValue({ userId: 'creator', archivedAt: null });
   mocks.getMapGrants.mockResolvedValue([]);
   mocks.reserveMapAccessProjectionRevision.mockResolvedValue(41);
-  mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map());
-  mocks.getUserIdsInCorporations.mockResolvedValue(new Set());
+  mocks.getMapAccessCandidateUserIds.mockResolvedValue([]);
   mocks.deriveConvexSiteUrl.mockReturnValue('http://127.0.0.1:3211');
   mocks.readEnv.mockImplementation((name: string) =>
     name === 'CONVEX_SERVICE_SECRET' ? 'svc-secret' : undefined,
@@ -104,172 +73,89 @@ describe('computeMapAccessClaims', () => {
     ]);
   });
 
-  it('includes a character-grant owner with the matched role', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'character', ownerId: 42, role: 'editor' },
-    ]);
-    mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'grantee']]));
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'grantee') return [affiliation(42, 99, new Date())];
-      return [];
-    });
-
-    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['admin'] },
-      { userId: 'grantee', roles: ['editor'] },
-    ]);
-  });
-
-  it('includes corp-grant members with correct roles', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
-    ]);
-    mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['member']));
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'member') return [affiliation(42, 990, new Date())];
-      return [];
-    });
-
-    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['admin'] },
-      { userId: 'member', roles: ['viewer'] },
-    ]);
-    expect(mocks.listStaleLinkedCharacterIds).toHaveBeenCalledOnce();
-    expect(mocks.refreshAffiliationsWithOutcome).toHaveBeenCalledWith([]);
-  });
-
-  it('refreshes stale linked affiliations before corp candidate discovery', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
-    ]);
-    mocks.listStaleLinkedCharacterIds.mockResolvedValue([77]);
-    mocks.refreshAffiliationsWithOutcome.mockImplementation(async () => {
-      mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['joined']));
-      return { refreshed: 1, transientFailure: false };
-    });
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'joined') return [affiliation(77, 990, new Date())];
-      return [];
-    });
-
-    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['admin'] },
-      { userId: 'joined', roles: ['viewer'] },
-    ]);
-    expect(mocks.refreshAffiliationsWithOutcome).toHaveBeenCalledWith([77]);
-    expect(mocks.getUserIdsInCorporations).toHaveBeenCalledWith([990]);
-  });
-
-  it('throws when corp-candidate discovery refresh fails transiently', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
-    ]);
-    mocks.listStaleLinkedCharacterIds.mockResolvedValue([77]);
-    mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: true,
-    });
-
-    await expect(computeMapAccessClaims('map-1')).rejects.toBeInstanceOf(
-      ProjectionUnavailableError,
-    );
-    expect(mocks.getUserIdsInCorporations).not.toHaveBeenCalled();
-  });
-
-  it('unions roles when a user matches through both principal kinds', async () => {
+  it('reads every candidate affiliation once in a batch and unions matching roles', async () => {
     mocks.getMapGrants.mockResolvedValue([
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
       { ownerType: 'corporation', ownerId: 990, role: 'editor' },
     ]);
-    mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'multi']]));
-    mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['multi']));
-    mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 990, new Date())]);
+    mocks.getMapAccessCandidateUserIds.mockResolvedValue(['multi', 'member', 'creator']);
+    mocks.getUsersAffiliations.mockResolvedValue([
+      affiliation('multi', 42, 990), affiliation('member', 43, 990),
+    ]);
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
+      { userId: 'member', roles: ['editor'] },
       { userId: 'multi', roles: ['editor', 'viewer'] },
     ]);
+    expect(mocks.getMapAccessCandidateUserIds).toHaveBeenCalledExactlyOnceWith([42], [990]);
+    expect(mocks.getUsersAffiliations).toHaveBeenCalledExactlyOnceWith(['multi', 'member']);
+    expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
   });
 
-  it('omits a corp grant with no current members', async () => {
+  it('revokes known departures despite an unavailable ESI refresh', async () => {
     mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
+      { ownerType: 'corporation', ownerId: 990, role: 'editor' },
     ]);
-    mocks.getUserIdsInCorporations.mockResolvedValue(new Set());
+    mocks.getMapAccessCandidateUserIds.mockResolvedValue(['departed']);
+    mocks.getUsersAffiliations.mockResolvedValue([affiliation('departed', 42, 991)]);
+    mocks.fetchWithTimeout.mockResolvedValue(Response.json({
+      inserted: 0, updated: 0, deleted: 1, unchanged: 1, outcome: 'applied',
+    }));
 
+    await expect(projectMapAccess('map-1')).resolves.toMatchObject({ deleted: 1 });
+    const request = mocks.fetchWithTimeout.mock.calls[0]?.[1] as { body: string };
+    expect(JSON.parse(request.body).claims).toEqual([{ userId: 'creator', roles: ['admin'] }]);
+    expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
+  });
+
+  it('preserves a remaining alt corporation grant after a departure', async () => {
+    mocks.getMapGrants.mockResolvedValue([
+      { ownerType: 'corporation', ownerId: 990, role: 'editor' },
+      { ownerType: 'corporation', ownerId: 992, role: 'viewer' },
+    ]);
+    mocks.getMapAccessCandidateUserIds.mockResolvedValue(['member']);
+    mocks.getUsersAffiliations.mockResolvedValue([
+      affiliation('member', 42, 991), affiliation('member', 43, 992),
+    ]);
+    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
+      { userId: 'creator', roles: ['admin'] }, { userId: 'member', roles: ['viewer'] },
+    ]);
+  });
+
+  it('excludes stale memberships while preserving linked character and creator grants', async () => {
+    mocks.getMapGrants.mockResolvedValue([
+      { ownerType: 'character', ownerId: 42, role: 'viewer' },
+      { ownerType: 'corporation', ownerId: 990, role: 'editor' },
+    ]);
+    mocks.getMapAccessCandidateUserIds.mockResolvedValue(['direct', 'stale-member']);
+    mocks.getUsersAffiliations.mockResolvedValue([
+      affiliation('creator', 41, 990, false),
+      affiliation('direct', 42, 990, false),
+      affiliation('stale-member', 43, 990, false),
+    ]);
+    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
+      { userId: 'creator', roles: ['admin'] }, { userId: 'direct', roles: ['viewer'] },
+    ]);
+  });
+
+  it('removes direct access if a character was unlinked after candidate discovery', async () => {
+    mocks.getMapGrants.mockResolvedValue([
+      { ownerType: 'character', ownerId: 42, role: 'viewer' },
+    ]);
+    mocks.getMapAccessCandidateUserIds.mockResolvedValue(['unlinked']);
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
-  it('returns an empty set for a missing or archived map', async () => {
+  it('returns no claims or affiliation reads for a missing or archived map', async () => {
     mocks.getMapAccessSubject.mockResolvedValue(null);
     await expect(computeMapAccessClaims('missing')).resolves.toEqual([]);
-
-    mocks.getMapAccessSubject.mockResolvedValue({
-      userId: 'creator',
-      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
-    });
+    mocks.getMapAccessSubject.mockResolvedValue({ userId: 'creator', archivedAt: new Date() });
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([]);
     expect(mocks.getMapGrants).not.toHaveBeenCalled();
-  });
-
-  it('converges when a completed refresh leaves a biomassed character stale (404 omissions)', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
-    ]);
-    mocks.getUserIdsInCorporations.mockResolvedValue(new Set(['stale-member']));
-    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: false,
-    });
-    mocks.getUserAffiliations.mockImplementation(async (userId: string) => {
-      if (userId === 'stale-member') {
-        return [affiliation(42, 990, new Date(Date.now() - 2 * 60 * 60 * 1000))];
-      }
-      return [];
-    });
-
-    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['admin'] },
-    ]);
-  });
-
-  it('throws ProjectionUnavailableError when affiliation refresh fails transiently', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'character', ownerId: 42, role: 'viewer' },
-    ]);
-    mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'transient']]));
-    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: true,
-    });
-    mocks.getUserAffiliations.mockResolvedValue([
-      affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
-    ]);
-
-    await expect(computeMapAccessClaims('map-1')).rejects.toBeInstanceOf(
-      ProjectionUnavailableError,
-    );
-  });
-
-  it('does not throw when affiliations remain stale after a completed refresh', async () => {
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'character', ownerId: 42, role: 'viewer' },
-    ]);
-    mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map([[42, 'stale']]));
-    mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-      refreshed: 0,
-      transientFailure: false,
-    });
-    mocks.getUserAffiliations.mockResolvedValue([
-      affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
-    ]);
-
-    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['admin'] },
-      { userId: 'stale', roles: ['viewer'] },
-    ]);
+    expect(mocks.getUsersAffiliations).not.toHaveBeenCalled();
   });
 });
 
@@ -295,6 +181,12 @@ describe('projectMapAccess transport', () => {
       unchanged: 0,
       outcome: 'applied',
     });
+    expect(mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.getMapAccessSubject.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.reserveMapAccessProjectionRevision.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.fetchWithTimeout.mock.invocationCallOrder[0]!,
+    );
     expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
       'http://127.0.0.1:3211/project-map-access',
       expect.objectContaining({

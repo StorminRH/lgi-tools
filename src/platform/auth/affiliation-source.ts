@@ -15,7 +15,7 @@ const affiliationResponseSchema = z.array(affiliationEntrySchema);
 
 export interface AffiliationRow {
   characterId: number;
-  corporationId: number;
+  corporationId: number | null;
   allianceId: number | null;
   factionId: number | null;
 }

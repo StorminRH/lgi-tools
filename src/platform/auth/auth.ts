@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { after } from 'next/server';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
@@ -15,7 +16,6 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
-import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
@@ -36,13 +36,14 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
 
 export interface CreateAuthDeps {
   readonly runners: IdentityProjectionRunners;
+  readonly refreshCharacterAffiliations: (characterIds: number[]) => Promise<void>;
   readonly reconcileCharacterOwner: (
     characterId: number,
     jwtOwnerHash: string | null | undefined,
   ) => Promise<void>;
 }
 
-export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps) {
+export function createAuth({ runners, reconcileCharacterOwner, refreshCharacterAffiliations }: CreateAuthDeps) {
   const options = {
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -138,9 +139,7 @@ export function createAuth({ runners, reconcileCharacterOwner }: CreateAuthDeps)
               );
               if (absorbed) recordAbsorb(character.characterId);
               await upsertCharacterLoginIdentity(character);
-              void refreshAffiliations([character.characterId]).catch((err) =>
-                console.error('[auth] affiliation refresh failed', err),
-              );
+              after(() => refreshCharacterAffiliations([character.characterId]));
               void logUsageEvent({
                 action: 'auth_login',
                 characterId: character.characterId,
