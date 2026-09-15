@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { createWormholeHost } from './host';
+import { WORMHOLE_IMPULSE_SETTLE_S } from './motion';
 import { wormholePalette } from './palette';
 import type { WormholePaint } from './painter';
 
@@ -59,7 +60,7 @@ test('lazy visibility, palette updates, impulse settling and idle stop work toge
   host.update({ active: true, whClassId: 6, seed: '31000001' });
   expect(paint.mock.lastCall?.[1]).toMatchObject({ age: 0, palette: wormholePalette(6) });
   env.advance(3);
-  expect(paint.mock.lastCall?.[1].age).toBeGreaterThan(2.8);
+  expect(paint.mock.lastCall?.[1].age).toBeGreaterThan(WORMHOLE_IMPULSE_SETTLE_S);
   expect(env.frames.size).toBe(1);
   host.update({ active: false, whClassId: 6 });
   env.advance(3);
@@ -81,7 +82,7 @@ test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop 
   host.update({ active: true, paused: true });
   expect(env.frames.size).toBe(0);
   expect(paint.mock.lastCall?.[1].age).toBe(10);
-  host.update({ active: true });
+  host.update({ active: true, paused: false });
   env.media.matches = true; env.preference();
   expect(env.frames.size).toBe(0);
   expect(paint.mock.lastCall?.[1].age).toBe(10);
@@ -101,5 +102,19 @@ test('GPU failure exposes a static fallback and does not spin an animation loop'
   expect(env.context.clearRect).toHaveBeenCalled();
   expect(env.canvas.width).toBe(256);
   expect(env.setProperty).toHaveBeenCalledWith('--wormhole-size', '512px');
+  host.dispose();
+});
+
+test('later GPU failure keeps the last bitmap and does not resume a loop', () => {
+  const env = browser();
+  const host = createWormholeHost(env.canvas, { active: true, whClassId: 5 });
+  env.visible(true);
+  expect(env.canvas.dataset.ready).toBe('true');
+  env.context.clearRect.mockClear();
+  paint.mockReturnValueOnce(false);
+  host.update({ active: true, whClassId: 5 });
+  expect(env.canvas.dataset.ready).toBe('true');
+  expect(env.context.clearRect).not.toHaveBeenCalled();
+  expect(env.frames.size).toBe(0);
   host.dispose();
 });

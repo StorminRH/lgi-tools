@@ -19,7 +19,7 @@ wobble on activation. `SystemNode` owns its labels, handles and React Flow state
 | --- | --- |
 | `whClassId` | Numeric SDE destination/system class; null or unsupported values use neutral colors. |
 | `active` | Parent-controlled hover or selection. False→true starts the impulse; sustained true continues slow internal drift after settling. |
-| `paused` | Immediately stills all motion, even when active. Used during drag and for inert nodes. |
+| `paused` | Immediately stills all motion, even when active. Used during drag and for inert nodes. Does not clear the parent's active intent, so a selected node does not replay the impulse when it is revealed again. |
 | `seed` | Stable string, normally the system/node ID, for deterministic lighting variation. |
 | `size` | Entire visual diameter in CSS pixels, including the narrow rim glow. Default 75; the core is approximately 55px. Clamped to 32–512. |
 | `shipSize` | Optional `small`, `medium`, `large`, `capital`, or `unknown` aura palette. Default unknown. Supply only for a particular connection. |
@@ -65,10 +65,14 @@ immediately still the effect. Release eases the internal drift to rest. Unmount 
 observers/listeners/frames; the final consumer releases GPU resources.
 
 Static CSS fallback remains available before hydration, without WebGL, or after
-GPU failure. A lost GPU context falls back on the next attempted paint; previously
-rendered idle canvases retain their bitmap. Remounting after all consumers release
-can recreate the renderer. The primitive performs no fetching or persistence.
+first-paint GPU failure. A later lost GPU context keeps the last 2D bitmap and
+drops the shared painter so the next paint can rebuild it. Hidden-tab and
+offscreen hosts retry on the next synchronize; they do not spin while lost.
+Remounting after all consumers release also recreates the renderer. The primitive
+performs no fetching or persistence.
 
 The shader stays pointer-inert. Atlas retains its 150×110 node frame, 55px
 interaction disc, centered handles, classification chip and presence badge.
 The previous whole-disc hover breathing is suppressed only for shader nodes.
+Hover and selection still apply the static glow ring, including under reduced
+motion, so a still shader does not lose the active state.

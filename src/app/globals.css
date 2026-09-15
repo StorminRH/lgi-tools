@@ -1263,11 +1263,14 @@ details[data-collapsible][open] > summary [data-chevron] {
   0%, 100% { scale: 1; }
   50% { scale: 1.045; }
 }
-[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
-  animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
+[data-chain-node]:hover .map-node-disc,
+[data-chain-node-selected] .map-node-disc-wormhole {
   box-shadow:
     0 0 0 1px var(--color-card-glow-ring),
     0 0 12px var(--color-card-glow-shadow);
+}
+[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
+  animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
 }
 
 .map-node-disc-wormhole {

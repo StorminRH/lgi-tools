@@ -99,7 +99,12 @@ export function acquireWormholePainter() {
     paint(target: CanvasRenderingContext2D, input: WormholePaint): boolean {
       if (released) return false;
       if (shared === undefined) shared = createPainter();
-      return shared?.paint(target, input) ?? false;
+      const ready = shared?.paint(target, input) ?? false;
+      if (!ready && shared != null) {
+        shared.dispose();
+        shared = undefined;
+      }
+      return ready;
     },
     release() {
       if (released) return;

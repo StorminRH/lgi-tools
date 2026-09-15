@@ -143,4 +143,7 @@ test('lost GPU context reports fallback without clearing or copying stale pixels
   expect(env.gl.drawArrays).not.toHaveBeenCalled();
   expect(env.target.clearRect).not.toHaveBeenCalled();
   expect(env.target.drawImage).not.toHaveBeenCalled();
+  env.gl.isContextLost.mockReturnValue(false);
+  expect(lease.paint(env.context, paint)).toBe(true);
+  expect(env.source.getContext).toHaveBeenCalledTimes(2);
 });
