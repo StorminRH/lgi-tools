@@ -1,7 +1,5 @@
-import {
-  projectMapAccess,
-  purgeUserMapAccessProjection,
-} from '@/composition/map-access-projection';
+import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
+import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
 import { purgeMapChain } from '@/composition/map-purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
@@ -20,7 +18,7 @@ import { createMapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
 
 const mapsPurgeContributor = createMapsPurgeContributor({
-  projectMap: projectMapAccess,
+  deliverCaptured: deliverCapturedMapAccessChanges,
   purgeMapChain,
   purgeUserClaims: purgeUserMapAccessProjection,
 });
