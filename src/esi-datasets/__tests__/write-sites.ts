@@ -94,6 +94,7 @@ export function buildSymbolTable(
 const WRITE_CALL_PATTERN =
   /\.\s*(?:insert|update|delete)\s*\(\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\)/g;
 
+// Matches uncommented write targets only; keep raw UPDATE/DELETE with no block comment between keyword and table.
 const RAW_WRITE_TARGET =
   /(?:^|[\n;(])\s*(?:insert\s+into|update|delete\s+from|truncate(?:\s+table)?)\s+\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\}/gi;
 

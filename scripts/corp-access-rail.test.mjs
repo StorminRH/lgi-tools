@@ -5,11 +5,10 @@ const rail = createEslintRail(import.meta.url);
 const rule = 'corp-access/boundary';
 
 describe('corporation access boundary', () => {
-  it('blocks named aliases, namespace reads, and obsolete membership imports', async () => {
+  it('blocks named aliases and namespace reads', async () => {
     for (const code of [
       "import { getUserAffiliations as read } from '@/platform/auth/affiliation-store';",
       "import * as store from '../../platform/auth/affiliation-store';",
-      "import { memberCorpIds } from '@/platform/auth/membership';",
     ]) {
       expect(await rail.messagesFor('src/composition/sync/example.ts', code, rule)).toHaveLength(1);
     }

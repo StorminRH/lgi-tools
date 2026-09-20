@@ -4,7 +4,7 @@ import { account, characters, corpAccessAudit } from '@/db/auth-schema';
 import { enqueuePendingMapAccessSelection } from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import type { AnyPgDb } from '@/lib/db-types';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
@@ -23,7 +23,6 @@ export interface PendingMapAccessChange {
 }
 
 export const MAX_PENDING_BATCH = 100;
-const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 function rowToCachedAffiliation(
   characterId: number,
@@ -118,11 +117,8 @@ export async function updateAffiliations(
 }> {
   if (rows.length === 0) return { refreshed: 0, accessChanged: false };
   const incoming = [...new Map(rows.map((row) => [row.characterId, row])).values()];
-  const now = new Date();
-  const cutoff = new Date(now.getTime() - AFFILIATION_FRESHNESS.ttlMs);
-  const nowIso = now.toISOString().replace('T', ' ').replace('Z', '');
   const observedIso = formatAffiliationObservedAt(observedAt);
-  const cutoffIso = cutoff.toISOString().replace('T', ' ').replace('Z', '');
+  const ttlSeconds = AFFILIATION_FRESHNESS.ttlMs / 1000;
   const result = await db.execute<{
     refreshed: number;
     accessChanged: boolean;
@@ -138,7 +134,7 @@ export async function updateAffiliations(
       UPDATE ${characters} c
       SET corporation_id = i."corporationId", alliance_id = i."allianceId",
           faction_id = i."factionId", affiliation_refreshed_at = ${observedIso}::timestamp,
-          updated_at = ${nowIso}::timestamp
+          updated_at = clock_timestamp()
       FROM incoming i JOIN previous p ON p.character_id = i."characterId"
       WHERE c.character_id = i."characterId"
         AND (c.affiliation_refreshed_at IS NULL OR c.affiliation_refreshed_at < ${observedIso}::timestamp)
@@ -146,7 +142,8 @@ export async function updateAffiliations(
                 p.affiliation_refreshed_at AS previous_refreshed_at
     ), changed AS (
       SELECT * FROM updated WHERE previous_corporation_id IS DISTINCT FROM corporation_id
-        OR previous_refreshed_at IS NULL OR previous_refreshed_at < ${cutoffIso}::timestamp
+        OR previous_refreshed_at IS NULL
+        OR previous_refreshed_at < (${observedIso}::timestamp - make_interval(secs => ${ttlSeconds}))
     ), queued AS (
       ${enqueuePendingMapAccessSelection(sql`
         SELECT DISTINCT grants.map_id FROM (
@@ -213,6 +210,7 @@ export async function acknowledgeMapAccessChanges(
         AS failed("mapId" uuid, version uuid)
       WHERE pending.map_id = failed."mapId" AND pending.version = failed.version
     )
+    -- retried runs for its side effect; Postgres executes data-modifying CTEs even when unreferenced.
     DELETE FROM ${pendingMapAccessChanges} pending
     USING jsonb_to_recordset(${JSON.stringify(changes)}::jsonb)
       AS completed("mapId" uuid, version uuid)

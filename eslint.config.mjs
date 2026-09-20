@@ -588,22 +588,18 @@ const corpAccessBoundary = {
     messages: { raw: "Resolve corporation access through @/composition/corp-access; raw affiliation reads are internal to access resolution." },
   },
   create(context) {
-    const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations", "getCharacterAffiliation"];
-    const isMembershipSource = (source) => /platform\/auth\/membership$/.test(source);
+    const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations"];
     const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
     const reportIfBoundarySource = (node) => {
       const source = node.source?.value;
       if (typeof source !== "string") return;
-      if (isMembershipSource(source) || isAffiliationStoreSource(source)) {
+      if (isAffiliationStoreSource(source)) {
         context.report({ node, messageId: "raw" });
       }
     };
     return {
       ImportDeclaration(node) {
         const source = node.source.value;
-        if (isMembershipSource(source)) {
-          context.report({ node, messageId: "raw" });
-        }
         if (!isAffiliationStoreSource(source)) return;
         for (const specifier of node.specifiers) {
           if (specifier.type === "ImportNamespaceSpecifier" ||
@@ -613,16 +609,13 @@ const corpAccessBoundary = {
           }
         }
       },
+      // Dynamic import() and export * cannot narrow to named readers; prefer static named imports for allowed persistence APIs.
       ImportExpression(node) {
         reportIfBoundarySource(node);
       },
       ExportNamedDeclaration(node) {
         const source = node.source?.value;
         if (typeof source !== "string") return;
-        if (isMembershipSource(source)) {
-          context.report({ node, messageId: "raw" });
-          return;
-        }
         if (!isAffiliationStoreSource(source)) return;
         for (const specifier of node.specifiers) {
           if (specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name)) {

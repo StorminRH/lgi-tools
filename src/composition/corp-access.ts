@@ -1,11 +1,9 @@
 import { after } from 'next/server';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
+import { AFFILIATION_FRESHNESS } from '@/platform/auth/affiliation-policy';
 import { getUserAffiliations } from '@/platform/auth/affiliation-store';
 import { createCorpAccessSnapshot, type UserCorpAccess } from '@/platform/auth/corp-access';
 import { reconcileAffiliationAccess } from './map-affiliation-access';
-
-const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 export async function resolveUserCorpAccess(userId: string): Promise<UserCorpAccess> {
   const affiliations = await getUserAffiliations(userId);

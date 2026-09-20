@@ -43,6 +43,7 @@ export interface CreateMapGrant {
 export async function reserveMapAccessProjectionRevision(
   database: AnyPgDb = db,
 ): Promise<number> {
+  // public. pins the production sequence; disposable-schema harnesses steer via search_path elsewhere.
   const result = await database.execute(sql`
     SELECT nextval(
       ${`public.${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}`}::regclass

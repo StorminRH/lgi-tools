@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   teardownLocationTracking: vi.fn(),
   enqueueMapAccessChanges: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
+  readPendingMapAccessChanges: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -37,6 +38,7 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   MAX_PENDING_BATCH: 100,
   enqueueMapAccessChanges: mocks.enqueueMapAccessChanges,
   acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
+  readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
 }));
 
 import {
@@ -60,6 +62,7 @@ beforeEach(() => {
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
   mocks.teardownLocationTracking.mockResolvedValue(undefined);
   mocks.enqueueMapAccessChanges.mockImplementation(async (ids: string[]) => ids.map((mapId) => ({ mapId, version: mapId })));
+  mocks.readPendingMapAccessChanges.mockResolvedValue([]);
 });
 
 describe('map-access-identity', () => {
@@ -112,6 +115,7 @@ describe('map-access-identity', () => {
     expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(
       ids.slice(0, 100).map((mapId) => ({ mapId, version: mapId })), [],
     );
+    expect(mocks.readPendingMapAccessChanges).toHaveBeenCalled();
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
   });
 
