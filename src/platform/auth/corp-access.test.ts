@@ -31,6 +31,13 @@ describe('createCorpAccessSnapshot', () => {
     expect(access.characterIdsByCorporation[3000]).toEqual([103]);
   });
 
+  it('treats the exact TTL boundary as fresh', () => {
+    const boundary = new Date(NOW.getTime() - TTL);
+    const access = createCorpAccessSnapshot('u1', [row(101, 2000, boundary)], false, NOW.getTime());
+    expect(access.corporationIds).toEqual([2000]);
+    expect(access.characterIdsByCorporation[2000]).toEqual([101]);
+  });
+
   it('freezes the request-local snapshot', () => {
     const access = createCorpAccessSnapshot('u1', [row(101, 2000)], false, NOW.getTime());
     expect(Object.isFrozen(access)).toBe(true);

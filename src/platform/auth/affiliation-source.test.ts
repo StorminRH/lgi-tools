@@ -201,6 +201,14 @@ describe('fetchAffiliations', () => {
     });
   });
 
+  it('treats a 200 with zero rows for a non-empty batch as transient', async () => {
+    fetchMock.mockResolvedValue(jsonResponse([]));
+    await expect(fetchAffiliations([101, 102])).resolves.toEqual({
+      rows: [],
+      transientFailure: true,
+    });
+  });
+
   it('fails closed when ESI dispatch throws an unexpected error', async () => {
     fetchMock.mockRejectedValue(new Error('programmer bug'));
     await expect(fetchAffiliations([101])).rejects.toThrow('programmer bug');

@@ -75,7 +75,12 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
       transientFailure: left.transientFailure || right.transientFailure,
     };
   }
-  if (!res.ok) return { rows: [], transientFailure: true };
+  if (!res.ok) {
+    if (res.status >= 400 && res.status < 500 && res.status !== 404) {
+      console.error('[auth/affiliation-source] ESI client error treated as transient', res.status);
+    }
+    return { rows: [], transientFailure: true };
+  }
   let body: unknown;
   try {
     body = await res.json();
@@ -83,7 +88,13 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchR
     return { rows: [], transientFailure: true };
   }
   const parsed = affiliationResponseSchema.safeParse(body);
-  if (!parsed.success) return { rows: [], transientFailure: true };
+  if (!parsed.success) {
+    console.error('[auth/affiliation-source] ESI contract drift treated as transient');
+    return { rows: [], transientFailure: true };
+  }
+  if (parsed.data.length === 0 && batch.length > 0) {
+    return { rows: [], transientFailure: true };
+  }
   const returned = new Map(parsed.data.map((entry) => [entry.character_id, entry]));
   return {
     rows: batch.map((id) => {

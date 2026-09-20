@@ -170,6 +170,7 @@ async function userHoldsCorpRole(
   corporationId: number,
   requiredRoles: readonly string[],
 ): Promise<boolean> {
+  // First in-corp pilot wins; an unvendable token or unreadable roles simply do not contribute.
   const memberCharacterIds = access.characterIdsByCorporation[corporationId] ?? [];
   for (const characterId of memberCharacterIds) {
     const accessToken = await vendTokenFor(characterId);

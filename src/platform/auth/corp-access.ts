@@ -1,7 +1,5 @@
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { recordCorpAccessDecision, type CachedAffiliation } from './affiliation-store';
-
-const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
+import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 
 export type CorpAccessReason = 'member' | 'not_member';
 
@@ -38,7 +36,7 @@ export function createCorpAccessSnapshot(
     userId,
     resolvedAt,
     allCharacterIds: Object.freeze(affiliations.map((row) => row.characterId)),
-    corporationIds: Object.freeze(Object.keys(members).map(Number)),
+    corporationIds: Object.freeze(Object.keys(members).map(Number).sort((a, b) => a - b)),
     characterIdsByCorporation: Object.freeze(members),
     refreshTransientFailure,
   });

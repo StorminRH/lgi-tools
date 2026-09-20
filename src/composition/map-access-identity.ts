@@ -5,13 +5,15 @@ import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
 import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import { enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
+import { MAX_PENDING_BATCH, enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
-import { deliverCapturedMapAccessChanges } from './map-affiliation-access';
+import { deliverCapturedMapAccessChanges, reconcileAffiliationAccess } from './map-affiliation-access';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
   const pending = await enqueueMapAccessChanges(await affectedMapIdsForCharacter(characterId));
-  if (pending.length > 0) await deliverCapturedMapAccessChanges(pending);
+  if (pending.length === 0) return;
+  await deliverCapturedMapAccessChanges(pending);
+  if (pending.length > MAX_PENDING_BATCH) await reconcileAffiliationAccess();
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {
