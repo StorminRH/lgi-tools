@@ -601,10 +601,16 @@ export const DATA_OWNERSHIP = [
     table: schema.pendingMapAccessChanges,
     owner: 'data/maps',
     reads: [],
-    writers: [{
-      by: 'platform/auth',
-      reason: 'Affiliation updates atomically queue affected maps; successful projection acknowledges only the captured generation.',
-    }],
+    writers: [
+      {
+        by: 'platform/auth',
+        reason: 'Affiliation updates atomically queue affected maps; successful projection acknowledges only the captured generation.',
+      },
+      {
+        by: 'data/maps',
+        reason: 'Authorized grant edits enqueue the same pending generation in the same statement as the mutation.',
+      },
+    ],
     invariants: ['fk(map_id→maps.id)', 'pk(map_id)'],
     boundary: {
       kind: 'single-statement',

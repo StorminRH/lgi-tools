@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   refreshAffiliationsWithOutcome: vi.fn(),
 }));
 vi.mock('@/platform/auth/affiliation-store', () => ({
+  MAX_PENDING_BATCH: 100,
   readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
   acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
 }));
@@ -19,7 +20,11 @@ vi.mock('./map-access-projection', () => ({
   },
 }));
 
-import { reconcileAffiliationAccess, refreshAffiliationsAndReconcile } from './map-affiliation-access';
+import {
+  deliverCapturedMapAccessChanges,
+  reconcileAffiliationAccess,
+  refreshAffiliationsAndReconcile,
+} from './map-affiliation-access';
 
 const pending = [{ mapId: 'first-map', version: 'first' }, { mapId: 'second-map', version: 'second' }];
 beforeEach(() => {
@@ -35,6 +40,15 @@ it('does one pending read and no other work on an empty queue', async () => {
   expect(await reconcileAffiliationAccess()).toEqual({ processed: 0, failed: 0 });
   expect(mocks.projectMapAccess).not.toHaveBeenCalled();
   expect(mocks.acknowledgeMapAccessChanges).not.toHaveBeenCalled();
+});
+
+it('delivers captured generations without a queue read and leaves overflow for another run', async () => {
+  const captured = Array.from({ length: 101 }, (_, i) => ({ mapId: `map-${i}`, version: `v-${i}` }));
+  expect(await deliverCapturedMapAccessChanges(captured)).toEqual({ processed: 100, failed: 0 });
+  expect(mocks.readPendingMapAccessChanges).not.toHaveBeenCalled();
+  expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
+  expect(mocks.projectMapAccess).not.toHaveBeenCalledWith('map-100', expect.anything());
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(captured.slice(0, 100), []);
 });
 
 it('projects each pending map once and acknowledges captured generations after delivery', async () => {

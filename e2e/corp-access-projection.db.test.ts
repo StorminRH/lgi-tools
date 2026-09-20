@@ -79,7 +79,7 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
 
     expect(await updateAffiliations([
       { characterId: 42, corporationId: 991, allianceId: null, factionId: null },
-    ])).toEqual({ refreshed: 1, accessChanged: true });
+    ], new Date())).toEqual({ refreshed: 1, accessChanged: true });
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('Temporary delivery outage');
     }));

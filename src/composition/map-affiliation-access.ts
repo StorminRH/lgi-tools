@@ -1,7 +1,9 @@
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import {
   acknowledgeMapAccessChanges,
+  MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
+  type PendingMapAccessChange,
 } from '@/platform/auth/affiliation-store';
 import { projectMapAccess, requireCurrentProjection } from './map-access-projection';
 
@@ -11,8 +13,19 @@ const FINALIZE_RESERVE_MS = 1_000;
 const DELIVERY_CONCURRENCY = 4;
 
 export async function reconcileAffiliationAccess(): Promise<{ processed: number; failed: number }> {
+  return deliverPendingMapAccessChanges(await readPendingMapAccessChanges());
+}
+
+export async function deliverCapturedMapAccessChanges(
+  changes: PendingMapAccessChange[],
+): Promise<{ processed: number; failed: number }> {
+  return deliverPendingMapAccessChanges(changes.slice(0, MAX_PENDING_BATCH));
+}
+
+async function deliverPendingMapAccessChanges(
+  pending: PendingMapAccessChange[],
+): Promise<{ processed: number; failed: number }> {
   const deadline = Date.now() + RECONCILE_BUDGET_MS;
-  const pending = await readPendingMapAccessChanges();
   if (pending.length === 0) return { processed: 0, failed: 0 };
   const mapIds = pending.map((row) => row.mapId);
   const succeeded = new Set<string>();
