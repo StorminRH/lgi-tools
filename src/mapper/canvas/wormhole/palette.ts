@@ -1,10 +1,7 @@
 /** Art-directed approximations of destination nebulae, not official CCP RGB values.
  * References: https://wiki.eveuniversity.org/Visual_wormhole_identification
  * and https://www.eveonline.com/news/view/september-release-wormholes-and-stars-get-an-update
- * Destination class colors the eye; per-jump ship size colors the aura independently.
  */
-export type WormholeShipSize = 'small' | 'medium' | 'large' | 'capital' | 'unknown';
-
 export type RGB = readonly [number, number, number];
 
 export interface WormholePalette {
@@ -29,24 +26,13 @@ const CLASSES: Readonly<Record<number, Omit<WormholePalette, 'halo'>>> = {
   6: { core: [0.91, 0.26, 0.08], accent: [1, 0.49, 0.15], dark: [0.036, 0.008, 0.009], highlight: [1, 0.86, 0.67] },
 };
 
-const AURAS: Readonly<Record<WormholeShipSize, RGB>> = {
-  small: [0.23, 0.41, 0.96],
-  medium: [0.25, 0.75, 0.72],
-  large: [0.74, 0.79, 0.82],
-  capital: [0.96, 0.71, 0.30],
-  unknown: [0.53, 0.61, 0.68],
-};
+const HALO: RGB = [0.53, 0.61, 0.68];
 
-/** Unknown/special classes stay neutral until a dedicated palette is verified. */
-export function wormholePalette(
-  whClassId: number | null | undefined,
-  shipSize: WormholeShipSize = 'unknown',
-): WormholePalette {
+export function wormholePalette(whClassId: number | null | undefined): WormholePalette {
   const core = whClassId == null ? NEUTRAL : CLASSES[whClassId] ?? NEUTRAL;
-  return { ...core, halo: AURAS[shipSize] ?? AURAS.unknown };
+  return { ...core, halo: HALO };
 }
 
-/** Stable per-system texture variation, independent of simulation time. */
 export function wormholeSeed(key: string): number {
   let hash = 5381;
   for (let i = 0; i < key.length; i += 1) hash = (hash * 33 + key.charCodeAt(i)) >>> 0;

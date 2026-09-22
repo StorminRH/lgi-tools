@@ -1,6 +1,6 @@
 import { STILL_WORMHOLE, stepWormholeMotion, wormholeNeedsFrame } from './motion';
 import { acquireWormholePainter } from './painter';
-import { wormholePalette, wormholeSeed, type WormholeShipSize } from './palette';
+import { wormholePalette, wormholeSeed } from './palette';
 
 export interface WormholeInputs {
   readonly whClassId?: number | null;
@@ -8,7 +8,6 @@ export interface WormholeInputs {
   readonly paused?: boolean;
   readonly seed?: string;
   readonly size?: number;
-  readonly shipSize?: WormholeShipSize;
 }
 
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
@@ -20,7 +19,7 @@ function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
   if (canvas.width !== backing || canvas.height !== backing) {
     canvas.width = canvas.height = backing;
   }
-  const palette = wormholePalette(inputs.whClassId, inputs.shipSize);
+  const palette = wormholePalette(inputs.whClassId);
   const wrapper = canvas.parentElement;
   wrapper?.style.setProperty('--wormhole-size', `${size}px`);
   for (const key of ['core', 'accent', 'halo', 'dark'] as const) {

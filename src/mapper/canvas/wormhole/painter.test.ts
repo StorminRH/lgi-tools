@@ -51,7 +51,7 @@ function graphics(failure?: 'context' | 'shader' | 'link' | 'buffer') {
   };
 }
 
-const paint = { palette: wormholePalette(3, 'small'), time: 4.5, age: 1.2, seed: 0.3 };
+const paint = { palette: wormholePalette(3), time: 4.5, age: 1.2, seed: 0.3 };
 
 test('nodes acquire lazily and reuse one bounded WebGL surface until the last release', () => {
   const env = graphics();
@@ -96,7 +96,7 @@ test('each paint sends the chosen core and independent aura plus timing, then co
   expect(env.target.clearRect).toHaveBeenCalledWith(0, 0, 146, 120);
   expect(env.target.drawImage).toHaveBeenCalledWith(env.source, 0, 0, 146, 120);
   expect(env.gl.drawArrays.mock.invocationCallOrder[0]).toBeLessThan(env.target.drawImage.mock.invocationCallOrder[0]!);
-  const next = { ...paint, palette: wormholePalette(6, 'capital') };
+  const next = { ...paint, palette: wormholePalette(6) };
   lease.paint(env.context, next);
   expect(env.gl.uniform3f).toHaveBeenCalledWith({ name: 'coreColor' }, ...next.palette.core);
   expect(env.gl.uniform3f).toHaveBeenCalledWith({ name: 'haloColor' }, ...next.palette.halo);
@@ -104,31 +104,31 @@ test('each paint sends the chosen core and independent aura plus timing, then co
 });
 
 test.each(['shader', 'link', 'buffer'] as const)(
-  '%s failure returns fallback, frees allocated resources and avoids retries per node',
+  '%s failure returns fallback, frees that attempt, and retries on the next paint',
   (failure) => {
     const env = graphics(failure);
     const first = acquire();
     const second = acquire();
     expect(first.paint(env.context, paint)).toBe(false);
     expect(second.paint(env.context, paint)).toBe(false);
-    expect(env.source.getContext).toHaveBeenCalledOnce();
+    expect(env.source.getContext).toHaveBeenCalledTimes(2);
     expect(env.target.drawImage).not.toHaveBeenCalled();
     for (const result of env.gl.createShader.mock.results) {
       expect(env.gl.deleteShader).toHaveBeenCalledWith(result.value);
     }
     expect(env.gl.deleteProgram).toHaveBeenCalledWith(env.program);
     if (failure !== 'buffer') expect(env.gl.deleteBuffer).toHaveBeenCalledWith(env.buffer);
-    expect(env.loseContext).toHaveBeenCalledOnce();
+    expect(env.loseContext).toHaveBeenCalledTimes(2);
     first.release(); second.release();
-    expect(env.loseContext).toHaveBeenCalledOnce();
+    expect(env.loseContext).toHaveBeenCalledTimes(2);
   },
 );
 
-test('unavailable context stays fallback for all current nodes', () => {
+test('unavailable context stays on fallback and the next paint tries WebGL again', () => {
   const env = graphics('context');
   expect(acquire().paint(env.context, paint)).toBe(false);
   expect(acquire().paint(env.context, paint)).toBe(false);
-  expect(env.source.getContext).toHaveBeenCalledOnce();
+  expect(env.source.getContext).toHaveBeenCalledTimes(2);
   expect(env.gl.createProgram).not.toHaveBeenCalled();
   expect(env.target.drawImage).not.toHaveBeenCalled();
 });

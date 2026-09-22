@@ -88,19 +88,22 @@ function createPainter(): Painter | null {
   };
 }
 
-let shared: Painter | null | undefined;
+let shared: Painter | undefined;
 let users = 0;
 
-/** Acquiring does not touch WebGL until a visible node actually paints. */
 export function acquireWormholePainter() {
   users += 1;
   let released = false;
   return {
     paint(target: CanvasRenderingContext2D, input: WormholePaint): boolean {
       if (released) return false;
-      if (shared === undefined) shared = createPainter();
-      const ready = shared?.paint(target, input) ?? false;
-      if (!ready && shared != null) {
+      if (shared === undefined) {
+        const created = createPainter();
+        if (created === null) return false;
+        shared = created;
+      }
+      const ready = shared.paint(target, input);
+      if (!ready) {
         shared.dispose();
         shared = undefined;
       }

@@ -69,6 +69,7 @@ function nodePresentation(data: ChainNodeData) {
     staticStub,
     fogged,
     derived: data.halo !== undefined || stub,
+    exiting,
     chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto nopan',
   } as const;
 }
@@ -221,15 +222,29 @@ function NodeDisc({
 }
 
 function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: NodeProps<ChainNode>) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
-  const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
+  const { stub, staticStub, derived, fogged, exiting, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
   const appearance = wormholeAppearance(data);
-  const paused = dragging === true || chromeClass === null;
+  const paused = dragging === true || fogged || stub || exiting;
   const active = hovered || selected === true;
+  useEffect(() => {
+    if (!hovered) return;
+    const node = rootRef.current;
+    const viewport = node?.closest('.react-flow__viewport');
+    if (node == null || viewport == null) return;
+    const release = () => {
+      if (!node.matches(':hover')) setHovered(false);
+    };
+    const observer = new MutationObserver(release);
+    observer.observe(viewport, { attributes: true, attributeFilter: ['style'] });
+    return () => observer.disconnect();
+  }, [hovered]);
   return (
     <div
+      ref={rootRef}
       data-chain-node
       data-chain-node-selected={selected === true || undefined}
       aria-hidden={fogged || undefined}

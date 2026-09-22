@@ -1,14 +1,12 @@
 import { expect, test } from 'vitest';
 import { wormholePalette, wormholeSeed } from './palette';
 
-test('destination palette is independent of per-jump mass allowance', () => {
-  const regular = wormholePalette(5);
-  const frigate = wormholePalette(5, 'small');
-  const capital = wormholePalette(5, 'capital');
-  expect(regular.core).toEqual(frigate.core);
-  expect(frigate.core).toEqual(capital.core);
-  expect(frigate.halo).not.toEqual(capital.halo);
-  expect(wormholePalette(1).halo).toEqual(wormholePalette(6).halo);
+test('every destination class shares one halo', () => {
+  const halo = wormholePalette(1).halo;
+  for (const id of [2, 3, 4, 5, 6, null, undefined]) {
+    expect(wormholePalette(id).halo).toEqual(halo);
+  }
+  expect(wormholePalette(5).core).not.toEqual(wormholePalette(1).core);
 });
 
 test('six art-directed palettes are distinct; unknown and special classes are honestly neutral', () => {
