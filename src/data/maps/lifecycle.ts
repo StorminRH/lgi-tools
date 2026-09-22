@@ -17,6 +17,7 @@ import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  type PendingMapAccessChange,
 } from './authorization-sql';
 import {
   purgeClaimedMapLifecycle,
@@ -42,9 +43,9 @@ export async function archiveAuthorizedMap(
   mapId: string,
   now: Date = new Date(),
   database: AnyPgDb = db,
-): Promise<{ mapId: string; version: string } | null> {
+): Promise<PendingMapAccessChange | null> {
   const nowIso = now.toISOString();
-  const result = await database.execute<{ mapId: string; version: string }>(sql`
+  const result = await database.execute<PendingMapAccessChange>(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,
@@ -75,11 +76,11 @@ export async function restoreAuthorizedMap(
   mapId: string,
   now: Date = new Date(),
   database: AnyPgDb = db,
-): Promise<{ mapId: string; version: string } | null> {
+): Promise<PendingMapAccessChange | null> {
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const cutoffIso = cutoff.toISOString();
   const nowIso = now.toISOString();
-  const result = await database.execute<{ mapId: string; version: string }>(sql`
+  const result = await database.execute<PendingMapAccessChange>(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,

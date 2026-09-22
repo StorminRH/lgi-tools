@@ -12,7 +12,10 @@ import {
   requestAuthorizedMapPurge,
   restoreAuthorizedMap,
 } from '@/data/maps/lifecycle';
-import { acknowledgeMapAccessChanges } from '@/platform/auth/affiliation-store';
+import {
+  acknowledgeMapAccessChanges,
+  type PendingMapAccessChange,
+} from '@/platform/auth/affiliation-store';
 
 export type LifecycleResult =
   | { readonly ok: true; readonly projectionPending: boolean }
@@ -29,7 +32,7 @@ export interface MapLifecycleDependencies {
 }
 
 async function finishCapturedLifecycleProjection(
-  pending: { mapId: string; version: string },
+  pending: PendingMapAccessChange,
   project: () => Promise<ProjectionResult>,
   acknowledgeAccess: typeof acknowledgeMapAccessChanges,
   label: string,

@@ -1,7 +1,10 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
-import { enqueuePendingMapAccessSelection } from '@/data/maps/authorization-sql';
+import {
+  enqueuePendingMapAccessSelection,
+  type PendingMapAccessChange,
+} from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
@@ -17,10 +20,7 @@ export interface CachedAffiliation {
   refreshedAt: Date | null;
 }
 
-export interface PendingMapAccessChange {
-  mapId: string;
-  version: string;
-}
+export type { PendingMapAccessChange };
 
 export const MAX_PENDING_BATCH = 100;
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');

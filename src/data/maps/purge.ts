@@ -1,19 +1,19 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { characters } from '@/db/auth-schema';
 import { bestEffort } from '@/lib/best-effort';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { PurgeContributor } from '@/platform/purge/types';
 import {
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  type PendingMapAccessChange,
 } from './authorization-sql';
-import { getOwnedMapIds } from './queries';
+import { affectedMapIdsSelection, getOwnedMapIds } from './queries';
 import { mapAccess, maps } from './schema';
 
 export interface MapAccessProjectionPurgeHooks {
   readonly deliverCaptured: (
-    changes: { mapId: string; version: string }[],
+    changes: PendingMapAccessChange[],
   ) => Promise<unknown>;
   readonly purgeMapChain: (mapId: string) => Promise<unknown>;
   readonly purgeUserClaims: (userId: string) => Promise<unknown>;
@@ -37,22 +37,10 @@ async function purgeOwnedMapChainsThenDeleteMaps(
 async function purgeCharacterMapGrants(
   characterId: number,
   database: AnyPgDb = db,
-): Promise<{ mapId: string; version: string }[]> {
-  const result = await database.execute<{ mapId: string; version: string }>(sql`
+): Promise<PendingMapAccessChange[]> {
+  const result = await database.execute<PendingMapAccessChange>(sql`
     WITH affected AS (
-      SELECT DISTINCT ${mapAccess.mapId} AS id
-      FROM ${mapAccess}
-      WHERE (
-        ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
-        AND ${mapAccess.ownerId} = ${characterId}
-      ) OR (
-        ${mapAccess.ownerType} = 'corporation'::"public"."map_access_owner_type"
-        AND ${mapAccess.ownerId} = (
-          SELECT ${characters.corporationId}
-          FROM ${characters}
-          WHERE ${characters.characterId} = ${characterId}
-        )
-      )
+      ${affectedMapIdsSelection(characterId)}
     ), deleted AS (
       DELETE FROM ${mapAccess}
       WHERE ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"

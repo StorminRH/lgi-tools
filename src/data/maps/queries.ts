@@ -32,6 +32,7 @@ import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  type PendingMapAccessChange,
 } from './authorization-sql';
 
 export interface CreateMapGrant {
@@ -487,7 +488,7 @@ export async function applyAuthorizedMapGrantChange(
   mapId: string,
   change: MapGrantChange,
   database: AnyPgDb = db,
-): Promise<{ mapId: string; version: string } | null> {
+): Promise<PendingMapAccessChange | null> {
   const mutation = change.operation === 'upsert' ? sql`
     INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
     SELECT authorized_map.id,
@@ -502,7 +503,7 @@ export async function applyAuthorizedMapGrantChange(
       AND ${mapAccess.ownerType} = ${change.principal.ownerType}
       AND ${mapAccess.ownerId} = ${change.principal.ownerId}
   `;
-  const result = await database.execute<{ mapId: string; version: string }>(sql`
+  const result = await database.execute<PendingMapAccessChange>(sql`
     WITH authorized_map AS (
       ${activeMapAdminSelection(userId, principals, mapId)}
     ), changed AS (${mutation})
@@ -535,40 +536,6 @@ export async function getMapAccessCandidateUserIds(
   return rows.map((row) => row.userId);
 }
 
-async function getMapIdsWithCorporationGrants(
-  corporationIds: number[],
-  database: AnyPgDb = db,
-): Promise<string[]> {
-  if (corporationIds.length === 0) return [];
-
-  const rows = await database
-    .selectDistinct({ mapId: mapAccess.mapId })
-    .from(mapAccess)
-    .where(
-      and(
-        eq(mapAccess.ownerType, 'corporation'),
-        inArray(mapAccess.ownerId, corporationIds),
-      ),
-    );
-  return rows.map((row) => row.mapId);
-}
-
-async function getMapIdsWithCharacterGrant(
-  characterId: number,
-  database: AnyPgDb = db,
-): Promise<string[]> {
-  const rows = await database
-    .selectDistinct({ mapId: mapAccess.mapId })
-    .from(mapAccess)
-    .where(
-      and(
-        eq(mapAccess.ownerType, 'character'),
-        eq(mapAccess.ownerId, characterId),
-      ),
-    );
-  return rows.map((row) => row.mapId);
-}
-
 export async function getOwnedMapIds(
   userId: string,
   database: AnyPgDb = db,
@@ -580,29 +547,30 @@ export async function getOwnedMapIds(
   return rows.map((row) => row.id);
 }
 
-async function getCharacterCorporationId(
-  characterId: number,
-  database: AnyPgDb = db,
-): Promise<number | null> {
-  const [row] = await database
-    .select({ corporationId: characters.corporationId })
-    .from(characters)
-    .where(eq(characters.characterId, characterId))
-    .limit(1);
-  return row?.corporationId ?? null;
+export function affectedMapIdsSelection(characterId: number): SQL {
+  return sql`
+    SELECT DISTINCT ${mapAccess.mapId} AS id
+    FROM ${mapAccess}
+    WHERE (
+      ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
+      AND ${mapAccess.ownerId} = ${characterId}
+    ) OR (
+      ${mapAccess.ownerType} = 'corporation'::"public"."map_access_owner_type"
+      AND ${mapAccess.ownerId} = (
+        SELECT ${characters.corporationId}
+        FROM ${characters}
+        WHERE ${characters.characterId} = ${characterId}
+      )
+    )
+  `;
 }
 
 export async function affectedMapIdsForCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<string[]> {
-  const [corporationId, characterMaps] = await Promise.all([
-    getCharacterCorporationId(characterId, database),
-    getMapIdsWithCharacterGrant(characterId, database),
-  ]);
-  const corporationMaps =
-    corporationId === null
-      ? []
-      : await getMapIdsWithCorporationGrants([corporationId], database);
-  return [...new Set([...characterMaps, ...corporationMaps])];
+  const result = await database.execute<{ id: string }>(
+    affectedMapIdsSelection(characterId),
+  );
+  return mapAuthorizationRows(result).map((row: { id: string }) => row.id);
 }
