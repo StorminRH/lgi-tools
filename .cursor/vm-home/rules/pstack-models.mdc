@@ -5,20 +5,21 @@ alwaysApply: true
 # pstack model configuration. One line per role. Delete a line to fall back to the skill default.
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.
 # Cloud VMs copy this file from .cursor/vm-home onto ~/.cursor. Keep it out of .cursor/rules so Cursor does not load it as a project rule.
-feature, refactoring: cursor-grok-4.6-high-fast
-bug-fix: claude-fable-5-1-thinking-high
-perf-issue: claude-fable-5-1-thinking-high
-hillclimb: claude-fable-5-1-thinking-high
-judgment and prose: claude-fable-5-1-thinking-high
-hardest tasks: claude-fable-5-1-thinking-high
-how explorer: cursor-grok-4.6-high-fast
-how explainer: claude-fable-5-1-thinking-high
-why investigators: cursor-grok-4.6-high-fast
-why synthesizer: claude-fable-5-1-thinking-high
-reflect tooling: muse-spark-1.3-high
-reflect judgment, divergent, synthesizer: claude-fable-5-1-thinking-high
-arena runners: claude-fable-5-1-thinking-high, muse-spark-1.3-high, cursor-grok-4.6-high-fast, glm-5.2-high
-arena cross-judge pool: claude-fable-5-1-thinking-high, muse-spark-1.3-high, cursor-grok-4.6-high-fast, glm-5.2-high
-swarm workers: cursor-grok-4.6-high-fast
-architect runners: claude-fable-5-1-thinking-high, muse-spark-1.3-high, cursor-grok-4.6-high-fast, glm-5.2-high
-interrogate reviewers: claude-fable-5-1-thinking-high, muse-spark-1.3-high, cursor-grok-4.6-high-fast, glm-5.2-high
+# budget: medium (high)
+feature, refactoring: grok-4.7-high
+bug-fix: grok-4.7-high
+perf-issue: grok-4.7-high
+hillclimb: grok-4.7-high
+judgment and prose: muse-spark-1.3-high
+hardest tasks: claude-opus-5-5-high
+how explorer: grok-4.7-high
+how explainer: muse-spark-1.3-high
+why investigators: grok-4.7-high
+why synthesizer: muse-spark-1.3-high
+reflect tooling: grok-4.7-high
+reflect judgment, divergent, synthesizer: muse-spark-1.3-high
+arena runners: muse-spark-1.3-high, grok-4.7-high, claude-opus-5-5-high
+arena cross-judge pool: muse-spark-1.3-high, grok-4.7-high, claude-opus-5-5-high
+swarm workers: muse-spark-1.3-high
+architect runners: muse-spark-1.3-high, grok-4.7-high, claude-opus-5-5-high
+interrogate reviewers: muse-spark-1.3-high, grok-4.7-high, claude-opus-5-5-high
