@@ -5,7 +5,7 @@ description: >-
   rounds, one fix commit per round, and a green GitHub Verify run, then
   stop for the user. Use when the user says promote, release, development
   to staging, or staging to main. Promote requests CodeRabbit, Bugbot, and
-  Greptile. Release does not request those bots.
+  Greptile after round 1. Release does not request those bots.
 disable-model-invocation: true
 ---
 
@@ -31,13 +31,13 @@ Copy this checklist and keep it current.
 
 ## Mode facts
 
-Promote uses head `development` and base `staging`. The title is `Promote development to staging`. After round 1, request CodeRabbit, Bugbot, and Greptile. Round 2 reads those bot results.
+Promote uses head `development` and base `staging`. The title is `Promote development to staging`. After the round 1 comment, request CodeRabbit, Bugbot, and Greptile. Round 2 reads those bot results.
 
-Release uses head `staging` and base `main`. The title is `Release staging to main`. Do not request CodeRabbit, Bugbot, or Greptile. Round 2 is a second local review.
+Release uses head `staging` and base `main`. The title is `Release staging to main`. Do not request CodeRabbit, Bugbot, or Greptile.
 
 Do not rebase the head onto the base. Do not force-push. Commit and push only on the mode head.
 
-Do not follow the Shipping playbook. Do not babysit this pull request unless the user asks after the hold. Do not start another playbook from a review round.
+Do not follow the Shipping playbook. Do not babysit this pull request unless the user asks after the hold.
 
 ## Open the pull request
 
@@ -92,7 +92,9 @@ After the push, or after you confirm there is no commit, leave one comment on th
 
 ## Round 1
 
-Run the no-comments skill on `origin/<base>...HEAD`. Read and follow the thermos skill on that same diff. Then follow "Fix the findings", "Check locally", and "Comment on the round".
+Review the PR with /poteto-mode and /thermos.
+
+Then follow "Fix the findings", "Check locally", and "Comment on the round".
 
 ## Request the bots
 
@@ -116,9 +118,9 @@ Release skips this section.
 
 ## Round 2
 
-When the mode is promote, triage the bot results, then follow "Fix the findings", "Check locally", and "Comment on the round". Do not run thermos again.
+When the mode is promote, triage the bot results, then follow "Fix the findings", "Check locally", and "Comment on the round".
 
-When the mode is release, read and follow the thermos skill on the updated diff. Then follow "Fix the findings", "Check locally", and "Comment on the round".
+When the mode is release, review the PR with /poteto-mode and /thermos. Then follow "Fix the findings", "Check locally", and "Comment on the round".
 
 Do not request the bots on round 2.
 
