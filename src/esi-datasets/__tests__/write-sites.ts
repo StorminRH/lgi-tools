@@ -94,9 +94,9 @@ export function buildSymbolTable(
 const WRITE_CALL_PATTERN =
   /\.\s*(?:insert|update|delete)\s*\(\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\)/g;
 
-const RAW_WRITE_KEYWORD =
-  /(^|[\n;(])\s*(?:insert\s+into|update|delete\s+from|truncate(?:\s+table)?)\b/i;
-const INTERPOLATION_PATTERN = /\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\}/g;
+// Matches uncommented write targets only; keep raw UPDATE/DELETE with no block comment between keyword and table.
+const RAW_WRITE_TARGET =
+  /(?:^|[\n;(])\s*(?:insert\s+into|update|delete\s+from|truncate(?:\s+table)?)\s+\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\}/gi;
 
 function rawSqlTemplates(source: string): string[] {
   const templates: string[] = [];
@@ -116,9 +116,8 @@ function tablesWrittenByCalls(source: string, symbols: ReadonlyMap<string, strin
 
 function tablesWrittenByRawSql(source: string, symbols: ReadonlyMap<string, string>): string[] {
   return rawSqlTemplates(source)
-    .filter((template) => RAW_WRITE_KEYWORD.test(template))
     .flatMap((template) =>
-      [...template.matchAll(INTERPOLATION_PATTERN)]
+      [...template.matchAll(RAW_WRITE_TARGET)]
         .map((match) => (match[1] === undefined ? undefined : symbols.get(match[1])))
         .filter((table): table is string => table !== undefined),
     );

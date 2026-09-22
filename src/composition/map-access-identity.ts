@@ -1,20 +1,19 @@
 import {
-  projectMapAccess,
   purgeUserMapAccessProjection,
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
 import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
+import { MAX_PENDING_BATCH, enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
+import { deliverCapturedMapAccessChanges, reconcileAffiliationAccess } from './map-affiliation-access';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
-  const mapIds = await affectedMapIdsForCharacter(characterId);
-  for (const mapId of mapIds) {
-    await bestEffort('map-access-identity', 'projection', mapId, () =>
-      projectMapAccess(mapId),
-    );
-  }
+  const pending = await enqueueMapAccessChanges(await affectedMapIdsForCharacter(characterId));
+  if (pending.length === 0) return;
+  await deliverCapturedMapAccessChanges(pending);
+  if (pending.length > MAX_PENDING_BATCH) await reconcileAffiliationAccess();
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {
@@ -32,8 +31,11 @@ async function afterCharacterLinkChanged(args: {
   userId: string;
   characterId: number;
 }): Promise<void> {
-  await reprojectMapsForCharacter(args.characterId);
-  await teardownLocationTracking(args.userId, args.characterId);
+  try {
+    await reprojectMapsForCharacter(args.characterId);
+  } finally {
+    await teardownLocationTracking(args.userId, args.characterId);
+  }
 }
 
 export const identityProjectionRunners: IdentityProjectionRunners = {

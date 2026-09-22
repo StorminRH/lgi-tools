@@ -59,9 +59,9 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     cronPath: '/api/cron/refresh-affiliations',
     module: 'src/app/api/cron/refresh-affiliations/declaration.ts',
     redeliverySource: VERCEL_CRON_REDELIVERY,
-    verdict: 'key-protected',
+    verdict: 'inherently-idempotent',
     evidence:
-      'Guarded by the ADVISORY_LOCK_AFFILIATION_REFRESH session advisory lock; a second run returns the declared busy body.',
+      'Bulk affiliation writes and pending generations are atomic; Convex revisions reject stale deliveries, and version-matched acknowledgement preserves newer work. The daily run retries pending revocations even when affiliations are fresh.',
   },
   {
     id: 'cron/purge-maps',
@@ -445,7 +445,7 @@ const mapsAccessRoute = mutationRoute({
   route: 'src/app/api/maps/access/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, then reserves a newer durable projection revision before recomputing the complete one-way access projection.',
+    'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, durably queues the map for reconciliation, then reserves a newer durable projection revision before recomputing the complete one-way access projection.',
 });
 const mapsDeleteRoute = mutationRoute({
   route: 'src/app/api/maps/delete/route.ts',

@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { account } from '@/db/auth-schema';
 import {
@@ -12,8 +12,8 @@ import {
   compensateFailedMapCreation,
   createMapAtomic,
   getAuthorizedMapGrantsForMaps,
-  getUserIdsInCorporations,
-  getUserIdsOwningCharacters,
+  getMapAccessCandidateUserIds,
+  affectedMapIdsForCharacter,
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
 } from './queries';
@@ -22,11 +22,11 @@ import {
   purgeQueuedMapLifecycle,
   tombstonedMapLifecycle,
 } from './lifecycle-contract';
-import { mapAccess, maps } from './schema';
+import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_queries',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'account',
@@ -55,45 +55,51 @@ const harness = await createDbTestHarness({
 });
 
 describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', () => {
-  it('resolves EVE-provider owners by character id and ignores non-EVE rows', async () => {
-    await seedUser(harness.db, 'owner');
-    await seedUser(harness.db, 'other');
-    await seedEveAccount(harness.db, { id: 'acc-1', characterId: 42, userId: 'owner' });
-    await seedEveAccount(harness.db, { id: 'acc-2', characterId: 43, userId: 'other' });
-    await harness.db.insert(account).values({
-      id: 'acc-discord',
-      accountId: 'discord-user-not-numeric',
-      providerId: 'discord',
-      userId: 'owner',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    await expect(getUserIdsOwningCharacters([42, 43, 99])).resolves.toEqual(
-      new Map([
-        [42, 'owner'],
-        [43, 'other'],
-      ]),
-    );
-  });
-
-  it('returns an empty map without querying when character ids are empty', async () => {
-    await expect(getUserIdsOwningCharacters([])).resolves.toEqual(new Map());
-  });
-
-  it('resolves users with a linked character in granted corporations', async () => {
+  it('discovers direct and corporation candidates once, including missing direct profiles', async () => {
     await seedUser(harness.db, 'member');
+    await seedUser(harness.db, 'direct');
     await seedUser(harness.db, 'outsider');
     await seedCharacter(harness.db, 42, { corporationId: 990 });
-    await seedCharacter(harness.db, 43, { corporationId: 991 });
+    await seedCharacter(harness.db, 43, { corporationId: 990 });
+    await seedCharacter(harness.db, 44, { corporationId: 991 });
     await seedEveAccount(harness.db, { id: 'acc-1', characterId: 42, userId: 'member' });
-    await seedEveAccount(harness.db, { id: 'acc-2', characterId: 43, userId: 'outsider' });
+    await seedEveAccount(harness.db, { id: 'acc-2', characterId: 43, userId: 'member' });
+    await seedEveAccount(harness.db, { id: 'acc-3', characterId: 44, userId: 'outsider' });
+    await seedEveAccount(harness.db, { id: 'acc-4', characterId: 45, userId: 'direct' });
+    await harness.db.insert(account).values({
+      id: 'discord', accountId: '42', providerId: 'discord', userId: 'outsider',
+      createdAt: new Date(), updatedAt: new Date(),
+    });
 
-    await expect(getUserIdsInCorporations([990])).resolves.toEqual(new Set(['member']));
+    expect((await getMapAccessCandidateUserIds([42, 45], [990])).sort()).toEqual(['direct', 'member']);
+    await expect(getMapAccessCandidateUserIds([], [990])).resolves.toEqual(['member']);
+    await expect(getMapAccessCandidateUserIds([45], [])).resolves.toEqual(['direct']);
+    await expect(getMapAccessCandidateUserIds([], [])).resolves.toEqual([]);
   });
 
-  it('returns an empty set without querying when corporation ids are empty', async () => {
-    await expect(getUserIdsInCorporations([])).resolves.toEqual(new Set());
+  it('finds every affected corporation map, including archived and tombstoned maps', async () => {
+    await seedUser(harness.db, 'creator');
+    const active = '11111111-1111-4111-8111-111111111111';
+    const archived = '22222222-2222-4222-8222-222222222222';
+    const tombstoned = '33333333-3333-4333-8333-333333333333';
+    const now = new Date();
+    await harness.db.insert(maps).values([
+      { id: active, userId: 'creator', name: 'active' },
+      { id: archived, userId: 'creator', name: 'archived', ...archivedMapLifecycle(now) },
+      { id: tombstoned, userId: 'creator', name: 'tombstoned', ...tombstonedMapLifecycle(now) },
+    ]);
+    await harness.db.insert(mapAccess).values([
+      { mapId: active, ownerType: 'corporation', ownerId: 990, role: 'viewer' },
+      { mapId: active, ownerType: 'corporation', ownerId: 991, role: 'editor' },
+      { mapId: archived, ownerType: 'corporation', ownerId: 990, role: 'viewer' },
+      { mapId: tombstoned, ownerType: 'corporation', ownerId: 991, role: 'viewer' },
+      { mapId: archived, ownerType: 'character', ownerId: 991, role: 'viewer' },
+    ]);
+
+    await seedCharacter(harness.db, 42, { corporationId: 990 });
+    await seedCharacter(harness.db, 43, { corporationId: 991 });
+    expect((await affectedMapIdsForCharacter(42)).sort()).toEqual([active, archived].sort());
+    expect((await affectedMapIdsForCharacter(43)).sort()).toEqual([active, tombstoned].sort());
   });
 
   it('creates a map and selected grants in one statement, including a private map', async () => {
@@ -294,7 +300,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         upsert,
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId, version: expect.any(String) });
     await expect(
       applyAuthorizedMapGrantChange(
         'creator',
@@ -303,7 +309,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         upsert,
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId, version: expect.any(String) });
     await applyAuthorizedMapGrantChange(
       'creator',
       { characterIds: [], corporationIds: [] },
@@ -326,7 +332,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         },
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId, version: expect.any(String) });
 
     await expect(
       harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, mapId)),
@@ -343,6 +349,9 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
       }),
     ]);
 
+    const [queued] = await harness.db.select().from(pendingMapAccessChanges);
+    expect(queued).toMatchObject({ mapId, version: expect.any(String) });
+
     await harness.db
       .update(maps)
       .set(archivedMapLifecycle(new Date()))
@@ -358,7 +367,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         },
         harness.db,
       ),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     await harness.db
       .update(maps)
       .set(tombstonedMapLifecycle(new Date()))
@@ -374,13 +383,41 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         },
         harness.db,
       ),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     await expect(
       harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, mapId)),
     ).resolves.toHaveLength(2);
     await expect(
       harness.db.select().from(maps).where(eq(maps.id, mapId)),
     ).resolves.toHaveLength(1);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([queued]);
+  });
+
+  it.each(['upsert', 'revoke'] as const)('rolls back %s when its durable queue write fails', async (operation) => {
+    await seedUser(harness.db, 'creator');
+    const mapId = '30000000-0000-4000-8000-000000000002';
+    await harness.db.insert(maps).values({ id: mapId, userId: 'creator', name: 'Atomic access' });
+    const principal = { ownerType: 'character' as const, ownerId: 42 };
+    await harness.db.insert(mapAccess).values({ mapId, ...principal, role: 'viewer' });
+    await harness.db.execute(sql`
+      ALTER TABLE map_access_changes ADD CONSTRAINT reject_test_queue CHECK (false)
+    `);
+    try {
+      const change = operation === 'upsert'
+        ? { operation, grant: { ...principal, role: 'admin' as const } }
+        : { operation, principal };
+      await expect(applyAuthorizedMapGrantChange(
+        'creator', { characterIds: [], corporationIds: [] }, mapId, change, harness.db,
+      )).rejects.toThrow();
+      expect(await harness.db.select().from(mapAccess)).toEqual([
+        expect.objectContaining({ mapId, ...principal, role: 'viewer' }),
+      ]);
+      expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+    } finally {
+      await harness.db.execute(sql`
+        ALTER TABLE map_access_changes DROP CONSTRAINT reject_test_queue
+      `);
+    }
   });
 
   it('reads management grants only while current active-map admin authority holds', async () => {

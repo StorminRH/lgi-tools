@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CachedAffiliation } from '@/platform/auth/membership';
+vi.mock('next/server', () => ({ after: vi.fn() }));
+vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
+import type { CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 const mocks = vi.hoisted(() => ({
   getAuthorizedMapGrantsForMaps: vi.fn(),
   listAuthorizedMapsForPrincipals: vi.fn(),
   listDeletedRestorableMapsForPrincipals: vi.fn(),
   getUserAffiliations: vi.fn(),
-  refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
+  refreshAffiliationsWithOutcome: vi.fn(),
   resolveEntityNames: vi.fn(),
 }));
 
@@ -19,7 +21,7 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   getUserAffiliations: mocks.getUserAffiliations,
 }));
 vi.mock('@/platform/auth/affiliation', () => ({
-  refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
+  refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
 }));
 vi.mock('@/data/eve-data/entity-names', () => ({
   resolveEntityNames: mocks.resolveEntityNames,
@@ -46,7 +48,8 @@ function affiliation(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
+  mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
+    accessChanged: false,
     refreshed: 0,
     transientFailure: false,
   });
@@ -148,12 +151,12 @@ describe('map chrome data', () => {
       ['map-a'],
     );
     expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100]);
-    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledOnce();
+    expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
   });
 });
 
 describe('resolveMapPrincipals', () => {
-  it('refreshes exactly once before reading character and fresh corporation principals', async () => {
+  it('reads once and reuses character and fresh corporation principals', async () => {
     const rows = [affiliation(42, 99, new Date())];
     mocks.getUserAffiliations.mockResolvedValue(rows);
 
@@ -161,11 +164,8 @@ describe('resolveMapPrincipals', () => {
       characterIds: [42],
       corporationIds: [99],
     });
-    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledOnce();
-    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledWith('user-1');
-    expect(
-      mocks.refreshStaleAffiliationsForUserWithOutcome.mock.invocationCallOrder[0],
-    ).toBeLessThan(mocks.getUserAffiliations.mock.invocationCallOrder[0] ?? 0);
+    expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
+    expect(mocks.getUserAffiliations).toHaveBeenCalledOnce();
   });
 
   it('keeps character identity but fails closed on a stale corporation affiliation', async () => {

@@ -30,6 +30,7 @@ import {
 } from './schema';
 import {
   authorizedAdminMapsSelection,
+  enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
 
@@ -42,9 +43,10 @@ export interface CreateMapGrant {
 export async function reserveMapAccessProjectionRevision(
   database: AnyPgDb = db,
 ): Promise<number> {
+  // public. pins the production sequence; disposable-schema harnesses steer via search_path elsewhere.
   const result = await database.execute(sql`
     SELECT nextval(
-      ${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}::regclass
+      ${`public.${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}`}::regclass
     )::text AS revision
   `);
   const row = mapAuthorizationRows(result)[0];
@@ -459,9 +461,6 @@ export async function getAuthorizedMapGrantsForMaps(
   );
 }
 
-type MapGrantUpsert = Extract<MapGrantChange, { readonly operation: 'upsert' }>;
-type MapGrantRevoke = Extract<MapGrantChange, { readonly operation: 'revoke' }>;
-
 function activeMapsAdminSelection(
   userId: string,
   principals: MapPrincipals,
@@ -483,111 +482,58 @@ function activeMapAdminSelection(
   return activeMapsAdminSelection(userId, principals, [mapId]);
 }
 
-async function applyAuthorizedMapGrantUpsert(
-  userId: string,
-  principals: MapPrincipals,
-  mapId: string,
-  change: MapGrantUpsert,
-  database: AnyPgDb,
-): Promise<boolean> {
-  const result = await database.execute<{ authorized: boolean }>(sql`
-      WITH authorized_map AS (
-        ${activeMapAdminSelection(userId, principals, mapId)}
-      ), changed AS (
-        INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
-        SELECT
-          authorized_map.id,
-          ${change.grant.ownerType}::"public"."map_access_owner_type",
-          ${change.grant.ownerId},
-          ${change.grant.role}::"public"."map_role"
-        FROM authorized_map
-        ON CONFLICT (map_id, owner_type, owner_id)
-        DO UPDATE SET role = EXCLUDED.role
-      )
-      SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
-    `);
-  return mapAuthorizationRows(result)[0]?.authorized === true;
-}
-
-async function applyAuthorizedMapGrantRevoke(
-  userId: string,
-  principals: MapPrincipals,
-  mapId: string,
-  change: MapGrantRevoke,
-  database: AnyPgDb,
-): Promise<boolean> {
-  const result = await database.execute<{ authorized: boolean }>(sql`
-    WITH authorized_map AS (
-      ${activeMapAdminSelection(userId, principals, mapId)}
-    ), changed AS (
-      DELETE FROM ${mapAccess}
-      WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
-        AND ${mapAccess.ownerType} = ${change.principal.ownerType}
-        AND ${mapAccess.ownerId} = ${change.principal.ownerId}
-    )
-    SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
-  `);
-  return mapAuthorizationRows(result)[0]?.authorized === true;
-}
-
-export function applyAuthorizedMapGrantChange(
+export async function applyAuthorizedMapGrantChange(
   userId: string,
   principals: MapPrincipals,
   mapId: string,
   change: MapGrantChange,
   database: AnyPgDb = db,
-): Promise<boolean> {
-  return change.operation === 'upsert'
-    ? applyAuthorizedMapGrantUpsert(userId, principals, mapId, change, database)
-    : applyAuthorizedMapGrantRevoke(userId, principals, mapId, change, database);
+): Promise<{ mapId: string; version: string } | null> {
+  const mutation = change.operation === 'upsert' ? sql`
+    INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
+    SELECT authorized_map.id,
+      ${change.grant.ownerType}::"public"."map_access_owner_type",
+      ${change.grant.ownerId}, ${change.grant.role}::"public"."map_role"
+    FROM authorized_map
+    ON CONFLICT (map_id, owner_type, owner_id)
+    DO UPDATE SET role = EXCLUDED.role
+  ` : sql`
+    DELETE FROM ${mapAccess}
+    WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
+      AND ${mapAccess.ownerType} = ${change.principal.ownerType}
+      AND ${mapAccess.ownerId} = ${change.principal.ownerId}
+  `;
+  const result = await database.execute<{ mapId: string; version: string }>(sql`
+    WITH authorized_map AS (
+      ${activeMapAdminSelection(userId, principals, mapId)}
+    ), changed AS (${mutation})
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM authorized_map`)}
+  `);
+  return mapAuthorizationRows(result)[0] ?? null;
 }
 
-export async function getUserIdsOwningCharacters(
-  characterIds: number[],
+export async function getMapAccessCandidateUserIds(
+  characterIds: readonly number[],
+  corporationIds: readonly number[],
   database: AnyPgDb = db,
-): Promise<Map<number, string>> {
-  if (characterIds.length === 0) return new Map();
-
-  const accountIds = characterIds.map(String);
+): Promise<string[]> {
+  if (characterIds.length === 0 && corporationIds.length === 0) return [];
   const rows = await database
-    .select({
-      accountId: account.accountId,
-      userId: account.userId,
-    })
+    .selectDistinct({ userId: account.userId })
     .from(account)
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        inArray(account.accountId, accountIds),
+    .where(and(
+      eq(account.providerId, EVE_PROVIDER_ID),
+      or(
+        characterIds.length === 0 ? undefined : inArray(account.accountId, characterIds.map(String)),
+        corporationIds.length === 0 ? undefined : inArray(
+          account.accountId,
+          database.select({ accountId: sql<string>`${characters.characterId}::text` })
+            .from(characters)
+            .where(inArray(characters.corporationId, [...corporationIds])),
+        ),
       ),
-    );
-
-  const owners = new Map<number, string>();
-  for (const row of rows) {
-    const characterId = Number(row.accountId);
-    if (Number.isFinite(characterId)) {
-      owners.set(characterId, row.userId);
-    }
-  }
-  return owners;
-}
-
-export async function getUserIdsInCorporations(
-  corporationIds: number[],
-  database: AnyPgDb = db,
-): Promise<Set<string>> {
-  if (corporationIds.length === 0) return new Set();
-
-  const characterRows = await database
-    .select({ characterId: characters.characterId })
-    .from(characters)
-    .where(inArray(characters.corporationId, corporationIds));
-
-  const owners = await getUserIdsOwningCharacters(
-    characterRows.map((row) => row.characterId),
-    database,
-  );
-  return new Set(owners.values());
+    ));
+  return rows.map((row) => row.userId);
 }
 
 async function getMapIdsWithCorporationGrants(

@@ -4,14 +4,12 @@ import type { MapRole } from '@/data/maps/access-contract';
 import {
   getMapAccessSubject,
   getMapGrants,
-  getUserIdsInCorporations,
-  getUserIdsOwningCharacters,
+  getMapAccessCandidateUserIds,
   reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
-import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
-import { resolveMapPrincipalsWithOutcome } from './map-access';
+import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
+import { createCorpAccessSnapshot } from '@/platform/auth/corp-access';
 
 export interface MapAccessClaim {
   readonly userId: string;
@@ -85,41 +83,24 @@ async function computeMapAccessClaimsForState(
     ),
   ];
 
-  if (corporationIds.length > 0) {
-    const staleCharacterIds = await listStaleLinkedCharacterIds();
-    const { transientFailure } = await refreshAffiliationsWithOutcome(staleCharacterIds);
-    if (transientFailure) {
-      throw new ProjectionUnavailableError(
-        'Map access projection unavailable: affiliation refresh failed transiently while discovering corporation candidates',
-      );
-    }
+  const candidateUserIds = (await getMapAccessCandidateUserIds(characterIds, corporationIds))
+    .filter((userId) => userId !== map.userId);
+  const affiliations = await getUsersAffiliations(candidateUserIds);
+  const byUser = new Map<string, CachedAffiliation[]>();
+  for (const row of affiliations) {
+    const rows = byUser.get(row.userId) ?? [];
+    rows.push(row);
+    byUser.set(row.userId, rows);
   }
 
-  const [characterOwners, corporationMembers] = await Promise.all([
-    getUserIdsOwningCharacters(characterIds),
-    getUserIdsInCorporations(corporationIds),
-  ]);
-
-  const candidateUserIds = new Set<string>([
-    map.userId,
-    ...characterOwners.values(),
-    ...corporationMembers,
-  ]);
-
-  const claims: MapAccessClaim[] = [];
+  const resolvedAt = Date.now();
+  const claims: MapAccessClaim[] = [{ userId: map.userId, roles: ['admin'] }];
   for (const userId of candidateUserIds) {
-    const { principals, refreshTransientFailure } =
-      await resolveMapPrincipalsWithOutcome(userId);
-    if (refreshTransientFailure) {
-      throw new ProjectionUnavailableError(
-        `Map access projection unavailable: affiliation refresh failed transiently for user ${userId}`,
-      );
-    }
-
+    const access = createCorpAccessSnapshot(userId, byUser.get(userId) ?? [], false, resolvedAt);
     const roles = resolveMatchedMapRoles({
-      isCreator: map.userId === userId,
+      isCreator: false,
       grants,
-      principals,
+      principals: { characterIds: access.allCharacterIds, corporationIds: access.corporationIds },
     });
     if (roles.length === 0) continue;
     claims.push({ userId, roles });

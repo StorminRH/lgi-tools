@@ -31,6 +31,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
         runAfterCharacterLinkChanged: async () => {},
       },
       reconcileCharacterOwner: async () => {},
+      refreshCharacterAffiliations: async () => {},
     });
     const issued = await createLocalSession(await auth.$context, userId);
     const cookie = issued.cookies[0]!;
@@ -66,6 +67,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
         runAfterCharacterLinkChanged: async () => {},
       },
       reconcileCharacterOwner: async () => {},
+      refreshCharacterAffiliations: async () => {},
     });
     const ctx = await auth.$context;
     const prior = await createLocalSession(ctx, 'ordinary-user');

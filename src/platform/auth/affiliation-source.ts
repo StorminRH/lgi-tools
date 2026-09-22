@@ -15,7 +15,7 @@ const affiliationResponseSchema = z.array(affiliationEntrySchema);
 
 export interface AffiliationRow {
   characterId: number;
-  corporationId: number;
+  corporationId: number | null;
   allianceId: number | null;
   factionId: number | null;
 }
@@ -36,24 +36,20 @@ function toAffiliationRow(entry: AffiliationEntry): AffiliationRow {
   };
 }
 
-type BatchOutcome =
-  | { kind: 'ok'; rows: AffiliationRow[] }
-  | { kind: 'completedWithOmissions' }
-  | { kind: 'transientFailure' };
-
-function mergeBatchOutcomes(left: BatchOutcome, right: BatchOutcome): BatchOutcome {
-  if (left.kind === 'transientFailure' || right.kind === 'transientFailure') {
-    return { kind: 'transientFailure' };
-  }
-  const rows = [
-    ...(left.kind === 'ok' ? left.rows : []),
-    ...(right.kind === 'ok' ? right.rows : []),
-  ];
-  if (rows.length > 0) return { kind: 'ok', rows };
-  return { kind: 'completedWithOmissions' };
+function absentAffiliation(characterId: number): AffiliationRow {
+  return { characterId, corporationId: null, allianceId: null, factionId: null };
 }
 
-async function fetchAffiliationBatch(batch: number[]): Promise<BatchOutcome> {
+function isTransientFetchFailure(error: unknown): boolean {
+  return (
+    error instanceof EsiBudgetExhaustedError
+    || error instanceof EsiServerError
+    || error instanceof TypeError
+    || (error instanceof DOMException && error.name === 'TimeoutError')
+  );
+}
+
+async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationFetchResult> {
   let res: Response;
   try {
     res = await esiFetch(esiUrl('/characters/affiliation/'), {
@@ -61,23 +57,52 @@ async function fetchAffiliationBatch(batch: number[]): Promise<BatchOutcome> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch),
     });
-  } catch (err) {
-    if (err instanceof EsiBudgetExhaustedError || err instanceof EsiServerError) {
-      return { kind: 'transientFailure' };
+  } catch (error) {
+    if (isTransientFetchFailure(error)) {
+      return { rows: [], transientFailure: true };
     }
-    throw err;
+    throw error;
   }
   if (res.status === 404) {
-    if (batch.length <= 1) return { kind: 'completedWithOmissions' };
+    if (batch.length === 1) {
+      return { rows: [absentAffiliation(batch[0]!)], transientFailure: false };
+    }
     const mid = Math.ceil(batch.length / 2);
     const left = await fetchAffiliationBatch(batch.slice(0, mid));
     const right = await fetchAffiliationBatch(batch.slice(mid));
-    return mergeBatchOutcomes(left, right);
+    return {
+      rows: [...left.rows, ...right.rows],
+      transientFailure: left.transientFailure || right.transientFailure,
+    };
   }
-  if (!res.ok) return { kind: 'transientFailure' };
-  const parsed = affiliationResponseSchema.safeParse(await res.json());
-  if (!parsed.success) return { kind: 'transientFailure' };
-  return { kind: 'ok', rows: parsed.data.map(toAffiliationRow) };
+  if (!res.ok) {
+    if (res.status >= 400 && res.status < 500 && res.status !== 404) {
+      console.error('[auth/affiliation-source] ESI client error treated as transient', res.status);
+    }
+    return { rows: [], transientFailure: true };
+  }
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return { rows: [], transientFailure: true };
+  }
+  const parsed = affiliationResponseSchema.safeParse(body);
+  if (!parsed.success) {
+    console.error('[auth/affiliation-source] ESI contract drift treated as transient');
+    return { rows: [], transientFailure: true };
+  }
+  if (parsed.data.length === 0 && batch.length > 0) {
+    return { rows: [], transientFailure: true };
+  }
+  const returned = new Map(parsed.data.map((entry) => [entry.character_id, entry]));
+  return {
+    rows: batch.map((id) => {
+      const entry = returned.get(id);
+      return entry ? toAffiliationRow(entry) : absentAffiliation(id);
+    }),
+    transientFailure: false,
+  };
 }
 
 export async function fetchAffiliations(
@@ -93,11 +118,8 @@ export async function fetchAffiliations(
   let transientFailure = false;
   for (const batch of chunk(unique, AFFILIATION_BATCH_MAX)) {
     const outcome = await fetchAffiliationBatch(batch);
-    if (outcome.kind === 'ok') {
-      out.push(...outcome.rows);
-    } else if (outcome.kind === 'transientFailure') {
-      transientFailure = true;
-    }
+    out.push(...outcome.rows);
+    transientFailure ||= outcome.transientFailure;
   }
   return { rows: out, transientFailure };
 }

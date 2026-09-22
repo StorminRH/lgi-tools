@@ -598,6 +598,27 @@ export const DATA_OWNERSHIP = [
     dataClass: 'personal',
   },
   {
+    table: schema.pendingMapAccessChanges,
+    owner: 'data/maps',
+    reads: [],
+    writers: [
+      {
+        by: 'platform/auth',
+        reason: 'Affiliation updates atomically queue affected maps; successful projection acknowledges only the captured generation.',
+      },
+      {
+        by: 'data/maps',
+        reason: 'Authorized grant edits enqueue the same pending generation in the same statement as the mutation.',
+      },
+    ],
+    invariants: ['fk(map_id→maps.id)', 'pk(map_id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One pending generation per map coalesces membership changes. Conditional acknowledgement preserves newer work; retries rotate to avoid starvation. Map deletion cascades pending work.',
+    },
+    dataClass: 'personal',
+  },
+  {
     table: schema.characterSkills,
     owner: 'features/skill-queue',
     reads: [],
