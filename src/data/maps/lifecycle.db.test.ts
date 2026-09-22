@@ -304,7 +304,7 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     }
   });
 
-  it('keeps a newer restore generation after an older archive acknowledgement', async () => {
+  it('replaces the pending generation when restore follows archive', async () => {
     await seedManagedMap();
     const archived = await archiveAuthorizedMap(
       ADMIN,
@@ -321,16 +321,11 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
       restoreAt,
       harness.db,
     );
-    if (archived === null || restored === null) {
-      throw new Error('archive and restore must capture a pending generation');
-    }
-    expect(restored.version).not.toBe(archived.version);
-
-    await harness.db
-      .delete(pendingMapAccessChanges)
-      .where(eq(pendingMapAccessChanges.version, archived.version));
+    expect(archived).toEqual({ mapId: MAP_ID, version: expect.any(String) });
+    expect(restored).toEqual({ mapId: MAP_ID, version: expect.any(String) });
+    expect(restored?.version).not.toBe(archived?.version);
     expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([
-      expect.objectContaining(restored),
+      expect.objectContaining({ mapId: MAP_ID, version: restored?.version }),
     ]);
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
     expect(stored).toMatchObject(activeMapLifecycle(restoreAt));
