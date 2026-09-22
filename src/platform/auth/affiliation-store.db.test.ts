@@ -177,7 +177,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
       .toEqual([mapId(98000011), mapId(98000031)]);
   });
 
-  it('does not write or rotate queued work for a fresh unchanged affiliation', async () => {
+  it('queues stale restorations and corp changes, not fresh or near-boundary unchanged rows', async () => {
     await seedCorpMap(98000011);
     await seedCorpMap(98000021);
     await seedCharacter(FIRST_CHAR, { corporationId: 98000011, affiliationRefreshedAt: new Date() });
@@ -187,25 +187,22 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     const pending = await readPendingMapAccessChanges();
     expect((await updateAffiliations([affiliation(98000021)], new Date())).accessChanged).toBe(false);
     await expect(readPendingMapAccessChanges()).resolves.toEqual(pending);
-  });
+    await acknowledgeMapAccessChanges(pending);
 
-  it('queues restored authorization when an unchanged affiliation was stale', async () => {
-    await seedCorpMap(98000011);
-    await seedCharacter(FIRST_CHAR, {
+    await seedCharacter(SECOND_CHAR, {
       corporationId: 98000011,
       affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS - 1000),
     });
-    expect((await updateAffiliations([affiliation(98000011)], new Date())).accessChanged).toBe(true);
+    expect((await updateAffiliations([affiliation(98000011, SECOND_CHAR)], new Date())).accessChanged).toBe(true);
     expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(98000011)]);
-  });
+    await acknowledgeMapAccessChanges(await readPendingMapAccessChanges());
 
-  it('treats a near-boundary fresh affiliation as unchanged with no queue writes', async () => {
-    await seedCorpMap(98000011);
-    await seedCharacter(FIRST_CHAR, {
+    const nearBoundaryChar = 90000013;
+    await seedCharacter(nearBoundaryChar, {
       corporationId: 98000011,
       affiliationRefreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS + 60_000),
     });
-    expect((await updateAffiliations([affiliation(98000011)], new Date())).accessChanged).toBe(false);
+    expect((await updateAffiliations([affiliation(98000011, nearBoundaryChar)], new Date())).accessChanged).toBe(false);
     await expect(readPendingMapAccessChanges()).resolves.toEqual([]);
   });
 
@@ -378,14 +375,12 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     15_000,
   );
 
-  it('captures distinct UTC observation clocks from the database', async () => {
+  it('captures distinct UTC clocks and rejects later writes that reuse the same observation timestamp', async () => {
     const first = await captureAffiliationObservedAt();
     const second = await captureAffiliationObservedAt();
     expect(first).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$/);
     expect(second > first).toBe(true);
-  });
 
-  it('rejects a later write that reuses the same observation timestamp', async () => {
     await seedCorpMap(98000011);
     await seedCorpMap(98000021);
     await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });

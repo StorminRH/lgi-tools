@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 
 const h = vi.hoisted(() => ({
@@ -46,72 +46,60 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('POST /api/internal/eve-characters', () => {
-  it('returns a 500 problem when the service secret is not configured', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
-
-    expect(res.status).toBe(500);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'not_configured',
-      detail: 'service authentication is not configured',
-    });
-    expect(h.listLinkedCharactersMock).not.toHaveBeenCalled();
+test('refuses missing secret, missing bearer, and invalid body, then returns the linked-character projection without token material', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.stubEnv('CONVEX_SERVICE_SECRET', '');
+  const misconfigured = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+  expect(misconfigured.status).toBe(500);
+  expect(problemBodySchema.parse(await misconfigured.json())).toMatchObject({
+    code: 'not_configured',
+    detail: 'service authentication is not configured',
   });
+  expect(h.listLinkedCharactersMock).not.toHaveBeenCalled();
 
-  it('returns a 401 problem for a missing bearer token', async () => {
-    const res = await POST(makeRequest(VALID_BODY));
-
-    expect(res.status).toBe(401);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'unauthenticated',
-    });
-    expect(h.listLinkedCharactersMock).not.toHaveBeenCalled();
+  vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+  const unauthenticated = await POST(makeRequest(VALID_BODY));
+  expect(unauthenticated.status).toBe(401);
+  expect(problemBodySchema.parse(await unauthenticated.json())).toMatchObject({
+    code: 'unauthenticated',
   });
+  expect(h.listLinkedCharactersMock).not.toHaveBeenCalled();
 
-  it('returns a 400 problem for an invalid body', async () => {
-    const res = await POST(makeRequest({}, `Bearer ${SECRET}`));
-
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_body',
-    });
-    expect(h.listLinkedCharactersMock).not.toHaveBeenCalled();
+  const invalid = await POST(makeRequest({}, `Bearer ${SECRET}`));
+  expect(invalid.status).toBe(400);
+  expect(problemBodySchema.parse(await invalid.json())).toMatchObject({
+    code: 'invalid_body',
   });
+  expect(h.listLinkedCharactersMock).not.toHaveBeenCalled();
 
-  it('returns the linked-character sync projection without token material', async () => {
-    h.listLinkedCharactersMock.mockResolvedValue([
+  h.listLinkedCharactersMock.mockResolvedValue([
+    {
+      characterId: 90000001,
+      name: 'Alice',
+      portraitUrl: 'https://images.evetech.net/characters/90000001/portrait',
+      scope: null,
+      hasRefreshToken: false,
+      linkedAt: new Date(),
+      corporationId: 98000001,
+      affiliationRefreshedAt: new Date(),
+    },
+  ]);
+
+  const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body).toMatchObject({
+    characters: [
       {
         characterId: 90000001,
         name: 'Alice',
-        portraitUrl: 'https://images.evetech.net/characters/90000001/portrait',
-        scope: null,
         hasRefreshToken: false,
-        linkedAt: new Date(),
         corporationId: 98000001,
-        affiliationRefreshedAt: new Date(),
       },
-    ]);
-
-    const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
-
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toMatchObject({
-      characters: [
-        {
-          characterId: 90000001,
-          name: 'Alice',
-          hasRefreshToken: false,
-          corporationId: 98000001,
-        },
-      ],
-    });
-    expect(body.characters[0]).not.toHaveProperty('scope');
-    expect(body.characters[0]).not.toHaveProperty('refreshToken');
-    expect(h.listLinkedCharactersMock).toHaveBeenCalledWith('user-1');
-    expect(h.afterMock).not.toHaveBeenCalled();
+    ],
   });
+  expect(body.characters[0]).not.toHaveProperty('scope');
+  expect(body.characters[0]).not.toHaveProperty('refreshToken');
+  expect(h.listLinkedCharactersMock).toHaveBeenCalledWith('user-1');
+  expect(h.afterMock).not.toHaveBeenCalled();
 });

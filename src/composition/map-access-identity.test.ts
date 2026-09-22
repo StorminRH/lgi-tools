@@ -98,17 +98,18 @@ describe('map-access-identity', () => {
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('user-gone', null);
   });
 
-  it('tears down location tracking for the user losing a character', async () => {
+  it('enqueues affected maps on unlink, bounds immediate delivery, and always cleans location tracking', async () => {
     await identityProjectionRunners.runAfterCharacterLinkChanged({
       userId: 'from-user',
       characterId: 42,
     });
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
-  });
+    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith([]);
+    expect(mocks.projectMapAccess).not.toHaveBeenCalled();
 
-  it('enqueues every affected map on unlink while bounding immediate delivery and cleaning location', async () => {
     const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
     mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);
+    mocks.teardownLocationTracking.mockClear();
     await identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });
     expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(ids);
     expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
