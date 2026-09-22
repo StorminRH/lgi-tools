@@ -31,9 +31,9 @@ Copy this checklist and keep it current.
 
 ## Mode facts
 
-Promote uses head `development` and base `staging`. The title is `Promote development to staging`. After the round 1 comment, request CodeRabbit, Bugbot, and Greptile. Round 2 reads those bot results.
+Promote uses head `development` and base `staging`. After the round 1 comment, request CodeRabbit, Bugbot, and Greptile. Round 2 reads those bot results.
 
-Release uses head `staging` and base `main`. The title is `Release staging to main`. Do not request CodeRabbit, Bugbot, or Greptile.
+Release uses head `staging` and base `main`. Do not request CodeRabbit, Bugbot, or Greptile.
 
 Do not rebase the head onto the base. Do not force-push. Commit and push only on the mode head.
 
@@ -47,11 +47,13 @@ Before any commit or push, confirm that `git rev-parse --abbrev-ref HEAD` equals
 
 If `git log origin/<base>..origin/<head>` is empty, stop. There is nothing to open.
 
-If a pull request from that head into that base is already open, use it. Do not open a second one.
+If a pull request from that head into that base is already open, use it. Do not open a second one. If its title or body only names the branch move, rewrite both from the commits on the pull request.
 
 If that pull request has merge conflicts, stop and report them.
 
-Otherwise create it with `gh pr create`. Read poteto-mode `playbooks/opening-a-pr.md` and use its pull request body sections. Before you write Scope, read `git log origin/<base>..HEAD` and `git diff --stat origin/<base>...HEAD`. Name the themes. Do not list every file.
+Otherwise create it with `gh pr create`. Read poteto-mode `playbooks/opening-a-pr.md` and use its pull request body sections. Before you write the title or the body, read `git log origin/<base>..HEAD` and `git diff --stat origin/<base>...HEAD`.
+
+The title names what the pull request contains. The body details those contents. Do not use a title or a body that only says the pull request moves `development` to `staging`, or `staging` to `main`.
 
 ## Fix the findings
 
