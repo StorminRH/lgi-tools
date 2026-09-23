@@ -3,7 +3,12 @@ import { WORMHOLE_IMPULSE_SETTLE_S } from './motion';
 // Original procedural Atlas visual; no CCP image assets are embedded.
 export const WORMHOLE_VERTEX = `attribute vec2 p;varying vec2 uv;void main(){uv=p;gl_Position=vec4(p,0.,1.);}`;
 
-export const WORMHOLE_FRAGMENT = `precision highp float;
+export const WORMHOLE_FRAGMENT = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+
 varying vec2 uv;
 uniform float clock;uniform float rippleAge;uniform float seed;
 uniform vec3 coreColor;uniform vec3 accentColor;uniform vec3 haloColor;uniform vec3 darkColor;uniform vec3 highlightColor;

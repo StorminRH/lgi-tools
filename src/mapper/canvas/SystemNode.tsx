@@ -53,6 +53,12 @@ export const SYSTEM_DISC_SIZE = 55;
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
 
+const viewportMoveListeners = new Set<() => void>();
+
+export function notifyChainViewportMove(): void {
+  for (const listener of viewportMoveListeners) listener();
+}
+
 export function nodeMotionClass(motion: NodeMotion | undefined): string | null {
   if (motion === undefined) return null;
   if (motion.phase === 'entering') return 'map-node-enter';
@@ -232,15 +238,14 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const active = hovered || selected === true;
   useEffect(() => {
     if (!hovered) return;
-    const node = rootRef.current;
-    const viewport = node?.closest('.react-flow__viewport');
-    if (node == null || viewport == null) return;
     const release = () => {
-      if (!node.matches(':hover')) setHovered(false);
+      const node = rootRef.current;
+      if (node !== null && !node.matches(':hover')) setHovered(false);
     };
-    const observer = new MutationObserver(release);
-    observer.observe(viewport, { attributes: true, attributeFilter: ['style'] });
-    return () => observer.disconnect();
+    viewportMoveListeners.add(release);
+    return () => {
+      viewportMoveListeners.delete(release);
+    };
   }, [hovered]);
   return (
     <div
