@@ -1,0 +1,43 @@
+/* Tranquility status chip (NAV-TQ). A passive indicator: a coloured LED keyed
+ * to server state + a compact "TQ · <count>" label. Online pulses green; the
+ * VIP-only window after downtime shows a static amber dot; an unreachable
+ * ESI/TQ shows a static muted dot. No hover state — it isn't clickable. */
+.status-led {
+  /* inline-block so width/height apply in any context. The nav chip blockifies
+   * it through its flex parent. */
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-led.online {
+  background: var(--color-isk);
+  box-shadow: 0 0 8px var(--color-card-glow-shadow);
+  /* No element-level easing on purpose: the ramps' steps() timing lives
+   * per-keyframe below, and the hold segments have equal endpoints (inert
+   * under any curve). */
+  animation: status-led-pulse 2.4s infinite;
+}
+.status-led.vip {
+  background: var(--color-tone-orange);
+}
+.status-led.offline {
+  background: var(--color-muted);
+}
+/* Duty-cycled pulse (the T3 Code fix, adopted alongside the .page-grain
+ * overlay): long flat opacity holds with short steps() ramps, so an
+ * always-on LED lands a handful of discrete opacity changes per cycle
+ * instead of a new value every vsync — a continuous ease pulse under the
+ * fixed grain layer forced the compositor to re-blend the viewport at
+ * refresh rate, all day, on every page. Each per-keyframe timing function
+ * governs the segment that keyframe starts: 0→40% hold bright, 40→50% step
+ * down, 50→90% hold dim, 90→100% step back up (~20% of the cycle moving). */
+@keyframes status-led-pulse {
+  0%, 40%  { opacity: 1;   animation-timing-function: steps(6); }
+  50%, 90% { opacity: 0.4; animation-timing-function: steps(6); }
+  100%     { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-led { animation: none; }
+}

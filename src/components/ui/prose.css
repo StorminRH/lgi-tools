@@ -1,0 +1,27 @@
+/* ── Static pages — /legal, /contact, /changelog (handoff §6) ────────────
+ * The three footer pages share the .OGP page-head scaffold (PageHead) plus
+ * these blocks. Descriptive prose uses the interface role; labels, values, and
+ * version tags stay mono. No new tokens. */
+
+.prose-copy {
+  max-width: 760px;
+  margin-inline: auto;
+}
+.prose-copy p {
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: 1.72;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  margin: 0 0 12px;
+  text-wrap: pretty;
+}
+.prose-copy p:last-child { margin-bottom: 0; }
+.prose-copy strong { color: var(--color-name); font-weight: 600; }
+.prose-copy a {
+  color: var(--color-isk);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-isk-dim);
+  transition: border-color var(--transition-duration-fast);
+}
+.prose-copy a:hover { border-bottom-color: var(--color-isk); }

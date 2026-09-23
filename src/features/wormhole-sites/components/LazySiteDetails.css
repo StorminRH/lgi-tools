@@ -1,0 +1,8 @@
+/* Card expand-in-place: nudge the detail up ~10% for readability. `width: 100%`
+ * already resolves in the zoomed coordinate, so it fills the card exactly (no
+ * empty gutter, no overflow); `zoom` reflows crisply, unlike transform. The
+ * lightbox uses its own larger scale, and the denser table view opts out. */
+.sites-detail-zoom {
+  zoom: 1.1;
+  width: 100%;
+}

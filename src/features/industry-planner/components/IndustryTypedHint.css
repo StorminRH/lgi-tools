@@ -1,0 +1,17 @@
+/* ── /industry landing (handoff §5) ─────────────────────────────────────
+ * The typed terminal hint, recents/favorites monograms, and the live
+ * Active-jobs table with EVE-industry-blue progress bars. The evb-* family is
+ * reserved for this queue/progress chrome — ISK-green stays the brand accent.
+ * Literal hex / rgba are permitted in the stylesheet (the lint ban is
+ * hex-in-TS/TSX only). */
+
+/* step-end keeps the blink frame-discrete — steps(1): two opacity changes
+ * per 1.1s cycle, the same duty-cycle idiom as status-led-pulse (and the
+ * steps() caret T3 left untouched). Do not swap in a continuous ease. */
+.industry-cur {
+  animation: industry-cur 1.1s step-end infinite;
+}
+@keyframes industry-cur { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .industry-cur { animation: none; }
+}

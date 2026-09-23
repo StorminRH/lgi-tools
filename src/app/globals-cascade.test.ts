@@ -1,7 +1,19 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const CASCADE_FILES = ['src/app/globals.css'] as const;
+const ENTRY = 'src/app/globals.css';
+
+function inlineImports(file: string, seen = new Set<string>()): string {
+  const absolute = path.resolve(file);
+  if (seen.has(absolute)) throw new Error(`CSS import cycle at ${file}`);
+  seen.add(absolute);
+  const source = readFileSync(file, 'utf8');
+  return source.replace(/@import\s+"(\.[^"]+\.css)";/g, (_match, relative: string) => {
+    const next = path.join(path.dirname(file), relative);
+    return inlineImports(next, seen);
+  });
+}
 
 function stripCssComments(source: string): string {
   let out = '';
@@ -36,9 +48,8 @@ function stripCssComments(source: string): string {
   return out;
 }
 
-function cascadeText(files: readonly string[] = CASCADE_FILES): string {
-  const joined = files.map((file) => readFileSync(file, 'utf8')).join('\n');
-  return stripCssComments(joined)
+function cascadeText(): string {
+  return stripCssComments(inlineImports(ENTRY))
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0)

@@ -1,0 +1,43 @@
+/* ── Global in-nav search + dropdown (v2.9.4) ──────────────────────────
+ * Lives in AppHeader between the wordmark and NavTools. At rest the input
+ * is 280px wide with a placeholder + ⌘K hint; on focus it grows to 440px
+ * and the tool strip collapses to its 2-letter abbreviations. The dropdown
+ * absolute-positions under the input. */
+.nav-host {
+  display: flex;
+  align-items: stretch;
+  /* Inset the search unit from the bar's edges so it reads as a contained
+   * input box rather than a full-bleed cell. The margin lives here (not on
+   * .nav-search) so the absolutely-positioned dropdown, which anchors to
+   * .nav-host, stays attached to the inset box. */
+  margin: 8px 0 8px 12px;
+}
+
+/* Layout hook only — the search box now wears the shared field WELL (skin, radius,
+ * padding, focus) via the Combobox primitive, and its `>` prompt + ⌘K/esc hint +
+ * dropdown are Tailwind on that primitive. This class carries just the flex
+ * container the mobile reflow below still targets. */
+.nav-search {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* The search host keeps its unlayered mobile overrides because those declarations
+ * must outrank the Tailwind layer's fixed desktop width. Header slots and menu
+ * visibility use component utilities now that no legacy selectors contest them. */
+@media (width < --theme(--breakpoint-lg)) {
+  .app-header .nav-host {
+    order: 99;
+    flex-basis: 100%;
+    border-top: 1px solid var(--color-border);
+    margin: 0;
+  }
+  .app-header .nav-search {
+    width: 100% !important;
+    border: none;
+    border-radius: 0;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}

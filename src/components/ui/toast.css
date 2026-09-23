@@ -1,0 +1,8 @@
+/* ── Sonner toast — terminal theming (components/ui/toast.tsx) ───────────
+ * The card + colours are className-driven (unstyled toaster); this only tints the
+ * loading spinner, which sonner paints from --gray11 in its OWN un-layered rule.
+ * A className utility can't beat that (un-layered outranks @layer), so the green
+ * tint lives here: scoped + higher specificity than `.sonner-loading-bar`. */
+[data-sonner-toaster] .sonner-loading-bar {
+  background: var(--color-isk);
+}

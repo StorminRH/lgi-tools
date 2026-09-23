@@ -1,0 +1,6 @@
+/* border-top only. border-t would also paint border-color on the other sides. */
+.sites-table-expanded {
+  border-top: 1px solid var(--color-border-soft);
+  background: var(--color-bg);
+  padding: 0;
+}

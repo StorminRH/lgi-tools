@@ -85,9 +85,22 @@ describe('UI adoption exception census', () => {
   });
 });
 
+function allStylesheets(): string {
+  const files: string[] = [];
+  const walk = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const file = `${directory}/${entry.name}`;
+      if (entry.isDirectory()) walk(file);
+      else if (entry.name.endsWith('.css')) files.push(file);
+    }
+  };
+  walk('src');
+  return files.sort().map((file) => readFileSync(file, 'utf8')).join('\n');
+}
+
 describe('UI adoption CSS-family census', () => {
   it('contains no retired Phase 4 family', () => {
-    const css = readFileSync('src/app/globals.css', 'utf8');
+    const css = allStylesheets();
     const retired = [
       'body-copy',
       'changelog-',
@@ -120,7 +133,7 @@ describe('UI adoption CSS-family census', () => {
   });
 
   it('allows only the recorded surviving page-family prefixes', () => {
-    const css = readFileSync('src/app/globals.css', 'utf8');
+    const css = allStylesheets();
     const allowed = [
       ...uiAdoptionRegistry.temporaryCssFamilies,
       ...uiAdoptionRegistry.retainedCssFamilies,

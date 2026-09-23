@@ -1,0 +1,54 @@
+/* ── Live price confirmation (LivePrice) ─────────────────────────────
+ * Pending prices visibly pulse between dim and bright. Confirmation is one
+ * brightness flash that decays to rest; LivePrice clears `.price-flash` on
+ * animationend so the class cannot linger. Both durations are tokens, classes
+ * are CSP-clean, and reduced motion preserves a clear static pending state. */
+.price-live {
+  display: inline-block;
+}
+.price-pending {
+  animation: price-pending var(--transition-duration-price-pending) ease-in-out infinite;
+}
+.price-flash {
+  animation: price-flash var(--transition-duration-price-confirm) ease-out;
+}
+@keyframes price-pending {
+  0%,
+  100% {
+    filter: brightness(0.72);
+    opacity: 0.58;
+    text-shadow: 0 0 0 transparent;
+    transform: translateY(0);
+  }
+  50% {
+    filter: brightness(1.7);
+    opacity: 1;
+    text-shadow: 0 0 10px var(--color-tool-ring);
+    transform: translateY(-1px);
+  }
+}
+@keyframes price-flash {
+  0% {
+    filter: brightness(2.2);
+    text-shadow: 0 0 12px var(--color-tool-ring), 0 0 4px var(--color-isk);
+    transform: scale(1.05);
+  }
+  100% {
+    filter: brightness(1);
+    text-shadow: 0 0 0 transparent;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .price-pending {
+    animation: none;
+    filter: brightness(1.25);
+    opacity: 0.72;
+    text-decoration: underline;
+    text-decoration-color: var(--color-isk);
+    text-underline-offset: 0.18em;
+  }
+  .price-flash {
+    animation: none;
+  }
+}

@@ -1,0 +1,26 @@
+/* ── progress bar fill (dynamic width via custom property) ───────────────
+ * The fill width is a runtime value (a telemetry percentage), so it can't be
+ * a build-time Tailwind class. <ProgressBar> sets `--pct` via
+ * style.setProperty in an effect, which this rule reads — the house-style
+ * alternative to an inline `style="width:N%"` attribute. Falls back to 0%
+ * pre-hydration. */
+.progress-fill {
+  width: var(--pct, 0%);
+  transition: width 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+}
+
+/* EVE-industry-blue progress fill retained for the shared ProgressBar CSSOM seam. */
+.industry-bar-fill {
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  background: linear-gradient(90deg, #2b7fc4, var(--color-evb-bright));
+  box-shadow: 0 0 8px var(--color-evb-glow);
+  transition: width 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-bar-fill { transition: none; }
+}
