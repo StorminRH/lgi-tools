@@ -222,7 +222,13 @@
     grid-column: 1 / -1;
     grid-template-columns: subgrid;
     column-gap: 16px;
-    align-items: baseline;
+    align-items: center;
+  }
+  .card.rows .icon,
+  .hub .icon,
+  .mark .icon {
+    align-self: center;
+    transform: translateY(var(--nudge, 0px));
   }
   .card.rows .num,
   .card.rows .val,
@@ -339,12 +345,12 @@
     };
 
     const OFFICIAL = {
-      gas: ['icons/gas.png', false],
-      relic: ['icons/relic.png', false],
-      combat: ['icons/combat.png', false],
-      pilot: ['icons/pilot.png', true],
-      market: ['icons/market.png', false],
-      hole: ['icons/wormhole-bracket.png', true],
+      gas: ['icons/gas.png', false, 1],
+      relic: ['icons/relic.png', false, 1],
+      combat: ['icons/combat.png', false, 0],
+      pilot: ['icons/pilot.png', true, 0],
+      market: ['icons/market.png', false, -1],
+      hole: ['icons/wormhole-bracket.png', true, 0],
     };
 
     const SIBLINGS = [
@@ -433,8 +439,8 @@
           { role: 'combat', word: 'Combat', count: '3', value: '1.4B', empty: false, detail: ['Core Garrison', 'Core Stronghold', 'Oruze Osprey'] },
         ],
         pilots: [
-          ['Stormin', 'In space', true],
-          ['Ava', 'Docked', false],
+          { name: 'Stormin', ship: 'Helios' },
+          { name: 'Ava', ship: 'Heron' },
         ],
       },
       {
@@ -460,7 +466,7 @@
           { role: 'combat', word: 'Combat', count: '1', value: '210M', empty: false, detail: ['Angel Vigil'] },
         ],
         pilots: [
-          ['Stormin', 'In space', true],
+          { name: 'Stormin', ship: 'Helios' },
         ],
       },
       {
@@ -499,8 +505,9 @@
 
     function glyph(role) {
       if (state.icon === 'official') {
-        const [src, pixel] = OFFICIAL[role];
-        return `<span class="icon" style="--tone:${TONE[role]}"><img src="${src}" alt="" draggable="false" class="${pixel ? 'px' : ''}"></span>`;
+        const [src, pixel, nudge] = OFFICIAL[role];
+        const shift = nudge ? `--nudge:${nudge}px;` : '';
+        return `<span class="icon" style="--tone:${TONE[role]};${shift}"><img src="${src}" alt="" draggable="false" class="${pixel ? 'px' : ''}"></span>`;
       }
       const set = state.icon === 'hairline' ? HAIRLINE : SILHOUETTE;
       return `<span class="icon" style="--tone:${TONE[role]}">${set[role]}</span>`;
@@ -573,17 +580,16 @@
     function pilotBlock(system) {
       if (system.pilots.length === 0) return '';
       const id = `${system.id}-pilots`;
-      const lines = system.pilots.map(([name, status]) => `${name} · ${status}`);
-      if (state.layout === 'rows') {
-        const rows = system.pilots.map(([name, status, live], index) => {
-          const icon = index === 0 ? glyph('pilot') : '<span class="icon"></span>';
-          const kind = live ? 'live' : 'docked';
-          return `<div class="pilot">${icon}<span class="word">${name}</span><span class="num"></span><span class="status ${kind}">${status}</span></div>`;
-        }).join('');
-        return rows;
-      }
       const open = state.open.has(id);
       const count = String(system.pilots.length);
+      const lines = system.pilots.map((pilot) => `${pilot.name} · ${pilot.ship}`);
+      if (state.layout === 'rows') {
+        const head = `<button type="button" class="line" data-open="${id}" aria-expanded="${open}">${glyph('pilot')}<span class="word">Friendlies</span><span class="num">${count}</span><span class="val"></span></button>`;
+        const names = open
+          ? system.pilots.map((pilot) => `<div class="line"><span class="icon"></span><span class="word muted">${pilot.name}</span><span class="num"></span><span class="val muted">${pilot.ship}</span></div>`).join('')
+          : '';
+        return head + names;
+      }
       if (state.layout === 'strip') {
         return `<button type="button" class="cluster" data-open="${id}" aria-expanded="${open}">${glyph('pilot')}<span class="num">${count}</span></button>${detailBlock(id, lines)}`;
       }
