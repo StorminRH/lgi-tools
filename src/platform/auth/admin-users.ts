@@ -133,6 +133,7 @@ export async function deleteLinkedCharacter(
   characterId: number,
   runners: IdentityProjectionRunners,
 ): Promise<boolean> {
+  await runners.runBeforeCharacterUnlink({ userId, characterId });
   const deleted = await db
     .delete(account)
     .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
@@ -169,6 +170,7 @@ export async function reassignCharacter({
   toUserId: string;
   runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
+  await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
   await db
     .update(account)
     .set({ userId: toUserId, updatedAt: new Date() })

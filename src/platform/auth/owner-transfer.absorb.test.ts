@@ -46,6 +46,7 @@ import { syntheticEmail } from './synthetic-email';
 
 const runners: IdentityProjectionRunners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 };
 

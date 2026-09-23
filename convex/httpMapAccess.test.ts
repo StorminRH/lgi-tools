@@ -174,6 +174,34 @@ describe('POST /purge-map-access', () => {
   });
 });
 
+describe('POST /purge-user-map-claims', () => {
+  it('revokes only the named user on named maps and validates authorization', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (const [mapId, userId] of [
+        ['affected', 'departing'], ['affected', 'neighbor'], ['unaffected', 'departing'],
+      ] as Array<[string, string]>) {
+        await ctx.db.insert('mapAccess', { mapId, userId, roles: ['viewer'] });
+      }
+    });
+    const body = JSON.stringify({ userId: 'departing', mapIds: ['affected'] });
+    expect((await t.fetch('/purge-user-map-claims', { method: 'POST', body })).status).toBe(401);
+    const res = await t.fetch('/purge-user-map-claims', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body,
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: 1 });
+    expect(await t.run((ctx) => ctx.db.query('mapAccess').collect()))
+      .toMatchObject([
+        { mapId: 'affected', userId: 'neighbor' },
+        { mapId: 'unaffected', userId: 'departing' },
+      ]);
+  });
+});
+
 describe('POST /purge-map-chain', () => {
   it('rejects bad auth and malformed bodies before mutation work', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);

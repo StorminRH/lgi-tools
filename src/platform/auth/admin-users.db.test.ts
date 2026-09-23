@@ -9,6 +9,7 @@ import { getStoredActiveCharacterId } from './linked-characters';
 
 const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -159,6 +160,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     });
     await expect(setUserRole('missing-user', 'ADMIN')).resolves.toBeNull();
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(true);
+    expect(runners.runBeforeCharacterUnlink).toHaveBeenCalledWith({
+      userId: SOURCE_ID, characterId: MOVED_CHAR,
+    });
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
@@ -187,6 +191,9 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         runners,
       }),
     ).resolves.toEqual({ sourceDeleted: true });
+    expect(runners.runBeforeCharacterUnlink).toHaveBeenCalledWith({
+      userId: SOURCE_ID, characterId: MOVED_CHAR,
+    });
     expect(runners.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: SOURCE_ID,

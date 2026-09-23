@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   projectMapAccess: vi.fn(),
   purgeMapChain: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
+  revokeUserMapClaims: vi.fn(),
   teardownLocationTracking: vi.fn(),
   enqueueMapAccessChanges: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('@/composition/map-access-projection', () => ({
     return result;
   },
   purgeUserMapAccessProjection: mocks.purgeUserMapAccessProjection,
+  revokeUserMapClaims: mocks.revokeUserMapClaims,
 }));
 
 vi.mock('@/composition/map-purge', () => ({
@@ -44,6 +46,7 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
 import {
   identityProjectionRunners,
   reprojectMapsForCharacter,
+  revokeCharacterMapClaims,
   teardownProjectionsForDeletedUser,
 } from './map-access-identity';
 
@@ -104,6 +107,13 @@ describe('map-access-identity', () => {
       characterId: 42,
     });
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
+  });
+
+  it('revokes every affected map for only the departing user', async () => {
+    const ids = Array.from({ length: 101 }, (_, index) => `map-${index}`);
+    mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);
+    await revokeCharacterMapClaims('departing-user', 42);
+    expect(mocks.revokeUserMapClaims).toHaveBeenCalledExactlyOnceWith('departing-user', ids);
   });
 
   it('enqueues every affected map on unlink while bounding immediate delivery and cleaning location', async () => {

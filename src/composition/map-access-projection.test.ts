@@ -41,6 +41,7 @@ import {
   ProjectionUnavailableError,
   requireCurrentProjection,
   purgeUserMapAccessProjection,
+  revokeUserMapClaims,
   teardownMapAccessProjection,
 } from './map-access-projection';
 
@@ -64,6 +65,26 @@ beforeEach(() => {
     name === 'CONVEX_SERVICE_SECRET' ? 'svc-secret' : undefined,
   );
   vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'http://127.0.0.1:3210');
+});
+
+describe('revokeUserMapClaims', () => {
+  it('delivers all batches and stops before unlink when a batch fails', async () => {
+    const ids = Array.from({ length: 65 }, (_, index) => `map-${index}`);
+    mocks.fetchWithTimeout.mockResolvedValueOnce(Response.json({ deleted: 32 }))
+      .mockResolvedValueOnce(Response.json({ deleted: 32 }))
+      .mockRejectedValueOnce(new Error('Convex unavailable'));
+
+    await expect(revokeUserMapClaims('departing', ids)).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
+    const calls = mocks.fetchWithTimeout.mock.calls;
+    expect(calls).toHaveLength(3);
+    expect(calls.map(([url]) => url)).toEqual(
+      Array(3).fill('http://127.0.0.1:3211/purge-user-map-claims'),
+    );
+    expect(calls.map(([, init]) => JSON.parse((init as { body: string }).body).mapIds))
+      .toEqual([ids.slice(0, 32), ids.slice(32, 64), ids.slice(64)]);
+  });
 });
 
 describe('computeMapAccessClaims', () => {

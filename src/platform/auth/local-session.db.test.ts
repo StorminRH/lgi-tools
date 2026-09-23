@@ -28,6 +28,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
     const auth = createAuth({
       runners: {
         runBeforeUserDelete: async () => {},
+        runBeforeCharacterUnlink: async () => {},
         runAfterCharacterLinkChanged: async () => {},
       },
       reconcileCharacterOwner: async () => {},
@@ -64,6 +65,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
     const auth = createAuth({
       runners: {
         runBeforeUserDelete: async () => {},
+        runBeforeCharacterUnlink: async () => {},
         runAfterCharacterLinkChanged: async () => {},
       },
       reconcileCharacterOwner: async () => {},

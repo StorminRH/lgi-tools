@@ -224,6 +224,28 @@ export const purgeUserClaims = internalMutation({
   },
 });
 
+// A character unlink can affect more maps than one projection request can deliver.
+// Revoke only this user's affected claims before removing the linked account; other
+// maps and other users retain their access while the full projections catch up.
+export const purgeUserMapClaims = internalMutation({
+  args: { userId: v.string(), mapIds: v.array(v.string()) },
+  returns: v.object({ deleted: v.number() }),
+  handler: async (ctx, { userId, mapIds }) => {
+    let deleted = 0;
+    for (const mapId of new Set(mapIds)) {
+      const rows = await ctx.db
+        .query('mapAccess')
+        .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
+        .take(MAP_ACCESS_PURGE_BATCH);
+      for (const row of rows) {
+        await ctx.db.delete(row._id);
+        deleted += 1;
+      }
+    }
+    return { deleted };
+  },
+});
+
 export const remapLegacyOwnerRoles = internalMutation({
   args: {
     cursor: v.optional(v.union(v.string(), v.null())),

@@ -26,17 +26,27 @@ vi.mock('@/db', () => ({ db: chain }));
 
 const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 };
 
-import { reassignCharacter } from './admin-users';
+import { deleteLinkedCharacter, reassignCharacter } from './admin-users';
 
 beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
   runners.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
+  runners.runBeforeCharacterUnlink.mockReset().mockResolvedValue(undefined);
   runners.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
+});
+
+it('does not delete an admin-unlinked character when revocation fails', async () => {
+  const failure = new Error('revocation unavailable');
+  runners.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
+  await expect(deleteLinkedCharacter('eve-user-2', 100, runners)).rejects.toBe(failure);
+  expect(state.calls.delete).toBe(0);
+  expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
 });
 
 describe('reassignCharacter', () => {
@@ -49,6 +59,9 @@ describe('reassignCharacter', () => {
       runners,
     });
     expect(out).toEqual({ sourceDeleted: true });
+    expect(runners.runBeforeCharacterUnlink).toHaveBeenCalledWith({
+      userId: 'eve-user-2', characterId: 100,
+    });
     expect(state.calls.delete).toBe(1);
     expect(runners.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
     expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
@@ -71,6 +84,16 @@ describe('reassignCharacter', () => {
       }),
     ).rejects.toBe(failure);
     expect(state.calls.delete).toBe(0);
+    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+  });
+
+  it('does not move a character if its former map claims cannot be revoked', async () => {
+    const failure = new Error('revocation unavailable');
+    runners.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(reassignCharacter({
+      characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
+    })).rejects.toBe(failure);
+    expect(state.calls.update).toBe(0);
     expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
   });
 
