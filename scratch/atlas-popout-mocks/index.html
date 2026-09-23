@@ -135,7 +135,7 @@
   .hub {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 8px;
     margin-top: 3px;
     font-family: var(--mono);
     font-size: 10px;
@@ -206,7 +206,30 @@
     min-height: 28px;
     padding: 6px 12px 5px;
   }
+  .card.rows { max-width: none; }
   .card.rows header, .card.facts header { border-bottom: 1px solid var(--border-soft); }
+  .card.rows .body {
+    display: grid;
+    grid-template-columns: 16px max-content 2ch max-content;
+    column-gap: 16px;
+    row-gap: 5px;
+    align-items: center;
+  }
+  .card.rows .line,
+  .card.rows .pilot,
+  .card.rows .detail {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    column-gap: 16px;
+    align-items: baseline;
+  }
+  .card.rows .num,
+  .card.rows .val,
+  .card.rows .status { text-align: left; }
+  .card.rows .num { color: var(--muted); }
+  .card.rows .detail { margin: 0; }
+  .card.rows .detail p { grid-column: 2 / -1; color: var(--muted); }
   .card .nm {
     color: var(--name);
     letter-spacing: 0.08em;
@@ -284,7 +307,7 @@
   <header class="top">
     <div>
       <h1>Atlas pop-out mocks</h1>
-      <p class="deck">Icon language and summary layout for the system card and the marks around a disc. Throwaway page. Not the app.</p>
+      <p class="deck">CCP marks with the expandable rows. Type, count, and value each keep their own column. Throwaway page. Not the app.</p>
     </div>
     <div class="switchers">
       <div class="switch" id="icon-switch"></div>
@@ -421,7 +444,7 @@
         region: 'The Citadel',
         chip: '0.3',
         chipColor: '#ce440f',
-        hub: 'Jita 4',
+        hub: ['Jita', '4'],
         anchor: ['32%', '66%'],
         card: ['50%', '18%'],
         marks: [
@@ -502,6 +525,25 @@
       const id = `${system.id}-place`;
       const expandable = place.detail.length > 0;
       const open = state.open.has(id);
+      if (state.layout === 'rows') {
+        const lines = place.chips.map(([primary, secondary], index) => {
+          const icon = index === 0 ? glyph(place.role) : '<span class="icon"></span>';
+          const tag = expandable && index === 0 ? 'button' : 'div';
+          const attrs = expandable && index === 0
+            ? ` type="button" data-open="${id}" aria-expanded="${open}"`
+            : '';
+          return `<${tag} class="line"${attrs}>${icon}<span class="word">${primary}</span><span class="num"></span><span class="val muted">${secondary}</span></${tag}>`;
+        }).join('');
+        const more = open
+          ? place.detail.map((line) => {
+              const cut = line.lastIndexOf(' ');
+              const primary = line.slice(0, cut);
+              const secondary = line.slice(cut + 1);
+              return `<div class="line"><span class="icon"></span><span class="word muted">${primary}</span><span class="num"></span><span class="val muted">${secondary}</span></div>`;
+            }).join('')
+          : '';
+        return lines + more;
+      }
       const chips = place.chips.map(([primary, secondary]) => {
         if (state.layout === 'facts') {
           return `<span class="chip"><b class="place-lead">${secondary}</b> ${primary}</span>`;
@@ -524,7 +566,7 @@
         if (state.layout === 'facts') {
           return `<button type="button" class="line" data-open="${id}" aria-expanded="${open}"><span class="${valClass}">${site.value}</span>${glyph(site.role)}<span class="num">${site.count}</span></button>${detailBlock(id, site.detail)}`;
         }
-        return `<button type="button" class="line" data-open="${id}" aria-expanded="${open}">${glyph(site.role)}<span class="word">${site.word}</span><span class="num">${site.count}</span><span class="grow"></span><span class="${valClass}">${site.value}</span></button>${detailBlock(id, site.detail)}`;
+        return `<button type="button" class="line" data-open="${id}" aria-expanded="${open}">${glyph(site.role)}<span class="word">${site.word}</span><span class="num">${site.count}</span><span class="${valClass}">${site.value}</span></button>${detailBlock(id, site.detail)}`;
       }).join('');
     }
 
@@ -536,7 +578,7 @@
         const rows = system.pilots.map(([name, status, live], index) => {
           const icon = index === 0 ? glyph('pilot') : '<span class="icon"></span>';
           const kind = live ? 'live' : 'docked';
-          return `<div class="pilot">${icon}<span class="word">${name}</span><span class="grow"></span><span class="status ${kind}">${status}</span></div>`;
+          return `<div class="pilot">${icon}<span class="word">${name}</span><span class="num"></span><span class="status ${kind}">${status}</span></div>`;
         }).join('');
         return rows;
       }
@@ -562,7 +604,9 @@
 
     function title(system) {
       const region = system.region ? `<span class="region">${system.region}</span>` : '';
-      const hub = system.hub ? `<span class="hub">${glyph('market')}<span>${system.hub}</span></span>` : '';
+      const hub = system.hub
+        ? `<span class="hub">${glyph('market')}<span>${system.hub[0]}</span><span>${system.hub[1]}</span></span>`
+        : '';
       return `<div class="title"><span class="sys">${system.name}</span>${region}${hub}</div>`;
     }
 
