@@ -1,5 +1,6 @@
 import {
   purgeUserMapAccessProjection,
+  revokeUserMapClaims,
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
@@ -14,6 +15,12 @@ export async function reprojectMapsForCharacter(characterId: number): Promise<vo
   if (pending.length === 0) return;
   await deliverCapturedMapAccessChanges(pending);
   if (pending.length > MAX_PENDING_BATCH) await reconcileAffiliationAccess();
+}
+
+export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<string[]> {
+  const mapIds = await affectedMapIdsForCharacter(characterId);
+  await revokeUserMapClaims(userId, mapIds);
+  return mapIds;
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {
@@ -40,6 +47,27 @@ async function afterCharacterLinkChanged(args: {
 
 export const identityProjectionRunners: IdentityProjectionRunners = {
   runBeforeUserDelete: teardownProjectionsForDeletedUser,
+  runBeforeCharacterUnlink: async ({ userId, characterId }) => {
+    try {
+      return await revokeCharacterMapClaims(userId, characterId);
+    } catch (error) {
+      // A later batch may fail after earlier batches removed valid claims.
+      await bestEffort('identity-projection', 'restorePartialRevocation', String(characterId), () =>
+        reprojectMapsForCharacter(characterId),
+      );
+      throw error;
+    }
+  },
+  runAfterFailedCharacterUnlink: async (characterId) => {
+    await bestEffort('identity-projection', 'restoreCharacterMapAccess', String(characterId), () =>
+      reprojectMapsForCharacter(characterId),
+    );
+  },
+  runAfterCharacterUnlink: async ({ userId, characterId, mapIds }) => {
+    await bestEffort('identity-projection', 'finalizeCharacterRevocation', `${userId}:${characterId}`, () =>
+      revokeUserMapClaims(userId, mapIds),
+    );
+  },
   runAfterCharacterLinkChanged: async (args) => {
     await bestEffort(
       'identity-projection',

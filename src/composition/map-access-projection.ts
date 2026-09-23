@@ -186,3 +186,21 @@ export async function purgeUserMapAccessProjection(
     label: 'Map access projection unavailable',
   });
 }
+
+export async function revokeUserMapClaims(
+  userId: string,
+  mapIds: readonly string[],
+): Promise<void> {
+  // Keep each mutation below Convex's read/write limits; complete all batches
+  // before unlinking so a failed delivery leaves the character linked.
+  for (let start = 0; start < mapIds.length; start += 32) {
+    const revision = await reserveMapAccessProjectionRevision();
+    await postConvexHttpDoor({
+      path: '/purge-user-map-claims',
+      body: { userId, revision, mapIds: mapIds.slice(start, start + 32) },
+      schema: userPurgeResultSchema,
+      error: ProjectionUnavailableError,
+      label: 'Map access revocation unavailable',
+    });
+  }
+}
