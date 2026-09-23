@@ -281,16 +281,16 @@ lgi_eve_runtime_secret_presence() {
   fi
 }
 
-# Overlay .cursor/vm-home onto ~/.cursor. Cursor does not load vm-home as
-# project rules or skills; Cloud start copies it to the user paths pstack
-# and other user-level tools actually read. Later commits overwrite.
-lgi_install_vm_home() {
+# Copy the repo pstack map onto the path arena, swarm, and interrogate open.
+# The committed project rule is what Cloud injects; this copy keeps that path
+# in agreement. Later commits overwrite the home copy on the next boot.
+lgi_install_pstack_models() {
   local src="${1:-}"
-  local dest="${2:-${HOME}/.cursor}"
-  if [ -z "$src" ] || [ ! -d "$src" ]; then
-    echo "ERROR: missing VM home overlay at ${src:-<empty>}" >&2
+  local dest="${2:-${HOME}/.cursor/rules/pstack-models.mdc}"
+  if [ -z "$src" ] || [ ! -f "$src" ]; then
+    echo "ERROR: missing pstack model rule at ${src:-<empty>}" >&2
     return 1
   fi
-  mkdir -p "$dest"
-  cp -R "$src/." "$dest/"
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
 }

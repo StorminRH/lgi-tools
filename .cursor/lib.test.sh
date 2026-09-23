@@ -133,22 +133,24 @@ eve_line="$(unset EVE_CLIENT_ID EVE_CLIENT_SECRET; lgi_eve_runtime_secret_presen
 [ "$eve_line" = "EVE runtime secrets: absent" ] || fail "eve absence"
 pass "EVE secret presence is names-only"
 
-overlay_src="$(mktemp -d)"
-overlay_dest="$(mktemp -d)"
-mkdir -p "$overlay_src/rules"
-printf 'first\n' > "$overlay_src/rules/pstack-models.mdc"
-lgi_install_vm_home "$overlay_src" "$overlay_dest" || fail "overlay copy"
-[ "$(cat "$overlay_dest/rules/pstack-models.mdc")" = first ] || fail "overlay dest content"
-printf 'second\n' > "$overlay_src/rules/pstack-models.mdc"
-lgi_install_vm_home "$overlay_src" "$overlay_dest" || fail "overlay overwrite"
-[ "$(cat "$overlay_dest/rules/pstack-models.mdc")" = second ] || fail "overlay overwrite content"
-if lgi_install_vm_home "" "$overlay_dest" 2>/dev/null; then
-  fail "empty overlay src must refuse"
+[ -f "$ROOT/.cursor/rules/pstack-models.mdc" ] || fail "repo pstack model rule missing"
+grep -q '^feature, refactoring: ' "$ROOT/.cursor/rules/pstack-models.mdc" || fail "repo pstack model rule has no role line"
+
+rules_src="$(mktemp -d)"
+rules_dest="$(mktemp -d)"
+printf 'first\n' > "$rules_src/pstack-models.mdc"
+lgi_install_pstack_models "$rules_src/pstack-models.mdc" "$rules_dest/rules/pstack-models.mdc" || fail "pstack model copy"
+[ "$(cat "$rules_dest/rules/pstack-models.mdc")" = first ] || fail "pstack model dest content"
+printf 'second\n' > "$rules_src/pstack-models.mdc"
+lgi_install_pstack_models "$rules_src/pstack-models.mdc" "$rules_dest/rules/pstack-models.mdc" || fail "pstack model overwrite"
+[ "$(cat "$rules_dest/rules/pstack-models.mdc")" = second ] || fail "pstack model overwrite content"
+if lgi_install_pstack_models "" "$rules_dest/rules/pstack-models.mdc" 2>/dev/null; then
+  fail "empty pstack model src must refuse"
 fi
-if lgi_install_vm_home "$overlay_src/missing" "$overlay_dest" 2>/dev/null; then
-  fail "missing overlay src must refuse"
+if lgi_install_pstack_models "$rules_src/missing.mdc" "$rules_dest/rules/pstack-models.mdc" 2>/dev/null; then
+  fail "missing pstack model src must refuse"
 fi
-rm -rf "$overlay_src" "$overlay_dest"
-pass "VM home overlay copy"
+rm -rf "$rules_src" "$rules_dest"
+pass "pstack model rule copy"
 
 echo "lib.test.sh: all assertions passed"
