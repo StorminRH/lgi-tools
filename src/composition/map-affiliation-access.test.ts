@@ -115,6 +115,7 @@ it('runs one pending read when access changes twice before the drain starts', as
   scheduleAccessDrain();
   expect(mocks.after).toHaveBeenCalledTimes(2);
   await mocks.after.mock.calls[1]![0]();
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledTimes(2);
 });
 
 it('skips queue I/O for unchanged refreshes and delivers newly queued changes', async () => {
