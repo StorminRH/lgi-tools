@@ -29,7 +29,6 @@
   background: var(--color-scroll-thumb-hover);
 }
 
-/* Left-edge scrollbar: RTL gutter, LTR content. */
 .scroll-area-start {
   direction: rtl;
   scrollbar-gutter: auto;

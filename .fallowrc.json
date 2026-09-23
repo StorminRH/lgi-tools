@@ -106,7 +106,7 @@
       { "name": "lib", "patterns": ["src/lib/**"] },
       {
         "name": "components",
-        "patterns": ["src/components/*.tsx", "src/components/*.ts", "src/components/telemetry/**"]
+        "patterns": ["src/components/*.tsx", "src/components/*.ts", "src/components/*.css", "src/components/telemetry/**"]
       },
       { "name": "api", "patterns": ["src/app/api/**"] },
       { "name": "app", "patterns": ["src/app/**"] },

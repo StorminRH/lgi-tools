@@ -22,5 +22,5 @@
   100%     { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .status-led { animation: none; }
+  .status-led.online { animation: none; }
 }

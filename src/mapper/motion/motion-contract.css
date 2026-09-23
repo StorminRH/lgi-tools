@@ -61,6 +61,11 @@
   font-size: var(--chip-fs);
 }
 
+.react-flow__node.dragging [data-chain-node],
+.react-flow__node.dragging [data-chain-node] .map-node-disc {
+  animation: none;
+}
+
 @keyframes map-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
