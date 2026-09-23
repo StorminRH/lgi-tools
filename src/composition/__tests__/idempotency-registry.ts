@@ -348,6 +348,10 @@ const mapsSearchCharactersRoute = mutationRoute({
   evidence:
     'Character results are read-only, while token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.',
 });
+const eveTypeNamesRoute = readRoute({
+  route: 'src/app/api/eve/type-names/route.ts',
+  evidence: 'Public stateless resolution of posted type ids from SDE reference data; writes nothing.',
+});
 const eveNamesRoute = readRoute({
   route: 'src/app/api/eve/names/route.ts',
   evidence: 'Pure resolution of posted ids through the ESI gate; writes nothing.',
@@ -599,6 +603,7 @@ const syncLeaveRoute = mutationRoute({
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mapsSearchCharactersRoute,
   eveNamesRoute,
+  eveTypeNamesRoute,
   industryBuildLocationRoute,
   industryOwnedAssetsRoute,
   industryOwnedBlueprintsRoute,

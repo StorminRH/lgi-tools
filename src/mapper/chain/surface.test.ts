@@ -45,6 +45,7 @@ describe('mapper source contract', () => {
       'canvas/MapCanvas.tsx',
       'canvas/MapControls.tsx',
       'canvas/PilotPresenceBadge.tsx',
+      'canvas/SystemIntelMarks.tsx',
       'canvas/SystemNode.tsx',
       'canvas/camera-follow-model.ts',
       'canvas/edge-geometry.ts',
@@ -139,6 +140,7 @@ describe('mapper source contract', () => {
       'signatures/signature-toast.ts',
       'signatures/system-readout.ts',
       'signatures/type-setter-follow-up.ts',
+      'signatures/use-glance-mark-index.tsx',
       'signatures/use-identify-signature.ts',
       'signatures/use-scanner-paste.ts',
       'signatures/use-signature-jump-flow.ts',
@@ -161,11 +163,13 @@ describe('mapper source contract', () => {
       'tracking/tracking-controls-view.ts',
       'tracking/use-map-coverage.ts',
       'tracking/use-tracked-system.ts',
+      'windows/IntelIcon.tsx',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
       'windows/MapWindowLeader.tsx',
       'windows/SystemIntelligenceBody.tsx',
       'windows/follower-model.ts',
+      'windows/intel-model.ts',
       'windows/use-system-label.ts',
       'windows/window-model.ts',
     ]);
@@ -237,6 +241,7 @@ describe('mapper source contract', () => {
 
     expect(consumers).toEqual([
       'chain/use-map-chain-pages.ts',
+      'signatures/use-glance-mark-index.tsx',
       'signatures/use-signature-page.ts',
     ]);
     expect(sourceOf('chain/use-map-chain-pages.ts')).not.toContain(
@@ -244,6 +249,9 @@ describe('mapper source contract', () => {
     );
     expect(sourceOf('signatures/use-signature-page.ts')).toContain(
       'api.mapScan.watchSystemSignatures',
+    );
+    expect(sourceOf('signatures/use-glance-mark-index.tsx')).toContain(
+      'api.mapScan.watchMapSignatures',
     );
   });
 
