@@ -34,7 +34,39 @@
 @import "../mapper/signatures/scanner-window-frame.css";
 @import "./(site)/atlas/AtlasCanvasFrame.css";
 @import "./(site)/legal/page.css";
-@import "./layout.css";
+.page-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(180deg, var(--color-backdrop-clear) 0%, var(--color-backdrop-floor) 72%, var(--color-bg-deep) 100%),
+    radial-gradient(ellipse 78% 42% at 50% -4%, var(--color-backdrop-isk), transparent 70%),
+    radial-gradient(ellipse 70% 34% at 50% 0%, var(--color-backdrop-blue), transparent 72%),
+    linear-gradient(var(--color-backdrop-dim), var(--color-backdrop-dim)),
+    url('/backdrops/dark.avif');
+  background-size: auto, auto, auto, auto, cover;
+  background-position: center, center, center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+}
+
+.page-grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-index-grain);
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .page-backdrop,
+  .page-grain {
+    min-height: 100dvh;
+    transform: translateZ(0);
+  }
+}
 
 @theme {
   /* ── Refined dark sci-fi surface palette (2026 redesign) ──
