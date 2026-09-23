@@ -1,8 +1,3 @@
-/* ── PriceConfidence (src/components/ui/price-confidence.tsx) ─────────
- * Abstract data-quality badge: an abstract level → glyph (● ◐ ○) + tone.
- * The glyph is a ::after pseudo-element (the half-circle uses clip-path),
- * neither expressible as an inline style. The "why" panel is handled by
- * the shared Popover primitive at the call site, not a CSS title tooltip. */
 .price-confidence {
   width: 13px;
   height: 13px;

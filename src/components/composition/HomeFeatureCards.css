@@ -1,4 +1,3 @@
-/* `translate`, not `transform`, so the bob does not clobber a transform. */
 .hover-bob:hover {
   animation: hover-bob 6s ease-in-out infinite;
 }

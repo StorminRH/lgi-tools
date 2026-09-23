@@ -1,5 +1,3 @@
-/* TypeIcon sizes itself with width and height attributes. These rules are
- * the shared chrome and the monogram fallback. */
 .type-icon {
   border-radius: 3px;
   background: var(--color-surface-raised);

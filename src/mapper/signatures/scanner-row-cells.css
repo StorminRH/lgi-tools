@@ -1,4 +1,3 @@
-/* Scanner completion paints beneath row copy without a JSX style attribute. */
 [data-signature-row] [data-signature-signal-fill] {
   position: absolute;
   inset: 0 auto 0 0;

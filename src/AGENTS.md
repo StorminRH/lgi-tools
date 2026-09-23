@@ -38,5 +38,4 @@ existing `ui` primitive, or create one, and move the rule to its sibling
 
 Do not add a component, feature, or page class to `globals.css`. Do not hash
 these sheets with CSS modules. `price-flash`, React Flow selectors, and Sonner
-selectors must stay literal. Leave the status-led reduced-motion selector as
-`.status-led`. Leave the print `[aria-hidden][style*='width:']` rule alone.
+selectors must stay literal.

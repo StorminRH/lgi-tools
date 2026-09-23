@@ -1,9 +1,3 @@
-/* The Inset-Instrument fields (Input, Select trigger, Textarea) already show focus
- * as an ISK-sub border on their engraved well, so they opt out of the global ring
- * above — it would otherwise sit 2px outside that border as a second green line.
- * The well border stays their focus indicator, on mouse and keyboard alike. (Higher
- * specificity than the bare `:focus-visible` above, and both are unlayered, so this
- * wins.) */
 .field-own-focus:focus-visible {
   outline: none;
 }

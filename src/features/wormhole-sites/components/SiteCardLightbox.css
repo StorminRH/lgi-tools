@@ -1,26 +1,15 @@
-/* Unlayered so this width beats the dialog primitive's utility width. */
 .sites-lightbox-dialog {
   width: max-content;
   max-width: calc(100vw - 2rem);
 }
-/* The scroll container inside the dialog box. The scale-in/out + dim now live on
- * the shared Dialog primitive (the Base UI popup + backdrop), so this is just the
- * height clamp + scroll. */
 .sites-lightbox-panel {
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
 }
-/* Magnify the card content so the lightbox reads as an enlarged card, not a big
- * box of card-sized text. `zoom` (not `transform: scale`) so it reflows and stays
- * crisp; the card content fills a card-width base and the dialog sizes to the
- * zoomed result. */
 .sites-lightbox-zoom {
   zoom: 1.4;
   width: 480px;
 }
-/* Phone: a full-bleed sheet at native scale — the narrow sheet is already as
- * readable as it gets, and scaling a full-screen sheet reads oddly, so fade only
- * (opacity still transitions; the scale is pinned) and drop the zoom. */
 @media (width < --theme(--breakpoint-sm)) {
   .sites-lightbox-dialog {
     width: 100vw;
@@ -30,9 +19,6 @@
     margin: 0;
     border: none;
     border-radius: 0;
-    /* The scale-in lives on this element now (the Base UI popup). Pin it so the
-     * full-bleed phone sheet fades only — scaling a full-screen sheet reads
-     * oddly. (Un-layered, so it outranks the primitive's data-state utilities.) */
     scale: 1;
   }
   .sites-lightbox-panel {

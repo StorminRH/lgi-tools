@@ -1,8 +1,3 @@
-/* ── Live price confirmation (LivePrice) ─────────────────────────────
- * Pending prices visibly pulse between dim and bright. Confirmation is one
- * brightness flash that decays to rest; LivePrice clears `.price-flash` on
- * animationend so the class cannot linger. Both durations are tokens, classes
- * are CSP-clean, and reduced motion preserves a clear static pending state. */
 .price-live {
   display: inline-block;
 }

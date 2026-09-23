@@ -9,9 +9,6 @@
 @import "tailwindcss" source(none);
 @source "../";
 
-/* Component skins live beside their owner. See src/AGENTS.md "Styling".
- * This file keeps the Tailwind entry, tokens, glass utilities, and document rules.
- * stylesheet-contract.test.ts rejects a component class here. */
 @import "../components/ui/chart/chart-canvas.css";
 @import "../components/ui/collapsible.css";
 @import "../components/ui/input.css";
@@ -526,9 +523,6 @@ a:hover {
     page-break-inside: avoid;
   }
 
-  /* This attribute selector misses progress fills (they set --pct, not a width
-   * style) and it matches hidden inputs and the fog canvas. Leave it. Retargeting
-   * it changes what prints. */
   [aria-hidden][style*='width:'] {
     background: #222 !important;
   }

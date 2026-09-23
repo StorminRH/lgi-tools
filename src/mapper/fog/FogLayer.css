@@ -1,10 +1,4 @@
-/* Fog-of-war canvas (4.0.4.2.3 OW4): the DIRECT child of React Flow's
- * ViewportPortal. The viewport is a stacking context and the portal container
- * is not, so this negative z-index paints the cloud below the edge/node
- * layers (z auto/0) while staying above the pane backdrop — verified against
- * the installed 12.11.2 DOM (docs brief). Geometry (left/top/width/height)
- * is written through CSSOM per paint placement; pointer-events stay none by
- * inheritance from the viewport. */
+/* React Flow's viewport is a stacking context. The portal is not, so z-index -1 paints under the edges and nodes. */
 .map-fog {
   position: absolute;
   left: 0;
