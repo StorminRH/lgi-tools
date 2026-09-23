@@ -99,6 +99,7 @@ describe('POST /api/admin/characters/reassign', () => {
       runners: expect.objectContaining({
         runBeforeUserDelete: expect.any(Function),
         runBeforeCharacterUnlink: expect.any(Function),
+        runAfterFailedCharacterUnlink: expect.any(Function),
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     });
@@ -121,6 +122,7 @@ describe('POST /api/admin/characters/reassign', () => {
       expect.objectContaining({
         runBeforeUserDelete: expect.any(Function),
         runBeforeCharacterUnlink: expect.any(Function),
+        runAfterFailedCharacterUnlink: expect.any(Function),
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     );

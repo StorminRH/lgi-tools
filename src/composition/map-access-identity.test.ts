@@ -116,6 +116,16 @@ describe('map-access-identity', () => {
     expect(mocks.revokeUserMapClaims).toHaveBeenCalledExactlyOnceWith('departing-user', ids);
   });
 
+  it('queues restoration and retains the error if revocation stops after a partial batch', async () => {
+    const failure = new Error('Convex unavailable');
+    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a']);
+    mocks.revokeUserMapClaims.mockRejectedValueOnce(failure);
+    await expect(identityProjectionRunners.runBeforeCharacterUnlink({
+      userId: 'departing-user', characterId: 42,
+    })).rejects.toBe(failure);
+    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(['map-a']);
+  });
+
   it('enqueues every affected map on unlink while bounding immediate delivery and cleaning location', async () => {
     const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
     mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);

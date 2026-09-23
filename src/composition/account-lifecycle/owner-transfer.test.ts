@@ -5,6 +5,7 @@ const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/composition/map-access-identity', () => {

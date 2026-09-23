@@ -12,7 +12,7 @@ const { chain, state } = vi.hoisted(() => {
       else resolve(next);
     },
   };
-  for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy']) {
+  for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy', 'returning']) {
     chain[method] = () => chain;
   }
   chain.update = () => {
@@ -47,6 +47,7 @@ import { syntheticEmail } from './synthetic-email';
 const runners: IdentityProjectionRunners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -73,7 +74,7 @@ describe('absorbLinkedCharacterOnProof', () => {
     oauthState.value = { link: { userId: 'user-b' } };
     state.results = [
       [{ userId: 'stray' }],
-      undefined,
+      [{ id: 'moved' }],
       [{ id: 'acc-other' }],
       [{ activeCharacterId: 999 }],
       [{ accountId: '222' }],
@@ -89,7 +90,7 @@ describe('absorbLinkedCharacterOnProof', () => {
     oauthState.value = { link: { userId: 'user-b' } };
     state.results = [
       [{ userId: 'stray' }],
-      undefined,
+      [{ id: 'moved' }],
       [{ id: 'acc-other' }],
       [{ activeCharacterId: 999 }],
       new Error('transient db failure'),

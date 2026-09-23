@@ -45,8 +45,22 @@ async function afterCharacterLinkChanged(args: {
 
 export const identityProjectionRunners: IdentityProjectionRunners = {
   runBeforeUserDelete: teardownProjectionsForDeletedUser,
-  runBeforeCharacterUnlink: ({ userId, characterId }) =>
-    revokeCharacterMapClaims(userId, characterId),
+  runBeforeCharacterUnlink: async ({ userId, characterId }) => {
+    try {
+      await revokeCharacterMapClaims(userId, characterId);
+    } catch (error) {
+      // A later batch may fail after earlier batches removed valid claims.
+      await bestEffort('identity-projection', 'restorePartialRevocation', String(characterId), () =>
+        reprojectMapsForCharacter(characterId),
+      );
+      throw error;
+    }
+  },
+  runAfterFailedCharacterUnlink: async (characterId) => {
+    await bestEffort('identity-projection', 'restoreCharacterMapAccess', String(characterId), () =>
+      reprojectMapsForCharacter(characterId),
+    );
+  },
   runAfterCharacterLinkChanged: async (args) => {
     await bestEffort(
       'identity-projection',

@@ -134,11 +134,20 @@ export async function deleteLinkedCharacter(
   runners: IdentityProjectionRunners,
 ): Promise<boolean> {
   await runners.runBeforeCharacterUnlink({ userId, characterId });
-  const deleted = await db
-    .delete(account)
-    .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
-    .returning({ id: account.id });
-  if (deleted.length === 0) return false;
+  let deleted: Array<{ id: string }>;
+  try {
+    deleted = await db
+      .delete(account)
+      .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
+      .returning({ id: account.id });
+  } catch (error) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  if (deleted.length === 0) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    return false;
+  }
   await runners.runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
@@ -171,16 +180,26 @@ export async function reassignCharacter({
   runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
   await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
-  await db
-    .update(account)
-    .set({ userId: toUserId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        eq(account.accountId, String(characterId)),
-        eq(account.userId, fromUserId),
-      ),
-    );
+  let moved: Array<{ id: string }>;
+  try {
+    moved = await db
+      .update(account)
+      .set({ userId: toUserId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(account.providerId, EVE_PROVIDER_ID),
+          eq(account.accountId, String(characterId)),
+          eq(account.userId, fromUserId),
+        ),
+      )
+      .returning({ id: account.id });
+  } catch (error) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  if (moved.length === 0) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+  }
 
   const [remaining] = await db
     .select({ id: account.id })

@@ -10,6 +10,7 @@ import { getStoredActiveCharacterId } from './linked-characters';
 const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
   runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 };
 

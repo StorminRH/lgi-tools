@@ -55,9 +55,6 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
       } catch (err) {
         console.error('[account/unlink] map access revocation failed', err);
-        await reprojectMapsForCharacter(characterId).catch((restoreError) =>
-          console.error('[account/unlink] map access restoration queued for retry', restoreError),
-        );
         return redirectWithError(request, 'unlink_failed');
       }
 

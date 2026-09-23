@@ -29,6 +29,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
       runners: {
         runBeforeUserDelete: async () => {},
         runBeforeCharacterUnlink: async () => {},
+        runAfterFailedCharacterUnlink: async () => {},
         runAfterCharacterLinkChanged: async () => {},
       },
       reconcileCharacterOwner: async () => {},
@@ -66,6 +67,7 @@ describe.skipIf(!harness.reachable)('local session cookie cache (real Postgres)'
       runners: {
         runBeforeUserDelete: async () => {},
         runBeforeCharacterUnlink: async () => {},
+        runAfterFailedCharacterUnlink: async () => {},
         runAfterCharacterLinkChanged: async () => {},
       },
       reconcileCharacterOwner: async () => {},
