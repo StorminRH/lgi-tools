@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  after: vi.fn(),
   readPendingMapAccessChanges: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
   projectMapAccess: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
 }));
-vi.mock('next/server', () => ({ after: mocks.after }));
 vi.mock('@/platform/auth/affiliation-store', () => ({
   MAX_PENDING_BATCH: 100,
   readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
@@ -26,7 +24,6 @@ import {
   deliverCapturedMapAccessChanges,
   reconcileAffiliationAccess,
   refreshAffiliationsAndReconcile,
-  scheduleAccessDrain,
 } from './map-affiliation-access';
 
 const pending = [{ mapId: 'first-map', version: 'first' }, { mapId: 'second-map', version: 'second' }];
@@ -104,17 +101,6 @@ it('bounds concurrent attempts, stops within the run budget, and saves completed
   expect(peak).toBe(4);
   expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(batch.slice(0, 20), batch.slice(20));
   expect(mocks.projectMapAccess.mock.calls.at(-1)?.[1]).toEqual({ timeoutMs: 3_000 });
-});
-
-it('runs one pending read when access changes twice before the drain starts', async () => {
-  scheduleAccessDrain();
-  scheduleAccessDrain();
-  expect(mocks.after).toHaveBeenCalledOnce();
-  await mocks.after.mock.calls[0]![0]();
-  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
-  scheduleAccessDrain();
-  expect(mocks.after).toHaveBeenCalledTimes(2);
-  await mocks.after.mock.calls[1]![0]();
 });
 
 it('skips queue I/O for unchanged refreshes and delivers newly queued changes', async () => {

@@ -3,7 +3,8 @@ import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 const mocks = vi.hoisted(() => ({
-  scheduleAccessDrain: vi.fn(),
+  after: vi.fn(),
+  reconcile: vi.fn(),
   fetchAffiliations: vi.fn(),
   updateAffiliations: vi.fn(),
   captureAffiliationObservedAt: vi.fn(),
@@ -17,9 +18,8 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   captureAffiliationObservedAt: mocks.captureAffiliationObservedAt,
   recordCorpAccessDecision: mocks.recordCorpAccessDecision,
 }));
-vi.mock('@/composition/map-affiliation-access', () => ({
-  scheduleAccessDrain: mocks.scheduleAccessDrain,
-}));
+vi.mock('next/server', () => ({ after: mocks.after }));
+vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: mocks.reconcile }));
 
 import { authorizeCorpMutation } from '@/platform/auth/corp-access';
 import { resolveUserCorpAccess } from '@/composition/corp-access';
@@ -53,7 +53,7 @@ describe('corporation access snapshot', () => {
     expect(mocks.fetchAffiliations).not.toHaveBeenCalled();
     expect(mocks.updateAffiliations).not.toHaveBeenCalled();
     expect(mocks.recordCorpAccessDecision).not.toHaveBeenCalled();
-    expect(mocks.scheduleAccessDrain).not.toHaveBeenCalled();
+    expect(mocks.after).not.toHaveBeenCalled();
     expect(Object.isFrozen(access)).toBe(true);
     expect(Object.isFrozen(access.characterIdsByCorporation)).toBe(true);
     expect(Object.isFrozen(access.characterIdsByCorporation[2000])).toBe(true);
@@ -72,7 +72,7 @@ describe('corporation access snapshot', () => {
     expect(access.allCharacterIds).toEqual([101, 102]);
     expect(access.corporationIds).toEqual([3000]);
     expect(access.characterIdsByCorporation[3000]).toEqual([101]);
-    expect(mocks.scheduleAccessDrain).toHaveBeenCalledOnce();
+    expect(mocks.after).toHaveBeenCalledWith(mocks.reconcile);
   });
 
   it('keeps still-fresh membership on partial failure and evaluates freshness after the refresh wait', async () => {

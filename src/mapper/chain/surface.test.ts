@@ -40,6 +40,7 @@ describe('mapper source contract', () => {
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
+      'canvas/ChainViewportContext.ts',
       'canvas/EdgeContextMenu.tsx',
       'canvas/MapCanvas.tsx',
       'canvas/MapControls.tsx',

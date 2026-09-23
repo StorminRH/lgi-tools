@@ -1,8 +1,9 @@
+import { after } from 'next/server';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { AFFILIATION_FRESHNESS } from '@/platform/auth/affiliation-policy';
 import { getUserAffiliations } from '@/platform/auth/affiliation-store';
 import { createCorpAccessSnapshot, type UserCorpAccess } from '@/platform/auth/corp-access';
-import { scheduleAccessDrain } from './map-affiliation-access';
+import { reconcileAffiliationAccess } from './map-affiliation-access';
 
 export async function resolveUserCorpAccess(userId: string): Promise<UserCorpAccess> {
   const affiliations = await getUserAffiliations(userId);
@@ -12,7 +13,7 @@ export async function resolveUserCorpAccess(userId: string): Promise<UserCorpAcc
     .map((row) => row.characterId);
   if (staleIds.length === 0) return createCorpAccessSnapshot(userId, affiliations);
   const refreshed = await refreshAffiliationsWithOutcome(staleIds);
-  if (refreshed.accessChanged) scheduleAccessDrain();
+  if (refreshed.accessChanged) after(reconcileAffiliationAccess);
   return createCorpAccessSnapshot(
     userId,
     await getUserAffiliations(userId),

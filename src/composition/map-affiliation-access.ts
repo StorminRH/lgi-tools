@@ -1,4 +1,3 @@
-import { after } from 'next/server';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import {
   acknowledgeMapAccessChanges,
@@ -7,17 +6,6 @@ import {
   type PendingMapAccessChange,
 } from '@/platform/auth/affiliation-store';
 import { projectMapAccess, requireCurrentProjection } from './map-access-projection';
-
-let accessDrainScheduled = false;
-
-export function scheduleAccessDrain(): void {
-  if (accessDrainScheduled) return;
-  accessDrainScheduled = true;
-  after(() => {
-    accessDrainScheduled = false;
-    return reconcileAffiliationAccess();
-  });
-}
 
 const RECONCILE_BUDGET_MS = 20_000;
 const DELIVERY_TIMEOUT_MS = 4_000;

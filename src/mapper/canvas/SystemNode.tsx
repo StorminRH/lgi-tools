@@ -1,7 +1,7 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
+import { ChainViewportContext } from './ChainViewportContext';
 import { WormholeVisual } from './wormhole/WormholeVisual';
 
 export type ChainNodeData = {
@@ -52,12 +53,6 @@ export const SYSTEM_DISC_SIZE = 55;
 
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
-
-const viewportMoveListeners = new Set<() => void>();
-
-export function notifyChainViewportMove(): void {
-  for (const listener of viewportMoveListeners) listener();
-}
 
 export function nodeMotionClass(motion: NodeMotion | undefined): string | null {
   if (motion === undefined) return null;
@@ -229,6 +224,7 @@ function NodeDisc({
 
 function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: NodeProps<ChainNode>) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const viewportMoveListeners = useContext(ChainViewportContext);
   const [hovered, setHovered] = useState(false);
   const { stub, staticStub, derived, fogged, exiting, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
@@ -237,7 +233,7 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const paused = dragging === true || fogged || stub || exiting;
   const active = hovered || selected === true;
   useEffect(() => {
-    if (!hovered) return;
+    if (!hovered || viewportMoveListeners === null) return;
     const release = () => {
       const node = rootRef.current;
       if (node !== null && !node.matches(':hover')) setHovered(false);
@@ -246,7 +242,7 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
     return () => {
       viewportMoveListeners.delete(release);
     };
-  }, [hovered]);
+  }, [hovered, viewportMoveListeners]);
   return (
     <div
       ref={rootRef}
