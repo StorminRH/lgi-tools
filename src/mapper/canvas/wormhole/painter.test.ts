@@ -55,6 +55,11 @@ const paint = { palette: wormholePalette(3), time: 4.5, age: 1.2, seed: 0.3 };
 
 test('nodes acquire lazily and reuse one bounded WebGL surface until the last release', () => {
   const env = graphics();
+  const early = acquire();
+  early.release();
+  early.release();
+  expect(early.paint(env.context, paint)).toBe(false);
+  expect(env.createElement).not.toHaveBeenCalled();
   const first = acquire();
   const second = acquire();
   expect(env.createElement).not.toHaveBeenCalled();
@@ -73,14 +78,6 @@ test('nodes acquire lazily and reuse one bounded WebGL surface until the last re
   expect(env.loseContext).toHaveBeenCalledOnce();
   expect(acquire().paint(env.context, paint)).toBe(true);
   expect(env.source.getContext).toHaveBeenCalledTimes(2);
-});
-
-test('release before a first paint never allocates GPU resources', () => {
-  const env = graphics();
-  const lease = acquire();
-  lease.release(); lease.release();
-  expect(lease.paint(env.context, paint)).toBe(false);
-  expect(env.createElement).not.toHaveBeenCalled();
 });
 
 test('each paint sends the chosen core and independent aura plus timing, then copies to its target size', () => {
