@@ -1,0 +1,28 @@
+.visual {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--wormhole-size, 75px);
+  height: var(--wormhole-size, 75px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Static, class-tinted fallback also covers SSR, GPU failure and reduced hardware. */
+.fallback {
+  position: absolute;
+  inset: 13.235%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 35% 30%, #171e28, transparent 65%),
+    radial-gradient(circle, #05080d 55%, color-mix(in srgb, var(--wormhole-core, #8996a1) 25%, #05080d) 100%);
+  box-shadow: 0 0 5px 1px color-mix(in srgb, var(--wormhole-halo, #879cab) 10%, transparent);
+}
+
+.canvas[data-ready='true'] + .fallback { display: none; }

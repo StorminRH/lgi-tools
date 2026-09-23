@@ -2,6 +2,7 @@
 
 import {
   ReactFlow,
+  useOnViewportChange,
   type Edge,
   type EdgeMouseHandler,
   type NodeChange,
@@ -11,7 +12,7 @@ import '@xyflow/react/dist/style.css';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { motionCssProperties, type MotionConfig } from '../motion/motion-contract';
 import { CHAIN_EDGE_TYPE, ChainLinkEdge } from './ChainLinkEdge';
-import { CHAIN_NODE_TYPE, SystemNode, type ChainNode } from './SystemNode';
+import { CHAIN_NODE_TYPE, notifyChainViewportMove, SystemNode, type ChainNode } from './SystemNode';
 
 const NODE_TYPES = { [CHAIN_NODE_TYPE]: SystemNode };
 const EDGE_TYPES = { [CHAIN_EDGE_TYPE]: ChainLinkEdge };
@@ -19,6 +20,11 @@ const EDGE_TYPES = { [CHAIN_EDGE_TYPE]: ChainLinkEdge };
 const DEFAULT_EDGE_OPTIONS = { type: CHAIN_EDGE_TYPE };
 
 const PRO_OPTIONS = { hideAttribution: true } as const;
+
+function ChainViewportMove() {
+  useOnViewportChange({ onChange: notifyChainViewportMove });
+  return null;
+}
 
 export interface ChainSurfaceProps {
   readonly nodes: readonly ChainNode[];
@@ -71,6 +77,7 @@ export function ChainSurface({
         onEdgeContextMenu={onEdgeContextMenu}
         className="bg-transparent!"
       >
+        <ChainViewportMove />
         {children}
       </ReactFlow>
     </div>

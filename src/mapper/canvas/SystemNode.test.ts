@@ -41,6 +41,91 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
+vi.mock('./wormhole/WormholeVisual', async () => {
+  const { createElement: element } = await import('react');
+  return {
+    WormholeVisual: ({ whClassId, active, paused }: {
+      whClassId: number | null;
+      active: boolean;
+      paused: boolean;
+    }) => element('span', {
+      'data-wormhole-visual': whClassId ?? 'unknown',
+      'data-visual-active': String(active),
+      'data-visual-paused': String(paused),
+    }),
+  };
+});
+
+test.each([1, 2, 3, 4, 5, 6, 12, 13, 14, 15, 16, 17, 18])(
+  'wormhole class %s uses the decorative visual and retains centered handles',
+  (whClassId) => {
+    const rendered = renderToStaticMarkup(createElement(SystemNode, {
+      id: '31000001',
+      data: { name: 'J123456', className: null, whClassId },
+    } as unknown as NodeProps<ChainNode>));
+    expect(rendered).toContain(`data-wormhole-visual="${whClassId}"`);
+    expect(rendered).toContain('map-node-disc-wormhole');
+    expect(rendered).toContain('data-visual-active="false"');
+    expect(rendered.match(/data-handle=/g)).toHaveLength(2);
+  },
+);
+
+test.each([7, 8, 9, 25, null])(
+  'ordinary system class %s preserves its existing disc',
+  (whClassId) => {
+    const rendered = renderToStaticMarkup(createElement(SystemNode, {
+      id: '30000142',
+      data: { name: 'System', className: null, whClassId },
+    } as unknown as NodeProps<ChainNode>));
+    expect(rendered).not.toContain('data-wormhole-visual');
+    expect(rendered).not.toContain('map-node-disc-wormhole');
+  },
+);
+
+test.each([
+  { selected: false, dragging: false, paused: false, active: false },
+  { selected: true, dragging: false, paused: false, active: true },
+  { selected: true, dragging: true, paused: true, active: true },
+  { selected: true, dragging: false, motion: { phase: 'departing' }, paused: true, active: true },
+  { selected: true, dragging: false, halo: { ring: 3, fogged: true }, paused: true, active: true },
+])('visual respects selection and inert states: %j', ({ paused, active, motion, halo, ...props }) => {
+  const rendered = renderToStaticMarkup(createElement(SystemNode, {
+    ...props,
+    id: '31000001',
+    data: { name: 'J123456', className: 'C3', whClassId: 3, motion, halo },
+  } as unknown as NodeProps<ChainNode>));
+  expect(rendered).toContain(`data-visual-active="${active}"`);
+  expect(rendered).toContain(`data-visual-paused="${paused}"`);
+  if (props.selected === true) expect(rendered).toContain('data-chain-node-selected');
+});
+
+test.each([
+  { hint: undefined, visualClass: 'unknown' },
+  { hint: 'unknown', visualClass: 'unknown' },
+  { hint: 'dangerous', visualClass: 'unknown' },
+  { hint: 'deadly', visualClass: '6' },
+  { hint: 'hisec', visualClass: null },
+  { hint: 'lowsec', visualClass: null },
+  { hint: 'nullsec', visualClass: null },
+  { hint: 'pochven', visualClass: null },
+])('stub hint $hint uses only known destination appearance', ({ hint, visualClass }) => {
+  const rendered = renderToStaticMarkup(createElement(SystemNode, {
+    id: 'stub:c1',
+    selected: true,
+    data: {
+      name: 'ABC-123', className: null, destinationHint: hint,
+      stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+    },
+  } as unknown as NodeProps<ChainNode>));
+  if (visualClass === null) {
+    expect(rendered).not.toContain('data-wormhole-visual');
+    return;
+  }
+  expect(rendered).toContain(`data-wormhole-visual="${visualClass}"`);
+  expect(rendered).toContain('data-visual-paused="true"');
+  expect(rendered).toContain('data-visual-active="true"');
+});
+
 function markup(motion: NodeMotion | undefined): string {
   const props = {
     data: { name: 'J123456', className: 'C5', security: -1, whClassId: 5, motion },
