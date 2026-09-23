@@ -18,6 +18,16 @@ vi.mock('better-auth/api', () => ({
   },
 }));
 vi.mock('@/platform/auth/eve-token-service', () => ({ revokeCharacterToken: vi.fn() }));
+vi.mock('@/lib/convex-http-door', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
+  return {
+    ...actual,
+    postConvexHttpDoor: (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
+      options.path === '/purge-user-map-claims'
+        ? Promise.resolve(options.schema.parse({ deleted: 1 }))
+        : actual.postConvexHttpDoor(options),
+  };
+});
 
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import {
