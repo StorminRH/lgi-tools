@@ -17,8 +17,10 @@ export async function reprojectMapsForCharacter(characterId: number): Promise<vo
   if (pending.length > MAX_PENDING_BATCH) await reconcileAffiliationAccess();
 }
 
-export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<void> {
-  await revokeUserMapClaims(userId, await affectedMapIdsForCharacter(characterId));
+export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<string[]> {
+  const mapIds = await affectedMapIdsForCharacter(characterId);
+  await revokeUserMapClaims(userId, mapIds);
+  return mapIds;
 }
 
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {
@@ -47,7 +49,7 @@ export const identityProjectionRunners: IdentityProjectionRunners = {
   runBeforeUserDelete: teardownProjectionsForDeletedUser,
   runBeforeCharacterUnlink: async ({ userId, characterId }) => {
     try {
-      await revokeCharacterMapClaims(userId, characterId);
+      return await revokeCharacterMapClaims(userId, characterId);
     } catch (error) {
       // A later batch may fail after earlier batches removed valid claims.
       await bestEffort('identity-projection', 'restorePartialRevocation', String(characterId), () =>
@@ -59,6 +61,11 @@ export const identityProjectionRunners: IdentityProjectionRunners = {
   runAfterFailedCharacterUnlink: async (characterId) => {
     await bestEffort('identity-projection', 'restoreCharacterMapAccess', String(characterId), () =>
       reprojectMapsForCharacter(characterId),
+    );
+  },
+  runAfterCharacterUnlink: async ({ userId, characterId, mapIds }) => {
+    await bestEffort('identity-projection', 'finalizeCharacterRevocation', `${userId}:${characterId}`, () =>
+      revokeUserMapClaims(userId, mapIds),
     );
   },
   runAfterCharacterLinkChanged: async (args) => {

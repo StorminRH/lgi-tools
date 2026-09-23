@@ -126,6 +126,14 @@ describe('map-access-identity', () => {
     expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(['map-a']);
   });
 
+  it('reasserts revocation after the durable unlink so prior snapshots cannot win', async () => {
+    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a']);
+    await identityProjectionRunners.runAfterCharacterUnlink({
+      userId: 'departing-user', characterId: 42, mapIds: ['map-a'],
+    });
+    expect(mocks.revokeUserMapClaims).toHaveBeenCalledWith('departing-user', ['map-a']);
+  });
+
   it('enqueues every affected map on unlink while bounding immediate delivery and cleaning location', async () => {
     const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
     mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);

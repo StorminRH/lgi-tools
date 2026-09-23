@@ -185,7 +185,7 @@ describe('POST /purge-user-map-claims', () => {
         await ctx.db.insert('mapAccess', { mapId, userId, roles: ['viewer'] });
       }
     });
-    const body = JSON.stringify({ userId: 'departing', mapIds: ['affected'] });
+    const body = JSON.stringify({ userId: 'departing', revision: 42, mapIds: ['affected'] });
     expect((await t.fetch('/purge-user-map-claims', { method: 'POST', body })).status).toBe(401);
     const res = await t.fetch('/purge-user-map-claims', {
       method: 'POST',

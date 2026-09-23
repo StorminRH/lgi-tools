@@ -35,13 +35,14 @@ export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
 ): Promise<void> {
-  await identityProjectionRunners.runBeforeCharacterUnlink({ userId: priorUserId, characterId });
+  const mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({ userId: priorUserId, characterId });
   try {
     await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
   } catch (error) {
     await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
     throw error;
   }
+  await identityProjectionRunners.runAfterCharacterUnlink({ userId: priorUserId, characterId, mapIds });
   await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
   await identityProjectionRunners.runAfterCharacterLinkChanged({
     userId: priorUserId,

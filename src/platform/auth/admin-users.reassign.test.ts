@@ -26,8 +26,9 @@ vi.mock('@/db', () => ({ db: chain }));
 
 const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
-  runBeforeCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue([]),
   runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterUnlink: vi.fn().mockResolvedValue(undefined),
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -38,8 +39,9 @@ beforeEach(() => {
   state.calls.delete = 0;
   state.calls.update = 0;
   runners.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
-  runners.runBeforeCharacterUnlink.mockReset().mockResolvedValue(undefined);
+  runners.runBeforeCharacterUnlink.mockReset().mockResolvedValue([]);
   runners.runAfterFailedCharacterUnlink.mockReset().mockResolvedValue(undefined);
+  runners.runAfterCharacterUnlink.mockReset().mockResolvedValue(undefined);
   runners.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
 });
 
@@ -77,6 +79,9 @@ describe('reassignCharacter', () => {
     expect(out).toEqual({ sourceDeleted: true });
     expect(runners.runBeforeCharacterUnlink).toHaveBeenCalledWith({
       userId: 'eve-user-2', characterId: 100,
+    });
+    expect(runners.runAfterCharacterUnlink).toHaveBeenCalledWith({
+      userId: 'eve-user-2', characterId: 100, mapIds: [],
     });
     expect(state.calls.delete).toBe(1);
     expect(runners.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');

@@ -133,7 +133,7 @@ export async function deleteLinkedCharacter(
   characterId: number,
   runners: IdentityProjectionRunners,
 ): Promise<boolean> {
-  await runners.runBeforeCharacterUnlink({ userId, characterId });
+  const mapIds = await runners.runBeforeCharacterUnlink({ userId, characterId });
   let deleted: Array<{ id: string }>;
   try {
     deleted = await db
@@ -148,6 +148,7 @@ export async function deleteLinkedCharacter(
     await runners.runAfterFailedCharacterUnlink(characterId);
     return false;
   }
+  await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
   await runners.runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
@@ -179,7 +180,7 @@ export async function reassignCharacter({
   toUserId: string;
   runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
-  await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
+  const mapIds = await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
   let moved: Array<{ id: string }>;
   try {
     moved = await db
@@ -199,6 +200,8 @@ export async function reassignCharacter({
   }
   if (moved.length === 0) {
     await runners.runAfterFailedCharacterUnlink(characterId);
+  } else {
+    await runners.runAfterCharacterUnlink({ userId: fromUserId, characterId, mapIds });
   }
 
   const [remaining] = await db

@@ -39,6 +39,7 @@ const purgeMapAccessBodySchema = z.object({
 
 const purgeUserMapClaimsBodySchema = z.object({
   userId: z.string().min(1),
+  revision: z.number().int().positive(),
   mapIds: z.array(z.string().min(1)).min(1).max(32),
 });
 

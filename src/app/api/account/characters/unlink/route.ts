@@ -48,8 +48,9 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'last_character');
       }
 
+      let mapIds: string[];
       try {
-        await identityProjectionRunners.runBeforeCharacterUnlink({
+        mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({
           userId: session.user.id,
           characterId,
         });
@@ -71,6 +72,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'unlink_failed');
       }
 
+      await identityProjectionRunners.runAfterCharacterUnlink({
+        userId: session.user.id,
+        characterId,
+        mapIds,
+      });
       await identityProjectionRunners.runAfterCharacterLinkChanged({
         userId: session.user.id,
         characterId,
