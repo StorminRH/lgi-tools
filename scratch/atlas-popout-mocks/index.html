@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas pop-out mocks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #060708;
+    --map: #05070b;
+    --section: #0f1216;
+    --border: #1d232c;
+    --border-soft: #141821;
+    --idle: #1f262f;
+    --text: #aab4be;
+    --name: #f1f5f9;
+    --muted: #7b8693;
+    --faint: #6c7682;
+    --isk: #3dd68c;
+    --gas: #33cc88;
+    --relic: #3399cc;
+    --combat: #dd4444;
+    --pilot: #3dd68c;
+    --market: #ccaa33;
+    --hole: #aab4be;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --ui: ui-sans-serif, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  body { min-width: 1100px; }
+  button, a { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .top {
+    display: flex;
+    gap: 28px;
+    align-items: flex-end;
+    padding: 18px 28px 14px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: var(--name);
+  }
+  .deck { margin: 0; max-width: 46rem; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .switchers { display: flex; gap: 22px; margin-left: auto; }
+  .switch p { margin: 0 0 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  .switch .row { display: flex; gap: 4px; }
+  .switch button {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: var(--muted);
+  }
+  .switch button[aria-pressed="true"] {
+    border-color: #2c3642;
+    background: #141922;
+    color: var(--name);
+  }
+  .switch kbd {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--faint);
+    margin-right: 4px;
+  }
+  .stage {
+    display: grid;
+    grid-template-columns: 1.15fr 1.15fr 0.82fr;
+    gap: 0;
+    background:
+      radial-gradient(1200px 420px at 20% 0%, rgba(61,214,140,0.05), transparent 60%),
+      var(--map);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .vignette { position: relative; height: 560px; overflow: hidden; }
+  .vignette + .vignette { box-shadow: inset 1px 0 0 var(--border-soft); }
+  .sample {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .anchor { position: absolute; width: 0; height: 0; }
+  .disc {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 55px;
+    height: 55px;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--idle);
+    background: var(--section);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .title {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 36px));
+    text-align: center;
+    width: max-content;
+  }
+  .title .sys {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--name);
+  }
+  .title .region {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .hub {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .mark {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    transform: translate(-50%, -50%) translate(var(--x), var(--y));
+  }
+  .count { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .icon {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 14px;
+    color: var(--tone, currentColor);
+  }
+  .icon svg, .icon img { width: 100%; height: 100%; display: block; }
+  .icon img { object-fit: contain; }
+  .icon img.px { image-rendering: pixelated; }
+  .leader {
+    position: absolute;
+    z-index: 0;
+    height: 1px;
+    background: var(--isk);
+    opacity: 0.85;
+    transform-origin: 0 50%;
+    pointer-events: none;
+  }
+  .leader::after {
+    content: "";
+    position: absolute;
+    right: -2px;
+    top: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--isk);
+  }
+  .card {
+    position: absolute;
+    z-index: 2;
+    width: max-content;
+    max-width: 240px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in oklab, var(--bg) 84%, transparent);
+    backdrop-filter: blur(12px) saturate(1.1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text);
+  }
+  .card header {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 6px;
+    min-height: 28px;
+    padding: 6px 12px 5px;
+  }
+  .card.rows header, .card.facts header { border-bottom: 1px solid var(--border-soft); }
+  .card .nm {
+    color: var(--name);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 11.5px;
+  }
+  .card .icon { width: 16px; height: 16px; flex-basis: 16px; }
+  .card .body { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .card.strip .body { padding-top: 2px; gap: 5px; }
+  .line, .chiprow, .pilot, .cluster {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+  .line[aria-expanded], .cluster[aria-expanded], .chiprow[aria-expanded] { cursor: pointer; }
+  .word { color: var(--name); }
+  .grow { flex: 1; }
+  .num, .val { font-variant-numeric: tabular-nums; }
+  .val { color: var(--isk); }
+  .val.empty, .muted { color: var(--muted); }
+  .status.live { color: var(--isk); }
+  .status.docked { color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .chip { color: var(--muted); }
+  .chip b { font-weight: 500; color: var(--text); }
+  .detail { margin: 1px 0 0 20px; color: var(--muted); font-size: 10px; }
+  .detail p { margin: 0; }
+  .strip-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .strip-row .detail { flex: 1 0 100%; margin-left: 0; }
+  .cluster { width: auto; gap: 3px; }
+  .facts .line { gap: 8px; }
+  .facts .val, .facts .place-lead {
+    min-width: 3.2rem;
+    color: var(--name);
+    font-variant-numeric: tabular-nums;
+  }
+  .facts .val.empty { color: var(--muted); }
+  .sheet { padding: 22px 28px 36px; }
+  .sheet h2 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--name);
+  }
+  .sheet .note { margin: 0 0 16px; max-width: 46rem; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .grid { display: flex; flex-wrap: wrap; gap: 18px 22px; }
+  .cell { width: 92px; }
+  .pair { display: flex; align-items: flex-end; gap: 8px; height: 36px; }
+  .big { width: 32px; height: 32px; }
+  .small { width: 14px; height: 14px; }
+  .cell .icon { width: 100%; height: 100%; }
+  .cell figcaption {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .now-label { margin: 22px 0 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  footer {
+    padding: 0 28px 28px;
+    font-size: 12px;
+    color: var(--faint);
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Atlas pop-out mocks</h1>
+      <p class="deck">Icon language and summary layout for the system card and the marks around a disc. Throwaway page. Not the app.</p>
+    </div>
+    <div class="switchers">
+      <div class="switch" id="icon-switch"></div>
+      <div class="switch" id="layout-switch"></div>
+    </div>
+  </header>
+  <main id="stage" class="stage"></main>
+  <section class="sheet">
+    <h2>Marks</h2>
+    <p class="note" id="sheet-note"></p>
+    <div class="grid" id="sheet-grid"></div>
+    <p class="now-label">On pull request 511 today</p>
+    <div class="grid" id="now-grid"></div>
+  </section>
+  <footer>Official marks are CCP Image Export Collection art, used here under the project EVE developer license. Mock only.</footer>
+  <script>
+    const ICONS = ['official', 'hairline', 'silhouette'];
+    const LAYOUTS = ['rows', 'strip', 'facts'];
+    const ICON_KEY = { official: '1', hairline: '2', silhouette: '3' };
+    const LAYOUT_KEY = { rows: 'q', strip: 'w', facts: 'e' };
+
+    const TONE = {
+      gas: '#33cc88',
+      relic: '#3399cc',
+      combat: '#dd4444',
+      pilot: '#3dd68c',
+      market: '#ccaa33',
+      hole: '#aab4be',
+    };
+
+    const OFFICIAL = {
+      gas: ['icons/gas.png', false],
+      relic: ['icons/relic.png', false],
+      combat: ['icons/combat.png', false],
+      pilot: ['icons/pilot.png', true],
+      market: ['icons/market.png', false],
+      hole: ['icons/wormhole-bracket.png', true],
+    };
+
+    const SIBLINGS = [
+      ['icons/ore.png', 'Ore', false],
+      ['icons/data.png', 'Data', false],
+      ['icons/wormhole-scanned.png', 'Hole, scanner', false],
+    ];
+
+    const ROLES = [
+      ['gas', 'Gas'],
+      ['relic', 'Relic'],
+      ['combat', 'Combat'],
+      ['pilot', 'Pilot'],
+      ['market', 'Market'],
+      ['hole', 'Hole'],
+    ];
+
+    function svg(inner, fill) {
+      const paint = fill
+        ? 'fill="currentColor"'
+        : 'fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"';
+      return `<svg viewBox="0 0 16 16" ${paint} aria-hidden="true">${inner}</svg>`;
+    }
+
+    const HAIRLINE = {
+      gas: svg('<circle cx="8" cy="4.7" r="2.05"/><circle cx="5.35" cy="9.55" r="2.05"/><circle cx="10.65" cy="9.55" r="2.05"/>'),
+      relic: svg('<rect x="4.1" y="5.1" width="7.8" height="6.8" rx="1.3"/><path d="M6.1 5.1V3.5h3.8v1.6"/>'),
+      combat: svg('<path d="M8 2.3v3.2M8 10.5v3.2M2.3 8h3.2M10.5 8h3.2"/>'),
+      pilot: svg('<circle cx="8" cy="5.1" r="2"/><path d="M3.7 13.3c.45-2.55 2.05-3.9 4.3-3.9s3.85 1.35 4.3 3.9"/>'),
+      market: svg('<path d="M2.8 11.4 6.2 7.5 8.8 9.3 13.2 4.4"/>'),
+      hole: svg('<path d="M8 2.2 13.5 8 8 13.8 2.5 8Z"/>'),
+    };
+
+    const SILHOUETTE = {
+      gas: svg('<circle cx="8" cy="4.8" r="3"/><circle cx="5.15" cy="9.75" r="3"/><circle cx="10.85" cy="9.75" r="3"/>', true),
+      relic: svg('<path d="M5.1 2.8h5.8v1.7H5.1zM3.8 5.2h8.4v6.3a1.5 1.5 0 0 1-1.5 1.5H5.3a1.5 1.5 0 0 1-1.5-1.5z"/>', true),
+      combat: svg('<path d="M6.55 1.8h2.9v4.75H14.2v2.9H9.45V14.2h-2.9V9.45H1.8v-2.9h4.75z"/>', true),
+      pilot: svg('<circle cx="8" cy="4.5" r="2.35"/><path d="M3.6 13.8c.25-3 1.9-4.5 4.4-4.5s4.15 1.5 4.4 4.5z"/>', true),
+      market: svg('<path d="M2.2 9.1h2.6V13.4H2.2zM6.7 5.8h2.6v7.6H6.7zM11.2 2.7h2.6v10.7h-2.6z"/>', true),
+      hole: svg('<path fill-rule="evenodd" d="M8 1.4 14.5 8 8 14.6 1.5 8Zm0 3.35L11.15 8 8 11.25 4.85 8Z"/>', true),
+    };
+
+    const NOW = {
+      gas: null,
+      relic: svg('<path fill-rule="evenodd" d="M8 1.4 13.6 4.6v6.8L8 14.6 2.4 11.4V4.6L8 1.4Zm0 2.3L4.4 5.7v4.6L8 12.3l3.6-2V5.7L8 3.7Z"/>', true),
+      combat: `<svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor" stroke="currentColor">
+        <circle cx="8" cy="8" r="5.5" fill="none" stroke-width="1.4"/>
+        <line x1="8" y1="3.2" x2="8" y2="6.3" stroke-width="1.4"/>
+        <line x1="8" y1="9.7" x2="8" y2="12.8" stroke-width="1.4"/>
+        <line x1="3.2" y1="8" x2="6.3" y2="8" stroke-width="1.4"/>
+        <line x1="9.7" y1="8" x2="12.8" y2="8" stroke-width="1.4"/>
+        <circle cx="8" cy="8" r="1" stroke="none"/>
+      </svg>`,
+      pilot: svg('<path fill-rule="evenodd" d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6ZM8 3.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/><path fill-rule="evenodd" d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5v1H3v-1ZM4.5 13.5c0-1.6 1.55-2.9 3.5-2.9s3.5 1.3 3.5 2.9v.4H4.5v-.4Z"/>', true),
+      market: `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.8 2.5V13.5H13.5" stroke-width="1.3"/>
+        <path d="M2.8 8.2 4.8 6.3 6.3 10.8 8.6 8.3 10.4 8.8 12.2 5.2" stroke-width="1.4"/>
+        <circle cx="12.9" cy="4.5" r="1.1" fill="currentColor" stroke="none"/>
+      </svg>`,
+      hole: null,
+    };
+
+    const SYSTEMS = [
+      {
+        id: 'wh',
+        sample: 'Wormhole, full',
+        name: 'J122834',
+        chip: 'C3',
+        chipColor: '#d6e05a',
+        anchor: ['34%', '64%'],
+        card: ['52%', '16%'],
+        marks: [
+          ['gas', null],
+          ['relic', null],
+          ['combat', null],
+          ['pilot', '2'],
+        ],
+        place: {
+          role: 'hole',
+          chips: [['D845', 'C2'], ['N766', 'C5']],
+          detail: [],
+        },
+        sites: [
+          { role: 'gas', word: 'Gas', count: '2', value: '84.2M', empty: false, detail: ['Vast Frontier Reservoir', 'Ordinary Perimeter Reservoir'] },
+          { role: 'relic', word: 'Relic', count: '1', value: '—', empty: true, detail: ['Ruined Sansha Crystal Quarry'] },
+          { role: 'combat', word: 'Combat', count: '3', value: '1.4B', empty: false, detail: ['Core Garrison', 'Core Stronghold', 'Oruze Osprey'] },
+        ],
+        pilots: [
+          ['Stormin', 'In space', true],
+          ['Ava', 'Docked', false],
+        ],
+      },
+      {
+        id: 'ks',
+        sample: 'Known space',
+        name: 'Tama',
+        region: 'The Citadel',
+        chip: '0.3',
+        chipColor: '#ce440f',
+        hub: 'Jita 4',
+        anchor: ['32%', '66%'],
+        card: ['50%', '18%'],
+        marks: [
+          ['combat', null],
+          ['pilot', null],
+        ],
+        place: {
+          role: 'market',
+          chips: [['Jita', '4']],
+          detail: ['Amarr 11', 'Dodixie 13', 'Rens 16', 'Hek 17'],
+        },
+        sites: [
+          { role: 'combat', word: 'Combat', count: '1', value: '210M', empty: false, detail: ['Angel Vigil'] },
+        ],
+        pilots: [
+          ['Stormin', 'In space', true],
+        ],
+      },
+      {
+        id: 'quiet',
+        sample: 'Quiet hole',
+        name: 'J100142',
+        chip: 'C1',
+        chipColor: '#8ce27a',
+        anchor: ['38%', '64%'],
+        card: ['54%', '28%'],
+        marks: [],
+        place: {
+          role: 'hole',
+          chips: [['D382', 'C1']],
+          detail: [],
+        },
+        sites: [],
+        pilots: [],
+      },
+    ];
+
+    const state = { icon: 'official', layout: 'rows', open: new Set() };
+
+    function readQuery() {
+      const params = new URLSearchParams(location.search);
+      const icon = params.get('icon');
+      const layout = params.get('layout');
+      if (ICONS.includes(icon)) state.icon = icon;
+      if (LAYOUTS.includes(layout)) state.layout = layout;
+    }
+
+    function writeQuery() {
+      const params = new URLSearchParams({ icon: state.icon, layout: state.layout });
+      history.replaceState(null, '', `?${params}`);
+    }
+
+    function glyph(role) {
+      if (state.icon === 'official') {
+        const [src, pixel] = OFFICIAL[role];
+        return `<span class="icon" style="--tone:${TONE[role]}"><img src="${src}" alt="" draggable="false" class="${pixel ? 'px' : ''}"></span>`;
+      }
+      const set = state.icon === 'hairline' ? HAIRLINE : SILHOUETTE;
+      return `<span class="icon" style="--tone:${TONE[role]}">${set[role]}</span>`;
+    }
+
+    function seat(index) {
+      const heading = Math.PI / 2 + index * (Math.PI / 4);
+      const radius = 38.5;
+      return {
+        x: (Math.sin(heading) * radius).toFixed(2),
+        y: (-Math.cos(heading) * radius).toFixed(2),
+      };
+    }
+
+    function detailBlock(id, lines) {
+      if (!state.open.has(id) || lines.length === 0) return '';
+      return `<div class="detail">${lines.map((line) => `<p>${line}</p>`).join('')}</div>`;
+    }
+
+    function placeBlock(system) {
+      const place = system.place;
+      const id = `${system.id}-place`;
+      const expandable = place.detail.length > 0;
+      const open = state.open.has(id);
+      const chips = place.chips.map(([primary, secondary]) => {
+        if (state.layout === 'facts') {
+          return `<span class="chip"><b class="place-lead">${secondary}</b> ${primary}</span>`;
+        }
+        return `<span class="chip"><b>${primary}</b> ${secondary}</span>`;
+      }).join('');
+      const tag = expandable ? 'button' : 'div';
+      const attrs = expandable ? ` type="button" data-open="${id}" aria-expanded="${open}"` : '';
+      return `<${tag} class="chiprow"${attrs}>${glyph(place.role)}<span class="chips">${chips}</span></${tag}>${detailBlock(id, place.detail)}`;
+    }
+
+    function siteRows(system) {
+      return system.sites.map((site) => {
+        const id = `${system.id}-${site.role}`;
+        const open = state.open.has(id);
+        const valClass = site.empty ? 'val empty' : 'val';
+        if (state.layout === 'strip') {
+          return `<button type="button" class="cluster" data-open="${id}" aria-expanded="${open}">${glyph(site.role)}<span class="num">${site.count}</span><span class="${valClass}">${site.value}</span></button>${detailBlock(id, site.detail)}`;
+        }
+        if (state.layout === 'facts') {
+          return `<button type="button" class="line" data-open="${id}" aria-expanded="${open}"><span class="${valClass}">${site.value}</span>${glyph(site.role)}<span class="num">${site.count}</span></button>${detailBlock(id, site.detail)}`;
+        }
+        return `<button type="button" class="line" data-open="${id}" aria-expanded="${open}">${glyph(site.role)}<span class="word">${site.word}</span><span class="num">${site.count}</span><span class="grow"></span><span class="${valClass}">${site.value}</span></button>${detailBlock(id, site.detail)}`;
+      }).join('');
+    }
+
+    function pilotBlock(system) {
+      if (system.pilots.length === 0) return '';
+      const id = `${system.id}-pilots`;
+      const lines = system.pilots.map(([name, status]) => `${name} · ${status}`);
+      if (state.layout === 'rows') {
+        const rows = system.pilots.map(([name, status, live], index) => {
+          const icon = index === 0 ? glyph('pilot') : '<span class="icon"></span>';
+          const kind = live ? 'live' : 'docked';
+          return `<div class="pilot">${icon}<span class="word">${name}</span><span class="grow"></span><span class="status ${kind}">${status}</span></div>`;
+        }).join('');
+        return rows;
+      }
+      const open = state.open.has(id);
+      const count = String(system.pilots.length);
+      if (state.layout === 'strip') {
+        return `<button type="button" class="cluster" data-open="${id}" aria-expanded="${open}">${glyph('pilot')}<span class="num">${count}</span></button>${detailBlock(id, lines)}`;
+      }
+      return `<button type="button" class="line" data-open="${id}" aria-expanded="${open}"><span class="val">${count}</span>${glyph('pilot')}</button>${detailBlock(id, lines)}`;
+    }
+
+    function card(system) {
+      const sites = siteRows(system);
+      const pilots = pilotBlock(system);
+      const body = state.layout === 'strip'
+        ? `${placeBlock(system)}<div class="strip-row">${sites}${pilots}</div>`
+        : `${placeBlock(system)}${sites}${pilots}`;
+      return `<article class="card ${state.layout}" data-summary="${system.id}">
+        <header><span class="nm">${system.name}</span><span style="color:${system.chipColor}">${system.chip}</span></header>
+        <div class="body">${body}</div>
+      </article>`;
+    }
+
+    function title(system) {
+      const region = system.region ? `<span class="region">${system.region}</span>` : '';
+      const hub = system.hub ? `<span class="hub">${glyph('market')}<span>${system.hub}</span></span>` : '';
+      return `<div class="title"><span class="sys">${system.name}</span>${region}${hub}</div>`;
+    }
+
+    function marks(system) {
+      return system.marks.map(([role, count], index) => {
+        const badge = count ? `<span class="count">${count}</span>` : '';
+        const at = seat(index);
+        return `<div class="mark" style="--x:${at.x}px;--y:${at.y}px">${glyph(role)}${badge}</div>`;
+      }).join('');
+    }
+
+    function vignette(system) {
+      const [ax, ay] = system.anchor;
+      const [cx, cy] = system.card;
+      return `<section class="vignette" data-vignette="${system.id}">
+        <p class="sample">${system.sample}</p>
+        <div class="leader" hidden></div>
+        <div class="anchor" style="left:${ax};top:${ay}">
+          ${title(system)}
+          <div class="disc" style="color:${system.chipColor}">${system.chip}</div>
+          ${marks(system)}
+        </div>
+        <div style="position:absolute;left:${cx};top:${cy}">${card(system)}</div>
+      </section>`;
+    }
+
+    function iconMarkup(role, which) {
+      if (which === 'official') {
+        const [src, pixel] = OFFICIAL[role];
+        return `<img src="${src}" alt="" draggable="false" class="${pixel ? 'px' : ''}">`;
+      }
+      if (which === 'now') {
+        if (role === 'gas') return `<img src="icons/gas.png" alt="" draggable="false">`;
+        if (NOW[role] === null) return '';
+        return NOW[role];
+      }
+      return (which === 'hairline' ? HAIRLINE : SILHOUETTE)[role];
+    }
+
+    function cell(role, label, which) {
+      const markup = iconMarkup(role, which);
+      if (!markup) return '';
+      return `<figure class="cell">
+        <div class="pair">
+          <span class="icon big" style="--tone:${TONE[role]}">${markup}</span>
+          <span class="icon small" style="--tone:${TONE[role]}">${markup}</span>
+        </div>
+        <figcaption>${label}</figcaption>
+      </figure>`;
+    }
+
+    function renderSwitches() {
+      document.getElementById('icon-switch').innerHTML = `<p>Icons</p><div class="row">${
+        ICONS.map((name) => `<button type="button" data-icon="${name}" aria-pressed="${state.icon === name}"><kbd>${ICON_KEY[name]}</kbd>${name}</button>`).join('')
+      }</div>`;
+      document.getElementById('layout-switch').innerHTML = `<p>Summary</p><div class="row">${
+        LAYOUTS.map((name) => `<button type="button" data-layout="${name}" aria-pressed="${state.layout === name}"><kbd>${LAYOUT_KEY[name]}</kbd>${name}</button>`).join('')
+      }</div>`;
+    }
+
+    function renderSheet() {
+      const note = {
+        official: 'Official set. Probe-scanner art for gas, relic, and combat. The pilot mark is the 16px blue frigate bracket. The hole mark is the 16px wormhole bracket from LGI-125. Ore, data, and the scanner wormhole sit beside them. They are the same family, and this sample does not put them on a disc.',
+        hairline: 'Hairline set. One stroke weight, colored with the existing tone for that seat. No fill, no frame.',
+        silhouette: 'Silhouette set. One filled shape per seat. No interior linework.',
+      };
+      document.getElementById('sheet-note').textContent = note[state.icon];
+      const grid = document.getElementById('sheet-grid');
+      grid.innerHTML = ROLES.map(([role, label]) => cell(role, label, state.icon)).join('');
+      if (state.icon === 'official') {
+        grid.insertAdjacentHTML('beforeend', SIBLINGS.map(([src, label, pixel]) => `<figure class="cell">
+          <div class="pair">
+            <span class="icon big"><img src="${src}" alt="" draggable="false" class="${pixel ? 'px' : ''}"></span>
+            <span class="icon small"><img src="${src}" alt="" draggable="false" class="${pixel ? 'px' : ''}"></span>
+          </div>
+          <figcaption>${label}</figcaption>
+        </figure>`).join(''));
+      }
+      document.getElementById('now-grid').innerHTML = [
+        ['gas', 'Gas, sprite'],
+        ['relic', 'Hacking'],
+        ['combat', 'Combat'],
+        ['pilot', 'Pilot'],
+        ['market', 'Market'],
+      ].map(([role, label]) => cell(role, label, 'now')).join('');
+    }
+
+    function render() {
+      document.body.dataset.icon = state.icon;
+      document.body.dataset.layout = state.layout;
+      renderSwitches();
+      document.getElementById('stage').innerHTML = SYSTEMS.map(vignette).join('');
+      renderSheet();
+      requestAnimationFrame(placeLeaders);
+    }
+
+    function nearestCardPoint(card, x, y) {
+      return {
+        x: Math.min(Math.max(x, card.left), card.right),
+        y: Math.min(Math.max(y, card.top), card.bottom),
+      };
+    }
+
+    function placeLeaders() {
+      document.querySelectorAll('.vignette').forEach((vignette) => {
+        const disc = vignette.querySelector('.disc');
+        const card = vignette.querySelector('.card');
+        const leader = vignette.querySelector('.leader');
+        if (!disc || !card || !leader) return;
+        const vr = vignette.getBoundingClientRect();
+        const dr = disc.getBoundingClientRect();
+        const cr = card.getBoundingClientRect();
+        const x0 = dr.left + dr.width / 2 - vr.left;
+        const y0 = dr.top + dr.height / 2 - vr.top;
+        const near = nearestCardPoint(cr, dr.left + dr.width / 2, dr.top + dr.height / 2);
+        const x2 = near.x - vr.left;
+        const y2 = near.y - vr.top;
+        const dx = x2 - x0;
+        const dy = y2 - y0;
+        const len = Math.hypot(dx, dy);
+        if (len < 1) return;
+        const radius = dr.width / 2 + 3;
+        const x1 = x0 + (dx / len) * radius;
+        const y1 = y0 + (dy / len) * radius;
+        leader.hidden = false;
+        leader.style.left = `${x1}px`;
+        leader.style.top = `${y1}px`;
+        leader.style.width = `${Math.max(0, len - radius)}px`;
+        leader.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`;
+      });
+    }
+
+    document.body.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : event.target.parentElement;
+      const icon = target?.closest('button[data-icon]');
+      const layout = target?.closest('button[data-layout]');
+      const open = target?.closest('[data-open]');
+      if (icon) {
+        state.icon = icon.dataset.icon;
+        state.open.clear();
+        writeQuery();
+        render();
+        return;
+      }
+      if (layout) {
+        state.layout = layout.dataset.layout;
+        state.open.clear();
+        writeQuery();
+        render();
+        return;
+      }
+      if (open) {
+        const id = open.dataset.open;
+        if (state.open.has(id)) state.open.delete(id);
+        else state.open.add(id);
+        render();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.target.closest('input, textarea')) return;
+      const icon = Object.entries(ICON_KEY).find(([, key]) => key === event.key);
+      const layout = Object.entries(LAYOUT_KEY).find(([, key]) => key === event.key);
+      if (icon) {
+        state.icon = icon[0];
+        state.open.clear();
+        writeQuery();
+        render();
+      } else if (layout) {
+        state.layout = layout[0];
+        state.open.clear();
+        writeQuery();
+        render();
+      }
+    });
+
+    readQuery();
+    render();
+  </script>
+</body>
+</html>
