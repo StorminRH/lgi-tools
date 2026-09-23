@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('next/server', () => ({ after: vi.fn() }));
-vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
 import type { CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
+  scheduleAccessDrain: vi.fn(),
   getAuthorizedMapGrantsForMaps: vi.fn(),
   listAuthorizedMapsForPrincipals: vi.fn(),
   listDeletedRestorableMapsForPrincipals: vi.fn(),
   getUserAffiliations: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
   resolveEntityNames: vi.fn(),
+}));
+vi.mock('next/server', () => ({ after: mocks.after }));
+vi.mock('@/composition/map-affiliation-access', () => ({
+  scheduleAccessDrain: mocks.scheduleAccessDrain,
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -152,6 +156,24 @@ describe('map chrome data', () => {
     );
     expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100]);
     expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
+    expect(mocks.scheduleAccessDrain).not.toHaveBeenCalled();
+    expect(mocks.after).not.toHaveBeenCalled();
+  });
+
+  it('schedules one access drain when a stale refresh changes membership', async () => {
+    mocks.getUserAffiliations
+      .mockResolvedValueOnce([affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000))])
+      .mockResolvedValueOnce([affiliation(42, 3000, new Date())]);
+    mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
+      accessChanged: true,
+      refreshed: 1,
+      transientFailure: false,
+    });
+
+    await listMapChromeData('user-1');
+
+    expect(mocks.scheduleAccessDrain).toHaveBeenCalledOnce();
+    expect(mocks.after).not.toHaveBeenCalled();
   });
 });
 

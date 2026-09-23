@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
+vi.mock('@/composition/map-affiliation-access', () => ({
+  reconcileAffiliationAccess: vi.fn(),
+  scheduleAccessDrain: vi.fn(),
+}));
 
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),

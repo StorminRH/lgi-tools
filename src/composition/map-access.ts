@@ -1,5 +1,3 @@
-import { after } from 'next/server';
-import { reconcileAffiliationAccess } from './map-affiliation-access';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
@@ -29,7 +27,6 @@ export async function resolveMapPrincipals(userId: string): Promise<MapPrincipal
 
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {
   const principals = await resolveMapPrincipals(userId);
-  after(reconcileAffiliationAccess);
   const [maps, deletedMaps] = await Promise.all([
     listAuthorizedMapsForPrincipals(userId, principals),
     listDeletedRestorableMapsForPrincipals(userId, principals),
