@@ -1,0 +1,12 @@
+[data-signature-row] [data-signature-signal-fill] {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: var(--signature-signal, 0%);
+  background: var(--color-row-hover);
+  opacity: 0.65;
+}
+.map-signature-missing {
+  color: var(--color-tone-red-soft);
+  background: var(--color-pill-red-soft-bg);
+}

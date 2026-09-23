@@ -1,0 +1,17 @@
+@keyframes skeleton-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -20% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-border-soft) 35%,
+    var(--color-skeleton-sheen) 50%,
+    var(--color-border-soft) 65%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer { animation: none; }
+}

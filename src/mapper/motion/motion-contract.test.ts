@@ -117,7 +117,7 @@ describe('motion css properties', () => {
   });
 
   it('keeps the stylesheet pre-hydration fallbacks pinned to the ratified defaults', () => {
-    const stylesheet = readFileSync('src/app/globals.css', 'utf8');
+    const stylesheet = readFileSync('src/mapper/motion/motion-contract.css', 'utf8');
     const scope = /\[data-map-motion-scope\]\s*\{([^}]*)\}/.exec(stylesheet);
 
     expect(scope).not.toBeNull();

@@ -1,0 +1,4 @@
+/* Sonner injects `.sonner-loading-bar { background: var(--gray11) }` unlayered, so a utility cannot beat it. */
+[data-sonner-toaster] .sonner-loading-bar {
+  background: var(--color-isk);
+}

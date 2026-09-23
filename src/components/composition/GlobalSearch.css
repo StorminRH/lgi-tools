@@ -1,0 +1,27 @@
+.nav-host {
+  display: flex;
+  align-items: stretch;
+  margin: 8px 0 8px 12px;
+}
+
+.nav-search {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+@media (width < --theme(--breakpoint-lg)) {
+  .app-header .nav-host {
+    order: 99;
+    flex-basis: 100%;
+    border-top: 1px solid var(--color-border);
+    margin: 0;
+  }
+  .app-header .nav-search {
+    width: 100% !important;
+    border: none;
+    border-radius: 0;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}

@@ -1,0 +1,209 @@
+[data-map-shell],
+[data-map-motion-scope] {
+  --map-motion-fast: 250ms;
+  --map-motion-mid: 1000ms;
+  --map-motion-slow: 1000ms;
+}
+
+@keyframes map-node-enter {
+  from { scale: 0.82; opacity: 0.25; }
+  to { scale: 1; opacity: 1; }
+}
+.map-node-enter {
+  animation: map-node-enter var(--map-motion-mid) var(--map-motion-ease, ease-out) both;
+}
+
+@keyframes map-node-exit {
+  to { scale: 0.78; opacity: 0; }
+}
+.map-node-exit {
+  animation: map-node-exit var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+@keyframes map-node-exit-heavy {
+  to { scale: 0.55; opacity: 0; }
+}
+.map-node-exit-heavy {
+  animation: map-node-exit-heavy var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+@keyframes map-node-breathe {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.045; }
+}
+[data-chain-node]:hover .map-node-disc,
+[data-chain-node-selected] .map-node-disc-wormhole {
+  box-shadow:
+    0 0 0 1px var(--color-card-glow-ring),
+    0 0 12px var(--color-card-glow-shadow);
+}
+[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
+  animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
+}
+
+.map-node-disc-wormhole {
+  background: transparent;
+}
+
+.map-node-disc-wormhole [data-chain-node-classification] {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 3px #000, 0 0 5px #000;
+}
+
+.map-node-disc-wormhole [data-chain-node-widgets],
+[data-chain-node]:has(.map-node-disc-wormhole) [data-chain-node-name] {
+  z-index: 1;
+}
+
+.map-node-disc [data-chain-node-classification] {
+  --chip-fs: var(--text-nav);
+
+  font-size: var(--chip-fs);
+}
+
+.react-flow__node.dragging [data-chain-node],
+.react-flow__node.dragging [data-chain-node] .map-node-disc {
+  animation: none;
+}
+
+@keyframes map-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes map-fade-out {
+  to { opacity: 0; }
+}
+
+.map-edge-fade-enter {
+  animation: map-fade-in var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-fade-exit {
+  animation: map-fade-out var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-fade-exit-heavy {
+  animation: map-fade-out var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+.react-flow__edge-path.map-edge-derived {
+  opacity: 0.45;
+}
+
+.react-flow__edge.selectable {
+  pointer-events: stroke;
+}
+.react-flow__edge.selectable .react-flow__edge-interaction {
+  stroke: transparent;
+  /* Beats BaseEdge's inline stroke-opacity: 0 so visibleStroke/stroke can hit. */
+  stroke-opacity: 1 !important;
+}
+.react-flow__edge.selectable:hover .react-flow__edge-path {
+  filter: drop-shadow(0 0 6px var(--color-card-glow-shadow));
+}
+
+.map-pilot-arrow {
+  position: absolute;
+  pointer-events: none;
+  transform: var(--map-pilot-arrow-transform);
+}
+
+@keyframes map-edge-dying-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.react-flow__edge-path.map-edge-dying {
+  stroke: var(--color-alert-red);
+  --map-edge-dying-opacity: 0.7;
+
+  animation: map-edge-dying-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes map-edge-grow-enter {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes map-edge-grow-enter-rev {
+  from { stroke-dashoffset: -1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes map-edge-grow-exit {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1; }
+}
+@keyframes map-edge-grow-exit-rev {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1; }
+}
+.map-edge-grow-enter,
+.map-edge-grow-enter-rev,
+.map-edge-grow-exit,
+.map-edge-grow-exit-rev,
+.map-edge-grow-exit-heavy,
+.map-edge-grow-exit-heavy-rev {
+  stroke-dasharray: 1;
+}
+.map-edge-grow-enter {
+  animation: map-edge-grow-enter var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-grow-enter-rev {
+  animation: map-edge-grow-enter-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-grow-exit {
+  animation: map-edge-grow-exit var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-heavy {
+  animation: map-edge-grow-exit var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-heavy-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-node-enter {
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-node-exit {
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-node-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  [data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
+    animation: none;
+  }
+  .map-edge-grow-enter,
+  .map-edge-grow-enter-rev {
+    stroke-dasharray: none;
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-edge-grow-exit,
+  .map-edge-grow-exit-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-grow-exit-heavy,
+  .map-edge-grow-exit-heavy-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  .map-edge-fade-enter {
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit {
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  .react-flow__edge-path.map-edge-dying {
+    animation: none;
+    opacity: var(--map-edge-dying-opacity, 0.7);
+  }
+}

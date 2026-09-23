@@ -1,0 +1,8 @@
+body:has([data-map-canvas-frame]) {
+  overflow: hidden;
+}
+body:has([data-map-canvas-frame]) .app-header,
+body:has([data-map-canvas-frame]) [data-site-footer],
+body:has([data-map-canvas-frame]) [data-site-feedback] {
+  display: none;
+}

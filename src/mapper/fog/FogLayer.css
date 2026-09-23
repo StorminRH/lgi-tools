@@ -1,0 +1,7 @@
+/* React Flow's viewport is a stacking context. The portal is not, so z-index -1 paints under the edges and nodes. */
+.map-fog {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+}

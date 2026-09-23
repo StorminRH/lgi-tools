@@ -14,3 +14,13 @@ Landmines that lint, Fallow, and nearby tests do not catch.
   Do not add a nonce-based Content Security Policy.
 - Pages get a real static shell and put request data in the smallest
   `<Suspense>` hole. Do not wrap a fully dynamic screen in a fake shell.
+
+## Styling
+
+- Keep Tailwind setup, tokens, shared utilities, and document rules in
+  `app/globals.css`.
+- Style reusable UI in `components/ui`; keep one-off styles with their owner.
+  Prefer Tailwind utilities. Extract shared UI for a real second consumer.
+- Put rules that need CSS in a sibling `<owner>.css` and import it from
+  `app/globals.css`. Preserve cascade order and layer placement when moving rules.
+  Keep React Flow, Sonner, and runtime class names literal.

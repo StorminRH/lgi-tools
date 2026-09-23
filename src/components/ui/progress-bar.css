@@ -1,0 +1,19 @@
+.progress-fill {
+  width: var(--pct, 0%);
+  transition: width 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+}
+
+.industry-bar-fill {
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  background: linear-gradient(90deg, #2b7fc4, var(--color-evb-bright));
+  box-shadow: 0 0 8px var(--color-evb-glow);
+  transition: width 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-bar-fill { transition: none; }
+}
