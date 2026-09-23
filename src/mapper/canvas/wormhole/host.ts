@@ -90,7 +90,7 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
     }
   }
   const observer = new IntersectionObserver((entries) => {
-    visible = entries[0]?.isIntersecting ?? false;
+    visible = entries.at(-1)?.isIntersecting ?? false;
     synchronize();
   });
   observer.observe(canvas);

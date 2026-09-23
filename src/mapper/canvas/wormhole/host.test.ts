@@ -43,6 +43,7 @@ function browser() {
   return {
     canvas, frames, context, media, doc, disconnect, setProperty,
     visible: (yes: boolean) => intersect([{ isIntersecting: yes }]),
+    visibleBatch: (states: boolean[]) => intersect(states.map((isIntersecting) => ({ isIntersecting }))),
     preference: () => preference(), visibility: () => visibility(),
     advance(seconds: number) {
       for (let i = 0; i < seconds * 60; i += 1) {
@@ -75,6 +76,17 @@ test('lazy visibility, palette updates, impulse settling and idle stop work toge
   expect(env.frames.size).toBe(0);
   host.dispose();
   expect(release).toHaveBeenCalledOnce();
+});
+
+test('a batched intersection callback follows the latest entry', () => {
+  const env = browser();
+  const host = createWormholeHost(env.canvas, { active: true });
+  env.visibleBatch([false, true]);
+  expect(paint).toHaveBeenCalled();
+  expect(env.frames.size).toBe(1);
+  env.visibleBatch([true, false]);
+  expect(env.frames.size).toBe(0);
+  host.dispose();
 });
 
 test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop scheduled work', () => {
