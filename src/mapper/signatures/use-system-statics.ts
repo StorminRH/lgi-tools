@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { loadSystemStatics } from '@/data/wh-statics/client';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import {
   loadWormholeCodex,
@@ -45,4 +46,22 @@ export function useWormholeCodex(): WormholeCodex | null {
   }, [codex]);
 
   return codex;
+}
+
+export function useSystemStaticSlots(systemId: number) {
+  const codex = useWormholeCodex();
+  const [result, setResult] = useState<{ systemId: number; codes: readonly string[] } | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadSystemStatics(systemId, controller.signal).then(
+      (codes) => { if (!controller.signal.aborted) setResult({ systemId, codes }); },
+      () => {},
+    );
+    return () => controller.abort();
+  }, [systemId]);
+  const codes = result?.systemId === systemId ? result.codes : [];
+  return codes.flatMap((code) => {
+    const target = staticClassForCode(code, codex);
+    return target === null ? [] : [{ code, ...target }];
+  });
 }

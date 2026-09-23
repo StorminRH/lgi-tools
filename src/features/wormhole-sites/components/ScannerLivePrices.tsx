@@ -15,6 +15,7 @@ import {
 import { formatIskShort } from '@/lib/format/isk';
 import {
   scannerLiveEstIsk,
+  scannerEstIskSum,
   scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
 } from '../scanner-live-isk';
@@ -77,6 +78,12 @@ function ScannerLivePricesEngine({
       {children}
     </ScannerLiveContext.Provider>
   );
+}
+
+export function useScannerEstIskSum(names: readonly (string | null)[]): number | null {
+  const catalogue = useSiteCatalogue();
+  const live = useScannerLive();
+  return scannerEstIskSum(names, catalogue, live.priceOf);
 }
 
 export function ScannerEstIskCell({

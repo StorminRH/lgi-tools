@@ -14,6 +14,9 @@ import {
   type WormholeDestinationHint,
 } from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
+import { IntelIcon } from '../windows/IntelIcon';
+import { useUniverseAssets } from '../chain/use-universe-assets';
+import { SystemIntelMarks } from './SystemIntelMarks';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
 import { ChainViewportContext } from './ChainViewportContext';
 import { WormholeVisual } from './wormhole/WormholeVisual';
@@ -214,11 +217,28 @@ function NodeDisc({
       />
       <div
         data-chain-node-widgets
-        className="absolute -right-[16px] -top-[4px] flex items-center justify-end gap-0.5"
+        className="absolute right-full top-0 mr-3 flex items-center justify-end gap-0.5"
       >
         {stub ? null : <PilotPresenceBadge systemId={systemId} />}
       </div>
+      {stub ? null : <SystemIntelMarks systemId={systemId} />}
     </div>
+  );
+}
+
+function KnownSpaceLabels({ systemId }: { readonly systemId: number }) {
+  const assets = useUniverseAssets();
+  const info = assets?.systemInfo(systemId);
+  const hub = assets?.hubJumps(systemId)[0];
+  return (
+    <>
+      {info?.regionName ? <span className="absolute inset-x-1 top-4 truncate text-center font-data text-micro leading-none text-muted">{info.regionName}</span> : null}
+      {hub?.jumps != null ? (
+        <span data-chain-node-hub className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 font-data text-micro text-muted">
+          <IntelIcon kind="market" />{hub.name} {hub.jumps}
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -269,11 +289,13 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
         className={cn(
           'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
           header.toneClass,
+          !derived && appearance === null && 'top-0 leading-none',
           chromeClass,
         )}
       >
         {header.text}
       </span>
+      {!derived && appearance === null && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole' ? <KnownSpaceLabels systemId={Number(id)} /> : null}
       <NodeDisc
         derived={derived}
         chromeClass={chromeClass}

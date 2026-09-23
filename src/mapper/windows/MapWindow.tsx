@@ -61,9 +61,8 @@ interface MapWindowProps {
   readonly showHeader?: boolean;
   /**
    * `panel` is the frosted interactive card chrome. `overlay` is a
-   * content-sized passive text surface (current-system dock) — faint glass,
-   * no border/shadow, and CLICK-THROUGH: it has no interactive children, so
-   * it must never steal canvas input from nodes laid out beneath it.
+   * content-sized text surface (current-system dock) with faint glass. Its
+   * chrome is click-through; scrollable content explicitly opts into input.
    */
   readonly appearance?: 'panel' | 'overlay';
   readonly onActivate: () => void;
@@ -91,7 +90,7 @@ function placementClassName(
 ): string | false {
   if (placement.kind === 'docked') {
     return overlay
-      ? 'left-4 top-4 h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
+      ? 'left-4 top-4 h-auto max-h-[calc(100dvh-7rem)] w-max max-w-[min(24rem,calc(100vw-2rem))]'
       : 'left-4 top-4 bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
   if (placement.kind === 'docked-bottom-left') {
@@ -102,7 +101,7 @@ function placementClassName(
       ? MAP_SCANNER_SITE_VIEWER_CLASS
       : MAP_SCANNER_EDITOR_CLASS;
   }
-  return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
+  return 'left-0 top-0 h-auto max-h-[min(24rem,calc(100dvh-7rem))] w-72 [transform:var(--map-window-transform)]';
 }
 
 function WindowHeader({
@@ -187,7 +186,7 @@ function windowBodyClass(
       ? 'flex flex-auto flex-col overflow-hidden p-0'
       : cn(scrollArea, 'flex-1 overflow-y-auto'),
     overlay
-      ? 'px-2.5 pb-2 pt-0.5 text-left'
+      ? 'pointer-events-auto px-2.5 pb-2 pt-0.5 text-left'
       : scannerDock
         ? null
         : 'py-2 pl-[22px] pr-3',

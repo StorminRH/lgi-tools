@@ -20,6 +20,11 @@ import {
 } from './wormhole-contract';
 
 export const ENTITY_NAMES_MAX_IDS = 200;
+export const TYPE_NAMES_MAX_IDS = 200;
+
+export const typeNamesRequestSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(TYPE_NAMES_MAX_IDS),
+});
 
 export const entityNamesRequestSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
@@ -44,6 +49,16 @@ export const entityNamesEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/eve/names',
   request: entityNamesRequestSchema,
+  responses: {
+    200: jsonBody(entityNamesResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
+
+export const typeNamesEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/eve/type-names',
+  request: typeNamesRequestSchema,
   responses: {
     200: jsonBody(entityNamesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
@@ -96,6 +111,7 @@ const universeAssetManifestResponseSchema = z.object({
 const systemDirectoryEntrySchema = z.object({
   id: z.number().int(),
   name: z.string(),
+  regionName: z.string(),
   whClassId: z.number().int().nullable(),
   security: z.number().nullable(),
 });

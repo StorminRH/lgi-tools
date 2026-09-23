@@ -20,8 +20,9 @@ const assets = vi.hoisted(() => ({
 vi.mock('@/components/use-entity-names', () => ({ useEntityNames: () => ({}) }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
 vi.mock('../signatures/signature-context', () => ({
-  useSignatureCounts: () => ({ signatures: 3, anomalies: 2 }),
+  useSignatureRows: () => [],
 }));
+vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => [] }));
 vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
@@ -30,6 +31,7 @@ function directoryEntry(): SystemDirectoryEntry {
   return {
     id: 1,
     name: fields.name,
+    regionName: 'Test Region',
     security: fields.security,
     whClassId: fields.whClassId,
   };
@@ -61,7 +63,7 @@ describe('SystemIntelligenceBody', () => {
     expect(body).not.toContain('J123456');
     expect(body).not.toContain('Security Status');
     expect(body).not.toContain('-1.0');
-    expect(body).toContain('3 signatures · 2 anomalies');
+    expect(body).toContain('0 signatures · 0 anomalies');
 
     Object.assign(fields, { name: 'Jita', security: 0.946, whClassId: null });
     const kspace = titleAccessoryMarkup();
