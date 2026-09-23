@@ -101,11 +101,25 @@ describe('map-access-identity', () => {
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('user-gone', null);
   });
 
-  it('tears down location tracking for the user losing a character', async () => {
+  it('enqueues affected maps on unlink, bounds immediate delivery, and always cleans location tracking', async () => {
     await identityProjectionRunners.runAfterCharacterLinkChanged({
       userId: 'from-user',
       characterId: 42,
     });
+    expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
+    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith([]);
+    expect(mocks.projectMapAccess).not.toHaveBeenCalled();
+
+    const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
+    mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);
+    mocks.teardownLocationTracking.mockClear();
+    await identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });
+    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(ids);
+    expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
+    expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(
+      ids.slice(0, 100).map((mapId) => ({ mapId, version: mapId })), [],
+    );
+    expect(mocks.readPendingMapAccessChanges).toHaveBeenCalled();
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
   });
 
@@ -132,19 +146,6 @@ describe('map-access-identity', () => {
       userId: 'departing-user', characterId: 42, mapIds: ['map-a'],
     });
     expect(mocks.revokeUserMapClaims).toHaveBeenCalledWith('departing-user', ['map-a']);
-  });
-
-  it('enqueues every affected map on unlink while bounding immediate delivery and cleaning location', async () => {
-    const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);
-    await identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });
-    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(ids);
-    expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
-    expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(
-      ids.slice(0, 100).map((mapId) => ({ mapId, version: mapId })), [],
-    );
-    expect(mocks.readPendingMapAccessChanges).toHaveBeenCalled();
-    expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
   });
 
   it.each(['enqueue', 'acknowledge'])('still tears down location when map %s fails', async (stage) => {
