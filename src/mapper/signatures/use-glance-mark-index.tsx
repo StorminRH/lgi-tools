@@ -1,15 +1,18 @@
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import type { SigGroup } from '@/data/maps/scan-parse';
 import {
   glanceMarkIndex,
+  sameGlanceMarkIndex,
   type GlanceBucket,
 } from './signature-model';
 
 const GLANCE_PAGE_SIZE = 100;
+
+const NO_MARKS: readonly GlanceBucket[] = [];
 
 const GlanceMarkIndexContext = createContext<ReadonlyMap<
   number,
@@ -24,11 +27,11 @@ export function GlanceMarkIndexProvider({
   readonly children?: ReactNode;
 }) {
   const pages = useDrainedPages(
-    api.mapScan.watchMapGlanceMarks,
+    api.mapScan.watchMapGlanceGroups,
     { mapId },
     GLANCE_PAGE_SIZE,
   );
-  const index = useMemo(
+  const next = useMemo(
     () =>
       glanceMarkIndex(
         pages.rows.map((row) => ({
@@ -38,6 +41,8 @@ export function GlanceMarkIndexProvider({
       ),
     [pages.rows],
   );
+  const [index, setIndex] = useState(next);
+  if (index !== next && !sameGlanceMarkIndex(index, next)) setIndex(next);
   return (
     <GlanceMarkIndexContext.Provider value={index}>
       {children}
@@ -47,5 +52,5 @@ export function GlanceMarkIndexProvider({
 
 export function useGlanceMarks(systemId: number): readonly GlanceBucket[] {
   const index = useContext(GlanceMarkIndexContext);
-  return index?.get(systemId) ?? [];
+  return index?.get(systemId) ?? NO_MARKS;
 }

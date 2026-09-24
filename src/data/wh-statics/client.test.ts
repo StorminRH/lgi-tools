@@ -33,7 +33,9 @@ describe('system statics client', () => {
     );
   });
 
-  it('shares one request per system and retries a failed lookup', async () => {
+  it('shares pending requests per system and retries after a failure', async () => {
+    apiFetchMock.mockResolvedValueOnce(offline);
+    await expect(loadSystemStatics(31_000_003)).rejects.toThrow();
     apiFetchMock.mockResolvedValueOnce(promoted(['C247']));
     const [first, second] = await Promise.all([
       loadSystemStatics(31_000_003),
@@ -41,12 +43,18 @@ describe('system statics client', () => {
     ]);
     expect(first).toEqual(['C247']);
     expect(second).toBe(first);
-    await loadSystemStatics(31_000_003);
-    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+  });
 
-    apiFetchMock.mockResolvedValueOnce(offline);
-    await expect(loadSystemStatics(31_000_004)).rejects.toThrow();
-    apiFetchMock.mockResolvedValueOnce(promoted(['N062']));
-    await expect(loadSystemStatics(31_000_004)).resolves.toEqual(['N062']);
+  it.each([
+    { systemId: 31_000_004, previous: ['B274'] },
+    { systemId: 31_000_005, previous: [] },
+  ])('refreshes a completed result for $systemId on the next load', async ({ systemId, previous }) => {
+    apiFetchMock.mockResolvedValueOnce(promoted(previous));
+    await expect(loadSystemStatics(systemId)).resolves.toEqual(previous);
+
+    apiFetchMock.mockResolvedValueOnce(promoted(['C247']));
+    await expect(loadSystemStatics(systemId)).resolves.toEqual(['C247']);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 });

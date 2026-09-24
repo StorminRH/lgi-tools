@@ -227,6 +227,19 @@ export function glanceMarkIndex(
   return index;
 }
 
+export function sameGlanceMarkIndex(
+  left: ReadonlyMap<number, readonly GlanceBucket[]>,
+  right: ReadonlyMap<number, readonly GlanceBucket[]>,
+): boolean {
+  if (left.size !== right.size) return false;
+  for (const [systemId, buckets] of left) {
+    const other = right.get(systemId);
+    if (other === undefined || other.length !== buckets.length) return false;
+    if (buckets.some((bucket, index) => other[index] !== bucket)) return false;
+  }
+  return true;
+}
+
 export function filterSignatureRows(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,

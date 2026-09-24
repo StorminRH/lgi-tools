@@ -221,6 +221,7 @@ describe('map chain fixtures', () => {
         mapSignatures: {
           by_map: ['mapId'],
           by_map_signature: ['mapId', 'systemId', 'signatureId'],
+          by_map_live_group: ['mapId', 'deletedAt', 'group'],
           by_purge_after: ['purgeAfter'],
         },
         mapNotes: {

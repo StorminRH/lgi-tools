@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
-import { glanceMarkIndex, type SignatureWindowRow } from '../signatures/signature-model';
+import {
+  glanceMarkIndex,
+  sameGlanceMarkIndex,
+  type SignatureWindowRow,
+} from '../signatures/signature-model';
 import { intelCategoryBlocks, intelLocationKind } from './intel-model';
 
 test('system summaries and canvas marks share categories without losing repeated sites', () => {
@@ -24,4 +28,26 @@ test('system summaries and canvas marks share categories without losing repeated
     [1, ['harvestables', 'hacking', 'combat']], [2, ['harvestables']],
   ]));
   expect(intelCategoryBlocks(rows, 2).flatMap((block) => block.rows.map((site) => site.name))).toEqual(['Belt']);
+});
+
+test('glance indexes compare by marks, not identity', () => {
+  const base = glanceMarkIndex([
+    { systemId: 1, group: 'Relic Site' }, { systemId: 2, group: 'Gas Site' },
+  ]);
+  const same = glanceMarkIndex([
+    { systemId: 2, group: 'Ore Site' }, { systemId: 1, group: 'Data Site' },
+    { systemId: 3, group: 'Wormhole' },
+  ]);
+  expect(sameGlanceMarkIndex(base, same)).toBe(true);
+  expect(sameGlanceMarkIndex(base, glanceMarkIndex([{ systemId: 1, group: 'Relic Site' }]))).toBe(false);
+  expect(sameGlanceMarkIndex(base, glanceMarkIndex([
+    { systemId: 1, group: 'Combat Site' }, { systemId: 2, group: 'Gas Site' },
+  ]))).toBe(false);
+  expect(sameGlanceMarkIndex(base, glanceMarkIndex([
+    { systemId: 1, group: 'Relic Site' }, { systemId: 3, group: 'Gas Site' },
+  ]))).toBe(false);
+  expect(sameGlanceMarkIndex(base, glanceMarkIndex([
+    { systemId: 1, group: 'Relic Site' }, { systemId: 1, group: 'Combat Site' },
+    { systemId: 2, group: 'Gas Site' },
+  ]))).toBe(false);
 });

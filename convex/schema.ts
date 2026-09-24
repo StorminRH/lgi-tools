@@ -140,6 +140,7 @@ export default defineSchema({
   })
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId'])
+    .index('by_map_live_group', ['mapId', 'deletedAt', 'group'])
     .index('by_purge_after', ['purgeAfter']),
 
   mapNotes: defineTable({

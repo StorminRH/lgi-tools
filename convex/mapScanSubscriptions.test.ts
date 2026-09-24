@@ -121,62 +121,76 @@ describe('system signature subscriptions', () => {
     const pages = [];
     let cursor: string | null = null;
     for (;;) {
-      const result: Awaited<ReturnType<typeof viewer.query<typeof api.mapScan.watchMapGlanceMarks>>> =
-        await viewer.query(api.mapScan.watchMapGlanceMarks, {
+      const result: Awaited<ReturnType<typeof viewer.query<typeof api.mapScan.watchMapGlanceGroups>>> =
+        await viewer.query(api.mapScan.watchMapGlanceGroups, {
           mapId: MAP, paginationOpts: { cursor, numItems: 1000 },
         });
       pages.push(result);
       if (result.isDone) break;
       cursor = result.continueCursor;
     }
-    expect(pages.map((result) => result.page.length)).toEqual([100, 100, 100, 55]);
-    const rows = pages.flatMap((result) => result.page);
-    expect(rows.filter((row) => row.systemId === SYSTEM)).toHaveLength(225);
-    expect(rows.filter((row) => row.systemId === SYSTEM + 1)).toHaveLength(130);
+    expect(pages.map((result) => result.isDone)).toEqual([false, false, false, true]);
+    const pairs = new Set(pages.flatMap((result) =>
+      result.page.map((row) => `${row.systemId}:${row.group}`)));
+    expect([...pairs].sort()).toEqual([
+      `${SYSTEM}:Combat Site`,
+      `${SYSTEM + 1}:Combat Site`,
+    ]);
   });
 
-  it('projects map-wide glance marks to identified live rows only', async () => {
+  it('pages only live identified signatures as distinct system groups', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
-    const ids = await t.run(async (ctx) => {
-      const rows = await ctx.db.query('mapSignatures')
-        .withIndex('by_map_signature', (q) => q.eq('mapId', MAP).eq('systemId', SYSTEM + 1))
-        .take(2);
-      await ctx.db.patch(rows[0]!._id, { group: 'Combat Site' });
-      await ctx.db.patch(rows[1]!._id, { group: 'Relic Site' });
-      return rows.map((row) => row.signatureId);
+    await t.run(async (ctx) => {
+      const identify = async (
+        mapId: string,
+        systemId: number,
+        signatureId: string,
+        group: string,
+        deletedAt: number | null = null,
+      ) => {
+        const row = await ctx.db.query('mapSignatures')
+          .withIndex('by_map_signature', (q) =>
+            q.eq('mapId', mapId).eq('systemId', systemId).eq('signatureId', signatureId))
+          .unique();
+        if (row === null) throw new Error(`Seed row ${signatureId} missing`);
+        await ctx.db.patch(row._id, { group, deletedAt });
+      };
+      await identify(MAP, SYSTEM, 'SIG-000', 'Relic Site');
+      await identify(MAP, SYSTEM, 'SIG-150', 'Relic Site');
+      await identify(MAP, SYSTEM, 'SIG-220', 'Combat Site');
+      await identify(MAP, SYSTEM + 1, 'SIG-001', 'Gas Site', 1);
+      await identify(MAP, SYSTEM + 1, 'SIG-002', 'Data Site');
+      await identify('map-b', SYSTEM, 'SIG-003', 'Ore Site');
     });
     const viewer = t.withIdentity({ subject: VIEWER });
-    const drain = async () => {
-      const marks = [];
-      let cursor: string | null = null;
-      for (;;) {
-        const result: Awaited<ReturnType<typeof viewer.query<typeof api.mapScan.watchMapGlanceMarks>>> =
-          await viewer.query(api.mapScan.watchMapGlanceMarks, {
-            mapId: MAP, paginationOpts: { cursor, numItems: 1000 },
-          });
-        marks.push(...result.page);
-        if (result.isDone) return marks;
-        cursor = result.continueCursor;
-      }
-    };
+    const args = { mapId: MAP, paginationOpts: { cursor: null, numItems: 1000 } };
+    const glance = await viewer.query(api.mapScan.watchMapGlanceGroups, args);
+    expect(glance.isDone).toBe(true);
+    expect(glance.page).toHaveLength(3);
+    expect(glance.page).toEqual(expect.arrayContaining([
+      { systemId: SYSTEM, group: 'Relic Site' },
+      { systemId: SYSTEM, group: 'Combat Site' },
+      { systemId: SYSTEM + 1, group: 'Data Site' },
+    ]));
 
-    expect(await drain()).toEqual([
-      { systemId: SYSTEM + 1, group: 'Combat Site' },
-      { systemId: SYSTEM + 1, group: 'Relic Site' },
-    ]);
     await t.withIdentity({ subject: EDITOR }).mutation(api.mapScan.removeSignatures, {
-      mapId: MAP, systemId: SYSTEM + 1, signatureIds: [ids[0]!],
+      mapId: MAP, systemId: SYSTEM, signatureIds: ['SIG-220'],
     });
-    expect(await drain()).toEqual([{ systemId: SYSTEM + 1, group: 'Relic Site' }]);
-    expect(await t.query(api.mapScan.watchMapGlanceMarks, {
-      mapId: MAP, paginationOpts: { cursor: null, numItems: 10 },
-    })).toEqual({ page: [], isDone: true, continueCursor: '' });
+    expect((await viewer.query(api.mapScan.watchMapGlanceGroups, args)).page)
+      .not.toContainEqual({ systemId: SYSTEM, group: 'Combat Site' });
+
+    const denied = { page: [], isDone: true, continueCursor: '' };
+    expect(await t.query(api.mapScan.watchMapGlanceGroups, args)).toEqual(denied);
+    expect(await t.withIdentity({ subject: 'stranger' }).query(api.mapScan.watchMapGlanceGroups, args))
+      .toEqual(denied);
   });
 
   it('places both selection bounds in the indexed read before pagination', () => {
     const source = readFileSync('convex/mapScan.ts', 'utf8');
+    const reader = source.slice(source.indexOf('async function viewableSignaturePage'));
+    expect(reader).toMatch(/indexed\(ctx\.db\.query\('mapSignatures'\)\)\.paginate\(boundedPageOptions\(paginationOpts\)\)/);
     const watcher = source.slice(source.indexOf('async function readSignaturePage'));
-    expect(watcher).toMatch(/withIndex\('by_map_signature',[\s\S]*?q\.eq\('mapId', mapId\)\.eq\('systemId', systemId\)[\s\S]*?\.paginate\(boundedPageOptions\(paginationOpts\)\)/);
+    expect(watcher).toMatch(/withIndex\('by_map_signature',[\s\S]*?q\.eq\('mapId', mapId\)\.eq\('systemId', systemId\)/);
   });
 });

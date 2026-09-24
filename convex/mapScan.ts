@@ -1,14 +1,17 @@
 import {
   paginationOptsValidator,
   paginationResultValidator,
+  type NamedTableInfo,
+  type OrderedQuery,
   type PaginationOptions,
   type PaginationResult,
+  type QueryInitializer,
 } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
 import schema from './schema';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { findMissingSignatures } from '@/data/maps/signature-lifecycle';
-import type { Doc } from './_generated/dataModel';
+import type { DataModel, Doc } from './_generated/dataModel';
 import {
   internalMutation,
   internalQuery,
@@ -266,43 +269,32 @@ const signaturePageValidator = paginationResultValidator(v.object({
   _creationTime: v.number(),
 }));
 
+type SignatureTable = NamedTableInfo<DataModel, 'mapSignatures'>;
+
+async function viewableSignaturePage(
+  ctx: QueryCtx,
+  mapId: string,
+  paginationOpts: PaginationOptions,
+  indexed: (signatures: QueryInitializer<SignatureTable>) => OrderedQuery<SignatureTable>,
+): Promise<PaginationResult<Doc<'mapSignatures'>> | null> {
+  const principal = await tryMapAccess(ctx, mapId, 'view');
+  if (principal === null) return null;
+  return await indexed(ctx.db.query('mapSignatures')).paginate(boundedPageOptions(paginationOpts));
+}
+
 async function readSignaturePage(
   ctx: QueryCtx,
   { mapId, systemId, paginationOpts }: {
     readonly mapId: string;
-    readonly systemId: number | null;
+    readonly systemId: number;
     readonly paginationOpts: PaginationOptions;
   },
 ) {
-  const principal = await tryMapAccess(ctx, mapId, 'view');
-  if (principal === null) return deniedPage<Doc<'mapSignatures'>>();
-  const signatures = ctx.db.query('mapSignatures');
-  const indexed = systemId === null
-    ? signatures.withIndex('by_map', (q) => q.eq('mapId', mapId))
-    : signatures.withIndex('by_map_signature', (q) =>
-      q.eq('mapId', mapId).eq('systemId', systemId),
-    );
-  const page = await indexed.paginate(boundedPageOptions(paginationOpts));
+  const page = await viewableSignaturePage(ctx, mapId, paginationOpts, (signatures) =>
+    signatures.withIndex('by_map_signature', (q) => q.eq('mapId', mapId).eq('systemId', systemId)));
+  if (page === null) return deniedPage<Doc<'mapSignatures'>>();
   return { ...page, page: page.page.filter((row) => !isTombstoned(row)) };
 }
-
-const glanceMarkPageValidator = paginationResultValidator(v.object({
-  systemId: v.number(),
-  group: v.string(),
-}));
-
-export const watchMapGlanceMarks = query({
-  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
-  returns: glanceMarkPageValidator,
-  handler: async (ctx, args) => {
-    const page = await readSignaturePage(ctx, { ...args, systemId: null });
-    return {
-      ...page,
-      page: page.page.flatMap(({ systemId, group }) =>
-        group === null ? [] : [{ systemId, group }]),
-    };
-  },
-});
 
 export const watchSystemSignatures = query({
   args: {
@@ -312,6 +304,28 @@ export const watchSystemSignatures = query({
   },
   returns: signaturePageValidator,
   handler: readSignaturePage,
+});
+
+const glanceGroupPageValidator = paginationResultValidator(v.object({
+  systemId: v.number(),
+  group: v.string(),
+}));
+
+export const watchMapGlanceGroups = query({
+  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
+  returns: glanceGroupPageValidator,
+  handler: async (ctx, { mapId, paginationOpts }) => {
+    // Null sorts before every string, so `gt(null)` keeps only identified rows.
+    const page = await viewableSignaturePage(ctx, mapId, paginationOpts, (signatures) =>
+      signatures.withIndex('by_map_live_group', (q) =>
+        q.eq('mapId', mapId).eq('deletedAt', null).gt('group', null)));
+    if (page === null) return deniedPage<{ systemId: number; group: string }>();
+    const pairs = new Map<string, { systemId: number; group: string }>();
+    for (const { systemId, group } of page.page) {
+      if (group !== null) pairs.set(`${systemId}:${group}`, { systemId, group });
+    }
+    return { ...page, page: [...pairs.values()] };
+  },
 });
 
 export const purgeExpiredSignatureTombstones = internalMutation({
