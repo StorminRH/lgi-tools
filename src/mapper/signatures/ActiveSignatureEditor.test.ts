@@ -162,6 +162,7 @@ it('restores inside the undo window, closes when the row left the feed, and keep
     regionName: 'Test Region',
     security: -1,
     whClassId: 4,
+    effect: null,
   });
   const locked = render(RESOLVED_ID);
   expect(locked).not.toContain('data-map-connection-leads-locked');

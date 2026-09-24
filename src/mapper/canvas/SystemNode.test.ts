@@ -6,6 +6,7 @@ import type { ChainEdgeData } from '../chain/nodes';
 import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
+import type { WormholeBody } from './wormhole/palette';
 import {
   CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
@@ -43,12 +44,14 @@ vi.mock('@xyflow/react', async () => {
 vi.mock('./wormhole/WormholeVisual', async () => {
   const { createElement: element } = await import('react');
   return {
-    WormholeVisual: ({ whClassId, active, paused }: {
-      whClassId: number | null;
+    WormholeVisual: ({ body, active, paused }: {
+      body: WormholeBody;
       active: boolean;
       paused: boolean;
     }) => element('span', {
-      'data-wormhole-visual': whClassId ?? 'unknown',
+      'data-wormhole-visual': body.kind === 'wormhole' ? body.classId ?? 'unknown' : body.security,
+      'data-body': body.kind,
+      'data-effect': body.kind === 'wormhole' ? body.effect ?? undefined : undefined,
       'data-visual-active': String(active),
       'data-visual-paused': String(paused),
     }),
@@ -74,11 +77,25 @@ test('wormhole classes mount the decorative visual and pause it while inert', ()
   expect(c6.match(/data-handle=/g)).toHaveLength(2);
   expect(renderNode({}, { whClassId: 12 })).toContain('data-wormhole-visual="12"');
 
+  const effect = renderNode({}, { whClassId: 4, effect: 'black-hole' });
+  expect(effect).toContain('data-body="wormhole"');
+  expect(effect).toContain('data-effect="black-hole"');
+
   for (const whClassId of [7, null]) {
-    const ordinary = renderNode({}, { whClassId, name: 'System' });
-    expect(ordinary).not.toContain('data-wormhole-visual');
-    expect(ordinary).not.toContain('map-node-disc-wormhole');
+    const kspace = renderNode({}, { whClassId, name: 'System', security: 0.43 });
+    expect(kspace).toContain('data-wormhole-visual="0.43"');
+    expect(kspace).toContain('data-body="planet"');
+    expect(kspace).toContain('map-node-disc-planet');
+    expect(kspace).not.toContain('map-node-disc-wormhole');
+    expect(kspace).toContain('--kspace-caption-transform');
+
+    const unresolved = renderNode({}, { whClassId, name: 'System' });
+    expect(unresolved).not.toContain('data-wormhole-visual');
+    expect(unresolved).not.toContain('map-node-disc-planet');
   }
+
+  const haloPlanet = renderNode({}, { name: 'Perimeter', security: 0.9, halo: { ring: 1, fogged: false } });
+  expect(haloPlanet).toContain('data-body="planet"');
 
   const selected = renderNode({ selected: true }, { whClassId: 3, className: 'C3' });
   expect(selected).toContain('data-visual-active="true"');

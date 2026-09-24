@@ -4,6 +4,7 @@ import {
   classifyDueSubject,
   isRegisteredDataset,
   SYNC_DATASET_CONFIG,
+  SYNC_DATASETS,
   type DueSubjectAction,
   type SyncDataset,
 } from '@/lib/sync-engine';
@@ -18,8 +19,7 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
 });
 
 export const syncDatasetValidator = v.union(
-  v.literal('onlineStatus'),
-  v.literal('characterLocation'),
+  ...SYNC_DATASETS.map((dataset) => v.literal(dataset)),
 );
 
 const SYNC_REFS = {

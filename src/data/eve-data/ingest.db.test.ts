@@ -89,6 +89,7 @@ beforeAll(async () => {
     mapConstellations: fixturePath('unused-mapConstellations'),
     mapSolarSystems: fixturePath('unused-mapSolarSystems'),
     mapStargates: fixturePath('unused-mapStargates'),
+    mapSecondarySuns: fixturePath('unused-mapSecondarySuns'),
     npcStations: fixturePath('unused-npcStations'),
     stationOperations: fixturePath('unused-stationOperations'),
     stationServices: fixturePath('unused-stationServices'),

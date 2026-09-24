@@ -43,10 +43,11 @@ export interface FogHostRuntime {
   frameState: FogFrameState;
   placement: FogPlacement | null;
   brush: CanvasImageSource | null;
+  color: string | null;
 }
 
 export function createFogHostRuntime(): FogHostRuntime {
-  return { frameState: EMPTY_FOG_FRAME_STATE, placement: null, brush: null };
+  return { frameState: EMPTY_FOG_FRAME_STATE, placement: null, brush: null, color: null };
 }
 
 function applyPlacement(canvas: FogCanvasTarget, placement: FogPlacement): void {
@@ -83,7 +84,7 @@ export function runFogTick(
     io.devicePixelRatio,
   );
   const brush = (runtime.brush ??= io.createBrush());
-  const color = io.readColor();
+  const color = (runtime.color ??= io.readColor());
   if (decision === null || brush === null || color === null) {
     return advance.animating;
   }

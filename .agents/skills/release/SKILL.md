@@ -5,6 +5,7 @@ description: >-
   staging to main. Review and fix it in two local rounds, run GitHub
   Verify, and stop for the user. It does not request CodeRabbit, Bugbot,
   or Greptile. Use when the user says release or staging to main.
+disable-model-invocation: true
 ---
 
 # Release

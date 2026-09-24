@@ -27,12 +27,12 @@ describe('universe asset builders', () => {
   it('sorts the system directory and adjacency graph deterministically', () => {
     expect(
       buildSystemDirectory([
-        { id: 2, name: 'Perimeter', regionName: 'The Forge', whClassId: 7, security: 1 },
-        { id: 1, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9 },
+        { id: 2, name: 'Perimeter', regionName: 'The Forge', whClassId: 7, security: 1, effect: null },
+        { id: 1, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9, effect: null },
       ]),
     ).toEqual([
-      { id: 1, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9 },
-      { id: 2, name: 'Perimeter', regionName: 'The Forge', whClassId: 7, security: 1 },
+      { id: 1, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9, effect: null },
+      { id: 2, name: 'Perimeter', regionName: 'The Forge', whClassId: 7, security: 1, effect: null },
     ]);
     expect(
       buildAdjacencyGraph([

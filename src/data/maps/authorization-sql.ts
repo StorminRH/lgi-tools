@@ -3,9 +3,16 @@ import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
-export function mapAuthorizationRows(
-  result: Awaited<ReturnType<AnyPgDb['execute']>>,
-) {
+export type PendingMapAccessChange = {
+  readonly mapId: string;
+  readonly version: string;
+};
+
+export async function mapAuthorizationRows<T extends Record<string, unknown>>(
+  database: AnyPgDb,
+  query: SQL,
+): Promise<T[]> {
+  const result = await database.execute<T>(query);
   return Array.isArray(result) ? result : result.rows;
 }
 

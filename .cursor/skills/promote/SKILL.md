@@ -13,6 +13,10 @@ disable-model-invocation: true
 
 Carry `development` onto `staging`, or `staging` onto `main`. Stop when the Verify workflow is green. Do not merge.
 
+## Plugin skills
+
+This skill uses poteto-mode and deslop from the pstack plugin, and thermos from the thermos plugin. Claude Code names them `pstack:poteto-mode`, `pstack:deslop`, and `thermos:thermos`. When a harness exposes a plugin skill only to the user, read that skill's `SKILL.md` from the installed plugin and follow it. Paths such as poteto-mode `playbooks/opening-a-pr.md` resolve inside that skill's directory.
+
 ## Pick the mode
 
 The release skill sets the mode to release. A request that says release, or staging to main, also sets the mode to release. Every other run of this skill is promote.

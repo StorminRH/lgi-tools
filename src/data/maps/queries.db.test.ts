@@ -14,6 +14,7 @@ import {
   getAuthorizedMapGrantsForMaps,
   getMapAccessCandidateUserIds,
   affectedMapIdsForCharacter,
+  enqueueAffectedMapAccessChanges,
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
 } from './queries';
@@ -100,6 +101,14 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await seedCharacter(harness.db, 43, { corporationId: 991 });
     expect((await affectedMapIdsForCharacter(42)).sort()).toEqual([active, archived].sort());
     expect((await affectedMapIdsForCharacter(43)).sort()).toEqual([active, tombstoned].sort());
+
+    const pending = await enqueueAffectedMapAccessChanges(43);
+    expect(pending.map((row) => row.mapId).sort()).toEqual([active, tombstoned].sort());
+    const queued = await harness.db
+      .select({ mapId: pendingMapAccessChanges.mapId, version: pendingMapAccessChanges.version })
+      .from(pendingMapAccessChanges);
+    expect(queued).toEqual(expect.arrayContaining(pending));
+    expect(queued).toHaveLength(2);
   });
 
   it('creates a map and selected grants in one statement, including a private map', async () => {

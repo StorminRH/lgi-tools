@@ -167,12 +167,13 @@ function buildReport(
     codex.version,
     'System and wormhole assets must share one composed version.',
   );
-  if (!directory.version.endsWith('+u2')) {
+  if (!directory.version.endsWith('+u3')) {
     throw new Error(
-      `Universe asset version ${directory.version} is missing the +u2 layout stamp.`,
+      `Universe asset version ${directory.version} is missing the +u3 layout stamp.`,
     );
   }
   strictEqual(jita.regionName, 'The Forge');
+  strictEqual(jita.effect, null);
   strictEqual(
     composeUniverseAssetVersion(directory.version.slice(0, -3)),
     directory.version,

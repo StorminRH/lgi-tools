@@ -1,9 +1,9 @@
+import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import {
   acknowledgeMapAccessChanges,
   MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
-  type PendingMapAccessChange,
 } from '@/platform/auth/affiliation-store';
 import { projectMapAccess, requireCurrentProjection } from './map-access-projection';
 
@@ -19,7 +19,13 @@ export async function reconcileAffiliationAccess(): Promise<{ processed: number;
 export async function deliverCapturedMapAccessChanges(
   changes: PendingMapAccessChange[],
 ): Promise<{ processed: number; failed: number }> {
-  return deliverPendingMapAccessChanges(changes.slice(0, MAX_PENDING_BATCH));
+  const captured = await deliverPendingMapAccessChanges(changes.slice(0, MAX_PENDING_BATCH));
+  if (changes.length <= MAX_PENDING_BATCH) return captured;
+  const overflow = await reconcileAffiliationAccess();
+  return {
+    processed: captured.processed + overflow.processed,
+    failed: captured.failed + overflow.failed,
+  };
 }
 
 async function deliverPendingMapAccessChanges(

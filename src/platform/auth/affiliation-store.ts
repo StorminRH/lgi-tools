@@ -1,7 +1,10 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
-import { enqueuePendingMapAccessSelection } from '@/data/maps/authorization-sql';
+import {
+  enqueuePendingMapAccessSelection,
+  type PendingMapAccessChange,
+} from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
@@ -15,11 +18,6 @@ export interface CachedAffiliation {
   allianceId: number | null;
   factionId: number | null;
   refreshedAt: Date | null;
-}
-
-export interface PendingMapAccessChange {
-  mapId: string;
-  version: string;
 }
 
 export const MAX_PENDING_BATCH = 100;
@@ -178,19 +176,6 @@ export async function readPendingMapAccessChanges(
   }).from(pendingMapAccessChanges)
     .orderBy(asc(pendingMapAccessChanges.queuedAt), asc(pendingMapAccessChanges.mapId))
     .limit(limit);
-}
-
-export async function enqueueMapAccessChanges(mapIds: readonly string[]): Promise<PendingMapAccessChange[]> {
-  const unique = [...new Set(mapIds)];
-  if (unique.length === 0) return [];
-  return db
-    .insert(pendingMapAccessChanges)
-    .values(unique.map((mapId) => ({ mapId })))
-    .onConflictDoUpdate({
-      target: pendingMapAccessChanges.mapId,
-      set: { version: sql`gen_random_uuid()` },
-    })
-    .returning({ mapId: pendingMapAccessChanges.mapId, version: pendingMapAccessChanges.version });
 }
 
 export async function acknowledgeMapAccessChanges(

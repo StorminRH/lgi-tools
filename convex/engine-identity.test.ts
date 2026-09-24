@@ -22,6 +22,7 @@ describe('heartbeat account scope', () => {
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'mount',
+      visible: true,
       tabId: 'old-account-tab',
       expectedUserId: 'account-a',
     });
@@ -32,26 +33,17 @@ describe('heartbeat account scope', () => {
     expect(rows).toEqual({ presence: [], subjects: [] });
   });
 
-  it('accepts the matching account and keeps legacy clients compatible', async () => {
+  it('accepts the matching account', async () => {
     const t = convexTest(schema, modules);
-    const authed = t.withIdentity({ subject: 'account-a' });
-    await authed.mutation(api.engine.heartbeat, {
+    await t.withIdentity({ subject: 'account-a' }).mutation(api.engine.heartbeat, {
       dataset: 'characterLocation',
       characterIdsHint: [],
       reason: 'mount',
+      visible: true,
       tabId: 'coordinated-tab',
       expectedUserId: 'account-a',
     });
     const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(presence).toMatchObject({ userId: 'account-a', tabId: 'coordinated-tab' });
-
-    await authed.mutation(api.engine.heartbeat, {
-      dataset: 'characterLocation',
-      characterIdsHint: [],
-      reason: 'interval',
-      tabId: 'legacy-tab',
-    });
-    const updated = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(updated).toMatchObject({ _id: presence?._id, userId: 'account-a', tabId: 'legacy-tab' });
   });
 });

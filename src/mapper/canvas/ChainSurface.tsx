@@ -78,6 +78,7 @@ export function ChainSurface({
           deleteKeyCode={null}
           disableKeyboardA11y
           nodesDraggable={false}
+          onlyRenderVisibleElements
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           onNodeContextMenu={onNodeContextMenu}

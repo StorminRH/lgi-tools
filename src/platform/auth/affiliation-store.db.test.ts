@@ -10,7 +10,6 @@ import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
   acknowledgeMapAccessChanges,
   captureAffiliationObservedAt,
-  enqueueMapAccessChanges,
   getUsersAffiliations,
   MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
@@ -20,6 +19,7 @@ import {
   updateAffiliations,
 } from './affiliation-store';
 import { characters, corpAccessAudit } from '@/db/auth-schema';
+import { enqueueAffectedMapAccessChanges } from '@/data/maps/queries';
 import { maps, mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 
 const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
@@ -260,13 +260,22 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await acknowledgeMapAccessChanges([]);
   });
 
-  it('coalesces direct enqueues and rotates generations for retry', async () => {
-    await harness.db.insert(maps).values({ id: mapId(1), userId: USER_ID, name: 'Map' });
-    await enqueueMapAccessChanges([]);
-    const first = await enqueueMapAccessChanges([mapId(1), mapId(1)]);
+  async function seedCharacterMaps(ids: string[]) {
+    await harness.db.insert(maps).values(ids.map((id) => ({ id, userId: USER_ID, name: 'Map' })));
+    await harness.db.insert(mapAccess).values(ids.map((id) => ({
+      mapId: id, ownerType: 'character' as const, ownerId: FIRST_CHAR, role: 'viewer' as const,
+    })));
+  }
+
+  it('coalesces affected-map enqueues and rotates generations for retry', async () => {
+    await seedCharacter(FIRST_CHAR, { corporationId: 98000011 });
+    await seedCharacterMaps([mapId(1)]);
+    await harness.db.insert(mapAccess).values({ mapId: mapId(1), ownerType: 'corporation', ownerId: 98000011, role: 'viewer' });
+    await expect(enqueueAffectedMapAccessChanges(SECOND_CHAR)).resolves.toEqual([]);
+    const first = await enqueueAffectedMapAccessChanges(FIRST_CHAR);
     expect(await readPendingMapAccessChanges()).toEqual(first);
     expect(first).toHaveLength(1);
-    const second = await enqueueMapAccessChanges([mapId(1)]);
+    const second = await enqueueAffectedMapAccessChanges(FIRST_CHAR);
     expect(await readPendingMapAccessChanges()).toEqual(second);
     expect(second).toHaveLength(1);
     expect(second[0]?.version).not.toBe(first[0]?.version);
@@ -277,13 +286,15 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
   });
 
   it('enqueues all overflow maps in one producer batch while drain reads stay bounded', async () => {
-    const ids = Array.from({ length: MAX_PENDING_BATCH + 1 }, (_, i) => mapId(i));
-    await harness.db.insert(maps).values(ids.map((id) => ({ id, userId: USER_ID, name: 'Map' })));
-    const captured = await enqueueMapAccessChanges(ids);
+    await seedCharacterMaps(Array.from({ length: MAX_PENDING_BATCH + 1 }, (_, i) => mapId(i)));
+    const captured = await enqueueAffectedMapAccessChanges(FIRST_CHAR);
     expect(captured).toHaveLength(MAX_PENDING_BATCH + 1);
-    expect(await readPendingMapAccessChanges()).toHaveLength(MAX_PENDING_BATCH);
-    await acknowledgeMapAccessChanges(captured.slice(0, MAX_PENDING_BATCH));
-    expect(await readPendingMapAccessChanges()).toEqual(captured.slice(MAX_PENDING_BATCH));
+    const drained = await readPendingMapAccessChanges();
+    expect(drained).toHaveLength(MAX_PENDING_BATCH);
+    await acknowledgeMapAccessChanges(drained);
+    expect(await readPendingMapAccessChanges()).toEqual(
+      captured.filter((row) => !drained.some((done) => done.mapId === row.mapId)),
+    );
   });
 
   it.each(['older first', 'newer first'] as const)(

@@ -3,7 +3,6 @@ import {
   computeNextDueAt,
   hasSyncTarget,
   isCold,
-  isRegisteredDataset,
   isRunningFresh,
   isStaleForImmediate,
   SYNC_DATASET_CONFIG,
@@ -25,26 +24,29 @@ export const heartbeat = mutation({
     dataset: syncDatasetValidator,
     characterIdsHint: v.array(v.number()),
     reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
-    visible: v.optional(v.boolean()),
-    tabId: v.optional(v.string()),
-    expectedUserId: v.optional(v.string()),
+    visible: v.boolean(),
+    tabId: v.string(),
+    expectedUserId: v.string(),
   },
   handler: async (ctx, { dataset, characterIdsHint, reason, visible, tabId, expectedUserId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
-    if (expectedUserId !== undefined && expectedUserId !== identity.subject) return;
-    if (!isRegisteredDataset(dataset)) return;
+    if (expectedUserId !== identity.subject) return;
     const userId = identity.subject;
     const now = Date.now();
     const presence = await getPresence(ctx.db, dataset, userId);
     if (presence !== null && isLeftTab(presence.leftTabId, tabId)) return;
+
+    if (reason === 'interval' && isPresenceFresh(presence, dataset, visible, tabId, now)) {
+      return;
+    }
 
     const wasCold = await upsertPresence(
       ctx,
       presence,
       dataset,
       userId,
-      visible !== false,
+      visible,
       now,
       tabId,
     );
@@ -82,31 +84,52 @@ async function upsertPresence(
   presence: Doc<'syncPresence'> | null,
   dataset: SyncDataset,
   userId: string,
-  seenVisible: boolean,
+  visible: boolean,
   now: number,
-  tabId: string | undefined,
+  tabId: string,
 ): Promise<boolean> {
   const wasCold =
     presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
-  const tabFields = tabId === undefined ? {} : { tabId, leftTabId: '' };
   if (presence === null) {
     await ctx.db.insert('syncPresence', {
       dataset,
       userId,
       lastSeenAt: now,
       lastVisibleAt: now,
-      ...tabFields,
+      tabId,
+      leftTabId: '',
     });
   } else {
     await ctx.db.patch(presence._id, {
       lastSeenAt: now,
-      ...(seenVisible ? { lastVisibleAt: now } : {}),
-      ...tabFields,
+      ...(visible ? { lastVisibleAt: now } : {}),
+      tabId,
+      leftTabId: '',
     });
   }
   return wasCold;
 }
 
-function isLeftTab(leftTabId: string | undefined, tabId: string | undefined): boolean {
-  return leftTabId !== undefined && leftTabId !== '' && (tabId === undefined || tabId === leftTabId);
+/**
+ * An interval beat inside this window of the last presence write changes no
+ * liveness decision (cold is minutes away), so it skips the write entirely.
+ */
+const PRESENCE_REFRESH_MS = 60_000;
+
+function isPresenceFresh(
+  presence: Doc<'syncPresence'> | null,
+  dataset: SyncDataset,
+  visible: boolean,
+  tabId: string,
+  now: number,
+): boolean {
+  if (presence === null) return false;
+  if (isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return false;
+  if (presence.tabId !== tabId || (presence.leftTabId ?? '') !== '') return false;
+  if (now - presence.lastSeenAt >= PRESENCE_REFRESH_MS) return false;
+  return !visible || now - (presence.lastVisibleAt ?? 0) < PRESENCE_REFRESH_MS;
+}
+
+function isLeftTab(leftTabId: string | undefined, tabId: string): boolean {
+  return leftTabId !== undefined && leftTabId !== '' && tabId === leftTabId;
 }

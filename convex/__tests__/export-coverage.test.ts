@@ -139,7 +139,6 @@ import {
   removeSignatures,
   restoreSignatures,
   watchMapGlanceGroups,
-  watchMapSignatures,
   watchSystemSignatures,
 } from '../mapScan';
 import { trackedCharacterIds } from '../mapTrackingIds';
@@ -263,7 +262,6 @@ describe('convex runtime exports', () => {
       removeSignatures,
       restoreSignatures,
       watchMapGlanceGroups,
-      watchMapSignatures,
       watchSystemSignatures,
       coverage,
       forMap,

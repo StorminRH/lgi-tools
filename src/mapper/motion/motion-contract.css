@@ -31,12 +31,13 @@
   50% { scale: 1.045; }
 }
 [data-chain-node]:hover .map-node-disc,
-[data-chain-node-selected] .map-node-disc-wormhole {
+[data-chain-node-selected] .map-node-disc-wormhole,
+[data-chain-node-selected] .map-node-disc-planet {
   box-shadow:
     0 0 0 1px var(--color-card-glow-ring),
     0 0 12px var(--color-card-glow-shadow);
 }
-[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
+[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole, .map-node-disc-planet) {
   animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
 }
 
@@ -44,13 +45,20 @@
   background: transparent;
 }
 
-.map-node-disc-wormhole [data-chain-node-classification] {
+.map-node-disc-planet {
+  background: transparent;
+  border-color: transparent;
+}
+
+.map-node-disc-wormhole [data-chain-node-classification],
+.map-node-disc-planet [data-chain-node-classification] {
   position: relative;
   z-index: 1;
   text-shadow: 0 1px 3px #000, 0 0 5px #000;
 }
 
 .map-node-disc-wormhole [data-chain-node-widgets],
+.map-node-disc-planet [data-chain-node-widgets],
 [data-chain-node]:has(.map-node-disc-wormhole) [data-chain-node-name] {
   z-index: 1;
 }
@@ -195,7 +203,7 @@
   .map-node-exit-heavy {
     animation: map-fade-out var(--map-motion-slow) linear both;
   }
-  [data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole) {
+  [data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole, .map-node-disc-planet) {
     animation: none;
   }
   .map-edge-grow-enter,

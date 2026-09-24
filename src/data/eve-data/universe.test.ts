@@ -53,6 +53,12 @@ const stargate = (id: number, fromSys: number, toSys: number) => ({
   destination: { solarSystemID: toSys, stargateID: id + 1 },
 });
 
+const secondarySun = (
+  solarSystemID: number,
+  typeID: number,
+  effectBeaconTypeID: number,
+) => ({ _key: 40_000_000 + solarSystemID, solarSystemID, typeID, effectBeaconTypeID });
+
 const SERVICES = [svc(7, 'Market'), svc(14, 'Factory'), svc(15, 'Laboratory')];
 
 describe('resolveIndustryServiceIds', () => {
@@ -114,6 +120,11 @@ describe('buildUniverseDataset', () => {
       stargate(50001250, 30000142, 30009999),
       stargate(50009999, 30000142, 32000001),
     ],
+    secondarySuns: [
+      secondarySun(31000007, 30577, 30_845),
+      secondarySun(31002238, 30575, 30_844),
+      secondarySun(31000005, 99_999, 30_846),
+    ],
     operations: [
       operation(14, 'Assembly Plant', [7, 14]),
       operation(15, 'Research Centre', [15]),
@@ -156,6 +167,18 @@ describe('buildUniverseDataset', () => {
     expect(sysById.get(31002238)?.wormholeClassId).toBe(14);
     expect(sysById.get(30000142)?.wormholeClassId).toBe(7);
     expect(sysById.get(30009999)?.wormholeClassId).toBeNull();
+  });
+
+  it('reads each effect from the secondary sun type, never its beacon', () => {
+    expect(
+      dataset.systems.map((s) => [s.name, s.wormholeEffect]),
+    ).toEqual([
+      ['Jita', null],
+      ['NoClass', null],
+      ['J105443', 'pulsar'],
+      ['Thera', null],
+      ['Sentinel MZ', 'black-hole'],
+    ]);
   });
 
   it('builds a deduped, FK-safe system jump graph', () => {
@@ -229,6 +252,7 @@ describe('buildUniverseDataset', () => {
       stations: raw.stations.filter((st) =>
         kSystemIds.has(st.solarSystemID as number),
       ),
+      secondarySuns: [],
     };
     const kDataset = buildUniverseDataset(kOnly);
 

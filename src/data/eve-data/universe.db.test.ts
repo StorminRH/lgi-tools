@@ -29,10 +29,10 @@ const DATASET: UniverseDataset = {
     { id: 21000324, regionId: 11000031, name: 'Thera constellation' },
   ],
   systems: [
-    { id: 30000142, constellationId: 20000020, regionId: 10000002, name: 'Jita', securityStatus: 0.946, wormholeClassId: 7 },
-    { id: 30000144, constellationId: 20000020, regionId: 10000002, name: 'Perimeter', securityStatus: 0.946, wormholeClassId: 7 },
-    { id: 31000007, constellationId: 21000311, regionId: 11000001, name: 'J105443', securityStatus: -0.99, wormholeClassId: 1 },
-    { id: 31000005, constellationId: 21000324, regionId: 11000031, name: 'Thera', securityStatus: -1, wormholeClassId: 12 },
+    { id: 30000142, constellationId: 20000020, regionId: 10000002, name: 'Jita', securityStatus: 0.946, wormholeClassId: 7, wormholeEffect: null },
+    { id: 30000144, constellationId: 20000020, regionId: 10000002, name: 'Perimeter', securityStatus: 0.946, wormholeClassId: 7, wormholeEffect: null },
+    { id: 31000007, constellationId: 21000311, regionId: 11000001, name: 'J105443', securityStatus: -0.99, wormholeClassId: 1, wormholeEffect: 'pulsar' },
+    { id: 31000005, constellationId: 21000324, regionId: 11000031, name: 'Thera', securityStatus: -1, wormholeClassId: 12, wormholeEffect: null },
   ],
   jumps: [
     { fromSystemId: 30000142, toSystemId: 30000144 },
@@ -49,12 +49,16 @@ describe.skipIf(!harness.reachable)('emitUniverseNeon executes against Postgres'
     await emitUniverseNeon(harness.db as unknown as AnyPgDb, DATASET);
   });
 
-  it('reads back a J-space system with its derived wormhole class', async () => {
+  it('reads back a J-space system with its derived wormhole class and effect', async () => {
     const rows = await harness.db
-      .select({ name: eveSolarSystems.name, cls: eveSolarSystems.wormholeClassId })
+      .select({
+        name: eveSolarSystems.name,
+        cls: eveSolarSystems.wormholeClassId,
+        effect: eveSolarSystems.wormholeEffect,
+      })
       .from(eveSolarSystems)
       .where(eq(eveSolarSystems.id, 31000007));
-    expect(rows).toEqual([{ name: 'J105443', cls: 1 }]);
+    expect(rows).toEqual([{ name: 'J105443', cls: 1, effect: 'pulsar' }]);
   });
 
   it('keeps Thera\'s industry station (J-space system now ingested)', async () => {

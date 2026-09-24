@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDbTestHarness,
@@ -6,10 +6,10 @@ import {
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
 import { createMapsPurgeContributor } from './purge';
-import { mapAccess, maps } from './schema';
+import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 const hooks = {
-  projectMap: vi.fn(),
+  deliverCaptured: vi.fn(),
   purgeMapChain: vi.fn(),
   purgeUserClaims: vi.fn(),
 };
@@ -18,7 +18,7 @@ const mapsPurgeContributor = createMapsPurgeContributor(hooks);
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_purge',
-  tables: ['user', 'characters', 'maps', 'map_access'],
+  tables: ['user', 'characters', 'maps', 'map_access', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'maps',
@@ -34,6 +34,13 @@ const harness = await createDbTestHarness({
       refColumn: 'id',
       onDelete: 'cascade',
     },
+    {
+      table: 'map_access_changes',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
   ],
   steerDbProxy: true,
   resetBetweenTests: 'truncate',
@@ -41,7 +48,7 @@ const harness = await createDbTestHarness({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  hooks.projectMap.mockResolvedValue(undefined);
+  hooks.deliverCaptured.mockResolvedValue(undefined);
   hooks.purgeMapChain.mockResolvedValue(undefined);
   hooks.purgeUserClaims.mockResolvedValue(undefined);
 });
@@ -87,9 +94,18 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
       { ownerType: 'character', ownerId: 43 },
       { ownerType: 'corporation', ownerId: 99 },
     ]);
-    expect(hooks.projectMap).toHaveBeenCalledWith(
-      '11111111-1111-4111-8111-111111111111',
-    );
+    expect(hooks.deliverCaptured).toHaveBeenCalledWith([
+      expect.objectContaining({
+        mapId: '11111111-1111-4111-8111-111111111111',
+        version: expect.any(String),
+      }),
+    ]);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([
+      expect.objectContaining({
+        mapId: '11111111-1111-4111-8111-111111111111',
+        version: expect.any(String),
+      }),
+    ]);
   });
 
   it('re-projects corp-grant maps when the departing character matched that corp', async () => {
@@ -120,13 +136,12 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
       characterId: 42,
     });
 
-    expect(hooks.projectMap).toHaveBeenCalledTimes(2);
-    expect(hooks.projectMap).toHaveBeenCalledWith(
+    const pending = hooks.deliverCaptured.mock.calls[0]?.[0] ?? [];
+    expect(pending.map((row: { mapId: string }) => row.mapId).sort()).toEqual([
       '11111111-1111-4111-8111-111111111111',
-    );
-    expect(hooks.projectMap).toHaveBeenCalledWith(
       '22222222-2222-4222-8222-222222222222',
-    );
+    ]);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toHaveLength(2);
   });
 
   it('removes a user-owned map and tears down then purges user claims', async () => {
@@ -166,9 +181,9 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
     expect(hooks.purgeUserClaims).toHaveBeenCalledWith('owner');
   });
 
-  it('completes the Neon purge and logs when the projection hook fails', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    hooks.projectMap.mockRejectedValue(new Error('door down'));
+  it('completes purge and keeps durable retry work when captured delivery fails after the grant delete', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    hooks.deliverCaptured.mockRejectedValue(new Error('door down'));
     await seedUser(harness.db, 'owner');
     await harness.db.insert(maps).values({
       id: '11111111-1111-4111-8111-111111111111',
@@ -191,8 +206,48 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
     ).resolves.toBeUndefined();
 
     expect(await harness.db.select().from(mapAccess)).toEqual([]);
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([
+      expect.objectContaining({
+        mapId: '11111111-1111-4111-8111-111111111111',
+        version: expect.any(String),
+      }),
+    ]);
+  });
+
+  it('rolls character-grant deletes back when the durable queue write fails', async () => {
+    await seedUser(harness.db, 'owner');
+    await harness.db.insert(maps).values({
+      id: '11111111-1111-4111-8111-111111111111',
+      userId: 'owner',
+      name: 'Map',
+    });
+    await harness.db.insert(mapAccess).values({
+      mapId: '11111111-1111-4111-8111-111111111111',
+      ownerType: 'character',
+      ownerId: 42,
+      role: 'editor',
+    });
+    await harness.db.execute(sql`
+      ALTER TABLE map_access_changes ADD CONSTRAINT reject_test_queue CHECK (false)
+    `);
+    try {
+      await expect(
+        mapsPurgeContributor.purgeCharacter?.({
+          kind: 'character',
+          userId: 'owner',
+          characterId: 42,
+        }),
+      ).rejects.toThrow();
+      expect(await harness.db.select().from(mapAccess)).toEqual([
+        expect.objectContaining({ ownerType: 'character', ownerId: 42 }),
+      ]);
+      expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+      expect(hooks.deliverCaptured).not.toHaveBeenCalled();
+    } finally {
+      await harness.db.execute(sql`
+        ALTER TABLE map_access_changes DROP CONSTRAINT reject_test_queue
+      `);
+    }
   });
 
   it('keeps owned Neon maps retryable when collaborative purge fails', async () => {

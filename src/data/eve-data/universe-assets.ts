@@ -20,6 +20,7 @@ import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
   wormholeSizeClass,
+  type WormholeEffect,
   type WormholeSizeClass,
 } from './wormhole-contract';
 
@@ -48,10 +49,11 @@ export interface SystemDirectoryEntry {
   regionName: string;
   whClassId: number | null;
   security: number | null;
+  effect: WormholeEffect | null;
 }
 
 export function composeUniverseAssetVersion(sdeVersion: string): string {
-  return `${sdeVersion}+u2`;
+  return `${sdeVersion}+u3`;
 }
 
 export type AdjacencyEntry = [
@@ -257,6 +259,7 @@ export async function readSystemDirectory(
         regionName: eveRegions.name,
         whClassId: eveSolarSystems.wormholeClassId,
         security: eveSolarSystems.securityStatus,
+        effect: eveSolarSystems.wormholeEffect,
       })
       .from(eveSolarSystems)
       .innerJoin(eveRegions, eq(eveSolarSystems.regionId, eveRegions.id)),

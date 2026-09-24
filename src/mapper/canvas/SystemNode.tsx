@@ -1,7 +1,7 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
@@ -12,6 +12,7 @@ import {
 import {
   destinationHintSoleClassId,
   type WormholeDestinationHint,
+  type WormholeEffect,
 } from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
 import { IntelIcon } from '../windows/IntelIcon';
@@ -19,6 +20,7 @@ import { useUniverseAssets } from '../chain/use-universe-assets';
 import { kspaceCaptionOffset } from './disc-chrome';
 import { SystemIntelMarks } from './SystemIntelMarks';
 import { ChainViewportContext } from './ChainViewportContext';
+import type { WormholeBody } from './wormhole/palette';
 import { WormholeVisual } from './wormhole/WormholeVisual';
 
 export type ChainNodeData = {
@@ -26,6 +28,7 @@ export type ChainNodeData = {
   className: string | null;
   security?: number | null;
   whClassId?: number | null;
+  effect?: WormholeEffect | null;
   destinationHint?: WormholeDestinationHint | null;
   motion?: NodeMotion;
   halo?: { readonly ring: number; readonly fogged: boolean };
@@ -142,19 +145,38 @@ function nodeClassification(data: ChainNodeData, stub: boolean) {
   });
 }
 
-type WormholeAppearance = { readonly classId: number | null };
-
-function wormholeAppearance(data: ChainNodeData): WormholeAppearance | null {
-  const classId = data.whClassId ?? (
-    data.stub !== undefined && data.destinationHint != null
-      ? destinationHintSoleClassId(data.destinationHint)
-      : null
-  );
-  if (classId !== null) {
-    return systemSecurityClass(null, classId) === 'wormhole' ? { classId } : null;
-  }
-  return data.stub === undefined ? null : { classId: null };
+interface BodyFacts {
+  readonly whClassId: number | null;
+  readonly effect: WormholeEffect | null;
+  readonly security: number | null;
+  readonly hint: WormholeDestinationHint | null;
+  readonly stub: boolean;
 }
+
+function paintedBody({ whClassId, effect, security, hint, stub }: BodyFacts): WormholeBody | null {
+  const classId = whClassId ?? (stub && hint !== null ? destinationHintSoleClassId(hint) : null);
+  if (classId !== null && systemSecurityClass(null, classId) === 'wormhole') {
+    return { kind: 'wormhole', classId, effect };
+  }
+  if (stub) return classId === null ? { kind: 'wormhole', classId: null, effect: null } : null;
+  return security === null ? null : { kind: 'planet', security };
+}
+
+function usePaintedBody(data: ChainNodeData, stub: boolean): WormholeBody | null {
+  const whClassId = data.whClassId ?? null;
+  const effect = data.effect ?? null;
+  const security = data.security ?? null;
+  const hint = data.destinationHint ?? null;
+  return useMemo(
+    () => paintedBody({ whClassId, effect, security, hint, stub }),
+    [whClassId, effect, security, hint, stub],
+  );
+}
+
+const DISC_BODY_CLASS: Readonly<Record<WormholeBody['kind'], string>> = {
+  wormhole: 'map-node-disc-wormhole',
+  planet: 'map-node-disc-planet',
+};
 
 function NodeDisc({
   derived,
@@ -163,7 +185,7 @@ function NodeDisc({
   classification,
   stub,
   systemId,
-  appearance,
+  body,
   active,
   paused,
   seed,
@@ -174,7 +196,7 @@ function NodeDisc({
   readonly classification: { readonly label: string; readonly tone: string } | null;
   readonly stub: boolean;
   readonly systemId: number;
-  readonly appearance: WormholeAppearance | null;
+  readonly body: WormholeBody | null;
   readonly active: boolean;
   readonly paused: boolean;
   readonly seed: string;
@@ -184,18 +206,12 @@ function NodeDisc({
       className={cn(
         'map-node-disc absolute left-1/2 top-1/2 flex size-[55px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
         derived && 'border-dashed',
-        appearance !== null && 'map-node-disc-wormhole',
+        body !== null && DISC_BODY_CLASS[body.kind],
         chromeClass,
       )}
     >
-      {appearance !== null ? (
-        <WormholeVisual
-          whClassId={appearance.classId}
-          active={active}
-          paused={paused}
-          seed={seed}
-          size={75}
-        />
+      {body !== null ? (
+        <WormholeVisual body={body} active={active} paused={paused} seed={seed} />
       ) : null}
       <Handle
         type="target"
@@ -276,11 +292,9 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const { stub, staticStub, derived, fogged, exiting, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
-  const appearance = wormholeAppearance(data);
+  const body = usePaintedBody(data, stub);
   const showKspaceCaption =
-    !derived
-    && appearance === null
-    && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole';
+    !derived && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole';
   const paused = dragging === true || fogged || stub || exiting;
   const active = hovered || selected === true;
   useEffect(() => {
@@ -341,7 +355,7 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
         classification={classification}
         stub={stub}
         systemId={Number(id)}
-        appearance={appearance}
+        body={body}
         active={active}
         paused={paused}
         seed={id}

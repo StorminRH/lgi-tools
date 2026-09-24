@@ -100,6 +100,31 @@ export function deriveFogReveals(
   return { discs, strokes };
 }
 
+function sameDisc(left: FogDisc, right: FogDisc): boolean {
+  return left.key === right.key
+    && left.x === right.x
+    && left.y === right.y
+    && left.phase === right.phase
+    && left.heavy === right.heavy;
+}
+
+function sameStroke(left: FogStroke, right: FogStroke): boolean {
+  return left.key === right.key
+    && left.x1 === right.x1
+    && left.y1 === right.y1
+    && left.x2 === right.x2
+    && left.y2 === right.y2
+    && left.phase === right.phase
+    && left.heavy === right.heavy;
+}
+
+export function sameFogReveals(left: FogRevealSet, right: FogRevealSet): boolean {
+  return left.discs.length === right.discs.length
+    && left.strokes.length === right.strokes.length
+    && left.discs.every((disc, index) => sameDisc(disc, right.discs[index]!))
+    && left.strokes.every((stroke, index) => sameStroke(stroke, right.strokes[index]!));
+}
+
 export interface FogTiming {
   readonly openMs: number;
   readonly closeMs: number;

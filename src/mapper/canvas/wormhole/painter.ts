@@ -1,4 +1,4 @@
-import type { WormholePalette } from './palette';
+import type { RGB, WormholePalette } from './palette';
 import { WORMHOLE_FRAGMENT, WORMHOLE_VERTEX } from './shaders';
 
 export interface WormholePaint {
@@ -6,6 +6,9 @@ export interface WormholePaint {
   readonly seed: number;
   readonly time: number;
   readonly age: number;
+  readonly mode: number;
+  readonly tint: RGB;
+  readonly focus: number;
 }
 
 interface Painter {
@@ -64,7 +67,10 @@ function createPainter(): Painter | null {
     time: gl.getUniformLocation(program, 'clock'),
     age: gl.getUniformLocation(program, 'rippleAge'),
     seed: gl.getUniformLocation(program, 'seed'),
+    mode: gl.getUniformLocation(program, 'mode'),
+    focus: gl.getUniformLocation(program, 'focus'),
   };
+  const tint = gl.getUniformLocation(program, 'tintColor');
   const colors = (['core', 'accent', 'halo', 'dark', 'highlight'] as const)
     .map((key) => ({ key, location: gl.getUniformLocation(program, `${key}Color`) }));
   return {
@@ -73,6 +79,9 @@ function createPainter(): Painter | null {
       gl.uniform1f(scalar.time, input.time);
       gl.uniform1f(scalar.age, input.age);
       gl.uniform1f(scalar.seed, input.seed);
+      gl.uniform1f(scalar.mode, input.mode);
+      gl.uniform1f(scalar.focus, input.focus);
+      gl.uniform3f(tint, ...input.tint);
       for (const { key, location } of colors) gl.uniform3f(location, ...input.palette[key]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       const { width, height } = target.canvas;

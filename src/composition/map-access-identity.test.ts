@@ -8,13 +8,14 @@ const mocks = vi.hoisted(() => ({
   purgeUserMapAccessProjection: vi.fn(),
   revokeUserMapClaims: vi.fn(),
   teardownLocationTracking: vi.fn(),
-  enqueueMapAccessChanges: vi.fn(),
+  enqueueAffectedMapAccessChanges: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
   readPendingMapAccessChanges: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
   affectedMapIdsForCharacter: mocks.affectedMapIdsForCharacter,
+  enqueueAffectedMapAccessChanges: mocks.enqueueAffectedMapAccessChanges,
   getOwnedMapIds: mocks.getOwnedMapIds,
 }));
 
@@ -38,7 +39,6 @@ vi.mock('@/data/location-tracking/purge', () => ({
 
 vi.mock('@/platform/auth/affiliation-store', () => ({
   MAX_PENDING_BATCH: 100,
-  enqueueMapAccessChanges: mocks.enqueueMapAccessChanges,
   acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
   readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
 }));
@@ -49,6 +49,8 @@ import {
   revokeCharacterMapClaims,
   teardownProjectionsForDeletedUser,
 } from './map-access-identity';
+
+const pending = (ids: string[]) => ids.map((mapId) => ({ mapId, version: mapId }));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -64,13 +66,13 @@ beforeEach(() => {
   mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
   mocks.teardownLocationTracking.mockResolvedValue(undefined);
-  mocks.enqueueMapAccessChanges.mockImplementation(async (ids: string[]) => ids.map((mapId) => ({ mapId, version: mapId })));
+  mocks.enqueueAffectedMapAccessChanges.mockResolvedValue([]);
   mocks.readPendingMapAccessChanges.mockResolvedValue([]);
 });
 
 describe('map-access-identity', () => {
   it('re-projects through failures, and tears down owned chains before claims', async () => {
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a', 'map-b']);
+    mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(['map-a', 'map-b']));
 
     mocks.projectMapAccess
       .mockRejectedValueOnce(new Error('convex down'))
@@ -83,8 +85,7 @@ describe('map-access-identity', () => {
       });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await reprojectMapsForCharacter(100);
-    expect(mocks.affectedMapIdsForCharacter).toHaveBeenCalledWith(100);
-    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(['map-a', 'map-b']);
+    expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledWith(100);
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-a', { timeoutMs: 4_000 });
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-b', { timeoutMs: 4_000 });
     expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(
@@ -107,14 +108,13 @@ describe('map-access-identity', () => {
       characterId: 42,
     });
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
-    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith([]);
+    expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledWith(42);
     expect(mocks.projectMapAccess).not.toHaveBeenCalled();
 
     const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);
+    mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(ids));
     mocks.teardownLocationTracking.mockClear();
     await identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });
-    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(ids);
     expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
     expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(
       ids.slice(0, 100).map((mapId) => ({ mapId, version: mapId })), [],
@@ -137,7 +137,7 @@ describe('map-access-identity', () => {
     await expect(identityProjectionRunners.runBeforeCharacterUnlink({
       userId: 'departing-user', characterId: 42,
     })).rejects.toBe(failure);
-    expect(mocks.enqueueMapAccessChanges).toHaveBeenCalledWith(['map-a']);
+    expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledWith(42);
   });
 
   it('reasserts revocation after the durable unlink so prior snapshots cannot win', async () => {
@@ -149,8 +149,8 @@ describe('map-access-identity', () => {
   });
 
   it.each(['enqueue', 'acknowledge'])('still tears down location when map %s fails', async (stage) => {
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a']);
-    const failing = stage === 'enqueue' ? mocks.enqueueMapAccessChanges : mocks.acknowledgeMapAccessChanges;
+    mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(['map-a']));
+    const failing = stage === 'enqueue' ? mocks.enqueueAffectedMapAccessChanges : mocks.acknowledgeMapAccessChanges;
     failing.mockRejectedValueOnce(new Error('database unavailable'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await identityProjectionRunners.runAfterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });

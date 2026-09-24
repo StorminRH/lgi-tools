@@ -6,6 +6,7 @@ import { cn } from '@/components/ui/cn';
 import { useEntityNames } from '@/components/use-entity-names';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
 import { useTypeNames } from '@/data/eve-data/use-type-names';
+import { WORMHOLE_EFFECT_NAME, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
 import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormhole-sites/scanner-live-prices';
 import { formatIskShort } from '@/lib/format/isk';
 import { useUniverseAssets } from '../chain/use-universe-assets';
@@ -14,7 +15,7 @@ import { signatureCounts } from '../signatures/signature-model';
 import { useSystemStaticSlots } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
-import { IntelIcon, type IntelIconKind } from './IntelIcon';
+import { IntelIcon, WormholeEffectIcon, type IntelIconKind } from './IntelIcon';
 import { INTEL_CATEGORY_LABEL, intelCategoryBlocks, intelLocationKind, type IntelCategoryBlock } from './intel-model';
 import { useSystemLabel } from './use-system-label';
 
@@ -53,13 +54,23 @@ function Disclosure({ icon, label, count, value, children }: {
   );
 }
 
-function WormholeLocation({ systemId }: { readonly systemId: number }) {
+function WormholeLocation({ systemId, effect }: { readonly systemId: number; readonly effect: WormholeEffect | null }) {
   const slots = useSystemStaticSlots(systemId);
-  if (slots.length === 0) return null;
+  if (slots.length === 0 && effect === null) return null;
   return (
-    <div role="group" aria-label="Statics" data-intel-statics className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro">
-      <IntelIcon kind="wormhole" />
-      {slots.map((slot) => <span key={slot.code} className="text-muted">{slot.code} <span className="text-name">{slot.className}</span></span>)}
+    <div className="flex flex-col gap-1">
+      {slots.length > 0 ? (
+        <div role="group" aria-label="Statics" data-intel-statics className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro">
+          <IntelIcon kind="wormhole" />
+          {slots.map((slot) => <span key={slot.code} className="text-muted">{slot.code} <span className="text-name">{slot.className}</span></span>)}
+        </div>
+      ) : null}
+      {effect !== null ? (
+        <div role="group" aria-label="Effect" data-intel-effect className="flex items-center gap-1.5 font-data text-micro">
+          <WormholeEffectIcon effect={effect} />
+          <span className="text-name">{WORMHOLE_EFFECT_NAME[effect]}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -84,7 +95,7 @@ function KnownSpaceLocation({ systemId }: { readonly systemId: number }) {
 function LocationSection({ systemId }: { readonly systemId: number }) {
   const label = useSystemLabel(systemId);
   const kind = intelLocationKind({ security: label?.security ?? null, whClassId: label?.whClassId ?? null });
-  if (kind === 'wormhole') return <WormholeLocation systemId={systemId} />;
+  if (kind === 'wormhole') return <WormholeLocation systemId={systemId} effect={label?.effect ?? null} />;
   if (kind === 'k-space') return <KnownSpaceLocation systemId={systemId} />;
   return null;
 }

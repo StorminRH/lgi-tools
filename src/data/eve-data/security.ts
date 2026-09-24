@@ -20,20 +20,34 @@ export function roundSecurityStatus(securityStatus: number): number {
   return Math.round(securityStatus * 10) / 10;
 }
 
+const POSITIVE_SECURITY_BANDS = [
+  '01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
+] as const;
+
+export type SecurityBand = (typeof POSITIVE_SECURITY_BANDS)[number] | 'null';
+
+export function securityBand(securityStatus: number): SecurityBand {
+  const tenths = Math.min(Math.round(roundSecurityStatus(securityStatus) * 10), 10);
+  return POSITIVE_SECURITY_BANDS[tenths - 1] ?? 'null';
+}
+
+const SECURITY_TEXT_CLASS: Readonly<Record<SecurityBand, string>> = {
+  '10': 'text-sec-10',
+  '09': 'text-sec-09',
+  '08': 'text-sec-08',
+  '07': 'text-sec-07',
+  '06': 'text-sec-06',
+  '05': 'text-sec-05',
+  '04': 'text-sec-04',
+  '03': 'text-sec-03',
+  '02': 'text-sec-02',
+  '01': 'text-sec-01',
+  null: 'text-sec-null',
+};
+
 export function securityStatusTextClass(
   securityStatus: number | null,
 ): string {
   if (securityStatus === null) return 'text-muted';
-  const rounded = roundSecurityStatus(securityStatus);
-  if (rounded >= 1.0) return 'text-sec-10';
-  if (rounded >= 0.9) return 'text-sec-09';
-  if (rounded >= 0.8) return 'text-sec-08';
-  if (rounded >= 0.7) return 'text-sec-07';
-  if (rounded >= 0.6) return 'text-sec-06';
-  if (rounded >= 0.5) return 'text-sec-05';
-  if (rounded >= 0.4) return 'text-sec-04';
-  if (rounded >= 0.3) return 'text-sec-03';
-  if (rounded >= 0.2) return 'text-sec-02';
-  if (rounded >= 0.1) return 'text-sec-01';
-  return 'text-sec-null';
+  return SECURITY_TEXT_CLASS[securityBand(securityStatus)];
 }
