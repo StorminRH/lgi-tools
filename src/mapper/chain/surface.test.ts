@@ -253,7 +253,7 @@ describe('mapper source contract', () => {
       'api.mapScan.watchSystemSignatures',
     );
     expect(sourceOf('signatures/use-glance-mark-index.tsx')).toContain(
-      'api.mapScan.watchMapSignatures',
+      'api.mapScan.watchMapGlanceGroups',
     );
   });
 
