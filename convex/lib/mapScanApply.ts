@@ -66,17 +66,14 @@ export async function requireTrackedSystem(
     throw new ConvexError({ code: 'TRACKING_CAP_EXCEEDED' });
   }
 
-  let trackedHere = false;
-  for (const row of tracking) {
-    const location = await ctx.db
+  const locations = await Promise.all(tracking.map((row) =>
+    ctx.db
       .query('characterLocation')
       .withIndex('by_user_character', (q) =>
         q.eq('userId', userId).eq('characterId', row.characterId),
       )
-      .unique();
-    if (location?.solarSystemId === systemId) trackedHere = true;
-  }
-  if (!trackedHere) {
+      .unique()));
+  if (!locations.some((location) => location?.solarSystemId === systemId)) {
     throw new ConvexError({
       code: 'UNTRACKED_SCAN_SYSTEM',
       detail: `The caller has no tracked character in system ${systemId}.`,
