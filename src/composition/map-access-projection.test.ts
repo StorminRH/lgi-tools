@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { deleteMapForUser, restoreMapForUser } from './map-lifecycle';
 
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
@@ -328,4 +329,54 @@ test('requireCurrentProjection throws when a newer projection already won', () =
       expect.objectContaining({ message: expect.stringMatching(/newer projection already won/) }),
     );
   }
+});
+
+test('a delayed archive preserves access after restore has projected and acknowledged its generation', async () => {
+  resetProjectionMocks();
+  let archived = false;
+  let version: string | null = null;
+  let revision = 0;
+  let claims: unknown = [];
+  const archiveCommitted = Promise.withResolvers<void>();
+  const releaseArchive = Promise.withResolvers<void>();
+  mocks.getMapAccessSubject.mockImplementation(async () => ({
+    userId: 'creator', archivedAt: archived ? new Date() : null,
+  }));
+  mocks.reserveMapAccessProjectionRevision.mockImplementation(async () => ++revision);
+  mocks.fetchWithTimeout.mockImplementation(async (_url, init: { body: string }) => {
+    claims = JSON.parse(init.body).claims;
+    return Response.json({ inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'applied' });
+  });
+  const common = {
+    resolvePrincipals: async () => ({ characterIds: [], corporationIds: [] }),
+    acknowledgeAccess: async (changes: { mapId: string; version: string }[]) => {
+      if (changes.some((change) => change.version === version)) version = null;
+    },
+  };
+  const archive = deleteMapForUser('creator', { mapId: 'map-1' }, {
+    ...common,
+    archiveMap: async () => {
+      archived = true;
+      version = 'archive';
+      archiveCommitted.resolve();
+      await releaseArchive.promise;
+      return { mapId: 'map-1', version: 'archive' };
+    },
+  });
+  await archiveCommitted.promise;
+  await restoreMapForUser('creator', { mapId: 'map-1' }, {
+    ...common,
+    restoreMap: async () => {
+      archived = false;
+      version = 'restore';
+      return { mapId: 'map-1', version: 'restore' };
+    },
+  });
+  expect(version).toBeNull();
+  expect(claims).toEqual([{ userId: 'creator', roles: ['admin'] }]);
+  releaseArchive.resolve();
+  await archive;
+  expect(archived).toBe(false);
+  expect(version).toBeNull();
+  expect(claims).toEqual([{ userId: 'creator', roles: ['admin'] }]);
 });

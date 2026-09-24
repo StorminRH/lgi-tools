@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
-import { mapAccess, maps } from '@/data/maps/schema';
+import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import {
   createDbTestHarness,
   seedCharacter as insertCharacter,
@@ -46,6 +46,7 @@ const harness = await createDbTestHarness({
     'user',
     'maps',
     'map_access',
+    'map_access_changes',
     'account',
     'characters',
     'session',
@@ -62,6 +63,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_access_changes',
       column: 'map_id',
       refTable: 'maps',
       refColumn: 'id',
@@ -202,6 +210,12 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     ).toHaveLength(1);
     expect(await harness.db.select().from(maps)).toHaveLength(1);
     expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([
+      expect.objectContaining({
+        mapId: '11111111-1111-4111-8111-111111111111',
+        version: expect.any(String),
+      }),
+    ]);
     const [profile] = await harness.db
       .select({ characterId: characters.characterId, name: characters.name })
       .from(characters)

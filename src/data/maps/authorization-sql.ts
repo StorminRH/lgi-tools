@@ -3,6 +3,11 @@ import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
+export type PendingMapAccessChange = {
+  readonly mapId: string;
+  readonly version: string;
+};
+
 export function mapAuthorizationRows(
   result: Awaited<ReturnType<AnyPgDb['execute']>>,
 ) {

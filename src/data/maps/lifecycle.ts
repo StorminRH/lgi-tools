@@ -15,7 +15,9 @@ import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
 import {
   authorizedAdminMapsSelection,
+  enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  type PendingMapAccessChange,
 } from './authorization-sql';
 import {
   purgeClaimedMapLifecycle,
@@ -35,21 +37,15 @@ export interface PurgeableMap {
   readonly id: string;
 }
 
-function oneAuthorizedRow(
-  result: Awaited<ReturnType<AnyPgDb['execute']>>,
-): boolean {
-  return mapAuthorizationRows(result).length === 1;
-}
-
 export async function archiveAuthorizedMap(
   userId: string,
   principals: MapPrincipals,
   mapId: string,
   now: Date = new Date(),
   database: AnyPgDb = db,
-): Promise<boolean> {
+): Promise<PendingMapAccessChange | null> {
   const nowIso = now.toISOString();
-  const result = await database.execute(sql`
+  const result = await database.execute<PendingMapAccessChange>(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,
@@ -57,19 +53,21 @@ export async function archiveAuthorizedMap(
         [mapId],
         sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
       )}
+    ), updated AS (
+      UPDATE ${maps}
+      SET archived_at = ${nowIso}::timestamptz,
+          purge_requested_at = NULL,
+          purge_claimed_at = NULL,
+          tombstoned_at = NULL,
+          lifecycle_status = 'archived',
+          lifecycle_entered_at = ${nowIso}::timestamptz,
+          updated_at = ${nowIso}::timestamptz
+      WHERE ${maps.id} IN (SELECT id FROM authorized_map)
+      RETURNING ${maps.id}
     )
-    UPDATE ${maps}
-    SET archived_at = ${nowIso}::timestamptz,
-        purge_requested_at = NULL,
-        purge_claimed_at = NULL,
-        tombstoned_at = NULL,
-        lifecycle_status = 'archived',
-        lifecycle_entered_at = ${nowIso}::timestamptz,
-        updated_at = ${nowIso}::timestamptz
-    WHERE ${maps.id} IN (SELECT id FROM authorized_map)
-    RETURNING ${maps.id}
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
   `);
-  return oneAuthorizedRow(result);
+  return mapAuthorizationRows(result)[0] ?? null;
 }
 
 export async function restoreAuthorizedMap(
@@ -78,11 +76,11 @@ export async function restoreAuthorizedMap(
   mapId: string,
   now: Date = new Date(),
   database: AnyPgDb = db,
-): Promise<boolean> {
+): Promise<PendingMapAccessChange | null> {
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const cutoffIso = cutoff.toISOString();
   const nowIso = now.toISOString();
-  const result = await database.execute(sql`
+  const result = await database.execute<PendingMapAccessChange>(sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,
@@ -94,19 +92,21 @@ export async function restoreAuthorizedMap(
           AND ${maps.purgeClaimedAt} IS NULL
           AND ${maps.tombstonedAt} IS NULL`,
       )}
+    ), updated AS (
+      UPDATE ${maps}
+      SET archived_at = NULL,
+          purge_requested_at = NULL,
+          purge_claimed_at = NULL,
+          tombstoned_at = NULL,
+          lifecycle_status = 'active',
+          lifecycle_entered_at = ${nowIso}::timestamptz,
+          updated_at = ${nowIso}::timestamptz
+      WHERE ${maps.id} IN (SELECT id FROM authorized_map)
+      RETURNING ${maps.id}
     )
-    UPDATE ${maps}
-    SET archived_at = NULL,
-        purge_requested_at = NULL,
-        purge_claimed_at = NULL,
-        tombstoned_at = NULL,
-        lifecycle_status = 'active',
-        lifecycle_entered_at = ${nowIso}::timestamptz,
-        updated_at = ${nowIso}::timestamptz
-    WHERE ${maps.id} IN (SELECT id FROM authorized_map)
-    RETURNING ${maps.id}
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
   `);
-  return oneAuthorizedRow(result);
+  return mapAuthorizationRows(result)[0] ?? null;
 }
 
 export async function requestAuthorizedMapPurge(
