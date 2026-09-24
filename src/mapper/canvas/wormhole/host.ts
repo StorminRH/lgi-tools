@@ -1,38 +1,51 @@
+import { securityBand } from '@/data/eve-data/security';
+import { SYSTEM_DISC_SIZE } from '../disc-chrome';
 import { STILL_WORMHOLE, stepWormholeMotion, wormholeNeedsFrame } from './motion';
 import { acquireWormholePainter } from './painter';
-import { wormholePalette, wormholeSeed } from './palette';
+import { bodyAppearance, wormholeSeed, type WormholeBody } from './palette';
+import { BODY_EXTENT } from './shaders';
 
 export interface WormholeInputs {
-  readonly whClassId?: number | null;
+  readonly body?: WormholeBody;
   readonly active: boolean;
   readonly paused?: boolean;
   readonly seed?: string;
-  readonly size?: number;
+}
+
+const PLAIN_WORMHOLE: WormholeBody = { kind: 'wormhole', classId: null, effect: null };
+const BODY_SIZE_PX = SYSTEM_DISC_SIZE * BODY_EXTENT;
+
+/** Security drift inside one colour band does not change the painted body. */
+function bodyKey(body: WormholeBody = PLAIN_WORMHOLE): string {
+  return body.kind === 'planet'
+    ? `planet:${securityBand(body.security)}`
+    : `wormhole:${body.classId}:${body.effect}`;
 }
 
 function appearanceChanged(previous: WormholeInputs, next: WormholeInputs): boolean {
-  return previous.size !== next.size
-    || previous.whClassId !== next.whClassId
-    || previous.seed !== next.seed;
+  return bodyKey(previous.body) !== bodyKey(next.body) || previous.seed !== next.seed;
+}
+
+function applyFrame(canvas: HTMLCanvasElement) {
+  const backing = Math.min(256, Math.round(BODY_SIZE_PX * Math.min(2, window.devicePixelRatio || 1)));
+  canvas.width = canvas.height = backing;
+  canvas.parentElement?.style.setProperty('--wormhole-size', `${BODY_SIZE_PX}px`);
+  canvas.parentElement?.style.setProperty('--wormhole-sphere', `${SYSTEM_DISC_SIZE}px`);
 }
 
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
-  const requested = inputs.size;
-  const size = requested !== undefined && Number.isFinite(requested)
-    ? Math.min(512, Math.max(32, requested))
-    : 75;
-  const backing = Math.min(256, Math.round(size * Math.min(2, window.devicePixelRatio || 1)));
-  if (canvas.width !== backing || canvas.height !== backing) {
-    canvas.width = canvas.height = backing;
-  }
-  const palette = wormholePalette(inputs.whClassId);
+  const style = window.getComputedStyle(canvas);
+  const appearance = bodyAppearance(
+    inputs.body ?? PLAIN_WORMHOLE,
+    (token) => style.getPropertyValue(token),
+  );
   const wrapper = canvas.parentElement;
-  wrapper?.style.setProperty('--wormhole-size', `${size}px`);
-  for (const key of ['core', 'accent', 'halo', 'dark'] as const) {
-    const rgb = palette[key].map((value) => Math.round(value * 255)).join(' ');
+  const colors = { ...appearance.palette, tint: appearance.tint };
+  for (const key of ['core', 'accent', 'halo', 'dark', 'tint'] as const) {
+    const rgb = colors[key].map((value) => Math.round(value * 255)).join(' ');
     wrapper?.style.setProperty(`--wormhole-${key}`, `rgb(${rgb})`);
   }
-  return { palette, seed: wormholeSeed(inputs.seed ?? '') };
+  return { ...appearance, seed: wormholeSeed(inputs.seed ?? '') };
 }
 
 /** Owns browser resources; never schedules frames for an idle/offscreen node. */
@@ -41,6 +54,7 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
   const context = canvas.getContext('2d');
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   let inputs = initial;
+  applyFrame(canvas);
   let appearance = applyAppearance(canvas, inputs);
   let motion = STILL_WORMHOLE;
   let visible = false;
@@ -62,7 +76,12 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
   }
   function paint() {
     if (context === null) return false;
-    const ready = painter.paint(context, { ...appearance, time: motion.time, age: motion.age });
+    const ready = painter.paint(context, {
+      ...appearance,
+      time: motion.time,
+      age: motion.age,
+      focus: motion.speed,
+    });
     if (ready) {
       canvas.dataset.ready = 'true';
       recoverAttempts = 0;

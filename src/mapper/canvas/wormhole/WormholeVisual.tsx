@@ -1,16 +1,21 @@
 'use client';
 
 import { memo, useEffect, useRef } from 'react';
-import { createWormholeHost, type WormholeInputs } from './host';
+import { createWormholeHost } from './host';
+import type { WormholeBody } from './palette';
 import styles from './WormholeVisual.module.css';
 
 function WormholeVisualComponent({
-  whClassId = null,
+  body,
   active,
   paused = false,
   seed = '',
-  size = 75,
-}: WormholeInputs) {
+}: {
+  readonly body: WormholeBody;
+  readonly active: boolean;
+  readonly paused?: boolean;
+  readonly seed?: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<ReturnType<typeof createWormholeHost> | null>(null);
   useEffect(() => {
@@ -21,10 +26,16 @@ function WormholeVisualComponent({
     return () => { host.dispose(); hostRef.current = null; };
   }, []);
   useEffect(() => {
-    hostRef.current?.update({ whClassId, active, paused, seed, size });
-  }, [whClassId, active, paused, seed, size]);
+    hostRef.current?.update({ body, active, paused, seed });
+  }, [body, active, paused, seed]);
   return (
-    <span className={styles.visual} data-wormhole-visual data-wh-class={whClassId ?? 'unknown'} aria-hidden="true">
+    <span
+      className={styles.visual}
+      data-wormhole-visual
+      data-body={body.kind}
+      data-wh-class={body.kind === 'wormhole' ? body.classId ?? 'unknown' : undefined}
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} className={styles.canvas} />
       <span className={styles.fallback} />
     </span>
