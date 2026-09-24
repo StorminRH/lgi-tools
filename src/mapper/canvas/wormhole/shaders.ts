@@ -65,7 +65,6 @@ float alpha=clamp(mask+haze*(1.-mask),0.,1.);
 vec3 color=body*mask+mix(haloColor,tintColor,tintAmount)*haze;
 return vec4(min(color,vec3(alpha)),alpha);
 }
-// Each effect keeps the same soft aura and differs only in its rhythm.
 vec4 aura(vec2 p,float sr,vec2 d,float t){
 float outer=max(sr-1.,0.);
 float n=fbm(d*3.+vec2(t*.2,-t*.15)+outer*2.);
