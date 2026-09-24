@@ -26,7 +26,6 @@ const POSITIVE_SECURITY_BANDS = [
 
 export type SecurityBand = (typeof POSITIVE_SECURITY_BANDS)[number] | 'null';
 
-/** The in-game colour band of the rounded 0.1 display value; ≤0.0 is 'null'. */
 export function securityBand(securityStatus: number): SecurityBand {
   const tenths = Math.min(Math.round(roundSecurityStatus(securityStatus) * 10), 10);
   return POSITIVE_SECURITY_BANDS[tenths - 1] ?? 'null';

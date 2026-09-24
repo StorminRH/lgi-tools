@@ -1,8 +1,7 @@
 import { WORMHOLE_IMPULSE_SETTLE_S } from './motion';
 import { EFFECT_MODE, PLANET_MODE } from './palette';
 
-/** Canvas half-extent in sphere radii: the aura needs a sphere-width of room on each side. */
-export const BODY_EXTENT = 2;
+export const BODY_EXTENT_RADII = 2;
 
 const isMode = (mode: number) => `abs(mode-${mode}.)<.5`;
 
@@ -92,7 +91,7 @@ c+=tintColor*pow(1.-z,2.5)*smoothstep(-.3,.6,lit)*m*.6*(1.+.4*focus);
 return light(vec4(c*m,m),tintColor,band(sr,R+.02,.06)*smoothstep(-.4,.7,lit)*.5);
 }
 void main(){
-vec2 p=uv*${BODY_EXTENT}.;float raw=length(p);vec2 d=p/max(raw,.001);
+vec2 p=uv*${BODY_EXTENT_RADII}.;float raw=length(p);vec2 d=p/max(raw,.001);
 vec4 color;
 if(${isMode(PLANET_MODE)}) color=planet(p,raw,d,clock);
 else if(mode<.5) color=glass(p,0.);

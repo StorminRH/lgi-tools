@@ -174,9 +174,6 @@ export const eveConstellations = pgTable(
  * untagged hi-sec K-space systems carry no class in the SDE (their band is
  * sec-status-derivable anyway). For J-space it is always present. This is the
  * COARSE class only — anoik.is statics are the separate v4.0 layer.
- *
- * `wormhole_effect` comes from the system's `mapSecondarySuns` row (at most one
- * per system); null means no effect.
  */
 export const eveSolarSystems = pgTable(
   'eve_solar_systems',

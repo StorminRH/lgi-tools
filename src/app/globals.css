@@ -153,8 +153,6 @@
   --color-sec-01: #731f1f;
   --color-sec-null: #8d3163;
 
-  /* Wormhole system effects. Art-directed hues, not CCP values; the Atlas
-   * canvas reads them with getComputedStyle for the node aura. */
   --color-effect-pulsar: #8fd0ff;
   --color-effect-black-hole: #ffa24a;
   --color-effect-magnetar: #c48cff;

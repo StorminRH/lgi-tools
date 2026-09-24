@@ -3,7 +3,7 @@ import { SYSTEM_DISC_SIZE } from '../disc-chrome';
 import { STILL_WORMHOLE, stepWormholeMotion, wormholeNeedsFrame } from './motion';
 import { acquireWormholePainter } from './painter';
 import { bodyAppearance, wormholeSeed, type WormholeBody } from './palette';
-import { BODY_EXTENT } from './shaders';
+import { BODY_EXTENT_RADII } from './shaders';
 
 export interface WormholeInputs {
   readonly body?: WormholeBody;
@@ -13,9 +13,8 @@ export interface WormholeInputs {
 }
 
 const PLAIN_WORMHOLE: WormholeBody = { kind: 'wormhole', classId: null, effect: null };
-const BODY_SIZE_PX = SYSTEM_DISC_SIZE * BODY_EXTENT;
+const BODY_SIZE_PX = SYSTEM_DISC_SIZE * BODY_EXTENT_RADII;
 
-/** Security drift inside one colour band does not change the painted body. */
 function bodyKey(body: WormholeBody = PLAIN_WORMHOLE): string {
   return body.kind === 'planet'
     ? `planet:${securityBand(body.security)}`

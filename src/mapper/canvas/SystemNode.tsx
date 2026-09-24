@@ -153,8 +153,7 @@ interface BodyFacts {
   readonly stub: boolean;
 }
 
-/** The only place that decides what a node paints; null keeps the plain disc. */
-function nodeBody({ whClassId, effect, security, hint, stub }: BodyFacts): WormholeBody | null {
+function paintedBody({ whClassId, effect, security, hint, stub }: BodyFacts): WormholeBody | null {
   const classId = whClassId ?? (stub && hint !== null ? destinationHintSoleClassId(hint) : null);
   if (classId !== null && systemSecurityClass(null, classId) === 'wormhole') {
     return { kind: 'wormhole', classId, effect };
@@ -163,13 +162,13 @@ function nodeBody({ whClassId, effect, security, hint, stub }: BodyFacts): Wormh
   return security === null ? null : { kind: 'planet', security };
 }
 
-function useNodeBody(data: ChainNodeData, stub: boolean): WormholeBody | null {
+function usePaintedBody(data: ChainNodeData, stub: boolean): WormholeBody | null {
   const whClassId = data.whClassId ?? null;
   const effect = data.effect ?? null;
   const security = data.security ?? null;
   const hint = data.destinationHint ?? null;
   return useMemo(
-    () => nodeBody({ whClassId, effect, security, hint, stub }),
+    () => paintedBody({ whClassId, effect, security, hint, stub }),
     [whClassId, effect, security, hint, stub],
   );
 }
@@ -293,7 +292,7 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const { stub, staticStub, derived, fogged, exiting, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
-  const body = useNodeBody(data, stub);
+  const body = usePaintedBody(data, stub);
   const showKspaceCaption =
     !derived && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole';
   const paused = dragging === true || fogged || stub || exiting;
