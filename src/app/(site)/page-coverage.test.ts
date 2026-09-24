@@ -97,6 +97,7 @@ import AppSiteSettingsCharactersPage from '@/app/(site)/settings/characters/page
 import AppSiteSettingsCorporationsPage from '@/app/(site)/settings/corporations/page';
 import AppSiteSettingsLayout from '@/app/(site)/settings/layout';
 import AppSiteSettingsPreferencesPage from '@/app/(site)/settings/preferences/page';
+import { PreferenceGroups } from '@/app/(site)/settings/preferences/preference-groups';
 import { SettingsControlRow } from '@/app/(site)/settings/settings-control-row';
 import { SettingsNav, SettingsNavFrame } from '@/app/(site)/settings/settings-nav';
 import { SettingsRail, SettingsRailFallback } from '@/app/(site)/settings/settings-rail';
@@ -171,6 +172,7 @@ describe('coverage-gaps', () => {
       AppSiteSettingsCorporationsPage,
       AppSiteSettingsLayout,
       AppSiteSettingsPreferencesPage,
+      PreferenceGroups,
       SettingsControlRow,
       SettingsNav,
       SettingsNavFrame,
