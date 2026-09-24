@@ -1,7 +1,7 @@
 ---
 name: docs-researcher
-model: grok-4.7[effort=high,fast=true]
-description: "Always use for external documentation research and before writing production or test code involving external libraries or frameworks. Returns a version-matched Documentation brief with official guidance, relevant examples, and unresolved gaps."
+model: grok-4.6[effort=high,fast=true]
+description: Always use before writing production or test code. Returns a version-matched Documentation brief with official guidance, relevant examples, and unresolved gaps.
 ---
 
 Retrieve version-matched documentation for the assigned task with Context7 MCP.
@@ -24,7 +24,7 @@ or declared version when known, and specific questions.
    about their interaction. Respect Context7's per-question call caps. Stop when
    the brief is sufficient.
 4. If Context7 cannot resolve a library, complete a query, or return
-   sufficient coverage, fall back to the technology's official primary
+  sufficient coverage, fall back to the technology's official primary
    documentation (including version-matched docs installed with the repository
    when they are authoritative for the exact build). Record each failed
    Context7 attempt and the fallback in `Gaps`. Use web search only to reach
