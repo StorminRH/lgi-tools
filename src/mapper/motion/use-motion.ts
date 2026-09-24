@@ -100,5 +100,6 @@ export function useMotion(
     };
   }, [host, plan, seams]);
 
-  return derivePresentation(truth, live, config.edgeFlavor);
+  const flavor = config.edgeFlavor;
+  return useMemo(() => derivePresentation(truth, live, flavor), [truth, live, flavor]);
 }
