@@ -12,6 +12,8 @@ import {
 
 const GLANCE_PAGE_SIZE = 100;
 
+const NO_MARKS: readonly GlanceBucket[] = [];
+
 const GlanceMarkIndexContext = createContext<ReadonlyMap<
   number,
   readonly GlanceBucket[]
@@ -51,5 +53,5 @@ export function GlanceMarkIndexProvider({
 
 export function useGlanceMarks(systemId: number): readonly GlanceBucket[] {
   const index = useContext(GlanceMarkIndexContext);
-  return index?.get(systemId) ?? [];
+  return index?.get(systemId) ?? NO_MARKS;
 }
