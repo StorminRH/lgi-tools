@@ -3,7 +3,7 @@ import type { WormholeEffect } from '@/data/eve-data/wormhole-contract';
 import { createWormholeHost } from './host';
 import { WORMHOLE_IMPULSE_SETTLE_S } from './motion';
 import type { WormholePaint } from './painter';
-import { bodyAppearance, type WormholeBody } from './palette';
+import { discBodyAppearance, type DiscBody } from './palette';
 
 const { paint, release } = vi.hoisted(() => ({
   paint: vi.fn<(target: unknown, input: WormholePaint) => boolean>(() => true),
@@ -12,10 +12,10 @@ const { paint, release } = vi.hoisted(() => ({
 vi.mock('./painter', () => ({ acquireWormholePainter: () => ({ paint, release }) }));
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
-const wormhole = (classId: number, effect: WormholeEffect | null = null): WormholeBody =>
+const wormhole = (classId: number, effect: WormholeEffect | null = null): DiscBody =>
   ({ kind: 'wormhole', classId, effect });
-const planet = (security: number): WormholeBody => ({ kind: 'planet', security });
-const classPalette = (classId: number) => bodyAppearance(wormhole(classId), () => '').palette;
+const planet = (security: number): DiscBody => ({ kind: 'planet', security });
+const classPalette = (classId: number) => discBodyAppearance(wormhole(classId), () => '').palette;
 
 function browser() {
   let now = 0;

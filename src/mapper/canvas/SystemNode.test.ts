@@ -6,7 +6,7 @@ import type { ChainEdgeData } from '../chain/nodes';
 import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
-import type { WormholeBody } from './wormhole/palette';
+import type { DiscBody } from './wormhole/palette';
 import {
   CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
@@ -45,7 +45,7 @@ vi.mock('./wormhole/WormholeVisual', async () => {
   const { createElement: element } = await import('react');
   return {
     WormholeVisual: ({ body, active, paused }: {
-      body: WormholeBody;
+      body: DiscBody;
       active: boolean;
       paused: boolean;
     }) => element('span', {

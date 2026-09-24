@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { acquireWormholePainter } from './painter';
-import { bodyAppearance } from './palette';
+import { discBodyAppearance } from './palette';
 
 const leases: ReturnType<typeof acquireWormholePainter>[] = [];
 afterEach(() => {
@@ -52,7 +52,7 @@ function graphics(failure?: 'context' | 'shader' | 'link' | 'buffer') {
 }
 
 const classPalette = (classId: number) =>
-  bodyAppearance({ kind: 'wormhole', classId, effect: null }, () => '').palette;
+  discBodyAppearance({ kind: 'wormhole', classId, effect: null }, () => '').palette;
 const paint = {
   palette: classPalette(3), time: 4.5, age: 1.2, seed: 0.3,
   mode: 3, tint: [0.1, 0.2, 0.3] as const, focus: 0.4,

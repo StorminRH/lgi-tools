@@ -86,6 +86,7 @@ describe('mapper source contract', () => {
       'fog/fog-host.ts',
       'fog/fog-model.ts',
       'fog/fog-painter.ts',
+      'fog/use-stable-value.ts',
       'halo/halo-model.ts',
       'index.ts',
       'jump-client.ts',

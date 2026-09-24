@@ -20,7 +20,7 @@ import { useUniverseAssets } from '../chain/use-universe-assets';
 import { kspaceCaptionOffset } from './disc-chrome';
 import { SystemIntelMarks } from './SystemIntelMarks';
 import { ChainViewportContext } from './ChainViewportContext';
-import type { WormholeBody } from './wormhole/palette';
+import type { DiscBody } from './wormhole/palette';
 import { WormholeVisual } from './wormhole/WormholeVisual';
 
 export type ChainNodeData = {
@@ -153,7 +153,7 @@ interface BodyFacts {
   readonly stub: boolean;
 }
 
-function paintedBody({ whClassId, effect, security, hint, stub }: BodyFacts): WormholeBody | null {
+function paintedBody({ whClassId, effect, security, hint, stub }: BodyFacts): DiscBody | null {
   const classId = whClassId ?? (stub && hint !== null ? destinationHintSoleClassId(hint) : null);
   if (classId !== null && systemSecurityClass(null, classId) === 'wormhole') {
     return { kind: 'wormhole', classId, effect };
@@ -162,7 +162,7 @@ function paintedBody({ whClassId, effect, security, hint, stub }: BodyFacts): Wo
   return security === null ? null : { kind: 'planet', security };
 }
 
-function usePaintedBody(data: ChainNodeData, stub: boolean): WormholeBody | null {
+function usePaintedBody(data: ChainNodeData, stub: boolean): DiscBody | null {
   const whClassId = data.whClassId ?? null;
   const effect = data.effect ?? null;
   const security = data.security ?? null;
@@ -173,7 +173,7 @@ function usePaintedBody(data: ChainNodeData, stub: boolean): WormholeBody | null
   );
 }
 
-const DISC_BODY_CLASS: Readonly<Record<WormholeBody['kind'], string>> = {
+const DISC_BODY_CLASS: Readonly<Record<DiscBody['kind'], string>> = {
   wormhole: 'map-node-disc-wormhole',
   planet: 'map-node-disc-planet',
 };
@@ -196,7 +196,7 @@ function NodeDisc({
   readonly classification: { readonly label: string; readonly tone: string } | null;
   readonly stub: boolean;
   readonly systemId: number;
-  readonly body: WormholeBody | null;
+  readonly body: DiscBody | null;
   readonly active: boolean;
   readonly paused: boolean;
   readonly seed: string;
