@@ -286,12 +286,6 @@ async function readSignaturePage(
   return { ...page, page: page.page.filter((row) => !isTombstoned(row)) };
 }
 
-export const watchMapSignatures = query({
-  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
-  returns: signaturePageValidator,
-  handler: async (ctx, args) => await readSignaturePage(ctx, { ...args, systemId: null }),
-});
-
 const glanceMarkPageValidator = paginationResultValidator(v.object({
   systemId: v.number(),
   group: v.string(),
