@@ -29,7 +29,7 @@ describe('system statics client', () => {
     );
   });
 
-  it('shares one request per system and retries after a failure', async () => {
+  it('shares pending requests per system and retries after a failure', async () => {
     apiFetchMock.mockResolvedValueOnce({
       ok: false,
       kind: 'network',
@@ -49,7 +49,28 @@ describe('system statics client', () => {
     ]);
     expect(first).toEqual(['C247']);
     expect(second).toBe(first);
-    await expect(loadSystemStatics(31_000_003)).resolves.toBe(first);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { systemId: 31_000_004, previous: ['B274'] },
+    { systemId: 31_000_005, previous: [] },
+  ])('refreshes a completed result for $systemId on the next load', async ({ systemId, previous }) => {
+    apiFetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      data: { statics: previous },
+      headers: new Headers(),
+    } as never);
+    await expect(loadSystemStatics(systemId)).resolves.toEqual(previous);
+
+    apiFetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      data: { statics: ['C247'] },
+      headers: new Headers(),
+    } as never);
+    await expect(loadSystemStatics(systemId)).resolves.toEqual(['C247']);
     expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 });

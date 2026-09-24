@@ -3,7 +3,7 @@
 import { apiFetch } from '@/transport/api-client';
 import { systemStaticsEndpoint } from './api-contract';
 
-const staticsBySystem = new Map<number, Promise<readonly string[]>>();
+const pendingStaticsBySystem = new Map<number, Promise<readonly string[]>>();
 
 async function fetchSystemStatics(systemId: number): Promise<readonly string[]> {
   const result = await apiFetch(systemStaticsEndpoint, { params: { systemId } });
@@ -15,12 +15,11 @@ async function fetchSystemStatics(systemId: number): Promise<readonly string[]> 
 }
 
 export function loadSystemStatics(systemId: number): Promise<readonly string[]> {
-  const cached = staticsBySystem.get(systemId);
-  if (cached !== undefined) return cached;
-  const request = fetchSystemStatics(systemId).catch((error: unknown) => {
-    staticsBySystem.delete(systemId);
-    throw error;
+  const pending = pendingStaticsBySystem.get(systemId);
+  if (pending !== undefined) return pending;
+  const request = fetchSystemStatics(systemId).finally(() => {
+    pendingStaticsBySystem.delete(systemId);
   });
-  staticsBySystem.set(systemId, request);
+  pendingStaticsBySystem.set(systemId, request);
   return request;
 }
