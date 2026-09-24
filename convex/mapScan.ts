@@ -302,6 +302,32 @@ export const watchSystemSignatures = query({
   handler: readSignaturePage,
 });
 
+const glanceGroupPageValidator = paginationResultValidator(v.object({
+  systemId: v.number(),
+  group: v.string(),
+}));
+
+export const watchMapGlanceGroups = query({
+  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
+  returns: glanceGroupPageValidator,
+  handler: async (ctx, { mapId, paginationOpts }) => {
+    const principal = await tryMapAccess(ctx, mapId, 'view');
+    if (principal === null) return deniedPage<{ systemId: number; group: string }>();
+    // Null sorts before every string, so `gt(null)` keeps only identified rows.
+    const page = await ctx.db
+      .query('mapSignatures')
+      .withIndex('by_map_live_group', (q) =>
+        q.eq('mapId', mapId).eq('deletedAt', null).gt('group', null),
+      )
+      .paginate(boundedPageOptions(paginationOpts));
+    const pairs = new Map<string, { systemId: number; group: string }>();
+    for (const { systemId, group } of page.page) {
+      if (group !== null) pairs.set(`${systemId}:${group}`, { systemId, group });
+    }
+    return { ...page, page: [...pairs.values()] };
+  },
+});
+
 export const purgeExpiredSignatureTombstones = internalMutation({
   args: {},
   handler: async (ctx) => await purgeExpiredSignatures(ctx, Date.now()),

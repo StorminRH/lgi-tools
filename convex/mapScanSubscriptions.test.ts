@@ -170,6 +170,54 @@ describe('system signature subscriptions', () => {
     })).toEqual(denied);
   });
 
+  it('pages only live identified signatures as distinct system groups', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await t.run(async (ctx) => {
+      const identify = async (
+        mapId: string,
+        systemId: number,
+        signatureId: string,
+        group: string,
+        deletedAt: number | null = null,
+      ) => {
+        const row = await ctx.db.query('mapSignatures')
+          .withIndex('by_map_signature', (q) =>
+            q.eq('mapId', mapId).eq('systemId', systemId).eq('signatureId', signatureId))
+          .unique();
+        if (row === null) throw new Error(`Seed row ${signatureId} missing`);
+        await ctx.db.patch(row._id, { group, deletedAt });
+      };
+      await identify(MAP, SYSTEM, 'SIG-000', 'Relic Site');
+      await identify(MAP, SYSTEM, 'SIG-150', 'Relic Site');
+      await identify(MAP, SYSTEM, 'SIG-220', 'Combat Site');
+      await identify(MAP, SYSTEM + 1, 'SIG-001', 'Gas Site', 1);
+      await identify(MAP, SYSTEM + 1, 'SIG-002', 'Data Site');
+      await identify('map-b', SYSTEM, 'SIG-003', 'Ore Site');
+    });
+    const viewer = t.withIdentity({ subject: VIEWER });
+    const args = { mapId: MAP, paginationOpts: { cursor: null, numItems: 1000 } };
+    const glance = await viewer.query(api.mapScan.watchMapGlanceGroups, args);
+    expect(glance.isDone).toBe(true);
+    expect(glance.page).toHaveLength(3);
+    expect(glance.page).toEqual(expect.arrayContaining([
+      { systemId: SYSTEM, group: 'Relic Site' },
+      { systemId: SYSTEM, group: 'Combat Site' },
+      { systemId: SYSTEM + 1, group: 'Data Site' },
+    ]));
+
+    await t.withIdentity({ subject: EDITOR }).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP, systemId: SYSTEM, signatureIds: ['SIG-220'],
+    });
+    expect((await viewer.query(api.mapScan.watchMapGlanceGroups, args)).page)
+      .not.toContainEqual({ systemId: SYSTEM, group: 'Combat Site' });
+
+    const denied = { page: [], isDone: true, continueCursor: '' };
+    expect(await t.query(api.mapScan.watchMapGlanceGroups, args)).toEqual(denied);
+    expect(await t.withIdentity({ subject: 'stranger' }).query(api.mapScan.watchMapGlanceGroups, args))
+      .toEqual(denied);
+  });
+
   it('places both selection bounds in the indexed read before pagination', () => {
     const source = readFileSync('convex/mapScan.ts', 'utf8');
     const watcher = source.slice(source.indexOf('async function readSignaturePage'));
