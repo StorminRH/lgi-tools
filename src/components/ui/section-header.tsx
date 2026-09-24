@@ -27,7 +27,7 @@ export function SectionHeader({
           className: 'flex items-center justify-between',
         }),
         variant === 'bar'
-          ? 'bg-section border-b border-border-soft border-t border-t-border'
+          ? 'bg-row-hover border-b border-border-soft'
           : 'text-label',
         variant === 'bar' && sizing,
         className,

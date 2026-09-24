@@ -16,7 +16,7 @@ export function PageFooter({
     <footer
       data-site-footer
       className={cn(
-        'flex items-center gap-3 px-6 py-3 border-t border-border text-micro',
+        'mx-3 mb-3 mt-6 flex items-center gap-3 rounded-card border border-border glass-surface px-6 py-3 text-micro',
         className,
       )}
     >

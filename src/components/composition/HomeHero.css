@@ -1,0 +1,54 @@
+/* Home hero — the v2 "Orbit" landing. Decorative rings counter-rotate behind
+ * the wordmark; the wordmark brackets breathe a soft ISK glow. */
+.home-hero {
+  min-height: 600px;
+  justify-content: center;
+}
+
+.home-orbits {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 980px;
+  height: 980px;
+  translate: -50% -52%;
+  pointer-events: none;
+  /* Fade the outer rings into the page instead of hard-clipping them. */
+  -webkit-mask-image: radial-gradient(circle at center, #000 38%, transparent 70%);
+  mask-image: radial-gradient(circle at center, #000 38%, transparent 70%);
+}
+.home-orbit {
+  transform-origin: 490px 490px;
+}
+.home-orbit-a { animation: home-orbit-spin 90s linear infinite; }
+.home-orbit-b { animation: home-orbit-spin 140s linear infinite reverse; }
+.home-orbit-c { animation: home-orbit-spin 220s linear infinite; }
+.home-orbit-ring { stroke: var(--color-border); }
+.home-orbit-ring-faint { stroke: var(--color-border-soft); }
+.home-orbit-halo { stroke: var(--color-hairline-accent); }
+@keyframes home-orbit-spin {
+  to { rotate: 360deg; }
+}
+
+.hero-bracket {
+  animation: hero-bracket 5s ease-in-out infinite;
+}
+.hero-bracket-late {
+  animation-delay: -2.5s;
+}
+@keyframes hero-bracket {
+  0%, 100% { text-shadow: 0 0 18px var(--color-card-glow-ring); }
+  50% { text-shadow: 0 0 36px var(--color-card-glow-shadow); }
+}
+
+@media (max-width: 640px) {
+  .home-hero { min-height: 520px; }
+  .home-orbits { width: 640px; height: 640px; }
+  .home-orbit { transform-origin: 490px 490px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-orbit,
+  .hero-bracket { animation: none; }
+}
