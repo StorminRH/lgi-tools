@@ -2,10 +2,10 @@
 
 Static HTML mocks that carry Atlas's visual language (glass map chrome, the
 circular-reveal portrait menu, breathing nodes, flowing chain edges) out to
-the homepage. All three reuse the production tokens from
-`src/app/globals.css` (surfaces, ISK green, EVE blue, WH class ramp, the
-Geist / JetBrains Mono / Barlow Condensed roster) and the existing nebula
-backdrop. Numbers and pilots are sample data.
+the homepage. All three are built on a proposed **tokens v2** layer
+(`shared.css` and `primitives.js`, rendered in `tokens.html`), which evolves
+the production tokens in `src/app/globals.css`. Numbers and pilots are
+sample data.
 
 Open any `.html` file in a browser to see the motion. Screenshots freeze it.
 To re-shoot them, run
@@ -77,15 +77,58 @@ Mobile: [b-chain-mobile.jpg](screenshots/b-chain-mobile.jpg)
 
 Mobile: [c-deck-mobile.jpg](screenshots/c-deck-mobile.jpg)
 
-## Shared primitives these would introduce
+## Tokens v2
 
-| Primitive | What it is |
+![Tokens v2 reference sheet](screenshots/tokens-v2.jpg)
+
+v1 is a flat "inset instrument": 4/6px radii, solid section cards, and ISK
+green as the only accent, with glass reserved for small pop-outs. v2 makes
+**glass the default surface**. The tone, WH-class and security palettes
+don't change.
+
+| Area | v1 (`globals.css`) | v2 (`shared.css`) |
+|---|---|---|
+| Surfaces | bg-deep / bg / section | Same roles, slightly deeper with a blue-teal undertone, plus `bg-void` and `raised` |
+| Borders | Solid hex (`border`, `border-soft`) | White-alpha `hairline` / `hairline-strong` / `hairline-accent`, so borders read on any glass |
+| Text | text `#aab4be` | text `#b3bdc8`, one step brighter so it holds up on glass |
+| Accent | ISK green only | ISK green + **aurora** `#2fd6c9`, with `--grad-accent` (green → cyan → EVE blue) for primary CTAs, focus, active markers and highlight text |
+| Glass | One `glass-panel` (65%, blur 12) | Three tiers: `glass-1` (30%, blur 8), `glass-2` (55%, blur 16) and `glass-3` (82%, blur 28). `.lit` adds a top-edge light and sheen |
+| Radii | ctl 4 / card 6 | `xs 6 · sm 10 · md 14 · lg 18 · xl 24 · pill` |
+| Elevation | dd, card-edge, card-hover | `e1–e4` ambient/key shadows, `edge-lit`, and `glow-sm/md/lg` as a separate accent layer |
+| Motion | fast 150 / panel 200, one `ease-panel` | `dur-1…4` (120/220/420/900), `ease-out` (expo), `ease-in-out`, `ease-reveal`, **`ease-spring`** (CSS `linear()`), and `stagger` |
+| Type | Same three families | Adds `text-mega` for the hero wordmark and a larger `h2`. Labels track wider |
+
+### Primitives
+
+| Primitive | What it does |
 |---|---|
-| `glass-hi` | `glass-panel` plus a lit top edge, an inner sheen and a soft drop shadow. It reads as floating rather than flat frost. |
-| `rise` + `d1…d6` | Staggered entrance: fade, 14px lift and blur-to-sharp on the `--ease-panel` curve. |
-| Live dot | The existing status dot plus a radar ping ring. |
-| Conic edge | A hover-only rotating light on the card border, using `@property --a`. |
-| Flow edge | Atlas's dashed edge animation, reused for decoration. |
+| `.glass-1/2/3` + `.lit` | Surface tiers. Pick by density of what's behind: canvas hints use 1, cards and nav use 2, menus and popovers use 3 |
+| `.btn` `.btn-primary` `.btn-ghost` `.btn-pill` | The primary button is filled with the gradient. Presses scale on the spring curve |
+| `.edge-glow` | A conic light orbits the border on hover (or with `.is-hot`), animated through `@property --edge-a` |
+| `.lift` | The standard hover: a 4px lift on expo-out with an ISK glow underneath |
+| `[data-spotlight]` | A radial wash follows the cursor; the position is fed by `primitives.js` |
+| `[data-count]` | Numbers roll up once they scroll into view |
+| `.reveal` + `--i` | Staggered entrance (fade, lift, blur-to-sharp), `--i × --stagger` |
+| `.seg` | Segmented control whose thumb springs between options (`--seg-i`, `--seg-n`) |
+| `.grad-text` | Gradient text that slowly pans |
+| `.live-dot` | The status dot plus a radar ping |
+| `.kbd` | A keycap with a thicker bottom edge |
+| `.flow-edge` `.breathe` `.draw` | Motifs lifted from Atlas: moving dashed edges, breathing nodes, lines that draw themselves in |
 
-All motion sits behind `prefers-reduced-motion`, like the existing
-`hover-bob` and map motion contract.
+All motion sits behind `prefers-reduced-motion`. `@supports` falls back to
+solid surfaces where `backdrop-filter` is unavailable.
+
+### Porting to the app
+
+- Put the v2 values in `@theme` in `globals.css`. `--radius-*`, `--shadow-*`
+  and `--ease-*` generate Tailwind utilities (`rounded-lg`, `shadow-e3`,
+  `ease-spring`).
+- Register the new radius and shadow names in `cn.ts` so tailwind-merge
+  keeps them.
+- Replace `glass-panel` with three `@utility` tiers plus `lit`.
+- Make `Card` default to `glass-2 lit`, with `hover` meaning `lift`
+  (optionally `edge-glow`).
+- `Button` gets a gradient `primary` variant.
+- Retire `hover-bob`. `lift` replaces it.
+- Wire spotlight and count-up as small client hooks. The count-up hook
+  should respect reduced motion, which the mock already does.

@@ -8,6 +8,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH ?? 'playwright');
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
 const SHOTS = [
+  { name: 'tokens-v2', file: 'tokens.html', vp: [1440, 900], full: true },
   { name: 'a-orbit', file: 'a-orbit.html', vp: [1440, 900], full: true },
   { name: 'a-orbit-mobile', file: 'a-orbit.html', vp: [390, 844], full: true },
   { name: 'b-chain', file: 'b-chain.html', vp: [1440, 900] },
@@ -30,7 +31,7 @@ for (const s of SHOTS) {
     // (bottom nav, backdrops) lands where it would on a real long screen.
     const h = await page.evaluate(() => document.documentElement.scrollHeight);
     await page.setViewportSize({ width: s.vp[0], height: h });
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(1800); // count-ups that just scrolled into view
   }
   await page.screenshot({ path: path.join(dir, 'screenshots', `${s.name}.jpg`), type: 'jpeg', quality: 88 });
   console.log('shot', s.name);
