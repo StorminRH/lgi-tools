@@ -24,8 +24,32 @@ describe('system statics client', () => {
       aborted: false,
       cause: new Error('offline'),
     } as never);
-    await expect(loadSystemStatics(31_000_001)).rejects.toThrow(
+    await expect(loadSystemStatics(31_000_002)).rejects.toThrow(
       'system statics network',
     );
+  });
+
+  it('shares one request per system and retries after a failure', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      ok: false,
+      kind: 'network',
+      aborted: false,
+      cause: new Error('offline'),
+    } as never);
+    await expect(loadSystemStatics(31_000_003)).rejects.toThrow();
+    apiFetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      data: { statics: ['C247'] },
+      headers: new Headers(),
+    } as never);
+    const [first, second] = await Promise.all([
+      loadSystemStatics(31_000_003),
+      loadSystemStatics(31_000_003),
+    ]);
+    expect(first).toEqual(['C247']);
+    expect(second).toBe(first);
+    await expect(loadSystemStatics(31_000_003)).resolves.toBe(first);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 });

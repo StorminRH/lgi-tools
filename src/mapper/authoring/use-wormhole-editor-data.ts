@@ -42,9 +42,8 @@ export function useWormholeEditorData(
 
   useEffect(() => {
     if (systemId <= 0) return;
-    const controller = new AbortController();
     let alive = true;
-    loadSystemStatics(systemId, controller.signal).then(
+    loadSystemStatics(systemId).then(
       (statics) => {
         if (alive) setStatics({ systemId, codes: statics });
       },
@@ -53,7 +52,6 @@ export function useWormholeEditorData(
     );
     return () => {
       alive = false;
-      controller.abort();
     };
   }, [systemId]);
 
