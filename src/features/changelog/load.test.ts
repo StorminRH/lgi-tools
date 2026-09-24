@@ -16,7 +16,7 @@ describe('readChangelogSource', () => {
     expect(new Set(ranks).size).toBe(ranks.length);
     expect(masters[0]?.version).toBe('4.1');
     expect(masters[0]?.title).toBe('What is on the chain');
-    expect(masters[0]?.subVersions[0]?.version).toBe('4.1.1');
+    expect(masters[0]?.subVersions[0]?.version).toBe('4.1.2');
   });
 
   it('projects every real entry into exactly one browser document', async () => {
