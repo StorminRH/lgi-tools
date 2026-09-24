@@ -106,7 +106,7 @@ export default function LegalPage() {
               <a href={EVE_AUTHORIZED_APPS_URL} target="_blank" rel="noopener noreferrer">
                 Authorized Applications page
               </a>
-              . The <Link href="/characters">Characters page</Link> also shows what each linked
+              . The <Link href="/settings/characters">Characters settings page</Link> also shows what each linked
               character has granted.
             </p>
           </LegalSection>
@@ -114,7 +114,7 @@ export default function LegalPage() {
           <LegalSection label="You stay in control">
             <p>
               You control your data. The <strong>Purge</strong> control on your{' '}
-              <Link href="/characters">Characters page</Link>{' '}
+              <Link href="/settings/account">Account settings page</Link>{' '}
               deletes the private EVE data stored for one character and removes LGI.tools access to
               it. Deleting your entire account removes the account, its sessions and linked
               characters, along with the rest of any account-specific data. Public or

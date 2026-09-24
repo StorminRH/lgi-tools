@@ -16,7 +16,7 @@ import {
 import { deleteLinkedCharacter } from '@/platform/auth/admin-users';
 
 function redirectTo(request: NextRequest, userId: string, error?: string): Response {
-  const url = new URL(`/admin/access/${userId}`, request.url);
+  const url = new URL(`/settings/access/${userId}`, request.url);
   if (error) url.searchParams.set('error', error);
   return Response.redirect(url, 303);
 }

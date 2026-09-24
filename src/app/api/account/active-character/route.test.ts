@@ -67,7 +67,7 @@ test('sets the active character and redirects on a valid switch', async () => {
   setActiveCharacterMock.mockResolvedValue(undefined);
   const res = await POST(buildRequest({ characterId: '200' }));
   expect(res.status).toBe(303);
-  expect(res.headers.get('location')).toBe('http://localhost:3000/characters');
+  expect(res.headers.get('location')).toBe('http://localhost:3000/settings/characters');
   expect(setActiveCharacterMock).toHaveBeenCalledWith('eve-user-1', 200);
   expect(logUsageEventMock).toHaveBeenCalledTimes(1);
 });

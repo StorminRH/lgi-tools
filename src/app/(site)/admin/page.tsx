@@ -88,10 +88,10 @@ async function AdminContent({
           <div className="flex items-center gap-3">
             <RangeSelector range={rangeKey} />
             <Link
-              href="/admin/access"
+              href="/settings/access"
               className={cn(buttonVariants({ variant: 'secondary' }), 'no-print text-muted hover:text-text')}
             >
-              Access →
+              Users &amp; roles →
             </Link>
             <PrintButton />
           </div>

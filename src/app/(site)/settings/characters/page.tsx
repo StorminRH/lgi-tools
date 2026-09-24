@@ -9,14 +9,10 @@ import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHead } from '@/components/ui/page-head';
-import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Skeleton } from '@/components/ui/skeleton';
 import { auth } from '@/composition/auth';
-import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { SwitchCharacterForm } from '@/components/composition/account/SwitchCharacterForm';
@@ -24,6 +20,7 @@ import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkChar
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { resolveErrorMessage } from '@/lib/error-copy';
+import { SettingsSectionHead } from '../settings-section-head';
 import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -33,6 +30,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   unlink_failed: 'Could not remove that character. Please try again.',
   "email_doesn't_match": 'Linking failed. Please try again.',
 };
+
+type CharactersSearchParams = Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
 
 function CharacterRowActions({
   characterId,
@@ -46,7 +45,7 @@ function CharacterRowActions({
   needsReconnect: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 justify-end">
+    <div className="flex items-center justify-end gap-2">
       {needsReconnect ? (
         <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
       ) : null}
@@ -106,14 +105,14 @@ function CharacterRow({
           className="border-b-0"
           headerClassName="px-3.5 py-[6px]"
           header={
-            <span className="flex items-center gap-2 min-w-0">
-              <span className="text-label tracking-label uppercase text-muted">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="text-label uppercase tracking-label text-muted">
                 Granted access
               </span>
               <Pill tone="neutral">{view.scopes.length}</Pill>
               <span
                 data-chevron
-                className="ml-auto text-micro text-muted transition-transform inline-block shrink-0"
+                className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
               >
                 ▾
               </span>
@@ -142,18 +141,12 @@ function CharacterNotices({
           moved it into this one. Everything tracked for that character came along.
         </Callout>
       ) : null}
-      {error ? (
-        <Callout label="Heads up">{error}</Callout>
-      ) : null}
+      {error ? <Callout label="Heads up">{error}</Callout> : null}
     </>
   );
 }
 
-async function CharactersContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
-}) {
+async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect('/?auth_error=login_required');
@@ -168,15 +161,11 @@ async function CharactersContent({
   const absorbedCharacter = deriveAbsorbedCharacter(rawAbsorbed, characters);
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <>
       <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
 
       <Card>
-        <SectionHeader
-          size="md"
-          label="Your characters"
-          hint={`${characters.length} linked`}
-        />
+        <SectionHeader size="md" label="Your characters" hint={`${characters.length} linked`} />
         {characters.length === 0 ? (
           <EmptyState>No characters linked to this account.</EmptyState>
         ) : (
@@ -189,10 +178,10 @@ async function CharactersContent({
             />
           ))
         )}
-        <div className="px-3.5 py-3 border-t border-border-soft">
+        <div className="border-t border-border-soft px-3.5 py-3">
           <LinkCharacterButton label="Link another character" />
         </div>
-        <div className="px-3.5 py-2.5 border-t border-border-soft text-ui text-muted leading-relaxed">
+        <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
           LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
           <a
             href={EVE_AUTHORIZED_APPS_URL}
@@ -206,43 +195,31 @@ async function CharactersContent({
           <Link href="/legal" className="text-tone-blue hover:underline">
             how we handle your data
           </Link>
+          . Purging a character&apos;s stored data lives under{' '}
+          <Link href="/settings/account" className="text-tone-blue hover:underline">
+            Account
+          </Link>
           .
         </div>
       </Card>
-
-      <AccountDangerZone
-        characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}
-      />
-    </div>
+    </>
   );
 }
 
-function CharactersLoading() {
-  return (
-    <div className="flex w-full flex-col gap-6">
-      <CharacterPanelSkeleton label="Loading linked characters" />
-      <Skeleton aria-hidden="true" className="h-40 w-full rounded-card" />
-    </div>
-  );
-}
-
-export default function CharactersPage({
+export default function CharactersSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
+  searchParams: CharactersSearchParams;
 }) {
   return (
-    <PageShell mode="reading">
-      <div className="flex flex-col items-center pb-20 gap-0">
-        <PageHead
-          crumb="characters"
-          title="Characters"
-          subtitle="Linked pilots — the active character is who the site acts as"
-        />
-        <Suspense fallback={<CharactersLoading />}>
-          <CharactersContent searchParams={searchParams} />
-        </Suspense>
-      </div>
-    </PageShell>
+    <>
+      <SettingsSectionHead
+        title="Characters"
+        description="Linked pilots — the active character is who the site acts as"
+      />
+      <Suspense fallback={<CharacterPanelSkeleton label="Loading linked characters" />}>
+        <CharactersContent searchParams={searchParams} />
+      </Suspense>
+    </>
   );
 }

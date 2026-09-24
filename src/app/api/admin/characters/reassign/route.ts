@@ -72,5 +72,5 @@ async function handlePost(request: NextRequest): Promise<Response> {
     },
   }).catch((err) => console.error('[admin/characters/reassign] telemetry write failed', err));
 
-  return Response.redirect(new URL(`/admin/access/${toUserId}`, request.url), 303);
+  return Response.redirect(new URL(`/settings/access/${toUserId}`, request.url), 303);
 }

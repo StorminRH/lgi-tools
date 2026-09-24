@@ -63,8 +63,6 @@ import { StatusRow } from '@/app/(site)/admin/StatusRow';
 import { StatusStrip } from '@/app/(site)/admin/StatusStrip';
 import { TrafficSection } from '@/app/(site)/admin/TrafficSection';
 import { UsersSection } from '@/app/(site)/admin/UsersSection';
-import AppSiteAdminAccessUserIdPage from '@/app/(site)/admin/access/[userId]/page';
-import AppSiteAdminAccessPage from '@/app/(site)/admin/access/page';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
 import { getBudgetExhaustionCountShared, getFallbackRateShared } from '@/app/(site)/admin/esi-source-shared';
@@ -78,7 +76,6 @@ import { metadata } from '@/app/(site)/atlas/page';
 import AppSiteChangelogSlugPage, { generateMetadata, generateStaticParams } from '@/app/(site)/changelog/[slug]/page';
 import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
-import AppSiteCharactersPage from '@/app/(site)/characters/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
 import AppSiteError from '@/app/(site)/error';
 import { IndustryDashboardGrid } from '@/app/(site)/industry/IndustryDashboardGrid';
@@ -93,8 +90,17 @@ import { PrimitivesDemo } from '@/app/(site)/preview/primitives/PrimitivesDemo';
 import AppSitePreviewPrimitivesPage, { metadata as AppSitePreviewPrimitivesPageMetadata } from '@/app/(site)/preview/primitives/page';
 import AppSitePreviewWidgetsPage, { metadata as AppSitePreviewWidgetsPageMetadata } from '@/app/(site)/preview/widgets/page';
 import { UniverseAssetsProof } from '@/app/(site)/preview/widgets/universe-assets-proof';
-import AppSiteSettingsPage from '@/app/(site)/settings/page';
+import AppSiteSettingsAccessUserIdPage from '@/app/(site)/settings/access/[userId]/page';
+import AppSiteSettingsAccessPage from '@/app/(site)/settings/access/page';
+import AppSiteSettingsAccountPage from '@/app/(site)/settings/account/page';
+import AppSiteSettingsCharactersPage from '@/app/(site)/settings/characters/page';
+import AppSiteSettingsCorporationsPage from '@/app/(site)/settings/corporations/page';
+import AppSiteSettingsLayout from '@/app/(site)/settings/layout';
+import AppSiteSettingsPreferencesPage from '@/app/(site)/settings/preferences/page';
 import { SettingsControlRow } from '@/app/(site)/settings/settings-control-row';
+import { SettingsNav, SettingsNavFrame } from '@/app/(site)/settings/settings-nav';
+import { SettingsRail, SettingsRailFallback } from '@/app/(site)/settings/settings-rail';
+import { SettingsSectionHead } from '@/app/(site)/settings/settings-section-head';
 import AppSiteSitesIdOpengraphImage, { alt, contentType, size } from '@/app/(site)/sites/[id]/opengraph-image';
 import { generateMetadata as AppSiteSitesIdPageGenerateMetadata, generateStaticParams as AppSiteSitesIdPageGenerateStaticParams } from '@/app/(site)/sites/[id]/page';
 import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(site)/sites/page';
@@ -116,8 +122,6 @@ describe('coverage-gaps', () => {
       StatusStrip,
       TrafficSection,
       UsersSection,
-      AppSiteAdminAccessUserIdPage,
-      AppSiteAdminAccessPage,
       AdminBarChart,
       AdminDailyChart,
       AdminTrendChart,
@@ -137,7 +141,6 @@ describe('coverage-gaps', () => {
       AppSiteChangelogLayout,
       AppSiteChangelogPageMetadata,
       AppSiteChangelogPage,
-      AppSiteCharactersPage,
       AppSiteContactPageMetadata,
       AppSiteContactPage,
       AppSiteError,
@@ -161,8 +164,19 @@ describe('coverage-gaps', () => {
       AppSitePreviewWidgetsPageMetadata,
       AppSitePreviewWidgetsPage,
       UniverseAssetsProof,
-      AppSiteSettingsPage,
+      AppSiteSettingsAccessUserIdPage,
+      AppSiteSettingsAccessPage,
+      AppSiteSettingsAccountPage,
+      AppSiteSettingsCharactersPage,
+      AppSiteSettingsCorporationsPage,
+      AppSiteSettingsLayout,
+      AppSiteSettingsPreferencesPage,
       SettingsControlRow,
+      SettingsNav,
+      SettingsNavFrame,
+      SettingsRail,
+      SettingsRailFallback,
+      SettingsSectionHead,
       alt,
       contentType,
       size,

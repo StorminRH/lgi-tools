@@ -65,8 +65,8 @@ function CorpCard({
         {view.showManagerNote && (
           <p className="text-body text-muted">
             Structure sharing is managed in{' '}
-            <Link href="/settings" className="text-name underline hover:text-text">
-              Account settings
+            <Link href="/settings/corporations" className="text-name underline hover:text-text">
+              Corporation settings
             </Link>
             {view.managerBlurb}
           </p>

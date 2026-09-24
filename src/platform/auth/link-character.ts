@@ -1,6 +1,6 @@
 import { authClient } from './auth-client';
 
-export function startCharacterLink(callbackURL = '/characters'): void {
+export function startCharacterLink(callbackURL = '/settings/characters'): void {
   void authClient.oauth2.link({
     providerId: 'eve',
     callbackURL,
