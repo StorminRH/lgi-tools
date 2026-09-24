@@ -1,7 +1,10 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
+import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue';
+import type { SignatureWindowRow } from '../signatures/signature-model';
 import {
   SystemIntelligenceBody,
   SystemTitleAccessory,
@@ -13,6 +16,14 @@ const fields = {
   whClassId: 5 as number | null,
 };
 
+const signatures = vi.hoisted(() => ({ rows: [] as SignatureWindowRow[] }));
+const refresh = vi.hoisted(() => vi.fn(() => ({
+  prices: new Map([[30370, { bestSell: 30_000 }]]),
+  isPending: () => false,
+})));
+
+vi.mock('@/data/market-prices/use-refresh-on-view', () => ({ useRefreshOnView: refresh }));
+
 const assets = vi.hoisted(() => ({
   systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
 }));
@@ -20,7 +31,7 @@ const assets = vi.hoisted(() => ({
 vi.mock('@/components/use-entity-names', () => ({ useEntityNames: () => ({}) }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
 vi.mock('../signatures/signature-context', () => ({
-  useSignatureRows: () => [],
+  useSignatureRows: () => signatures.rows,
 }));
 vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => [] }));
 vi.mock('../chain/use-universe-assets', () => ({
@@ -37,15 +48,65 @@ function directoryEntry(): SystemDirectoryEntry {
   };
 }
 
-function bodyMarkup(): string {
-  return renderToStaticMarkup(createElement(SystemIntelligenceBody, { systemId: 1 }));
+function bodyMarkup(siteIndex: readonly SiteSearchEntry[] = []): string {
+  return renderToStaticMarkup(createElement(
+    SiteCatalogueProvider,
+    { siteIndex },
+    createElement(SystemIntelligenceBody, { systemId: 1 }),
+  ));
 }
+
+function siteRow(key: string, name: string | null, group: SignatureWindowRow['group'] = 'Combat Site'): SignatureWindowRow {
+  return {
+    key, name, group, systemId: 1, signatureId: key, kind: 'anomaly', signalPct: 100,
+    firstSeenAt: 1, connection: null, className: null,
+  };
+}
+
+const combatSite: SiteSearchEntry = {
+  id: 1, name: 'Perimeter Ambush Point', siteType: 'combat', wormholeClass: 'C1',
+  blueLootIsk: 8_600_000, resourceValueIsk: 99_000_000, liveRecipes: [],
+};
+
+afterEach(() => {
+  signatures.rows = [];
+  refresh.mockClear();
+});
 
 function titleAccessoryMarkup(): string {
   return renderToStaticMarkup(createElement(SystemTitleAccessory, { systemId: 1 }));
 }
 
 describe('SystemIntelligenceBody', () => {
+  it('shows combat blue-loot totals for every site occurrence without requesting market prices', () => {
+    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', combatSite.name)];
+    const body = bodyMarkup([combatSite]);
+    expect(body).toContain('data-intel-category="combat"');
+    expect(body).toContain('>17.2M<');
+    expect(body).not.toContain('198.0M');
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 'Unknown Combat Site'])('withholds the combat total when a site is unpriced: %s', (name) => {
+    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', name)];
+    const body = bodyMarkup([combatSite]);
+    expect(body).toContain('>—<');
+    expect(body).not.toContain('>8.6M<');
+  });
+
+  it('keeps harvestable totals on live resource prices alongside combat blue loot', () => {
+    const gas: SiteSearchEntry = {
+      id: 49, name: 'Barren Perimeter Reservoir', siteType: 'gas', wormholeClass: null,
+      blueLootIsk: null, resourceValueIsk: 28_100_000,
+      liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
+    };
+    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', gas.name, 'Gas Site')];
+    const body = bodyMarkup([combatSite, gas]);
+    expect(body).toContain('>8.6M<');
+    expect(body).toContain('>30.0M<');
+    expect(refresh).toHaveBeenCalledWith([30370], { enabled: true });
+  });
+
   it('renders class or security as a title accessory and omits it until data resolves', () => {
     assets.systemInfo.mockImplementation(() => directoryEntry());
     Object.assign(fields, { name: 'J123456', security: -1, whClassId: 5 });
