@@ -7,7 +7,7 @@ import {
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { memo, useLayoutEffect, useRef } from 'react';
+import { memo, useId, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import type { ChainEdgeData } from '../chain/nodes';
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
@@ -105,10 +105,6 @@ function OutboundArrowLabel({
   );
 }
 
-function taperGradientId(edgeId: string): string {
-  return `map-edge-taper-${edgeId.replace(/[^A-Za-z0-9_-]/g, '')}`;
-}
-
 function EdgeTaper({
   gradientId,
   segment,
@@ -169,7 +165,7 @@ function ChainLinkEdgeComponent({
   const arrow = useOutboundArrow(id);
   const segment = chainLinkSegment(sourceNode, targetNode);
   const visible = segment !== null;
-  const gradientId = taperGradientId(id);
+  const gradientId = `map-edge-taper-${useId()}`;
   useLayoutEffect(() => {
     hostRef.current?.style.setProperty('--map-edge-taper', `url(#${gradientId})`);
   }, [gradientId, visible]);

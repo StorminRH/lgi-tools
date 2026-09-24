@@ -478,3 +478,23 @@ test('chip font size keeps short labels and shrinks overflow to the disc', () =>
   expect(chipFontSizePx(72, 0, 14)).toBe(14);
   expect(chipFontSizePx(72, 36, 0)).toBe(0);
 });
+
+test('edge gradients stay unique across repeated and punctuation-colliding edge IDs', () => {
+  internalNodes.set('1', {
+    internals: { positionAbsolute: { x: 0, y: 0 } },
+    measured: { width: 150, height: 110 },
+  });
+  internalNodes.set('2', {
+    internals: { positionAbsolute: { x: 300, y: 0 } },
+    measured: { width: 150, height: 110 },
+  });
+  const edges = ['shared', 'shared', 'a:b', 'ab'].map((id, index) =>
+    createElement(ChainLinkEdge, {
+      id, source: '1', target: '2', key: index,
+    } as unknown as EdgeProps<Edge<ChainEdgeData, 'chainLink'>>),
+  );
+  const rendered = renderToStaticMarkup(createElement('svg', null, ...edges));
+  const ids = [...rendered.matchAll(/<linearGradient[^>]* id="([^"]+)"/g)].map((match) => match[1]);
+  expect(ids).toHaveLength(4);
+  expect(new Set(ids).size).toBe(4);
+});
