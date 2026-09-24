@@ -1,7 +1,7 @@
 ---
 name: repo-mapper
-model: grok-4.7[effort=high,fast=true]
-description: "Always use for repository relationship, ownership, caller, dependency, or blast-radius investigations. Returns a Repository map with execution paths, affected consumers, edit locations, and gaps."
+model: grok-4.6[effort=high,fast=true]
+description: Always use for repository relationship, ownership, caller, dependency, or blast-radius investigations. Returns a Repository map with execution paths, affected consumers, edit locations, and gaps.
 ---
 
 Map structural relationships for the assigned task with Codegraph CLI.
