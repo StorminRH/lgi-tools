@@ -57,7 +57,7 @@ function IdentityHeader({ session }: { session: Session }) {
       <CharacterPortrait
         characterId={session.characterId}
         name={session.name}
-        size={40}
+        size={38}
         src={session.portraitUrl}
       />
       <span className="flex min-w-0 flex-col">
@@ -210,7 +210,7 @@ export function MapMenu({
             <CharacterPortrait
               characterId={session.characterId}
               name={session.name}
-              size={40}
+              size={38}
               src={session.portraitUrl}
               preload
             />
