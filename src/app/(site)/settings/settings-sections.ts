@@ -9,7 +9,6 @@ export type SettingsSection = {
   id: SettingsSectionId;
   href: `/settings/${string}`;
   title: string;
-  blurb: string;
 };
 
 export type SettingsGroup = {
@@ -31,25 +30,21 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
         id: 'characters',
         href: '/settings/characters',
         title: 'Characters',
-        blurb: 'Linked pilots and who the site acts as',
       },
       {
         id: 'corporations',
         href: '/settings/corporations',
         title: 'Corporations',
-        blurb: 'Structure sharing for the corporations your pilots belong to',
       },
       {
         id: 'preferences',
         href: '/settings/preferences',
         title: 'Preferences',
-        blurb: 'Per-page display settings, gathered in one place',
       },
       {
         id: 'account',
         href: '/settings/account',
         title: 'Account',
-        blurb: 'Who you are signed in as, sessions, and stored data',
       },
     ],
   },
@@ -62,7 +57,6 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
         id: 'access',
         href: '/settings/access',
         title: 'Users & roles',
-        blurb: 'Admin roles, account lookup, and the role-change audit',
       },
     ],
   },

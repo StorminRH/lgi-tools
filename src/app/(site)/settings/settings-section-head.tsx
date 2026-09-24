@@ -3,14 +3,12 @@ import { cn } from '@/components/ui/cn';
 
 export function SettingsSectionHead({
   title,
-  description,
   leading,
   chips,
   meta,
   className,
 }: {
   title: ReactNode;
-  description?: ReactNode;
   leading?: ReactNode;
   chips?: ReactNode;
   meta?: ReactNode;
@@ -31,7 +29,6 @@ export function SettingsSectionHead({
             {title}
           </h2>
           {chips != null && <span className="mt-1.5 flex items-center gap-[6px]">{chips}</span>}
-          {description != null && <p className="mt-2 font-ui text-ui text-muted">{description}</p>}
         </div>
       </div>
       {meta != null && <div className="flex shrink-0 items-center gap-3">{meta}</div>}

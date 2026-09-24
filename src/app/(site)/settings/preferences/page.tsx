@@ -27,10 +27,7 @@ async function PreferencesContent() {
 export default function PreferencesSettingsPage() {
   return (
     <>
-      <SettingsSectionHead
-        title="Preferences"
-        description="Per-page display settings, gathered in one place"
-      />
+      <SettingsSectionHead title="Preferences" />
       <Suspense
         fallback={<Skeleton label="Loading preferences" className="h-40 w-full rounded-card" />}
       >

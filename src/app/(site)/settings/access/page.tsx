@@ -254,12 +254,6 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
     <>
       <SettingsSectionHead
         title="Users & roles"
-        description={
-          <>
-            {view.adminCount} admin{view.adminPlural}
-            {view.querySuffix} — look up any account by character name to grant or revoke ADMIN
-          </>
-        }
         meta={
           <Link
             href="/admin"

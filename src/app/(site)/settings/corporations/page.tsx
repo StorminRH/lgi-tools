@@ -103,10 +103,7 @@ async function CorporationsContent() {
 export default function CorporationsSettingsPage() {
   return (
     <>
-      <SettingsSectionHead
-        title="Corporations"
-        description="Structure sharing for the corporations your pilots belong to — Station Managers decide what every member can build at"
-      />
+      <SettingsSectionHead title="Corporations" />
       <Suspense
         fallback={<Skeleton label="Loading corporations" className="h-40 w-full rounded-card" />}
       >

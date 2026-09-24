@@ -213,10 +213,7 @@ export default function CharactersSettingsPage({
 }) {
   return (
     <>
-      <SettingsSectionHead
-        title="Characters"
-        description="Linked pilots — the active character is who the site acts as"
-      />
+      <SettingsSectionHead title="Characters" />
       <Suspense fallback={<CharacterPanelSkeleton label="Loading linked characters" />}>
         <CharactersContent searchParams={searchParams} />
       </Suspense>

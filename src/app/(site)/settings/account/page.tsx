@@ -73,10 +73,7 @@ async function AccountContent() {
 export default function AccountSettingsPage() {
   return (
     <>
-      <SettingsSectionHead
-        title="Account"
-        description="Who you are signed in as, your sessions, and the data LGI.tools keeps for you"
-      />
+      <SettingsSectionHead title="Account" />
       <Suspense fallback={<Skeleton label="Loading account" className="h-40 w-full rounded-card" />}>
         <AccountContent />
       </Suspense>
