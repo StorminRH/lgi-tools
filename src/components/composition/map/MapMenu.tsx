@@ -15,6 +15,7 @@ import {
   menuSection,
   menuSectionLabel,
 } from '@/components/ui/menu';
+import { cn } from '@/components/ui/cn';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import {
   closedMapDialogs,
@@ -28,8 +29,18 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { startCharacterLink } from '@/platform/auth/link-character';
 import type { Session } from '@/platform/auth/types';
 
+// The open menu's header portrait lands exactly on the trigger portrait, so
+// the menu reads as drawing out around it. The inset is the header's p-3 plus
+// the popup's 1px border.
+const PORTRAIT_SIZE = 38;
+const PORTRAIT_INSET = 13;
 const portraitTrigger =
-  'flex cursor-pointer items-center rounded-full ring-offset-2 ring-offset-bg-deep transition-[opacity,box-shadow] hover:opacity-85 data-[popup-open]:ring-1 data-[popup-open]:ring-isk';
+  'flex cursor-pointer items-center rounded-full transition-opacity hover:opacity-85';
+// Circular reveal centred on the header portrait, collapsing back on close.
+const portraitReveal =
+  '[clip-path:circle(150%_at_calc(100%_-_32px)_32px)] transition-[clip-path,opacity] duration-[360ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ' +
+  'data-[starting-style]:[clip-path:circle(19px_at_calc(100%_-_32px)_32px)] ' +
+  'data-[ending-style]:[clip-path:circle(19px_at_calc(100%_-_32px)_32px)] data-[ending-style]:opacity-0';
 const glyphTrigger =
   'inline-flex size-10 cursor-pointer items-center justify-center rounded-ctl border border-border bg-section text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name';
 
@@ -54,23 +65,31 @@ function MenuRows({ label, children }: { label: string; children: ReactNode }) {
 
 function IdentityHeader({ session }: { session: Session }) {
   return (
-    <MenuLinkItem
-      closeOnClick
-      data-map-menu-identity
-      className="flex items-center gap-3 px-3 py-3 outline-none data-[highlighted]:bg-row-active"
-      render={<Link href="/characters" target="_blank" rel="noreferrer" />}
-    >
-      <CharacterPortrait
-        characterId={session.characterId}
-        name={session.name}
-        size={38}
-        src={session.portraitUrl}
-      />
-      <span className="flex min-w-0 flex-col">
+    <div data-map-menu-identity className="flex items-start gap-3 p-3">
+      <MenuLinkItem
+        closeOnClick
+        className="group flex min-w-0 flex-1 flex-col outline-none"
+        render={<Link href="/characters" target="_blank" rel="noreferrer" />}
+      >
         <span className="truncate font-ui text-nav text-name">{session.name}</span>
-        <span className="font-ui text-ui text-muted">Manage characters</span>
-      </span>
-    </MenuLinkItem>
+        <span className="font-ui text-ui text-muted transition-colors group-hover:text-isk group-data-[highlighted]:text-isk">
+          Manage characters
+        </span>
+      </MenuLinkItem>
+      <MenuItem
+        closeOnClick
+        aria-label="Close menu"
+        data-map-menu-close
+        className="flex size-[38px] shrink-0 cursor-pointer items-center justify-center rounded-full outline-none data-[highlighted]:ring-1 data-[highlighted]:ring-isk"
+      >
+        <CharacterPortrait
+          characterId={session.characterId}
+          name={session.name}
+          size={PORTRAIT_SIZE}
+          src={session.portraitUrl}
+        />
+      </MenuItem>
+    </div>
   );
 }
 
@@ -191,7 +210,7 @@ export function MapMenu({
             <CharacterPortrait
               characterId={session.characterId}
               name={session.name}
-              size={38}
+              size={PORTRAIT_SIZE}
               src={session.portraitUrl}
               preload
             />
@@ -202,10 +221,19 @@ export function MapMenu({
         triggerClassName={session ? portraitTrigger : glyphTrigger}
         triggerProps={{ 'data-map-menu-trigger': '' }}
         popupProps={{ 'data-map-menu-panel': '' }}
-        className="w-72 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-card"
+        className={cn(
+          'w-72 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-card',
+          session && portraitReveal,
+        )}
         side="bottom"
         align="end"
-        sideOffset={8}
+        {...(session
+          ? {
+              sideOffset: -(PORTRAIT_SIZE + PORTRAIT_INSET),
+              alignOffset: -PORTRAIT_INSET,
+              collisionPadding: 0,
+            }
+          : { sideOffset: 8 })}
       >
         {session ? <IdentityHeader session={session} /> : null}
         <MenuGroup label="Map">

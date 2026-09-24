@@ -28,8 +28,13 @@ vi.mock('@/components/ui/menu', () => ({
       createElement('span', { 'data-trigger': '' }, trigger),
       children,
     ),
-  MenuItem: ({ children }: { children: React.ReactNode }) =>
-    createElement('button', null, children),
+  MenuItem: ({
+    children,
+    'aria-label': ariaLabel,
+  }: {
+    children: React.ReactNode;
+    'aria-label'?: string;
+  }) => createElement('button', { 'aria-label': ariaLabel }, children),
   MenuLinkItem: ({ children }: { children: React.ReactNode }) =>
     createElement('a', null, children),
   menuRow: 'menu-row',
@@ -116,6 +121,7 @@ describe('MapMenu', () => {
     expect(markup).toContain('aria-label="Mapper — account menu"');
     expect(markup).toContain('data-portrait="Mapper"');
     expect(markup).toContain('Manage characters');
+    expect(markup).toContain('aria-label="Close menu"');
     expect(markup).toContain('Add character');
     expect(markup).toContain('Account settings');
     expect(markup).toMatch(/data-map-settings[^>]*><div data-tracking/);
