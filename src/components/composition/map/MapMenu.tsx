@@ -16,13 +16,13 @@ import {
   menuSectionLabel,
 } from '@/components/ui/menu';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
-import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import {
   closedMapDialogs,
+  connectedDialogFocus,
   mapDialogAuthorityKey,
   reconcileAuthorityScopedMapDialogs,
 } from '@/features/maps/map-dialog-state';
-import { MapLifecycleDialogs } from '@/features/maps/MapLifecycleDialogs';
+import { MapCreationDialog } from '@/features/maps/MapCreationDialog';
 import { atlasSignInReturnHref } from '@/features/maps/map-navigation';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { startCharacterLink } from '@/platform/auth/link-character';
@@ -164,13 +164,11 @@ export function MapMenu({
   session,
   contextualSection,
   corporations = [],
-  deletedMaps = [],
   mapActionsAvailable = true,
 }: {
   readonly session: Session | null;
   readonly contextualSection?: ReactNode;
   readonly corporations?: readonly CorporationAccessOption[];
-  readonly deletedMaps?: readonly DeletedRestorableMapRow[];
   readonly mapActionsAvailable?: boolean;
 }) {
   const { isAdmin } = useAuth();
@@ -183,7 +181,6 @@ export function MapMenu({
   if (dialogs !== storedDialogs) setStoredDialogs(dialogs);
   const ownerRef = useRef<HTMLDivElement | null>(null);
   const creationOpenerRef = useRef<HTMLElement | null>(null);
-  const trashOpenerRef = useRef<HTMLElement | null>(null);
 
   return (
     <div ref={ownerRef} tabIndex={-1} data-map-menu-owner className="outline-none">
@@ -227,36 +224,21 @@ export function MapMenu({
               New map
             </MenuItem>
             {mapId ? <CopyMapLinkItem mapId={mapId} /> : null}
-            <MenuItem
-              closeOnClick
-              className={menuRow}
-              onClick={(event) => {
-                trashOpenerRef.current = event.currentTarget;
-                setStoredDialogs((current) => ({ ...current, trashOpen: true }));
-              }}
-            >
-              Deleted maps
-              {deletedMaps.length > 0 ? (
-                <span className="ml-auto font-data text-micro tabular-nums text-faint">
-                  {deletedMaps.length}
-                </span>
-              ) : null}
-            </MenuItem>
           </MenuGroup>
         ) : null}
-        {contextualSection}
-        <PageMenuSection />
+        <PageMenuSection>{contextualSection}</PageMenuSection>
         {session ? <AccountGroup isAdmin={isAdmin} /> : null}
         <MenuFooter />
       </Menu>
-      <MapLifecycleDialogs
-        dialogs={dialogs}
-        onDialogsChange={setStoredDialogs}
+      <MapCreationDialog
+        open={dialogs.creationOpen}
+        onOpenChange={(open) =>
+          setStoredDialogs((current) => ({ ...current, creationOpen: open }))
+        }
         corporations={corporations}
-        deletedMaps={deletedMaps}
-        creationOpenerRef={creationOpenerRef}
-        trashOpenerRef={trashOpenerRef}
-        hostRef={ownerRef}
+        openerRef={() =>
+          connectedDialogFocus(creationOpenerRef.current, ownerRef.current)
+        }
       />
     </div>
   );

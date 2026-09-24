@@ -47,7 +47,8 @@ vi.mock('@/components/composition/account/AccountMenu', () => ({
 }));
 
 vi.mock('@/components/composition/PageMenuSection', () => ({
-  PageMenuSection: () => null,
+  PageMenuSection: ({ children }: { children?: React.ReactNode }) =>
+    createElement('section', { 'data-map-settings': '' }, children),
 }));
 
 vi.mock('@/platform/auth/components/AuthProvider', () => ({
@@ -73,15 +74,6 @@ vi.mock('@/features/maps/MapCreationDialog', () => ({
     }),
 }));
 
-vi.mock('@/features/maps/TrashWindow', () => ({
-  TrashWindow: ({ maps, open }: { maps: readonly unknown[]; open: boolean }) =>
-    createElement('div', {
-      'data-trash-window': '',
-      'data-trash-count': maps.length,
-      'data-trash-open': String(open),
-    }),
-}));
-
 import { MapMenu } from './MapMenu';
 
 const session = {
@@ -102,26 +94,14 @@ describe('MapMenu', () => {
       createElement(MapMenu, {
         session,
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
-        deletedMaps: [
-          {
-            id: 'map-a',
-            name: 'Alpha',
-            createdAt: new Date(),
-            archivedAt: new Date(),
-            creatorName: 'Mapper',
-            role: 'admin',
-            provenance: { kind: 'created' },
-          },
-        ],
       }),
     );
 
     expect(markup).toContain('New map');
     expect(markup).toContain('data-map-creation-door');
     expect(markup).toContain('data-corporation-count="1"');
-    expect(markup).toMatch(/Deleted maps<span[^>]*>1<\/span>/);
-    expect(markup).toContain('data-trash-window');
-    expect(markup).toContain('data-trash-count="1"');
+    expect(markup).not.toContain('Deleted maps');
+    expect(markup).not.toContain('Trash');
   });
 
   it('opens from the portrait and folds the account rows into one menu', () => {
@@ -137,7 +117,7 @@ describe('MapMenu', () => {
     expect(markup).toContain('Manage characters');
     expect(markup).toContain('Add character');
     expect(markup).toContain('Account settings');
-    expect(markup).toContain('data-tracking');
+    expect(markup).toMatch(/data-map-settings[^>]*><div data-tracking/);
     expect(markup).toContain('Log out');
     expect(markup).not.toContain('>Admin<');
     expect(markup.indexOf('data-tracking')).toBeLessThan(markup.indexOf('Log out'));
@@ -179,8 +159,6 @@ describe('MapMenu', () => {
       createElement(MapMenu, { session, mapActionsAvailable: false }),
     );
     expect(markup).not.toContain('New map');
-    expect(markup).not.toContain('Deleted maps');
     expect(markup).toContain('data-map-creation-open="false"');
-    expect(markup).toContain('data-trash-open="false"');
   });
 });

@@ -63,10 +63,10 @@ function ControlRow({ model }: { model: MenuControlModel }) {
   return <EnumControlRow model={model} />;
 }
 
-export function PageMenuSection() {
+export function PageMenuSection({ children }: { children?: ReactNode }) {
   const spec = usePageSettings();
   const models = resolveMenuControls(spec);
-  if (models.length === 0) return null;
+  if (models.length === 0 && children == null) return null;
 
   const title = spec?.title ?? 'Page settings';
   return (
@@ -77,6 +77,7 @@ export function PageMenuSection() {
       {models.map((model) => (
         <ControlRow key={model.key} model={model} />
       ))}
+      {children}
     </div>
   );
 }

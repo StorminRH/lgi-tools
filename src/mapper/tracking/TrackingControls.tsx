@@ -3,11 +3,7 @@
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import {
-  MenuCheckboxItem,
-  menuSection,
-  menuSectionLabel,
-} from '@/components/ui/menu';
+import { MenuCheckboxItem } from '@/components/ui/menu';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
@@ -87,12 +83,12 @@ function TrackingControlsView({
   return (
     <div
       data-map-tracking
-      className={menuSection}
+      className="flex flex-col pt-1"
       role="group"
       aria-label="Tracking"
     >
-      <div className={menuSectionLabel} aria-hidden="true">
-        Tracking
+      <div className="px-3 pb-1.5 font-ui text-nav text-muted" aria-hidden="true">
+        <span className="text-label">tracking</span>
       </div>
       {characters.length === 0 ? (
         <span className="px-3 pb-2 font-data text-micro text-muted">

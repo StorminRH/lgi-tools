@@ -61,3 +61,20 @@ test('PageMenuSection renders nothing for unmatched or strip-only routes', () =>
   registerPageSettings({ route: '/jobs', strip: { surfaceId: 'jobs' } });
   expect(renderAt('/jobs')).toBe('');
 });
+
+test('PageMenuSection nests page-owned controls under the settings header', () => {
+  registerPageSettings({
+    route: '/atlas',
+    title: 'Map settings',
+    controls: [{ key: 'atlas.cameraFollow', placement: 'section' }],
+  });
+  const markup = renderToStaticMarkup(
+    createElement(
+      PageMenuProvider,
+      { pathname: '/atlas' },
+      createElement(PageMenuSection, null, createElement('div', { 'data-tracking': '' })),
+    ),
+  );
+  expect(markup.indexOf('Map settings')).toBeLessThan(markup.indexOf('data-tracking'));
+  expect(markup.indexOf('camera follow')).toBeLessThan(markup.indexOf('data-tracking'));
+});

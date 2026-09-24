@@ -18,13 +18,11 @@ vi.mock('./MapMenu', () => ({
     session,
     contextualSection,
     corporations,
-    deletedMaps,
     mapActionsAvailable,
   }: {
     session: { name: string } | null;
     contextualSection?: React.ReactNode;
     corporations?: readonly unknown[];
-    deletedMaps?: readonly unknown[];
     mapActionsAvailable?: boolean;
   }) =>
     createElement(
@@ -33,7 +31,6 @@ vi.mock('./MapMenu', () => ({
         'data-map-menu': '',
         'data-map-menu-session': session?.name ?? 'none',
         'data-map-corporation-count': String(corporations?.length ?? 0),
-        'data-deleted-map-count': String(deletedMaps?.length ?? 0),
         'data-map-actions-available': String(mapActionsAvailable),
       },
       contextualSection,
@@ -131,7 +128,6 @@ describe('MapChrome', () => {
 
     expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-map-corporation-count="1"');
-    expect(markup).toContain('data-deleted-map-count="1"');
     expect(markup).toContain('data-map-actions-available="true"');
     expect(markup).toContain('data-map-menu-session="Mapper"');
     expect(markup).not.toContain('data-account-menu');

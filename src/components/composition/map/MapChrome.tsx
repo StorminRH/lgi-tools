@@ -19,7 +19,6 @@ export function MapChrome({
   const {
     corporations,
     maps,
-    deletedMaps,
     grantsByMapId,
     listingAvailable,
   } = useMapCatalogueData();
@@ -34,7 +33,6 @@ export function MapChrome({
           session={session}
           contextualSection={contextualSection}
           corporations={corporations}
-          deletedMaps={deletedMaps}
           mapActionsAvailable={listingAvailable}
         />
       </div>
