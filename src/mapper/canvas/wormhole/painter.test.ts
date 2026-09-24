@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { acquireWormholePainter } from './painter';
-import { wormholePalette } from './palette';
+import { bodyAppearance } from './palette';
 
 const leases: ReturnType<typeof acquireWormholePainter>[] = [];
 afterEach(() => {
@@ -51,7 +51,12 @@ function graphics(failure?: 'context' | 'shader' | 'link' | 'buffer') {
   };
 }
 
-const paint = { palette: wormholePalette(3), time: 4.5, age: 1.2, seed: 0.3 };
+const classPalette = (classId: number) =>
+  bodyAppearance({ kind: 'wormhole', classId, effect: null }, () => '').palette;
+const paint = {
+  palette: classPalette(3), time: 4.5, age: 1.2, seed: 0.3,
+  mode: 3, tint: [0.1, 0.2, 0.3] as const, focus: 0.4,
+};
 
 test('nodes acquire lazily and reuse one bounded WebGL surface until the last release', () => {
   const env = graphics();
@@ -80,20 +85,23 @@ test('nodes acquire lazily and reuse one bounded WebGL surface until the last re
   expect(env.source.getContext).toHaveBeenCalledTimes(2);
 });
 
-test('each paint sends the chosen core and independent aura plus timing, then copies to its target size', () => {
+test('each paint sends the palette, body mode, tint, focus and timing, then copies to its target size', () => {
   const env = graphics();
   const lease = acquire();
   expect(lease.paint(env.context, paint)).toBe(true);
   expect(env.gl.uniform1f).toHaveBeenCalledWith({ name: 'clock' }, paint.time);
   expect(env.gl.uniform1f).toHaveBeenCalledWith({ name: 'rippleAge' }, paint.age);
   expect(env.gl.uniform1f).toHaveBeenCalledWith({ name: 'seed' }, paint.seed);
+  expect(env.gl.uniform1f).toHaveBeenCalledWith({ name: 'mode' }, 3);
+  expect(env.gl.uniform1f).toHaveBeenCalledWith({ name: 'focus' }, 0.4);
+  expect(env.gl.uniform3f).toHaveBeenCalledWith({ name: 'tintColor' }, 0.1, 0.2, 0.3);
   for (const key of ['core', 'accent', 'dark', 'highlight', 'halo'] as const) {
     expect(env.gl.uniform3f).toHaveBeenCalledWith({ name: `${key}Color` }, ...paint.palette[key]);
   }
   expect(env.target.clearRect).toHaveBeenCalledWith(0, 0, 146, 120);
   expect(env.target.drawImage).toHaveBeenCalledWith(env.source, 0, 0, 146, 120);
   expect(env.gl.drawArrays.mock.invocationCallOrder[0]).toBeLessThan(env.target.drawImage.mock.invocationCallOrder[0]!);
-  const next = { ...paint, palette: wormholePalette(6) };
+  const next = { ...paint, palette: classPalette(6) };
   lease.paint(env.context, next);
   expect(env.gl.uniform3f).toHaveBeenCalledWith({ name: 'coreColor' }, ...next.palette.core);
   expect(env.gl.uniform3f).toHaveBeenCalledWith({ name: 'haloColor' }, ...next.palette.halo);

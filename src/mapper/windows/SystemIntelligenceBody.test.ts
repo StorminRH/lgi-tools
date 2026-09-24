@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { WormholeEffect } from '@/data/eve-data/wormhole-contract';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue';
 import type { SignatureWindowRow } from '../signatures/signature-model';
@@ -14,7 +15,10 @@ const fields = {
   name: 'J123456',
   security: -1 as number | null,
   whClassId: 5 as number | null,
+  effect: null as WormholeEffect | null,
 };
+
+const statics = vi.hoisted(() => ({ slots: [] as { code: string; className: string }[] }));
 
 const signatures = vi.hoisted(() => ({ rows: [] as SignatureWindowRow[] }));
 const refresh = vi.hoisted(() => vi.fn(() => ({
@@ -33,7 +37,7 @@ vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }
 vi.mock('../signatures/signature-context', () => ({
   useSignatureRows: () => signatures.rows,
 }));
-vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => [] }));
+vi.mock('../signatures/use-system-statics', () => ({ useSystemStaticSlots: () => statics.slots }));
 vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
@@ -45,6 +49,7 @@ function directoryEntry(): SystemDirectoryEntry {
     regionName: 'Test Region',
     security: fields.security,
     whClassId: fields.whClassId,
+    effect: fields.effect,
   };
 }
 
@@ -70,6 +75,8 @@ const combatSite: SiteSearchEntry = {
 
 afterEach(() => {
   signatures.rows = [];
+  statics.slots = [];
+  fields.effect = null;
   refresh.mockClear();
 });
 
@@ -137,5 +144,26 @@ describe('SystemIntelligenceBody', () => {
 
     assets.systemInfo.mockReturnValue(null);
     expect(titleAccessoryMarkup()).toBe('');
+  });
+
+  it('lists the wormhole effect with its icon below the statics, with or without statics', () => {
+    assets.systemInfo.mockImplementation(() => directoryEntry());
+    Object.assign(fields, { name: 'J123456', security: -1, whClassId: 5, effect: 'cataclysmic-variable' });
+    statics.slots = [{ code: 'D792', className: 'HS' }];
+
+    const withStatics = bodyMarkup();
+    expect(withStatics).toContain('data-intel-statics');
+    expect(withStatics).toContain('aria-label="Effect"');
+    expect(withStatics).toContain('text-effect-cataclysmic-variable');
+    expect(withStatics).toContain('>Cataclysmic Variable<');
+    expect(withStatics.indexOf('data-intel-statics')).toBeLessThan(withStatics.indexOf('data-intel-effect'));
+
+    statics.slots = [];
+    const effectOnly = bodyMarkup();
+    expect(effectOnly).not.toContain('data-intel-statics');
+    expect(effectOnly).toContain('>Cataclysmic Variable<');
+
+    fields.effect = null;
+    expect(bodyMarkup()).not.toContain('data-intel-effect');
   });
 });

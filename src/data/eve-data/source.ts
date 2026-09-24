@@ -31,6 +31,7 @@ export type SdeJsonlName =
   | 'mapConstellations'
   | 'mapSolarSystems'
   | 'mapStargates'
+  | 'mapSecondarySuns'
   | 'npcStations'
   | 'stationOperations'
   | 'stationServices';
@@ -46,6 +47,7 @@ const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'mapConstellations',
   'mapSolarSystems',
   'mapStargates',
+  'mapSecondarySuns',
   'npcStations',
   'stationOperations',
   'stationServices',

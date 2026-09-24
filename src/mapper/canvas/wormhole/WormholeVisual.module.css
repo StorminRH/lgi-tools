@@ -2,8 +2,8 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--wormhole-size, 75px);
-  height: var(--wormhole-size, 75px);
+  width: var(--wormhole-size, 110px);
+  height: var(--wormhole-size, 110px);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -18,11 +18,21 @@
 /* Static, class-tinted fallback also covers SSR, GPU failure and reduced hardware. */
 .fallback {
   position: absolute;
-  inset: 13.235%;
+  left: 50%;
+  top: 50%;
+  width: var(--wormhole-sphere, 55px);
+  height: var(--wormhole-sphere, 55px);
+  transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(ellipse at 35% 30%, #171e28, transparent 65%),
     radial-gradient(circle, #05080d 55%, color-mix(in srgb, var(--wormhole-core, #8996a1) 25%, #05080d) 100%);
   box-shadow: 0 0 5px 1px color-mix(in srgb, var(--wormhole-halo, #879cab) 10%, transparent);
+}
+
+.visual[data-body='planet'] .fallback {
+  scale: 0.92;
+  background: radial-gradient(circle at 32% 30%, color-mix(in srgb, var(--wormhole-tint, #879cab) 90%, #fff) 0%, var(--wormhole-tint, #879cab) 35%, color-mix(in srgb, var(--wormhole-tint, #879cab) 20%, #05080d) 100%);
+  box-shadow: none;
 }
 
 .canvas[data-ready='true'] + .fallback { display: none; }

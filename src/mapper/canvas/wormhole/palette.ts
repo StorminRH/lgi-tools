@@ -1,3 +1,6 @@
+import { securityBand } from '@/data/eve-data/security';
+import type { WormholeEffect } from '@/data/eve-data/wormhole-contract';
+
 /** Art-directed approximations of destination nebulae, not official CCP RGB values.
  * References: https://wiki.eveuniversity.org/Visual_wormhole_identification
  * and https://www.eveonline.com/news/view/september-release-wormholes-and-stars-get-an-update
@@ -28,9 +31,57 @@ const CLASSES: Readonly<Record<number, Omit<WormholePalette, 'halo'>>> = {
 
 const HALO: RGB = [0.53, 0.61, 0.68];
 
-export function wormholePalette(whClassId: number | null | undefined): WormholePalette {
-  const core = whClassId == null ? NEUTRAL : CLASSES[whClassId] ?? NEUTRAL;
+function wormholePalette(whClassId: number | null): WormholePalette {
+  const core = whClassId === null ? NEUTRAL : CLASSES[whClassId] ?? NEUTRAL;
   return { ...core, halo: HALO };
+}
+
+export type WormholeBody =
+  | { readonly kind: 'wormhole'; readonly classId: number | null; readonly effect: WormholeEffect | null }
+  | { readonly kind: 'planet'; readonly security: number };
+
+export const EFFECT_MODE: Readonly<Record<WormholeEffect, number>> = {
+  pulsar: 1,
+  'black-hole': 2,
+  magnetar: 3,
+  'red-giant': 4,
+  'cataclysmic-variable': 5,
+  'wolf-rayet': 6,
+};
+
+const SPHERE_MODE = 0;
+
+export const PLANET_MODE = 7;
+
+export interface BodyAppearance {
+  readonly palette: WormholePalette;
+  readonly mode: number;
+  readonly tint: RGB;
+}
+
+const HEX_COLOR = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
+
+function hexRgb(value: string): RGB | null {
+  const match = HEX_COLOR.exec(value.trim());
+  if (match === null) return null;
+  const channel = (index: number) => Number.parseInt(match[index] ?? '', 16) / 255;
+  return [channel(1), channel(2), channel(3)];
+}
+
+function tintToken(body: WormholeBody): string | null {
+  if (body.kind === 'planet') return `--color-sec-${securityBand(body.security)}`;
+  return body.effect === null ? null : `--color-effect-${body.effect}`;
+}
+
+export function bodyAppearance(
+  body: WormholeBody,
+  readToken: (token: string) => string,
+): BodyAppearance {
+  const token = tintToken(body);
+  const tint = (token === null ? null : hexRgb(readToken(token))) ?? HALO;
+  if (body.kind === 'planet') return { palette: wormholePalette(null), mode: PLANET_MODE, tint };
+  const mode = body.effect === null ? SPHERE_MODE : EFFECT_MODE[body.effect];
+  return { palette: wormholePalette(body.classId), mode, tint };
 }
 
 export function wormholeSeed(key: string): number {
