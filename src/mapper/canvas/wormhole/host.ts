@@ -2,11 +2,11 @@ import { securityBand } from '@/data/eve-data/security';
 import { SYSTEM_DISC_SIZE } from '../disc-chrome';
 import { STILL_WORMHOLE, stepWormholeMotion, wormholeNeedsFrame } from './motion';
 import { acquireWormholePainter } from './painter';
-import { bodyAppearance, wormholeSeed, type WormholeBody } from './palette';
+import { discBodyAppearance, wormholeSeed, type DiscBody } from './palette';
 import { BODY_EXTENT_RADII } from './shaders';
 
 export interface WormholeInputs {
-  readonly body: WormholeBody;
+  readonly body: DiscBody;
   readonly active: boolean;
   readonly paused?: boolean;
   readonly seed?: string;
@@ -14,7 +14,7 @@ export interface WormholeInputs {
 
 const BODY_SIZE_PX = SYSTEM_DISC_SIZE * BODY_EXTENT_RADII;
 
-function bodyKey(body: WormholeBody): string {
+function bodyKey(body: DiscBody): string {
   return body.kind === 'planet'
     ? `planet:${securityBand(body.security)}`
     : `wormhole:${body.classId}:${body.effect}`;
@@ -33,7 +33,7 @@ function applyFrame(canvas: HTMLCanvasElement) {
 
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
   const style = window.getComputedStyle(canvas);
-  const appearance = bodyAppearance(inputs.body, (token) => style.getPropertyValue(token));
+  const appearance = discBodyAppearance(inputs.body, (token) => style.getPropertyValue(token));
   const wrapper = canvas.parentElement;
   const colors = { ...appearance.palette, tint: appearance.tint };
   for (const key of ['core', 'accent', 'halo', 'dark', 'tint'] as const) {
