@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { HamburgerGlyph } from '@/components/composition/HamburgerGlyph';
@@ -15,7 +15,6 @@ import {
   menuSection,
   menuSectionLabel,
 } from '@/components/ui/menu';
-import { isToolActive, visibleNavTools } from '@/data/tools/registry';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import {
@@ -33,7 +32,6 @@ const portraitTrigger =
   'flex cursor-pointer items-center rounded-full ring-offset-2 ring-offset-bg-deep transition-[opacity,box-shadow] hover:opacity-85 data-[popup-open]:ring-1 data-[popup-open]:ring-isk';
 const glyphTrigger =
   'inline-flex size-10 cursor-pointer items-center justify-center rounded-ctl border border-border bg-section text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name';
-const newTabHint = 'ml-auto font-data text-micro text-faint';
 
 function MenuGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -41,6 +39,14 @@ function MenuGroup({ label, children }: { label: string; children: ReactNode }) 
       <div className={menuSectionLabel} aria-hidden="true">
         {label}
       </div>
+      {children}
+    </div>
+  );
+}
+
+function MenuRows({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col border-t border-border-soft py-1" role="group" aria-label={label}>
       {children}
     </div>
   );
@@ -98,33 +104,9 @@ function CopyMapLinkItem({ mapId }: { mapId: string }) {
   );
 }
 
-function ToolsGroup() {
-  const pathname = usePathname();
-  const tools = visibleNavTools().filter(
-    (tool) => tool.href !== null && !isToolActive(tool, pathname),
-  );
-  return (
-    <MenuGroup label="Tools">
-      {tools.map((tool) => (
-        <MenuLinkItem
-          key={tool.label}
-          closeOnClick
-          className={menuRow}
-          render={<Link href={tool.href ?? '/'} target="_blank" rel="noreferrer" />}
-        >
-          {tool.label}
-          <span className={newTabHint} aria-hidden="true">
-            ↗
-          </span>
-        </MenuLinkItem>
-      ))}
-    </MenuGroup>
-  );
-}
-
 function AccountGroup({ isAdmin }: { isAdmin: boolean }) {
   return (
-    <MenuGroup label="Account">
+    <MenuRows label="Account">
       <MenuItem className={menuRow} onClick={() => startCharacterLink()}>
         Add character
       </MenuItem>
@@ -145,16 +127,18 @@ function AccountGroup({ isAdmin }: { isAdmin: boolean }) {
         </MenuLinkItem>
       ) : null}
       <LogOutMenuItem />
-    </MenuGroup>
+    </MenuRows>
   );
 }
 
 function MenuFooter() {
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-border-soft px-3 py-2 font-data text-micro text-muted">
+    <div className="flex items-center justify-between gap-3 border-t border-border-soft px-3 py-2.5">
       <MenuLinkItem
         closeOnClick
-        className="font-extrabold uppercase tracking-copy text-name outline-none data-[highlighted]:text-isk"
+        aria-label="LGI.tools home"
+        data-map-menu-home
+        className="font-data text-ui font-extrabold uppercase tracking-copy text-name outline-none transition-colors hover:text-isk data-[highlighted]:text-isk"
         render={<Link href="/" target="_blank" rel="noreferrer" />}
       >
         <span className="text-isk">[</span>
@@ -168,7 +152,7 @@ function MenuFooter() {
         target="_blank"
         rel="noopener noreferrer"
         closeOnClick
-        className="outline-none transition-colors hover:text-isk data-[highlighted]:text-isk"
+        className="font-data text-micro text-faint outline-none transition-colors hover:text-isk data-[highlighted]:text-isk"
       >
         Built with React Flow
       </MenuLinkItem>
@@ -251,7 +235,7 @@ export function MapMenu({
                 setStoredDialogs((current) => ({ ...current, trashOpen: true }));
               }}
             >
-              Trash
+              Deleted maps
               {deletedMaps.length > 0 ? (
                 <span className="ml-auto font-data text-micro tabular-nums text-faint">
                   {deletedMaps.length}
@@ -262,7 +246,6 @@ export function MapMenu({
         ) : null}
         {contextualSection}
         <PageMenuSection />
-        <ToolsGroup />
         {session ? <AccountGroup isAdmin={isAdmin} /> : null}
         <MenuFooter />
       </Menu>

@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
-  usePathname: () => '/atlas',
   useSearchParams: () => new URLSearchParams(mocks.search),
 }));
 
@@ -120,7 +119,7 @@ describe('MapMenu', () => {
     expect(markup).toContain('New map');
     expect(markup).toContain('data-map-creation-door');
     expect(markup).toContain('data-corporation-count="1"');
-    expect(markup).toMatch(/Trash<span[^>]*>1<\/span>/);
+    expect(markup).toMatch(/Deleted maps<span[^>]*>1<\/span>/);
     expect(markup).toContain('data-trash-window');
     expect(markup).toContain('data-trash-count="1"');
   });
@@ -144,11 +143,11 @@ describe('MapMenu', () => {
     expect(markup.indexOf('data-tracking')).toBeLessThan(markup.indexOf('Log out'));
   });
 
-  it('lists the other tools but not the atlas itself', () => {
+  it('links the main site from the logo instead of listing each tool', () => {
     const markup = renderToStaticMarkup(createElement(MapMenu, { session }));
-    expect(markup).toContain('Wormhole Sites');
-    expect(markup).toContain('Industry Planner');
-    expect(markup).not.toMatch(/>Atlas</);
+    expect(markup).toContain('LGI');
+    expect(markup).not.toContain('Wormhole Sites');
+    expect(markup).not.toContain('Industry Planner');
   });
 
   it('offers the admin console to admins', () => {
@@ -180,7 +179,7 @@ describe('MapMenu', () => {
       createElement(MapMenu, { session, mapActionsAvailable: false }),
     );
     expect(markup).not.toContain('New map');
-    expect(markup).not.toContain('>Trash');
+    expect(markup).not.toContain('Deleted maps');
     expect(markup).toContain('data-map-creation-open="false"');
     expect(markup).toContain('data-trash-open="false"');
   });
