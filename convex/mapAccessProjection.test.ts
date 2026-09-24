@@ -69,6 +69,29 @@ async function readClaims(t: Chain, mapId: string) {
 }
 
 describe('reconcileMapClaims', () => {
+  it('rejects an in-flight projection reserved before scoped revocation', async () => {
+    const t = convexTest(schema, modules);
+    await reconcileAt(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }], 10);
+    await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
+      userId: EDITOR, mapIds: [MAP_A], revision: 11,
+    });
+    expect(await readClaims(t, MAP_A)).toEqual([]);
+    await expect(reconcileAt(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }], 10))
+      .resolves.toMatchObject({ outcome: 'stale' });
+    expect(await readClaims(t, MAP_A)).toEqual([]);
+    await expect(reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 12))
+      .resolves.toMatchObject({ outcome: 'applied' });
+    // A second barrier reserved after the Neon unlink also fences projections
+    // that started in the interval between the first barrier and that unlink.
+    await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
+      userId: EDITOR, mapIds: [MAP_A], revision: 13,
+    });
+    await expect(reconcileAt(t, MAP_A, [
+      { userId: OWNER, roles: ['admin'] }, { userId: EDITOR, roles: ['editor'] },
+    ], 12)).resolves.toMatchObject({ outcome: 'stale' });
+    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER }]);
+  });
+
   it('writes, no-ops an identical re-run, updates a role, and deletes by absence or empty roles', async () => {
     const t = convexTest(schema, modules);
     const counts = await reconcile(t, MAP_A, [

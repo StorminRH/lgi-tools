@@ -78,7 +78,7 @@ test('lazy visibility, palette updates, impulse settling and idle stop work toge
   expect(release).toHaveBeenCalledOnce();
 });
 
-test('a batched intersection callback follows the latest entry', () => {
+test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop scheduled work', () => {
   const env = browser();
   const host = createWormholeHost(env.canvas, { active: true });
   env.visibleBatch([false, true]);
@@ -86,12 +86,6 @@ test('a batched intersection callback follows the latest entry', () => {
   expect(env.frames.size).toBe(1);
   env.visibleBatch([true, false]);
   expect(env.frames.size).toBe(0);
-  host.dispose();
-});
-
-test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop scheduled work', () => {
-  const env = browser();
-  const host = createWormholeHost(env.canvas, { active: true });
   env.visible(true); env.advance(.2);
   env.visible(false);
   expect(env.frames.size).toBe(0);
@@ -112,21 +106,18 @@ test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop 
   expect(env.doc.removeEventListener).toHaveBeenCalledOnce();
 });
 
-test('GPU failure exposes a static fallback and does not spin an animation loop', () => {
+test('GPU failure exposes a static fallback, and a later failure keeps the last bitmap until paint recovers', () => {
   const env = browser();
   paint.mockReturnValueOnce(false);
-  const host = createWormholeHost(env.canvas, { active: true, whClassId: 5, size: 10000 });
+  const failed = createWormholeHost(env.canvas, { active: true, whClassId: 5, size: 10000 });
   env.visible(true);
   expect(env.canvas.dataset.ready).toBe('false');
   expect(env.frames.size).toBe(0);
   expect(env.context.clearRect).toHaveBeenCalled();
   expect(env.canvas.width).toBe(256);
   expect(env.setProperty).toHaveBeenCalledWith('--wormhole-size', '512px');
-  host.dispose();
-});
+  failed.dispose();
 
-test('later GPU failure keeps the last bitmap and retries once the context can paint again', () => {
-  const env = browser();
   const host = createWormholeHost(env.canvas, { active: true, whClassId: 5 });
   env.visible(true);
   expect(env.canvas.dataset.ready).toBe('true');

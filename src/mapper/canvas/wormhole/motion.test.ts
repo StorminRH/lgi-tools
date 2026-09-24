@@ -11,7 +11,7 @@ function advance(state = STILL_WORMHOLE, active = false, frames = 240) {
   return state;
 }
 
-test('idle requires no frames; one activation emits a finite impulse with continuing wisps', () => {
+test('selection drives a finite impulse, release freezes it, and pause or a long frame cannot jump', () => {
   expect(wormholeNeedsFrame(STILL_WORMHOLE)).toBe(false);
   expect(advance()).toEqual(STILL_WORMHOLE);
   const impulse = stepWormholeMotion(STILL_WORMHOLE, 0, true, false);
@@ -21,19 +21,14 @@ test('idle requires no frames; one activation emits a finite impulse with contin
   expect(settled.time).toBeGreaterThan(0);
   expect(wormholeNeedsFrame(settled)).toBe(true);
   expect(advance(settled, true).age).toBeGreaterThan(settled.age);
-});
 
-test('release settles to an exact freeze; reentry restarts the impulse without resetting wisps', () => {
-  const selected = advance(STILL_WORMHOLE, true);
-  const released = advance(selected, false);
+  const released = advance(settled, false);
   expect(wormholeNeedsFrame(released)).toBe(false);
   expect(advance(released, false).time).toBe(released.time);
   const reentered = stepWormholeMotion(released, 0, true, false);
   expect(reentered.age).toBe(0);
   expect(reentered.time).toBe(released.time);
-});
 
-test('pause immediately stills every effect, even if selected; background time cannot jump', () => {
   const moving = advance(STILL_WORMHOLE, true, 20);
   const paused = stepWormholeMotion(moving, 10, true, true);
   expect(paused.active).toBe(true);

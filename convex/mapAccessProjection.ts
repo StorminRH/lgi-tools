@@ -224,6 +224,37 @@ export const purgeUserClaims = internalMutation({
   },
 });
 
+// A character unlink can affect more maps than one projection request can deliver.
+// Revoke only this user's affected claims before removing the linked account; other
+// maps and other users retain their access while the full projections catch up.
+export const purgeUserMapClaims = internalMutation({
+  args: { userId: v.string(), revision: v.number(), mapIds: v.array(v.string()) },
+  returns: v.object({ deleted: v.number() }),
+  handler: async (ctx, { userId, revision, mapIds }) => {
+    let deleted = 0;
+    for (const mapId of new Set(mapIds)) {
+      const watermark = await ctx.db
+        .query('mapAccessProjectionWatermarks')
+        .withIndex('by_map', (q) => q.eq('mapId', mapId))
+        .unique();
+      if (watermark === null) {
+        await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
+      } else if (watermark.revision < revision) {
+        await ctx.db.patch(watermark._id, { revision });
+      }
+      const rows = await ctx.db
+        .query('mapAccess')
+        .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
+        .take(MAP_ACCESS_PURGE_BATCH);
+      for (const row of rows) {
+        await ctx.db.delete(row._id);
+        deleted += 1;
+      }
+    }
+    return { deleted };
+  },
+});
+
 export const remapLegacyOwnerRoles = internalMutation({
   args: {
     cursor: v.optional(v.union(v.string(), v.null())),

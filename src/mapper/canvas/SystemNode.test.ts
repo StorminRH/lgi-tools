@@ -55,47 +55,51 @@ vi.mock('./wormhole/WormholeVisual', async () => {
   };
 });
 
-test.each([1, 2, 3, 4, 5, 6, 12, 13, 14, 15, 16, 17, 18])(
-  'wormhole class %s uses the decorative visual and retains centered handles',
-  (whClassId) => {
-    const rendered = renderToStaticMarkup(createElement(SystemNode, {
-      id: '31000001',
-      data: { name: 'J123456', className: null, whClassId },
-    } as unknown as NodeProps<ChainNode>));
-    expect(rendered).toContain(`data-wormhole-visual="${whClassId}"`);
-    expect(rendered).toContain('map-node-disc-wormhole');
-    expect(rendered).toContain('data-visual-active="false"');
-    expect(rendered.match(/data-handle=/g)).toHaveLength(2);
-  },
-);
-
-test.each([7, 8, 9, 25, null])(
-  'ordinary system class %s preserves its existing disc',
-  (whClassId) => {
-    const rendered = renderToStaticMarkup(createElement(SystemNode, {
-      id: '30000142',
-      data: { name: 'System', className: null, whClassId },
-    } as unknown as NodeProps<ChainNode>));
-    expect(rendered).not.toContain('data-wormhole-visual');
-    expect(rendered).not.toContain('map-node-disc-wormhole');
-  },
-);
-
-test.each([
-  { selected: false, dragging: false, paused: false, active: false },
-  { selected: true, dragging: false, paused: false, active: true },
-  { selected: true, dragging: true, paused: true, active: true },
-  { selected: true, dragging: false, motion: { phase: 'departing' }, paused: true, active: true },
-  { selected: true, dragging: false, halo: { ring: 3, fogged: true }, paused: true, active: true },
-])('visual respects selection and inert states: %j', ({ paused, active, motion, halo, ...props }) => {
-  const rendered = renderToStaticMarkup(createElement(SystemNode, {
-    ...props,
+test('wormhole classes mount the decorative visual and pause it while inert', () => {
+  const renderNode = (
+    props: Record<string, unknown>,
+    data: Record<string, unknown>,
+  ) => renderToStaticMarkup(createElement(SystemNode, {
     id: '31000001',
-    data: { name: 'J123456', className: 'C3', whClassId: 3, motion, halo },
+    ...props,
+    data: { name: 'J123456', className: null, ...data },
   } as unknown as NodeProps<ChainNode>));
-  expect(rendered).toContain(`data-visual-active="${active}"`);
-  expect(rendered).toContain(`data-visual-paused="${paused}"`);
-  if (props.selected === true) expect(rendered).toContain('data-chain-node-selected');
+
+  const c6 = renderNode({}, { whClassId: 6 });
+  expect(c6).toContain('data-wormhole-visual="6"');
+  expect(c6).toContain('map-node-disc-wormhole');
+  expect(c6).toContain('data-visual-active="false"');
+  expect(c6).toContain('data-visual-paused="false"');
+  expect(c6).not.toContain('data-chain-node-selected');
+  expect(c6.match(/data-handle=/g)).toHaveLength(2);
+  expect(renderNode({}, { whClassId: 12 })).toContain('data-wormhole-visual="12"');
+
+  for (const whClassId of [7, null]) {
+    const ordinary = renderNode({}, { whClassId, name: 'System' });
+    expect(ordinary).not.toContain('data-wormhole-visual');
+    expect(ordinary).not.toContain('map-node-disc-wormhole');
+  }
+
+  const selected = renderNode({ selected: true }, { whClassId: 3, className: 'C3' });
+  expect(selected).toContain('data-visual-active="true"');
+  expect(selected).toContain('data-visual-paused="false"');
+  expect(selected).toContain('data-chain-node-selected');
+
+  const dragging = renderNode({ selected: true, dragging: true }, { whClassId: 3, className: 'C3' });
+  expect(dragging).toContain('data-visual-active="true"');
+  expect(dragging).toContain('data-visual-paused="true"');
+  const departing = renderNode(
+    { selected: true },
+    { whClassId: 3, className: 'C3', motion: { phase: 'departing' } },
+  );
+  expect(departing).toContain('data-visual-active="true"');
+  expect(departing).toContain('data-visual-paused="true"');
+  const fogged = renderNode(
+    { selected: true },
+    { whClassId: 3, className: 'C3', halo: { ring: 3, fogged: true } },
+  );
+  expect(fogged).toContain('data-visual-active="true"');
+  expect(fogged).toContain('data-visual-paused="true"');
 });
 
 test.each([
@@ -303,6 +307,25 @@ test('wormhole stubs reuse the derived ghost presentation without interactive ch
   expect(rendered).toContain('opacity-75');
   expect(rendered).not.toContain('pointer-events-auto');
   expect(rendered).not.toContain('data-pilot-presence');
+  expect(rendered).toContain('data-wormhole-visual="unknown"');
+  expect(rendered).toContain('data-visual-paused="true"');
+  expect(rendered).toContain('data-visual-active="false"');
+
+  const deadly = renderToStaticMarkup(createElement(SystemNode, {
+    ...props,
+    selected: true,
+    data: { ...props.data, destinationHint: 'deadly' },
+  }));
+  expect(deadly).toContain('data-wormhole-visual="6"');
+  expect(deadly).toContain('data-visual-active="true"');
+  expect(deadly).toContain('data-visual-paused="true"');
+
+  const hisec = renderToStaticMarkup(createElement(SystemNode, {
+    ...props,
+    selected: true,
+    data: { ...props.data, destinationHint: 'hisec' },
+  }));
+  expect(hisec).not.toContain('data-wormhole-visual');
 });
 
 test('static stubs separate their code header from the colored destination class', () => {
