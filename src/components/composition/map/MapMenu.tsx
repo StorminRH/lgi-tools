@@ -68,7 +68,7 @@ function IdentityHeader({ session }: { session: Session }) {
       />
       <span className="flex min-w-0 flex-col">
         <span className="truncate font-ui text-nav text-name">{session.name}</span>
-        <span className="font-data text-micro text-muted">Manage characters</span>
+        <span className="font-ui text-ui text-muted">Manage characters</span>
       </span>
     </MenuLinkItem>
   );
@@ -152,7 +152,7 @@ function MenuFooter() {
         target="_blank"
         rel="noopener noreferrer"
         closeOnClick
-        className="font-data text-micro text-faint outline-none transition-colors hover:text-isk data-[highlighted]:text-isk"
+        className="font-ui text-micro text-faint outline-none transition-colors hover:text-isk data-[highlighted]:text-isk"
       >
         Built with React Flow
       </MenuLinkItem>

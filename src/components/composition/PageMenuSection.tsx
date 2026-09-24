@@ -22,7 +22,7 @@ function ControlRowFrame({
 }) {
   return (
     <div className={menuControlRow}>
-      <span className="text-label">{label}</span>
+      <span>{label}</span>
       {children}
     </div>
   );

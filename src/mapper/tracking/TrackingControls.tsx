@@ -88,7 +88,7 @@ function TrackingControlsView({
       aria-label="Tracking"
     >
       <div className="px-3 pb-1.5 font-ui text-nav text-muted" aria-hidden="true">
-        <span className="text-label">tracking</span>
+        Tracking
       </div>
       {characters.length === 0 ? (
         <span className="px-3 pb-2 font-data text-micro text-muted">
@@ -132,7 +132,7 @@ function TrackingControlsView({
       )}
       {showReconnect ? (
         <div className={trackingRowClass} data-tracking-reconnect-action>
-          <span className="font-data text-micro text-muted">Cannot sync location</span>
+          <span className="font-ui text-ui text-muted">Cannot sync location</span>
           {reconnectAction}
         </div>
       ) : null}
