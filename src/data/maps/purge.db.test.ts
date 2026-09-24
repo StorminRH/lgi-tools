@@ -181,7 +181,8 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
     expect(hooks.purgeUserClaims).toHaveBeenCalledWith('owner');
   });
 
-  it('keeps durable retry work when captured delivery fails after the grant delete', async () => {
+  it('completes purge and keeps durable retry work when captured delivery fails after the grant delete', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     hooks.deliverCaptured.mockRejectedValue(new Error('door down'));
     await seedUser(harness.db, 'owner');
     await harness.db.insert(maps).values({
@@ -202,7 +203,7 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
         userId: 'owner',
         characterId: 42,
       }),
-    ).rejects.toThrow('door down');
+    ).resolves.toBeUndefined();
 
     expect(await harness.db.select().from(mapAccess)).toEqual([]);
     expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([

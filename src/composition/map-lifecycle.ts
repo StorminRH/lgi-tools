@@ -3,7 +3,6 @@ import {
   projectMapAccess,
   ProjectionUnavailableError,
   requireCurrentProjection,
-  teardownMapAccessProjection,
   type ProjectionResult,
 } from '@/composition/map-access-projection';
 import type { MapLifecycleRequest } from '@/data/maps/api-contract';
@@ -27,7 +26,6 @@ export interface MapLifecycleDependencies {
   readonly restoreMap?: typeof restoreAuthorizedMap;
   readonly requestPurge?: typeof requestAuthorizedMapPurge;
   readonly projectAccess?: typeof projectMapAccess;
-  readonly teardownAccess?: typeof teardownMapAccessProjection;
   readonly acknowledgeAccess?: typeof acknowledgeMapAccessChanges;
 }
 
@@ -63,11 +61,13 @@ export async function deleteMapForUser(
     input.mapId,
   );
   if (!pending) return { ok: false };
+  // A restore may have completed while the archive write was returning.
+  // Project current state so delayed delivery cannot revoke restored access.
   return finishCapturedLifecycleProjection(
     pending,
-    () => (dependencies.teardownAccess ?? teardownMapAccessProjection)(input.mapId),
+    () => (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
     dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges,
-    '[maps] archived map projection teardown pending resync',
+    '[maps] archived map projection pending resync',
   );
 }
 

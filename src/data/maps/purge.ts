@@ -60,7 +60,12 @@ export function createMapsPurgeContributor(
     claims: [maps, mapAccess],
     async purgeCharacter({ characterId }) {
       const pending = await purgeCharacterMapGrants(characterId);
-      if (pending.length > 0) await hooks.deliverCaptured(pending);
+      // Retry work is already durable; delivery must not stop the remaining purge.
+      if (pending.length > 0) {
+        await bestEffort('maps/purge', 'projection', String(characterId), () =>
+          hooks.deliverCaptured(pending),
+        );
+      }
     },
     async purgeUser({ userId }) {
       await purgeOwnedMapChainsThenDeleteMaps(userId, hooks.purgeMapChain);

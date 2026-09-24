@@ -22,7 +22,7 @@ describe('map lifecycle composition', () => {
       order.push('neon');
       return PENDING;
     });
-    const teardownAccess = vi.fn(async () => {
+    const projectAccess = vi.fn(async () => {
       order.push('projection');
       return {
         inserted: 0,
@@ -40,7 +40,7 @@ describe('map lifecycle composition', () => {
       deleteMapForUser('user', INPUT, {
         resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS),
         archiveMap,
-        teardownAccess,
+        projectAccess,
         acknowledgeAccess,
       }),
     ).resolves.toEqual({ ok: true, projectionPending: false });
@@ -73,7 +73,7 @@ describe('map lifecycle composition', () => {
     ).resolves.toEqual({ ok: true, projectionPending: false });
     expect(restoreOrder).toEqual(['neon', 'projection', 'acknowledge']);
 
-    const refusedTeardown = vi.fn();
+    const refusedArchiveProject = vi.fn();
     const refusedProject = vi.fn();
     const refusedAcknowledge = vi.fn();
     const common = { resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS) };
@@ -81,7 +81,7 @@ describe('map lifecycle composition', () => {
       deleteMapForUser('user', INPUT, {
         ...common,
         archiveMap: vi.fn().mockResolvedValue(null),
-        teardownAccess: refusedTeardown,
+        projectAccess: refusedArchiveProject,
         acknowledgeAccess: refusedAcknowledge,
       }),
     ).resolves.toEqual({ ok: false });
@@ -93,7 +93,7 @@ describe('map lifecycle composition', () => {
         acknowledgeAccess: refusedAcknowledge,
       }),
     ).resolves.toEqual({ ok: false });
-    expect(refusedTeardown).not.toHaveBeenCalled();
+    expect(refusedArchiveProject).not.toHaveBeenCalled();
     expect(refusedProject).not.toHaveBeenCalled();
     expect(refusedAcknowledge).not.toHaveBeenCalled();
 
@@ -104,7 +104,7 @@ describe('map lifecycle composition', () => {
       deleteMapForUser('user', INPUT, {
         ...common,
         archiveMap: vi.fn().mockResolvedValue(PENDING),
-        teardownAccess: vi.fn().mockRejectedValue(unavailable),
+        projectAccess: vi.fn().mockRejectedValue(unavailable),
         acknowledgeAccess: pendingAcknowledge,
       }),
     ).resolves.toEqual({ ok: true, projectionPending: true });
@@ -120,7 +120,7 @@ describe('map lifecycle composition', () => {
     expect(console.error).toHaveBeenCalledTimes(2);
   });
 
-  it('marks projection pending when teardown or restore is stale', async () => {
+  it('marks projection pending when archive or restore is stale', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const stale = {
       inserted: 0,
@@ -134,7 +134,7 @@ describe('map lifecycle composition', () => {
       deleteMapForUser('user', INPUT, {
         resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS),
         archiveMap: vi.fn().mockResolvedValue(PENDING),
-        teardownAccess: vi.fn().mockResolvedValue(stale),
+        projectAccess: vi.fn().mockResolvedValue(stale),
         acknowledgeAccess,
       }),
     ).resolves.toEqual({ ok: true, projectionPending: true });
