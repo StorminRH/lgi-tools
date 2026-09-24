@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
 import { createFogHostRuntime, runFogTick, type FogTickIo } from './fog-host';
 import { DEFAULT_FOG_CONFIG, deriveFogReveals } from './fog-model';
@@ -151,6 +151,17 @@ describe('runFogTick', () => {
 
     runFogTick(runtime, tickIo(canvas, ctx), INPUTS);
     expect(ops.filter((op) => op === 'fillRect')).toHaveLength(1);
+  });
+
+  it('resolves the color token once instead of restyling every frame', () => {
+    const runtime = createFogHostRuntime();
+    const canvas = stubCanvas();
+    const { ctx } = stubContext();
+    const readColor = vi.fn(() => 'fog-token');
+
+    runFogTick(runtime, tickIo(canvas, ctx, { readColor }), INPUTS);
+    runFogTick(runtime, tickIo(canvas, ctx, { readColor, now: 1100 }), INPUTS);
+    expect(readColor).toHaveBeenCalledTimes(1);
   });
 
   it('reports animation for a later-arriving reveal so the host loops', () => {
