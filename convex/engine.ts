@@ -39,12 +39,17 @@ export const heartbeat = mutation({
     const presence = await getPresence(ctx.db, dataset, userId);
     if (presence !== null && isLeftTab(presence.leftTabId, tabId)) return;
 
+    const seenVisible = visible !== false;
+    if (reason === 'interval' && isPresenceFresh(presence, dataset, seenVisible, tabId, now)) {
+      return;
+    }
+
     const wasCold = await upsertPresence(
       ctx,
       presence,
       dataset,
       userId,
-      visible !== false,
+      seenVisible,
       now,
       tabId,
     );
@@ -105,6 +110,28 @@ async function upsertPresence(
     });
   }
   return wasCold;
+}
+
+/**
+ * An interval beat inside this window of the last presence write changes no
+ * liveness decision (cold is minutes away), so it skips the write entirely.
+ */
+const PRESENCE_REFRESH_MS = 60_000;
+
+function isPresenceFresh(
+  presence: Doc<'syncPresence'> | null,
+  dataset: SyncDataset,
+  seenVisible: boolean,
+  tabId: string | undefined,
+  now: number,
+): boolean {
+  if (presence === null) return false;
+  if (isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return false;
+  if (tabId !== undefined && (presence.tabId !== tabId || (presence.leftTabId ?? '') !== '')) {
+    return false;
+  }
+  if (now - presence.lastSeenAt >= PRESENCE_REFRESH_MS) return false;
+  return !seenVisible || now - (presence.lastVisibleAt ?? 0) < PRESENCE_REFRESH_MS;
 }
 
 function isLeftTab(leftTabId: string | undefined, tabId: string | undefined): boolean {

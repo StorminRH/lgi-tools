@@ -225,6 +225,31 @@ describe('engine.heartbeat', () => {
     expect(afterLegacy?.lastVisibleAt).toBeGreaterThan(123);
   });
 
+  it('skips the presence write for interval beats while presence is fresh', async () => {
+    const t = convexTest(schema, modules);
+    const authed = t.withIdentity({ subject: USER });
+    const beat = (reason: 'mount' | 'interval', tabId = 'tab-one') => authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation', characterIdsHint: [], reason, tabId,
+    });
+    await beat('mount');
+    const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+
+    vi.advanceTimersByTime(20_000);
+    await beat('interval');
+    const fresh = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(fresh?.lastSeenAt).toBe(mounted?.lastSeenAt);
+
+    await beat('interval', 'tab-two');
+    const otherTab = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(otherTab?.tabId).toBe('tab-two');
+    expect(otherTab?.lastSeenAt).toBeGreaterThan(mounted!.lastSeenAt);
+
+    vi.advanceTimersByTime(60_000);
+    await beat('interval', 'tab-two');
+    const refreshed = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(refreshed?.lastSeenAt).toBeGreaterThan(otherTab!.lastSeenAt);
+  });
+
   it('stamps the beating tab id onto presence', async () => {
     const t = convexTest(schema, modules);
     await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
