@@ -24,7 +24,7 @@ export function GlanceMarkIndexProvider({
   readonly children?: ReactNode;
 }) {
   const pages = useDrainedPages(
-    api.mapScan.watchMapSignatures,
+    api.mapScan.watchMapGlanceMarks,
     { mapId },
     GLANCE_PAGE_SIZE,
   );
@@ -33,7 +33,7 @@ export function GlanceMarkIndexProvider({
       glanceMarkIndex(
         pages.rows.map((row) => ({
           systemId: row.systemId,
-          group: (row.group ?? null) as SigGroup | null,
+          group: row.group as SigGroup,
         })),
       ),
     [pages.rows],

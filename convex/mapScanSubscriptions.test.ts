@@ -170,6 +170,45 @@ describe('system signature subscriptions', () => {
     })).toEqual(denied);
   });
 
+  it('projects map-wide glance marks to identified live rows only', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    const ids = await t.run(async (ctx) => {
+      const rows = await ctx.db.query('mapSignatures')
+        .withIndex('by_map_signature', (q) => q.eq('mapId', MAP).eq('systemId', SYSTEM + 1))
+        .take(2);
+      await ctx.db.patch(rows[0]!._id, { group: 'Combat Site' });
+      await ctx.db.patch(rows[1]!._id, { group: 'Relic Site' });
+      return rows.map((row) => row.signatureId);
+    });
+    const viewer = t.withIdentity({ subject: VIEWER });
+    const drain = async () => {
+      const marks = [];
+      let cursor: string | null = null;
+      for (;;) {
+        const result: Awaited<ReturnType<typeof viewer.query<typeof api.mapScan.watchMapGlanceMarks>>> =
+          await viewer.query(api.mapScan.watchMapGlanceMarks, {
+            mapId: MAP, paginationOpts: { cursor, numItems: 1000 },
+          });
+        marks.push(...result.page);
+        if (result.isDone) return marks;
+        cursor = result.continueCursor;
+      }
+    };
+
+    expect(await drain()).toEqual([
+      { systemId: SYSTEM + 1, group: 'Combat Site' },
+      { systemId: SYSTEM + 1, group: 'Relic Site' },
+    ]);
+    await t.withIdentity({ subject: EDITOR }).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP, systemId: SYSTEM + 1, signatureIds: [ids[0]!],
+    });
+    expect(await drain()).toEqual([{ systemId: SYSTEM + 1, group: 'Relic Site' }]);
+    expect(await t.query(api.mapScan.watchMapGlanceMarks, {
+      mapId: MAP, paginationOpts: { cursor: null, numItems: 10 },
+    })).toEqual({ page: [], isDone: true, continueCursor: '' });
+  });
+
   it('places both selection bounds in the indexed read before pagination', () => {
     const source = readFileSync('convex/mapScan.ts', 'utf8');
     const watcher = source.slice(source.indexOf('async function readSignaturePage'));

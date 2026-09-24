@@ -138,6 +138,7 @@ import {
   purgeExpiredSignatureTombstones,
   removeSignatures,
   restoreSignatures,
+  watchMapGlanceMarks,
   watchMapSignatures,
   watchSystemSignatures,
 } from '../mapScan';
@@ -261,6 +262,7 @@ describe('convex runtime exports', () => {
       purgeExpiredSignatureTombstones,
       removeSignatures,
       restoreSignatures,
+      watchMapGlanceMarks,
       watchMapSignatures,
       watchSystemSignatures,
       coverage,
