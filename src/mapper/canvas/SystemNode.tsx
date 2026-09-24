@@ -1,7 +1,7 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useContext, useEffect, useRef, useState } from 'react';
+import { memo, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
@@ -16,8 +16,8 @@ import {
 import type { NodeMotion } from '../motion/motion-contract';
 import { IntelIcon } from '../windows/IntelIcon';
 import { useUniverseAssets } from '../chain/use-universe-assets';
+import { kspaceCaptionOffset } from './disc-chrome';
 import { SystemIntelMarks } from './SystemIntelMarks';
-import { PilotPresenceBadge } from './PilotPresenceBadge';
 import { ChainViewportContext } from './ChainViewportContext';
 import { WormholeVisual } from './wormhole/WormholeVisual';
 
@@ -52,7 +52,7 @@ export const SYSTEM_FRAME_WIDTH = 150;
 
 export const SYSTEM_FRAME_HEIGHT = 110;
 
-export const SYSTEM_DISC_SIZE = 55;
+export { SYSTEM_DISC_SIZE } from './disc-chrome';
 
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
@@ -215,30 +215,57 @@ function NodeDisc({
         isConnectable={isConnectable}
         className={CENTER_HANDLE_CLASS}
       />
-      <div
-        data-chain-node-widgets
-        className="absolute right-full top-0 mr-3 flex items-center justify-end gap-0.5"
-      >
-        {stub ? null : <PilotPresenceBadge systemId={systemId} />}
-      </div>
       {stub ? null : <SystemIntelMarks systemId={systemId} />}
     </div>
   );
 }
 
-function KnownSpaceLabels({ systemId }: { readonly systemId: number }) {
+function KnownSpaceCaption({
+  systemId,
+  text,
+  toneClass,
+  chromeClass,
+}: {
+  readonly systemId: number;
+  readonly text: string;
+  readonly toneClass: string;
+  readonly chromeClass: string | null;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
   const assets = useUniverseAssets();
   const info = assets?.systemInfo(systemId);
   const hub = assets?.hubJumps(systemId)[0];
+  const offset = kspaceCaptionOffset();
+  const transform = `translate(-50%, -100%) translate(${offset.x}px, ${offset.y}px)`;
+  useLayoutEffect(() => {
+    ref.current?.style.setProperty('--kspace-caption-transform', transform);
+  }, [transform]);
   return (
-    <>
-      {info?.regionName ? <span className="absolute inset-x-1 top-4 truncate text-center font-data text-micro leading-none text-muted">{info.regionName}</span> : null}
+    <div
+      ref={ref}
+      className="absolute left-1/2 top-1/2 flex w-full flex-col [transform:var(--kspace-caption-transform)]"
+    >
       {hub?.jumps != null ? (
-        <span data-chain-node-hub className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 font-data text-micro text-muted">
+        <span data-chain-node-hub className="flex items-center justify-center gap-1 font-data text-micro text-intel-market">
           <IntelIcon kind="market" />{hub.name} {hub.jumps}
         </span>
       ) : null}
-    </>
+      <span
+        data-chain-node-name
+        className={cn(
+          'min-w-0 truncate px-1 text-center font-ui text-nav font-bold leading-none',
+          toneClass,
+          chromeClass,
+        )}
+      >
+        {text}
+      </span>
+      {info?.regionName ? (
+        <span className="min-w-0 truncate px-1 text-center font-data text-micro leading-none text-muted">
+          {info.regionName}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -250,6 +277,10 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
   const appearance = wormholeAppearance(data);
+  const showKspaceCaption =
+    !derived
+    && appearance === null
+    && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole';
   const paused = dragging === true || fogged || stub || exiting;
   const active = hovered || selected === true;
   useEffect(() => {
@@ -284,18 +315,25 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
         nodeMotionClass(data.motion),
       )}
     >
-      <span
-        data-chain-node-name
-        className={cn(
-          'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
-          header.toneClass,
-          !derived && appearance === null && 'top-0 leading-none',
-          chromeClass,
-        )}
-      >
-        {header.text}
-      </span>
-      {!derived && appearance === null && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole' ? <KnownSpaceLabels systemId={Number(id)} /> : null}
+      {showKspaceCaption ? (
+        <KnownSpaceCaption
+          systemId={Number(id)}
+          text={header.text}
+          toneClass={header.toneClass}
+          chromeClass={chromeClass}
+        />
+      ) : (
+        <span
+          data-chain-node-name
+          className={cn(
+            'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
+            header.toneClass,
+            chromeClass,
+          )}
+        >
+          {header.text}
+        </span>
+      )}
       <NodeDisc
         derived={derived}
         chromeClass={chromeClass}

@@ -397,7 +397,8 @@ test('presence badge tones, counts, and motion markup', () => {
 
   const live = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
   expect(live).toContain('data-pilot-presence="live"');
-  expect(live).toContain('text-isk');
+  expect(live).toContain('text-intel-pilot');
+  expect(live).not.toContain('text-isk');
   expect(live).toContain('<svg');
 
   const one = badge({ pilots: [pilot({})] });

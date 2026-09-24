@@ -2,19 +2,12 @@
 
 import { IntelIcon } from '../windows/IntelIcon';
 import type { SystemPresence } from '../tracking/presence-model';
-import { useSystemPresence } from '../tracking/presence-context';
-
-export function PilotPresenceBadge({ systemId }: { readonly systemId: number }) {
-  const presence = useSystemPresence(systemId);
-  if (presence === null || presence.pilots.length === 0) return null;
-  return <PresenceBadgeView presence={presence} />;
-}
 
 export function PresenceBadgeView({ presence }: { readonly presence: SystemPresence }) {
   return (
     <span
       data-pilot-presence="live"
-      className="flex items-center gap-0.5 text-isk"
+      className="flex items-center gap-0.5"
     >
       <IntelIcon kind="pilot" />
       {presence.pilots.length > 1 && (
