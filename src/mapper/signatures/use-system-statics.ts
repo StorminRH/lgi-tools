@@ -52,12 +52,14 @@ export function useSystemStaticSlots(systemId: number) {
   const codex = useWormholeCodex();
   const [result, setResult] = useState<{ systemId: number; codes: readonly string[] } | null>(null);
   useEffect(() => {
-    const controller = new AbortController();
-    loadSystemStatics(systemId, controller.signal).then(
-      (codes) => { if (!controller.signal.aborted) setResult({ systemId, codes }); },
+    let alive = true;
+    loadSystemStatics(systemId).then(
+      (codes) => { if (alive) setResult({ systemId, codes }); },
       () => {},
     );
-    return () => controller.abort();
+    return () => {
+      alive = false;
+    };
   }, [systemId]);
   const codes = result?.systemId === systemId ? result.codes : [];
   return codes.flatMap((code) => {
