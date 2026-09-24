@@ -208,8 +208,16 @@ export function MapMenu({
         sideOffset={8}
       >
         {session ? <IdentityHeader session={session} /> : null}
-        {mapActionsAvailable ? (
-          <MenuGroup label="Map">
+        <MenuGroup label="Map">
+          <MenuLinkItem
+            closeOnClick
+            data-map-menu-catalogue
+            className={menuRow}
+            render={<Link href="/atlas" />}
+          >
+            Maps
+          </MenuLinkItem>
+          {mapActionsAvailable ? (
             <MenuItem
               closeOnClick
               className={menuRow}
@@ -223,9 +231,9 @@ export function MapMenu({
             >
               New map
             </MenuItem>
-            {mapId ? <CopyMapLinkItem mapId={mapId} /> : null}
-          </MenuGroup>
-        ) : null}
+          ) : null}
+          {mapId ? <CopyMapLinkItem mapId={mapId} /> : null}
+        </MenuGroup>
         <PageMenuSection>{contextualSection}</PageMenuSection>
         {session ? <AccountGroup isAdmin={isAdmin} /> : null}
         <MenuFooter />

@@ -97,7 +97,8 @@ describe('MapMenu', () => {
       }),
     );
 
-    expect(markup).toContain('New map');
+    expect(markup).toContain('>Maps<');
+    expect(markup.indexOf('>Maps<')).toBeLessThan(markup.indexOf('New map'));
     expect(markup).toContain('data-map-creation-door');
     expect(markup).toContain('data-corporation-count="1"');
     expect(markup).not.toContain('Deleted maps');
@@ -159,6 +160,7 @@ describe('MapMenu', () => {
       createElement(MapMenu, { session, mapActionsAvailable: false }),
     );
     expect(markup).not.toContain('New map');
+    expect(markup).toContain('>Maps<');
     expect(markup).toContain('data-map-creation-open="false"');
   });
 });
