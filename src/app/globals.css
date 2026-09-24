@@ -562,7 +562,7 @@ a:hover {
   }
 }
 @utility glass-dense {
-  background: color-mix(in oklab, var(--color-bg-deep) 84%, transparent);
+  background: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
   -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
   backdrop-filter: blur(24px) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
