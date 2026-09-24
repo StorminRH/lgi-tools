@@ -27,7 +27,7 @@ describe('resolveMenuControls', () => {
       options: ['lightbox', 'expand'],
     });
     expect(enums[0]!.def.key).toBe('sites.view');
-    expect(enums.map((m) => m.label)).toEqual(['view', 'detail mode']);
+    expect(enums.map((m) => m.label)).toEqual(['View', 'Detail mode']);
 
     expect(
       resolveMenuControls(
@@ -63,8 +63,8 @@ describe('resolveMenuControls', () => {
       'atlas.clickFocus',
     ]);
     expect(booleans.map((m) => m.label)).toEqual([
-      'camera follow',
-      'click focus',
+      'Camera follow',
+      'Click focus',
     ]);
     expect(
       resolveMenuControls(
@@ -106,7 +106,7 @@ describe('resolvePageControls', () => {
     expect(model.kind).toBe('preference-enum');
     if (model.kind === 'preference-enum') {
       expect(model.options).toEqual(['cards', 'table']);
-      expect(model.label).toBe('view');
+      expect(model.label).toBe('View');
       expect(model.def.key).toBe('sites.view');
     }
 

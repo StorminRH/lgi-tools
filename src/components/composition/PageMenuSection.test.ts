@@ -23,7 +23,7 @@ test('PageMenuSection renders enum and boolean controls with declared titles', (
   });
   const sites = renderAt('/sites');
   expect(sites).toContain('Page settings');
-  expect(sites).toContain('view');
+  expect(sites).toContain('View');
   expect(sites).toContain('cards');
   expect(sites).toContain('table');
   expect(sites).toContain('aria-pressed="true"');
@@ -36,8 +36,8 @@ test('PageMenuSection renders enum and boolean controls with declared titles', (
   });
   const atlas = renderAt('/atlas');
   expect(atlas).toContain('Map settings');
-  expect(atlas).toContain('camera follow');
-  expect(atlas).not.toContain('auto layout');
+  expect(atlas).toContain('Camera follow');
+  expect(atlas).not.toContain('Auto layout');
   expect(atlas).toContain('role="switch"');
   expect(atlas).toContain('aria-checked="false"');
 
@@ -60,4 +60,21 @@ test('PageMenuSection renders nothing for unmatched or strip-only routes', () =>
   __resetPageSettings();
   registerPageSettings({ route: '/jobs', strip: { surfaceId: 'jobs' } });
   expect(renderAt('/jobs')).toBe('');
+});
+
+test('PageMenuSection nests page-owned controls under the settings header', () => {
+  registerPageSettings({
+    route: '/atlas',
+    title: 'Map settings',
+    controls: [{ key: 'atlas.cameraFollow', placement: 'section' }],
+  });
+  const markup = renderToStaticMarkup(
+    createElement(
+      PageMenuProvider,
+      { pathname: '/atlas' },
+      createElement(PageMenuSection, null, createElement('div', { 'data-tracking': '' })),
+    ),
+  );
+  expect(markup.indexOf('Map settings')).toBeLessThan(markup.indexOf('data-tracking'));
+  expect(markup.indexOf('Camera follow')).toBeLessThan(markup.indexOf('data-tracking'));
 });

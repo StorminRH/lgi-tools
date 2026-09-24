@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { PageMenuSection } from '@/components/composition/PageMenuSection';
 import {
@@ -11,22 +10,28 @@ import {
   MenuSeparator,
   menuRow,
   menuSeparator,
-  type MenuAnchor,
 } from '@/components/ui/menu';
 import { authClient } from '@/platform/auth/auth-client';
 import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
 import type { Session } from '@/platform/auth/types';
 import { startCharacterLink } from '@/platform/auth/link-character';
 
-export function AccountMenu({
-  session,
-  anchor,
-  contextualSection,
-}: {
-  session: Session;
-  anchor?: MenuAnchor;
-  contextualSection?: ReactNode;
-}) {
+export function LogOutMenuItem() {
+  return (
+    <MenuItem
+      className={menuRow}
+      onClick={() => {
+        void authClient.signOut().finally(() => {
+          reloadDocumentHome();
+        });
+      }}
+    >
+      Log out
+    </MenuItem>
+  );
+}
+
+export function AccountMenu({ session }: { session: Session }) {
   return (
     <Menu
       label={`${session.name} — account menu`}
@@ -43,7 +48,7 @@ export function AccountMenu({
       triggerProps={{ 'data-account-menu-trigger': '' }}
       popupProps={{ 'data-account-menu-popup': '' }}
       className="min-w-60 border-t-0"
-      anchor={anchor ?? (() => document.querySelector('.app-header'))}
+      anchor={() => document.querySelector('.app-header')}
     >
       <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/characters" />}>
         Manage characters
@@ -55,18 +60,8 @@ export function AccountMenu({
         Account settings
       </MenuLinkItem>
       <PageMenuSection />
-      {contextualSection}
       <MenuSeparator className={menuSeparator} />
-      <MenuItem
-        className={menuRow}
-        onClick={() => {
-          void authClient.signOut().finally(() => {
-            reloadDocumentHome();
-          });
-        }}
-      >
-        Log out
-      </MenuItem>
+      <LogOutMenuItem />
     </Menu>
   );
 }
