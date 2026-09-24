@@ -17,6 +17,7 @@ import {
   EMPTY_FOG_WAKE,
   FOG_WAKE_SPACING,
   fogTimingOf,
+  sameFogReveals,
   snapFogFrame,
   type FogRevealSet,
 } from './fog-model';
@@ -323,4 +324,28 @@ test('advanceFogFrame runs dynamic, reduced-motion, and static tiers', () => {
   expect(staticFrame.animating).toBe(false);
   expect(staticFrame.frame.discs.map((disc) => disc.key)).toEqual(['d:1']);
   expect(staticFrame.wakeStamps).toEqual([]);
+});
+
+test('sameFogReveals ignores node identity churn but sees moves and phases', () => {
+  const base = deriveFogReveals([node(1, 0, 0), node(2, 200, 0)], [edge('a', 1, 2)]);
+  const selected = deriveFogReveals(
+    [{ ...node(1, 0, 0), selected: true }, node(2, 200, 0)],
+    [edge('a', 1, 2)],
+  );
+  expect(sameFogReveals(base, selected)).toBe(true);
+  expect(sameFogReveals(
+    base,
+    deriveFogReveals([node(1, 0, 0), node(2, 210, 0)], [edge('a', 1, 2)]),
+  )).toBe(false);
+  expect(sameFogReveals(
+    base,
+    deriveFogReveals([node(1, 0, 0), node(2, 200, 0)], []),
+  )).toBe(false);
+  expect(sameFogReveals(
+    base,
+    deriveFogReveals(
+      [node(1, 0, 0), node(2, 200, 0, { motion: { phase: 'entering' } as never })],
+      [edge('a', 1, 2)],
+    ),
+  )).toBe(false);
 });

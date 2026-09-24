@@ -3,9 +3,9 @@ import {
   computeChainBoundary,
   computeNextDueAt,
   isColdFromPresence,
-  isRegisteredDataset,
   isRunningFresh,
   SYNC_DATASET_CONFIG,
+  type SyncDataset,
 } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
@@ -20,9 +20,8 @@ const chainDispatchArgs = {
 
 async function runChainDispatch(
   ctx: MutationCtx,
-  { dataset, userId }: { dataset: 'onlineStatus' | 'characterLocation'; userId: string },
+  { dataset, userId }: { dataset: SyncDataset; userId: string },
 ): Promise<void> {
-  if (!isRegisteredDataset(dataset)) return;
   const subject = await getSyncSubject(ctx.db, dataset, userId);
   if (subject === null) return;
   const now = Date.now();
@@ -88,11 +87,10 @@ async function completeSyncRun(
   ctx: MutationCtx,
   { workId, context, result }: {
     workId: string;
-    context: { dataset: 'onlineStatus' | 'characterLocation'; userId: string };
+    context: { dataset: SyncDataset; userId: string };
     result: { kind: 'success' } | { kind: 'failed'; error: string };
   },
 ): Promise<void> {
-  if (!isRegisteredDataset(context.dataset)) return;
   const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
   if (subject === null || subject.workId !== workId) return;
   const now = Date.now();
@@ -130,7 +128,7 @@ async function completeSyncRun(
 
   if (chainAt !== null) {
     await ctx.scheduler.runAt(chainAt, internal.engineComplete.chainDispatch, {
-      dataset: subject.dataset,
+      dataset: context.dataset,
       userId: subject.userId,
     });
   }

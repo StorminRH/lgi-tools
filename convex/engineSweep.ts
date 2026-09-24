@@ -7,8 +7,8 @@ import {
   MAX_COLD_AFTER_MS,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
-  SYNC_DATASETS,
 } from '@/lib/sync-engine';
+import schema from './schema';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
@@ -42,11 +42,21 @@ export const sweep = internalMutation({
   },
 });
 
-function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
-  return ctx.db
-    .query(table)
-    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
-    .take(RETIRED_GC_BATCH);
+const RETIRED_DATASETS = schema.tables.syncSubjects.validator.fields.dataset.members
+  .map((member) => member.value)
+  .filter((dataset) => !isRegisteredDataset(dataset));
+
+async function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
+  const rows: Doc<typeof table>[] = [];
+  for (const dataset of RETIRED_DATASETS) {
+    const remaining: number = RETIRED_GC_BATCH - rows.length;
+    if (remaining <= 0) break;
+    rows.push(...await ctx.db
+      .query(table)
+      .withIndex('by_dataset', (q) => q.eq('dataset', dataset))
+      .take(remaining));
+  }
+  return rows;
 }
 
 async function sweepRetiredDatasets(ctx: MutationCtx, counts: DueWalkCounts): Promise<void> {

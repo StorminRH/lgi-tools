@@ -10,6 +10,12 @@ export interface WormholeInputs {
   readonly size?: number;
 }
 
+function appearanceChanged(previous: WormholeInputs, next: WormholeInputs): boolean {
+  return previous.size !== next.size
+    || previous.whClassId !== next.whClassId
+    || previous.seed !== next.seed;
+}
+
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
   const requested = inputs.size;
   const size = requested !== undefined && Number.isFinite(requested)
@@ -99,8 +105,9 @@ export function createWormholeHost(canvas: HTMLCanvasElement, initial: WormholeI
 
   return {
     update(next: WormholeInputs) {
+      const previous = inputs;
       inputs = { ...inputs, ...next };
-      appearance = applyAppearance(canvas, inputs);
+      if (appearanceChanged(previous, inputs)) appearance = applyAppearance(canvas, inputs);
       synchronize();
     },
     dispose() {

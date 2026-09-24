@@ -78,6 +78,18 @@ test('lazy visibility, palette updates, impulse settling and idle stop work toge
   expect(release).toHaveBeenCalledOnce();
 });
 
+test('selection and pause updates leave appearance styles untouched', () => {
+  const env = browser();
+  const host = createWormholeHost(env.canvas, { active: false, whClassId: 3, size: 60 });
+  env.setProperty.mockClear();
+  host.update({ active: true });
+  host.update({ active: true, paused: true, whClassId: 3, size: 60 });
+  expect(env.setProperty).not.toHaveBeenCalled();
+  host.update({ active: true, whClassId: 4 });
+  expect(env.setProperty).toHaveBeenCalledWith('--wormhole-size', '60px');
+  host.dispose();
+});
+
 test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop scheduled work', () => {
   const env = browser();
   const host = createWormholeHost(env.canvas, { active: true });

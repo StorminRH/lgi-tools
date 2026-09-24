@@ -138,7 +138,7 @@ import {
   purgeExpiredSignatureTombstones,
   removeSignatures,
   restoreSignatures,
-  watchMapSignatures,
+  watchMapGlanceMarks,
   watchSystemSignatures,
 } from '../mapScan';
 import { trackedCharacterIds } from '../mapTrackingIds';
@@ -261,8 +261,8 @@ describe('convex runtime exports', () => {
       purgeExpiredSignatureTombstones,
       removeSignatures,
       restoreSignatures,
-      watchMapSignatures,
-      watchSystemSignatures,
+      watchMapGlanceMarks,
+          watchSystemSignatures,
       coverage,
       forMap,
       setTracking,
