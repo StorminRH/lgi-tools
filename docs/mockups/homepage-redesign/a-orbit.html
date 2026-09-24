@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock A — Orbit</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* ── Backdrop: the existing nebula, pushed brighter and set drifting ── */
+  .backdrop { position: fixed; inset: 0; z-index: -2; overflow: hidden; }
+  .backdrop::before {
+    content: ''; position: absolute; inset: -6%;
+    background: url('../../../public/backdrops/dark.avif') center / cover no-repeat;
+    opacity: 0.9;
+    animation: drift 60s ease-in-out infinite alternate;
+  }
+  .backdrop::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 45% at 50% 28%, rgba(61,214,140,0.10), transparent 70%),
+      radial-gradient(ellipse 90% 60% at 50% 0%, rgba(38,60,90,0.35), transparent 70%),
+      linear-gradient(180deg, rgba(6,7,8,0.35) 0%, rgba(6,7,8,0.75) 55%, var(--bg-deep) 100%);
+  }
+  @keyframes drift { from { transform: scale(1.02) translate(0,0); } to { transform: scale(1.08) translate(-1.5%, 1%); } }
+
+  /* ── Floating nav pill ── */
+  .nav {
+    position: fixed; top: 16px; left: 0; right: 0; margin: 0 auto; z-index: 40;
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 6px 6px 16px; border-radius: var(--radius-pill);
+    width: min(1120px, calc(100% - 32px));
+  }
+  .nav .brand { font-family: var(--font-data); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; color: var(--name); margin-right: 18px; white-space: nowrap; }
+  .nav .brand .b { color: var(--isk); }
+  .nav .brand .t { color: var(--muted); font-weight: 400; text-transform: none; }
+  .nav-links { position: relative; display: flex; gap: 2px; }
+  .nav-links a { position: relative; z-index: 1; font-size: 14px; color: var(--text); padding: 7px 14px; border-radius: var(--radius-pill); }
+  .nav-links a.on { color: var(--name); }
+  .nav-indicator { position: absolute; top: 0; bottom: 0; left: 0; width: 64px; border-radius: var(--radius-pill); background: rgba(255,255,255,0.06); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); transition: transform 380ms var(--ease-panel), width 380ms var(--ease-panel); }
+  .nav-spacer { flex: 1; }
+  .kbd-btn { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); padding: 7px 8px 7px 14px; border-radius: var(--radius-pill); border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.025); }
+  .kbd { font-family: var(--font-data); font-size: 10.5px; color: var(--text); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-active); background: rgba(0,0,0,0.3); }
+  .status-chip { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 11.5px; color: var(--text); padding: 7px 12px; }
+  .status-chip b { color: var(--name); font-weight: 600; }
+  .login { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--bg-deep); background: var(--isk); padding: 8px 16px; border-radius: var(--radius-pill); box-shadow: 0 0 0 1px rgba(61,214,140,0.5), 0 6px 20px -6px var(--glow-isk); }
+
+  /* ── Hero ── */
+  .hero { position: relative; overflow: clip; min-height: 700px; display: grid; place-items: center; padding: 120px 24px 40px; text-align: center; }
+  .orbits { position: absolute; left: 50%; top: 50%; width: 980px; height: 980px; transform: translate(-50%, -52%); pointer-events: none; opacity: 0.9; }
+  .orbits .ring { transform-origin: 490px 490px; }
+  .orbits .spin-a { animation: spin 90s linear infinite; }
+  .orbits .spin-b { animation: spin 140s linear infinite reverse; }
+  .orbits .spin-c { animation: spin 220s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hero-inner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 22px; max-width: 760px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 10px; border-radius: var(--radius-pill); font-family: var(--font-data); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text); }
+  .eyebrow .new { color: var(--bg-deep); background: var(--isk); padding: 1px 7px; border-radius: var(--radius-pill); font-weight: 700; letter-spacing: 0.08em; }
+  .hero .wordmark { font-size: 104px; text-shadow: 0 0 60px rgba(61,214,140,0.18); }
+  .hero .wordmark .b { display: inline-block; animation: bracket 5s ease-in-out infinite; }
+  .hero .wordmark .b.l { margin-right: 0.14em; } .hero .wordmark .b.r { margin-left: 0.14em; animation-delay: -2.5s; }
+  @keyframes bracket { 0%,100% { text-shadow: 0 0 18px rgba(61,214,140,0.25); } 50% { text-shadow: 0 0 36px rgba(61,214,140,0.7); } }
+  .hero .wordmark-sub { font-size: 20px; margin-top: -8px; }
+  .hero .wordmark-sub .m { color: var(--muted); }
+  .hero .wordmark-sub .g { color: var(--isk); }
+  .hero .pitch { font-size: 18px; line-height: 1.65; color: var(--text); max-width: 560px; }
+  .hero .pitch b { color: var(--name); font-weight: 500; }
+
+  .search { width: min(620px, 100%); display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 20px; border-radius: 16px; margin-top: 6px; }
+  .search svg { flex: none; color: var(--muted); }
+  .search .ph { flex: 1; text-align: left; font-size: 16px; color: var(--muted); }
+  .search .ph .caret { display: inline-block; width: 1.5px; height: 18px; background: var(--isk); vertical-align: -3px; margin-right: 2px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .search .go { font-family: var(--font-data); font-size: 12px; color: var(--name); padding: 9px 14px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-edge); }
+  .quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .quick a { font-size: 13px; color: var(--text); padding: 6px 12px; border-radius: var(--radius-pill); border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.02); backdrop-filter: blur(8px); }
+  .quick a span { color: var(--faint); font-family: var(--font-data); font-size: 11px; margin-right: 6px; }
+
+  /* ── Stats ribbon ── */
+  .wrap { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+  .ribbon { display: grid; grid-template-columns: repeat(4, 1fr) auto; border-radius: var(--radius-glass); overflow: hidden; }
+  .ribbon > div { padding: 18px 22px; border-right: 1px solid var(--glass-edge); display: flex; flex-direction: column; gap: 4px; }
+  .ribbon > div:last-child { border-right: 0; justify-content: center; align-items: flex-end; gap: 6px; }
+  .ribbon .v { font-family: var(--font-data); font-weight: 600; font-size: 28px; color: var(--name); line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .ribbon .v small { font-size: 15px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .ribbon .l { font-family: var(--font-data); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .ribbon .delta { color: var(--isk); font-size: 11px; font-family: var(--font-data); }
+
+  /* ── Tool cards ── */
+  .sec-head { display: flex; align-items: end; justify-content: space-between; margin: 88px 0 20px; }
+  .sec-head h2 { font-family: var(--font-display); font-weight: 700; font-size: 40px; letter-spacing: 0.005em; color: var(--name); line-height: 1; }
+  .sec-head p { color: var(--muted); font-size: 15px; margin-top: 8px; }
+  .tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .tool { position: relative; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; transition: transform 500ms var(--ease-panel), box-shadow 500ms var(--ease-panel); }
+  .tool::before { /* rotating conic edge — shown on hover (forced on the first card for the shot) */
+    content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; z-index: 2; pointer-events: none;
+    background: conic-gradient(from var(--a, 0deg), transparent 0 60%, rgba(61,214,140,0.9) 75%, transparent 90%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0; transition: opacity 400ms;
+    animation: edge 4s linear infinite;
+  }
+  @property --a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  @keyframes edge { to { --a: 360deg; } }
+  .tool:hover, .tool.hot { transform: translateY(-4px); box-shadow: 0 30px 60px -30px rgba(61,214,140,0.35), inset 0 1px 0 var(--glass-edge-top); }
+  .tool:hover::before, .tool.hot::before { opacity: 1; }
+  .tool .preview { position: relative; height: 196px; border-bottom: 1px solid var(--glass-edge); overflow: hidden; background: radial-gradient(ellipse 80% 70% at 50% 0%, rgba(61,214,140,0.06), transparent 70%), rgba(0,0,0,0.25); }
+  .tool .body { padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .tool h3 { font-family: var(--font-display); font-weight: 700; font-size: 26px; color: var(--name); line-height: 1.1; }
+  .tool p { font-size: 14.5px; line-height: 1.6; color: var(--text); flex: 1; }
+  .tool .foot { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--glass-edge); }
+  .tool .foot .pills { display: flex; gap: 6px; }
+  .tool .open { font-family: var(--font-data); font-size: 12px; color: var(--isk); letter-spacing: 0.04em; }
+
+  /* Sites preview: a ticking value table */
+  .rows { position: absolute; inset: 18px 18px auto; display: flex; flex-direction: column; gap: 6px; }
+  .row { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.04); font-size: 12.5px; color: var(--name); animation: rowin 700ms var(--ease-panel) both; }
+  .row:nth-child(2) { animation-delay: 120ms; } .row:nth-child(3) { animation-delay: 240ms; } .row:nth-child(4) { animation-delay: 360ms; }
+  @keyframes rowin { from { opacity: 0; transform: translateX(-10px); } }
+  .cls { font-family: var(--font-data); font-size: 10.5px; font-weight: 700; text-align: center; padding: 2px 0; border-radius: 4px; }
+  .isk { font-family: var(--font-data); font-size: 12px; color: var(--isk); font-variant-numeric: tabular-nums; }
+  .isk.flash { animation: flash 3s ease-in-out infinite; }
+  @keyframes flash { 0%, 80%, 100% { background: transparent; } 85% { background: rgba(61,214,140,0.18); } }
+
+  /* Industry preview: margin chart drawing in */
+  .chart { position: absolute; inset: 0; }
+  .chart .line { stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw 2.4s var(--ease-panel) 300ms forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .chart-legend { position: absolute; left: 18px; top: 16px; display: flex; flex-direction: column; gap: 2px; }
+  .chart-legend .n { font-family: var(--font-data); font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .chart-legend .v { font-family: var(--font-data); font-size: 22px; color: var(--name); font-weight: 600; }
+  .chart-legend .v span { font-size: 12px; color: var(--isk); margin-left: 6px; }
+
+  /* Atlas preview: breathing chain */
+  .chain { position: absolute; inset: 0; }
+  .chain .edge { stroke-dasharray: 4 5; animation: flow 1.6s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -18; } }
+  .chain .node { transform-box: fill-box; transform-origin: center; animation: breathe 4s ease-in-out infinite; }
+  .chain .node:nth-of-type(2n) { animation-delay: -1.3s; } .chain .node:nth-of-type(3n) { animation-delay: -2.6s; }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 2.4s var(--ease-panel) infinite; }
+  @keyframes pulse { from { transform: scale(0.6); opacity: 0.9; } to { transform: scale(2.2); opacity: 0; } }
+
+  /* ── News ── */
+  .news { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .news a { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border-radius: 16px; min-height: 150px; transition: transform 400ms var(--ease-panel), border-color 300ms; }
+  .news a:hover { transform: translateY(-3px); border-color: rgba(61,214,140,0.35); }
+  .news .t { font-size: 16px; color: var(--name); line-height: 1.45; flex: 1; }
+  .news .m { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+
+  footer { margin: 96px auto 0; padding: 28px 0 40px; border-top: 1px solid var(--glass-edge); display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  footer .links { display: flex; gap: 22px; }
+
+  /* ── Mobile ── */
+  @media (max-width: 760px) {
+    .nav { padding-left: 14px; }
+    .nav-links, .status-chip, .kbd-btn .lbl { display: none; }
+    .nav .login { padding: 8px 12px; }
+    .hero { min-height: 600px; padding-top: 110px; }
+    .hero .wordmark { font-size: 54px; }
+    .hero .wordmark-sub { font-size: 13px; }
+    .hero .pitch { font-size: 16px; }
+    .orbits { width: 640px; height: 640px; }
+    .ribbon { grid-template-columns: 1fr 1fr; }
+    .ribbon > div { border-bottom: 1px solid var(--glass-edge); }
+    .ribbon > div:nth-child(2n) { border-right: 0; }
+    .ribbon > div:last-child { grid-column: span 2; align-items: flex-start; }
+    .tools, .news { grid-template-columns: 1fr; }
+    .sec-head { margin-top: 56px; } .sec-head h2 { font-size: 32px; }
+    footer { flex-direction: column; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="backdrop"></div>
+<div class="page-grain"></div>
+
+<nav class="nav glass-hi rise">
+  <a class="brand" href="#"><span class="b">[</span>LGI<span class="b">]</span><span class="t">.tools</span></a>
+  <div class="nav-links">
+    <span class="nav-indicator" style="transform: translateX(0); width: 66px;"></span>
+    <a class="on" href="#">Home</a><a href="#">Sites</a><a href="#">Industry</a><a href="#">Atlas</a><a href="#">Jobs</a><a href="#">Skills</a>
+  </div>
+  <span class="nav-spacer"></span>
+  <span class="kbd-btn"><span class="lbl">Search</span><span class="kbd">⌘K</span></span>
+  <span class="status-chip"><span class="live-dot"></span>TQ <b>24,318</b></span>
+  <a class="login" href="#">Log in with EVE</a>
+</nav>
+
+<header class="hero">
+  <svg class="orbits" viewBox="0 0 980 980" aria-hidden="true">
+    <defs>
+      <radialGradient id="core" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="rgba(61,214,140,0.16)"/><stop offset="1" stop-color="rgba(61,214,140,0)"/>
+      </radialGradient>
+    </defs>
+    <circle cx="490" cy="490" r="260" fill="url(#core)"/>
+    <g class="ring spin-a">
+      <ellipse cx="490" cy="490" rx="300" ry="300" fill="none" stroke="rgba(255,255,255,0.06)"/>
+      <circle cx="790" cy="490" r="4" fill="var(--isk)"/><circle cx="790" cy="490" r="10" fill="none" stroke="rgba(61,214,140,0.4)"/>
+      <circle cx="232" cy="336" r="2.5" fill="var(--wh-c3)"/>
+    </g>
+    <g class="ring spin-b">
+      <ellipse cx="490" cy="490" rx="380" ry="380" fill="none" stroke="rgba(255,255,255,0.045)" stroke-dasharray="2 8"/>
+      <circle cx="110" cy="490" r="3" fill="var(--evb-bright)"/>
+      <circle cx="758" cy="758" r="2.5" fill="var(--wh-c5)"/>
+    </g>
+    <g class="ring spin-c">
+      <ellipse cx="490" cy="490" rx="470" ry="470" fill="none" stroke="rgba(255,255,255,0.03)"/>
+      <circle cx="490" cy="20" r="3" fill="var(--purple)"/>
+    </g>
+  </svg>
+
+  <div class="hero-inner">
+    <span class="eyebrow glass rise"><span class="new">New</span>Atlas · a shared live map of your chain →</span>
+    <div class="rise d1">
+      <h1 class="wordmark"><span class="b l">[</span>Lo-Gang<span class="b r">]</span></h1>
+    </div>
+    <div class="wordmark-sub rise d2"><span class="m">Industries</span><span class="g" style="letter-spacing:0">.</span><span class="g">tools</span></div>
+    <p class="pitch rise d3">Eve Online tools for <b>wormhole</b> and <b>industry</b> pilots — a searchable site database with live Jita loot prices, a manufacturing planner, and a live chain map.</p>
+    <div class="search glass-hi rise d4">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="ph"><span class="caret"></span>Search sites, items, systems…</span>
+      <span class="kbd">⌘K</span>
+      <span class="go">Go</span>
+    </div>
+    <div class="quick rise d5">
+      <a href="#"><span>C5</span>Core Garrison</a>
+      <a href="#"><span>GAS</span>Vital Core Reservoir</a>
+      <a href="#"><span>BP</span>Hurricane Fleet Issue</a>
+      <a href="#"><span>SYS</span>J115405</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="ribbon glass-hi rise d6" aria-label="Live data">
+    <div><span class="v">184</span><span class="l">Wormhole sites</span></div>
+    <div><span class="v">5,207</span><span class="l">Blueprints &amp; reactions</span></div>
+    <div><span class="v">12,944</span><span class="l">Market items priced</span></div>
+    <div><span class="v">4<small>min ago</small></span><span class="l">Jita prices updated</span></div>
+    <div><span class="label" style="display:flex;align-items:center;gap:8px"><span class="live-dot"></span>Live</span><span class="mono" style="font-size:11px;color:var(--muted)">SDE <span style="color:var(--name)">3087455</span></span></div>
+  </section>
+
+  <div class="sec-head">
+    <div><h2>Tools</h2><p>Everything runs on live Jita and ESI data.</p></div>
+    <span class="label">03 tools</span>
+  </div>
+
+  <section class="tools">
+    <a class="tool glass-hi hot" href="#">
+      <div class="preview">
+        <div class="rows">
+          <div class="row"><span class="cls" style="background:rgba(206,68,15,.18);color:var(--wh-c5)">C5</span>Core Garrison<span class="isk flash">412.8M</span></div>
+          <div class="row"><span class="cls" style="background:rgba(187,17,22,.2);color:#e04046">C6</span>Core Citadel<span class="isk">388.0M</span></div>
+          <div class="row"><span class="cls" style="background:rgba(214,224,90,.14);color:var(--wh-c3)">C3</span>Vital Core Reservoir<span class="isk">96.2M</span></div>
+          <div class="row"><span class="cls" style="background:rgba(220,140,46,.16);color:var(--wh-c4)">C4</span>Unsecured Frontier Vault<span class="isk">71.5M</span></div>
+        </div>
+      </div>
+      <div class="body">
+        <h3>Wormhole Sites</h3>
+        <p>Browse anomalies and signatures by class, type, and ISK value. Live Jita prices on ore and gas.</p>
+        <div class="foot"><span class="pills"><span class="pill red">Combat</span><span class="pill teal">Gas</span><span class="pill yellow">Ore</span></span><span class="open">open →</span></div>
+      </div>
+    </a>
+
+    <a class="tool glass-hi" href="#">
+      <div class="preview">
+        <svg class="chart" viewBox="0 0 360 196" preserveAspectRatio="none">
+          <defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="rgba(61,214,140,0.25)"/><stop offset="1" stop-color="rgba(61,214,140,0)"/></linearGradient></defs>
+          <g stroke="rgba(255,255,255,0.05)"><line x1="0" x2="360" y1="70" y2="70"/><line x1="0" x2="360" y1="115" y2="115"/><line x1="0" x2="360" y1="160" y2="160"/></g>
+          <path d="M0 150 C30 146 50 132 80 136 S130 110 160 116 S210 86 240 92 S300 60 330 64 L360 58 L360 196 L0 196Z" fill="url(#fill)"/>
+          <path class="line" d="M0 150 C30 146 50 132 80 136 S130 110 160 116 S210 86 240 92 S300 60 330 64 L360 58" fill="none" stroke="var(--isk)" stroke-width="2"/>
+          <path class="line" d="M0 170 C40 168 70 160 110 164 S180 150 220 152 S300 140 360 138" fill="none" stroke="var(--evb)" stroke-width="1.5" stroke-dasharray="3 4" style="animation:none;stroke-dashoffset:0"/>
+          <circle cx="360" cy="58" r="4" fill="var(--isk)"/>
+        </svg>
+        <div class="chart-legend"><span class="n">Hurricane Fleet Issue · margin</span><span class="v">18.4%<span>▲ 2.1</span></span></div>
+      </div>
+      <div class="body">
+        <h3>Industry Planner</h3>
+        <p>Manufacturing profitability for blueprints and reactions — build cost, margin, and price confidence.</p>
+        <div class="foot"><span class="pills"><span class="pill neutral">T1</span><span class="pill blue">T2</span><span class="pill purple">T3</span><span class="pill teal">Reactions</span></span><span class="open">open →</span></div>
+      </div>
+    </a>
+
+    <a class="tool glass-hi" href="#">
+      <div class="preview">
+        <svg class="chain" viewBox="0 0 360 196">
+          <g stroke-width="1.5" fill="none">
+            <path class="edge" d="M70 98 L150 54" stroke="rgba(61,214,140,0.7)"/>
+            <path class="edge" d="M70 98 L150 142" stroke="rgba(214,224,90,0.7)"/>
+            <path class="edge" d="M150 54 L240 70" stroke="rgba(61,214,140,0.7)"/>
+            <path class="edge" d="M150 142 L240 142" stroke="rgba(221,68,68,0.75)"/>
+            <path class="edge" d="M240 70 L310 40" stroke="rgba(170,85,255,0.7)"/>
+            <path class="edge" d="M240 70 L310 110" stroke="rgba(61,214,140,0.7)"/>
+          </g>
+          <circle class="pulse" cx="70" cy="98" r="16" fill="none" stroke="var(--isk)"/>
+          <g font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" text-anchor="middle">
+            <g class="node"><circle cx="70" cy="98" r="16" fill="#0f1216" stroke="var(--isk)"/><text x="70" y="101" fill="var(--wh-c5)">C5</text></g>
+            <g class="node"><circle cx="150" cy="54" r="13" fill="#0f1216" stroke="var(--border-active)"/><text x="150" y="57" fill="var(--wh-c3)">C3</text></g>
+            <g class="node"><circle cx="150" cy="142" r="13" fill="#0f1216" stroke="var(--border-active)"/><text x="150" y="145" fill="var(--sec-10)">HS</text></g>
+            <g class="node"><circle cx="240" cy="70" r="13" fill="#0f1216" stroke="var(--border-active)"/><text x="240" y="73" fill="var(--wh-c2)">C2</text></g>
+            <g class="node"><circle cx="240" cy="142" r="13" fill="#0f1216" stroke="var(--border-active)"/><text x="240" y="145" fill="var(--sec-null)">NS</text></g>
+            <g class="node"><circle cx="310" cy="40" r="11" fill="#0f1216" stroke="var(--border-active)"/><text x="310" y="43" fill="var(--wh-c6)">C6</text></g>
+            <g class="node"><circle cx="310" cy="110" r="11" fill="#0f1216" stroke="var(--border-active)"/><text x="310" y="113" fill="var(--wh-c1)">C1</text></g>
+          </g>
+        </svg>
+      </div>
+      <div class="body">
+        <h3>Atlas</h3>
+        <p>A shared live map of your wormhole chain — follow your pilots as they jump, with a built-in scanner.</p>
+        <div class="foot"><span class="pills"><span class="pill purple">Chain</span><span class="pill teal">Scanner</span><span class="pill green">Live</span></span><span class="open">open →</span></div>
+      </div>
+    </a>
+  </section>
+
+  <div class="sec-head">
+    <div><h2>EVE News</h2><p>Straight from CCP.</p></div>
+    <a class="label" href="#">All news →</a>
+  </div>
+  <section class="news">
+    <a class="glass-hi" href="#"><span class="pill blue" style="align-self:flex-start">Patch notes</span><span class="t">Patch notes for version 23.02 — wormhole effect rebalance and scanning QoL</span><span class="m"><span>Sep 22, 2026</span><span>→</span></span></a>
+    <a class="glass-hi" href="#"><span class="pill blue" style="align-self:flex-start">Dev blog</span><span class="t">Industry in Equinox: reaction formulas and the new refinery rigs</span><span class="m"><span>Sep 18, 2026</span><span>→</span></span></a>
+    <a class="glass-hi" href="#"><span class="pill blue" style="align-self:flex-start">Event</span><span class="t">Crimson Harvest returns with new abyssal-themed site spawns</span><span class="m"><span>Sep 15, 2026</span><span>→</span></span></a>
+  </section>
+
+  <footer>
+    <span><span class="mono" style="color:var(--name);font-weight:700">[LGI]</span>.tools · Lo-Gang Industries</span>
+    <span class="links"><a href="#">Changelog</a><a href="#">Contact</a><a href="#">Legal</a></span>
+  </footer>
+</main>
+</body>
+</html>
