@@ -25,6 +25,18 @@ export const WORMHOLE_DESTINATION_HINTS = [
 
 export type WormholeDestinationHint = (typeof WORMHOLE_DESTINATION_HINTS)[number];
 
+/** Order is the painter's rhythm order (`EFFECT_MODE` in the mapper). */
+export const WORMHOLE_EFFECTS = [
+  'pulsar',
+  'black-hole',
+  'magnetar',
+  'red-giant',
+  'cataclysmic-variable',
+  'wolf-rayet',
+] as const;
+
+export type WormholeEffect = (typeof WORMHOLE_EFFECTS)[number];
+
 export const CONNECTION_PROVENANCES = [
   'jump-verified',
   'human',

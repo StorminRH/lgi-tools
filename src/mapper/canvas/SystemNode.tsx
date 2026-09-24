@@ -12,6 +12,7 @@ import {
 import {
   destinationHintSoleClassId,
   type WormholeDestinationHint,
+  type WormholeEffect,
 } from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
 import { IntelIcon } from '../windows/IntelIcon';
@@ -26,6 +27,7 @@ export type ChainNodeData = {
   className: string | null;
   security?: number | null;
   whClassId?: number | null;
+  effect?: WormholeEffect | null;
   destinationHint?: WormholeDestinationHint | null;
   motion?: NodeMotion;
   halo?: { readonly ring: number; readonly fogged: boolean };

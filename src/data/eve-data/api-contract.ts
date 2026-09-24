@@ -15,6 +15,7 @@ import type {
 } from './universe-assets';
 import {
   FAR_SIDE_WORMHOLE_CODE,
+  WORMHOLE_EFFECTS,
   WORMHOLE_SIZE_CLASSES,
   WORMHOLE_TYPE_CODE,
 } from './wormhole-contract';
@@ -114,6 +115,7 @@ const systemDirectoryEntrySchema = z.object({
   regionName: z.string(),
   whClassId: z.number().int().nullable(),
   security: z.number().nullable(),
+  effect: z.enum(WORMHOLE_EFFECTS).nullable(),
 });
 
 const systemDirectoryResponseSchema = z.object({

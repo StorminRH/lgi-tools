@@ -45,6 +45,7 @@ function directoryEntry(): SystemDirectoryEntry {
     regionName: 'Test Region',
     security: fields.security,
     whClassId: fields.whClassId,
+    effect: null,
   };
 }
 

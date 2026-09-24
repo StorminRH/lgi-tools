@@ -16,19 +16,21 @@ function entry(
   id: number,
   name: string,
   whClassId: number | null,
+  effect: SystemDirectoryEntry['effect'] = null,
 ): SystemDirectoryEntry {
-  return { id, name, regionName: 'Test Region', whClassId, security: null };
+  return { id, name, regionName: 'Test Region', whClassId, security: null, effect };
 }
 
 describe('node label resolution', () => {
   it('resolves directory names with class/security fields and bare-id fallbacks', () => {
     expect(
-      resolveSystemLabel(HOLE, directory([entry(HOLE, 'J123456', 5)])),
+      resolveSystemLabel(HOLE, directory([entry(HOLE, 'J123456', 5, 'red-giant')])),
     ).toEqual({
       name: 'J123456',
       className: 'C5',
       security: null,
       whClassId: 5,
+      effect: 'red-giant',
     });
 
     expect(
@@ -38,18 +40,20 @@ describe('node label resolution', () => {
       className: null,
       security: null,
       whClassId: null,
+      effect: null,
     });
 
     expect(
       resolveSystemLabel(
         JITA,
-        directory([{ id: JITA, name: 'Jita', regionName: 'The Forge', whClassId: null, security: 0.946 }]),
+        directory([{ id: JITA, name: 'Jita', regionName: 'The Forge', whClassId: null, security: 0.946, effect: null }]),
       ),
     ).toEqual({
       name: 'Jita',
       className: null,
       security: 0.946,
       whClassId: null,
+      effect: null,
     });
 
     const bare = {
@@ -57,6 +61,7 @@ describe('node label resolution', () => {
       className: null,
       security: null,
       whClassId: null,
+      effect: null,
     };
     expect(resolveSystemLabel(JITA, directory([]))).toEqual(bare);
     expect(resolveSystemLabel(JITA, null)).toEqual(bare);

@@ -52,7 +52,7 @@ const fallbackLabel = (systemId: number): SystemLabel => ({
 const namedLabel = (systemId: number): SystemLabel =>
   systemId === JITA
     ? { name: 'Jita', className: null }
-    : { name: 'J123456', className: 'C5' };
+    : { name: 'J123456', className: 'C5', effect: 'magnetar' };
 
 function snapshot(systemIds: readonly number[], connections: ChainSnapshot['connections']['rows'] = []): ChainSnapshot {
   return {
@@ -83,6 +83,7 @@ describe('canvas node projection', () => {
           className: null,
           security: null,
           whClassId: null,
+          effect: null,
         },
       },
       {
@@ -97,6 +98,7 @@ describe('canvas node projection', () => {
           className: 'C5',
           security: null,
           whClassId: null,
+          effect: 'magnetar',
         },
       },
     ]);
@@ -121,12 +123,14 @@ describe('canvas node projection', () => {
       className: null,
       security: null,
       whClassId: null,
+      effect: null,
     });
     expect(after[0]?.data).toEqual({
       name: 'Jita',
       className: null,
       security: null,
       whClassId: null,
+      effect: null,
     });
     expect(after[0]?.position).toEqual(before[0]?.position);
   });

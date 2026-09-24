@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import { WORMHOLE_EFFECTS } from './wormhole-contract';
 
 export const eveCategories = pgTable('eve_categories', {
   id: integer('id').primaryKey(),
@@ -172,7 +173,10 @@ export const eveConstellations = pgTable(
  * Barbican / Vidette / Conflux / Redoubt), 25 = Pochven. Nullable: a handful of
  * untagged hi-sec K-space systems carry no class in the SDE (their band is
  * sec-status-derivable anyway). For J-space it is always present. This is the
- * COARSE class only — anoik.is statics/effects are the separate v4.0 layer.
+ * COARSE class only — anoik.is statics are the separate v4.0 layer.
+ *
+ * `wormhole_effect` comes from the system's `mapSecondarySuns` row (at most one
+ * per system); null means no effect.
  */
 export const eveSolarSystems = pgTable(
   'eve_solar_systems',
@@ -187,6 +191,7 @@ export const eveSolarSystems = pgTable(
     name: text('name').notNull(),
     securityStatus: doublePrecision('security_status'),
     wormholeClassId: integer('wormhole_class_id'),
+    wormholeEffect: text('wormhole_effect', { enum: WORMHOLE_EFFECTS }),
   },
   (t) => ({
     constellationIdx: index('eve_solar_systems_constellation_idx').on(

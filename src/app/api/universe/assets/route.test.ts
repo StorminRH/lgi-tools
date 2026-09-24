@@ -23,7 +23,7 @@ vi.mock('@/data/eve-data/meta', () => ({
 }));
 
 vi.mock('@/data/eve-data/universe-assets', () => ({
-  composeUniverseAssetVersion: (version: string) => `${version}+u2`,
+  composeUniverseAssetVersion: (version: string) => `${version}+u3`,
   getSystemDirectory: getSystemDirectoryMock,
   getAdjacencyGraph: getAdjacencyGraphMock,
   getWormholeCodex: getWormholeCodexMock,
@@ -53,7 +53,7 @@ describe('GET /api/universe/assets', () => {
     expect(connectionMock).toHaveBeenCalledOnce();
     expect(response.status).toBe(200);
     expect(response.headers.get('Cache-Control')).toBe('no-store');
-    await expect(response.json()).resolves.toEqual({ version: '3444265+u2' });
+    await expect(response.json()).resolves.toEqual({ version: '3444265+u3' });
   });
 
   it('returns a no-store 503 problem when no SDE version is present', async () => {

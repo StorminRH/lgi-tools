@@ -32,6 +32,7 @@ function extractPaths(): SdeJsonlPaths {
     mapConstellations: file('mapConstellations'),
     mapSolarSystems: file('mapSolarSystems'),
     mapStargates: file('mapStargates'),
+    mapSecondarySuns: file('mapSecondarySuns'),
     npcStations: file('npcStations'),
     stationOperations: file('stationOperations'),
     stationServices: file('stationServices'),
