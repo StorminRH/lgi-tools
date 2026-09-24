@@ -635,10 +635,12 @@ a:hover {
 /* Reveal: staggered entrance for page sections. */
 @keyframes reveal {
   from { opacity: 0; translate: 0 14px; filter: blur(4px); }
-  to { opacity: 1; translate: 0 0; filter: blur(0); }
 }
+/* `backwards`, not `both`: a filled end state would leave a filter on the
+ * element, which makes it a backdrop root and flattens every glass surface
+ * inside it. */
 .reveal {
-  animation: reveal 900ms var(--ease-out-expo) both;
+  animation: reveal 900ms var(--ease-out-expo) backwards;
 }
 .reveal-1 { animation-delay: 70ms; }
 .reveal-2 { animation-delay: 140ms; }

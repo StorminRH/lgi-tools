@@ -46,7 +46,7 @@ function CharacterRowActions({
   needsReconnect: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 justify-end">
+    <div className="flex flex-wrap items-center gap-2 justify-end max-sm:justify-start">
       {needsReconnect ? (
         <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
       ) : null}
@@ -70,8 +70,8 @@ function CharacterRow({
   return (
     <div className="border-t border-border-soft">
       <EntityRow
-        className="border-t-0"
-        colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto]"
+        className="border-t-0 max-sm:gap-y-2 max-sm:py-2 max-sm:*:nth-[n+3]:col-start-2 max-sm:*:nth-[n+3]:justify-start"
+        colsClass="grid-cols-[36px_minmax(0,1fr)] sm:grid-cols-[36px_minmax(0,1fr)_auto_auto]"
         leading={
           <CharacterPortrait
             characterId={character.characterId}
@@ -82,7 +82,7 @@ function CharacterRow({
         }
         name={character.name}
         chips={
-          <span className="flex items-center gap-[6px]">
+          <span className="flex flex-wrap items-center gap-[6px]">
             <Pill tone="neutral">ID {character.characterId}</Pill>
             {isActive ? <Chip tone="green">Active</Chip> : null}
             {view.healthLabel ? (
@@ -171,7 +171,7 @@ async function CharactersContent({
     <div className="flex w-full flex-col gap-6">
       <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
 
-      <Card>
+      <Card className="reveal reveal-1">
         <SectionHeader
           size="md"
           label="Your characters"
@@ -212,6 +212,7 @@ async function CharactersContent({
 
       <AccountDangerZone
         characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}
+        className="reveal reveal-2"
       />
     </div>
   );
