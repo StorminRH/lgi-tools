@@ -33,7 +33,8 @@ export default defineSchema({
     ...runObservabilityFields,
   })
     .index('by_user_dataset', ['userId', 'dataset'])
-    .index('by_next_due', ['nextDueAt']),
+    .index('by_next_due', ['nextDueAt'])
+    .index('by_dataset', ['dataset']),
 
   syncPresence: defineTable({
     dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
@@ -44,7 +45,8 @@ export default defineSchema({
     leftTabId: v.optional(v.string()),
   })
     .index('by_user_dataset', ['userId', 'dataset'])
-    .index('by_last_seen', ['lastSeenAt']),
+    .index('by_last_seen', ['lastSeenAt'])
+    .index('by_dataset', ['dataset']),
 
   characterOnline: defineTable({
     userId: v.string(),
