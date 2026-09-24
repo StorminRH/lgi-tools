@@ -17,6 +17,7 @@ import {
   kspaceCaptionBox,
   pointAlongSegment,
   pointOnRayAtRadius,
+  visibleChainLinkSegment,
   type FrameRect,
 } from './edge-geometry';
 
@@ -107,6 +108,19 @@ test('chainLinkPath cuts only the fog side of the shared segment', () => {
   expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 0,0 L 100,0');
   expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 0,0 L 25,0');
   expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,0 L 100,0');
+});
+
+test('fog taper uses the rendered segment and preserves a 24px fade', () => {
+  const segment = { startX: 100, startY: 80, endX: 340, endY: 260 };
+  expect(visibleChainLinkSegment(segment, undefined, 0.55)).toBe(segment);
+  const target = visibleChainLinkSegment(segment, 'target', 0.55);
+  const source = visibleChainLinkSegment(segment, 'source', 0.55);
+  expect(target).toEqual({ startX: 100, startY: 80, endX: 232, endY: 179 });
+  expect(source).toEqual({ startX: 208, startY: 161, endX: 340, endY: 260 });
+  for (const visible of [segment, source, target]) {
+    const length = Math.hypot(visible.endX - visible.startX, visible.endY - visible.startY);
+    expect(edgeTaperFraction(visible) * length).toBeCloseTo(24);
+  }
 });
 
 test('pointAlongSegment walks in either direction with CSS heading', () => {

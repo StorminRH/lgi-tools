@@ -200,12 +200,25 @@ export function chainLinkSegment(
   });
 }
 
-function segmentPath(segment: FrameSegment, start: number, end: number): string {
+export function visibleChainLinkSegment(
+  segment: FrameSegment,
+  fogSide: 'source' | 'target' | undefined,
+  cut: number,
+): FrameSegment {
+  if (fogSide === undefined) return segment;
   const dx = segment.endX - segment.startX;
   const dy = segment.endY - segment.startY;
-  const point = (t: number) =>
-    `${segment.startX + dx * t},${segment.startY + dy * t}`;
-  return `M ${point(start)} L ${point(end)}`;
+  return fogSide === 'target'
+    ? {
+      ...segment,
+      endX: segment.startX + dx * cut,
+      endY: segment.startY + dy * cut,
+    }
+    : {
+      ...segment,
+      startX: segment.startX + dx * (1 - cut),
+      startY: segment.startY + dy * (1 - cut),
+    };
 }
 
 export function chainLinkPath(
@@ -213,10 +226,8 @@ export function chainLinkPath(
   fogSide: 'source' | 'target' | undefined,
   cut: number,
 ): string {
-  if (fogSide === undefined) return segmentPath(segment, 0, 1);
-  return fogSide === 'target'
-    ? segmentPath(segment, 0, cut)
-    : segmentPath(segment, 1 - cut, 1);
+  const visible = visibleChainLinkSegment(segment, fogSide, cut);
+  return `M ${visible.startX},${visible.startY} L ${visible.endX},${visible.endY}`;
 }
 
 export function pointAlongSegment(

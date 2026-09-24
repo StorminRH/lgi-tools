@@ -19,6 +19,7 @@ import {
   chainLinkSegment,
   edgeTaperFraction,
   pointAlongSegment,
+  visibleChainLinkSegment,
   type FrameSegment,
 } from './edge-geometry';
 
@@ -172,12 +173,13 @@ function ChainLinkEdgeComponent({
   if (segment === null) return null;
 
   const path = chainLinkPath(segment, data?.fogSide, FOG_EDGE_CUT_FRACTION);
+  const visibleSegment = visibleChainLinkSegment(segment, data?.fogSide, FOG_EDGE_CUT_FRACTION);
 
   const presentation = edgePresentation(data);
   return (
     <g ref={hostRef}>
       <defs>
-        <EdgeTaper gradientId={gradientId} segment={segment} taper={edgeTaperFraction(segment)} />
+        <EdgeTaper gradientId={gradientId} segment={visibleSegment} taper={edgeTaperFraction(visibleSegment)} />
       </defs>
       <BaseEdge
         id={id}
