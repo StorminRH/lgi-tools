@@ -90,7 +90,7 @@ test('selection, pause and same-band security updates leave appearance styles un
   const env = browser();
   const host = createWormholeHost(env.canvas, { active: false, body: wormhole(3) });
   env.setProperty.mockClear();
-  host.update({ active: true });
+  host.update({ active: true, body: wormhole(3) });
   host.update({ active: true, paused: true, body: wormhole(3) });
   expect(env.setProperty).not.toHaveBeenCalled();
   host.update({ active: true, body: wormhole(4) });
@@ -115,10 +115,10 @@ test('aura and planet bodies send their mode, token tint and focus, and idle nod
   env.visible(true);
   expect(paint.mock.lastCall?.[1]).toMatchObject({ mode: 3, tint: [196 / 255, 140 / 255, 1], focus: 0 });
   expect(env.frames.size).toBe(0);
-  host.update({ active: true });
+  host.update({ active: true, body: wormhole(4, 'magnetar') });
   env.advance(1);
   expect(paint.mock.lastCall?.[1].focus).toBeGreaterThan(0.9);
-  host.update({ active: false });
+  host.update({ active: false, body: wormhole(4, 'magnetar') });
   env.advance(3);
   expect(env.frames.size).toBe(0);
 
@@ -131,7 +131,7 @@ test('aura and planet bodies send their mode, token tint and focus, and idle nod
 
 test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop scheduled work', () => {
   const env = browser();
-  const host = createWormholeHost(env.canvas, { active: true });
+  const host = createWormholeHost(env.canvas, { active: true, body: wormhole(1) });
   env.visibleBatch([false, true]);
   expect(paint).toHaveBeenCalled();
   expect(env.frames.size).toBe(1);
@@ -144,10 +144,10 @@ test('offscreen, tab-hidden, dragging pause and reduced motion immediately stop 
   env.doc.hidden = true; env.visibility();
   expect(env.frames.size).toBe(0);
   env.doc.hidden = false; env.visibility();
-  host.update({ active: true, paused: true });
+  host.update({ active: true, paused: true, body: wormhole(1) });
   expect(env.frames.size).toBe(0);
   expect(paint.mock.lastCall?.[1].age).toBe(10);
-  host.update({ active: true, paused: false });
+  host.update({ active: true, paused: false, body: wormhole(1) });
   env.media.matches = true; env.preference();
   expect(env.frames.size).toBe(0);
   expect(paint.mock.lastCall?.[1].age).toBe(10);

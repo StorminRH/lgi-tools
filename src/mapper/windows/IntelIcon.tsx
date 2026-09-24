@@ -84,7 +84,6 @@ const EFFECT_GLYPH: Record<WormholeEffect, ReactNode> = {
   ),
 };
 
-// Literal class names keep every --color-effect-* token emitted for the canvas aura.
 const EFFECT_TONE: Record<WormholeEffect, string> = {
   pulsar: 'text-effect-pulsar',
   'black-hole': 'text-effect-black-hole',

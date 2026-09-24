@@ -1,9 +1,9 @@
+import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import {
   acknowledgeMapAccessChanges,
   MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
-  type PendingMapAccessChange,
 } from '@/platform/auth/affiliation-store';
 import { projectMapAccess, requireCurrentProjection } from './map-access-projection';
 

@@ -11,10 +11,8 @@ import {
   requestAuthorizedMapPurge,
   restoreAuthorizedMap,
 } from '@/data/maps/lifecycle';
-import {
-  acknowledgeMapAccessChanges,
-  type PendingMapAccessChange,
-} from '@/platform/auth/affiliation-store';
+import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
+import { acknowledgeMapAccessChanges } from '@/platform/auth/affiliation-store';
 
 export type LifecycleResult =
   | { readonly ok: true; readonly projectionPending: boolean }

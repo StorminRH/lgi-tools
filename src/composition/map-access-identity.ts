@@ -4,14 +4,18 @@ import {
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
-import { affectedMapIdsForCharacter, getOwnedMapIds } from '@/data/maps/queries';
+import {
+  affectedMapIdsForCharacter,
+  enqueueAffectedMapAccessChanges,
+  getOwnedMapIds,
+} from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import { MAX_PENDING_BATCH, enqueueMapAccessChanges } from '@/platform/auth/affiliation-store';
+import { MAX_PENDING_BATCH } from '@/platform/auth/affiliation-store';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 import { deliverCapturedMapAccessChanges, reconcileAffiliationAccess } from './map-affiliation-access';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
-  const pending = await enqueueMapAccessChanges(await affectedMapIdsForCharacter(characterId));
+  const pending = await enqueueAffectedMapAccessChanges(characterId);
   if (pending.length === 0) return;
   await deliverCapturedMapAccessChanges(pending);
   if (pending.length > MAX_PENDING_BATCH) await reconcileAffiliationAccess();

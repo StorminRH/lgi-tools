@@ -45,12 +45,11 @@ export async function reserveMapAccessProjectionRevision(
   database: AnyPgDb = db,
 ): Promise<number> {
   // public. pins the production sequence; disposable-schema harnesses steer via search_path elsewhere.
-  const result = await database.execute(sql`
+  const [row] = await mapAuthorizationRows<{ revision: string | number }>(database, sql`
     SELECT nextval(
       ${`public.${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}`}::regclass
     )::text AS revision
   `);
-  const row = mapAuthorizationRows(result)[0];
   const raw = row?.revision;
   const revision = typeof raw === 'number' ? raw : Number(raw);
   if (!Number.isSafeInteger(revision) || revision <= 0) {
@@ -429,14 +428,12 @@ export async function getAuthorizedMapGrantsForMaps(
 ): Promise<MapGrantRow[]> {
   const uniqueMapIds = [...new Set(mapIds)];
   if (uniqueMapIds.length === 0) return [];
-  const result = await database.execute<
-    Record<string, unknown> & {
-      mapId: string;
-      ownerType: MapAccessOwnerType;
-      ownerId: number | string;
-      role: MapRole;
-    }
-  >(sql`
+  const rows = await mapAuthorizationRows<{
+    mapId: string;
+    ownerType: MapAccessOwnerType;
+    ownerId: number | string;
+    role: MapRole;
+  }>(database, sql`
     WITH authorized_map AS (
       ${activeMapsAdminSelection(userId, principals, uniqueMapIds)}
     )
@@ -449,17 +446,7 @@ export async function getAuthorizedMapGrantsForMaps(
     INNER JOIN authorized_map ON authorized_map.id = delegated_grant.map_id
     ORDER BY delegated_grant.map_id, delegated_grant.owner_type, delegated_grant.owner_id
   `);
-  return mapAuthorizationRows(result).map(
-    (row: {
-      mapId: string;
-      ownerType: MapAccessOwnerType;
-      ownerId: number | string;
-      role: MapRole;
-    }) => ({
-      ...row,
-      ownerId: Number(row.ownerId),
-    }),
-  );
+  return rows.map((row) => ({ ...row, ownerId: Number(row.ownerId) }));
 }
 
 function activeMapsAdminSelection(
@@ -504,13 +491,13 @@ export async function applyAuthorizedMapGrantChange(
       AND ${mapAccess.ownerType} = ${change.principal.ownerType}
       AND ${mapAccess.ownerId} = ${change.principal.ownerId}
   `;
-  const result = await database.execute<PendingMapAccessChange>(sql`
+  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${activeMapAdminSelection(userId, principals, mapId)}
     ), changed AS (${mutation})
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM authorized_map`)}
   `);
-  return mapAuthorizationRows(result)[0] ?? null;
+  return row ?? null;
 }
 
 export async function getMapAccessCandidateUserIds(
@@ -548,14 +535,18 @@ export async function getOwnedMapIds(
   return rows.map((row) => row.id);
 }
 
+export function characterGrantCondition(characterId: number): SQL {
+  return sql`
+    ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
+    AND ${mapAccess.ownerId} = ${characterId}
+  `;
+}
+
 export function affectedMapIdsSelection(characterId: number): SQL {
   return sql`
     SELECT DISTINCT ${mapAccess.mapId} AS id
     FROM ${mapAccess}
-    WHERE (
-      ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
-      AND ${mapAccess.ownerId} = ${characterId}
-    ) OR (
+    WHERE (${characterGrantCondition(characterId)}) OR (
       ${mapAccess.ownerType} = 'corporation'::"public"."map_access_owner_type"
       AND ${mapAccess.ownerId} = (
         SELECT ${characters.corporationId}
@@ -570,8 +561,21 @@ export async function affectedMapIdsForCharacter(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<string[]> {
-  const result = await database.execute<{ id: string }>(
+  const rows = await mapAuthorizationRows<{ id: string }>(
+    database,
     affectedMapIdsSelection(characterId),
   );
-  return mapAuthorizationRows(result).map((row: { id: string }) => row.id);
+  return rows.map((row) => row.id);
+}
+
+export async function enqueueAffectedMapAccessChanges(
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<PendingMapAccessChange[]> {
+  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+    WITH affected AS (
+      ${affectedMapIdsSelection(characterId)}
+    )
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
+  `);
 }

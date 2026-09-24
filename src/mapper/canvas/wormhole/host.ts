@@ -6,16 +6,15 @@ import { bodyAppearance, wormholeSeed, type WormholeBody } from './palette';
 import { BODY_EXTENT_RADII } from './shaders';
 
 export interface WormholeInputs {
-  readonly body?: WormholeBody;
+  readonly body: WormholeBody;
   readonly active: boolean;
   readonly paused?: boolean;
   readonly seed?: string;
 }
 
-const PLAIN_WORMHOLE: WormholeBody = { kind: 'wormhole', classId: null, effect: null };
 const BODY_SIZE_PX = SYSTEM_DISC_SIZE * BODY_EXTENT_RADII;
 
-function bodyKey(body: WormholeBody = PLAIN_WORMHOLE): string {
+function bodyKey(body: WormholeBody): string {
   return body.kind === 'planet'
     ? `planet:${securityBand(body.security)}`
     : `wormhole:${body.classId}:${body.effect}`;
@@ -34,10 +33,7 @@ function applyFrame(canvas: HTMLCanvasElement) {
 
 function applyAppearance(canvas: HTMLCanvasElement, inputs: WormholeInputs) {
   const style = window.getComputedStyle(canvas);
-  const appearance = bodyAppearance(
-    inputs.body ?? PLAIN_WORMHOLE,
-    (token) => style.getPropertyValue(token),
-  );
+  const appearance = bodyAppearance(inputs.body, (token) => style.getPropertyValue(token));
   const wrapper = canvas.parentElement;
   const colors = { ...appearance.palette, tint: appearance.tint };
   for (const key of ['core', 'accent', 'halo', 'dark', 'tint'] as const) {

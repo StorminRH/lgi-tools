@@ -19,15 +19,18 @@ function WormholeVisualComponent({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<ReturnType<typeof createWormholeHost> | null>(null);
   useEffect(() => {
+    const inputs = { body, active, paused, seed };
+    if (hostRef.current !== null) {
+      hostRef.current.update(inputs);
+      return;
+    }
     const canvas = canvasRef.current;
-    if (canvas === null) return;
-    const host = createWormholeHost(canvas, { active: false });
-    hostRef.current = host;
-    return () => { host.dispose(); hostRef.current = null; };
-  }, []);
-  useEffect(() => {
-    hostRef.current?.update({ body, active, paused, seed });
+    if (canvas !== null) hostRef.current = createWormholeHost(canvas, inputs);
   }, [body, active, paused, seed]);
+  useEffect(() => () => {
+    hostRef.current?.dispose();
+    hostRef.current = null;
+  }, []);
   return (
     <span
       className={styles.visual}

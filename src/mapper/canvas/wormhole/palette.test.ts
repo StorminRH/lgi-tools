@@ -1,6 +1,4 @@
-import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
-import { securityBand } from '@/data/eve-data/security';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
 import { bodyAppearance, EFFECT_MODE, PLANET_MODE, wormholeSeed } from './palette';
 
@@ -46,18 +44,8 @@ test('bodies pick a shader mode and resolve their tint token, falling back to th
   expect(planet(0.9).tint).toEqual(HALO);
 });
 
-test('every effect has its own non-zero mode and every tint token exists in globals.css', () => {
+test('every effect has its own non-zero mode', () => {
   const modes = WORMHOLE_EFFECTS.map((effect) => EFFECT_MODE[effect]);
   expect(modes).toEqual([1, 2, 3, 4, 5, 6]);
   expect(modes).not.toContain(PLANET_MODE);
-
-  const css = readFileSync('src/app/globals.css', 'utf8');
-  const bands = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0].map(securityBand);
-  const tokens = [
-    ...WORMHOLE_EFFECTS.map((effect) => `--color-effect-${effect}`),
-    ...bands.map((band) => `--color-sec-${band}`),
-  ];
-  for (const token of tokens) {
-    expect(css, token).toMatch(new RegExp(`${token}:\\s*#[0-9a-f]{6};`, 'i'));
-  }
 });

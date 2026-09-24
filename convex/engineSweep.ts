@@ -7,8 +7,8 @@ import {
   MAX_COLD_AFTER_MS,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
+  SYNC_DATASET_HISTORY,
 } from '@/lib/sync-engine';
-import schema from './schema';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
@@ -42,9 +42,7 @@ export const sweep = internalMutation({
   },
 });
 
-const RETIRED_DATASETS = schema.tables.syncSubjects.validator.fields.dataset.members
-  .map((member) => member.value)
-  .filter((dataset) => !isRegisteredDataset(dataset));
+const RETIRED_DATASETS = SYNC_DATASET_HISTORY.filter((dataset) => !isRegisteredDataset(dataset));
 
 async function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
   const rows: Doc<typeof table>[] = [];

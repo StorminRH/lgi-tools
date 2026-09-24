@@ -8,7 +8,11 @@ import {
   mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
-import { affectedMapIdsSelection, getOwnedMapIds } from './queries';
+import {
+  affectedMapIdsSelection,
+  characterGrantCondition,
+  getOwnedMapIds,
+} from './queries';
 import { mapAccess, maps } from './schema';
 
 export interface MapAccessProjectionPurgeHooks {
@@ -38,17 +42,15 @@ async function purgeCharacterMapGrants(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange[]> {
-  const result = await database.execute<PendingMapAccessChange>(sql`
+  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH affected AS (
       ${affectedMapIdsSelection(characterId)}
     ), deleted AS (
       DELETE FROM ${mapAccess}
-      WHERE ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
-        AND ${mapAccess.ownerId} = ${characterId}
+      WHERE ${characterGrantCondition(characterId)}
     )
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
   `);
-  return mapAuthorizationRows(result);
 }
 
 export function createMapsPurgeContributor(

@@ -45,7 +45,7 @@ export async function archiveAuthorizedMap(
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
   const nowIso = now.toISOString();
-  const result = await database.execute<PendingMapAccessChange>(sql`
+  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,
@@ -67,7 +67,7 @@ export async function archiveAuthorizedMap(
     )
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
   `);
-  return mapAuthorizationRows(result)[0] ?? null;
+  return row ?? null;
 }
 
 export async function restoreAuthorizedMap(
@@ -80,7 +80,7 @@ export async function restoreAuthorizedMap(
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const cutoffIso = cutoff.toISOString();
   const nowIso = now.toISOString();
-  const result = await database.execute<PendingMapAccessChange>(sql`
+  const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
       ${authorizedAdminMapsSelection(
         userId,
@@ -106,7 +106,7 @@ export async function restoreAuthorizedMap(
     )
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM updated`)}
   `);
-  return mapAuthorizationRows(result)[0] ?? null;
+  return row ?? null;
 }
 
 export async function requestAuthorizedMapPurge(

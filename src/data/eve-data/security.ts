@@ -31,7 +31,6 @@ export function securityBand(securityStatus: number): SecurityBand {
   return POSITIVE_SECURITY_BANDS[tenths - 1] ?? 'null';
 }
 
-// Literal class names so Tailwind emits every --color-sec-* token the canvas reads.
 const SECURITY_TEXT_CLASS: Readonly<Record<SecurityBand, string>> = {
   '10': 'text-sec-10',
   '09': 'text-sec-09',
