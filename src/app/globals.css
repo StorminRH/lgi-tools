@@ -131,6 +131,12 @@
   /* Hostile entities — the red of the NPC ship-class chevrons, matching the
    * EVE overview's red-for-hostiles convention. Surfaced as text-hostile. */
   --color-hostile: #dd4444;
+  --color-intel-harvest: #83bba6;
+  --color-intel-hack: #85a9bc;
+  --color-intel-combat: #c9908e;
+  --color-intel-pilot: #96b89f;
+  --color-intel-market: #c2ad72;
+  --color-intel-wormhole: #9daebf;
 
   /* In-game system security status colors (CCP Developer Docs — System
    * Security / Security Status Colors). Banded on the rounded 0.1 display

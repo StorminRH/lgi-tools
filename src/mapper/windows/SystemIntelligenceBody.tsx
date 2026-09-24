@@ -42,7 +42,7 @@ function Disclosure({ icon, label, count, value, children }: {
     <div>
       <Button variant="bare" aria-expanded={open} aria-controls={id} onClick={() => setOpen((current) => !current)}
         className="pointer-events-auto flex h-auto min-h-7 w-full items-center gap-2 text-left font-data text-ui text-name">
-        <IntelIcon kind={icon} className="text-muted" />
+        <IntelIcon kind={icon} />
         <span className="flex-1">{label}</span>
         <span className="tabular-nums">{count}</span>
         {value}
@@ -57,9 +57,9 @@ function WormholeLocation({ systemId }: { readonly systemId: number }) {
   const slots = useSystemStaticSlots(systemId);
   if (slots.length === 0) return null;
   return (
-    <div role="group" aria-label="Statics" data-intel-statics className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro text-muted">
+    <div role="group" aria-label="Statics" data-intel-statics className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro">
       <IntelIcon kind="wormhole" />
-      {slots.map((slot) => <span key={slot.code}>{slot.code} <span className="text-name">{slot.className}</span></span>)}
+      {slots.map((slot) => <span key={slot.code} className="text-muted">{slot.code} <span className="text-name">{slot.className}</span></span>)}
     </div>
   );
 }
@@ -71,10 +71,10 @@ function KnownSpaceLocation({ systemId }: { readonly systemId: number }) {
   return (
     <div data-intel-hubs className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-data text-micro">
       {hubs.map((hub) => (
-        <span key={hub.id} className="flex items-center gap-1.5 text-muted">
+        <span key={hub.id} className="flex items-center gap-1.5">
           <IntelIcon kind="market" />
           <span className="flex-1 text-name">{hub.name}</span>
-          <span className="tabular-nums" aria-label={hub.jumps === null ? 'Unreachable' : `${hub.jumps} jumps`}>{hub.jumps ?? '—'}</span>
+          <span className="tabular-nums text-muted" aria-label={hub.jumps === null ? 'Unreachable' : `${hub.jumps} jumps`}>{hub.jumps ?? '—'}</span>
         </span>
       ))}
     </div>

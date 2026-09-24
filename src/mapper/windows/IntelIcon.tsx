@@ -12,9 +12,19 @@ const PATHS: Record<IntelIconKind, string> = {
   expand: 'm5 2 6 6-6 6Z',
 };
 
+const TONE: Record<IntelIconKind, string> = {
+  harvestables: 'text-intel-harvest',
+  hacking: 'text-intel-hack',
+  combat: 'text-intel-combat',
+  pilot: 'text-intel-pilot',
+  market: 'text-intel-market',
+  wormhole: 'text-intel-wormhole',
+  expand: 'text-muted',
+};
+
 export function IntelIcon({ kind, className }: { readonly kind: IntelIconKind; readonly className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className={cn('size-icon-sm shrink-0', className)}>
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className={cn('size-icon-sm shrink-0', TONE[kind], className)}>
       <path d={PATHS[kind]} fillRule="evenodd" />
       {kind === 'combat' ? <circle cx="8" cy="8" r="1.3" /> : null}
     </svg>
