@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 
 function allStylesheets(): string {
   const files: string[] = [];
@@ -23,16 +23,17 @@ const LOOPING_CLASSES = [
   'price-flash',
 ] as const;
 
-describe('reduced-motion coverage', () => {
+test('looping classes render statically under reduced motion', () => {
   const css = allStylesheets();
 
-  it.each(LOOPING_CLASSES)('statically renders .%s under reduced motion', (className) => {
-    expect(css).toContain(`.${className}`);
+  for (const className of LOOPING_CLASSES) {
+    expect(css, className).toContain(`.${className}`);
     const ruleRe = new RegExp(
       String.raw`@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.${className}\b[^{]*\{[^}]*animation:\s*none`,
     );
-    expect(ruleRe.test(css), `.${className} needs an animation: none reduced-motion override`).toBe(
-      true,
-    );
-  });
+    expect(
+      ruleRe.test(css),
+      `.${className} needs an animation: none reduced-motion override`,
+    ).toBe(true);
+  }
 });

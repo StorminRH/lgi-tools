@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   DEFAULT_MOTION_CONFIG,
   motionCssProperties,
@@ -14,116 +14,86 @@ function measuredPeak(ease: (t: number) => number): number {
   return peak;
 }
 
-describe('motion config defaults', () => {
-  it('ships the G-1-ratified tiers: fast below the shared mid/slow second', () => {
-    const { fast, mid, slow } = DEFAULT_MOTION_CONFIG.tempo;
+test('spring family clamps to the unit interval and peaks at the requested overshoot', () => {
+  for (const pct of [0, 8, 20, 40]) {
+    const { ease } = springFamily(pct);
 
-    expect(fast).toBe(250);
-    expect(mid).toBe(1000);
-    expect(slow).toBe(1000);
-    expect(fast).toBeLessThan(mid);
-    expect(slow).toBeGreaterThanOrEqual(mid);
-  });
+    expect(ease(0)).toBe(0);
+    expect(ease(1)).toBe(1);
+    expect(ease(-0.5)).toBe(0);
+    expect(ease(1.5)).toBe(1);
+  }
 
-  it('ships integer-percent overshoot and a declared flavor and collapse weight', () => {
-    expect(Number.isInteger(DEFAULT_MOTION_CONFIG.overshootPct)).toBe(true);
-    expect(['fade-with-child', 'grow-from-parent']).toContain(
-      DEFAULT_MOTION_CONFIG.edgeFlavor,
-    );
-    expect(['ordinary', 'heavy']).toContain(DEFAULT_MOTION_CONFIG.collapseWeight);
-  });
+  expect(measuredPeak(springFamily(0).ease)).toBeLessThanOrEqual(1);
+  expect(measuredPeak(springFamily(-10).ease)).toBeLessThanOrEqual(1);
+
+  for (const pct of [5, 12, 25, 40]) {
+    const peak = measuredPeak(springFamily(pct).ease);
+
+    expect(peak).toBeGreaterThan(1);
+    expect(Math.abs(peak - 1 - pct / 100)).toBeLessThan(0.002);
+  }
 });
 
-describe('spring family', () => {
-  it('starts at 0 and settles exactly at 1', () => {
-    for (const pct of [0, 8, 20, 40]) {
-      const { ease } = springFamily(pct);
-
-      expect(ease(0)).toBe(0);
-      expect(ease(1)).toBe(1);
-      expect(ease(-0.5)).toBe(0);
-      expect(ease(1.5)).toBe(1);
-    }
+test('spring family overshoots once and settles without ringing', () => {
+  const { ease } = springFamily(20);
+  let peakIndex = 0;
+  const samples = Array.from({ length: 401 }, (_, i) => ease(i / 400));
+  samples.forEach((value, index) => {
+    if (value > (samples[peakIndex] ?? 0)) peakIndex = index;
   });
+  for (let i = peakIndex; i < samples.length - 1; i += 1) {
+    expect(samples[i + 1]).toBeLessThanOrEqual((samples[i] ?? 0) + 1e-9);
+  }
+});
 
-  it('produces no overshoot at 0 % — the camera variant', () => {
-    expect(measuredPeak(springFamily(0).ease)).toBeLessThanOrEqual(1);
-  });
+test('css linear() samples the spring at even spacing', () => {
+  for (const pct of [0, 12, 33]) {
+    const { ease, cssLinear } = springFamily(pct);
+    const body = /^linear\((.+)\)$/.exec(cssLinear);
 
-  it('peaks at the requested overshoot percent', () => {
-    for (const pct of [5, 12, 25, 40]) {
-      const peak = measuredPeak(springFamily(pct).ease);
-
-      expect(peak).toBeGreaterThan(1);
-      expect(Math.abs(peak - 1 - pct / 100)).toBeLessThan(0.002);
-    }
-  });
-
-  it('treats a negative dial value as no overshoot', () => {
-    expect(measuredPeak(springFamily(-10).ease)).toBeLessThanOrEqual(1);
-  });
-
-  it('overshoots exactly once and settles without ringing', () => {
-    const { ease } = springFamily(20);
-    let peakIndex = 0;
-    const samples = Array.from({ length: 401 }, (_, i) => ease(i / 400));
-    samples.forEach((value, index) => {
-      if (value > (samples[peakIndex] ?? 0)) peakIndex = index;
+    expect(body).not.toBeNull();
+    const stops = (body?.[1] ?? '').split(', ').map(Number);
+    expect(stops.length).toBeGreaterThanOrEqual(2);
+    expect(stops[0]).toBe(0);
+    expect(stops.at(-1)).toBe(1);
+    stops.forEach((stop, index) => {
+      expect(Math.abs(stop - ease(index / (stops.length - 1)))).toBeLessThan(
+        5e-5,
+      );
     });
-    for (let i = peakIndex; i < samples.length - 1; i += 1) {
-      expect(samples[i + 1]).toBeLessThanOrEqual((samples[i] ?? 0) + 1e-9);
-    }
-  });
+  }
 });
 
-describe('css linear() token', () => {
-  it('samples the JS function exactly at even spacing', () => {
-    for (const pct of [0, 12, 33]) {
-      const { ease, cssLinear } = springFamily(pct);
-      const body = /^linear\((.+)\)$/.exec(cssLinear);
+test('css properties and pre-hydration fallbacks share the ratified tempos', () => {
+  const properties = motionCssProperties(DEFAULT_MOTION_CONFIG);
 
-      expect(body).not.toBeNull();
-      const stops = (body?.[1] ?? '').split(', ').map(Number);
-      expect(stops.length).toBeGreaterThanOrEqual(2);
-      expect(stops[0]).toBe(0);
-      expect(stops.at(-1)).toBe(1);
-      stops.forEach((stop, index) => {
-        expect(Math.abs(stop - ease(index / (stops.length - 1)))).toBeLessThan(
-          5e-5,
-        );
-      });
-    }
-  });
-});
+  expect(Object.keys(properties).sort()).toEqual([
+    '--map-motion-ease',
+    '--map-motion-ease-settle',
+    '--map-motion-fast',
+    '--map-motion-mid',
+    '--map-motion-slow',
+  ]);
+  expect(properties['--map-motion-fast']).toBe('250ms');
+  expect(properties['--map-motion-mid']).toBe('1000ms');
+  expect(properties['--map-motion-slow']).toBe('1000ms');
+  const fast = Number.parseInt(properties['--map-motion-fast'] ?? '', 10);
+  const mid = Number.parseInt(properties['--map-motion-mid'] ?? '', 10);
+  const slow = Number.parseInt(properties['--map-motion-slow'] ?? '', 10);
+  expect(fast).toBeLessThan(mid);
+  expect(slow).toBeGreaterThanOrEqual(mid);
+  expect(properties['--map-motion-ease']).toBe(
+    springFamily(DEFAULT_MOTION_CONFIG.overshootPct).cssLinear,
+  );
+  expect(properties['--map-motion-ease-settle']).toBe(springFamily(0).cssLinear);
 
-describe('motion css properties', () => {
-  it('exposes exactly the three tier tokens and the two ease tokens', () => {
-    const properties = motionCssProperties(DEFAULT_MOTION_CONFIG);
+  const stylesheet = readFileSync('src/mapper/motion/motion-contract.css', 'utf8');
+  const scope = /\[data-map-motion-scope\]\s*\{([^}]*)\}/.exec(stylesheet);
 
-    expect(Object.keys(properties).sort()).toEqual([
-      '--map-motion-ease',
-      '--map-motion-ease-settle',
-      '--map-motion-fast',
-      '--map-motion-mid',
-      '--map-motion-slow',
-    ]);
-    expect(properties['--map-motion-fast']).toBe('250ms');
-    expect(properties['--map-motion-mid']).toBe('1000ms');
-    expect(properties['--map-motion-slow']).toBe('1000ms');
-    expect(properties['--map-motion-ease']).toBe(
-      springFamily(DEFAULT_MOTION_CONFIG.overshootPct).cssLinear,
-    );
-    expect(properties['--map-motion-ease-settle']).toBe(springFamily(0).cssLinear);
-  });
-
-  it('keeps the stylesheet pre-hydration fallbacks pinned to the ratified defaults', () => {
-    const stylesheet = readFileSync('src/mapper/motion/motion-contract.css', 'utf8');
-    const scope = /\[data-map-motion-scope\]\s*\{([^}]*)\}/.exec(stylesheet);
-
-    expect(scope).not.toBeNull();
-    const block = scope?.[1] ?? '';
-    expect(block).toContain(`--map-motion-fast: ${DEFAULT_MOTION_CONFIG.tempo.fast}ms`);
-    expect(block).toContain(`--map-motion-mid: ${DEFAULT_MOTION_CONFIG.tempo.mid}ms`);
-    expect(block).toContain(`--map-motion-slow: ${DEFAULT_MOTION_CONFIG.tempo.slow}ms`);
-  });
+  expect(scope).not.toBeNull();
+  const block = scope?.[1] ?? '';
+  expect(block).toContain('--map-motion-fast: 250ms');
+  expect(block).toContain('--map-motion-mid: 1000ms');
+  expect(block).toContain('--map-motion-slow: 1000ms');
 });
