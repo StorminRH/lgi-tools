@@ -10,15 +10,13 @@ import {
   getOwnedMapIds,
 } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
-import { MAX_PENDING_BATCH } from '@/platform/auth/affiliation-store';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
-import { deliverCapturedMapAccessChanges, reconcileAffiliationAccess } from './map-affiliation-access';
+import { deliverCapturedMapAccessChanges } from './map-affiliation-access';
 
 export async function reprojectMapsForCharacter(characterId: number): Promise<void> {
   const pending = await enqueueAffectedMapAccessChanges(characterId);
   if (pending.length === 0) return;
   await deliverCapturedMapAccessChanges(pending);
-  if (pending.length > MAX_PENDING_BATCH) await reconcileAffiliationAccess();
 }
 
 export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<string[]> {

@@ -42,13 +42,20 @@ it('does one pending read and no other work on an empty queue', async () => {
   expect(mocks.acknowledgeMapAccessChanges).not.toHaveBeenCalled();
 });
 
-it('delivers captured generations without a queue read and leaves overflow for another run', async () => {
-  const captured = Array.from({ length: 101 }, (_, i) => ({ mapId: `map-${i}`, version: `v-${i}` }));
+it('delivers captured generations without a queue read when they fit one batch', async () => {
+  const captured = Array.from({ length: 100 }, (_, i) => ({ mapId: `map-${i}`, version: `v-${i}` }));
   expect(await deliverCapturedMapAccessChanges(captured)).toEqual({ processed: 100, failed: 0 });
   expect(mocks.readPendingMapAccessChanges).not.toHaveBeenCalled();
-  expect(mocks.projectMapAccess).toHaveBeenCalledTimes(100);
-  expect(mocks.projectMapAccess).not.toHaveBeenCalledWith('map-100', expect.anything());
-  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(captured.slice(0, 100), []);
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(captured, []);
+});
+
+it('drains the queue after delivering the first batch of an overflowing capture', async () => {
+  const captured = Array.from({ length: 101 }, (_, i) => ({ mapId: `map-${i}`, version: `v-${i}` }));
+  mocks.readPendingMapAccessChanges.mockResolvedValue([captured[100]]);
+  expect(await deliverCapturedMapAccessChanges(captured)).toEqual({ processed: 101, failed: 0 });
+  expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-100', { timeoutMs: 4_000 });
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenNthCalledWith(1, captured.slice(0, 100), []);
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenNthCalledWith(2, [captured[100]], []);
 });
 
 it('projects each pending map once and acknowledges captured generations after delivery', async () => {
