@@ -37,6 +37,15 @@ export const WORMHOLE_EFFECTS = [
 
 export type WormholeEffect = (typeof WORMHOLE_EFFECTS)[number];
 
+export const WORMHOLE_EFFECT_NAME: Readonly<Record<WormholeEffect, string>> = {
+  pulsar: 'Pulsar',
+  'black-hole': 'Black Hole',
+  magnetar: 'Magnetar',
+  'red-giant': 'Red Giant',
+  'cataclysmic-variable': 'Cataclysmic Variable',
+  'wolf-rayet': 'Wolf-Rayet',
+};
+
 export const CONNECTION_PROVENANCES = [
   'jump-verified',
   'human',

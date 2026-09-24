@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { EveImage } from '@/components/eve-image';
 import { cn } from '@/components/ui/cn';
+import type { WormholeEffect } from '@/data/eve-data/wormhole-contract';
 
 export type IntelIconKind = 'harvestables' | 'hacking' | 'combat' | 'pilot' | 'market' | 'wormhole' | 'expand';
 
@@ -30,6 +32,81 @@ export function IntelIcon({ kind, className }: { readonly kind: IntelIconKind; r
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className={cn('size-icon-sm shrink-0', TONE[kind], className)}>
       <path d={PATHS[kind]} fillRule="evenodd" />
       {kind === 'combat' ? <circle cx="8" cy="8" r="1.3" /> : null}
+    </svg>
+  );
+}
+
+const EFFECT_GLYPH: Record<WormholeEffect, ReactNode> = {
+  pulsar: (
+    <>
+      <circle cx="12" cy="12" r="2.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="6.2" opacity={0.45} />
+      <path d="M14.3 9.7 21 3M9.7 14.3 3 21" strokeWidth={2.3} />
+    </>
+  ),
+  'black-hole': (
+    <>
+      <circle cx="12" cy="12" r="4.8" className="fill-bg-deep" />
+      <ellipse cx="12" cy="12" rx="10.5" ry="3.4" transform="rotate(-18 12 12)" />
+      <path d="M7.4 9.6a4.8 4.8 0 0 1 9.2 0" />
+    </>
+  ),
+  magnetar: (
+    <>
+      <circle cx="12" cy="12" r="2.3" fill="currentColor" />
+      <path d="M10.4 10.2C3.5 3.5 3.5 20.5 10.4 13.8M13.6 10.2C20.5 3.5 20.5 20.5 13.6 13.8M12 2.5v4M12 17.5v4" />
+    </>
+  ),
+  'red-giant': (
+    <>
+      <circle cx="12" cy="12" r="6.4" fill="currentColor" fillOpacity={0.35} />
+      <circle cx="12" cy="12" r="6.4" />
+      <circle cx="12" cy="12" r="10" strokeDasharray="2 2.7" opacity={0.7} />
+    </>
+  ),
+  'cataclysmic-variable': (
+    <>
+      <circle cx="8.5" cy="13" r="4.3" fill="currentColor" fillOpacity={0.35} />
+      <circle cx="8.5" cy="13" r="4.3" />
+      <circle cx="18" cy="9.5" r="2.1" fill="currentColor" />
+      <path d="M12.6 11.4q2.6-1.6 3.6-1.6" />
+    </>
+  ),
+  'wolf-rayet': (
+    <>
+      <path
+        d="M12 1.5 13.3 8.86 19.42 4.58 15.14 10.7 22.5 12 15.14 13.3 19.42 19.42 13.3 15.14 12 22.5 10.7 15.14 4.58 19.42 8.86 13.3 1.5 12 8.86 10.7 4.58 4.58 10.7 8.86Z"
+        fill="currentColor"
+        fillOpacity={0.3}
+      />
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+    </>
+  ),
+};
+
+// Literal class names keep every --color-effect-* token emitted for the canvas aura.
+const EFFECT_TONE: Record<WormholeEffect, string> = {
+  pulsar: 'text-effect-pulsar',
+  'black-hole': 'text-effect-black-hole',
+  magnetar: 'text-effect-magnetar',
+  'red-giant': 'text-effect-red-giant',
+  'cataclysmic-variable': 'text-effect-cataclysmic-variable',
+  'wolf-rayet': 'text-effect-wolf-rayet',
+};
+
+export function WormholeEffectIcon({ effect, className }: { readonly effect: WormholeEffect; readonly className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={cn('size-icon-sm shrink-0', EFFECT_TONE[effect], className)}
+    >
+      {EFFECT_GLYPH[effect]}
     </svg>
   );
 }
