@@ -28,7 +28,7 @@ export function IndustryJobsPanel({
 }) {
   if (characters.length === 0) {
     return (
-      <Card>
+      <Card className="reveal reveal-1">
         <EmptyState>
           No characters linked to this account —{' '}
           <a href="/characters" className="underline text-name">
@@ -55,7 +55,7 @@ function LiveJobs({
   const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
 
   return (
-    <div className="w-full max-w-[760px] flex flex-col gap-6">
+    <div className="reveal reveal-1 w-full max-w-[760px] flex flex-col gap-6">
       <CharacterStripSection
         characters={characters}
         strip={strip}

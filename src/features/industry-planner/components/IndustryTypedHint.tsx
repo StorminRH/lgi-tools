@@ -43,7 +43,7 @@ export function IndustryTypedHint() {
     <Button
       variant="bare"
       type="button"
-      className="inline-flex items-center gap-[9px] py-1 text-left font-ui text-ui tracking-[0.03em] text-muted"
+      className="reveal reveal-1 inline-flex max-w-full items-center gap-[9px] self-start rounded-sheet border border-border glass-surface glass-lit px-4 py-2 text-left font-ui text-ui tracking-[0.03em] text-muted shadow-card-edge transition-[border-color,box-shadow] hover:border-border-active hover:shadow-card-hover"
       onClick={focusNavSearch}
     >
       <span className="shrink-0 text-ui font-bold text-isk">{'>'}</span>
