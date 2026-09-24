@@ -89,7 +89,7 @@ function LocationSection({ systemId }: { readonly systemId: number }) {
   return null;
 }
 
-function SiteValue({ names }: { readonly names: readonly (string | null)[] }) {
+function HarvestableValue({ names }: { readonly names: readonly (string | null)[] }) {
   const isk = useScannerEstIskSum(names);
   return <span className={cn('min-w-12 text-right text-micro tabular-nums', isk === null ? 'text-muted' : 'text-isk')}>{formatIskShort(isk)}</span>;
 }
@@ -101,8 +101,8 @@ function CategoryBlock({ block }: { readonly block: IntelCategoryBlock }) {
     <div data-intel-category={block.bucket}>
       <Disclosure icon={block.bucket} label={INTEL_CATEGORY_LABEL[block.bucket]} count={block.rows.length}
         value={block.bucket === 'harvestables' ? (
-          <ScannerLivePricesProvider harvestableNames={knownNames}><SiteValue names={names} /></ScannerLivePricesProvider>
-        ) : block.bucket === 'combat' ? <SiteValue names={names} /> : <span className="min-w-12" aria-hidden="true" />}>
+          <ScannerLivePricesProvider harvestableNames={knownNames}><HarvestableValue names={names} /></ScannerLivePricesProvider>
+        ) : <span className="min-w-12" aria-hidden="true" />}>
         <ul className="mb-1 ml-6 flex flex-col gap-0.5 font-data text-micro text-muted">
           {block.rows.map((row) => <li key={row.key} className="break-words">{row.name ?? row.signatureId}</li>)}
         </ul>
