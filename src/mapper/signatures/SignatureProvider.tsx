@@ -21,6 +21,7 @@ import { SignatureWindow } from './SignatureWindow';
 import { useIdentifySignature } from './use-identify-signature';
 import { useSignatureJumpFlow } from './use-signature-jump-flow';
 import { useSignatureMissingFlow } from './use-signature-missing-flow';
+import { GlanceMarkIndexProvider } from './use-glance-mark-index';
 import { useSignaturePage } from './use-signature-page';
 import { useSignaturePanel } from './use-signature-panel';
 
@@ -88,7 +89,7 @@ export function SignatureProvider({
 
   return (
     <SignatureDataProvider value={signatureData}>
-      {children}
+      <GlanceMarkIndexProvider mapId={mapId}>{children}</GlanceMarkIndexProvider>
       <SignatureWindow
         scannerSystemId={scannerSystemId}
         rows={rows}

@@ -9,11 +9,13 @@ import type {
   SystemDirectoryEntry,
   WormholeCodexEntry,
 } from './universe-assets';
+import { buildHubJumpIndex, type HubJumpTuple } from './trade-hubs';
 
 export interface UniverseAssets {
   version: string;
   systemInfo(id: number): SystemDirectoryEntry | null;
   neighbours(id: number): readonly number[];
+  hubJumps(id: number): HubJumpTuple;
 }
 
 export interface WormholeCodex {
@@ -66,6 +68,7 @@ async function fetchUniverseAssets(
     systemsResult.data.systems.map((system) => [system.id, system]),
   );
   const neighboursById = new Map(adjacencyResult.data.adjacency);
+  const hubJumpsOf = buildHubJumpIndex((id) => neighboursById.get(id) ?? []);
   return {
     version,
     systemInfo(id) {
@@ -73,6 +76,9 @@ async function fetchUniverseAssets(
     },
     neighbours(id) {
       return neighboursById.get(id) ?? [];
+    },
+    hubJumps(id) {
+      return hubJumpsOf(id);
     },
   };
 }

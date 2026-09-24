@@ -88,6 +88,26 @@
   opacity: 0.45;
 }
 
+.react-flow__edge-path.map-edge-taper,
+.react-flow__edge.selected .react-flow__edge-path.map-edge-taper,
+.react-flow__edge.selectable:focus .react-flow__edge-path.map-edge-taper,
+.react-flow__edge.selectable:focus-visible .react-flow__edge-path.map-edge-taper,
+.react-flow__edge-path.map-edge-taper.map-edge-dying {
+  stroke: var(--map-edge-taper);
+}
+
+.react-flow__edge .map-edge-taper-stop {
+  stop-color: var(--xy-edge-stroke, var(--xy-edge-stroke-default));
+}
+.react-flow__edge.selected .map-edge-taper-stop,
+.react-flow__edge.selectable:focus .map-edge-taper-stop,
+.react-flow__edge.selectable:focus-visible .map-edge-taper-stop {
+  stop-color: var(--xy-edge-stroke-selected, var(--xy-edge-stroke-selected-default));
+}
+.react-flow__edge:has(.map-edge-dying) .map-edge-taper-stop {
+  stop-color: var(--color-alert-red);
+}
+
 .react-flow__edge.selectable {
   pointer-events: stroke;
 }

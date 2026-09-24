@@ -6,7 +6,6 @@ import type { ChainEdgeData } from '../chain/nodes';
 import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
-import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
 import {
   CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
@@ -385,23 +384,17 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
 });
 
 test('presence badge tones, counts, and motion markup', () => {
-  const pilot = (overrides: Partial<PresencePilot>): PresencePilot => ({
-    characterId: 1,
-    shipTypeId: null,
-    docked: false,
-    lastMovementAt: 0,
-    ...overrides,
-  });
-  const badge = (presence: SystemPresence) =>
-    renderToStaticMarkup(createElement(PresenceBadgeView, { presence }));
+  const badge = (count: number) =>
+    renderToStaticMarkup(createElement(PresenceBadgeView, { count }));
 
-  const live = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+  const live = badge(2);
   expect(live).toContain('data-pilot-presence="live"');
-  expect(live).toContain('text-isk');
+  expect(live).toContain('text-intel-pilot');
+  expect(live).not.toContain('text-isk');
   expect(live).toContain('<svg');
 
-  const one = badge({ pilots: [pilot({})] });
-  const two = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+  const one = badge(1);
+  const two = badge(2);
   expect(one).not.toContain('data-pilot-presence-count');
   expect(two).toContain('data-pilot-presence-count');
   expect(two).toContain('>2<');
@@ -484,4 +477,24 @@ test('chip font size keeps short labels and shrinks overflow to the disc', () =>
   expect(chipFontSizePx(72, 36, 14, 6)).toBe(7);
   expect(chipFontSizePx(72, 0, 14)).toBe(14);
   expect(chipFontSizePx(72, 36, 0)).toBe(0);
+});
+
+test('edge gradients stay unique across repeated and punctuation-colliding edge IDs', () => {
+  internalNodes.set('1', {
+    internals: { positionAbsolute: { x: 0, y: 0 } },
+    measured: { width: 150, height: 110 },
+  });
+  internalNodes.set('2', {
+    internals: { positionAbsolute: { x: 300, y: 0 } },
+    measured: { width: 150, height: 110 },
+  });
+  const edges = ['shared', 'shared', 'a:b', 'ab'].map((id, index) =>
+    createElement(ChainLinkEdge, {
+      id, source: '1', target: '2', key: index,
+    } as unknown as EdgeProps<Edge<ChainEdgeData, 'chainLink'>>),
+  );
+  const rendered = renderToStaticMarkup(createElement('svg', null, ...edges));
+  const ids = [...rendered.matchAll(/<linearGradient[^>]* id="([^"]+)"/g)].map((match) => match[1]);
+  expect(ids).toHaveLength(4);
+  expect(new Set(ids).size).toBe(4);
 });
