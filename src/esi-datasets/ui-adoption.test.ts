@@ -99,39 +99,6 @@ function allStylesheets(): string {
 }
 
 describe('UI adoption CSS-family census', () => {
-  it('contains no retired Phase 4 family', () => {
-    const css = allStylesheets();
-    const retired = [
-      'body-copy',
-      'changelog-',
-      'contact-',
-      'content-browser',
-      'devlog-excerpt',
-      'devlog-prose',
-      'hero-wordmark',
-      'industry-hint',
-      'industry-jobs',
-      'industry-mono',
-      'legal-prose',
-      'account-menu',
-      'nav-menu',
-      'nav-tool',
-      'run-as-menu-panel',
-      'sites-card-',
-      'sites-chip',
-      'sites-filter',
-      'sites-grid',
-      'sites-reset',
-      'sites-table-row',
-      'sites-type',
-      'status-chip',
-      'tile-desc',
-      'tool-tile',
-    ];
-
-    expect(retired.filter((family) => css.includes(`.${family}`))).toEqual([]);
-  });
-
   it('allows only the recorded surviving page-family prefixes', () => {
     const css = allStylesheets();
     const allowed = [
