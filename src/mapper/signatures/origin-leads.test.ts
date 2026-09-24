@@ -21,7 +21,7 @@ describe('originLeadOptions', () => {
     expect(
       originLeadOptions(STUB, [inbound], (id) =>
         id === 31_000_002
-          ? { id, name: 'J160650', security: -1, whClassId: 3 }
+          ? { id, name: 'J160650', regionName: 'Test Region', security: -1, whClassId: 3 }
           : null,
       ),
     ).toEqual([{

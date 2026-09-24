@@ -133,11 +133,22 @@ export async function deleteLinkedCharacter(
   characterId: number,
   runners: IdentityProjectionRunners,
 ): Promise<boolean> {
-  const deleted = await db
-    .delete(account)
-    .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
-    .returning({ id: account.id });
-  if (deleted.length === 0) return false;
+  const mapIds = await runners.runBeforeCharacterUnlink({ userId, characterId });
+  let deleted: Array<{ id: string }>;
+  try {
+    deleted = await db
+      .delete(account)
+      .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
+      .returning({ id: account.id });
+  } catch (error) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  if (deleted.length === 0) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    return false;
+  }
+  await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
   await runners.runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
@@ -169,16 +180,29 @@ export async function reassignCharacter({
   toUserId: string;
   runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
-  await db
-    .update(account)
-    .set({ userId: toUserId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        eq(account.accountId, String(characterId)),
-        eq(account.userId, fromUserId),
-      ),
-    );
+  const mapIds = await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
+  let moved: Array<{ id: string }>;
+  try {
+    moved = await db
+      .update(account)
+      .set({ userId: toUserId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(account.providerId, EVE_PROVIDER_ID),
+          eq(account.accountId, String(characterId)),
+          eq(account.userId, fromUserId),
+        ),
+      )
+      .returning({ id: account.id });
+  } catch (error) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  if (moved.length === 0) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+  } else {
+    await runners.runAfterCharacterUnlink({ userId: fromUserId, characterId, mapIds });
+  }
 
   const [remaining] = await db
     .select({ id: account.id })

@@ -49,11 +49,11 @@ If `git log origin/<base>..origin/<head>` is empty, stop. There is nothing to op
 
 If a pull request from that head into that base is already open, use it. Do not open a second one. If its title or body only names the branch move, rewrite both from the commits on the pull request.
 
-If that pull request has merge conflicts, stop and report them.
-
-Otherwise create it with `gh pr create`. Read poteto-mode `playbooks/opening-a-pr.md` and use its pull request body sections. Before you write the title or the body, read `git log origin/<base>..HEAD` and `git diff --stat origin/<base>...HEAD`.
+If no pull request from that head into that base is open, create it with `gh pr create --base <base> --head <head>`. Read poteto-mode `playbooks/opening-a-pr.md` and use its pull request body sections. Before you write the title or the body, read `git log origin/<base>..HEAD` and `git diff --stat origin/<base>...HEAD`.
 
 The title names what the pull request contains. The body details those contents. Do not use a title or a body that only says the pull request moves `development` to `staging`, or `staging` to `main`.
+
+Check the selected pull request for merge conflicts, whether reused or newly created. If it has conflicts, stop and report them.
 
 ## Fix the findings
 
@@ -109,7 +109,7 @@ Post this comment once. Do not post it again later.
 
 @greptile review this PR
 
-@cursor review
+cursor review
 ```
 
 Wait for a CodeRabbit review, a Greptile review, and a Cursor Bugbot review posted after that comment. A Bugbot review contains `BUGBOT_REVIEW`.

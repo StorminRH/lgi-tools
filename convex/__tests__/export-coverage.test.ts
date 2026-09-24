@@ -47,6 +47,7 @@ import {
 } from '../lib/mapEntityContracts';
 import {
   purgeUserClaims,
+  purgeUserMapClaims,
   reconcileMapClaims,
   remapLegacyOwnerRoles,
 } from '../mapAccessProjection';
@@ -190,6 +191,7 @@ describe('convex runtime exports', () => {
       WORMHOLE_DESTINATION_HINTS,
       WORMHOLE_LIFE_STAGES,
       purgeUserClaims,
+      purgeUserMapClaims,
       reconcileMapClaims,
       remapLegacyOwnerRoles,
       CEILING_SWEEP_BATCH,

@@ -6,7 +6,6 @@ import type { ChainEdgeData } from '../chain/nodes';
 import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
-import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
 import {
   CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
@@ -56,47 +55,51 @@ vi.mock('./wormhole/WormholeVisual', async () => {
   };
 });
 
-test.each([1, 2, 3, 4, 5, 6, 12, 13, 14, 15, 16, 17, 18])(
-  'wormhole class %s uses the decorative visual and retains centered handles',
-  (whClassId) => {
-    const rendered = renderToStaticMarkup(createElement(SystemNode, {
-      id: '31000001',
-      data: { name: 'J123456', className: null, whClassId },
-    } as unknown as NodeProps<ChainNode>));
-    expect(rendered).toContain(`data-wormhole-visual="${whClassId}"`);
-    expect(rendered).toContain('map-node-disc-wormhole');
-    expect(rendered).toContain('data-visual-active="false"');
-    expect(rendered.match(/data-handle=/g)).toHaveLength(2);
-  },
-);
-
-test.each([7, 8, 9, 25, null])(
-  'ordinary system class %s preserves its existing disc',
-  (whClassId) => {
-    const rendered = renderToStaticMarkup(createElement(SystemNode, {
-      id: '30000142',
-      data: { name: 'System', className: null, whClassId },
-    } as unknown as NodeProps<ChainNode>));
-    expect(rendered).not.toContain('data-wormhole-visual');
-    expect(rendered).not.toContain('map-node-disc-wormhole');
-  },
-);
-
-test.each([
-  { selected: false, dragging: false, paused: false, active: false },
-  { selected: true, dragging: false, paused: false, active: true },
-  { selected: true, dragging: true, paused: true, active: true },
-  { selected: true, dragging: false, motion: { phase: 'departing' }, paused: true, active: true },
-  { selected: true, dragging: false, halo: { ring: 3, fogged: true }, paused: true, active: true },
-])('visual respects selection and inert states: %j', ({ paused, active, motion, halo, ...props }) => {
-  const rendered = renderToStaticMarkup(createElement(SystemNode, {
-    ...props,
+test('wormhole classes mount the decorative visual and pause it while inert', () => {
+  const renderNode = (
+    props: Record<string, unknown>,
+    data: Record<string, unknown>,
+  ) => renderToStaticMarkup(createElement(SystemNode, {
     id: '31000001',
-    data: { name: 'J123456', className: 'C3', whClassId: 3, motion, halo },
+    ...props,
+    data: { name: 'J123456', className: null, ...data },
   } as unknown as NodeProps<ChainNode>));
-  expect(rendered).toContain(`data-visual-active="${active}"`);
-  expect(rendered).toContain(`data-visual-paused="${paused}"`);
-  if (props.selected === true) expect(rendered).toContain('data-chain-node-selected');
+
+  const c6 = renderNode({}, { whClassId: 6 });
+  expect(c6).toContain('data-wormhole-visual="6"');
+  expect(c6).toContain('map-node-disc-wormhole');
+  expect(c6).toContain('data-visual-active="false"');
+  expect(c6).toContain('data-visual-paused="false"');
+  expect(c6).not.toContain('data-chain-node-selected');
+  expect(c6.match(/data-handle=/g)).toHaveLength(2);
+  expect(renderNode({}, { whClassId: 12 })).toContain('data-wormhole-visual="12"');
+
+  for (const whClassId of [7, null]) {
+    const ordinary = renderNode({}, { whClassId, name: 'System' });
+    expect(ordinary).not.toContain('data-wormhole-visual');
+    expect(ordinary).not.toContain('map-node-disc-wormhole');
+  }
+
+  const selected = renderNode({ selected: true }, { whClassId: 3, className: 'C3' });
+  expect(selected).toContain('data-visual-active="true"');
+  expect(selected).toContain('data-visual-paused="false"');
+  expect(selected).toContain('data-chain-node-selected');
+
+  const dragging = renderNode({ selected: true, dragging: true }, { whClassId: 3, className: 'C3' });
+  expect(dragging).toContain('data-visual-active="true"');
+  expect(dragging).toContain('data-visual-paused="true"');
+  const departing = renderNode(
+    { selected: true },
+    { whClassId: 3, className: 'C3', motion: { phase: 'departing' } },
+  );
+  expect(departing).toContain('data-visual-active="true"');
+  expect(departing).toContain('data-visual-paused="true"');
+  const fogged = renderNode(
+    { selected: true },
+    { whClassId: 3, className: 'C3', halo: { ring: 3, fogged: true } },
+  );
+  expect(fogged).toContain('data-visual-active="true"');
+  expect(fogged).toContain('data-visual-paused="true"');
 });
 
 test.each([
@@ -304,6 +307,25 @@ test('wormhole stubs reuse the derived ghost presentation without interactive ch
   expect(rendered).toContain('opacity-75');
   expect(rendered).not.toContain('pointer-events-auto');
   expect(rendered).not.toContain('data-pilot-presence');
+  expect(rendered).toContain('data-wormhole-visual="unknown"');
+  expect(rendered).toContain('data-visual-paused="true"');
+  expect(rendered).toContain('data-visual-active="false"');
+
+  const deadly = renderToStaticMarkup(createElement(SystemNode, {
+    ...props,
+    selected: true,
+    data: { ...props.data, destinationHint: 'deadly' },
+  }));
+  expect(deadly).toContain('data-wormhole-visual="6"');
+  expect(deadly).toContain('data-visual-active="true"');
+  expect(deadly).toContain('data-visual-paused="true"');
+
+  const hisec = renderToStaticMarkup(createElement(SystemNode, {
+    ...props,
+    selected: true,
+    data: { ...props.data, destinationHint: 'hisec' },
+  }));
+  expect(hisec).not.toContain('data-wormhole-visual');
 });
 
 test('static stubs separate their code header from the colored destination class', () => {
@@ -385,23 +407,17 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
 });
 
 test('presence badge tones, counts, and motion markup', () => {
-  const pilot = (overrides: Partial<PresencePilot>): PresencePilot => ({
-    characterId: 1,
-    shipTypeId: null,
-    docked: false,
-    lastMovementAt: 0,
-    ...overrides,
-  });
-  const badge = (presence: SystemPresence) =>
-    renderToStaticMarkup(createElement(PresenceBadgeView, { presence }));
+  const badge = (count: number) =>
+    renderToStaticMarkup(createElement(PresenceBadgeView, { count }));
 
-  const live = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+  const live = badge(2);
   expect(live).toContain('data-pilot-presence="live"');
-  expect(live).toContain('text-isk');
+  expect(live).toContain('text-intel-pilot');
+  expect(live).not.toContain('text-isk');
   expect(live).toContain('<svg');
 
-  const one = badge({ pilots: [pilot({})] });
-  const two = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+  const one = badge(1);
+  const two = badge(2);
   expect(one).not.toContain('data-pilot-presence-count');
   expect(two).toContain('data-pilot-presence-count');
   expect(two).toContain('>2<');
@@ -484,4 +500,24 @@ test('chip font size keeps short labels and shrinks overflow to the disc', () =>
   expect(chipFontSizePx(72, 36, 14, 6)).toBe(7);
   expect(chipFontSizePx(72, 0, 14)).toBe(14);
   expect(chipFontSizePx(72, 36, 0)).toBe(0);
+});
+
+test('edge gradients stay unique across repeated and punctuation-colliding edge IDs', () => {
+  internalNodes.set('1', {
+    internals: { positionAbsolute: { x: 0, y: 0 } },
+    measured: { width: 150, height: 110 },
+  });
+  internalNodes.set('2', {
+    internals: { positionAbsolute: { x: 300, y: 0 } },
+    measured: { width: 150, height: 110 },
+  });
+  const edges = ['shared', 'shared', 'a:b', 'ab'].map((id, index) =>
+    createElement(ChainLinkEdge, {
+      id, source: '1', target: '2', key: index,
+    } as unknown as EdgeProps<Edge<ChainEdgeData, 'chainLink'>>),
+  );
+  const rendered = renderToStaticMarkup(createElement('svg', null, ...edges));
+  const ids = [...rendered.matchAll(/<linearGradient[^>]* id="([^"]+)"/g)].map((match) => match[1]);
+  expect(ids).toHaveLength(4);
+  expect(new Set(ids).size).toBe(4);
 });

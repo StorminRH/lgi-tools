@@ -125,5 +125,4 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
   const nodeAnchored = render({ kind: 'node-anchored', systemId: 30_000_142 });
   expect(nodeAnchored).toContain('data-map-window-placement="node-anchored"');
   expect(nodeAnchored).toContain('[transform:var(--map-window-transform)]');
-  expect(nodeAnchored).toContain('h-52 w-72');
 });

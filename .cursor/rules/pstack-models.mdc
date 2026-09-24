@@ -4,7 +4,6 @@ alwaysApply: true
 ---
 # pstack model configuration. One line per role. Delete a line to fall back to the skill default.
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.
-# Cloud VMs copy this file from .cursor/vm-home onto ~/.cursor. Keep it out of .cursor/rules so Cursor does not load it as a project rule.
 # budget: medium (high)
 feature, refactoring: grok-4.7-high
 bug-fix: grok-4.7-high

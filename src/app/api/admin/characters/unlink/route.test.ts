@@ -101,6 +101,9 @@ describe('POST /api/admin/characters/unlink', () => {
       100,
       expect.objectContaining({
         runBeforeUserDelete: expect.any(Function),
+        runBeforeCharacterUnlink: expect.any(Function),
+        runAfterFailedCharacterUnlink: expect.any(Function),
+        runAfterCharacterUnlink: expect.any(Function),
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     );

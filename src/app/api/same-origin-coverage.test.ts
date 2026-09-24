@@ -65,6 +65,10 @@ const EXEMPT_MUTATIONS = {
     authz: 'public',
     reason: 'rate-limited public read-through refresh',
   },
+  'eve/type-names/route.ts': {
+    authz: 'public',
+    reason: 'public stateless type name resolution',
+  },
   'eve/names/route.ts': {
     authz: 'public',
     reason: 'public stateless name resolution',

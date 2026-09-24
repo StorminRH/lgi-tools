@@ -1,7 +1,7 @@
 ---
 name: test-runner
-model: composer-2.5[fast=true]
-description: "Always use when local tests, typecheck, lint, or Fallow checks need to run. Executes requested verification and returns exact commands, observed results, and actionable failures."
+model: composer-2.5[fast=false]
+description: Always use when local tests, typecheck, lint, or Fallow checks need to run. Executes requested verification and returns exact commands, observed results, and actionable failures.
 ---
 
 Run each command as its own execution in the supplied order along with any supplied focused tests.

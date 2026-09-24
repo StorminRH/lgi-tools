@@ -4,6 +4,9 @@ import { syntheticEmail } from '@/platform/auth/synthetic-email';
 const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue([]),
+  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterUnlink: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/composition/map-access-identity', () => {
@@ -72,9 +75,17 @@ beforeEach(() => {
   state.calls.delete = 0;
   state.calls.update = 0;
   hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
+  hooks.runBeforeCharacterUnlink.mockReset().mockResolvedValue(['map-pre-removal']);
 });
 
 describe('purgeTransferredCharacter', () => {
+  it('keeps the prior link when revocation cannot be confirmed', async () => {
+    const failure = new Error('Convex unavailable');
+    hooks.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
+    expect(state.calls).toEqual({ delete: 0, update: 0 });
+  });
+
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
       [{ id: 'acc-1' }],
@@ -83,6 +94,10 @@ describe('purgeTransferredCharacter', () => {
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await purgeTransferredCharacter(USER, CHAR);
+    expect(hooks.runBeforeCharacterUnlink).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
+    expect(hooks.runAfterCharacterUnlink).toHaveBeenCalledWith({
+      userId: USER, characterId: CHAR, mapIds: ['map-pre-removal'],
+    });
     expect(state.calls).toEqual({ delete: 2, update: 0 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
