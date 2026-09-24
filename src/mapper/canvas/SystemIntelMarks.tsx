@@ -3,19 +3,18 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useGlanceMarks } from '../signatures/use-glance-mark-index';
 import { useSystemPresence } from '../tracking/presence-context';
-import type { SystemPresence } from '../tracking/presence-model';
 import { IntelIcon } from '../windows/IntelIcon';
 import { INTEL_CATEGORY_LABEL } from '../windows/intel-model';
 import { widgetSeatOffset } from './disc-chrome';
 import { trackSeats, type TrackSeat } from './node-chrome';
 import { PresenceBadgeView } from './PilotPresenceBadge';
 
-function seatGlyph(seat: TrackSeat, presence: SystemPresence | null) {
+function seatGlyph(seat: TrackSeat) {
   switch (seat.kind) {
     case 'glance':
       return <IntelIcon kind={seat.bucket} />;
     case 'pilot':
-      return presence === null ? null : <PresenceBadgeView presence={presence} />;
+      return <PresenceBadgeView count={seat.count} />;
     default: {
       const unmapped: never = seat;
       return unmapped;
@@ -26,11 +25,9 @@ function seatGlyph(seat: TrackSeat, presence: SystemPresence | null) {
 function WidgetSeat({
   index,
   seat,
-  presence,
 }: {
   readonly index: number;
   readonly seat: TrackSeat;
-  readonly presence: SystemPresence | null;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const offset = widgetSeatOffset(index);
@@ -48,7 +45,7 @@ function WidgetSeat({
       data-glance-mark={bucket ?? undefined}
       className="absolute left-1/2 top-1/2 inline-flex [transform:var(--node-widget-seat-transform)]"
     >
-      {seatGlyph(seat, presence)}
+      {seatGlyph(seat)}
     </span>
   );
 }
@@ -64,7 +61,6 @@ export function SystemIntelMarks({ systemId }: { readonly systemId: number }) {
           key={seat.kind === 'glance' ? seat.bucket : 'pilot'}
           index={index}
           seat={seat}
-          presence={presence}
         />
       ))}
     </div>

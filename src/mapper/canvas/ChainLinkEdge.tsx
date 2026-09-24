@@ -15,14 +15,10 @@ import type { EdgeMotion } from '../motion/motion-contract';
 import { useOutboundArrow } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
 import {
-  chainLinkFogPath,
   chainLinkPath,
   chainLinkSegment,
-  connectionLabelBox,
   edgeTaperFraction,
-  endpointFrame,
-  pointAlongChainLink,
-  type EdgeEndpointNode,
+  pointAlongSegment,
   type FrameSegment,
 } from './edge-geometry';
 
@@ -75,45 +71,24 @@ export function outboundArrowFraction(
 }
 
 function OutboundArrowLabel({
-  source,
-  target,
+  segment,
   towardTarget,
   fraction,
   live,
 }: {
-  readonly source: EdgeEndpointNode;
-  readonly target: EdgeEndpointNode;
+  readonly segment: FrameSegment;
   readonly towardTarget: boolean;
   readonly fraction: number;
   readonly live: boolean;
 }) {
   const arrowRef = useRef<HTMLSpanElement>(null);
-  const sourceFrame = endpointFrame(source);
-  const targetFrame = endpointFrame(target);
-  const labels = {
-    source: connectionLabelBox(source.data),
-    target: connectionLabelBox(target.data),
-  };
-  const point =
-    sourceFrame === null || targetFrame === null
-      ? null
-      : pointAlongChainLink(
-          towardTarget ? sourceFrame : targetFrame,
-          towardTarget ? targetFrame : sourceFrame,
-          fraction,
-          towardTarget ? labels : { source: labels.target, target: labels.source },
-        );
-  const transform =
-    point === null
-      ? null
-      : `translate(-50%, -50%) translate(${point.x}px, ${point.y}px) rotate(${point.angle}deg)`;
+  const point = pointAlongSegment(segment, fraction, towardTarget);
+  const transform = `translate(-50%, -50%) translate(${point.x}px, ${point.y}px) rotate(${point.angle}deg)`;
 
   useLayoutEffect(() => {
-    if (transform === null) return;
     arrowRef.current?.style.setProperty('--map-pilot-arrow-transform', transform);
   }, [transform]);
 
-  if (transform === null) return null;
   return (
     <EdgeLabelRenderer>
       <span
@@ -132,21 +107,6 @@ function OutboundArrowLabel({
 
 function taperGradientId(edgeId: string): string {
   return `map-edge-taper-${edgeId.replace(/[^A-Za-z0-9_-]/g, '')}`;
-}
-
-function linkStroke(
-  source: EdgeEndpointNode | undefined,
-  target: EdgeEndpointNode | undefined,
-  fogSide: 'source' | 'target' | undefined,
-): { readonly path: string; readonly segment: FrameSegment; readonly taper: number } | null {
-  const segment = chainLinkSegment(source, target);
-  if (segment === null) return null;
-  const path =
-    fogSide === undefined
-      ? chainLinkPath(source, target)
-      : chainLinkFogPath(source, target, fogSide, FOG_EDGE_CUT_FRACTION);
-  if (path === null) return null;
-  return { path, segment, taper: edgeTaperFraction(segment) };
 }
 
 function EdgeTaper({
@@ -177,22 +137,19 @@ function EdgeTaper({
 
 function PilotArrow({
   arrow,
-  sourceNode,
-  targetNode,
+  segment,
   targetId,
   fogSide,
 }: {
   readonly arrow: OutboundArrow | null;
-  readonly sourceNode: EdgeEndpointNode | undefined;
-  readonly targetNode: EdgeEndpointNode | undefined;
+  readonly segment: FrameSegment;
   readonly targetId: string;
   readonly fogSide: 'source' | 'target' | undefined;
 }) {
-  if (arrow === null || sourceNode === undefined || targetNode === undefined) return null;
+  if (arrow === null) return null;
   return (
     <OutboundArrowLabel
-      source={sourceNode}
-      target={targetNode}
+      segment={segment}
       towardTarget={arrow.towardSystemId === Number(targetId)}
       fraction={outboundArrowFraction(fogSide)}
       live={arrow.live}
@@ -210,30 +167,32 @@ function ChainLinkEdgeComponent({
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
   const arrow = useOutboundArrow(id);
-  const stroke = linkStroke(sourceNode, targetNode, data?.fogSide);
+  const segment = chainLinkSegment(sourceNode, targetNode);
+  const visible = segment !== null;
   const gradientId = taperGradientId(id);
   useLayoutEffect(() => {
     hostRef.current?.style.setProperty('--map-edge-taper', `url(#${gradientId})`);
-  }, [gradientId]);
-  if (stroke === null) return null;
+  }, [gradientId, visible]);
+  if (segment === null) return null;
+
+  const path = chainLinkPath(segment, data?.fogSide, FOG_EDGE_CUT_FRACTION);
 
   const presentation = edgePresentation(data);
   return (
     <g ref={hostRef}>
       <defs>
-        <EdgeTaper gradientId={gradientId} segment={stroke.segment} taper={stroke.taper} />
+        <EdgeTaper gradientId={gradientId} segment={segment} taper={edgeTaperFraction(segment)} />
       </defs>
       <BaseEdge
         id={id}
-        path={stroke.path}
+        path={path}
         pathLength={presentation.pathLength}
         className={cn(presentation.className, 'map-edge-taper')}
         interactionWidth={CHAIN_EDGE_INTERACTION_WIDTH}
       />
       <PilotArrow
         arrow={arrow}
-        sourceNode={sourceNode}
-        targetNode={targetNode}
+        segment={segment}
         targetId={target}
         fogSide={data?.fogSide}
       />

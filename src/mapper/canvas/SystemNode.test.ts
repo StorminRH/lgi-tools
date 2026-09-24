@@ -6,7 +6,6 @@ import type { ChainEdgeData } from '../chain/nodes';
 import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
-import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
 import {
   CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
@@ -385,24 +384,17 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
 });
 
 test('presence badge tones, counts, and motion markup', () => {
-  const pilot = (overrides: Partial<PresencePilot>): PresencePilot => ({
-    characterId: 1,
-    shipTypeId: null,
-    docked: false,
-    lastMovementAt: 0,
-    ...overrides,
-  });
-  const badge = (presence: SystemPresence) =>
-    renderToStaticMarkup(createElement(PresenceBadgeView, { presence }));
+  const badge = (count: number) =>
+    renderToStaticMarkup(createElement(PresenceBadgeView, { count }));
 
-  const live = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+  const live = badge(2);
   expect(live).toContain('data-pilot-presence="live"');
   expect(live).toContain('text-intel-pilot');
   expect(live).not.toContain('text-isk');
   expect(live).toContain('<svg');
 
-  const one = badge({ pilots: [pilot({})] });
-  const two = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+  const one = badge(1);
+  const two = badge(2);
   expect(one).not.toContain('data-pilot-presence-count');
   expect(two).toContain('data-pilot-presence-count');
   expect(two).toContain('>2<');

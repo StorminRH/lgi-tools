@@ -14,7 +14,7 @@ const FRAME_NAME_INSET_PX = 4;
 const FRAME_NAME_TOP_PX = 4;
 const FRAME_NAME_LINE_PX = 14 * 1.6;
 
-export const EDGE_TAPER_PX = 24;
+const EDGE_TAPER_PX = 24;
 
 export interface FrameRect {
   readonly x: number;
@@ -52,21 +52,21 @@ export function pointOnRayAtRadius(
   return { x: origin.x + dx * t, y: origin.y + dy * t };
 }
 
-interface LabelBox {
+export interface LabelBox {
   readonly left: number;
   readonly right: number;
   readonly top: number;
   readonly bottom: number;
 }
 
-interface EndpointLabels {
+export interface EndpointLabels {
   readonly source: LabelBox | null;
   readonly target: LabelBox | null;
 }
 
 const NO_LABELS: EndpointLabels = { source: null, target: null };
 
-interface EndpointData {
+export interface EndpointData {
   readonly security?: number | null;
   readonly whClassId?: number | null;
   readonly halo?: unknown;
@@ -187,7 +187,7 @@ export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | n
   };
 }
 
-function endpointSegment(
+export function chainLinkSegment(
   source: EdgeEndpointNode | undefined,
   target: EdgeEndpointNode | undefined,
 ): FrameSegment | null {
@@ -200,13 +200,6 @@ function endpointSegment(
   });
 }
 
-export function chainLinkSegment(
-  source: EdgeEndpointNode | undefined,
-  target: EdgeEndpointNode | undefined,
-): FrameSegment | null {
-  return endpointSegment(source, target);
-}
-
 function segmentPath(segment: FrameSegment, start: number, end: number): string {
   const dx = segment.endX - segment.startX;
   const dy = segment.endY - segment.startY;
@@ -216,39 +209,30 @@ function segmentPath(segment: FrameSegment, start: number, end: number): string 
 }
 
 export function chainLinkPath(
-  source: EdgeEndpointNode | undefined,
-  target: EdgeEndpointNode | undefined,
-): string | null {
-  const segment = endpointSegment(source, target);
-  return segment === null ? null : segmentPath(segment, 0, 1);
-}
-
-export function chainLinkFogPath(
-  source: EdgeEndpointNode | undefined,
-  target: EdgeEndpointNode | undefined,
-  fogSide: 'source' | 'target',
+  segment: FrameSegment,
+  fogSide: 'source' | 'target' | undefined,
   cut: number,
-): string | null {
-  const segment = endpointSegment(source, target);
-  if (segment === null) return null;
+): string {
+  if (fogSide === undefined) return segmentPath(segment, 0, 1);
   return fogSide === 'target'
     ? segmentPath(segment, 0, cut)
     : segmentPath(segment, 1 - cut, 1);
 }
 
-export function pointAlongChainLink(
-  sourceFrame: FrameRect,
-  targetFrame: FrameRect,
-  t: number,
-  labels: EndpointLabels = NO_LABELS,
-): { readonly x: number; readonly y: number; readonly angle: number } | null {
-  const segment = frameSegment(sourceFrame, targetFrame, labels);
-  if (segment === null) return null;
-  const dx = segment.endX - segment.startX;
-  const dy = segment.endY - segment.startY;
+export function pointAlongSegment(
+  segment: FrameSegment,
+  fraction: number,
+  towardTarget: boolean,
+): { readonly x: number; readonly y: number; readonly angle: number } {
+  const startX = towardTarget ? segment.startX : segment.endX;
+  const startY = towardTarget ? segment.startY : segment.endY;
+  const endX = towardTarget ? segment.endX : segment.startX;
+  const endY = towardTarget ? segment.endY : segment.startY;
+  const dx = endX - startX;
+  const dy = endY - startY;
   return {
-    x: segment.startX + dx * t,
-    y: segment.startY + dy * t,
+    x: startX + dx * fraction,
+    y: startY + dy * fraction,
     angle: (Math.atan2(dy, dx) * 180) / Math.PI,
   };
 }

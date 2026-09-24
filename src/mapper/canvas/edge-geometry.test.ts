@@ -6,8 +6,7 @@ import {
   SYSTEM_FRAME_WIDTH,
 } from './SystemNode';
 import {
-  EDGE_TAPER_PX,
-  chainLinkFogPath,
+  chainLinkSegment,
   chainLinkPath,
   connectionLabelBox,
   edgeTaperFraction,
@@ -16,7 +15,7 @@ import {
   frameNameBox,
   frameSegment,
   kspaceCaptionBox,
-  pointAlongChainLink,
+  pointAlongSegment,
   pointOnRayAtRadius,
   type FrameRect,
 } from './edge-geometry';
@@ -82,67 +81,60 @@ test('frameSegment stops at the icon ring and nulls lines that would cross it', 
   expect(pointOnRayAtRadius({ x: 0, y: 0 }, { x: 0, y: 0 }, DISC_R)).toBeNull();
 });
 
-test('chainLinkPath prefers measured frames and nulls incomplete endpoints', () => {
-  expect(chainLinkPath(node(0, 0, MEASURED), node(300, 0, MEASURED))).toBe(
-    `M ${CX + CLEAR},${CY} L ${300 + CX - CLEAR},${CY}`,
-  );
-
+test('chainLinkSegment prefers measured frames and nulls incomplete endpoints', () => {
+  expect(chainLinkSegment(node(0, 0, MEASURED), node(300, 0, MEASURED))).toEqual({
+    startX: 120.5, startY: 55, endX: 329.5, endY: 55,
+  });
   const declared = { width: FRAME_W, height: FRAME_H };
-  expect(chainLinkPath(node(0, 0, declared), node(300, 0, declared))).toBe(
-    `M ${CX + CLEAR},${CY} L ${300 + CX - CLEAR},${CY}`,
-  );
-
+  expect(chainLinkSegment(node(0, 0, declared), node(300, 0, declared))).toEqual({
+    startX: 120.5, startY: 55, endX: 329.5, endY: 55,
+  });
   const both = { measured: { width: 40, height: 40 }, width: FRAME_W, height: FRAME_H };
   expect(endpointFrame(node(0, 0, both))).toEqual({ x: 0, y: 0, width: 40, height: 40 });
-
-  expect(chainLinkPath(undefined, node(300, 0, MEASURED))).toBeNull();
-  expect(chainLinkPath(node(0, 0, MEASURED), undefined)).toBeNull();
-  expect(chainLinkPath(node(0, 0), node(300, 0, MEASURED))).toBeNull();
-  expect(chainLinkPath(node(0, 0, MEASURED), node(300, 0))).toBeNull();
-  expect(chainLinkPath(node(0, 0, MEASURED), node(DISC_R * 2, 0, MEASURED))).toBeNull();
-  expect(chainLinkPath(node(0, 0, MEASURED), node(CLEAR * 2, 0, MEASURED))).toBeNull();
+  expect(chainLinkSegment(node(0, 0, both), node(300, 0, both))).toEqual({
+    startX: 65.5, startY: 20, endX: 274.5, endY: 20,
+  });
+  expect(chainLinkSegment(undefined, node(300, 0, MEASURED))).toBeNull();
+  expect(chainLinkSegment(node(0, 0, MEASURED), undefined)).toBeNull();
+  expect(chainLinkSegment(node(0, 0), node(300, 0, MEASURED))).toBeNull();
+  expect(chainLinkSegment(node(0, 0, MEASURED), node(300, 0))).toBeNull();
+  expect(chainLinkSegment(node(0, 0, MEASURED), node(DISC_R * 2, 0, MEASURED))).toBeNull();
+  expect(chainLinkSegment(node(0, 0, MEASURED), node(CLEAR * 2, 0, MEASURED))).toBeNull();
 });
 
-test('pointAlongChainLink walks the clipped segment with CSS heading', () => {
-  const source = frame(0, 0);
-  const target = frame(300, 0);
-  expect(pointAlongChainLink(source, target, 0)).toEqual({
-    x: CX + CLEAR,
-    y: CY,
-    angle: 0,
-  });
-  expect(pointAlongChainLink(source, target, 1)).toEqual({
-    x: 300 + CX - CLEAR,
-    y: CY,
-    angle: 0,
-  });
-  expect(pointAlongChainLink(source, target, 0.5)).toEqual({
-    x: 300 / 2 + CX,
-    y: CY,
-    angle: 0,
-  });
-  expect(pointAlongChainLink(frame(0, 0), frame(0, 200), 0.5)?.angle).toBe(90);
-  expect(pointAlongChainLink(frame(0, 200), frame(0, 0), 0.5)?.angle).toBe(-90);
-  expect(pointAlongChainLink(frame(300, 0), frame(0, 0), 0.5)?.angle).toBe(180);
-  expect(pointAlongChainLink(frame(0, 0), frame(DISC_R * 2, 0), 0.5)).toBeNull();
+test('chainLinkPath cuts only the fog side of the shared segment', () => {
+  const segment = { startX: 0, startY: 0, endX: 100, endY: 0 };
+  expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 0,0 L 100,0');
+  expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 0,0 L 25,0');
+  expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,0 L 100,0');
 });
 
-test('chainLinkFogPath keeps the drawn-side stub and nulls like the full path', () => {
-  const measured = (x: number, y: number) => ({
-    internals: { positionAbsolute: { x, y } },
-    measured: { width: FRAME_W, height: FRAME_H },
-  });
-  const startX = CX + CLEAR;
-  const endX = 300 + CX - CLEAR;
-  const midX = (startX + endX) / 2;
-  expect(chainLinkFogPath(measured(0, 0), measured(300, 0), 'target', 0.5)).toBe(
-    `M ${startX},${CY} L ${midX},${CY}`,
+test('pointAlongSegment walks in either direction with CSS heading', () => {
+  const segment = { startX: 0, startY: 0, endX: 100, endY: 0 };
+  expect(pointAlongSegment(segment, 0, true)).toEqual({ x: 0, y: 0, angle: 0 });
+  expect(pointAlongSegment(segment, 1, true)).toEqual({ x: 100, y: 0, angle: 0 });
+  expect(pointAlongSegment(segment, 0.7, true)).toEqual({ x: 70, y: 0, angle: 0 });
+  expect(pointAlongSegment(segment, 0.7, false)).toEqual({ x: 30, y: 0, angle: 180 });
+  const vertical = { startX: 0, startY: 0, endX: 0, endY: 100 };
+  expect(pointAlongSegment(vertical, 0.7, true)).toEqual({ x: 0, y: 70, angle: 90 });
+  expect(pointAlongSegment(vertical, 0.7, false)).toEqual({ x: 0, y: 30, angle: -90 });
+  const diagonal = { startX: 0, startY: 0, endX: 100, endY: 100 };
+  expect(pointAlongSegment(diagonal, 0.7, true)).toEqual({ x: 70, y: 70, angle: 45 });
+  expect(pointAlongSegment(diagonal, 0.7, false)).toEqual({ x: 30, y: 30, angle: -135 });
+});
+
+test('asymmetric captions remain attached to their endpoint for paths and reversed arrows', () => {
+  const segment = chainLinkSegment(
+    { ...node(0, 0, MEASURED), data: { whClassId: 2 } },
+    { ...node(0, 200, MEASURED), data: { security: 1 } },
   );
-  expect(chainLinkFogPath(measured(0, 0), measured(300, 0), 'source', 0.5)).toBe(
-    `M ${midX},${CY} L ${endX},${CY}`,
-  );
-  expect(chainLinkFogPath(undefined, measured(300, 0), 'target', 0.5)).toBeNull();
-  expect(chainLinkFogPath(measured(0, 0), measured(DISC_R * 2, 0), 'target', 0.5)).toBeNull();
+  expect(segment).toEqual({ startX: 75, startY: 100.5, endX: 75, endY: 183.5 });
+  if (segment === null) throw new Error('Expected separated endpoints to render');
+  expect(chainLinkPath(segment, undefined, 0.25)).toBe('M 75,100.5 L 75,183.5');
+  expect(chainLinkPath(segment, 'target', 0.25)).toBe('M 75,100.5 L 75,121.25');
+  expect(chainLinkPath(segment, 'source', 0.25)).toBe('M 75,162.75 L 75,183.5');
+  expect(pointAlongSegment(segment, 0.25, true)).toEqual({ x: 75, y: 121.25, angle: 90 });
+  expect(pointAlongSegment(segment, 0.25, false)).toEqual({ x: 75, y: 162.75, angle: -90 });
 });
 
 test('k-space captions push an arriving line out past the text', () => {
@@ -170,12 +162,7 @@ test('wormhole names and derived nodes use the frame label, k-space uses the cap
 });
 
 test('edge taper is a fixed run that collapses on a short segment', () => {
-  const span = frameSegment(frame(0, 0), frame(300, 0));
-  expect(span).not.toBeNull();
-  if (span === null) return;
-  expect(edgeTaperFraction(span)).toBe(EDGE_TAPER_PX / (300 - CLEAR * 2));
-  const cramped = frameSegment(frame(0, 0), frame(CLEAR * 2 + 10, 0));
-  expect(cramped).not.toBeNull();
-  if (cramped === null) return;
-  expect(edgeTaperFraction(cramped)).toBe(0.5);
+  expect(edgeTaperFraction({ startX: 0, startY: 0, endX: 100, endY: 0 })).toBe(0.24);
+  expect(edgeTaperFraction({ startX: 0, startY: 0, endX: 20, endY: 0 })).toBe(0.5);
+  expect(edgeTaperFraction({ startX: 0, startY: 0, endX: 0, endY: 0 })).toBe(0.5);
 });
