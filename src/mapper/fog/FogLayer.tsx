@@ -12,7 +12,7 @@ import type { ChainEdge } from '../chain/nodes';
 import type { MotionConfig } from '../motion/motion-contract';
 import { BROWSER_MOTION_SEAMS } from '../motion/use-motion';
 import { createFogHostRuntime, runFogTick } from './fog-host';
-import { deriveFogReveals, type FogConfig } from './fog-model';
+import { deriveFogReveals, sameFogReveals, type FogConfig } from './fog-model';
 import { fogBrushAlpha } from './fog-painter';
 
 const FOG_BRUSH_SIZE = 256;
@@ -75,6 +75,12 @@ function useFogHost({
   const schedule = useFogScheduler(canvasRef, runtimeRef, inputsRef, store);
 
   useEffect(() => {
+    const previous = inputsRef.current;
+    const unchanged = previous.reveals !== reveals
+      && previous.motion === motion
+      && previous.config === config
+      && sameFogReveals(previous.reveals, reveals);
+    if (unchanged) return;
     inputsRef.current = { reveals, motion, config };
     schedule();
   }, [reveals, motion, config, schedule]);
