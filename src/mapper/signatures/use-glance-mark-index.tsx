@@ -41,7 +41,6 @@ export function GlanceMarkIndexProvider({
       ),
     [pages.rows],
   );
-  // Every node reads this context, so keep its identity until a mark changes.
   const [index, setIndex] = useState(next);
   if (index !== next && !sameGlanceMarkIndex(index, next)) setIndex(next);
   return (
