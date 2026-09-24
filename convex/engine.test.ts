@@ -38,6 +38,17 @@ async function scheduledSyncUsers(t: ReturnType<typeof convexTest>) {
 
 const USER = 'user_engine_1';
 
+function beat(args: {
+  dataset: 'characterLocation';
+  characterIdsHint: number[];
+  reason: 'mount' | 'visible' | 'interval';
+  visible?: boolean;
+  tabId?: string;
+  expectedUserId?: string;
+}) {
+  return { visible: true, tabId: 'tab-one', expectedUserId: USER, ...args };
+}
+
 function subjectRow(overrides: Record<string, unknown> = {}) {
   return {
     dataset: 'characterLocation' as const,
@@ -71,7 +82,7 @@ afterEach(() => {
 describe('engine.heartbeat', () => {
   it('does nothing when signed out', async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' });
+    await t.mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' }));
     const { presence, subjects } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
       subjects: await ctx.db.query('syncSubjects').collect(),
@@ -84,7 +95,7 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval' });
+      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval' }));
     const { presence, subjects } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
       subjects: await ctx.db.query('syncSubjects').collect(),
@@ -97,7 +108,7 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' });
+      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' }));
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
@@ -123,7 +134,7 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' });
+      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' }));
 
     const subject = await t.run((ctx) =>
       ctx.db
@@ -150,7 +161,7 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' });
+      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' }));
 
     const subject = await t.run((ctx) =>
       ctx.db
@@ -180,84 +191,71 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, {
+      .mutation(api.engine.heartbeat, beat({
         dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval', visible: false,
-      });
+      }));
 
     const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
     expect(subject?.status).toBe('running');
   });
 
-  it('no-ops entirely for a retired dataset beat (pre-deploy tab)', async () => {
-    const t = convexTest(schema, modules);
-    await t
-      .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
-    const { presence, subjects } = await t.run(async (ctx) => ({
-      presence: await ctx.db.query('syncPresence').collect(),
-      subjects: await ctx.db.query('syncSubjects').collect(),
-    }));
-    expect(presence).toHaveLength(0);
-    expect(subjects).toHaveLength(0);
-  });
-
-  it('stamps lastVisibleAt on visible and legacy beats but never on hidden ones', async () => {
+  it('stamps lastVisibleAt on visible beats but never on hidden ones', async () => {
     const t = convexTest(schema, modules);
     const authed = t.withIdentity({ subject: USER });
-    await authed.mutation(api.engine.heartbeat, {
+    await authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation', characterIdsHint: [], reason: 'mount', visible: false,
-    });
+    }));
     const inserted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(typeof inserted?.lastVisibleAt).toBe('number');
 
     await t.run((ctx) => ctx.db.patch(inserted!._id, { lastSeenAt: 123, lastVisibleAt: 123 }));
-    await authed.mutation(api.engine.heartbeat, {
+    await authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation', characterIdsHint: [], reason: 'interval', visible: false,
-    });
+    }));
     const afterHidden = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(afterHidden?.lastSeenAt).toBeGreaterThan(123);
     expect(afterHidden?.lastVisibleAt).toBe(123);
 
-    await authed.mutation(api.engine.heartbeat, {
-      dataset: 'characterLocation', characterIdsHint: [], reason: 'interval',
-    });
-    const afterLegacy = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(afterLegacy?.lastVisibleAt).toBeGreaterThan(123);
+    await authed.mutation(api.engine.heartbeat, beat({
+      dataset: 'characterLocation', characterIdsHint: [], reason: 'interval', visible: true,
+    }));
+    const afterVisible = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(afterVisible?.lastVisibleAt).toBeGreaterThan(123);
   });
 
   it('skips the presence write for interval beats while presence is fresh', async () => {
     const t = convexTest(schema, modules);
     const authed = t.withIdentity({ subject: USER });
-    const beat = (reason: 'mount' | 'interval', tabId = 'tab-one') => authed.mutation(api.engine.heartbeat, {
+    const send = (reason: 'mount' | 'interval', tabId = 'tab-one') => authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation', characterIdsHint: [], reason, tabId,
-    });
-    await beat('mount');
+    }));
+    await send('mount');
     const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
 
     vi.advanceTimersByTime(20_000);
-    await beat('interval');
+    await send('interval');
     const fresh = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(fresh?.lastSeenAt).toBe(mounted?.lastSeenAt);
 
-    await beat('interval', 'tab-two');
+    await send('interval', 'tab-two');
     const otherTab = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(otherTab?.tabId).toBe('tab-two');
     expect(otherTab?.lastSeenAt).toBeGreaterThan(mounted!.lastSeenAt);
 
     vi.advanceTimersByTime(60_000);
-    await beat('interval', 'tab-two');
+    await send('interval', 'tab-two');
     const refreshed = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(refreshed?.lastSeenAt).toBeGreaterThan(otherTab!.lastSeenAt);
   });
 
   it('stamps the beating tab id onto presence', async () => {
     const t = convexTest(schema, modules);
-    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
+    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [],
       reason: 'mount',
       tabId: 'tab-one',
-    });
+    }));
     const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(presence?.tabId).toBe('tab-one');
   });
@@ -349,12 +347,12 @@ describe('engine.leave', () => {
       tabId: 'tab-a',
     });
 
-    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
+    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'interval',
       tabId: 'tab-a',
-    });
+    }));
     const fenced = await t.run(async (ctx) => ({
       subject: await ctx.db.query('syncSubjects').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
@@ -362,13 +360,13 @@ describe('engine.leave', () => {
     expect(fenced.subject?.nextDueAt).toBeNull();
     expect(fenced.presence?.leftTabId).toBe('tab-a');
 
-    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
+    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'interval',
       visible: false,
       tabId: 'tab-b',
-    });
+    }));
     const recovered = await t.run(async (ctx) => ({
       subject: await ctx.db.query('syncSubjects').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
@@ -382,24 +380,24 @@ describe('engine.leave', () => {
     const t = convexTest(schema, modules);
     stubDispatch();
     const authed = t.withIdentity({ subject: USER });
-    await authed.mutation(api.engine.heartbeat, {
+    await authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'mount',
       tabId: 'tab-a',
-    });
-    await authed.mutation(api.engine.heartbeat, {
+    }));
+    await authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'mount',
       tabId: 'tab-b',
-    });
-    await authed.mutation(api.engine.heartbeat, {
+    }));
+    await authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'interval',
       tabId: 'tab-a',
-    });
+    }));
     const lastBeater = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(lastBeater?.tabId).toBe('tab-a');
 
@@ -409,12 +407,12 @@ describe('engine.leave', () => {
       tabId: 'tab-a',
     })).toEqual({ retired: true });
 
-    await authed.mutation(api.engine.heartbeat, {
+    await authed.mutation(api.engine.heartbeat, beat({
       dataset: 'characterLocation',
       characterIdsHint: [101],
       reason: 'interval',
       tabId: 'tab-b',
-    });
+    }));
     const recovered = await t.run(async (ctx) => ({
       subject: await ctx.db.query('syncSubjects').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
