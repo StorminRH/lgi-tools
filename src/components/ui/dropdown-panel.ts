@@ -2,9 +2,7 @@ import { eyebrow } from './type-roles';
 
 export const panelSurface = 'border border-border-idle glass-dense glass-lit shadow-dd';
 
-// v2: nav-level menus float as dense glass too (the Atlas look), rather than
-// reading as solid page chrome.
-export const panelSurfaceSolid = 'border border-border-idle glass-dense glass-lit shadow-dd rounded-card overflow-hidden';
+export const menuPanelSurface = `${panelSurface} rounded-card overflow-hidden`;
 
 export const dropdownPanel = `${panelSurface} rounded-card p-[5px] outline-none`;
 

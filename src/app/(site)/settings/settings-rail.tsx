@@ -1,10 +1,10 @@
-import { getSession, isAdmin } from '@/composition/session';
+import { getFullSession } from '@/composition/session';
 import { visibleSettingsGroups } from './settings-sections';
 import { SettingsNav, SettingsNavFrame } from './settings-nav';
 
 export async function SettingsRail() {
-  const session = await getSession();
-  return <SettingsNav groups={visibleSettingsGroups(isAdmin(session))} />;
+  const session = await getFullSession();
+  return <SettingsNav groups={visibleSettingsGroups(session?.isAdmin ?? false)} />;
 }
 
 export function SettingsRailFallback() {

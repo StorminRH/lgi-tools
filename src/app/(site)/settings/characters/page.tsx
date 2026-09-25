@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -12,7 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
-import { auth } from '@/composition/auth';
+import { getFullSession } from '@/composition/session';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { SwitchCharacterForm } from '@/components/composition/account/SwitchCharacterForm';
@@ -147,7 +146,7 @@ function CharacterNotices({
 }
 
 async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session) {
     redirect('/?auth_error=login_required');
   }

@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -9,7 +8,7 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { auth } from '@/composition/auth';
+import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { CorpSharingSettings } from '@/features/owned-structures/components/CorpSharingSettings';
 import type { CorpStructurePageView } from '@/features/owned-structures/types';
@@ -81,7 +80,7 @@ function MembershipsCard({ rows }: { rows: CorpStructurePageView[] }) {
 }
 
 async function CorporationsContent() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session) {
     redirect('/?auth_error=login_required');
   }

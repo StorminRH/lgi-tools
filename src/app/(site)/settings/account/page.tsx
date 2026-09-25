@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -9,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { auth } from '@/composition/auth';
+import { getFullSession } from '@/composition/session';
 import { formatIsoDay } from '@/lib/format/time';
 import { getActiveSessionCount } from '@/platform/auth/admin-users';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
@@ -25,7 +24,7 @@ function OverviewRow({ label, children }: { label: string; children: ReactNode }
 }
 
 async function AccountContent() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session) {
     redirect('/?auth_error=login_required');
   }

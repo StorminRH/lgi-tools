@@ -3,6 +3,7 @@
 .home-hero {
   min-height: 600px;
   justify-content: center;
+  overflow-x: clip;
 }
 
 .home-orbits {

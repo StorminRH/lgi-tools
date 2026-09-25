@@ -1,14 +1,13 @@
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { auth } from '@/composition/auth';
+import { getFullSession } from '@/composition/session';
 import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/specs';
 import { SettingsSectionHead } from '../settings-section-head';
 import { PreferenceGroups } from './preference-groups';
 
 async function PreferencesContent() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session) {
     redirect('/?auth_error=login_required');
   }

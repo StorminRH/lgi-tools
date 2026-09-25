@@ -518,10 +518,8 @@ a:hover {
  * pages (the tint only registers where blurred content shows through), and
  * 65% matches the mapper chrome's proven translucency. Worn by the SMALL
  * pop-outs: tooltips, popovers, Select/Combobox dropdowns, the pointer
- * menu, chart tooltips, and the in-map chrome. The nav-level menus
- * (hamburger, account, page menus) deliberately stay solid on
- * panelSurfaceSolid — they read as part of the page chrome, not floating
- * glass. @utility (not a plain class) so variants compose and consumer
+ * menu, chart tooltips, and the in-map chrome.
+ * @utility (not a plain class) so variants compose and consumer
  * overrides stay in the utilities layer. -webkit-backdrop-filter is written
  * by hand here — Tailwind only auto-prefixes its own utilities — and the
  * nested @supports collapses to the opaque well on engines with no
@@ -555,7 +553,9 @@ a:hover {
  * Pair either with glass-lit for the sheen that sells "floating". */
 @utility glass-surface {
   @apply glass-panel;
-  background: color-mix(in oklab, var(--color-bg-deep) 58%, transparent);
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background: color-mix(in oklab, var(--color-bg-deep) 58%, transparent);
+  }
 }
 @utility glass-dense {
   background: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
@@ -749,5 +749,4 @@ a:hover {
     color: inherit !important;
   }
 }
-
 

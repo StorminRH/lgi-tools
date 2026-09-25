@@ -11,7 +11,7 @@ import {
   menuSectionLabel,
   menuSeparator,
   panelSurface,
-  panelSurfaceSolid,
+  menuPanelSurface,
 } from './dropdown-panel';
 import type { Tone } from './tones';
 
@@ -23,7 +23,7 @@ const popup = cva('flex flex-col outline-none', {
       neutral: '',
     } satisfies Record<MenuTone, string>,
     surface: {
-      solid: panelSurfaceSolid,
+      solid: menuPanelSurface,
       frosted: panelSurface,
     },
   },
