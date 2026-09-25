@@ -31,7 +31,7 @@ export function IndustryJobsPanel({
       <Card className="reveal reveal-1">
         <EmptyState>
           No characters linked to this account —{' '}
-          <a href="/characters" className="underline text-name">
+          <a href="/settings/characters" className="underline text-name">
             link one on the Characters page
           </a>{' '}
           to see live industry jobs.

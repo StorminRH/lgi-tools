@@ -8,8 +8,6 @@ import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { PageHead } from '@/components/ui/page-head';
-import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -25,6 +23,7 @@ import {
 } from '@/platform/auth/admin-users';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
+import { SettingsSectionHead } from '../settings-section-head';
 import {
   adminRoleBadge,
   deriveAccessView,
@@ -35,6 +34,8 @@ import {
 const MAX_QUERY_LENGTH = 200;
 
 const AUDIT_WINDOW_DAYS = 90;
+
+const ACCESS_HREF = '/settings/access';
 
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;
@@ -78,8 +79,8 @@ function AdminUserRow({
       }
       name={
         <Link
-          href={`/admin/access/${user.userId}`}
-          className="hover:text-text hover:underline underline-offset-2 transition-colors"
+          href={`${ACCESS_HREF}/${user.userId}`}
+          className="transition-colors hover:text-text hover:underline underline-offset-2"
         >
           {user.name}
         </Link>
@@ -99,7 +100,7 @@ function AdminUserRow({
             currentQuery={currentQuery}
           />
         ) : (
-          <span className="text-micro text-muted whitespace-nowrap italic">managed via env</span>
+          <span className="whitespace-nowrap text-micro italic text-muted">managed via env</span>
         )
       }
     />
@@ -149,7 +150,7 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
 
 function AccessSearchForm({ query }: { query: string | undefined }) {
   return (
-    <form method="GET" action="/admin/access" className="flex items-center gap-2">
+    <form method="GET" action={ACCESS_HREF} className="flex items-center gap-2">
       <Input
         type="text"
         name="q"
@@ -162,10 +163,7 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
         Search
       </Button>
       {query ? (
-        <Link
-          href="/admin/access"
-          className="text-ui uppercase tracking-wide text-muted px-2 py-1"
-        >
+        <Link href={ACCESS_HREF} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
           Clear
         </Link>
       ) : null}
@@ -254,27 +252,19 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
 
   return (
     <>
-      <PageHead
-        size="compact"
-        crumb="access"
-        title="Access"
-        subtitle={
-          <>
-            {view.adminCount} admin{view.adminPlural}
-            {view.querySuffix}
-          </>
-        }
+      <SettingsSectionHead
+        title="Users & roles"
         meta={
-          <a
+          <Link
             href="/admin"
             className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text')}
           >
-            ← Dashboard
-          </a>
+            Dashboard →
+          </Link>
         }
       />
 
-      <div className="reveal reveal-1 w-full flex flex-col gap-6">
+      <div className="reveal reveal-1 flex flex-col gap-6">
         <AccessSearchForm query={query} />
 
         <AdminsCard adminRows={adminRows} viewerUserId={viewerUserId} query={query} />
@@ -294,22 +284,14 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
   );
 }
 
-function AccessLoading() {
-  return <LoadingLabel />;
-}
-
-export default function AccessPage({
+export default function AccessSettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
   return (
-    <PageShell mode="workspace">
-      <div className="flex flex-col items-center pb-20 gap-0">
-        <Suspense fallback={<AccessLoading />}>
-          <AccessContent searchParams={searchParams} />
-        </Suspense>
-      </div>
-    </PageShell>
+    <Suspense fallback={<LoadingLabel />}>
+      <AccessContent searchParams={searchParams} />
+    </Suspense>
   );
 }

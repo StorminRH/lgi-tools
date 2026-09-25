@@ -69,7 +69,7 @@ function IdentityHeader({ session }: { session: Session }) {
       <MenuLinkItem
         closeOnClick
         className="group flex min-w-0 flex-1 flex-col outline-none"
-        render={<Link href="/characters" target="_blank" rel="noreferrer" />}
+        render={<Link href="/settings/characters" target="_blank" rel="noreferrer" />}
       >
         <span className="truncate font-ui text-nav text-name">{session.name}</span>
         <span className="font-ui text-ui text-muted transition-colors group-hover:text-isk group-data-[highlighted]:text-isk">
@@ -132,7 +132,7 @@ function AccountGroup({ isAdmin }: { isAdmin: boolean }) {
       <MenuLinkItem
         closeOnClick
         className={menuRow}
-        render={<Link href="/settings" target="_blank" rel="noreferrer" />}
+        render={<Link href="/settings/account" target="_blank" rel="noreferrer" />}
       >
         Account settings
       </MenuLinkItem>

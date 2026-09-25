@@ -58,8 +58,8 @@ export async function UsersSection({ range }: { range: DateRange }) {
       )}
       <div className="px-3.5 py-2 border-t border-border-soft text-ui text-muted">
         Admin roles and the role-change audit live on{' '}
-        <Link href="/admin/access" className="text-isk hover:text-name transition-colors">
-          Access →
+        <Link href="/settings/access" className="text-isk hover:text-name transition-colors">
+          Users &amp; roles →
         </Link>
       </div>
     </Card>

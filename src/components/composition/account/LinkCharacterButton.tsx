@@ -6,7 +6,7 @@ import { startCharacterLink } from '@/platform/auth/link-character';
 export function LinkCharacterButton({
   label = 'Link another character',
   emphasis = 'primary',
-  callbackURL = '/characters',
+  callbackURL = '/settings/characters',
 }: {
   label?: string;
   emphasis?: 'primary' | 'reconnect';
