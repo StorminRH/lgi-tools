@@ -27,7 +27,7 @@ function SettingsSections({ view }: { view: SettingsView }) {
   return (
     <>
       {view.preferenceModels.length > 0 ? (
-        <Card>
+        <Card className="reveal reveal-1">
           <SectionHeader size="md" label="Preferences" />
           <div className="flex flex-col gap-3 px-3.5 py-3.5">
             {view.preferenceModels.map((model) => (
@@ -42,7 +42,9 @@ function SettingsSections({ view }: { view: SettingsView }) {
       ))}
 
       {view.isEmpty ? (
-        <EmptyState>Nothing to configure yet.</EmptyState>
+        <Card className="reveal reveal-1">
+          <EmptyState>Nothing to configure yet.</EmptyState>
+        </Card>
       ) : null}
     </>
   );

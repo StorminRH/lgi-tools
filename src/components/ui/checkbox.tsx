@@ -9,7 +9,7 @@ export type CheckboxTone = Extract<Tone, 'green' | 'neutral' | 'red'>;
 
 const box = cva(
   'inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center ' +
-    'rounded-ctl border outline-none transition-colors duration-fast ' +
+    'rounded-sm border outline-none transition-colors duration-fast ' +
     'focus-visible:border-border-active focus-visible:ring-1 focus-visible:ring-isk-sub ' +
     'disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
   {

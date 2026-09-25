@@ -9,7 +9,7 @@ describe('Button', () => {
     expect(Button({ type: 'submit', children: 'x' }).props.type).toBe('submit');
 
     const primary = Button({ variant: 'primary', className: 'fixed bottom-4' });
-    expect(primary.props.className).toContain('bg-feedback-bg');
+    expect(primary.props.className).toContain('bg-brand-gradient');
     expect(primary.props.className).toContain('fixed');
 
     const bare = Button({ variant: 'bare', className: 'absolute inset-0' });

@@ -39,7 +39,7 @@ function RosterList({
   reconnectAction?: ReactNode;
 }) {
   return (
-    <div className="grid max-w-[760px] grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-x-5 gap-y-4">
+    <div className="grid max-w-[760px] grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
       {items.map((vm) => (
         <RosterCard key={vm.characterId} vm={vm} reconnectAction={reconnectAction} />
       ))}

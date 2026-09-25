@@ -2,7 +2,7 @@ import { createElement, type ComponentProps } from 'react';
 import { cn } from './cn';
 
 export const cardSurface =
-  'border border-border bg-section text-text rounded-card shadow-card-edge';
+  'border border-border glass-surface glass-lit text-text rounded-card shadow-card-edge';
 
 export function Card({
   hover,
@@ -22,8 +22,7 @@ export function Card({
       className: cn(
         cardSurface,
         font === 'data' ? 'font-data' : 'font-ui',
-        hover &&
-          'transition-[border-color,box-shadow] hover:border-card-glow-border hover:shadow-card-hover',
+        hover && 'lift',
         className,
       ),
       ...rest,

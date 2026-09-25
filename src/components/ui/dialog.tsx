@@ -25,7 +25,7 @@ const popup = cva(
   {
     variants: {
       tone: {
-        neutral: 'bg-section border border-border text-text font-ui rounded-card',
+        neutral: 'glass-dense glass-lit border border-border text-text font-ui rounded-panel shadow-dd',
       } satisfies Record<DialogTone, string>,
     },
     defaultVariants: { tone: 'neutral' },

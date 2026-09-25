@@ -36,7 +36,7 @@ export function SkillQueuePanel({
 }) {
   if (characters.length === 0) {
     return (
-      <Card>
+      <Card className="reveal reveal-1">
         <EmptyState>
           No characters linked to this account —{' '}
           <a href="/characters" className="underline text-name">
@@ -104,6 +104,7 @@ function LiveQueues({
                 emptyRowsText="No skills in the training queue."
                 reconnectAction={reconnectAction}
                 reconnectReason={reconnectReason}
+                className="reveal reveal-1"
               >
                 {rows}
               </LiveCharacterCard>

@@ -14,7 +14,7 @@ export function Callout({
   return (
     <div
       className={cn(
-        'flex items-center gap-2 border border-l-2 border-callout-border border-l-callout-rule bg-callout-bg px-2.5 py-[5px] text-label tracking-[0.03em] text-dps-mid',
+        'flex items-center gap-2 rounded-ctl border border-l-2 border-callout-border border-l-callout-rule bg-callout-bg px-2.5 py-[5px] text-label tracking-[0.03em] text-dps-mid',
         className,
       )}
     >

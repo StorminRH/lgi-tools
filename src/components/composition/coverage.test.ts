@@ -56,6 +56,7 @@ import { HeroBanner } from '@/components/composition/HeroBanner';
 import { HomeDashboard } from '@/components/composition/HomeDashboard';
 import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
 import { HomeHero } from '@/components/composition/HomeHero';
+import { HomeHeroSearch } from '@/components/composition/HomeHeroSearch';
 import { HomeLeftColumn } from '@/components/composition/HomeLeftColumn';
 import { HomeLiveStats } from '@/components/composition/HomeLiveStats';
 import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
@@ -79,6 +80,7 @@ describe('coverage-gaps', () => {
       HomeDashboard,
       HomeFeatureCards,
       HomeHero,
+      HomeHeroSearch,
       HomeLeftColumn,
       HomeLiveStats,
       HomeNewsCard,

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo } from 'react';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -39,14 +40,29 @@ interface SectionCell {
 
 const countBadge = 'text-evb-bright font-semibold';
 
-function DashboardSection({ status, cell }: { status: SectionStatus; cell: SectionCell }) {
+// Literal class names so Tailwind and the reduced-motion list can see them.
+const SECTION_REVEAL = ['reveal-2', 'reveal-3', 'reveal-4', 'reveal-5'] as const;
+
+function DashboardSection({
+  status,
+  cell,
+  reveal,
+}: {
+  status: SectionStatus;
+  cell: SectionCell;
+  reveal: string;
+}) {
   const render = deriveSectionRender(status, cell.hint);
   return (
-    <section>
+    <section className={cn('reveal', reveal)}>
       <SectionLabel className="mb-cluster" meta={render.meta ? cell.meta : undefined}>
         {cell.label}
       </SectionLabel>
-      {render.hint !== null && <p className="text-ui text-muted">{render.hint}</p>}
+      {render.hint !== null && (
+        <Card>
+          <p className="px-3.5 py-3 text-ui text-muted">{render.hint}</p>
+        </Card>
+      )}
       {render.body && cell.body}
     </section>
   );
@@ -86,7 +102,11 @@ function ActiveJobsPanel({
   now: number;
 }) {
   if (loading) return <LoadingLabel label="Loading…" />;
-  return <IndustryActiveJobs jobs={jobs} names={names} now={now} />;
+  return (
+    <Card className="overflow-x-auto">
+      <IndustryActiveJobs jobs={jobs} names={names} now={now} />
+    </Card>
+  );
 }
 
 function CorpSectionBody({
@@ -221,8 +241,13 @@ export function IndustryDashboardGrid({
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
-      {orderSections(status).map((id) => (
-        <DashboardSection key={id} status={status[id]} cell={cells[id]} />
+      {orderSections(status).map((id, index) => (
+        <DashboardSection
+          key={id}
+          status={status[id]}
+          cell={cells[id]}
+          reveal={SECTION_REVEAL[index] ?? 'reveal-5'}
+        />
       ))}
     </div>
   );

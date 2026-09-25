@@ -1,9 +1,11 @@
+import { cardSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import type { ChangelogMaster } from '../parse';
 import { EntryCard } from './EntryCard';
 
 export function MasterSection({ master }: { master: ChangelogMaster }) {
   return (
-    <section className="mb-11 last:mb-0">
+    <section className={cn(cardSurface, 'reveal reveal-1 mb-11 px-4 py-5 last:mb-0 sm:px-7 sm:py-6')}>
       <div className="mb-[22px] flex flex-wrap items-baseline gap-x-3.5 gap-y-1 border-b border-border pb-3">
         <span
           data-changelog-master-version

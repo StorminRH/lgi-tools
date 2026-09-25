@@ -16,7 +16,14 @@ function allStylesheets(): string {
 
 const LOOPING_CLASSES = [
   'skeleton-shimmer',
-  'hover-bob',
+  'edge-glow',
+  'live-ping',
+  'reveal',
+  'home-orbit',
+  'hero-bracket',
+  'home-preview-flow',
+  'home-preview-node',
+  'home-preview-pulse',
   'industry-cur',
   'status-led',
   'price-pending',

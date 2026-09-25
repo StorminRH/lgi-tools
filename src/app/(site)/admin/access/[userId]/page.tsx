@@ -197,7 +197,7 @@ async function UserDetailContent({
         </div>
       </header>
 
-      <div className="w-full max-w-[760px] flex flex-col gap-6">
+      <div className="reveal reveal-1 w-full max-w-[760px] flex flex-col gap-6">
         {error ? (
           <Callout label="Heads up">{error}</Callout>
         ) : null}

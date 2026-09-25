@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock C — Command Deck</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .backdrop { position: fixed; inset: 0; z-index: -2; }
+  .backdrop::before { content: ''; position: absolute; inset: 0; background: url('../../../public/backdrops/dark.avif') center / cover; opacity: 0.55; }
+  .backdrop::after { content: ''; position: absolute; inset: 0; background:
+    radial-gradient(ellipse 50% 40% at 18% 0%, rgba(61,214,140,0.10), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(61,160,232,0.10), transparent 70%),
+    linear-gradient(180deg, rgba(6,7,8,0.3), rgba(6,7,8,0.85) 60%, var(--bg-deep)); }
+  /* Aurora ribbon behind the greeting */
+  .aurora { position: fixed; z-index: -1; top: -200px; left: 20%; width: 900px; height: 500px; filter: blur(80px); opacity: 0.35; pointer-events: none;
+    background: conic-gradient(from 180deg at 50% 50%, rgba(61,214,140,0.5), rgba(61,160,232,0.4), rgba(170,85,255,0.35), rgba(61,214,140,0.5));
+    animation: aurora 24s ease-in-out infinite alternate; border-radius: 50%; }
+  @keyframes aurora { to { transform: translateX(120px) rotate(25deg) scale(1.1); } }
+
+  /* ── Floating rail ── */
+  .rail { position: fixed; left: 16px; top: 16px; bottom: 16px; width: 64px; border-radius: var(--r-lg); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; z-index: 40; }
+  .rail .logo { font-family: var(--font-data); font-weight: 800; font-size: 13px; color: var(--name); margin-bottom: 14px; }
+  .rail .logo b { color: var(--isk); }
+  .rail a { position: relative; width: 44px; height: 44px; border-radius: var(--r-md); display: grid; place-items: center; color: var(--muted); transition: background 200ms, color 200ms; }
+  .rail a svg { width: 20px; height: 20px; }
+  .rail a:hover { background: rgba(255,255,255,0.05); color: var(--name); }
+  .rail a.on { color: var(--isk); background: rgba(61,214,140,0.08); box-shadow: inset 0 0 0 1px rgba(61,214,140,0.25); }
+  .rail a.on::before { content: ''; position: absolute; left: -10px; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--isk); box-shadow: 0 0 10px var(--isk); }
+  .rail a .tip { position: absolute; left: 56px; white-space: nowrap; font-size: 13px; color: var(--name); padding: 6px 10px; border-radius: var(--r-sm); opacity: 0; translate: -6px 0; transition: 200ms var(--ease-out); pointer-events: none; }
+  .rail a:hover .tip, .rail a.showtip .tip { opacity: 1; translate: 0 0; }
+  .rail .grow { flex: 1; }
+  .rail .avatar { width: 38px; height: 38px; font-size: 12px; }
+
+  /* ── Page ── */
+  .page { margin-left: 96px; padding: 28px 32px 48px 16px; max-width: 1360px; }
+  .top { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+  .greet .eyebrow { display: flex; align-items: center; gap: 10px; }
+  .greet h1 { font-family: var(--font-display); font-weight: 700; font-size: 44px; color: var(--name); line-height: 1.05; letter-spacing: 0.005em; margin-top: 6px; }
+  .top .spacer { flex: 1; }
+  .search { width: 380px; display: flex; align-items: center; gap: 10px; padding: 11px 12px 11px 16px; border-radius: var(--r-md); color: var(--muted); font-size: 14px; }
+  .search span.ph { flex: 1; }
+  .tq { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: var(--r-md); font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+  .tq b { color: var(--name); font-weight: 500; }
+
+  /* ── Bento ── */
+  .bento { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 88px; gap: 16px; }
+  .tile { border-radius: var(--r-lg); padding: 18px 20px; overflow: hidden; display: flex; flex-direction: column; }
+  .tile .hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .tile .hd a { font-family: var(--font-data); font-size: 11.5px; color: var(--isk); }
+  .tile h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--name); line-height: 1; }
+
+  .pilots { grid-column: 1 / 6; grid-row: 1 / 6; }
+  .jobs { grid-column: 6 / 10; grid-row: 1 / 3; }
+  .market { grid-column: 10 / 13; grid-row: 1 / 3; }
+  .atlas { grid-column: 6 / 13; grid-row: 3 / 8; padding: 0; }
+  .sites { grid-column: 1 / 6; grid-row: 6 / 10; }
+  .stats { grid-column: 6 / 13; grid-row: 8 / 9; padding: 0; flex-direction: row; align-items: stretch; }
+  .news { grid-column: 6 / 13; grid-row: 9 / 10; padding: 0; flex-direction: row; align-items: center; }
+
+  /* Pilots */
+  .pilot { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--glass-edge); }
+  .pilot:first-of-type { border-top: 0; padding-top: 0; }
+  .pilot .avatar { width: 52px; height: 52px; font-size: 15px; }
+  .pilot .avatar.track { box-shadow: 0 0 0 2px var(--bg-deep), 0 0 0 3.5px var(--isk), 0 0 16px rgba(61,214,140,0.5); }
+  .pilot .nm { color: var(--name); font-weight: 500; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .pilot .sk { font-size: 13px; color: var(--text); margin-top: 1px; }
+  .pilot .sk span { color: var(--muted); }
+  .bar { position: relative; height: 5px; border-radius: var(--r-xs); background: rgba(255,255,255,0.05); margin-top: 8px; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; border-radius: var(--r-xs); background: var(--grad-accent); box-shadow: var(--glow-sm); }
+  .bar i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent); width: 40%; animation: shimmer 2.4s ease-in-out infinite; }
+  @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+  .bar.warn i { background: linear-gradient(90deg, #6b4a17, var(--orange)); box-shadow: 0 0 10px rgba(214,140,61,0.4); }
+  .pilot .eta { text-align: right; font-family: var(--font-data); font-size: 12px; color: var(--name); }
+  .pilot .eta small { display: block; color: var(--muted); font-size: 10.5px; }
+  .addp { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--glass-edge); font-size: 14px; color: var(--muted); }
+  .addp span { width: 52px; height: 52px; border-radius: 50%; border: 1px dashed var(--border-active); display: grid; place-items: center; font-size: 20px; color: var(--isk); }
+  .pilot { padding: 16px 0 !important; }
+  .pilot:first-of-type { padding-top: 0 !important; }
+  .sp { display: flex; justify-content: space-between; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--glass-edge); }
+  .sp div { display: flex; flex-direction: column; }
+  .sp b { font-family: var(--font-data); font-size: 20px; color: var(--name); font-weight: 600; }
+
+  /* Jobs */
+  .slots { display: flex; flex-direction: column; gap: 10px; }
+  .slot { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; color: var(--name); }
+  .slot .t { font-family: var(--font-data); font-size: 11.5px; color: var(--muted); }
+  .slot .evb { grid-column: span 2; height: 4px; border-radius: var(--r-xs); background: #0b141d; border: 1px solid #17293a; overflow: hidden; position: relative; }
+  .slot .evb i { position: absolute; inset: 0 auto 0 0; background: var(--evb); box-shadow: 0 0 8px rgba(84,182,255,0.6); }
+  .slot .evb i.done { background: var(--isk); box-shadow: 0 0 8px rgba(61,214,140,0.6); }
+
+  /* Market */
+  .market .big { font-family: var(--font-data); font-size: 26px; color: var(--name); font-weight: 600; line-height: 1; }
+  .market .ch { font-family: var(--font-data); font-size: 12px; color: var(--isk); margin-top: 4px; }
+  .market svg { margin-top: auto; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  /* Atlas */
+  .atlas svg.chain { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .atlas .edge { fill: none; stroke-width: 1.8; stroke-dasharray: 3 6; animation: flow 1.4s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -18; } }
+  .atlas .n { transform-box: fill-box; transform-origin: center; animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.05; } }
+  .atlas .overlay { position: absolute; left: 16px; top: 16px; right: 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .atlas .chip { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--r-md); }
+  .atlas .chip h2 { font-size: 20px; }
+  .atlas .dock { position: absolute; left: 16px; bottom: 16px; padding: 10px 14px; border-radius: var(--r-md); display: flex; gap: 22px; }
+  .atlas .dock div { display: flex; flex-direction: column; }
+  .atlas .dock b { font-family: var(--font-data); color: var(--name); font-size: 15px; font-weight: 600; }
+  .atlas .open { position: absolute; right: 16px; bottom: 16px; }
+  .ping { transform-box: fill-box; transform-origin: center; animation: ping2 2.4s var(--ease-out) infinite; }
+  @keyframes ping2 { from { scale: 0.6; opacity: 0.9; } to { scale: 2.4; opacity: 0; } }
+
+  /* Sites */
+  .site { display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center; padding: 10px 10px; border-radius: var(--r-sm); margin: 0 -10px; }
+  .site:hover, .site.hl { background: rgba(255,255,255,0.035); }
+  .site .cls { font-family: var(--font-data); font-size: 11px; font-weight: 700; text-align: center; padding: 4px 0; border-radius: var(--r-xs); }
+  .site .nm { color: var(--name); font-size: 14px; }
+  .site .nm small { display: block; color: var(--muted); font-size: 12px; }
+  .site .v { font-family: var(--font-data); color: var(--isk); font-size: 13px; text-align: right; }
+  .site .v small { display: block; font-size: 10.5px; color: var(--muted); }
+
+  /* Stats strip */
+  .stats > div { flex: 1; padding: 14px 20px; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--glass-edge); }
+  .stats > div:last-child { border-right: 0; }
+  .stats b { font-family: var(--font-data); font-size: 22px; color: var(--name); font-weight: 600; line-height: 1.1; }
+  .stats span { font-family: var(--font-data); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* News ticker */
+  .news .lbl { padding: 0 20px; display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--glass-edge); height: 100%; white-space: nowrap; }
+  .ticker { flex: 1; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+  .ticker .track { display: flex; gap: 48px; width: max-content; animation: marquee 40s linear infinite; }
+  .ticker a { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--name); white-space: nowrap; }
+  .ticker time { font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+
+  @media (max-width: 760px) {
+    .rail { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: 64px; flex-direction: row; justify-content: space-around; padding: 0 10px; }
+    .rail .logo, .rail .grow, .rail a.x { display: none; }
+    .rail a.on::before { left: 12px; right: 12px; top: auto; bottom: -9px; width: auto; height: 3px; }
+    .page { margin: 0; padding: 20px 16px 100px; }
+    .top { flex-wrap: wrap; }
+    .top .spacer { display: none; }
+    .search { width: 100%; order: 3; }
+    .tq { display: none; }
+    .greet h1 { font-size: 34px; }
+    .bento { grid-template-columns: 1fr; grid-auto-rows: auto; }
+    .bento > * { grid-column: auto !important; grid-row: auto !important; }
+    .atlas { height: 280px; }
+    .stats { flex-wrap: wrap; }
+    .stats > div { flex: 1 1 50%; border-bottom: 1px solid var(--glass-edge); }
+    .news { flex-direction: column; align-items: stretch; }
+    .news .lbl { padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--glass-edge); }
+    .ticker { padding: 14px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="backdrop"></div>
+<div class="aurora"></div>
+<div class="page-grain"></div>
+
+<nav class="rail glass-2 lit">
+  <span class="logo"><b>[</b>L<b>]</b></span>
+  <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11 12 4l9 7v9H3z"/><path d="M9 20v-6h6v6"/></svg><span class="tip glass-3 lit">Home</span></a>
+  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg><span class="tip glass-3 lit">Wormhole Sites</span></a>
+  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 20h18M6 20V10l5 3V8l5 3V5l3 2v13"/></svg><span class="tip glass-3 lit">Industry Planner</span></a>
+  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8 7l7.6 1M7 8l2 7.5M16.3 10l-4.6 6"/></svg><span class="tip glass-3 lit">Atlas</span></a>
+  <a class="x" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg><span class="tip glass-3 lit">Industry Jobs</span></a>
+  <a class="x" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.5-6.5 8-6.5s7 2 8 6.5"/></svg><span class="tip glass-3 lit">Skills</span></a>
+  <span class="grow"></span>
+  <a class="x" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg><span class="tip glass-3 lit">Settings</span></a>
+  <a href="#"><span class="avatar av1">SJ</span></a>
+</nav>
+
+<main class="page">
+  <header class="top">
+    <div class="greet rise">
+      <div class="eyebrow"><span class="label">Tuesday · 19:42 EVE</span><span class="pill green"><span class="live-dot" style="width:5px;height:5px"></span>3 pilots synced</span></div>
+      <h1>Welcome back, <span class="grad-text">Stormin Jr</span></h1>
+    </div>
+    <span class="spacer"></span>
+    <div class="search glass-2 lit rise d1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="ph">Search sites, items, systems…</span><span class="kbd">⌘K</span></div>
+    <div class="tq glass-2 lit rise d2"><span class="live-dot"></span>TQ <b>24,318</b></div>
+  </header>
+
+  <section class="bento">
+    <article class="tile glass-2 lit lift pilots rise d1" data-spotlight>
+      <div class="hd"><h2>Pilots</h2><a href="#">Skills →</a></div>
+      <div class="pilot">
+        <span class="avatar av1 track">SJ</span>
+        <div><div class="nm">Stormin Jr <span class="pill green" style="font-size:9.5px;padding:1px 6px">Tracking</span></div><div class="sk">Caldari Cruiser V <span>· 2 in queue</span></div><div class="bar"><i style="width:71%"></i></div></div>
+        <div class="eta">23h 58m<small>J115405</small></div>
+      </div>
+      <div class="pilot">
+        <span class="avatar av2">KH</span>
+        <div><div class="nm">Karaka Haginen</div><div class="sk">Amarr Starship Engineering IV <span>· 1 in queue</span></div><div class="bar"><i style="width:26%"></i></div></div>
+        <div class="eta">4d 11h<small>Jita IV-4</small></div>
+      </div>
+      <div class="pilot">
+        <span class="avatar av3">LV</span>
+        <div><div class="nm">Lox Veyra</div><div class="sk" style="color:var(--orange)">Queue empty <span>· 405k SP unallocated</span></div><div class="bar warn"><i style="width:100%"></i></div></div>
+        <div class="eta" style="color:var(--orange)">idle<small>Amarr</small></div>
+      </div>
+      <a class="addp" href="#"><span>+</span>Link another character</a>
+      <div class="sp">
+        <div><b>58.4M</b><span class="label">Total SP</span></div>
+        <div><b>1.2B</b><span class="label">Wallet</span></div>
+        <div><b>5 / 11</b><span class="label">Job slots</span></div>
+      </div>
+    </article>
+
+    <article class="tile glass-2 lit lift jobs rise d2" data-spotlight>
+      <div class="hd"><h2>Industry jobs</h2><a href="#">Jobs →</a></div>
+      <div class="slots">
+        <div class="slot">Hurricane Fleet Issue ×2<span class="t">2h 14m</span><span class="evb"><i style="width:82%"></i></span></div>
+        <div class="slot">Fullerides reaction ×40<span class="t" style="color:var(--isk)">ready</span><span class="evb"><i class="done" style="width:100%"></i></span></div>
+      </div>
+    </article>
+
+    <article class="tile glass-2 lit lift market rise d3" data-spotlight>
+      <div class="hd"><span class="label">Best margin</span></div>
+      <div class="big">18.4%</div>
+      <div class="ch">▲ 2.1 · HFI</div>
+      <svg viewBox="0 0 200 50" preserveAspectRatio="none" height="44" width="100%"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="rgba(61,214,140,.3)"/><stop offset="1" stop-color="rgba(61,214,140,0)"/></linearGradient></defs><path d="M0 42 L20 38 L40 40 L60 30 L80 32 L100 24 L120 26 L140 16 L160 20 L180 10 L200 6 L200 50 L0 50Z" fill="url(#g)"/><path class="draw" d="M0 42 L20 38 L40 40 L60 30 L80 32 L100 24 L120 26 L140 16 L160 20 L180 10 L200 6" fill="none" stroke="var(--isk)" stroke-width="1.8"/></svg>
+    </article>
+
+    <article class="tile glass-2 lit lift sites rise d3" data-spotlight>
+      <div class="hd"><h2>Top sites right now</h2><a href="#">All sites →</a></div>
+      <div class="seg" style="--seg-n:4;--seg-i:0;margin-bottom:10px"><span class="on">Combat</span><span>Gas</span><span>Ore</span><span>Relic</span></div>
+      <div class="site hl"><span class="cls" style="background:rgba(206,68,15,.18);color:var(--wh-c5)">C5</span><span class="nm">Core Garrison<small>Sleeper · 9 waves</small></span><span class="v">412.8M<small>▲ 1.4%</small></span></div>
+      <div class="site"><span class="cls" style="background:rgba(187,17,22,.2);color:#e04046">C6</span><span class="nm">Core Citadel<small>Sleeper · 7 waves</small></span><span class="v">388.0M<small>▼ 0.3%</small></span></div>
+      <div class="site"><span class="cls" style="background:rgba(220,140,46,.16);color:var(--wh-c4)">C4</span><span class="nm">Frontier Barracks<small>Sleeper · 5 waves</small></span><span class="v">142.6M<small>▲ 0.9%</small></span></div>
+      <div class="site"><span class="cls" style="background:rgba(214,224,90,.14);color:var(--wh-c3)">C3</span><span class="nm">Fortification Frontier Stronghold<small>Sleeper · 4 waves</small></span><span class="v">71.5M<small>—</small></span></div>
+    </article>
+
+    <article class="tile glass-2 lit lift atlas rise d4" data-spotlight>
+      <svg class="chain" viewBox="50 -70 580 410" preserveAspectRatio="xMidYMid slice">
+        <defs><radialGradient id="fog" cx="50%" cy="55%" r="60%"><stop offset="0.5" stop-color="rgba(5,7,11,0)"/><stop offset="1" stop-color="rgba(5,7,11,.85)"/></radialGradient></defs>
+        <g>
+          <path class="edge" d="M200 140 L320 90" stroke="rgba(61,214,140,.75)"/>
+          <path class="edge" d="M200 140 L330 190" stroke="rgba(214,224,90,.7)"/>
+          <path class="edge" d="M320 90 L450 110" stroke="rgba(61,214,140,.75)"/>
+          <path class="edge" d="M450 110 L560 70" stroke="rgba(170,85,255,.7)"/>
+          <path class="edge" d="M450 110 L570 160" stroke="rgba(221,68,68,.75)"/>
+          <path class="edge" d="M330 190 L460 210" stroke="rgba(61,214,140,.55)"/>
+          <path class="edge" d="M200 140 L90 120" stroke="rgba(61,214,140,.55)"/>
+        </g>
+        <circle class="ping" cx="450" cy="110" r="18" fill="none" stroke="var(--isk)"/>
+        <g font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" text-anchor="middle">
+          <g class="n"><circle cx="200" cy="140" r="20" fill="#0f1216" stroke="var(--border-active)"/><text x="200" y="144" fill="var(--wh-c5)">C5</text></g>
+          <g class="n"><circle cx="320" cy="90" r="16" fill="#0f1216" stroke="var(--border-active)"/><text x="320" y="94" fill="var(--wh-c3)">C3</text></g>
+          <g class="n"><circle cx="330" cy="190" r="16" fill="#0f1216" stroke="var(--border-active)"/><text x="330" y="194" fill="var(--sec-10)">HS</text></g>
+          <g class="n"><circle cx="450" cy="110" r="18" fill="#0f1216" stroke="var(--isk)"/><text x="450" y="114" fill="var(--wh-c2)">C2</text></g>
+          <g class="n"><circle cx="560" cy="70" r="14" fill="#0f1216" stroke="var(--border-active)"/><text x="560" y="74" fill="var(--wh-c6)">C6</text></g>
+          <g class="n"><circle cx="570" cy="160" r="14" fill="#0f1216" stroke="var(--border-active)"/><text x="570" y="164" fill="var(--sec-null)">NS</text></g>
+          <g class="n"><circle cx="460" cy="210" r="14" fill="#0f1216" stroke="var(--border-active)"/><text x="460" y="214" fill="var(--wh-c1)">C1</text></g>
+          <g class="n"><circle cx="90" cy="120" r="14" fill="#0f1216" stroke="var(--border-active)"/><text x="90" y="124" fill="var(--wh-c4)">C4</text></g>
+          <g font-family="Geist, sans-serif" font-size="11" font-weight="500" fill="#f1f5f9">
+            <text x="200" y="176">J115405</text><text x="450" y="146">J152610</text>
+          </g>
+          <circle cx="436" cy="92" r="8" fill="#2a3a4a" stroke="var(--isk)" stroke-width="1.5"/><text x="436" y="95" font-size="7" fill="#fff">SJ</text>
+        </g>
+        <rect x="50" y="-70" width="580" height="410" fill="url(#fog)"/>
+      </svg>
+      <div class="overlay">
+        <div class="chip glass-3 lit"><h2>Atlas</h2><span class="pill green"><span class="live-dot" style="width:5px;height:5px"></span>Live</span></div>
+        <div class="chip glass-3 lit" style="font-size:13px;color:var(--text)">LGI Home Chain <span class="kbd">▾</span></div>
+      </div>
+      <div class="dock glass-1">
+        <div><b>8</b><span class="label">Systems</span></div>
+        <div><b>1</b><span class="label">Tracked</span></div>
+        <div><b style="color:var(--red)">1</b><span class="label">EOL</span></div>
+      </div>
+      <a class="open btn btn-primary" href="#">Open map →</a>
+    </article>
+
+    <article class="tile glass-2 lit lift stats rise d5" data-spotlight>
+      <div><b data-count="184">184</b><span>WH sites</span></div>
+      <div><b data-count="5207">5,207</b><span>Blueprints</span></div>
+      <div><b data-count="12944">12,944</b><span>Items priced</span></div>
+      <div><b style="display:flex;align-items:center;gap:8px">4m <span class="live-dot"></span></b><span>Jita prices</span></div>
+    </article>
+
+    <article class="tile glass-2 lit lift news rise d6" data-spotlight>
+      <span class="lbl label">EVE News</span>
+      <div class="ticker"><div class="track">
+        <a href="#"><span class="pill blue">Patch</span>Patch notes for version 23.02 — wormhole effect rebalance<time>Sep 22</time></a>
+        <a href="#"><span class="pill blue">Dev blog</span>Industry in Equinox: reaction formulas and refinery rigs<time>Sep 18</time></a>
+        <a href="#"><span class="pill blue">Event</span>Crimson Harvest returns with new site spawns<time>Sep 15</time></a>
+        <a href="#"><span class="pill blue">Patch</span>Patch notes for version 23.02 — wormhole effect rebalance<time>Sep 22</time></a>
+        <a href="#"><span class="pill blue">Dev blog</span>Industry in Equinox: reaction formulas and refinery rigs<time>Sep 18</time></a>
+        <a href="#"><span class="pill blue">Event</span>Crimson Harvest returns with new site spawns<time>Sep 15</time></a>
+      </div></div>
+    </article>
+  </section>
+</main>
+<script src="primitives.js"></script>
+</body>
+</html>

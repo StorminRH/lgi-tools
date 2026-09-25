@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
@@ -12,6 +13,12 @@ import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
 import { SiteLiveProvider } from './SiteResourcesLive';
 import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
+
+// SortableTable paints a square solid slab; inside the glass Card the slab
+// goes clear and the header becomes a sunk well.
+const GLASS_TABLE =
+  'overflow-hidden [&_.sortable-table]:border-0 [&_.sortable-table]:bg-transparent ' +
+  '[&_.sortable-table-header]:border-border-soft [&_.sortable-table-header]:bg-bg-deep/60';
 
 const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
@@ -89,46 +96,48 @@ export function SitesTable({
   const sorted = sortSitesForTable(sites, sortKey, sortDir);
 
   return (
-    <SortableTable<SiteDetail>
-      columns={COLUMNS}
-      rows={sorted}
-      gridColsClass="grid-cols-[2.4fr_0.9fr_0.7fr_0.8fr_0.6fr_0.7fr]"
-      sortKey={sortKey}
-      sortDir={sortDir}
-      basePath="/sites"
-      currentParams={currentParams}
-      defaultDirFor={(k) => defaultDirFor(k as SortableKey)}
-      getRowKey={(s) => s.id}
-      emptyState="No sites match this filter combination."
-      renderRow={({ row, cells, key, gridColsClass }) => (
-        <UrlSync
-          key={key}
-          basePath="/sites"
-          entityId={row.id}
-          className="border-b border-border-soft last:border-b-0"
-        >
-          <details
-            data-sites-row
-            className="[&[open]>summary]:bg-row-active [&>summary>*]:min-w-0"
-            data-site-type={row.siteType}
-            data-site-cls={siteClassSet(row).join(',')}
+    <Card className={GLASS_TABLE}>
+      <SortableTable<SiteDetail>
+        columns={COLUMNS}
+        rows={sorted}
+        gridColsClass="grid-cols-[2.4fr_0.9fr_0.7fr_0.8fr_0.6fr_0.7fr]"
+        sortKey={sortKey}
+        sortDir={sortDir}
+        basePath="/sites"
+        currentParams={currentParams}
+        defaultDirFor={(k) => defaultDirFor(k as SortableKey)}
+        getRowKey={(s) => s.id}
+        emptyState="No sites match this filter combination."
+        renderRow={({ row, cells, key, gridColsClass }) => (
+          <UrlSync
+            key={key}
+            basePath="/sites"
+            entityId={row.id}
+            className="border-b border-border-soft last:border-b-0"
           >
-            <summary
-              className={cn(
-                'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-row-active',
-                gridColsClass,
-              )}
+            <details
+              data-sites-row
+              className="[&[open]>summary]:bg-row-sites-on [&>summary>*]:min-w-0"
+              data-site-type={row.siteType}
+              data-site-cls={siteClassSet(row).join(',')}
             >
-              {cells}
-            </summary>
-            <SiteLiveProvider resources={displayableResources(row.resources)}>
-              <div className="sites-table-expanded">
-                <LazySiteDetails site={row} />
-              </div>
-            </SiteLiveProvider>
-          </details>
-        </UrlSync>
-      )}
-    />
+              <summary
+                className={cn(
+                  'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-row-sites-hover',
+                  gridColsClass,
+                )}
+              >
+                {cells}
+              </summary>
+              <SiteLiveProvider resources={displayableResources(row.resources)}>
+                <div className="sites-table-expanded">
+                  <LazySiteDetails site={row} />
+                </div>
+              </SiteLiveProvider>
+            </details>
+          </UrlSync>
+        )}
+      />
+    </Card>
   );
 }

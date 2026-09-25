@@ -34,7 +34,7 @@ export function CorpJobsBoard({
   if (!hasLinkedCharacters) return null;
 
   return (
-    <section>
+    <section className="reveal reveal-2">
       <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>

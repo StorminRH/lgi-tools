@@ -32,6 +32,7 @@ export function LiveCharacterCard({
   emptyRowsText,
   reconnectAction,
   reconnectReason,
+  className,
   children,
 }: {
   character: PanelCharacter;
@@ -48,6 +49,7 @@ export function LiveCharacterCard({
   emptyRowsText: string;
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
+  className?: string;
   children?: ReactNode;
 }) {
   const grantedContent = (
@@ -67,7 +69,7 @@ export function LiveCharacterCard({
   );
 
   return (
-    <Card>
+    <Card className={className}>
       <LiveCharacterCardHeader
         character={character}
         headerRight={headerRight}

@@ -10,41 +10,40 @@ export async function HomeNewsCard() {
   const items: EveNewsItem[] = await getEveNews();
 
   return (
-    <section>
+    <section className="reveal reveal-6">
       <SectionLabel className="mb-cluster">EVE News</SectionLabel>
-      <Card>
-        {items.length === 0 ? (
+      {items.length === 0 ? (
+        <Card>
           <EmptyState>EVE news is unavailable right now — check back shortly.</EmptyState>
-        ) : (
-          <ul>
-            {items.map((item) => (
-              <li key={item.url} className="border-b border-border-soft last:border-b-0">
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-3.5 py-3 hover:bg-row-hover transition-colors no-underline group"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-ui text-name leading-[1.45] group-hover:text-isk transition-colors">
-                      {item.title}
-                    </span>
-                    {item.category ? <Pill tone="blue">{item.category}</Pill> : null}
-                  </div>
-                  {item.publishedAt ? (
-                    <time
-                      dateTime={item.publishedAt}
-                      className="mt-1 block font-data text-micro text-muted"
-                    >
-                      {formatUtcDate(item.publishedAt)}
-                    </time>
-                  ) : null}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item) => (
+            <Card as="li" hover key={item.url} className="flex">
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-1 flex-col gap-3 px-5 py-4 no-underline group"
+              >
+                {item.category ? (
+                  <Pill tone="blue" className="self-start">
+                    {item.category}
+                  </Pill>
+                ) : null}
+                <span className="flex-1 text-body text-name leading-[1.45] group-hover:text-isk transition-colors">
+                  {item.title}
+                </span>
+                {item.publishedAt ? (
+                  <time dateTime={item.publishedAt} className="block font-data text-micro text-muted">
+                    {formatUtcDate(item.publishedAt)}
+                  </time>
+                ) : null}
+              </a>
+            </Card>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

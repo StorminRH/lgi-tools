@@ -274,7 +274,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
         }
       />
 
-      <div className="w-full flex flex-col gap-6">
+      <div className="reveal reveal-1 w-full flex flex-col gap-6">
         <AccessSearchForm query={query} />
 
         <AdminsCard adminRows={adminRows} viewerUserId={viewerUserId} query={query} />

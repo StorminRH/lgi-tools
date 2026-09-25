@@ -62,7 +62,7 @@ export function ContentBrowser({
         <Drawer
           title={railLabel}
           trigger={chapterBar}
-          triggerClassName="flex w-full cursor-pointer items-center rounded-card border border-border bg-section px-3 py-2.5 text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name data-[popup-open]:border-border-active data-[popup-open]:text-name motion-reduce:transition-none"
+          triggerClassName="flex w-full cursor-pointer items-center rounded-card border border-border glass-surface glass-lit px-3 py-2.5 text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name data-[popup-open]:border-border-active data-[popup-open]:text-name motion-reduce:transition-none"
         >
           <ContentBrowserDrawerNavigation>
             <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
@@ -73,13 +73,13 @@ export function ContentBrowser({
       </div>
       <div
         data-content-browser-rail
-        className="hidden min-w-0 lg:sticky lg:top-6 lg:block"
+        className="reveal reveal-1 hidden min-w-0 rounded-card border border-border glass-surface glass-lit p-2 shadow-card-edge lg:sticky lg:top-24 lg:block lg:self-start"
       >
         <div
           data-content-browser-rail-body
           className={cn(
             scrollArea,
-            'lg:max-h-[calc(100dvh-48px)] lg:overflow-y-auto lg:overscroll-y-auto',
+            'lg:max-h-[calc(100dvh-128px)] lg:overflow-y-auto lg:overscroll-y-auto',
           )}
         >
           <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
