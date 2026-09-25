@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { WORMHOLE_EFFECTS, type WormholeEffect } from '@/data/eve-data/wormhole-contract';
-import { bodyAppearance, EFFECT_MODE, PLANET_MODE, wormholeSeed } from './palette';
+import { discBodyAppearance, EFFECT_MODE, PLANET_MODE, wormholeSeed } from './palette';
 
 const TOKENS: Readonly<Record<string, string>> = {
   '--color-effect-pulsar': ' #8fd0ff',
@@ -9,8 +9,8 @@ const TOKENS: Readonly<Record<string, string>> = {
 };
 const readToken = (token: string) => TOKENS[token] ?? '';
 const wormhole = (classId: number | null, effect: WormholeEffect | null = null) =>
-  bodyAppearance({ kind: 'wormhole', classId, effect }, readToken);
-const planet = (security: number) => bodyAppearance({ kind: 'planet', security }, readToken);
+  discBodyAppearance({ kind: 'wormhole', classId, effect }, readToken);
+const planet = (security: number) => discBodyAppearance({ kind: 'planet', security }, readToken);
 const HALO = [0.53, 0.61, 0.68];
 
 test('destination classes share a halo, stay distinct, and seed a stable unit-interval texture', () => {

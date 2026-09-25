@@ -1,7 +1,6 @@
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { classifyCorpDirector } from './director';
+import { selectCorpCredential } from './credential';
 import type {
-  CorpMemberCandidate,
   CorpOwnerAxis,
   EnumeratedOwner,
   OwnerAxis,
@@ -166,19 +165,12 @@ async function resolveCorpToken<TOwner, TState, TSave>(
   axis: CorpOwnerAxis<TOwner>,
   members: EnumeratedOwner[],
 ): Promise<TokenOutcome> {
-  const resolved = await Promise.all(
-    members.map(async (member): Promise<CorpMemberCandidate | null> => {
-      const accessToken = await descriptor.vendToken(member.characterId);
-      if (accessToken === null) return null;
-      const roles = await axis.readRoles(member.characterId, accessToken);
-      if (roles === null) return null;
-      const hasRole = axis.requiredRoles.some((role) => roles.includes(role));
-      return { vendingCharacterId: member.characterId, accessToken, hasRole };
-    }),
+  const selection = await selectCorpCredential(
+    members.map((member) => member.characterId),
+    axis.requiredRoles,
+    { vendToken: descriptor.vendToken, readRoles: axis.readRoles },
   );
-  const candidates = resolved.filter((candidate): candidate is CorpMemberCandidate => candidate !== null);
-  const resolution = classifyCorpDirector(candidates);
-  if (resolution.kind === 'unavailable') return { kind: 'skip', retryable: true };
-  if (resolution.kind === 'needs_role') return { kind: 'needs_role' };
-  return { kind: 'token', accessToken: resolution.accessToken };
+  if (selection.kind === 'unavailable') return { kind: 'skip', retryable: true };
+  if (selection.kind === 'denied') return { kind: 'needs_role' };
+  return { kind: 'token', accessToken: selection.accessToken };
 }

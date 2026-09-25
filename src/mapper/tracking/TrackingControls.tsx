@@ -3,11 +3,7 @@
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import {
-  MenuCheckboxItem,
-  menuSection,
-  menuSectionLabel,
-} from '@/components/ui/menu';
+import { MenuCheckboxItem } from '@/components/ui/menu';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
@@ -87,11 +83,11 @@ function TrackingControlsView({
   return (
     <div
       data-map-tracking
-      className={menuSection}
+      className="flex flex-col pt-1"
       role="group"
       aria-label="Tracking"
     >
-      <div className={menuSectionLabel} aria-hidden="true">
+      <div className="px-3 pb-1.5 font-ui text-nav text-muted" aria-hidden="true">
         Tracking
       </div>
       {characters.length === 0 ? (
@@ -136,7 +132,7 @@ function TrackingControlsView({
       )}
       {showReconnect ? (
         <div className={trackingRowClass} data-tracking-reconnect-action>
-          <span className="font-data text-micro text-muted">Cannot sync location</span>
+          <span className="font-ui text-ui text-muted">Cannot sync location</span>
           {reconnectAction}
         </div>
       ) : null}

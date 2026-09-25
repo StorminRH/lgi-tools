@@ -36,7 +36,7 @@ function wormholePalette(whClassId: number | null): WormholePalette {
   return { ...core, halo: HALO };
 }
 
-export type WormholeBody =
+export type DiscBody =
   | { readonly kind: 'wormhole'; readonly classId: number | null; readonly effect: WormholeEffect | null }
   | { readonly kind: 'planet'; readonly security: number };
 
@@ -68,13 +68,13 @@ function hexRgb(value: string): RGB | null {
   return [channel(1), channel(2), channel(3)];
 }
 
-function tintToken(body: WormholeBody): string | null {
+function tintToken(body: DiscBody): string | null {
   if (body.kind === 'planet') return `--color-sec-${securityBand(body.security)}`;
   return body.effect === null ? null : `--color-effect-${body.effect}`;
 }
 
-export function bodyAppearance(
-  body: WormholeBody,
+export function discBodyAppearance(
+  body: DiscBody,
   readToken: (token: string) => string,
 ): BodyAppearance {
   const token = tintToken(body);

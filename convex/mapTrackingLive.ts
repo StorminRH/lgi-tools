@@ -120,14 +120,12 @@ export const coverage = query({
       });
     }
 
-    const trackedByUser = new Map<string, Promise<ReadonlySet<number>>>();
+    const userIds = [...new Set(identities.map((identity) => identity.userId))];
+    const trackedByUser = new Map(await Promise.all(userIds.map(
+      async (userId) => [userId, await trackedCharacterIdsOnMap(ctx, mapId, userId)] as const,
+    )));
     const coverageRows: CoverageRow[] = await Promise.all(identities.map(async (identity) => {
-      let tracked = trackedByUser.get(identity.userId);
-      if (tracked === undefined) {
-        tracked = trackedCharacterIdsOnMap(ctx, mapId, identity.userId);
-        trackedByUser.set(identity.userId, tracked);
-      }
-      const held = (await tracked).has(identity.characterId)
+      const held = trackedByUser.get(identity.userId)?.has(identity.characterId)
         ? await findCoverage(ctx, identity.userId, identity.characterId)
         : null;
       return {

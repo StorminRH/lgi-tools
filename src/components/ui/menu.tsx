@@ -48,6 +48,8 @@ export function Menu({
   side = 'bottom',
   align = 'end',
   sideOffset = 0,
+  alignOffset = 0,
+  collisionPadding,
   anchor,
   modal = false,
   triggerClassName,
@@ -63,6 +65,8 @@ export function Menu({
   side?: PositionerProps['side'];
   align?: PositionerProps['align'];
   sideOffset?: PositionerProps['sideOffset'];
+  alignOffset?: PositionerProps['alignOffset'];
+  collisionPadding?: PositionerProps['collisionPadding'];
   anchor?: MenuAnchor;
   modal?: boolean;
   triggerClassName?: string;
@@ -80,6 +84,8 @@ export function Menu({
           side={side}
           align={align}
           sideOffset={sideOffset}
+          alignOffset={alignOffset}
+          collisionPadding={collisionPadding}
           anchor={anchor}
           className="z-dropdown"
         >

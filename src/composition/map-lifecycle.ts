@@ -3,7 +3,6 @@ import {
   projectMapAccess,
   ProjectionUnavailableError,
   requireCurrentProjection,
-  type ProjectionResult,
 } from '@/composition/map-access-projection';
 import type { MapLifecycleRequest } from '@/data/maps/api-contract';
 import {
@@ -11,7 +10,6 @@ import {
   requestAuthorizedMapPurge,
   restoreAuthorizedMap,
 } from '@/data/maps/lifecycle';
-import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { acknowledgeMapAccessChanges } from '@/platform/auth/affiliation-store';
 
 export type LifecycleResult =
@@ -27,66 +25,51 @@ export interface MapLifecycleDependencies {
   readonly acknowledgeAccess?: typeof acknowledgeMapAccessChanges;
 }
 
-async function finishCapturedLifecycleProjection(
-  pending: PendingMapAccessChange,
-  project: () => Promise<ProjectionResult>,
-  acknowledgeAccess: typeof acknowledgeMapAccessChanges,
-  label: string,
+async function transitionMapForUser(
+  userId: string,
+  input: MapLifecycleRequest,
+  dependencies: MapLifecycleDependencies,
+  { write, label }: { readonly write: typeof archiveAuthorizedMap; readonly label: string },
 ): Promise<LifecycleResult> {
+  const principals = await (dependencies.resolvePrincipals ?? resolveMapPrincipals)(userId);
+  const pending = await write(userId, principals, input.mapId);
+  if (!pending) return { ok: false };
+  // Project current state, not the captured write: an opposite transition may
+  // have completed while this write was returning, and delayed delivery must
+  // not undo it.
   try {
-    requireCurrentProjection(await project());
-    await acknowledgeAccess([pending]);
+    requireCurrentProjection(
+      await (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
+    );
+    await (dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges)([pending]);
     return { ok: true, projectionPending: false };
   } catch (cause) {
     if (!(cause instanceof ProjectionUnavailableError)) throw cause;
-    console.error(label, {
-      mapId: pending.mapId,
-      cause,
-    });
+    console.error(label, { mapId: pending.mapId, cause });
     return { ok: true, projectionPending: true };
   }
 }
 
-export async function deleteMapForUser(
+export function deleteMapForUser(
   userId: string,
   input: MapLifecycleRequest,
   dependencies: MapLifecycleDependencies = {},
 ): Promise<LifecycleResult> {
-  const principals = await (dependencies.resolvePrincipals ?? resolveMapPrincipals)(userId);
-  const pending = await (dependencies.archiveMap ?? archiveAuthorizedMap)(
-    userId,
-    principals,
-    input.mapId,
-  );
-  if (!pending) return { ok: false };
-  // A restore may have completed while the archive write was returning.
-  // Project current state so delayed delivery cannot revoke restored access.
-  return finishCapturedLifecycleProjection(
-    pending,
-    () => (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
-    dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges,
-    '[maps] archived map projection pending resync',
-  );
+  return transitionMapForUser(userId, input, dependencies, {
+    write: dependencies.archiveMap ?? archiveAuthorizedMap,
+    label: '[maps] archived map projection pending resync',
+  });
 }
 
-export async function restoreMapForUser(
+export function restoreMapForUser(
   userId: string,
   input: MapLifecycleRequest,
   dependencies: MapLifecycleDependencies = {},
 ): Promise<LifecycleResult> {
-  const principals = await (dependencies.resolvePrincipals ?? resolveMapPrincipals)(userId);
-  const pending = await (dependencies.restoreMap ?? restoreAuthorizedMap)(
-    userId,
-    principals,
-    input.mapId,
-  );
-  if (!pending) return { ok: false };
-  return finishCapturedLifecycleProjection(
-    pending,
-    () => (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
-    dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges,
-    '[maps] restored map projection pending resync',
-  );
+  return transitionMapForUser(userId, input, dependencies, {
+    write: dependencies.restoreMap ?? restoreAuthorizedMap,
+    label: '[maps] restored map projection pending resync',
+  });
 }
 
 export async function requestMapPurgeForUser(

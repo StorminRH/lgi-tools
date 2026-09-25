@@ -5,11 +5,6 @@ import { MapCatalogueDataProvider } from '@/features/maps/map-catalogue-data';
 import { listRegisteredSources } from '@/platform/search';
 import { MapChrome } from './MapChrome';
 
-vi.mock('@/components/composition/account/AccountMenu', () => ({
-  AccountMenu: ({ contextualSection }: { contextualSection?: React.ReactNode }) =>
-    createElement('div', { 'data-account-menu': '' }, contextualSection),
-}));
-
 vi.mock('@/components/composition/FeedbackButton', () => ({
   FeedbackButton: ({ compact, embedded }: { compact?: boolean; embedded?: boolean }) =>
     createElement('div', {
@@ -20,20 +15,26 @@ vi.mock('@/components/composition/FeedbackButton', () => ({
 
 vi.mock('./MapMenu', () => ({
   MapMenu: ({
+    session,
+    contextualSection,
     corporations,
-    deletedMaps,
     mapActionsAvailable,
   }: {
+    session: { name: string } | null;
+    contextualSection?: React.ReactNode;
     corporations?: readonly unknown[];
-    deletedMaps?: readonly unknown[];
     mapActionsAvailable?: boolean;
   }) =>
-    createElement('div', {
-      'data-map-menu': '',
-      'data-map-corporation-count': String(corporations?.length ?? 0),
-      'data-deleted-map-count': String(deletedMaps?.length ?? 0),
-      'data-map-actions-available': String(mapActionsAvailable),
-    }),
+    createElement(
+      'div',
+      {
+        'data-map-menu': '',
+        'data-map-menu-session': session?.name ?? 'none',
+        'data-map-corporation-count': String(corporations?.length ?? 0),
+        'data-map-actions-available': String(mapActionsAvailable),
+      },
+      contextualSection,
+    ),
 }));
 
 vi.mock('@/features/maps/MapSwitcher', () => ({
@@ -127,9 +128,9 @@ describe('MapChrome', () => {
 
     expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-map-corporation-count="1"');
-    expect(markup).toContain('data-deleted-map-count="1"');
     expect(markup).toContain('data-map-actions-available="true"');
-    expect(markup).toContain('data-account-menu');
+    expect(markup).toContain('data-map-menu-session="Mapper"');
+    expect(markup).not.toContain('data-account-menu');
     expect(markup).toContain('right-4 top-4');
     expect(markup).toContain('absolute inset-0');
     expect(markup).toContain('data-feedback-compact="true"');
@@ -142,7 +143,7 @@ describe('MapChrome', () => {
     expect(markup).toContain('data-map-count="1"');
   });
 
-  it('forwards the map-owned contextual settings into the account menu', () => {
+  it('forwards the map-owned contextual settings into the single atlas menu', () => {
     const markup = renderChrome({
       session: {
         characterId: 1,
@@ -153,18 +154,18 @@ describe('MapChrome', () => {
       contextualSection: createElement('div', { 'data-map-settings': '' }),
     });
 
-    expect(markup).toContain('data-account-menu');
+    expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-map-settings');
   });
 
-  it('omits only the account control when an authorized user has no active character', () => {
+  it('keeps the menu without a session when an authorized user has no active character', () => {
     const markup = renderChrome({ session: null });
 
     expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-map-search-slot');
     expect(markup).toContain('data-map-switcher');
     expect(markup).toContain('data-feedback-compact="true"');
-    expect(markup).not.toContain('data-account-menu');
+    expect(markup).toContain('data-map-menu-session="none"');
   });
 
   it('disables map actions when the shared listing snapshot is unavailable', () => {

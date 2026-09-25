@@ -1,6 +1,7 @@
 import { after, connection } from 'next/server';
 import { resolveUserCorpAccess } from '@/composition/corp-access';
 import { authorizeCorpMutation, type UserCorpAccess } from '@/platform/auth/corp-access';
+import { selectCorpCredential } from '@/platform/owner-sync';
 import {
   getCorpStructureRigs,
   getCorpStructures,
@@ -170,15 +171,12 @@ async function userHoldsCorpRole(
   corporationId: number,
   requiredRoles: readonly string[],
 ): Promise<boolean> {
-  // First in-corp pilot wins; an unvendable token or unreadable roles simply do not contribute.
-  const memberCharacterIds = access.characterIdsByCorporation[corporationId] ?? [];
-  for (const characterId of memberCharacterIds) {
-    const accessToken = await vendTokenFor(characterId);
-    if (accessToken === null) continue;
-    const roles = await readRolesFor(characterId, accessToken);
-    if (roles !== null && requiredRoles.some((role) => roles.includes(role))) return true;
-  }
-  return false;
+  const selection = await selectCorpCredential(
+    access.characterIdsByCorporation[corporationId] ?? [],
+    requiredRoles,
+    { vendToken: vendTokenFor, readRoles: readRolesFor },
+  );
+  return selection.kind === 'sufficient';
 }
 
 export async function stationManagerGate(

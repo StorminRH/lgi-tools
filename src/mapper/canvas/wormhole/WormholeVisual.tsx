@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef } from 'react';
 import { createWormholeHost } from './host';
-import type { WormholeBody } from './palette';
+import type { DiscBody } from './palette';
 import styles from './WormholeVisual.module.css';
 
 function WormholeVisualComponent({
@@ -11,7 +11,7 @@ function WormholeVisualComponent({
   paused = false,
   seed = '',
 }: {
-  readonly body: WormholeBody;
+  readonly body: DiscBody;
   readonly active: boolean;
   readonly paused?: boolean;
   readonly seed?: string;
