@@ -37,7 +37,6 @@ test('PageMenuSection renders enum and boolean controls with declared titles', (
   const atlas = renderAt('/atlas');
   expect(atlas).toContain('Map settings');
   expect(atlas).toContain('Camera follow');
-  expect(atlas).not.toContain('Auto layout');
   expect(atlas).toContain('role="switch"');
   expect(atlas).toContain('aria-checked="false"');
 

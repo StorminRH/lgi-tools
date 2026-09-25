@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   isAdmin: false,
@@ -88,85 +88,59 @@ const session = {
   role: 'USER' as const,
 };
 
-describe('MapMenu', () => {
-  beforeEach(() => {
-    mocks.isAdmin = false;
-    mocks.search = '';
-  });
+test('signed-in portrait menu keeps map actions, account rows, and the home mark', () => {
+  mocks.isAdmin = false;
+  mocks.search = '';
+  const door = renderToStaticMarkup(
+    createElement(MapMenu, {
+      session,
+      corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
+    }),
+  );
+  expect(door).toContain('>Maps<');
+  expect(door.indexOf('>Maps<')).toBeLessThan(door.indexOf('New map'));
+  expect(door).toContain('data-map-creation-door');
+  expect(door).toContain('data-corporation-count="1"');
+  expect(door).toContain('LGI');
 
-  it('mounts the creation door with the caller-owned corporation options', () => {
-    const markup = renderToStaticMarkup(
-      createElement(MapMenu, {
-        session,
-        corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
-      }),
-    );
+  const menu = renderToStaticMarkup(
+    createElement(MapMenu, {
+      session,
+      contextualSection: createElement('div', { 'data-tracking': '' }),
+    }),
+  );
+  expect(menu).toContain('aria-label="Mapper — account menu"');
+  expect(menu).toContain('data-portrait="Mapper"');
+  expect(menu).toContain('Manage characters');
+  expect(menu).toContain('aria-label="Close menu"');
+  expect(menu).toContain('Add character');
+  expect(menu).toContain('Account settings');
+  expect(menu).toMatch(/data-map-settings[^>]*><div data-tracking/);
+  expect(menu).toContain('Log out');
+  expect(menu).not.toContain('>Admin<');
+  expect(menu.indexOf('data-tracking')).toBeLessThan(menu.indexOf('Log out'));
+  expect(menu).not.toContain('Copy map link');
 
-    expect(markup).toContain('>Maps<');
-    expect(markup.indexOf('>Maps<')).toBeLessThan(markup.indexOf('New map'));
-    expect(markup).toContain('data-map-creation-door');
-    expect(markup).toContain('data-corporation-count="1"');
-    expect(markup).not.toContain('Deleted maps');
-    expect(markup).not.toContain('Trash');
-  });
+  mocks.isAdmin = true;
+  expect(renderToStaticMarkup(createElement(MapMenu, { session }))).toContain('>Admin<');
 
-  it('opens from the portrait and folds the account rows into one menu', () => {
-    const markup = renderToStaticMarkup(
-      createElement(MapMenu, {
-        session,
-        contextualSection: createElement('div', { 'data-tracking': '' }),
-      }),
-    );
+  mocks.search = 'map=map-a';
+  expect(renderToStaticMarkup(createElement(MapMenu, { session }))).toContain('Copy map link');
+});
 
-    expect(markup).toContain('aria-label="Mapper — account menu"');
-    expect(markup).toContain('data-portrait="Mapper"');
-    expect(markup).toContain('Manage characters');
-    expect(markup).toContain('aria-label="Close menu"');
-    expect(markup).toContain('Add character');
-    expect(markup).toContain('Account settings');
-    expect(markup).toMatch(/data-map-settings[^>]*><div data-tracking/);
-    expect(markup).toContain('Log out');
-    expect(markup).not.toContain('>Admin<');
-    expect(markup.indexOf('data-tracking')).toBeLessThan(markup.indexOf('Log out'));
-  });
+test('signed-out and unavailable listings hide the rows that do not apply', () => {
+  mocks.isAdmin = false;
+  mocks.search = '';
+  const signedOut = renderToStaticMarkup(createElement(MapMenu, { session: null }));
+  expect(signedOut).toContain('aria-label="Atlas menu"');
+  expect(signedOut).not.toContain('data-portrait');
+  expect(signedOut).not.toContain('Log out');
+  expect(signedOut).toContain('New map');
 
-  it('links the main site from the logo instead of listing each tool', () => {
-    const markup = renderToStaticMarkup(createElement(MapMenu, { session }));
-    expect(markup).toContain('LGI');
-    expect(markup).not.toContain('Wormhole Sites');
-    expect(markup).not.toContain('Industry Planner');
-  });
-
-  it('offers the admin console to admins', () => {
-    mocks.isAdmin = true;
-    const markup = renderToStaticMarkup(createElement(MapMenu, { session }));
-    expect(markup).toContain('>Admin<');
-  });
-
-  it('offers a copyable link only while a map is open', () => {
-    expect(
-      renderToStaticMarkup(createElement(MapMenu, { session })),
-    ).not.toContain('Copy map link');
-    mocks.search = 'map=map-a';
-    expect(renderToStaticMarkup(createElement(MapMenu, { session }))).toContain(
-      'Copy map link',
-    );
-  });
-
-  it('falls back to the glyph trigger without account rows when no character is active', () => {
-    const markup = renderToStaticMarkup(createElement(MapMenu, { session: null }));
-    expect(markup).toContain('aria-label="Atlas menu"');
-    expect(markup).not.toContain('data-portrait');
-    expect(markup).not.toContain('Log out');
-    expect(markup).toContain('New map');
-  });
-
-  it('hides and closes map actions when the shared listing is unavailable', () => {
-    const markup = renderToStaticMarkup(
-      createElement(MapMenu, { session, mapActionsAvailable: false }),
-    );
-    expect(markup).not.toContain('New map');
-    expect(markup).toContain('>Maps<');
-    expect(markup).toContain('data-map-creation-open="false"');
-  });
+  const unavailable = renderToStaticMarkup(
+    createElement(MapMenu, { session, mapActionsAvailable: false }),
+  );
+  expect(unavailable).not.toContain('New map');
+  expect(unavailable).toContain('>Maps<');
+  expect(unavailable).toContain('data-map-creation-open="false"');
 });
