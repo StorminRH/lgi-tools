@@ -273,6 +273,43 @@ describe('runOwnerSync — the corporation pass', () => {
     ]);
   });
 
+  it('retries a corp whose only other member is temporarily unavailable, without saving gate state', async () => {
+    const saveGateState = vi.fn(async () => {});
+    const d = makeDescriptor({
+      characterAxis: undefined,
+      vendToken: vi.fn(async (characterId: number) => (characterId === 2 ? null : `tok-${characterId}`)),
+      enumerate: vi.fn(async () => [owner(1, { corporationId: 5000 }), owner(2, { corporationId: 5000 })]),
+      corpAxis: corpAxis(vi.fn(async () => [])),
+      saveGateState,
+    });
+
+    const results = await runOwnerSync(d, 'u');
+
+    expect(saveGateState).not.toHaveBeenCalled();
+    expect(d.fetchAndPlan).not.toHaveBeenCalled();
+    expect(results).toEqual([
+      {
+        kind: 'failed_retryable',
+        target: { ownerType: 'corporation', ownerId: 5000 },
+        code: 'owner_temporarily_unavailable',
+      },
+    ]);
+  });
+
+  it('never vends later members once the first member is sufficient', async () => {
+    const d = makeDescriptor({
+      characterAxis: undefined,
+      enumerate: vi.fn(async () => [1, 2, 3].map((id) => owner(id, { corporationId: 5000 }))),
+      corpAxis: corpAxis(vi.fn(async () => ['Director'])),
+    });
+
+    await runOwnerSync(d, 'u');
+
+    expect(d.vendToken).toHaveBeenCalledTimes(1);
+    expect(d.vendToken).toHaveBeenCalledWith(1);
+    expect(d.fetchAndPlan).toHaveBeenCalledWith('corp:u:5000', 'tok-1', null);
+  });
+
   it('reads no roles for a fresh corp (stale gate before director resolution)', async () => {
     const readRoles = vi.fn(async () => ['Director']);
     const d = makeDescriptor({

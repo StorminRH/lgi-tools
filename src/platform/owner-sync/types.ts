@@ -15,17 +15,6 @@ export interface PagedOwnerSyncState {
   pageEtags: string[];
 }
 
-export interface CorpMemberCandidate {
-  vendingCharacterId: number;
-  accessToken: string;
-  hasRole: boolean;
-}
-
-export type CorpDirectorResolution =
-  | { kind: 'token'; vendingCharacterId: number; accessToken: string }
-  | { kind: 'needs_role' }
-  | { kind: 'unavailable' };
-
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
   | { kind: 'stamp' }
