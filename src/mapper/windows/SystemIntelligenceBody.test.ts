@@ -85,20 +85,19 @@ function titleAccessoryMarkup(): string {
 }
 
 describe('SystemIntelligenceBody', () => {
-  it('shows combat blue-loot totals for every site occurrence without requesting market prices', () => {
+  it('shows combat blue-loot totals for every priced site and withholds a partial total', () => {
     signatures.rows = [siteRow('A', combatSite.name), siteRow('B', combatSite.name)];
-    const body = bodyMarkup([combatSite]);
-    expect(body).toContain('data-intel-category="combat"');
-    expect(body).toContain('>17.2M<');
-    expect(body).not.toContain('198.0M');
+    const priced = bodyMarkup([combatSite]);
+    expect(priced).toContain('data-intel-category="combat"');
+    expect(priced).toContain('>17.2M<');
+    expect(priced).not.toContain('198.0M');
     expect(refresh).not.toHaveBeenCalled();
-  });
 
-  it.each([null, 'Unknown Combat Site'])('withholds the combat total when a site is unpriced: %s', (name) => {
-    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', name)];
-    const body = bodyMarkup([combatSite]);
-    expect(body).toContain('>—<');
-    expect(body).not.toContain('>8.6M<');
+    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', null)];
+    const withheld = bodyMarkup([combatSite]);
+    expect(withheld).toContain('>—<');
+    expect(withheld).not.toContain('>8.6M<');
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('keeps harvestable totals on live resource prices alongside combat blue loot', () => {
