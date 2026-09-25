@@ -1,6 +1,7 @@
 'use client';
 
 import { type RefObject, useReducer, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -49,7 +50,11 @@ export function AccountDangerZone({
               EVE data.
             </PopoverRow>
             <PopoverRow label="Unlink">
-              just detaches the character (on the roster above) — you can link it again later.
+              detaches the character from your account. Unlink characters on{' '}
+              <Link href="/settings/characters" className="text-tone-blue hover:underline">
+                Settings → Characters
+              </Link>
+              . You can link them again later.
             </PopoverRow>
           </Popover>
         }

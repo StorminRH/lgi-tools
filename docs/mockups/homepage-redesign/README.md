@@ -8,8 +8,8 @@ the production tokens in `src/app/globals.css`. Numbers and pilots are
 sample data.
 
 Open any `.html` file in a browser to see the motion. Screenshots freeze it.
-To re-shoot them, run
-`PLAYWRIGHT_PATH=$(npm root -g)/playwright node docs/mockups/homepage-redesign/shoot.mjs`.
+To re-shoot them, install Chromium with `pnpm exec playwright install chromium`, then run
+`node docs/mockups/homepage-redesign/shoot.mjs`.
 
 ## A — Orbit (cinematic landing)
 

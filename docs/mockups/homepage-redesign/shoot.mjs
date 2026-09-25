@@ -1,4 +1,4 @@
-// Renders each mock to PNG. Run: node docs/mockups/homepage-redesign/shoot.mjs [name...]
+// Run: node docs/mockups/homepage-redesign/shoot.mjs [name...]
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -19,7 +19,7 @@ const SHOTS = [
 ];
 
 const only = process.argv.slice(2);
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await chromium.launch();
 for (const s of SHOTS) {
   if (only.length && !only.some((o) => s.name.startsWith(o))) continue;
   const page = await browser.newPage({ viewport: { width: s.vp[0], height: s.vp[1] }, deviceScaleFactor: 2 });
