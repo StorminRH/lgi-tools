@@ -50,7 +50,7 @@ function FeedbackMeta({
   path: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 text-label tracking-label uppercase text-muted">
+    <div className="flex flex-col gap-1 rounded-ctl border border-border-soft bg-bg-deep/60 px-3 py-2 text-label tracking-label uppercase text-muted">
       {loading ? (
         <div>Submitting…</div>
       ) : session ? (
@@ -256,7 +256,7 @@ export function FeedbackModal({
       className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(560px,calc(100vw-2rem))] flex-col"
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border-soft px-4 py-3">
           <h2
             id={titleId}
             className="font-display font-bold text-h3 tracking-copy uppercase text-name"
@@ -304,7 +304,7 @@ export function FeedbackModal({
           />
         </div>
 
-        <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-border px-4 py-3">
+        <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-border-soft px-4 py-3">
           <FeedbackFooter
             state={state}
             disabled={disabled}

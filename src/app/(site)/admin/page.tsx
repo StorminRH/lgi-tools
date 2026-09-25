@@ -99,32 +99,34 @@ async function AdminContent({
       />
 
       <div className="w-full flex flex-col gap-8">
-        <Suspense fallback={<SectionFallback />}>
-          <MetricsSection rangeKey={rangeKey} range={range} />
-        </Suspense>
+        <div className="reveal reveal-1">
+          <Suspense fallback={<SectionFallback />}>
+            <MetricsSection rangeKey={rangeKey} range={range} />
+          </Suspense>
+        </div>
 
-        <section>
+        <section className="reveal reveal-2">
           <GroupHeading>System health</GroupHeading>
           <Suspense fallback={<SectionFallback />}>
             <StatusStrip range={range} />
           </Suspense>
         </section>
 
-        <section>
+        <section className="reveal reveal-3">
           <GroupHeading>ESI &amp; ops</GroupHeading>
           <Suspense fallback={<SectionFallback />}>
             <OpsSection rangeKey={rangeKey} range={range} />
           </Suspense>
         </section>
 
-        <section>
+        <section className="reveal reveal-4">
           <GroupHeading>Traffic &amp; SEO</GroupHeading>
           <Suspense fallback={<SectionFallback />}>
             <TrafficSection rangeKey={rangeKey} range={range} />
           </Suspense>
         </section>
 
-        <section>
+        <section className="reveal reveal-5">
           <GroupHeading>Users</GroupHeading>
           <Suspense fallback={<SectionFallback />}>
             <UsersSection range={range} />

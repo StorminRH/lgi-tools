@@ -87,7 +87,7 @@ export function UniverseAssetsProof() {
   }, []);
 
   return (
-    <div className="mb-6 flex min-h-9 flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-border-idle bg-panel px-4 py-2 shadow-card">
+    <div className="mb-6 flex min-h-9 flex-wrap items-center gap-x-5 gap-y-2 reveal reveal-1 border border-border glass-surface glass-lit rounded-card shadow-card-edge px-4 py-2">
       <ProofContent state={state} />
     </div>
   );

@@ -554,12 +554,8 @@ a:hover {
  *   glass-dense   → menus and popovers that hold readable lists
  * Pair either with glass-lit for the sheen that sells "floating". */
 @utility glass-surface {
+  @apply glass-panel;
   background: color-mix(in oklab, var(--color-bg-deep) 58%, transparent);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: var(--color-section);
-  }
 }
 @utility glass-dense {
   background: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
