@@ -59,5 +59,22 @@ describe.skipIf(!harness.reachable)('wormhole effect beacons against the SDE mir
       .map((pair) => `${pair.effect}:${pair.wormhole_class_id}`)
       .filter((key) => (byKey.get(key)?.modifiers.length ?? 0) === 0);
     expect(missing).toEqual([]);
+
+    // Pin real values so a unit or sign mistake cannot pass: Wolf-Rayet at
+    // class 5 is +86% armor HP, -43% shield resistances and signature radius,
+    // and +172% small weapon damage in game.
+    expect(byKey.get('wolf-rayet:5')?.modifiers.map(({ label, percent }) => [label, percent])).toEqual([
+      ['Armor HP', 86],
+      ['Shield resistances', -43],
+      ['Signature radius', -43],
+      ['Small weapon damage', 172],
+    ]);
+    expect(byKey.get('pulsar:1')?.modifiers.map(({ label, percent }) => [label, percent])).toEqual([
+      ['Armor resistances', -15],
+      ['Capacitor recharge time', -15],
+      ['Neutralizer and nosferatu amount', 30],
+      ['Shield HP', 30],
+      ['Signature radius', 30],
+    ]);
   });
 });
