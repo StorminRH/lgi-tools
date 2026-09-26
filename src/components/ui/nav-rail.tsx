@@ -5,13 +5,15 @@ import { ContentBrowserDrawerNavigation } from './content-browser-drawer';
 import { Drawer } from './drawer';
 import { scrollArea } from './scroll-area';
 
-type WrapperProps = Omit<ComponentProps<'div'>, 'children' | 'title'>;
-
 /**
  * The sticky glass section rail beside a content column on desktop.
  * Hidden below lg, where NavRailDrawer takes over.
  */
-export function NavRailPanel({ className, children, ...rest }: WrapperProps & { children: ReactNode }) {
+export function NavRailPanel({
+  className,
+  children,
+  ...rest
+}: Omit<ComponentProps<'div'>, 'title'> & { children: ReactNode }) {
   return (
     <div
       {...rest}
@@ -45,7 +47,7 @@ export function NavRailDrawer({
   className,
   children,
   ...rest
-}: WrapperProps & {
+}: Omit<ComponentProps<'div'>, 'children' | 'title'> & {
   title: string;
   label: string;
   current: ReactNode;
