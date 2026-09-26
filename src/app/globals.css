@@ -527,42 +527,45 @@ a:hover {
  * consumers: an ancestor with filter, fractional opacity, mask, or
  * clip-path becomes a "backdrop root" and silently scopes the frost. */
 @utility glass-panel {
-  background: color-mix(in oklab, var(--color-bg-deep) 65%, transparent);
+  background-color: color-mix(in oklab, var(--color-bg-deep) 65%, transparent);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: var(--color-bg-deep);
+    background-color: var(--color-bg-deep);
   }
 }
 /* Near-transparent frost for map text overlays (current-system dock). No tint —
  * soft blur alone keeps copy readable when map chrome passes underneath. */
 @utility glass-panel-faint {
-  background: transparent;
+  background-color: transparent;
   -webkit-backdrop-filter: blur(3px) saturate(var(--glass-saturate));
   backdrop-filter: blur(3px) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: transparent;
+    background-color: transparent;
   }
 }
 /* ── v2 glass tiers ────────────────────────────────────────────────────
- * glass-panel above stays the Atlas map-chrome recipe. The redesign adds
+ * glass-panel above stays the small pop-out recipe. The redesign adds
  * two more tiers so that glass can be the default surface sitewide:
  *   glass-surface → cards, the floating header, tiles (lighter, lets the
  *                   nebula through)
  *   glass-dense   → menus and popovers that hold readable lists
- * Pair either with glass-lit for the sheen that sells "floating". */
+ * Pair either with glass-lit for the sheen that sells "floating". Every
+ * tier sets background-color, never the `background` shorthand: the
+ * shorthand would reset glass-lit's background-image, which Tailwind emits
+ * earlier in the utilities layer. */
 @utility glass-surface {
   @apply glass-panel;
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-    background: color-mix(in oklab, var(--color-bg-deep) 58%, transparent);
+    background-color: color-mix(in oklab, var(--color-bg-deep) 58%, transparent);
   }
 }
 @utility glass-dense {
-  background: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
+  background-color: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
   -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
   backdrop-filter: blur(24px) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: var(--color-bg-deep);
+    background-color: var(--color-bg-deep);
   }
 }
 @utility glass-lit {
@@ -618,11 +621,12 @@ a:hover {
   mask-composite: exclude;
   opacity: 0;
   transition: opacity var(--transition-duration-lift);
-  animation: edge-orbit 4s linear infinite;
+  animation: edge-orbit 4s linear infinite paused;
 }
 .edge-glow:hover::before,
 .edge-glow:focus-within::before {
   opacity: 1;
+  animation-play-state: running;
 }
 @keyframes edge-orbit {
   to { --edge-angle: 360deg; }

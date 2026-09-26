@@ -128,7 +128,7 @@ function CatalogueMapCard({
     <Card
       hover
       data-map-catalogue-card={map.id}
-      className="edge-glow flex min-h-56 flex-col overflow-hidden rounded-panel"
+      className="edge-glow flex min-h-56 flex-col rounded-panel"
     >
       <Link
         href={href}
