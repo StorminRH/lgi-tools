@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { insetSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -36,7 +38,7 @@ export function RosterCard({
   reconnectAction?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-ctl border border-border-soft bg-bg-deep/60 px-3 py-2.5">
+    <div className={cn(insetSurface, 'flex items-center gap-2.5 px-3 py-2.5')}>
       <CharacterPortrait characterId={vm.characterId} name={vm.name} size={38} src={vm.portraitUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">

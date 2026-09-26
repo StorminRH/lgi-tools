@@ -1,5 +1,9 @@
 [data-map-shell],
 [data-map-motion-scope] {
+  /* React Flow's own edge greys (#b1b1b7, selected #555) read darker when
+   * selected on a dark canvas. Route them through the palette instead. */
+  --xy-edge-stroke: var(--color-map-edge);
+  --xy-edge-stroke-selected: var(--color-map-edge-selected);
   --map-motion-fast: 250ms;
   --map-motion-mid: 1000ms;
   --map-motion-slow: 1000ms;

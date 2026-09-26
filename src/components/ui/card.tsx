@@ -8,6 +8,15 @@ export const cardSurface =
 // pinned controls. Callers choose the shape (rounded-full, rounded-sheet).
 export const floatSurface = 'border border-border glass-surface glass-lit shadow-float';
 
+// Dense glass for panels that hold readable lists over busy content, such as
+// the map's windows and prompts. No sheen: it sits on top of the canvas
+// rather than floating above the page.
+export const denseSurface =
+  'border border-border glass-dense text-text rounded-card shadow-card-edge';
+
+// A row or tile set into a surface: list items inside cards and dialogs.
+export const insetSurface = 'rounded-ctl border border-border-soft bg-bg-deep/60';
+
 // Hover for clickable glass that should not move, where Card's `lift` would.
 export const surfaceGlowHover =
   'transition-[border-color,box-shadow] hover:border-border-active hover:shadow-card-hover';

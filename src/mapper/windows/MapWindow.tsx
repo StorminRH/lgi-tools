@@ -167,8 +167,8 @@ function windowChromeClass(
     overlay
       ? cn('pointer-events-none rounded-ctl', mapOverlaySurface)
       : placement.kind === 'docked-bottom-left'
-        ? 'pointer-events-auto rounded-none glass-panel-faint'
-        : cn('pointer-events-auto rounded-card', mapFrostedSurface),
+        ? cn('pointer-events-auto rounded-none', mapOverlaySurface)
+        : cn('pointer-events-auto', mapFrostedSurface),
     placementClassName(placement, overlay),
     (placement.kind === 'scanner-anchored' || placement.kind === 'node-anchored')
       && 'map-node-enter',

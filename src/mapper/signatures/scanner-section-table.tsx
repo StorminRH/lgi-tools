@@ -5,7 +5,7 @@ import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ScannerEstIskCell } from '@/features/wormhole-sites/widget';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
-import { mapFrostedSurface } from '../map-frosted-surface';
+import { mapNestedSurface } from '../map-frosted-surface';
 import { ScannerIdentifyCombo } from './scanner-identify-combo';
 import {
   IdCell,
@@ -157,7 +157,7 @@ function ScannerSectionBlock({
   return (
     <section
       data-scanner-section={section.id}
-      className={cn(mapFrostedSurface, 'min-w-0 max-w-full')}
+      className={cn(mapNestedSurface, 'min-w-0 max-w-full')}
     >
       <Collapsible
         defaultOpen
@@ -177,7 +177,7 @@ function ScannerSectionBlock({
             </span>
             <span
               data-scanner-section-count
-              className="ml-auto rounded-ctl bg-bg-deep px-1.5 font-ui text-micro text-muted"
+              className="ml-auto rounded-full bg-row-on px-1.5 font-ui text-micro text-muted"
             >
               {section.rows.length}
             </span>

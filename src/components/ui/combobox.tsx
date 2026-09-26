@@ -74,7 +74,7 @@ export function Item({ className, ...props }: ComponentProps<typeof Autocomplete
     <Autocomplete.Item
       className={cn(
         'cursor-default select-none rounded-ctl outline-none',
-        'data-[highlighted]:bg-row-active data-[highlighted]:text-name',
+        'data-[highlighted]:bg-row-on data-[highlighted]:text-name',
         className,
       )}
       {...props}
