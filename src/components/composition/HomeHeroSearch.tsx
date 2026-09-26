@@ -1,6 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { floatSurface, surfaceGlowHover } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { Kbd } from '@/components/ui/kbd';
 
 // The hero's search bar is a large trigger for the header's global search,
@@ -15,7 +17,11 @@ export function HomeHeroSearch() {
       variant="bare"
       onClick={focusGlobalSearch}
       aria-label="Search"
-      className="reveal reveal-4 group w-full max-w-[620px] cursor-text gap-3 rounded-sheet border border-border glass-surface glass-lit py-2 pr-2 pl-5 text-left shadow-float transition-[border-color,box-shadow] hover:border-border-active hover:shadow-card-hover"
+      className={cn(
+        floatSurface,
+        surfaceGlowHover,
+        'reveal reveal-4 group w-full max-w-[620px] cursor-text gap-3 rounded-sheet py-2 pr-2 pl-5 text-left',
+      )}
     >
       <span aria-hidden className="font-data text-body font-bold text-isk">
         &gt;

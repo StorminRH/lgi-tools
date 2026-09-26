@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { floatSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { FeedbackModal } from '@/features/feedback/components/FeedbackModal';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 
@@ -29,7 +31,7 @@ export function FeedbackButton({
         className={
           embedded
             ? undefined
-            : 'fixed bottom-4 right-4 z-dropdown rounded-full glass-surface glass-lit shadow-float px-5'
+            : cn(floatSurface, 'fixed bottom-4 right-4 z-dropdown rounded-full px-5')
         }
         data-map-feedback-chip={embedded || undefined}
         data-site-feedback={embedded ? undefined : ''}

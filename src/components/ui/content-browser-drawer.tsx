@@ -17,11 +17,7 @@ export function ContentBrowserChapterTitle({
 }) {
   const pathname = usePathname();
   const slug = deriveActiveContentSlug(pathname, basePath, landingSlug);
-  return (
-    <span data-content-drawer-current-title className="min-w-0 flex-1 truncate text-left text-nav text-text">
-      {titleForSlug(model, slug)}
-    </span>
-  );
+  return titleForSlug(model, slug);
 }
 
 export function ContentBrowserDrawerNavigation({ children }: { children: ReactNode }) {

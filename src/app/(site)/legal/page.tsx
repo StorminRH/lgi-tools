@@ -206,7 +206,7 @@ export default function LegalPage() {
             </LegalSection>
           </LegalCard>
 
-          <div className="legal-note glass-surface glass-lit rounded-card shadow-card-edge reveal reveal-4">
+          <div className={cn(cardSurface, 'legal-note reveal reveal-4')}>
             <p>
               <b>EVE Online</b> and the EVE logo are registered trademarks of Fenris Creations
               (formerly CCP hf, rebranded 2026-05-06). All artwork, screenshots, characters,

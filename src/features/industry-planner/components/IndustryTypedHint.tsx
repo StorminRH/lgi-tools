@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Kbd } from '@/components/ui/kbd';
 import { Button } from '@/components/ui/button';
+import { cardSurface, surfaceGlowHover } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 
 const HINT = 'search for any blueprint or reaction to get started';
 const STEP_MS = 26;
@@ -43,7 +45,11 @@ export function IndustryTypedHint() {
     <Button
       variant="bare"
       type="button"
-      className="reveal reveal-1 inline-flex max-w-full items-center gap-[9px] self-start rounded-sheet border border-border glass-surface glass-lit px-4 py-2 text-left font-ui text-ui tracking-[0.03em] text-muted shadow-card-edge transition-[border-color,box-shadow] hover:border-border-active hover:shadow-card-hover"
+      className={cn(
+        cardSurface,
+        surfaceGlowHover,
+        'reveal reveal-1 inline-flex max-w-full items-center gap-[9px] self-start rounded-sheet px-4 py-2 text-left font-ui text-ui tracking-[0.03em] text-muted',
+      )}
       onClick={focusNavSearch}
     >
       <span className="shrink-0 text-ui font-bold text-isk">{'>'}</span>
