@@ -56,15 +56,24 @@ export function PageHead({
   subtitle,
   meta,
   size = 'page',
+  reveal = true,
 }: {
   crumb: string;
   title: string;
   subtitle?: ReactNode;
   meta?: ReactNode;
   size?: PageTitleSize;
+  // False for a head that replaces a Suspense fallback's identical head:
+  // fading in again would blink a title that is already on screen.
+  reveal?: boolean;
 }) {
   return (
-    <header className="reveal w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
+    <header
+      className={cn(
+        reveal && 'reveal',
+        'w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap',
+      )}
+    >
       <div>
         <Breadcrumb crumb={crumb} />
         <PageTitle size={size}>{title}</PageTitle>

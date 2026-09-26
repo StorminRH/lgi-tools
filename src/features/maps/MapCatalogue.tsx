@@ -252,7 +252,7 @@ function MapCatalogueSurface({
         className="outline-none"
       >
         <PageShell mode="workspace">
-          <PageHead size="hero" crumb="atlas" title="Atlas" />
+          <PageHead size="hero" crumb="atlas" title="Atlas" reveal={false} />
           <Card className="flex max-w-lg flex-col items-center gap-4 p-6 text-center">
             <div className="flex flex-col gap-1.5">
               <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
@@ -278,6 +278,7 @@ function MapCatalogueSurface({
           size="hero"
           crumb="atlas"
           title="Atlas"
+          reveal={false}
           meta={
             <div className="flex items-center gap-2">
               <Button
