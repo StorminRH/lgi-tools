@@ -170,14 +170,27 @@ export function anchoredLeader(input: {
   return { d: roundedLeaderPath(points, LEADER_CORNER_RADIUS), start, end };
 }
 
+/**
+ * Up when the card fits above the disc, down otherwise. The previous choice
+ * sticks while it still fits, so small pans do not flip the card, but it
+ * gives way once the disc nears the edge it would be clamped against.
+ */
 function chooseLift(
   preferred: CardAnchorLift | null,
   anchor: ScreenPoint,
   rise: number,
+  cardHeight: number,
+  viewportHeight: number,
   padding: number,
 ): CardAnchorLift {
-  if (preferred !== null) return preferred;
-  return anchor.y - rise - CARD_ATTACH_Y >= padding ? 'up' : 'down';
+  const fits = (lift: CardAnchorLift) => {
+    const top = anchor.y + (lift === 'up' ? -rise : rise) - CARD_ATTACH_Y;
+    return lift === 'up' ? top >= padding : top + cardHeight <= viewportHeight - padding;
+  };
+  if (preferred !== null && fits(preferred)) return preferred;
+  if (fits('up')) return 'up';
+  if (fits('down')) return 'down';
+  return preferred ?? 'up';
 }
 
 export function placeAnchoredCard(input: {
@@ -204,7 +217,7 @@ export function placeAnchoredCard(input: {
   const side: CardAnchorSide =
     input.side ?? (anchor.x >= viewport.width / 2 ? 'left' : 'right');
   const rise = anchorRise(radius);
-  const lift = chooseLift(input.lift ?? null, anchor, rise, padding);
+  const lift = chooseLift(input.lift ?? null, anchor, rise, card.height, viewport.height, padding);
   const attachY = anchor.y + (lift === 'up' ? -rise : rise);
   let left = side === 'left'
     ? anchor.x - radius - gap - card.width

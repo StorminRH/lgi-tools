@@ -95,6 +95,12 @@ describe('placeAnchoredCard', () => {
     expect(low.lift).toBe('down');
     expect(low.top).toBe(40 + CARD_ANCHOR_RISE - CARD_ATTACH_Y);
 
+    // A remembered lift gives way once the disc is panned against that edge.
+    const panned = placeAnchoredCard({ anchor: { x: 100, y: 40 }, card, viewport, lift: 'up' });
+    expect(panned.lift).toBe('down');
+    const kept = placeAnchoredCard({ anchor: { x: 100, y: 300 }, card, viewport, lift: 'down' });
+    expect(kept.lift).toBe('down');
+
     const clamped = placeAnchoredCard({
       anchor: { x: 300, y: 10 },
       card,

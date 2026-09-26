@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { CARD_ATTACH_Y } from '../windows/follower-model';
 import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
 import {
   isOutsideClickGesture,
@@ -82,9 +83,6 @@ const CARD_EDGE_PX = 16;
 /** Clearance kept under the card so it floats rather than rests on the edge. */
 const CARD_FLOAT_PX = 48;
 
-/** Card header centre, measured down from its top: where the leader lands. */
-const CARD_ATTACH_Y = 18;
-
 const ROW_ALIGN_QUERY = '(min-width: 768px)';
 
 /**
@@ -137,18 +135,29 @@ function useEditorLeader(
 
   useLayoutEffect(() => {
     measure();
-    window.addEventListener('resize', measure);
-    document.addEventListener('scroll', measure, true);
+    // Scroll and resize can fire many times a frame; measuring writes the
+    // card's position and then reads layout, so coalesce to one per frame.
+    let frame: number | null = null;
+    const schedule = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    };
+    window.addEventListener('resize', schedule);
+    document.addEventListener('scroll', schedule, true);
     const panel = panelRef.current;
     let observer: ResizeObserver | null = null;
     if (panel !== null && typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(measure);
+      observer = new ResizeObserver(schedule);
       observer.observe(panel);
     }
     return () => {
-      window.removeEventListener('resize', measure);
-      document.removeEventListener('scroll', measure, true);
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('scroll', schedule, true);
       observer?.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
     };
   }, [measure, panelRef]);
 

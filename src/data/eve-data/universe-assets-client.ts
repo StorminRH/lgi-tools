@@ -106,7 +106,7 @@ async function fetchWormholeCodex(
   }
   const codes = [...typeByCode.keys()].toSorted();
   const effectByKey = new Map(
-    result.data.effects.map((entry) => [`${entry.effect}:${entry.wormholeClass}`, entry]),
+    (result.data.effects ?? []).map((entry) => [`${entry.effect}:${entry.wormholeClass}`, entry]),
   );
   return {
     version,

@@ -12,7 +12,7 @@ import { formatIskShort } from '@/lib/format/isk';
 import { useUniverseAssets } from '../chain/use-universe-assets';
 import { useSignatureRows } from '../signatures/signature-context';
 import { signatureCounts } from '../signatures/signature-model';
-import { useSystemStaticSlots, useWormholeCodex } from '../signatures/use-system-statics';
+import { useSystemStaticSlots, useWormholeCodexStatus } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
 import { IntelIcon, WormholeEffectIcon, type IntelIconKind } from './IntelIcon';
@@ -30,6 +30,29 @@ export function SystemTitleAccessory({ systemId }: { readonly systemId: number }
   );
 }
 
+/** A header row that shows or hides its body, with the expand chevron last. */
+function DisclosureToggle({ header, className, children, ...group }: {
+  readonly header: ReactNode;
+  readonly className: string;
+  readonly children: ReactNode;
+  readonly role?: string;
+  readonly 'aria-label'?: string;
+  readonly 'data-intel-effect'?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div {...group}>
+      <Button variant="bare" aria-expanded={open} aria-controls={id} onClick={() => setOpen((current) => !current)}
+        className={cn('pointer-events-auto flex h-auto w-full items-center text-left font-data', className)}>
+        {header}
+        <IntelIcon kind="expand" className={cn('size-2 text-muted', open && 'rotate-90')} />
+      </Button>
+      <div id={id} hidden={!open}>{open ? children : null}</div>
+    </div>
+  );
+}
+
 function Disclosure({ icon, label, count, value, children }: {
   readonly icon: IntelIconKind;
   readonly label: string;
@@ -37,20 +60,20 @@ function Disclosure({ icon, label, count, value, children }: {
   readonly value?: ReactNode;
   readonly children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
   return (
-    <div>
-      <Button variant="bare" aria-expanded={open} aria-controls={id} onClick={() => setOpen((current) => !current)}
-        className="pointer-events-auto flex h-auto min-h-7 w-full items-center gap-2 text-left font-data text-ui text-name">
-        <IntelIcon kind={icon} />
-        <span className="flex-1">{label}</span>
-        <span className="tabular-nums">{count}</span>
-        {value}
-        <IntelIcon kind="expand" className={cn('size-2 text-muted', open && 'rotate-90')} />
-      </Button>
-      <div id={id} hidden={!open}>{open ? children : null}</div>
-    </div>
+    <DisclosureToggle
+      className="min-h-7 gap-2 text-ui text-name"
+      header={
+        <>
+          <IntelIcon kind={icon} />
+          <span className="flex-1">{label}</span>
+          <span className="tabular-nums">{count}</span>
+          {value}
+        </>
+      }
+    >
+      {children}
+    </DisclosureToggle>
   );
 }
 
@@ -60,8 +83,14 @@ function formatEffectPercent(percent: number): string {
 }
 
 function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number | null }) {
-  const codex = useWormholeCodex();
-  if (codex === null) return <p className="ml-6 py-1 font-data text-micro text-muted">Loading effects…</p>;
+  const { codex, failed } = useWormholeCodexStatus();
+  if (codex === null) {
+    return (
+      <p className="ml-6 py-1 font-data text-micro text-muted">
+        {failed ? 'Effect details are unavailable right now.' : 'Loading effects…'}
+      </p>
+    );
+  }
   const entry = whClassId === null ? null : codex.effect(effect, whClassId);
   if (entry === null || entry.modifiers.length === 0) {
     return <p className="ml-6 py-1 font-data text-micro text-muted">No effect data for this class.</p>;
@@ -79,18 +108,21 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
 }
 
 function EffectDisclosure({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number | null }) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
   return (
-    <div role="group" aria-label="Effect" data-intel-effect>
-      <Button variant="bare" aria-expanded={open} aria-controls={id} onClick={() => setOpen((current) => !current)}
-        className="pointer-events-auto flex h-auto w-full items-center gap-1.5 text-left font-data text-micro">
-        <WormholeEffectIcon effect={effect} />
-        <span className="flex-1 text-name">{WORMHOLE_EFFECT_NAME[effect]}</span>
-        <IntelIcon kind="expand" className={cn('size-2 text-muted', open && 'rotate-90')} />
-      </Button>
-      <div id={id} hidden={!open}>{open ? <EffectModifiers effect={effect} whClassId={whClassId} /> : null}</div>
-    </div>
+    <DisclosureToggle
+      role="group"
+      aria-label="Effect"
+      data-intel-effect
+      className="gap-1.5 text-micro"
+      header={
+        <>
+          <WormholeEffectIcon effect={effect} />
+          <span className="flex-1 text-name">{WORMHOLE_EFFECT_NAME[effect]}</span>
+        </>
+      }
+    >
+      <EffectModifiers effect={effect} whClassId={whClassId} />
+    </DisclosureToggle>
   );
 }
 

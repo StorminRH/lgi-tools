@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   beaconAttributeIds,
   buildWormholeEffects,
+  effectModifierLabel,
   parseEffectBeaconName,
 } from './wormhole-effects';
 
@@ -25,22 +26,27 @@ describe('parseEffectBeaconName', () => {
 });
 
 describe('buildWormholeEffects', () => {
+  // Display names as CCP ships them on the Pulsar beacons.
   const attributes = [
-    { id: 1, name: 'shieldCapacityMultiplier', displayName: 'Shield HP', unitId: 104 },
-    { id: 2, name: 'armorResistanceBonus', displayName: '  ', unitId: 124 },
-    { id: 3, name: 'signatureRadiusMultiplier', displayName: 'Signature Radius', unitId: 109 },
-    { id: 4, name: 'capacitorRechargeRateMultiplier', displayName: 'Capacitor Recharge Time', unitId: 111 },
-    { id: 5, name: 'radius', displayName: 'Radius', unitId: 1 },
-    { id: 6, name: 'noChange', displayName: 'Unchanged', unitId: 104 },
+    { id: 1, name: 'shieldCapacityMultiplier', displayName: 'Shield Hitpoint Bonus', unitId: 104 },
+    { id: 2, name: 'armorEmDamageResonance', displayName: 'Armor EM resistance bonus', unitId: 104 },
+    { id: 3, name: 'armorExplosiveDamageResonance', displayName: 'Armor explosive resistance bonus', unitId: 104 },
+    { id: 4, name: 'armorKineticDamageResonance', displayName: 'Armor kinetic resistance bonus', unitId: 104 },
+    { id: 5, name: 'armorThermalDamageResonance', displayName: 'Armor thermal resistance bonus', unitId: 104 },
+    { id: 6, name: 'rechargeRateMultiplier', displayName: 'Capacitor recharge multiplier', unitId: 104 },
+    { id: 7, name: 'signatureRadiusMultiplier', displayName: 'Signature Penalty', unitId: 104 },
+    { id: 8, name: 'energyWarfareStrengthMultiplier', displayName: 'Energy warfare modifier', unitId: 109 },
+    { id: 9, name: 'radius', displayName: 'Radius', unitId: 1 },
+    { id: 10, name: 'noChange', displayName: 'Unchanged multiplier', unitId: 104 },
   ];
 
-  it('turns beacon dogma into signed percent modifiers from the attribute units', () => {
+  it('turns beacon dogma into signed, player-facing modifiers', () => {
     const effects = buildWormholeEffects(
       [
         {
-          id: 30_000,
-          name: 'Pulsar Effect Beacon Class 3',
-          attributes: { 1: 1.5, 2: -22, 3: 1.25, 4: 0.78, 5: 5000, 6: 1 },
+          id: 30_844,
+          name: 'Pulsar Effect Beacon Class 1',
+          attributes: { 1: 1.3, 2: 1.15, 3: 1.15, 4: 1.15, 5: 1.15, 6: 0.85, 7: 1.3, 8: 1.3, 9: 5000, 10: 1 },
         },
         { id: 29_999, name: 'Incursion Effect Beacon', attributes: { 1: 2 } },
       ],
@@ -49,16 +55,36 @@ describe('buildWormholeEffects', () => {
     expect(effects).toEqual([
       {
         effect: 'pulsar',
-        wormholeClass: 3,
-        typeId: 30_000,
+        wormholeClass: 1,
+        typeId: 30_844,
         modifiers: [
-          { attributeId: 2, label: 'Armor Resistance Bonus', percent: -22 },
-          { attributeId: 4, label: 'Capacitor Recharge Time', percent: 22 },
-          { attributeId: 1, label: 'Shield HP', percent: 50 },
-          { attributeId: 3, label: 'Signature Radius', percent: 25 },
+          { attributeId: 2, label: 'Armor resistances', percent: -15 },
+          { attributeId: 6, label: 'Capacitor recharge time', percent: -15 },
+          { attributeId: 8, label: 'Neutralizer and nosferatu amount', percent: 30 },
+          { attributeId: 1, label: 'Shield HP', percent: 30 },
+          { attributeId: 7, label: 'Signature radius', percent: 30 },
         ],
       },
     ]);
+  });
+
+  it('keeps resistances apart when their values differ', () => {
+    const [entry] = buildWormholeEffects(
+      [{ id: 1, name: 'Pulsar Effect Beacon Class 2', attributes: { 2: 1.1, 3: 1.2, 4: 1.2, 5: 1.2 } }],
+      attributes,
+    );
+    expect(entry?.modifiers.map((modifier) => [modifier.label, modifier.percent])).toEqual([
+      ['Armor EM resistance', -10],
+      ['Armor explosive resistance', -20],
+      ['Armor kinetic resistance', -20],
+      ['Armor thermal resistance', -20],
+    ]);
+  });
+
+  it('falls back to the display name without its dogma suffix', () => {
+    expect(effectModifierLabel('Warp speed multiplier', 'warpSpeedMultiplier')).toBe('Warp speed');
+    expect(effectModifierLabel(null, 'droneTrackingBonus')).toBe('Drone Tracking');
+    expect(effectModifierLabel('  ', 'agilityMultiplier')).toBe('Agility');
   });
 
   it('keeps the lowest type id when a pair repeats and orders by effect then class', () => {

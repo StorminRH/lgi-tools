@@ -80,8 +80,15 @@ export function editorLeader(input: {
   const rise = attachY - middle;
   const stubX = Math.min(x + STUB_PX, panelLeft);
   const room = panelLeft - MIN_RUN_PX - stubX;
+  // Too little room to turn: run level into the panel, at the row's height
+  // when the panel spans it and at the nearest panel edge otherwise.
+  const levelY = clamp(
+    middle,
+    panel.top - origin.top + PANEL_INSET_PX,
+    panel.bottom - origin.top - PANEL_INSET_PX,
+  );
   const points = Math.abs(rise) < 1 || room <= 0
-    ? [start, { x: panelLeft, y: middle }]
+    ? [start, { x: panelLeft, y: levelY }]
     : [
         start,
         { x: stubX, y: middle },

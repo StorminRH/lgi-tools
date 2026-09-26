@@ -64,6 +64,49 @@ const PERCENT_BY_UNIT: ReadonlyMap<number, (value: number) => number> = new Map(
   [127, (value: number) => value * 100], // Absolute Percent
 ]);
 
+/**
+ * Player-facing names for CCP's beacon attribute display names, which are
+ * written for dogma ("Damage multiplier multiplier", "Signature Penalty").
+ * Anything not listed falls back to the display name with its trailing
+ * "multiplier" / "bonus" / "modifier" / "penalty" words removed.
+ */
+const LABEL_OVERRIDES: ReadonlyMap<string, string> = new Map([
+  ['armor hitpoint bonus', 'Armor HP'],
+  ['shield hitpoint bonus', 'Shield HP'],
+  ['signature penalty', 'Signature radius'],
+  ['capacitor recharge multiplier', 'Capacitor recharge time'],
+  ['capacitor capacity multiplier', 'Capacitor capacity'],
+  ['damage multiplier multiplier', 'Weapon damage'],
+  ['small weapon damage multiplier', 'Small weapon damage'],
+  ['explosion radius multiplier', 'Missile explosion radius'],
+  ['explosion velocity multiplier', 'Missile explosion velocity'],
+  ['missile velocity multiplier', 'Missile velocity'],
+  ['maximum velocity multiplier', 'Max velocity'],
+  ['targeting range bonus', 'Targeting range'],
+  ['tracking speed multiplier', 'Turret tracking'],
+  ['target painter effectiveness multiplier', 'Target painter strength'],
+  ['stasis webifier strength multiplier', 'Stasis webifier strength'],
+  ['energy warfare modifier', 'Neutralizer and nosferatu amount'],
+  ['heat damage multiplier', 'Overheat damage'],
+  ['overload bonus multiplier', 'Overheat bonus'],
+  ['repair amount multiplier', 'Local armor repair'],
+  ['shield repair multiplier', 'Local shield boost'],
+  ['remote repair amount multiplier', 'Remote armor repair'],
+  ['shield transfer amount multiplier', 'Remote shield boost'],
+  ['smart bomb damage multiplier', 'Smart bomb damage'],
+  ['smart bomb range multiplier', 'Smart bomb range'],
+]);
+
+const TRAILING_DOGMA_WORDS = /(\s+(multiplier|bonus|modifier|penalty))+$/i;
+
+/**
+ * Resistance attributes on beacons are damage resonance multipliers: a 15%
+ * rise in resonance is a 15% drop in resistance, so the sign flips.
+ */
+const RESONANCE = /resonance|resistance/i;
+
+const RESISTANCE_LAYER = /^(armor|shield) (em|explosive|kinetic|thermal) resistance$/i;
+
 function lettersOnly(value: string): string {
   return value.toLowerCase().replace(/[^a-z]/g, '');
 }
@@ -84,6 +127,43 @@ function humanize(name: string): string {
     .replace(/^./, (first) => first.toUpperCase());
 }
 
+export function effectModifierLabel(displayName: string | null, name: string): string {
+  const raw = displayName?.trim() || humanize(name);
+  const override = LABEL_OVERRIDES.get(raw.toLowerCase());
+  if (override !== undefined) return override;
+  const stripped = raw.replace(TRAILING_DOGMA_WORDS, '');
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+}
+
+/**
+ * Folds the four damage-type resistances of one layer into a single line
+ * when they share a value, e.g. four "Armor ... resistance −15%" lines
+ * become "Armor resistances −15%".
+ */
+function foldResistances(modifiers: WormholeEffectModifier[]): WormholeEffectModifier[] {
+  const byLayer = new Map<string, WormholeEffectModifier[]>();
+  for (const modifier of modifiers) {
+    const layer = RESISTANCE_LAYER.exec(modifier.label)?.[1];
+    if (layer === undefined) continue;
+    const key = layer.toLowerCase();
+    byLayer.set(key, [...(byLayer.get(key) ?? []), modifier]);
+  }
+  const folded = new Set<WormholeEffectModifier>();
+  const merged: WormholeEffectModifier[] = [];
+  for (const [layer, group] of byLayer) {
+    const [first] = group;
+    if (first === undefined || group.length !== 4) continue;
+    if (!group.every((modifier) => modifier.percent === first.percent)) continue;
+    for (const modifier of group) folded.add(modifier);
+    merged.push({
+      attributeId: first.attributeId,
+      label: `${layer.charAt(0).toUpperCase()}${layer.slice(1)} resistances`,
+      percent: first.percent,
+    });
+  }
+  return [...modifiers.filter((modifier) => !folded.has(modifier)), ...merged];
+}
+
 function roundPercent(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -99,15 +179,16 @@ function beaconModifiers(
     if (attribute === undefined || typeof value !== 'number' || !Number.isFinite(value)) continue;
     const toPercent = attribute.unitId === null ? undefined : PERCENT_BY_UNIT.get(attribute.unitId);
     if (toPercent === undefined) continue;
-    const percent = roundPercent(toPercent(value));
-    if (percent === 0) continue;
+    const raw = roundPercent(toPercent(value));
+    if (raw === 0) continue;
+    const resonance = RESONANCE.test(attribute.name) || RESONANCE.test(attribute.displayName ?? '');
     modifiers.push({
       attributeId: attribute.id,
-      label: attribute.displayName?.trim() || humanize(attribute.name),
-      percent,
+      label: effectModifierLabel(attribute.displayName, attribute.name),
+      percent: resonance ? -raw : raw,
     });
   }
-  return modifiers.sort((left, right) => left.label.localeCompare(right.label));
+  return foldResistances(modifiers).sort((left, right) => left.label.localeCompare(right.label));
 }
 
 /**

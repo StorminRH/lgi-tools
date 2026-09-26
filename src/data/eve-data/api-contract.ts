@@ -170,8 +170,10 @@ const wormholeEffectEntrySchema = z.object({
 const wormholeCodexResponseSchema = z.object({
   version: universeAssetVersionSchema,
   types: z.array(wormholeCodexEntrySchema),
-  effects: z.array(wormholeEffectEntrySchema),
-}) satisfies z.ZodType<WormholeCodexAsset>;
+  // Defaults so a codex from an older asset layout still parses; only the
+  // effect lists go empty rather than the whole codex failing.
+  effects: z.array(wormholeEffectEntrySchema).default([]),
+}) satisfies z.ZodType<WormholeCodexAsset, unknown>;
 
 export const universeAssetManifestEndpoint = defineEndpoint({
   method: 'GET',

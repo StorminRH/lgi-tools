@@ -85,6 +85,12 @@ it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when
   // Too little room to turn: a straight run at the row's height.
   expect(leader?.path).toBe('M 183 114 L 200 114');
   expect(leader?.end).toEqual({ x: 200, y: 114 });
+  const narrowLow = editorLeader({
+    row: { left: 10, right: 180, top: 900, bottom: 928 },
+    panel,
+    origin,
+  });
+  expect(narrowLow?.end).toEqual({ x: 200, y: 382 });
 
   const wide = { left: 280, right: 560, top: 40, bottom: 400 };
   const callout = editorLeader({

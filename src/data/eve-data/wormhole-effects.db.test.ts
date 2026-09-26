@@ -12,7 +12,10 @@ const harness = await createDbTestHarness({
 });
 
 describe.skipIf(!harness.reachable)('wormhole effect beacons against the SDE mirror', () => {
-  it('resolves modifiers for every effect and class that systems carry', async () => {
+  // CCP ships effect beacons for classes 1–6 only. Shattered and Drifter
+  // systems (classes 13–18) carry effects too but have no beacon, so the card
+  // says it has no data for them.
+  it('resolves modifiers for every effect at every regular class systems carry', async () => {
     const beacons = await harness.sql<{ id: number; name: string; attributes: unknown }[]>`
       SELECT type.id, type.name, dogma.attributes
       FROM public.eve_types AS type
@@ -34,7 +37,7 @@ describe.skipIf(!harness.reachable)('wormhole effect beacons against the SDE mir
     const systemPairs = await harness.sql<{ effect: string; wormhole_class_id: number }[]>`
       SELECT DISTINCT wormhole_effect AS effect, wormhole_class_id
       FROM public.eve_solar_systems
-      WHERE wormhole_effect IS NOT NULL AND wormhole_class_id IS NOT NULL
+      WHERE wormhole_effect IS NOT NULL AND wormhole_class_id BETWEEN 1 AND 6
       ORDER BY 1, 2
     `;
 
@@ -50,6 +53,7 @@ describe.skipIf(!harness.reachable)('wormhole effect beacons against the SDE mir
     );
 
     expect(systemPairs.length).toBeGreaterThan(0);
+    expect(effects.filter((entry) => entry.wormholeClass >= 1 && entry.wormholeClass <= 6)).toHaveLength(36);
     const byKey = new Map(effects.map((entry) => [`${entry.effect}:${entry.wormholeClass}`, entry]));
     const missing = systemPairs
       .map((pair) => `${pair.effect}:${pair.wormhole_class_id}`)

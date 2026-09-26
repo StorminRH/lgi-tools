@@ -27,8 +27,13 @@ export function staticClassForCode(
   return { className, whClassId };
 }
 
-export function useWormholeCodex(): WormholeCodex | null {
+/** The codex once loaded, and whether the load failed so callers can say so. */
+export function useWormholeCodexStatus(): {
+  readonly codex: WormholeCodex | null;
+  readonly failed: boolean;
+} {
   const [codex, setCodex] = useState<WormholeCodex | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (codex !== null) return;
@@ -38,6 +43,7 @@ export function useWormholeCodex(): WormholeCodex | null {
         if (alive) setCodex(loaded);
       },
       () => {
+        if (alive) setFailed(true);
       },
     );
     return () => {
@@ -45,7 +51,11 @@ export function useWormholeCodex(): WormholeCodex | null {
     };
   }, [codex]);
 
-  return codex;
+  return { codex, failed: codex === null && failed };
+}
+
+export function useWormholeCodex(): WormholeCodex | null {
+  return useWormholeCodexStatus().codex;
 }
 
 export function useSystemStaticSlots(systemId: number) {
