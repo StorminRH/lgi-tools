@@ -15,6 +15,7 @@ import {
   menuSection,
   menuSectionLabel,
 } from '@/components/ui/menu';
+import { floatSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import {
@@ -41,8 +42,10 @@ const portraitReveal =
   '[clip-path:circle(150%_at_calc(100%_-_32px)_32px)] transition-[clip-path,opacity] duration-[360ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ' +
   'data-[starting-style]:[clip-path:circle(19px_at_calc(100%_-_32px)_32px)] ' +
   'data-[ending-style]:[clip-path:circle(19px_at_calc(100%_-_32px)_32px)] data-[ending-style]:opacity-0';
-const glyphTrigger =
-  'inline-flex size-10 cursor-pointer items-center justify-center rounded-ctl border border-border bg-section text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name';
+const glyphTrigger = cn(
+  floatSurface,
+  'inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:border-border-active hover:text-name',
+);
 
 function MenuGroup({ label, children }: { label: string; children: ReactNode }) {
   return (

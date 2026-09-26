@@ -1,5 +1,9 @@
 [data-map-shell],
 [data-map-motion-scope] {
+  /* React Flow's own edge greys (#b1b1b7, selected #555) read darker when
+   * selected on a dark canvas. Route them through the palette instead. */
+  --xy-edge-stroke: var(--color-map-edge);
+  --xy-edge-stroke-selected: var(--color-map-edge-selected);
   --map-motion-fast: 250ms;
   --map-motion-mid: 1000ms;
   --map-motion-slow: 1000ms;
@@ -233,5 +237,104 @@
   .react-flow__edge-path.map-edge-dying {
     animation: none;
     opacity: var(--map-edge-dying-opacity, 0.7);
+  }
+}
+
+/* ── Anchored cards and their leaders ─────────────────────────────────────
+ * One sequence: the leader draws out from its source (disc rim or scanner
+ * row), and the card settles in from the leader's side just as the line
+ * reaches it. On close the card leaves first and the line retracts after it.
+ * Timings pair with CARD_EXIT_MS in MapWindowLayer.tsx. */
+@keyframes map-leader-draw {
+  from { stroke-dashoffset: 1; }
+}
+@keyframes map-leader-retract {
+  to { stroke-dashoffset: 1; }
+}
+@keyframes map-leader-dot-in {
+  from { scale: 0; }
+}
+@keyframes map-leader-dot-out {
+  to { scale: 0; }
+}
+@keyframes map-card-in {
+  from {
+    opacity: 0;
+    translate: var(--map-card-shift, -10px) 0;
+    scale: 0.97;
+  }
+}
+@keyframes map-card-out {
+  to {
+    opacity: 0;
+    translate: var(--map-card-shift, -10px) 0;
+    scale: 0.97;
+  }
+}
+
+.map-leader-path {
+  stroke-dasharray: 1 1;
+  animation: map-leader-draw 260ms var(--ease-out-expo) both;
+}
+.map-leader-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-leader-dot-in 220ms var(--ease-out-expo) both;
+}
+[data-closing] > .map-leader-path {
+  animation: map-leader-retract 140ms ease-in 40ms both;
+}
+[data-closing] > .map-leader-dot {
+  animation: map-leader-dot-out 120ms ease-in 60ms both;
+}
+
+.map-card-enter {
+  transform-origin: left 18px;
+  animation: map-card-in 320ms var(--ease-out-expo) 140ms both;
+}
+.map-card-enter[data-anchor-side='left'] {
+  --map-card-shift: 10px;
+  transform-origin: right 18px;
+}
+.map-card-enter[data-map-window-placement='scanner-anchored'] {
+  transform-origin: left center;
+}
+.map-card-enter[data-closing] {
+  animation: map-card-out 160ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-leader-path,
+  .map-leader-dot {
+    stroke-dasharray: none;
+    animation: map-fade-in 160ms linear both;
+  }
+  [data-closing] > .map-leader-path,
+  [data-closing] > .map-leader-dot {
+    animation: map-fade-out 160ms linear both;
+  }
+  .map-card-enter {
+    animation: map-fade-in 160ms linear both;
+  }
+  .map-card-enter[data-closing] {
+    animation: map-fade-out 160ms linear both;
+  }
+}
+
+/* The scanner bracket opens from the row's centre, then its connector draws. */
+@keyframes map-leader-bracket-in {
+  from { opacity: 0; scale: 1 0; }
+}
+.map-leader-bracket {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-leader-bracket-in 180ms var(--ease-out-expo) both;
+}
+.map-leader-path-after-bracket {
+  animation-delay: 60ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-leader-bracket {
+    animation: map-fade-in 160ms linear both;
   }
 }

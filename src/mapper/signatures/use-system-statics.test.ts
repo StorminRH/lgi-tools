@@ -7,6 +7,7 @@ import {
 
 const codex: WormholeCodex = {
   version: 'test',
+  effect: () => null,
   byCode: (code) =>
     code === 'C247'
       ? {

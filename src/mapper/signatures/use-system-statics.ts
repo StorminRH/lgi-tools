@@ -27,25 +27,47 @@ export function staticClassForCode(
   return { className, whClassId };
 }
 
-export function useWormholeCodex(): WormholeCodex | null {
+const CODEX_RETRY_MS = 10_000;
+
+/**
+ * The codex once loaded, and whether the latest load failed so callers can
+ * say so. A failed load retries every CODEX_RETRY_MS while mounted.
+ */
+export function useWormholeCodexStatus(): {
+  readonly codex: WormholeCodex | null;
+  readonly failed: boolean;
+} {
   const [codex, setCodex] = useState<WormholeCodex | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (codex !== null) return;
     let alive = true;
+    let retry: ReturnType<typeof setTimeout> | null = null;
     loadWormholeCodex().then(
       (loaded) => {
         if (alive) setCodex(loaded);
       },
       () => {
+        if (!alive) return;
+        setFailed(true);
+        // The shared loader clears a failed load, so a later attempt can
+        // succeed; keep trying while the caller is still mounted.
+        retry = setTimeout(() => setAttempt((current) => current + 1), CODEX_RETRY_MS);
       },
     );
     return () => {
       alive = false;
+      if (retry !== null) clearTimeout(retry);
     };
-  }, [codex]);
+  }, [codex, attempt]);
 
-  return codex;
+  return { codex, failed: codex === null && failed };
+}
+
+export function useWormholeCodex(): WormholeCodex | null {
+  return useWormholeCodexStatus().codex;
 }
 
 export function useSystemStaticSlots(systemId: number) {

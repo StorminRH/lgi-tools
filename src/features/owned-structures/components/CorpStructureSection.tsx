@@ -1,10 +1,11 @@
 'use client';
 
+import { cn } from '@/components/ui/cn';
 import Link from 'next/link';
 import { useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, insetSurface } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
@@ -123,7 +124,7 @@ function CorpStructureItem({
   const view = deriveCorpStructureItemView(structure, { structureTypes, structureRigs });
 
   return (
-    <li className="flex flex-col gap-2 rounded-ctl border border-border-soft bg-bg-deep/60 px-3 py-2.5 font-ui text-text">
+    <li className={cn(insetSurface, 'flex flex-col gap-2 px-3 py-2.5 font-ui text-text')}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-data text-ui text-text">{view.displayName}</span>
         <Pill tone="neutral">{view.typeName}</Pill>

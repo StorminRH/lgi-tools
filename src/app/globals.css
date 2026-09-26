@@ -92,6 +92,8 @@
   --color-bg:          #0a0d11;
   --color-section:     #0e1217;
   --color-map-fog:     #05070b; /* atlas fog-of-war cloud — near-black with a cool tint */
+  --color-map-edge:    #8f9aa6; /* atlas connection at rest */
+  --color-map-edge-selected: #3dd68c; /* atlas connection selected or focused (isk) */
   --color-tooltip:     #161b22; /* raised slate for help-tooltip panels */
   /* v2 "glass" redesign: borders are white-alpha hairlines so they read on
    * any translucent surface instead of assuming a solid section fill. */

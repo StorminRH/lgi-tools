@@ -21,18 +21,18 @@ export function FeedbackButton({
   return (
     <>
       <Button
-        variant={embedded ? 'primary' : 'secondary'}
+        variant="secondary"
         size={compact ? 'sm' : 'md'}
         aria-label={compact ? 'Send feedback' : undefined}
         onClick={() => {
           setFormKey((key) => key + 1);
           setOpen(true);
         }}
-        className={
-          embedded
-            ? undefined
-            : cn(floatSurface, 'fixed bottom-4 right-4 z-dropdown rounded-full px-5')
-        }
+        className={cn(
+          floatSurface,
+          'rounded-full',
+          embedded ? 'size-10 p-0' : 'fixed bottom-4 right-4 z-dropdown px-5',
+        )}
         data-map-feedback-chip={embedded || undefined}
         data-site-feedback={embedded ? undefined : ''}
       >

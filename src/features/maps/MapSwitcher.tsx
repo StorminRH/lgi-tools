@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { floatSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { Menu, MenuItem, menuRow } from '@/components/ui/menu';
 import { scrollArea } from '@/components/ui/scroll-area';
 import type {
@@ -90,7 +92,10 @@ export function MapSwitcher({
           'data-map-id': selected.id,
         }}
         popupProps={{ 'data-map-switcher-panel': '' }}
-        triggerClassName="glass-panel-faint flex h-10 w-max max-w-full min-w-0 cursor-pointer items-center rounded-card border border-border-idle px-3.5 font-display text-h3 font-bold tracking-copy text-name shadow-dd outline-none transition-colors hover:border-border-active focus-visible:border-border-active focus-visible:ring-1 focus-visible:ring-isk-sub"
+        triggerClassName={cn(
+          floatSurface,
+          'flex h-10 w-max max-w-full min-w-0 cursor-pointer items-center rounded-full px-4 font-display text-h3 font-bold tracking-copy text-name outline-none transition-colors hover:border-border-active focus-visible:border-border-active',
+        )}
         className={`${scrollArea} grid min-w-72 grid-cols-[minmax(0,1fr)_auto] rounded-card p-[5px] max-h-[min(24rem,var(--available-height))] overflow-y-auto overscroll-contain`}
         surface="frosted"
         side="bottom"
@@ -104,7 +109,7 @@ export function MapSwitcher({
               aria-current={map.id === selected.id ? 'page' : undefined}
               data-map-switcher-map={map.id}
               className={`${menuRow} min-w-0 rounded-l-ctl ${
-                map.id === selected.id ? 'bg-row-active text-name' : ''
+                map.id === selected.id ? 'bg-row-on text-name' : ''
               }`}
               onClick={() => {
                 if (map.id !== selected.id) {
@@ -119,7 +124,7 @@ export function MapSwitcher({
                 closeOnClick
                 aria-label={`Manage ${map.name}`}
                 data-map-switcher-manage={map.id}
-                className="flex cursor-pointer items-center rounded-r-ctl px-2.5 text-muted outline-none data-[highlighted]:bg-row-active data-[highlighted]:text-name"
+                className="flex cursor-pointer items-center rounded-r-ctl px-2.5 text-muted outline-none data-[highlighted]:bg-row-on data-[highlighted]:text-name"
                 onClick={() =>
                   setStoredDialogs((current) => ({
                     ...current,

@@ -1,5 +1,6 @@
 import { SYSTEM_DISC_SIZE } from '../canvas/SystemNode';
 import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
+import { roundedLeaderPath } from './leader-path';
 
 export interface FollowerNode {
   readonly measured: {
@@ -36,27 +37,47 @@ export interface ScreenPoint {
   readonly y: number;
 }
 
-export interface LeaderSegment {
-  readonly x1: number;
-  readonly y1: number;
-  readonly x2: number;
-  readonly y2: number;
+export interface AnchoredLeader {
+  /** Rounded path from the disc rim to the card edge, drawn in that order. */
+  readonly d: string;
+  readonly start: ScreenPoint;
+  readonly end: ScreenPoint;
 }
 
 export interface FollowerWrite {
   readonly transform: string;
-  readonly leader: LeaderSegment | null;
+  readonly side: CardAnchorSide;
+  readonly leader: AnchoredLeader | null;
 }
 
 const CARD_VIEWPORT_PADDING = 16;
 
-export const CARD_ANCHOR_GAP = 40;
+/** Horizontal clearance between the disc rim and the card's near edge. */
+export const CARD_ANCHOR_GAP = 44;
+
+/**
+ * Minimum distance the card's attach point sits above (or below) the disc
+ * centre. It grows with the disc so the 45° run off the rim stays visible
+ * when zoomed in.
+ */
+export const CARD_ANCHOR_RISE = 32;
+
+const CARD_RISE_PAST_RIM = 12;
+
+function anchorRise(discRadius: number): number {
+  return Math.max(CARD_ANCHOR_RISE, discRadius + CARD_RISE_PAST_RIM);
+}
+
+/** Attach point on the card edge, measured down from its top: the header. */
+export const CARD_ATTACH_Y = 18;
+
+const LEADER_MIN_RUN = 10;
+
+const LEADER_CORNER_RADIUS = 8;
 
 export type CardAnchorSide = 'left' | 'right';
 
 export type CardAnchorLift = 'up' | 'down';
-
-const LEADER_MIN_DISTANCE = 12;
 
 export const NODE_CARD_FALLBACK: ScreenSize = { width: 288, height: 208 };
 
@@ -114,6 +135,7 @@ function anchoredFollowerWrite(
   return {
     write: {
       transform: `translate(${placement.left}px, ${placement.top}px)`,
+      side: placement.side,
       leader: placement.leader,
     },
     side: placement.side,
@@ -121,88 +143,54 @@ function anchoredFollowerWrite(
   };
 }
 
-function nearestCardPoint(
-  left: number,
-  top: number,
-  card: ScreenSize,
-  anchor: ScreenPoint,
-): ScreenPoint {
-  return {
-    x: clamp(anchor.x, left, left + card.width),
-    y: clamp(anchor.y, top, top + card.height),
-  };
+/**
+ * The callout from a disc to its card: off the rim at 45° until level with
+ * the card header, then straight into the card's near edge. When the card is
+ * level with the disc it is a single horizontal run.
+ */
+export function anchoredLeader(input: {
+  readonly anchor: ScreenPoint;
+  readonly attach: ScreenPoint;
+  readonly side: CardAnchorSide;
+  readonly discRadius: number;
+}): AnchoredLeader | null {
+  const { anchor, attach, side, discRadius } = input;
+  const sx = side === 'right' ? 1 : -1;
+  const reach = (attach.x - anchor.x) * sx;
+  if (reach - discRadius < LEADER_MIN_RUN) return null;
+
+  const rise = attach.y - anchor.y;
+  const diagonal = Math.min(Math.abs(rise), reach - LEADER_MIN_RUN);
+  const elbow: ScreenPoint = { x: anchor.x + sx * diagonal, y: attach.y };
+  const bend = Math.abs(rise) >= 1 && diagonal > discRadius;
+  const aim = bend ? elbow : attach;
+  const start = pointOnRayAtRadius(anchor, aim, discRadius) ?? anchor;
+  const end: ScreenPoint = bend ? attach : { x: attach.x, y: start.y };
+  const points = bend ? [start, elbow, end] : [start, end];
+  return { d: roundedLeaderPath(points, LEADER_CORNER_RADIUS), start, end };
 }
 
-function signX(side: CardAnchorSide): number {
-  return side === 'right' ? 1 : -1;
-}
-
-function signY(lift: CardAnchorLift): number {
-  return lift === 'up' ? -1 : 1;
-}
-
-function diagonalCardHit(
-  origin: ScreenPoint,
-  side: CardAnchorSide,
-  lift: CardAnchorLift,
-  left: number,
-  top: number,
-  card: ScreenSize,
-): ScreenPoint | null {
-  const sx = signX(side);
-  const sy = signY(lift);
-  const edgeX = side === 'right' ? left : left + card.width;
-  const dx = edgeX - origin.x;
-  if (dx * sx > 0) {
-    const hitY = origin.y + sy * Math.abs(dx);
-    if (hitY >= top && hitY <= top + card.height) {
-      return { x: edgeX, y: hitY };
-    }
-  }
-  const edgeY = lift === 'up' ? top : top + card.height;
-  const dy = edgeY - origin.y;
-  if (dy * sy > 0) {
-    const hitX = origin.x + sx * Math.abs(dy);
-    if (hitX >= left && hitX <= left + card.width) {
-      return { x: hitX, y: edgeY };
-    }
-  }
-  return null;
-}
-
-function discRimToward(
-  center: ScreenPoint,
-  toward: ScreenPoint,
-  radius: number,
-): ScreenPoint {
-  return pointOnRayAtRadius(center, toward, radius) ?? center;
-}
-
-function leaderAlongRay(
-  center: ScreenPoint,
-  toward: ScreenPoint,
-  radius: number,
-  leaderMin: number,
-): LeaderSegment | null {
-  const dx = toward.x - center.x;
-  const dy = toward.y - center.y;
-  const distance = Math.hypot(dx, dy);
-  if (distance <= radius || distance - radius < leaderMin) return null;
-  const rim = discRimToward(center, toward, radius);
-  return { x1: toward.x, y1: toward.y, x2: rim.x, y2: rim.y };
-}
-
+/**
+ * Up when the card fits above the disc, down otherwise. The previous choice
+ * sticks while it still fits, so small pans do not flip the card, but it
+ * gives way once the disc nears the edge it would be clamped against.
+ */
 function chooseLift(
   preferred: CardAnchorLift | null,
-  tryLift: (lift: CardAnchorLift) => LeaderSegment | null,
-): { readonly lift: CardAnchorLift; readonly leader: LeaderSegment | null } {
-  const first: CardAnchorLift = preferred ?? 'up';
-  const second: CardAnchorLift = first === 'up' ? 'down' : 'up';
-  const firstLeader = tryLift(first);
-  if (firstLeader !== null) return { lift: first, leader: firstLeader };
-  const secondLeader = tryLift(second);
-  if (secondLeader !== null) return { lift: second, leader: secondLeader };
-  return { lift: first, leader: null };
+  anchor: ScreenPoint,
+  rise: number,
+  cardHeight: number,
+  viewportHeight: number,
+  padding: number,
+): CardAnchorLift {
+  const fits = (lift: CardAnchorLift) => {
+    const top = anchor.y + (lift === 'up' ? -rise : rise) - CARD_ATTACH_Y;
+    return lift === 'up' ? top >= padding : top + cardHeight <= viewportHeight - padding;
+  };
+  if (preferred !== null && fits(preferred)) return preferred;
+  if (fits('up')) return 'up';
+  if (fits('down')) return 'down';
+  return preferred ?? 'up';
 }
 
 export function placeAnchoredCard(input: {
@@ -211,47 +199,43 @@ export function placeAnchoredCard(input: {
   readonly viewport: ScreenSize;
   readonly gap?: number;
   readonly padding?: number;
-  readonly leaderMinDistance?: number;
   readonly discRadius?: number;
   readonly side?: CardAnchorSide | null;
   readonly lift?: CardAnchorLift | null;
 }): {
   readonly left: number;
   readonly top: number;
-  readonly leader: LeaderSegment | null;
+  readonly leader: AnchoredLeader | null;
   readonly side: CardAnchorSide;
   readonly lift: CardAnchorLift;
 } {
   const gap = input.gap ?? CARD_ANCHOR_GAP;
   const padding = input.padding ?? CARD_VIEWPORT_PADDING;
-  const leaderMin = input.leaderMinDistance ?? LEADER_MIN_DISTANCE;
   const radius = input.discRadius ?? 0;
   const { anchor, card, viewport } = input;
 
   const side: CardAnchorSide =
     input.side ?? (anchor.x >= viewport.width / 2 ? 'left' : 'right');
-  const preferLeft = side === 'left';
-  const clearance = Math.min(radius + gap, card.height / 2);
-  let left = preferLeft
-    ? anchor.x - clearance - card.width
-    : anchor.x + clearance;
-  let top = anchor.y - card.height / 2;
+  const rise = anchorRise(radius);
+  const lift = chooseLift(input.lift ?? null, anchor, rise, card.height, viewport.height, padding);
+  const attachY = anchor.y + (lift === 'up' ? -rise : rise);
+  let left = side === 'left'
+    ? anchor.x - radius - gap - card.width
+    : anchor.x + radius + gap;
+  let top = attachY - CARD_ATTACH_Y;
 
   const maxLeft = Math.max(padding, viewport.width - card.width - padding);
   const maxTop = Math.max(padding, viewport.height - card.height - padding);
   left = clamp(left, padding, maxLeft);
   top = clamp(top, padding, maxTop);
 
-  const chosen = chooseLift(input.lift ?? null, (lift) => {
-    const hit = diagonalCardHit(anchor, side, lift, left, top, card);
-    return hit === null ? null : leaderAlongRay(anchor, hit, radius, leaderMin);
+  const leader = anchoredLeader({
+    anchor,
+    attach: { x: side === 'right' ? left : left + card.width, y: top + CARD_ATTACH_Y },
+    side,
+    discRadius: radius,
   });
-  const fallbackToward = nearestCardPoint(left, top, card, anchor);
-  const leader =
-    chosen.leader ??
-    leaderAlongRay(anchor, fallbackToward, radius, leaderMin);
-
-  return { left, top, leader, side, lift: chosen.lift };
+  return { left, top, leader, side, lift };
 }
 
 function measureCardSize(
@@ -274,25 +258,23 @@ function measureLayerSize(domNode: HTMLElement | null): ScreenSize {
 
 export function applyFollowerWrite(
   card: HTMLElement,
-  leaderLine: SVGLineElement | null,
+  leaderPath: SVGPathElement | null,
   leaderToken: SVGCircleElement | null,
   payload: FollowerWrite,
 ): void {
   card.style.setProperty('--map-window-transform', payload.transform);
-  if (leaderLine === null) return;
+  card.dataset.anchorSide = payload.side;
+  if (leaderPath === null) return;
   if (payload.leader === null) {
-    leaderLine.setAttribute('visibility', 'hidden');
+    leaderPath.setAttribute('visibility', 'hidden');
     leaderToken?.setAttribute('visibility', 'hidden');
     return;
   }
-  leaderLine.setAttribute('x1', String(payload.leader.x1));
-  leaderLine.setAttribute('y1', String(payload.leader.y1));
-  leaderLine.setAttribute('x2', String(payload.leader.x2));
-  leaderLine.setAttribute('y2', String(payload.leader.y2));
-  leaderLine.setAttribute('visibility', 'visible');
+  leaderPath.setAttribute('d', payload.leader.d);
+  leaderPath.setAttribute('visibility', 'visible');
   if (leaderToken !== null) {
-    leaderToken.setAttribute('cx', String(payload.leader.x2));
-    leaderToken.setAttribute('cy', String(payload.leader.y2));
+    leaderToken.setAttribute('cx', String(payload.leader.start.x));
+    leaderToken.setAttribute('cy', String(payload.leader.start.y));
     leaderToken.setAttribute('visibility', 'visible');
   }
 }
