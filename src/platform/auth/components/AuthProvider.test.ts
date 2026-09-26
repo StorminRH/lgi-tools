@@ -67,6 +67,15 @@ test('resolveAuthState holds a frozen snapshot until release, then publishes sig
   });
 });
 
+test('resolveAuthState keeps a settled answer through a signed-out refetch', () => {
+  const signedOut = { session: null, isAdmin: false, loading: false };
+  expect(resolveAuthState(true, null, true, true)).toEqual(signedOut);
+  expect(resolveAuthState(false, null, true, true)).toEqual({ ...signedOut, loading: true });
+  expect(resolveAuthState(true, SESSION, false, true).session?.characterId).toBe(
+    SESSION.characterId,
+  );
+});
+
 test('AuthProvider hydration shell stays on the hold for every server snapshot', () => {
   useSession.mockReturnValue({ data: null, isPending: false });
   expect(renderProvider()).toContain('loading:out:user');
