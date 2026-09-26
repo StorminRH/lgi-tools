@@ -9,9 +9,10 @@
 }
 
 /* The visitor pitch folds shut when a session resolves rather than
- * unmounting. The negative margin cancels the flex gap the empty row would
- * otherwise keep. Clipping only applies once folded, so the reveal's rise
- * is never cut off. */
+ * unmounting, or from first paint when this browser was signed in last time
+ * (the hint only counts until the session settles). The negative margin
+ * cancels the flex gap the empty row would otherwise keep. Clipping only
+ * applies once folded, so the reveal's rise is never cut off. */
 .home-hero-pitch {
   display: grid;
   grid-template-rows: 1fr;
@@ -20,12 +21,14 @@
     margin-block-end 600ms var(--ease-out-expo),
     opacity 300ms ease-out;
 }
-.home-hero-pitch[data-folded] {
+.home-hero-pitch[data-folded],
+.home-hero-pitch[data-signed-in-hint]:not([data-settled]) {
   grid-template-rows: 0fr;
   margin-block-end: calc(-1 * var(--home-hero-gap));
   opacity: 0;
 }
-.home-hero-pitch[data-folded] > * {
+.home-hero-pitch[data-folded] > *,
+.home-hero-pitch[data-signed-in-hint]:not([data-settled]) > * {
   overflow: hidden;
 }
 

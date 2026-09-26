@@ -1,20 +1,39 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { SIGNED_IN_HINT_KEY } from '@/platform/auth/signed-in-hint';
 
 // The pitch is for visitors. It folds away once a session resolves instead of
 // unmounting, so the hero around it keeps its DOM and its running animations.
+// On a full load the inline script folds it before first paint when this
+// browser was signed in last time, so a returning pilot's hero never moves;
+// data-settled hands control back to the real session once it resolves.
 export function HomeHeroPitch({ children }: { children: ReactNode }) {
-  const folded = useAuth().session !== null;
+  const { session, loading } = useAuth();
+  const id = useId();
+  const folded = session !== null;
   return (
-    <div
-      className="home-hero-pitch"
-      data-folded={folded || undefined}
-      aria-hidden={folded || undefined}
-      inert={folded}
-    >
-      <div className="min-h-0">{children}</div>
-    </div>
+    <>
+      <div
+        id={id}
+        className="home-hero-pitch"
+        data-folded={folded || undefined}
+        data-settled={loading ? undefined : ''}
+        aria-hidden={folded || undefined}
+        inert={folded}
+        suppressHydrationWarning
+      >
+        <div className="min-h-0">{children}</div>
+      </div>
+      {/* Runs while the server HTML parses. React never executes it, so a
+          client render marks it inert to keep hydration quiet. */}
+      <script
+        type={typeof window === 'undefined' ? 'text/javascript' : 'text/plain'}
+        suppressHydrationWarning
+      >
+        {`try{if(localStorage.getItem(${JSON.stringify(SIGNED_IN_HINT_KEY)}))document.getElementById(${JSON.stringify(id)}).setAttribute("data-signed-in-hint","")}catch(e){}`}
+      </script>
+    </>
   );
 }
