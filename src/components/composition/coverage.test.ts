@@ -53,6 +53,7 @@ vi.mock('convex/react', () => ({
 
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { HeroBanner } from '@/components/composition/HeroBanner';
+import { EntranceOnce } from '@/components/composition/EntranceOnce';
 import { HomeDashboard } from '@/components/composition/HomeDashboard';
 import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
 import { HomeHero } from '@/components/composition/HomeHero';
@@ -78,6 +79,7 @@ describe('coverage-gaps', () => {
     const pinned = [
       CharacterPanelSkeleton,
       HeroBanner,
+      EntranceOnce,
       HomeDashboard,
       HomeFeatureCards,
       HomeHero,
