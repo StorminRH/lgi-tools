@@ -18,6 +18,19 @@ export function orderSections(
   ];
 }
 
+/**
+ * The order to lock in, or null while any section is still pending. Sections
+ * settle at different times (localStorage, a fetch, two live queries), so
+ * sorting on every change would shuffle an already-painted grid several times;
+ * the grid keeps the preferred order until this returns, then sorts once.
+ */
+export function settledSectionOrder(
+  status: Readonly<Record<DashboardSectionId, SectionStatus>>,
+): DashboardSectionId[] | null {
+  if (PREFERRED_SECTION_ORDER.some((id) => status[id] === 'pending')) return null;
+  return orderSections(status);
+}
+
 export function recentsStatus(recent: readonly unknown[] | null): SectionStatus {
   if (recent === null) return 'pending';
   return recent.length > 0 ? 'populated' : 'empty';
