@@ -50,13 +50,13 @@ export function AccountMenu({ session }: { session: Session }) {
       className="min-w-60 border-t-0"
       anchor={() => document.querySelector('.app-header')}
     >
-      <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/characters" />}>
+      <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/settings/characters" />}>
         Manage characters
       </MenuLinkItem>
       <MenuItem className={menuRow} onClick={() => startCharacterLink()}>
         Add character
       </MenuItem>
-      <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/settings" />}>
+      <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/settings/account" />}>
         Account settings
       </MenuLinkItem>
       <PageMenuSection />

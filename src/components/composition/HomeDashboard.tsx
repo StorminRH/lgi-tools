@@ -6,11 +6,9 @@ import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
 
 export function HomeDashboard() {
   return (
-    <div className="flex flex-col gap-14">
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(320px,400px)] gap-x-12 gap-y-10 items-start">
-        <HomeLeftColumn anonHero={<HomeHero />} />
-        <HomeLiveStats />
-      </section>
+    <div className="flex flex-col gap-16">
+      <HomeLeftColumn anonHero={<HomeHero />} signedInHero={<HomeHero pitch={false} />} />
+      <HomeLiveStats />
       <HomeFeatureCards />
       <HomeNewsCard />
     </div>

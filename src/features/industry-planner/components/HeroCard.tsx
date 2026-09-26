@@ -137,7 +137,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   return (
     <Card
       className={cn(
-        'mb-3.5 mt-3.5 flex min-w-0 w-full flex-wrap items-stretch gap-x-6 gap-y-3',
+        'reveal reveal-1 mb-3.5 mt-3.5 flex min-w-0 w-full flex-wrap items-stretch gap-x-6 gap-y-3 rounded-panel',
         'px-[18px] py-4',
       )}
     >

@@ -105,7 +105,7 @@ export function SitesFilterLayout({
 
       <div className="pb-16">
         <div className="grid items-start gap-[22px] split:grid-cols-[224px_1fr]">
-          <Card className="p-4 split:sticky split:top-[110px]">
+          <Card className="reveal reveal-1 p-4 split:sticky split:top-24">
             <div className="flex flex-col gap-5">
               <div>
                 <span className="text-label uppercase tracking-wide text-muted">Class</span>
@@ -165,7 +165,7 @@ export function SitesFilterLayout({
             </div>
           </Card>
 
-          <div>{children}</div>
+          <div className="reveal reveal-3 min-w-0">{children}</div>
         </div>
       </div>
     </SitesFilterContext.Provider>
@@ -204,7 +204,7 @@ export function SitesResults({
 
   return (
     <>
-      <div className="flex justify-end items-center gap-3 mb-4">
+      <div className="reveal reveal-2 flex justify-end items-center gap-3 mb-4">
         {view === 'cards' && (
           <SegmentedControl
             label="Site detail behavior"

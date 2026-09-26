@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { floatSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { FeedbackModal } from '@/features/feedback/components/FeedbackModal';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 
@@ -19,14 +21,18 @@ export function FeedbackButton({
   return (
     <>
       <Button
-        variant="primary"
+        variant={embedded ? 'primary' : 'secondary'}
         size={compact ? 'sm' : 'md'}
         aria-label={compact ? 'Send feedback' : undefined}
         onClick={() => {
           setFormKey((key) => key + 1);
           setOpen(true);
         }}
-        className={embedded ? undefined : 'fixed bottom-4 right-4 z-dropdown'}
+        className={
+          embedded
+            ? undefined
+            : cn(floatSurface, 'fixed bottom-4 right-4 z-dropdown rounded-full px-5')
+        }
         data-map-feedback-chip={embedded || undefined}
         data-site-feedback={embedded ? undefined : ''}
       >

@@ -64,7 +64,7 @@ export function PageHead({
   size?: PageTitleSize;
 }) {
   return (
-    <header className="w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
+    <header className="reveal w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
       <div>
         <Breadcrumb crumb={crumb} />
         <PageTitle size={size}>{title}</PageTitle>

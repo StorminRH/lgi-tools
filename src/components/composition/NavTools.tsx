@@ -19,7 +19,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
         const item = deriveNavToolItem(tool, pathname);
         if (item.kind === 'soon') {
           return (
-            <NavigationMenuItem key={item.label} className="flex items-stretch">
+            <NavigationMenuItem key={item.label} className="flex items-center">
               <span
                 title={item.title}
                 className={navigationMenuLink({ disabled: true })}
@@ -31,7 +31,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
         }
 
         return (
-          <NavigationMenuItem key={item.label} className="flex items-stretch">
+          <NavigationMenuItem key={item.label} className="flex items-center">
             <NavigationMenuLink
               active={item.active}
               title={item.title}

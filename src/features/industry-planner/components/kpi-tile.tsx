@@ -30,7 +30,7 @@ export function KpiHelp({ label, children }: { label: string; children: ReactNod
     <Popover
       label={label}
       trigger="?"
-      triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg text-micro font-bold text-muted hover:border-isk-dim hover:text-isk"
+      triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg-deep/60 text-micro font-bold text-muted hover:border-isk-dim hover:text-isk"
     >
       {children}
     </Popover>

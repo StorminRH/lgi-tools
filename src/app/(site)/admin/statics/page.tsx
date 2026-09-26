@@ -284,7 +284,7 @@ async function StaticsContent({
 
   return (
     <>
-      <div className="w-full space-y-5">
+      <div className="reveal reveal-1 w-full space-y-5">
         <Card className="px-4 py-3 font-ui text-ui text-muted">
           {promotedSubtitle(promoted.version, promoted.systems.length)}
         </Card>

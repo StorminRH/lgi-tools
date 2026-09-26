@@ -58,7 +58,7 @@ function SignedInCluster({
         <AdminChip show={showAdminLink} />
         <Tooltip content={session.name}>
           <a
-            href="/characters"
+            href="/settings/characters"
             aria-label={`${session.name} — manage your characters`}
             className="flex items-center transition-opacity hover:opacity-80"
           >

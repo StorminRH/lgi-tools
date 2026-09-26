@@ -42,6 +42,7 @@ export function AtlasGuestLanding({
           <AccessGate
             blocked
             tone="green"
+            className="reveal reveal-1 glass-surface glass-lit border-hairline-accent shadow-card-edge"
             title="Sign in required"
             reason="Log in with EVE Online to create a map, open one shared with you, or follow your pilots as they jump."
             action={<EveSignInButton callbackURL={returnHref} />}
@@ -49,7 +50,7 @@ export function AtlasGuestLanding({
             {null}
           </AccessGate>
 
-          <Card>
+          <Card className="reveal reveal-2">
             <SectionHeader size="md" label="Set up tracking" hint="after you sign in" />
             <ol data-atlas-guest-steps>
               {SETUP_STEPS.map((step, index) => (

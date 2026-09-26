@@ -6,3 +6,8 @@ body:has([data-map-canvas-frame]) [data-site-footer],
 body:has([data-map-canvas-frame]) [data-site-feedback] {
   display: none;
 }
+/* The map canvas is transparent, so a drifting nebula would make every
+ * frosted panel over it re-blur on every frame. Hold it still here. */
+body:has([data-map-canvas-frame]) .page-backdrop {
+  animation: none;
+}

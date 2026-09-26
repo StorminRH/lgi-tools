@@ -1,5 +1,5 @@
 .sites-table-expanded {
   border-top: 1px solid var(--color-border-soft);
-  background: var(--color-bg);
+  background: color-mix(in oklab, var(--color-bg-deep) 60%, transparent);
   padding: 0;
 }

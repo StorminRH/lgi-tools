@@ -1,6 +1,7 @@
 'use client';
 
 import { type RefObject, useReducer, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -24,14 +25,16 @@ import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
 export function AccountDangerZone({
   characters,
+  className,
 }: {
   characters: { characterId: number; name: string }[];
+  className?: string;
 }) {
   const [emptied, setEmptied] = useState(false);
   const onEmptied = () => setEmptied(true);
 
   return (
-    <Card>
+    <Card className={className}>
       <SectionHeader
         size="md"
         label={<span className="text-ui text-tone-red">Danger zone</span>}
@@ -47,7 +50,11 @@ export function AccountDangerZone({
               EVE data.
             </PopoverRow>
             <PopoverRow label="Unlink">
-              just detaches the character (on the roster above) — you can link it again later.
+              detaches the character from your account. Unlink characters on{' '}
+              <Link href="/settings/characters" className="text-tone-blue hover:underline">
+                Settings → Characters
+              </Link>
+              . You can link them again later.
             </PopoverRow>
           </Popover>
         }
@@ -177,7 +184,7 @@ function PurgeCharacterControl({
   }
 
   return (
-    <Card className="flex items-center justify-between gap-2 px-3 py-2">
+    <div className="flex items-center justify-between gap-2 rounded-ctl border border-border-soft bg-bg-deep/60 px-3 py-2">
       <span className="min-w-0 truncate font-data text-ui text-text">{characterName}</span>
       <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
       <ConfirmDialog
@@ -205,7 +212,7 @@ function PurgeCharacterControl({
         finalFocus={triggerRef}
         className="w-[min(380px,calc(100vw-2rem))]"
       />
-    </Card>
+    </div>
   );
 }
 

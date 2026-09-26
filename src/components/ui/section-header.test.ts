@@ -6,7 +6,7 @@ describe('SectionHeader', () => {
     const el = SectionHeader({ label: 'Label' });
     expect(el.type).toBe('div');
     expect(el.props.className).toContain('text-micro');
-    expect(el.props.className).toContain('bg-section');
+    expect(el.props.className).toContain('bg-row-hover');
     expect(el.props.className).toContain('py-[5px]');
     expect(el.props.className).not.toContain('py-2');
 

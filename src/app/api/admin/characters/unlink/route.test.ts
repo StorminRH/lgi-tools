@@ -95,7 +95,7 @@ describe('POST /api/admin/characters/unlink', () => {
 
     const active = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
     expect(active.status).toBe(303);
-    expect(locationOf(active)).toBe('http://localhost:3000/admin/access/eve-user-2');
+    expect(locationOf(active)).toBe('http://localhost:3000/settings/access/eve-user-2');
     expect(deleteLinkedCharacterMock).toHaveBeenCalledWith(
       'eve-user-2',
       100,

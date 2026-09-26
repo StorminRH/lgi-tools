@@ -92,7 +92,7 @@ function CorporationBadges({
         return (
           <span
             key={corporationId}
-            className="inline-flex items-center gap-2 rounded-ctl border border-border-soft bg-surface-sunk px-2 py-1 font-data text-micro text-muted"
+            className="inline-flex items-center gap-2 rounded-full border border-border-soft bg-row-hover px-2.5 py-1 font-data text-micro text-muted"
           >
             <EveImage
               source="eve"
@@ -128,7 +128,7 @@ function CatalogueMapCard({
     <Card
       hover
       data-map-catalogue-card={map.id}
-      className="flex min-h-56 flex-col overflow-hidden"
+      className="edge-glow flex min-h-56 flex-col rounded-panel"
     >
       <Link
         href={href}

@@ -40,7 +40,7 @@ export function CorpStructureSection({
   return (
     <>
       {visible.map((corp) => (
-        <div key={corp.corporationId} className="mt-4 w-full max-w-[760px]">
+        <div key={corp.corporationId} className="reveal reveal-2 mt-4 w-full max-w-[760px]">
           <CorpCard corp={corp} structureTypes={structureTypes} structureRigs={structureRigs} />
         </div>
       ))}
@@ -65,8 +65,8 @@ function CorpCard({
         {view.showManagerNote && (
           <p className="text-body text-muted">
             Structure sharing is managed in{' '}
-            <Link href="/settings" className="text-name underline hover:text-text">
-              Account settings
+            <Link href="/settings/corporations" className="text-name underline hover:text-text">
+              Corporation settings
             </Link>
             {view.managerBlurb}
           </p>
@@ -123,7 +123,7 @@ function CorpStructureItem({
   const view = deriveCorpStructureItemView(structure, { structureTypes, structureRigs });
 
   return (
-    <Card as="li" className="flex flex-col gap-2 px-3 py-2.5">
+    <li className="flex flex-col gap-2 rounded-ctl border border-border-soft bg-bg-deep/60 px-3 py-2.5 font-ui text-text">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-data text-ui text-text">{view.displayName}</span>
         <Pill tone="neutral">{view.typeName}</Pill>
@@ -139,7 +139,7 @@ function CorpStructureItem({
       ) : (
         <span className="text-micro text-muted">no rigs recorded</span>
       )}
-    </Card>
+    </li>
   );
 }
 
@@ -209,7 +209,7 @@ function CorpStructureRigEditor({
           className="w-[180px]"
         />
       </label>
-      <Button variant="primary" onClick={onSave} disabled={busy} className="self-start">
+      <Button variant="secondary" onClick={onSave} disabled={busy} className="self-start">
         Save details
       </Button>
     </div>

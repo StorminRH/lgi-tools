@@ -8,8 +8,6 @@ import { Chip } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { Breadcrumb, PageHead, PageTitle } from '@/components/ui/page-head';
-import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -25,6 +23,7 @@ import {
 import { getActiveSessionCount, getUserById } from '@/platform/auth/admin-users';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
+import { SettingsSectionHead } from '../../settings-section-head';
 import { deriveUserDetailView } from './user-detail-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -33,8 +32,21 @@ const ERROR_MESSAGES: Record<string, string> = {
   unlink_failed: 'Could not unlink that character. Please try again.',
 };
 
+const ACCESS_HREF = '/settings/access';
+
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function BackToAccess({ className }: { className?: string }) {
+  return (
+    <Link
+      href={ACCESS_HREF}
+      className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text', className)}
+    >
+      ← Users &amp; roles
+    </Link>
+  );
 }
 
 function CharacterAdminRow({
@@ -85,7 +97,7 @@ function CharacterAdminRow({
         </span>
       }
       trailing={
-        <span className="flex items-center gap-2 justify-end">
+        <span className="flex items-center justify-end gap-2">
           <AdminReassignCharacterForm
             characterId={character.characterId}
             characterName={character.name}
@@ -107,20 +119,10 @@ function CharacterAdminRow({
 function NotFound() {
   return (
     <>
-      <div className="w-full max-w-[760px]">
-        <PageHead size="compact" crumb="access" title="User not found" />
-      </div>
-      <div className="w-full max-w-[760px]">
-        <Card>
-          <EmptyState>No account matches that id.</EmptyState>
-        </Card>
-        <Link
-          href="/admin/access"
-          className={cn(buttonVariants({ variant: 'secondary' }), 'mt-4 text-muted hover:text-text')}
-        >
-          ← Access
-        </Link>
-      </div>
+      <SettingsSectionHead title="User not found" meta={<BackToAccess />} />
+      <Card>
+        <EmptyState>No account matches that id.</EmptyState>
+      </Card>
     </>
   );
 }
@@ -159,100 +161,72 @@ async function UserDetailContent({
 
   return (
     <>
-      <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
-        <Breadcrumb crumb="access" />
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <EveImage
-              source="eve"
-              family="character-portrait"
-              src={targetUser.portraitUrl}
-              alt={targetUser.name}
-              width={40}
-              height={40}
-              preload
-              decoding="async"
-              className="rounded-ctl border border-border-idle shrink-0"
-            />
-            <div className="min-w-0">
-              <PageTitle size="compact" className="mb-1 truncate">
-                {targetUser.name}
-              </PageTitle>
-              <span className="flex items-center gap-[6px]">
-                <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
-                {view.identityChips.map((chip) => (
-                  <Chip key={chip.label} tone={chip.tone}>
-                    {chip.label}
-                  </Chip>
-                ))}
-              </span>
-            </div>
-          </div>
-          <Link
-            href="/admin/access"
-            className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text shrink-0')}
-          >
-            ← Access
-          </Link>
-        </div>
-      </header>
-
-      <div className="w-full max-w-[760px] flex flex-col gap-6">
-        {error ? (
-          <Callout label="Heads up">{error}</Callout>
-        ) : null}
-
-        <Card>
-          <SectionHeader
-            size="md"
-            label="Linked characters"
-            hint={`${characters.length} linked`}
+      <SettingsSectionHead
+        title={targetUser.name}
+        leading={
+          <EveImage
+            source="eve"
+            family="character-portrait"
+            src={targetUser.portraitUrl}
+            alt={targetUser.name}
+            width={40}
+            height={40}
+            preload
+            decoding="async"
+            className="shrink-0 rounded-ctl border border-border-idle"
           />
-          {characters.length === 0 ? (
-            <EmptyState>No characters linked to this account.</EmptyState>
-          ) : (
-            characters.map((character) => (
-              <CharacterAdminRow
-                key={character.characterId}
-                character={character}
-                userId={userId}
-                isActive={character.characterId === activeId}
-                isViewerSelf={view.isViewerSelf}
-                isOnlyCharacter={view.isOnlyCharacter}
-              />
-            ))
-          )}
-        </Card>
+        }
+        chips={
+          <>
+            <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
+            {view.identityChips.map((chip) => (
+              <Chip key={chip.label} tone={chip.tone}>
+                {chip.label}
+              </Chip>
+            ))}
+          </>
+        }
+        meta={<BackToAccess />}
+      />
 
-        <Card>
-          <SectionHeader
-            size="md"
-            label="Sessions"
-            hint={`${sessionCount} active`}
-          />
-          <div className="flex items-center justify-between gap-3 px-3.5 py-3 border-t border-border-soft">
-            <span className="text-ui text-muted">
-              Revoke all sign-ins for this account. May take a few minutes to fully apply.
-            </span>
-            <AdminForceLogoutForm
+      {error ? <Callout label="Heads up">{error}</Callout> : null}
+
+      <Card className="reveal reveal-1">
+        <SectionHeader size="md" label="Linked characters" hint={`${characters.length} linked`} />
+        {characters.length === 0 ? (
+          <EmptyState>No characters linked to this account.</EmptyState>
+        ) : (
+          characters.map((character) => (
+            <CharacterAdminRow
+              key={character.characterId}
+              character={character}
               userId={userId}
-              userName={targetUser.name}
-              disabled={view.forceLogoutDisabled}
+              isActive={character.characterId === activeId}
+              isViewerSelf={view.isViewerSelf}
+              isOnlyCharacter={view.isOnlyCharacter}
             />
-          </div>
-        </Card>
-      </div>
+          ))
+        )}
+      </Card>
+
+      <Card className="reveal reveal-2">
+        <SectionHeader size="md" label="Sessions" hint={`${sessionCount} active`} />
+        <div className="flex items-center justify-between gap-3 border-t border-border-soft px-3.5 py-3">
+          <span className="text-ui text-muted">
+            Revoke all sign-ins for this account. May take a few minutes to fully apply.
+          </span>
+          <AdminForceLogoutForm
+            userId={userId}
+            userName={targetUser.name}
+            disabled={view.forceLogoutDisabled}
+          />
+        </div>
+      </Card>
     </>
   );
 }
 
-function DetailLoading() {
-  return (
-    <LoadingLabel />
-  );
-}
-
-export default function UserDetailPage({
+export default function UserDetailSettingsPage({
   params,
   searchParams,
 }: {
@@ -260,12 +234,8 @@ export default function UserDetailPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   return (
-    <PageShell mode="detail">
-      <div className="flex flex-col items-center pb-20 gap-0">
-        <Suspense fallback={<DetailLoading />}>
-          <UserDetailContent params={params} searchParams={searchParams} />
-        </Suspense>
-      </div>
-    </PageShell>
+    <Suspense fallback={<LoadingLabel />}>
+      <UserDetailContent params={params} searchParams={searchParams} />
+    </Suspense>
   );
 }

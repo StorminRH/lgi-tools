@@ -42,7 +42,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         metadata: { userId: session.user.id, toCharacterId: characterId },
       }).catch((err) => console.error('[account/active-character] telemetry write failed', err));
 
-      return Response.redirect(new URL('/characters', request.url), 303);
+      return Response.redirect(new URL('/settings/characters', request.url), 303);
     },
   });
 }

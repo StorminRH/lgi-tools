@@ -23,6 +23,7 @@
 @import "../components/ui/toast.css";
 @import "../components/composition/GlobalSearch.css";
 @import "../components/composition/HomeFeatureCards.css";
+@import "../components/composition/HomeHero.css";
 @import "../components/type-icon.css";
 @import "../features/industry-planner/components/IndustryTypedHint.css";
 @import "../features/wormhole-sites/components/LazySiteDetails.css";
@@ -50,6 +51,18 @@
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
+/* v2: the nebula drifts very slowly so the glass surfaces above it feel alive. */
+.page-backdrop {
+  animation: backdrop-drift 80s ease-in-out infinite alternate;
+}
+@keyframes backdrop-drift {
+  from { scale: 1.02; translate: 0 0; }
+  to { scale: 1.08; translate: -1.5% 1%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-backdrop { animation: none; }
+}
+
 .page-grain {
   position: fixed;
   inset: 0;
@@ -75,13 +88,15 @@
    * old saturated blue-gray. Cards (section) lift slightly ABOVE the deep
    * backdrop so borders + elevation do the separating. Token NAMES are
    * unchanged, so every route re-skins from these values alone. */
-  --color-bg-deep:     #060708;
-  --color-bg:          #0b0d10;
-  --color-section:     #0f1216;
+  --color-bg-deep:     #06080a;
+  --color-bg:          #0a0d11;
+  --color-section:     #0e1217;
   --color-map-fog:     #05070b; /* atlas fog-of-war cloud — near-black with a cool tint */
   --color-tooltip:     #161b22; /* raised slate for help-tooltip panels */
-  --color-border:      #1d232c;
-  --color-border-soft: #141821;
+  /* v2 "glass" redesign: borders are white-alpha hairlines so they read on
+   * any translucent surface instead of assuming a solid section fill. */
+  --color-border:      rgba(255,255,255,0.08);
+  --color-border-soft: rgba(255,255,255,0.05);
   --color-row-hover:   rgba(255,255,255,0.018);
   /* White-alpha row/selection tints (AUDIT-004) — routed off raw rgba() at the
    * call sites and protected by the raw-rgba lint guard. Exact prior values. */
@@ -96,22 +111,28 @@
   --color-scroll-track: #0b0f14;
   --color-scroll-thumb: #465362;
   --color-scroll-thumb-hover: #657487;
-  --color-focus-ring: rgba(61,214,140,0.55);
+  --color-focus-ring: rgba(47,214,201,0.6);
   --color-backdrop-clear: rgba(6,7,8,0);
-  --color-backdrop-floor: rgba(6,7,8,0.78);
-  --color-backdrop-isk: rgba(61,214,140,0.05);
-  --color-backdrop-blue: rgba(38,48,62,0.28);
-  --color-backdrop-dim: rgba(6,7,8,0.5);
+  --color-backdrop-floor: rgba(6,8,10,0.8);
+  --color-backdrop-isk: rgba(61,214,140,0.08);
+  --color-backdrop-blue: rgba(38,60,90,0.35);
+  --color-backdrop-dim: rgba(6,8,10,0.28);
   --color-hero-glow: rgba(61,214,140,0.12);
   --color-tool-ring: rgba(61,214,140,0.1);
   --color-shadow-black-60: rgba(0,0,0,0.6);
 
   /* ── Text palette ── higher-contrast, slightly de-saturated cool grays ── */
-  --color-text:  #aab4be;
-  --color-name:  #f1f5f9;
-  --color-muted: #7b8693;
+  --color-text:  #b3bdc8;
+  --color-name:  #f3f6fa;
+  --color-muted: #7f8a97;
   --color-faint: #6c7682; /* faintest text tier, below muted (nudged from #565f6a to ~3.5:1 for legibility — C5) */
   --color-isk:   #3dd68c;
+  --color-isk-bright: #5cf2a8;
+  /* Aurora — the v2 secondary accent. Never a status colour on its own; it
+   * appears in the brand gradient (isk → aurora → evb-bright) on primary
+   * CTAs, active markers, focus, and highlight text. */
+  --color-aurora: #2fd6c9;
+  --color-hairline-accent: rgba(61,214,140,0.35);
   --color-isk-sub: #4a7860;
   --color-isk-dim: #1a3a28;
   /* Dark-green "ink" for text sitting on a solid ISK-green fill (feedback
@@ -165,8 +186,8 @@
    */
 
   /* Shared chrome — borders and surfaces reused across many components. */
-  --color-border-idle:     #1f262f; /* idle/at-rest border (login, admin, pills, dropdown) */
-  --color-border-active:   #2c3642; /* hover/focus/active border */
+  --color-border-idle:     rgba(255,255,255,0.09); /* idle/at-rest border (login, admin, pills, dropdown) */
+  --color-border-active:   rgba(255,255,255,0.16); /* hover/focus/active border */
   --color-surface-raised:  #141922; /* raised neutral surface (pill neutral, search hover) */
   --color-surface-sunk:    #080b10; /* sunk dark surface (pill blue bg, active tab bg) */
   --color-row-active:      #0d1117; /* table row hover/open background */
@@ -300,7 +321,8 @@
   --text-h2:      26px;     --text-h2--line-height:      1.15; /* section headings — + font-display at call site */
   --text-title:   clamp(28px, 2.6vw, 36px); --text-title--line-height: 1.08; /* routine page titles */
   --text-display: clamp(30px, 3.4vw, 42px); --text-display--line-height: 1.05; /* page titles / PageHead (Barlow) */
-  --text-hero:    clamp(44px, 6.5vw, 68px); /* landing wordmark + error/404 titles */
+  --text-hero:    clamp(44px, 6.5vw, 68px); /* error/404 titles */
+  --text-mega:    clamp(52px, 8.5vw, 112px); --text-mega--line-height: 1; /* landing wordmark (v2 hero) */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ──
    * The canonical three-role roster — the single source of
@@ -323,8 +345,10 @@
    * never as a raw rounded arbitrary pixel value at the call site (lint-guarded).
    * Sub-4px inner
    * indicators (switch thumb, checkbox fill) are the only allowlisted exceptions. */
-  --radius-ctl:  4px;  /* buttons, inputs, selects, square pills, controls, dropdown items */
-  --radius-card: 6px;  /* cards, panels, dropdown panels, dialogs */
+  --radius-ctl:   8px;  /* buttons, inputs, selects, controls, dropdown items */
+  --radius-card:  14px; /* cards, panels, dropdown panels, dialogs */
+  --radius-panel: 18px; /* hero surfaces: home tool tiles, feature panels */
+  --radius-sheet: 24px; /* floating sheets and the widest glass surfaces */
 
   /* ── Micro scales (3.8.2.8) ── */
   --tracking-optical: 0.01em;
@@ -336,7 +360,12 @@
   --transition-duration-panel: 200ms;
   --transition-duration-price-confirm: 700ms;
   --transition-duration-price-pending: 780ms;
+  --transition-duration-lift: 420ms;
   --ease-panel: cubic-bezier(0.2,0.85,0.25,1);
+  /* v2 motion: expo-out for arrivals, a CSS linear() spring for presses and
+   * sliding thumbs. Both generate ease-* utilities. */
+  --ease-out-expo: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1);
   --z-index-base: 0;
   --z-index-sticky: 10;
   --z-index-float: 20;
@@ -372,13 +401,17 @@
   /* Focus keeps the engraved inset; the green comes from the well border turning
    * ISK-sub — a SINGLE edge. (An extra `0 0 0 1px` outer ring here read as a
    * doubled border on the fields, the Select trigger, and the templates input.) */
-  --shadow-field-focus: inset 0 2px 6px rgba(0, 0, 0, 0.45);
-  --shadow-btn-bezel:   0 1px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-card-edge:   inset 0 1px 0 rgba(255, 255, 255, 0.025);
-  --shadow-dd:          inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 26px rgba(0, 0, 0, 0.5);
+  --shadow-field-focus: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(47, 214, 201, 0.14);
+  --shadow-btn-bezel:   0 1px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  /* v2 elevation: a lit top edge plus a soft key shadow, so glass surfaces
+   * read as floating above the backdrop rather than printed on it. */
+  --shadow-card-edge:   inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3), 0 16px 32px -18px rgba(0, 0, 0, 0.8);
+  --shadow-dd:          inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 4px 12px rgba(0, 0, 0, 0.4), 0 32px 64px -24px rgba(0, 0, 0, 0.9);
+  --shadow-float:       inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.35), 0 24px 48px -24px rgba(0, 0, 0, 0.85);
+  --shadow-cta-glow:    inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(61, 214, 140, 0.4), 0 8px 24px -8px rgba(61, 214, 140, 0.45);
   /* Card's opt-in hover preserves the prior wormhole-card ring/lift so the
    * catalogue does not regress when those surfaces use the Card primitive. */
-  --shadow-card-hover:  0 0 0 1px var(--color-card-glow-ring), 0 8px 26px -10px var(--color-card-glow-shadow);
+  --shadow-card-hover:  inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 1px var(--color-card-glow-ring), 0 30px 60px -30px var(--color-card-glow-shadow);
   --shadow-popover-green: 0 0 0 1px rgba(61,214,140,0.12), 0 8px 24px -8px rgba(61,214,140,0.2);
   --shadow-toast: 0 0 18px -7px rgba(61,214,140,0.18), 0 10px 30px -10px rgba(0,0,0,0.85);
   --shadow-status-info: 0 0 8px rgba(61,214,140,0.5);
@@ -485,10 +518,8 @@ a:hover {
  * pages (the tint only registers where blurred content shows through), and
  * 65% matches the mapper chrome's proven translucency. Worn by the SMALL
  * pop-outs: tooltips, popovers, Select/Combobox dropdowns, the pointer
- * menu, chart tooltips, and the in-map chrome. The nav-level menus
- * (hamburger, account, page menus) deliberately stay solid on
- * panelSurfaceSolid — they read as part of the page chrome, not floating
- * glass. @utility (not a plain class) so variants compose and consumer
+ * menu, chart tooltips, and the in-map chrome.
+ * @utility (not a plain class) so variants compose and consumer
  * overrides stay in the utilities layer. -webkit-backdrop-filter is written
  * by hand here — Tailwind only auto-prefixes its own utilities — and the
  * nested @supports collapses to the opaque well on engines with no
@@ -496,29 +527,159 @@ a:hover {
  * consumers: an ancestor with filter, fractional opacity, mask, or
  * clip-path becomes a "backdrop root" and silently scopes the frost. */
 @utility glass-panel {
-  background: color-mix(in oklab, var(--color-bg-deep) 65%, transparent);
+  background-color: color-mix(in oklab, var(--color-bg-deep) 65%, transparent);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: var(--color-bg-deep);
+    background-color: var(--color-bg-deep);
   }
 }
 /* Near-transparent frost for map text overlays (current-system dock). No tint —
  * soft blur alone keeps copy readable when map chrome passes underneath. */
 @utility glass-panel-faint {
-  background: transparent;
+  background-color: transparent;
   -webkit-backdrop-filter: blur(3px) saturate(var(--glass-saturate));
   backdrop-filter: blur(3px) saturate(var(--glass-saturate));
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: transparent;
+    background-color: transparent;
   }
 }
+/* ── v2 glass tiers ────────────────────────────────────────────────────
+ * glass-panel above stays the small pop-out recipe. The redesign adds
+ * two more tiers so that glass can be the default surface sitewide:
+ *   glass-surface → cards, the floating header, tiles (lighter, lets the
+ *                   nebula through)
+ *   glass-dense   → menus and popovers that hold readable lists
+ * Pair either with glass-lit for the sheen that sells "floating". Every
+ * tier sets background-color, never the `background` shorthand: the
+ * shorthand would reset glass-lit's background-image, which Tailwind emits
+ * earlier in the utilities layer. */
+@utility glass-surface {
+  @apply glass-panel;
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background-color: color-mix(in oklab, var(--color-bg-deep) 58%, transparent);
+  }
+}
+@utility glass-dense {
+  background-color: color-mix(in oklab, var(--color-bg-deep) 90%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-bg-deep);
+  }
+}
+@utility glass-lit {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 42%);
+}
+/* The brand gradient, as a fill (primary CTAs) and as text. */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(120deg, var(--color-isk) 0%, var(--color-aurora) 55%, var(--color-evb-bright) 100%);
+}
+@utility text-brand-gradient {
+  background-image: linear-gradient(120deg, var(--color-isk) 0%, var(--color-aurora) 55%, var(--color-evb-bright) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── v2 motion primitives ─────────────────────────────────────────────── */
+
+/* Lift: the standard hover for interactive glass surfaces. */
+.lift {
+  transition:
+    translate var(--transition-duration-lift) var(--ease-out-expo),
+    box-shadow var(--transition-duration-lift) var(--ease-out-expo),
+    border-color var(--transition-duration-panel);
+}
+.lift:hover {
+  translate: 0 -4px;
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-card-glow-border);
+}
+
+/* Edge light: a conic highlight that orbits the border on hover. */
+@property --edge-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.edge-glow {
+  position: relative;
+}
+.edge-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(from var(--edge-angle), transparent 0 58%, var(--color-isk) 72%, var(--color-aurora) 80%, transparent 92%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--transition-duration-lift);
+  animation: edge-orbit 4s linear infinite paused;
+}
+.edge-glow:hover::before,
+.edge-glow:focus-within::before {
+  opacity: 1;
+  animation-play-state: running;
+}
+@keyframes edge-orbit {
+  to { --edge-angle: 360deg; }
+}
+
+/* Reveal: staggered entrance for page sections. */
+@keyframes reveal {
+  from { opacity: 0; translate: 0 14px; filter: blur(4px); }
+}
+/* `backwards`, not `both`: a filled end state would leave a filter on the
+ * element, which makes it a backdrop root and flattens every glass surface
+ * inside it. */
+.reveal {
+  animation: reveal 900ms var(--ease-out-expo) backwards;
+}
+.reveal-1 { animation-delay: 70ms; }
+.reveal-2 { animation-delay: 140ms; }
+.reveal-3 { animation-delay: 210ms; }
+.reveal-4 { animation-delay: 280ms; }
+.reveal-5 { animation-delay: 350ms; }
+.reveal-6 { animation-delay: 420ms; }
+
+/* Live ping: radar ring around a status dot. */
+.live-ping {
+  position: relative;
+}
+.live-ping::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  opacity: 0;
+  animation: live-ping 2.4s var(--ease-out-expo) infinite;
+}
+@keyframes live-ping {
+  from { scale: 0.4; opacity: 0.8; }
+  to { scale: 1.8; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-glow::before,
+  .live-ping::after { animation: none; }
+  .reveal { animation: none; }
+  .lift, .lift:hover { transition: none; translate: none; }
+}
+
 /* Plain :root (not @theme) — these are shared knobs, not utility-generating
  * tokens. Saturation slightly >1 keeps the ISK-green accents alive through
  * the frost instead of washing gray. */
 :root {
-  --glass-blur: 12px;
-  --glass-saturate: 1.1;
+  --glass-blur: 16px;
+  --glass-saturate: 1.3;
 }
 
 /* Print-only content (e.g. report header) is hidden on screen and shown
@@ -592,5 +753,4 @@ a:hover {
     color: inherit !important;
   }
 }
-
 
