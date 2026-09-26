@@ -15,7 +15,7 @@ import {
   outsideDismissAction,
   type ScannerAnchoredMeasure,
 } from '../windows/window-model';
-import { editorLeader, type EditorLeader } from './editor-leader';
+import { editorLeader, SCANNER_CARD_RISE_PX, type EditorLeader } from './editor-leader';
 
 function rowElement(signatureId: string | null): Element | null {
   if (signatureId === null || typeof document === 'undefined') return null;
@@ -76,8 +76,11 @@ export function measureEditorLeader(
   });
 }
 
-/** Viewport padding kept around a row-aligned card. */
+/** Viewport padding kept above a row-aligned card. */
 const CARD_EDGE_PX = 16;
+
+/** Clearance kept under the card so it floats rather than rests on the edge. */
+const CARD_FLOAT_PX = 48;
 
 /** Card header centre, measured down from its top: where the leader lands. */
 const CARD_ATTACH_Y = 18;
@@ -85,8 +88,10 @@ const CARD_ATTACH_Y = 18;
 const ROW_ALIGN_QUERY = '(min-width: 768px)';
 
 /**
- * Moves the card so its header sits level with the selected row, clamped to
- * the layer. Below md the card stacks above the dock and keeps its CSS spot.
+ * Floats the card up and away from the selected row: its header sits
+ * SCANNER_CARD_RISE_PX above the row, clamped inside the layer with extra
+ * clearance at the bottom. Below md the card stacks above the dock and keeps
+ * its CSS spot.
  */
 function alignCardToRow(
   layer: HTMLElement,
@@ -106,8 +111,11 @@ function alignCardToRow(
   const rowBottom = Math.min(rowBox.bottom, clip?.bottom ?? rowBox.bottom);
   if (rowBottom <= rowTop && panel.dataset.rowAligned !== undefined) return;
   const middle = (rowTop + rowBottom) / 2 - origin.top;
-  const maxTop = Math.max(CARD_EDGE_PX, layer.clientHeight - panel.offsetHeight - CARD_EDGE_PX);
-  const top = Math.min(Math.max(middle - CARD_ATTACH_Y, CARD_EDGE_PX), maxTop);
+  const maxTop = Math.max(CARD_EDGE_PX, layer.clientHeight - panel.offsetHeight - CARD_FLOAT_PX);
+  const top = Math.min(
+    Math.max(middle - SCANNER_CARD_RISE_PX - CARD_ATTACH_Y, CARD_EDGE_PX),
+    maxTop,
+  );
   panel.style.setProperty('--scanner-card-y', `${Math.round(top)}px`);
   panel.dataset.rowAligned = '';
 }

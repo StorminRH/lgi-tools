@@ -5,7 +5,7 @@ import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
-import { editorLeader } from './editor-leader';
+import { editorLeader, SCANNER_CARD_RISE_PX } from './editor-leader';
 import { measureEditorLeader } from './ScannerAnchoredPanel';
 import { SignatureEditor } from './SignatureEditor';
 
@@ -82,19 +82,29 @@ it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when
   });
   expect(leader).not.toBeNull();
   expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
+  // Too little room to turn: a straight run at the row's height.
   expect(leader?.path).toBe('M 183 114 L 200 114');
   expect(leader?.end).toEqual({ x: 200, y: 114 });
 
+  const wide = { left: 280, right: 560, top: 40, bottom: 400 };
+  const callout = editorLeader({
+    row: { left: 10, right: 180, top: 100, bottom: 128 },
+    panel: wide,
+    origin,
+  });
+  expect(callout?.end).toEqual({ x: 280, y: 114 - SCANNER_CARD_RISE_PX });
+  expect(callout?.path.startsWith('M 183 114 L ')).toBe(true);
+  expect(callout?.path).toContain(' Q ');
+
   const high = editorLeader({
     row: { left: 10, right: 180, top: 0, bottom: 8 },
-    panel,
+    panel: wide,
     origin,
   });
   expect(high?.end.y).toBe(58);
-  expect(high?.path).toContain(' Q ');
   const low = editorLeader({
     row: { left: 10, right: 180, top: 900, bottom: 928 },
-    panel,
+    panel: wide,
     origin,
   });
   expect(low?.end.y).toBe(382);

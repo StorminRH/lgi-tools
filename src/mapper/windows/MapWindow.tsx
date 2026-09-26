@@ -42,7 +42,7 @@ export const MAP_SCANNER_DOCK_STACK_CLASS =
 // data-row-aligned and --scanner-card-y so the card's header lines up with
 // that row.
 const MAP_SCANNER_ANCHORED_GEOMETRY =
-  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-0 md:left-[calc(min(33rem,100vw)+1.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-min(33rem,100vw)-3.5rem)] md:data-[row-aligned]:bottom-auto md:data-[row-aligned]:top-[var(--scanner-card-y)]';
+  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-12 md:left-[calc(min(33rem,100vw)+4.5rem)] md:right-auto md:max-h-[calc(100dvh-4rem)] md:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)] md:data-[row-aligned]:bottom-auto md:data-[row-aligned]:top-[var(--scanner-card-y)]';
 
 const MAP_SCANNER_EDITOR_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
