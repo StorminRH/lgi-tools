@@ -39,18 +39,18 @@ export const MAP_SCANNER_PROMPT_RAIL_CLASS =
 export const MAP_SCANNER_DOCK_STACK_CLASS =
   'absolute bottom-0 left-0 flex w-[min(33rem,100%)] min-w-0 flex-col overflow-x-hidden';
 
-// Below md the card stacks above the scanner dock. From md up it sits beside
+// Below lg the card stacks above the scanner dock. From lg up it sits beside
 // the dock; once ScannerAnchoredPanel measures the selected row it sets
 // data-row-aligned and --scanner-card-y so the card's header lines up with
 // that row.
 const MAP_SCANNER_ANCHORED_GEOMETRY =
-  'left-0 right-0 bottom-[calc(50dvh+0.5rem)] h-auto max-h-[calc(50dvh-1.5rem)] w-auto md:bottom-12 md:left-[calc(min(33rem,100vw)+4.5rem)] md:right-auto md:max-h-[calc(100dvh-4rem)] md:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)] md:data-[row-aligned]:bottom-auto md:data-[row-aligned]:top-[var(--scanner-card-y)]';
+  'left-0 right-0 bottom-[calc(50dvh+0.5rem)] h-auto max-h-[calc(50dvh-1.5rem)] w-auto lg:bottom-12 lg:left-[calc(min(33rem,100vw)+4.5rem)] lg:right-auto lg:max-h-[calc(100dvh-4rem)] lg:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)] lg:data-[row-aligned]:bottom-auto lg:data-[row-aligned]:top-[var(--scanner-card-y)]';
 
 const MAP_SCANNER_EDITOR_CLASS =
-  `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
+  `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-72`;
 
 const MAP_SCANNER_SITE_VIEWER_CLASS =
-  `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-max`;
+  `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-max`;
 
 export function isAdoptedPopupOpen(): boolean {
   return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;

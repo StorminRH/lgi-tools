@@ -167,9 +167,9 @@ function buildReport(
     codex.version,
     'System and wormhole assets must share one composed version.',
   );
-  if (!directory.version.endsWith('+u4')) {
+  if (!directory.version.endsWith('+u5')) {
     throw new Error(
-      `Universe asset version ${directory.version} is missing the +u4 layout stamp.`,
+      `Universe asset version ${directory.version} is missing the +u5 layout stamp.`,
     );
   }
   strictEqual(jita.regionName, 'The Forge');

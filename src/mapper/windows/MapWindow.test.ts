@@ -84,14 +84,14 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
   );
   expect(editor).toContain('map-card-enter');
   expect(editor).toContain('data-map-window-placement="scanner-anchored"');
-  expect(editor).toContain('md:left-[calc(min(33rem,100vw)+4.5rem)]');
+  expect(editor).toContain('lg:left-[calc(min(33rem,100vw)+4.5rem)]');
   expect(editor).toContain('bottom-[calc(50dvh+0.5rem)]');
   expect(editor).toContain(
     'max-h-[calc(50dvh-1.5rem)]',
   );
-  expect(editor).toContain('md:max-h-[calc(100dvh-4rem)]');
-  expect(editor).toContain('md:w-72');
-  expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)]');
+  expect(editor).toContain('lg:max-h-[calc(100dvh-4rem)]');
+  expect(editor).toContain('lg:w-72');
+  expect(editor).toContain('lg:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)]');
   expect(editor).not.toContain('--map-window-transform');
 
   const site = renderToStaticMarkup(
@@ -109,8 +109,8 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
       createElement('p', null, 'content'),
     ),
   );
-  expect(site).toContain('md:w-max');
-  expect(site).not.toContain('md:w-72');
+  expect(site).toContain('lg:w-max');
+  expect(site).not.toContain('lg:w-72');
   expect(site).not.toContain('Close Site');
 
   const bottomLeft = render({ kind: 'docked-bottom-left' });

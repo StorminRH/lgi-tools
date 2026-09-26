@@ -83,12 +83,12 @@ const CARD_EDGE_PX = 16;
 /** Clearance kept under the card so it floats rather than rests on the edge. */
 const CARD_FLOAT_PX = 48;
 
-const ROW_ALIGN_QUERY = '(min-width: 768px)';
+const ROW_ALIGN_QUERY = '(min-width: 1024px)';
 
 /**
  * Floats the card up and away from the selected row: its header sits
  * SCANNER_CARD_RISE_PX above the row, clamped inside the layer with extra
- * clearance at the bottom. Below md the card stacks above the dock and keeps
+ * clearance at the bottom. Below lg the card stacks above the dock and keeps
  * its CSS spot.
  */
 function alignCardToRow(
