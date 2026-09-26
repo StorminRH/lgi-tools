@@ -12,7 +12,7 @@ import { formatIskShort } from '@/lib/format/isk';
 import { useUniverseAssets } from '../chain/use-universe-assets';
 import { useSignatureRows } from '../signatures/signature-context';
 import { signatureCounts } from '../signatures/signature-model';
-import { useSystemStaticSlots } from '../signatures/use-system-statics';
+import { useSystemStaticSlots, useWormholeCodex } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
 import { IntelIcon, WormholeEffectIcon, type IntelIconKind } from './IntelIcon';
@@ -54,7 +54,51 @@ function Disclosure({ icon, label, count, value, children }: {
   );
 }
 
-function WormholeLocation({ systemId, effect }: { readonly systemId: number; readonly effect: WormholeEffect | null }) {
+function formatEffectPercent(percent: number): string {
+  const sign = percent > 0 ? '+' : '\u2212';
+  return `${sign}${Math.abs(percent)}%`;
+}
+
+function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number | null }) {
+  const codex = useWormholeCodex();
+  if (codex === null) return <p className="ml-6 py-1 font-data text-micro text-muted">Loading effects…</p>;
+  const entry = whClassId === null ? null : codex.effect(effect, whClassId);
+  if (entry === null || entry.modifiers.length === 0) {
+    return <p className="ml-6 py-1 font-data text-micro text-muted">No effect data for this class.</p>;
+  }
+  return (
+    <ul data-intel-effect-modifiers className="ml-6 flex flex-col gap-0.5 py-1 font-data text-micro">
+      {entry.modifiers.map((modifier) => (
+        <li key={modifier.attributeId} className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 text-muted">{modifier.label}</span>
+          <span className="shrink-0 tabular-nums text-name">{formatEffectPercent(modifier.percent)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EffectDisclosure({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number | null }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div role="group" aria-label="Effect" data-intel-effect>
+      <Button variant="bare" aria-expanded={open} aria-controls={id} onClick={() => setOpen((current) => !current)}
+        className="pointer-events-auto flex h-auto w-full items-center gap-1.5 text-left font-data text-micro">
+        <WormholeEffectIcon effect={effect} />
+        <span className="flex-1 text-name">{WORMHOLE_EFFECT_NAME[effect]}</span>
+        <IntelIcon kind="expand" className={cn('size-2 text-muted', open && 'rotate-90')} />
+      </Button>
+      <div id={id} hidden={!open}>{open ? <EffectModifiers effect={effect} whClassId={whClassId} /> : null}</div>
+    </div>
+  );
+}
+
+function WormholeLocation({ systemId, effect, whClassId }: {
+  readonly systemId: number;
+  readonly effect: WormholeEffect | null;
+  readonly whClassId: number | null;
+}) {
   const slots = useSystemStaticSlots(systemId);
   if (slots.length === 0 && effect === null) return null;
   return (
@@ -65,12 +109,7 @@ function WormholeLocation({ systemId, effect }: { readonly systemId: number; rea
           {slots.map((slot) => <span key={slot.code} className="text-muted">{slot.code} <span className="text-name">{slot.className}</span></span>)}
         </div>
       ) : null}
-      {effect !== null ? (
-        <div role="group" aria-label="Effect" data-intel-effect className="flex items-center gap-1.5 font-data text-micro">
-          <WormholeEffectIcon effect={effect} />
-          <span className="text-name">{WORMHOLE_EFFECT_NAME[effect]}</span>
-        </div>
-      ) : null}
+      {effect !== null ? <EffectDisclosure effect={effect} whClassId={whClassId} /> : null}
     </div>
   );
 }
@@ -95,7 +134,9 @@ function KnownSpaceLocation({ systemId }: { readonly systemId: number }) {
 function LocationSection({ systemId }: { readonly systemId: number }) {
   const label = useSystemLabel(systemId);
   const kind = intelLocationKind({ security: label?.security ?? null, whClassId: label?.whClassId ?? null });
-  if (kind === 'wormhole') return <WormholeLocation systemId={systemId} effect={label?.effect ?? null} />;
+  if (kind === 'wormhole') {
+    return <WormholeLocation systemId={systemId} effect={label?.effect ?? null} whClassId={label?.whClassId ?? null} />;
+  }
   if (kind === 'k-space') return <KnownSpaceLocation systemId={systemId} />;
   return null;
 }

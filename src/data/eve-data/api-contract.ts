@@ -156,9 +156,21 @@ const wormholeCodexEntrySchema = z.discriminatedUnion('farSide', [
   farSideWormholeCodexEntrySchema,
 ]) satisfies z.ZodType<WormholeCodexEntry>;
 
+const wormholeEffectEntrySchema = z.object({
+  effect: z.enum(WORMHOLE_EFFECTS),
+  wormholeClass: z.number().int(),
+  typeId: z.number().int().positive(),
+  modifiers: z.array(z.object({
+    attributeId: z.number().int(),
+    label: z.string(),
+    percent: z.number(),
+  })),
+});
+
 const wormholeCodexResponseSchema = z.object({
   version: universeAssetVersionSchema,
   types: z.array(wormholeCodexEntrySchema),
+  effects: z.array(wormholeEffectEntrySchema),
 }) satisfies z.ZodType<WormholeCodexAsset>;
 
 export const universeAssetManifestEndpoint = defineEndpoint({

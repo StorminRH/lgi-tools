@@ -10,6 +10,8 @@ import type {
   WormholeCodexEntry,
 } from './universe-assets';
 import { buildHubJumpIndex, type HubJumpTuple } from './trade-hubs';
+import type { WormholeEffect } from './wormhole-contract';
+import type { WormholeEffectEntry } from './wormhole-effects';
 
 export interface UniverseAssets {
   version: string;
@@ -22,6 +24,8 @@ export interface WormholeCodex {
   version: string;
   byCode(code: string): WormholeCodexEntry | null;
   codes(): readonly string[];
+  /** The effect's modifiers at a wormhole class, or null when the SDE has none. */
+  effect(effect: WormholeEffect, wormholeClass: number): WormholeEffectEntry | null;
 }
 
 let universeAssetsPromise: Promise<UniverseAssets> | null = null;
@@ -101,6 +105,9 @@ async function fetchWormholeCodex(
     }
   }
   const codes = [...typeByCode.keys()].toSorted();
+  const effectByKey = new Map(
+    result.data.effects.map((entry) => [`${entry.effect}:${entry.wormholeClass}`, entry]),
+  );
   return {
     version,
     byCode(code) {
@@ -108,6 +115,9 @@ async function fetchWormholeCodex(
     },
     codes() {
       return codes;
+    },
+    effect(effect, wormholeClass) {
+      return effectByKey.get(`${effect}:${wormholeClass}`) ?? null;
     },
   };
 }
