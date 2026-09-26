@@ -175,6 +175,21 @@ export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void 
   document.cookie = `${cookieNameFor(def)}=${encoded}; Path=/; Max-Age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
+/**
+ * Mirror resolved values into localStorage and the SSR cookie. A signed-in
+ * account value wins over the device's, and without this write-back every
+ * server render kept using the stale cookie, so the page swapped after load
+ * on each visit.
+ */
+export function persistResolvedPreferences(values: ReadonlyMap<string, unknown>): void {
+  for (const def of PREFERENCES) {
+    if (!values.has(def.key)) continue;
+    const value = values.get(def.key);
+    writeLocalPreference(def, value);
+    writePreferenceCookie(def, value);
+  }
+}
+
 export function readPreferenceCookieValue<T>(
   raw: string | undefined,
   def: PreferenceDef<T>,
