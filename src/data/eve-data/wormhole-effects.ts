@@ -64,6 +64,11 @@ const PERCENT_BY_UNIT: ReadonlyMap<number, (value: number) => number> = new Map(
   [127, (value: number) => value * 100], // Absolute Percent
 ]);
 
+const PERCENT_BY_ATTRIBUTE: ReadonlyMap<string, (value: number) => number> = new Map([
+  ['agilityMultiplier', (value: number) => (value - 1) * 100],
+  ['energyTransferAmountBonus', (value: number) => (value - 1) * 100],
+]);
+
 /**
  * Player-facing names for CCP's beacon attribute display names, which are
  * written for dogma ("Damage multiplier multiplier", "Signature Penalty").
@@ -71,6 +76,8 @@ const PERCENT_BY_UNIT: ReadonlyMap<number, (value: number) => number> = new Map(
  * "multiplier" / "bonus" / "modifier" / "penalty" words removed.
  */
 const LABEL_OVERRIDES: ReadonlyMap<string, string> = new Map([
+  ['inertia modifier', 'Inertia'],
+  ['energy transfer amount bonus', 'Remote capacitor transfer'],
   ['armor hitpoint bonus', 'Armor HP'],
   ['shield hitpoint bonus', 'Shield HP'],
   ['signature penalty', 'Signature radius'],
@@ -177,7 +184,8 @@ function beaconModifiers(
   for (const [key, value] of Object.entries(attributes as Record<string, unknown>)) {
     const attribute = attributeById.get(Number(key));
     if (attribute === undefined || typeof value !== 'number' || !Number.isFinite(value)) continue;
-    const toPercent = attribute.unitId === null ? undefined : PERCENT_BY_UNIT.get(attribute.unitId);
+    const toPercent = PERCENT_BY_ATTRIBUTE.get(attribute.name)
+      ?? (attribute.unitId === null ? undefined : PERCENT_BY_UNIT.get(attribute.unitId));
     if (toPercent === undefined) continue;
     const raw = roundPercent(toPercent(value));
     if (raw === 0) continue;

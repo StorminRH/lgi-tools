@@ -81,6 +81,21 @@ describe('buildWormholeEffects', () => {
     ]);
   });
 
+  it.each([
+    { name: 'agilityMultiplier', displayName: 'Inertia Modifier', unitId: 121, value: 1.15, label: 'Inertia', percent: 15 },
+    { name: 'energyTransferAmountBonus', displayName: null, unitId: null, value: 0.85, label: 'Remote capacitor transfer', percent: -15 },
+  ])('converts $name without treating unrelated attributes as modifiers', ({ name, displayName, unitId, value, label, percent }) => {
+    const [entry] = buildWormholeEffects(
+      [{ id: 1, name: 'Black Hole Effect Beacon Class 1', attributes: { 1: value, 2: 1.15, 3: 0.85 } }],
+      [
+        { id: 1, name, displayName, unitId },
+        { id: 2, name: 'unrelatedScaledNumber', displayName: 'Unrelated scaled number', unitId: 121 },
+        { id: 3, name: 'unrelatedUnitlessNumber', displayName: null, unitId: null },
+      ],
+    );
+    expect(entry?.modifiers).toEqual([{ attributeId: 1, label, percent }]);
+  });
+
   it('falls back to the display name without its dogma suffix', () => {
     expect(effectModifierLabel('Warp speed multiplier', 'warpSpeedMultiplier')).toBe('Warp speed');
     expect(effectModifierLabel(null, 'droneTrackingBonus')).toBe('Drone Tracking');

@@ -59,7 +59,7 @@ export interface SystemDirectoryEntry {
 }
 
 export function composeUniverseAssetVersion(sdeVersion: string): string {
-  return `${sdeVersion}+u4`;
+  return `${sdeVersion}+u5`;
 }
 
 export type AdjacencyEntry = [

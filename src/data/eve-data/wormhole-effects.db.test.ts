@@ -60,6 +60,21 @@ describe.skipIf(!harness.reachable)('wormhole effect beacons against the SDE mir
       .filter((key) => (byKey.get(key)?.modifiers.length ?? 0) === 0);
     expect(missing).toEqual([]);
 
+    const classPercentages = [15, 22, 29, 36, 43, 50];
+    for (const [index, percent] of classPercentages.entries()) {
+      const wormholeClass = index + 1;
+      expect(byKey.get(`black-hole:${wormholeClass}`)?.modifiers).toContainEqual({
+        attributeId: 169,
+        label: 'Inertia',
+        percent,
+      });
+      expect(byKey.get(`cataclysmic-variable:${wormholeClass}`)?.modifiers).toContainEqual({
+        attributeId: 1840,
+        label: 'Remote capacitor transfer',
+        percent: -percent,
+      });
+    }
+
     // Pin real values so a unit or sign mistake cannot pass: Wolf-Rayet at
     // class 5 is +86% armor HP, -43% shield resistances and signature radius,
     // and +172% small weapon damage in game.
