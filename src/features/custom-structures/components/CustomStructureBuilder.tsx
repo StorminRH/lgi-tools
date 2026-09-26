@@ -1,10 +1,11 @@
 'use client';
 
+import { insetSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { useMemo, useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
 import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
-import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
@@ -200,7 +201,7 @@ function SavedStructureRow({
   onError: (message: string) => void;
 }) {
   return (
-    <Card as="li" className="flex flex-wrap items-center gap-2 px-3 py-2">
+    <li className={cn(insetSurface, 'flex flex-wrap items-center gap-2 px-3 py-2 font-ui text-text')}>
       <span className="font-data text-ui text-text">{view.name}</span>
       <Pill tone="neutral">{view.typeLabel}</Pill>
       <StructureMetaPills view={view} />
@@ -269,7 +270,7 @@ function SavedStructureRow({
           onError={onError}
         />
       )}
-    </Card>
+    </li>
   );
 }
 

@@ -387,8 +387,8 @@ export async function TrafficSection({
             />
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border-soft">
-          <div className="bg-bg">
+        <div className="grid grid-cols-1 divide-y divide-border-soft md:grid-cols-2 md:divide-x md:divide-y-0">
+          <div>
             <SectionHeader variant="sub" label="Top referrers" className="border-b border-border-soft px-3.5 py-2" />
             <BarList
               data={view.topReferrers}
@@ -396,7 +396,7 @@ export async function TrafficSection({
               ariaLabel="Top referrers by page views"
             />
           </div>
-          <div className="bg-bg">
+          <div>
             <SectionHeader variant="sub" label="Top entry pages" className="border-b border-border-soft px-3.5 py-2" />
             <BarList
               data={view.topEntryPages}

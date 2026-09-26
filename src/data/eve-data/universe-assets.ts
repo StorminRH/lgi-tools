@@ -23,6 +23,12 @@ import {
   type WormholeEffect,
   type WormholeSizeClass,
 } from './wormhole-contract';
+import {
+  EFFECT_BEACON_GROUP_ID,
+  beaconAttributeIds,
+  buildWormholeEffects,
+  type WormholeEffectEntry,
+} from './wormhole-effects';
 
 const WORMHOLE_GROUP_ID = 988;
 const K162_CODE = FAR_SIDE_WORMHOLE_CODE;
@@ -53,7 +59,7 @@ export interface SystemDirectoryEntry {
 }
 
 export function composeUniverseAssetVersion(sdeVersion: string): string {
-  return `${sdeVersion}+u3`;
+  return `${sdeVersion}+u5`;
 }
 
 export type AdjacencyEntry = [
@@ -96,6 +102,8 @@ export interface AdjacencyAsset {
 export interface WormholeCodexAsset {
   version: string;
   types: WormholeCodexEntry[];
+  /** System effect modifiers per (effect, wormhole class), from the SDE. */
+  effects: WormholeEffectEntry[];
 }
 
 export interface WormholeTypeRow {
@@ -285,7 +293,7 @@ export async function readAdjacencyGraph(
 export async function readWormholeCodex(
   database: AnyPgDb,
 ): Promise<WormholeCodexAsset> {
-  const [version, attributeRows, typeRows] = await Promise.all([
+  const [version, attributeRows, typeRows, beaconRows] = await Promise.all([
     requireUniverseAssetVersion(database),
     database
       .select({ id: dgmAttributeTypes.id, name: dgmAttributeTypes.name })
@@ -302,10 +310,32 @@ export async function readWormholeCodex(
       .from(eveTypes)
       .leftJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
       .where(eq(eveTypes.groupId, WORMHOLE_GROUP_ID)),
+    database
+      .select({
+        id: eveTypes.id,
+        name: eveTypes.name,
+        attributes: typeDogma.attributes,
+      })
+      .from(eveTypes)
+      .innerJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
+      .where(eq(eveTypes.groupId, EFFECT_BEACON_GROUP_ID)),
   ]);
+  const effectAttributeIds = beaconAttributeIds(beaconRows);
+  const effectAttributes = effectAttributeIds.length === 0
+    ? []
+    : await database
+      .select({
+        id: dgmAttributeTypes.id,
+        name: dgmAttributeTypes.name,
+        displayName: dgmAttributeTypes.displayName,
+        unitId: dgmAttributeTypes.unitId,
+      })
+      .from(dgmAttributeTypes)
+      .where(inArray(dgmAttributeTypes.id, effectAttributeIds));
   return {
     version,
     types: buildWormholeCodex(typeRows, attributeRows),
+    effects: buildWormholeEffects(beaconRows, effectAttributes),
   };
 }
 

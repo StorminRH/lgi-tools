@@ -19,7 +19,7 @@ export function SelectedSystemBox({
     <div
       className={cn(
         HERO_LOCATION_CONTROL_WELL_CLASS,
-        'flex h-[30px] items-center gap-2 border border-border bg-bg px-2',
+        'flex h-[30px] items-center gap-2 rounded-ctl border border-border bg-bg-deep/60 px-2 shadow-field-inset',
       )}
     >
       <span className="min-w-0 truncate font-data text-ui text-tone-blue">

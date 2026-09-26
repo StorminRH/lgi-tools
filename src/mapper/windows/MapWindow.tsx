@@ -28,8 +28,10 @@ const ADOPTED_POPUP_SELECTOR = [
   '[data-open] [role="menu"]',
 ].join(',');
 
+// The scanner grows with its rows up to half the viewport height, so it
+// never takes more than half the map at any resolution or window size.
 const MAP_SCANNER_DOCK_CLASS =
-  'relative h-auto max-h-[min(24rem,calc(100dvh-7rem))] w-full min-w-0';
+  'relative h-auto max-h-[50dvh] w-full min-w-0';
 
 export const MAP_SCANNER_PROMPT_RAIL_CLASS =
   'pointer-events-auto mb-2 flex w-full flex-col gap-2';
@@ -37,14 +39,18 @@ export const MAP_SCANNER_PROMPT_RAIL_CLASS =
 export const MAP_SCANNER_DOCK_STACK_CLASS =
   'absolute bottom-0 left-0 flex w-[min(33rem,100%)] min-w-0 flex-col overflow-x-hidden';
 
+// Below lg the card stacks above the scanner dock. From lg up it sits beside
+// the dock; once ScannerAnchoredPanel measures the selected row it sets
+// data-row-aligned and --scanner-card-y so the card's header lines up with
+// that row.
 const MAP_SCANNER_ANCHORED_GEOMETRY =
-  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-0 md:left-[calc(min(33rem,100vw)+0.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]';
+  'left-0 right-0 bottom-[calc(50dvh+0.5rem)] h-auto max-h-[calc(50dvh-1.5rem)] w-auto lg:bottom-12 lg:left-[calc(min(33rem,100vw)+4.5rem)] lg:right-auto lg:max-h-[calc(100dvh-4rem)] lg:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)] lg:data-[row-aligned]:bottom-auto lg:data-[row-aligned]:top-[var(--scanner-card-y)]';
 
 const MAP_SCANNER_EDITOR_CLASS =
-  `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
+  `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-72`;
 
 const MAP_SCANNER_SITE_VIEWER_CLASS =
-  `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-max`;
+  `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-max`;
 
 export function isAdoptedPopupOpen(): boolean {
   return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;
@@ -66,6 +72,8 @@ interface MapWindowProps {
    */
   readonly appearance?: 'panel' | 'overlay';
   readonly onActivate: () => void;
+  /** Plays the anchored card's exit; the owner unmounts it afterwards. */
+  readonly closing?: boolean;
   readonly children?: ReactNode;
 }
 
@@ -167,11 +175,11 @@ function windowChromeClass(
     overlay
       ? cn('pointer-events-none rounded-ctl', mapOverlaySurface)
       : placement.kind === 'docked-bottom-left'
-        ? 'pointer-events-auto rounded-none glass-panel-faint'
-        : cn('pointer-events-auto rounded-card', mapFrostedSurface),
+        ? cn('pointer-events-auto rounded-none', mapOverlaySurface)
+        : cn('pointer-events-auto', mapFrostedSurface),
     placementClassName(placement, overlay),
     (placement.kind === 'scanner-anchored' || placement.kind === 'node-anchored')
-      && 'map-node-enter',
+      && 'map-card-enter',
   );
 }
 
@@ -206,6 +214,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       showHeader = true,
       appearance = 'panel',
       onActivate,
+      closing = false,
       children,
     },
     forwardedRef,
@@ -243,7 +252,8 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         data-map-window={windowId}
         data-map-window-placement={placement.kind}
         data-map-window-appearance={appearance}
-        className={windowChromeClass(placement, overlay)}
+        data-closing={closing ? '' : undefined}
+        className={cn(windowChromeClass(placement, overlay), closing && 'pointer-events-none')}
         onKeyDown={overlay ? undefined : handleKeyDown}
         onPointerDown={overlay ? undefined : onActivate}
       >

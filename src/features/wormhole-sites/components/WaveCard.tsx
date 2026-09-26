@@ -18,7 +18,7 @@ export function WaveCard({
   return (
     <Collapsible
       defaultOpen={defaultOpen}
-      headerClassName="bg-bg border-t border-border border-b border-border py-[10px]"
+      headerClassName="bg-bg-deep/60 border-t border-border border-b border-border py-[10px]"
       header={
         <>
           <span className="text-label font-bold tracking-eyebrow uppercase text-text shrink-0">

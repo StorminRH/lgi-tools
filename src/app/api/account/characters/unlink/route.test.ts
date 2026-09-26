@@ -131,7 +131,7 @@ describe('POST /api/account/characters/unlink', () => {
 
     const active = await POST(buildRequest({ characterId: '100' }));
     expect(active.status).toBe(303);
-    expect(locationOf(active)).toBe('http://localhost:3000/characters');
+    expect(locationOf(active)).toBe('http://localhost:3000/settings/characters');
     expect(unlinkAccountMock).toHaveBeenCalledWith({
       body: { providerId: 'eve', accountId: '100' },
       headers: expect.any(Headers),

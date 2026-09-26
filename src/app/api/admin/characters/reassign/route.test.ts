@@ -91,7 +91,7 @@ describe('POST /api/admin/characters/reassign', () => {
     reassignCharacterMock.mockResolvedValue({ sourceDeleted: true });
     const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
     expect(res.status).toBe(303);
-    expect(locationOf(res)).toBe('http://localhost:3000/admin/access/admin-1');
+    expect(locationOf(res)).toBe('http://localhost:3000/settings/access/admin-1');
     expect(reassignCharacterMock).toHaveBeenCalledWith({
       characterId: 200,
       fromUserId: 'eve-user-2',

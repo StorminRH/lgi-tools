@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { insetSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatQuantity } from '@/lib/format/number';
@@ -37,7 +38,7 @@ export function RosterCard({
   reconnectAction?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className={cn(insetSurface, 'flex items-center gap-2.5 px-3 py-2.5')}>
       <CharacterPortrait characterId={vm.characterId} name={vm.name} size={38} src={vm.portraitUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
@@ -69,7 +70,7 @@ function SpLine({ vm }: { vm: RosterViewModel }) {
 
 function TrainingLine({ vm }: { vm: RosterViewModel }) {
   if (!vm.hasData) {
-    return <EmptyState>No queue synced yet</EmptyState>;
+    return <div className="mt-1 text-micro text-muted">No queue synced yet</div>;
   }
   const t = vm.training;
   if (t.kind === 'empty' || t.kind === 'complete') {

@@ -56,7 +56,23 @@ beforeEach(async () => {
     fittableNonSingleton: false,
     published: true,
   });
+  await harness.db.insert(eveGroups).values({
+    id: 920,
+    categoryId: 1,
+    name: 'Effect Beacon',
+    useBasePrice: false,
+    anchored: false,
+    anchorable: false,
+    fittableNonSingleton: false,
+    published: false,
+  });
   await harness.db.insert(eveTypes).values([
+    {
+      id: 30_883,
+      groupId: 920,
+      name: 'Wolf Rayet Effect Beacon Class 1',
+      published: false,
+    },
     {
       id: 30647,
       groupId: 988,
@@ -118,6 +134,15 @@ beforeEach(async () => {
       stackable: false,
       highIsGood: false,
     },
+    {
+      id: 1_471,
+      name: 'armorHpMultiplier',
+      displayName: 'Armor HP',
+      unitId: 104,
+      published: true,
+      stackable: false,
+      highIsGood: true,
+    },
   ]);
   await harness.db.insert(typeDogma).values({
     typeId: 30647,
@@ -132,6 +157,7 @@ beforeEach(async () => {
   await harness.db.insert(typeDogma).values([
     { typeId: 32894, attributes: {} },
     { typeId: 32895, attributes: {} },
+    { typeId: 30_883, attributes: { 1471: 1.3 } },
   ]);
   await harness.db.insert(eveRegions).values({
     id: 10_000_002,
@@ -180,7 +206,7 @@ describe.skipIf(!harness.reachable)('universe asset database reads', () => {
     const directory = await readSystemDirectory(harness.db);
     const adjacency = await readAdjacencyGraph(harness.db);
 
-    expect(directory.version).toBe('3444265+u3');
+    expect(directory.version).toBe('3444265+u5');
     expect(directory.systems).toContainEqual({
       id: 31_000_001,
       name: 'J100001',
@@ -198,7 +224,7 @@ describe.skipIf(!harness.reachable)('universe asset database reads', () => {
       effect: null,
     });
     expect(adjacency).toEqual({
-      version: '3444265+u3',
+      version: '3444265+u5',
       adjacency: [
         [30_000_142, [30_000_144]],
         [30_000_144, [30_000_142]],
@@ -211,7 +237,7 @@ describe.skipIf(!harness.reachable)('universe asset database reads', () => {
 
   it('includes unpublished K162 without dogma and resolves typed attributes by name', async () => {
     await expect(readWormholeCodex(harness.db)).resolves.toEqual({
-      version: '3444265+u3',
+      version: '3444265+u5',
       types: [
         {
           code: 'B274',
@@ -225,6 +251,14 @@ describe.skipIf(!harness.reachable)('universe asset database reads', () => {
           targetClass: 7,
         },
         { code: 'K162', typeId: 30831, farSide: true },
+      ],
+      effects: [
+        {
+          effect: 'wolf-rayet',
+          wormholeClass: 1,
+          typeId: 30_883,
+          modifiers: [{ attributeId: 1_471, label: 'Armor HP', percent: 30 }],
+        },
       ],
     });
   });

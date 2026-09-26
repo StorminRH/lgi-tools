@@ -94,7 +94,7 @@ function MapControlsComponent({
       data-map-dev-dials
       position="bottom-right"
       className={cn(
-        'nopan nodrag nowheel mb-2! ml-2! mr-64! mt-2! flex max-h-[calc(100dvh-2rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
+        'nopan nodrag nowheel mb-2! ml-2! mr-64! mt-2! flex max-h-[calc(100dvh-2rem)] w-56 flex-col gap-2 overflow-y-auto p-2 text-ui',
         mapFrostedSurface,
       )}
     >

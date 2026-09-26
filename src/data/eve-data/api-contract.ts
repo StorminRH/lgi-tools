@@ -156,10 +156,24 @@ const wormholeCodexEntrySchema = z.discriminatedUnion('farSide', [
   farSideWormholeCodexEntrySchema,
 ]) satisfies z.ZodType<WormholeCodexEntry>;
 
+const wormholeEffectEntrySchema = z.object({
+  effect: z.enum(WORMHOLE_EFFECTS),
+  wormholeClass: z.number().int(),
+  typeId: z.number().int().positive(),
+  modifiers: z.array(z.object({
+    attributeId: z.number().int(),
+    label: z.string(),
+    percent: z.number(),
+  })),
+});
+
 const wormholeCodexResponseSchema = z.object({
   version: universeAssetVersionSchema,
   types: z.array(wormholeCodexEntrySchema),
-}) satisfies z.ZodType<WormholeCodexAsset>;
+  // Defaults so a codex from an older asset layout still parses; only the
+  // effect lists go empty rather than the whole codex failing.
+  effects: z.array(wormholeEffectEntrySchema).default([]),
+}) satisfies z.ZodType<WormholeCodexAsset, unknown>;
 
 export const universeAssetManifestEndpoint = defineEndpoint({
   method: 'GET',

@@ -1,26 +1,29 @@
 .nav-host {
   display: flex;
-  align-items: stretch;
-  margin: 8px 0 8px 12px;
+  align-items: center;
+  flex: 0 1 380px;
+  min-width: 11rem;
+  margin: 0 8px 0 10px;
 }
 
 .nav-search {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 38px;
+  border-radius: 9999px;
+  padding-inline: 14px 8px;
 }
 
 @media (width < --theme(--breakpoint-lg)) {
   .app-header .nav-host {
     order: 99;
     flex-basis: 100%;
-    border-top: 1px solid var(--color-border);
-    margin: 0;
+    margin: 6px 0 2px;
   }
   .app-header .nav-search {
     width: 100% !important;
-    border: none;
-    border-radius: 0;
     flex-shrink: 1;
     min-width: 0;
   }

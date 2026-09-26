@@ -26,8 +26,8 @@ const pillVariants = cva(
     variants: {
       tone: pillToneClasses,
       size: {
-        sm: 'text-ui px-[8px] py-[3px] tracking-copy rounded-ctl',
-        md: 'text-ui px-[9px] py-[3px] tracking-[0.05em] rounded-ctl',
+        sm: 'text-ui px-[8px] py-[2px] tracking-copy rounded-full',
+        md: 'text-ui px-[10px] py-[3px] tracking-[0.05em] rounded-full',
       },
     },
     defaultVariants: { tone: 'neutral', size: 'sm' },

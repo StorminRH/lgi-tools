@@ -37,6 +37,21 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/settings",
+        destination: "/settings/characters",
+        permanent: false,
+      },
+      {
+        source: "/characters",
+        destination: "/settings/characters",
+        permanent: false,
+      },
+      {
+        source: "/admin/access/:path*",
+        destination: "/settings/access/:path*",
+        permanent: false,
+      },
+      {
         source: "/admin/usage",
         destination: "/admin",
         permanent: false,

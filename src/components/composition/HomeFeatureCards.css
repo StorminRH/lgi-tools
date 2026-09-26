@@ -1,16 +1,65 @@
-.hover-bob:hover {
-  animation: hover-bob 6s ease-in-out infinite;
+/* Home tool tiles — decorative previews. Rows slide in, the margin line draws
+ * itself, and the chain preview borrows Atlas's flowing edges and breathing
+ * nodes. */
+.home-preview {
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, var(--color-backdrop-isk), transparent 70%),
+    color-mix(in oklab, var(--color-bg-deep) 40%, transparent);
 }
-.hover-bob:active {
-  animation-play-state: paused;
+
+.home-preview-row {
+  animation: home-preview-row 700ms var(--ease-out-expo) both;
 }
-@keyframes hover-bob {
-  0%   { translate: 0 0; }
-  25%  { translate: 1px -2px; }
-  50%  { translate: -1px -1px; }
-  75%  { translate: 1px 1px; }
-  100% { translate: 0 0; }
+.home-preview-row:nth-child(2) { animation-delay: 120ms; }
+.home-preview-row:nth-child(3) { animation-delay: 240ms; }
+.home-preview-row:nth-child(4) { animation-delay: 360ms; }
+@keyframes home-preview-row {
+  from { opacity: 0; translate: -10px 0; }
 }
+
+.home-preview-draw {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: home-preview-draw 2.4s var(--ease-out-expo) 300ms forwards;
+}
+@keyframes home-preview-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.home-preview-flow {
+  stroke-dasharray: 4 5;
+  animation: home-preview-flow 1.6s linear infinite;
+}
+@keyframes home-preview-flow {
+  to { stroke-dashoffset: -18; }
+}
+
+.home-preview-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: home-preview-breathe 4s ease-in-out infinite;
+}
+.home-preview-node:nth-of-type(2n) { animation-delay: -1.3s; }
+.home-preview-node:nth-of-type(3n) { animation-delay: -2.6s; }
+@keyframes home-preview-breathe {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.06; }
+}
+
+.home-preview-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: home-preview-pulse 2.4s var(--ease-out-expo) infinite;
+}
+@keyframes home-preview-pulse {
+  from { scale: 0.6; opacity: 0.9; }
+  to { scale: 2.2; opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .hover-bob:hover { animation: none; }
+  .home-preview-row,
+  .home-preview-flow,
+  .home-preview-node,
+  .home-preview-pulse { animation: none; }
+  .home-preview-draw { animation: none; stroke-dashoffset: 0; }
 }

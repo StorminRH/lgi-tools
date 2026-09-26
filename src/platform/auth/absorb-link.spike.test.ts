@@ -165,7 +165,7 @@ async function startLink(
   const res = await post(
     auth,
     '/oauth2/link',
-    { providerId: 'eve', callbackURL: '/characters', errorCallbackURL: '/characters' },
+    { providerId: 'eve', callbackURL: '/settings/characters', errorCallbackURL: '/settings/characters' },
     sessionCookie,
   );
   expect(res.status).toBe(200);
@@ -205,7 +205,7 @@ describe('absorb-on-proof interception (Better Auth 1.6.x pipeline)', () => {
 
     const res = await callback(auth, state, `${sessionCookie}; ${stateCookie}`);
     const target = redirectTarget(res);
-    expect(target.pathname).toBe('/characters');
+    expect(target.pathname).toBe('/settings/characters');
     expect(target.searchParams.get('error')).toBe('account_already_linked_to_different_user');
     expect(strayRow(db).userId).toBe('user-a');
   });
@@ -217,7 +217,7 @@ describe('absorb-on-proof interception (Better Auth 1.6.x pipeline)', () => {
 
     const res = await callback(auth, state, `${sessionCookie}; ${stateCookie}`);
     const target = redirectTarget(res);
-    expect(target.pathname).toBe('/characters');
+    expect(target.pathname).toBe('/settings/characters');
     expect(target.searchParams.get('error')).toBeNull();
 
     const row = strayRow(db);

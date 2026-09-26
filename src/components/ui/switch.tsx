@@ -8,7 +8,7 @@ import type { Tone } from './tones';
 export type SwitchTone = Extract<Tone, 'green' | 'neutral'>;
 
 const track = cva(
-  'relative inline-flex h-[18px] w-[32px] shrink-0 cursor-pointer items-center rounded-ctl ' +
+  'relative inline-flex h-[18px] w-[32px] shrink-0 cursor-pointer items-center rounded-full ' +
     'border px-[2px] outline-none transition-colors duration-fast ' +
     'focus-visible:border-border-active disabled:cursor-not-allowed disabled:opacity-50 ' +
     'motion-reduce:transition-none',
@@ -26,8 +26,7 @@ const track = cva(
 );
 
 const thumb = cva(
-  // eslint-disable-next-line no-restricted-syntax -- inner switch-thumb indicator, sub-4px by design
-  'block h-[12px] w-[12px] rounded-[1px] translate-x-0 data-[checked]:translate-x-[14px] ' +
+  'block h-[12px] w-[12px] rounded-full translate-x-0 data-[checked]:translate-x-[14px] ' +
     'transition-[translate,background-color] duration-fast motion-reduce:transition-none',
   {
     variants: {

@@ -18,7 +18,7 @@ import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {
-  const url = new URL('/characters', request.url);
+  const url = new URL('/settings/characters', request.url);
   url.searchParams.set('error', code);
   return Response.redirect(url, 303);
 }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
       }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
 
-      return Response.redirect(new URL('/characters', request.url), 303);
+      return Response.redirect(new URL('/settings/characters', request.url), 303);
     },
   });
 }

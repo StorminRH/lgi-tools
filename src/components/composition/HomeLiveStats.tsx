@@ -26,12 +26,12 @@ export async function HomeLiveStats() {
   ];
 
   return (
-    <section aria-label="Live dataset status">
+    <section aria-label="Live dataset status" className="reveal reveal-5">
       <SectionLabel
         className="mb-cluster"
         meta={
           <span className="inline-flex items-center gap-2 font-data text-label uppercase tracking-wide text-muted">
-            <Dot tone="green" />
+            <Dot tone="green" className="live-ping text-isk" />
             Updated on demand
           </span>
         }
@@ -39,15 +39,17 @@ export async function HomeLiveStats() {
         Live data
       </SectionLabel>
 
-      <Card className="overflow-hidden">
-        <dl className="grid grid-cols-2">
+      <Card className="grid overflow-hidden rounded-panel lg:grid-cols-[1fr_auto]">
+        <dl className="grid grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, i) => (
             <div
               key={stat.label}
               className={cn(
-                'flex flex-col gap-1.5 px-5 py-5 border-border-soft',
+                'flex flex-col gap-1.5 px-6 py-5 border-border-soft',
                 i % 2 === 0 && 'border-r',
-                i < 2 && 'border-b',
+                i < 2 && 'border-b lg:border-b-0',
+                i === 1 && 'lg:border-r',
+                i === 2 && 'lg:border-r',
               )}
             >
               <dt className="order-2 font-data text-label uppercase tracking-label text-muted">
@@ -65,7 +67,7 @@ export async function HomeLiveStats() {
           ))}
         </dl>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border-soft bg-bg-deep/40">
+        <div className="flex items-center justify-between gap-3 px-6 py-3 border-t border-border-soft bg-bg-deep/40 lg:flex-col lg:items-end lg:justify-center lg:gap-1 lg:border-t-0 lg:border-l">
           <span className="font-data text-label uppercase tracking-wide text-muted">
             EVE SDE
           </span>
