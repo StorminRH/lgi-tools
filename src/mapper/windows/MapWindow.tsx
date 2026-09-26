@@ -28,8 +28,10 @@ const ADOPTED_POPUP_SELECTOR = [
   '[data-open] [role="menu"]',
 ].join(',');
 
+// The scanner grows with its rows up to half the viewport height, so it
+// never takes more than half the map at any resolution or window size.
 const MAP_SCANNER_DOCK_CLASS =
-  'relative h-auto max-h-[min(24rem,calc(100dvh-7rem))] w-full min-w-0';
+  'relative h-auto max-h-[50dvh] w-full min-w-0';
 
 export const MAP_SCANNER_PROMPT_RAIL_CLASS =
   'pointer-events-auto mb-2 flex w-full flex-col gap-2';
@@ -42,7 +44,7 @@ export const MAP_SCANNER_DOCK_STACK_CLASS =
 // data-row-aligned and --scanner-card-y so the card's header lines up with
 // that row.
 const MAP_SCANNER_ANCHORED_GEOMETRY =
-  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-12 md:left-[calc(min(33rem,100vw)+4.5rem)] md:right-auto md:max-h-[calc(100dvh-4rem)] md:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)] md:data-[row-aligned]:bottom-auto md:data-[row-aligned]:top-[var(--scanner-card-y)]';
+  'left-0 right-0 bottom-[calc(50dvh+0.5rem)] h-auto max-h-[calc(50dvh-1.5rem)] w-auto md:bottom-12 md:left-[calc(min(33rem,100vw)+4.5rem)] md:right-auto md:max-h-[calc(100dvh-4rem)] md:max-w-[calc(100vw-min(33rem,100vw)-6.5rem)] md:data-[row-aligned]:bottom-auto md:data-[row-aligned]:top-[var(--scanner-card-y)]';
 
 const MAP_SCANNER_EDITOR_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
