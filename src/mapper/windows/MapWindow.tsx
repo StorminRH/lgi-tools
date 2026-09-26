@@ -37,8 +37,12 @@ export const MAP_SCANNER_PROMPT_RAIL_CLASS =
 export const MAP_SCANNER_DOCK_STACK_CLASS =
   'absolute bottom-0 left-0 flex w-[min(33rem,100%)] min-w-0 flex-col overflow-x-hidden';
 
+// Below md the card stacks above the scanner dock. From md up it sits beside
+// the dock; once ScannerAnchoredPanel measures the selected row it sets
+// data-row-aligned and --scanner-card-y so the card's header lines up with
+// that row.
 const MAP_SCANNER_ANCHORED_GEOMETRY =
-  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-0 md:left-[calc(min(33rem,100vw)+0.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]';
+  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-0 md:left-[calc(min(33rem,100vw)+1.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-min(33rem,100vw)-3.5rem)] md:data-[row-aligned]:bottom-auto md:data-[row-aligned]:top-[var(--scanner-card-y)]';
 
 const MAP_SCANNER_EDITOR_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
@@ -66,6 +70,8 @@ interface MapWindowProps {
    */
   readonly appearance?: 'panel' | 'overlay';
   readonly onActivate: () => void;
+  /** Plays the anchored card's exit; the owner unmounts it afterwards. */
+  readonly closing?: boolean;
   readonly children?: ReactNode;
 }
 
@@ -171,7 +177,7 @@ function windowChromeClass(
         : cn('pointer-events-auto', mapFrostedSurface),
     placementClassName(placement, overlay),
     (placement.kind === 'scanner-anchored' || placement.kind === 'node-anchored')
-      && 'map-node-enter',
+      && 'map-card-enter',
   );
 }
 
@@ -206,6 +212,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       showHeader = true,
       appearance = 'panel',
       onActivate,
+      closing = false,
       children,
     },
     forwardedRef,
@@ -243,7 +250,8 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         data-map-window={windowId}
         data-map-window-placement={placement.kind}
         data-map-window-appearance={appearance}
-        className={windowChromeClass(placement, overlay)}
+        data-closing={closing ? '' : undefined}
+        className={cn(windowChromeClass(placement, overlay), closing && 'pointer-events-none')}
         onKeyDown={overlay ? undefined : handleKeyDown}
         onPointerDown={overlay ? undefined : onActivate}
       >

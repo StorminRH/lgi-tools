@@ -1,3 +1,5 @@
+import { roundedLeaderPath } from '../windows/leader-path';
+
 export interface LeaderRect {
   readonly left: number;
   readonly right: number;
@@ -7,25 +9,31 @@ export interface LeaderRect {
 
 export interface EditorLeader {
   readonly bracket: { readonly x: number; readonly top: number; readonly bottom: number };
-  readonly line: {
-    readonly x1: number;
-    readonly y1: number;
-    readonly x2: number;
-    readonly y2: number;
-  };
+  /** Rounded connector from the bracket to the panel edge, drawn in that order. */
+  readonly path: string;
+  readonly end: { readonly x: number; readonly y: number };
 }
 
 const BRACKET_GAP_PX = 3;
 
 const MIN_BRACKET_PX = 10;
 
-const PANEL_INSET_PX = 8;
+/** Keeps the attach point clear of the panel's rounded corners. */
+const PANEL_INSET_PX = 18;
+
+const CORNER_RADIUS_PX = 6;
 
 function clamp(value: number, low: number, high: number): number {
   if (high < low) return low;
   return Math.min(Math.max(value, low), high);
 }
 
+/**
+ * A bracket on the selected row's right edge and a connector to the panel.
+ * When the row faces the panel the connector is one horizontal run; when it
+ * does not, it steps across at the midpoint of the gap with rounded corners
+ * instead of slanting.
+ */
 export function editorLeader(input: {
   readonly row: LeaderRect;
   readonly panel: LeaderRect;
@@ -50,20 +58,21 @@ export function editorLeader(input: {
   const bottom =
     clip === undefined ? floor : Math.min(floor, clip.bottom - origin.top);
   const middle = (top + bottom) / 2;
-  const panelTop = panel.top - origin.top;
-  const panelBottom = panel.bottom - origin.top;
+  const attachY = clamp(
+    middle,
+    panel.top - origin.top + PANEL_INSET_PX,
+    panel.bottom - origin.top - PANEL_INSET_PX,
+  );
+  const end = { x: panelLeft, y: attachY };
+  const start = { x, y: middle };
+  const stepX = x + (panelLeft - x) / 2;
+  const points = Math.abs(attachY - middle) < 1
+    ? [start, { x: panelLeft, y: middle }]
+    : [start, { x: stepX, y: middle }, { x: stepX, y: attachY }, end];
 
   return {
     bracket: { x, top, bottom },
-    line: {
-      x1: x,
-      y1: middle,
-      x2: panelLeft,
-      y2: clamp(
-        middle,
-        panelTop + PANEL_INSET_PX,
-        panelBottom - PANEL_INSET_PX,
-      ),
-    },
+    path: roundedLeaderPath(points, CORNER_RADIUS_PX),
+    end,
   };
 }

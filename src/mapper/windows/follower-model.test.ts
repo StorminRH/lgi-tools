@@ -6,7 +6,10 @@ import {
 } from '../canvas/SystemNode';
 import {
   CARD_ANCHOR_GAP,
+  CARD_ANCHOR_RISE,
+  CARD_ATTACH_Y,
   NODE_CARD_FALLBACK,
+  anchoredLeader,
   computeFollowerTransform,
   createNodeFollower,
   placeAnchoredCard,
@@ -60,15 +63,9 @@ describe('placeAnchoredCard', () => {
       viewport,
     });
     expect(left.side).toBe('left');
-    expect(left.left).toBe(700 - 40 - 288);
-    expect(left.top).toBe(300 - 208 / 2);
+    expect(left.left).toBe(700 - CARD_ANCHOR_GAP - 288);
+    expect(left.top).toBe(300 - CARD_ANCHOR_RISE - CARD_ATTACH_Y);
     expect(left.lift).toBe('up');
-    expect(left.leader).toEqual({
-      x1: 700 - 40,
-      y1: 300 - 40,
-      x2: 700,
-      y2: 300,
-    });
 
     const right = placeAnchoredCard({
       anchor: { x: 100, y: 300 },
@@ -76,15 +73,9 @@ describe('placeAnchoredCard', () => {
       viewport,
     });
     expect(right.side).toBe('right');
-    expect(right.left).toBe(100 + 40);
-    expect(right.top).toBe(300 - 208 / 2);
+    expect(right.left).toBe(100 + CARD_ANCHOR_GAP);
+    expect(right.top).toBe(300 - CARD_ANCHOR_RISE - CARD_ATTACH_Y);
     expect(right.lift).toBe('up');
-    expect(right.leader).toEqual({
-      x1: 100 + 40,
-      y1: 300 - 40,
-      x2: 100,
-      y2: 300,
-    });
 
     const pushed = placeAnchoredCard({
       anchor: { x: 700, y: 300 },
@@ -94,7 +85,15 @@ describe('placeAnchoredCard', () => {
     });
     expect(pushed.side).toBe('right');
     expect(pushed.left).toBe(800 - 288 - 16);
-    expect(pushed.left).not.toBe(700 - 40 - 288);
+    expect(pushed.leader).toBeNull();
+
+    const low = placeAnchoredCard({
+      anchor: { x: 100, y: 40 },
+      card,
+      viewport,
+    });
+    expect(low.lift).toBe('down');
+    expect(low.top).toBe(40 + CARD_ANCHOR_RISE - CARD_ATTACH_Y);
 
     const clamped = placeAnchoredCard({
       anchor: { x: 300, y: 10 },
@@ -102,10 +101,10 @@ describe('placeAnchoredCard', () => {
       viewport: { width: 320, height: 600 },
     });
     expect(clamped.left).toBe(16);
-    expect(clamped.top).toBe(16);
+    expect(clamped.top).toBe(10 + CARD_ANCHOR_RISE - CARD_ATTACH_Y);
   });
 
-  it('clips the 45° leader to the disc rim, omits it when covered, and keeps it at max zoom', () => {
+  it('runs the callout off the rim at 45° into the card header and drops it when covered', () => {
     expect(
       placeAnchoredCard({
         anchor: { x: 200, y: 200 },
@@ -113,7 +112,6 @@ describe('placeAnchoredCard', () => {
         viewport: { width: 800, height: 600 },
         gap: 0,
         discRadius: 80,
-        leaderMinDistance: 12,
       }).leader,
     ).toBeNull();
 
@@ -124,19 +122,25 @@ describe('placeAnchoredCard', () => {
       viewport: { width: 800, height: 600 },
       discRadius,
     });
-    const clearance = discRadius + CARD_ANCHOR_GAP;
-    expect(placed.side).toBe('right');
-    expect(placed.left).toBe(100 + clearance);
-    expect(placed.lift).toBe('up');
-    const hitX = 100 + clearance;
-    const hitY = 300 - clearance;
-    const dist = Math.hypot(clearance, clearance);
-    expect(placed.leader).toEqual({
-      x1: hitX,
-      y1: hitY,
-      x2: expect.closeTo(100 + clearance * (discRadius / dist), 10),
-      y2: expect.closeTo(300 - clearance * (discRadius / dist), 10),
+    const rise = Math.max(CARD_ANCHOR_RISE, discRadius + 12);
+    expect(placed.left).toBe(100 + discRadius + CARD_ANCHOR_GAP);
+    expect(placed.top).toBe(300 - rise - CARD_ATTACH_Y);
+    const leader = placed.leader;
+    if (leader === null) throw new Error('expected a leader');
+    expect(leader.end).toEqual({ x: placed.left, y: placed.top + CARD_ATTACH_Y });
+    expect(Math.hypot(leader.start.x - 100, leader.start.y - 300)).toBeCloseTo(discRadius);
+    expect(leader.start.x - 100).toBeCloseTo(300 - leader.start.y);
+    expect(leader.d.startsWith('M ')).toBe(true);
+    expect(leader.d).toContain(' Q ');
+
+    const level = anchoredLeader({
+      anchor: { x: 100, y: 300 },
+      attach: { x: 200, y: 300 },
+      side: 'right',
+      discRadius,
     });
+    expect(level?.start).toEqual({ x: 100 + discRadius, y: 300 });
+    expect(level?.d).not.toContain(' Q ');
 
     const zoomed = placeAnchoredCard({
       anchor: { x: 400, y: 400 },
@@ -145,12 +149,7 @@ describe('placeAnchoredCard', () => {
       discRadius: 27.5 * 2.5,
     });
     expect(zoomed.leader).not.toBeNull();
-    if (zoomed.leader === null) {
-      throw new Error('expected a leader line at maximum zoom');
-    }
-    expect(Math.abs(zoomed.leader.x1 - zoomed.leader.x2)).toBeCloseTo(
-      Math.abs(zoomed.leader.y1 - zoomed.leader.y2),
-    );
+    expect(zoomed.leader?.d).toContain(' Q ');
   });
 });
 
@@ -168,7 +167,7 @@ describe('node follower model', () => {
       layer,
     );
     expect(first?.write.transform).toBe(
-      `translate(${192 + (SYSTEM_DISC_SIZE / 2) * 2 + CARD_ANCHOR_GAP}px, 58px)`,
+      `translate(${192 + (SYSTEM_DISC_SIZE / 2) * 2 + CARD_ANCHOR_GAP}px, ${162 - ((SYSTEM_DISC_SIZE / 2) * 2 + 12) - CARD_ATTACH_Y}px)`,
     );
     expect(first?.write.leader).not.toBeNull();
     expect(
@@ -246,8 +245,10 @@ describe('node follower model', () => {
       card,
       layer,
     );
+    // Too close to the top to lift, so the card drops below the disc.
+    const rise = Math.max(CARD_ANCHOR_RISE, SYSTEM_DISC_SIZE / 2 + 12);
     expect(first?.write.transform).toBe(
-      `translate(${SYSTEM_FRAME_WIDTH / 2 + SYSTEM_DISC_SIZE / 2 + CARD_ANCHOR_GAP}px, 16px)`,
+      `translate(${SYSTEM_FRAME_WIDTH / 2 + SYSTEM_DISC_SIZE / 2 + CARD_ANCHOR_GAP}px, ${SYSTEM_FRAME_HEIGHT / 2 + rise - CARD_ATTACH_Y}px)`,
     );
     expect(first?.baseline.width).toBe(SYSTEM_FRAME_WIDTH);
     expect(first?.baseline.height).toBe(SYSTEM_FRAME_HEIGHT);

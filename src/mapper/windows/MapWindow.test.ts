@@ -82,16 +82,16 @@ it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', (
       createElement('p', null, 'content'),
     ),
   );
-  expect(editor).toContain('map-node-enter');
+  expect(editor).toContain('map-card-enter');
   expect(editor).toContain('data-map-window-placement="scanner-anchored"');
-  expect(editor).toContain('md:left-[calc(min(33rem,100vw)+0.5rem)]');
+  expect(editor).toContain('md:left-[calc(min(33rem,100vw)+1.5rem)]');
   expect(editor).toContain('bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)]');
   expect(editor).toContain(
     'max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)]',
   );
   expect(editor).toContain('md:max-h-[calc(100dvh-2rem)]');
   expect(editor).toContain('md:w-72');
-  expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]');
+  expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-3.5rem)]');
   expect(editor).not.toContain('--map-window-transform');
 
   const site = renderToStaticMarkup(

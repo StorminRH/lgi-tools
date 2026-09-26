@@ -82,20 +82,22 @@ it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when
   });
   expect(leader).not.toBeNull();
   expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
-  expect(leader?.line).toEqual({ x1: 183, y1: 114, x2: 200, y2: 114 });
+  expect(leader?.path).toBe('M 183 114 L 200 114');
+  expect(leader?.end).toEqual({ x: 200, y: 114 });
 
   const high = editorLeader({
     row: { left: 10, right: 180, top: 0, bottom: 8 },
     panel,
     origin,
   });
-  expect(high?.line.y2).toBe(48);
+  expect(high?.end.y).toBe(58);
+  expect(high?.path).toContain(' Q ');
   const low = editorLeader({
     row: { left: 10, right: 180, top: 900, bottom: 928 },
     panel,
     origin,
   });
-  expect(low?.line.y2).toBe(392);
+  expect(low?.end.y).toBe(382);
 
   const offset = editorLeader({
     row: { left: 10, right: 180, top: 100, bottom: 128 },
@@ -103,7 +105,7 @@ it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when
     origin: { left: 20, top: 30 },
   });
   expect(offset?.bracket).toEqual({ x: 163, top: 70, bottom: 98 });
-  expect(offset?.line.x2).toBe(180);
+  expect(offset?.end.x).toBe(180);
 
   expect(
     editorLeader({

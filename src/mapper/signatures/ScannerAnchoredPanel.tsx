@@ -32,6 +32,25 @@ export type MeasuredRow = MeasuredBox & {
   closest(selector: string): MeasuredBox | null;
 };
 
+/**
+ * The panel's resting box. Its entrance animation translates and scales it,
+ * which getBoundingClientRect would report mid-flight; offset metrics give
+ * the settled layout the leader should land on.
+ */
+function layoutBox(panel: MeasuredBox, origin: DOMRect) {
+  if (typeof HTMLElement === 'undefined' || !(panel instanceof HTMLElement)) {
+    return panel.getBoundingClientRect();
+  }
+  const left = origin.left + panel.offsetLeft;
+  const top = origin.top + panel.offsetTop;
+  return {
+    left,
+    top,
+    right: left + panel.offsetWidth,
+    bottom: top + panel.offsetHeight,
+  };
+}
+
 export function measureEditorLeader(
   layer: MeasuredBox | null,
   panel: MeasuredBox | null,
@@ -43,7 +62,7 @@ export function measureEditorLeader(
   const clipRect = clipEl?.getBoundingClientRect();
   return editorLeader({
     row: row.getBoundingClientRect(),
-    panel: panel.getBoundingClientRect(),
+    panel: layoutBox(panel, origin),
     origin: { left: origin.left, top: origin.top },
     clip:
       clipRect === undefined
@@ -57,6 +76,42 @@ export function measureEditorLeader(
   });
 }
 
+/** Viewport padding kept around a row-aligned card. */
+const CARD_EDGE_PX = 16;
+
+/** Card header centre, measured down from its top: where the leader lands. */
+const CARD_ATTACH_Y = 18;
+
+const ROW_ALIGN_QUERY = '(min-width: 768px)';
+
+/**
+ * Moves the card so its header sits level with the selected row, clamped to
+ * the layer. Below md the card stacks above the dock and keeps its CSS spot.
+ */
+function alignCardToRow(
+  layer: HTMLElement,
+  panel: HTMLElement,
+  row: Element | null,
+): void {
+  const wide =
+    typeof window !== 'undefined' && window.matchMedia?.(ROW_ALIGN_QUERY).matches;
+  if (!wide || row === null) {
+    delete panel.dataset.rowAligned;
+    return;
+  }
+  const origin = layer.getBoundingClientRect();
+  const rowBox = row.getBoundingClientRect();
+  const clip = row.closest('[data-scanner-scroll]')?.getBoundingClientRect();
+  const rowTop = Math.max(rowBox.top, clip?.top ?? rowBox.top);
+  const rowBottom = Math.min(rowBox.bottom, clip?.bottom ?? rowBox.bottom);
+  if (rowBottom <= rowTop && panel.dataset.rowAligned !== undefined) return;
+  const middle = (rowTop + rowBottom) / 2 - origin.top;
+  const maxTop = Math.max(CARD_EDGE_PX, layer.clientHeight - panel.offsetHeight - CARD_EDGE_PX);
+  const top = Math.min(Math.max(middle - CARD_ATTACH_Y, CARD_EDGE_PX), maxTop);
+  panel.style.setProperty('--scanner-card-y', `${Math.round(top)}px`);
+  panel.dataset.rowAligned = '';
+}
+
 function useEditorLeader(
   signatureId: string | null,
   layerRef: React.RefObject<HTMLDivElement | null>,
@@ -65,9 +120,11 @@ function useEditorLeader(
   const [leader, setLeader] = useState<EditorLeader | null>(null);
 
   const measure = useCallback(() => {
-    setLeader(
-      measureEditorLeader(layerRef.current, panelRef.current, rowElement(signatureId)),
-    );
+    const layer = layerRef.current;
+    const panel = panelRef.current;
+    const row = rowElement(signatureId);
+    if (layer !== null && panel !== null) alignCardToRow(layer, panel, row);
+    setLeader(measureEditorLeader(layer, panel, row as MeasuredRow | null));
   }, [layerRef, panelRef, signatureId]);
 
   useLayoutEffect(() => {
@@ -169,7 +226,7 @@ const BRACKET_ARM_PX = 4;
 
 function EditorLeaderLine({ leader }: { readonly leader: EditorLeader | null }) {
   if (leader === null) return null;
-  const { bracket, line } = leader;
+  const { bracket, path } = leader;
   return (
     <svg
       data-signature-editor-leader
@@ -181,15 +238,17 @@ function EditorLeaderLine({ leader }: { readonly leader: EditorLeader | null }) 
         d={`M ${bracket.x - BRACKET_ARM_PX} ${bracket.top} H ${bracket.x} V ${bracket.bottom} H ${bracket.x - BRACKET_ARM_PX}`}
         fill="none"
         strokeWidth={1.5}
-        className="stroke-isk"
+        strokeLinejoin="round"
+        className="map-leader-bracket stroke-isk"
       />
-      <line
-        x1={line.x1}
-        y1={line.y1}
-        x2={line.x2}
-        y2={line.y2}
+      <path
+        data-signature-editor-connector
+        d={path}
+        pathLength={1}
+        fill="none"
         strokeWidth={1.5}
-        className="stroke-isk"
+        strokeLinecap="round"
+        className="map-leader-path map-leader-path-after-bracket stroke-isk"
       />
     </svg>
   );
@@ -228,7 +287,7 @@ export function ScannerAnchoredPanel({
       className="pointer-events-none absolute inset-0 z-sticky"
       {...layerProps}
     >
-      <EditorLeaderLine leader={leader} />
+      <EditorLeaderLine key={signatureId} leader={leader} />
       <MapWindow
         ref={panelRef}
         windowId={windowId}

@@ -173,6 +173,7 @@ describe('mapper source contract', () => {
       'windows/SystemIntelligenceBody.tsx',
       'windows/follower-model.ts',
       'windows/intel-model.ts',
+      'windows/leader-path.ts',
       'windows/use-system-label.ts',
       'windows/window-model.ts',
     ]);
