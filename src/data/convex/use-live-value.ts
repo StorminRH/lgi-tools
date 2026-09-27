@@ -2,6 +2,7 @@
 
 import { useQuery, type OptionalRestArgsOrSkip } from 'convex/react';
 import type { FunctionReference, FunctionReturnType } from 'convex/server';
+import { useHydrating } from '@/lib/use-hydrating';
 
 export function useLiveValue<
   Query extends FunctionReference<'query'>,
@@ -9,5 +10,8 @@ export function useLiveValue<
   query: Query,
   ...args: OptionalRestArgsOrSkip<Query>
 ): FunctionReturnType<Query> | undefined {
-  return useQuery(query, ...args);
+  const value = useQuery(query, ...args);
+  // The server renders every live value as still loading; a boundary that
+  // hydrates after the client cached a result must match that.
+  return useHydrating() ? undefined : value;
 }
