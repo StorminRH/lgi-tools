@@ -530,7 +530,7 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   return { points, from, included: pilots.length, of: characters.length };
 }
 
-export const QUEUE_WINDOW = 5;
+const QUEUE_WINDOW = 5;
 
 /** The queue without entries that finished since the last sync: those are never shown. */
 export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): SkillQueueEntry[] {
