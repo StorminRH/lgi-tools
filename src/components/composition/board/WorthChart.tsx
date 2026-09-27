@@ -3,13 +3,18 @@
 import dynamic from 'next/dynamic';
 import { Measured } from '@/components/ui/measured';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
+import type { SplitDatum } from '@/components/ui/split-axis-chart';
 import type { StackedBand, StackedDatum } from '@/components/ui/stacked-area-chart';
 import { formatIsk } from '@/lib/format/isk';
 import { formatUtcDate } from '@/lib/format/time';
-import type { WorthPoint } from './board-view-model';
+import { splitDomains, type WorthPoint, worthChartMode } from './board-view-model';
 
 const StackedAreaChart = dynamic(
   () => import('@/components/ui/stacked-area-chart').then((m) => m.StackedAreaChart),
+  { ssr: false },
+);
+const SplitAxisChart = dynamic(
+  () => import('@/components/ui/split-axis-chart').then((m) => m.SplitAxisChart),
   { ssr: false },
 );
 
@@ -20,25 +25,57 @@ const BANDS: readonly StackedBand[] = [
   { key: 'assets', tone: 'green' },
 ];
 
-function WorthTooltip({ datum }: { datum: StackedDatum }) {
-  const isk = datum.values[0] ?? 0;
-  const assets = datum.values[1] ?? null;
+function WorthTooltip({ label, isk, worth }: { label: string; isk: number; worth: number | null }) {
   return (
     <span className="flex flex-col gap-0.5">
-      <span className="text-muted">{datum.label}</span>
-      {assets !== null && <span className="text-isk">Net worth {formatIsk(isk + assets)}</span>}
+      <span className="text-muted">{label}</span>
+      {worth !== null && <span className="text-isk">Net worth {formatIsk(worth)}</span>}
       <span className="text-tone-blue">ISK {formatIsk(isk)}</span>
-      {assets !== null && <span className="text-name">Assets {formatIsk(assets)}</span>}
+      {worth !== null && <span className="text-name">Assets {formatIsk(worth - isk)}</span>}
     </span>
   );
 }
 
-/** Net worth over time as two stacked bands: ISK, then assets. */
+const shortDate = (label: string) => label.replace(/ \d{4}$/, '');
+
+/**
+ * Net worth over time. When net worth dwarfs ISK the two get their own
+ * fitted segments of a broken axis; otherwise ISK and assets stack.
+ */
 export function WorthChart({ series, ariaLabel, height = 190 }: { series: readonly WorthPoint[]; ariaLabel: string; height?: number }) {
   if (series.length < 2) return null;
+  const label = (point: WorthPoint) => formatUtcDate(new Date(point.t));
+  if (worthChartMode(series) === 'broken') {
+    const domains = splitDomains(series);
+    const data: SplitDatum[] = series.map((point) => ({
+      x: point.t,
+      label: label(point),
+      upper: point.assets === null ? null : point.liquid + point.assets,
+      lower: point.liquid,
+    }));
+    return (
+      <Measured>
+        {(width) => (
+          <SplitAxisChart
+            data={data}
+            upperTone="green"
+            lowerTone="blue"
+            upperDomain={domains.upper}
+            lowerDomain={domains.lower}
+            width={width}
+            height={height}
+            formatY={formatIsk}
+            formatTick={shortDate}
+            ariaLabel={ariaLabel}
+            renderTooltip={(datum) => <WorthTooltip label={datum.label} isk={datum.lower} worth={datum.upper} />}
+          />
+        )}
+      </Measured>
+    );
+  }
   const data: StackedDatum[] = series.map((point) => ({
     x: point.t,
-    label: formatUtcDate(new Date(point.t)),
+    label: label(point),
     values: [point.liquid, point.assets],
   }));
   return (
@@ -50,9 +87,13 @@ export function WorthChart({ series, ariaLabel, height = 190 }: { series: readon
           width={width}
           height={height}
           formatY={formatIsk}
-          formatTick={(label) => label.replace(/ \d{4}$/, '')}
+          formatTick={shortDate}
           ariaLabel={ariaLabel}
-          renderTooltip={(datum) => <WorthTooltip datum={datum} />}
+          renderTooltip={(datum) => {
+            const isk = datum.values[0] ?? 0;
+            const assets = datum.values[1] ?? null;
+            return <WorthTooltip label={datum.label} isk={isk} worth={assets === null ? null : isk + assets} />;
+          }}
         />
       )}
     </Measured>
