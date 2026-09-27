@@ -22,12 +22,12 @@ export function Toaster() {
         unstyled: true,
         classNames: {
           // Sized to its text and centred in the stack. `translate` composes
-          // with sonner's own transform animation; below sonner's 600px
-          // breakpoint its unlayered CSS pins toasts full width instead.
+          // with sonner's own transform animation; toast.css keeps the same
+          // fit on phones, where sonner's unlayered CSS would pin full width.
           toast:
             'left-1/2 flex w-max max-w-[var(--width)] -translate-x-1/2 items-center gap-2.5 rounded-card ' +
             'border border-border glass-dense glass-lit px-3.5 py-2.5 font-ui text-ui tracking-copy ' +
-            'text-name shadow-dd max-[600px]:translate-x-0',
+            'text-name shadow-dd',
           icon: 'relative flex h-4 w-4 shrink-0 items-center justify-center',
           content: 'flex min-w-0 flex-col gap-0.5',
           title: 'leading-snug',
