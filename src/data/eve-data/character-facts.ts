@@ -76,8 +76,7 @@ async function dogmaAttributeIds(): Promise<Record<string, number>> {
 
 function attributeValue(attrs: AttrMap, ids: Record<string, number>, name: string): number | null {
   const id = ids[name];
-  const value = id === undefined ? undefined : attrs[id];
-  return value === undefined ? null : value;
+  return id === undefined ? null : (attrs[id] ?? null);
 }
 
 export interface ImplantDogma {

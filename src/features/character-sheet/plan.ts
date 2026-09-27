@@ -76,10 +76,6 @@ export function planSectionRead<K extends DirectSectionKey>(
   };
 }
 
-function isoMs(value: string): number {
-  return Date.parse(value);
-}
-
 function roundIsk(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -89,7 +85,7 @@ function journalSeries(entries: EsiJournalEntry[], windowStartMs: number, nowMs:
   const lastPerBucket = new Map<number, JournalSeriesPoint>();
   for (const entry of [...entries].reverse()) {
     if (entry.balance === undefined) continue;
-    const t = isoMs(entry.date);
+    const t = Date.parse(entry.date);
     if (t < windowStartMs) continue;
     const bucket = Math.min(JOURNAL_SERIES_POINTS - 1, Math.floor((t - windowStartMs) / bucketMs));
     lastPerBucket.set(bucket, { t, balance: entry.balance });
@@ -104,12 +100,12 @@ export function digestJournalBody(body: unknown, now: Date): JournalDigest | nul
   const oldest = entries.at(-1);
   const windowStartMs = Math.max(
     nowMs - JOURNAL_WINDOW_MS,
-    oldest === undefined ? Number.NEGATIVE_INFINITY : isoMs(oldest.date),
+    oldest === undefined ? Number.NEGATIVE_INFINITY : Date.parse(oldest.date),
   );
   let inflow = 0;
   let outflow = 0;
   for (const entry of entries) {
-    if (isoMs(entry.date) < windowStartMs) continue;
+    if (Date.parse(entry.date) < windowStartMs) continue;
     const amount = entry.amount ?? 0;
     if (amount > 0) inflow += amount;
     else outflow -= amount;

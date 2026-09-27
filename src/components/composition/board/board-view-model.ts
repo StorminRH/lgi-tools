@@ -217,8 +217,10 @@ export function groupSkills(
   const groups: SkillGroupModel[] = [];
   for (const group of catalog) {
     const skills = group.skills
-      .filter((skill) => levels[String(skill.typeId)] !== undefined)
-      .map((skill) => ({ typeId: skill.typeId, name: skill.name, level: levels[String(skill.typeId)] ?? 0 }))
+      .flatMap((skill) => {
+        const level = levels[String(skill.typeId)];
+        return level === undefined ? [] : [{ typeId: skill.typeId, name: skill.name, level }];
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
     if (skills.length === 0) continue;
     groups.push({

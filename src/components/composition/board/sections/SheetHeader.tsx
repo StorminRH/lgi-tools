@@ -123,14 +123,14 @@ function Kpis({ character }: { character: BoardCharacter }) {
         </Kpi>
       )}
       {skills !== null && (
-        <Kpi label="Skill points" note={free > 0 ? `+${formatCompactQuantity(free)} free` : undefined}>
-          {formatCompactQuantity(skills.totalSp)}
-        </Kpi>
-      )}
-      {skills !== null && (
-        <Kpi label="Skills" note={`${formatQuantity(skills.atV)} at V`} noteTone="text-muted">
-          {formatQuantity(skills.known)}
-        </Kpi>
+        <>
+          <Kpi label="Skill points" note={free > 0 ? `+${formatCompactQuantity(free)} free` : undefined}>
+            {formatCompactQuantity(skills.totalSp)}
+          </Kpi>
+          <Kpi label="Skills" note={`${formatQuantity(skills.atV)} at V`} noteTone="text-muted">
+            {formatQuantity(skills.known)}
+          </Kpi>
+        </>
       )}
     </dl>
   );

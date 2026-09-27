@@ -37,9 +37,11 @@ export function BoardTile({
           <div className="flex items-center gap-2">
             <span className="font-display text-h3 font-bold leading-tight text-name truncate">{tile.name}</span>
             {tile.online !== null && (
-              <StatusDot state={tile.online ? 'online' : 'offline'} className="shrink-0" />
+              <>
+                <StatusDot state={tile.online ? 'online' : 'offline'} className="shrink-0" />
+                <span className="sr-only">{tile.online ? 'Online' : 'Offline'}</span>
+              </>
             )}
-            {tile.online !== null && <span className="sr-only">{tile.online ? 'Online' : 'Offline'}</span>}
           </div>
           <TileNumbers tile={tile} />
         </div>

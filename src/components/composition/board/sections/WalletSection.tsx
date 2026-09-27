@@ -85,7 +85,7 @@ function Flow({ journal, now }: { journal: Journal; now: number }) {
       <span>
         <span className="text-isk">+{formatIsk(journal.inflow)}</span>
         <span className="text-faint"> in · </span>
-        <span className="text-dps-high">−{formatIsk(Math.abs(journal.outflow))}</span>
+        <span className="text-dps-high">−{formatIsk(journal.outflow)}</span>
         <span className="text-faint"> out</span>
       </span>
     </div>

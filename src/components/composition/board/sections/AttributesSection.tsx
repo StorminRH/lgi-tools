@@ -103,10 +103,9 @@ function ImplantList({ implants }: { implants: Implants }) {
   if (implants.implants.length === 0) {
     return <p className="px-3.5 py-2.5 text-ui text-faint">No implants plugged in.</p>;
   }
-  const ordered = [...implants.implants].sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99));
   return (
     <div className="pb-1">
-      {ordered.map((implant) => (
+      {implants.implants.map((implant) => (
         <EntityRow
           key={implant.typeId}
           colsClass="grid-cols-[22px_minmax(0,1fr)_auto]"

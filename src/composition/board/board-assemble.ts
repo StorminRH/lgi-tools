@@ -120,7 +120,7 @@ export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
     if (raw.identity.corporationId !== null) entityIds.push(raw.identity.corporationId);
     if (raw.identity.allianceId !== null) entityIds.push(raw.identity.allianceId);
     const status = raw.sheet?.status?.data;
-    if (status !== undefined && status !== null) {
+    if (status != null) {
       typeIds.push(status.ship.shipTypeId);
       systemIds.push(status.location.solarSystemId);
       if (status.location.stationId !== null) stationIds.push(status.location.stationId);

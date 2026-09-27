@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { BoardIndustryData, BoardSection } from '@/composition/board/api-contract';
+import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { eyebrow } from '@/components/ui/type-roles';
 import { SectionBody, SectionPanel, updatedLabel } from '../SectionBody';
@@ -44,7 +45,7 @@ function Stat({ label, value, tone = 'text-name' }: { label: string; value: numb
   return (
     <div className="flex flex-col gap-0.5">
       <dt className={eyebrow({ size: 'micro' })}>{label}</dt>
-      <dd className={`font-data text-h3 tabular-nums ${tone}`}>{value}</dd>
+      <dd className={cn('font-data text-h3 tabular-nums', tone)}>{value}</dd>
     </div>
   );
 }
