@@ -6,7 +6,7 @@ import { StatusDot } from '@/components/ui/status-dot';
 import { TrainingLine } from '@/features/skill-queue/components/TrainingLine';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity } from '@/lib/format/number';
-import { type BoardTileModel, pilotTransitionName } from './board-view-model';
+import type { BoardTileModel } from './board-view-model';
 import { HealthLine, SystemName } from './board-bits';
 
 /** One pilot floating on the backdrop: the whole portrait and readout block is the button. */
@@ -18,7 +18,7 @@ export function BoardTile({ tile, onOpen }: { tile: BoardTileModel; onOpen: (cha
       onClick={() => onOpen(tile.characterId)}
       className="group relative w-full items-center gap-4 rounded-card p-2 text-left"
     >
-      <ViewTransition name={pilotTransitionName(tile.characterId)} share="morph" default="none">
+      <ViewTransition name={`pilot-${tile.characterId}`} share="morph" default="none">
         <CharacterPortrait
           characterId={tile.characterId}
           name={tile.name}

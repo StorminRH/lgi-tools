@@ -6,7 +6,15 @@ import {
   characterAge,
   characterSecurityClass,
   coverageNote,
+  boardTransitionType,
   boardViewFrom,
+  attentionItems,
+  combinedFlow,
+  industryTotals,
+  railOrder,
+  trainingRows,
+  walletShares,
+  whereaboutsRows,
   boardViewHref,
   characterParam,
   fittedDomain,
@@ -99,25 +107,46 @@ describe('reconnectSentence', () => {
 describe('board view state', () => {
   const chars = board.characters;
 
-  it('opens a character named in the URL and the roster for anything else', () => {
+  it('opens a character named in the URL and the overview for anything else', () => {
     expect(boardViewFrom(String(kessa!.characterId), chars)).toEqual({
       view: 'character',
       characterId: kessa!.characterId,
     });
-    expect(boardViewFrom(null, chars)).toEqual({ view: 'roster' });
-    expect(boardViewFrom('42', chars)).toEqual({ view: 'roster' });
-    expect(boardViewFrom('9900000002abc', chars)).toEqual({ view: 'roster' });
-    expect(boardViewFrom('', chars)).toEqual({ view: 'roster' });
+    expect(boardViewFrom(null, chars)).toEqual({ view: 'overview' });
+    expect(boardViewFrom('42', chars)).toEqual({ view: 'overview' });
+    expect(boardViewFrom('9900000002abc', chars)).toEqual({ view: 'overview' });
+    expect(boardViewFrom('', chars)).toEqual({ view: 'overview' });
     expect(characterParam(new URLSearchParams('?character=7'))).toBe('7');
+  });
+
+  it('always opens a lone pilot on its own sheet', () => {
+    const one = buildDemoBoard(NOW, 'one').characters;
+    expect(boardViewFrom(null, one)).toEqual({ view: 'character', characterId: 9_900_000_001 });
+    expect(boardViewFrom('42', one)).toEqual({ view: 'character', characterId: 9_900_000_001 });
+  });
+
+  it('names the transition by where the view goes', () => {
+    const aurelView = { view: 'character', characterId: 1 } as const;
+    expect(boardTransitionType({ view: 'overview' }, aurelView)).toBe('board-focus');
+    expect(boardTransitionType(aurelView, { view: 'overview' })).toBe('board-overview');
+    expect(boardTransitionType(aurelView, { view: 'character', characterId: 2 })).toBe('board-switch');
+  });
+
+  it('puts the main pilot first and keeps link order for the rest', () => {
+    const ids = (list: readonly { characterId: number }[]) => list.map((c) => c.characterId % 10);
+    expect(ids(railOrder(chars, torvin!.characterId))).toEqual([3, 1, 2, 4, 5]);
+    expect(ids(railOrder(chars, null))).toEqual([1, 2, 3, 4, 5]);
+    expect(ids(railOrder(chars, 42))).toEqual([1, 2, 3, 4, 5]);
+    expect(railOrder([], 1)).toEqual([]);
   });
 
   it('writes the view into the URL and keeps the other params', () => {
     expect(boardViewHref('/', '', { view: 'character', characterId: 7 })).toBe('/?character=7');
-    expect(boardViewHref('/', '?demo&character=7', { view: 'roster' })).toBe('/?demo');
+    expect(boardViewHref('/', '?demo&character=7', { view: 'overview' })).toBe('/?demo');
     expect(boardViewHref('/', '?demo=one', { view: 'character', characterId: 8 })).toBe(
       '/?demo=one&character=8',
     );
-    expect(boardViewHref('/', '?character=7', { view: 'roster' })).toBe('/');
+    expect(boardViewHref('/', '?character=7', { view: 'overview' })).toBe('/');
   });
 });
 
@@ -199,5 +228,74 @@ describe('fittedDomain', () => {
 
   it('pads a flat zero series by one unit share', () => {
     expect(fittedDomain([0, 0])).toEqual([-0.1, 0.1]);
+  });
+});
+
+describe('overview model', () => {
+  const chars = board.characters;
+
+  it('lists what needs doing, most urgent first', () => {
+    expect(attentionItems(chars, NOW).map((item) => `${item.kind}:${item.name}`)).toEqual([
+      'queue-paused:Torvin Hale',
+      'queue-empty:Ilyana Mirek',
+      'queue-ending:Kessa Draymoor',
+      'jobs-ready:Aurel Vantesse',
+      'jobs-ready:Torvin Hale',
+      'reconnect:Ilyana Mirek',
+      'reconnect:Bram Oskarsen',
+    ]);
+    expect(attentionItems(chars, NOW)[2]?.text).toBe('Queue ends in 9h');
+    expect(attentionItems(chars, NOW)[3]?.text).toBe('1 industry job ready to deliver');
+  });
+
+  it('is all clear when nothing needs doing', () => {
+    const calm = { ...aurel!, industry: { state: 'pending' as const } };
+    expect(attentionItems([calm], NOW)).toEqual([]);
+  });
+
+  it('orders training by urgency, stalled queues first and unsynced last', () => {
+    expect(trainingRows(chars, names, NOW).map((row) => row.name)).toEqual([
+      'Torvin Hale',
+      'Ilyana Mirek',
+      'Kessa Draymoor',
+      'Aurel Vantesse',
+      'Bram Oskarsen',
+    ]);
+  });
+
+  it('sums wallets, flow and industry honestly', () => {
+    expect(walletShares(chars).map((share) => share.label)).toEqual(['Aurel Vantesse', 'Kessa Draymoor', 'Torvin Hale']);
+    expect(combinedFlow(chars, NOW)).toEqual({
+      inflow: 977_835_008,
+      outflow: 846_237_440,
+      label: 'last 30 days',
+      covered: 3,
+      total: 5,
+    });
+    expect(industryTotals(chars)).toEqual({
+      active: 4,
+      ready: 2,
+      used: 6,
+      max: 20,
+      readyPilots: ['Aurel Vantesse', 'Torvin Hale'],
+      covered: 4,
+      total: 5,
+    });
+    expect(combinedFlow([bram!], NOW)).toBeNull();
+    expect(industryTotals([bram!])).toBeNull();
+  });
+
+  it('labels a combined flow whose windows differ', () => {
+    const recent = aurel!.journal.state === 'ready' ? aurel!.journal.data : null;
+    const shorter = { ...kessa!, journal: { state: 'ready' as const, refreshedAt: NOW, data: { ...recent!, windowStart: '2026-09-20T00:00:00.000Z' } } };
+    expect(combinedFlow([aurel!, shorter], NOW)?.label).toBe('windows differ; shortest since 20 Sept 2026');
+  });
+
+  it('places each pilot, docked or in space', () => {
+    const rows = whereaboutsRows(chars);
+    expect(rows[0]?.status?.docked).toBe('Jita IV - Moon 4 - Caldari Navy Assembly Plant');
+    expect(rows[1]?.status?.docked).toBeNull();
+    expect(rows[1]?.status?.ship.typeName).toBe('Ishtar');
+    expect(rows[4]?.status).toBeNull();
   });
 });

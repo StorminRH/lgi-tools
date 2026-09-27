@@ -7,7 +7,7 @@ import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
-import { characterAge, characterSecurityClass, pilotTransitionName, placeName } from '../board-view-model';
+import { characterAge, characterSecurityClass, placeName } from '../board-view-model';
 import { SystemName } from '../board-bits';
 import { readoutSurface } from '../SectionBody';
 import { EntityLogo } from './EntityLogo';
@@ -17,7 +17,7 @@ export function SheetHeader({ character, now }: { character: BoardCharacter; now
   return (
     <header data-leader-column className="flex flex-col gap-5">
       <div className="flex items-center gap-4 xl:flex-col xl:items-start">
-        <ViewTransition name={pilotTransitionName(character.characterId)} share="morph" default="none">
+        <ViewTransition name={`pilot-${character.characterId}`} share="morph" default="none">
           <CharacterPortrait
             characterId={character.characterId}
             name={character.name}

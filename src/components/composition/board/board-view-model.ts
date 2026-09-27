@@ -176,34 +176,52 @@ export function reconnectSentence(character: BoardCharacter): string | null {
   return `Reconnect ${name} to add ${joinList(ordered.map((gap) => GAP_PHRASE[gap]))}.`;
 }
 
-export type BoardView = { view: 'roster' } | { view: 'character'; characterId: number };
+export type BoardView = { view: 'overview' } | { view: 'character'; characterId: number };
 
-export const ROSTER: BoardView = { view: 'roster' };
+export const OVERVIEW: BoardView = { view: 'overview' };
 
 const CHARACTER_PARAM = 'character';
 
-/** The view a `?character=` value opens; anything not on this board opens the roster. */
+/**
+ * A lone pilot always gets its own sheet. With more, `?character=` picks one
+ * and anything else (no param, an id not on this board) is the overview.
+ */
 export function boardViewFrom(
   param: string | null,
   characters: readonly Pick<BoardCharacter, 'characterId'>[],
 ): BoardView {
-  if (param === null || !/^\d+$/.test(param)) return ROSTER;
+  const [only] = characters;
+  if (characters.length === 1 && only !== undefined) return { view: 'character', characterId: only.characterId };
+  if (param === null || !/^\d+$/.test(param)) return OVERVIEW;
   const characterId = Number(param);
-  return characters.some((c) => c.characterId === characterId) ? { view: 'character', characterId } : ROSTER;
+  return characters.some((c) => c.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
 }
 
-/** The same page with `?character=` set for a character view or removed for the roster. */
+export type BoardTransitionType = 'board-focus' | 'board-overview' | 'board-switch';
+
+/** Which way a view change runs, so the card swap can be keyed to it. */
+export function boardTransitionType(from: BoardView, to: BoardView): BoardTransitionType {
+  if (to.view === 'overview') return 'board-overview';
+  return from.view === 'overview' ? 'board-focus' : 'board-switch';
+}
+
+/** The main pilot (the signed-in one, else the first linked) leads; the rest keep link order. */
+export function railOrder<T extends Pick<BoardCharacter, 'characterId'>>(
+  characters: readonly T[],
+  mainId: number | null,
+): T[] {
+  const main = characters.find((c) => c.characterId === mainId) ?? characters[0];
+  if (main === undefined) return [];
+  return [main, ...characters.filter((c) => c !== main)];
+}
+
+/** The same page with `?character=` set for a character view or removed for the overview. */
 export function boardViewHref(pathname: string, search: string, view: BoardView): string {
   const params = new URLSearchParams(search);
   if (view.view === 'character') params.set(CHARACTER_PARAM, String(view.characterId));
   else params.delete(CHARACTER_PARAM);
   const query = params.toString();
   return query === '' ? pathname : `${pathname}?${query.replace(/=(&|$)/g, '$1')}`;
-}
-
-/** Shared by a pilot's roster portrait and its sheet portrait, so one morphs into the other. */
-export function pilotTransitionName(characterId: number): string {
-  return `pilot-${characterId}`;
 }
 
 export function characterParam(params: { get: (key: string) => string | null }): string | null {
@@ -357,4 +375,175 @@ export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): Q
     endsAt = Math.max(endsAt, finish);
   }
   return segments.length === 0 ? null : { segments, endsAt };
+}
+
+export type AttentionKind = 'queue-empty' | 'queue-paused' | 'queue-ending' | 'jobs-ready' | 'reconnect';
+
+export interface AttentionItem {
+  kind: AttentionKind;
+  characterId: number;
+  name: string;
+  text: string;
+}
+
+const ATTENTION_RANK: Record<AttentionKind, number> = {
+  'queue-empty': 0,
+  'queue-paused': 0,
+  'queue-ending': 1,
+  'jobs-ready': 2,
+  reconnect: 3,
+};
+
+function queueAttention(character: BoardCharacter, now: number): (AttentionItem & { at: number }) | null {
+  const skills = readyData(character.skills);
+  if (skills === null) return null;
+  const summary = summarizeQueue(skills.queue, now);
+  const base = { characterId: character.characterId, name: character.name };
+  if (summary.kind === 'empty' || summary.kind === 'complete') {
+    return { ...base, kind: 'queue-empty', text: 'Skill queue is empty', at: 0 };
+  }
+  if (summary.kind === 'paused') return { ...base, kind: 'queue-paused', text: 'Skill queue is paused', at: 0 };
+  if (summary.finishesAt !== null && summary.finishesAt - now < QUEUE_WARN_MS) {
+    const ms = summary.finishesAt - now;
+    return { ...base, kind: 'queue-ending', text: `Queue ends in ${formatRemaining(ms)}`, at: ms };
+  }
+  return null;
+}
+
+/** What needs doing across the roster, most urgent first; empty means all clear. */
+export function attentionItems(characters: readonly BoardCharacter[], now: number): AttentionItem[] {
+  const items: (AttentionItem & { at: number; order: number })[] = [];
+  characters.forEach((character, order) => {
+    const queue = queueAttention(character, now);
+    if (queue !== null) items.push({ ...queue, order });
+    const ready = readyData(character.industry)?.ready ?? 0;
+    if (ready > 0) {
+      items.push({
+        kind: 'jobs-ready',
+        characterId: character.characterId,
+        name: character.name,
+        text: `${ready} industry ${ready === 1 ? 'job' : 'jobs'} ready to deliver`,
+        at: 0,
+        order,
+      });
+    }
+    const sentence = reconnectSentence(character);
+    if (sentence !== null) {
+      items.push({ kind: 'reconnect', characterId: character.characterId, name: character.name, text: sentence, at: 0, order });
+    }
+  });
+  return items
+    .sort((a, b) => ATTENTION_RANK[a.kind] - ATTENTION_RANK[b.kind] || a.at - b.at || a.order - b.order)
+    .map(({ kind, characterId, name, text }) => ({ kind, characterId, name, text }));
+}
+
+/** Pilots by how soon they need a new skill: stalled queues first, then soonest end; unsynced last. */
+export function trainingRows(characters: readonly BoardCharacter[], names: Readonly<Record<string, string>>, now: number) {
+  const rank = (tile: BoardTileModel, endsAt: number | null): [number, number] => {
+    if (tile.training === null) return [2, 0];
+    if (tile.health.tone === 'bad') return [0, 0];
+    return [1, endsAt ?? Number.POSITIVE_INFINITY];
+  };
+  return characters
+    .map((character, order) => {
+      const tile = tileModel(character, names, now);
+      const skills = readyData(character.skills);
+      const endsAt = skills === null ? null : summarizeQueue(skills.queue, now).finishesAt;
+      return { tile, order, key: rank(tile, endsAt) };
+    })
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.order - b.order)
+    .map(({ tile }) => tile);
+}
+
+export interface CombinedFlow {
+  inflow: number;
+  outflow: number;
+  label: string;
+  covered: number;
+  total: number;
+}
+
+/**
+ * Money in and out summed across the journals that synced. The window is
+ * the shortest one among them; when the windows differ the label says so,
+ * because each pilot's total still covers its own window.
+ */
+export function combinedFlow(characters: readonly BoardCharacter[], now: number): CombinedFlow | null {
+  const journals = characters.map((c) => readyData(c.journal));
+  const present = journals.filter((journal) => journal !== null);
+  if (present.length === 0) return null;
+  const starts = present.map((journal) => Date.parse(journal.windowStart));
+  const latest = Math.max(...starts);
+  const aligned = Math.max(...starts) - Math.min(...starts) < DAY;
+  const window = flowWindowLabel(new Date(latest).toISOString(), now);
+  return {
+    inflow: present.reduce((sum, journal) => sum + journal.inflow, 0),
+    outflow: present.reduce((sum, journal) => sum + journal.outflow, 0),
+    label: aligned ? window : `windows differ; shortest ${window}`,
+    covered: present.length,
+    total: characters.length,
+  };
+}
+
+export interface IndustryTotals {
+  active: number;
+  ready: number;
+  used: number;
+  max: number;
+  readyPilots: string[];
+  covered: number;
+  total: number;
+}
+
+export function industryTotals(characters: readonly BoardCharacter[]): IndustryTotals | null {
+  const synced = characters
+    .map((character) => ({ name: character.name, data: readyData(character.industry) }))
+    .filter((row) => row.data !== null);
+  if (synced.length === 0) return null;
+  return {
+    active: synced.reduce((sum, row) => sum + (row.data?.active ?? 0), 0),
+    ready: synced.reduce((sum, row) => sum + (row.data?.ready ?? 0), 0),
+    used: synced.reduce((sum, row) => sum + (row.data?.slots.used ?? 0), 0),
+    max: synced.reduce((sum, row) => sum + (row.data?.slots.max ?? 0), 0),
+    readyPilots: synced.filter((row) => (row.data?.ready ?? 0) > 0).map((row) => row.name),
+    covered: synced.length,
+    total: characters.length,
+  };
+}
+
+export interface WalletShare {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export function walletShares(characters: readonly BoardCharacter[]): WalletShare[] {
+  return characters.flatMap((character) => {
+    const wallet = readyData(character.wallet);
+    return wallet === null ? [] : [{ key: String(character.characterId), label: character.name, count: wallet.balance }];
+  });
+}
+
+export interface WhereaboutsRow {
+  characterId: number;
+  name: string;
+  status: { system: SystemRef; docked: string | null; ship: { typeId: number; typeName: string } } | null;
+}
+
+export function whereaboutsRows(characters: readonly BoardCharacter[]): WhereaboutsRow[] {
+  return characters.map((character) => {
+    const status = readyData(character.status);
+    return {
+      characterId: character.characterId,
+      name: character.name,
+      status:
+        status === null
+          ? null
+          : {
+              system: status.system,
+              docked: status.dock === null ? null : placeName(status.dock),
+              ship: { typeId: status.ship.typeId, typeName: status.ship.typeName },
+            },
+    };
+  });
 }

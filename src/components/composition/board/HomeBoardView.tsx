@@ -21,7 +21,7 @@ import {
   characterParam,
   coverageNote,
   type CoveredSum,
-  ROSTER,
+  OVERVIEW,
   rosterTotals,
   skillNames,
   tileModel,
@@ -82,7 +82,7 @@ export function HomeBoardView({ board, now }: { board: BoardResponse; now: numbe
       window.history.back();
       return;
     }
-    writeView(ROSTER, false);
+    writeView(OVERVIEW, false);
     showParam(setParam, null);
   }, []);
 
