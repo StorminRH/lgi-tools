@@ -64,24 +64,36 @@ export function CharacterDetail({
         <SheetHeader character={character} now={now} />
       </ViewTransition>
       <ViewTransition {...PANELS_MOTION} default="none">
-        {/* DOM order is the phone order; the empty 1fr row soaks up the wallet's extra height. */}
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto_auto_auto_1fr_auto]">
-          <QueueSection section={character.skills} names={names} now={now} pilotName={character.name} className="lg:col-start-1 lg:row-start-1" />
-          <WalletSection
-            wallet={character.wallet}
-            journal={character.journal}
-            now={now}
-            className="lg:col-start-2 lg:row-span-5 lg:row-start-1"
-          />
-          <AttributesSection
-            attributes={character.attributes}
-            implants={character.implants}
-            now={now}
-            className="lg:col-start-1 lg:row-start-2"
-          />
-          <ClonesSection section={character.clones} now={now} className="lg:col-start-1 lg:row-start-3" />
-          <IndustrySection section={character.industry} now={now} className="lg:col-start-1 lg:row-start-4" />
-          <SkillsSection section={character.skills} catalog={catalog} now={now} className="lg:col-span-2 lg:row-start-6" />
+        {/* Two independent column stacks, so a tall card never opens a hole beside
+            it. On phones the columns dissolve and `order` sets the phone order:
+            queue, wallet, attributes, clones, industry, skills. */}
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
+          <div className="contents lg:flex lg:flex-col lg:gap-4">
+            <QueueSection
+              section={character.skills}
+              names={names}
+              now={now}
+              pilotName={character.name}
+              className="order-1 lg:order-none"
+            />
+            <AttributesSection
+              attributes={character.attributes}
+              implants={character.implants}
+              now={now}
+              className="order-3 lg:order-none"
+            />
+            <ClonesSection section={character.clones} now={now} className="order-4 lg:order-none" />
+            <IndustrySection section={character.industry} now={now} className="order-5 lg:order-none" />
+          </div>
+          <div className="contents lg:flex lg:flex-col lg:gap-4">
+            <WalletSection
+              wallet={character.wallet}
+              journal={character.journal}
+              now={now}
+              className="order-2 lg:order-none"
+            />
+          </div>
+          <SkillsSection section={character.skills} catalog={catalog} now={now} className="order-6 lg:col-span-2" />
         </div>
       </ViewTransition>
     </>
