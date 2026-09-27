@@ -32,6 +32,13 @@ type Point = StackedDatum & { y: number };
 const base = (datum: StackedDatum, band: number) =>
   datum.values.slice(0, band).reduce<number>((sum, value) => sum + (value ?? 0), 0);
 
+// A point with no neighbour on either side draws no area; mark it instead,
+// so a band that has just begun (one recorded day) still shows.
+function isolated(points: readonly StackedDatum[], i: number, band: number): boolean {
+  const has = (j: number) => (points[j]?.values[band] ?? null) !== null;
+  return has(i) && !has(i - 1) && !has(i + 1);
+}
+
 /**
  * Bands stacked from zero, each drawn only where it has data, so a band can
  * begin partway along. Hover or keyboard focus shows the point under it.
@@ -129,6 +136,17 @@ export function StackedAreaChart({
               strokeOpacity={index === bands.length - 1 ? 1 : 0.7}
               fill="none"
             />
+            {points.map((point, i) =>
+              isolated(points, i, index) ? (
+                <circle
+                  key={point.x}
+                  cx={xScale(point.x)}
+                  cy={yScale(base(point, index) + (point.values[index] ?? 0))}
+                  r={3}
+                  fill={toneHex[band.tone]}
+                />
+              ) : null,
+            )}
           </g>
         ))}
         {tickIdx.map((i) => {
