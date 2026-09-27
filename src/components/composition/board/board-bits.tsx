@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
+import { formatIsk } from '@/lib/format/isk';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { SystemRef } from '@/composition/board/api-contract';
 import { roundSecurityStatus, securityStatusTextClass } from '@/data/eve-data/security';
@@ -62,5 +63,18 @@ export function StatFigure({ label, value, tone = 'text-name' }: { label: string
       <dt className={eyebrow({ size: 'micro' })}>{label}</dt>
       <dd className={cn('font-data text-h3 tabular-nums', tone)}>{value}</dd>
     </div>
+  );
+}
+
+/** Money in and out over the journal window, one quiet line; the window is about 30 days. */
+export function FlowLine({ inflow, outflow }: { inflow: number; outflow: number }) {
+  return (
+    <span className="font-data text-ui tabular-nums">
+      <span className="text-isk">+{formatIsk(inflow)}</span>
+      <span className="text-faint"> in · </span>
+      <span className="text-dps-high">−{formatIsk(Math.abs(outflow))}</span>
+      <span className="text-faint"> out · </span>
+      <span className="text-micro text-faint">30d</span>
+    </span>
   );
 }

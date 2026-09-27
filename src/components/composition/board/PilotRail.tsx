@@ -5,6 +5,7 @@ import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { StatusDot } from '@/components/ui/status-dot';
 import { TrainingLine } from '@/features/skill-queue/components/TrainingLine';
+import { AddCharacter } from './AddCharacter';
 import { HealthLine, SystemName } from './board-bits';
 import { pilotTransitionName } from './board-motion';
 import type { BoardTileModel } from './board-view-model';
@@ -12,8 +13,8 @@ import type { BoardTileModel } from './board-view-model';
 /**
  * The pilots, frameless on the backdrop: the main pilot large, the rest as
  * compact rows, each with what it is training, its queue state and where it
- * is. On phones it becomes a horizontal strip of portraits that scrolls on
- * its own.
+ * is, and a way to link another at the end. On phones it becomes a
+ * horizontal strip of portraits that scrolls on its own.
  */
 export function PilotRail({
   pilots,
@@ -30,6 +31,7 @@ export function PilotRail({
       {pilots.map((pilot, index) => (
         <RailPilot key={pilot.characterId} pilot={pilot} main={index === 0} onSelect={onSelect} />
       ))}
+      <AddCharacter placement="rail" />
     </nav>
   );
 }

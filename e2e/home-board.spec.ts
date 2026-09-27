@@ -67,6 +67,8 @@ test('several pilots open on the wealth overview, with each pilot’s state on t
   for (const gone of ['Training', 'Whereabouts', 'Skill points']) {
     await expect(overview(page).getByText(gone, { exact: true })).toHaveCount(0);
   }
+  await expect(page.getByText('Your characters', { exact: true })).toHaveCount(0);
+  await expect(rail(page).getByRole('button').last()).toHaveAccessibleName('Add character');
   await expect(pilot(page, 9_900_000_002)).toContainText('Medium Drone Operation');
   await expect(pilot(page, 9_900_000_002)).toContainText('Tama');
 });
@@ -138,6 +140,7 @@ test('a single-pilot account lands on that pilot’s sheet with no rail', async 
   await expect(sheet(page, 'Aurel Vantesse')).toBeVisible({ timeout: 15_000 });
   await expect(rail(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /All characters/ })).toHaveCount(0);
+  await expect(sheet(page, 'Aurel Vantesse').getByRole('button', { name: 'Add character' })).toBeVisible();
 });
 
 test('the board fits a phone without horizontal page scroll', async ({ page }) => {

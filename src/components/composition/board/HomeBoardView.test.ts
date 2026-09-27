@@ -45,6 +45,9 @@ describe('HomeBoardView', () => {
     expect(html).not.toContain('Needs attention');
     expect(html).toContain('Wallet ISK · 3 of 5 pilots · since 28 Aug');
     expect(html).toContain('<span>Wealth</span>');
+    expect(html).not.toContain('Combined</span>');
+    expect(html).toContain('30d');
+    expect(html.lastIndexOf('data-pilot-id')).toBeLessThan(html.indexOf('aria-label="Add character"'));
     expect(html).toContain('<span>Industry</span>');
     expect(html).toContain('ISK by pilot');
     expect(html).not.toContain('<span>Training</span>');
@@ -83,6 +86,7 @@ describe('HomeBoardView', () => {
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
     expect(html).not.toContain('aria-label="Pilots"');
     expect(html).not.toContain('All characters');
+    expect(html).toContain('aria-label="Add character"');
   });
 
   it('shows one reconnect sentence for a pilot with gaps', () => {
@@ -101,10 +105,14 @@ describe('HomeBoardView', () => {
 describe('board chrome', () => {
   it('renders the frame, skeleton, empty state and signed-out slot', () => {
     const framed = renderToStaticMarkup(BoardFrame({ demo: true, children: createElement(BoardEmpty) }));
-    expect(framed).toContain('Your characters');
+    expect(framed).toContain('aria-label="Your characters"');
+    expect(framed).not.toContain('>Your characters<');
     expect(framed).toContain('Sample data');
     expect(framed.match(/class="[^"]*\breveal\b/g)).toHaveLength(1);
-    expect(renderToStaticMarkup(BoardFrame({ children: createElement(BoardSkeleton) }))).toContain('live');
+    const live = renderToStaticMarkup(BoardFrame({ children: createElement(BoardSkeleton) }));
+    expect(live).not.toContain('live-ping');
+    expect(live).not.toContain('Sample data');
+    expect(framed).toContain('Add character');
     expect(renderToStaticMarkup(createElement(HomeSignedInBoard))).toBe('');
     expect(renderToStaticMarkup(createElement(LiveBoard, { mainId: 1 }))).toContain(
       'Loading your characters',

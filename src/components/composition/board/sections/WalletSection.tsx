@@ -1,12 +1,12 @@
 'use client';
 
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
-import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatUtcDate } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
-import { flowWindowLabel, recentJournal } from '../board-view-model';
+import { FlowLine } from '../board-bits';
+import { recentJournal } from '../board-view-model';
 import { SectionBody, SectionPanel, updatedLabel } from '../SectionBody';
 
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
@@ -56,34 +56,17 @@ export function WalletSection({
       <SectionBody section={wallet}>
         {({ balance }) => (
           <>
-            <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-3.5 pt-3 pb-2">
-              <div className="flex flex-col gap-0.5">
-                <span className={eyebrow({ size: 'micro' })}>Balance</span>
-                <span className="font-data text-stat tabular-nums text-isk">
-                  {formatIsk(balance)} <span className="text-ui text-muted">ISK</span>
-                </span>
-              </div>
-              {journal.state === 'ready' && <Flow journal={journal.data} now={now} />}
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-3.5 pt-3 pb-2">
+              <span className="font-data text-stat tabular-nums text-isk">
+                {formatIsk(balance)} <span className="text-ui text-muted">ISK</span>
+              </span>
+              {journal.state === 'ready' && <FlowLine inflow={journal.data.inflow} outflow={journal.data.outflow} />}
             </div>
             <SectionBody section={journal}>{(data) => <JournalBody journal={data} />}</SectionBody>
           </>
         )}
       </SectionBody>
     </SectionPanel>
-  );
-}
-
-function Flow({ journal, now }: { journal: Journal; now: number }) {
-  return (
-    <div className="flex flex-col gap-0.5 font-data text-ui tabular-nums">
-      <span className={eyebrow({ size: 'micro' })}>{flowWindowLabel(journal.windowStart, now)}</span>
-      <span>
-        <span className="text-isk">+{formatIsk(journal.inflow)}</span>
-        <span className="text-faint"> in · </span>
-        <span className="text-dps-high">−{formatIsk(journal.outflow)}</span>
-        <span className="text-faint"> out</span>
-      </span>
-    </div>
   );
 }
 

@@ -12,7 +12,15 @@ import { KpiTile, SystemName } from '../board-bits';
 import { EntityLogo } from './EntityLogo';
 
 /** The identity column: portrait, affiliation and whereabouts float; only the stat readouts sit on glass. */
-export function SheetHeader({ character, now }: { character: BoardCharacter; now: number }) {
+export function SheetHeader({
+  character,
+  now,
+  children,
+}: {
+  character: BoardCharacter;
+  now: number;
+  children?: ReactNode;
+}) {
   return (
     <header className="flex flex-col gap-5">
       <div className="flex items-center gap-4 xl:flex-col xl:items-start">
@@ -33,6 +41,7 @@ export function SheetHeader({ character, now }: { character: BoardCharacter; now
       </div>
       <Whereabouts character={character} />
       <Kpis character={character} now={now} />
+      {children}
     </header>
   );
 }

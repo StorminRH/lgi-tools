@@ -8,7 +8,7 @@ import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatUtcDate } from '@/lib/format/time';
 import { BalanceTrend } from './BalanceTrend';
-import { StatFigure } from './board-bits';
+import { FlowLine, StatFigure } from './board-bits';
 import {
   combinedFlow,
   coverageNote,
@@ -54,27 +54,11 @@ function WealthCard({
         <p className="px-3.5 py-3 text-ui text-faint">No wallet has synced yet. Reconnect a pilot to add it.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-3.5 pt-3 pb-2">
-            <div className="flex flex-col gap-0.5">
-              <span className={eyebrow({ size: 'micro' })}>Combined</span>
-              <span className="font-data text-stat tabular-nums text-isk">
-                {formatIsk(totals.isk.value)} <span className="text-ui text-muted">ISK</span>
-              </span>
-            </div>
-            {flow !== null && (
-              <div className="flex flex-col gap-0.5 font-data text-ui tabular-nums">
-                <span className={eyebrow({ size: 'micro' })}>
-                  {flow.label}
-                  {flow.covered < flow.total && ` · ${flow.covered} of ${flow.total}`}
-                </span>
-                <span>
-                  <span className="text-isk">+{formatIsk(flow.inflow)}</span>
-                  <span className="text-faint"> in · </span>
-                  <span className="text-dps-high">−{formatIsk(flow.outflow)}</span>
-                  <span className="text-faint"> out</span>
-                </span>
-              </div>
-            )}
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-3.5 pt-3 pb-2">
+            <span className="font-data text-stat tabular-nums text-isk">
+              {formatIsk(totals.isk.value)} <span className="text-ui text-muted">ISK</span>
+            </span>
+            {flow !== null && <FlowLine inflow={flow.inflow} outflow={flow.outflow} />}
           </div>
           {worth.points.length > 1 && worth.from !== null && (
             <figure className="border-t border-border-soft px-2 pt-2.5 pb-1">

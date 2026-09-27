@@ -83,7 +83,7 @@ function SinglePilot({
       aria-label={`${character.name} character sheet`}
       className={SHEET_GRID}
     >
-      <CharacterDetail character={character} catalog={catalog} names={names} now={now} />
+      <CharacterDetail character={character} catalog={catalog} names={names} now={now} addCharacter />
     </div>
   );
 }

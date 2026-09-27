@@ -5,6 +5,7 @@ import { LinkCharacterButton } from '@/components/composition/account/LinkCharac
 import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import type { BoardCharacter, SkillCatalogGroup } from '@/composition/board/api-contract';
+import { AddCharacter } from './AddCharacter';
 import { PANELS_MOTION, SHEET_MOTION } from './board-motion';
 import { reconnectSentence } from './board-view-model';
 import { AttributesSection } from './sections/AttributesSection';
@@ -25,6 +26,7 @@ export function CharacterDetail({
   now,
   onBack,
   backRef,
+  addCharacter = false,
 }: {
   character: BoardCharacter;
   catalog: readonly SkillCatalogGroup[];
@@ -32,6 +34,7 @@ export function CharacterDetail({
   now: number;
   onBack?: () => void;
   backRef?: Ref<HTMLButtonElement>;
+  addCharacter?: boolean;
 }) {
   const sentence = reconnectSentence(character);
   return (
@@ -61,7 +64,9 @@ export function CharacterDetail({
         </ViewTransition>
       )}
       <ViewTransition {...SHEET_MOTION} default="none">
-        <SheetHeader character={character} now={now} />
+        <SheetHeader character={character} now={now}>
+          {addCharacter && <AddCharacter placement="column" />}
+        </SheetHeader>
       </ViewTransition>
       <ViewTransition {...PANELS_MOTION} default="none">
         {/* Two independent column stacks, so a tall card never opens a hole beside
