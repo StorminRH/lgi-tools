@@ -19,7 +19,7 @@ export const BOARD_LOAD_FAILED = 'Couldn’t load your characters — reload the
 
 export const SELECTION_STORAGE_KEY = 'lgi:home-board:selected';
 
-type SectionState = BoardSection<unknown>['state'];
+export type SectionState = BoardSection<unknown>['state'];
 
 function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
@@ -259,7 +259,7 @@ export function balanceChart(series: readonly { t: number; balance: number }[]):
   };
 }
 
-export const RECENT_JOURNAL_ROWS = 20;
+const RECENT_JOURNAL_ROWS = 20;
 
 export function recentJournal<Row extends { date: string }>(rows: readonly Row[]): Row[] {
   return [...rows].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, RECENT_JOURNAL_ROWS);
