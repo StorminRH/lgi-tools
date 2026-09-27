@@ -1,13 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  SYSTEM_DISC_SIZE,
   SYSTEM_FRAME_HEIGHT,
   SYSTEM_FRAME_WIDTH,
 } from '../canvas/SystemNode';
 import {
-  CARD_ANCHOR_GAP,
-  CARD_ANCHOR_RISE,
-  CARD_ATTACH_Y,
   NODE_CARD_FALLBACK,
   anchoredLeader,
   computeFollowerTransform,
@@ -63,8 +59,8 @@ describe('placeAnchoredCard', () => {
       viewport,
     });
     expect(left.side).toBe('left');
-    expect(left.left).toBe(700 - CARD_ANCHOR_GAP - 288);
-    expect(left.top).toBe(300 - CARD_ANCHOR_RISE - CARD_ATTACH_Y);
+    expect(left.left).toBe(368);
+    expect(left.top).toBe(250);
     expect(left.lift).toBe('up');
 
     const right = placeAnchoredCard({
@@ -73,8 +69,8 @@ describe('placeAnchoredCard', () => {
       viewport,
     });
     expect(right.side).toBe('right');
-    expect(right.left).toBe(100 + CARD_ANCHOR_GAP);
-    expect(right.top).toBe(300 - CARD_ANCHOR_RISE - CARD_ATTACH_Y);
+    expect(right.left).toBe(144);
+    expect(right.top).toBe(250);
     expect(right.lift).toBe('up');
 
     const pushed = placeAnchoredCard({
@@ -93,7 +89,7 @@ describe('placeAnchoredCard', () => {
       viewport,
     });
     expect(low.lift).toBe('down');
-    expect(low.top).toBe(40 + CARD_ANCHOR_RISE - CARD_ATTACH_Y);
+    expect(low.top).toBe(54);
 
     // A remembered lift gives way once the disc is panned against that edge.
     const panned = placeAnchoredCard({ anchor: { x: 100, y: 40 }, card, viewport, lift: 'up' });
@@ -107,7 +103,7 @@ describe('placeAnchoredCard', () => {
       viewport: { width: 320, height: 600 },
     });
     expect(clamped.left).toBe(16);
-    expect(clamped.top).toBe(10 + CARD_ANCHOR_RISE - CARD_ATTACH_Y);
+    expect(clamped.top).toBe(24);
   });
 
   it('runs the callout off the rim at 45° into the card header and drops it when covered', () => {
@@ -128,12 +124,11 @@ describe('placeAnchoredCard', () => {
       viewport: { width: 800, height: 600 },
       discRadius,
     });
-    const rise = Math.max(CARD_ANCHOR_RISE, discRadius + 12);
-    expect(placed.left).toBe(100 + discRadius + CARD_ANCHOR_GAP);
-    expect(placed.top).toBe(300 - rise - CARD_ATTACH_Y);
+    expect(placed.left).toBe(171.5);
+    expect(placed.top).toBe(242.5);
     const leader = placed.leader;
     if (leader === null) throw new Error('expected a leader');
-    expect(leader.end).toEqual({ x: placed.left, y: placed.top + CARD_ATTACH_Y });
+    expect(leader.end).toEqual({ x: 171.5, y: 260.5 });
     expect(Math.hypot(leader.start.x - 100, leader.start.y - 300)).toBeCloseTo(discRadius);
     expect(leader.start.x - 100).toBeCloseTo(300 - leader.start.y);
     expect(leader.d.startsWith('M ')).toBe(true);
@@ -172,9 +167,7 @@ describe('node follower model', () => {
       card,
       layer,
     );
-    expect(first?.write.transform).toBe(
-      `translate(${192 + (SYSTEM_DISC_SIZE / 2) * 2 + CARD_ANCHOR_GAP}px, ${162 - ((SYSTEM_DISC_SIZE / 2) * 2 + 12) - CARD_ATTACH_Y}px)`,
-    );
+    expect(first?.write.transform).toBe('translate(291px, 77px)');
     expect(first?.write.leader).not.toBeNull();
     expect(
       computeFollowerTransform(
@@ -252,10 +245,7 @@ describe('node follower model', () => {
       layer,
     );
     // Too close to the top to lift, so the card drops below the disc.
-    const rise = Math.max(CARD_ANCHOR_RISE, SYSTEM_DISC_SIZE / 2 + 12);
-    expect(first?.write.transform).toBe(
-      `translate(${SYSTEM_FRAME_WIDTH / 2 + SYSTEM_DISC_SIZE / 2 + CARD_ANCHOR_GAP}px, ${SYSTEM_FRAME_HEIGHT / 2 + rise - CARD_ATTACH_Y}px)`,
-    );
+    expect(first?.write.transform).toBe('translate(146.5px, 76.5px)');
     expect(first?.baseline.width).toBe(SYSTEM_FRAME_WIDTH);
     expect(first?.baseline.height).toBe(SYSTEM_FRAME_HEIGHT);
   });
