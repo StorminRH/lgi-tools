@@ -81,6 +81,13 @@ export const atlasDockCharacter = define<number | null>(
   null,
 );
 
+/** The character whose system scanner pastes go to; null asks when unclear. */
+export const atlasScannerCharacter = define<number | null>(
+  'atlas.scannerCharacterId',
+  z.number().int().positive().nullable(),
+  null,
+);
+
 export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
@@ -112,6 +119,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   atlasCameraFollow,
   atlasClickFocus,
   atlasDockCharacter,
+  atlasScannerCharacter,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));

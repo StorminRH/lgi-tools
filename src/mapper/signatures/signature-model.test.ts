@@ -451,6 +451,18 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteDecision(valid, true, { kind: 'loading' })).toEqual({
       kind: 'loading',
     });
+    const candidates = [
+      { characterId: 7, systemId: SYSTEM, lastMovementAt: 1 },
+      { characterId: 8, systemId: SYSTEM + 1, lastMovementAt: 2 },
+    ];
+    expect(scannerPasteDecision(valid, true, { kind: 'choose', candidates })).toMatchObject({
+      kind: 'choose',
+      candidates,
+      rows: [{ signatureId: 'ABC-123' }],
+    });
+    expect(
+      scannerPasteDecision(valid, false, { kind: 'choose', candidates }),
+    ).toEqual({ kind: 'read-only' });
     expect(scannerPasteDecision(valid, true, READY)).toMatchObject({
       kind: 'apply',
       systemId: SYSTEM,

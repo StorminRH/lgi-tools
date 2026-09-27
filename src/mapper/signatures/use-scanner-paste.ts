@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { toast } from '@/components/ui/toast';
 import type { ScannedRow } from '@/data/maps/scan-parse';
-import type { TrackedSystemTarget } from '../tracking/tracked-system';
+import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
 import { isAdoptedPopupOpen } from '../windows/MapWindow';
 import {
   isEditablePasteTarget,
@@ -32,16 +32,18 @@ function yieldsToFocusedSurface(event: ClipboardEvent): boolean {
   ].some(Boolean);
 }
 
-function reportPasteDecision(
-  decision: ScannerPasteDecision,
+/** A paste held until the user says which character scanned it. */
+export interface PendingScannerPaste {
+  readonly candidates: readonly DockCharacter[];
+  readonly rows: readonly ScannedRow[];
+}
+
+export function applyScannerRows(
   applyRows: (systemId: number, rows: readonly ScannedRow[]) => Promise<void>,
+  systemId: number,
+  rows: readonly ScannedRow[],
 ): void {
-  if (decision.kind !== 'apply') {
-    const refusal = scannerPasteRefusalToast(decision);
-    toast.error(refusal.message, refusal.options);
-    return;
-  }
-  void applyRows(decision.systemId, decision.rows).catch((error: unknown) => {
+  void applyRows(systemId, rows).catch((error: unknown) => {
     toast.error(scanFailureMessage(error), {
       id: 'scanner-paste:failed',
       duration: 5_000,
@@ -49,15 +51,33 @@ function reportPasteDecision(
   });
 }
 
+function reportPasteDecision(
+  decision: ScannerPasteDecision,
+  applyRows: (systemId: number, rows: readonly ScannedRow[]) => Promise<void>,
+  onChoose: (pending: PendingScannerPaste) => void,
+): void {
+  if (decision.kind === 'choose') {
+    onChoose({ candidates: decision.candidates, rows: decision.rows });
+    return;
+  }
+  if (decision.kind !== 'apply') {
+    const refusal = scannerPasteRefusalToast(decision);
+    toast.error(refusal.message, refusal.options);
+    return;
+  }
+  applyScannerRows(applyRows, decision.systemId, decision.rows);
+}
+
 export function useScannerPaste(input: {
   readonly canEdit: boolean;
-  readonly pasteTarget: TrackedSystemTarget;
+  readonly pasteTarget: PasteTarget;
   readonly applyRows: (
     systemId: number,
     rows: readonly ScannedRow[],
   ) => Promise<void>;
+  readonly onChoose: (pending: PendingScannerPaste) => void;
 }): void {
-  const { canEdit, pasteTarget, applyRows } = input;
+  const { canEdit, pasteTarget, applyRows, onChoose } = input;
   useEffect(() => {
     function handlePaste(event: ClipboardEvent): void {
       if (yieldsToFocusedSurface(event)) return;
@@ -65,10 +85,10 @@ export function useScannerPaste(input: {
       const decision = scannerPasteDecision(text, canEdit, pasteTarget);
       if (decision === null) return;
       event.preventDefault();
-      reportPasteDecision(decision, applyRows);
+      reportPasteDecision(decision, applyRows, onChoose);
     }
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [applyRows, canEdit, pasteTarget]);
+  }, [applyRows, canEdit, onChoose, pasteTarget]);
 }

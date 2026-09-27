@@ -11,9 +11,11 @@ import {
   menuRow,
   menuSeparator,
 } from '@/components/ui/menu';
-import { useAccountCharacters } from '@/components/use-account-characters';
-import { useEntityNames } from '@/components/use-entity-names';
 import { useSystemLabel } from '../windows/use-system-label';
+import {
+  useCharacterIdentities,
+  type CharacterIdentity,
+} from './use-character-identities';
 import {
   DOCK_AUTO_VALUE,
   dockCharacterLabel,
@@ -29,28 +31,6 @@ const INDICATOR = (
     ✓
   </MenuRadioItemIndicator>
 );
-
-interface CharacterIdentity {
-  readonly name: string;
-  readonly portraitUrl: string | undefined;
-}
-
-function useCharacterIdentities(
-  characterIds: readonly number[],
-): (characterId: number) => CharacterIdentity {
-  const roster = useAccountCharacters();
-  const unlisted = characterIds.filter(
-    (id) => roster !== null && !roster.some((row) => row.characterId === id),
-  );
-  const names = useEntityNames(unlisted);
-  return (characterId) => {
-    const row = roster?.find((candidate) => candidate.characterId === characterId);
-    return {
-      name: row?.name ?? names[String(characterId)] ?? `Character ${characterId}`,
-      portraitUrl: row?.portraitUrl,
-    };
-  };
-}
 
 function CharacterItem({
   character,

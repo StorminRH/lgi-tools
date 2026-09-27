@@ -26,6 +26,7 @@ import {
   scannerSectionForGroup,
   type SignatureWindowRow,
 } from './signature-model';
+import type { PendingScannerPaste } from './use-scanner-paste';
 
 export interface SignatureWindowProps {
   readonly scannerSystemId: number | null;
@@ -39,6 +40,9 @@ export interface SignatureWindowProps {
   readonly onRemoveMissing: () => Promise<void>;
   readonly jumpResolution: JumpResolutionModel | null;
   readonly onPickJumpCandidate: (candidate: JumpResolutionCandidate) => void;
+  readonly pendingPaste: PendingScannerPaste | null;
+  readonly onChooseScanner: (characterId: number) => void;
+  readonly onCancelPendingPaste: () => void;
   readonly onIdentify: (
     row: SignatureWindowRow,
     group: SigGroup,
@@ -124,6 +128,9 @@ export function SignatureWindow(props: SignatureWindowProps) {
             onRemoveMissing={removeMissing}
             jumpResolution={props.jumpResolution}
             onPickJumpCandidate={props.onPickJumpCandidate}
+            pendingPaste={props.pendingPaste}
+            onChooseScanner={props.onChooseScanner}
+            onCancelPendingPaste={props.onCancelPendingPaste}
           />
           <ScannerWindowFrame
             scannerSystemId={props.scannerSystemId}

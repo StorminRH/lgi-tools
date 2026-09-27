@@ -6,13 +6,17 @@ import { api } from '@/data/convex/api';
 import { useMutation } from '@/data/convex/use-mutation';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { pasteSemanticWrite, pasteWriteDigest } from '@/data/maps/semantic-write';
-import type { TrackedSystemTarget } from '../tracking/tracked-system';
+import type { PasteTarget } from '../tracking/tracked-system';
 import {
   followUpElimination,
   invalidateSignatureElimination,
 } from './signature-elimination-client';
 import { announceSignatureRemoval } from './signature-toast';
-import { useScannerPaste } from './use-scanner-paste';
+import {
+  applyScannerRows,
+  useScannerPaste,
+  type PendingScannerPaste,
+} from './use-scanner-paste';
 
 const EMPTY_MISSING: ReadonlySet<string> = new Set();
 
@@ -112,8 +116,9 @@ function missingIdsForSystem(
 export function useSignatureMissingFlow(input: {
   readonly mapId: string;
   readonly canEdit: boolean;
-  readonly pasteTarget: TrackedSystemTarget;
+  readonly pasteTarget: PasteTarget;
   readonly scannerSystemId: number | null;
+  readonly onScannerChosen: (characterId: number) => void;
 }) {
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
   const [pasteTargetSystemId, setPasteTargetSystemId] = useState<number | null>(
@@ -127,11 +132,27 @@ export function useSignatureMissingFlow(input: {
     [replace],
   );
   const applyRows = useApplySignatureScan(input.mapId, replaceForPaste);
+  const [pendingPaste, setPendingPaste] = useState<PendingScannerPaste | null>(null);
   useScannerPaste({
     canEdit: input.canEdit,
     pasteTarget: input.pasteTarget,
     applyRows,
+    onChoose: setPendingPaste,
   });
+  const { onScannerChosen } = input;
+  const chooseScanner = useCallback(
+    (characterId: number) => {
+      const scanner = pendingPaste?.candidates.find(
+        (candidate) => candidate.characterId === characterId,
+      );
+      setPendingPaste(null);
+      if (pendingPaste === null || scanner?.systemId == null) return;
+      onScannerChosen(characterId);
+      applyScannerRows(applyRows, scanner.systemId, pendingPaste.rows);
+    },
+    [applyRows, onScannerChosen, pendingPaste],
+  );
+  const cancelPendingPaste = useCallback(() => setPendingPaste(null), []);
   const removeMissing = useRemoveMissingSignatures(input.mapId, clearAll);
   const dismissMissing = useCallback(() => {
     if (pasteTargetSystemId !== null) clearAll(pasteTargetSystemId);
@@ -147,9 +168,12 @@ export function useSignatureMissingFlow(input: {
     await removeMissing(pasteTargetSystemId, [...missingIds]);
   }, [missingIds, removeMissing, pasteTargetSystemId]);
   return {
+    cancelPendingPaste,
+    chooseScanner,
     dismissMissing,
     highlightIds,
     missingIds,
+    pendingPaste,
     removeMissingRows,
   };
 }

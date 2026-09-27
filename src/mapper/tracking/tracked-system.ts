@@ -114,3 +114,32 @@ export function dockCharacterLabel(
   if (resolution.mode === 'pinned' && shown !== null) return shown;
   return shown === null ? 'Auto' : `Auto (${shown})`;
 }
+
+export type PasteTarget =
+  | TrackedSystemTarget
+  | {
+      readonly kind: 'choose';
+      /** Online characters the user picks the scanning character from. */
+      readonly candidates: readonly DockCharacter[];
+    };
+
+/**
+ * Picks the system scanner output is pasted into. The default scanner wins
+ * while it is online; otherwise a paste is unambiguous only when every online
+ * character shares one system, and the user is asked to choose.
+ */
+export function resolvePasteTarget(
+  characters: readonly DockCharacter[] | null,
+  scannerCharacterId: number | null,
+): PasteTarget {
+  if (characters === null) return { kind: 'loading' };
+  const online = characters.filter((character) => character.systemId !== null);
+  const scanner = online.find((character) => character.characterId === scannerCharacterId);
+  if (scanner !== undefined) return readyTarget(scanner);
+  const [first] = online;
+  if (first === undefined) return { kind: 'none' };
+  if (online.every((character) => character.systemId === first.systemId)) {
+    return readyTarget(first);
+  }
+  return { kind: 'choose', candidates: online };
+}

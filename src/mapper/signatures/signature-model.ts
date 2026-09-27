@@ -16,7 +16,7 @@ import {
   lifetimeUpperBoundLabel,
 } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
-import type { TrackedSystemTarget } from '../tracking/tracked-system';
+import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
 
 export interface SignatureWindowRow {
   readonly key: string;
@@ -44,7 +44,12 @@ export type ScannerPasteDecision =
   | { readonly kind: 'reject'; readonly rejectCount: number }
   | { readonly kind: 'read-only' }
   | { readonly kind: 'untracked' }
-  | { readonly kind: 'loading' };
+  | { readonly kind: 'loading' }
+  | {
+      readonly kind: 'choose';
+      readonly candidates: readonly DockCharacter[];
+      readonly rows: readonly ScannedRow[];
+    };
 
 const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
 
@@ -336,7 +341,7 @@ export function isEditablePasteTarget(target: EventTarget | null): boolean {
 export function scannerPasteDecision(
   text: string,
   canEdit: boolean,
-  target: TrackedSystemTarget,
+  target: PasteTarget,
 ): ScannerPasteDecision | null {
   if (!isScannerPasteCandidate(text)) return null;
   const parsed = parseScannerPaste(text);
@@ -346,11 +351,14 @@ export function scannerPasteDecision(
   if (!canEdit) return { kind: 'read-only' };
   if (target.kind === 'none') return { kind: 'untracked' };
   if (target.kind === 'loading') return { kind: 'loading' };
+  if (target.kind === 'choose') {
+    return { kind: 'choose', candidates: target.candidates, rows: parsed.rows };
+  }
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
 
 export function scannerPasteRefusalToast(
-  decision: Exclude<ScannerPasteDecision, { kind: 'apply' }>,
+  decision: Exclude<ScannerPasteDecision, { kind: 'apply' | 'choose' }>,
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
   if (decision.kind === 'reject') {
     const suffix = decision.rejectCount === 1 ? '' : 's';

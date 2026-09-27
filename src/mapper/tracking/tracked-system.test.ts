@@ -3,6 +3,7 @@ import {
   dockCharacterLabel,
   dockCharacters,
   resolveDockCharacter,
+  resolvePasteTarget,
 } from './tracked-system';
 
 const SYSTEM = 31_000_001;
@@ -126,5 +127,43 @@ describe('dockCharacterLabel', () => {
     expect(dockCharacterLabel({ target: ready, mode: 'auto' }, nameOf)).toBe('Auto (Alpha)');
     expect(dockCharacterLabel({ target: ready, mode: 'pinned' }, nameOf)).toBe('Alpha');
     expect(dockCharacterLabel({ target: { kind: 'none' }, mode: 'auto' }, nameOf)).toBe('Auto');
+  });
+});
+
+describe('resolvePasteTarget', () => {
+  const alpha = { characterId: 7, systemId: SYSTEM, lastMovementAt: 500 };
+  const bravo = { characterId: 8, systemId: SYSTEM + 1, lastMovementAt: 900 };
+  const offline = { characterId: 9, systemId: null, lastMovementAt: null };
+
+  it('waits for tracking and refuses without an online character', () => {
+    expect(resolvePasteTarget(null, null)).toEqual({ kind: 'loading' });
+    expect(resolvePasteTarget([offline], null)).toEqual({ kind: 'none' });
+  });
+
+  it('pastes into the one system every online character shares', () => {
+    expect(resolvePasteTarget([alpha, { ...bravo, systemId: SYSTEM }, offline], null)).toEqual({
+      kind: 'ready',
+      systemId: SYSTEM,
+      characterId: 7,
+    });
+  });
+
+  it('asks which online character scanned when they are split and no scanner is online', () => {
+    expect(resolvePasteTarget([alpha, bravo, offline], null)).toEqual({
+      kind: 'choose',
+      candidates: [alpha, bravo],
+    });
+    expect(resolvePasteTarget([alpha, bravo, offline], 9)).toEqual({
+      kind: 'choose',
+      candidates: [alpha, bravo],
+    });
+  });
+
+  it('sends pastes to the online default scanner regardless of who jumped last', () => {
+    expect(resolvePasteTarget([alpha, bravo], 7)).toEqual({
+      kind: 'ready',
+      systemId: SYSTEM,
+      characterId: 7,
+    });
   });
 });
