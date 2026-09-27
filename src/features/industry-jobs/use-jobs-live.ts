@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useLiveDataset } from '@/components/use-live-dataset';
+import { type LiveDatasetState, useLiveDataset } from '@/components/use-live-dataset';
 import { anyEligibleCold, eligibleIdsKey } from '@/lib/live-dataset';
 import { industryJobsEndpoint, type JobsResponse } from './api-contract';
 import { deriveJobsByCharacter, type ViewerJobs } from './live-derive';
@@ -12,12 +12,9 @@ function jobsIsCold(response: JobsResponse, eligibleKey: string): boolean {
 
 export function useJobsLive(eligibleCharacterIds: number[]): {
   jobsByCharacter: Map<number, ViewerJobs>;
-  names: Record<string, string>;
-  now: number;
-  loading: boolean;
-} {
+} & LiveDatasetState {
   const eligibleKey = useMemo(() => eligibleIdsKey(eligibleCharacterIds), [eligibleCharacterIds]);
-  const { response, now, loading } = useLiveDataset(industryJobsEndpoint, eligibleKey, jobsIsCold);
+  const { response, now, loading, failed } = useLiveDataset(industryJobsEndpoint, eligibleKey, jobsIsCold);
   const jobsByCharacter = useMemo(() => deriveJobsByCharacter(response, now), [response, now]);
-  return { jobsByCharacter, names: response?.names ?? {}, now, loading };
+  return { jobsByCharacter, names: response?.names ?? {}, now, loading, failed };
 }

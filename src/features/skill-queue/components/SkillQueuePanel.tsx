@@ -17,7 +17,7 @@ import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from '../esi-projection';
 import { romanLevel } from '../progress';
-import { entryRowModel, type QueueHeader, queueCardModel } from '../queue-view';
+import { entryRowModel, type QueueHeader, queueCardModel, SKILLS_LOAD_FAILED } from '../queue-view';
 import type { CharacterSkillData } from '../types';
 import { useSkillsLive } from '../use-skills-live';
 
@@ -72,7 +72,7 @@ function LiveQueues({
   initialDimmed?: number[];
 }) {
   const eligibleIds = syncEligibleIds(characters);
-  const { skillsByCharacter, names, now, loading } = useSkillsLive(eligibleIds);
+  const { skillsByCharacter, names, now, loading, failed } = useSkillsLive(eligibleIds);
 
   return (
     <div className="w-full max-w-[760px] flex flex-col gap-6">
@@ -81,6 +81,7 @@ function LiveQueues({
         strip={strip}
         initialDimmed={initialDimmed}
         loading={loading}
+        failure={failed ? SKILLS_LOAD_FAILED : null}
       >
         {(visible) =>
           visible.map((character) => {

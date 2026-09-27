@@ -165,6 +165,7 @@ export function IndustryDashboardGrid({
     saved: savedStatus(plans, listFailed),
     active: activeStatus({
       loading: jobsLive.loading,
+      failed: jobsLive.failed,
       rosterSize: jobsLive.jobsByCharacter.size,
       jobCount: jobs.length,
     }),
@@ -172,6 +173,7 @@ export function IndustryDashboardGrid({
       hasLinkedCharacters,
       eligibleCount: corpEligibleCharacterIds.length,
       loading: corpLive.loading,
+      failed: corpLive.failed,
       corpCount: corpLive.corporations.length,
     }),
   };
@@ -223,7 +225,7 @@ export function IndustryDashboardGrid({
           now={jobsLive.now}
         />
       ),
-      hint: activeJobsHint(jobsLive.jobsByCharacter.size),
+      hint: activeJobsHint(jobsLive.jobsByCharacter.size, jobsLive.failed),
     },
     corp: {
       label: 'Corporation industry jobs',
@@ -237,7 +239,7 @@ export function IndustryDashboardGrid({
           reconnectAction={reconnectAction}
         />
       ),
-      hint: corpHint(hasLinkedCharacters),
+      hint: corpHint(hasLinkedCharacters, corpLive.failed),
     },
   };
 

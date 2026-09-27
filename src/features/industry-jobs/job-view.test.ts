@@ -5,6 +5,7 @@ import {
   activeJobStatusText,
   corpEntityIds,
   corpGroupState,
+  corpJobsEmptyLine,
   formatEndDate,
   jobRowFrameData,
   jobRowModel,
@@ -132,5 +133,14 @@ describe('corpGroupState', () => {
     expect(corpGroupState({ syncError: null, data: null })).toBe('sync-error');
     expect(corpGroupState({ syncError: null, data: { jobs: [] } })).toBe('empty');
     expect(corpGroupState({ syncError: null, data: { jobs: [job({})] } })).toBe('rows');
+  });
+});
+
+describe('corpJobsEmptyLine', () => {
+  it('says the corp feed failed, else that no jobs have synced yet', () => {
+    expect(corpJobsEmptyLine(true)).toBe(
+      'Couldn’t load your corporation’s industry jobs — reload to try again.',
+    );
+    expect(corpJobsEmptyLine(false)).toContain('once a sync completes');
   });
 });

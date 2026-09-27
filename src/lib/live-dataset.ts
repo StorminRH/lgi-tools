@@ -18,3 +18,13 @@ export function shouldReconcile<TResponse, TKey>(
 ): boolean {
   return !reconciled && isCold(response, key);
 }
+
+/**
+ * What a live dataset does when a fetch fails. Data already on screen stays
+ * (`keep`); a first failure gets one delayed retry; a second one settles the
+ * dataset as failed so the UI can stop showing a loading state.
+ */
+export function loadFailureStep(loaded: boolean, retried: boolean): 'keep' | 'retry' | 'fail' {
+  if (loaded) return 'keep';
+  return retried ? 'fail' : 'retry';
+}
