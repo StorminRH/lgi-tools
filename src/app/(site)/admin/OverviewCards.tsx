@@ -7,8 +7,6 @@ import { SectionHeader } from '@/components/ui/section-header';
 import type { RangeKey } from '@/composition/admin-period';
 import { CardLink } from './CardLink';
 import { loadAdminSignals } from './load-signals';
-import { SECTION_LOAD_FAILED } from './load-section';
-import { SectionUnavailable } from './SectionUnavailable';
 import {
   deriveAttention,
   deriveStatusGroups,
@@ -84,13 +82,11 @@ function StatusCard({ group }: { group: StatusGroup }) {
 
 export async function AttentionCard({ rangeKey }: { rangeKey: RangeKey }) {
   const signals = await loadAdminSignals(rangeKey);
-  if (signals === SECTION_LOAD_FAILED) return <SectionUnavailable label="Needs attention" />;
   return <AttentionList items={deriveAttention(signals, deriveStatusGroups(signals))} />;
 }
 
 export async function StatusCards({ rangeKey }: { rangeKey: RangeKey }) {
   const signals = await loadAdminSignals(rangeKey);
-  if (signals === SECTION_LOAD_FAILED) return <SectionUnavailable label="System status" />;
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       {deriveStatusGroups(signals).map((group) => (

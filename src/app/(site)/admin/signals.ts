@@ -18,6 +18,7 @@ import type {
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
+import { SECTION_LOAD_FAILED } from './load-section';
 
 export interface CronSignals {
   lastRuns: CronLastRun[];
@@ -35,16 +36,34 @@ export interface SliSignals {
   esiSuccess: number | null;
 }
 
+// Each source loads on its own, so one failed read marks only its own lines.
+export type Loaded<T> = T | typeof SECTION_LOAD_FAILED;
+
 export interface AdminSignals {
   now: Date;
-  crons: CronSignals;
-  budget: EsiBudgetSnapshot | null;
-  fallback: FallbackRateData;
-  budgetExhaustions: number;
-  sli: SliSignals;
-  queue: EsiRefreshQueueStat[];
-  statics: { feedVersion: string; totalDifferences: number } | null;
-  releases: { date: string; label: string }[];
+  crons: Loaded<CronSignals>;
+  budget: Loaded<EsiBudgetSnapshot | null>;
+  fallback: Loaded<FallbackRateData>;
+  budgetExhaustions: Loaded<number>;
+  sli: Loaded<SliSignals>;
+  queue: Loaded<EsiRefreshQueueStat[]>;
+  statics: Loaded<{ feedVersion: string; totalDifferences: number } | null>;
+  releases: Loaded<{ date: string; label: string }[]>;
+}
+
+const SOURCE_LABELS: Record<Exclude<keyof AdminSignals, 'now'>, string> = {
+  crons: 'scheduled jobs',
+  budget: 'ESI error budget',
+  fallback: 'price source',
+  budgetExhaustions: 'price source',
+  sli: 'service levels',
+  queue: 'refresh queue',
+  statics: 'statics review',
+  releases: 'releases',
+};
+
+function unavailableLine(id: string, label: string): StatusLine {
+  return { id, label, value: 'unavailable', note: 'could not load', level: 'neutral' };
 }
 
 export interface CronStatuses {
@@ -142,7 +161,8 @@ export function splitHeadline(status: SubsystemStatus): { value: string; note: s
   return { value, note: rest.join(' · ') };
 }
 
-function sliLine(id: keyof SliSignals, label: string, sli: SliSignals): StatusLine {
+function sliLine(id: keyof SliSignals, label: string, sli: Loaded<SliSignals>): StatusLine {
+  if (sli === SECTION_LOAD_FAILED) return unavailableLine(id, label);
   return {
     id,
     label,
@@ -230,8 +250,11 @@ function cronLine(id: string, label: string, status: SubsystemStatus): StatusLin
   return { id, label, ...headline, level: status.level, quiet: headline.value === 'recovered' };
 }
 
-function releaseLine(releases: AdminSignals['releases'], now: Date): StatusLine {
-  const latest = releases.reduce<AdminSignals['releases'][number] | null>(
+type Release = { date: string; label: string };
+
+function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
+  if (releases === SECTION_LOAD_FAILED) return unavailableLine('release', 'Latest release');
+  const latest = releases.reduce<Release | null>(
     (best, release) => (best === null || release.date > best.date ? release : best),
     null,
   );
@@ -248,7 +271,8 @@ function releaseLine(releases: AdminSignals['releases'], now: Date): StatusLine 
   };
 }
 
-function heldForBudgetLine(stats: EsiRefreshQueueStat[]): StatusLine {
+function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
+  if (stats === SECTION_LOAD_FAILED) return unavailableLine('held-for-budget', 'Held for budget');
   const held = stats
     .filter((stat) => stat.status === 'deferred_for_budget')
     .reduce((total, stat) => total + stat.count, 0);
@@ -263,18 +287,38 @@ function heldForBudgetLine(stats: EsiRefreshQueueStat[]): StatusLine {
 }
 
 function priceSourceLine(signals: AdminSignals): StatusLine {
-  const status = deriveEsiSourceStatus({
-    fallback: signals.fallback,
-    budgetExhaustions: signals.budgetExhaustions,
-  });
+  const { fallback, budgetExhaustions } = signals;
+  if (fallback === SECTION_LOAD_FAILED || budgetExhaustions === SECTION_LOAD_FAILED) {
+    return unavailableLine('price-source', 'Price source');
+  }
+  const status = deriveEsiSourceStatus({ fallback, budgetExhaustions });
   const { value, note } = splitHeadline(status);
   // Some Fuzzwork fallback is the design working; only a majority fallback needs you.
   return { id: 'price-source', label: 'Price source', value, note, level: status.level, quiet: status.level !== 'red' };
 }
 
-export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
+function budgetLine(budget: Loaded<EsiBudgetSnapshot | null>): StatusLine {
+  if (budget === SECTION_LOAD_FAILED) return unavailableLine('budget', 'Error budget');
+  return { id: 'budget', label: 'Error budget', ...deriveBudgetStatus(budget) };
+}
+
+function cronLines(signals: AdminSignals): StatusLine[] {
+  const rows = [
+    ['cron-prices', 'Price cron', 'price'],
+    ['cron-sde', 'SDE cron', 'sde'],
+    ['cron-gsc', 'GSC sync', 'gsc'],
+  ] as const;
+  if (signals.crons === SECTION_LOAD_FAILED) return rows.map(([id, label]) => unavailableLine(id, label));
   const crons = deriveCronStatuses(signals.crons, signals.now);
-  const budget = deriveBudgetStatus(signals.budget);
+  return rows.map(([id, label, key]) => cronLine(id, label, crons[key]));
+}
+
+function queueStatusLine(signals: AdminSignals): StatusLine {
+  if (signals.queue === SECTION_LOAD_FAILED) return unavailableLine('queue', 'Refresh queue');
+  return queueLine(summarizeQueue(signals.queue, signals.now));
+}
+
+export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
   return [
     {
       id: 'app',
@@ -294,7 +338,7 @@ export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
       href: '/admin/esi',
       linkLabel: 'ESI',
       lines: [
-        { id: 'budget', label: 'Error budget', ...budget },
+        budgetLine(signals.budget),
         sliLine('esiSuccess', 'ESI success', signals.sli),
         priceSourceLine(signals),
         heldForBudgetLine(signals.queue),
@@ -306,10 +350,8 @@ export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
       href: '/admin/health#scheduled',
       linkLabel: 'Jobs',
       lines: [
-        cronLine('cron-prices', 'Price cron', crons.price),
-        cronLine('cron-sde', 'SDE cron', crons.sde),
-        cronLine('cron-gsc', 'GSC sync', crons.gsc),
-        queueLine(summarizeQueue(signals.queue, signals.now)),
+        ...cronLines(signals),
+        queueStatusLine(signals),
       ],
     },
   ];
@@ -328,7 +370,7 @@ function isAlert(level: StatusLevel): level is 'red' | 'amber' {
 }
 
 function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
-  if (statics === null) return [];
+  if (statics === null || statics === SECTION_LOAD_FAILED) return [];
   return [
     {
       id: 'statics',
@@ -376,6 +418,23 @@ function lineAttention(line: StatusLine, action: AttentionItem['action']): Atten
   ];
 }
 
+function unavailableAttention(signals: AdminSignals): AttentionItem[] {
+  const sources = Object.keys(SOURCE_LABELS) as (keyof typeof SOURCE_LABELS)[];
+  const missing = new Set(
+    sources.filter((key) => signals[key] === SECTION_LOAD_FAILED).map((key) => SOURCE_LABELS[key]),
+  );
+  if (missing.size === 0) return [];
+  return [
+    {
+      id: 'unavailable',
+      level: 'amber',
+      title: `Could not load ${[...missing].join(', ')}`,
+      detail: 'Their status lines show "unavailable", so a problem there would not appear here. Reload to try again.',
+      action: { label: 'Open health', href: '/admin/health' },
+    },
+  ];
+}
+
 export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): AttentionItem[] {
   const actionFor: Record<StatusGroup['id'], AttentionItem['action']> = {
     app: { label: 'Open health', href: '/admin/health' },
@@ -387,8 +446,9 @@ export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): A
   );
   const items = [
     ...statusItems,
-    ...queueAttention(summarizeQueue(signals.queue, signals.now)),
+    ...(signals.queue === SECTION_LOAD_FAILED ? [] : queueAttention(summarizeQueue(signals.queue, signals.now))),
     ...staticsAttention(signals.statics),
+    ...unavailableAttention(signals),
   ];
   return [...items.filter((i) => i.level === 'red'), ...items.filter((i) => i.level === 'amber')];
 }

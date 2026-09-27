@@ -12,6 +12,7 @@ import {
   type AdminSignals,
   type CronSignals,
 } from './signals';
+import { SECTION_LOAD_FAILED } from './load-section';
 
 const NOW = new Date('2026-09-26T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
@@ -265,5 +266,38 @@ describe('release and budget-hold lines', () => {
       value: '1 job',
       level: 'amber',
     });
+  });
+});
+
+describe('a source that failed to load', () => {
+  const failed = signals({ crons: SECTION_LOAD_FAILED, queue: SECTION_LOAD_FAILED });
+  const byId = new Map(deriveStatusGroups(failed).flatMap((group) => group.lines.map((l) => [l.id, l])));
+
+  it('marks only its own lines unavailable', () => {
+    for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'queue', 'held-for-budget']) {
+      expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: 'could not load', level: 'neutral' });
+    }
+    expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });
+    expect(byId.get('budget')).toMatchObject({ value: '87 left', level: 'green' });
+  });
+
+  it('raises one attention item naming the missing sources', () => {
+    expect(deriveAttention(failed, deriveStatusGroups(failed))).toEqual([
+      {
+        id: 'unavailable',
+        level: 'amber',
+        title: 'Could not load scheduled jobs, refresh queue',
+        detail: 'Their status lines show "unavailable", so a problem there would not appear here. Reload to try again.',
+        action: { label: 'Open health', href: '/admin/health' },
+      },
+    ]);
+  });
+
+  it('names a source once when both of its reads fail', () => {
+    const items = deriveAttention(
+      signals({ fallback: SECTION_LOAD_FAILED, budgetExhaustions: SECTION_LOAD_FAILED }),
+      deriveStatusGroups(signals()),
+    );
+    expect(items.map((i) => i.title)).toEqual(['Could not load price source']);
   });
 });
