@@ -64,7 +64,6 @@ import { GET as AppApiAccountIndustrySlotsRouteGET } from '@/app/api/account/ind
 import { POST as AppApiAccountSavedPlansDeleteRoutePOST } from '@/app/api/account/saved-plans/delete/route';
 import { POST as AppApiAccountSavedPlansFavoriteRoutePOST } from '@/app/api/account/saved-plans/favorite/route';
 import { POST as AppApiAccountSavedPlansRenameRoutePOST } from '@/app/api/account/saved-plans/rename/route';
-import { GET as AppApiAccountSkillsRouteGET } from '@/app/api/account/skills/route';
 import { GET as AppApiAccountStructuresRouteGET } from '@/app/api/account/structures/route';
 import { POST as AppApiAdminEsiJobsRetryRoutePOST } from '@/app/api/admin/esi-jobs/retry/route';
 import { POST as AppApiAdminWhStaticsRoutePOST } from '@/app/api/admin/wh-statics/route';
@@ -107,7 +106,6 @@ describe('coverage-gaps', () => {
       AppApiAccountSavedPlansDeleteRoutePOST,
       AppApiAccountSavedPlansFavoriteRoutePOST,
       AppApiAccountSavedPlansRenameRoutePOST,
-      AppApiAccountSkillsRouteGET,
       AppApiAccountStructuresRouteGET,
       AppApiAdminEsiJobsRetryRoutePOST,
       AppApiAdminWhStaticsRoutePOST,

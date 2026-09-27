@@ -36,14 +36,14 @@ describe('measureOwnedDataRead', () => {
     const error = new Error('read failed');
     await expect(
       measureOwnedDataRead({
-        endpoint: '/api/account/skills',
+        endpoint: '/api/account/industry-slots',
         read: () => Promise.reject(error),
         returned: () => 0,
       }),
     ).rejects.toBe(error);
     expect(emitCostMetricMock).toHaveBeenCalledWith(
       'owned_data_read',
-      expect.objectContaining({ endpoint: '/api/account/skills', outcome: 'failed' }),
+      expect.objectContaining({ endpoint: '/api/account/industry-slots', outcome: 'failed' }),
     );
   });
 });

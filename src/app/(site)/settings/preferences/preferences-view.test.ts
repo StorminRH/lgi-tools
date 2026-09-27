@@ -19,7 +19,7 @@ test('the preferences section gathers every registered page preference, titled p
     'atlas.clickFocus',
   ]);
 
-  for (const route of ['/settings', '/skills', '/jobs']) {
+  for (const route of ['/settings', '/jobs']) {
     expect(byRoute.has(route)).toBe(false);
   }
   for (const group of groups) {
