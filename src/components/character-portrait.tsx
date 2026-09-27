@@ -36,7 +36,7 @@ export function CharacterPortrait({
   const imageSrc = src ?? (characterId !== undefined ? characterPortraitUrl(characterId, 128) : '');
 
   return (
-    <span className={cn('relative inline-block shrink-0', SIZE_CLASS[size], className)}>
+    <span className={cn('relative inline-block shrink-0 rounded-full', SIZE_CLASS[size], className)}>
       <EveImage
         source="eve"
         family="character-portrait"
@@ -47,7 +47,7 @@ export function CharacterPortrait({
         loading={preload ? undefined : loading}
         preload={preload}
         decoding="async"
-        className="size-full rounded-full border border-border-idle object-cover"
+        className="block size-full rounded-full border border-border-idle object-cover"
       />
     </span>
   );

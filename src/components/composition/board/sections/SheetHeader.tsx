@@ -18,15 +18,13 @@ export function SheetHeader({ character, now }: { character: BoardCharacter; now
     <header data-leader-column className="flex flex-col gap-5">
       <div className="flex items-center gap-4 xl:flex-col xl:items-start">
         <ViewTransition name={pilotTransitionName(character.characterId)} share="morph" default="none">
-          <span data-leader-anchor className="shrink-0 rounded-full shadow-cta-glow">
-            <CharacterPortrait
-              characterId={character.characterId}
-              name={character.name}
-              size={160}
-              src={character.portraitUrl}
-              className="max-xl:size-24"
-            />
-          </span>
+          <CharacterPortrait
+            characterId={character.characterId}
+            name={character.name}
+            size={160}
+            src={character.portraitUrl}
+            className="shadow-cta-glow max-xl:size-24"
+          />
         </ViewTransition>
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <h2 className="font-display text-h2 font-bold leading-tight text-name">{character.name}</h2>

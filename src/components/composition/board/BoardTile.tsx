@@ -19,15 +19,13 @@ export function BoardTile({ tile, onOpen }: { tile: BoardTileModel; onOpen: (cha
       className="group relative w-full items-center gap-4 rounded-card p-2 text-left"
     >
       <ViewTransition name={pilotTransitionName(tile.characterId)} share="morph" default="none">
-        <span className="shrink-0 rounded-full transition-[box-shadow,translate] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:shadow-cta-glow group-focus-visible:shadow-cta-glow">
-          <CharacterPortrait
-            characterId={tile.characterId}
-            name={tile.name}
-            size={112}
-            src={tile.portraitUrl}
-            className="max-sm:size-20"
-          />
-        </span>
+        <CharacterPortrait
+          characterId={tile.characterId}
+          name={tile.name}
+          size={112}
+          src={tile.portraitUrl}
+          className="transition-[box-shadow,translate] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:shadow-cta-glow group-focus-visible:shadow-cta-glow max-sm:size-20"
+        />
       </ViewTransition>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="flex items-center gap-2">

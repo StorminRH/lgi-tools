@@ -17,7 +17,7 @@ function boxWithin(element: Element, origin: DOMRect): LeaderBox {
 }
 
 function measure(root: HTMLElement): LeaderLine[] {
-  const anchor = root.querySelector('[data-leader-anchor]');
+  const anchor = root.querySelector('[data-leader-column] img');
   const column = root.querySelector('[data-leader-column]');
   if (anchor === null || column === null || !window.matchMedia(WIDE).matches) return [];
   const origin = root.getBoundingClientRect();
