@@ -67,6 +67,7 @@ import { SectionHead } from '@/components/ui/section-head';
 import { StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { Tabs } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/toast';
+import { StackedAreaChart } from '@/components/ui/stacked-area-chart';
 import { TrendChart } from '@/components/ui/trend-chart';
 
 describe('coverage-gaps', () => {
@@ -93,6 +94,7 @@ describe('coverage-gaps', () => {
       StackedShareBar,
       Tabs,
       Toaster,
+      StackedAreaChart,
       TrendChart,
     ];
     expect(pinned.length).toBeGreaterThan(0);
