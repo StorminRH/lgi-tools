@@ -11,6 +11,7 @@ export { tickIndices } from './chart/chart-geometry';
 
 const formatNumber = (value: number): string => String(value);
 const identity = (label: string): string => label;
+const zeroBasedDomain = (ys: number[]): [number, number] => [0, Math.max(...ys, 1)];
 
 export type TrendChartProps = {
   data: { x: number; y: number }[];
@@ -24,6 +25,7 @@ export type TrendChartProps = {
   formatY?: (y: number) => string;
   formatTick?: (label: string) => string;
   ariaLabel?: string;
+  yDomain?: readonly [number, number];
 };
 
 export function TrendChart({
@@ -38,6 +40,7 @@ export function TrendChart({
   formatY = formatNumber,
   formatTick = identity,
   ariaLabel = 'Trend chart',
+  yDomain,
 }: TrendChartProps) {
   return (
     <LineChart
@@ -48,7 +51,7 @@ export function TrendChart({
       margin={MARGIN}
       className={className}
       ariaLabel={ariaLabel}
-      computeYDomain={(ys) => [0, Math.max(...ys, 1)]}
+      computeYDomain={yDomain ? () => [yDomain[0], yDomain[1]] : zeroBasedDomain}
       yNice
       fillOpacity={0.07}
       renderTooltip={(d) => (

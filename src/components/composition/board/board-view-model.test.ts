@@ -7,6 +7,7 @@ import {
   characterSecurityClass,
   coverageNote,
   defaultSelection,
+  fittedDomain,
   flowWindowLabel,
   groupSkills,
   parseRememberedSelection,
@@ -135,6 +136,8 @@ describe('wallet models', () => {
     const chart = balanceChart(journal!.series);
     expect(chart.points).toHaveLength(journal!.series.length);
     expect(chart.labels[0]).toBe('29 Aug 2026');
+    const balances = journal!.series.map((point) => point.balance);
+    expect(chart.domain).toEqual(fittedDomain(balances));
     const recent = recentJournal(journal!.recent);
     expect(recent.length).toBeLessThanOrEqual(20);
     expect(Date.parse(recent[0]!.date)).toBeGreaterThanOrEqual(Date.parse(recent.at(-1)!.date));
@@ -173,5 +176,19 @@ describe('places and timeline', () => {
   it('flags a board with a syncing section as cold', () => {
     expect(boardIsCold(board)).toBe(false);
     expect(boardIsCold({ characters: [{ ...aurel!, wallet: { state: 'pending' } }] })).toBe(true);
+  });
+});
+
+describe('fittedDomain', () => {
+  it('fits a large balance with a small swing instead of starting at zero', () => {
+    expect(fittedDomain([3_200_000_000, 3_500_000_000, 3_400_000_000])).toEqual([3_170_000_000, 3_530_000_000]);
+  });
+
+  it('pads a flat series by a share of its value', () => {
+    expect(fittedDomain([2_000, 2_000])).toEqual([1_800, 2_200]);
+  });
+
+  it('pads a flat zero series by one unit share', () => {
+    expect(fittedDomain([0, 0])).toEqual([-0.1, 0.1]);
   });
 });

@@ -250,12 +250,24 @@ export function flowWindowLabel(windowStart: string, now: number): string {
 export interface BalanceChartModel {
   points: { x: number; y: number }[];
   labels: string[];
+  domain: [number, number];
+}
+
+const DOMAIN_PADDING = 0.1;
+
+export function fittedDomain(values: readonly number[]): [number, number] {
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const pad = (high - low || Math.abs(high) || 1) * DOMAIN_PADDING;
+  return [low - pad, high + pad];
 }
 
 export function balanceChart(series: readonly { t: number; balance: number }[]): BalanceChartModel {
+  const balances = series.map((point) => point.balance);
   return {
-    points: series.map((point, index) => ({ x: index, y: point.balance })),
+    points: balances.map((balance, index) => ({ x: index, y: balance })),
     labels: series.map((point) => formatUtcDate(new Date(point.t))),
+    domain: fittedDomain(balances),
   };
 }
 

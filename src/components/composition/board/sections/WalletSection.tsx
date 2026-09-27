@@ -104,6 +104,7 @@ function JournalBody({ journal }: { journal: Journal }) {
               <TrendChart
                 data={chart.points}
                 labels={chart.labels}
+                yDomain={chart.domain}
                 tone="green"
                 width={width}
                 height={150}
