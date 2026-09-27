@@ -1,8 +1,7 @@
 'use client';
 
-import { useConvexAuth } from 'convex/react';
+import { useConvexAuthState } from './convex-auth-store';
 
 export function useConvexAuthed(): boolean {
-  const { isAuthenticated } = useConvexAuth();
-  return isAuthenticated;
+  return useConvexAuthState().isAuthenticated;
 }

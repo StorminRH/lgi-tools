@@ -14,7 +14,7 @@ export type AuthSessionData = {
   isAdmin: boolean;
 } | null;
 
-const HELD: AuthState = { session: null, isAdmin: false, loading: true };
+export const HELD_AUTH_STATE: AuthState = { session: null, isAdmin: false, loading: true };
 const SIGNED_OUT: AuthState = { session: null, isAdmin: false, loading: false };
 
 /**
@@ -29,7 +29,7 @@ export function resolveAuthState(
   isPending: boolean,
   settled: boolean,
 ): AuthState {
-  if (!released || (isPending && !settled)) return HELD;
+  if (!released || (isPending && !settled)) return HELD_AUTH_STATE;
   if (data == null || data.characterId == null) return SIGNED_OUT;
   return {
     session: {
