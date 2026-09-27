@@ -3,7 +3,7 @@ import { getTypeMarketFacts } from '@/data/eve-data/character-facts';
 import { getAveragePrices } from '@/data/industry-indices/queries';
 import { seedPlaceholderPrices } from '@/data/market-prices/ingest';
 import { getPrices } from '@/data/market-prices/queries';
-import { jitaMid, type PriceBook, type TypeCategories, type UnitPrices } from '@/features/net-worth/valuation';
+import { jitaMid, jitaSell, type PriceBook, type TypeCategories, type UnitPrices } from '@/features/net-worth/valuation';
 
 export interface ValuationBook {
   prices: PriceBook;
@@ -23,8 +23,9 @@ export async function resolveValuationBook(typeIds: number[]): Promise<Valuation
   for (const typeId of typeIds) {
     const book = books.get(typeId);
     const mid = book === undefined ? null : jitaMid(book);
+    const sell = book === undefined ? null : jitaSell(book);
     const average = averages.get(typeId) ?? null;
-    if (mid !== null || average !== null) prices.set(typeId, { jitaMid: mid, average });
+    if (mid !== null || sell !== null || average !== null) prices.set(typeId, { jitaMid: mid, jitaSell: sell, average });
   }
   const categories = new Map<number, number>();
   const unseeded: number[] = [];

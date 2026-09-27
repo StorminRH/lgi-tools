@@ -2,13 +2,16 @@ import {
   BLUEPRINT_CATEGORY_ID,
   EXCLUDED_LOCATION_FLAGS,
   IMPLANT_LOCATION_FLAG,
+  JITA_SPREAD_FLOOR_RATIO,
   PLEX_TYPE_ID,
   SKIN_CATEGORY_ID,
 } from './constants';
 
 export interface UnitPrices {
-  /** Mean of the Jita 5% buy and sell percentiles, one side when only one exists. */
+  /** Mean of the Jita 5% buy and sell percentiles, one side when only one exists; null when the spread is junk. */
   jitaMid: number | null;
+  /** The Jita sell side on its own, the last resort when the mid is junk and CCP has no average. */
+  jitaSell: number | null;
   /** CCP's rolling average from /markets/prices. */
   average: number | null;
 }
@@ -57,21 +60,31 @@ export interface BookSides {
   bestSell: number | null;
 }
 
-function meanOfSides(buy: number | null, sell: number | null): number | null {
-  if (buy !== null && sell !== null) return (buy + sell) / 2;
-  return buy ?? sell;
+/** The 5% percentiles when either exists, else the best prices. */
+function bookSides(book: BookSides): { buy: number | null; sell: number | null } {
+  if (book.pct5Buy !== null || book.pct5Sell !== null) return { buy: book.pct5Buy, sell: book.pct5Sell };
+  return { buy: book.bestBuy, sell: book.bestSell };
 }
 
 export function jitaMid(book: BookSides): number | null {
-  return meanOfSides(book.pct5Buy, book.pct5Sell) ?? meanOfSides(book.bestBuy, book.bestSell);
+  const { buy, sell } = bookSides(book);
+  if (buy === null || sell === null) return buy ?? sell;
+  return buy < sell * JITA_SPREAD_FLOOR_RATIO ? null : (buy + sell) / 2;
 }
 
-/** min(Jita mid, CCP average) guards thin Jita books; PLEX has no Jita book and always takes the average. */
+export function jitaSell(book: BookSides): number | null {
+  return bookSides(book).sell;
+}
+
+/**
+ * min(Jita mid, CCP average) guards thin Jita books; a junk spread drops the mid so the average
+ * stands alone, and the bare sell side is the last resort. PLEX has no Jita book and always takes the average.
+ */
 export function unitValue(typeId: number, prices: UnitPrices | undefined): number | null {
   if (prices === undefined) return null;
   if (typeId === PLEX_TYPE_ID) return prices.average;
   if (prices.jitaMid !== null && prices.average !== null) return Math.min(prices.jitaMid, prices.average);
-  return prices.jitaMid ?? prices.average;
+  return prices.jitaMid ?? prices.average ?? prices.jitaSell;
 }
 
 function roundIsk(value: number): number {

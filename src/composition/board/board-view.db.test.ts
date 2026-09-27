@@ -87,9 +87,12 @@ const PLEX = 44992;
 const RIFTER_BLUEPRINT = 787;
 const TENGU_SKIN = 45843;
 const CALDARI_CRUISER_SKILLBOOK = 3334;
+const ISHTAR = 12005;
+const CARACAL = 621;
 
 const WALLET = 3204115882.15;
-const ASSET_VALUE = 1_000_000 * 3.5 + 224_000_000 + 10 * 4_690_000;
+/** Tritanium min(4.0, 3.5); Tengu min(228M, 224M); PLEX at average; Ishtar junk spread -> average; Caracal junk spread, no average -> sell. */
+const ASSET_VALUE = 1_000_000 * 3.5 + 224_000_000 + 10 * 4_690_000 + 138_145_641.51 + 12_000_000;
 const SELL_ORDERS = 2 * 224_000_000;
 const BUY_ESCROW = 1_750;
 const IMPLANTS = 2 * 90_000_000;
@@ -180,6 +183,8 @@ async function seedSde() {
     { id: PLEX, groupId: 1875, name: 'PLEX', published: true, marketGroupId: 1923 },
     { id: RIFTER_BLUEPRINT, groupId: 105, name: 'Rifter Blueprint', published: true, marketGroupId: 1361 },
     { id: TENGU_SKIN, groupId: 1950, name: 'Tengu Exoplanets Hunter SKIN', published: true, marketGroupId: 2370 },
+    { id: ISHTAR, groupId: 963, name: 'Ishtar', published: true, marketGroupId: 1139 },
+    { id: CARACAL, groupId: 963, name: 'Caracal', published: true, marketGroupId: 75 },
   ]);
   await harness.db.insert(dgmAttributeTypes).values([
     attribute(331, 'implantness'),
@@ -251,6 +256,8 @@ async function seedWealth() {
     hangar(RIFTER_BLUEPRINT, 1),
     hangar(TENGU_SKIN, 1),
     hangar(CALDARI_CRUISER_SKILLBOOK, 1, 'Skill'),
+    hangar(ISHTAR, 1),
+    hangar(CARACAL, 1),
   ]);
   await harness.db.insert(ownedAssetSyncs).values({
     ownerType: 'character', ownerId: AUREL, lastRefreshedAt: new Date(STAMP), pageEtags: [],
@@ -263,6 +270,8 @@ async function seedWealth() {
     priceRow(RIFTER_BLUEPRINT, 2_000_000),
     priceRow(TENGU_SKIN, 500_000_000),
     priceRow(CALDARI_CRUISER_SKILLBOOK, 1_000_000),
+    { ...priceRow(ISHTAR, 139_095_000), pct5Buy: 3_275_400, pct5Sell: 139_095_000 },
+    { ...priceRow(CARACAL, 12_000_000), pct5Buy: 490_497, pct5Sell: 12_000_000 },
   ]);
   await harness.db.insert(adjustedPrices).values([
     { typeId: TRITANIUM, adjustedPrice: 3.07, averagePrice: 3.5, updatedAt: new Date(STAMP) },
@@ -270,6 +279,7 @@ async function seedWealth() {
     { typeId: OCULAR_IMPROVED, adjustedPrice: 78_000_000, averagePrice: 97_000_000, updatedAt: new Date(STAMP) },
     { typeId: PLEX, adjustedPrice: 0, averagePrice: 4_690_000, updatedAt: new Date(STAMP) },
     { typeId: RIFTER_BLUEPRINT, adjustedPrice: 0, averagePrice: 2_900_000, updatedAt: new Date(STAMP) },
+    { typeId: ISHTAR, adjustedPrice: 100_000_000, averagePrice: 138_145_641.51, updatedAt: new Date(STAMP) },
   ]);
   await harness.db.insert(netWorthDays).values([
     { userId: USER_ID, day: '2026-09-25', netWorth: 100, liquidIsk: 50, pilotsIncluded: 1, pilotsTotal: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } }, recordedAt: new Date(STAMP) },
@@ -433,7 +443,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ilyana?.status).toEqual({ state: 'reconnect' });
   });
 
-  it('values the synced pilot from stored prices only, excluding blueprints, SKINs and skillbooks', async () => {
+  it('values the synced pilot from stored prices only, guarding junk spreads and excluding blueprints, SKINs and skillbooks', async () => {
     const board = await getBoardForUserOnView(USER_ID);
     const [aurel, bram, ilyana] = board.characters;
 
@@ -449,7 +459,8 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         implants: IMPLANTS,
       },
     });
-    expect(NET_WORTH).toBe(4_106_517_632.15);
+    expect(ASSET_VALUE).toBe(424_545_641.51);
+    expect(NET_WORTH).toBe(4_256_663_273.66);
     expect(bram?.netWorth).toEqual({ state: 'reconnect' });
     expect(ilyana?.netWorth).toEqual({ state: 'reconnect' });
     expect(board.history).toEqual([

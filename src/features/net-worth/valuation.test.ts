@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jitaMid, type PriceBook, type TypeCategories, unitValue, valueCharacter } from './valuation';
+import { jitaMid, jitaSell, type PriceBook, type TypeCategories, unitValue, valueCharacter } from './valuation';
 
 const TRITANIUM = 34;
 const TENGU = 29984;
@@ -11,15 +11,21 @@ const SKIN = 42000;
 const SKILLBOOK = 3334;
 const UNPRICED = 999_999;
 
+const quote = (jitaMid: number | null, average: number | null, jitaSell: number | null = jitaMid) => ({
+  jitaMid,
+  jitaSell,
+  average,
+});
+
 const PRICES: PriceBook = new Map([
-  [TRITANIUM, { jitaMid: 4, average: 3.5 }],
-  [TENGU, { jitaMid: 230_000_000, average: 224_000_000 }],
-  [OCULAR, { jitaMid: 90_000_000, average: 97_000_000 }],
-  [MEMORY_AUG, { jitaMid: null, average: 60_000_000 }],
-  [PLEX, { jitaMid: 1, average: 4_690_000 }],
-  [RIFTER_BPO, { jitaMid: 2_000_000, average: 2_900_000 }],
-  [SKIN, { jitaMid: 500_000_000, average: 500_000_000 }],
-  [SKILLBOOK, { jitaMid: 1_000_000, average: 1_000_000 }],
+  [TRITANIUM, quote(4, 3.5)],
+  [TENGU, quote(230_000_000, 224_000_000)],
+  [OCULAR, quote(90_000_000, 97_000_000)],
+  [MEMORY_AUG, quote(null, 60_000_000)],
+  [PLEX, quote(1, 4_690_000)],
+  [RIFTER_BPO, quote(2_000_000, 2_900_000)],
+  [SKIN, quote(500_000_000, 500_000_000)],
+  [SKILLBOOK, quote(1_000_000, 1_000_000)],
 ]);
 
 const CATEGORIES: TypeCategories = new Map([
@@ -37,25 +43,48 @@ describe('jitaMid', () => {
   it('averages both 5% percentiles, uses one side alone, and falls back to the best prices', () => {
     expect(jitaMid({ pct5Buy: 3, pct5Sell: 5, bestBuy: 1, bestSell: 9 })).toBe(4);
     expect(jitaMid({ pct5Buy: null, pct5Sell: 5, bestBuy: 1, bestSell: 9 })).toBe(5);
-    expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBe(5);
+    expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: 6, bestSell: 9 })).toBe(7.5);
     expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: null, bestSell: 9 })).toBe(9);
     expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: null, bestSell: null })).toBeNull();
+  });
+
+  it('returns null for a junk spread where the buy side is under half the sell side', () => {
+    expect(jitaMid({ pct5Buy: 3_275_400, pct5Sell: 139_095_000, bestBuy: 1, bestSell: 139_000_000 })).toBeNull();
+    expect(jitaMid({ pct5Buy: 69_500_000, pct5Sell: 139_000_000, bestBuy: null, bestSell: null })).toBe(104_250_000);
+    expect(jitaMid({ pct5Buy: 69_499_999, pct5Sell: 139_000_000, bestBuy: null, bestSell: null })).toBeNull();
+    expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBeNull();
+  });
+});
+
+describe('jitaSell', () => {
+  it('reads the 5% sell percentile, else the best sell, else null', () => {
+    expect(jitaSell({ pct5Buy: 3, pct5Sell: 5, bestBuy: 1, bestSell: 9 })).toBe(5);
+    expect(jitaSell({ pct5Buy: 3, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBeNull();
+    expect(jitaSell({ pct5Buy: null, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBe(9);
+    expect(jitaSell({ pct5Buy: null, pct5Sell: null, bestBuy: null, bestSell: null })).toBeNull();
   });
 });
 
 describe('unitValue', () => {
   it('takes the lower of Jita mid and CCP average, whichever exists, and null when neither', () => {
-    expect(unitValue(TRITANIUM, { jitaMid: 4, average: 3.5 })).toBe(3.5);
-    expect(unitValue(TENGU, { jitaMid: 200, average: 224 })).toBe(200);
-    expect(unitValue(TENGU, { jitaMid: null, average: 224 })).toBe(224);
-    expect(unitValue(TENGU, { jitaMid: 200, average: null })).toBe(200);
-    expect(unitValue(TENGU, { jitaMid: null, average: null })).toBeNull();
+    expect(unitValue(TRITANIUM, quote(4, 3.5))).toBe(3.5);
+    expect(unitValue(TENGU, quote(200, 224))).toBe(200);
+    expect(unitValue(TENGU, quote(null, 224))).toBe(224);
+    expect(unitValue(TENGU, quote(200, null))).toBe(200);
+    expect(unitValue(TENGU, quote(null, null))).toBeNull();
     expect(unitValue(TENGU, undefined)).toBeNull();
   });
 
+  it('uses the CCP average for an Ishtar-like junk spread, and the bare sell side when there is no average', () => {
+    const ISHTAR = 12005;
+    expect(unitValue(ISHTAR, quote(null, 138_145_641.51, 139_095_000))).toBe(138_145_641.51);
+    expect(unitValue(ISHTAR, quote(null, null, 139_095_000))).toBe(139_095_000);
+    expect(unitValue(ISHTAR, quote(120_000_000, 138_145_641.51, 139_095_000))).toBe(120_000_000);
+  });
+
   it('prices PLEX at the CCP average even when a Jita figure exists', () => {
-    expect(unitValue(PLEX, { jitaMid: 1, average: 4_690_000 })).toBe(4_690_000);
-    expect(unitValue(PLEX, { jitaMid: 1, average: null })).toBeNull();
+    expect(unitValue(PLEX, quote(1, 4_690_000))).toBe(4_690_000);
+    expect(unitValue(PLEX, quote(1, null))).toBeNull();
   });
 });
 
@@ -146,7 +175,7 @@ describe('valueCharacter', () => {
   it('rounds to ISK cents', () => {
     const result = valueCharacter(
       { wallet: 0.1, assets: [hangar(TRITANIUM, 3)], activeImplants: [], jumpCloneImplants: [], orders: [] },
-      new Map([[TRITANIUM, { jitaMid: 0.1, average: null }]]),
+      new Map([[TRITANIUM, quote(0.1, null)]]),
       CATEGORIES,
     );
     expect(result.assets).toBe(0.3);

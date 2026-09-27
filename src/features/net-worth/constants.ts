@@ -11,3 +11,9 @@ export const SKIN_CATEGORY_ID = 91;
 export const EXCLUDED_LOCATION_FLAGS: readonly string[] = ['Skill', 'Wardrobe'];
 
 export const IMPLANT_LOCATION_FLAG = 'Implant';
+
+/**
+ * A Jita book whose buy side is below this share of its sell side has no real market between the two
+ * (junk buy orders under a thin sell wall); its mid is meaningless and the CCP average is used instead.
+ */
+export const JITA_SPREAD_FLOOR_RATIO = 0.5;
