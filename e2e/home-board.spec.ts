@@ -62,7 +62,14 @@ test('several pilots open on the wealth overview, with each pilot’s state on t
   await page.goto('/');
   await expect(rail(page).locator('[data-pilot-id]')).toHaveCount(5, { timeout: 15_000 });
   await expect(overview(page).locator('section').first()).toContainText('Wealth');
-  await expect(overview(page).getByRole('img', { name: 'Combined wallet ISK over time' })).toBeVisible();
+  await expect(overview(page).getByText('7.75B', { exact: false }).first()).toBeVisible();
+  await expect(overview(page).getByText('3 of 5 pilots')).toBeVisible();
+  await expect(overview(page).getByRole('img', { name: 'Estimated net worth over time' })).toBeVisible();
+  await expect(overview(page).locator('[data-band]')).toHaveCount(2);
+  await overview(page).getByRole('button', { name: 'About estimated net worth' }).click();
+  await expect(page.getByRole('dialog', { name: 'About estimated net worth' })).toContainText('Estimated net worth');
+  await expect(page.getByText('Not counted: blueprints, SKINs, and PLEX in your PLEX vault.')).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(overview(page).locator('section').getByText('Industry', { exact: true })).toBeVisible();
   for (const gone of ['Training', 'Whereabouts', 'Skill points']) {
     await expect(overview(page).getByText(gone, { exact: true })).toHaveCount(0);
