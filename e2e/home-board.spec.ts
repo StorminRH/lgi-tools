@@ -39,22 +39,21 @@ test('the board takes the folded hero’s place, and the hero keeps its DOM node
     .toBe(0);
 });
 
-test('several pilots open on the overview: the rail, Wealth first with net worth, no attention list', async ({ page }) => {
+test('several pilots open on the wealth overview, with each pilot’s state on the rail', async ({ page }) => {
   await serveBoard(page);
   await page.goto('/');
   await expect(rail(page).locator('[data-pilot-id]')).toHaveCount(5, { timeout: 15_000 });
-  const cards = overview(page).locator('section');
-  await expect(cards.first()).toContainText('Wealth');
+  await expect(overview(page).locator('section').first()).toContainText('Wealth');
   await expect(overview(page).getByRole('img', { name: 'Combined wallet ISK over time' })).toBeVisible();
-  await expect(overview(page).getByText('Wallet ISK · 3 of 5 pilots · since 28 Aug')).toBeVisible();
-  for (const title of ['Training', 'Whereabouts', 'Industry']) {
-    await expect(cards.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(overview(page).locator('section').getByText('Industry', { exact: true })).toBeVisible();
+  for (const gone of ['Training', 'Whereabouts', 'Skill points']) {
+    await expect(overview(page).getByText(gone, { exact: true })).toHaveCount(0);
   }
-  await expect(page.getByText('Needs attention')).toHaveCount(0);
-  await expect(page.locator('path.board-leader, [data-leader-anchor], [data-leader-target]')).toHaveCount(0);
+  await expect(pilot(page, 9_900_000_002)).toContainText('Medium Drone Operation');
+  await expect(pilot(page, 9_900_000_002)).toContainText('Tama');
 });
 
-test('a pilot opens its sheet; Back and Escape return to the overview without a document load', async ({ page }) => {
+test('a pilot opens full width without the rail; Back, the back control and Escape return without a document load', async ({ page }) => {
   await serveBoard(page);
   const documents: string[] = [];
   page.on('request', (request) => {
@@ -70,7 +69,7 @@ test('a pilot opens its sheet; Back and Escape return to the overview without a 
   await pilot(page, 9_900_000_002).click();
   await expect(sheet(page, 'Kessa Draymoor')).toBeVisible();
   await expect(page).toHaveURL(/[?&]character=9900000002/);
-  await expect(pilot(page, 9_900_000_002)).toHaveAttribute('aria-pressed', 'true');
+  await expect(rail(page)).toHaveCount(0);
 
   await page.goBack();
   await expect(overview(page)).toBeVisible();
@@ -78,15 +77,16 @@ test('a pilot opens its sheet; Back and Escape return to the overview without a 
 
   await pilot(page, 9_900_000_003).click();
   await expect(sheet(page, 'Torvin Hale')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /All characters/ }).click();
   await expect(overview(page)).toBeVisible();
 
   await pilot(page, 9_900_000_004).click();
   await expect(
     page.getByText('Reconnect Ilyana Mirek to add wallet, clones, implants and structure names.').first(),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'All pilots' }).click();
+  await page.keyboard.press('Escape');
   await expect(overview(page)).toBeVisible();
+  await expect(rail(page)).toBeVisible();
 
   expect(documents.length, documents.join('\n')).toBe(loads);
   expect(await page.evaluate(() => (window as Window & { boardProbe?: boolean }).boardProbe)).toBe(true);
@@ -97,6 +97,7 @@ test('a single-pilot account lands on that pilot’s sheet with no rail', async 
   await page.goto('/');
   await expect(sheet(page, 'Aurel Vantesse')).toBeVisible({ timeout: 15_000 });
   await expect(rail(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /All characters/ })).toHaveCount(0);
 });
 
 test('the board fits a phone without horizontal page scroll', async ({ page }) => {
