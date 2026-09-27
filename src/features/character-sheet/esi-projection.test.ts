@@ -5,7 +5,7 @@ import {
   parseClonesBody,
   parseImplantsBody,
   parseCurrentShipBody,
-  parseJournalBody,
+  parseJournalNewestFirst,
   parseOnlineStatusBody,
   parseStructureBody,
   parseWalletBody,
@@ -173,7 +173,7 @@ describe('parseWalletBody', () => {
   });
 });
 
-describe('parseJournalBody', () => {
+describe('parseJournalNewestFirst', () => {
   const entry = (id: number, date: string) => ({
     id,
     date,
@@ -189,21 +189,22 @@ describe('parseJournalBody', () => {
       entry(3, '2026-09-26T00:00:00Z'),
       entry(2, '2026-09-26T00:00:00Z'),
     ];
-    expect(parseJournalBody(body)?.map((row) => row.id)).toEqual([3, 2, 1]);
+    expect(parseJournalNewestFirst(body)?.map((row) => row.id)).toEqual([3, 2, 1]);
   });
 
   it('tolerates entries without amount or balance', () => {
-    expect(parseJournalBody([{ id: 1, date: '2026-09-20T00:00:00Z', ref_type: 'x', description: '' }])).toHaveLength(1);
+    expect(parseJournalNewestFirst([{ id: 1, date: '2026-09-20T00:00:00Z', ref_type: 'x', description: '' }])).toHaveLength(1);
   });
 
   it('returns null on a non-array body', () => {
-    expect(parseJournalBody({ error: 'forbidden' })).toBeNull();
+    expect(parseJournalNewestFirst({ error: 'forbidden' })).toBeNull();
   });
 });
 
 describe('parseStructureBody', () => {
   it('keeps only the name', () => {
     expect(parseStructureBody({ name: 'Sobaseki - Driftwood Anchorage', owner_id: 1, solar_system_id: 2 })).toEqual({
+      kind: 'named',
       name: 'Sobaseki - Driftwood Anchorage',
     });
   });

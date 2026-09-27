@@ -78,7 +78,7 @@ function sectionDescriptor<K extends DirectSectionKey>(
         const reads = await readParts(port, characterId, accessToken, spec, state?.heldEtags ?? {});
         return planSectionRead(spec, reads, state?.previous ?? null, port.now());
       },
-      save: (characterId, payload) => port.saveSection(characterId, spec.key, payload.envelope),
+      save: (characterId, payload) => port.mergeSection(characterId, spec.key, payload.envelope),
     },
   );
 }
@@ -121,20 +121,36 @@ function structuresDescriptor(
           port.now(),
         );
       },
-      save: (characterId, payload) => port.saveSection(characterId, 'structures', payload.envelope),
+      save: (characterId, payload) => port.mergeSection(characterId, 'structures', payload.envelope),
     },
   );
 }
 
-/** Direct sections run in parallel; structures runs after them so it sees the ids they just saved. */
+async function refreshDirectSections(
+  port: SheetPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  const results = await Promise.all(
+    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(port, SHEET_SECTIONS[key]), userId, options)),
+  );
+  return results.flat();
+}
+
+function refreshStructureNames(
+  port: SheetPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return runOwnerSync(structuresDescriptor(port), userId, options);
+}
+
 export async function refreshCharacterSheetForUser(
   port: SheetPort,
   userId: string,
   options?: OwnerSyncRunOptions,
 ): Promise<OwnerSyncResult[]> {
-  const direct = await Promise.all(
-    DIRECT_SECTION_KEYS.map((key) => runOwnerSync(sectionDescriptor(port, SHEET_SECTIONS[key]), userId, options)),
-  );
-  const structures = await runOwnerSync(structuresDescriptor(port), userId, options);
-  return [...direct.flat(), ...structures];
+  const direct = await refreshDirectSections(port, userId, options);
+  const structures = await refreshStructureNames(port, userId, options);
+  return [...direct, ...structures];
 }

@@ -12,7 +12,6 @@ export type SheetSectionKey =
   | 'journal'
   | 'structures';
 
-/** Sections whose data is a fixed set of single-endpoint parts; structures is resolved per id instead. */
 export type DirectSectionKey = Exclude<SheetSectionKey, 'structures'>;
 
 export type SheetTier = 'live' | 'hourly' | 'daily';
@@ -74,9 +73,7 @@ export interface JournalSeriesPoint {
   balance: number;
 }
 
-/** Bounded digest of journal page 1; raw rows are never stored. */
 export interface JournalDigest {
-  /** The later of (now - 30 d) and the oldest entry on the page: the window the flows really cover. */
   windowStart: string;
   inflow: number;
   outflow: number;
@@ -84,10 +81,7 @@ export interface JournalDigest {
   recent: JournalEntry[];
 }
 
-export interface StructureName {
-  /** null = resolved, but this character cannot see the structure. */
-  name: string | null;
-}
+export type StructureName = { kind: 'named'; name: string } | { kind: 'hidden' };
 
 export interface SheetSectionData {
   profile: { character: CharacterPart };
@@ -104,21 +98,28 @@ export type SheetPart<K extends SheetSectionKey> = keyof SheetSectionData[K] & s
 
 export type PartEtags<K extends SheetSectionKey> = Partial<Record<SheetPart<K>, string | null>>;
 
-export interface SectionEnvelope<K extends SheetSectionKey> {
-  /** null only on a denied envelope that had nothing to keep. */
-  data: SheetSectionData[K] | null;
+export interface EnvelopeStamp<K extends SheetSectionKey> {
   refreshedAt: string;
   etags: PartEtags<K>;
-  /** ESI answered 403 after the scope was granted; the board shows reconnect, never this data. */
-  denied?: true;
 }
+
+export interface DataEnvelope<K extends SheetSectionKey> extends EnvelopeStamp<K> {
+  data: SheetSectionData[K];
+  denied?: never;
+}
+
+export interface DeniedEnvelope<K extends SheetSectionKey> extends EnvelopeStamp<K> {
+  data: SheetSectionData[K] | null;
+  denied: true;
+}
+
+export type SectionEnvelope<K extends SheetSectionKey> = DataEnvelope<K> | DeniedEnvelope<K>;
 
 export type SheetSections = { [K in SheetSectionKey]?: SectionEnvelope<K> };
 
 export interface SectionSyncState<K extends SheetSectionKey> {
   lastRefreshedAt: Date | null;
   previous: SectionEnvelope<K> | null;
-  /** Empty whenever there is no previous data, so a 304 can never leave a part without data. */
   heldEtags: PartEtags<K>;
 }
 
@@ -141,7 +142,6 @@ export interface PartSpec<K extends DirectSectionKey, P extends SheetPart<K>> {
 export interface DirectSectionSpec<K extends DirectSectionKey> {
   key: K;
   tier: SheetTier;
-  /** Empty = public endpoint; the read is still authed, so a refresh token is required. */
   scopes: readonly string[];
   parts: { [P in SheetPart<K>]: PartSpec<K, P> };
 }
@@ -179,7 +179,7 @@ export interface SheetPort {
   ): Promise<SheetEsiRead>;
   readStructure(structureId: number, accessToken: string): Promise<SheetEsiRead>;
   readSheet(characterId: number): Promise<SheetSections | null>;
-  saveSection<K extends SheetSectionKey>(
+  mergeSection<K extends SheetSectionKey>(
     characterId: number,
     key: K,
     envelope: SectionEnvelope<K>,

@@ -1,4 +1,4 @@
-import { type EsiJournalEntry, parseJournalBody, parseStructureBody } from './esi-projection';
+import { type EsiJournalEntry, parseJournalNewestFirst, parseStructureBody } from './esi-projection';
 import type {
   DirectSectionKey,
   DirectSectionSpec,
@@ -98,7 +98,7 @@ function journalSeries(entries: EsiJournalEntry[], windowStartMs: number, nowMs:
 }
 
 export function digestJournalBody(body: unknown, now: Date): JournalDigest | null {
-  const entries = parseJournalBody(body);
+  const entries = parseJournalNewestFirst(body);
   if (entries === null) return null;
   const nowMs = now.getTime();
   const oldest = entries.at(-1);
@@ -170,7 +170,7 @@ export function planStructures(
       names[key] = parsed;
       changed = true;
     } else if (read.kind === 'error' && STRUCTURE_HIDDEN_CODES.has(read.code)) {
-      names[key] = { name: null };
+      names[key] = { kind: 'hidden' };
       changed = true;
     } else if (read.kind === 'error') {
       retryCode = read.code;
@@ -178,8 +178,9 @@ export function planStructures(
   }
   const pruned = Object.keys(previous?.names ?? {}).some((key) => !(key in names));
   if (!changed && retryCode !== null) return { kind: 'skip', code: retryCode };
-  // A first save with nothing referenced still lands so the tier stamp has a row to sit on.
-  if (!changed && !pruned && previous !== null) return { kind: 'stamp' };
+  const rowExists = previous !== null;
+  const onlyStampNeeded = rowExists && !changed && !pruned;
+  if (onlyStampNeeded) return { kind: 'stamp' };
   return { kind: 'save', envelope: { data: { names }, refreshedAt: now.toISOString(), etags: {} } };
 }
 

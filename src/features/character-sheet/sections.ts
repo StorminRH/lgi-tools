@@ -19,6 +19,7 @@ export const TIER_ENTRY = {
 } as const satisfies Record<SheetTier, string>;
 
 const WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
+const PUBLIC_ENDPOINT_SCOPES: readonly string[] = [];
 
 export const SHEET_SECTION_KEYS = [
   'profile',
@@ -35,7 +36,7 @@ export const SHEET_SECTIONS: { [K in SheetSectionKey]: SheetSectionSpec<K> } = {
   profile: {
     key: 'profile',
     tier: 'daily',
-    scopes: [],
+    scopes: PUBLIC_ENDPOINT_SCOPES,
     parts: { character: { endpoint: 'character', parse: parseCharacterBody } },
   },
   status: {

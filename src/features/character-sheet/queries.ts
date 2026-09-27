@@ -29,11 +29,7 @@ export async function readSheetRow(characterId: number): Promise<SheetSections |
   return rows[0]?.sections ?? null;
 }
 
-/**
- * One statement merges the section key into the row, so concurrent saves of
- * different sections both survive and a section's data, ETags and stamp land together.
- */
-export async function saveSheetSection<K extends SheetSectionKey>(
+export async function mergeSheetSection<K extends SheetSectionKey>(
   characterId: number,
   key: K,
   envelope: SectionEnvelope<K>,

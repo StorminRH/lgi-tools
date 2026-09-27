@@ -27,11 +27,11 @@ export async function resolveNameBook(request: NameIdRequest): Promise<NameBook>
     types.set(typeId, { name, implantSlot: implant?.slot ?? null, attributeBonus: implant?.bonus ?? {} });
   }
 
-  const places = new Map<number, PlaceFacts>();
+  const npcStations = new Map<number, PlaceFacts>();
   for (const [stationId, facts] of stations) {
     const name = facts.name ?? entities[String(stationId)];
-    if (name !== undefined) places.set(stationId, { name, systemId: facts.systemId });
+    if (name !== undefined) npcStations.set(stationId, { name, systemId: facts.systemId });
   }
 
-  return { types, systems, places, entities, skillCatalog };
+  return { types, systems, npcStations, entities, skillCatalog };
 }

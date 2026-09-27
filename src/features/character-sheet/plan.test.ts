@@ -8,7 +8,7 @@ import {
   unresolvedStructureIds,
 } from './plan';
 import { SHEET_SECTIONS } from './sections';
-import type { SectionEnvelope, SheetEsiRead, SheetSections } from './types';
+import type { SectionEnvelope, SheetEsiRead, SheetSectionData, SheetSections, StructureName } from './types';
 
 const NOW = new Date('2026-09-27T12:00:00Z');
 const NOW_ISO = NOW.toISOString();
@@ -213,7 +213,7 @@ describe('digestJournalBody', () => {
   });
 });
 
-const sheetWithStructures = (names: Record<string, { name: string | null }> | null): SheetSections => ({
+const sheetWithStructures = (names: Record<string, StructureName> | null): SheetSections => ({
   status: {
     data: {
       location: { solarSystemId: 30001363, stationId: null, structureId: 1099000000001 },
@@ -261,7 +261,7 @@ describe('referencedStructureIds / unresolvedStructureIds', () => {
   });
 
   it('reports only the ids without a stored name entry, including denied ones as resolved', () => {
-    const sheet = sheetWithStructures({ '1099000000001': { name: null } });
+    const sheet = sheetWithStructures({ '1099000000001': { kind: 'hidden' } });
     expect(unresolvedStructureIds(sheet)).toEqual([1099000000002]);
   });
 });
@@ -278,7 +278,7 @@ describe('planStructures', () => {
       kind: 'save',
       envelope: {
         data: {
-          names: { '1099000000001': { name: 'Sobaseki - Driftwood Anchorage' }, '1099000000002': { name: null } },
+          names: { '1099000000001': { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' }, '1099000000002': { kind: 'hidden' } },
         },
         refreshedAt: NOW_ISO,
         etags: {},
@@ -288,17 +288,17 @@ describe('planStructures', () => {
 
   it('treats a 404 like a 403', () => {
     const plan = planStructures([1099000000001], null, new Map([[1099000000001, error('esi_404')]]), NOW);
-    expect(plan).toMatchObject({ kind: 'save', envelope: { data: { names: { '1099000000001': { name: null } } } } });
+    expect(plan).toMatchObject({ kind: 'save', envelope: { data: { names: { '1099000000001': { kind: 'hidden' } } } } });
   });
 
   it('carries previously resolved names and prunes ids no longer referenced', () => {
-    const previous = { names: { '1099000000001': { name: 'Kept' }, '1099000000009': { name: 'Gone' } } };
+    const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' }, '1099000000009': { kind: 'named', name: 'Gone' } } };
     const plan = planStructures([1099000000001], previous, new Map(), NOW);
-    expect(plan).toMatchObject({ kind: 'save', envelope: { data: { names: { '1099000000001': { name: 'Kept' } } } } });
+    expect(plan).toMatchObject({ kind: 'save', envelope: { data: { names: { '1099000000001': { kind: 'named', name: 'Kept' } } } } });
   });
 
   it('stamps when nothing was read and nothing was pruned', () => {
-    const previous = { names: { '1099000000001': { name: 'Kept' } } };
+    const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
     expect(planStructures([1099000000001], previous, new Map(), NOW)).toEqual({ kind: 'stamp' });
   });
 
@@ -310,7 +310,7 @@ describe('planStructures', () => {
   });
 
   it('skips on a retryable error when nothing else changed, but saves the rest otherwise', () => {
-    const previous = { names: { '1099000000001': { name: 'Kept' } } };
+    const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
     const failing = new Map<number, SheetEsiRead>([[1099000000002, error('esi_server_error')]]);
     expect(planStructures(ids, previous, failing, NOW)).toEqual({ kind: 'skip', code: 'esi_server_error' });
 
@@ -320,7 +320,7 @@ describe('planStructures', () => {
     ]);
     expect(planStructures(ids, previous, mixed, NOW)).toMatchObject({
       kind: 'save',
-      envelope: { data: { names: { '1099000000001': { name: 'Renamed' } } } },
+      envelope: { data: { names: { '1099000000001': { kind: 'named', name: 'Renamed' } } } },
     });
   });
 
@@ -354,10 +354,10 @@ describe('readSectionState', () => {
   });
 
   it('forces structures stale while a referenced id has no name entry', () => {
-    const unresolved = sheetWithStructures({ '1099000000001': { name: 'Known' } });
+    const unresolved = sheetWithStructures({ '1099000000001': { kind: 'named', name: 'Known' } });
     expect(readSectionState(unresolved, 'structures').lastRefreshedAt).toBeNull();
 
-    const resolved = sheetWithStructures({ '1099000000001': { name: 'Known' }, '1099000000002': { name: null } });
+    const resolved = sheetWithStructures({ '1099000000001': { kind: 'named', name: 'Known' }, '1099000000002': { kind: 'hidden' } });
     expect(readSectionState(resolved, 'structures').lastRefreshedAt).toEqual(NOW);
   });
 });

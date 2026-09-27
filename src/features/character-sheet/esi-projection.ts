@@ -144,8 +144,7 @@ export function parseWalletBody(body: unknown): number | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** Newest first, matching ESI page 1; ties broken by id so the order is total. */
-export function parseJournalBody(body: unknown): EsiJournalEntry[] | null {
+export function parseJournalNewestFirst(body: unknown): EsiJournalEntry[] | null {
   const parsed = journalBodySchema.safeParse(body);
   if (!parsed.success) return null;
   return [...parsed.data].sort(
@@ -155,5 +154,5 @@ export function parseJournalBody(body: unknown): EsiJournalEntry[] | null {
 
 export function parseStructureBody(body: unknown): StructureName | null {
   const parsed = structureBodySchema.safeParse(body);
-  return parsed.success ? { name: parsed.data.name } : null;
+  return parsed.success ? { kind: 'named', name: parsed.data.name } : null;
 }

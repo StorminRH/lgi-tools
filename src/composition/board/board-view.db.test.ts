@@ -117,7 +117,7 @@ const AUREL_SHEET: SheetSections = {
       recent: [{ id: 9, date: '2026-09-26T00:00:00Z', refType: 'bounty_prizes', amount: 100, balance: 60, description: 'b' }],
     },
   }),
-  structures: envelope({ names: { [ANCHORAGE]: { name: 'Sobaseki - Driftwood Anchorage' } } }),
+  structures: envelope({ names: { [ANCHORAGE]: { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } }),
 };
 
 const group = (id: number, categoryId: number, name: string) => ({

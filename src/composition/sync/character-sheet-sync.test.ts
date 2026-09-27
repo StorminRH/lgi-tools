@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   vendTokenFor: vi.fn(),
   readSingleEndpoint: vi.fn(),
   readSheetRow: vi.fn(),
-  saveSheetSection: vi.fn(),
+  mergeSheetSection: vi.fn(),
   stampSheetSection: vi.fn(),
 }));
 
@@ -19,7 +19,7 @@ vi.mock('./owner-sync-port', () => ({
 
 vi.mock('@/features/character-sheet/queries', () => ({
   readSheetRow: mocks.readSheetRow,
-  saveSheetSection: mocks.saveSheetSection,
+  mergeSheetSection: mocks.mergeSheetSection,
   stampSheetSection: mocks.stampSheetSection,
 }));
 
@@ -53,7 +53,7 @@ const BODIES: Record<string, unknown> = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.readSheetRow.mockResolvedValue(null);
-  mocks.saveSheetSection.mockResolvedValue(undefined);
+  mocks.mergeSheetSection.mockResolvedValue(undefined);
   mocks.stampSheetSection.mockResolvedValue(undefined);
   mocks.readSingleEndpoint.mockImplementation(async (path: string) => {
     const body = BODIES[path.replace(/^\/characters\/\d+\//, '/characters/1/')];
@@ -77,7 +77,7 @@ describe('SHEET_ESI_PATHS', () => {
 });
 
 describe('makeSheetPort', () => {
-  it('memoizes the roster read and vends one token per character per run', async () => {
+  it('reads the roster once and vends once per character per run so concurrent sections never race the refresh-token rotation', async () => {
     mocks.listCharactersWithHealth.mockResolvedValue([
       { characterId: 1, corporationId: null, hasRefreshToken: true, missingScopes: [] },
       { characterId: 2, corporationId: null, hasRefreshToken: true, missingScopes: [] },
@@ -109,11 +109,11 @@ describe('makeSheetPort', () => {
 
     await port.readStructure(1099000000001, 'token');
     await expect(port.readSheet(7)).resolves.toBe(sheet);
-    await port.saveSection(7, 'wallet', sheet.wallet!);
+    await port.mergeSection(7, 'wallet', sheet.wallet!);
     await port.stampSection(7, 'wallet');
 
     expect(mocks.readSingleEndpoint).toHaveBeenCalledWith('/universe/structures/1099000000001/', 'token', null);
-    expect(mocks.saveSheetSection).toHaveBeenCalledWith(7, 'wallet', sheet.wallet);
+    expect(mocks.mergeSheetSection).toHaveBeenCalledWith(7, 'wallet', sheet.wallet);
     expect(mocks.stampSheetSection).toHaveBeenCalledWith(7, 'wallet');
   });
 });

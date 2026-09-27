@@ -1,4 +1,4 @@
-import { readSheetRow, saveSheetSection, stampSheetSection } from '@/features/character-sheet/queries';
+import { mergeSheetSection, readSheetRow, stampSheetSection } from '@/features/character-sheet/queries';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import type { SheetEndpoint, SheetPort } from '@/features/character-sheet/types';
 import type { OwnerSyncResult } from '@/platform/owner-sync';
@@ -29,10 +29,6 @@ function memoizePerRun<A, R>(fn: (arg: A) => Promise<R>): (arg: A) => Promise<R>
   };
 }
 
-/**
- * Eight section descriptors share one roster read and one token vend per character:
- * concurrent vends would race the refresh-token compare-and-swap in the token service.
- */
 export function makeSheetPort(): SheetPort {
   return {
     now: () => new Date(),
@@ -43,7 +39,7 @@ export function makeSheetPort(): SheetPort {
     readStructure: (structureId, accessToken) =>
       readSingleEndpoint(STRUCTURE_ESI_PATH(structureId), accessToken, null),
     readSheet: readSheetRow,
-    saveSection: saveSheetSection,
+    mergeSection: mergeSheetSection,
     stampSection: stampSheetSection,
   };
 }

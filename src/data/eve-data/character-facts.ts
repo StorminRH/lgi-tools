@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
-  ATTRIBUTE_BONUS_DOGMA,
+  ATTRIBUTE_BONUS_DOGMA_NAMES,
   ATTRIBUTE_KEYS,
   type AttributeKey,
   IMPLANT_SLOT_DOGMA,
@@ -44,7 +44,6 @@ export async function getSystemFacts(ids: number[]): Promise<Map<number, SystemF
 }
 
 export interface NpcStationFacts {
-  /** null until the station-name backfill has run; callers fall back to the ESI names resolver. */
   name: string | null;
   systemId: number;
 }
@@ -60,7 +59,7 @@ export async function getNpcStationFacts(ids: number[]): Promise<Map<number, Npc
   return out;
 }
 
-const DOGMA_NAMES = [IMPLANT_SLOT_DOGMA, SKILL_RANK_DOGMA, ...Object.values(ATTRIBUTE_BONUS_DOGMA)];
+const DOGMA_NAMES = [IMPLANT_SLOT_DOGMA, SKILL_RANK_DOGMA, ...Object.values(ATTRIBUTE_BONUS_DOGMA_NAMES)];
 
 async function dogmaAttributeIds(): Promise<Record<string, number>> {
   'use cache';
@@ -93,7 +92,7 @@ export async function getImplantDogma(typeIds: number[]): Promise<Map<number, Im
   for (const [typeId, attrs] of attrsByType) {
     const bonus: Partial<Record<AttributeKey, number>> = {};
     for (const key of ATTRIBUTE_KEYS) {
-      const value = attributeValue(attrs, ids, ATTRIBUTE_BONUS_DOGMA[key]);
+      const value = attributeValue(attrs, ids, ATTRIBUTE_BONUS_DOGMA_NAMES[key]);
       if (value !== null && value !== 0) bonus[key] = value;
     }
     out.set(typeId, { slot: attributeValue(attrs, ids, IMPLANT_SLOT_DOGMA), bonus });
@@ -115,7 +114,6 @@ export interface CatalogGroup {
 
 const FALLBACK_SKILL_RANK = 1;
 
-/** Every published skill, grouped; the client names queue and trained skills from this alone. */
 export async function getSkillCatalog(): Promise<CatalogGroup[]> {
   'use cache';
   cacheLife('max');

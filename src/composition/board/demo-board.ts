@@ -19,13 +19,13 @@ import { assembleBoard, type BoardRaw, type NameBook, type TypeFacts } from './b
 export const DEMO_VARIANTS = ['full', 'one', 'reconnect', 'empty'] as const;
 export type DemoVariant = (typeof DEMO_VARIANTS)[number];
 
-/** The clock the Playwright probe installs so screenshots are deterministic. */
 export const FIXTURE_NOW = Date.parse('2026-09-27T12:00:00Z');
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-// Character ids above 9.9 billion cannot collide with real EVE characters; corporations are NPC.
+const SYNTHETIC_CHARACTER_ID_BASE = 9_900_000_000;
+
 const CALDARI_NAVY = 1000035;
 const FEDERATION_NAVY = 1000120;
 const BRUTOR_TRIBE = 1000049;
@@ -52,7 +52,6 @@ const ISHTAR = 12005;
 const RETRIEVER = 17478;
 const ASTERO = 33468;
 
-/** The scopes an existing link lacks until it reconnects: everything this feature adds. */
 const NEW_SCOPES = (['wallet', 'clones', 'implants', 'structures'] as const).flatMap(
   (key) => SHEET_SECTION_SCOPES[key],
 );
@@ -225,7 +224,7 @@ const DEMO_PLACES = new Map([
 const DEMO_NAMES: NameBook = {
   types: DEMO_TYPES,
   systems: DEMO_SYSTEMS,
-  places: DEMO_PLACES,
+  npcStations: DEMO_PLACES,
   entities: {
     [CALDARI_NAVY]: 'Caldari Navy',
     [FEDERATION_NAVY]: 'Federation Navy',
@@ -256,14 +255,14 @@ const JOURNAL_CYCLE: ReadonlyArray<[refType: string, amount: number, description
 
 const JOURNAL_ROWS = 40;
 const JOURNAL_STEP = 18 * HOUR;
+const JOURNAL_START_JUST_PAST_30_DAYS = 30 * DAY + 6 * HOUR;
 
 function roundIsk(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/** Forty rows ending one day ago; the first sits just outside the 30-day window so the digest window is exact. */
 function demoJournalBody(now: number, scale: number, closing: number, idBase: number): unknown[] {
-  const first = now - 30 * DAY - 6 * HOUR;
+  const first = now - JOURNAL_START_JUST_PAST_30_DAYS;
   const amounts = Array.from({ length: JOURNAL_ROWS }, (_, i) => {
     const [, base] = JOURNAL_CYCLE[i % JOURNAL_CYCLE.length]!;
     return roundIsk(base * scale * (1 + ((i * 7) % 5) * 0.11));
@@ -389,7 +388,7 @@ function manufacturingJob(jobId: number, status: IndustryJob['status'], startAt:
 }
 
 function aurel(now: number): BoardRaw {
-  const characterId = 9_900_000_001;
+  const characterId = SYNTHETIC_CHARACTER_ID_BASE + 1;
   const clones: ClonesPart = {
     home: { locationId: JITA_4_4, locationType: 'station' },
     jumpClones: [
@@ -454,7 +453,7 @@ function aurel(now: number): BoardRaw {
       clones: envelope<'clones'>({ clones }, now - 90_000),
       ...walletSections(now, { scale: 1, closing: 3_204_115_882.15, idBase: 1_900_000_000 }),
       structures: envelope<'structures'>(
-        { names: { [DRIFTWOOD_ANCHORAGE]: { name: 'Sobaseki - Driftwood Anchorage' } } },
+        { names: { [DRIFTWOOD_ANCHORAGE]: { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } },
         now - 40 * 60_000,
       ),
     },
@@ -490,7 +489,7 @@ function aurel(now: number): BoardRaw {
 }
 
 function kessa(now: number): BoardRaw {
-  const characterId = 9_900_000_002;
+  const characterId = SYNTHETIC_CHARACTER_ID_BASE + 2;
   return {
     identity: {
       characterId,
@@ -561,7 +560,7 @@ function kessa(now: number): BoardRaw {
 }
 
 function torvin(now: number): BoardRaw {
-  const characterId = 9_900_000_003;
+  const characterId = SYNTHETIC_CHARACTER_ID_BASE + 3;
   return {
     identity: {
       characterId,
@@ -648,7 +647,7 @@ function torvin(now: number): BoardRaw {
 }
 
 function ilyana(now: number): BoardRaw {
-  const characterId = 9_900_000_004;
+  const characterId = SYNTHETIC_CHARACTER_ID_BASE + 4;
   return {
     identity: {
       characterId,
@@ -698,7 +697,7 @@ function ilyana(now: number): BoardRaw {
 }
 
 function bram(): BoardRaw {
-  const characterId = 9_900_000_005;
+  const characterId = SYNTHETIC_CHARACTER_ID_BASE + 5;
   return {
     identity: {
       characterId,

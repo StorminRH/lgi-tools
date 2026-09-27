@@ -45,7 +45,6 @@ export interface BoardHealth {
   missingScopes: string[];
 }
 
-/** Everything read from Neon for one character. `health` never reaches the wire. */
 export interface BoardRaw {
   identity: BoardIdentity;
   health: BoardHealth;
@@ -65,13 +64,10 @@ export interface PlaceFacts {
   systemId: number | null;
 }
 
-/** Names resolved once per request for the whole roster. */
 export interface NameBook {
   types: Map<number, TypeFacts>;
   systems: Map<number, SystemFacts>;
-  /** NPC stations only; structure names live in each character's own sheet. */
-  places: Map<number, PlaceFacts>;
-  /** Corporations and alliances, keyed by id. */
+  npcStations: Map<number, PlaceFacts>;
   entities: Record<string, string>;
   skillCatalog: SkillCatalogGroup[];
 }
@@ -148,7 +144,7 @@ function sectionOf<K extends SheetSectionKey, T>(
   map: (data: SheetSectionData[K]) => T,
 ): BoardSection<T> {
   if (!eligible || envelope?.denied === true) return { state: 'reconnect' };
-  if (envelope === undefined || envelope.data === null) return { state: 'pending' };
+  if (envelope === undefined) return { state: 'pending' };
   return { state: 'ready', refreshedAt: Date.parse(envelope.refreshedAt), data: map(envelope.data) };
 }
 
@@ -180,9 +176,10 @@ function placeRef(
   id: number,
 ): PlaceRef {
   if (kind === 'structure') {
-    return { kind, id, name: structures?.names[String(id)]?.name ?? null, system: null };
+    const structure = structures?.names[String(id)];
+    return { kind, id, name: structure?.kind === 'named' ? structure.name : null, system: null };
   }
-  const facts = names.places.get(id);
+  const facts = names.npcStations.get(id);
   return {
     kind,
     id,

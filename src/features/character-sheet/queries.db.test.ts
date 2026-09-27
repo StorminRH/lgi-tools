@@ -17,7 +17,7 @@ vi.mock('next/cache', () => ({
 import {
   getCharacterSheets,
   readSheetRow,
-  saveSheetSection,
+  mergeSheetSection,
   sheetTag,
   stampSheetSection,
 } from './queries';
@@ -58,14 +58,14 @@ beforeEach(() => {
 
 describe.skipIf(!harness.reachable)('character sheet queries execute against Postgres', () => {
   it('inserts the first section and merges the second into the same row', async () => {
-    await saveSheetSection(101, 'wallet', wallet(10));
+    await mergeSheetSection(101, 'wallet', wallet(10));
     expect(await readRow(101)).toEqual({
       characterId: 101,
       sections: { wallet: wallet(10) },
       lastRefreshedAt: expect.any(Date),
     });
 
-    await saveSheetSection(101, 'profile', profile);
+    await mergeSheetSection(101, 'profile', profile);
     expect((await readRow(101))?.sections).toEqual({ wallet: wallet(10), profile });
     expect(mocks.revalidateTag).toHaveBeenCalledTimes(2);
     expect(mocks.revalidateTag).toHaveBeenCalledWith(sheetTag(101), 'max');
@@ -73,8 +73,8 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
 
   it('keeps both sections when two saves run concurrently', async () => {
     await Promise.all([
-      saveSheetSection(202, 'wallet', wallet(20)),
-      saveSheetSection(202, 'profile', profile),
+      mergeSheetSection(202, 'wallet', wallet(20)),
+      mergeSheetSection(202, 'profile', profile),
     ]);
     const rows = await harness.db.select().from(characterSheets).where(eq(characterSheets.characterId, 202));
     expect(rows).toHaveLength(1);
@@ -82,25 +82,25 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
   });
 
   it('is idempotent for a repeated save and replaces a section wholesale', async () => {
-    await saveSheetSection(303, 'wallet', { ...wallet(30), denied: true });
-    await saveSheetSection(303, 'wallet', { ...wallet(30), denied: true });
+    await mergeSheetSection(303, 'wallet', { ...wallet(30), denied: true });
+    await mergeSheetSection(303, 'wallet', { ...wallet(30), denied: true });
     expect((await readRow(303))?.sections).toEqual({ wallet: { ...wallet(30), denied: true } });
 
-    await saveSheetSection(303, 'wallet', wallet(31, T1));
+    await mergeSheetSection(303, 'wallet', wallet(31, T1));
     expect((await readRow(303))?.sections).toEqual({ wallet: wallet(31, T1) });
   });
 
   it('advances the row stamp on every save', async () => {
-    await saveSheetSection(404, 'wallet', wallet(40));
+    await mergeSheetSection(404, 'wallet', wallet(40));
     const first = (await readRow(404))!.lastRefreshedAt;
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await saveSheetSection(404, 'profile', profile);
+    await mergeSheetSection(404, 'profile', profile);
     expect((await readRow(404))!.lastRefreshedAt.getTime()).toBeGreaterThan(first.getTime());
   });
 
   it('stamps only the named section and leaves its data and ETags alone', async () => {
-    await saveSheetSection(505, 'wallet', wallet(50));
-    await saveSheetSection(505, 'profile', profile);
+    await mergeSheetSection(505, 'wallet', wallet(50));
+    await mergeSheetSection(505, 'profile', profile);
     vi.clearAllMocks();
 
     await stampSheetSection(505, 'wallet');
@@ -113,7 +113,7 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
   });
 
   it('leaves the row untouched when stamping a section it does not have', async () => {
-    await saveSheetSection(606, 'wallet', wallet(60));
+    await mergeSheetSection(606, 'wallet', wallet(60));
     const before = await readRow(606);
 
     await stampSheetSection(606, 'profile');
@@ -124,7 +124,7 @@ describe.skipIf(!harness.reachable)('character sheet queries execute against Pos
   });
 
   it('reads back rows and drops characters without a sheet', async () => {
-    await saveSheetSection(808, 'wallet', wallet(80));
+    await mergeSheetSection(808, 'wallet', wallet(80));
 
     expect(await readSheetRow(808)).toEqual({ wallet: wallet(80) });
     expect(await readSheetRow(809)).toBeNull();

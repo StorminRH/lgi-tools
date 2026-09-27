@@ -55,7 +55,7 @@ function makePort(overrides: Partial<SheetPort> = {}, sheets = new Map<number, S
       async (structureId): Promise<SheetEsiRead> => ({ kind: 'fresh', body: { name: `Structure ${structureId}` }, etag: null }),
     ),
     readSheet: vi.fn(async (id) => sheets.get(id) ?? null),
-    saveSection: vi.fn(async (id, key, envelope) => {
+    mergeSection: vi.fn(async (id, key, envelope) => {
       sheets.set(id, { ...(sheets.get(id) ?? {}), [key]: envelope });
     }),
     stampSection: vi.fn(async () => {}),
@@ -67,13 +67,13 @@ function makePort(overrides: Partial<SheetPort> = {}, sheets = new Map<number, S
 const endpointsRead = (port: SheetPort) =>
   vi.mocked(port.readEndpoint).mock.calls.map(([, endpoint]) => endpoint).sort();
 const sectionsSaved = (port: SheetPort) =>
-  vi.mocked(port.saveSection).mock.calls.map(([, key]) => key);
+  vi.mocked(port.mergeSection).mock.calls.map(([, key]) => key);
 
 function freshSheet(keys: SheetSectionKey[], refreshedAt = FRESH_STAMP): SheetSections {
   const sheet: SheetSections = {};
   for (const key of keys) {
     (sheet as Record<string, SectionEnvelope<SheetSectionKey>>)[key] = {
-      data: key === 'structures' ? { names: {} } : null,
+      data: { names: {} },
       refreshedAt,
       etags: {},
     };
@@ -107,13 +107,16 @@ describe('refreshCharacterSheetForUser', () => {
 
     const structureReads = vi.mocked(port.readStructure).mock.calls.map(([id]) => id).sort();
     expect(structureReads).toEqual([1099000000001, 1099000000002]);
-    const saveOrder = vi.mocked(port.saveSection).mock.invocationCallOrder;
+    const saveOrder = vi.mocked(port.mergeSection).mock.invocationCallOrder;
     const saveKeys = sectionsSaved(port);
     const firstStructureRead = Math.min(...vi.mocked(port.readStructure).mock.invocationCallOrder);
     expect(saveOrder[saveKeys.indexOf('status')]).toBeLessThan(firstStructureRead);
     expect(saveOrder[saveKeys.indexOf('clones')]).toBeLessThan(firstStructureRead);
     expect(port.sheets.get(1)?.structures?.data).toEqual({
-      names: { '1099000000001': { name: 'Structure 1099000000001' }, '1099000000002': { name: 'Structure 1099000000002' } },
+      names: {
+        '1099000000001': { kind: 'named', name: 'Structure 1099000000001' },
+        '1099000000002': { kind: 'named', name: 'Structure 1099000000002' },
+      },
     });
   });
 
@@ -125,13 +128,13 @@ describe('refreshCharacterSheetForUser', () => {
     expect(port.vendToken).not.toHaveBeenCalled();
     expect(port.readEndpoint).not.toHaveBeenCalled();
     expect(port.readStructure).not.toHaveBeenCalled();
-    expect(port.saveSection).not.toHaveBeenCalled();
+    expect(port.mergeSection).not.toHaveBeenCalled();
   });
 
   it('refreshes only the sections whose tier has expired', async () => {
     const sheet: SheetSections = {
       ...freshSheet(['status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'structures']),
-      profile: { data: null, refreshedAt: STALE_STAMP, etags: {} },
+      profile: { data: { character: { birthday: '2014-03-11T09:42:00Z', securityStatus: null } }, refreshedAt: STALE_STAMP, etags: {} },
     };
     const port = makePort({}, new Map([[1, sheet]]));
 

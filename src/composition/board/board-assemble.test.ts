@@ -55,7 +55,7 @@ const FULL_SHEET: SheetSections = {
       recent: [{ id: 9, date: '2026-09-26T00:00:00Z', refType: 'bounty_prizes', amount: 100, balance: 60, description: 'b' }],
     },
   }),
-  structures: envelope<'structures'>({ names: { '1099000000001': { name: 'Sobaseki - Driftwood Anchorage' } } }),
+  structures: envelope<'structures'>({ names: { '1099000000001': { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } }),
 };
 
 const NAMES: NameBook = {
@@ -65,7 +65,7 @@ const NAMES: NameBook = {
     [10222, { name: 'Cybernetic Subprocessor - Improved', implantSlot: 4, attributeBonus: { intelligence: 5 } }],
   ]),
   systems: new Map([[30000142, { name: 'Jita', security: 0.945913, secClass: 'high' }]]),
-  places: new Map([[60003760, { name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', systemId: 30000142 }]]),
+  npcStations: new Map([[60003760, { name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', systemId: 30000142 }]]),
   entities: { '1000035': 'Caldari Navy' },
   skillCatalog: [{ groupId: 257, name: 'Spaceship Command', skills: [{ typeId: 3327, name: 'Spaceship Command', rank: 1 }] }],
 };
