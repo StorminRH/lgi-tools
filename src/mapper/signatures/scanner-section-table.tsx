@@ -23,6 +23,7 @@ import {
   type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
+import { signatureIdentityKey } from './signature-update-flash';
 import { scannerRowShowsOpenAffordance } from './scanner-row-open';
 
 const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {
@@ -134,6 +135,7 @@ function ColumnHeader({
 function ScannerSectionBlock({
   section,
   missingIds,
+  updatedIds,
   canEdit,
   canIdentify,
   resolveSiteId,
@@ -142,6 +144,8 @@ function ScannerSectionBlock({
 }: {
   readonly section: ScannerSection;
   readonly missingIds: ReadonlySet<string>;
+  /** Rows automation just filled in, keyed `systemId:signatureId`. */
+  readonly updatedIds: ReadonlySet<string>;
   readonly canEdit: boolean;
   readonly canIdentify: boolean;
   readonly resolveSiteId: (name: string) => number | null;
@@ -205,6 +209,7 @@ function ScannerSectionBlock({
                   key={row.key}
                   row={row}
                   missing={missingIds.has(row.signatureId)}
+                  updated={updatedIds.has(signatureIdentityKey(row))}
                   canEdit={canEdit}
                   resolveSiteId={resolveSiteId}
                   columnsClassName={columnsClassName}
@@ -242,6 +247,7 @@ export function ScannerSections({
   sections,
   scannerSystemId,
   missingIds,
+  updatedIds,
   canEdit,
   resolveSiteId,
   complete,
@@ -254,6 +260,8 @@ export function ScannerSections({
   readonly sections: readonly ScannerSection[];
   readonly scannerSystemId: number | null;
   readonly missingIds: ReadonlySet<string>;
+  /** Rows automation just filled in, keyed `systemId:signatureId`. */
+  readonly updatedIds: ReadonlySet<string>;
   readonly canEdit: boolean;
   readonly resolveSiteId: (name: string) => number | null;
   readonly complete: boolean;
@@ -286,6 +294,7 @@ export function ScannerSections({
           key={section.id}
           section={section}
           missingIds={missingIds}
+          updatedIds={updatedIds}
           canEdit={canEdit}
           canIdentify={ctx.onIdentify !== undefined}
           resolveSiteId={resolveSiteId}

@@ -2,3 +2,14 @@
 [data-sonner-toaster] .sonner-loading-bar {
   background: var(--color-isk);
 }
+
+/* Sonner's phone layout (≤600px) pins every toast full width with unlayered
+ * CSS; keep them sized to their text and centred, as on desktop. */
+@media (max-width: 600px) {
+  [data-sonner-toaster][data-x-position='center'] [data-sonner-toast] {
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: calc(100% - var(--mobile-offset-left) * 2);
+  }
+}

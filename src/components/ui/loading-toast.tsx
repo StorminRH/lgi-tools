@@ -21,7 +21,6 @@ interface LoadingToastContextValue {
 const LoadingToastContext = createContext<LoadingToastContextValue | null>(null);
 
 const SYNC_TOAST_ID = 'lgi-sync';
-const SYNC_DONE_MS = 500;
 
 export function LoadingToastProvider({ children }: { children: ReactNode }) {
   const tokens = useRef<Set<string>>(new Set());
@@ -65,9 +64,9 @@ function useSyncToast(active: boolean): void {
   const wasActive = useRef(false);
   useEffect(() => {
     if (active && !wasActive.current) {
-      toast.loading('> syncing…', { id: SYNC_TOAST_ID, duration: Infinity });
+      toast.loading('Syncing…', { id: SYNC_TOAST_ID, duration: Infinity });
     } else if (!active && wasActive.current) {
-      toast.success('> synced', { id: SYNC_TOAST_ID, duration: SYNC_DONE_MS });
+      toast.dismiss(SYNC_TOAST_ID);
     }
     wasActive.current = active;
   }, [active]);

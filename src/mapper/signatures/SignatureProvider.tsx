@@ -7,7 +7,7 @@ import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/connection-detail';
-import type { TrackedSystemTarget } from '../tracking/tracked-system';
+import type { PasteTarget } from '../tracking/tracked-system';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {
   bindConnectionSetters,
@@ -29,6 +29,7 @@ export function SignatureProvider({
   mapId,
   scannerSystemId,
   pasteTarget,
+  onScannerChosen,
   canEdit,
   connectionDetails,
   unresolvedHoles,
@@ -40,7 +41,8 @@ export function SignatureProvider({
 }: {
   readonly mapId: string;
   readonly scannerSystemId: number | null;
-  readonly pasteTarget: TrackedSystemTarget;
+  readonly pasteTarget: PasteTarget;
+  readonly onScannerChosen: (characterId: number) => void;
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
@@ -57,15 +59,19 @@ export function SignatureProvider({
     unresolvedHoles,
   );
   const {
+    cancelPendingPaste,
+    chooseScanner,
     dismissMissing,
     highlightIds,
     missingIds,
+    pendingPaste,
     removeMissingRows,
   } = useSignatureMissingFlow({
     mapId,
     canEdit,
     pasteTarget,
     scannerSystemId,
+    onScannerChosen,
   });
   const identifyRow = useIdentifySignature(mapId);
   const { jumpResolution, pickJumpCandidate } = useSignatureJumpFlow(
@@ -102,6 +108,9 @@ export function SignatureProvider({
         onRemoveMissing={removeMissingRows}
         jumpResolution={jumpResolution}
         onPickJumpCandidate={pickJumpCandidate}
+        pendingPaste={pendingPaste}
+        onChooseScanner={chooseScanner}
+        onCancelPendingPaste={cancelPendingPaste}
         onIdentify={identifyRow}
         onOpenEditor={panel.openEditor}
         onOpenSite={panel.openSite}

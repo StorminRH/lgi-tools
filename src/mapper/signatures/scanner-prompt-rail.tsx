@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { MAP_SCANNER_PROMPT_RAIL_CLASS } from '../windows/MapWindow';
 import { mapFrostedSurface } from '../map-frosted-surface';
+import { ScannerCharacterPrompt } from '../tracking/ScannerCharacterPrompt';
 import { SignatureJumpPrompt } from './SignatureJumpPrompt';
 import type {
   JumpResolutionCandidate,
   JumpResolutionModel,
 } from './jump-resolution';
+import type { PendingScannerPaste } from './use-scanner-paste';
 
 function missingPromptCopy(count: number): string {
   return count === 1
@@ -61,6 +63,9 @@ export function ScannerPromptRail({
   onRemoveMissing,
   jumpResolution,
   onPickJumpCandidate,
+  pendingPaste,
+  onChooseScanner,
+  onCancelPendingPaste,
 }: {
   readonly missingCount: number;
   readonly canEdit: boolean;
@@ -68,13 +73,29 @@ export function ScannerPromptRail({
   readonly onRemoveMissing: () => void;
   readonly jumpResolution: JumpResolutionModel | null;
   readonly onPickJumpCandidate: (candidate: JumpResolutionCandidate) => void;
+  readonly pendingPaste: PendingScannerPaste | null;
+  readonly onChooseScanner: (characterId: number) => void;
+  readonly onCancelPendingPaste: () => void;
 }) {
-  if (missingCount === 0 && !(canEdit && jumpResolution !== null)) return null;
+  if (
+    missingCount === 0 &&
+    pendingPaste === null &&
+    !(canEdit && jumpResolution !== null)
+  ) {
+    return null;
+  }
   return (
     <div
       data-scanner-prompt-rail
       className={MAP_SCANNER_PROMPT_RAIL_CLASS}
     >
+      {pendingPaste === null ? null : (
+        <ScannerCharacterPrompt
+          candidates={pendingPaste.candidates}
+          onPick={onChooseScanner}
+          onCancel={onCancelPendingPaste}
+        />
+      )}
       <MissingSignaturesPrompt
         count={missingCount}
         canEdit={canEdit}

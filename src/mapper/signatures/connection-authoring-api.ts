@@ -68,7 +68,7 @@ export async function answerAndAnnounce(input: {
     input.dismiss();
     return;
   }
-  toast.error('Signature answer not recorded — try again', {
+  toast.error('Answer not saved', {
     id: `jump-answer:${input.connectionId}`,
     duration: 5_000,
   });
@@ -197,7 +197,7 @@ async function removeStubAndAnnounce(input: {
     signatureIds: [input.signatureId],
   });
   if (result === undefined) {
-    toast.error('Signature could not be removed.', {
+    toast.error('Remove failed', {
       id: `signature-remove:${input.systemId}:${input.signatureId}`,
     });
     return;
@@ -214,7 +214,7 @@ async function removeStubAndAnnounce(input: {
           signatureIds: [input.signatureId],
         })
         .catch(() => {
-          toast.error('Signature could not be restored.', {
+          toast.error('Restore failed', {
             id: `signature-restore:${input.systemId}:${input.signatureId}`,
           });
         });

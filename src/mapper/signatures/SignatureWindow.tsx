@@ -17,7 +17,7 @@ import type {
 } from './jump-resolution';
 import { ScannerPromptRail } from './scanner-prompt-rail';
 import { ScannerWindowFrame } from './scanner-window-frame';
-import type { OpenSignatureEditor } from './signature-context';
+import { useSignatureMapId, type OpenSignatureEditor } from './signature-context';
 import {
   applyScannerRowOpenAction,
   scannerRowOpenAction,
@@ -26,6 +26,8 @@ import {
   scannerSectionForGroup,
   type SignatureWindowRow,
 } from './signature-model';
+import type { PendingScannerPaste } from './use-scanner-paste';
+import { useSignatureUpdateFlash } from './use-signature-update-flash';
 
 export interface SignatureWindowProps {
   readonly scannerSystemId: number | null;
@@ -39,6 +41,9 @@ export interface SignatureWindowProps {
   readonly onRemoveMissing: () => Promise<void>;
   readonly jumpResolution: JumpResolutionModel | null;
   readonly onPickJumpCandidate: (candidate: JumpResolutionCandidate) => void;
+  readonly pendingPaste: PendingScannerPaste | null;
+  readonly onChooseScanner: (characterId: number) => void;
+  readonly onCancelPendingPaste: () => void;
   readonly onIdentify: (
     row: SignatureWindowRow,
     group: SigGroup,
@@ -69,6 +74,7 @@ function harvestableNamesForScanner(
 
 export function SignatureWindow(props: SignatureWindowProps) {
   const catalogue = useSiteCatalogue();
+  const updatedIds = useSignatureUpdateFlash(useSignatureMapId(), props.rows);
   const resolveSiteId = catalogue.siteIdForName;
   const harvestableNames = useMemo(
     () => harvestableNamesForScanner(props.rows, props.scannerSystemId),
@@ -76,7 +82,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
   );
   const removeMissing = () => {
     void props.onRemoveMissing().catch(() => {
-      toast.error('The signatures could not be removed. Try again.', {
+      toast.error('Remove failed', {
         id: 'signature-remove:batch',
       });
     });
@@ -87,7 +93,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
     wormholeTypeCode?: string,
   ) =>
     props.onIdentify(row, group, wormholeTypeCode).catch(() => {
-      toast.error('The signature could not be identified.', {
+      toast.error('Identify failed', {
         id: `signature-identify:${row.systemId}:${row.signatureId}`,
       });
     });
@@ -124,11 +130,15 @@ export function SignatureWindow(props: SignatureWindowProps) {
             onRemoveMissing={removeMissing}
             jumpResolution={props.jumpResolution}
             onPickJumpCandidate={props.onPickJumpCandidate}
+            pendingPaste={props.pendingPaste}
+            onChooseScanner={props.onChooseScanner}
+            onCancelPendingPaste={props.onCancelPendingPaste}
           />
           <ScannerWindowFrame
             scannerSystemId={props.scannerSystemId}
             rows={props.rows}
             missingIds={props.missingIds}
+            updatedIds={updatedIds}
             canEdit={props.canEdit}
             complete={props.complete}
             now={props.now}

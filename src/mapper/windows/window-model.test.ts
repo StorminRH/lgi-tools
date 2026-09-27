@@ -20,17 +20,19 @@ const base = {
 describe('map window presence', () => {
   it('points persistent windows at the ready tracked system and falls back otherwise', () => {
     expect(
-      persistentWindowSystemId({ kind: 'ready', systemId: 31_000_001 }, 1),
+      persistentWindowSystemId({ kind: 'ready', systemId: 31_000_001, characterId: 7 }, 1),
     ).toBe(31_000_001);
     expect(persistentWindowSystemId({ kind: 'none' }, 1)).toBe(1);
     expect(persistentWindowSystemId({ kind: 'loading' }, 1)).toBe(1);
-    expect(persistentWindowSystemId({ kind: 'ambiguous' }, 1)).toBe(1);
     expect(persistentWindowSystemId({ kind: 'none' }, null)).toBeNull();
   });
 
-  it('keeps the current-system dock standing and shows a card only for one settled non-dock selection', () => {
+  it('keeps the current-system dock standing and shows a card for one settled selection, the dock system included', () => {
     expect(deriveSurfaces(base).surfaces).toEqual(['dock']);
-    expect(deriveSurfaces({ ...base, selectedIds: [1] }).surfaces).toEqual(['dock']);
+    expect(deriveSurfaces({ ...base, selectedIds: [1] })).toMatchObject({
+      surfaces: ['dock', 'summary'],
+      summarySystemId: 1,
+    });
     expect(deriveSurfaces({ ...base, dockSystemId: null }).surfaces).toEqual([]);
 
     expect(deriveSurfaces({ ...base, selectedIds: [2] })).toMatchObject({
@@ -52,7 +54,7 @@ describe('map window presence', () => {
     });
     expect(
       deriveSurfaces({ ...base, dockSystemId: 2, selectedIds: [2] }),
-    ).toMatchObject({ surfaces: ['dock'], summarySystemId: null });
+    ).toMatchObject({ surfaces: ['dock', 'summary'], summarySystemId: 2 });
   });
 });
 

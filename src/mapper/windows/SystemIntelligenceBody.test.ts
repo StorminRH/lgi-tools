@@ -130,7 +130,7 @@ describe('SystemIntelligenceBody', () => {
     expect(body).not.toContain('J123456');
     expect(body).not.toContain('Security Status');
     expect(body).not.toContain('-1.0');
-    expect(body).toContain('0 signatures · 0 anomalies');
+    expect(body).not.toContain('signatures ·');
 
     Object.assign(fields, { name: 'Jita', security: 0.946, whClassId: null });
     const kspace = titleAccessoryMarkup();
@@ -164,5 +164,27 @@ describe('SystemIntelligenceBody', () => {
 
     fields.effect = null;
     expect(bodyMarkup()).not.toContain('data-intel-effect');
+  });
+
+  it('titles each category that has content and leaves empty ones unheaded', () => {
+    assets.systemInfo.mockImplementation(() => directoryEntry());
+    Object.assign(fields, { name: 'J123456', security: -1, whClassId: 5, effect: 'pulsar' });
+    statics.slots = [{ code: 'H296', className: 'C5' }];
+    signatures.rows = [siteRow('A', combatSite.name)];
+
+    const full = bodyMarkup([combatSite]);
+    for (const heading of ['>Statics</h3>', '>Effect</h3>', '>Signatures</h3>']) {
+      expect(full).toContain(heading);
+    }
+    expect(full.indexOf('>Statics</h3>')).toBeLessThan(full.indexOf('data-intel-statics'));
+    expect(full.indexOf('>Signatures</h3>')).toBeLessThan(full.indexOf('data-intel-category="combat"'));
+
+    statics.slots = [];
+    fields.effect = null;
+    signatures.rows = [];
+    const empty = bodyMarkup();
+    expect(empty).not.toContain('</h3>');
+    expect(empty).not.toContain('data-intel-section="sites"');
+    expect(empty).not.toContain('signatures ·');
   });
 });
