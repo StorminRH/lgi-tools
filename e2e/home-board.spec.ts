@@ -39,13 +39,19 @@ test('the board takes the folded hero’s place, and the hero keeps its DOM node
     .toBe(0);
 });
 
-test('several pilots open on the overview: the rail and the aggregate cards', async ({ page }) => {
+test('several pilots open on the overview: the rail, Wealth first with net worth, no attention list', async ({ page }) => {
   await serveBoard(page);
   await page.goto('/');
   await expect(rail(page).locator('[data-pilot-id]')).toHaveCount(5, { timeout: 15_000 });
-  for (const title of ['Needs attention', 'Training', 'Wealth']) {
-    await expect(overview(page).locator('section').getByText(title, { exact: true }).first()).toBeVisible();
+  const cards = overview(page).locator('section');
+  await expect(cards.first()).toContainText('Wealth');
+  await expect(overview(page).getByRole('img', { name: 'Combined wallet ISK over time' })).toBeVisible();
+  await expect(overview(page).getByText('Wallet ISK · 3 of 5 pilots · since 28 Aug')).toBeVisible();
+  for (const title of ['Training', 'Whereabouts', 'Industry']) {
+    await expect(cards.getByText(title, { exact: true }).first()).toBeVisible();
   }
+  await expect(page.getByText('Needs attention')).toHaveCount(0);
+  await expect(page.locator('path.board-leader, [data-leader-anchor], [data-leader-target]')).toHaveCount(0);
 });
 
 test('a pilot opens its sheet; Back and Escape return to the overview without a document load', async ({ page }) => {
