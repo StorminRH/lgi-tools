@@ -1,19 +1,20 @@
-/* The card area swaps in two phases that never overlap, on every change
- * between the overview and a pilot or between pilots:
- *   0–160ms   the outgoing cards fade out;
- *   180ms+    the incoming ones rise in, the second wave 80ms later.
- * The rail is not part of the transition, so only its selection ring moves. */
-:root:active-view-transition-type(board-focus, board-overview, board-switch)::view-transition-old(root) {
+/* Overview ↔ one pilot's sheet, in two phases that never overlap.
+ * Open:  the pilot's rail portrait morphs into the sheet (0–360ms) while the
+ *        rail and the overview fade out (0–180ms); the sheet then rises in
+ *        (360ms+), panels a beat after the identity.
+ * Close: the sheet fades out (0–180ms); the portrait then morphs back
+ *        (180–540ms) and the overview fades in as it lands (420ms+). */
+:root:active-view-transition-type(board-open, board-close)::view-transition-old(root) {
   animation: none;
   opacity: 0;
 }
-:root:active-view-transition-type(board-focus, board-overview, board-switch)::view-transition-new(root) {
+:root:active-view-transition-type(board-open, board-close)::view-transition-new(root) {
   animation: none;
 }
 
 /* The page under the board is live during the swap, so the footer would jump
- * to its new height mid-flight. Lift it out and show it once the cards land. */
-:root:active-view-transition-type(board-focus, board-overview, board-switch) [data-site-footer] {
+ * to its new height mid-flight. Lift it out and show it once things land. */
+:root:active-view-transition-type(board-open, board-close) [data-site-footer] {
   view-transition-name: board-site-footer;
 }
 ::view-transition-group(board-site-footer) {
@@ -23,23 +24,37 @@
   display: none;
 }
 ::view-transition-new(board-site-footer) {
-  animation: 200ms ease-out 480ms both board-fade-in;
+  animation: 200ms ease-out 560ms both board-fade-in;
 }
 
-/* Outgoing and incoming cards are separate snapshots; neither morphs. */
-::view-transition-group(.board-cards-out),
-::view-transition-group(.board-cards-in),
-::view-transition-group(.board-cards-in-late) {
-  animation: none;
+::view-transition-group(.morph) {
+  z-index: 50;
+  animation-duration: 360ms;
+  animation-timing-function: var(--ease-out-expo);
 }
-::view-transition-old(.board-cards-out) {
-  animation: 160ms ease-in both board-fade-out;
+::view-transition-image-pair(.morph) {
+  animation: 360ms both board-morph-blur;
 }
-::view-transition-new(.board-cards-in) {
-  animation: 300ms var(--ease-out-expo) 180ms both board-rise-in;
+:root:active-view-transition-type(board-close)::view-transition-group(.morph),
+:root:active-view-transition-type(board-close)::view-transition-image-pair(.morph) {
+  animation-delay: 180ms;
 }
-::view-transition-new(.board-cards-in-late) {
-  animation: 320ms var(--ease-out-expo) 260ms both board-rise-in;
+@keyframes board-morph-blur {
+  35% { filter: blur(2px); }
+}
+
+::view-transition-old(.board-overview-out),
+::view-transition-old(.board-sheet-out) {
+  animation: 180ms ease-in both board-fade-out;
+}
+::view-transition-new(.board-sheet-in) {
+  animation: 300ms var(--ease-out-expo) 360ms both board-rise-in;
+}
+::view-transition-new(.board-panels-in) {
+  animation: 340ms var(--ease-out-expo) 440ms both board-rise-in;
+}
+::view-transition-new(.board-overview-in) {
+  animation: 260ms ease-out 420ms both board-fade-in;
 }
 @keyframes board-fade-out {
   to { opacity: 0; }

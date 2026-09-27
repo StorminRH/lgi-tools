@@ -1,10 +1,11 @@
 'use client';
 
-import { ViewTransition } from 'react';
+import { type Ref, ViewTransition } from 'react';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
+import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import type { BoardCharacter, SkillCatalogGroup } from '@/composition/board/api-contract';
-import { CARDS_MOTION, LATE_CARDS_MOTION } from './board-motion';
+import { PANELS_MOTION, SHEET_MOTION } from './board-motion';
 import { reconnectSentence } from './board-view-model';
 import { AttributesSection } from './sections/AttributesSection';
 import { ClonesSection } from './sections/ClonesSection';
@@ -16,25 +17,41 @@ import { WalletSection } from './sections/WalletSection';
 
 // Each part is a direct child of the caller's persistent container: React
 // runs enter and exit only on a <ViewTransition> with no new DOM node above
-// it, so a wrapper element here would stop the card swap from animating.
+// it, so a wrapper element here would stop the sheet from animating.
 export function CharacterDetail({
   character,
   catalog,
   names,
   now,
-  identity,
+  onBack,
+  backRef,
 }: {
   character: BoardCharacter;
   catalog: readonly SkillCatalogGroup[];
   names: Readonly<Record<string, string>>;
   now: number;
-  identity: 'column' | 'card';
+  onBack?: () => void;
+  backRef?: Ref<HTMLButtonElement>;
 }) {
   const sentence = reconnectSentence(character);
   return (
     <>
+      {onBack !== undefined && (
+        <ViewTransition {...SHEET_MOTION} default="none">
+          <div className="xl:col-span-2">
+            <Button
+              ref={backRef}
+              variant="bare"
+              onClick={onBack}
+              className="gap-2 rounded-ctl py-1 font-data text-ui text-muted hover:text-isk"
+            >
+              <span aria-hidden>←</span> All characters
+            </Button>
+          </div>
+        </ViewTransition>
+      )}
       {sentence !== null && (
-        <ViewTransition {...CARDS_MOTION} default="none">
+        <ViewTransition {...SHEET_MOTION} default="none">
           <div className="flex flex-wrap items-center gap-3 xl:col-span-2">
             <Callout label="Reconnect" className="min-w-0 flex-1 text-ui">
               {sentence}
@@ -43,10 +60,10 @@ export function CharacterDetail({
           </div>
         </ViewTransition>
       )}
-      <ViewTransition {...CARDS_MOTION} default="none">
-        <SheetHeader character={character} now={now} layout={identity} />
+      <ViewTransition {...SHEET_MOTION} default="none">
+        <SheetHeader character={character} now={now} />
       </ViewTransition>
-      <ViewTransition {...LATE_CARDS_MOTION} default="none">
+      <ViewTransition {...PANELS_MOTION} default="none">
         {/* DOM order is the phone order; the empty 1fr row soaks up the wallet's extra height. */}
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto_auto_auto_1fr_auto]">
           <QueueSection section={character.skills} names={names} now={now} className="lg:col-start-1 lg:row-start-1" />

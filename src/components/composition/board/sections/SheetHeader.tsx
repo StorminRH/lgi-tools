@@ -1,61 +1,38 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, ViewTransition } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { TypeIcon } from '@/components/type-icon';
-import { cn } from '@/components/ui/cn';
 import { StatusDot } from '@/components/ui/status-dot';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 import { characterAge, characterSecurityClass, placeName } from '../board-view-model';
+import { pilotTransitionName } from '../board-motion';
 import { KpiTile, SystemName } from '../board-bits';
-import { readoutSurface } from '../SectionBody';
 import { EntityLogo } from './EntityLogo';
 
-/**
- * A lone pilot's identity column (portrait, then everything floating, with
- * stat tiles on glass), or, beside the pilot rail, one glass identity card
- * whose portrait the rail already shows.
- */
-export function SheetHeader({
-  character,
-  now,
-  layout,
-}: {
-  character: BoardCharacter;
-  now: number;
-  layout: 'column' | 'card';
-}) {
-  const identity = (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-      <h2 className="font-display text-h2 font-bold leading-tight text-name">{character.name}</h2>
-      <Affiliation character={character} />
-      <IdentityLine character={character} now={now} />
-    </div>
-  );
-  if (layout === 'card') {
-    return (
-      <header className={cn(readoutSurface, 'flex flex-col gap-4 p-4')}>
-        {identity}
-        <Whereabouts character={character} columns="sm:grid-cols-2" />
-        <Kpis character={character} columns="grid-cols-3" />
-      </header>
-    );
-  }
+/** The identity column: portrait, affiliation and whereabouts float; only the stat readouts sit on glass. */
+export function SheetHeader({ character, now }: { character: BoardCharacter; now: number }) {
   return (
     <header className="flex flex-col gap-5">
       <div className="flex items-center gap-4 xl:flex-col xl:items-start">
-        <CharacterPortrait
-          characterId={character.characterId}
-          name={character.name}
-          size={160}
-          src={character.portraitUrl}
-          className="shadow-cta-glow max-xl:size-24"
-        />
-        {identity}
+        <ViewTransition name={pilotTransitionName(character.characterId)} share="morph" default="none">
+          <CharacterPortrait
+            characterId={character.characterId}
+            name={character.name}
+            size={160}
+            src={character.portraitUrl}
+            className="shadow-cta-glow max-xl:size-24"
+          />
+        </ViewTransition>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <h2 className="font-display text-h2 font-bold leading-tight text-name">{character.name}</h2>
+          <Affiliation character={character} />
+          <IdentityLine character={character} now={now} />
+        </div>
       </div>
-      <Whereabouts character={character} columns="sm:grid-cols-2 xl:grid-cols-1" />
-      <Kpis character={character} columns="grid-cols-3 xl:grid-cols-1" />
+      <Whereabouts character={character} />
+      <Kpis character={character} />
     </header>
   );
 }
@@ -106,11 +83,11 @@ function IdentityLine({ character, now }: { character: BoardCharacter; now: numb
   );
 }
 
-function Whereabouts({ character, columns }: { character: BoardCharacter; columns: string }) {
+function Whereabouts({ character }: { character: BoardCharacter }) {
   if (character.status.state !== 'ready') return null;
   const { system, dock, ship } = character.status.data;
   return (
-    <dl className={cn('grid gap-3 text-ui', columns)}>
+    <dl className="grid gap-3 text-ui sm:grid-cols-2 xl:grid-cols-1">
       <Fact label={dock !== null ? 'Docked' : 'In space'}>
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
           {dock !== null && <span className="truncate text-name">{placeName(dock)}</span>}
@@ -137,13 +114,13 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Kpis({ character, columns }: { character: BoardCharacter; columns: string }) {
+function Kpis({ character }: { character: BoardCharacter }) {
   const wallet = character.wallet.state === 'ready' ? character.wallet.data : null;
   const skills = character.skills.state === 'ready' ? character.skills.data : null;
   if (wallet === null && skills === null) return null;
   const free = skills?.unallocatedSp ?? 0;
   return (
-    <dl className={cn('grid gap-2', columns)}>
+    <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
       {wallet !== null && (
         <KpiTile label="Wallet" tone="text-isk">
           {formatIsk(wallet.balance)} <span className="text-micro text-muted sm:text-ui">ISK</span>

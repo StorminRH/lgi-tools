@@ -10,7 +10,9 @@ import {
   useMemo,
   useRef,
   useState,
+  ViewTransition,
 } from 'react';
+import { cn } from '@/components/ui/cn';
 import type { BoardCharacter, BoardResponse, SkillCatalogGroup } from '@/composition/board/api-contract';
 import {
   type BoardView,
@@ -23,6 +25,7 @@ import {
   skillNames,
   tileModel,
 } from './board-view-model';
+import { OVERVIEW_MOTION } from './board-motion';
 import { CharacterDetail } from './CharacterDetail';
 import { OverviewCards } from './OverviewCards';
 import { PilotRail } from './PilotRail';
@@ -36,16 +39,15 @@ function focusedFromOverview(): boolean {
   return typeof state === 'object' && state !== null && FOCUSED_FROM_OVERVIEW in state;
 }
 
-function writeView(view: BoardView, mode: 'push' | 'replace'): void {
+function writeView(view: BoardView): void {
   const href = boardViewHref(window.location.pathname, window.location.search, view);
-  const state = mode === 'push' || focusedFromOverview() ? { [FOCUSED_FROM_OVERVIEW]: true } : null;
-  if (mode === 'push' && view.view === 'character') window.history.pushState(state, '', href);
-  else window.history.replaceState(view.view === 'overview' ? null : state, '', href);
+  if (view.view === 'character') window.history.pushState({ [FOCUSED_FROM_OVERVIEW]: true }, '', href);
+  else window.history.replaceState(null, '', href);
 }
 
 const urlParam = () => characterParam(new URLSearchParams(window.location.search));
 
-const viewKey = (view: BoardView) => (view.view === 'overview' ? 'overview' : `pilot-${view.characterId}`);
+const SHEET_GRID = 'grid gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]';
 
 export function HomeBoardView({
   board,
@@ -79,9 +81,9 @@ function SinglePilot({
     <div
       role="article"
       aria-label={`${character.name} character sheet`}
-      className="grid gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]"
+      className={SHEET_GRID}
     >
-      <CharacterDetail character={character} catalog={catalog} names={names} now={now} identity="column" />
+      <CharacterDetail character={character} catalog={catalog} names={names} now={now} />
     </div>
   );
 }
@@ -90,6 +92,9 @@ function SinglePilot({
 // page, and useSearchParams seeds the first render so a reload opens the same
 // view. The view itself is local state set in startTransition, because Next's
 // history sync commits outside the transition and <ViewTransition> never ran.
+// Every part the transition animates is a direct child of the persistent
+// container: React runs enter and exit only on a <ViewTransition> with no new
+// DOM node above it.
 function PilotBoard({
   board,
   names,
@@ -104,17 +109,14 @@ function PilotBoard({
   const params = useSearchParams();
   const [param, setParam] = useState(() => characterParam(params));
   const view = boardViewFrom(param, board.characters);
-  const viewRef = useRef(view);
-  useLayoutEffect(() => {
-    viewRef.current = view;
-  });
   const rootRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const lastOpened = useRef<number | null>(view.view === 'character' ? view.characterId : null);
 
   const show = useCallback(
     (next: string | null) => {
-      const to = boardViewFrom(next, board.characters);
       startTransition(() => {
-        addTransitionType(boardTransitionType(viewRef.current, to));
+        addTransitionType(boardTransitionType(boardViewFrom(next, board.characters)));
         setParam(next);
       });
     },
@@ -122,30 +124,26 @@ function PilotBoard({
   );
 
   const toOverview = useCallback(() => {
-    if (viewRef.current.view === 'overview') return;
+    if (urlParam() === null) return;
     if (focusedFromOverview()) {
       window.history.back();
       return;
     }
-    writeView(OVERVIEW, 'replace');
+    writeView(OVERVIEW);
     show(null);
   }, [show]);
 
-  const select = useCallback(
+  const open = useCallback(
     (characterId: number) => {
-      const current = viewRef.current;
-      if (current.view === 'character' && current.characterId === characterId) {
-        toOverview();
-        return;
-      }
-      writeView({ view: 'character', characterId }, current.view === 'overview' ? 'push' : 'replace');
+      lastOpened.current = characterId;
+      writeView({ view: 'character', characterId });
       show(String(characterId));
     },
-    [show, toOverview],
+    [show],
   );
 
-  // On the always-mounted board, not on a sheet: an Escape pressed while a
-  // swap is still running was missed when the outgoing sheet owned it.
+  // On the always-mounted board, not on the sheet: an Escape pressed while
+  // the sheet is still animating in was missed when the sheet owned it.
   useEffect(() => {
     const onPop = () => show(urlParam());
     const onKey = (event: KeyboardEvent) => {
@@ -159,46 +157,53 @@ function PilotBoard({
     };
   }, [show, toOverview]);
 
-  const key = viewKey(view);
-  const keyBefore = useRef(key);
+  const shownId = view.view === 'character' ? view.characterId : null;
+  const shownBefore = useRef(shownId);
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (root === null || keyBefore.current === key) return;
-    keyBefore.current = key;
+    if (root === null || shownBefore.current === shownId) return;
+    shownBefore.current = shownId;
     if (root.getBoundingClientRect().top < 0) root.scrollIntoView({ block: 'start' });
-  }, [key]);
+    if (shownId !== null) {
+      lastOpened.current = shownId;
+      backRef.current?.focus({ preventScroll: true });
+    } else if (lastOpened.current !== null) {
+      root.querySelector<HTMLElement>(`[data-pilot-id="${lastOpened.current}"]`)?.focus({ preventScroll: true });
+    }
+  }, [shownId]);
 
+  const selected = board.characters.find((c) => c.characterId === shownId);
+  if (selected !== undefined) {
+    return (
+      <div
+        ref={rootRef}
+        role="article"
+        aria-label={`${selected.name} character sheet`}
+        className={cn('scroll-mt-28', SHEET_GRID)}
+      >
+        <CharacterDetail
+          character={selected}
+          catalog={board.skillCatalog}
+          names={names}
+          now={now}
+          onBack={toOverview}
+          backRef={backRef}
+        />
+      </div>
+    );
+  }
   const pilots = railOrder(board.characters, mainId).map((character) => tileModel(character, names, now));
-  const selected = view.view === 'character' ? board.characters.find((c) => c.characterId === view.characterId) : undefined;
   return (
     <div
       ref={rootRef}
-      className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-10"
+      className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10"
     >
-      <PilotRail
-        pilots={pilots}
-        selectedId={selected?.characterId ?? null}
-        onSelect={select}
-        onOverview={toOverview}
-      />
-      <div
-        role={selected === undefined ? 'region' : 'article'}
-        aria-label={selected === undefined ? 'Pilot overview' : `${selected.name} character sheet`}
-        className="flex min-w-0 flex-col gap-4"
-      >
-        {selected === undefined ? (
-          <OverviewCards key={key} characters={board.characters} names={names} now={now} />
-        ) : (
-          <CharacterDetail
-            key={key}
-            character={selected}
-            catalog={board.skillCatalog}
-            names={names}
-            now={now}
-            identity="card"
-          />
-        )}
-      </div>
+      <ViewTransition {...OVERVIEW_MOTION} default="none">
+        <PilotRail pilots={pilots} onSelect={open} />
+      </ViewTransition>
+      <ViewTransition {...OVERVIEW_MOTION} default="none">
+        <OverviewCards characters={board.characters} now={now} />
+      </ViewTransition>
     </div>
   );
 }

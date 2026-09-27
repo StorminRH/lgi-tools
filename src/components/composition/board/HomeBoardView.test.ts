@@ -36,7 +36,7 @@ const render = (variant: 'full' | 'one' | 'reconnect', query = '', mainId?: numb
 };
 
 describe('HomeBoardView', () => {
-  it('opens several pilots on the overview: rail, totals and aggregate cards', () => {
+  it('opens several pilots on the overview: a rail with each pilot’s state, then wealth and industry', () => {
     const html = render('full');
     for (const name of ['Aurel Vantesse', 'Kessa Draymoor', 'Torvin Hale', 'Ilyana Mirek', 'Bram Oskarsen']) {
       expect(html).toContain(name);
@@ -44,10 +44,16 @@ describe('HomeBoardView', () => {
     expect(html).toContain('aria-label="Pilot overview"');
     expect(html).not.toContain('Needs attention');
     expect(html).toContain('Wallet ISK · 3 of 5 pilots · since 28 Aug');
-    expect(html.indexOf('<span>Wealth</span>')).toBeLessThan(html.indexOf('<span>Training</span>'));
+    expect(html).toContain('<span>Wealth</span>');
+    expect(html).toContain('<span>Industry</span>');
     expect(html).toContain('ISK by pilot');
-    expect(html).toContain('(3 of 5)');
-    expect(html).toContain('Whereabouts');
+    expect(html).not.toContain('<span>Training</span>');
+    expect(html).not.toContain('Whereabouts');
+    expect(html).not.toContain('Skill points');
+    expect(html).toContain('Caldari Cruiser');
+    expect(html).toContain('Medium Drone Operation');
+    expect(html).toContain('>Tama<');
+    expect(html).toContain('Queue paused');
     expect(html).not.toContain('character sheet');
     expect(html).not.toContain('Attributes &amp; implants');
     expect(html).not.toContain('esi-');
@@ -58,12 +64,14 @@ describe('HomeBoardView', () => {
     expect(html.indexOf('data-pilot-id="9900000003"')).toBeLessThan(html.indexOf('data-pilot-id="9900000001"'));
   });
 
-  it('opens the pilot named in the URL with every readout and marks it in the rail', () => {
+  it('opens the pilot named in the URL full width, with a way back and no rail', () => {
     const html = render('full', '?character=9900000001');
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
     expect(html).toContain('Recent wallet journal');
     expect(html).toContain('Attributes &amp; implants');
-    expect(html).toMatch(/aria-pressed="true"[^>]*data-pilot-id="9900000001"/);
+    expect(html).toContain('All characters');
+    expect(html).not.toContain('aria-label="Pilots"');
+    expect(html).not.toContain('aria-label="Pilot overview"');
   });
 
   it('falls back to the overview for an unknown pilot', () => {
@@ -74,6 +82,7 @@ describe('HomeBoardView', () => {
     const html = render('one');
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
     expect(html).not.toContain('aria-label="Pilots"');
+    expect(html).not.toContain('All characters');
   });
 
   it('shows one reconnect sentence for a pilot with gaps', () => {

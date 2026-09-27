@@ -197,12 +197,11 @@ export function boardViewFrom(
   return characters.some((c) => c.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
 }
 
-export type BoardTransitionType = 'board-focus' | 'board-overview' | 'board-switch';
+export type BoardTransitionType = 'board-open' | 'board-close';
 
-/** Which way a view change runs, so the card swap can be keyed to it. */
-export function boardTransitionType(from: BoardView, to: BoardView): BoardTransitionType {
-  if (to.view === 'overview') return 'board-overview';
-  return from.view === 'overview' ? 'board-focus' : 'board-switch';
+/** Opening a pilot or closing back to the overview; the sequence runs each way. */
+export function boardTransitionType(to: BoardView): BoardTransitionType {
+  return to.view === 'overview' ? 'board-close' : 'board-open';
 }
 
 /** The main pilot (the signed-in one, else the first linked) leads; the rest keep link order. */
@@ -377,24 +376,6 @@ export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): Q
   return segments.length === 0 ? null : { segments, endsAt };
 }
 
-/** Pilots by how soon they need a new skill: stalled queues first, then soonest end; unsynced last. */
-export function trainingRows(characters: readonly BoardCharacter[], names: Readonly<Record<string, string>>, now: number) {
-  const rank = (tile: BoardTileModel, endsAt: number | null): [number, number] => {
-    if (tile.training === null) return [2, 0];
-    if (tile.health.tone === 'bad') return [0, 0];
-    return [1, endsAt ?? Number.POSITIVE_INFINITY];
-  };
-  return characters
-    .map((character, order) => {
-      const tile = tileModel(character, names, now);
-      const skills = readyData(character.skills);
-      const endsAt = skills === null ? null : summarizeQueue(skills.queue, now).finishesAt;
-      return { tile, order, key: rank(tile, endsAt) };
-    })
-    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.order - b.order)
-    .map(({ tile }) => tile);
-}
-
 export interface CombinedFlow {
   inflow: number;
   outflow: number;
@@ -461,30 +442,6 @@ export function walletShares(characters: readonly BoardCharacter[]): WalletShare
   return characters.flatMap((character) => {
     const wallet = readyData(character.wallet);
     return wallet === null ? [] : [{ key: String(character.characterId), label: character.name, count: wallet.balance }];
-  });
-}
-
-export interface WhereaboutsRow {
-  characterId: number;
-  name: string;
-  status: { system: SystemRef; docked: string | null; ship: { typeId: number; typeName: string } } | null;
-}
-
-export function whereaboutsRows(characters: readonly BoardCharacter[]): WhereaboutsRow[] {
-  return characters.map((character) => {
-    const status = readyData(character.status);
-    return {
-      characterId: character.characterId,
-      name: character.name,
-      status:
-        status === null
-          ? null
-          : {
-              system: status.system,
-              docked: status.dock === null ? null : placeName(status.dock),
-              ship: { typeId: status.ship.typeId, typeName: status.ship.typeName },
-            },
-    };
   });
 }
 

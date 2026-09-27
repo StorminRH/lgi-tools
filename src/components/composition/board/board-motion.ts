@@ -1,16 +1,23 @@
-import type { BoardTransitionType } from './board-view-model';
-
-type MotionClass = { [type in BoardTransitionType | 'default']: string };
-
-function forEveryType(className: string): MotionClass {
-  return { 'board-focus': className, 'board-overview': className, 'board-switch': className, default: 'none' };
-}
-
 /**
- * The card area swaps in two phases on every view change: the outgoing
- * cards fade out, then the incoming ones rise in, the second wave a beat
- * later. Timings live in HomeBoardView.css; any other transition leaves the
- * board alone.
+ * Opening a pilot: its rail portrait morphs into the sheet while the rail and
+ * the overview fade, then the sheet rises in (identity, then panels).
+ * Closing runs the mirror. Timings live in HomeBoardView.css; any other
+ * transition leaves the board alone.
  */
-export const CARDS_MOTION = { enter: forEveryType('board-cards-in'), exit: forEveryType('board-cards-out') };
-export const LATE_CARDS_MOTION = { enter: forEveryType('board-cards-in-late'), exit: forEveryType('board-cards-out') };
+export const OVERVIEW_MOTION = {
+  enter: { 'board-close': 'board-overview-in', default: 'none' },
+  exit: { 'board-open': 'board-overview-out', default: 'none' },
+};
+export const SHEET_MOTION = {
+  enter: { 'board-open': 'board-sheet-in', default: 'none' },
+  exit: { 'board-close': 'board-sheet-out', default: 'none' },
+};
+export const PANELS_MOTION = {
+  enter: { 'board-open': 'board-panels-in', default: 'none' },
+  exit: { 'board-close': 'board-sheet-out', default: 'none' },
+};
+
+/** Shared by a pilot's rail portrait and its sheet portrait, so one morphs into the other. */
+export function pilotTransitionName(characterId: number): string {
+  return `pilot-${characterId}`;
+}

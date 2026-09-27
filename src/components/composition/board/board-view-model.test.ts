@@ -12,9 +12,7 @@ import {
   industryTotals,
   netWorthSeries,
   railOrder,
-  trainingRows,
   walletShares,
-  whereaboutsRows,
   boardViewHref,
   characterParam,
   fittedDomain,
@@ -125,11 +123,9 @@ describe('board view state', () => {
     expect(boardViewFrom('42', one)).toEqual({ view: 'character', characterId: 9_900_000_001 });
   });
 
-  it('names the transition by where the view goes', () => {
-    const aurelView = { view: 'character', characterId: 1 } as const;
-    expect(boardTransitionType({ view: 'overview' }, aurelView)).toBe('board-focus');
-    expect(boardTransitionType(aurelView, { view: 'overview' })).toBe('board-overview');
-    expect(boardTransitionType(aurelView, { view: 'character', characterId: 2 })).toBe('board-switch');
+  it('opens toward a pilot and closes toward the overview', () => {
+    expect(boardTransitionType({ view: 'character', characterId: 1 })).toBe('board-open');
+    expect(boardTransitionType({ view: 'overview' })).toBe('board-close');
   });
 
   it('puts the main pilot first and keeps link order for the rest', () => {
@@ -234,16 +230,6 @@ describe('fittedDomain', () => {
 describe('overview model', () => {
   const chars = board.characters;
 
-  it('orders training by urgency, stalled queues first and unsynced last', () => {
-    expect(trainingRows(chars, names, NOW).map((row) => row.name)).toEqual([
-      'Torvin Hale',
-      'Ilyana Mirek',
-      'Kessa Draymoor',
-      'Aurel Vantesse',
-      'Bram Oskarsen',
-    ]);
-  });
-
   it('sums wallets, flow and industry honestly', () => {
     expect(walletShares(chars).map((share) => share.label)).toEqual(['Aurel Vantesse', 'Kessa Draymoor', 'Torvin Hale']);
     expect(combinedFlow(chars, NOW)).toEqual({
@@ -270,14 +256,6 @@ describe('overview model', () => {
     const recent = aurel!.journal.state === 'ready' ? aurel!.journal.data : null;
     const shorter = { ...kessa!, journal: { state: 'ready' as const, refreshedAt: NOW, data: { ...recent!, windowStart: '2026-09-20T00:00:00.000Z' } } };
     expect(combinedFlow([aurel!, shorter], NOW)?.label).toBe('windows differ; shortest since 20 Sept 2026');
-  });
-
-  it('places each pilot, docked or in space', () => {
-    const rows = whereaboutsRows(chars);
-    expect(rows[0]?.status?.docked).toBe('Jita IV - Moon 4 - Caldari Navy Assembly Plant');
-    expect(rows[1]?.status?.docked).toBeNull();
-    expect(rows[1]?.status?.ship.typeName).toBe('Ishtar');
-    expect(rows[4]?.status).toBeNull();
   });
 });
 
