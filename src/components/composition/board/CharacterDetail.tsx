@@ -66,7 +66,7 @@ export function CharacterDetail({
       <ViewTransition {...PANELS_MOTION} default="none">
         {/* DOM order is the phone order; the empty 1fr row soaks up the wallet's extra height. */}
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto_auto_auto_1fr_auto]">
-          <QueueSection section={character.skills} names={names} now={now} className="lg:col-start-1 lg:row-start-1" />
+          <QueueSection section={character.skills} names={names} now={now} pilotName={character.name} className="lg:col-start-1 lg:row-start-1" />
           <WalletSection
             wallet={character.wallet}
             journal={character.journal}
@@ -81,7 +81,7 @@ export function CharacterDetail({
           />
           <ClonesSection section={character.clones} now={now} className="lg:col-start-1 lg:row-start-3" />
           <IndustrySection section={character.industry} now={now} className="lg:col-start-1 lg:row-start-4" />
-          <SkillsSection section={character.skills} catalog={catalog} className="lg:col-span-2 lg:row-start-6" />
+          <SkillsSection section={character.skills} catalog={catalog} now={now} className="lg:col-span-2 lg:row-start-6" />
         </div>
       </ViewTransition>
     </>

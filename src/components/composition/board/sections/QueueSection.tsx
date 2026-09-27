@@ -2,22 +2,30 @@
 
 import { useEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
+import { Drawer } from '@/components/ui/drawer';
 import type { BoardSection, BoardSkillsData } from '@/composition/board/api-contract';
 import { SkillQueueRows } from '@/features/skill-queue/components/SkillQueueRows';
 import { formatUtcDate, formatUtcTime } from '@/lib/format/time';
-import { queueHealth, queueTimeline, type TimelineSegment } from '../board-view-model';
+import { queueHealth, queueTimeline, queueWindow, remainingQueue, type TimelineSegment } from '../board-view-model';
 import { HealthLine } from '../board-bits';
 import { SectionBody, SectionPanel } from '../SectionBody';
 
+/**
+ * The next few skills to train, with the whole queue a click away in a
+ * drawer that slides over the page, so a long queue never stretches the
+ * sheet. Entries that finished since the last sync are never shown.
+ */
 export function QueueSection({
   section,
   names,
   now,
+  pilotName,
   className,
 }: {
   section: BoardSection<BoardSkillsData>;
   names: Readonly<Record<string, string>>;
   now: number;
+  pilotName: string;
   className?: string;
 }) {
   return (
@@ -27,18 +35,45 @@ export function QueueSection({
       className={className}
     >
       <SectionBody section={section}>
-        {(skills) =>
-          skills.queue.length === 0 ? (
-            <p className="px-3.5 py-3 text-ui text-dps-high">Nothing is training. Queue a skill in game.</p>
-          ) : (
-            <>
-              <Timeline queue={skills.queue} now={now} />
-              <SkillQueueRows entries={skills.queue} names={names} now={now} />
-            </>
-          )
-        }
+        {(skills) => <QueueBody queue={skills.queue} names={names} now={now} pilotName={pilotName} />}
       </SectionBody>
     </SectionPanel>
+  );
+}
+
+function QueueBody({
+  queue,
+  names,
+  now,
+  pilotName,
+}: {
+  queue: BoardSkillsData['queue'];
+  names: Readonly<Record<string, string>>;
+  now: number;
+  pilotName: string;
+}) {
+  const window = queueWindow(queue, now);
+  if (window.total === 0) {
+    return <p className="px-3.5 py-3 text-ui text-dps-high">Nothing is training. Queue a skill in game.</p>;
+  }
+  return (
+    <>
+      <Timeline queue={queue} now={now} />
+      <SkillQueueRows entries={window.visible} names={names} now={now} />
+      {window.total > window.visible.length && (
+        <Drawer
+          title={`${pilotName} · Skill queue`}
+          trigger={`Show all ${window.total} skills`}
+          triggerClassName="w-full border-t border-border-soft px-3.5 py-2 text-left font-data text-ui text-muted transition-colors hover:bg-row-hover hover:text-isk focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-isk-sub"
+          className="mx-auto max-w-3xl"
+        >
+          <div className="overflow-hidden rounded-card border border-border-soft">
+            <Timeline queue={queue} now={now} />
+            <SkillQueueRows entries={remainingQueue(queue, now)} names={names} now={now} />
+          </div>
+        </Drawer>
+      )}
+    </>
   );
 }
 

@@ -6,7 +6,7 @@ import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
-import { characterAge, characterSecurityClass, placeName } from '../board-view-model';
+import { characterAge, characterSecurityClass, effectiveSkills, placeName } from '../board-view-model';
 import { pilotTransitionName } from '../board-motion';
 import { KpiTile, SystemName } from '../board-bits';
 import { EntityLogo } from './EntityLogo';
@@ -32,7 +32,7 @@ export function SheetHeader({ character, now }: { character: BoardCharacter; now
         </div>
       </div>
       <Whereabouts character={character} />
-      <Kpis character={character} />
+      <Kpis character={character} now={now} />
     </header>
   );
 }
@@ -114,10 +114,11 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Kpis({ character }: { character: BoardCharacter }) {
+function Kpis({ character, now }: { character: BoardCharacter; now: number }) {
   const wallet = character.wallet.state === 'ready' ? character.wallet.data : null;
   const skills = character.skills.state === 'ready' ? character.skills.data : null;
   if (wallet === null && skills === null) return null;
+  const counts = skills === null ? null : effectiveSkills(skills, now);
   const free = skills?.unallocatedSp ?? 0;
   return (
     <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
@@ -131,8 +132,8 @@ function Kpis({ character }: { character: BoardCharacter }) {
           <KpiTile label="Skill points" note={free > 0 ? `+${formatCompactQuantity(free)} free` : undefined}>
             {formatCompactQuantity(skills.totalSp)}
           </KpiTile>
-          <KpiTile label="Skills" note={`${formatQuantity(skills.atV)} at V`} noteTone="text-muted">
-            {formatQuantity(skills.known)}
+          <KpiTile label="Skills" note={`${formatQuantity(counts?.atV ?? 0)} at V`} noteTone="text-muted">
+            {formatQuantity(counts?.known ?? 0)}
           </KpiTile>
         </>
       )}

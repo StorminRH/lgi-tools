@@ -17,11 +17,14 @@ import {
   characterParam,
   fittedDomain,
   flowWindowLabel,
+  effectiveSkills,
   groupSkills,
   placeName,
   queueTimeline,
   boardIsCold,
   queueHealth,
+  queueWindow,
+  remainingQueue,
   recentJournal,
   reconnectSentence,
   rosterTotals,
@@ -149,7 +152,7 @@ describe('board view state', () => {
 describe('groupSkills', () => {
   it('groups trained skills by catalog group with trained/total counts', () => {
     const skills = aurel!.skills.state === 'ready' ? aurel!.skills.data : null;
-    const groups = groupSkills(skills!.levels, board.skillCatalog);
+    const groups = groupSkills({ levels: skills!.levels, reported: {} }, board.skillCatalog);
     const names = groups.map((group) => group.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     const gunnery = groups.find((group) => group.name === 'Gunnery');
@@ -324,5 +327,97 @@ describe('netWorthSeries', () => {
       31,
     ]);
     expect(series.points.at(-1)?.balance).toBeCloseTo(4_112_776_212.67, 1);
+  });
+});
+
+describe('queueWindow', () => {
+  const HOUR = 3_600_000;
+  const entry = (position: number, startH: number | null, endH: number | null) => ({
+    skill_id: 3300 + position,
+    queue_position: position,
+    finished_level: 1,
+    ...(startH === null ? {} : { start_date: new Date(NOW + startH * HOUR).toISOString() }),
+    ...(endH === null ? {} : { finish_date: new Date(NOW + endH * HOUR).toISOString() }),
+  });
+  const ready = (queue: ReturnType<typeof entry>[]) => ({
+    state: 'ready' as const,
+    refreshedAt: NOW,
+    data: { totalSp: 1, unallocatedSp: null, queue, levels: {}, known: 0, atV: 0 },
+  });
+
+  it('drops finished entries and shows the next five of what remains', () => {
+    const queue = Array.from({ length: 42 }, (_, i) => entry(i, i - 3.5, i - 2.5));
+    const window = queueWindow(queue, NOW);
+    expect(window.visible.map((e) => e.queue_position)).toEqual([3, 4, 5, 6, 7]);
+    expect(window.total).toBe(39);
+    expect(remainingQueue(queue, NOW)).toHaveLength(39);
+  });
+
+  it('treats a queue whose entries have all finished as empty', () => {
+    const queue = [entry(0, -9, -6), entry(1, -6, -3), entry(2, -3, -1)];
+    expect(queueWindow(queue, NOW)).toEqual({ visible: [], total: 0 });
+    expect(queueHealth(ready(queue), NOW)).toEqual({ tone: 'bad', label: 'Skill queue is empty' });
+    expect(queueTimeline(queue, NOW)).toBeNull();
+  });
+
+  it('is empty for an empty queue', () => {
+    expect(queueWindow([], NOW)).toEqual({ visible: [], total: 0 });
+  });
+
+  it('keeps a paused queue, which has no dates, in the window', () => {
+    const queue = [entry(0, null, null), entry(1, null, null)];
+    expect(queueWindow(queue, NOW)).toEqual({ visible: queue, total: 2 });
+    expect(queueHealth(ready(queue), NOW)).toEqual({ tone: 'bad', label: 'Queue paused' });
+  });
+
+  it('never counts a finished entry as training or time left', () => {
+    expect(queueHealth(ready([entry(0, -9, -1), entry(1, -1, 5)]), NOW)).toEqual({
+      tone: 'warn',
+      label: 'Queue ends in 5h',
+    });
+    expect(queueHealth(ready([entry(0, -9, -1), entry(1, null, null)]), NOW)).toEqual({
+      tone: 'bad',
+      label: 'Queue paused',
+    });
+  });
+});
+
+describe('effectiveSkills', () => {
+  const HOUR = 3_600_000;
+  const done = (skillId: number, level: number, endH = -1) => ({
+    skill_id: skillId,
+    queue_position: 0,
+    finished_level: level,
+    start_date: new Date(NOW + (endH - 2) * HOUR).toISOString(),
+    finish_date: new Date(NOW + endH * HOUR).toISOString(),
+  });
+  const base = { levels: { '3300': 4, '3301': 2 }, known: 2, atV: 0 };
+
+  it('counts finished queue entries as trained where ESI still lags', () => {
+    const skills = effectiveSkills(
+      { ...base, queue: [done(3300, 5), done(3302, 1), done(3302, 2), done(3301, 3, 4)] },
+      NOW,
+    );
+    expect(skills).toEqual({
+      levels: { '3300': 5, '3301': 2, '3302': 2 },
+      reported: { '3300': 4, '3302': 0 },
+      known: 3,
+      atV: 1,
+    });
+  });
+
+  it('leaves levels alone when ESI already has them', () => {
+    expect(effectiveSkills({ ...base, queue: [done(3300, 3)] }, NOW)).toEqual({
+      levels: base.levels,
+      reported: {},
+      known: 2,
+      atV: 0,
+    });
+  });
+
+  it('marks the raised skill in its group', () => {
+    const catalog = [{ groupId: 1, name: 'Gunnery', skills: [{ typeId: 3300, name: 'Gunnery', rank: 1 }] }];
+    const [group] = groupSkills(effectiveSkills({ ...base, queue: [done(3300, 5)] }, NOW), catalog);
+    expect(group).toMatchObject({ trained: 1, atV: 1, skills: [{ level: 5, reported: 4 }] });
   });
 });

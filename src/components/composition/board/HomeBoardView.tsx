@@ -147,7 +147,10 @@ function PilotBoard({
   useEffect(() => {
     const onPop = () => show(urlParam());
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) toOverview();
+      // An open drawer or dialog owns Escape: it closes first, the sheet stays.
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (document.querySelector('[data-drawer-popup], [role="dialog"]') !== null) return;
+      toOverview();
     };
     window.addEventListener('popstate', onPop);
     window.addEventListener('keydown', onKey);

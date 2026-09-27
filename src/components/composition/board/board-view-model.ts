@@ -74,7 +74,7 @@ const QUEUE_WARN_MS = DAY;
 export function queueHealth(skills: BoardSection<BoardSkillsData>, now: number): QueueHealth {
   if (skills.state === 'pending') return { tone: 'quiet', label: 'Syncing from EVE…' };
   if (skills.state === 'reconnect') return { tone: 'quiet', label: 'Reconnect to sync skills' };
-  const summary = summarizeQueue(skills.data.queue, now);
+  const summary = summarizeQueue(remainingQueue(skills.data.queue, now), now);
   switch (summary.kind) {
     case 'empty':
     case 'complete':
@@ -227,10 +227,46 @@ export function characterParam(params: { get: (key: string) => string | null }):
   return params.get(CHARACTER_PARAM);
 }
 
+export interface EffectiveSkills {
+  levels: Record<string, number>;
+  /** The level ESI last reported, where a finished queue entry has since raised it. */
+  reported: Record<string, number>;
+  known: number;
+  atV: number;
+}
+
+/**
+ * Trained levels with finished queue entries applied. ESI's skill levels
+ * often lag a finished entry until the pilot next logs in; the queue already
+ * says it trained, so it counts, and the known and at-V totals follow.
+ */
+export function effectiveSkills(
+  skills: Pick<BoardSkillsData, 'levels' | 'queue' | 'known' | 'atV'>,
+  now: number,
+): EffectiveSkills {
+  const levels: Record<string, number> = { ...skills.levels };
+  const reported: Record<string, number> = {};
+  let known = skills.known;
+  let atV = skills.atV;
+  for (const entry of skills.queue) {
+    if (entry.finish_date === undefined || Date.parse(entry.finish_date) > now) continue;
+    const key = String(entry.skill_id);
+    const before = levels[key];
+    if (before !== undefined && before >= entry.finished_level) continue;
+    if (!(key in reported)) reported[key] = skills.levels[key] ?? 0;
+    if (skills.levels[key] === undefined && before === undefined) known += 1;
+    if (entry.finished_level === 5 && (before ?? 0) < 5) atV += 1;
+    levels[key] = entry.finished_level;
+  }
+  return { levels, reported, known, atV };
+}
+
 export interface SkillGroupSkill {
   typeId: number;
   name: string;
   level: number;
+  /** Set when a finished queue entry raised the level above what ESI reports. */
+  reported: number | null;
 }
 
 export interface SkillGroupModel {
@@ -243,25 +279,28 @@ export interface SkillGroupModel {
 }
 
 export function groupSkills(
-  levels: Readonly<Record<string, number>>,
+  skills: Pick<EffectiveSkills, 'levels' | 'reported'>,
   catalog: readonly SkillCatalogGroup[],
 ): SkillGroupModel[] {
   const groups: SkillGroupModel[] = [];
   for (const group of catalog) {
-    const skills = group.skills
+    const trained = group.skills
       .flatMap((skill) => {
-        const level = levels[String(skill.typeId)];
-        return level === undefined ? [] : [{ typeId: skill.typeId, name: skill.name, level }];
+        const key = String(skill.typeId);
+        const level = skills.levels[key];
+        return level === undefined
+          ? []
+          : [{ typeId: skill.typeId, name: skill.name, level, reported: skills.reported[key] ?? null }];
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-    if (skills.length === 0) continue;
+    if (trained.length === 0) continue;
     groups.push({
       groupId: group.groupId,
       name: group.name,
-      trained: skills.length,
+      trained: trained.length,
       total: group.skills.length,
-      atV: skills.filter((skill) => skill.level === 5).length,
-      skills,
+      atV: trained.filter((skill) => skill.level === 5).length,
+      skills: trained,
     });
   }
   return groups.sort((a, b) => a.name.localeCompare(b.name));
@@ -489,4 +528,24 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   }
   points.push({ t: today, balance: pilots.reduce((sum, pilot) => sum + pilot.wallet.balance, 0) });
   return { points, from, included: pilots.length, of: characters.length };
+}
+
+export const QUEUE_WINDOW = 5;
+
+/** The queue without entries that finished since the last sync: those are never shown. */
+export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): SkillQueueEntry[] {
+  return [...queue]
+    .sort((a, b) => a.queue_position - b.queue_position)
+    .filter((entry) => entry.finish_date === undefined || Date.parse(entry.finish_date) > now);
+}
+
+export interface QueueWindow {
+  visible: SkillQueueEntry[];
+  total: number;
+}
+
+/** The compact queue: the next entries still to train, in order, at most `size` of them. */
+export function queueWindow(queue: readonly SkillQueueEntry[], now: number, size = QUEUE_WINDOW): QueueWindow {
+  const remaining = remainingQueue(queue, now);
+  return { visible: remaining.slice(0, size), total: remaining.length };
 }
