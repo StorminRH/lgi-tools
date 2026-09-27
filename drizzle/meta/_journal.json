@@ -449,6 +449,13 @@
       "when": 1790520054947,
       "tag": "0063_character_sheets",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790534125354,
+      "tag": "0064_adjusted_price_average",
+      "breakpoints": true
     }
   ]
 }

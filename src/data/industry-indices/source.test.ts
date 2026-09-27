@@ -78,20 +78,24 @@ describe('parseCostIndices', () => {
 });
 
 describe('parseAdjustedPrices', () => {
-  it('maps type_id/adjusted_price, preserves 0.0, and strips average_price', () => {
+  it('maps type_id, adjusted_price and average_price, preserving 0.0', () => {
     const rows = parseAdjustedPrices([
       { adjusted_price: 33.2, average_price: 30.15, type_id: 18 },
       { adjusted_price: 0.0, average_price: 21.47, type_id: 41 },
     ]);
     expect(rows).toEqual([
-      { typeId: 18, adjustedPrice: 33.2 },
-      { typeId: 41, adjustedPrice: 0 },
+      { typeId: 18, adjustedPrice: 33.2, averagePrice: 30.15 },
+      { typeId: 41, adjustedPrice: 0, averagePrice: 21.47 },
     ]);
   });
 
-  it('stores null when adjusted_price is absent (distinct from 0.0)', () => {
-    const rows = parseAdjustedPrices([{ type_id: 99, average_price: 5 }]);
-    expect(rows).toEqual([{ typeId: 99, adjustedPrice: null }]);
+  it('stores null for whichever price is absent (distinct from 0.0)', () => {
+    expect(parseAdjustedPrices([{ type_id: 99, average_price: 5 }])).toEqual([
+      { typeId: 99, adjustedPrice: null, averagePrice: 5 },
+    ]);
+    expect(parseAdjustedPrices([{ type_id: 44992, adjusted_price: 0 }])).toEqual([
+      { typeId: 44992, adjustedPrice: 0, averagePrice: null },
+    ]);
   });
 
   it('throws EsiContractError when type_id is the wrong type', () => {
@@ -110,7 +114,7 @@ describe('fetch* — gate failure handling', () => {
       jsonResponse([{ type_id: 34, adjusted_price: 2.9 }]),
     );
     await expect(fetchAdjustedPrices()).resolves.toEqual([
-      { typeId: 34, adjustedPrice: 2.9 },
+      { typeId: 34, adjustedPrice: 2.9, averagePrice: null },
     ]);
   });
 });
