@@ -1,17 +1,16 @@
+import { ATTRIBUTE_KEYS, type AttributeKey } from '@/data/eve-data/character-attributes';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import { LOCATION_SYNC_SCOPES } from '@/data/location-tracking/sync-eligibility';
 import { journalRefLabel } from '@/features/character-sheet/ref-types';
 import { canSyncSection, SHEET_SECTION_SCOPES } from '@/features/character-sheet/sync-eligibility';
-import {
-  ATTRIBUTE_KEYS,
-  type AttributeKey,
-  type AttributesPart,
-  type ClonesPart,
-  type JournalDigest,
-  type SectionEnvelope,
-  type SheetSectionData,
-  type SheetSectionKey,
-  type SheetSections,
+import type {
+  AttributesPart,
+  ClonesPart,
+  JournalDigest,
+  SectionEnvelope,
+  SheetSectionData,
+  SheetSectionKey,
+  SheetSections,
 } from '@/features/character-sheet/types';
 import { deriveJobStatus } from '@/features/industry-jobs/job-state';
 import { jobOccupiesSlot, slotCapacity } from '@/features/industry-jobs/slots';

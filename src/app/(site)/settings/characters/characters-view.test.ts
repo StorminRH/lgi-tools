@@ -11,6 +11,7 @@ const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({
   hasRefreshToken: true,
   linkedAt: new Date(0),
   corporationId: null,
+  allianceId: null,
   affiliationRefreshedAt: null,
   ...over,
 });

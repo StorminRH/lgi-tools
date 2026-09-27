@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SHEET_SECTION_KEYS, SHEET_SECTIONS, TIER_ENTRY } from './sections';
-import { ATTRIBUTE_KEYS } from './types';
+import { ATTRIBUTE_KEYS } from '@/data/eve-data/character-attributes';
 
 describe('SHEET_SECTIONS', () => {
   it('pins the closed section table in board order', () => {

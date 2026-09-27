@@ -1,3 +1,4 @@
+import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
 
 export type SheetSectionKey =
@@ -14,9 +15,6 @@ export type SheetSectionKey =
 export type DirectSectionKey = Exclude<SheetSectionKey, 'structures'>;
 
 export type SheetTier = 'live' | 'hourly' | 'daily';
-
-export const ATTRIBUTE_KEYS = ['intelligence', 'memory', 'perception', 'willpower', 'charisma'] as const;
-export type AttributeKey = (typeof ATTRIBUTE_KEYS)[number];
 
 export interface CharacterPart {
   birthday: string;

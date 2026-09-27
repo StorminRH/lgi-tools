@@ -1,8 +1,8 @@
+import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import { digestJournalBody } from '@/features/character-sheet/plan';
 import { SHEET_SECTION_SCOPES } from '@/features/character-sheet/sync-eligibility';
 import type {
-  AttributeKey,
   AttributesPart,
   ClonesPart,
   SectionEnvelope,

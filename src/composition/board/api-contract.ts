@@ -1,6 +1,6 @@
 import { z } from 'zod';
+import { ATTRIBUTE_KEYS } from '@/data/eve-data/character-attributes';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
-import { ATTRIBUTE_KEYS } from '@/features/character-sheet/types';
 import { skillQueueEntrySchema } from '@/features/skill-queue/esi-projection';
 import { defineEndpoint, jsonBody } from '@/transport/endpoint';
 
