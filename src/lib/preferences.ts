@@ -175,6 +175,19 @@ export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void 
   document.cookie = `${cookieNameFor(def)}=${encoded}; Path=/; Max-Age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
+/**
+ * Mirror resolved values into the SSR cookies. A signed-in account value wins
+ * over the device's, and without this write-back every server render kept
+ * using the stale cookie, so the page swapped after load on each visit. Only
+ * cookies are written: account values copied into localStorage would outlive
+ * sign-out and be seeded into the next account on a shared browser.
+ */
+export function syncPreferenceCookies(values: ReadonlyMap<string, unknown>): void {
+  for (const def of PREFERENCES) {
+    if (values.has(def.key)) writePreferenceCookie(def, values.get(def.key));
+  }
+}
+
 export function readPreferenceCookieValue<T>(
   raw: string | undefined,
   def: PreferenceDef<T>,

@@ -1,13 +1,16 @@
 import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
 import { HomeHero } from '@/components/composition/HomeHero';
-import { HomeLeftColumn } from '@/components/composition/HomeLeftColumn';
 import { HomeLiveStats } from '@/components/composition/HomeLiveStats';
 import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
+import { HomeSignedInRoster } from '@/components/composition/HomeSignedInRoster';
 
 export function HomeDashboard() {
   return (
     <div className="flex flex-col gap-16">
-      <HomeLeftColumn anonHero={<HomeHero />} signedInHero={<HomeHero pitch={false} />} />
+      <div className="flex flex-col gap-10">
+        <HomeHero />
+        <HomeSignedInRoster />
+      </div>
       <HomeLiveStats />
       <HomeFeatureCards />
       <HomeNewsCard />

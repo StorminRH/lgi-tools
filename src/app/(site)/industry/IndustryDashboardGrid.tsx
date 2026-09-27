@@ -25,11 +25,11 @@ import {
   corpStatus,
   type DashboardSectionId,
   deriveSectionRender,
-  orderSections,
   recentsStatus,
   savedStatus,
   type SectionStatus,
 } from './dashboard-sections';
+import { useSettledSectionOrder } from './use-settled-section-order';
 
 interface SectionCell {
   label: string;
@@ -176,6 +176,8 @@ export function IndustryDashboardGrid({
     }),
   };
 
+  const order = useSettledSectionOrder(status);
+
   const allPlans = plans ?? [];
   const { tiles, overflow } = savedTiles(allPlans);
   const counts = jobCounts(jobs);
@@ -241,7 +243,7 @@ export function IndustryDashboardGrid({
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
-      {orderSections(status).map((id, index) => (
+      {order.map((id, index) => (
         <DashboardSection
           key={id}
           status={status[id]}

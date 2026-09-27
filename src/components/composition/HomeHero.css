@@ -1,9 +1,33 @@
 /* Home hero — the v2 "Orbit" landing. Decorative rings counter-rotate behind
  * the wordmark; the wordmark brackets breathe a soft ISK glow. */
 .home-hero {
+  --home-hero-gap: 1.75rem;
   min-height: 600px;
   justify-content: center;
+  gap: var(--home-hero-gap);
   overflow-x: clip;
+}
+
+/* The visitor pitch folds shut when a session resolves rather than
+ * unmounting, or from first paint when this browser was signed in last time
+ * (the hint only counts until the session settles). The negative margin
+ * cancels the flex gap the empty row would otherwise keep. Clipping only
+ * applies once folded, so the reveal's rise is never cut off. */
+.home-hero-pitch {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 600ms var(--ease-out-expo),
+    margin-block-end 600ms var(--ease-out-expo),
+    opacity 300ms ease-out;
+}
+.home-hero-pitch:is([data-folded], [data-signed-in-hint]:not([data-settled])) {
+  grid-template-rows: 0fr;
+  margin-block-end: calc(-1 * var(--home-hero-gap));
+  opacity: 0;
+}
+.home-hero-pitch:is([data-folded], [data-signed-in-hint]:not([data-settled])) > * {
+  overflow: hidden;
 }
 
 .home-orbits {
@@ -52,4 +76,5 @@
 @media (prefers-reduced-motion: reduce) {
   .home-orbit,
   .hero-bracket { animation: none; }
+  .home-hero-pitch { transition: none; }
 }

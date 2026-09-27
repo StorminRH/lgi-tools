@@ -120,8 +120,7 @@ import AppSiteSettingsLayout from '@/app/(site)/settings/layout';
 import AppSiteSettingsPreferencesPage from '@/app/(site)/settings/preferences/page';
 import { PreferenceGroups } from '@/app/(site)/settings/preferences/preference-groups';
 import { SettingsControlRow } from '@/app/(site)/settings/settings-control-row';
-import { SettingsNav, SettingsNavFrame } from '@/app/(site)/settings/settings-nav';
-import { SettingsRail, SettingsRailFallback } from '@/app/(site)/settings/settings-rail';
+import { SettingsNav, SettingsNavFallback } from '@/app/(site)/settings/settings-nav';
 import AppSiteSitesIdOpengraphImage, { alt, contentType, size } from '@/app/(site)/sites/[id]/opengraph-image';
 import { generateMetadata as AppSiteSitesIdPageGenerateMetadata, generateStaticParams as AppSiteSitesIdPageGenerateStaticParams } from '@/app/(site)/sites/[id]/page';
 import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(site)/sites/page';
@@ -232,9 +231,7 @@ describe('coverage-gaps', () => {
       PreferenceGroups,
       SettingsControlRow,
       SettingsNav,
-      SettingsNavFrame,
-      SettingsRail,
-      SettingsRailFallback,
+      SettingsNavFallback,
       alt,
       contentType,
       size,

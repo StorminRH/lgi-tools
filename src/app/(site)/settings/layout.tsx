@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
-import { SettingsRail, SettingsRailFallback } from './settings-rail';
+import { SettingsNav, SettingsNavFallback } from './settings-nav';
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
@@ -13,8 +13,10 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           data-settings-layout
           className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,var(--container-reading))] lg:gap-10"
         >
-          <Suspense fallback={<SettingsRailFallback />}>
-            <SettingsRail />
+          {/* Only /settings/access/[userId] suspends here: usePathname cannot
+              resolve an unknown param while prerendering. */}
+          <Suspense fallback={<SettingsNavFallback />}>
+            <SettingsNav />
           </Suspense>
           <div data-settings-content className="flex min-w-0 flex-col gap-6">
             {children}

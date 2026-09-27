@@ -644,6 +644,11 @@ a:hover {
 .reveal {
   animation: reveal 900ms var(--ease-out-expo) backwards;
 }
+/* Set by EntranceOnce when the entrance finishes, so a route restored from
+ * its hidden Activity shows at once instead of fading in again. */
+.reveal[data-entered] {
+  animation: none;
+}
 .reveal-1 { animation-delay: 70ms; }
 .reveal-2 { animation-delay: 140ms; }
 .reveal-3 { animation-delay: 210ms; }
