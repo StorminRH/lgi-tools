@@ -5,7 +5,7 @@ import { scaleLinear } from '@visx/scale';
 import { type SparklineTone } from './sparkline';
 import { toneHex } from './tones';
 import { dailyChartModel, type DailyHoverPoint } from './chart/daily-chart-geometry';
-import { tickIndices } from './chart/chart-geometry';
+import { tickAnchor, tickIndices } from './chart/chart-geometry';
 import { useChartHover } from './chart/use-chart-hover';
 import { ChartCanvas } from './chart/chart-canvas';
 import { ValueAxisGrid } from './chart/value-axis';
@@ -214,7 +214,7 @@ function DailyXAxis({
           key={i}
           x={xScale(i)}
           y={y}
-          textAnchor="middle"
+          textAnchor={tickAnchor(i, labels.length)}
           className="fill-[var(--color-muted)] font-data text-micro"
         >
           {formatTick(labels[i] ?? '')}

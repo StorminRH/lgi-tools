@@ -124,7 +124,6 @@ import { SettingsNav, SettingsNavFallback } from '@/app/(site)/settings/settings
 import AppSiteSitesIdOpengraphImage, { alt, contentType, size } from '@/app/(site)/sites/[id]/opengraph-image';
 import { generateMetadata as AppSiteSitesIdPageGenerateMetadata, generateStaticParams as AppSiteSitesIdPageGenerateStaticParams } from '@/app/(site)/sites/[id]/page';
 import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(site)/sites/page';
-import AppSiteSkillsPage from '@/app/(site)/skills/page';
 import AppSiteStructuresPage from '@/app/(site)/structures/page';
 
 describe('coverage-gaps', () => {
@@ -240,7 +239,6 @@ describe('coverage-gaps', () => {
       AppSiteSitesIdPageGenerateStaticParams,
       AppSiteSitesPageMetadata,
       AppSiteSitesPage,
-      AppSiteSkillsPage,
       AppSiteStructuresPage,
     ];
     expect(pinned.length).toBeGreaterThan(0);

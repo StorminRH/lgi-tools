@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkillQueueEntry } from './esi-projection';
-import { entryRowModel, queueCardModel } from './queue-view';
+import { entryRowModel } from './queue-view';
 
 const NOW = Date.parse('2026-06-12T12:00:00Z');
 
@@ -14,33 +14,6 @@ function entry(overrides: Partial<SkillQueueEntry>): SkillQueueEntry {
     ...overrides,
   };
 }
-
-describe('queueCardModel', () => {
-  it('walks never-synced, empty, training, and paused cards', () => {
-    expect(queueCardModel(null, NOW)).toEqual({ isEmpty: false, subtitle: null, header: null });
-
-    const empty = queueCardModel({ entries: [], totalSp: 5_000_000 }, NOW);
-    expect(empty.isEmpty).toBe(true);
-    expect(empty.header).toBeNull();
-    expect(empty.subtitle).toMatch(/SP$/);
-    expect(
-      queueCardModel({ entries: [], totalSp: 5_000_000, unallocatedSp: 10_000 }, NOW).subtitle,
-    ).toMatch(/unallocated$/);
-
-    expect(
-      queueCardModel(
-        { entries: [entry({ finish_date: '2026-06-12T13:00:00Z' })], totalSp: 1 },
-        NOW,
-      ).header,
-    ).toEqual({ kind: 'ends-in', ms: 3_600_000 });
-    expect(
-      queueCardModel(
-        { entries: [entry({ start_date: undefined, finish_date: undefined })], totalSp: 1 },
-        NOW,
-      ).header,
-    ).toEqual({ kind: 'paused' });
-  });
-});
 
 describe('entryRowModel', () => {
   it('surfaces the tone/label meta and the training bar + countdown', () => {

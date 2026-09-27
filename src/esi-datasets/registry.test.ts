@@ -12,6 +12,7 @@ import * as schema from '@/composition/drizzle-schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
 import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
+import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   effectiveTtlMs,
@@ -50,6 +51,7 @@ const liveContext = {
   personalEntryPoints: new Set([
     refreshAffiliations.name,
     refreshCorpStructuresForUser.name,
+    refreshCharacterSheetForUser.name,
   ]),
   engineDatasets: new Set<string>(SYNC_DATASETS),
 };
@@ -269,6 +271,7 @@ describe('ESI dataset registry live gate', () => {
     expect([...flagged].sort()).toEqual(
       [
         'character_industry_job_syncs',
+        'character_sheets',
         'character_skill_syncs',
         'characters',
         'corp_industry_job_syncs',
@@ -381,5 +384,8 @@ describe('ESI dataset registry live gate', () => {
     expect(effectiveTtlMs(entryNamed('character_location'))).toBe(
       SYNC_DATASET_CONFIG.characterLocation.cadenceFloorMs,
     );
+    expect(effectiveTtlMs(entryNamed('character_sheet_live'))).toBe(120_000);
+    expect(effectiveTtlMs(entryNamed('character_sheet_hourly'))).toBe(3_600_000);
+    expect(effectiveTtlMs(entryNamed('character_sheet_daily'))).toBe(86_400_000);
   });
 });

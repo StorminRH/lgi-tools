@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { CharacterOwner } from '@/platform/owner-sync';
 import { refreshJobsForUser } from './refresh';
-import type { CharacterJobsSyncState, JobsEsiRead, JobsPort, RefreshCharacter } from './types';
+import type { CharacterJobsSyncState, JobsEsiRead, JobsPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
@@ -32,7 +33,7 @@ function makePort(overrides: Partial<JobsPort> = {}): JobsPort {
   };
 }
 
-const character = (id: number, extra: Partial<RefreshCharacter> = {}): RefreshCharacter => ({
+const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
   characterId: id,
   hasRefreshToken: true,
   missingScopes: [],

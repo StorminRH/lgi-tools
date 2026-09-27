@@ -28,8 +28,8 @@ function costRow(systemId: number): RawCostIndex {
   return { solarSystemId: systemId, activity: 'manufacturing', costIndex: 0.05 };
 }
 
-function priceRow(typeId: number, adjustedPrice: number | null): RawAdjustedPrice {
-  return { typeId, adjustedPrice };
+function priceRow(typeId: number, adjustedPrice: number | null, averagePrice: number | null = null): RawAdjustedPrice {
+  return { typeId, adjustedPrice, averagePrice };
 }
 
 beforeEach(() => {
@@ -48,6 +48,19 @@ describe('refreshIndustryIndices', () => {
     expect(summary.costIndices).toMatchObject({ ok: true, written: 2 });
     expect(summary.adjustedPrices).toMatchObject({ ok: true, written: 2 });
     expect(db.insert).toHaveBeenCalledTimes(2);
+  });
+
+  it('writes the CCP average alongside the adjusted price', async () => {
+    fetchCostIndicesMock.mockResolvedValue([]);
+    fetchAdjustedPricesMock.mockResolvedValue([priceRow(44992, 0, 4_690_000), priceRow(35, null)]);
+
+    const db = fakeDb();
+    await refreshIndustryIndices(db.db as never);
+
+    expect(db.valuesBatches.flat().map(({ typeId, adjustedPrice, averagePrice }) => ({ typeId, adjustedPrice, averagePrice }))).toEqual([
+      { typeId: 44992, adjustedPrice: 0, averagePrice: 4_690_000 },
+      { typeId: 35, adjustedPrice: null, averagePrice: null },
+    ]);
   });
 
   it('stamps every row in the run with a single updatedAt', async () => {

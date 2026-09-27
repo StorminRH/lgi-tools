@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyEligibleCold, eligibleIdsKey, loadFailureStep, shouldReconcile } from './live-dataset';
+import { anyEligibleCold, eligibleIdsKey, loadFailureStep, RECONCILE_ONCE, reconcileDelay } from './live-dataset';
 
 describe('eligibleIdsKey', () => {
   it('dedupes and sorts into a stable string', () => {
@@ -36,28 +36,32 @@ describe('anyEligibleCold', () => {
   });
 });
 
-describe('shouldReconcile', () => {
+describe('reconcileDelay', () => {
   const coldAlways = () => true;
   const coldNever = () => false;
+  const backoff = [4_000, 8_000, 15_000, 30_000, 60_000];
 
-  it('reconciles once when not yet reconciled and the dataset is cold', () => {
-    expect(shouldReconcile(false, {}, 'k', coldAlways)).toBe(true);
+  it('reconciles once by default, while the dataset is cold', () => {
+    expect(reconcileDelay(0, {}, 'k', coldAlways, RECONCILE_ONCE)).toBe(4_000);
+    expect(reconcileDelay(1, {}, 'k', coldAlways, RECONCILE_ONCE)).toBeNull();
   });
 
-  it('does not reconcile again once already reconciled', () => {
-    expect(shouldReconcile(true, {}, 'k', coldAlways)).toBe(false);
+  it('walks a backoff schedule step by step, then stops', () => {
+    expect(backoff.map((_, attempt) => reconcileDelay(attempt, {}, 'k', coldAlways, backoff))).toEqual(backoff);
+    expect(reconcileDelay(5, {}, 'k', coldAlways, backoff)).toBeNull();
   });
 
-  it('does not reconcile when the dataset is not cold', () => {
-    expect(shouldReconcile(false, {}, 'k', coldNever)).toBe(false);
+  it('stops as soon as the dataset is no longer cold', () => {
+    expect(reconcileDelay(0, {}, 'k', coldNever, backoff)).toBeNull();
+    expect(reconcileDelay(2, {}, 'k', coldNever, backoff)).toBeNull();
   });
 
   it('passes the response + key through to the predicate', () => {
     const seen: Array<[unknown, unknown]> = [];
-    shouldReconcile(false, { n: 1 }, 42, (r, k) => {
+    reconcileDelay(0, { n: 1 }, 42, (r, k) => {
       seen.push([r, k]);
       return false;
-    });
+    }, backoff);
     expect(seen).toEqual([[{ n: 1 }, 42]]);
   });
 });

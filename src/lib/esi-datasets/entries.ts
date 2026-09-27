@@ -250,6 +250,62 @@ export const ESI_DATASET_ENTRIES = [
       'Weekly conditional refresh into an operator-reviewed pending snapshot; serving reads only the promoted copy.',
   },
   {
+    name: 'character_sheet_live',
+    store: 'neon',
+    shape: 'personal-on-view',
+    freshnessModel: 'caller-ttl',
+    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetForUser' },
+    upstream: {
+      kind: 'esi',
+      specPaths: [
+        '/characters/{character_id}/location/',
+        '/characters/{character_id}/ship/',
+        '/characters/{character_id}/online/',
+        '/characters/{character_id}/attributes/',
+        '/characters/{character_id}/implants/',
+        '/characters/{character_id}/clones/',
+        '/characters/{character_id}/wallet/',
+      ],
+      verifiedCacheSeconds: 120,
+    },
+    notes:
+      'The 120 s tier of the home board character sheet: attributes, implants, clones and wallet balance are cached 120 s upstream; location, ship and online (5-60 s) are declared at the tier maximum, which stays at or above every upstream. Those three paths are also claimed by the Convex character_location entry (the map tracker); this entry reads them on view for the dashboard at the tier TTL and never feeds the tracker.',
+    mirrorTables: ['character_sheets'],
+  },
+  {
+    name: 'character_sheet_hourly',
+    store: 'neon',
+    shape: 'personal-on-view',
+    freshnessModel: 'caller-ttl',
+    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetForUser' },
+    upstream: {
+      kind: 'esi',
+      specPaths: [
+        '/characters/{character_id}/wallet/journal/',
+        '/characters/{character_id}/orders/',
+        '/universe/structures/{structure_id}/',
+      ],
+      verifiedCacheSeconds: 3600,
+    },
+    notes:
+      'The hourly tier: journal page 1 (digested, never stored raw), open market orders (1200 s upstream, declared at the tier maximum), and the names of player structures a character is docked at or keeps clones in.',
+    mirrorTables: ['character_sheets'],
+  },
+  {
+    name: 'character_sheet_daily',
+    store: 'neon',
+    shape: 'personal-on-view',
+    freshnessModel: 'caller-ttl',
+    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetForUser' },
+    upstream: {
+      kind: 'esi',
+      specPaths: ['/characters/{character_id}/'],
+      verifiedCacheSeconds: 86400,
+    },
+    notes: 'The daily tier: the public character record (birthday, security status).',
+    mirrorTables: ['character_sheets'],
+  },
+  {
     name: 'character_location',
     store: 'convex',
     shape: 'live',

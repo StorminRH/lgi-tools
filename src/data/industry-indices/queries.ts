@@ -48,6 +48,21 @@ export async function getAdjustedPrices(typeIds: number[]): Promise<Map<number, 
   return out;
 }
 
+/** CCP's rolling average per type; types without one are absent. */
+export async function getAveragePrices(typeIds: number[]): Promise<Map<number, number>> {
+  if (typeIds.length === 0) return new Map();
+  const rows = await defaultDb
+    .select({ typeId: adjustedPrices.typeId, averagePrice: adjustedPrices.averagePrice })
+    .from(adjustedPrices)
+    .where(inArray(adjustedPrices.typeId, typeIds));
+
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.averagePrice !== null) out.set(r.typeId, r.averagePrice);
+  }
+  return out;
+}
+
 export async function getAdjustedPrice(typeId: number): Promise<number | null> {
   const prices = await getAdjustedPrices([typeId]);
   return prices.get(typeId) ?? null;

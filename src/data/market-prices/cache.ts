@@ -1,4 +1,4 @@
-import { count, desc } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db, type Sql } from '@/db';
@@ -30,15 +30,6 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
   return withColdStartRetry(() => getPricesFreshness(db));
-}
-
-export async function getCachedTrackedTypeCount(): Promise<number> {
-  'use cache';
-  cacheLife('max');
-  return withColdStartRetry(async () => {
-    const [row] = await db.select({ n: count() }).from(marketPrices);
-    return Number(row?.n ?? 0);
-  });
 }
 
 export async function refreshStalePrices(client: Sql): Promise<CachedRefreshResult> {

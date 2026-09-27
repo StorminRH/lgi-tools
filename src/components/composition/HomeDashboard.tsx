@@ -1,19 +1,18 @@
-import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
+import type { ReactNode } from 'react';
+import { HomeSignedInBoard } from '@/components/composition/board/HomeSignedInBoard';
 import { HomeHero } from '@/components/composition/HomeHero';
-import { HomeLiveStats } from '@/components/composition/HomeLiveStats';
-import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
-import { HomeSignedInRoster } from '@/components/composition/HomeSignedInRoster';
+import { SignedInFold } from '@/components/composition/SignedInFold';
 
-export function HomeDashboard() {
+export function HomeDashboard({ demoSlot }: { demoSlot?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-16">
-      <div className="flex flex-col gap-10">
+    <div className="home-dashboard flex flex-col gap-10 [--fold-gap:--spacing(10)]">
+      <SignedInFold>
         <HomeHero />
-        <HomeSignedInRoster />
+      </SignedInFold>
+      {demoSlot}
+      <div className="home-board-slot empty:hidden">
+        <HomeSignedInBoard />
       </div>
-      <HomeLiveStats />
-      <HomeFeatureCards />
-      <HomeNewsCard />
     </div>
   );
 }
