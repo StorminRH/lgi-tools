@@ -14,6 +14,11 @@ Landmines that lint, Fallow, and nearby tests do not catch.
   Do not add a nonce-based Content Security Policy.
 - Pages get a real static shell and put request data in the smallest
   `<Suspense>` hole. Do not wrap a fully dynamic screen in a fake shell.
+- App-wide client state that changes after load (session, preferences)
+  goes in a `createClientStore` read with `useClientStore`, never a
+  context value. Next wraps each route segment in an Activity boundary that
+  hydrates after the root, and a context change reaching it throws its server
+  HTML away (React #418 or a silent re-render).
 
 ## Styling
 

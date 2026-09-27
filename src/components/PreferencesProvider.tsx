@@ -1,17 +1,9 @@
 'use client';
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
 import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
+import { createClientStore, useClientStore } from '@/lib/client-store';
 import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { apiFetch } from '@/transport/api-client';
@@ -26,13 +18,26 @@ import {
   type PreferenceDef,
 } from '@/lib/preferences';
 
-interface PreferencesContextValue {
-  values: Map<string, unknown>;
-  ready: boolean;
-  set: <T>(def: PreferenceDef<T>, value: T) => void;
+interface ResolvedPreferences {
+  readonly values: ReadonlyMap<string, unknown>;
+  readonly ready: boolean;
 }
 
-const PreferencesContext = createContext<PreferencesContextValue | null>(null);
+// Resolved values live in a client store (see createClientStore); the context
+// carries only the stable setter.
+const preferencesStore = createClientStore<ResolvedPreferences>({
+  values: new Map(),
+  ready: false,
+});
+
+type SetPreference = <T>(def: PreferenceDef<T>, value: T) => void;
+
+const PreferencesContext = createContext<SetPreference | null>(null);
+
+function markPreferencesLoading(): void {
+  const current = preferencesStore.get();
+  if (current.ready) preferencesStore.set({ values: current.values, ready: false });
+}
 
 function readLocalValues(): Map<string, unknown> {
   const out = new Map<string, unknown>();
@@ -50,9 +55,6 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const { loading } = useAuth();
   const userId = data?.user?.id ?? null;
 
-  const [values, setValues] = useState<Map<string, unknown>>(() => new Map());
-  const [ready, setReady] = useState(false);
-
   const userIdRef = useRef(userId);
   useEffect(() => {
     userIdRef.current = userId;
@@ -69,20 +71,18 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       if (!userId) {
         const local = readLocalValues();
         syncPreferenceCookies(local);
-        setValues(local);
-        setReady(true);
+        preferencesStore.set({ values: local, ready: true });
         return;
       }
 
-      setReady(false);
+      markPreferencesLoading();
       void (async () => {
         const res = await apiFetch(getPreferencesEndpoint);
         if (!alive) return;
 
         const { reconciled, toSeed } = processPreferencesResponse(res, readLocalValues());
         syncPreferenceCookies(reconciled);
-        setValues(reconciled);
-        setReady(true);
+        preferencesStore.set({ values: reconciled, ready: true });
 
         for (const key of toSeed) {
           void apiFetch(putPreferenceEndpoint, { body: { key, value: reconciled.get(key) } });
@@ -97,11 +97,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   }, [loading, userId]);
 
   const set = useCallback(function set<T>(def: PreferenceDef<T>, value: T): void {
-    setValues((prev) => {
-      const next = new Map(prev);
-      next.set(def.key, value);
-      return next;
-    });
+    const { values, ready } = preferencesStore.get();
+    preferencesStore.set({ values: new Map(values).set(def.key, value), ready });
     writeLocalPreference(def, value);
     writePreferenceCookie(def, value);
     if (userIdRef.current) {
@@ -109,17 +106,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const ctx = useMemo<PreferencesContextValue>(() => ({ values, ready, set }), [values, ready, set]);
-
-  return <PreferencesContext.Provider value={ctx}>{children}</PreferencesContext.Provider>;
+  return <PreferencesContext.Provider value={set}>{children}</PreferencesContext.Provider>;
 }
 
 export function usePreference<T>(
   def: PreferenceDef<T>,
   opts?: { serverValue?: T },
 ): readonly [T, (value: T) => void] {
-  const ctx = useContext(PreferencesContext);
-  const raw = ctx?.values.get(def.key);
+  const set = useContext(PreferencesContext);
+  const raw = useClientStore(preferencesStore).values.get(def.key);
   let value: T;
   if (raw !== undefined) {
     const parsed = def.schema.safeParse(raw);
@@ -127,11 +122,10 @@ export function usePreference<T>(
   } else {
     value = opts?.serverValue ?? def.fallback;
   }
-  const set = ctx?.set;
   const setValue = useCallback((next: T) => set?.(def, next), [set, def]);
   return [value, setValue] as const;
 }
 
 export function usePreferencesReady(): boolean {
-  return useContext(PreferencesContext)?.ready ?? false;
+  return useClientStore(preferencesStore).ready;
 }
