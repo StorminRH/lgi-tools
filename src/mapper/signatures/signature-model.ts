@@ -34,11 +34,6 @@ export interface SignatureWindowRow {
 
 export type ConnectionSignatureInput = ConnectionEditorDetail;
 
-export interface SignatureCounts {
-  readonly signatures: number;
-  readonly anomalies: number;
-}
-
 export type ScannerPasteDecision =
   | { readonly kind: 'apply'; readonly systemId: number; readonly rows: readonly ScannedRow[] }
   | { readonly kind: 'reject'; readonly rejectCount: number }
@@ -50,8 +45,6 @@ export type ScannerPasteDecision =
       readonly candidates: readonly DockCharacter[];
       readonly rows: readonly ScannedRow[];
     };
-
-const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
 
 function signatureDocumentRow(
   row: Doc<'mapSignatures'>,
@@ -305,21 +298,6 @@ export function scannerLifeUpperBound(
 ): string {
   if (connection === null) return '—';
   return lifetimeUpperBoundLabel(connection, entry, now) ?? '—';
-}
-
-export function signatureCounts(
-  rows: readonly SignatureWindowRow[],
-  systemId: number | null,
-): SignatureCounts {
-  if (systemId === null) return EMPTY_COUNTS;
-  let signatures = 0;
-  let anomalies = 0;
-  for (const row of rows) {
-    if (row.systemId !== systemId) continue;
-    if (row.kind === 'anomaly') anomalies += 1;
-    else signatures += 1;
-  }
-  return { signatures, anomalies };
 }
 
 export function formatSignatureAge(firstSeenAt: number, now: number): string {

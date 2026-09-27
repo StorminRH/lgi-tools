@@ -17,7 +17,6 @@ import {
   scannerLifeUpperBound,
   scannerWormholeLifetime,
   scannerWormholeSize,
-  signatureCounts,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
 } from './signature-model';
@@ -88,7 +87,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       .toEqual(['ABC-123', 'WHL-001']);
     expect(filterSignatureRows(rows, SYSTEM, 'anomaly').map((row) => row.signatureId))
       .toEqual(['ANO-456']);
-    expect(signatureCounts(rows, SYSTEM)).toEqual({ signatures: 2, anomalies: 1 });
     expect(rows.find((row) => row.signatureId === 'WHL-001')).toMatchObject({
       key: 'connection:connection-1',
       group: 'Wormhole',

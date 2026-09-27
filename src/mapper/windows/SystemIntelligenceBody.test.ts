@@ -130,7 +130,7 @@ describe('SystemIntelligenceBody', () => {
     expect(body).not.toContain('J123456');
     expect(body).not.toContain('Security Status');
     expect(body).not.toContain('-1.0');
-    expect(body).toContain('0 signatures · 0 anomalies');
+    expect(body).not.toContain('signatures ·');
 
     Object.assign(fields, { name: 'Jita', security: 0.946, whClassId: null });
     const kspace = titleAccessoryMarkup();
@@ -184,6 +184,7 @@ describe('SystemIntelligenceBody', () => {
     signatures.rows = [];
     const empty = bodyMarkup();
     expect(empty).not.toContain('</h3>');
-    expect(empty).toContain('0 signatures · 0 anomalies');
+    expect(empty).not.toContain('data-intel-section="sites"');
+    expect(empty).not.toContain('signatures ·');
   });
 });

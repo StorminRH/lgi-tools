@@ -12,7 +12,6 @@ import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormh
 import { formatIskShort } from '@/lib/format/isk';
 import { useUniverseAssets } from '../chain/use-universe-assets';
 import { useSignatureRows } from '../signatures/signature-context';
-import { signatureCounts } from '../signatures/signature-model';
 import { useSystemStaticSlots, useWormholeCodexStatus } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
@@ -247,17 +246,11 @@ function FriendliesSection({ systemId }: { readonly systemId: number }) {
   );
 }
 
-function SitesSection({ blocks, counts }: {
-  readonly blocks: readonly IntelCategoryBlock[];
-  readonly counts: { readonly signatures: number; readonly anomalies: number };
-}) {
-  const summary = <p className="font-data text-micro text-muted">{counts.signatures} signatures · {counts.anomalies} anomalies</p>;
-  if (blocks.length === 0 && counts.signatures + counts.anomalies === 0) {
-    return <section data-intel-section="sites">{summary}</section>;
-  }
+function SitesSection({ blocks }: { readonly blocks: readonly IntelCategoryBlock[] }) {
+  if (blocks.length === 0) return null;
   return (
     <IntelSection section="sites" title="Signatures">
-      {blocks.length > 0 ? blocks.map((block) => <CategoryBlock key={block.bucket} block={block} />) : summary}
+      {blocks.map((block) => <CategoryBlock key={block.bucket} block={block} />)}
     </IntelSection>
   );
 }
@@ -265,11 +258,10 @@ function SitesSection({ blocks, counts }: {
 export function SystemIntelligenceBody({ systemId }: { readonly systemId: number }) {
   const rows = useSignatureRows(systemId);
   const blocks = useMemo(() => intelCategoryBlocks(rows, systemId), [rows, systemId]);
-  const counts = signatureCounts(rows, systemId);
   return (
     <div key={systemId} data-system-intel className="nopan nowheel flex min-w-60 flex-col gap-3 text-left">
       <LocationSection systemId={systemId} />
-      <SitesSection blocks={blocks} counts={counts} />
+      <SitesSection blocks={blocks} />
       <FriendliesSection systemId={systemId} />
     </div>
   );
