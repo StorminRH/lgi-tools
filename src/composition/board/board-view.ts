@@ -53,7 +53,6 @@ async function readRaws(linked: LinkedCharacter[]): Promise<BoardRaw[]> {
   });
 }
 
-/** Viewing the board is the refresh trigger: one Neon read now, one write-behind for all three datasets. */
 export async function getBoardForUserOnView(userId: string): Promise<BoardResponse> {
   const linked = await listLinkedCharacters(userId);
   const raws = await readRaws(linked);

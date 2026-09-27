@@ -4,7 +4,6 @@ import { SectionHeader } from '@/components/ui/section-header';
 import type { BoardSection } from '@/composition/board/api-contract';
 import { formatRelativeTime } from '@/lib/format/time';
 
-/** Panel chrome shared by every sheet section. */
 export function SectionPanel({
   title,
   meta,

@@ -31,7 +31,6 @@ function subscribeDesktop(onChange: () => void): () => void {
   return () => query.removeEventListener('change', onChange);
 }
 
-// Open on desktop and collapsed on phones until the pilot toggles it.
 function useOpenOnDesktop(): [boolean, (open: boolean) => void] {
   const desktop = useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP).matches, () => false);
   const [toggled, setToggled] = useState<boolean | null>(null);

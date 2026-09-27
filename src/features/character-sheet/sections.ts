@@ -31,7 +31,6 @@ export const SHEET_SECTION_KEYS = [
   'structures',
 ] as const satisfies readonly SheetSectionKey[];
 
-/** The closed section table. Adding a section is one row here plus one ESI path in the composition port. */
 export const SHEET_SECTIONS: { [K in SheetSectionKey]: SheetSectionSpec<K> } = {
   profile: {
     key: 'profile',

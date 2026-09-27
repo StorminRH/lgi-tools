@@ -25,7 +25,6 @@ function makeJobsPort(): JobsPort {
   };
 }
 
-/** The on-view write-behind: budget-deferred refresh of every linked character's jobs. */
 export function refreshJobsOnView(userId: string): Promise<OwnerSyncResult[]> {
   return refreshJobsForUser(
     makeJobsPort(),

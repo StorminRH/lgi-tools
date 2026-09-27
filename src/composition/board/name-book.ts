@@ -8,11 +8,6 @@ import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { getTypeNames } from '@/data/eve-data/queries';
 import type { NameBook, NameIdRequest, PlaceFacts, TypeFacts } from './board-assemble';
 
-/**
- * One pass for the whole roster: SDE for types, systems, stations and the skill
- * catalog; the ESI names resolver for corporations, alliances and any NPC station
- * the SDE backfill has not named yet.
- */
 export async function resolveNameBook(request: NameIdRequest): Promise<NameBook> {
   const stations = await getNpcStationFacts(request.stationIds);
   const namelessStations = [...stations].filter(([, facts]) => facts.name === null).map(([id]) => id);

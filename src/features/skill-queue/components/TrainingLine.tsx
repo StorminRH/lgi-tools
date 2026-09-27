@@ -21,7 +21,6 @@ function PauseGlyph() {
 
 const IDLE_TEXT = { empty: 'No skills queued', complete: 'Training complete' } as const;
 
-/** The skill in training, its time left and an evb progress bar. */
 export function TrainingLine({
   training,
   skillName,

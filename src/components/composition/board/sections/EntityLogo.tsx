@@ -5,7 +5,6 @@ import { EveImage } from '@/components/eve-image';
 
 const PATH = { corporation: 'corporations', alliance: 'alliances' } as const;
 
-/** A corporation or alliance logo that drops out when the image server has none. */
 export function EntityLogo({ kind, id, name }: { kind: 'corporation' | 'alliance'; id: number; name: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;

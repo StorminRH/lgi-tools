@@ -14,7 +14,6 @@ export function HealthLine({ health, className }: { health: QueueHealth; classNa
   return <span className={cn('font-data', HEALTH_CLASS[health.tone], className)}>{health.label}</span>;
 }
 
-/** A system name with its security status in the EVE security colour. */
 export function SystemName({ system }: { system: SystemRef }) {
   const showSecurity = system.secClass !== 'wormhole' && system.security !== null;
   return (

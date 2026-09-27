@@ -28,7 +28,6 @@ function makeSkillsPort(): SkillsPort {
   };
 }
 
-/** The on-view write-behind: budget-deferred refresh of every linked character's skills. */
 export function refreshSkillsOnView(userId: string): Promise<OwnerSyncResult[]> {
   return refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId));
 }

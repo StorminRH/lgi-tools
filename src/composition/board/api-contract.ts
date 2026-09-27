@@ -4,7 +4,6 @@ import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { skillQueueEntrySchema } from '@/features/skill-queue/esi-projection';
 import { defineEndpoint, jsonBody } from '@/transport/endpoint';
 
-/** What a reconnect would add, in the order the reconnect sentence names them. */
 export const BOARD_GAPS = [
   'skills',
   'location',

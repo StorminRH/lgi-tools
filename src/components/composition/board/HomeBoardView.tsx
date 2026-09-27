@@ -33,7 +33,6 @@ function remember(characterId: number): void {
   } catch {}
 }
 
-// Scrolling the sheet into view only helps when it sits below the tile strip.
 function revealOnNarrow(element: HTMLElement | null): void {
   if (element === null || !window.matchMedia('(max-width: 767px)').matches) return;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -50,7 +49,6 @@ export function HomeBoardView({
   sessionCharacterId?: number | null;
 }) {
   const names = useMemo(() => skillNames(board.skillCatalog), [board.skillCatalog]);
-  // The server snapshot is null, so storage is read only after hydration.
   const remembered = useSyncExternalStore(noSubscribe, readRemembered, () => null);
   const [picked, setPicked] = useState<number | null>(null);
   const detailRef = useRef<HTMLElement>(null);

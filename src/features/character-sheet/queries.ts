@@ -20,7 +20,6 @@ export async function getCharacterSheets(characterIds: number[]): Promise<Map<nu
   return mapByIdDroppingNulls(characterIds, getCharacterSheet);
 }
 
-/** The uncached read the refresh engine uses for sync state. */
 export async function readSheetRow(characterId: number): Promise<SheetSections | null> {
   const rows = await db
     .select({ sections: characterSheets.sections })

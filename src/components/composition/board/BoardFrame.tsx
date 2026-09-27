@@ -5,8 +5,6 @@ import { Dot } from '@/components/ui/dot';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 
-// The only `.reveal` on the board: the skeleton, the empty state and the
-// loaded view all swap inside it, so the entrance plays once.
 export function BoardFrame({ demo = false, children }: { demo?: boolean; children: ReactNode }) {
   return (
     <Card className="reveal mx-auto w-full max-w-[1120px] rounded-panel p-4 sm:p-5">

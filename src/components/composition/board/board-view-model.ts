@@ -25,7 +25,6 @@ function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
 }
 
-/** A roster sum that says how many characters it covers, so a gap never reads as zero. */
 export interface CoveredSum {
   value: number;
   covered: number;
@@ -42,7 +41,6 @@ function coveredSum(values: readonly (number | null)[]): CoveredSum | null {
   };
 }
 
-/** "(3 of 5)" when some characters are missing from a sum, empty when all are in it. */
 export function coverageNote(sum: CoveredSum): string {
   return sum.covered < sum.total ? ` (${sum.covered} of ${sum.total})` : '';
 }
@@ -93,7 +91,6 @@ export function queueHealth(skills: BoardSection<BoardSkillsData>, now: number):
   }
 }
 
-/** typeId → skill name, for the queue rows and the training line. */
 export function skillNames(catalog: readonly SkillCatalogGroup[]): Record<string, string> {
   const names: Record<string, string> = {};
   for (const group of catalog) {
@@ -181,7 +178,6 @@ export function reconnectSentence(character: BoardCharacter): string | null {
   return `Reconnect ${name} to add ${joinList(ordered.map((gap) => GAP_PHRASE[gap]))}.`;
 }
 
-/** A remembered pick wins, then the signed-in character, then the first tile. */
 export function defaultSelection(
   characters: readonly BoardCharacter[],
   remembered: number | null,
@@ -214,7 +210,6 @@ export interface SkillGroupModel {
   skills: SkillGroupSkill[];
 }
 
-/** Trained skills by catalog group; groups with nothing trained are left out. */
 export function groupSkills(
   levels: Readonly<Record<string, number>>,
   catalog: readonly SkillCatalogGroup[],
@@ -240,7 +235,6 @@ export function groupSkills(
 
 const FLOW_WINDOW_MS = 30 * DAY;
 
-/** "last 30 days", or "since <date>" when the journal does not reach back that far. */
 export function flowWindowLabel(windowStart: string, now: number): string {
   const start = Date.parse(windowStart);
   if (!Number.isFinite(start) || now - start >= FLOW_WINDOW_MS - HOUR) return 'last 30 days';
@@ -277,7 +271,6 @@ export function recentJournal<Row extends { date: string }>(rows: readonly Row[]
   return [...rows].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, RECENT_JOURNAL_ROWS);
 }
 
-/** Whole years and months since the birthday: "7y 2m". */
 export function characterAge(birthday: string, now: number): string | null {
   const born = new Date(birthday);
   if (Number.isNaN(born.getTime())) return null;
@@ -292,7 +285,6 @@ export function characterAge(birthday: string, now: number): string | null {
   return rest === 0 ? `${years}y` : `${years}y ${rest}m`;
 }
 
-/** Character security status reads blue when positive and orange to red as it drops. */
 export function characterSecurityClass(securityStatus: number | null): string {
   if (securityStatus === null || securityStatus === 0) return 'text-muted';
   if (securityStatus >= 5) return 'text-sec-10';
@@ -314,14 +306,12 @@ const SECTION_KEYS = [
   'industry',
 ] as const satisfies readonly (keyof BoardCharacter)[];
 
-/** A board with a section still syncing is worth one reconcile fetch. */
 export function boardIsCold(response: { characters: readonly BoardCharacter[] }): boolean {
   return response.characters.some((character) =>
     SECTION_KEYS.some((key) => character[key].state === 'pending'),
   );
 }
 
-/** An inaccessible structure has no name; say what it is rather than show an id. */
 export function placeName(place: PlaceRef): string {
   if (place.name !== null) return place.name;
   return place.kind === 'structure' ? 'Player structure' : `Station ${place.id}`;
@@ -338,7 +328,6 @@ export interface QueueTimeline {
   endsAt: number;
 }
 
-/** Each unfinished queue entry as a share of the time left, for the timeline bar. */
 export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): QueueTimeline | null {
   const segments: TimelineSegment[] = [];
   let endsAt = now;

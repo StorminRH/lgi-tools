@@ -70,13 +70,11 @@ async function AuthErrorNotice({
   );
 }
 
-// A request-time clock, read only once the demo is known to render.
 async function requestNow(): Promise<number> {
   await connection();
   return Date.now();
 }
 
-/** `/?demo`, `?demo=one`, `?demo=reconnect`, `?demo=empty`, outside production only. */
 async function BoardDemo({
   searchParams,
 }: {
