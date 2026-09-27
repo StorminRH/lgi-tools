@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
-import { Card } from '@/components/ui/card';
 import { Dot } from '@/components/ui/dot';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 
 export function BoardFrame({ demo = false, children }: { demo?: boolean; children: ReactNode }) {
   return (
-    <Card className="reveal mx-auto w-full max-w-[1120px] rounded-panel p-4 sm:p-5">
+    <section aria-label="Your characters" className="reveal mx-auto w-full">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <SectionLabel className="whitespace-nowrap">Your characters</SectionLabel>
@@ -22,7 +21,7 @@ export function BoardFrame({ demo = false, children }: { demo?: boolean; childre
         </div>
         <LinkCharacterButton label="Add character" callbackURL="/" />
       </div>
-      <div className="mt-4">{children}</div>
-    </Card>
+      <div className="mt-6">{children}</div>
+    </section>
   );
 }

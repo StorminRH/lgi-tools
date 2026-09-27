@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react';
+import { cardSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { SectionHeader } from '@/components/ui/section-header';
 import type { BoardSection } from '@/composition/board/api-contract';
 import { formatRelativeTime } from '@/lib/format/time';
+
+/** The glass the sheet's readouts sit on; everything else floats on the backdrop. */
+export const readoutSurface = cn(cardSurface, 'min-w-0 overflow-hidden');
 
 export function SectionPanel({
   title,
@@ -16,7 +20,7 @@ export function SectionPanel({
   children: ReactNode;
 }) {
   return (
-    <section className={cn('min-w-0 overflow-hidden rounded-card border border-border-soft bg-bg-deep/40', className)}>
+    <section data-leader-target className={cn(readoutSurface, className)}>
       <SectionHeader label={title} hint={meta} size="md" />
       {children}
     </section>

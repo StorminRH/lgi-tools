@@ -10,7 +10,7 @@ import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import { formatUtcDate } from '@/lib/format/time';
-import { SectionBody, updatedLabel } from '../SectionBody';
+import { readoutSurface, SectionBody, updatedLabel } from '../SectionBody';
 
 const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   intelligence: 'Intelligence',
@@ -50,7 +50,7 @@ export function AttributesSection({
 }) {
   const [open, setOpen] = useOpenOnDesktop();
   return (
-    <div className={cn('min-w-0 overflow-hidden rounded-card border border-border-soft bg-bg-deep/40', className)}>
+    <div data-leader-target className={cn(readoutSurface, className)}>
       <Collapsible
         open={open}
         onOpenChange={setOpen}
@@ -77,8 +77,8 @@ export function AttributesSection({
 
 function AttributeGrid({ attributes }: { attributes: Attributes }) {
   return (
-    <div className="flex flex-col gap-3 px-3.5 py-3">
-      <dl className="grid grid-cols-3 gap-x-4 gap-y-2.5 sm:grid-cols-5">
+    <div className="@container flex flex-col gap-3 px-3.5 py-3">
+      <dl className="grid grid-cols-3 gap-x-4 gap-y-2.5 @xl:grid-cols-5">
         {attributes.values.map((value) => (
           <div key={value.key} className="flex flex-col gap-0.5">
             <dt className={eyebrow({ size: 'micro' })}>{ATTRIBUTE_LABEL[value.key]}</dt>

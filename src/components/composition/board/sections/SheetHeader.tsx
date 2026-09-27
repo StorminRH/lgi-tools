@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, ViewTransition } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { TypeIcon } from '@/components/type-icon';
 import { cn } from '@/components/ui/cn';
@@ -7,20 +7,27 @@ import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
-import { characterAge, characterSecurityClass, placeName } from '../board-view-model';
+import { characterAge, characterSecurityClass, pilotTransitionName, placeName } from '../board-view-model';
 import { SystemName } from '../board-bits';
+import { readoutSurface } from '../SectionBody';
 import { EntityLogo } from './EntityLogo';
 
+/** The identity column: portrait, affiliation and whereabouts float; only the stat readouts sit on glass. */
 export function SheetHeader({ character, now }: { character: BoardCharacter; now: number }) {
   return (
-    <header className="flex flex-col gap-4">
-      <div className="flex items-start gap-4">
-        <CharacterPortrait
-          characterId={character.characterId}
-          name={character.name}
-          size={64}
-          src={character.portraitUrl}
-        />
+    <header data-leader-column className="flex flex-col gap-5">
+      <div className="flex items-center gap-4 xl:flex-col xl:items-start">
+        <ViewTransition name={pilotTransitionName(character.characterId)} share="morph" default="none">
+          <span data-leader-anchor className="shrink-0 rounded-full shadow-cta-glow">
+            <CharacterPortrait
+              characterId={character.characterId}
+              name={character.name}
+              size={160}
+              src={character.portraitUrl}
+              className="max-xl:size-24"
+            />
+          </span>
+        </ViewTransition>
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <h2 className="font-display text-h2 font-bold leading-tight text-name">{character.name}</h2>
           <Affiliation character={character} />
@@ -83,7 +90,7 @@ function Whereabouts({ character }: { character: BoardCharacter }) {
   if (character.status.state !== 'ready') return null;
   const { system, dock, ship } = character.status.data;
   return (
-    <dl className="grid gap-3 rounded-ctl border border-border-soft bg-bg-deep/40 px-3.5 py-2.5 text-ui sm:grid-cols-2">
+    <dl className="grid gap-3 text-ui sm:grid-cols-2 xl:grid-cols-1">
       <Fact label={dock !== null ? 'Docked' : 'In space'}>
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
           {dock !== null && <span className="truncate text-name">{placeName(dock)}</span>}
@@ -116,10 +123,10 @@ function Kpis({ character }: { character: BoardCharacter }) {
   if (wallet === null && skills === null) return null;
   const free = skills?.unallocatedSp ?? 0;
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+    <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
       {wallet !== null && (
         <Kpi label="Wallet" tone="text-isk">
-          {formatIsk(wallet.balance)} <span className="text-ui text-muted">ISK</span>
+          {formatIsk(wallet.balance)} <span className="text-micro text-muted sm:text-ui">ISK</span>
         </Kpi>
       )}
       {skills !== null && (
@@ -150,9 +157,9 @@ function Kpi({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className={cn(readoutSurface, 'flex flex-col gap-1 px-3 py-2.5 sm:px-3.5')}>
       <dt className={eyebrow({ size: 'micro' })}>{label}</dt>
-      <dd className={cn('font-data text-stat tabular-nums', tone)}>{children}</dd>
+      <dd className={cn('font-data text-h3 tabular-nums sm:text-stat', tone)}>{children}</dd>
       {note !== undefined && <dd className={cn('font-data text-micro', noteTone)}>{note}</dd>}
     </div>
   );

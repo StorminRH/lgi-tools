@@ -17,8 +17,6 @@ const DAY = 24 * HOUR;
 
 export const BOARD_LOAD_FAILED = 'Couldn’t load your characters — reload the page to try again.';
 
-export const SELECTION_STORAGE_KEY = 'lgi:home-board:selected';
-
 export type SectionState = BoardSection<unknown>['state'];
 
 function readyData<T>(section: BoardSection<T>): T | null {
@@ -178,21 +176,38 @@ export function reconnectSentence(character: BoardCharacter): string | null {
   return `Reconnect ${name} to add ${joinList(ordered.map((gap) => GAP_PHRASE[gap]))}.`;
 }
 
-export function defaultSelection(
-  characters: readonly BoardCharacter[],
-  remembered: number | null,
-  sessionCharacterId: number | null,
-): number | null {
-  const ids = new Set(characters.map((c) => c.characterId));
-  if (remembered !== null && ids.has(remembered)) return remembered;
-  if (sessionCharacterId !== null && ids.has(sessionCharacterId)) return sessionCharacterId;
-  return characters[0]?.characterId ?? null;
+export type BoardView = { view: 'roster' } | { view: 'character'; characterId: number };
+
+export const ROSTER: BoardView = { view: 'roster' };
+
+const CHARACTER_PARAM = 'character';
+
+/** The view a `?character=` value opens; anything not on this board opens the roster. */
+export function boardViewFrom(
+  param: string | null,
+  characters: readonly Pick<BoardCharacter, 'characterId'>[],
+): BoardView {
+  if (param === null || !/^\d+$/.test(param)) return ROSTER;
+  const characterId = Number(param);
+  return characters.some((c) => c.characterId === characterId) ? { view: 'character', characterId } : ROSTER;
 }
 
-export function parseRememberedSelection(raw: string | null): number | null {
-  if (raw === null) return null;
-  const id = Number(raw);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
+/** The same page with `?character=` set for a character view or removed for the roster. */
+export function boardViewHref(pathname: string, search: string, view: BoardView): string {
+  const params = new URLSearchParams(search);
+  if (view.view === 'character') params.set(CHARACTER_PARAM, String(view.characterId));
+  else params.delete(CHARACTER_PARAM);
+  const query = params.toString();
+  return query === '' ? pathname : `${pathname}?${query.replace(/=(&|$)/g, '$1')}`;
+}
+
+/** Shared by a pilot's roster portrait and its sheet portrait, so one morphs into the other. */
+export function pilotTransitionName(characterId: number): string {
+  return `pilot-${characterId}`;
+}
+
+export function characterParam(params: { get: (key: string) => string | null }): string | null {
+  return params.get(CHARACTER_PARAM);
 }
 
 export interface SkillGroupSkill {

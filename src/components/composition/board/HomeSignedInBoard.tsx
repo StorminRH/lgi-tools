@@ -11,7 +11,7 @@ export function HomeSignedInBoard() {
   if (!session) return null;
   return (
     <BoardFrame>
-      <LiveBoard sessionCharacterId={session.characterId} />
+      <LiveBoard />
     </BoardFrame>
   );
 }

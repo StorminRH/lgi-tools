@@ -4,7 +4,7 @@ import { characterPortraitUrl } from '@/lib/eve-image';
 import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 
-export type PortraitSize = 28 | 32 | 36 | 38 | 64;
+export type PortraitSize = 28 | 32 | 36 | 38 | 64 | 112 | 160;
 
 const SIZE_CLASS: Record<PortraitSize, string> = {
   28: 'size-7',
@@ -12,6 +12,8 @@ const SIZE_CLASS: Record<PortraitSize, string> = {
   36: 'size-9',
   38: 'size-[38px]',
   64: 'size-16',
+  112: 'size-28',
+  160: 'size-40',
 };
 
 export function CharacterPortrait({

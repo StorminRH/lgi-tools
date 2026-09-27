@@ -1,0 +1,56 @@
+/* Roster ↔ character sheet. The pilot's portrait morphs between its roster
+ * slot and the sheet; the roster fades out and the readouts rise in. */
+::view-transition-group(.morph) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-out-expo);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: board-morph-blur;
+}
+@keyframes board-morph-blur {
+  35% { filter: blur(2px); }
+}
+::view-transition-old(.board-fade) {
+  animation: 160ms ease-in both board-fade-out;
+}
+::view-transition-new(.board-fade) {
+  animation: 260ms ease-out 120ms both board-fade-in;
+}
+::view-transition-new(.board-rise) {
+  animation: 360ms var(--ease-out-expo) 140ms both board-rise-in;
+}
+@keyframes board-fade-out {
+  to { opacity: 0; }
+}
+@keyframes board-fade-in {
+  from { opacity: 0; }
+}
+@keyframes board-rise-in {
+  from { opacity: 0; translate: 0 14px; filter: blur(3px); }
+}
+
+/* Leaders draw in after the portrait lands. */
+.board-leader {
+  stroke-dasharray: 1 1;
+  opacity: 0.35;
+  animation: board-leader-draw 520ms var(--ease-out-expo) 380ms both;
+}
+.board-leader-dot {
+  opacity: 0.8;
+  animation: board-fade-in 200ms ease-out 700ms both;
+}
+@keyframes board-leader-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  .board-leader,
+  .board-leader-dot { animation: none; stroke-dasharray: none; }
+}

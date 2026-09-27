@@ -6,11 +6,12 @@ import {
   characterAge,
   characterSecurityClass,
   coverageNote,
-  defaultSelection,
+  boardViewFrom,
+  boardViewHref,
+  characterParam,
   fittedDomain,
   flowWindowLabel,
   groupSkills,
-  parseRememberedSelection,
   placeName,
   queueTimeline,
   boardIsCold,
@@ -95,20 +96,28 @@ describe('reconnectSentence', () => {
   });
 });
 
-describe('defaultSelection', () => {
+describe('board view state', () => {
   const chars = board.characters;
-  it('prefers the remembered pick, then the session character, then the first tile', () => {
-    expect(defaultSelection(chars, kessa!.characterId, torvin!.characterId)).toBe(kessa!.characterId);
-    expect(defaultSelection(chars, 42, torvin!.characterId)).toBe(torvin!.characterId);
-    expect(defaultSelection(chars, null, 42)).toBe(aurel!.characterId);
-    expect(defaultSelection([], null, null)).toBeNull();
+
+  it('opens a character named in the URL and the roster for anything else', () => {
+    expect(boardViewFrom(String(kessa!.characterId), chars)).toEqual({
+      view: 'character',
+      characterId: kessa!.characterId,
+    });
+    expect(boardViewFrom(null, chars)).toEqual({ view: 'roster' });
+    expect(boardViewFrom('42', chars)).toEqual({ view: 'roster' });
+    expect(boardViewFrom('9900000002abc', chars)).toEqual({ view: 'roster' });
+    expect(boardViewFrom('', chars)).toEqual({ view: 'roster' });
+    expect(characterParam(new URLSearchParams('?character=7'))).toBe('7');
   });
 
-  it('parses only a positive integer from storage', () => {
-    expect(parseRememberedSelection('9900000002')).toBe(9_900_000_002);
-    expect(parseRememberedSelection(null)).toBeNull();
-    expect(parseRememberedSelection('abc')).toBeNull();
-    expect(parseRememberedSelection('-4')).toBeNull();
+  it('writes the view into the URL and keeps the other params', () => {
+    expect(boardViewHref('/', '', { view: 'character', characterId: 7 })).toBe('/?character=7');
+    expect(boardViewHref('/', '?demo&character=7', { view: 'roster' })).toBe('/?demo');
+    expect(boardViewHref('/', '?demo=one', { view: 'character', characterId: 8 })).toBe(
+      '/?demo=one&character=8',
+    );
+    expect(boardViewHref('/', '?character=7', { view: 'roster' })).toBe('/');
   });
 });
 
