@@ -12,6 +12,7 @@ describe('SHEET_SECTIONS', () => {
       'clones',
       'wallet',
       'journal',
+      'orders',
       'structures',
     ]);
     expect(Object.keys(SHEET_SECTIONS)).toEqual([...SHEET_SECTION_KEYS]);
@@ -27,6 +28,7 @@ describe('SHEET_SECTIONS', () => {
       clones: 'live',
       wallet: 'live',
       journal: 'hourly',
+      orders: 'hourly',
       structures: 'hourly',
     });
   });
@@ -40,6 +42,7 @@ describe('SHEET_SECTIONS', () => {
       clones: ['esi-clones.read_clones.v1'],
       wallet: ['esi-wallet.read_character_wallet.v1'],
       journal: ['esi-wallet.read_character_wallet.v1'],
+      orders: ['esi-markets.read_character_orders.v1'],
       structures: ['esi-universe.read_structures.v1'],
     });
   });
@@ -61,6 +64,7 @@ describe('SHEET_SECTIONS', () => {
       clones: { clones: 'clones' },
       wallet: { balance: 'wallet' },
       journal: { journal: 'journal' },
+      orders: { orders: 'orders' },
     });
     expect(SHEET_SECTIONS.structures.parts).toBe('structures');
   });

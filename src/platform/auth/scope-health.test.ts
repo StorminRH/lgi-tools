@@ -93,6 +93,9 @@ test('listGrantedScopes orders active then legacy, glosses known ids, and treats
   expect(listGrantedScopes('esi-wallet.read_character_wallet.v1')).toEqual([
     { id: 'esi-wallet.read_character_wallet.v1', gloss: 'Read your wallet balance and journal', status: 'active' },
   ]);
+  expect(listGrantedScopes('esi-markets.read_character_orders.v1')).toEqual([
+    { id: 'esi-markets.read_character_orders.v1', gloss: 'Read your open market orders', status: 'active' },
+  ]);
   expect(listGrantedScopes('esi-made.up.v1,esi-characters.read_standings.v1')).toEqual([
     { id: 'esi-made.up.v1', status: 'legacy' },
     { id: 'esi-characters.read_standings.v1', gloss: 'Read your standings', status: 'legacy' },

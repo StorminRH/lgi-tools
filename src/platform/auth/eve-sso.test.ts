@@ -32,6 +32,7 @@ describe('EVE_SCOPES', () => {
       'esi-clones.read_clones.v1',
       'esi-clones.read_implants.v1',
       'esi-universe.read_structures.v1',
+      'esi-markets.read_character_orders.v1',
     ]);
   });
 

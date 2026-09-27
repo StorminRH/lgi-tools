@@ -161,6 +161,7 @@ const GAP_PHRASE: Record<BoardGap, string> = {
   implants: 'implants',
   structures: 'structure names',
   industry: 'industry jobs',
+  orders: 'market orders',
 };
 
 function joinList(items: readonly string[]): string {

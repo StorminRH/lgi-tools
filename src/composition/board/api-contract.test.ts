@@ -10,7 +10,7 @@ describe('boardEndpoint', () => {
   });
 
   it('pins the closed reconnect-gap vocabulary', () => {
-    expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry']);
+    expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders']);
   });
 });
 

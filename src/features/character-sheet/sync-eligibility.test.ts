@@ -11,6 +11,7 @@ describe('SHEET_SECTION_SCOPES', () => {
       clones: ['esi-clones.read_clones.v1'],
       wallet: ['esi-wallet.read_character_wallet.v1'],
       journal: ['esi-wallet.read_character_wallet.v1'],
+      orders: ['esi-markets.read_character_orders.v1'],
       structures: ['esi-universe.read_structures.v1'],
     });
   });

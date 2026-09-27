@@ -282,12 +282,13 @@ export const ESI_DATASET_ENTRIES = [
       kind: 'esi',
       specPaths: [
         '/characters/{character_id}/wallet/journal/',
+        '/characters/{character_id}/orders/',
         '/universe/structures/{structure_id}/',
       ],
       verifiedCacheSeconds: 3600,
     },
     notes:
-      'The hourly tier: journal page 1 (digested, never stored raw) and the names of player structures a character is docked at or keeps clones in.',
+      'The hourly tier: journal page 1 (digested, never stored raw), open market orders (1200 s upstream, declared at the tier maximum), and the names of player structures a character is docked at or keeps clones in.',
     mirrorTables: ['character_sheets'],
   },
   {

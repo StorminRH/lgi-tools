@@ -7,6 +7,7 @@ import {
   parseCurrentShipBody,
   parseJournalNewestFirst,
   parseOnlineStatusBody,
+  parseOrdersBody,
   parseStructureBody,
   parseWalletBody,
 } from './esi-projection';
@@ -211,5 +212,27 @@ describe('parseStructureBody', () => {
 
   it('returns null without a name', () => {
     expect(parseStructureBody({ owner_id: 1 })).toBeNull();
+  });
+});
+
+describe('parseOrdersBody', () => {
+  it('keeps open personal orders with the fields valuation needs, escrow only on buys', () => {
+    const body = [
+      { order_id: 1, type_id: 34, volume_remain: 1_000_000, volume_total: 2_000_000, is_buy_order: true, is_corporation: false, price: 3.9, escrow: 3_900_000, location_id: 60003760, region_id: 10000002 },
+      { order_id: 2, type_id: 29984, volume_remain: 1, volume_total: 1, is_corporation: false, price: 240_000_000, location_id: 60003760, region_id: 10000002 },
+      { order_id: 3, type_id: 34, volume_remain: 5, volume_total: 5, is_buy_order: false, is_corporation: true, price: 4, location_id: 60003760, region_id: 10000002 },
+    ];
+    expect(parseOrdersBody(body)).toEqual({
+      open: [
+        { typeId: 34, volumeRemain: 1_000_000, isBuyOrder: true, escrow: 3_900_000 },
+        { typeId: 29984, volumeRemain: 1, isBuyOrder: false, escrow: 0 },
+      ],
+    });
+  });
+
+  it('accepts an empty list and rejects a malformed body', () => {
+    expect(parseOrdersBody([])).toEqual({ open: [] });
+    expect(parseOrdersBody({ error: 'forbidden' })).toBeNull();
+    expect(parseOrdersBody([{ type_id: 34 }])).toBeNull();
   });
 });

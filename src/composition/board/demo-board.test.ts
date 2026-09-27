@@ -97,7 +97,7 @@ describe('buildDemoBoard', () => {
 
   it('gives the tokenless character every gap and no data at all', () => {
     const bram = byName('Bram Oskarsen');
-    expect(bram.gaps).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry']);
+    expect(bram.gaps).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders']);
     expect(bram.skills).toEqual({ state: 'reconnect' });
     expect(bram.wallet).toEqual({ state: 'reconnect' });
     expect(bram.status).toEqual({ state: 'reconnect' });

@@ -12,6 +12,7 @@ export const BOARD_GAPS = [
   'implants',
   'structures',
   'industry',
+  'orders',
 ] as const;
 export type BoardGap = (typeof BOARD_GAPS)[number];
 

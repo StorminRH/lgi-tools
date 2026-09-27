@@ -87,6 +87,7 @@ const GAP_SCOPES: Record<BoardGap, readonly string[]> = {
   implants: SHEET_SECTION_SCOPES.implants,
   structures: SHEET_SECTION_SCOPES.structures,
   industry: INDUSTRY_JOBS_SYNC_SCOPES,
+  orders: SHEET_SECTION_SCOPES.orders,
 };
 
 const SECTION_GAP: Record<SheetSectionKey, BoardGap | null> = {
@@ -97,6 +98,7 @@ const SECTION_GAP: Record<SheetSectionKey, BoardGap | null> = {
   clones: 'clones',
   wallet: 'wallet',
   journal: 'wallet',
+  orders: 'orders',
   structures: 'structures',
 };
 

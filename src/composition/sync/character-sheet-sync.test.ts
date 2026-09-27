@@ -48,6 +48,7 @@ const BODIES: Record<string, unknown> = {
   '/characters/1/clones/': { jump_clones: [] },
   '/characters/1/wallet/': 1,
   '/characters/1/wallet/journal/': [],
+  '/characters/1/orders/': [],
 };
 
 beforeEach(() => {
@@ -90,7 +91,7 @@ describe('makeSheetPort', () => {
     expect(mocks.vendTokenFor.mock.calls.map(([id]) => id).sort()).toEqual([1, 2]);
     expect(mocks.readSingleEndpoint).toHaveBeenCalledWith('/characters/1/wallet/', 'token-1', null);
     expect(mocks.readSingleEndpoint).toHaveBeenCalledWith('/characters/2/wallet/journal/', 'token-2', null);
-    expect(mocks.readSingleEndpoint).toHaveBeenCalledTimes(18);
+    expect(mocks.readSingleEndpoint).toHaveBeenCalledTimes(20);
   });
 
   it('starts a fresh memo for every run', async () => {
