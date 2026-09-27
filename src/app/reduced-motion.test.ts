@@ -28,6 +28,7 @@ const LOOPING_CLASSES = [
   'status-led',
   'price-pending',
   'price-flash',
+  'map-signature-updated',
 ] as const;
 
 test('looping classes render statically under reduced motion', () => {

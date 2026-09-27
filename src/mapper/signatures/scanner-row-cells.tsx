@@ -44,6 +44,10 @@ function signatureRowTone(missing: boolean): string {
   return missing ? 'map-signature-missing' : 'text-text';
 }
 
+function updatedDataAttribute(updated: boolean): true | undefined {
+  return updated ? true : undefined;
+}
+
 function signatureName(row: SignatureWindowRow): string {
   return row.name ?? 'Unresolved';
 }
@@ -139,6 +143,7 @@ function SignatureRowContent({
 export function SignatureRow({
   row,
   missing,
+  updated,
   canEdit,
   resolveSiteId,
   columnsClassName,
@@ -148,6 +153,8 @@ export function SignatureRow({
 }: {
   readonly row: SignatureWindowRow;
   readonly missing: boolean;
+  /** Automation just filled this row in; plays a short highlight. */
+  readonly updated: boolean;
   readonly canEdit: boolean;
   readonly resolveSiteId: (name: string) => number | null;
   readonly columnsClassName: string;
@@ -161,10 +168,12 @@ export function SignatureRow({
       data-signature-row
       data-signature-id={row.signatureId}
       data-signature-missing={missingDataAttribute(missing)}
+      data-signature-updated={updatedDataAttribute(updated)}
       data-signature-row-open={showOpenAffordance ? true : undefined}
       className={cn(
         'group/sig-row relative isolate flex min-h-8 flex-col px-2.5 py-1 font-ui text-ui',
         signatureRowTone(missing),
+        updated && 'map-signature-updated',
         showOpenAffordance &&
           'cursor-pointer transition-[transform,font-size] duration-fast motion-reduce:transition-none hover:-translate-y-1 hover:text-nav has-[:focus-visible]:-translate-y-1 has-[:focus-visible]:text-nav',
       )}

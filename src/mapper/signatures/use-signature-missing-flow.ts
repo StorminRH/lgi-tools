@@ -50,7 +50,7 @@ function useApplySignatureScan(
       replaceMissing(systemId, result.missing);
       toast.success(
         `Scan applied — ${result.inserted + result.updated + result.migrated} changed, ${result.unchanged} unchanged.`,
-        { id: 'scanner-paste:applied', duration: 3_000 },
+        { duration: 3_000 },
       );
       await followUpElimination({
         mapId,

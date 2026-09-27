@@ -5,6 +5,7 @@ import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
+import { ScannerWindowFrame } from './scanner-window-frame';
 import { SignatureWindow } from './SignatureWindow';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { JumpResolutionModel } from './jump-resolution';
@@ -284,6 +285,28 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(remote).toContain('data-signature-missing-prompt');
     expect(remote).toContain('3 signatures missing from scan');
     expect(remote).not.toContain('data-signature-missing="true"');
+  });
+
+  it('highlights rows automation just filled in, keyed by system and signature', () => {
+    const frame = (updatedIds: ReadonlySet<string>) => renderToStaticMarkup(
+      createElement(ScannerWindowFrame, {
+        scannerSystemId: 1,
+        rows: ROWS,
+        missingIds: new Set<string>(),
+        updatedIds,
+        canEdit: true,
+        complete: true,
+        now: 60_000,
+        resolveSiteId: () => null,
+        onOpenActions: vi.fn(),
+      }),
+    );
+    const flashed = frame(new Set(['1:ABC-123']));
+    const at = flashed.indexOf('data-signature-id="ABC-123"');
+    expect(flashed.slice(at, at + 200)).toContain('data-signature-updated="true"');
+    expect(flashed).toContain('map-signature-updated');
+    expect(frame(new Set())).not.toContain('data-signature-updated');
+    expect(frame(new Set(['2:ABC-123']))).not.toContain('data-signature-updated');
   });
 
   it('stacks missing-scan and ambiguous-jump prompts in one scanner rail', () => {

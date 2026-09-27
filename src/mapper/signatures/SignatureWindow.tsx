@@ -17,7 +17,7 @@ import type {
 } from './jump-resolution';
 import { ScannerPromptRail } from './scanner-prompt-rail';
 import { ScannerWindowFrame } from './scanner-window-frame';
-import type { OpenSignatureEditor } from './signature-context';
+import { useSignatureMapId, type OpenSignatureEditor } from './signature-context';
 import {
   applyScannerRowOpenAction,
   scannerRowOpenAction,
@@ -27,6 +27,7 @@ import {
   type SignatureWindowRow,
 } from './signature-model';
 import type { PendingScannerPaste } from './use-scanner-paste';
+import { useSignatureUpdateFlash } from './use-signature-update-flash';
 
 export interface SignatureWindowProps {
   readonly scannerSystemId: number | null;
@@ -73,6 +74,7 @@ function harvestableNamesForScanner(
 
 export function SignatureWindow(props: SignatureWindowProps) {
   const catalogue = useSiteCatalogue();
+  const updatedIds = useSignatureUpdateFlash(useSignatureMapId(), props.rows);
   const resolveSiteId = catalogue.siteIdForName;
   const harvestableNames = useMemo(
     () => harvestableNamesForScanner(props.rows, props.scannerSystemId),
@@ -136,6 +138,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
             scannerSystemId={props.scannerSystemId}
             rows={props.rows}
             missingIds={props.missingIds}
+            updatedIds={updatedIds}
             canEdit={props.canEdit}
             complete={props.complete}
             now={props.now}
