@@ -1,7 +1,15 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, ViewTransition } from 'react';
+import {
+  addTransitionType,
+  startTransition,
+  useCallback, useEffect, useLayoutEffect, useMemo,
+  useRef,
+  useState,
+  ViewTransition,
+} from 'react';
+import { cn } from '@/components/ui/cn';
 import type { BoardResponse } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity } from '@/lib/format/number';
@@ -37,6 +45,19 @@ function writeView(view: BoardView, push: boolean): void {
 
 const urlParam = () => characterParam(new URLSearchParams(window.location.search));
 
+// The type tells HomeBoardView.css which way to sequence the morph.
+function showParam(setParam: (param: string | null) => void, param: string | null): void {
+  startTransition(() => {
+    addTransitionType(param === null ? 'board-close' : 'board-open');
+    setParam(param);
+  });
+}
+
+const ROSTER_MOTION = {
+  enter: { 'board-close': 'board-roster-in', default: 'none' },
+  exit: { 'board-open': 'board-roster-out', default: 'none' },
+} as const;
+
 // The view lives in `?character=`: pushState keeps Back and Forward inside the
 // page, and useSearchParams seeds the first render so a reload opens the same
 // view. The view itself is local state set in startTransition, because Next's
@@ -54,7 +75,7 @@ export function HomeBoardView({ board, now }: { board: BoardResponse; now: numbe
   const open = useCallback((characterId: number) => {
     lastOpened.current = characterId;
     writeView({ view: 'character', characterId }, true);
-    startTransition(() => setParam(String(characterId)));
+    showParam(setParam, String(characterId));
   }, []);
   const back = useCallback(() => {
     if (openedFromRoster()) {
@@ -62,13 +83,13 @@ export function HomeBoardView({ board, now }: { board: BoardResponse; now: numbe
       return;
     }
     writeView(ROSTER, false);
-    startTransition(() => setParam(null));
+    showParam(setParam, null);
   }, []);
 
   // Registered on the always-mounted view, not on the sheet: an Escape pressed
   // right after Forward reopened a sheet was missed when the sheet owned it.
   useEffect(() => {
-    const onPop = () => startTransition(() => setParam(urlParam()));
+    const onPop = () => showParam(setParam, urlParam());
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !event.defaultPrevented && urlParam() !== null) back();
     };
@@ -97,9 +118,18 @@ export function HomeBoardView({ board, now }: { board: BoardResponse; now: numbe
 
   const selected = board.characters.find((c) => c.characterId === shownId);
   return (
-    <div ref={rootRef} className="scroll-mt-28">
+    <div
+      ref={rootRef}
+      role={selected !== undefined ? 'article' : undefined}
+      aria-label={selected !== undefined ? `${selected.name} character sheet` : undefined}
+      className={cn(
+        'relative scroll-mt-28',
+        selected !== undefined && 'grid gap-x-16 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]',
+      )}
+    >
       {selected !== undefined ? (
         <CharacterDetail
+          rootRef={rootRef}
           backRef={backRef}
           character={selected}
           catalog={board.skillCatalog}
@@ -108,7 +138,7 @@ export function HomeBoardView({ board, now }: { board: BoardResponse; now: numbe
           onBack={back}
         />
       ) : (
-        <ViewTransition enter="board-fade" exit="board-fade" default="none">
+        <ViewTransition {...ROSTER_MOTION} default="none">
           <div className="flex flex-col gap-6">
             <RosterTotalsLine board={board} now={now} />
             <div

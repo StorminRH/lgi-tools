@@ -1,23 +1,62 @@
-/* Roster ↔ character sheet. The pilot's portrait morphs between its roster
- * slot and the sheet; the roster fades out and the readouts rise in. */
+/* Roster ↔ character sheet, in two phases that never overlap.
+ * Open:  the portrait morphs (0–360ms) while the roster fades out (0–180ms);
+ *        the sheet then rises in (360ms+), panels a beat after the identity.
+ * Close: the sheet fades out (0–180ms); the portrait then morphs back
+ *        (180–540ms) and the roster fades in as it lands (420ms+).
+ * The root crossfade is off for these two types only, so nothing unnamed on
+ * the board is drawn twice mid-flight; the rest of the site keeps its own. */
+:root:active-view-transition-type(board-open, board-close)::view-transition-old(root) {
+  animation: none;
+  opacity: 0;
+}
+:root:active-view-transition-type(board-open, board-close)::view-transition-new(root) {
+  animation: none;
+}
+
+/* The page under the board is live during these transitions, so the footer
+ * would jump to its new height mid-flight. Lift it out and show it again
+ * once the sequence has landed. */
+:root:active-view-transition-type(board-open, board-close) [data-site-footer] {
+  view-transition-name: board-site-footer;
+}
+::view-transition-group(board-site-footer) {
+  animation: none;
+}
+::view-transition-old(board-site-footer) {
+  display: none;
+}
+::view-transition-new(board-site-footer) {
+  animation: 200ms ease-out 560ms both board-fade-in;
+}
+
 ::view-transition-group(.morph) {
-  animation-duration: 420ms;
+  z-index: 50;
+  animation-duration: 360ms;
   animation-timing-function: var(--ease-out-expo);
 }
 ::view-transition-image-pair(.morph) {
-  animation-name: board-morph-blur;
+  animation: 360ms both board-morph-blur;
+}
+:root:active-view-transition-type(board-close)::view-transition-group(.morph),
+:root:active-view-transition-type(board-close)::view-transition-image-pair(.morph) {
+  animation-delay: 180ms;
 }
 @keyframes board-morph-blur {
   35% { filter: blur(2px); }
 }
-::view-transition-old(.board-fade) {
-  animation: 160ms ease-in both board-fade-out;
+
+::view-transition-old(.board-roster-out),
+::view-transition-old(.board-sheet-out) {
+  animation: 180ms ease-in both board-fade-out;
 }
-::view-transition-new(.board-fade) {
-  animation: 260ms ease-out 120ms both board-fade-in;
+::view-transition-new(.board-sheet-in) {
+  animation: 300ms var(--ease-out-expo) 360ms both board-rise-in;
 }
-::view-transition-new(.board-rise) {
-  animation: 360ms var(--ease-out-expo) 140ms both board-rise-in;
+::view-transition-new(.board-panels-in) {
+  animation: 340ms var(--ease-out-expo) 440ms both board-rise-in;
+}
+::view-transition-new(.board-roster-in) {
+  animation: 260ms ease-out 420ms both board-fade-in;
 }
 @keyframes board-fade-out {
   to { opacity: 0; }
@@ -26,18 +65,19 @@
   from { opacity: 0; }
 }
 @keyframes board-rise-in {
-  from { opacity: 0; translate: 0 14px; filter: blur(3px); }
+  from { opacity: 0; translate: 0 12px; }
 }
 
-/* Leaders draw in after the portrait lands. */
+/* Leaders mount after the view transition's snapshots are taken, so they
+ * draw once the panels have risen in (440 + 340ms). */
 .board-leader {
   stroke-dasharray: 1 1;
   opacity: 0.35;
-  animation: board-leader-draw 520ms var(--ease-out-expo) 380ms both;
+  animation: board-leader-draw 520ms var(--ease-out-expo) 780ms both;
 }
 .board-leader-dot {
   opacity: 0.8;
-  animation: board-fade-in 200ms ease-out 700ms both;
+  animation: board-fade-in 200ms ease-out 1100ms both;
 }
 @keyframes board-leader-draw {
   from { stroke-dashoffset: 1; }
@@ -46,6 +86,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
+  ::view-transition-image-pair(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation-duration: 0s !important;
