@@ -21,14 +21,12 @@
     margin-block-end 600ms var(--ease-out-expo),
     opacity 300ms ease-out;
 }
-.home-hero-pitch[data-folded],
-.home-hero-pitch[data-signed-in-hint]:not([data-settled]) {
+.home-hero-pitch:is([data-folded], [data-signed-in-hint]:not([data-settled])) {
   grid-template-rows: 0fr;
   margin-block-end: calc(-1 * var(--home-hero-gap));
   opacity: 0;
 }
-.home-hero-pitch[data-folded] > *,
-.home-hero-pitch[data-signed-in-hint]:not([data-settled]) > * {
+.home-hero-pitch:is([data-folded], [data-signed-in-hint]:not([data-settled])) > * {
   overflow: hidden;
 }
 

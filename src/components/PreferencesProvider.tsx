@@ -19,8 +19,8 @@ import {
   PREFERENCES,
   RETIRED_PREFERENCE_KEYS,
   peekLocalPreference,
-  persistResolvedPreferences,
   pruneRetiredPreferences,
+  syncPreferenceCookies,
   writeLocalPreference,
   writePreferenceCookie,
   type PreferenceDef,
@@ -68,7 +68,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
       if (!userId) {
         const local = readLocalValues();
-        persistResolvedPreferences(local);
+        syncPreferenceCookies(local);
         setValues(local);
         setReady(true);
         return;
@@ -80,7 +80,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         if (!alive) return;
 
         const { reconciled, toSeed } = processPreferencesResponse(res, readLocalValues());
-        persistResolvedPreferences(reconciled);
+        syncPreferenceCookies(reconciled);
         setValues(reconciled);
         setReady(true);
 

@@ -34,8 +34,10 @@ export function useRefreshOnView(
   opts: {
     enabled: boolean;
     onBatch?: (prices: Map<number, RefreshedPrice>) => void;
-    // Changing this re-runs the refresh for the current typeIds, without a
-    // `key` remounting whatever the caller renders around the hook.
+    // typeIds are read once per run on purpose: the planner's list changes on
+    // every plan edit and must not refire refreshes. Changing this starts a
+    // new run for the current typeIds, without a `key` remounting whatever
+    // the caller renders around the hook.
     refreshKey?: string;
   },
 ): RefreshOnViewResult {

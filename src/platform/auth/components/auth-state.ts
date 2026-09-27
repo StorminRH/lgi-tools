@@ -27,7 +27,7 @@ export function resolveAuthState(
   released: boolean,
   data: AuthSessionData,
   isPending: boolean,
-  settled = false,
+  settled: boolean,
 ): AuthState {
   if (!released || (isPending && !settled)) return HELD;
   if (data == null || data.characterId == null) return SIGNED_OUT;

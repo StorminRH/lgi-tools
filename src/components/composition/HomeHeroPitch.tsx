@@ -26,8 +26,10 @@ export function HomeHeroPitch({ children }: { children: ReactNode }) {
       >
         <div className="min-h-0">{children}</div>
       </div>
-      {/* Runs while the server HTML parses. React never executes it, so a
-          client render marks it inert to keep hydration quiet. */}
+      {/* Runs while the server HTML parses. A client render (a soft
+          navigation) never executes it, and React warns about script tags it
+          creates, so the client copy is text/plain, per Next's "Preventing
+          flash before hydration" guide. */}
       <script
         type={typeof window === 'undefined' ? 'text/javascript' : 'text/plain'}
         suppressHydrationWarning

@@ -61,7 +61,7 @@ const {
   writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
-  persistResolvedPreferences,
+  syncPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -282,19 +282,18 @@ describe('retired preference keys', () => {
   });
 });
 
-describe('persistResolvedPreferences', () => {
-  it('writes resolved values back to localStorage and the SSR cookie', () => {
+describe('syncPreferenceCookies', () => {
+  it('writes resolved values to the SSR cookie and leaves localStorage alone', () => {
     lastCookieWrite = '';
     window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('cards'));
-    persistResolvedPreferences(new Map([[sitesView.key, 'table']]));
-    expect(peekLocalPreference(sitesView)).toBe('table');
+    syncPreferenceCookies(new Map([[sitesView.key, 'table']]));
     expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
+    expect(peekLocalPreference(sitesView)).toBe('cards');
   });
 
   it('leaves unresolved keys alone', () => {
     lastCookieWrite = '';
-    persistResolvedPreferences(new Map());
-    expect(peekLocalPreference(sitesView)).toBeUndefined();
+    syncPreferenceCookies(new Map());
     expect(lastCookieWrite).toBe('');
   });
 });

@@ -176,17 +176,15 @@ export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void 
 }
 
 /**
- * Mirror resolved values into localStorage and the SSR cookie. A signed-in
- * account value wins over the device's, and without this write-back every
- * server render kept using the stale cookie, so the page swapped after load
- * on each visit.
+ * Mirror resolved values into the SSR cookies. A signed-in account value wins
+ * over the device's, and without this write-back every server render kept
+ * using the stale cookie, so the page swapped after load on each visit. Only
+ * cookies are written: account values copied into localStorage would outlive
+ * sign-out and be seeded into the next account on a shared browser.
  */
-export function persistResolvedPreferences(values: ReadonlyMap<string, unknown>): void {
+export function syncPreferenceCookies(values: ReadonlyMap<string, unknown>): void {
   for (const def of PREFERENCES) {
-    if (!values.has(def.key)) continue;
-    const value = values.get(def.key);
-    writeLocalPreference(def, value);
-    writePreferenceCookie(def, value);
+    if (values.has(def.key)) writePreferenceCookie(def, values.get(def.key));
   }
 }
 

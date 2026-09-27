@@ -63,8 +63,8 @@ export function PageHead({
   subtitle?: ReactNode;
   meta?: ReactNode;
   size?: PageTitleSize;
-  // False for a head that replaces a Suspense fallback's identical head:
-  // fading in again would blink a title that is already on screen.
+  // False for a head whose title is already on screen from a Suspense
+  // fallback: fading in again would blink it.
   reveal?: boolean;
 }) {
   return (

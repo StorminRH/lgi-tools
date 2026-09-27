@@ -35,17 +35,17 @@ function renderProvider(): string {
 }
 
 test('resolveAuthState holds a frozen snapshot until release, then publishes signed-in or signed-out', () => {
-  expect(resolveAuthState(false, SESSION, false)).toEqual({
+  expect(resolveAuthState(false, SESSION, false, false)).toEqual({
     session: null,
     isAdmin: false,
     loading: true,
   });
-  expect(resolveAuthState(true, SESSION, true)).toEqual({
+  expect(resolveAuthState(true, SESSION, true, false)).toEqual({
     session: null,
     isAdmin: false,
     loading: true,
   });
-  expect(resolveAuthState(true, { ...SESSION, isAdmin: true }, false)).toEqual({
+  expect(resolveAuthState(true, { ...SESSION, isAdmin: true }, false, false)).toEqual({
     session: {
       characterId: SESSION.characterId,
       name: SESSION.name,
@@ -55,12 +55,12 @@ test('resolveAuthState holds a frozen snapshot until release, then publishes sig
     isAdmin: true,
     loading: false,
   });
-  expect(resolveAuthState(true, null, false)).toEqual({
+  expect(resolveAuthState(true, null, false, false)).toEqual({
     session: null,
     isAdmin: false,
     loading: false,
   });
-  expect(resolveAuthState(true, { ...SESSION, characterId: null }, false)).toEqual({
+  expect(resolveAuthState(true, { ...SESSION, characterId: null }, false, false)).toEqual({
     session: null,
     isAdmin: false,
     loading: false,
