@@ -1,4 +1,4 @@
-import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
+import type { DeadLetterRow } from '@/data/esi-refresh-jobs/types';
 import type {
   CostlyEndpoint,
   HistorySourceSplit,
@@ -7,8 +7,6 @@ import type {
 } from '@/data/telemetry/queries';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import type { DomainEventRow } from '@/data/domain-events/types';
-import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
-import { SLI_DEFINITIONS, type SliId, type SliUnit } from '@/data/telemetry/sli';
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 
@@ -16,14 +14,6 @@ export interface OpsMetricRow {
   label: string;
   value: string;
   note: string;
-}
-
-function elapsedLabel(from: Date, now: Date): string {
-  const minutes = Math.max(0, Math.floor((now.getTime() - from.getTime()) / 60_000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
 }
 
 export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
@@ -65,28 +55,13 @@ export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   };
 }
 
-export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
-  const rows = stats.map((row) => ({
-    status: row.status,
-    label: row.status.replaceAll('_', ' '),
-    count: row.count,
-    oldestAge: elapsedLabel(row.oldestCreatedAt, now),
-  }));
-  const active = new Set<string>(LIVE_ESI_REFRESH_JOB_STATUSES);
-  return {
-    rows,
-    activeDepth: rows.reduce((total, row) => total + (active.has(row.status) ? row.count : 0), 0),
-    empty: rows.length === 0,
-  };
-}
-
 export function deriveDeadLetterView(rows: DeadLetterRow[]) {
   return rows.map((row) => ({
     id: row.id,
     title: `${row.dataset.replaceAll('_', ' ')} · ${row.ownerType} ${row.ownerId}`,
     endpointClass: row.resource,
     failureClass: row.lastErrorCode ?? row.budgetReason ?? 'unclassified',
-    timing: row.finishedAt?.toISOString() ?? row.createdAt.toISOString(),
+    timing: `${(row.finishedAt ?? row.createdAt).toISOString().replace('T', ' ').slice(0, 16)} UTC`,
     attempts: row.attemptCount,
   }));
 }
@@ -165,51 +140,4 @@ export function summarizeDomainEvent(event: DomainEventRow): string {
     case 'esi_budget_guard_exhausted':
       return `Public ESI budget exhausted ${event.metadata.count} times in ${event.metadata.windowMinutes}m`;
   }
-}
-
-export interface SliRow {
-  id: SliId;
-  label: string;
-  value: string;
-  owner: string;
-  responseAction: string;
-}
-
-export interface JobBacklog {
-  pending: number;
-  deadLettered: number;
-}
-
-export type SliValue = number | JobBacklog | null;
-
-export function deriveJobBacklog(stats: EsiRefreshQueueStat[]): JobBacklog {
-  const countFor = (statuses: readonly string[]) =>
-    stats
-      .filter((stat) => statuses.includes(stat.status))
-      .reduce((total, stat) => total + stat.count, 0);
-  return {
-    pending: countFor(LIVE_ESI_REFRESH_JOB_STATUSES),
-    deadLettered: countFor(['dead_lettered']),
-  };
-}
-
-function formatSliValue(unit: SliUnit, value: SliValue): string {
-  if (value === null) return '—';
-  if (unit === 'count') {
-    const backlog = value as JobBacklog;
-    return `${backlog.pending} due · ${backlog.deadLettered} dead`;
-  }
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  if (unit === 'percent') return `${(value * 100).toFixed(1)}%`;
-  return `${Math.round(value)} ms`;
-}
-
-export function deriveSliView(values: Record<SliId, SliValue>): SliRow[] {
-  return SLI_DEFINITIONS.map((sli) => ({
-    id: sli.id,
-    label: sli.title,
-    value: formatSliValue(sli.unit, values[sli.id]),
-    owner: sli.owner,
-    responseAction: sli.responseAction,
-  }));
 }

@@ -30,7 +30,6 @@ describe('deriveGscPerformanceView', () => {
         { day: '2026-07-10', clicks: 5, impressions: 100, position: 4.27 },
         { day: '2026-07-11', clicks: 8, impressions: 120, position: 3.81 },
       ],
-      topPages: [{ clicks: 6 }, { clicks: 2 }],
     });
     expect(view.hasTrend).toBe(true);
     expect(view.clicksTrend.points).toEqual([
@@ -41,12 +40,11 @@ describe('deriveGscPerformanceView', () => {
       { x: 0, y: 4.3 },
       { x: 1, y: 3.8 },
     ]);
-    expect(view.topPagesMax).toBe(6);
     expect(view.asOf).toBe('2026-07-11 08:42 UTC');
   });
 
   it('reports no trend and a "never" sync stamp for an empty range', () => {
-    const view = deriveGscPerformanceView({ lastSyncedAt: null, trend: [], topPages: [] });
+    const view = deriveGscPerformanceView({ lastSyncedAt: null, trend: [] });
     expect(view.hasTrend).toBe(false);
     expect(view.asOf).toBe('never');
   });

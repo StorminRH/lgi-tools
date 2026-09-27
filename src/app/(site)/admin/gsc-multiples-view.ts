@@ -9,7 +9,7 @@ export interface GscMetricCell {
 }
 
 export function deriveGscMultiples(input: {
-  totals: { clicks: number; impressions: number; position: number };
+  totals: { clicks: number; impressions: number; ctr: number; position: number };
   prevTotals: { clicks: number; impressions: number; position: number } | null;
 }): GscMetricCell[] {
   const { totals, prevTotals } = input;
@@ -19,12 +19,14 @@ export function deriveGscMultiples(input: {
       value: totals.clicks.toLocaleString(),
       delta: computeDelta(totals.clicks, prevTotals?.clicks ?? null),
       invert: false,
+      note: `${(totals.ctr * 100).toFixed(1)}% CTR`,
     },
     {
       title: 'Impressions',
       value: totals.impressions.toLocaleString(),
       delta: computeDelta(totals.impressions, prevTotals?.impressions ?? null),
       invert: false,
+      note: 'times shown in results',
     },
     {
       title: 'Avg position',

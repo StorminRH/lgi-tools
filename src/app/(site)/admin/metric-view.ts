@@ -1,11 +1,10 @@
-import { computeDelta, type Delta } from '@/composition/admin-period';
+import { computeDelta, type Delta, type RangeKey } from '@/composition/admin-period';
 
 export interface MetricRow {
   label: string;
   value: string;
   avg: string | null;
   delta: Delta | null;
-  series?: number[];
 }
 
 function perDay(total: number, rangeDays: number): string | null {
@@ -22,8 +21,6 @@ export function buildMetricRows(args: {
   prevPageViews: { referred: number; direct: number } | null;
   prevUsers: { newUsers: number; returning: number } | null;
   prevGscTotals: { clicks: number; impressions: number } | null;
-  clicksSeries?: number[];
-  impressionsSeries?: number[];
 }): MetricRow[] {
   const {
     rangeDays,
@@ -33,8 +30,6 @@ export function buildMetricRows(args: {
     prevPageViews,
     prevUsers,
     prevGscTotals,
-    clicksSeries,
-    impressionsSeries,
   } = args;
 
   const viewsTotal = pageViews.referred + pageViews.direct;
@@ -61,7 +56,6 @@ export function buildMetricRows(args: {
       value: gscTotals ? gscTotals.clicks.toLocaleString() : '—',
       avg: gscTotals ? perDay(gscTotals.clicks, rangeDays) : null,
       delta: gscTotals ? computeDelta(gscTotals.clicks, prevGscTotals?.clicks ?? null) : null,
-      series: clicksSeries,
     },
     {
       label: 'Search impressions',
@@ -70,7 +64,16 @@ export function buildMetricRows(args: {
       delta: gscTotals
         ? computeDelta(gscTotals.impressions, prevGscTotals?.impressions ?? null)
         : null,
-      series: impressionsSeries,
     },
   ];
+}
+
+const RANGE_NOUN: Record<Exclude<RangeKey, 'all'>, string> = {
+  '7d': '7 days',
+  '30d': '30 days',
+  '90d': '90 days',
+};
+
+export function metricsHint(rangeKey: RangeKey): string {
+  return rangeKey === 'all' ? 'all time' : `Δ vs previous ${RANGE_NOUN[rangeKey]}`;
 }

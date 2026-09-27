@@ -23,7 +23,7 @@ import {
 import { getActiveSessionCount, getUserById } from '@/platform/auth/admin-users';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
-import { SettingsSectionHead } from '../../settings-section-head';
+import { SectionHead } from '@/components/ui/section-head';
 import { deriveUserDetailView } from './user-detail-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -119,7 +119,7 @@ function CharacterAdminRow({
 function NotFound() {
   return (
     <>
-      <SettingsSectionHead title="User not found" meta={<BackToAccess />} />
+      <SectionHead title="User not found" meta={<BackToAccess />} />
       <Card>
         <EmptyState>No account matches that id.</EmptyState>
       </Card>
@@ -161,7 +161,7 @@ async function UserDetailContent({
 
   return (
     <>
-      <SettingsSectionHead
+      <SectionHead
         title={targetUser.name}
         leading={
           <EveImage

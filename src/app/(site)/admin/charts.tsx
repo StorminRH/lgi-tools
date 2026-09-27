@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import type { SparklineTone } from '@/components/ui/sparkline';
 import type { BarDatum } from '@/components/ui/bar-chart';
@@ -21,6 +22,28 @@ const AnnotatedDailyChart = dynamic(
   () => import('@/components/ui/annotated-daily-chart').then((m) => m.AnnotatedDailyChart),
   { ssr: false },
 );
+
+// The charts draw fixed-size SVG; measuring the column lets them fill it
+// instead of leaving dead space beside a narrow plot.
+function Measured({ width, children }: { width?: number; children: (width: number) => ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState<number>();
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || width !== undefined) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setMeasured(Math.floor(entry.contentRect.width));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [width]);
+  const resolved = width ?? measured;
+  return (
+    <div ref={ref} className="w-full min-w-0">
+      {resolved === undefined ? null : children(resolved)}
+    </div>
+  );
+}
 
 function formatterFor(unit: 'percent' | 'count' | 'position'): (y: number) => string {
   if (unit === 'percent') return (y) => `${y}%`;
@@ -59,21 +82,25 @@ export function AdminDailyChart({
       ? undefined
       : endLabelFor(formatY(endValue), endDelta ?? null, invert);
   return (
-    <AnnotatedDailyChart
-      points={points}
-      average={average}
-      labels={labels}
-      weekend={weekend}
-      referenceLine={referenceLine}
-      eventMarkers={eventMarkers}
-      endLabel={endLabel}
-      tone={tone}
-      width={width}
-      height={height}
-      formatY={formatY}
-      formatTick={(s) => s.slice(5)}
-      ariaLabel={ariaLabel}
-    />
+    <Measured width={width}>
+      {(measuredWidth) => (
+        <AnnotatedDailyChart
+          points={points}
+          average={average}
+          labels={labels}
+          weekend={weekend}
+          referenceLine={referenceLine}
+          eventMarkers={eventMarkers}
+          endLabel={endLabel}
+          tone={tone}
+          width={measuredWidth}
+          height={height}
+          formatY={formatY}
+          formatTick={(s) => s.slice(5)}
+          ariaLabel={ariaLabel}
+        />
+      )}
+    </Measured>
   );
 }
 
@@ -94,23 +121,21 @@ export function AdminTrendChart({
   height?: number;
   ariaLabel?: string;
 }) {
-  const formatY =
-    unit === 'percent'
-      ? (y: number) => `${y}%`
-      : unit === 'position'
-        ? (y: number) => y.toFixed(1)
-        : (y: number) => y.toLocaleString();
   return (
-    <TrendChart
-      data={points}
-      labels={labels}
-      tone={tone}
-      width={width}
-      height={height}
-      formatY={formatY}
-      formatTick={(s) => s.slice(5)}
-      ariaLabel={ariaLabel}
-    />
+    <Measured width={width}>
+      {(measuredWidth) => (
+        <TrendChart
+          data={points}
+          labels={labels}
+          tone={tone}
+          width={measuredWidth}
+          height={height}
+          formatY={formatterFor(unit)}
+          formatTick={(s) => s.slice(5)}
+          ariaLabel={ariaLabel}
+        />
+      )}
+    </Measured>
   );
 }
 
@@ -128,13 +153,17 @@ export function AdminBarChart({
   ariaLabel?: string;
 }) {
   return (
-    <BarChart
-      data={data}
-      tone={tone}
-      width={width}
-      height={height}
-      formatValue={(v) => v.toLocaleString()}
-      ariaLabel={ariaLabel}
-    />
+    <Measured width={width}>
+      {(measuredWidth) => (
+        <BarChart
+          data={data}
+          tone={tone}
+          width={measuredWidth}
+          height={height}
+          formatValue={(v) => v.toLocaleString()}
+          ariaLabel={ariaLabel}
+        />
+      )}
+    </Measured>
   );
 }
