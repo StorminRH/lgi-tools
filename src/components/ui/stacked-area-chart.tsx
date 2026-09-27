@@ -1,13 +1,10 @@
 'use client';
 
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Area, LinePath } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
-import { ChartCanvas } from './chart/chart-canvas';
-import { extent, tickIndices } from './chart/chart-geometry';
-import { continuousHoverHandler } from './chart/hover';
-import { HoverCaptureRect, HoverCrosshair } from './chart/hover-layer';
-import { useChartHover } from './chart/use-chart-hover';
+import { TimeSeriesFrame } from './chart/chart-frame';
+import { extent } from './chart/chart-geometry';
 import { ValueAxisGrid } from './chart/value-axis';
 import type { SparklineTone } from './sparkline';
 import { toneHex } from './tones';
@@ -62,7 +59,6 @@ export function StackedAreaChart({
   ariaLabel: string;
   renderTooltip: (datum: StackedDatum) => ReactNode;
 }) {
-  const hover = useChartHover<Point>();
   if (data.length < 2) return null;
 
   const points: Point[] = data.map((datum) => ({ ...datum, y: base(datum, datum.values.length) }));
@@ -77,116 +73,61 @@ export function StackedAreaChart({
   const top = bands.at(-1);
   const edge = toneHex[top?.tone ?? 'green'];
 
-  const show = (point: Point) =>
-    hover.showTooltip({ tooltipData: point, tooltipLeft: xScale(point.x), tooltipTop: yScale(point.y) });
-  const onKey = (event: KeyboardEvent) => {
-    const current = hover.tooltipData === undefined ? points.length - 1 : points.indexOf(hover.tooltipData);
-    const step = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
-    const next = points[Math.min(points.length - 1, Math.max(0, current + step))];
-    if (step !== 0 && next !== undefined) show(next);
-  };
-  const tickIdx = tickIndices(points.length, 5);
 
   return (
-    <div
-      tabIndex={0}
-      aria-label={`${ariaLabel}; use the arrow keys to read each day`}
-      onFocus={() => {
-        const last = points.at(-1);
-        if (last !== undefined) show(last);
-      }}
-      onKeyDown={onKey}
-      onBlur={hover.hideTooltip}
-      className="rounded-ctl outline-none focus-visible:ring-1 focus-visible:ring-isk-sub"
+    <TimeSeriesFrame
+      points={points}
+      xScale={xScale}
+      yScale={yScale}
+      width={width}
+      height={height}
+      margin={MARGIN}
+      ariaLabel={ariaLabel}
+      crosshairColor={edge}
+      formatTick={formatTick}
+      renderTooltip={renderTooltip}
     >
-      <ChartCanvas
-        svgRef={hover.svgRef}
-        width={width}
-        height={height}
-        ariaLabel={ariaLabel}
-        tooltipRef={hover.tooltipRef}
-        tooltipOpen={hover.tooltipOpen}
-        tooltip={hover.tooltipData === undefined ? null : renderTooltip(hover.tooltipData)}
-      >
-        <ValueAxisGrid
-          ticks={yScale.ticks(4)}
-          y={yScale}
-          left={MARGIN.left}
-          right={width - MARGIN.right}
-          format={formatY}
-        />
-        {bands.map((band, index) => (
-          <g key={band.key} data-band={band.key}>
-            <Area<Point>
-              data={points}
-              x={(point) => xScale(point.x)}
-              y0={(point) => yScale(base(point, index))}
-              y1={(point) => yScale(base(point, index) + (point.values[index] ?? 0))}
-              defined={(point) => point.values[index] !== null}
-              fill={toneHex[band.tone]}
-              fillOpacity={FILL_OPACITY[index] ?? 0.2}
-            />
-            <LinePath<Point>
-              data={points}
-              x={(point) => xScale(point.x)}
-              y={(point) => yScale(base(point, index) + (point.values[index] ?? 0))}
-              defined={(point) => point.values[index] !== null}
-              stroke={toneHex[band.tone]}
-              strokeWidth={index === bands.length - 1 ? 1.5 : 1}
-              strokeOpacity={index === bands.length - 1 ? 1 : 0.7}
-              fill="none"
-            />
-            {points.map((point, i) =>
-              isolated(points, i, index) ? (
-                <circle
-                  key={point.x}
-                  cx={xScale(point.x)}
-                  cy={yScale(base(point, index) + (point.values[index] ?? 0))}
-                  r={3}
-                  fill={toneHex[band.tone]}
-                />
-              ) : null,
-            )}
-          </g>
-        ))}
-        {tickIdx.map((i) => {
-          const point = points[i];
-          return point === undefined ? null : (
-            <text
-              key={i}
-              x={xScale(point.x)}
-              y={height - 6}
-              textAnchor="middle"
-              className="fill-[var(--color-muted)] font-data text-micro"
-            >
-              {formatTick(point.label)}
-            </text>
-          );
-        })}
-        <HoverCrosshair
-          open={hover.tooltipOpen}
-          left={hover.tooltipLeft}
-          top={hover.tooltipTop}
-          y1={MARGIN.top}
-          y2={innerBottom}
-          color={edge}
-        />
-        <HoverCaptureRect
-          x={MARGIN.left}
-          y={MARGIN.top}
-          width={Math.max(0, width - MARGIN.left - MARGIN.right)}
-          height={Math.max(0, innerBottom - MARGIN.top)}
-          onMove={continuousHoverHandler({
-            svgRef: hover.svgRef,
-            xScale,
-            yScale,
-            xs,
-            data: points,
-            showTooltip: hover.showTooltip,
-          })}
-          onLeave={hover.hideTooltip}
-        />
-      </ChartCanvas>
-    </div>
+      <ValueAxisGrid
+        ticks={yScale.ticks(4)}
+        y={yScale}
+        left={MARGIN.left}
+        right={width - MARGIN.right}
+        format={formatY}
+      />
+      {bands.map((band, index) => (
+        <g key={band.key} data-band={band.key}>
+          <Area<Point>
+            data={points}
+            x={(point) => xScale(point.x)}
+            y0={(point) => yScale(base(point, index))}
+            y1={(point) => yScale(base(point, index) + (point.values[index] ?? 0))}
+            defined={(point) => point.values[index] !== null}
+            fill={toneHex[band.tone]}
+            fillOpacity={FILL_OPACITY[index] ?? 0.2}
+          />
+          <LinePath<Point>
+            data={points}
+            x={(point) => xScale(point.x)}
+            y={(point) => yScale(base(point, index) + (point.values[index] ?? 0))}
+            defined={(point) => point.values[index] !== null}
+            stroke={toneHex[band.tone]}
+            strokeWidth={index === bands.length - 1 ? 1.5 : 1}
+            strokeOpacity={index === bands.length - 1 ? 1 : 0.7}
+            fill="none"
+          />
+          {points.map((point, i) =>
+            isolated(points, i, index) ? (
+              <circle
+                key={point.x}
+                cx={xScale(point.x)}
+                cy={yScale(base(point, index) + (point.values[index] ?? 0))}
+                r={3}
+                fill={toneHex[band.tone]}
+              />
+            ) : null,
+          )}
+        </g>
+      ))}
+    </TimeSeriesFrame>
   );
 }
