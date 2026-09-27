@@ -106,6 +106,32 @@ describe('planSectionRead', () => {
     });
   });
 
+  it('clears a previous denial when access returns and every part is unchanged', () => {
+    const denied = planSectionRead(
+      SHEET_SECTIONS.status,
+      { location: error('esi_403'), ship: unchanged, online: unchanged },
+      previousStatus,
+      NOW,
+    );
+    if (denied.kind !== 'save') throw new Error('Expected a denied envelope');
+
+    const recoveredAt = new Date(NOW.getTime() + 120_000);
+    const recovered = planSectionRead(
+      SHEET_SECTIONS.status,
+      { location: unchanged, ship: unchanged, online: unchanged },
+      denied.envelope,
+      recoveredAt,
+    );
+    expect(recovered).toEqual({
+      kind: 'save',
+      envelope: {
+        data: previousStatus.data,
+        refreshedAt: recoveredAt.toISOString(),
+        etags: previousStatus.etags,
+      },
+    });
+  });
+
   it('a 403 wins over other errors in the same section', () => {
     const plan = planSectionRead(
       SHEET_SECTIONS.status,

@@ -52,7 +52,9 @@ export function planSectionRead<K extends DirectSectionKey>(
   });
   if (errors.includes(DENIED_CODE)) return { kind: 'save', envelope: deniedEnvelope(previous, now) };
   if (errors.length > 0) return { kind: 'skip', code: errors[0] };
-  if (parts.every((part) => reads[part].kind === 'unchanged')) return { kind: 'stamp' };
+  if (previous?.denied !== true && parts.every((part) => reads[part].kind === 'unchanged')) {
+    return { kind: 'stamp' };
+  }
 
   const data: Partial<Record<SheetPart<K>, unknown>> = {};
   const etags: PartEtags<K> = {};
