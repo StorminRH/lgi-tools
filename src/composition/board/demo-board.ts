@@ -13,8 +13,16 @@ import type {
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { characterPortraitUrl } from '@/lib/eve-image';
-import type { BoardResponse, SkillCatalogGroup } from './api-contract';
-import { assembleBoard, type BoardRaw, type NameBook, type TypeFacts } from './board-assemble';
+import type { AssetLine, PriceBook, TypeCategories } from '@/features/net-worth/valuation';
+import type { BoardCharacter, BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
+import {
+  assembleBoard,
+  type BoardRaw,
+  type NameBook,
+  netWorthSnapshot,
+  toHistoryDay,
+  type TypeFacts,
+} from './board-assemble';
 
 export const DEMO_VARIANTS = ['full', 'one', 'reconnect', 'empty'] as const;
 export type DemoVariant = (typeof DEMO_VARIANTS)[number];
@@ -51,6 +59,22 @@ const TENGU = 29984;
 const ISHTAR = 12005;
 const RETRIEVER = 17478;
 const ASTERO = 33468;
+const CARACAL = 621;
+const DRAKE = 24698;
+const VENTURE = 32880;
+const RIFTER = 587;
+const TRITANIUM = 34;
+const PYERITE = 35;
+const PLEX = 44992;
+const LARGE_SKILL_INJECTOR = 40520;
+const RIFTER_BLUEPRINT = 787;
+const TENGU_SKIN = 45843;
+const CALDARI_CRUISER_SKILLBOOK = 3334;
+
+const SHIP_CATEGORY = 6;
+const MATERIAL_CATEGORY = 4;
+const ACCESSORY_CATEGORY = 5;
+const IMPLANT_CATEGORY = 20;
 
 const NEW_SCOPES = (['wallet', 'clones', 'implants', 'structures'] as const).flatMap(
   (key) => SHEET_SECTION_SCOPES[key],
@@ -221,6 +245,42 @@ const DEMO_PLACES = new Map([
   [HEK_8_12, { name: 'Hek VIII - Moon 12 - Boundless Creation Factory', systemId: HEK }],
 ]);
 
+const price = (jitaMid: number | null, average: number | null) => ({ jitaMid, average });
+
+/** Rounded from the local Jita book and CCP averages on 2026-09-27; PLEX has no Jita book. */
+const DEMO_PRICES: PriceBook = new Map([
+  [TRITANIUM, price(4.0, 3.74)],
+  [PYERITE, price(18.04, 17.63)],
+  [PLEX, price(null, 4_692_289.39)],
+  [LARGE_SKILL_INJECTOR, price(760_000_000, 739_868_976.53)],
+  [TENGU, price(228_000_000, 224_575_808.66)],
+  [ISHTAR, price(139_000_000, 138_145_641.51)],
+  [RETRIEVER, price(43_700_000, 41_619_184.71)],
+  [ASTERO, price(98_900_000, 92_749_353.76)],
+  [CARACAL, price(12_000_000, 10_570_472.11)],
+  [DRAKE, price(54_000_000, 50_977_474.16)],
+  [VENTURE, price(278_000, 179_590.53)],
+  [RIFTER, price(282_042.1, 291_389.14)],
+  [RIFTER_BLUEPRINT, price(2_000_000, 2_900_000)],
+  [TENGU_SKIN, price(500_000_000, 500_000_000)],
+  [CALDARI_CRUISER_SKILLBOOK, price(1_000_000, 1_000_000)],
+  ...BASIC_IMPLANTS.map((id) => [id, price(7_500_000, 8_194_316.5)] as const),
+  ...STANDARD_IMPLANTS.map((id) => [id, price(19_000_000, 18_200_000)] as const),
+  ...IMPROVED_IMPLANTS.map((id) => [id, price(90_000_000, 97_300_000)] as const),
+]);
+
+const DEMO_CATEGORIES: TypeCategories = new Map([
+  [TRITANIUM, MATERIAL_CATEGORY],
+  [PYERITE, MATERIAL_CATEGORY],
+  [PLEX, ACCESSORY_CATEGORY],
+  [LARGE_SKILL_INJECTOR, ACCESSORY_CATEGORY],
+  ...[TENGU, ISHTAR, RETRIEVER, ASTERO, CARACAL, DRAKE, VENTURE, RIFTER].map((id) => [id, SHIP_CATEGORY] as const),
+  [RIFTER_BLUEPRINT, 9],
+  [TENGU_SKIN, 91],
+  [CALDARI_CRUISER_SKILLBOOK, 16],
+  ...[...BASIC_IMPLANTS, ...STANDARD_IMPLANTS, ...IMPROVED_IMPLANTS].map((id) => [id, IMPLANT_CATEGORY] as const),
+]);
+
 const DEMO_NAMES: NameBook = {
   types: DEMO_TYPES,
   systems: DEMO_SYSTEMS,
@@ -234,7 +294,15 @@ const DEMO_NAMES: NameBook = {
     [DEMO_ALLIANCE]: 'Halcyon Drift',
   },
   skillCatalog: DEMO_CATALOG,
+  prices: DEMO_PRICES,
+  typeCategories: DEMO_CATEGORIES,
 };
+
+const hangar = (typeId: number, quantity: number, locationFlag = 'Hangar'): AssetLine => ({
+  typeId,
+  quantity,
+  locationFlag,
+});
 
 const JOURNAL_CYCLE: ReadonlyArray<[refType: string, amount: number, description: string]> = [
   ['bounty_prizes', 18_450_000, 'Bounty prizes'],
@@ -456,6 +524,33 @@ function aurel(now: number): BoardRaw {
         { names: { [DRIFTWOOD_ANCHORAGE]: { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } },
         now - 40 * 60_000,
       ),
+      orders: envelope<'orders'>(
+        {
+          orders: {
+            open: [
+              { typeId: CARACAL, volumeRemain: 2, isBuyOrder: false, escrow: 0 },
+              { typeId: LARGE_SKILL_INJECTOR, volumeRemain: 1, isBuyOrder: false, escrow: 0 },
+              { typeId: TRITANIUM, volumeRemain: 2_000_000, isBuyOrder: true, escrow: 7_900_000 },
+            ],
+          },
+        },
+        now - 35 * 60_000,
+      ),
+    },
+    assets: {
+      rows: [
+        hangar(TRITANIUM, 4_000_000),
+        hangar(PYERITE, 1_500_000),
+        hangar(PLEX, 60),
+        hangar(TENGU, 1),
+        hangar(CARACAL, 3),
+        hangar(DRAKE, 1),
+        hangar(LARGE_SKILL_INJECTOR, 2),
+        hangar(RIFTER_BLUEPRINT, 1),
+        hangar(TENGU_SKIN, 1),
+        hangar(CALDARI_CRUISER_SKILLBOOK, 1, 'Skill'),
+      ],
+      refreshedAt: now - 50 * 60_000,
     },
     skills: {
       data: {
@@ -541,6 +636,11 @@ function kessa(now: number): BoardRaw {
       ),
       ...walletSections(now, { scale: 0.25, closing: 812_450_000.5, idBase: 1_910_000_000 }),
       structures: envelope<'structures'>({ names: {} }, now - 40 * 60_000),
+      orders: envelope<'orders'>({ orders: { open: [] } }, now - 35 * 60_000),
+    },
+    assets: {
+      rows: [hangar(ISHTAR, 1), hangar(VENTURE, 2), hangar(TRITANIUM, 250_000)],
+      refreshedAt: now - 50 * 60_000,
     },
     skills: {
       data: {
@@ -623,6 +723,14 @@ function torvin(now: number): BoardRaw {
       ),
       ...walletSections(now, { scale: 0.03, closing: 96_210_330.02, idBase: 1_920_000_000 }),
       structures: envelope<'structures'>({ names: {} }, now - 40 * 60_000),
+      orders: envelope<'orders'>(
+        { orders: { open: [{ typeId: TRITANIUM, volumeRemain: 500_000, isBuyOrder: false, escrow: 0 }] } },
+        now - 35 * 60_000,
+      ),
+    },
+    assets: {
+      rows: [hangar(RETRIEVER, 1), hangar(VENTURE, 1), hangar(RIFTER, 1), hangar(TRITANIUM, 2_000_000), hangar(PYERITE, 800_000)],
+      refreshedAt: now - 50 * 60_000,
     },
     skills: {
       data: {
@@ -687,6 +795,7 @@ function ilyana(now: number): BoardRaw {
         now - 90_000,
       ),
     },
+    assets: { rows: [hangar(ASTERO, 1), hangar(RIFTER, 1)], refreshedAt: now - 50 * 60_000 },
     skills: {
       data: { totalSp: 4_120_500, entries: [] },
       levels: ILYANA_LEVELS,
@@ -710,6 +819,7 @@ function bram(): BoardRaw {
     sheet: null,
     skills: { data: null, levels: null, refreshedAt: null },
     jobs: { data: null, refreshedAt: null },
+    assets: { rows: null, refreshedAt: null },
   };
 }
 
@@ -726,6 +836,55 @@ function demoRaws(now: number, variant: DemoVariant): BoardRaw[] {
   }
 }
 
+const HISTORY_DAYS = 90;
+const SKIPPED_DAY_PERIODS = [7, 11] as const;
+const SKIPPED_DAY_OFFSETS = [3, 5] as const;
+
+function utcDayOf(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** A day the demo account did not open the board; the chart must cope with the gap. */
+function isSkippedDay(daysAgo: number): boolean {
+  return SKIPPED_DAY_PERIODS.some((period, i) => daysAgo % period === SKIPPED_DAY_OFFSETS[i]);
+}
+
+/** Walks each pilot back from today's real figure with a slow drift and a deterministic wobble. */
+function pastWorth(today: number, daysAgo: number, seed: number): number {
+  const drift = 1 - daysAgo * 0.0035;
+  const wobble = 1 + 0.02 * Math.sin(daysAgo / 3 + seed) + 0.01 * Math.cos(daysAgo / 7 + seed * 2);
+  return roundIsk(today * drift * wobble);
+}
+
+function demoHistory(now: number, characters: BoardCharacter[]): BoardHistoryDay[] {
+  const today = netWorthSnapshot(characters, utcDayOf(now));
+  if (today.pilotsIncluded === 0) return [];
+  const days: BoardHistoryDay[] = [];
+  for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo -= 1) {
+    if (isSkippedDay(daysAgo)) continue;
+    const pilots: BoardHistoryDay['pilots'] = {};
+    let netWorth = 0;
+    let liquidIsk = 0;
+    Object.entries(today.pilots).forEach(([id, worth], i) => {
+      const past = { netWorth: pastWorth(worth.netWorth, daysAgo, i), liquidIsk: pastWorth(worth.liquidIsk, daysAgo, i + 1) };
+      pilots[id] = past;
+      netWorth += past.netWorth;
+      liquidIsk += past.liquidIsk;
+    });
+    days.push({
+      day: utcDayOf(now - daysAgo * DAY),
+      netWorth: roundIsk(netWorth),
+      liquidIsk: roundIsk(liquidIsk),
+      included: today.pilotsIncluded,
+      total: today.pilotsTotal,
+      pilots,
+    });
+  }
+  days.push(toHistoryDay(today));
+  return days;
+}
+
 export function buildDemoBoard(now: number, variant: DemoVariant): BoardResponse {
-  return assembleBoard(demoRaws(now, variant), DEMO_NAMES, now);
+  const board = assembleBoard(demoRaws(now, variant), DEMO_NAMES, now, []);
+  return { ...board, history: demoHistory(now, board.characters) };
 }

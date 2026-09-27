@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   createDbTestHarness,
@@ -13,8 +14,12 @@ import {
   eveTypes,
   typeDogma,
 } from '@/data/eve-data/schema';
+import { adjustedPrices } from '@/data/industry-indices/schema';
+import { marketPrices } from '@/data/market-prices/schema';
 import { characterSheets } from '@/features/character-sheet/schema';
 import type { SheetSections } from '@/features/character-sheet/types';
+import { netWorthDays } from '@/features/net-worth/schema';
+import { ownedAssets, ownedAssetSyncs } from '@/features/owned-assets/schema';
 import { characterSkills, characterSkillSyncs } from '@/features/skill-queue/schema';
 import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import { BOARD_GAPS, boardResponseSchema } from './api-contract';
@@ -32,7 +37,7 @@ vi.mock('@/composition/sync/industry-jobs-sync', () => ({ refreshJobsOnView: vi.
 vi.mock('@/composition/sync/character-sheet-sync', () => ({ refreshCharacterSheetsOnView: vi.fn() }));
 vi.mock('@/composition/sync/owned-assets-sync', () => ({ refreshCharacterAssetsOnView: vi.fn() }));
 
-import { getBoardForUserOnView } from './board-view';
+import { getBoardForUserOnView, recordNetWorthSnapshot } from './board-view';
 
 const harness = await createDbTestHarness({
   schema: 'test_board_view',
@@ -51,6 +56,14 @@ const harness = await createDbTestHarness({
     'eve_npc_stations',
     'type_dogma',
     'dgm_attribute_types',
+    'owned_assets',
+    'owned_asset_syncs',
+    'market_prices',
+    'adjusted_prices',
+    'net_worth_days',
+  ],
+  foreignKeys: [
+    { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,
 });
@@ -68,6 +81,19 @@ const AMARR_ORIS = 60008494;
 const ANCHORAGE = 1099000000001;
 const TENGU = 29984;
 const OCULAR_IMPROVED = 10217;
+const TRITANIUM = 34;
+const PYERITE = 35;
+const PLEX = 44992;
+const RIFTER_BLUEPRINT = 787;
+const TENGU_SKIN = 45843;
+const CALDARI_CRUISER_SKILLBOOK = 3334;
+
+const WALLET = 3204115882.15;
+const ASSET_VALUE = 1_000_000 * 3.5 + 224_000_000 + 10 * 4_690_000;
+const SELL_ORDERS = 2 * 224_000_000;
+const BUY_ESCROW = 1_750;
+const IMPLANTS = 2 * 90_000_000;
+const NET_WORTH = Math.round((WALLET + ASSET_VALUE + SELL_ORDERS + BUY_ESCROW + IMPLANTS) * 100) / 100;
 
 const STAMP = '2026-09-27T11:58:00.000Z';
 const STAMP_MS = Date.parse(STAMP);
@@ -108,7 +134,7 @@ const AUREL_SHEET: SheetSections = {
       lastCloneJumpDate: '2026-09-18T12:00:00Z',
     },
   }),
-  wallet: envelope({ balance: 3204115882.15 }),
+  wallet: envelope({ balance: WALLET }),
   journal: envelope({
     journal: {
       windowStart: '2026-08-28T12:00:00.000Z',
@@ -119,6 +145,14 @@ const AUREL_SHEET: SheetSections = {
     },
   }),
   structures: envelope({ names: { [ANCHORAGE]: { kind: 'named', name: 'Sobaseki - Driftwood Anchorage' } } }),
+  orders: envelope({
+    orders: {
+      open: [
+        { typeId: TENGU, volumeRemain: 2, isBuyOrder: false, escrow: 0 },
+        { typeId: TRITANIUM, volumeRemain: 500, isBuyOrder: true, escrow: BUY_ESCROW },
+      ],
+    },
+  }),
 };
 
 const group = (id: number, categoryId: number, name: string) => ({
@@ -131,12 +165,21 @@ async function seedSde() {
     group(257, 16, 'Spaceship Command'),
     group(963, 6, 'Strategic Cruiser'),
     group(300, 20, 'Cyberimplant'),
+    group(18, 4, 'Mineral'),
+    group(1875, 5, 'PLEX'),
+    group(105, 9, 'Frigate Blueprint'),
+    group(1950, 91, 'Ship SKINs'),
   ]);
   await harness.db.insert(eveTypes).values([
-    { id: TENGU, groupId: 963, name: 'Tengu', published: true },
-    { id: OCULAR_IMPROVED, groupId: 300, name: 'Ocular Filter - Improved', published: true },
-    { id: 3334, groupId: 257, name: 'Caldari Cruiser', published: true },
+    { id: TENGU, groupId: 963, name: 'Tengu', published: true, marketGroupId: 1139 },
+    { id: OCULAR_IMPROVED, groupId: 300, name: 'Ocular Filter - Improved', published: true, marketGroupId: 1000 },
+    { id: CALDARI_CRUISER_SKILLBOOK, groupId: 257, name: 'Caldari Cruiser', published: true, marketGroupId: 377 },
     { id: 3327, groupId: 257, name: 'Spaceship Command', published: true },
+    { id: TRITANIUM, groupId: 18, name: 'Tritanium', published: true, marketGroupId: 1857 },
+    { id: PYERITE, groupId: 18, name: 'Pyerite', published: true, marketGroupId: 1857 },
+    { id: PLEX, groupId: 1875, name: 'PLEX', published: true, marketGroupId: 1923 },
+    { id: RIFTER_BLUEPRINT, groupId: 105, name: 'Rifter Blueprint', published: true, marketGroupId: 1361 },
+    { id: TENGU_SKIN, groupId: 1950, name: 'Tengu Exoplanets Hunter SKIN', published: true, marketGroupId: 2370 },
   ]);
   await harness.db.insert(dgmAttributeTypes).values([
     attribute(331, 'implantness'),
@@ -183,7 +226,59 @@ async function seedRoster() {
   });
 }
 
+function priceRow(typeId: number, pct5: number) {
+  return {
+    typeId,
+    bestBuy: pct5,
+    bestSell: pct5,
+    pct5Buy: pct5,
+    pct5Sell: pct5,
+    updatedAt: new Date(STAMP),
+    staleAfter: new Date('2026-09-28T00:00:00Z'),
+    source: 'esi',
+  };
+}
+
+async function seedWealth() {
+  const hangar = (typeId: number, quantity: number, locationFlag = 'Hangar') => ({
+    ownerType: 'character' as const, ownerId: AUREL, typeId, quantity, locationId: JITA_4_4, locationFlag, locationType: 'station',
+  });
+  await harness.db.insert(ownedAssets).values([
+    hangar(TRITANIUM, 1_000_000),
+    hangar(PYERITE, 500),
+    hangar(TENGU, 1),
+    hangar(PLEX, 10),
+    hangar(RIFTER_BLUEPRINT, 1),
+    hangar(TENGU_SKIN, 1),
+    hangar(CALDARI_CRUISER_SKILLBOOK, 1, 'Skill'),
+  ]);
+  await harness.db.insert(ownedAssetSyncs).values({
+    ownerType: 'character', ownerId: AUREL, lastRefreshedAt: new Date(STAMP), pageEtags: [],
+  });
+  await harness.db.insert(marketPrices).values([
+    { ...priceRow(TRITANIUM, 4), pct5Buy: 3.95, pct5Sell: 4.05 },
+    { ...priceRow(TENGU, 228_000_000), pct5Buy: 227_900_000, pct5Sell: 228_100_000 },
+    priceRow(OCULAR_IMPROVED, 90_000_000),
+    priceRow(PLEX, 1),
+    priceRow(RIFTER_BLUEPRINT, 2_000_000),
+    priceRow(TENGU_SKIN, 500_000_000),
+    priceRow(CALDARI_CRUISER_SKILLBOOK, 1_000_000),
+  ]);
+  await harness.db.insert(adjustedPrices).values([
+    { typeId: TRITANIUM, adjustedPrice: 3.07, averagePrice: 3.5, updatedAt: new Date(STAMP) },
+    { typeId: TENGU, adjustedPrice: 149_000_000, averagePrice: 224_000_000, updatedAt: new Date(STAMP) },
+    { typeId: OCULAR_IMPROVED, adjustedPrice: 78_000_000, averagePrice: 97_000_000, updatedAt: new Date(STAMP) },
+    { typeId: PLEX, adjustedPrice: 0, averagePrice: 4_690_000, updatedAt: new Date(STAMP) },
+    { typeId: RIFTER_BLUEPRINT, adjustedPrice: 0, averagePrice: 2_900_000, updatedAt: new Date(STAMP) },
+  ]);
+  await harness.db.insert(netWorthDays).values([
+    { userId: USER_ID, day: '2026-09-25', netWorth: 100, liquidIsk: 50, pilotsIncluded: 1, pilotsTotal: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } }, recordedAt: new Date(STAMP) },
+    { userId: USER_ID, day: '2026-09-20', netWorth: 90, liquidIsk: 40, pilotsIncluded: 1, pilotsTotal: 3, pilots: { [AUREL]: { netWorth: 90, liquidIsk: 40 } }, recordedAt: new Date(STAMP) },
+  ]);
+}
+
 async function seedDatasets() {
+  await seedWealth();
   await harness.db.insert(characterSheets).values({
     characterId: AUREL, sections: AUREL_SHEET, lastRefreshedAt: new Date(STAMP),
   });
@@ -289,7 +384,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         ],
       },
     });
-    expect(aurel?.wallet).toEqual({ state: 'ready', refreshedAt: STAMP_MS, data: { balance: 3204115882.15 } });
+    expect(aurel?.wallet).toEqual({ state: 'ready', refreshedAt: STAMP_MS, data: { balance: WALLET } });
     expect(aurel?.journal).toMatchObject({
       data: { recent: [{ id: 9, refLabel: 'Bounties', amount: 100, description: 'b' }] },
     });
@@ -338,7 +433,53 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ilyana?.status).toEqual({ state: 'reconnect' });
   });
 
+  it('values the synced pilot from stored prices only, excluding blueprints, SKINs and skillbooks', async () => {
+    const board = await getBoardForUserOnView(USER_ID);
+    const [aurel, bram, ilyana] = board.characters;
+
+    expect(aurel?.netWorth).toEqual({
+      state: 'ready',
+      refreshedAt: STAMP_MS,
+      data: {
+        total: NET_WORTH,
+        liquid: WALLET,
+        assets: ASSET_VALUE,
+        sellOrders: SELL_ORDERS,
+        buyEscrow: BUY_ESCROW,
+        implants: IMPLANTS,
+      },
+    });
+    expect(NET_WORTH).toBe(4_106_517_632.15);
+    expect(bram?.netWorth).toEqual({ state: 'reconnect' });
+    expect(ilyana?.netWorth).toEqual({ state: 'reconnect' });
+    expect(board.history).toEqual([
+      { day: '2026-09-20', netWorth: 90, liquidIsk: 40, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 90, liquidIsk: 40 } } },
+      { day: '2026-09-25', netWorth: 100, liquidIsk: 50, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } } },
+    ]);
+  });
+
+  it('records the day after the write-behind and seeds price rows for unpriced marketable types', async () => {
+    await recordNetWorthSnapshot(USER_ID, new Date(STAMP));
+
+    const rows = await harness.db.select().from(netWorthDays).orderBy(netWorthDays.day);
+    expect(rows.map((row) => row.day)).toEqual(['2026-09-20', '2026-09-25', '2026-09-27']);
+    expect(rows[2]).toEqual({
+      userId: USER_ID,
+      day: '2026-09-27',
+      netWorth: NET_WORTH,
+      liquidIsk: WALLET,
+      pilotsIncluded: 1,
+      pilotsTotal: 3,
+      pilots: { [AUREL]: { netWorth: NET_WORTH, liquidIsk: WALLET } },
+      recordedAt: new Date(STAMP),
+    });
+
+    const [pyerite] = await harness.db.select().from(marketPrices).where(eq(marketPrices.typeId, PYERITE));
+    expect(pyerite).toMatchObject({ typeId: PYERITE, pct5Buy: null, pct5Sell: null, staleAfter: new Date(0), source: 'esi' });
+    expect((await getBoardForUserOnView(USER_ID)).history).toHaveLength(3);
+  });
+
   it('returns an empty roster for a user with no linked characters', async () => {
-    await expect(getBoardForUserOnView('nobody')).resolves.toMatchObject({ characters: [] });
+    await expect(getBoardForUserOnView('nobody')).resolves.toMatchObject({ characters: [], history: [] });
   });
 });

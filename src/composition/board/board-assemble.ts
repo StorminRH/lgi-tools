@@ -18,12 +18,23 @@ import { jobOccupiesSlot, slotCapacity } from '@/features/industry-jobs/slots';
 import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from '@/features/industry-jobs/sync-eligibility';
 import type { CharacterJobsData } from '@/features/industry-jobs/types';
 import { canSyncSkillQueue, SKILL_SYNC_SCOPES } from '@/features/skill-queue/sync-eligibility';
+import { canSyncAssets, ASSETS_SYNC_SCOPES } from '@/features/owned-assets/sync-eligibility';
+import type { NetWorthDay } from '@/features/net-worth/types';
+import {
+  type AssetLine,
+  type NetWorthBreakdown,
+  type PriceBook,
+  type TypeCategories,
+  valueCharacter,
+} from '@/features/net-worth/valuation';
 import type { CharacterSkillData } from '@/features/skill-queue/types';
 import {
   BOARD_GAPS,
   type BoardCharacter,
   type BoardGap,
+  type BoardHistoryDay,
   type BoardIndustryData,
+  type BoardNetWorthData,
   type BoardResponse,
   type BoardSection,
   type BoardSkillsData,
@@ -51,6 +62,8 @@ export interface BoardRaw {
   sheet: SheetSections | null;
   skills: { data: CharacterSkillData | null; levels: Record<string, number> | null; refreshedAt: number | null };
   jobs: { data: CharacterJobsData | null; refreshedAt: number | null };
+  /** rows is null until the first assets sync has landed; an empty list is a synced, empty hangar. */
+  assets: { rows: AssetLine[] | null; refreshedAt: number | null };
 }
 
 export interface TypeFacts {
@@ -70,6 +83,8 @@ export interface NameBook {
   npcStations: Map<number, PlaceFacts>;
   entities: Record<string, string>;
   skillCatalog: SkillCatalogGroup[];
+  prices: PriceBook;
+  typeCategories: TypeCategories;
 }
 
 export interface NameIdRequest {
@@ -77,6 +92,8 @@ export interface NameIdRequest {
   systemIds: number[];
   stationIds: number[];
   entityIds: number[];
+  /** Every type the valuation prices: asset rows, implants and open orders. */
+  valuationTypeIds: number[];
 }
 
 const GAP_SCOPES: Record<BoardGap, readonly string[]> = {
@@ -88,6 +105,7 @@ const GAP_SCOPES: Record<BoardGap, readonly string[]> = {
   structures: SHEET_SECTION_SCOPES.structures,
   industry: INDUSTRY_JOBS_SYNC_SCOPES,
   orders: SHEET_SECTION_SCOPES.orders,
+  assets: ASSETS_SYNC_SCOPES,
 };
 
 const SECTION_GAP: Record<SheetSectionKey, BoardGap | null> = {
@@ -113,12 +131,37 @@ function cloneStationIds(clones: ClonesPart | undefined): number[] {
   );
 }
 
+function implantIdsOf(raw: BoardRaw): { active: number[]; jumpClones: number[][] } {
+  const sheet = raw.sheet;
+  return {
+    active: sheet?.implants?.denied === true ? [] : (sheet?.implants?.data?.implants ?? []),
+    jumpClones: (sheet?.clones?.data?.clones.jumpClones ?? []).map((clone) => clone.implantTypeIds),
+  };
+}
+
+function openOrdersOf(raw: BoardRaw) {
+  const orders = raw.sheet?.orders;
+  return orders?.denied === true ? [] : (orders?.data?.orders.open ?? []);
+}
+
+function valuationTypeIdsOf(raw: BoardRaw): number[] {
+  const implants = implantIdsOf(raw);
+  return [
+    ...(raw.assets.rows ?? []).map((line) => line.typeId),
+    ...implants.active,
+    ...implants.jumpClones.flat(),
+    ...openOrdersOf(raw).map((order) => order.typeId),
+  ];
+}
+
 export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
   const typeIds: number[] = [];
   const systemIds: number[] = [];
   const stationIds: number[] = [];
   const entityIds: number[] = [];
+  const valuationTypeIds: number[] = [];
   for (const raw of raws) {
+    valuationTypeIds.push(...valuationTypeIdsOf(raw));
     if (raw.identity.corporationId !== null) entityIds.push(raw.identity.corporationId);
     if (raw.identity.allianceId !== null) entityIds.push(raw.identity.allianceId);
     const status = raw.sheet?.status?.data;
@@ -137,6 +180,7 @@ export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
     systemIds: sorted(systemIds),
     stationIds: sorted(stationIds),
     entityIds: sorted(entityIds),
+    valuationTypeIds: sorted(valuationTypeIds),
   };
 }
 
@@ -308,6 +352,36 @@ function mapIndustry(
   };
 }
 
+function toNetWorthData(breakdown: NetWorthBreakdown): BoardNetWorthData {
+  const { total, liquid, assets, sellOrders, buyEscrow, implants } = breakdown;
+  return { total, liquid, assets, sellOrders, buyEscrow, implants };
+}
+
+/** Ready once the wallet and the assets have both synced; implants, clones and orders add what they have. */
+function netWorthOf(raw: BoardRaw, names: NameBook): BoardSection<BoardNetWorthData> {
+  const wallet = raw.sheet?.wallet;
+  const eligible = canSyncSection('wallet', raw.health) && canSyncAssets(raw.health);
+  if (!eligible || wallet?.denied === true) return { state: 'reconnect' };
+  if (wallet === undefined || raw.assets.rows === null) return { state: 'pending' };
+  const implants = implantIdsOf(raw);
+  const breakdown = valueCharacter(
+    {
+      wallet: wallet.data.balance,
+      assets: raw.assets.rows,
+      activeImplants: implants.active,
+      jumpCloneImplants: implants.jumpClones,
+      orders: openOrdersOf(raw),
+    },
+    names.prices,
+    names.typeCategories,
+  );
+  return {
+    state: 'ready',
+    refreshedAt: Math.min(Date.parse(wallet.refreshedAt), raw.assets.refreshedAt ?? Number.MAX_SAFE_INTEGER),
+    data: toNetWorthData(breakdown),
+  };
+}
+
 function deniedGaps(sheet: SheetSections | null): Set<BoardGap> {
   const gaps = new Set<BoardGap>();
   for (const [key, gap] of Object.entries(SECTION_GAP) as [SheetSectionKey, BoardGap | null][]) {
@@ -356,12 +430,52 @@ export function assembleBoardCharacter(raw: BoardRaw, names: NameBook, now: numb
     industry: datasetOf(canSyncIndustryJobs(health), raw.jobs.data, raw.jobs.refreshedAt, (data) =>
       mapIndustry(data, raw.skills.levels, now),
     ),
+    netWorth: netWorthOf(raw, names),
   };
 }
 
-export function assembleBoard(raws: BoardRaw[], names: NameBook, now: number): BoardResponse {
+export function toHistoryDay(day: NetWorthDay): BoardHistoryDay {
+  return {
+    day: day.day,
+    netWorth: day.netWorth,
+    liquidIsk: day.liquidIsk,
+    included: day.pilotsIncluded,
+    total: day.pilotsTotal,
+    pilots: day.pilots,
+  };
+}
+
+/** The account's day from the assembled roster: only pilots with a ready net worth count. */
+export function netWorthSnapshot(characters: readonly BoardCharacter[], day: string): NetWorthDay {
+  const pilots: NetWorthDay['pilots'] = {};
+  let netWorth = 0;
+  let liquidIsk = 0;
+  for (const character of characters) {
+    if (character.netWorth.state !== 'ready') continue;
+    const { total, liquid } = character.netWorth.data;
+    pilots[String(character.characterId)] = { netWorth: total, liquidIsk: liquid };
+    netWorth += total;
+    liquidIsk += liquid;
+  }
+  return {
+    day,
+    netWorth: Math.round(netWorth * 100) / 100,
+    liquidIsk: Math.round(liquidIsk * 100) / 100,
+    pilotsIncluded: Object.keys(pilots).length,
+    pilotsTotal: characters.length,
+    pilots,
+  };
+}
+
+export function assembleBoard(
+  raws: BoardRaw[],
+  names: NameBook,
+  now: number,
+  history: BoardHistoryDay[],
+): BoardResponse {
   return {
     characters: raws.map((raw) => assembleBoardCharacter(raw, names, now)),
     skillCatalog: names.skillCatalog,
+    history,
   };
 }

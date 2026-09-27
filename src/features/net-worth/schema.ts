@@ -1,10 +1,6 @@
 import { date, doublePrecision, jsonb, pgTable, primaryKey, smallint, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
-
-export interface PilotWorth {
-  netWorth: number;
-  liquidIsk: number;
-}
+import type { PilotWorth } from './types';
 
 /**
  * One row per account per UTC day; the last board view of the day wins. Keyed to the account, not the

@@ -13,6 +13,7 @@ export const BOARD_GAPS = [
   'structures',
   'industry',
   'orders',
+  'assets',
 ] as const;
 export type BoardGap = (typeof BOARD_GAPS)[number];
 
@@ -120,6 +121,16 @@ const industryDataSchema = z.object({
 });
 export type BoardIndustryData = z.infer<typeof industryDataSchema>;
 
+const netWorthDataSchema = z.object({
+  total: z.number(),
+  liquid: z.number(),
+  assets: z.number(),
+  sellOrders: z.number(),
+  buyEscrow: z.number(),
+  implants: z.number(),
+});
+export type BoardNetWorthData = z.infer<typeof netWorthDataSchema>;
+
 export const boardCharacterSchema = z.object({
   characterId: z.number(),
   name: z.string(),
@@ -136,6 +147,7 @@ export const boardCharacterSchema = z.object({
   wallet: sectionOf(walletDataSchema),
   journal: sectionOf(journalDataSchema),
   industry: sectionOf(industryDataSchema),
+  netWorth: sectionOf(netWorthDataSchema),
 });
 export type BoardCharacter = z.infer<typeof boardCharacterSchema>;
 
@@ -146,9 +158,24 @@ const skillCatalogGroupSchema = z.object({
 });
 export type SkillCatalogGroup = z.infer<typeof skillCatalogGroupSchema>;
 
+const pilotWorthSchema = z.object({ netWorth: z.number(), liquidIsk: z.number() });
+
+/** One recorded UTC day for the account; `included` of `total` pilots had a computable net worth. */
+const historyDaySchema = z.object({
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  netWorth: z.number(),
+  liquidIsk: z.number(),
+  included: z.number().int(),
+  total: z.number().int(),
+  pilots: z.record(z.string(), pilotWorthSchema),
+});
+export type BoardHistoryDay = z.infer<typeof historyDaySchema>;
+
 export const boardResponseSchema = z.object({
   characters: z.array(boardCharacterSchema),
   skillCatalog: z.array(skillCatalogGroupSchema),
+  /** Oldest first, at most 365 recorded days; skipped days are simply absent. */
+  history: z.array(historyDaySchema),
 });
 export type BoardResponse = z.infer<typeof boardResponseSchema>;
 

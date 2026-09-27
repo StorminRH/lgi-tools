@@ -1,17 +1,8 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { NET_WORTH_HISTORY_DAYS } from './constants';
-import { netWorthDays, type PilotWorth } from './schema';
-
-export interface NetWorthDay {
-  /** UTC calendar day, YYYY-MM-DD. */
-  day: string;
-  netWorth: number;
-  liquidIsk: number;
-  pilotsIncluded: number;
-  pilotsTotal: number;
-  pilots: Record<string, PilotWorth>;
-}
+import { netWorthDays } from './schema';
+import type { NetWorthDay } from './types';
 
 export function utcDay(at: Date): string {
   return at.toISOString().slice(0, 10);

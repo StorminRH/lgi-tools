@@ -33,6 +33,14 @@ export async function getOwnedAssetMap(owners: OwnerKey[], typeIds: number[]): P
   return buildOwnedAssetMap(perOwner.flat(), typeIds);
 }
 
+/** Every stored row per character, for valuation; characters without rows map to an empty list. */
+export async function listCharacterAssetRows(characterIds: number[]): Promise<Map<number, AssetMapInput[]>> {
+  const perOwner = await Promise.all(
+    characterIds.map((ownerId) => getOwnerAssetRows({ ownerType: 'character', ownerId })),
+  );
+  return new Map(characterIds.map((id, i) => [id, perOwner[i] ?? []]));
+}
+
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createDbTestHarness, seedUser } from '@/db/__tests__/support/db-test-harness';
 import { user } from '@/db/auth-schema';
 import { NET_WORTH_HISTORY_DAYS } from './constants';
-import { getNetWorthHistory, type NetWorthDay, upsertNetWorthDay, utcDay } from './queries';
+import { getNetWorthHistory, upsertNetWorthDay, utcDay } from './queries';
+import type { NetWorthDay } from './types';
 import { netWorthDays } from './schema';
 
 const harness = await createDbTestHarness({
