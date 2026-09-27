@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { buildDemoBoard, FIXTURE_NOW } from '@/composition/board/demo-board';
@@ -62,13 +62,16 @@ describe('HomeBoardView', () => {
   });
 });
 
+// createElement passes children positionally, which the required prop type cannot see.
+const Frame = BoardFrame as (props: { demo?: boolean; children?: ReactNode }) => ReactNode;
+
 describe('board chrome', () => {
   it('renders the frame, skeleton, empty state and signed-out slot', () => {
-    const framed = renderToStaticMarkup(createElement(BoardFrame, { demo: true, children: createElement(BoardEmpty) }));
+    const framed = renderToStaticMarkup(createElement(Frame, { demo: true }, createElement(BoardEmpty)));
     expect(framed).toContain('Your characters');
     expect(framed).toContain('Sample data');
     expect(framed.match(/class="[^"]*\breveal\b/g)).toHaveLength(1);
-    expect(renderToStaticMarkup(createElement(BoardFrame, { children: createElement(BoardSkeleton) }))).toContain('live');
+    expect(renderToStaticMarkup(createElement(Frame, null, createElement(BoardSkeleton)))).toContain('live');
     expect(renderToStaticMarkup(createElement(HomeSignedInBoard))).toBe('');
     expect(renderToStaticMarkup(createElement(LiveBoard, { sessionCharacterId: 1 }))).toContain(
       'Loading your characters',
