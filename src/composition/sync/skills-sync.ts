@@ -3,15 +3,13 @@ import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import {
   getCharacterSkillLevels,
   getSkillLevelsForCharacters,
-  getSkillsForCharacters,
   readCharacterSyncState,
   saveCharacterSkills,
   stampCharacterFresh,
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
-import type { CharacterSkillData, SkillsPort } from '@/features/skill-queue/types';
+import type { SkillsPort } from '@/features/skill-queue/types';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
@@ -35,33 +33,6 @@ export function refreshSkillsOnView(userId: string): Promise<OwnerSyncResult[]> 
   return refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId));
 }
 
-export interface ViewerSkills {
-  characterId: number;
-  data: CharacterSkillData | null;
-  lastRefreshedAt: number | null;
-}
-
-export interface ViewerSkillsResult {
-  characters: ViewerSkills[];
-  names: Record<string, string>;
-}
-
-export async function getSkillsForUserOnView(userId: string): Promise<ViewerSkillsResult> {
-  const { rows, names } = await getLiveDatasetOnView<CharacterSkillData, ViewerSkills>(userId, {
-    read: (uid) => readCharacterOwners(uid, getSkillsForCharacters, readCharacterSyncState),
-    refresh: refreshSkillsOnView,
-    makeRow: characterRow,
-    nameIds: (viewerSkills) => {
-      const skillIds = new Set<number>();
-      for (const character of viewerSkills) {
-        for (const entry of character.data?.entries ?? []) skillIds.add(entry.skill_id);
-      }
-      return skillIds;
-    },
-  });
-  return { characters: rows, names };
-}
-
 export interface ViewerSkillLevels {
   characterId: number;
   levels: Record<string, number> | null;
@@ -69,7 +40,7 @@ export interface ViewerSkillLevels {
 
 /**
  * The slots readout's batched on-view levels read (3.7.24): every linked
- * character's trained levels in one pass, mirroring getSkillsForUserOnView.
+ * character's trained levels in one pass.
  * Fires exactly ONE write-behind per view; refreshSkillsForUser checks each
  * character's lastRefreshedAt against the 120s staleness gate BEFORE any token
  * vend or ESI call, so a re-view inside the window is a pure Neon read — there
