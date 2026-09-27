@@ -5,6 +5,8 @@ import { type EntryStatus, entryProgress, type QueueSummary, summarizeQueue } fr
 import { STATUS_META } from './skill-queue-styles';
 import type { CharacterSkillData } from './types';
 
+export const SKILLS_LOAD_FAILED = 'Couldn’t load your skill queues — reload to try again.';
+
 export type QueueHeader = { kind: 'ends-in'; ms: number } | { kind: 'paused' } | null;
 
 export interface QueueCardModel {

@@ -3,15 +3,7 @@ import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { isGscConfigured } from '@/data/gsc/constants';
-import {
-  deriveCronStatus,
-  deriveEsiSourceStatus,
-  deriveGscStatus,
-  PRICES_HEALTHY_OUTCOMES,
-  refreshVolumeSummary,
-  SDE_HEALTHY_OUTCOMES,
-  SDE_NEUTRAL_OUTCOMES,
-} from '@/data/telemetry/health-metrics';
+import { refreshVolumeSummary } from '@/data/telemetry/health-metrics';
 import {
   getGscCronOutcomes,
   getLastCronRuns,
@@ -19,16 +11,13 @@ import {
   getRefreshVolume,
   getSdeCronOutcomes,
 } from '@/data/telemetry/queries';
-import type { CronOutcomeCount, DateRange, UsageAction } from '@/data/telemetry/types';
-import { AdminBarChart, AdminTrendChart } from './charts';
-import {
-  getBudgetExhaustionCountShared,
-  getFallbackRateShared,
-} from './esi-source-shared';
-import { getLastSyncedAtShared } from './last-synced';
-import { loadSection, SECTION_LOAD_FAILED } from './load-section';
+import type { CronOutcomeCount, DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
-import { SectionUnavailable } from './SectionUnavailable';
+import { AdminBarChart, AdminTrendChart } from '../charts';
+import { getLastSyncedAtShared } from '../last-synced';
+import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
+import { SectionUnavailable } from '../SectionUnavailable';
+import { deriveCronStatuses } from '../signals';
 import { StatusRow } from './StatusRow';
 
 type Trend = ReturnType<typeof trendSeries>;
@@ -171,74 +160,35 @@ function GscSyncDetail({
   );
 }
 
-export async function StatusStrip({ range }: { range: DateRange }) {
+export async function ScheduledTasks({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
-  const fetched = await loadSection('system-health', () =>
+  const fetched = await loadSection('scheduled-tasks', () =>
     Promise.all([
       getLastCronRuns(),
       getPriceCronOutcomes(range),
       getSdeCronOutcomes(range),
       getGscCronOutcomes(range),
-      getFallbackRateShared(range),
-      getBudgetExhaustionCountShared(range),
       getRefreshVolume(range),
       gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
     ]),
   );
-  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="System health" />;
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Scheduled tasks" />;
 
-  const [
-    lastRuns,
-    priceOutcomes,
-    sdeOutcomes,
-    gscOutcomes,
-    fallback,
-    budgetExhaustions,
-    refreshVolume,
-    lastSyncedAt,
-  ] = fetched;
-
-  const now = new Date();
-  const lastFor = (action: UsageAction) => lastRuns.find((r) => r.action === action) ?? null;
-
-  const priceStatus = deriveCronStatus({
-    lastRun: lastFor('cron_prices'),
-    outcomes: priceOutcomes,
-    healthy: PRICES_HEALTHY_OUTCOMES,
-    expectedEveryHours: 24,
-    now,
-  });
-  const sdeStatus = deriveCronStatus({
-    lastRun: lastFor('cron_sde'),
-    outcomes: sdeOutcomes,
-    healthy: SDE_HEALTHY_OUTCOMES,
-    neutral: SDE_NEUTRAL_OUTCOMES,
-    expectedEveryHours: 24,
-    now,
-  });
-  const gscStatus = deriveGscStatus({
-    configured: gscConfigured,
-    lastRun: lastFor('cron_gsc'),
-    outcomes: gscOutcomes,
-    lastSyncedAt,
-    now,
-  });
-  const esiStatus = deriveEsiSourceStatus({ fallback, budgetExhaustions });
-
+  const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, refreshVolume, lastSyncedAt] = fetched;
+  const statuses = deriveCronStatuses(
+    { lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, gscConfigured, gscLastSyncedAt: lastSyncedAt },
+    range.to,
+  );
   const volumeTrend = trendSeries(
     refreshVolume.map((p) => p.day),
     refreshVolume.map((p) => p.fetched),
   );
 
   return (
-    <Card>
-      <SectionHeader
-        size="md"
-        label="System health"
-        hint="status as of now · details follow the selected range"
-      />
+    <Card id="scheduled" className="scroll-mt-24">
+      <SectionHeader size="md" label="Scheduled tasks" hint="status as of now · expand for the range" />
 
-      <StatusRow name="Price cron" status={priceStatus}>
+      <StatusRow name="Price cron" status={statuses.price}>
         <PriceCronDetail
           refreshVolume={refreshVolume}
           priceOutcomes={priceOutcomes}
@@ -246,19 +196,17 @@ export async function StatusStrip({ range }: { range: DateRange }) {
         />
       </StatusRow>
 
-      <StatusRow name="SDE cron" status={sdeStatus}>
+      <StatusRow name="SDE cron" status={statuses.sde}>
         <SdeCronDetail sdeOutcomes={sdeOutcomes} />
       </StatusRow>
 
-      <StatusRow name="GSC sync" status={gscStatus}>
+      <StatusRow name="GSC sync" status={statuses.gsc}>
         <GscSyncDetail
           gscConfigured={gscConfigured}
           lastSyncedAt={lastSyncedAt}
           gscOutcomes={gscOutcomes}
         />
       </StatusRow>
-
-      <StatusRow name="ESI source" status={esiStatus} />
     </Card>
   );
 }

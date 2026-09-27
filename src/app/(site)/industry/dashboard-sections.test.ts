@@ -11,6 +11,7 @@ import {
   recentsStatus,
   savedStatus,
   type SectionStatus,
+  settledSectionOrder,
 } from './dashboard-sections';
 
 function status(
@@ -18,6 +19,21 @@ function status(
 ): Record<DashboardSectionId, SectionStatus> {
   return { recents: 'populated', saved: 'populated', active: 'populated', corp: 'populated', ...overrides };
 }
+
+describe('settledSectionOrder', () => {
+  it('holds while any section is pending, so a painted grid is not reshuffled', () => {
+    expect(settledSectionOrder(status({ corp: 'pending', saved: 'empty' }))).toBeNull();
+  });
+
+  it('sorts once every section has settled', () => {
+    expect(settledSectionOrder(status({ saved: 'empty' }))).toEqual([
+      'recents',
+      'active',
+      'corp',
+      'saved',
+    ]);
+  });
+});
 
 describe('orderSections', () => {
 
@@ -70,25 +86,25 @@ describe('section status + render', () => {
     expect(savedStatus([], false)).toBe('empty');
     expect(savedStatus([{ id: 'a' }], false)).toBe('populated');
 
-    expect(activeStatus({ loading: true, rosterSize: 0, jobCount: 0 })).toBe('pending');
-    expect(activeStatus({ loading: false, rosterSize: 0, jobCount: 0 })).toBe('empty');
-    expect(activeStatus({ loading: false, rosterSize: 2, jobCount: 0 })).toBe('empty');
-    expect(activeStatus({ loading: false, rosterSize: 2, jobCount: 3 })).toBe('populated');
+    expect(activeStatus({ loading: true, failed: false, rosterSize: 0, jobCount: 0 })).toBe('pending');
+    expect(activeStatus({ loading: false, failed: false, rosterSize: 0, jobCount: 0 })).toBe('empty');
+    expect(activeStatus({ loading: false, failed: false, rosterSize: 2, jobCount: 0 })).toBe('empty');
+    expect(activeStatus({ loading: false, failed: false, rosterSize: 2, jobCount: 3 })).toBe('populated');
 
     expect(
-      corpStatus({ hasLinkedCharacters: false, eligibleCount: 0, loading: false, corpCount: 0 }),
+      corpStatus({ hasLinkedCharacters: false, eligibleCount: 0, loading: false, failed: false, corpCount: 0 }),
     ).toBe('empty');
     expect(
-      corpStatus({ hasLinkedCharacters: true, eligibleCount: 0, loading: true, corpCount: 0 }),
+      corpStatus({ hasLinkedCharacters: true, eligibleCount: 0, loading: true, failed: false, corpCount: 0 }),
     ).toBe('populated');
     expect(
-      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: true, corpCount: 0 }),
+      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: true, failed: false, corpCount: 0 }),
     ).toBe('pending');
     expect(
-      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, corpCount: 0 }),
+      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, failed: false, corpCount: 0 }),
     ).toBe('empty');
     expect(
-      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, corpCount: 2 }),
+      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, failed: false, corpCount: 2 }),
     ).toBe('populated');
   });
 
@@ -112,16 +128,45 @@ describe('section status + render', () => {
   });
 });
 
+describe('failed live feeds', () => {
+  it('settle active and corp as empty so the grid can sort once', () => {
+    expect(activeStatus({ loading: false, failed: true, rosterSize: 0, jobCount: 0 })).toBe('empty');
+    expect(
+      corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, failed: true, corpCount: 0 }),
+    ).toBe('empty');
+    expect(
+      settledSectionOrder(status({ active: 'empty', corp: 'empty' })),
+    ).toEqual(['recents', 'saved', 'active', 'corp']);
+  });
+
+  it('keeps anonymous and no-access corp states as they were', () => {
+    expect(
+      corpStatus({ hasLinkedCharacters: false, eligibleCount: 0, loading: false, failed: true, corpCount: 0 }),
+    ).toBe('empty');
+    expect(
+      corpStatus({ hasLinkedCharacters: true, eligibleCount: 0, loading: false, failed: true, corpCount: 0 }),
+    ).toBe('populated');
+  });
+
+  it('swap the empty hint for the failure line', () => {
+    expect(activeJobsHint(0, true)).toBe('Couldn’t load your industry jobs — reload to try again.');
+    expect(corpHint(true, true)).toBe(
+      'Couldn’t load your corporation’s industry jobs — reload to try again.',
+    );
+    expect(corpHint(false, true)).toBeUndefined();
+  });
+});
+
 describe('activeJobsHint', () => {
   it('empty roster prompts sign-in; a populated roster says no jobs', () => {
-    expect(activeJobsHint(0)).toContain('Sign in');
-    expect(activeJobsHint(3)).toBe('No industry jobs running.');
+    expect(activeJobsHint(0, false)).toContain('Sign in');
+    expect(activeJobsHint(3, false)).toBe('No industry jobs running.');
   });
 });
 
 describe('corpHint', () => {
   it('is silent without linked characters, else the sync line', () => {
-    expect(corpHint(false)).toBeUndefined();
-    expect(corpHint(true)).toContain('sync completes');
+    expect(corpHint(false, false)).toBeUndefined();
+    expect(corpHint(true, false)).toContain('sync completes');
   });
 });

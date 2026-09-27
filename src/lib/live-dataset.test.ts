@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyEligibleCold, eligibleIdsKey, shouldReconcile } from './live-dataset';
+import { anyEligibleCold, eligibleIdsKey, loadFailureStep, shouldReconcile } from './live-dataset';
 
 describe('eligibleIdsKey', () => {
   it('dedupes and sorts into a stable string', () => {
@@ -59,5 +59,20 @@ describe('shouldReconcile', () => {
       return false;
     });
     expect(seen).toEqual([[{ n: 1 }, 42]]);
+  });
+});
+
+describe('loadFailureStep', () => {
+  it('retries the first failure before anything has loaded', () => {
+    expect(loadFailureStep(false, false)).toBe('retry');
+  });
+
+  it('settles as failed once the retry also fails', () => {
+    expect(loadFailureStep(false, true)).toBe('fail');
+  });
+
+  it('keeps data already on screen when a later fetch fails', () => {
+    expect(loadFailureStep(true, false)).toBe('keep');
+    expect(loadFailureStep(true, true)).toBe('keep');
   });
 });

@@ -80,4 +80,22 @@ test.describe('authenticated smoke', () => {
 
     diag.assertClean();
   });
+
+  test('home hero keeps its DOM while the session resolves', async ({ page }) => {
+    type HeroProbe = Window & { heroAtParse?: Element | null };
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        (window as HeroProbe).heroAtParse = document.querySelector('.home-hero');
+      });
+    });
+
+    await page.goto('/');
+    await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
+
+    const kept = await page.evaluate(() => {
+      const hero = (window as HeroProbe).heroAtParse;
+      return hero != null && hero.isConnected && hero === document.querySelector('.home-hero');
+    });
+    expect(kept, 'the static-shell hero was replaced when the session resolved').toBe(true);
+  });
 });

@@ -65,6 +65,7 @@ export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 
 export function slotMetaTotals(args: {
   loading: boolean;
+  failed: boolean;
   eligibleCharacterIds: readonly number[];
   characters: ReadonlyArray<{ characterId: number; slots: SlotCapacity }>;
   personalJobsByCharacter: ReadonlyMap<number, { data: { jobs: IndustryJob[] } | null }>;
@@ -81,7 +82,7 @@ export function slotMetaTotals(args: {
     (character) =>
       eligible.has(character.characterId) || corpInstallers.has(character.characterId),
   );
-  if (args.loading || characters.length === 0) return null;
+  if (args.loading || args.failed || characters.length === 0) return null;
   const model: SlotMetaModel = {
     manufacturing: { used: 0, total: 0 },
     science: { used: 0, total: 0 },

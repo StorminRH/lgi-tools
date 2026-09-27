@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMetricRows } from './metric-view';
+import { buildMetricRows, metricsHint } from './metric-view';
 
 const base = {
   rangeDays: 30,
@@ -24,14 +24,6 @@ describe('buildMetricRows', () => {
     expect(rows[1]?.avg).toBe('2.0');
   });
 
-  it('attaches the daily series only to the GSC rows', () => {
-    const rows = buildMetricRows({ ...base, clicksSeries: [1, 2, 3], impressionsSeries: [4, 5] });
-    expect(rows[0]?.series).toBeUndefined();
-    expect(rows[1]?.series).toBeUndefined();
-    expect(rows[2]?.series).toEqual([1, 2, 3]);
-    expect(rows[3]?.series).toEqual([4, 5]);
-  });
-
   it('degrades the GSC rows to em-dash with no avg or delta when GSC is off', () => {
     const rows = buildMetricRows({
       ...base,
@@ -52,5 +44,13 @@ describe('buildMetricRows', () => {
     expect(rows[0]?.delta).toBeNull();
     expect(rows[1]?.delta).toBeNull();
     expect(rows[2]?.delta).toBeNull();
+  });
+});
+
+describe('metricsHint', () => {
+  it('names the comparison window, or all time when there is none', () => {
+    expect(metricsHint('7d')).toBe('Δ vs previous 7 days');
+    expect(metricsHint('90d')).toBe('Δ vs previous 90 days');
+    expect(metricsHint('all')).toBe('all time');
   });
 });

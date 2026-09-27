@@ -61,6 +61,8 @@ const {
   writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
+  syncPreferenceCookies,
+  clearPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -180,6 +182,26 @@ describe('cookie codec', () => {
     expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
   });
 
+  it('expires every ssrReadable cookie and only those on clear', () => {
+    const writes: string[] = [];
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        set cookie(v: string) {
+          writes.push(v);
+        },
+      },
+    });
+    try {
+      clearPreferenceCookies();
+      expect(writes).toContain('lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax');
+      expect(writes).toContain('lgi_pref_planner_buildCharacterId=; Path=/; Max-Age=0; SameSite=Lax');
+      expect(writes.some((w) => w.startsWith(`${cookieNameFor(plannerBuildLocation)}=`))).toBe(false);
+    } finally {
+      installDocumentShim();
+    }
+  });
+
   it('does not write a cookie for a non-ssrReadable key', () => {
     lastCookieWrite = '';
     writePreferenceCookie(plannerBuildLocation, { systemId: 1, systemName: 'X', security: null });
@@ -278,5 +300,21 @@ describe('retired preference keys', () => {
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
+  });
+});
+
+describe('syncPreferenceCookies', () => {
+  it('writes resolved values to the SSR cookie and leaves localStorage alone', () => {
+    lastCookieWrite = '';
+    window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('cards'));
+    syncPreferenceCookies(new Map([[sitesView.key, 'table']]));
+    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
+    expect(peekLocalPreference(sitesView)).toBe('cards');
+  });
+
+  it('leaves unresolved keys alone', () => {
+    lastCookieWrite = '';
+    syncPreferenceCookies(new Map());
+    expect(lastCookieWrite).toBe('');
   });
 });

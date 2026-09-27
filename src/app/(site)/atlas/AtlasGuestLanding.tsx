@@ -37,6 +37,7 @@ export function AtlasGuestLanding({
           crumb="atlas"
           title="Atlas"
           subtitle={ATLAS_TAGLINE}
+          reveal={false}
         />
         <div className="flex max-w-2xl flex-col gap-6 pb-16">
           <AccessGate

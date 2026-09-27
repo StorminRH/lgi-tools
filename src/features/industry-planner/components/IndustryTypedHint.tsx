@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Kbd } from '@/components/ui/kbd';
 import { Button } from '@/components/ui/button';
 import { cardSurface, surfaceGlowHover } from '@/components/ui/card';
@@ -17,16 +17,13 @@ function focusNavSearch() {
 }
 
 export function IndustryTypedHint() {
-  const reduced = useMemo(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-    [],
-  );
-  const [shown, setShown] = useState(reduced ? HINT.length : 0);
+  const [shown, setShown] = useState(0);
 
+  // The motion preference is read after hydration: reading it during render
+  // gave reduced-motion visitors different markup from the server's, and the
+  // mismatch made React re-render the page from the root.
   useEffect(() => {
-    if (reduced) {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       const t = setTimeout(() => setShown(HINT.length), 0);
       return () => clearTimeout(t);
     }
@@ -37,7 +34,7 @@ export function IndustryTypedHint() {
       if (i >= HINT.length) clearInterval(timer);
     }, STEP_MS);
     return () => clearInterval(timer);
-  }, [reduced]);
+  }, []);
 
   const done = shown >= HINT.length;
 

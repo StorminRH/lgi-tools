@@ -1,6 +1,5 @@
 import type {
   CronOutcomeCount,
-  DegradationCallerCount,
   FallbackRateData,
   RefreshVolumePoint,
 } from './types';
@@ -34,26 +33,6 @@ export function ratio(num: number, denom: number): number | null {
 
 export function formatPct(r: number | null, empty = '—'): string {
   return r === null ? empty : `${Math.round(r * 100)}%`;
-}
-
-export function fallbackSummary({ esi, fallback }: FallbackRateData): string {
-  const denom = esi + fallback;
-  if (denom === 0) return 'No price refreshes recorded this period.';
-  if (fallback === 0) return 'ESI served every priced item this period.';
-  const pct = Math.round((fallback / denom) * 100);
-  return `Fuzzwork covered ${pct}% of priced items when ESI was unavailable.`;
-}
-
-export function budgetSummary(count: number): string {
-  if (count === 0) return 'ESI stayed within its error budget all period.';
-  return `ESI hit its error-budget floor ${count} time${count === 1 ? '' : 's'}, falling back to Fuzzwork.`;
-}
-
-export function degradationCallerSummary(rows: DegradationCallerCount[]): string {
-  const total = rows.reduce((s, r) => s + r.count, 0);
-  if (total === 0) return 'No price-source degradation events this period.';
-  const parts = rows.map((r) => `${r.count} ${r.caller}`).join(', ');
-  return `${total} degradation event${total === 1 ? '' : 's'} this period (${parts}).`;
 }
 
 export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {

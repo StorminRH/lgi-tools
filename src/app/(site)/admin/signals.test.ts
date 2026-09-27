@@ -1,0 +1,315 @@
+import { describe, expect, it } from 'vitest';
+import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
+import {
+  deriveAttention,
+  deriveBudgetStatus,
+  deriveCronStatuses,
+  deriveStatusGroups,
+  formatSliValue,
+  sliLevel,
+  splitHeadline,
+  summarizeQueue,
+  type AdminSignals,
+  type CronSignals,
+} from './signals';
+import { SECTION_LOAD_FAILED } from './load-section';
+
+const NOW = new Date('2026-09-26T12:00:00Z');
+const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
+
+const healthyCrons: CronSignals = {
+  lastRuns: [
+    { action: 'cron_prices', timestamp: hoursAgo(3), outcome: 'refreshed' },
+    { action: 'cron_sde', timestamp: hoursAgo(5), outcome: 'up-to-date' },
+  ],
+  priceOutcomes: [{ outcome: 'refreshed', count: 30, avgDurationMs: 900 }],
+  sdeOutcomes: [{ outcome: 'up-to-date', count: 30, avgDurationMs: 400 }],
+  gscOutcomes: [],
+  gscConfigured: false,
+  gscLastSyncedAt: null,
+};
+
+function signals(overrides: Partial<AdminSignals> = {}): AdminSignals {
+  return {
+    now: NOW,
+    crons: healthyCrons,
+    budget: { effectiveRemaining: 87, selfCount: 2, echo: 90, source: 'shared' },
+    fallback: { esi: 100, fallback: 0, perDay: [] },
+    budgetExhaustions: 0,
+    sli: { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
+    queue: [],
+    statics: null,
+    releases: [
+      { date: '2026-09-20', label: 'v4.1.2' },
+      { date: '2026-09-24', label: 'v4.1.3' },
+    ],
+    ...overrides,
+  };
+}
+
+function stat(status: EsiRefreshQueueStat['status'], count: number, ageHours: number): EsiRefreshQueueStat {
+  return { status, count, oldestCreatedAt: hoursAgo(ageHours) };
+}
+
+describe('sliLevel', () => {
+  it('grades success rates against warn and fail lines', () => {
+    expect(sliLevel('readSuccess', 0.995)).toBe('green');
+    expect(sliLevel('readSuccess', 0.97)).toBe('amber');
+    expect(sliLevel('readSuccess', 0.9)).toBe('red');
+    expect(sliLevel('esiSuccess', 0.9)).toBe('amber');
+  });
+
+  it('treats latency as a ceiling', () => {
+    expect(sliLevel('latencyP95', 800)).toBe('green');
+    expect(sliLevel('latencyP95', 2000)).toBe('amber');
+    expect(sliLevel('latencyP95', 4000)).toBe('red');
+  });
+
+  it('is neutral without data', () => {
+    expect(sliLevel('mutationSuccess', null)).toBe('neutral');
+    expect(sliLevel('mutationSuccess', Number.NaN)).toBe('neutral');
+  });
+});
+
+describe('formatSliValue', () => {
+  it('formats rates, latency, and missing data', () => {
+    expect(formatSliValue('readSuccess', 0.9876)).toBe('98.8%');
+    expect(formatSliValue('latencyP95', 1234.4)).toBe('1,234 ms');
+    expect(formatSliValue('esiSuccess', null)).toBe('no data');
+  });
+});
+
+describe('splitHeadline', () => {
+  it('splits the state from its detail', () => {
+    expect(splitHeadline({ level: 'green', headline: 'healthy · last run 3h ago' })).toEqual({
+      value: 'healthy',
+      note: 'last run 3h ago',
+    });
+    expect(splitHeadline({ level: 'red', headline: 'never ran' })).toEqual({
+      value: 'never ran',
+      note: '',
+    });
+  });
+});
+
+describe('deriveBudgetStatus', () => {
+  it('fails closed when the scoreboard is unavailable', () => {
+    expect(deriveBudgetStatus(null)).toMatchObject({ level: 'red', value: 'unavailable' });
+  });
+
+  it('flags a budget below the dispatch floor', () => {
+    const status = deriveBudgetStatus({ effectiveRemaining: 5, selfCount: 0, echo: 5, source: 'shared' });
+    expect(status).toMatchObject({ level: 'red', value: '5 left' });
+    expect(status.note).toContain('below');
+  });
+
+  it('is green above the floor', () => {
+    expect(deriveBudgetStatus({ effectiveRemaining: 87, selfCount: 0, echo: null, source: 'shared' }))
+      .toMatchObject({ level: 'green', value: '87 left' });
+  });
+});
+
+describe('summarizeQueue', () => {
+  it('counts live and dead-lettered jobs and the oldest live job', () => {
+    const summary = summarizeQueue(
+      [stat('queued', 3, 2), stat('failed_retryable', 1, 8), stat('dead_lettered', 2, 30), stat('succeeded', 40, 50)],
+      NOW,
+    );
+    expect(summary).toEqual({ due: 4, deadLettered: 2, oldestDueHours: 8 });
+  });
+
+  it('reports no oldest job for an idle queue', () => {
+    expect(summarizeQueue([stat('succeeded', 4, 1)], NOW)).toEqual({
+      due: 0,
+      deadLettered: 0,
+      oldestDueHours: null,
+    });
+  });
+});
+
+describe('deriveCronStatuses', () => {
+  it('derives each scheduled task from its latest run', () => {
+    const statuses = deriveCronStatuses(healthyCrons, NOW);
+    expect(statuses.price.level).toBe('green');
+    expect(statuses.sde.level).toBe('green');
+    expect(statuses.gsc.level).toBe('neutral');
+  });
+
+  it('marks a cron that never ran as red', () => {
+    expect(deriveCronStatuses({ ...healthyCrons, lastRuns: [] }, NOW).price.level).toBe('red');
+  });
+});
+
+describe('deriveStatusGroups', () => {
+  it('builds the app, ESI, and jobs cards in order', () => {
+    const groups = deriveStatusGroups(signals());
+    expect(groups.map((g) => g.id)).toEqual(['app', 'esi', 'jobs']);
+    expect(groups.map((g) => g.lines.length)).toEqual([4, 4, 4]);
+    expect(groups[1]!.lines[0]).toMatchObject({ label: 'Error budget', value: '87 left', level: 'green' });
+    expect(groups[2]!.lines[3]).toMatchObject({ value: '0 due · 0 dead', note: 'nothing waiting' });
+  });
+
+  it('shows a stale queue as amber with its age', () => {
+    const groups = deriveStatusGroups(signals({ queue: [stat('queued', 2, 30)] }));
+    expect(groups[2]!.lines[3]).toMatchObject({ level: 'amber', note: 'oldest due 30h' });
+  });
+
+  it('shows the queue age in minutes and days', () => {
+    const minutes = deriveStatusGroups(signals({ queue: [stat('queued', 1, 0.5)] }));
+    expect(minutes[2]!.lines[3]!.note).toBe('oldest due 30m');
+    const days = deriveStatusGroups(signals({ queue: [stat('queued', 1, 72)] }));
+    expect(days[2]!.lines[3]!.note).toBe('oldest due 3d');
+  });
+});
+
+describe('deriveAttention', () => {
+  const attention = (s: AdminSignals) => deriveAttention(s, deriveStatusGroups(s));
+
+  it('is empty when every system is healthy', () => {
+    expect(attention(signals())).toEqual([]);
+  });
+
+  it('asks for a statics review with a link to the review page', () => {
+    const items = attention(signals({ statics: { feedVersion: '42', totalDifferences: 1234 } }));
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: 'statics',
+        level: 'amber',
+        title: 'Wormhole statics feed v42 is waiting for review',
+        action: { label: 'Review snapshot', href: '/admin/statics' },
+      }),
+    ]);
+    expect(items[0]!.detail).toContain('1,234');
+  });
+
+  it('sends dead letters and a stale backlog to the queue', () => {
+    const items = attention(signals({ queue: [stat('dead_lettered', 1, 2), stat('queued', 3, 12)] }));
+    expect(items.map((i) => [i.id, i.level, i.action.href])).toEqual([
+      ['dead-letters', 'red', '/admin/queue'],
+      ['queue-backlog', 'amber', '/admin/queue'],
+    ]);
+    expect(items[0]!.title).toBe('1 refresh job dead-lettered');
+  });
+
+  it('pluralises dead letters', () => {
+    const items = attention(signals({ queue: [stat('dead_lettered', 3, 2)] }));
+    expect(items[0]!.title).toBe('3 refresh jobs dead-lettered');
+  });
+
+  it('routes each unhealthy status line to its page, red first', () => {
+    const items = attention(
+      signals({
+        budget: null,
+        budgetExhaustions: 2,
+        fallback: { esi: 90, fallback: 10, perDay: [] },
+        sli: { readSuccess: 0.97, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
+        crons: { ...healthyCrons, lastRuns: [healthyCrons.lastRuns[1]!] },
+      }),
+    );
+    expect(items.map((i) => [i.id, i.level, i.action.href])).toEqual([
+      ['budget', 'red', '/admin/esi'],
+      ['cron-prices', 'red', '/admin/health#scheduled'],
+      ['readSuccess', 'amber', '/admin/health'],
+    ]);
+    expect(items[0]!.title).toBe('Error budget: unavailable');
+  });
+
+  it('keeps informational amber off the list', () => {
+    const recovered = signals({
+      crons: {
+        ...healthyCrons,
+        priceOutcomes: [
+          { outcome: 'refreshed', count: 29, avgDurationMs: 900 },
+          { outcome: 'failed', count: 1, avgDurationMs: 900 },
+        ],
+      },
+      fallback: { esi: 95, fallback: 5, perDay: [] },
+      queue: [stat('deferred_for_budget', 2, 1)],
+    });
+    const lines = deriveStatusGroups(recovered).flatMap((group) => group.lines);
+    expect(lines.filter((line) => line.level === 'amber').map((line) => line.id)).toEqual([
+      'price-source',
+      'held-for-budget',
+      'cron-prices',
+    ]);
+    expect(attention(recovered)).toEqual([]);
+  });
+
+  it('raises a majority price-source fallback', () => {
+    const items = attention(signals({ fallback: { esi: 20, fallback: 80, perDay: [] } }));
+    expect(items.map((i) => [i.id, i.level])).toEqual([['price-source', 'red']]);
+  });
+});
+
+describe('release and budget-hold lines', () => {
+  const line = (s: AdminSignals, id: string) =>
+    deriveStatusGroups(s).flatMap((group) => group.lines).find((l) => l.id === id)!;
+
+  it('shows the newest changelog release and its age', () => {
+    expect(line(signals(), 'release')).toMatchObject({
+      value: 'v4.1.3',
+      note: '2026-09-24 · 2d ago',
+      level: 'neutral',
+    });
+    expect(line(signals({ releases: [{ date: '2026-09-26', label: 'v5' }] }), 'release').note).toBe(
+      '2026-09-26 · today',
+    );
+  });
+
+  it('handles an empty changelog', () => {
+    expect(line(signals({ releases: [] }), 'release')).toMatchObject({ value: 'none' });
+  });
+
+  it('counts refresh jobs held for budget', () => {
+    expect(line(signals(), 'held-for-budget')).toMatchObject({ value: '0 jobs', level: 'green' });
+    expect(line(signals({ queue: [stat('deferred_for_budget', 1, 1)] }), 'held-for-budget')).toMatchObject({
+      value: '1 job',
+      level: 'amber',
+    });
+  });
+});
+
+describe('a source that failed to load', () => {
+  const failed = signals({ crons: SECTION_LOAD_FAILED, queue: SECTION_LOAD_FAILED });
+  const byId = new Map(deriveStatusGroups(failed).flatMap((group) => group.lines.map((l) => [l.id, l])));
+
+  it('marks only its own lines unavailable', () => {
+    for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'queue', 'held-for-budget']) {
+      expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: 'could not load', level: 'neutral' });
+    }
+    expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });
+    expect(byId.get('budget')).toMatchObject({ value: '87 left', level: 'green' });
+  });
+
+  it('raises an attention item per failed source, linked to its page', () => {
+    expect(deriveAttention(failed, deriveStatusGroups(failed))).toEqual([
+      {
+        id: 'unavailable:/admin/health#scheduled',
+        level: 'amber',
+        title: 'Could not load scheduled jobs',
+        detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
+        action: { label: 'View jobs', href: '/admin/health#scheduled' },
+      },
+      {
+        id: 'unavailable:/admin/queue',
+        level: 'amber',
+        title: 'Could not load refresh queue',
+        detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
+        action: { label: 'Open queue', href: '/admin/queue' },
+      },
+    ]);
+  });
+
+  it('sends a failed statics read to the statics page', () => {
+    const items = deriveAttention(signals({ statics: SECTION_LOAD_FAILED }), deriveStatusGroups(signals()));
+    expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load statics review', '/admin/statics']]);
+  });
+
+  it('names a source once when both of its reads fail', () => {
+    const items = deriveAttention(
+      signals({ fallback: SECTION_LOAD_FAILED, budgetExhaustions: SECTION_LOAD_FAILED }),
+      deriveStatusGroups(signals()),
+    );
+    expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load price source', '/admin/esi']]);
+  });
+});

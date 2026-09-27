@@ -14,7 +14,7 @@ import { CorpSharingSettings } from '@/features/owned-structures/components/Corp
 import type { CorpStructurePageView } from '@/features/owned-structures/types';
 import { accountPageSettings } from '@/platform/page-settings/account';
 import { resolvePageControls } from '@/platform/page-settings/controls';
-import { SettingsSectionHead } from '../settings-section-head';
+import { SectionHead } from '@/components/ui/section-head';
 import {
   type CorporationMembershipView,
   deriveCorporationsView,
@@ -102,7 +102,7 @@ async function CorporationsContent() {
 export default function CorporationsSettingsPage() {
   return (
     <>
-      <SettingsSectionHead title="Corporations" />
+      <SectionHead title="Corporations" />
       <Suspense
         fallback={<Skeleton label="Loading corporations" className="h-40 w-full rounded-card" />}
       >

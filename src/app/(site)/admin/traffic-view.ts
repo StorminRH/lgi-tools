@@ -29,7 +29,6 @@ function formatSyncedAt(lastSyncedAt: Date | null): string {
 export function deriveGscPerformanceView(input: {
   lastSyncedAt: Date | null;
   trend: { day: string; clicks: number; impressions: number; position: number }[];
-  topPages: { clicks: number }[];
 }) {
   return {
     asOf: formatSyncedAt(input.lastSyncedAt),
@@ -46,6 +45,5 @@ export function deriveGscPerformanceView(input: {
       input.trend.map((d) => d.day),
       input.trend.map((d) => Math.round(d.position * 10) / 10),
     ),
-    topPagesMax: input.topPages.reduce((m, p) => Math.max(m, p.clicks), 0),
   };
 }

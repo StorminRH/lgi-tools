@@ -1,31 +1,24 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import {
-  Suspense,
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { Suspense, createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createClientStore, useClientStore } from '@/lib/client-store';
 import { resolvePageSettings } from '@/platform/page-settings';
 import type { PageSettingsSpec } from '@/platform/page-settings/types';
 
 import '@/composition/page-settings/register-all';
 
-const PageMenuContext = createContext<PageSettingsSpec | null>(null);
+// The live spec resolves in an effect after mount, so it lives in a client
+// store (see createClientStore). An explicit pathname overrides it.
+const livePageSettings = createClientStore<PageSettingsSpec | null>(null);
 
-function LivePathnameWatcher({
-  onResolve,
-}: {
-  onResolve: (spec: PageSettingsSpec | null) => void;
-}) {
+const PageMenuOverride = createContext<{ spec: PageSettingsSpec | null } | null>(null);
+
+function LivePathnameWatcher() {
   const pathname = usePathname();
   useEffect(() => {
-    onResolve(resolvePageSettings(pathname ?? ''));
-  }, [pathname, onResolve]);
+    livePageSettings.set(resolvePageSettings(pathname ?? ''));
+  }, [pathname]);
   return null;
 }
 
@@ -37,24 +30,24 @@ export function PageMenuProvider({
   children?: ReactNode;
 }) {
   const override = useMemo(
-    () => (pathname === undefined ? null : resolvePageSettings(pathname)),
+    () => (pathname === undefined ? null : { spec: resolvePageSettings(pathname) }),
     [pathname],
   );
-  const [live, setLive] = useState<PageSettingsSpec | null>(null);
-  const spec = pathname === undefined ? live : override;
 
   return (
-    <PageMenuContext.Provider value={spec}>
+    <PageMenuOverride.Provider value={override}>
       {pathname === undefined ? (
         <Suspense fallback={null}>
-          <LivePathnameWatcher onResolve={setLive} />
+          <LivePathnameWatcher />
         </Suspense>
       ) : null}
       {children}
-    </PageMenuContext.Provider>
+    </PageMenuOverride.Provider>
   );
 }
 
 export function usePageSettings(): PageSettingsSpec | null {
-  return useContext(PageMenuContext);
+  const override = useContext(PageMenuOverride);
+  const live = useClientStore(livePageSettings);
+  return override === null ? live : override.spec;
 }

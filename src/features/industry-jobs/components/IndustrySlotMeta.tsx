@@ -23,6 +23,7 @@ export function IndustrySlotMeta({
     () =>
       slotMetaTotals({
         loading: jobsLive.loading || corpLive.loading || slotsLive.loading,
+        failed: jobsLive.failed || corpLive.failed,
         eligibleCharacterIds: characterIds,
         characters: slotsLive.characters,
         personalJobsByCharacter: jobsLive.jobsByCharacter,
@@ -31,8 +32,10 @@ export function IndustrySlotMeta({
     [
       characterIds,
       jobsLive.loading,
+      jobsLive.failed,
       jobsLive.jobsByCharacter,
       corpLive.loading,
+      corpLive.failed,
       corpLive.corporations,
       slotsLive.loading,
       slotsLive.characters,

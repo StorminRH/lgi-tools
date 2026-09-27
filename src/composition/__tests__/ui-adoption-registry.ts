@@ -12,7 +12,7 @@ export const uiAdoptionRegistry = {
     },
   ],
   hiddenInputs: [
-    'src/app/(site)/admin/RetryJobForm.tsx',
+    'src/app/(site)/admin/queue/RetryJobForm.tsx',
     'src/app/(site)/admin/statics/page.tsx',
     'src/components/composition/account/AdminForceLogoutForm.tsx',
     'src/components/composition/account/AdminReassignCharacterForm.tsx',

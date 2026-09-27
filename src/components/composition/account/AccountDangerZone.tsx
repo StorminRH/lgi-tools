@@ -22,6 +22,7 @@ import {
 } from '@/platform/auth/account-actions';
 import { authClient } from '@/platform/auth/auth-client';
 import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '@/platform/auth/confirm-gate';
+import { forgetSignedInBrowser } from '@/platform/auth/reload-document-home';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
 export function AccountDangerZone({
@@ -229,6 +230,7 @@ function LogoutEverywhereControl() {
     if (outcome.kind === 'done') {
       const target = redirectTargetFor(outcome) ?? '/';
       void authClient.signOut().finally(() => {
+        forgetSignedInBrowser();
         window.location.href = target;
       });
     }

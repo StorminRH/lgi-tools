@@ -25,11 +25,11 @@ import {
   corpStatus,
   type DashboardSectionId,
   deriveSectionRender,
-  orderSections,
   recentsStatus,
   savedStatus,
   type SectionStatus,
 } from './dashboard-sections';
+import { useSettledSectionOrder } from './use-settled-section-order';
 
 interface SectionCell {
   label: string;
@@ -165,6 +165,7 @@ export function IndustryDashboardGrid({
     saved: savedStatus(plans, listFailed),
     active: activeStatus({
       loading: jobsLive.loading,
+      failed: jobsLive.failed,
       rosterSize: jobsLive.jobsByCharacter.size,
       jobCount: jobs.length,
     }),
@@ -172,9 +173,12 @@ export function IndustryDashboardGrid({
       hasLinkedCharacters,
       eligibleCount: corpEligibleCharacterIds.length,
       loading: corpLive.loading,
+      failed: corpLive.failed,
       corpCount: corpLive.corporations.length,
     }),
   };
+
+  const order = useSettledSectionOrder(status);
 
   const allPlans = plans ?? [];
   const { tiles, overflow } = savedTiles(allPlans);
@@ -221,7 +225,7 @@ export function IndustryDashboardGrid({
           now={jobsLive.now}
         />
       ),
-      hint: activeJobsHint(jobsLive.jobsByCharacter.size),
+      hint: activeJobsHint(jobsLive.jobsByCharacter.size, jobsLive.failed),
     },
     corp: {
       label: 'Corporation industry jobs',
@@ -235,13 +239,13 @@ export function IndustryDashboardGrid({
           reconnectAction={reconnectAction}
         />
       ),
-      hint: corpHint(hasLinkedCharacters),
+      hint: corpHint(hasLinkedCharacters, corpLive.failed),
     },
   };
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
-      {orderSections(status).map((id, index) => (
+      {order.map((id, index) => (
         <DashboardSection
           key={id}
           status={status[id]}

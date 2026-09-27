@@ -15,19 +15,21 @@ export function CharacterStripSection({
   strip,
   initialDimmed,
   loading,
+  failure = null,
   children,
 }: {
   characters: PanelCharacter[];
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
   loading: boolean;
+  failure?: string | null;
   children: (visible: PanelCharacter[]) => ReactNode;
 }) {
   const binding = stripPreferenceBinding(strip, initialDimmed);
   const [dimmedIds, setDimmedIds] = usePreference(binding.def, {
     serverValue: binding.serverValue,
   });
-  const view = deriveStripView(strip, characters, dimmedIds, loading);
+  const view = deriveStripView(strip, characters, dimmedIds, loading, failure);
 
   return (
     <>

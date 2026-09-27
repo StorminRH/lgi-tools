@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useLiveDataset } from '@/components/use-live-dataset';
+import { type LiveDatasetState, useLiveDataset } from '@/components/use-live-dataset';
 import { type CorpJobsResponse, corpIndustryJobsEndpoint } from './api-contract';
 import { deriveCorpJobs, type ViewerCorpJobs } from './live-derive';
 
@@ -11,12 +11,9 @@ function corpJobsIsCold(response: CorpJobsResponse, hasEligible: boolean): boole
 
 export function useCorpJobsLive(eligibleCharacterIds: number[]): {
   corporations: ViewerCorpJobs[];
-  names: Record<string, string>;
-  now: number;
-  loading: boolean;
-} {
+} & LiveDatasetState {
   const hasEligible = eligibleCharacterIds.length > 0;
-  const { response, now, loading } = useLiveDataset(corpIndustryJobsEndpoint, hasEligible, corpJobsIsCold);
+  const { response, now, loading, failed } = useLiveDataset(corpIndustryJobsEndpoint, hasEligible, corpJobsIsCold);
   const corporations = useMemo(() => deriveCorpJobs(response, now), [response, now]);
-  return { corporations, names: response?.names ?? {}, now, loading };
+  return { corporations, names: response?.names ?? {}, now, loading, failed };
 }
