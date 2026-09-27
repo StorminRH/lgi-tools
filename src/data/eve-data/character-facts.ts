@@ -99,6 +99,32 @@ export async function getImplantDogma(typeIds: number[]): Promise<Map<number, Im
   return out;
 }
 
+export interface TypeMarketFacts {
+  categoryId: number;
+  marketGroupId: number | null;
+  published: boolean;
+}
+
+/** Category, market group and published flag per type: the valuation's exclusions and the price-seed filter. */
+export async function getTypeMarketFacts(typeIds: number[]): Promise<Map<number, TypeMarketFacts>> {
+  const out = new Map<number, TypeMarketFacts>();
+  if (typeIds.length === 0) return out;
+  const rows = await db
+    .select({
+      id: eveTypes.id,
+      categoryId: eveGroups.categoryId,
+      marketGroupId: eveTypes.marketGroupId,
+      published: eveTypes.published,
+    })
+    .from(eveTypes)
+    .innerJoin(eveGroups, eq(eveGroups.id, eveTypes.groupId))
+    .where(inArray(eveTypes.id, typeIds));
+  for (const row of rows) {
+    out.set(row.id, { categoryId: row.categoryId, marketGroupId: row.marketGroupId, published: row.published });
+  }
+  return out;
+}
+
 export interface CatalogSkill {
   typeId: number;
   name: string;
