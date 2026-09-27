@@ -4,11 +4,29 @@ import { resolveE2eStorageStatePath } from './identity';
 
 test.use({ storageState: resolveE2eStorageStatePath() });
 
-async function serveBoard(page: Page, variant: DemoVariant = 'full') {
+async function serveBoard(page: Page, variant: DemoVariant = 'full', board = buildDemoBoard(FIXTURE_NOW, variant)) {
   await page.clock.install({ time: FIXTURE_NOW });
-  await page.route('**/api/account/board', (route) =>
-    route.fulfill({ json: buildDemoBoard(FIXTURE_NOW, variant) }),
-  );
+  await page.route('**/api/account/board', (route) => route.fulfill({ json: board }));
+}
+
+// Aurel with a 42-entry queue whose first three entries have already finished.
+function longQueueBoard() {
+  const board = buildDemoBoard(FIXTURE_NOW, 'full');
+  const [aurel] = board.characters;
+  if (aurel?.skills.state !== 'ready') throw new Error('demo pilot has no skills');
+  const skillIds = board.skillCatalog.flatMap((group) => group.skills.map((skill) => skill.typeId));
+  const HOUR = 3_600_000;
+  aurel.skills.data.queue = Array.from({ length: 42 }, (_, i) => {
+    const start = FIXTURE_NOW + (i - 3.5) * 6 * HOUR;
+    return {
+      skill_id: skillIds[i % skillIds.length] ?? 3300,
+      queue_position: i,
+      finished_level: (i % 5) + 1,
+      start_date: new Date(start).toISOString(),
+      finish_date: new Date(start + 6 * HOUR).toISOString(),
+    };
+  });
+  return board;
 }
 
 const rail = (page: Page) => page.getByRole('navigation', { name: 'Pilots' });
@@ -90,6 +108,28 @@ test('a pilot opens full width without the rail; Back, the back control and Esca
 
   expect(documents.length, documents.join('\n')).toBe(loads);
   expect(await page.evaluate(() => (window as Window & { boardProbe?: boolean }).boardProbe)).toBe(true);
+});
+
+test('a long queue shows five rows; Show all opens a drawer that Escape closes before leaving the pilot', async ({ page }) => {
+  await serveBoard(page, 'full', longQueueBoard());
+  await page.goto('/?character=9900000001');
+  await expect(sheet(page, 'Aurel Vantesse')).toBeVisible({ timeout: 15_000 });
+  const showAll = page.getByRole('button', { name: 'Show all 39 skills' });
+  await expect(showAll).toBeVisible();
+  await expect(sheet(page, 'Aurel Vantesse').getByText('Done', { exact: true })).toHaveCount(0);
+
+  await showAll.click();
+  const drawer = page.locator('[data-drawer-popup]');
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByRole('heading', { name: 'Aurel Vantesse · Skill queue' })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect(sheet(page, 'Aurel Vantesse')).toBeVisible();
+  await expect(page).toHaveURL(/character=9900000001/);
+
+  await page.keyboard.press('Escape');
+  await expect(overview(page)).toBeVisible();
 });
 
 test('a single-pilot account lands on that pilot’s sheet with no rail', async ({ page }) => {
