@@ -17,16 +17,14 @@ import {
   scannerLifeUpperBound,
   scannerWormholeLifetime,
   scannerWormholeSize,
-  signatureCounts,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
 } from './signature-model';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 
 const SYSTEM = 31_000_001;
-const READY: TrackedSystemTarget = { kind: 'ready', systemId: SYSTEM };
+const READY: TrackedSystemTarget = { kind: 'ready', systemId: SYSTEM, characterId: 7 };
 const NONE: TrackedSystemTarget = { kind: 'none' };
-const AMBIGUOUS: TrackedSystemTarget = { kind: 'ambiguous' };
 
 function signature(
   partial: Partial<Doc<'mapSignatures'>> & { signatureId: string },
@@ -89,7 +87,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       .toEqual(['ABC-123', 'WHL-001']);
     expect(filterSignatureRows(rows, SYSTEM, 'anomaly').map((row) => row.signatureId))
       .toEqual(['ANO-456']);
-    expect(signatureCounts(rows, SYSTEM)).toEqual({ signatures: 2, anomalies: 1 });
     expect(rows.find((row) => row.signatureId === 'WHL-001')).toMatchObject({
       key: 'connection:connection-1',
       group: 'Wormhole',
@@ -452,7 +449,18 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteDecision(valid, true, { kind: 'loading' })).toEqual({
       kind: 'loading',
     });
-    expect(scannerPasteDecision(valid, true, AMBIGUOUS)).toEqual({ kind: 'ambiguous' });
+    const candidates = [
+      { characterId: 7, systemId: SYSTEM, lastMovementAt: 1 },
+      { characterId: 8, systemId: SYSTEM + 1, lastMovementAt: 2 },
+    ];
+    expect(scannerPasteDecision(valid, true, { kind: 'choose', candidates })).toMatchObject({
+      kind: 'choose',
+      candidates,
+      rows: [{ signatureId: 'ABC-123' }],
+    });
+    expect(
+      scannerPasteDecision(valid, false, { kind: 'choose', candidates }),
+    ).toEqual({ kind: 'read-only' });
     expect(scannerPasteDecision(valid, true, READY)).toMatchObject({
       kind: 'apply',
       systemId: SYSTEM,
@@ -467,17 +475,14 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     ).toMatchObject({ kind: 'reject', rejectCount: 1 });
 
     expect(scannerPasteRefusalToast({ kind: 'reject', rejectCount: 1 })).toEqual({
-      message: 'Scanner paste rejected — 1 row need attention.',
+      message: 'Formatting error',
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     });
-    expect(scannerPasteRefusalToast({ kind: 'reject', rejectCount: 2 }).message).toContain(
-      '2 rows',
-    );
+    expect(scannerPasteRefusalToast({ kind: 'read-only' }).message).toBe('Read-only access');
+    expect(scannerPasteRefusalToast({ kind: 'loading' }).message).toBe('Tracking not ready');
+    expect(scannerPasteRefusalToast({ kind: 'untracked' }).message).toBe('No character online');
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).options.id).toBe(
       'scanner-paste:read-only',
-    );
-    expect(scannerPasteRefusalToast({ kind: 'ambiguous' }).options.id).toBe(
-      'scanner-paste:ambiguous',
     );
     expect(scannerPasteRefusalToast({ kind: 'untracked' }).options.id).toBe(
       'scanner-paste:untracked',

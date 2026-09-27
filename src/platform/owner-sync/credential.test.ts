@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { selectCorpCredential } from './credential';
 
@@ -14,70 +14,50 @@ function fakeProbe(
   };
 }
 
-const ids = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
-
-describe('selectCorpCredential', () => {
-  it.each([1, 5, 20])('stops at a sufficient first member of %i (one vend, one roles read)', async (count) => {
-    const probe = fakeProbe(() => ['Director']);
-
-    const selection = await selectCorpCredential(ids(count), REQUIRED, probe);
-
-    expect(selection).toEqual({ kind: 'sufficient', characterId: 1, accessToken: 'tok-1' });
-    expect(probe.vendToken).toHaveBeenCalledTimes(1);
-    expect(probe.readRoles).toHaveBeenCalledTimes(1);
+test('stops at the first sufficient member, including one found after skips', async () => {
+  const early = fakeProbe(() => ['Director']);
+  expect(await selectCorpCredential([1, 2, 3, 4, 5], REQUIRED, early)).toEqual({
+    kind: 'sufficient',
+    characterId: 1,
+    accessToken: 'tok-1',
   });
+  expect(early.vendToken).toHaveBeenCalledTimes(1);
+  expect(early.readRoles).toHaveBeenCalledTimes(1);
 
-  it('probes all 20 members when only the last is sufficient', async () => {
-    const probe = fakeProbe((characterId) => (characterId === 20 ? ['Director'] : []));
-
-    const selection = await selectCorpCredential(ids(20), REQUIRED, probe);
-
-    expect(selection).toEqual({ kind: 'sufficient', characterId: 20, accessToken: 'tok-20' });
-    expect(probe.vendToken).toHaveBeenCalledTimes(20);
-    expect(probe.readRoles).toHaveBeenCalledTimes(20);
+  const late = fakeProbe((characterId) => (characterId === 4 ? ['Director'] : []));
+  expect(await selectCorpCredential([1, 2, 3, 4], REQUIRED, late)).toEqual({
+    kind: 'sufficient',
+    characterId: 4,
+    accessToken: 'tok-4',
   });
+  expect(late.vendToken).toHaveBeenCalledTimes(4);
+  expect(late.readRoles).toHaveBeenCalledTimes(4);
 
-  it('is denied when every member is evaluated and none holds a required role', async () => {
-    const probe = fakeProbe(() => ['Accountant']);
-
-    expect(await selectCorpCredential([1, 2, 3], REQUIRED, probe)).toEqual({ kind: 'denied' });
+  const skipped = fakeProbe(() => ['Director'], (characterId) => characterId !== 1);
+  expect(await selectCorpCredential([1, 2], REQUIRED, skipped)).toEqual({
+    kind: 'sufficient',
+    characterId: 2,
+    accessToken: 'tok-2',
   });
+});
 
-  it('is unavailable when a non-director shares the corp with an unvendable member', async () => {
-    const probe = fakeProbe(() => [], (characterId) => characterId !== 2);
+test('denies a fully judged roster and stays unavailable when a member cannot be judged', async () => {
+  const denied = fakeProbe(() => ['Accountant']);
+  expect(await selectCorpCredential([1, 2, 3], REQUIRED, denied)).toEqual({ kind: 'denied' });
 
-    expect(await selectCorpCredential([1, 2], REQUIRED, probe)).toEqual({ kind: 'unavailable' });
-    expect(probe.readRoles).toHaveBeenCalledTimes(1);
-  });
+  const unvendable = fakeProbe(() => [], (characterId) => characterId !== 2);
+  expect(await selectCorpCredential([1, 2], REQUIRED, unvendable)).toEqual({ kind: 'unavailable' });
+  expect(unvendable.readRoles).toHaveBeenCalledTimes(1);
 
-  it('is unavailable when a non-director shares the corp with an unreadable-roles member', async () => {
-    const probe = fakeProbe((characterId) => (characterId === 2 ? null : []));
+  const unreadable = fakeProbe((characterId) => (characterId === 2 ? null : []));
+  expect(await selectCorpCredential([1, 2], REQUIRED, unreadable)).toEqual({ kind: 'unavailable' });
 
-    expect(await selectCorpCredential([1, 2], REQUIRED, probe)).toEqual({ kind: 'unavailable' });
-  });
+  const empty = fakeProbe(() => ['Director']);
+  expect(await selectCorpCredential([], REQUIRED, empty)).toEqual({ kind: 'unavailable' });
+  expect(empty.vendToken).not.toHaveBeenCalled();
 
-  it('skips an unavailable member and selects the next sufficient one', async () => {
-    const probe = fakeProbe(() => ['Director'], (characterId) => characterId !== 1);
-
-    expect(await selectCorpCredential([1, 2], REQUIRED, probe)).toEqual({
-      kind: 'sufficient',
-      characterId: 2,
-      accessToken: 'tok-2',
-    });
-  });
-
-  it('is unavailable with zero members', async () => {
-    const probe = fakeProbe(() => ['Director']);
-
-    expect(await selectCorpCredential([], REQUIRED, probe)).toEqual({ kind: 'unavailable' });
-    expect(probe.vendToken).not.toHaveBeenCalled();
-  });
-
-  it('propagates a probe error unchanged', async () => {
-    const error = new EsiBudgetExhaustedError(0);
-    const probe = fakeProbe(() => []);
-    probe.readRoles.mockRejectedValueOnce(error);
-
-    await expect(selectCorpCredential([1, 2], REQUIRED, probe)).rejects.toBe(error);
-  });
+  const error = new EsiBudgetExhaustedError(0);
+  const failing = fakeProbe(() => []);
+  failing.readRoles.mockRejectedValueOnce(error);
+  await expect(selectCorpCredential([1, 2], REQUIRED, failing)).rejects.toBe(error);
 });

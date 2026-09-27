@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   runCharacterJobs: vi.fn(),
   runCorporationJobs: vi.fn(),
   runSkills: vi.fn(),
+  runCharacterSheet: vi.fn(),
   logUsageEvent: vi.fn<(input: { action: string; metadata: Record<string, unknown> }) => Promise<void>>(
     async () => {},
   ),
@@ -62,6 +63,7 @@ vi.mock('./owned-blueprints-sync', () => ({
   runOwnedBlueprintsRefreshJob: mocks.runBlueprints,
 }));
 vi.mock('./skills-sync', () => ({ runSkillsRefreshJob: mocks.runSkills }));
+vi.mock('./character-sheet-sync', () => ({ runCharacterSheetRefreshJob: mocks.runCharacterSheet }));
 
 vi.mock('@/data/telemetry/log', () => ({ logUsageEvent: mocks.logUsageEvent }));
 vi.mock('next/server', () => ({
@@ -297,6 +299,23 @@ describe('drainEsiRefreshJobs', () => {
         failureCode: 'worker_interrupted',
       },
     });
+  });
+
+  it('dispatches sheet jobs through the existing queue lifecycle', async () => {
+    const queued = job(11, 'character_sheet');
+    const target = { ownerType: 'character', ownerId: 1001 };
+    const error = new EsiBudgetExhaustedError(12, 'rate_limited', 900);
+    mocks.claim.mockResolvedValue([queued]);
+    mocks.runCharacterSheet.mockResolvedValueOnce({ kind: 'deferred_for_budget', target, error });
+
+    expect(await drainEsiRefreshJobs(NOW)).toMatchObject({ claimed: 1, deferredForBudget: 1, succeeded: 0 });
+    expect(mocks.runCharacterSheet).toHaveBeenCalledWith('user-1', target);
+    expect(mocks.markDeferred).toHaveBeenCalledWith(11, error, NOW);
+    expect(mocks.markSucceeded).not.toHaveBeenCalled();
+
+    mocks.runCharacterSheet.mockResolvedValueOnce({ kind: 'succeeded', target });
+    expect(await drainEsiRefreshJobs(NOW)).toMatchObject({ claimed: 1, succeeded: 1 });
+    expect(mocks.markSucceeded).toHaveBeenCalledWith(11, NOW);
   });
 });
 

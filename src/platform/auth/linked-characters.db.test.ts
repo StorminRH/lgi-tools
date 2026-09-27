@@ -94,6 +94,7 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
     const newer = new Date('2026-07-02T00:00:00Z');
     await seedCharacter(SECOND_CHAR, {
       corporationId: 98000002,
+      allianceId: 99000002,
       affiliationRefreshedAt: new Date('2026-07-02T01:00:00Z'),
     });
     await seedEveAccount('newer', SECOND_CHAR, newer, { refreshToken: 'token', scope: 'scope-b' });
@@ -106,6 +107,7 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
       name: `Character ${FIRST_CHAR}`,
       hasRefreshToken: false,
       corporationId: null,
+      allianceId: null,
       affiliationRefreshedAt: null,
     });
     expect(rows[0]!.portraitUrl).toContain(`/characters/${FIRST_CHAR}/portrait`);
@@ -113,6 +115,7 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
       name: `Character ${SECOND_CHAR}`,
       hasRefreshToken: true,
       corporationId: 98000002,
+      allianceId: 99000002,
     });
   });
 

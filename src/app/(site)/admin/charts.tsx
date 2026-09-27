@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Measured } from '@/components/ui/measured';
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import type { SparklineTone } from '@/components/ui/sparkline';
 import type { BarDatum } from '@/components/ui/bar-chart';
@@ -22,28 +22,6 @@ const AnnotatedDailyChart = dynamic(
   () => import('@/components/ui/annotated-daily-chart').then((m) => m.AnnotatedDailyChart),
   { ssr: false },
 );
-
-// The charts draw fixed-size SVG; measuring the column lets them fill it
-// instead of leaving dead space beside a narrow plot.
-function Measured({ width, children }: { width?: number; children: (width: number) => ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [measured, setMeasured] = useState<number>();
-  useEffect(() => {
-    const element = ref.current;
-    if (!element || width !== undefined) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setMeasured(Math.floor(entry.contentRect.width));
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [width]);
-  const resolved = width ?? measured;
-  return (
-    <div ref={ref} className="w-full min-w-0">
-      {resolved === undefined ? null : children(resolved)}
-    </div>
-  );
-}
 
 function formatterFor(unit: 'percent' | 'count' | 'position'): (y: number) => string {
   if (unit === 'percent') return (y) => `${y}%`;

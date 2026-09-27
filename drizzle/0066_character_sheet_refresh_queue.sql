@@ -1,0 +1,1 @@
+ALTER TYPE "public"."esi_refresh_dataset" ADD VALUE 'character_sheet';

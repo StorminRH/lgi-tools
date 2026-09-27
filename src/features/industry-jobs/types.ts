@@ -1,13 +1,8 @@
+import type { CharacterOwner } from '@/platform/owner-sync';
 import type { IndustryJob } from './esi-projection';
 
 export interface CharacterJobsData {
   jobs: IndustryJob[];
-}
-
-export interface RefreshCharacter {
-  characterId: number;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
 }
 
 export interface CharacterJobsSyncState {
@@ -22,7 +17,7 @@ export type JobsEsiRead =
 
 export interface JobsPort {
   now(): Date;
-  listCharacters(userId: string): Promise<RefreshCharacter[]>;
+  listCharacters(userId: string): Promise<CharacterOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
   readJobs(characterId: number, accessToken: string, heldEtag: string | null): Promise<JobsEsiRead>;
   readSyncState(characterId: number): Promise<CharacterJobsSyncState | null>;

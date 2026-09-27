@@ -8,7 +8,7 @@ import { Suspense, useEffect } from 'react';
 // its element is displayed again, so back/forward would otherwise replay the
 // entrance of a page that is already there. Every name listed here needs a
 // `[data-entered]` rule that turns its animation off.
-const ENTRANCES = new Set(['reveal', 'home-preview-row', 'home-preview-draw']);
+const ENTRANCES = new Set(['reveal']);
 
 const finished = new Set<Element>();
 

@@ -7,7 +7,10 @@ import {
   type OwnedAssetDetailEntry,
 } from '@/features/owned-assets/detail';
 import { getOwnedAssetMap, readOwnerSyncState, stampOwnerFresh } from '@/features/owned-assets/queries';
-import { refreshOwnedAssetsForUser } from '@/features/owned-assets/refresh';
+import {
+  refreshCharacterOwnedAssetsForUser,
+  refreshOwnedAssetsForUser,
+} from '@/features/owned-assets/refresh';
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import {
@@ -48,6 +51,15 @@ export async function getOwnedAssetDetailOnView(
   );
   const names = await resolveEntityNames(collectAssetNameIds(map));
   return buildOwnedAssetDetail(map, names, formatStationName);
+}
+
+/** The board's write-behind: personal assets only, budget-deferred like the planner's refresh. */
+export function refreshCharacterAssetsOnView(userId: string): Promise<OwnerSyncResult[]> {
+  return refreshCharacterOwnedAssetsForUser(
+    makeOwnedAssetsPort(),
+    userId,
+    enqueueBudgetDeferral('owned_assets', userId),
+  );
 }
 
 export async function runOwnedAssetsRefreshJob(

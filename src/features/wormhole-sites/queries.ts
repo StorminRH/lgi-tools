@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from './schema';
@@ -285,15 +285,6 @@ export type SiteSearchEntry = {
   resourceValueIsk: number | null;
   liveRecipes?: readonly SiteLiveRecipe[];
 };
-
-export async function getCachedSiteCount(): Promise<number> {
-  'use cache';
-  cacheLife('max');
-  return withColdStartRetry(async () => {
-    const [row] = await db.select({ n: count() }).from(sites);
-    return Number(row?.n ?? 0);
-  });
-}
 
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   'use cache';

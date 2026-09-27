@@ -173,14 +173,14 @@ function PurgeCharacterControl({
   async function onConfirm() {
     const outcome = await gate.run(
       () => runPurgeCharacter(characterId, apiFetch),
-      `Could not purge ${characterName}`,
+      'Purge failed',
     );
     if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
     } else if (outcome.kind === 'stayed') {
       gate.reset();
-      toast.success(`${characterName}’s data was purged`);
+      toast.success('Character data purged');
       router.refresh();
     }
   }
@@ -225,7 +225,7 @@ function LogoutEverywhereControl() {
   async function onConfirm() {
     const outcome = await gate.run(
       () => runLogoutEverywhere(apiFetch),
-      'Could not sign out everywhere',
+      'Sign-out failed',
     );
     if (outcome.kind === 'done') {
       const target = redirectTargetFor(outcome) ?? '/';
@@ -284,7 +284,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
 
   async function onConfirm() {
     if (!isDeleteAcknowledged(acknowledged)) return;
-    const outcome = await gate.run(() => runDeleteAccount(apiFetch), 'Could not delete your account');
+    const outcome = await gate.run(() => runDeleteAccount(apiFetch), 'Account deletion failed');
     if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();

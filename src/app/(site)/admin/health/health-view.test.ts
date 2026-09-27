@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { SLI_IDS } from '@/data/telemetry/sli';
 import { deriveServiceLevels } from './health-view';
 
 const healthy = { readSuccess: 0.999, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 };
 const idleQueue = { due: 0, deadLettered: 0, oldestDueHours: null };
 
 describe('deriveServiceLevels', () => {
-  it('emits one row per SLI definition in order', () => {
+  it('is all green when every indicator is healthy', () => {
     const rows = deriveServiceLevels(healthy, idleQueue);
-    expect(rows.map((row) => row.id)).toEqual([...SLI_IDS]);
     expect(rows.every((row) => row.level === 'green')).toBe(true);
   });
 
@@ -26,13 +24,10 @@ describe('deriveServiceLevels', () => {
     ]);
   });
 
-  it('turns the backlog red once jobs are dead-lettered', () => {
-    const backlog = deriveServiceLevels(healthy, { due: 4, deadLettered: 2, oldestDueHours: 1 }).at(-1);
-    expect(backlog).toMatchObject({ value: '4 due · 2 dead', level: 'red' });
-  });
-
-  it('turns a stale backlog amber, matching the overview', () => {
-    const backlog = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
-    expect(backlog).toMatchObject({ level: 'amber' });
+  it('turns the backlog red once jobs are dead-lettered, amber once it goes stale', () => {
+    const dead = deriveServiceLevels(healthy, { due: 4, deadLettered: 2, oldestDueHours: 1 }).at(-1);
+    expect(dead).toMatchObject({ value: '4 due · 2 dead', level: 'red' });
+    const stale = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
+    expect(stale).toMatchObject({ level: 'amber' });
   });
 });

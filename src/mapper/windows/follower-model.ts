@@ -53,14 +53,14 @@ export interface FollowerWrite {
 const CARD_VIEWPORT_PADDING = 16;
 
 /** Horizontal clearance between the disc rim and the card's near edge. */
-export const CARD_ANCHOR_GAP = 44;
+const CARD_ANCHOR_GAP = 44;
 
 /**
  * Minimum distance the card's attach point sits above (or below) the disc
  * centre. It grows with the disc so the 45° run off the rim stays visible
  * when zoomed in.
  */
-export const CARD_ANCHOR_RISE = 32;
+const CARD_ANCHOR_RISE = 32;
 
 const CARD_RISE_PAST_RIM = 12;
 

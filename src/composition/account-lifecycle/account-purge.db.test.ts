@@ -41,6 +41,7 @@ const TABLE_NAMES = [
   'corp_access_audit',
   'character_skills',
   'character_skill_syncs',
+  'character_sheets',
   'character_industry_jobs',
   'character_industry_job_syncs',
   'corp_industry_jobs',
@@ -55,6 +56,7 @@ const TABLE_NAMES = [
   'user_preferences',
   'custom_structures',
   'saved_plans',
+  'net_worth_days',
 ] as const;
 
 const harness = await createDbTestHarness({
@@ -91,6 +93,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'session',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'net_worth_days',
       column: 'user_id',
       refTable: 'user',
       refColumn: 'id',
@@ -146,6 +155,10 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       INSERT INTO character_industry_jobs (character_id, jobs)
       VALUES (${characterId}, '[]'::jsonb)
     `;
+    await harness.sql`
+      INSERT INTO character_sheets (character_id, sections, last_refreshed_at)
+      VALUES (${characterId}, '{}'::jsonb, now())
+    `;
     await harness.db.insert(usageLogs).values({
       characterId,
       action: 'auth_login',
@@ -154,6 +167,10 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   }
 
   async function seedUserData() {
+    await harness.sql`
+      INSERT INTO net_worth_days (user_id, day, net_worth, liquid_isk, pilots_included, pilots_total, pilots, recorded_at)
+      VALUES (${USER_ID}, '2026-09-27', 1, 1, 1, 1, '{}'::jsonb, now())
+    `;
     await harness.db.insert(maps).values({
       id: '11111111-1111-4111-8111-111111111111',
       userId: USER_ID,
@@ -256,6 +273,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await countClonedRows('character_industry_jobs', `character_id = ${FIRST_CHAR}`)).toBe(
       0,
     );
+    expect(await countClonedRows('character_sheets', `character_id = ${FIRST_CHAR}`)).toBe(0);
     expect(
       await harness.db.select().from(usageLogs).where(eq(usageLogs.characterId, FIRST_CHAR)),
     ).toHaveLength(0);
@@ -281,6 +299,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(userPreferences)).toHaveLength(1);
     expect(await countClonedRows('custom_structures')).toBe(1);
     expect(await countClonedRows('saved_plans')).toBe(1);
+    expect(await countClonedRows('net_worth_days')).toBe(1);
     expect(await harness.db.select().from(maps)).toHaveLength(1);
     expect(await harness.db.select().from(mapAccess)).toMatchObject([
       { ownerType: 'corporation', ownerId: 98000041 },
@@ -332,11 +351,13 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
     expect(await countClonedRows('character_industry_jobs')).toBe(0);
+    expect(await countClonedRows('character_sheets')).toBe(0);
     expect(await harness.db.select().from(usageLogs)).toHaveLength(0);
     expect(await countClonedRows('corp_industry_jobs')).toBe(0);
     expect(await harness.db.select().from(userPreferences)).toHaveLength(0);
     expect(await countClonedRows('custom_structures')).toBe(0);
     expect(await countClonedRows('saved_plans')).toBe(0);
+    expect(await countClonedRows('net_worth_days')).toBe(0);
     expect(await harness.db.select().from(maps)).toHaveLength(0);
     expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
     expect(await harness.db.select().from(session)).toHaveLength(0);

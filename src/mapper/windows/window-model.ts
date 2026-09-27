@@ -35,11 +35,7 @@ export function deriveSurfaces(input: SurfaceInputs): SurfaceDerivation {
   const surfaces: MapWindowId[] = [];
   let summarySystemId: number | null = null;
   if (input.dockSystemId !== null) surfaces.push('dock');
-  if (
-    !input.boxSelectActive &&
-    input.selectedIds.length === 1 &&
-    input.selectedIds[0] !== input.dockSystemId
-  ) {
+  if (!input.boxSelectActive && input.selectedIds.length === 1) {
     summarySystemId = input.selectedIds[0] ?? null;
     if (summarySystemId !== null) surfaces.push('summary');
   }

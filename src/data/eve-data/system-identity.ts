@@ -14,13 +14,16 @@ const CLASS_TEXT_BY_ID = new Map<number, string>([
   [7, 'HS'],
   [8, 'LS'],
   [9, 'NS'],
-  [12, 'Thera'],
+  // Special wormhole space reads as its class like C1–C6: Thera, shattered
+  // frigate holes, and the Drifter systems (Sentinel, Barbican, Vidette,
+  // Conflux, Redoubt). Pochven keeps its name.
+  [12, 'C12'],
   [13, 'C13'],
-  [14, 'Drifter'],
-  [15, 'Drifter'],
-  [16, 'Drifter'],
-  [17, 'Drifter'],
-  [18, 'Drifter'],
+  [14, 'C14'],
+  [15, 'C15'],
+  [16, 'C16'],
+  [17, 'C17'],
+  [18, 'C18'],
   [25, 'Pochven'],
 ]);
 
@@ -83,15 +86,18 @@ const HINT_BUCKET_READOUT: Partial<
 > = {
   unknown: { label: 'C1–C3', tone: 'text-wh-c2' },
   dangerous: { label: 'C4–C5', tone: 'text-wh-c4' },
+  // Any of the five Drifter systems (C14–C18); the hint does not say which.
+  drifter: { label: 'Drifter', tone: 'text-tone-purple' },
 };
 
 export function systemDestinationHintReadout(
   hint: WormholeDestinationHint | null,
 ): SystemClassificationReadout | null {
   if (hint === null) return null;
+  const bucket = HINT_BUCKET_READOUT[hint];
+  if (bucket !== undefined) return bucket;
   const soleClassId = destinationHintSoleClassId(hint);
-  if (soleClassId !== null) return systemDestinationClassReadout(soleClassId);
-  return HINT_BUCKET_READOUT[hint] ?? null;
+  return soleClassId === null ? null : systemDestinationClassReadout(soleClassId);
 }
 
 export function systemClassificationReadout(

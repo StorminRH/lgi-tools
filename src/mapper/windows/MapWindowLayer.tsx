@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ChainNode } from '../canvas/SystemNode';
@@ -160,11 +161,13 @@ function DockSurface({
   visible,
   dockSystemId,
   title,
+  titleLead,
   stackIndex,
 }: {
   readonly visible: boolean;
   readonly dockSystemId: number | null;
   readonly title: string | undefined;
+  readonly titleLead: ReactNode;
   readonly stackIndex: number;
 }) {
   if (!visible || dockSystemId === null) return null;
@@ -173,6 +176,7 @@ function DockSurface({
       windowId="dock"
       title={dockTitle(title, dockSystemId)}
       titleAccessory={<SystemTitleAccessory systemId={dockSystemId} />}
+      titleLead={titleLead}
       placement={{ kind: 'docked' }}
       appearance="overlay"
       stackIndex={stackIndex}
@@ -223,6 +227,8 @@ function SummarySurface({
 
 export interface MapWindowLayerProps {
   readonly dockSystemId: number | null;
+  /** Rendered before the dock title (the dock character picker). */
+  readonly dockTitleLead?: ReactNode;
   readonly onDeselect: () => void;
 }
 
@@ -241,6 +247,7 @@ export function MapWindowLayer(props: MapWindowLayerProps) {
 
 function MountedMapWindowLayer({
   dockSystemId,
+  dockTitleLead,
   onDeselect,
 }: MapWindowLayerProps) {
   const store = useStoreApi<ChainNode>();
@@ -279,6 +286,7 @@ function MountedMapWindowLayer({
         visible={liveIds.includes('dock')}
         dockSystemId={dockSystemId}
         title={dockTitleName}
+        titleLead={dockTitleLead}
         stackIndex={zIndex('dock')}
       />
       <SummarySurface

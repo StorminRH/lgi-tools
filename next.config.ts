@@ -52,6 +52,11 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: "/skills",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/admin/usage",
         destination: "/admin",
         permanent: false,

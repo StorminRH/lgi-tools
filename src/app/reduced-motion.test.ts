@@ -21,13 +21,11 @@ const LOOPING_CLASSES = [
   'reveal',
   'home-orbit',
   'hero-bracket',
-  'home-preview-flow',
-  'home-preview-node',
-  'home-preview-pulse',
   'industry-cur',
   'status-led',
   'price-pending',
   'price-flash',
+  'map-signature-updated',
 ] as const;
 
 test('looping classes render statically under reduced motion', () => {

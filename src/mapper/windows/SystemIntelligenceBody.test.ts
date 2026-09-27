@@ -85,20 +85,19 @@ function titleAccessoryMarkup(): string {
 }
 
 describe('SystemIntelligenceBody', () => {
-  it('shows combat blue-loot totals for every site occurrence without requesting market prices', () => {
+  it('shows combat blue-loot totals for every priced site and withholds a partial total', () => {
     signatures.rows = [siteRow('A', combatSite.name), siteRow('B', combatSite.name)];
-    const body = bodyMarkup([combatSite]);
-    expect(body).toContain('data-intel-category="combat"');
-    expect(body).toContain('>17.2M<');
-    expect(body).not.toContain('198.0M');
+    const priced = bodyMarkup([combatSite]);
+    expect(priced).toContain('data-intel-category="combat"');
+    expect(priced).toContain('>17.2M<');
+    expect(priced).not.toContain('198.0M');
     expect(refresh).not.toHaveBeenCalled();
-  });
 
-  it.each([null, 'Unknown Combat Site'])('withholds the combat total when a site is unpriced: %s', (name) => {
-    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', name)];
-    const body = bodyMarkup([combatSite]);
-    expect(body).toContain('>—<');
-    expect(body).not.toContain('>8.6M<');
+    signatures.rows = [siteRow('A', combatSite.name), siteRow('B', null)];
+    const withheld = bodyMarkup([combatSite]);
+    expect(withheld).toContain('>—<');
+    expect(withheld).not.toContain('>8.6M<');
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('keeps harvestable totals on live resource prices alongside combat blue loot', () => {
@@ -131,7 +130,7 @@ describe('SystemIntelligenceBody', () => {
     expect(body).not.toContain('J123456');
     expect(body).not.toContain('Security Status');
     expect(body).not.toContain('-1.0');
-    expect(body).toContain('0 signatures · 0 anomalies');
+    expect(body).not.toContain('signatures ·');
 
     Object.assign(fields, { name: 'Jita', security: 0.946, whClassId: null });
     const kspace = titleAccessoryMarkup();
@@ -165,5 +164,27 @@ describe('SystemIntelligenceBody', () => {
 
     fields.effect = null;
     expect(bodyMarkup()).not.toContain('data-intel-effect');
+  });
+
+  it('titles each category that has content and leaves empty ones unheaded', () => {
+    assets.systemInfo.mockImplementation(() => directoryEntry());
+    Object.assign(fields, { name: 'J123456', security: -1, whClassId: 5, effect: 'pulsar' });
+    statics.slots = [{ code: 'H296', className: 'C5' }];
+    signatures.rows = [siteRow('A', combatSite.name)];
+
+    const full = bodyMarkup([combatSite]);
+    for (const heading of ['>Statics</h3>', '>Effect</h3>', '>Signatures</h3>']) {
+      expect(full).toContain(heading);
+    }
+    expect(full.indexOf('>Statics</h3>')).toBeLessThan(full.indexOf('data-intel-statics'));
+    expect(full.indexOf('>Signatures</h3>')).toBeLessThan(full.indexOf('data-intel-category="combat"'));
+
+    statics.slots = [];
+    fields.effect = null;
+    signatures.rows = [];
+    const empty = bodyMarkup();
+    expect(empty).not.toContain('</h3>');
+    expect(empty).not.toContain('data-intel-section="sites"');
+    expect(empty).not.toContain('signatures ·');
   });
 });

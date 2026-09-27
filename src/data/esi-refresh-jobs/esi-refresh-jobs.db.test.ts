@@ -22,6 +22,24 @@ const OLD = new Date('2026-07-01T12:00:00Z');
 const BOUNDARY = new Date('2026-07-07T12:00:00Z');
 
 describe.skipIf(!harness.reachable)('ESI refresh queue durability executes against Postgres', () => {
+  it('persists and coalesces character-sheet deferrals with the additive dataset enum', async () => {
+    const input = {
+      dataset: 'character_sheet' as const,
+      userId: 'sheet-user',
+      target: { ownerType: 'character' as const, ownerId: 2001 },
+      error: new EsiBudgetExhaustedError(10, 'rate_limited', 900, '/characters/2001/wallet/'),
+    };
+    const first = await enqueueEsiRefreshJob(input, NOW, harness.db);
+    expect(await enqueueEsiRefreshJob(input, NOW, harness.db)).toBe(first);
+    const [row] = await harness.db.select().from(esiRefreshJobs).where(eq(esiRefreshJobs.id, first));
+    expect(row).toMatchObject({
+      dataset: 'character_sheet', ownerType: 'character', ownerId: 2001,
+      resource: '/characters/2001/wallet/', status: 'deferred_for_budget',
+      nextAttemptAt: new Date('2026-07-14T12:15:00Z'),
+    });
+    await harness.db.delete(esiRefreshJobs).where(eq(esiRefreshJobs.id, first));
+  });
+
   it('coalesces concurrent budget deferrals for the same dataset and owner', async () => {
     const database = harness.db;
     const error = new EsiBudgetExhaustedError(

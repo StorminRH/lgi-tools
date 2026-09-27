@@ -55,14 +55,8 @@ import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelS
 import { HeroBanner } from '@/components/composition/HeroBanner';
 import { EntranceOnce } from '@/components/composition/EntranceOnce';
 import { HomeDashboard } from '@/components/composition/HomeDashboard';
-import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
 import { HomeHero } from '@/components/composition/HomeHero';
-import { HomeHeroPitch } from '@/components/composition/HomeHeroPitch';
-import { HomeHeroSearch } from '@/components/composition/HomeHeroSearch';
-import { HomeLiveStats } from '@/components/composition/HomeLiveStats';
-import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
-import { HomeRosterPanel } from '@/components/composition/HomeRosterPanel';
-import { HomeSignedInRoster } from '@/components/composition/HomeSignedInRoster';
+import { SignedInFold } from '@/components/composition/SignedInFold';
 import { TelemetryReporter } from '@/components/composition/TelemetryReporter';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
@@ -81,14 +75,8 @@ describe('coverage-gaps', () => {
       HeroBanner,
       EntranceOnce,
       HomeDashboard,
-      HomeFeatureCards,
       HomeHero,
-      HomeHeroPitch,
-      HomeHeroSearch,
-      HomeLiveStats,
-      HomeNewsCard,
-      HomeRosterPanel,
-      HomeSignedInRoster,
+      SignedInFold,
       TelemetryReporter,
       AccountDangerZone,
       AdminUnlinkCharacterForm,

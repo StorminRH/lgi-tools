@@ -22,14 +22,24 @@ function AdminChip({ show }: { show: boolean }) {
   );
 }
 
-export function EveSignInButton({ callbackURL = '/' }: { callbackURL?: string }) {
+export function EveSignInButton({
+  callbackURL = '/',
+  size = 'sm',
+}: {
+  callbackURL?: string;
+  size?: 'sm' | 'lg';
+}) {
   return (
     <button
       type="button"
       onClick={() => {
         void authClient.signIn.oauth2({ providerId: 'eve', callbackURL });
       }}
-      className="inline-flex items-center hover:opacity-80 transition-opacity"
+      className={
+        size === 'lg'
+          ? 'inline-flex items-center rounded-ctl shadow-cta-glow transition-[filter] hover:brightness-110'
+          : 'inline-flex items-center hover:opacity-80 transition-opacity'
+      }
     >
       <EveImage
         source="static"
@@ -37,7 +47,7 @@ export function EveSignInButton({ callbackURL = '/' }: { callbackURL?: string })
         alt="Log in with EVE Online"
         width={270}
         height={45}
-        className="h-8 w-auto"
+        className={size === 'lg' ? 'h-11 w-auto' : 'h-8 w-auto'}
       />
     </button>
   );

@@ -15,9 +15,11 @@ export type SliceId =
   | 'data/telemetry'
   | 'data/wh-observations'
   | 'data/wh-statics'
+  | 'features/character-sheet'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
+  | 'features/net-worth'
   | 'features/owned-assets'
   | 'features/owned-blueprints'
   | 'features/owned-structures'
@@ -632,6 +634,28 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(character_id)'],
     boundary: SYNC_STAMP,
+    dataClass: 'personal',
+  },
+  {
+    table: schema.characterSheets,
+    owner: 'features/character-sheet',
+    reads: [],
+    invariants: ['pk(character_id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One jsonb envelope per section, saved with a keyed `insert … on conflict do update set sections = sections || excluded.sections`. Concurrent refreshes of different sections merge instead of clobbering, and a section\'s data, ETags and freshness stamp land in the same statement; the stamp is a `jsonb_set` on the section\'s refreshedAt.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.netWorthDays,
+    owner: 'features/net-worth',
+    reads: [],
+    invariants: ['fk(user_id→user.id)', 'pk(user_id,day)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One statement per board view: a data-modifying CTE upserts the account\'s row for the UTC day (last view of the day wins) and the outer DELETE prunes the account to its newest 365 days, ranked against the pre-statement rows plus today, so the snapshot and its prune land together on the transaction-free request path.',
+    },
     dataClass: 'personal',
   },
   {

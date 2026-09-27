@@ -14,7 +14,8 @@ import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
 import { OutboundArrowProvider } from '../tracking/OutboundArrowProvider';
 import { MapPresenceProvider } from '../tracking/PresenceProvider';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
-import { useTrackedSystemTarget } from '../tracking/use-tracked-system';
+import { DockCharacterPicker } from '../tracking/DockCharacterPicker';
+import { useTrackedCharacterTargets } from '../tracking/use-tracked-system';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import { persistentWindowSystemId } from '../windows/window-model';
 import { MotionLayer } from './MotionLayer';
@@ -95,8 +96,8 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
 
   const showHomePrompt =
     canEdit === true && systemsComplete && liveSystemCount === 0;
-  const trackedSystem = useTrackedSystemTarget(mapId);
-  const windowSystemId = persistentWindowSystemId(trackedSystem, rootSystemId);
+  const tracked = useTrackedCharacterTargets(mapId);
+  const windowSystemId = persistentWindowSystemId(tracked.dock.target, rootSystemId);
 
   if (access === false) return <NoMapAccess />;
 
@@ -111,7 +112,8 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
         <SignatureProvider
           mapId={mapId}
           scannerSystemId={windowSystemId}
-          pasteTarget={trackedSystem}
+          pasteTarget={tracked.paste}
+          onScannerChosen={tracked.setScanner}
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}
@@ -163,6 +165,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
           </OutboundArrowProvider>
           <MapWindowLayer
             dockSystemId={windowSystemId}
+            dockTitleLead={<DockCharacterPicker selection={tracked.dock} />}
             onDeselect={deselectNodes}
           />
           <RightsTransitionToast canEdit={canEdit} />

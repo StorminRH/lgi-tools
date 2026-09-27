@@ -22,8 +22,10 @@
 @import "../components/ui/status-dot.css";
 @import "../components/ui/toast.css";
 @import "../components/composition/GlobalSearch.css";
-@import "../components/composition/HomeFeatureCards.css";
 @import "../components/composition/HomeHero.css";
+@import "../components/composition/SignedInFold.css";
+@import "../components/composition/HomeDashboard.css";
+@import "../components/composition/board/HomeBoardView.css";
 @import "../components/type-icon.css";
 @import "../features/industry-planner/components/IndustryTypedHint.css";
 @import "../features/wormhole-sites/components/LazySiteDetails.css";
@@ -142,11 +144,6 @@
    * has no existing token — the near-black green keeps contrast on the bright
    * fill without reading as pure black. */
   --color-isk-ink: #04130b;
-  /* Feedback button rest background — a very dark green-tinted surface that
-   * reads as "green affordance, dimmed" before hover fills it solid. No
-   * existing surface token sits at this hue/value. */
-  --color-feedback-bg: #0d1812;
-
   /* ── DPS-tier accents (referenced from primitive callsites, not tone maps) ── */
   --color-dps-mid:  #ffaa22;
   --color-dps-high: #ff5555;
@@ -415,7 +412,6 @@
    * catalogue does not regress when those surfaces use the Card primitive. */
   --shadow-card-hover:  inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 1px var(--color-card-glow-ring), 0 30px 60px -30px var(--color-card-glow-shadow);
   --shadow-popover-green: 0 0 0 1px rgba(61,214,140,0.12), 0 8px 24px -8px rgba(61,214,140,0.2);
-  --shadow-toast: 0 0 18px -7px rgba(61,214,140,0.18), 0 10px 30px -10px rgba(0,0,0,0.85);
   --shadow-status-info: 0 0 8px rgba(61,214,140,0.5);
   --shadow-status-warn: 0 0 8px rgba(255,170,34,0.45);
   --shadow-dot-orange: 0 0 4px var(--color-dot-orange-glow);

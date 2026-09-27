@@ -3,14 +3,21 @@
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import { MenuCheckboxItem } from '@/components/ui/menu';
+import { usePreference } from '@/components/PreferencesProvider';
+import { MenuCheckboxItem, menuControlRow } from '@/components/ui/menu';
+import { Select } from '@/components/ui/select';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
+import { atlasScannerCharacter } from '@/lib/preferences';
 import { AfkDialog } from './AfkGate';
 import { useMapPresenceAfk } from './presence-context';
-import { trackingToggleLabel } from './tracking-controls-view';
+import {
+  SCANNER_ASK_VALUE,
+  scannerSelectValue,
+  trackingToggleLabel,
+} from './tracking-controls-view';
 
 const trackingRowClass = 'flex flex-wrap items-center gap-2 px-3 pb-2';
 const trackingPortraitClass =
@@ -130,12 +137,42 @@ function TrackingControlsView({
           })}
         </div>
       )}
+      {characters.length > 1 ? <DefaultScannerRow characters={characters} /> : null}
       {showReconnect ? (
         <div className={trackingRowClass} data-tracking-reconnect-action>
           <span className="font-ui text-ui text-muted">Cannot sync location</span>
           {reconnectAction}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function DefaultScannerRow({
+  characters,
+}: {
+  readonly characters: readonly TrackingCharacter[];
+}) {
+  const [scannerCharacterId, setScanner] = usePreference(atlasScannerCharacter);
+  return (
+    <div data-default-scanner className={menuControlRow}>
+      <span className="whitespace-nowrap">Default scanner</span>
+      <Select
+        ariaLabel="Default scanner"
+        size="sm"
+        className="w-36 min-w-0"
+        value={scannerSelectValue(scannerCharacterId, characters)}
+        onValueChange={(value) =>
+          setScanner(value === SCANNER_ASK_VALUE ? null : Number(value))
+        }
+        items={[
+          { value: SCANNER_ASK_VALUE, label: 'Ask when unclear' },
+          ...characters.map((character) => ({
+            value: String(character.characterId),
+            label: character.name,
+          })),
+        ]}
+      />
     </div>
   );
 }

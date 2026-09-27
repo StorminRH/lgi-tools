@@ -18,6 +18,11 @@ const SignatureDataContext = createContext<SignatureData | null>(null);
 
 export const SignatureDataProvider = SignatureDataContext.Provider;
 
+/** The map the scanner belongs to; null outside a SignatureDataProvider. */
+export function useSignatureMapId(): string | null {
+  return useContext(SignatureDataContext)?.mapId ?? null;
+}
+
 export function useSignatureRows(systemId: number): readonly SignatureWindowRow[] {
   const data = useContext(SignatureDataContext);
   if (data === null) throw new Error('SignatureDataProvider is required');

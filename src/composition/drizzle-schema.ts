@@ -10,6 +10,8 @@ export * from '../features/owned-structures/schema';
 export * from '../features/custom-structures/schema';
 export * from '../features/industry-planner/schema';
 export * from '../features/skill-queue/schema';
+export * from '../features/character-sheet/schema';
+export * from '../features/net-worth/schema';
 export * from '../features/industry-jobs/schema';
 export * from '../data/telemetry/schema';
 export * from '../data/gsc/schema';

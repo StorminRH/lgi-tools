@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { CharacterOwner } from '@/platform/owner-sync';
 import { planSkillsPersist, refreshSkillsForUser } from './refresh';
-import type { CharacterSkillSyncState, RefreshCharacter, SkillsEsiRead, SkillsPort } from './types';
+import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const QUEUE_SCOPE = 'esi-skills.read_skillqueue.v1';
@@ -37,7 +38,7 @@ function makePort(overrides: Partial<SkillsPort> = {}): SkillsPort {
   };
 }
 
-const character = (id: number, extra: Partial<RefreshCharacter> = {}): RefreshCharacter => ({
+const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
   characterId: id,
   hasRefreshToken: true,
   missingScopes: [],

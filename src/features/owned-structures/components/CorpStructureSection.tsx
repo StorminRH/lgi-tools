@@ -164,7 +164,7 @@ function CorpStructureRigEditor({
     if (busy) return;
     const tax = parseFacilityTaxDraft(taxDraft);
     if (!tax.ok) {
-      toast.error(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty)`);
+      toast.error(`Tax must be 0–${MAX_FACILITY_TAX_PCT}%`);
       return;
     }
     setBusy(true);
@@ -180,9 +180,9 @@ function CorpStructureRigEditor({
     setBusy(false);
     if (res.ok) {
       setTaxDraft(taxDraftFromStored(res.data.taxPct));
-      toast.success('Structure details saved');
+      toast.success('Structure saved');
     } else {
-      toast.error('Could not save the structure details');
+      toast.error('Save failed');
     }
   }
 

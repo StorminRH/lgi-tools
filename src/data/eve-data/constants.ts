@@ -79,6 +79,7 @@ export const SDE_INDUSTRY_STRUCTURE_GROUP_IDS = [
   SDE_CITADEL_GROUP_ID,
 ] as const;
 export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
+export const SDE_SKILL_CATEGORY_ID = 16;
 
 /**
  * Dogma attribute ids used ONLY to enumerate + fit-match industry rigs in the SDE

@@ -1,0 +1,1 @@
+ALTER TABLE "adjusted_prices" ADD COLUMN "average_price" double precision;

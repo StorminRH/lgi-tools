@@ -1,7 +1,7 @@
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 
 export type OwnedDataEndpoint =
-  | '/api/account/skills'
+  | '/api/account/board'
   | '/api/account/industry-slots'
   | '/api/account/industry-jobs'
   | '/api/account/corp-industry-jobs'

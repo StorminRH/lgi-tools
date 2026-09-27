@@ -72,7 +72,7 @@ export function TemplatesMenu({
         const ok = applyEcho(res, saveErrorCopy);
         if (ok) {
           setSaveName('');
-          toast.success(`Saved "${name}"`);
+          toast.success('Template saved');
         }
       });
   };

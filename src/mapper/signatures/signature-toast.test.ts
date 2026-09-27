@@ -13,7 +13,7 @@ describe('signature removal toast', () => {
       onUndo,
     });
     expect(success).toHaveBeenCalledWith(
-      'Removed 1 signature',
+      'Signature removed',
       expect.objectContaining({
         id: 'signature-remove:7:ABC-123',
         action: expect.objectContaining({ label: 'Undo' }),

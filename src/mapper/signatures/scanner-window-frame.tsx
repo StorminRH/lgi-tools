@@ -106,6 +106,7 @@ export function ScannerWindowFrame({
   scannerSystemId,
   rows,
   missingIds,
+  updatedIds,
   canEdit,
   complete,
   now,
@@ -118,6 +119,7 @@ export function ScannerWindowFrame({
   readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];
   readonly missingIds: ReadonlySet<string>;
+  readonly updatedIds: ReadonlySet<string>;
   readonly canEdit: boolean;
   readonly complete: boolean;
   readonly now: number;
@@ -161,6 +163,7 @@ export function ScannerWindowFrame({
                 sections={sections}
                 scannerSystemId={scannerSystemId}
                 missingIds={missingIds}
+                updatedIds={updatedIds}
                 canEdit={canEdit}
                 resolveSiteId={resolveSiteId}
                 complete={complete}

@@ -60,6 +60,8 @@ interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
   readonly titleAccessory?: ReactNode;
+  /** A control before the title text; must opt into pointer input. */
+  readonly titleLead?: ReactNode;
   readonly placement: WindowPlacement;
   readonly stackIndex: number;
   readonly onClose: () => void;
@@ -115,6 +117,7 @@ function placementClassName(
 function WindowHeader({
   title,
   titleAccessory,
+  titleLead,
   overlay,
   alignStart,
   showCloseButton,
@@ -122,6 +125,7 @@ function WindowHeader({
 }: {
   readonly title: string;
   readonly titleAccessory?: ReactNode;
+  readonly titleLead?: ReactNode;
   readonly overlay: boolean;
   readonly alignStart: boolean;
   readonly showCloseButton: boolean;
@@ -138,6 +142,7 @@ function WindowHeader({
             : 'h-8 border-b border-border-soft px-1.5',
       )}
     >
+      {titleLead}
       <h2
         className={cn(
           'min-w-0 flex-1 truncate',
@@ -207,6 +212,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       windowId,
       title,
       titleAccessory,
+      titleLead,
       placement,
       stackIndex,
       onClose,
@@ -261,6 +267,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
           <WindowHeader
             title={title}
             titleAccessory={titleAccessory}
+            titleLead={titleLead}
             overlay={overlay}
             alignStart={placement.kind === 'docked-bottom-left'}
             showCloseButton={showCloseButton}

@@ -15,11 +15,7 @@ export function RightsTransitionToast({ canEdit }: RightsTransitionToastProps) {
     const previous = previousRef.current;
     previousRef.current = canEdit;
     if (!shouldToastRightsTransition(previous, canEdit)) return;
-    toast.message(
-      canEdit === true
-        ? 'Edit access restored'
-        : 'Edit access removed — viewing only',
-    );
+    toast.message(canEdit === true ? 'Edit access restored' : 'View-only access');
   }, [canEdit]);
 
   return null;

@@ -3,6 +3,7 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { eyebrow } from '@/components/ui/type-roles';
 import { useEntityNames } from '@/components/use-entity-names';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
 import { useTypeNames } from '@/data/eve-data/use-type-names';
@@ -11,7 +12,6 @@ import { ScannerLivePricesProvider, useScannerEstIskSum } from '@/features/wormh
 import { formatIskShort } from '@/lib/format/isk';
 import { useUniverseAssets } from '../chain/use-universe-assets';
 import { useSignatureRows } from '../signatures/signature-context';
-import { signatureCounts } from '../signatures/signature-model';
 import { useSystemStaticSlots, useWormholeCodexStatus } from '../signatures/use-system-statics';
 import { friendlyRows, type PresencePilot } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
@@ -27,6 +27,23 @@ export function SystemTitleAccessory({ systemId }: { readonly systemId: number }
     <span data-identity-readout>
       {' '}<span data-identity-classification className={cn('tabular-nums', classification.tone)}>{classification.label}</span>
     </span>
+  );
+}
+
+const INTEL_HEADING_CLASS = eyebrow({ size: 'micro', tone: 'faint', emphasis: 'strong' });
+
+/** One titled category of the intel body; render it only when it has content. */
+function IntelSection({ section, title, children }: {
+  readonly section: string;
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  const headingId = useId();
+  return (
+    <section data-intel-section={section} aria-labelledby={headingId} className="flex flex-col gap-1">
+      <h3 id={headingId} className={INTEL_HEADING_CLASS}>{title}</h3>
+      {children}
+    </section>
   );
 }
 
@@ -132,17 +149,22 @@ function WormholeLocation({ systemId, effect, whClassId }: {
   readonly whClassId: number | null;
 }) {
   const slots = useSystemStaticSlots(systemId);
-  if (slots.length === 0 && effect === null) return null;
   return (
-    <div className="flex flex-col gap-1">
+    <>
       {slots.length > 0 ? (
-        <div role="group" aria-label="Statics" data-intel-statics className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro">
-          <IntelIcon kind="wormhole" />
-          {slots.map((slot) => <span key={slot.code} className="text-muted">{slot.code} <span className="text-name">{slot.className}</span></span>)}
-        </div>
+        <IntelSection section="statics" title="Statics">
+          <div role="group" aria-label="Statics" data-intel-statics className="flex flex-wrap items-center gap-x-3 gap-y-1 font-data text-micro">
+            <IntelIcon kind="wormhole" />
+            {slots.map((slot) => <span key={slot.code} className="text-muted">{slot.code} <span className="text-name">{slot.className}</span></span>)}
+          </div>
+        </IntelSection>
       ) : null}
-      {effect !== null ? <EffectDisclosure effect={effect} whClassId={whClassId} /> : null}
-    </div>
+      {effect !== null ? (
+        <IntelSection section="effect" title="Effect">
+          <EffectDisclosure effect={effect} whClassId={whClassId} />
+        </IntelSection>
+      ) : null}
+    </>
   );
 }
 
@@ -151,15 +173,17 @@ function KnownSpaceLocation({ systemId }: { readonly systemId: number }) {
   const hubs = assets?.hubJumps(systemId);
   if (hubs === undefined) return null;
   return (
-    <div data-intel-hubs className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-data text-micro">
-      {hubs.map((hub) => (
-        <span key={hub.id} className="flex items-center gap-1.5">
-          <IntelIcon kind="market" />
-          <span className="flex-1 text-name">{hub.name}</span>
-          <span className="tabular-nums text-muted" aria-label={hub.jumps === null ? 'Unreachable' : `${hub.jumps} jumps`}>{hub.jumps ?? '—'}</span>
-        </span>
-      ))}
-    </div>
+    <IntelSection section="hubs" title="Trade hubs">
+      <div data-intel-hubs className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-data text-micro">
+        {hubs.map((hub) => (
+          <span key={hub.id} className="flex items-center gap-1.5">
+            <IntelIcon kind="market" />
+            <span className="flex-1 text-name">{hub.name}</span>
+            <span className="tabular-nums text-muted" aria-label={hub.jumps === null ? 'Unreachable' : `${hub.jumps} jumps`}>{hub.jumps ?? '—'}</span>
+          </span>
+        ))}
+      </div>
+    </IntelSection>
   );
 }
 
@@ -214,26 +238,30 @@ function FriendliesSection({ systemId }: { readonly systemId: number }) {
   const presence = useSystemPresence(systemId);
   if (presence === null || presence.pilots.length === 0) return null;
   return (
-    <section data-intel-section="friendlies" className="border-t border-border-idle pt-1">
+    <IntelSection section="friendlies" title="Pilots">
       <Disclosure icon="pilot" label="Friendlies" count={presence.pilots.length}>
         <FriendlyList pilots={presence.pilots} />
       </Disclosure>
-    </section>
+    </IntelSection>
+  );
+}
+
+function SitesSection({ blocks }: { readonly blocks: readonly IntelCategoryBlock[] }) {
+  if (blocks.length === 0) return null;
+  return (
+    <IntelSection section="sites" title="Signatures">
+      {blocks.map((block) => <CategoryBlock key={block.bucket} block={block} />)}
+    </IntelSection>
   );
 }
 
 export function SystemIntelligenceBody({ systemId }: { readonly systemId: number }) {
   const rows = useSignatureRows(systemId);
   const blocks = useMemo(() => intelCategoryBlocks(rows, systemId), [rows, systemId]);
-  const counts = signatureCounts(rows, systemId);
   return (
-    <div key={systemId} data-system-intel className="nopan nowheel flex min-w-60 flex-col gap-2 text-left">
+    <div key={systemId} data-system-intel className="nopan nowheel flex min-w-60 flex-col gap-3 text-left">
       <LocationSection systemId={systemId} />
-      <section data-intel-section="sites">
-        {blocks.length > 0 ? blocks.map((block) => <CategoryBlock key={block.bucket} block={block} />) : (
-          <p className="font-data text-micro text-muted">{counts.signatures} signatures · {counts.anomalies} anomalies</p>
-        )}
-      </section>
+      <SitesSection blocks={blocks} />
       <FriendliesSection systemId={systemId} />
     </div>
   );

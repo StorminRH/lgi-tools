@@ -49,7 +49,6 @@ const {
   plannerBuildLocation,
   plannerBuildCharacter,
   PREFERENCE_KEYS,
-  RETIRED_PREFERENCE_KEYS,
   pruneRetiredPreferences,
   STRIP_SURFACE_IDS,
   stripDimmedDef,
@@ -133,6 +132,7 @@ describe('validatePreferenceValue', () => {
     expect(PREFERENCE_KEYS).toContain('planner.buildLocation');
     expect(PREFERENCE_KEYS).toContain('planner.buildCharacterId');
     expect(PREFERENCE_KEYS).not.toContain('atlas.autoLayout');
+    expect(PREFERENCE_KEYS).not.toContain('strip.skills.dimmed');
   });
 });
 
@@ -292,14 +292,19 @@ describe('strip dimmed-set defs', () => {
 });
 
 describe('retired preference keys', () => {
-  it('names atlas.autoLayout and prunes its localStorage row', () => {
-    expect(RETIRED_PREFERENCE_KEYS).toEqual(['atlas.autoLayout']);
+  it('prunes a retired atlas.autoLayout localStorage row and leaves other keys', () => {
     window.localStorage.setItem(lsKey('atlas.autoLayout'), JSON.stringify(false));
     window.localStorage.setItem(lsKey('sites.view'), JSON.stringify('table'));
     pruneRetiredPreferences();
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
+  });
+
+  it('prunes the retired /skills strip row', () => {
+    window.localStorage.setItem(lsKey('strip.skills.dimmed'), JSON.stringify([1]));
+    pruneRetiredPreferences();
+    expect(window.localStorage.getItem(lsKey('strip.skills.dimmed'))).toBeNull();
   });
 });
 
