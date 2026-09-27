@@ -281,16 +281,28 @@ describe('a source that failed to load', () => {
     expect(byId.get('budget')).toMatchObject({ value: '87 left', level: 'green' });
   });
 
-  it('raises one attention item naming the missing sources', () => {
+  it('raises an attention item per failed source, linked to its page', () => {
     expect(deriveAttention(failed, deriveStatusGroups(failed))).toEqual([
       {
-        id: 'unavailable',
+        id: 'unavailable:/admin/health#scheduled',
         level: 'amber',
-        title: 'Could not load scheduled jobs, refresh queue',
-        detail: 'Their status lines show "unavailable", so a problem there would not appear here. Reload to try again.',
-        action: { label: 'Open health', href: '/admin/health' },
+        title: 'Could not load scheduled jobs',
+        detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
+        action: { label: 'View jobs', href: '/admin/health#scheduled' },
+      },
+      {
+        id: 'unavailable:/admin/queue',
+        level: 'amber',
+        title: 'Could not load refresh queue',
+        detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
+        action: { label: 'Open queue', href: '/admin/queue' },
       },
     ]);
+  });
+
+  it('sends a failed statics read to the statics page', () => {
+    const items = deriveAttention(signals({ statics: SECTION_LOAD_FAILED }), deriveStatusGroups(signals()));
+    expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load statics review', '/admin/statics']]);
   });
 
   it('names a source once when both of its reads fail', () => {
@@ -298,6 +310,6 @@ describe('a source that failed to load', () => {
       signals({ fallback: SECTION_LOAD_FAILED, budgetExhaustions: SECTION_LOAD_FAILED }),
       deriveStatusGroups(signals()),
     );
-    expect(items.map((i) => i.title)).toEqual(['Could not load price source']);
+    expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load price source', '/admin/esi']]);
   });
 });

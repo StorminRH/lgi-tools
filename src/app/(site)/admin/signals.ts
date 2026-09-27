@@ -51,15 +51,19 @@ export interface AdminSignals {
   releases: Loaded<{ date: string; label: string }[]>;
 }
 
-const SOURCE_LABELS: Record<Exclude<keyof AdminSignals, 'now'>, string> = {
-  crons: 'scheduled jobs',
-  budget: 'ESI error budget',
-  fallback: 'price source',
-  budgetExhaustions: 'price source',
-  sli: 'service levels',
-  queue: 'refresh queue',
-  statics: 'statics review',
-  releases: 'releases',
+const HEALTH_PAGE = { label: 'Open health', href: '/admin/health' };
+const ESI_PAGE = { label: 'Open ESI', href: '/admin/esi' };
+
+// Where an operator goes to see a source directly when the overview could not read it.
+const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page: { label: string; href: string } }> = {
+  crons: { label: 'scheduled jobs', page: { label: 'View jobs', href: '/admin/health#scheduled' } },
+  budget: { label: 'ESI error budget', page: ESI_PAGE },
+  fallback: { label: 'price source', page: ESI_PAGE },
+  budgetExhaustions: { label: 'price source', page: ESI_PAGE },
+  sli: { label: 'service levels', page: HEALTH_PAGE },
+  queue: { label: 'refresh queue', page: { label: 'Open queue', href: '/admin/queue' } },
+  statics: { label: 'statics review', page: { label: 'Open statics', href: '/admin/statics' } },
+  releases: { label: 'releases', page: HEALTH_PAGE },
 };
 
 function unavailableLine(id: string, label: string): StatusLine {
@@ -419,26 +423,28 @@ function lineAttention(line: StatusLine, action: AttentionItem['action']): Atten
 }
 
 function unavailableAttention(signals: AdminSignals): AttentionItem[] {
-  const sources = Object.keys(SOURCE_LABELS) as (keyof typeof SOURCE_LABELS)[];
-  const missing = new Set(
-    sources.filter((key) => signals[key] === SECTION_LOAD_FAILED).map((key) => SOURCE_LABELS[key]),
-  );
-  if (missing.size === 0) return [];
-  return [
-    {
-      id: 'unavailable',
-      level: 'amber',
-      title: `Could not load ${[...missing].join(', ')}`,
-      detail: 'Their status lines show "unavailable", so a problem there would not appear here. Reload to try again.',
-      action: { label: 'Open health', href: '/admin/health' },
-    },
-  ];
+  const keys = Object.keys(SOURCES) as (keyof typeof SOURCES)[];
+  const byPage = new Map<string, { page: AttentionItem['action']; labels: Set<string> }>();
+  for (const key of keys) {
+    if (signals[key] !== SECTION_LOAD_FAILED) continue;
+    const { label, page } = SOURCES[key];
+    const entry = byPage.get(page.href) ?? { page, labels: new Set<string>() };
+    entry.labels.add(label);
+    byPage.set(page.href, entry);
+  }
+  return [...byPage.values()].map(({ page, labels }) => ({
+    id: `unavailable:${page.href}`,
+    level: 'amber',
+    title: `Could not load ${[...labels].join(', ')}`,
+    detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
+    action: page,
+  }));
 }
 
 export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): AttentionItem[] {
   const actionFor: Record<StatusGroup['id'], AttentionItem['action']> = {
-    app: { label: 'Open health', href: '/admin/health' },
-    esi: { label: 'Open ESI', href: '/admin/esi' },
+    app: HEALTH_PAGE,
+    esi: ESI_PAGE,
     jobs: { label: 'View jobs', href: '/admin/health#scheduled' },
   };
   const statusItems = groups.flatMap((group) =>
