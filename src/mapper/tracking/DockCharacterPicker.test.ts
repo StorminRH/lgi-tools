@@ -71,6 +71,7 @@ describe('DockCharacterPicker', () => {
     expect(markup).toContain('J31000001');
     expect(markup).toContain('Named 8');
     expect(markup).toContain('Offline');
+    expect(markup).not.toContain('data-dock-pinned-badge');
   });
 
   it('shows the pinned character alone and checks its row', () => {
@@ -81,6 +82,7 @@ describe('DockCharacterPicker', () => {
     );
     expect(markup).toContain('Current system follows Alpha Pilot. Choose character');
     expect(markup).toContain('data-value="7"');
+    expect(markup).toContain('data-dock-pinned-badge');
   });
 
   it('renders nothing without tracked characters', () => {

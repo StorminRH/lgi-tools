@@ -24,7 +24,20 @@ import {
 import type { DockCharacterSelection } from './use-tracked-system';
 
 const TRIGGER_CLASS =
-  'pointer-events-auto nopan flex shrink-0 cursor-pointer items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-isk data-[popup-open]:ring-1 data-[popup-open]:ring-isk';
+  'pointer-events-auto nopan relative flex shrink-0 cursor-pointer items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-isk data-[popup-open]:ring-1 data-[popup-open]:ring-isk';
+
+/** Marks a pinned dock character, like a status dot on the portrait. */
+const PINNED_BADGE = (
+  <span
+    aria-hidden
+    data-dock-pinned-badge
+    className="absolute -bottom-0.5 -right-1 flex size-[11px] items-center justify-center rounded-full border border-border-idle bg-bg-deep text-name"
+  >
+    <svg viewBox="0 0 16 16" fill="currentColor" className="size-[7px]">
+      <path fillRule="evenodd" d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2H13v8H3V7Zm2 0h3V5a1.5 1.5 0 0 0-3 0Z" />
+    </svg>
+  </span>
+);
 
 const INDICATOR = (
   <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
@@ -83,21 +96,24 @@ export function DockCharacterPicker({
     <Menu
       label={`Current system follows ${label}. Choose character`}
       trigger={
-        shown === null || shownId === null ? (
-          <span
-            aria-hidden
-            className="flex size-5 items-center justify-center rounded-full border border-border-idle font-data text-micro text-muted"
-          >
-            ?
-          </span>
-        ) : (
-          <CharacterPortrait
-            characterId={shownId}
-            name={shown.name}
-            src={shown.portraitUrl}
-            size={20}
-          />
-        )
+        <>
+          {shown === null || shownId === null ? (
+            <span
+              aria-hidden
+              className="flex size-5 items-center justify-center rounded-full border border-border-idle font-data text-micro text-muted"
+            >
+              ?
+            </span>
+          ) : (
+            <CharacterPortrait
+              characterId={shownId}
+              name={shown.name}
+              src={shown.portraitUrl}
+              size={20}
+            />
+          )}
+          {selection.mode === 'pinned' ? PINNED_BADGE : null}
+        </>
       }
       triggerProps={{ 'data-dock-character-picker': selection.mode }}
       triggerClassName={TRIGGER_CLASS}
