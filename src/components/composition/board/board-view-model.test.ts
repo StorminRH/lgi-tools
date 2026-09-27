@@ -16,6 +16,8 @@ import {
   netWorthTotals,
   pilotWorthSeries,
   worthShares,
+  worthChartMode,
+  splitDomains,
   boardViewHref,
   characterParam,
   fittedDomain,
@@ -504,5 +506,21 @@ describe('net worth', () => {
     const series = accountWorthSeries(board.history, chars, NOW);
     expect(series).toHaveLength(board.history.length);
     expect(series.every((point) => point.assets !== null)).toBe(true);
+  });
+});
+
+describe('worth chart mode', () => {
+  const point = (liquid: number, assets: number | null) => ({ t: 0, liquid, assets });
+
+  it('breaks the axis when net worth dwarfs ISK, stacks otherwise', () => {
+    expect(worthChartMode([point(180e6, null), point(199.76e6, 3_140.24e6)])).toBe('broken');
+    expect(worthChartMode([point(4_000e6, 3_500e6), point(4_110e6, 3_640e6)])).toBe('stacked');
+    expect(worthChartMode([point(10, null), point(12, null)])).toBe('stacked');
+    expect(worthChartMode(accountWorthSeries(board.history, board.characters, NOW))).toBe('stacked');
+  });
+
+  it('fits each segment to its own range', () => {
+    const series = [point(100, null), point(200, 3_000), point(150, 3_050)];
+    expect(splitDomains(series)).toEqual({ upper: [2_880, 3_520], lower: [90, 210] });
   });
 });

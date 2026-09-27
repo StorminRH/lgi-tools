@@ -636,3 +636,26 @@ export function queueWindow(queue: readonly SkillQueueEntry[], now: number, size
   const remaining = remainingQueue(queue, now);
   return { visible: remaining.slice(0, size), total: remaining.length };
 }
+
+/** Net worth this many times the largest ISK value breaks the axis rather than squash ISK flat. */
+const BREAK_AXIS_RATIO = 2;
+
+export type WorthChartMode = 'stacked' | 'broken';
+
+/**
+ * Stacked bands while ISK and net worth share a scale; a broken axis once
+ * every net-worth value is more than BREAK_AXIS_RATIO times the largest ISK
+ * value, when a shared axis would flatten ISK to a sliver.
+ */
+export function worthChartMode(series: readonly WorthPoint[]): WorthChartMode {
+  const worths = series.flatMap((point) => (point.assets === null ? [] : [point.liquid + point.assets]));
+  if (worths.length === 0) return 'stacked';
+  const topLiquid = Math.max(...series.map((point) => point.liquid));
+  return Math.min(...worths) > BREAK_AXIS_RATIO * topLiquid ? 'broken' : 'stacked';
+}
+
+/** The two fitted ranges of a broken axis: net worth above, ISK below. */
+export function splitDomains(series: readonly WorthPoint[]): { upper: [number, number]; lower: [number, number] } {
+  const worths = series.flatMap((point) => (point.assets === null ? [] : [point.liquid + point.assets]));
+  return { upper: fittedDomain(worths), lower: fittedDomain(series.map((point) => point.liquid)) };
+}
