@@ -56,8 +56,7 @@ import { HeroBanner } from '@/components/composition/HeroBanner';
 import { EntranceOnce } from '@/components/composition/EntranceOnce';
 import { HomeDashboard } from '@/components/composition/HomeDashboard';
 import { HomeHero } from '@/components/composition/HomeHero';
-import { HomeHeroPitch } from '@/components/composition/HomeHeroPitch';
-import { HomeHeroSearch } from '@/components/composition/HomeHeroSearch';
+import { SignedInFold } from '@/components/composition/SignedInFold';
 import { TelemetryReporter } from '@/components/composition/TelemetryReporter';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
@@ -77,8 +76,7 @@ describe('coverage-gaps', () => {
       EntranceOnce,
       HomeDashboard,
       HomeHero,
-      HomeHeroPitch,
-      HomeHeroSearch,
+      SignedInFold,
       TelemetryReporter,
       AccountDangerZone,
       AdminUnlinkCharacterForm,

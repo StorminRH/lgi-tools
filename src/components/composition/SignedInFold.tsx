@@ -4,12 +4,12 @@ import { useId, type ReactNode } from 'react';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { SIGNED_IN_HINT_KEY } from '@/platform/auth/signed-in-hint';
 
-// The pitch is for visitors. It folds away once a session resolves instead of
-// unmounting, so the hero around it keeps its DOM and its running animations.
+// Visitor-only content folds away once a session resolves instead of
+// unmounting, so the static shell keeps its DOM and its running animations.
 // On a full load the inline script folds it before first paint when this
-// browser was signed in last time, so a returning pilot's hero never moves;
+// browser was signed in last time, so a returning pilot never sees it flash;
 // data-settled hands control back to the real session once it resolves.
-export function HomeHeroPitch({ children }: { children: ReactNode }) {
+export function SignedInFold({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
   const id = useId();
   const folded = session !== null;
@@ -17,7 +17,7 @@ export function HomeHeroPitch({ children }: { children: ReactNode }) {
     <>
       <div
         id={id}
-        className="home-hero-pitch"
+        className="signed-in-fold"
         data-folded={folded || undefined}
         data-settled={loading ? undefined : ''}
         aria-hidden={folded || undefined}
