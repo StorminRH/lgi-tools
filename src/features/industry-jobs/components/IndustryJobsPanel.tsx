@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
-import { jobRowFrameData, jobsCardModel } from '../job-view';
+import { JOBS_LOAD_FAILED, jobRowFrameData, jobsCardModel } from '../job-view';
 import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
@@ -52,7 +52,7 @@ function LiveJobs({
   initialDimmed?: number[];
 }) {
   const eligibleIds = syncEligibleIds(characters);
-  const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
+  const { jobsByCharacter, names, now, loading, failed } = useJobsLive(eligibleIds);
 
   return (
     <div className="reveal reveal-1 w-full max-w-[760px] flex flex-col gap-6">
@@ -61,6 +61,7 @@ function LiveJobs({
         strip={strip}
         initialDimmed={initialDimmed}
         loading={loading}
+        failure={failed ? JOBS_LOAD_FAILED : null}
       >
         {(visible) =>
           visible.map((character) => {

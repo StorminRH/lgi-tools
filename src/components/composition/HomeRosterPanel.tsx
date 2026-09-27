@@ -9,6 +9,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { RosterCard } from '@/features/skill-queue/components/RosterCard';
+import { SKILLS_LOAD_FAILED } from '@/features/skill-queue/queue-view';
 import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/roster-view-model';
 import { useSkillsLive } from '@/features/skill-queue/use-skills-live';
 import { apiFetch } from '@/transport/api-client';
@@ -95,7 +96,7 @@ function LiveRosterCards({ characters }: { characters: PanelCharacter[] }) {
   const eligibleIds = characters
     .filter((character) => !character.needsReconnect)
     .map((character) => character.characterId);
-  const { skillsByCharacter, names, now } = useSkillsLive(eligibleIds);
+  const { skillsByCharacter, names, now, failed } = useSkillsLive(eligibleIds);
   const items = characters.map((character) => {
     const live = skillsByCharacter.get(character.characterId);
     return buildRosterCard(
@@ -108,11 +109,14 @@ function LiveRosterCards({ characters }: { characters: PanelCharacter[] }) {
     );
   });
   return (
-    <RosterList
-      items={items}
-      reconnectAction={
-        <LinkCharacterButton label="Reconnect" emphasis="reconnect" callbackURL="/" />
-      }
-    />
+    <>
+      {failed && <Banner tone="warn">{SKILLS_LOAD_FAILED}</Banner>}
+      <RosterList
+        items={items}
+        reconnectAction={
+          <LinkCharacterButton label="Reconnect" emphasis="reconnect" callbackURL="/" />
+        }
+      />
+    </>
   );
 }

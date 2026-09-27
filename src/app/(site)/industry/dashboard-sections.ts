@@ -1,3 +1,5 @@
+import { corpJobsEmptyLine, JOBS_LOAD_FAILED } from '@/features/industry-jobs/job-view';
+
 export type DashboardSectionId = 'recents' | 'saved' | 'active' | 'corp';
 export type SectionStatus = 'pending' | 'empty' | 'populated';
 
@@ -47,9 +49,11 @@ export function savedStatus(
 
 export function activeStatus(args: {
   loading: boolean;
+  failed: boolean;
   rosterSize: number;
   jobCount: number;
 }): SectionStatus {
+  if (args.failed) return 'empty';
   if (args.loading) return 'pending';
   if (args.rosterSize === 0 || args.jobCount === 0) return 'empty';
   return 'populated';
@@ -67,26 +71,27 @@ export function deriveSectionRender(
   };
 }
 
-export function activeJobsHint(rosterSize: number): string {
+export function activeJobsHint(rosterSize: number, failed: boolean): string {
+  if (failed) return JOBS_LOAD_FAILED;
   return rosterSize === 0
     ? 'Sign in with EVE (top right) to track your industry jobs here.'
     : 'No industry jobs running.';
 }
 
-export function corpHint(hasLinkedCharacters: boolean): string | undefined {
-  return hasLinkedCharacters
-    ? 'No corporation industry jobs yet — they’ll appear here once a sync completes.'
-    : undefined;
+export function corpHint(hasLinkedCharacters: boolean, failed: boolean): string | undefined {
+  return hasLinkedCharacters ? corpJobsEmptyLine(failed) : undefined;
 }
 
 export function corpStatus(args: {
   hasLinkedCharacters: boolean;
   eligibleCount: number;
   loading: boolean;
+  failed: boolean;
   corpCount: number;
 }): SectionStatus {
   if (!args.hasLinkedCharacters) return 'empty';
   if (args.eligibleCount === 0) return 'populated';
+  if (args.failed) return 'empty';
   if (args.loading) return 'pending';
   return args.corpCount > 0 ? 'populated' : 'empty';
 }

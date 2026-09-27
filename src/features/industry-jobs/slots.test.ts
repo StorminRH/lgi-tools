@@ -113,6 +113,20 @@ describe('slotMetaTotals', () => {
     expect(
       slotMetaTotals({
         loading: true,
+        failed: false,
+        eligibleCharacterIds: [1],
+        characters: [{ characterId: 1, slots: { manufacturing: 1, science: 1, reactions: 1 } }],
+        personalJobsByCharacter: boards([]),
+        corpJobs: [],
+      }),
+    ).toBeNull();
+  });
+
+  it('is null once a job feed has failed, rather than undercounting used slots', () => {
+    expect(
+      slotMetaTotals({
+        loading: false,
+        failed: true,
         eligibleCharacterIds: [1],
         characters: [{ characterId: 1, slots: { manufacturing: 1, science: 1, reactions: 1 } }],
         personalJobsByCharacter: boards([]),
@@ -125,6 +139,7 @@ describe('slotMetaTotals', () => {
     expect(
       slotMetaTotals({
         loading: false,
+        failed: false,
         eligibleCharacterIds: [],
         characters: [],
         personalJobsByCharacter: boards([]),
@@ -137,6 +152,7 @@ describe('slotMetaTotals', () => {
 
     const model = slotMetaTotals({
       loading: false,
+      failed: false,
       eligibleCharacterIds: [1, 2],
       characters: [
         { characterId: 1, slots: { manufacturing: 8, science: 6, reactions: 3 } },
@@ -159,6 +175,7 @@ describe('slotMetaTotals', () => {
 
     const model = slotMetaTotals({
       loading: false,
+      failed: false,
       eligibleCharacterIds: [1],
       characters: [
         { characterId: 1, slots: { manufacturing: 2, science: 1, reactions: 1 } },
@@ -178,6 +195,7 @@ describe('slotMetaTotals', () => {
 
     const model = slotMetaTotals({
       loading: false,
+      failed: false,
       eligibleCharacterIds: [1],
       characters: [
         { characterId: 1, slots: { manufacturing: 2, science: 1, reactions: 1 } },
@@ -197,6 +215,7 @@ describe('slotMetaTotals', () => {
 
     const model = slotMetaTotals({
       loading: false,
+      failed: false,
       eligibleCharacterIds: [1],
       characters: [
         { characterId: 1, slots: { manufacturing: 2, science: 1, reactions: 1 } },
@@ -216,6 +235,7 @@ describe('slotMetaTotals', () => {
     expect(
       slotMetaTotals({
         loading: false,
+        failed: false,
         eligibleCharacterIds: [],
         characters: [{ characterId: 9, slots: { manufacturing: 2, science: 1, reactions: 1 } }],
         personalJobsByCharacter: boards([]),

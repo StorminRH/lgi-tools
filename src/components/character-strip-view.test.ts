@@ -57,4 +57,9 @@ describe('deriveStripView', () => {
     expect(deriveStripView(strip, [], [], true).syncCaption).toBe('Loading…');
     expect(deriveStripView(strip, [], [], false).syncCaption).toBe('Synced from ESI on view');
   });
+
+  it('swaps the caption for the failure line once a failed load settles', () => {
+    expect(deriveStripView(strip, [], [], false, 'Couldn’t load.').syncCaption).toBe('Couldn’t load.');
+    expect(deriveStripView(strip, [], [], false, null).syncCaption).toBe('Synced from ESI on view');
+  });
 });
