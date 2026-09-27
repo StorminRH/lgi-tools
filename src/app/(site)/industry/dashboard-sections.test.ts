@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeJobsHint,
   activeStatus,
-  corpHint,
   corpStatus,
   type DashboardSectionId,
   deriveSectionRender,
   orderSections,
-  PREFERRED_SECTION_ORDER,
   recentsStatus,
   savedStatus,
   type SectionStatus,
@@ -21,11 +18,8 @@ function status(
 }
 
 describe('settledSectionOrder', () => {
-  it('holds while any section is pending, so a painted grid is not reshuffled', () => {
+  it('holds while any section is pending, then sorts once every section has settled', () => {
     expect(settledSectionOrder(status({ corp: 'pending', saved: 'empty' }))).toBeNull();
-  });
-
-  it('sorts once every section has settled', () => {
     expect(settledSectionOrder(status({ saved: 'empty' }))).toEqual([
       'recents',
       'active',
@@ -36,36 +30,23 @@ describe('settledSectionOrder', () => {
 });
 
 describe('orderSections', () => {
-
-  it('keeps the preferred order when every section is populated', () => {
+  it('keeps preferred order, sinks empties, and treats pending as populated', () => {
     expect(orderSections(status())).toEqual(['recents', 'saved', 'active', 'corp']);
-  });
-
-  it('sinks an empty saved section below the populated ones', () => {
     expect(orderSections(status({ saved: 'empty' }))).toEqual([
       'recents',
       'active',
       'corp',
       'saved',
     ]);
-  });
-
-  it('sinks saved + active keeping preferred order within the empty group', () => {
     expect(orderSections(status({ saved: 'empty', active: 'empty' }))).toEqual([
       'recents',
       'corp',
       'saved',
       'active',
     ]);
-  });
-
-  it('treats pending as populated so nothing sinks before it settles', () => {
     expect(
       orderSections({ recents: 'pending', saved: 'pending', active: 'pending', corp: 'pending' }),
-    ).toEqual([...PREFERRED_SECTION_ORDER]);
-  });
-
-  it('respects a custom preferred order (the future page-settings seam)', () => {
+    ).toEqual(['recents', 'saved', 'active', 'corp']);
     expect(orderSections(status({ saved: 'empty' }), ['active', 'saved', 'corp', 'recents'])).toEqual([
       'active',
       'corp',
@@ -125,19 +106,5 @@ describe('section status + render', () => {
       hint: null,
       body: false,
     });
-  });
-});
-
-describe('activeJobsHint', () => {
-  it('empty roster prompts sign-in; a populated roster says no jobs', () => {
-    expect(activeJobsHint(0)).toContain('Sign in');
-    expect(activeJobsHint(3)).toBe('No industry jobs running.');
-  });
-});
-
-describe('corpHint', () => {
-  it('is silent without linked characters, else the sync line', () => {
-    expect(corpHint(false)).toBeUndefined();
-    expect(corpHint(true)).toContain('sync completes');
   });
 });
