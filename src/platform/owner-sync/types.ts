@@ -5,6 +5,8 @@ export interface EnumeratedOwner {
   missingScopes: string[];
 }
 
+export type CharacterOwner = Omit<EnumeratedOwner, 'corporationId'>;
+
 export interface OwnerKey {
   ownerType: 'character' | 'corporation';
   ownerId: number;

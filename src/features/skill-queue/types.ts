@@ -1,15 +1,10 @@
+import type { CharacterOwner } from '@/platform/owner-sync';
 import type { SkillQueueEntry } from './esi-projection';
 
 export interface CharacterSkillData {
   entries: SkillQueueEntry[];
   totalSp: number;
   unallocatedSp?: number;
-}
-
-export interface RefreshCharacter {
-  characterId: number;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
 }
 
 export interface CharacterSkillSyncState {
@@ -35,7 +30,7 @@ export interface SkillsSaveHalves {
 
 export interface SkillsPort {
   now(): Date;
-  listCharacters(userId: string): Promise<RefreshCharacter[]>;
+  listCharacters(userId: string): Promise<CharacterOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
   readSkillQueue(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;
   readSkills(characterId: number, accessToken: string, heldEtag: string | null): Promise<SkillsEsiRead>;

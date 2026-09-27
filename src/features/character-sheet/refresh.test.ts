@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { CharacterOwner } from '@/platform/owner-sync';
 import { refreshCharacterSheetForUser } from './refresh';
 import type {
   SectionEnvelope,
   SheetEndpoint,
   SheetEsiRead,
   SheetPort,
-  SheetRefreshCharacter,
   SheetSectionKey,
   SheetSections,
 } from './types';
@@ -30,7 +30,7 @@ const BODIES: Record<SheetEndpoint, unknown> = {
   journal: [],
 };
 
-const character = (id: number, extra: Partial<SheetRefreshCharacter> = {}): SheetRefreshCharacter => ({
+const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
   characterId: id,
   hasRefreshToken: true,
   missingScopes: [],

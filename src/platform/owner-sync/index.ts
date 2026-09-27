@@ -6,6 +6,7 @@ export { makeOwnedDescriptor } from './owned';
 export type { OwnedDatasetPort, PagedOwnerReadResult } from './owned';
 export { planRead } from './plan';
 export type {
+  CharacterOwner,
   EnumeratedOwner,
   OwnerKey,
   OwnerSyncDescriptor,

@@ -1,3 +1,4 @@
+import type { CharacterOwner } from '@/platform/owner-sync';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import type { LocationBody } from '@/data/location-tracking/esi-projection';
 
@@ -166,15 +167,9 @@ export type SectionPlan<K extends SheetSectionKey> =
   | { kind: 'stamp' }
   | { kind: 'skip'; code?: string };
 
-export interface SheetRefreshCharacter {
-  characterId: number;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
 export interface SheetPort {
   now(): Date;
-  listCharacters(userId: string): Promise<SheetRefreshCharacter[]>;
+  listCharacters(userId: string): Promise<CharacterOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
   readEndpoint(
     characterId: number,
