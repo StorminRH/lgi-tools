@@ -4,94 +4,158 @@ import { useSearchParams } from 'next/navigation';
 import {
   addTransitionType,
   startTransition,
-  useCallback, useEffect, useLayoutEffect, useMemo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   ViewTransition,
 } from 'react';
-import { cn } from '@/components/ui/cn';
-import type { BoardResponse } from '@/composition/board/api-contract';
-import { formatIsk } from '@/lib/format/isk';
-import { formatCompactQuantity } from '@/lib/format/number';
-import { BoardTile } from './BoardTile';
+import type { BoardCharacter, BoardResponse, SkillCatalogGroup } from '@/composition/board/api-contract';
+import { BoardLeaders } from './BoardLeaders';
+import { LEADERS_MOTION } from './board-motion';
 import {
   type BoardView,
+  boardTransitionType,
   boardViewFrom,
   boardViewHref,
   characterParam,
-  coverageNote,
-  type CoveredSum,
   OVERVIEW,
-  rosterTotals,
+  railOrder,
   skillNames,
   tileModel,
 } from './board-view-model';
 import { CharacterDetail } from './CharacterDetail';
+import { OverviewCards } from './OverviewCards';
+import { PilotRail } from './PilotRail';
 
-// Marks the history entry a pilot opened from the roster, so the back control
-// can step back to it instead of stacking a new roster entry on top.
-const OPENED_FROM_ROSTER = 'lgiBoardOpened';
+// Marks the history entry a pilot was focused from the overview, so going
+// back steps back to it instead of stacking a new overview entry on top.
+const FOCUSED_FROM_OVERVIEW = 'lgiBoardFocused';
 
-function openedFromRoster(): boolean {
+function focusedFromOverview(): boolean {
   const state: unknown = window.history.state;
-  return typeof state === 'object' && state !== null && OPENED_FROM_ROSTER in state;
+  return typeof state === 'object' && state !== null && FOCUSED_FROM_OVERVIEW in state;
 }
 
-function writeView(view: BoardView, push: boolean): void {
+function writeView(view: BoardView, mode: 'push' | 'replace'): void {
   const href = boardViewHref(window.location.pathname, window.location.search, view);
-  if (push) window.history.pushState({ [OPENED_FROM_ROSTER]: true }, '', href);
-  else window.history.replaceState(null, '', href);
+  const state = mode === 'push' || focusedFromOverview() ? { [FOCUSED_FROM_OVERVIEW]: true } : null;
+  if (mode === 'push' && view.view === 'character') window.history.pushState(state, '', href);
+  else window.history.replaceState(view.view === 'overview' ? null : state, '', href);
 }
 
 const urlParam = () => characterParam(new URLSearchParams(window.location.search));
 
-// The type tells HomeBoardView.css which way to sequence the morph.
-function showParam(setParam: (param: string | null) => void, param: string | null): void {
-  startTransition(() => {
-    addTransitionType(param === null ? 'board-close' : 'board-open');
-    setParam(param);
-  });
+const viewKey = (view: BoardView) => (view.view === 'overview' ? 'overview' : `pilot-${view.characterId}`);
+
+export function HomeBoardView({
+  board,
+  now,
+  mainId = null,
+}: {
+  board: BoardResponse;
+  now: number;
+  mainId?: number | null;
+}) {
+  const names = useMemo(() => skillNames(board.skillCatalog), [board.skillCatalog]);
+  const [only] = board.characters;
+  if (board.characters.length === 1 && only !== undefined) {
+    return <SinglePilot character={only} catalog={board.skillCatalog} names={names} now={now} />;
+  }
+  return <PilotBoard board={board} names={names} now={now} mainId={mainId} />;
 }
 
-const ROSTER_MOTION = {
-  enter: { 'board-close': 'board-roster-in', default: 'none' },
-  exit: { 'board-open': 'board-roster-out', default: 'none' },
-} as const;
+function SinglePilot({
+  character,
+  catalog,
+  names,
+  now,
+}: {
+  character: BoardCharacter;
+  catalog: readonly SkillCatalogGroup[];
+  names: Readonly<Record<string, string>>;
+  now: number;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={rootRef}
+      role="article"
+      aria-label={`${character.name} character sheet`}
+      className="relative grid gap-x-16 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]"
+    >
+      <CharacterDetail character={character} catalog={catalog} names={names} now={now} identity="column" />
+      <BoardLeaders rootRef={rootRef} view="single" />
+    </div>
+  );
+}
 
 // The view lives in `?character=`: pushState keeps Back and Forward inside the
 // page, and useSearchParams seeds the first render so a reload opens the same
 // view. The view itself is local state set in startTransition, because Next's
 // history sync commits outside the transition and <ViewTransition> never ran.
-export function HomeBoardView({ board, now }: { board: BoardResponse; now: number }) {
+function PilotBoard({
+  board,
+  names,
+  now,
+  mainId,
+}: {
+  board: BoardResponse;
+  names: Readonly<Record<string, string>>;
+  now: number;
+  mainId: number | null;
+}) {
   const params = useSearchParams();
   const [param, setParam] = useState(() => characterParam(params));
   const view = boardViewFrom(param, board.characters);
-
-  const names = useMemo(() => skillNames(board.skillCatalog), [board.skillCatalog]);
+  const viewRef = useRef(view);
+  useLayoutEffect(() => {
+    viewRef.current = view;
+  });
   const rootRef = useRef<HTMLDivElement>(null);
-  const backRef = useRef<HTMLButtonElement>(null);
-  const lastOpened = useRef<number | null>(view.view === 'character' ? view.characterId : null);
 
-  const open = useCallback((characterId: number) => {
-    lastOpened.current = characterId;
-    writeView({ view: 'character', characterId }, true);
-    showParam(setParam, String(characterId));
-  }, []);
-  const back = useCallback(() => {
-    if (openedFromRoster()) {
+  const show = useCallback(
+    (next: string | null) => {
+      const to = boardViewFrom(next, board.characters);
+      startTransition(() => {
+        addTransitionType(boardTransitionType(viewRef.current, to));
+        setParam(next);
+      });
+    },
+    [board.characters],
+  );
+
+  const toOverview = useCallback(() => {
+    if (viewRef.current.view === 'overview') return;
+    if (focusedFromOverview()) {
       window.history.back();
       return;
     }
-    writeView(OVERVIEW, false);
-    showParam(setParam, null);
-  }, []);
+    writeView(OVERVIEW, 'replace');
+    show(null);
+  }, [show]);
 
-  // Registered on the always-mounted view, not on the sheet: an Escape pressed
-  // right after Forward reopened a sheet was missed when the sheet owned it.
+  const select = useCallback(
+    (characterId: number) => {
+      const current = viewRef.current;
+      if (current.view === 'character' && current.characterId === characterId) {
+        toOverview();
+        return;
+      }
+      writeView({ view: 'character', characterId }, current.view === 'overview' ? 'push' : 'replace');
+      show(String(characterId));
+    },
+    [show, toOverview],
+  );
+
+  // On the always-mounted board, not on a sheet: an Escape pressed while a
+  // swap is still running was missed when the outgoing sheet owned it.
   useEffect(() => {
-    const onPop = () => showParam(setParam, urlParam());
+    const onPop = () => show(urlParam());
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented && urlParam() !== null) back();
+      if (event.key === 'Escape' && !event.defaultPrevented) toOverview();
     };
     window.addEventListener('popstate', onPop);
     window.addEventListener('keydown', onKey);
@@ -99,82 +163,51 @@ export function HomeBoardView({ board, now }: { board: BoardResponse; now: numbe
       window.removeEventListener('popstate', onPop);
       window.removeEventListener('keydown', onKey);
     };
-  }, [back]);
+  }, [show, toOverview]);
 
-  const shownId = view.view === 'character' ? view.characterId : null;
-  const shownBefore = useRef(shownId);
+  const key = viewKey(view);
+  const keyBefore = useRef(key);
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (root === null || shownBefore.current === shownId) return;
-    shownBefore.current = shownId;
+    if (root === null || keyBefore.current === key) return;
+    keyBefore.current = key;
     if (root.getBoundingClientRect().top < 0) root.scrollIntoView({ block: 'start' });
-    if (shownId !== null) {
-      lastOpened.current = shownId;
-      backRef.current?.focus({ preventScroll: true });
-    } else if (lastOpened.current !== null) {
-      root.querySelector<HTMLElement>(`[data-pilot-id="${lastOpened.current}"]`)?.focus({ preventScroll: true });
-    }
-  }, [shownId]);
+  }, [key]);
 
-  const selected = board.characters.find((c) => c.characterId === shownId);
+  const pilots = railOrder(board.characters, mainId).map((character) => tileModel(character, names, now));
+  const selected = view.view === 'character' ? board.characters.find((c) => c.characterId === view.characterId) : undefined;
   return (
     <div
       ref={rootRef}
-      role={selected !== undefined ? 'article' : undefined}
-      aria-label={selected !== undefined ? `${selected.name} character sheet` : undefined}
-      className={cn(
-        'relative scroll-mt-28',
-        selected !== undefined && 'grid gap-x-16 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]',
-      )}
+      className="relative grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-12 xl:gap-x-16"
     >
-      {selected !== undefined ? (
-        <CharacterDetail
-          rootRef={rootRef}
-          backRef={backRef}
-          character={selected}
-          catalog={board.skillCatalog}
-          names={names}
-          now={now}
-          onBack={back}
-        />
-      ) : (
-        <ViewTransition {...ROSTER_MOTION} default="none">
-          <div className="flex flex-col gap-6">
-            <RosterTotalsLine board={board} now={now} />
-            <div
-              role="group"
-              aria-label="Characters"
-              className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {board.characters.map((character) => (
-                <BoardTile key={character.characterId} tile={tileModel(character, names, now)} onOpen={open} />
-              ))}
-            </div>
-          </div>
-        </ViewTransition>
-      )}
+      <PilotRail
+        pilots={pilots}
+        selectedId={selected?.characterId ?? null}
+        onSelect={select}
+        onOverview={toOverview}
+      />
+      <div
+        role={selected === undefined ? 'region' : 'article'}
+        aria-label={selected === undefined ? 'Pilot overview' : `${selected.name} character sheet`}
+        className="flex min-w-0 flex-col gap-4"
+      >
+        {selected === undefined ? (
+          <OverviewCards key={key} characters={board.characters} names={names} now={now} />
+        ) : (
+          <CharacterDetail
+            key={key}
+            character={selected}
+            catalog={board.skillCatalog}
+            names={names}
+            now={now}
+            identity="card"
+          />
+        )}
+      </div>
+      <ViewTransition key={key} {...LEADERS_MOTION} default="none">
+        <BoardLeaders rootRef={rootRef} view={key} />
+      </ViewTransition>
     </div>
-  );
-}
-
-function sumText(sum: CoveredSum | null, format: (value: number) => string, unit: string): string | null {
-  return sum === null ? null : `${format(sum.value)} ${unit}${coverageNote(sum)}`;
-}
-
-function RosterTotalsLine({ board, now }: { board: BoardResponse; now: number }) {
-  const totals = rosterTotals(board.characters, now);
-  const isk = sumText(totals.isk, formatIsk, 'ISK');
-  const sp = sumText(totals.sp, formatCompactQuantity, 'SP');
-  return (
-    <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 font-data text-ui text-muted">
-      <span>
-        <span className="text-name">{totals.pilots}</span> {totals.pilots === 1 ? 'pilot' : 'pilots'}
-      </span>
-      {isk !== null && <span className="text-isk">{isk}</span>}
-      {sp !== null && <span className="text-name">{sp}</span>}
-      <span>
-        <span className="text-evb-bright">{totals.training}</span> training
-      </span>
-    </p>
   );
 }

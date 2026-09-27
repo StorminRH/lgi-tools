@@ -16,7 +16,7 @@ describe('leaderLines', () => {
     expect(queue?.d.endsWith('L 360 58')).toBe(true);
   });
 
-  it('reaches a further column along the gap above the panels and the gutter before it', () => {
+  it('reaches a further column along the gap above its row and the gutter before it', () => {
     const lines = leaderLines(
       portrait,
       280,
@@ -28,7 +28,7 @@ describe('leaderLines', () => {
     );
     const wallet = lines[1]!;
     expect(wallet.end).toEqual({ x: 716, y: 58 });
-    expect(wallet.d).toContain(' 30');
+    expect(wallet.d).toContain('L 698 32');
     expect(wallet.d).toContain('708');
   });
 });

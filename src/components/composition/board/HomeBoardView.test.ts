@@ -28,47 +28,59 @@ import { HomeBoardView } from './HomeBoardView';
 import { HomeSignedInBoard } from './HomeSignedInBoard';
 import { LiveBoard } from './LiveBoard';
 
-const render = (variant: 'full' | 'one' | 'reconnect', query = '') => {
+const render = (variant: 'full' | 'one' | 'reconnect', query = '', mainId?: number) => {
   search.params = new URLSearchParams(query);
   return renderToStaticMarkup(
-    createElement(HomeBoardView, { board: buildDemoBoard(FIXTURE_NOW, variant), now: FIXTURE_NOW }),
+    createElement(HomeBoardView, { board: buildDemoBoard(FIXTURE_NOW, variant), now: FIXTURE_NOW, mainId }),
   );
 };
 
 describe('HomeBoardView', () => {
-  it('opens on the roster: every pilot, the totals and no sheet', () => {
+  it('opens several pilots on the overview: rail, totals and aggregate cards', () => {
     const html = render('full');
     for (const name of ['Aurel Vantesse', 'Kessa Draymoor', 'Torvin Hale', 'Ilyana Mirek', 'Bram Oskarsen']) {
       expect(html).toContain(name);
     }
-    expect(html).toContain('4.11B ISK (3 of 5)');
-    expect(html).toContain('Queue ends in 9h');
-    expect(html).toContain('Queue paused');
-    expect(html).toContain('Skill queue is empty');
+    expect(html).toContain('aria-label="Pilot overview"');
+    expect(html).toContain('Needs attention');
+    expect(html).toContain('ISK by pilot');
+    expect(html).toContain('(3 of 5)');
+    expect(html).toContain('Whereabouts');
     expect(html).not.toContain('character sheet');
+    expect(html).not.toContain('Attributes &amp; implants');
     expect(html).not.toContain('esi-');
   });
 
-  it('opens the character named in the URL with every readout', () => {
+  it('puts the main pilot first in the rail', () => {
+    const html = render('full', '', 9_900_000_003);
+    expect(html.indexOf('data-pilot-id="9900000003"')).toBeLessThan(html.indexOf('data-pilot-id="9900000001"'));
+  });
+
+  it('opens the pilot named in the URL with every readout and marks it in the rail', () => {
     const html = render('full', '?character=9900000001');
     expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
-    expect(html).toContain('All characters');
     expect(html).toContain('Recent wallet journal');
     expect(html).toContain('Attributes &amp; implants');
-    expect(html).not.toContain('aria-label="Characters"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*data-pilot-id="9900000001"/);
   });
 
-  it('falls back to the roster for an unknown character', () => {
-    expect(render('full', '?character=42')).toContain('aria-label="Characters"');
+  it('falls back to the overview for an unknown pilot', () => {
+    expect(render('full', '?character=42')).toContain('aria-label="Pilot overview"');
   });
 
-  it('shows one reconnect sentence for a character with gaps', () => {
+  it('shows a lone pilot its own sheet with no rail', () => {
+    const html = render('one');
+    expect(html).toContain('aria-label="Aurel Vantesse character sheet"');
+    expect(html).not.toContain('aria-label="Pilots"');
+  });
+
+  it('shows one reconnect sentence for a pilot with gaps', () => {
     const html = render('full', '?character=9900000004');
     expect(html).toContain('Reconnect Ilyana Mirek to add wallet, clones, implants and structure names.');
     expect(html).toContain('Needs a reconnect to sync.');
   });
 
-  it('renders a character with nothing synced without inventing numbers', () => {
+  it('renders a pilot with nothing synced without inventing numbers', () => {
     const html = render('reconnect', '?character=9900000005');
     expect(html).toContain('Reconnect Bram Oskarsen to start syncing it again.');
     expect(html).not.toContain('0.00 ISK');
@@ -83,7 +95,7 @@ describe('board chrome', () => {
     expect(framed.match(/class="[^"]*\breveal\b/g)).toHaveLength(1);
     expect(renderToStaticMarkup(BoardFrame({ children: createElement(BoardSkeleton) }))).toContain('live');
     expect(renderToStaticMarkup(createElement(HomeSignedInBoard))).toBe('');
-    expect(renderToStaticMarkup(createElement(LiveBoard))).toContain(
+    expect(renderToStaticMarkup(createElement(LiveBoard, { mainId: 1 }))).toContain(
       'Loading your characters',
     );
   });

@@ -17,9 +17,10 @@ function boxWithin(element: Element, origin: DOMRect): LeaderBox {
 }
 
 function measure(root: HTMLElement): LeaderLine[] {
-  const anchor = root.querySelector('[data-leader-column] img');
+  const marked = root.querySelector('[data-leader-anchor]');
+  const anchor = marked?.querySelector('img') ?? marked;
   const column = root.querySelector('[data-leader-column]');
-  if (anchor === null || column === null || !window.matchMedia(WIDE).matches) return [];
+  if (anchor == null || column === null || !window.matchMedia(WIDE).matches) return [];
   const origin = root.getBoundingClientRect();
   const panels = [...root.querySelectorAll('[data-leader-target]')].map((panel, index) => ({
     key: String(index),
@@ -28,8 +29,12 @@ function measure(root: HTMLElement): LeaderLine[] {
   return leaderLines(boxWithin(anchor, origin), boxWithin(column, origin).right, panels, PANEL_GAP);
 }
 
-/** Atlas-style callout lines from the portrait to each readout, on wide screens only. */
-export function BoardLeaders({ rootRef }: { rootRef: RefObject<HTMLElement | null> }) {
+/**
+ * Atlas-style callout lines from the selected portrait (or the rail's
+ * overview control) to each readout, on wide screens only. `view` re-runs
+ * the measurement when the readouts are swapped for another view's.
+ */
+export function BoardLeaders({ rootRef, view }: { rootRef: RefObject<HTMLElement | null>; view: string }) {
   const [lines, setLines] = useState<LeaderLine[]>([]);
   useEffect(() => {
     const root = rootRef.current;
@@ -38,7 +43,7 @@ export function BoardLeaders({ rootRef }: { rootRef: RefObject<HTMLElement | nul
     observer.observe(root);
     for (const panel of root.querySelectorAll('[data-leader-target]')) observer.observe(panel);
     return () => observer.disconnect();
-  }, [rootRef]);
+  }, [rootRef, view]);
   return (
     <svg aria-hidden className="pointer-events-none absolute inset-0 hidden size-full overflow-visible xl:block">
       {lines.map((line) => (

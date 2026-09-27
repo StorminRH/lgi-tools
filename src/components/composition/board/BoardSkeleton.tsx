@@ -1,22 +1,34 @@
 import { Skeleton } from '@/components/ui/skeleton';
 
-const PILOT_KEYS = ['a', 'b', 'c'] as const;
+const PILOT_KEYS = ['b', 'c', 'd'] as const;
+const CARD_KEYS = ['attention', 'training', 'wealth', 'industry'] as const;
 
+/** The pilot rail and the overview cards, in outline. */
 export function BoardSkeleton() {
   return (
-    <div className="flex flex-col gap-8" aria-busy="true">
-      <Skeleton label="Loading your characters" className="h-4 w-64 max-w-full" />
-      <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-12 xl:gap-x-16" aria-busy="true">
+      <div className="flex gap-4 lg:flex-col lg:gap-3">
+        <Skeleton label="Loading overview control" className="h-8 w-24 rounded-full max-lg:hidden" />
+        <Skeleton label="Loading your characters" className="size-12 shrink-0 rounded-full lg:size-28" />
+        <Skeleton label="Loading main pilot name" className="h-5 w-36 max-lg:hidden" />
         {PILOT_KEYS.map((key) => (
-          <div key={key} className="flex items-center gap-4 p-2">
-            <Skeleton label="Loading character" className="size-20 shrink-0 rounded-full sm:size-28" />
-            <div className="flex flex-1 flex-col gap-2">
-              <Skeleton label="Loading character name" className="h-5 w-32" />
-              <Skeleton label="Loading character totals" className="h-3 w-24" />
-              <Skeleton label="Loading skill in training" className="h-3 w-full" />
-            </div>
+          <div key={key} className="flex shrink-0 items-center gap-3">
+            <Skeleton label="Loading pilot" className="size-12 shrink-0 rounded-full lg:size-16" />
+            <Skeleton label="Loading pilot name" className="h-4 w-28 max-lg:hidden" />
           </div>
         ))}
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {CARD_KEYS.map((key) => (
+            <Skeleton key={key} label="Loading total" className="h-[74px] rounded-card" />
+          ))}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {CARD_KEYS.map((key) => (
+            <Skeleton key={key} label="Loading card" className="h-[180px] rounded-card" />
+          ))}
+        </div>
       </div>
     </div>
   );

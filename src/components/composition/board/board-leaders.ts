@@ -16,13 +16,11 @@ export interface LeaderLine {
 const HEADER_Y = 18;
 const RADIUS = 10;
 const SAME_COLUMN = 24;
-const ABOVE_PANELS = 10;
-
 /**
- * Leaders from the portrait to each panel's header. They share a trunk in
- * the gutter between the identity column and the panels; a panel in a further column is reached
- * along the gap above the panels and down the gutter before it, so no line
- * crosses a panel.
+ * Leaders from the anchor to each panel's header. They share a trunk in
+ * the gutter between the left column and the panels; a panel in a further
+ * column is reached along the gap just above its own row and down the
+ * gutter before it, so no line crosses a panel.
  */
 export function leaderLines(
   anchor: LeaderBox,
@@ -32,7 +30,6 @@ export function leaderLines(
 ): LeaderLine[] {
   if (panels.length === 0) return [];
   const firstLeft = Math.min(...panels.map((panel) => panel.box.left));
-  const topY = Math.min(...panels.map((panel) => panel.box.top)) - ABOVE_PANELS;
   const start = { x: anchor.right + 6, y: (anchor.top + anchor.bottom) / 2 };
   const trunkX = (columnRight + firstLeft) / 2;
   return panels.map(({ key, box }) => {
@@ -44,8 +41,8 @@ export function leaderLines(
         : [
             start,
             { x: trunkX, y: start.y },
-            { x: trunkX, y: topY },
-            { x: box.left - columnGap / 2, y: topY },
+            { x: trunkX, y: box.top - columnGap / 2 },
+            { x: box.left - columnGap / 2, y: box.top - columnGap / 2 },
             { x: box.left - columnGap / 2, y },
             end,
           ];
