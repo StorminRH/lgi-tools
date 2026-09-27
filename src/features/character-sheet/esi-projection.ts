@@ -82,7 +82,7 @@ export function parseCharacterBody(body: unknown): CharacterPart | null {
   };
 }
 
-export function parseShipBody(body: unknown): ShipPart | null {
+export function parseCurrentShipBody(body: unknown): ShipPart | null {
   const parsed = shipBodySchema.safeParse(body);
   if (!parsed.success) return null;
   return {
@@ -92,7 +92,7 @@ export function parseShipBody(body: unknown): ShipPart | null {
   };
 }
 
-export function parseOnlineBody(body: unknown): OnlinePart | null {
+export function parseOnlineStatusBody(body: unknown): OnlinePart | null {
   const parsed = onlineBodySchema.safeParse(body);
   if (!parsed.success) return null;
   return {

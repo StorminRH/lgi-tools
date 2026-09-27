@@ -4,9 +4,9 @@ import {
   parseCharacterBody,
   parseClonesBody,
   parseImplantsBody,
+  parseCurrentShipBody,
   parseJournalBody,
-  parseOnlineBody,
-  parseShipBody,
+  parseOnlineStatusBody,
   parseStructureBody,
   parseWalletBody,
 } from './esi-projection';
@@ -37,9 +37,9 @@ describe('parseCharacterBody', () => {
   });
 });
 
-describe('parseShipBody', () => {
+describe('parseCurrentShipBody', () => {
   it('maps the ship fields', () => {
-    expect(parseShipBody({ ship_type_id: 29984, ship_item_id: 1030000000101, ship_name: 'Quiet Ledger' })).toEqual({
+    expect(parseCurrentShipBody({ ship_type_id: 29984, ship_item_id: 1030000000101, ship_name: 'Quiet Ledger' })).toEqual({
       shipTypeId: 29984,
       shipItemId: 1030000000101,
       shipName: 'Quiet Ledger',
@@ -47,13 +47,13 @@ describe('parseShipBody', () => {
   });
 
   it('returns null on a malformed body', () => {
-    expect(parseShipBody({ ship_type_id: '29984' })).toBeNull();
+    expect(parseCurrentShipBody({ ship_type_id: '29984' })).toBeNull();
   });
 });
 
-describe('parseOnlineBody', () => {
+describe('parseOnlineStatusBody', () => {
   it('maps the online flag and optional timestamps', () => {
-    expect(parseOnlineBody({ online: true, last_login: '2026-09-27T09:00:00Z', logins: 812 })).toEqual({
+    expect(parseOnlineStatusBody({ online: true, last_login: '2026-09-27T09:00:00Z', logins: 812 })).toEqual({
       online: true,
       lastLogin: '2026-09-27T09:00:00Z',
       lastLogout: null,
@@ -61,7 +61,7 @@ describe('parseOnlineBody', () => {
   });
 
   it('returns null when online is missing', () => {
-    expect(parseOnlineBody({ last_login: '2026-09-27T09:00:00Z' })).toBeNull();
+    expect(parseOnlineStatusBody({ last_login: '2026-09-27T09:00:00Z' })).toBeNull();
   });
 });
 

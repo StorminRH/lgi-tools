@@ -5,8 +5,8 @@ import {
   parseCharacterBody,
   parseClonesBody,
   parseImplantsBody,
-  parseOnlineBody,
-  parseShipBody,
+  parseCurrentShipBody,
+  parseOnlineStatusBody,
   parseWalletBody,
 } from './esi-projection';
 import { digestJournalBody } from './plan';
@@ -45,8 +45,8 @@ export const SHEET_SECTIONS: { [K in SheetSectionKey]: SheetSectionSpec<K> } = {
     scopes: LOCATION_SYNC_SCOPES,
     parts: {
       location: { endpoint: 'location', parse: parseLocationBody },
-      ship: { endpoint: 'ship', parse: parseShipBody },
-      online: { endpoint: 'online', parse: parseOnlineBody },
+      ship: { endpoint: 'ship', parse: parseCurrentShipBody },
+      online: { endpoint: 'online', parse: parseOnlineStatusBody },
     },
   },
   attributes: {

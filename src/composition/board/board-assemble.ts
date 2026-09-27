@@ -1,5 +1,6 @@
 import { ATTRIBUTE_KEYS, type AttributeKey } from '@/data/eve-data/character-attributes';
-import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
+import type { SystemFacts } from '@/data/eve-data/character-facts';
+import { systemSecurityClass } from '@/data/eve-data/security';
 import { LOCATION_SYNC_SCOPES } from '@/data/location-tracking/sync-eligibility';
 import { journalRefLabel } from '@/features/character-sheet/ref-types';
 import { canSyncSection, SHEET_SECTION_SCOPES } from '@/features/character-sheet/sync-eligibility';
@@ -57,12 +58,6 @@ export interface TypeFacts {
   name: string;
   implantSlot: number | null;
   attributeBonus: Partial<Record<AttributeKey, number>>;
-}
-
-export interface SystemFacts {
-  name: string;
-  security: number | null;
-  secClass: SecurityClass;
 }
 
 export interface PlaceFacts {
