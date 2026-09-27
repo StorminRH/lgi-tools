@@ -5,7 +5,7 @@ const TRACK_RADIUS_PX = SYSTEM_DISC_SIZE / 2 + TRACK_ICON_PX / 2 + TRACK_AIR_GAP
 export const ICON_TRACK_CLEARANCE_PX = TRACK_RADIUS_PX + TRACK_ICON_PX / 2;
 const TRACK_START_HEADING_RAD = Math.PI / 2;
 const TRACK_SEAT_STEP_RAD = Math.PI / 4;
-export const KSPACE_TITLE_GAP_PX = 6;
+const KSPACE_TITLE_GAP_PX = 6;
 
 function cleanAxis(value: number): number {
   return Math.abs(value) < 1e-10 ? 0 : value;

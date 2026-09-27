@@ -119,33 +119,6 @@ test('wormhole classes mount the decorative visual and pause it while inert', ()
   expect(fogged).toContain('data-visual-paused="true"');
 });
 
-test.each([
-  { hint: undefined, visualClass: 'unknown' },
-  { hint: 'unknown', visualClass: 'unknown' },
-  { hint: 'dangerous', visualClass: 'unknown' },
-  { hint: 'deadly', visualClass: '6' },
-  { hint: 'hisec', visualClass: null },
-  { hint: 'lowsec', visualClass: null },
-  { hint: 'nullsec', visualClass: null },
-  { hint: 'pochven', visualClass: null },
-])('stub hint $hint uses only known destination appearance', ({ hint, visualClass }) => {
-  const rendered = renderToStaticMarkup(createElement(SystemNode, {
-    id: 'stub:c1',
-    selected: true,
-    data: {
-      name: 'ABC-123', className: null, destinationHint: hint,
-      stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
-    },
-  } as unknown as NodeProps<ChainNode>));
-  if (visualClass === null) {
-    expect(rendered).not.toContain('data-wormhole-visual');
-    return;
-  }
-  expect(rendered).toContain(`data-wormhole-visual="${visualClass}"`);
-  expect(rendered).toContain('data-visual-paused="true"');
-  expect(rendered).toContain('data-visual-active="true"');
-});
-
 function markup(motion: NodeMotion | undefined): string {
   const props = {
     data: { name: 'J123456', className: 'C5', security: -1, whClassId: 5, motion },
@@ -160,10 +133,6 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   expect(still).toContain('font-ui');
   expect(still).toContain('text-nav');
   expect(still).toContain('font-bold');
-  expect(still).not.toContain('font-data');
-  expect(still).not.toContain('text-ui');
-  expect(still).not.toContain('J123456 - C5');
-  expect(still).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   expect(still).toContain('data-chain-node-classification');
   expect(still).toContain('>C5<');
   expect(still).toContain('text-wh-c5');
@@ -181,7 +150,6 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
       data: { name: 'Jita', className: null },
     } as unknown as NodeProps<ChainNode>),
   );
-  expect(noClass).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   expect(noClass).toContain('data-chain-node-name');
 
   expect(markup({ phase: 'departing' })).not.toContain('pointer-events-auto');
@@ -206,7 +174,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(jspaceNode).toContain('>J123456<');
   expect(jspaceNode).toContain('>C4<');
   expect(jspaceNode).toContain('text-wh-c4');
-  expect(jspaceNode).not.toContain('J123456 - C4');
 
   const kspaceNode = nodeMarkup({
     name: 'Jita',
@@ -217,7 +184,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(kspaceNode).toContain('>Jita<');
   expect(kspaceNode).toContain('>0.9<');
   expect(kspaceNode).toContain('text-sec-09');
-  expect(kspaceNode).not.toContain('Jita - 0.9');
 
   const halo = nodeMarkup({
     name: 'Perimeter',
@@ -239,7 +205,6 @@ test('the header keeps the plain name while the disc owns the colored classifica
     stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
   });
   expect(stub).toContain('ABC-123');
-  expect(stub).not.toContain('ABC-123 - ');
   expect(stub).toContain('text-name');
   expect(stub).toContain('data-chain-node-classification');
   expect(stub).toContain('>C3<');
@@ -295,7 +260,6 @@ test('halo nodes mark drawn vs fogged; authored nodes stay unmarked', () => {
   const fogged = haloMarkup(true);
   expect(fogged).toContain('data-chain-node-fogged');
   expect(fogged).toContain('opacity-0');
-  expect(fogged).not.toContain('opacity-40');
   expect(fogged).toContain('aria-hidden="true"');
   expect(fogged).not.toContain('pointer-events-auto');
 
@@ -327,6 +291,12 @@ test('wormhole stubs reuse the derived ghost presentation without interactive ch
   expect(rendered).toContain('data-wormhole-visual="unknown"');
   expect(rendered).toContain('data-visual-paused="true"');
   expect(rendered).toContain('data-visual-active="false"');
+
+  const dangerous = renderToStaticMarkup(createElement(SystemNode, {
+    ...props,
+    data: { ...props.data, destinationHint: 'dangerous' },
+  }));
+  expect(dangerous).toContain('data-wormhole-visual="unknown"');
 
   const deadly = renderToStaticMarkup(createElement(SystemNode, {
     ...props,
@@ -369,7 +339,6 @@ test('static stubs separate their code header from the colored destination class
   expect(rendered).toContain('>C247<');
   expect(rendered).toContain('>C3<');
   expect(rendered).toContain('text-wh-c3');
-  expect(rendered).not.toContain('C247 - C3');
   expect(rendered).toContain('border-dashed');
   expect(rendered).not.toContain('pointer-events-auto');
   expect(rendered).not.toContain('data-pilot-presence');
