@@ -40,7 +40,7 @@ export async function DeadLettersCard() {
     <Card id="dead-letters" className="scroll-mt-24">
       <SectionHeader
         size="md"
-        label={`Dead letters · ${rows.length}`}
+        label={`Dead letters · ${rows.length}${rows.length === DEAD_LETTER_LIMIT ? '+' : ''}`}
         hint="jobs that used every attempt · retry once the cause is fixed"
       />
       {rows.length === 0 ? (

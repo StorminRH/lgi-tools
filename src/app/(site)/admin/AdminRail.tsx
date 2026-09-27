@@ -1,5 +1,5 @@
 import { getFullSession } from '@/composition/session';
-import { AdminNav, AdminNavFrame } from './admin-nav';
+import { AdminNav, AdminNavFallback } from './admin-nav';
 import { ADMIN_NAV_GROUPS, deriveNavBadges, type AdminNavBadges } from './admin-sections';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
@@ -27,5 +27,5 @@ export async function AdminRail() {
 }
 
 export function AdminRailFallback() {
-  return <AdminNavFrame groups={ADMIN_NAV_GROUPS} active={null} badges={{}} range={null} />;
+  return <AdminNavFallback groups={ADMIN_NAV_GROUPS} />;
 }

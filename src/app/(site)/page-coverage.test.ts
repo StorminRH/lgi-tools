@@ -66,7 +66,7 @@ import { RangeControl } from '@/app/(site)/admin/RangeControl';
 import { RangeSelector, RangeSelectorFallback } from '@/app/(site)/admin/RangeSelector';
 import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
 import { StatusLines } from '@/app/(site)/admin/StatusLines';
-import { AdminNav, AdminNavFrame } from '@/app/(site)/admin/admin-nav';
+import { AdminNav, AdminNavFallback } from '@/app/(site)/admin/admin-nav';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
 import { BudgetCard, CostCards, PressureCard, PriceSourceCard } from '@/app/(site)/admin/esi/EsiCards';
@@ -150,7 +150,7 @@ describe('coverage-gaps', () => {
       SectionUnavailable,
       StatusLines,
       AdminNav,
-      AdminNavFrame,
+      AdminNavFallback,
       AdminBarChart,
       AdminDailyChart,
       AdminTrendChart,

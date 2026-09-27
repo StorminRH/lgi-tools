@@ -98,16 +98,18 @@ function AdminNavTree({
   );
 }
 
-export function AdminNavFrame({
+function AdminNavFrame({
   groups,
   active,
   badges,
   range,
+  reveal,
 }: {
   groups: readonly AdminNavGroup[];
   active: AdminSection | null;
   badges: AdminNavBadges;
   range: string | null;
+  reveal: boolean;
 }) {
   const tree = <AdminNavTree groups={groups} active={active} badges={badges} range={range} />;
   return (
@@ -120,8 +122,27 @@ export function AdminNavFrame({
       >
         {tree}
       </NavRailDrawer>
-      <NavRailPanel data-admin-nav-rail>{tree}</NavRailPanel>
+      <NavRailPanel data-admin-nav-rail reveal={reveal}>
+        {tree}
+      </NavRailPanel>
     </>
+  );
+}
+
+// The rail reads ?range= and streams its badges, so it always resolves at
+// request time and replaces this fallback. Every admin route is a static
+// segment, so the fallback can prerender the active section, and the
+// resolved rail skips its entrance to take the fallback's place without a
+// blink.
+export function AdminNavFallback({ groups }: { groups: readonly AdminNavGroup[] }) {
+  return (
+    <AdminNavFrame
+      groups={groups}
+      active={deriveActiveAdminSection(usePathname(), groups)}
+      badges={{}}
+      range={null}
+      reveal
+    />
   );
 }
 
@@ -138,6 +159,7 @@ export function AdminNav({
       active={deriveActiveAdminSection(usePathname(), groups)}
       badges={badges}
       range={useSearchParams().get('range')}
+      reveal={false}
     />
   );
 }
