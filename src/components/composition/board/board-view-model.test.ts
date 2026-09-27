@@ -8,9 +8,9 @@ import {
   coverageNote,
   boardTransitionType,
   boardViewFrom,
-  attentionItems,
   combinedFlow,
   industryTotals,
+  netWorthSeries,
   railOrder,
   trainingRows,
   walletShares,
@@ -234,25 +234,6 @@ describe('fittedDomain', () => {
 describe('overview model', () => {
   const chars = board.characters;
 
-  it('lists what needs doing, most urgent first', () => {
-    expect(attentionItems(chars, NOW).map((item) => `${item.kind}:${item.name}`)).toEqual([
-      'queue-paused:Torvin Hale',
-      'queue-empty:Ilyana Mirek',
-      'queue-ending:Kessa Draymoor',
-      'jobs-ready:Aurel Vantesse',
-      'jobs-ready:Torvin Hale',
-      'reconnect:Ilyana Mirek',
-      'reconnect:Bram Oskarsen',
-    ]);
-    expect(attentionItems(chars, NOW)[2]?.text).toBe('Queue ends in 9h');
-    expect(attentionItems(chars, NOW)[3]?.text).toBe('1 industry job ready to deliver');
-  });
-
-  it('is all clear when nothing needs doing', () => {
-    const calm = { ...aurel!, industry: { state: 'pending' as const } };
-    expect(attentionItems([calm], NOW)).toEqual([]);
-  });
-
   it('orders training by urgency, stalled queues first and unsynced last', () => {
     expect(trainingRows(chars, names, NOW).map((row) => row.name)).toEqual([
       'Torvin Hale',
@@ -297,5 +278,73 @@ describe('overview model', () => {
     expect(rows[1]?.status?.docked).toBeNull();
     expect(rows[1]?.status?.ship.typeName).toBe('Ishtar');
     expect(rows[4]?.status).toBeNull();
+  });
+});
+
+describe('netWorthSeries', () => {
+  const day = (iso: string) => Date.parse(iso);
+  const journalOf = (windowStart: string, series: { t: number; balance: number }[]) => ({
+    state: 'ready' as const,
+    refreshedAt: NOW,
+    data: { windowStart, inflow: 0, outflow: 0, series, recent: [] },
+  });
+  const walletOf = (balance: number) => ({ state: 'ready' as const, refreshedAt: NOW, data: { balance } });
+  const pilotA = {
+    ...aurel!,
+    journal: journalOf('2026-09-20T00:00:00.000Z', [
+      { t: day('2026-09-21T00:00:00Z'), balance: 100 },
+      { t: day('2026-09-25T06:00:00Z'), balance: 150 },
+    ]),
+    wallet: walletOf(170),
+  };
+  const pilotB = {
+    ...kessa!,
+    journal: journalOf('2026-09-24T00:00:00.000Z', [
+      { t: day('2026-09-24T18:00:00Z'), balance: 10 },
+      { t: day('2026-09-26T01:00:00Z'), balance: 20 },
+    ]),
+    wallet: walletOf(25),
+  };
+
+  it('sums daily balances over the window every pilot covers, ending on the current balance', () => {
+    expect(netWorthSeries([pilotA, pilotB], NOW)).toEqual({
+      points: [
+        { t: day('2026-09-24T00:00:00Z'), balance: 110 },
+        { t: day('2026-09-25T00:00:00Z'), balance: 160 },
+        { t: day('2026-09-26T00:00:00Z'), balance: 170 },
+        { t: day('2026-09-27T00:00:00Z'), balance: 195 },
+      ],
+      from: day('2026-09-24T00:00:00Z'),
+      included: 2,
+      of: 2,
+    });
+  });
+
+  it('leaves out a pilot without wallet access and says so', () => {
+    const noWallet = { ...torvin!, journal: pilotB.journal, wallet: { state: 'reconnect' as const } };
+    const series = netWorthSeries([pilotA, pilotB, noWallet], NOW);
+    expect([series.included, series.of]).toEqual([2, 3]);
+    expect(series.points.at(-1)?.balance).toBe(195);
+  });
+
+  it('equals a lone pilot’s own curve', () => {
+    expect(netWorthSeries([pilotB], NOW).points.map((point) => point.balance)).toEqual([10, 10, 20, 25]);
+  });
+
+  it('is empty with no included pilot or under two days of window', () => {
+    expect(netWorthSeries([bram!], NOW)).toEqual({ points: [], from: null, included: 0, of: 1 });
+    const today = { ...pilotB, journal: journalOf('2026-09-27T03:00:00.000Z', []) };
+    expect(netWorthSeries([today], NOW).points).toEqual([]);
+  });
+
+  it('covers the demo board from its journal window to today', () => {
+    const series = netWorthSeries(board.characters, NOW);
+    expect([series.from, series.included, series.of, series.points.length]).toEqual([
+      day('2026-08-28T12:00:00.000Z'),
+      3,
+      5,
+      31,
+    ]);
+    expect(series.points.at(-1)?.balance).toBeCloseTo(4_112_776_212.67, 1);
   });
 });

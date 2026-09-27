@@ -1,18 +1,13 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { Measured } from '@/components/ui/measured';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatUtcDate } from '@/lib/format/time';
-import { balanceChart, flowWindowLabel, recentJournal } from '../board-view-model';
+import { BalanceTrend } from '../BalanceTrend';
+import { flowWindowLabel, recentJournal } from '../board-view-model';
 import { SectionBody, SectionPanel, updatedLabel } from '../SectionBody';
-
-const TrendChart = dynamic(() => import('@/components/ui/trend-chart').then((m) => m.TrendChart), {
-  ssr: false,
-});
 
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
 type JournalRow = Journal['recent'][number];
@@ -93,27 +88,12 @@ function Flow({ journal, now }: { journal: Journal; now: number }) {
 }
 
 function JournalBody({ journal }: { journal: Journal }) {
-  const chart = balanceChart(journal.series);
   const rows = recentJournal(journal.recent);
   return (
     <>
-      {chart.points.length > 1 && (
+      {journal.series.length > 1 && (
         <div className="px-2 pb-2">
-          <Measured>
-            {(width) => (
-              <TrendChart
-                data={chart.points}
-                labels={chart.labels}
-                yDomain={chart.domain}
-                tone="green"
-                width={width}
-                height={150}
-                formatY={formatIsk}
-                formatTick={(label) => label.replace(/ \d{4}$/, '')}
-                ariaLabel="Wallet balance over time"
-              />
-            )}
-          </Measured>
+          <BalanceTrend series={journal.series} ariaLabel="Wallet balance over time" />
         </div>
       )}
       {rows.length === 0 ? (

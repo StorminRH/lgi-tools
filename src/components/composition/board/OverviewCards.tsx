@@ -3,39 +3,29 @@
 import Link from 'next/link';
 import { ViewTransition } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { TypeIcon } from '@/components/type-icon';
 import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
-import { Dot } from '@/components/ui/dot';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { TrainingLine } from '@/features/skill-queue/components/TrainingLine';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity } from '@/lib/format/number';
+import { formatUtcDate } from '@/lib/format/time';
+import { BalanceTrend } from './BalanceTrend';
 import { HealthLine, KpiTile, StatFigure, SystemName } from './board-bits';
 import { CARDS_MOTION, LATE_CARDS_MOTION } from './board-motion';
 import {
-  type AttentionItem,
-  type AttentionKind,
-  attentionItems,
   combinedFlow,
   coverageNote,
   industryTotals,
+  netWorthSeries,
   rosterTotals,
   trainingRows,
   walletShares,
   whereaboutsRows,
 } from './board-view-model';
 import { SectionPanel } from './SectionBody';
-
-const ATTENTION_TONE: Record<AttentionKind, 'red' | 'orange' | 'green'> = {
-  'queue-empty': 'red',
-  'queue-paused': 'red',
-  'queue-ending': 'orange',
-  'jobs-ready': 'green',
-  reconnect: 'orange',
-};
 
 // Parts sit directly under the caller's persistent card area so each one
 // runs its own enter and exit (see CharacterDetail).
@@ -54,11 +44,10 @@ export function OverviewCards({
         <OverviewKpis characters={characters} now={now} />
       </ViewTransition>
       <ViewTransition {...LATE_CARDS_MOTION} default="none">
-        {/* DOM order is the phone order: attention, training, wealth, whereabouts, industry. */}
+        {/* DOM order is the phone order: wealth, training, whereabouts, industry. */}
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          <AttentionCard items={attentionItems(characters, now)} className="lg:col-start-1 lg:row-start-1" />
+          <WealthCard characters={characters} now={now} className="lg:col-start-1 lg:row-span-2 lg:row-start-1" />
           <TrainingCard characters={characters} names={names} now={now} className="lg:col-start-2 lg:row-start-1" />
-          <WealthCard characters={characters} now={now} className="lg:col-start-1 lg:row-start-2" />
           <WhereaboutsCard characters={characters} className="lg:col-span-2 lg:row-start-3" />
           <IndustryCard characters={characters} className="lg:col-start-2 lg:row-start-2" />
         </div>
@@ -82,34 +71,6 @@ function OverviewKpis({ characters, now }: { characters: readonly BoardCharacter
         {totals.training}
       </KpiTile>
     </dl>
-  );
-}
-
-function AttentionCard({ items, className }: { items: AttentionItem[]; className: string }) {
-  return (
-    <SectionPanel title="Needs attention" meta={items.length === 0 ? undefined : `${items.length}`} className={className}>
-      {items.length === 0 ? (
-        <p className="px-3.5 py-3 text-ui text-isk">All clear. Every queue is training and nothing is waiting.</p>
-      ) : (
-        <ul>
-          {items.map((item) => (
-            <li
-              key={`${item.kind}-${item.characterId}`}
-              className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-soft px-3.5 py-2 first:border-t-0"
-            >
-              <Dot tone={ATTENTION_TONE[item.kind]} />
-              <span className="min-w-0 flex-1 text-ui">
-                {item.kind !== 'reconnect' && <span className="text-name">{item.name} · </span>}
-                <span className={item.kind === 'reconnect' ? 'text-text' : 'text-muted'}>{item.text}</span>
-              </span>
-              {item.kind === 'reconnect' && (
-                <LinkCharacterButton label="Reconnect" emphasis="reconnect" callbackURL="/" />
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </SectionPanel>
   );
 }
 
@@ -158,6 +119,7 @@ function WealthCard({
   const totals = rosterTotals(characters, now);
   const flow = combinedFlow(characters, now);
   const shares = walletShares(characters);
+  const worth = netWorthSeries(characters, now);
   return (
     <SectionPanel title="Wealth" meta={totals.isk === null ? undefined : `wallets${coverageNote(totals.isk)}`} className={className}>
       {totals.isk === null ? (
@@ -186,6 +148,15 @@ function WealthCard({
               </div>
             )}
           </div>
+          {worth.points.length > 1 && worth.from !== null && (
+            <figure className="border-t border-border-soft px-2 pt-2.5 pb-1">
+              <figcaption className="flex flex-wrap items-baseline justify-between gap-x-3 px-1.5 pb-1">
+                <span className={eyebrow({ size: 'micro', weight: 'semibold', emphasis: 'strong' })}>Net worth</span>
+                <span className="font-data text-micro text-muted">{netWorthCaption(worth)}</span>
+              </figcaption>
+              <BalanceTrend series={worth.points} ariaLabel="Combined wallet ISK over time" height={196} />
+            </figure>
+          )}
           <div className="border-t border-border-soft">
             <DistributionBars rows={shares} formatCount={formatIsk} ariaLabel="ISK by pilot" />
           </div>
@@ -193,6 +164,12 @@ function WealthCard({
       )}
     </SectionPanel>
   );
+}
+
+function netWorthCaption({ from, included, of }: { from: number | null; included: number; of: number }): string {
+  const pilots = included < of ? ` · ${included} of ${of} pilots` : '';
+  const since = from === null ? '' : ` · since ${formatUtcDate(new Date(from)).replace(/ \d{4}$/, '')}`;
+  return `Wallet ISK${pilots}${since}`;
 }
 
 function IndustryCard({ characters, className }: { characters: readonly BoardCharacter[]; className: string }) {

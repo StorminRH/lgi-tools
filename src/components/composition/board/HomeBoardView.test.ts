@@ -42,7 +42,9 @@ describe('HomeBoardView', () => {
       expect(html).toContain(name);
     }
     expect(html).toContain('aria-label="Pilot overview"');
-    expect(html).toContain('Needs attention');
+    expect(html).not.toContain('Needs attention');
+    expect(html).toContain('Wallet ISK · 3 of 5 pilots · since 28 Aug');
+    expect(html.indexOf('<span>Wealth</span>')).toBeLessThan(html.indexOf('<span>Training</span>'));
     expect(html).toContain('ISK by pilot');
     expect(html).toContain('(3 of 5)');
     expect(html).toContain('Whereabouts');

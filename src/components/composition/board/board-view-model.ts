@@ -377,66 +377,6 @@ export function queueTimeline(queue: readonly SkillQueueEntry[], now: number): Q
   return segments.length === 0 ? null : { segments, endsAt };
 }
 
-export type AttentionKind = 'queue-empty' | 'queue-paused' | 'queue-ending' | 'jobs-ready' | 'reconnect';
-
-export interface AttentionItem {
-  kind: AttentionKind;
-  characterId: number;
-  name: string;
-  text: string;
-}
-
-const ATTENTION_RANK: Record<AttentionKind, number> = {
-  'queue-empty': 0,
-  'queue-paused': 0,
-  'queue-ending': 1,
-  'jobs-ready': 2,
-  reconnect: 3,
-};
-
-function queueAttention(character: BoardCharacter, now: number): (AttentionItem & { at: number }) | null {
-  const skills = readyData(character.skills);
-  if (skills === null) return null;
-  const summary = summarizeQueue(skills.queue, now);
-  const base = { characterId: character.characterId, name: character.name };
-  if (summary.kind === 'empty' || summary.kind === 'complete') {
-    return { ...base, kind: 'queue-empty', text: 'Skill queue is empty', at: 0 };
-  }
-  if (summary.kind === 'paused') return { ...base, kind: 'queue-paused', text: 'Skill queue is paused', at: 0 };
-  if (summary.finishesAt !== null && summary.finishesAt - now < QUEUE_WARN_MS) {
-    const ms = summary.finishesAt - now;
-    return { ...base, kind: 'queue-ending', text: `Queue ends in ${formatRemaining(ms)}`, at: ms };
-  }
-  return null;
-}
-
-/** What needs doing across the roster, most urgent first; empty means all clear. */
-export function attentionItems(characters: readonly BoardCharacter[], now: number): AttentionItem[] {
-  const items: (AttentionItem & { at: number; order: number })[] = [];
-  characters.forEach((character, order) => {
-    const queue = queueAttention(character, now);
-    if (queue !== null) items.push({ ...queue, order });
-    const ready = readyData(character.industry)?.ready ?? 0;
-    if (ready > 0) {
-      items.push({
-        kind: 'jobs-ready',
-        characterId: character.characterId,
-        name: character.name,
-        text: `${ready} industry ${ready === 1 ? 'job' : 'jobs'} ready to deliver`,
-        at: 0,
-        order,
-      });
-    }
-    const sentence = reconnectSentence(character);
-    if (sentence !== null) {
-      items.push({ kind: 'reconnect', characterId: character.characterId, name: character.name, text: sentence, at: 0, order });
-    }
-  });
-  return items
-    .sort((a, b) => ATTENTION_RANK[a.kind] - ATTENTION_RANK[b.kind] || a.at - b.at || a.order - b.order)
-    .map(({ kind, characterId, name, text }) => ({ kind, characterId, name, text }));
-}
-
 /** Pilots by how soon they need a new skill: stalled queues first, then soonest end; unsynced last. */
 export function trainingRows(characters: readonly BoardCharacter[], names: Readonly<Record<string, string>>, now: number) {
   const rank = (tile: BoardTileModel, endsAt: number | null): [number, number] => {
@@ -546,4 +486,50 @@ export function whereaboutsRows(characters: readonly BoardCharacter[]): Whereabo
             },
     };
   });
+}
+
+export interface NetWorthSeries {
+  points: { t: number; balance: number }[];
+  from: number | null;
+  included: number;
+  of: number;
+}
+
+const startOfUtcDay = (t: number) => t - (((t % DAY) + DAY) % DAY);
+
+// The balance a pilot held at the end of a day: its last point by then, or,
+// before its first point, that first point (its window opens no later).
+function balanceBy(series: readonly { t: number; balance: number }[], end: number): number {
+  let balance = series[0]?.balance ?? 0;
+  for (const point of series) {
+    if (point.t > end) break;
+    balance = point.balance;
+  }
+  return balance;
+}
+
+/**
+ * Combined wallet ISK per UTC day, over the window every included pilot
+ * covers: it opens at the latest journal window start and never reaches back
+ * before any pilot's own. Today's point is the current combined balance.
+ */
+export function netWorthSeries(characters: readonly BoardCharacter[], now: number): NetWorthSeries {
+  const pilots = characters.flatMap((character) => {
+    const journal = readyData(character.journal);
+    const wallet = readyData(character.wallet);
+    return journal === null || wallet === null ? [] : [{ journal, wallet }];
+  });
+  const empty = { points: [], from: null, included: pilots.length, of: characters.length };
+  if (pilots.length === 0) return empty;
+  const from = Math.max(...pilots.map((pilot) => Date.parse(pilot.journal.windowStart)));
+  const firstDay = startOfUtcDay(from);
+  const today = startOfUtcDay(now);
+  if (today - firstDay < DAY) return { ...empty, from };
+  const points: { t: number; balance: number }[] = [];
+  for (let day = firstDay; day < today; day += DAY) {
+    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.journal.series, day + DAY - 1), 0);
+    points.push({ t: day, balance });
+  }
+  points.push({ t: today, balance: pilots.reduce((sum, pilot) => sum + pilot.wallet.balance, 0) });
+  return { points, from, included: pilots.length, of: characters.length };
 }
