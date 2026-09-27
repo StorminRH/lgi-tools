@@ -48,10 +48,7 @@ function useApplySignatureScan(
     async (systemId: number, scannedRows: readonly ScannedRow[]) => {
       const result = await applyScan({ mapId, systemId, rows: [...scannedRows] });
       replaceMissing(systemId, result.missing);
-      toast.success(
-        `Scan applied — ${result.inserted + result.updated + result.migrated} changed, ${result.unchanged} unchanged.`,
-        { duration: 3_000 },
-      );
+      toast.success('Scan applied', { duration: 3_000 });
       await followUpElimination({
         mapId,
         systemId,
@@ -93,7 +90,7 @@ function useRemoveMissingSignatures(
           }).then(() => {
             invalidateSignatureElimination(mapId, systemId);
           }).catch(() => {
-            toast.error('Signature could not be restored.', {
+            toast.error('Restore failed', {
               id: `signature-restore:${systemId}:batch`,
             });
           });

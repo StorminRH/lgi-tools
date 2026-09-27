@@ -67,19 +67,12 @@ function recordEliminationOutcome(
   eliminationBySystem.delete(key);
 }
 
-function signatureIdList(signatureIds: readonly string[]): string {
-  if (signatureIds.length === 1) return signatureIds[0]!;
-  if (signatureIds.length === 2) return `${signatureIds[0]} and ${signatureIds[1]}`;
-  return `${signatureIds.slice(0, -1).join(', ')}, and ${signatureIds.at(-1)}`;
-}
-
 function announceApplied(mapId: string, result: Extract<
   SignatureEliminationResponse['results'][number],
   { status: 'applied' }
 >): void {
   const { signatureIds, systemId } = result;
-  const verb = signatureIds.length === 1 ? 'has' : 'have';
-  toast.success(`${signatureIdList(signatureIds)} ${verb} been identified.`);
+  toast.success(signatureIds.length === 1 ? 'Signature identified' : 'Signatures identified');
   for (const listener of eliminationListeners) listener(mapId, systemId, signatureIds);
 }
 

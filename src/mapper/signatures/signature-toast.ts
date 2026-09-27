@@ -7,7 +7,7 @@ export function announceSignatureRemoval(input: {
 }): void {
   const count = input.signatureIds.length;
   toast.success(
-    `Removed ${count} signature${count === 1 ? '' : 's'}`,
+    count === 1 ? 'Signature removed' : 'Signatures removed',
     {
       id: `signature-remove:${input.systemId}:${input.signatureIds.join(',')}`,
       duration: 5_000,

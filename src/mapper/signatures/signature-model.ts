@@ -339,26 +339,25 @@ export function scannerPasteRefusalToast(
   decision: Exclude<ScannerPasteDecision, { kind: 'apply' | 'choose' }>,
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
   if (decision.kind === 'reject') {
-    const suffix = decision.rejectCount === 1 ? '' : 's';
     return {
-      message: `Scanner paste rejected — ${decision.rejectCount} row${suffix} need attention.`,
+      message: 'Formatting error',
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     };
   }
   if (decision.kind === 'read-only') {
     return {
-      message: 'Edit access is required to apply scanner output.',
+      message: 'Read-only access',
       options: { id: 'scanner-paste:read-only' },
     };
   }
   if (decision.kind === 'loading') {
     return {
-      message: 'Location tracking is still loading — paste again in a moment.',
+      message: 'Tracking not ready',
       options: { id: 'scanner-paste:loading', duration: 5_000 },
     };
   }
   return {
-    message: 'Track an online character before pasting scanner output.',
+    message: 'No character online',
     options: { id: 'scanner-paste:untracked' },
   };
 }

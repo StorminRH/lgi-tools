@@ -82,7 +82,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
   );
   const removeMissing = () => {
     void props.onRemoveMissing().catch(() => {
-      toast.error('The signatures could not be removed. Try again.', {
+      toast.error('Remove failed', {
         id: 'signature-remove:batch',
       });
     });
@@ -93,7 +93,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
     wormholeTypeCode?: string,
   ) =>
     props.onIdentify(row, group, wormholeTypeCode).catch(() => {
-      toast.error('The signature could not be identified.', {
+      toast.error('Identify failed', {
         id: `signature-identify:${row.systemId}:${row.signatureId}`,
       });
     });

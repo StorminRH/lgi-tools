@@ -58,11 +58,11 @@ it('announces applied identifications and stays quiet on quiet/failed transport'
       signal: expect.anything(),
     }),
   );
-  expect(h.success).toHaveBeenCalledWith('LXX-844 has been identified.');
+  expect(h.success).toHaveBeenCalledWith('Signature identified');
 
   h.apiFetch.mockResolvedValueOnce(applied(['AAA-111', 'BBB-222']));
   await eliminateSignaturesAndAnnounce({ mapId: MAP, systemIds: [SYSTEM] });
-  expect(h.success).toHaveBeenCalledWith('AAA-111 and BBB-222 have been identified.');
+  expect(h.success).toHaveBeenCalledWith('Signatures identified');
 
   h.apiFetch.mockResolvedValueOnce(quiet());
   await eliminateSignaturesAndAnnounce({ mapId: MAP, systemIds: [SYSTEM] });
@@ -198,7 +198,7 @@ it('reruns an identical paste after its evidence is invalidated by removal or re
   invalidateSignatureElimination(MAP, SYSTEM);
   await followUpElimination(input);
   expect(h.apiFetch).toHaveBeenCalledTimes(2);
-  expect(h.success).toHaveBeenCalledWith('A has been identified.');
+  expect(h.success).toHaveBeenCalledWith('Signature identified');
 });
 
 it('does not restore an invalidated cache entry when an older request completes', async () => {

@@ -15,12 +15,12 @@ import {
 function scanFailureMessage(error: unknown): string {
   const detail = String(error);
   if (detail.includes('OFF_MAP_SCAN_SYSTEM')) {
-    return 'Your tracked character is not in a live system on this map.';
+    return 'System not on map';
   }
   if (detail.includes('UNTRACKED_SCAN_SYSTEM')) {
-    return 'Track an online character before pasting scanner output.';
+    return 'No character online';
   }
-  return 'Scanner paste was not applied. Try again.';
+  return 'Scan not applied';
 }
 
 function yieldsToFocusedSurface(event: ClipboardEvent): boolean {
