@@ -13,7 +13,12 @@ import {
   ViewTransition,
 } from 'react';
 import { cn } from '@/components/ui/cn';
-import type { BoardCharacter, BoardResponse, SkillCatalogGroup } from '@/composition/board/api-contract';
+import type {
+  BoardCharacter,
+  BoardHistoryDay,
+  BoardResponse,
+  SkillCatalogGroup,
+} from '@/composition/board/api-contract';
 import {
   type BoardView,
   boardTransitionType,
@@ -61,18 +66,22 @@ export function HomeBoardView({
   const names = useMemo(() => skillNames(board.skillCatalog), [board.skillCatalog]);
   const [only] = board.characters;
   if (board.characters.length === 1 && only !== undefined) {
-    return <SinglePilot character={only} catalog={board.skillCatalog} names={names} now={now} />;
+    return (
+      <SinglePilot character={only} history={board.history} catalog={board.skillCatalog} names={names} now={now} />
+    );
   }
   return <PilotBoard board={board} names={names} now={now} mainId={mainId} />;
 }
 
 function SinglePilot({
   character,
+  history,
   catalog,
   names,
   now,
 }: {
   character: BoardCharacter;
+  history: readonly BoardHistoryDay[];
   catalog: readonly SkillCatalogGroup[];
   names: Readonly<Record<string, string>>;
   now: number;
@@ -83,7 +92,7 @@ function SinglePilot({
       aria-label={`${character.name} character sheet`}
       className={SHEET_GRID}
     >
-      <CharacterDetail character={character} catalog={catalog} names={names} now={now} addCharacter />
+      <CharacterDetail character={character} history={history} catalog={catalog} names={names} now={now} addCharacter />
     </div>
   );
 }
@@ -186,6 +195,7 @@ function PilotBoard({
       >
         <CharacterDetail
           character={selected}
+          history={board.history}
           catalog={board.skillCatalog}
           names={names}
           now={now}
@@ -205,7 +215,7 @@ function PilotBoard({
         <PilotRail pilots={pilots} onSelect={open} />
       </ViewTransition>
       <ViewTransition {...OVERVIEW_MOTION} default="none">
-        <OverviewCards characters={board.characters} now={now} />
+        <OverviewCards characters={board.characters} history={board.history} now={now} />
       </ViewTransition>
     </div>
   );

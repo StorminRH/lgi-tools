@@ -8,6 +8,12 @@ vi.mock('next/link', () => ({
     createElement('a', { ...props, href: String(href) }, children),
 }));
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
+// Show the infotip's content inline: the real popover only mounts it when open.
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({ label, children }: { label: string; children: React.ReactNode }) =>
+    createElement('div', { 'data-popover': label }, children),
+  PopoverHeading: ({ children }: { children: React.ReactNode }) => createElement('strong', null, children),
+}));
 // Next serves the app its canary React, which has <ViewTransition>; the stable
 // React that vitest resolves does not, so stand in a pass-through.
 vi.mock('react', async (importOriginal) => ({
@@ -43,13 +49,14 @@ describe('HomeBoardView', () => {
     }
     expect(html).toContain('aria-label="Pilot overview"');
     expect(html).not.toContain('Needs attention');
-    expect(html).toContain('Wallet ISK · 3 of 5 pilots · since 28 Aug');
+    expect(html).toContain('7.75B');
+    expect(html).toContain('3 of 5 pilots');
+    expect(html).toContain('Net worth by pilot');
     expect(html).toContain('<span>Wealth</span>');
     expect(html).not.toContain('Combined</span>');
     expect(html).toContain('30d');
     expect(html.lastIndexOf('data-pilot-id')).toBeLessThan(html.indexOf('aria-label="Add character"'));
     expect(html).toContain('<span>Industry</span>');
-    expect(html).toContain('ISK by pilot');
     expect(html).not.toContain('<span>Training</span>');
     expect(html).not.toContain('Whereabouts');
     expect(html).not.toContain('Skill points');
@@ -60,6 +67,25 @@ describe('HomeBoardView', () => {
     expect(html).not.toContain('character sheet');
     expect(html).not.toContain('Attributes &amp; implants');
     expect(html).not.toContain('esi-');
+  });
+
+  it('explains estimated net worth in the (?) infotip', () => {
+    const html = render('full');
+    expect(html).toContain('data-popover="About estimated net worth"');
+    expect(html).toContain('<strong>Estimated net worth</strong>');
+    expect(html).toContain('Your ISK plus the market value of what your pilots own');
+    expect(html).toContain('Prices follow recent Jita market prices');
+    expect(html).toContain('Not counted: blueprints, SKINs, and PLEX in your PLEX vault.');
+  });
+
+  it('never shows a zero net worth when no pilot has one', () => {
+    search.params = new URLSearchParams();
+    const board = buildDemoBoard(FIXTURE_NOW, 'full');
+    const noWorth = { ...board, characters: board.characters.map((c) => ({ ...c, netWorth: { state: 'pending' as const } })) };
+    const html = renderToStaticMarkup(createElement(HomeBoardView, { board: noWorth, now: FIXTURE_NOW }));
+    expect(html).toContain('4.11B');
+    expect(html).not.toContain('About estimated net worth');
+    expect(html).not.toContain('>0.00<');
   });
 
   it('puts the main pilot first in the rail', () => {

@@ -3,20 +3,17 @@
 import Link from 'next/link';
 import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
-import { eyebrow } from '@/components/ui/type-roles';
-import type { BoardCharacter } from '@/composition/board/api-contract';
+import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
-import { formatUtcDate } from '@/lib/format/time';
-import { BalanceTrend } from './BalanceTrend';
 import { FlowLine, StatFigure } from './board-bits';
 import {
+  accountWorthSeries,
   combinedFlow,
-  coverageNote,
   industryTotals,
-  netWorthSeries,
-  rosterTotals,
-  walletShares,
+  netWorthTotals,
+  worthShares,
 } from './board-view-model';
+import { WorthChart, WorthHeadline } from './WorthChart';
 import { SectionPanel } from './SectionBody';
 
 /**
@@ -24,64 +21,66 @@ import { SectionPanel } from './SectionBody';
  * card under it so the column never leaves a hole beside a short aside.
  * Per-pilot training, queue health and location live on the rail.
  */
-export function OverviewCards({ characters, now }: { characters: readonly BoardCharacter[]; now: number }) {
+export function OverviewCards({
+  characters,
+  history,
+  now,
+}: {
+  characters: readonly BoardCharacter[];
+  history: readonly BoardHistoryDay[];
+  now: number;
+}) {
   return (
-    <div
-      role="region"
-      aria-label="Pilot overview"
-      className="flex min-w-0 flex-col gap-4"
-    >
-      <WealthCard characters={characters} now={now} />
+    <div role="region" aria-label="Pilot overview" className="flex min-w-0 flex-col gap-4">
+      <WealthCard characters={characters} history={history} now={now} />
       <IndustryCard characters={characters} />
     </div>
   );
 }
 
+/**
+ * Estimated net worth across the pilots that have one, ISK beside it, and
+ * its history as ISK and assets stacked. With no net worth yet it falls back
+ * to wallet ISK alone and draws no chart; it never shows a zero net worth.
+ */
 function WealthCard({
   characters,
+  history,
   now,
 }: {
   characters: readonly BoardCharacter[];
+  history: readonly BoardHistoryDay[];
   now: number;
 }) {
-  const totals = rosterTotals(characters, now);
+  const { worth, liquid } = netWorthTotals(characters);
   const flow = combinedFlow(characters, now);
-  const shares = walletShares(characters);
-  const worth = netWorthSeries(characters, now);
+  const lead = worth ?? liquid;
   return (
-    <SectionPanel title="Wealth" meta={totals.isk === null ? undefined : `wallets${coverageNote(totals.isk)}`}>
-      {totals.isk === null ? (
+    <SectionPanel title="Wealth">
+      {lead === null ? (
         <p className="px-3.5 py-3 text-ui text-faint">No wallet has synced yet. Reconnect a pilot to add it.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-3.5 pt-3 pb-2">
-            <span className="font-data text-stat tabular-nums text-isk">
-              {formatIsk(totals.isk.value)} <span className="text-ui text-muted">ISK</span>
-            </span>
+          <div className="flex flex-col gap-1 px-3.5 pt-3 pb-2">
+            <WorthHeadline
+              worth={worth?.value ?? null}
+              liquid={liquid?.value ?? null}
+              note={lead.covered < lead.total ? `${lead.covered} of ${lead.total} pilots` : undefined}
+            />
             {flow !== null && <FlowLine inflow={flow.inflow} outflow={flow.outflow} />}
           </div>
-          {worth.points.length > 1 && worth.from !== null && (
-            <figure className="border-t border-border-soft px-2 pt-2.5 pb-1">
-              <figcaption className="flex flex-wrap items-baseline justify-between gap-x-3 px-1.5 pb-1">
-                <span className={eyebrow({ size: 'micro', weight: 'semibold', emphasis: 'strong' })}>Net worth</span>
-                <span className="font-data text-micro text-muted">{netWorthCaption(worth)}</span>
-              </figcaption>
-              <BalanceTrend series={worth.points} ariaLabel="Combined wallet ISK over time" height={196} />
-            </figure>
+          {worth !== null && (
+            <div className="px-2 pb-1">
+              <WorthChart series={accountWorthSeries(history, characters, now)} ariaLabel="Estimated net worth over time" />
+            </div>
           )}
           <div className="border-t border-border-soft">
-            <DistributionBars rows={shares} formatCount={formatIsk} ariaLabel="ISK by pilot" />
+            <DistributionBars rows={worthShares(characters)} formatCount={formatIsk} ariaLabel="Net worth by pilot" />
           </div>
         </>
       )}
     </SectionPanel>
   );
-}
-
-function netWorthCaption({ from, included, of }: { from: number | null; included: number; of: number }): string {
-  const pilots = included < of ? ` · ${included} of ${of} pilots` : '';
-  const since = from === null ? '' : ` · since ${formatUtcDate(new Date(from)).replace(/ \d{4}$/, '')}`;
-  return `Wallet ISK${pilots}${since}`;
 }
 
 function IndustryCard({ characters }: { characters: readonly BoardCharacter[] }) {

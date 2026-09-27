@@ -4,7 +4,7 @@ import { type Ref, ViewTransition } from 'react';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
-import type { BoardCharacter, SkillCatalogGroup } from '@/composition/board/api-contract';
+import type { BoardCharacter, BoardHistoryDay, SkillCatalogGroup } from '@/composition/board/api-contract';
 import { AddCharacter } from './AddCharacter';
 import { PANELS_MOTION, SHEET_MOTION } from './board-motion';
 import { reconnectSentence } from './board-view-model';
@@ -21,6 +21,7 @@ import { WalletSection } from './sections/WalletSection';
 // it, so a wrapper element here would stop the sheet from animating.
 export function CharacterDetail({
   character,
+  history,
   catalog,
   names,
   now,
@@ -29,6 +30,7 @@ export function CharacterDetail({
   addCharacter = false,
 }: {
   character: BoardCharacter;
+  history: readonly BoardHistoryDay[];
   catalog: readonly SkillCatalogGroup[];
   names: Readonly<Record<string, string>>;
   now: number;
@@ -92,8 +94,8 @@ export function CharacterDetail({
           </div>
           <div className="contents lg:flex lg:flex-col lg:gap-4">
             <WalletSection
-              wallet={character.wallet}
-              journal={character.journal}
+              character={character}
+              history={history}
               now={now}
               className="order-2 lg:order-none"
             />

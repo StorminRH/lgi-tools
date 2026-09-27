@@ -2,6 +2,7 @@ import {
   BOARD_GAPS,
   type BoardCharacter,
   type BoardGap,
+  type BoardHistoryDay,
   type BoardSection,
   type BoardSkillsData,
   type PlaceRef,
@@ -476,17 +477,91 @@ export function industryTotals(characters: readonly BoardCharacter[]): IndustryT
   };
 }
 
-export interface WalletShare {
+export interface WorthShare {
   key: string;
   label: string;
   count: number;
 }
 
-export function walletShares(characters: readonly BoardCharacter[]): WalletShare[] {
-  return characters.flatMap((character) => {
-    const wallet = readyData(character.wallet);
-    return wallet === null ? [] : [{ key: String(character.characterId), label: character.name, count: wallet.balance }];
+/**
+ * Each pilot's share of the account, largest first: by estimated net worth
+ * where any pilot has one, otherwise by wallet ISK.
+ */
+export function worthShares(characters: readonly BoardCharacter[]): WorthShare[] {
+  const byWorth = characters.flatMap((character) => {
+    const worth = readyData(character.netWorth);
+    return worth === null ? [] : [{ key: String(character.characterId), label: character.name, count: worth.total }];
   });
+  const shares =
+    byWorth.length > 0
+      ? byWorth
+      : characters.flatMap((character) => {
+          const wallet = readyData(character.wallet);
+          return wallet === null
+            ? []
+            : [{ key: String(character.characterId), label: character.name, count: wallet.balance }];
+        });
+  return shares.sort((a, b) => b.count - a.count);
+}
+
+export interface NetWorthTotals {
+  worth: CoveredSum | null;
+  liquid: CoveredSum | null;
+}
+
+/** Estimated net worth over the pilots that have one, and wallet ISK over those with a wallet. */
+export function netWorthTotals(characters: readonly BoardCharacter[]): NetWorthTotals {
+  return {
+    worth: coveredSum(characters.map((c) => readyData(c.netWorth)?.total ?? null)),
+    liquid: coveredSum(characters.map((c) => readyData(c.wallet)?.balance ?? null)),
+  };
+}
+
+export interface WorthPoint {
+  t: number;
+  liquid: number;
+  /** Null before the first recorded day: only wallet ISK is known that far back. */
+  assets: number | null;
+}
+
+const dayStart = (day: string) => Date.parse(`${day}T00:00:00Z`);
+
+// Recorded days, with the journal's wallet series filling in before the first
+// one so a new account still sees its ISK; assets begin at the first snapshot.
+function stackWorth(
+  recorded: readonly { t: number; netWorth: number; liquid: number }[],
+  backfill: readonly { t: number; balance: number }[],
+): WorthPoint[] {
+  const first = recorded[0]?.t ?? Number.POSITIVE_INFINITY;
+  return [
+    ...backfill.filter((point) => point.t < first).map((point) => ({ t: point.t, liquid: point.balance, assets: null })),
+    ...recorded.map((day) => ({ t: day.t, liquid: day.liquid, assets: day.netWorth - day.liquid })),
+  ];
+}
+
+/** The account's net worth over time, ISK below and everything else above it. */
+export function accountWorthSeries(
+  history: readonly BoardHistoryDay[],
+  characters: readonly BoardCharacter[],
+  now: number,
+): WorthPoint[] {
+  return stackWorth(
+    history.map((day) => ({ t: dayStart(day.day), netWorth: day.netWorth, liquid: day.liquidIsk })),
+    netWorthSeries(characters, now).points,
+  );
+}
+
+/** One pilot's net worth over time, from its entry in each recorded day. */
+export function pilotWorthSeries(
+  history: readonly BoardHistoryDay[],
+  character: BoardCharacter,
+  now: number,
+): WorthPoint[] {
+  const recorded = history.flatMap((day) => {
+    const pilot = day.pilots[String(character.characterId)];
+    return pilot === undefined ? [] : [{ t: dayStart(day.day), netWorth: pilot.netWorth, liquid: pilot.liquidIsk }];
+  });
+  return stackWorth(recorded, netWorthSeries([character], now).points);
 }
 
 export interface NetWorthSeries {

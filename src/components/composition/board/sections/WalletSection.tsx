@@ -1,13 +1,14 @@
 'use client';
 
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
-import type { BoardCharacter } from '@/composition/board/api-contract';
+import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
 import { formatUtcDate } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
-import { recentJournal } from '../board-view-model';
+import { pilotWorthSeries, recentJournal } from '../board-view-model';
 import { SectionBody, SectionPanel, updatedLabel } from '../SectionBody';
+import { WorthChart, WorthHeadline } from '../WorthChart';
 
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
 type JournalRow = Journal['recent'][number];
@@ -40,29 +41,39 @@ const COLUMNS: readonly StaticTableColumn<JournalRow>[] = [
   },
 ];
 
+/**
+ * The pilot's estimated net worth with ISK beside it and its history as
+ * stacked ISK and assets, then the recent journal. Until net worth is known
+ * it leads with the wallet balance and charts the journal's balance instead.
+ */
 export function WalletSection({
-  wallet,
-  journal,
+  character,
+  history,
   now,
   className,
 }: {
-  wallet: BoardCharacter['wallet'];
-  journal: BoardCharacter['journal'];
+  character: BoardCharacter;
+  history: readonly BoardHistoryDay[];
   now: number;
   className?: string;
 }) {
+  const { wallet, journal } = character;
+  const worth = character.netWorth.state === 'ready' ? character.netWorth.data.total : null;
   return (
     <SectionPanel title="Wallet" meta={updatedLabel(wallet, now)} className={className}>
       <SectionBody section={wallet}>
         {({ balance }) => (
           <>
-            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-3.5 pt-3 pb-2">
-              <span className="font-data text-stat tabular-nums text-isk">
-                {formatIsk(balance)} <span className="text-ui text-muted">ISK</span>
-              </span>
+            <div className="flex flex-col gap-1 px-3.5 pt-3 pb-2">
+              <WorthHeadline worth={worth} liquid={balance} />
               {journal.state === 'ready' && <FlowLine inflow={journal.data.inflow} outflow={journal.data.outflow} />}
             </div>
-            <SectionBody section={journal}>{(data) => <JournalBody journal={data} />}</SectionBody>
+            {worth !== null && (
+              <div className="px-2 pb-2">
+                <WorthChart series={pilotWorthSeries(history, character, now)} ariaLabel="Estimated net worth over time" height={170} />
+              </div>
+            )}
+            <SectionBody section={journal}>{(data) => <JournalBody journal={data} chart={worth === null} />}</SectionBody>
           </>
         )}
       </SectionBody>
@@ -70,11 +81,11 @@ export function WalletSection({
   );
 }
 
-function JournalBody({ journal }: { journal: Journal }) {
+function JournalBody({ journal, chart }: { journal: Journal; chart: boolean }) {
   const rows = recentJournal(journal.recent);
   return (
     <>
-      {journal.series.length > 1 && (
+      {chart && journal.series.length > 1 && (
         <div className="px-2 pb-2">
           <BalanceTrend series={journal.series} ariaLabel="Wallet balance over time" />
         </div>

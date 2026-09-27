@@ -12,7 +12,10 @@ import {
   industryTotals,
   netWorthSeries,
   railOrder,
-  walletShares,
+  accountWorthSeries,
+  netWorthTotals,
+  pilotWorthSeries,
+  worthShares,
   boardViewHref,
   characterParam,
   fittedDomain,
@@ -234,7 +237,6 @@ describe('overview model', () => {
   const chars = board.characters;
 
   it('sums wallets, flow and industry honestly', () => {
-    expect(walletShares(chars).map((share) => share.label)).toEqual(['Aurel Vantesse', 'Kessa Draymoor', 'Torvin Hale']);
     expect(combinedFlow(chars, NOW)).toEqual({
       inflow: 977_835_008,
       outflow: 846_237_440,
@@ -427,5 +429,80 @@ describe('effectiveSkills', () => {
     const catalog = [{ groupId: 1, name: 'Gunnery', skills: [{ typeId: 3300, name: 'Gunnery', rank: 1 }] }];
     const [group] = groupSkills(effectiveSkills({ ...base, queue: [done(3300, 5)] }, NOW), catalog);
     expect(group).toMatchObject({ trained: 1, atV: 1, skills: [{ level: 5, reported: 4 }] });
+  });
+});
+
+describe('net worth', () => {
+  const chars = board.characters;
+  const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+  const worthOf = (total: number, liquid: number) => ({
+    state: 'ready' as const,
+    refreshedAt: NOW,
+    data: { total, liquid, assets: total - liquid, sellOrders: 0, buyEscrow: 0, implants: 0 },
+  });
+
+  it('sums net worth over the pilots that have one and says how many', () => {
+    expect(netWorthTotals(chars)).toEqual({
+      worth: { value: expect.closeTo(7_753_705_788.94, 1), covered: 3, total: 5 },
+      liquid: { value: expect.closeTo(4_112_776_212.67, 1), covered: 3, total: 5 },
+    });
+    expect(netWorthTotals([bram!])).toEqual({ worth: null, liquid: null });
+  });
+
+  it('ranks shares by net worth, falling back to wallets when none has one', () => {
+    expect(worthShares(chars).map((share) => [share.label, Math.round(share.count / 1e6)])).toEqual([
+      ['Aurel Vantesse', 6588],
+      ['Kessa Draymoor', 989],
+      ['Torvin Hale', 177],
+    ]);
+    const noWorth = chars.map((c) => ({ ...c, netWorth: { state: 'pending' as const } }));
+    expect(worthShares(noWorth).map((share) => share.label)).toEqual(['Aurel Vantesse', 'Kessa Draymoor', 'Torvin Hale']);
+  });
+
+  const journalOf = (windowStart: string, series: { t: number; balance: number }[]) => ({
+    state: 'ready' as const,
+    refreshedAt: NOW,
+    data: { windowStart, inflow: 0, outflow: 0, series, recent: [] },
+  });
+  const pilot = {
+    ...kessa!,
+    characterId: 7,
+    wallet: { state: 'ready' as const, refreshedAt: NOW, data: { balance: 40 } },
+    journal: journalOf('2026-09-23T00:00:00.000Z', [
+      { t: day('2026-09-23'), balance: 10 },
+      { t: day('2026-09-25'), balance: 30 },
+    ]),
+    netWorth: worthOf(100, 40),
+  };
+  const history = [
+    { day: '2026-09-26', netWorth: 90, liquidIsk: 35, included: 1, total: 1, pilots: { '7': { netWorth: 90, liquidIsk: 35 } } },
+    { day: '2026-09-27', netWorth: 100, liquidIsk: 40, included: 1, total: 1, pilots: { '7': { netWorth: 100, liquidIsk: 40 } } },
+  ];
+
+  it('backfills ISK from the journal before the first recorded day, then stacks assets', () => {
+    expect(accountWorthSeries(history, [pilot], NOW)).toEqual([
+      { t: day('2026-09-23'), liquid: 10, assets: null },
+      { t: day('2026-09-24'), liquid: 10, assets: null },
+      { t: day('2026-09-25'), liquid: 30, assets: null },
+      { t: day('2026-09-26'), liquid: 35, assets: 55 },
+      { t: day('2026-09-27'), liquid: 40, assets: 60 },
+    ]);
+  });
+
+  it('builds one pilot’s series from its own entry in each recorded day', () => {
+    const skipped = [{ ...history[0]!, pilots: {} }, history[1]!];
+    expect(pilotWorthSeries(skipped, pilot, NOW)).toEqual([
+      { t: day('2026-09-23'), liquid: 10, assets: null },
+      { t: day('2026-09-24'), liquid: 10, assets: null },
+      { t: day('2026-09-25'), liquid: 30, assets: null },
+      { t: day('2026-09-26'), liquid: 30, assets: null },
+      { t: day('2026-09-27'), liquid: 40, assets: 60 },
+    ]);
+  });
+
+  it('uses the recorded days alone once they reach back past the journal', () => {
+    const series = accountWorthSeries(board.history, chars, NOW);
+    expect(series).toHaveLength(board.history.length);
+    expect(series.every((point) => point.assets !== null)).toBe(true);
   });
 });
