@@ -156,7 +156,6 @@ export function SplitAxisChart({
         </g>
       ))}
       <g data-axis-break aria-hidden className="stroke-[var(--color-muted)]" strokeWidth={1}>
-        <path d={`M ${MARGIN.left - 7} ${breakY + 4} l 5 -8 M ${MARGIN.left - 2} ${breakY + 4} l 5 -8`} />
         <line
           x1={MARGIN.left}
           x2={width - MARGIN.right}
