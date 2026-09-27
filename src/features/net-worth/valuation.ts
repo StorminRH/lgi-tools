@@ -50,7 +50,7 @@ export interface NetWorthBreakdown {
   unpriced: number;
 }
 
-interface BookSides {
+export interface BookSides {
   pct5Buy: number | null;
   pct5Sell: number | null;
   bestBuy: number | null;
