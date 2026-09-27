@@ -6,18 +6,20 @@ import type { SkillQueueEntry } from '../esi-projection';
 import { romanLevel } from '../progress';
 import { entryRowModel } from '../queue-view';
 
+/** Queue rows numbered by the caller, so hidden entries leave no gap in the count. */
 export function SkillQueueRows({
-  entries,
+  rows,
   names,
   now,
 }: {
-  entries: readonly SkillQueueEntry[];
+  rows: readonly { number: number; entry: SkillQueueEntry }[];
   names: Readonly<Record<string, string>>;
   now: number;
 }) {
-  return entries.map((entry) => (
+  return rows.map(({ number, entry }) => (
     <QueueEntryRow
       key={entry.queue_position}
+      number={number}
       entry={entry}
       name={names[String(entry.skill_id)]}
       now={now}
@@ -26,10 +28,12 @@ export function SkillQueueRows({
 }
 
 function QueueEntryRow({
+  number,
   entry,
   name,
   now,
 }: {
+  number: number;
   entry: SkillQueueEntry;
   name: string | undefined;
   now: number;
@@ -39,7 +43,7 @@ function QueueEntryRow({
     <div>
       <EntityRow
         colsClass="grid-cols-[26px_minmax(0,1fr)_auto_auto]"
-        leading={entry.queue_position + 1}
+        leading={number}
         name={
           <span className="font-data">
             {name ?? `Skill #${entry.skill_id}`}{' '}

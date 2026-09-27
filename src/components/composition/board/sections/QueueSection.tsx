@@ -59,7 +59,7 @@ function QueueBody({
   return (
     <>
       <Timeline queue={queue} now={now} />
-      <SkillQueueRows entries={window.visible} names={names} now={now} />
+      <SkillQueueRows rows={window.visible} names={names} now={now} />
       {window.total > window.visible.length && (
         <Drawer
           title={`${pilotName} · Skill queue`}
@@ -69,7 +69,7 @@ function QueueBody({
         >
           <div className="overflow-hidden rounded-card border border-border-soft">
             <Timeline queue={queue} now={now} />
-            <SkillQueueRows entries={remainingQueue(queue, now)} names={names} now={now} />
+            <SkillQueueRows rows={remainingQueue(queue, now)} names={names} now={now} />
           </div>
         </Drawer>
       )}

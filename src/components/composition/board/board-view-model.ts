@@ -74,7 +74,10 @@ const QUEUE_WARN_MS = DAY;
 export function queueHealth(skills: BoardSection<BoardSkillsData>, now: number): QueueHealth {
   if (skills.state === 'pending') return { tone: 'quiet', label: 'Syncing from EVE…' };
   if (skills.state === 'reconnect') return { tone: 'quiet', label: 'Reconnect to sync skills' };
-  const summary = summarizeQueue(remainingQueue(skills.data.queue, now), now);
+  const summary = summarizeQueue(
+    remainingQueue(skills.data.queue, now).map((row) => row.entry),
+    now,
+  );
   switch (summary.kind) {
     case 'empty':
     case 'complete':
@@ -532,15 +535,22 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
 
 const QUEUE_WINDOW = 5;
 
+export interface QueueRow {
+  /** 1 for the entry in training, then counting on through what remains. */
+  number: number;
+  entry: SkillQueueEntry;
+}
+
 /** The queue without entries that finished since the last sync: those are never shown. */
-export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): SkillQueueEntry[] {
+export function remainingQueue(queue: readonly SkillQueueEntry[], now: number): QueueRow[] {
   return [...queue]
     .sort((a, b) => a.queue_position - b.queue_position)
-    .filter((entry) => entry.finish_date === undefined || Date.parse(entry.finish_date) > now);
+    .filter((entry) => entry.finish_date === undefined || Date.parse(entry.finish_date) > now)
+    .map((entry, index) => ({ number: index + 1, entry }));
 }
 
 export interface QueueWindow {
-  visible: SkillQueueEntry[];
+  visible: QueueRow[];
   total: number;
 }
 

@@ -348,9 +348,11 @@ describe('queueWindow', () => {
   it('drops finished entries and shows the next five of what remains', () => {
     const queue = Array.from({ length: 42 }, (_, i) => entry(i, i - 3.5, i - 2.5));
     const window = queueWindow(queue, NOW);
-    expect(window.visible.map((e) => e.queue_position)).toEqual([3, 4, 5, 6, 7]);
+    expect(window.visible.map((row) => row.entry.queue_position)).toEqual([3, 4, 5, 6, 7]);
+    expect(window.visible.map((row) => row.number)).toEqual([1, 2, 3, 4, 5]);
     expect(window.total).toBe(39);
-    expect(remainingQueue(queue, NOW)).toHaveLength(39);
+    const all = remainingQueue(queue, NOW);
+    expect([all[0]?.number, all.at(-1)?.number, all.length]).toEqual([1, 39, 39]);
   });
 
   it('treats a queue whose entries have all finished as empty', () => {
@@ -366,7 +368,13 @@ describe('queueWindow', () => {
 
   it('keeps a paused queue, which has no dates, in the window', () => {
     const queue = [entry(0, null, null), entry(1, null, null)];
-    expect(queueWindow(queue, NOW)).toEqual({ visible: queue, total: 2 });
+    expect(queueWindow(queue, NOW)).toEqual({
+      visible: [
+        { number: 1, entry: queue[0] },
+        { number: 2, entry: queue[1] },
+      ],
+      total: 2,
+    });
     expect(queueHealth(ready(queue), NOW)).toEqual({ tone: 'bad', label: 'Queue paused' });
   });
 
