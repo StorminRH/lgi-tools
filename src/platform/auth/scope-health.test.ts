@@ -77,7 +77,7 @@ test('listGrantedScopes orders active then legacy, glosses known ids, and treats
   expect(listGrantedScopes(grant).map((s) => ({ id: s.id, status: s.status }))).toEqual([
     { id: 'publicData', status: 'active' },
     { id: 'esi-skills.read_skills.v1', status: 'active' },
-    { id: 'esi-clones.read_clones.v1', status: 'legacy' },
+    { id: 'esi-clones.read_clones.v1', status: 'active' },
     { id: 'esi-characters.read_standings.v1', status: 'legacy' },
   ]);
 
@@ -87,8 +87,14 @@ test('listGrantedScopes orders active then legacy, glosses known ids, and treats
   expect(listGrantedScopes('publicData,publicData').map((s) => s.id)).toEqual(['publicData']);
 
   expect(listGrantedScopes('esi-made.up.v1')).toEqual([{ id: 'esi-made.up.v1', status: 'legacy' }]);
-  expect(listGrantedScopes('esi-clones.read_clones.v1')).toEqual([
-    { id: 'esi-clones.read_clones.v1', gloss: 'Read your jump clones', status: 'legacy' },
+  expect(listGrantedScopes('esi-planets.manage_planets.v1')).toEqual([
+    { id: 'esi-planets.manage_planets.v1', gloss: 'Manage your planetary colonies', status: 'legacy' },
+  ]);
+  expect(listGrantedScopes('esi-wallet.read_character_wallet.v1')).toEqual([
+    { id: 'esi-wallet.read_character_wallet.v1', gloss: 'Read your wallet balance and journal', status: 'active' },
+  ]);
+  expect(listGrantedScopes('esi-markets.read_character_orders.v1')).toEqual([
+    { id: 'esi-markets.read_character_orders.v1', gloss: 'Read your open market orders', status: 'active' },
   ]);
   expect(listGrantedScopes('esi-made.up.v1,esi-characters.read_standings.v1')).toEqual([
     { id: 'esi-made.up.v1', status: 'legacy' },

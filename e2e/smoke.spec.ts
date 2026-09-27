@@ -52,6 +52,12 @@ function accountMenuLocator(page: Page) {
   return page.getByRole('button', { name: /— account menu$/ });
 }
 
+test('/skills permanently redirects home', async ({ request }) => {
+  const response = await request.get('/skills', { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  expect(new URL(response.headers().location ?? '', 'http://localhost').pathname).toBe('/');
+});
+
 test('public home shell loads without console or page errors', async ({ page }) => {
   const diag = attachDiagnostics(page);
   await page.goto('/');
@@ -71,7 +77,7 @@ test.describe('authenticated smoke', () => {
     await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 
-    for (const route of ['/industry', '/atlas', '/skills', '/jobs', '/structures', '/settings/characters'] as const) {
+    for (const route of ['/industry', '/atlas', '/jobs', '/structures', '/settings/characters'] as const) {
       await page.goto(route);
       await expect(page.locator('body')).toBeVisible();
       await expectAuthenticatedSession(page);

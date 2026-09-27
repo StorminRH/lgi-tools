@@ -23,5 +23,7 @@ export const industryCostIndices = pgTable(
 export const adjustedPrices = pgTable('adjusted_prices', {
   typeId: integer('type_id').primaryKey(),
   adjustedPrice: doublePrecision('adjusted_price'),
+  /** CCP's rolling market average from the same /markets/prices/ row; the valuation fallback for thin or absent Jita books. */
+  averagePrice: doublePrecision('average_price'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
 });

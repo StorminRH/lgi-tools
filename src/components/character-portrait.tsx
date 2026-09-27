@@ -4,7 +4,7 @@ import { characterPortraitUrl } from '@/lib/eve-image';
 import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 
-export type PortraitSize = 20 | 28 | 32 | 36 | 38 | 64;
+export type PortraitSize = 20 | 28 | 32 | 36 | 38 | 64 | 112 | 160;
 
 const SIZE_CLASS: Record<PortraitSize, string> = {
   20: 'size-5',
@@ -13,6 +13,8 @@ const SIZE_CLASS: Record<PortraitSize, string> = {
   36: 'size-9',
   38: 'size-[38px]',
   64: 'size-16',
+  112: 'size-28',
+  160: 'size-40',
 };
 
 export function CharacterPortrait({
@@ -35,7 +37,7 @@ export function CharacterPortrait({
   const imageSrc = src ?? (characterId !== undefined ? characterPortraitUrl(characterId, 128) : '');
 
   return (
-    <span className={cn('relative inline-block shrink-0', SIZE_CLASS[size], className)}>
+    <span className={cn('relative inline-block shrink-0 rounded-full', SIZE_CLASS[size], className)}>
       <EveImage
         source="eve"
         family="character-portrait"
@@ -46,7 +48,7 @@ export function CharacterPortrait({
         loading={preload ? undefined : loading}
         preload={preload}
         decoding="async"
-        className="size-full rounded-full border border-border-idle object-cover"
+        className="block size-full rounded-full border border-border-idle object-cover"
       />
     </span>
   );

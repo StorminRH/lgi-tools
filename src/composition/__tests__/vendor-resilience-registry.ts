@@ -12,7 +12,6 @@ export type VendorIntegrationId =
   | 'discord-webhooks'
   | 'fuzzwork'
   | 'ccp-static-data'
-  | 'eve-news-feed'
   | 'ccp-image-cdn'
   | 'anoik-statics';
 
@@ -216,17 +215,6 @@ const ccpStaticData = policy({
     'The deploy-time bootstrap soft-fails so a failed ingest cannot fail a build, and the existing SDE tables keep serving.',
   telemetryFields: "'cron_sde' (refreshed / skipped).",
 });
-const eveNewsFeed = policy({
-  wrapper: { module: 'src/data/eve-news/queries.ts', symbol: 'getEveNews' },
-  timeout: '10s per request (OUTBOUND_FETCH_TIMEOUT_MS via fetchWithTimeout).',
-  retryableErrors: 'None.',
-  backoff: 'None.',
-  rateLimit: 'None; the read is cached and shared across requests.',
-  idempotency: 'Read-only RSS.',
-  degradation:
-    'Failure is caught inside the cache boundary and cached as an empty list on a short-lived profile — an error crossing a use-cache boundary during build prerender fails the deploy even when the consumer catches it — so the news card renders its empty state and self-heals within minutes.',
-  telemetryFields: 'None.',
-});
 const ccpImageCdn = policy({
   wrapper: { module: 'src/components/eve-image.tsx', symbol: 'EveImage' },
   timeout:
@@ -276,7 +264,6 @@ export const vendorResilienceRegistry: Record<
   'discord-webhooks': discordWebhooks,
   fuzzwork: fuzzworkPrices,
   'ccp-static-data': ccpStaticData,
-  'eve-news-feed': eveNewsFeed,
   'ccp-image-cdn': ccpImageCdn,
   'anoik-statics': anoikStatics,
 };

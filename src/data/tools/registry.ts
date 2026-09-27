@@ -31,14 +31,6 @@ export const TOOLS: Tool[] = [
     description: 'Live · /atlas',
   },
   {
-    label: 'Skill Queues',
-    abbr: 'SQ',
-    href: '/skills',
-    matchPrefix: '/skills',
-    description: 'Live · /skills',
-    navHidden: true,
-  },
-  {
     label: 'Industry Jobs',
     abbr: 'IJ',
     href: '/jobs',

@@ -61,6 +61,7 @@ export interface LinkedCharacter {
   hasRefreshToken: boolean;
   linkedAt: Date;
   corporationId: number | null;
+  allianceId: number | null;
   affiliationRefreshedAt: Date | null;
 }
 
@@ -74,6 +75,7 @@ function toLinkedCharacter(
     name: string | null;
     portraitUrl: string | null;
     corporationId: number | null;
+    allianceId: number | null;
     affiliationRefreshedAt: Date | null;
   },
 ): LinkedCharacter {
@@ -85,6 +87,7 @@ function toLinkedCharacter(
     hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
     linkedAt: r.createdAt,
     corporationId: r.corporationId ?? null,
+    allianceId: r.allianceId ?? null,
     affiliationRefreshedAt: r.affiliationRefreshedAt ?? null,
   };
 }
@@ -99,6 +102,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
       name: characters.name,
       portraitUrl: characters.portraitUrl,
       corporationId: characters.corporationId,
+      allianceId: characters.allianceId,
       affiliationRefreshedAt: characters.affiliationRefreshedAt,
     })
     .from(account)

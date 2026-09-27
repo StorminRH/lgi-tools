@@ -9,6 +9,7 @@ export interface RawCostIndex {
 export interface RawAdjustedPrice {
   typeId: number;
   adjustedPrice: number | null;
+  averagePrice: number | null;
 }
 
 export type SystemCostIndices = ReadonlyMap<IndustryActivity, number>;

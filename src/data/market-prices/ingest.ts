@@ -40,6 +40,23 @@ export async function refreshPrices(
   return persistPrices(db, raw, { requested: typeIds.length, budgetExhausted });
 }
 
+/**
+ * NULL-priced rows with epoch staleness, the same shape the SDE pipeline seeds for tracked types, so the
+ * nightly bulk sweep prices newly seen types overnight. Existing rows are never touched.
+ */
+export async function seedPlaceholderPrices(db: AnyPgDb, typeIds: number[]): Promise<number> {
+  if (typeIds.length === 0) return 0;
+  const updatedAt = new Date();
+  const written = await db
+    .insert(marketPrices)
+    .values(
+      typeIds.map((typeId) => ({ typeId, updatedAt, staleAfter: new Date(0), source: 'esi' })),
+    )
+    .onConflictDoNothing()
+    .returning({ typeId: marketPrices.typeId });
+  return written.length;
+}
+
 export async function persistPrices(
   db: AnyPgDb,
   raw: RawMarketPrice[],

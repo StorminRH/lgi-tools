@@ -132,6 +132,7 @@ describe('validatePreferenceValue', () => {
     expect(PREFERENCE_KEYS).toContain('planner.buildLocation');
     expect(PREFERENCE_KEYS).toContain('planner.buildCharacterId');
     expect(PREFERENCE_KEYS).not.toContain('atlas.autoLayout');
+    expect(PREFERENCE_KEYS).not.toContain('strip.skills.dimmed');
   });
 });
 
@@ -298,6 +299,12 @@ describe('retired preference keys', () => {
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
+  });
+
+  it('prunes the retired /skills strip row', () => {
+    window.localStorage.setItem(lsKey('strip.skills.dimmed'), JSON.stringify([1]));
+    pruneRetiredPreferences();
+    expect(window.localStorage.getItem(lsKey('strip.skills.dimmed'))).toBeNull();
   });
 });
 

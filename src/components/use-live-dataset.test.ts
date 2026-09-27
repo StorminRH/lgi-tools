@@ -107,6 +107,27 @@ describe('useLiveDataset', () => {
     expect(setFailed()).not.toHaveBeenCalledWith(true);
   });
 
+  it('follows a reconcile schedule while the data stays cold, then stops', async () => {
+    h.apiFetch.mockResolvedValue(ok({ rows: 0 }));
+    useLiveDataset(endpoint, 'k', () => true, [4_000, 8_000]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.apiFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops the schedule as soon as the data is warm', async () => {
+    h.apiFetch.mockResolvedValueOnce(ok({ rows: 0 })).mockResolvedValue(ok({ rows: 1 }));
+    useLiveDataset(endpoint, 'k', (response: { rows: number }) => response.rows === 0, [4_000, 8_000, 15_000]);
+    await vi.advanceTimersByTimeAsync(4_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps loaded data when the reconcile fetch fails', async () => {
     h.apiFetch.mockResolvedValueOnce(ok({ rows: 0 })).mockResolvedValueOnce(serverError);
     useLiveDataset(endpoint, 'k', () => true);

@@ -1,8 +1,8 @@
-import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
+import type { CharacterOwner, EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 
 export interface CharacterSyncBase<TState> {
   now(): Date;
-  listCharacters(userId: string): Promise<Array<Omit<EnumeratedOwner, 'corporationId'>>>;
+  listCharacters(userId: string): Promise<CharacterOwner[]>;
   vendToken(characterId: number): Promise<string | null>;
   readSyncState(characterId: number): Promise<TState | null>;
   stampFresh(characterId: number): Promise<void>;

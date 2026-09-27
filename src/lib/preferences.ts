@@ -88,7 +88,7 @@ export const atlasScannerCharacter = define<number | null>(
   null,
 );
 
-export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
+export const STRIP_SURFACE_IDS = ['jobs'] as const;
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
 export function stripDimmedKey(surfaceId: string): string {
@@ -126,7 +126,7 @@ const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
 export const PREFERENCE_KEYS: readonly string[] = PREFERENCES.map((p) => p.key);
 
-export const RETIRED_PREFERENCE_KEYS = ['atlas.autoLayout'] as const;
+export const RETIRED_PREFERENCE_KEYS = ['atlas.autoLayout', 'strip.skills.dimmed'] as const;
 
 export function pruneRetiredPreferences(): void {
   const store = safeStorage();

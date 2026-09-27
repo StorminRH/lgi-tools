@@ -11,12 +11,12 @@ const character = (characterId: number, needsReconnect = false): PanelCharacter 
   needsReconnect,
 });
 
-const strip: CharacterStripSpec = { surfaceId: 'skills' };
+const strip: CharacterStripSpec = { surfaceId: 'jobs' };
 
 describe('stripPreferenceBinding', () => {
   it('offers the surface def and the first-paint dimmed set when a strip is declared', () => {
     const binding = stripPreferenceBinding(strip, [7, 8]);
-    expect(binding.def).toEqual(stripDimmedDef('skills'));
+    expect(binding.def).toEqual(stripDimmedDef('jobs'));
     expect(binding.serverValue).toEqual([7, 8]);
   });
 
