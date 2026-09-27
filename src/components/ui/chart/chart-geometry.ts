@@ -37,6 +37,16 @@ export function tickIndices(count: number, max: number): number[] {
   return [...new Set(indices)];
 }
 
+/**
+ * Where a date label sits on its point: the first and last points lie on the
+ * plot's edges, so their labels grow inward instead of overhanging.
+ */
+export function tickAnchor(index: number, count: number): 'start' | 'middle' | 'end' {
+  if (count < 2) return 'middle';
+  if (index === 0) return 'start';
+  return index === count - 1 ? 'end' : 'middle';
+}
+
 export function continuousHoverTarget<T>(
   xs: number[],
   probeX: number,

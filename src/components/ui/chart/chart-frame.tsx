@@ -3,7 +3,7 @@
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { scaleLinear } from '@visx/scale';
 import { ChartCanvas } from './chart-canvas';
-import { tickIndices } from './chart-geometry';
+import { tickAnchor, tickIndices } from './chart-geometry';
 import { continuousHoverHandler } from './hover';
 import { HoverCaptureRect, HoverCrosshair } from './hover-layer';
 import { useChartHover } from './use-chart-hover';
@@ -62,7 +62,7 @@ function XTickLabels({
   return tickIndices(points.length, 5).map((i) => {
     const point = points[i];
     return point === undefined ? null : (
-      <text key={i} x={x(point.x)} y={y} textAnchor="middle" className="fill-[var(--color-muted)] font-data text-micro">
+      <text key={i} x={x(point.x)} y={y} textAnchor={tickAnchor(i, points.length)} className="fill-[var(--color-muted)] font-data text-micro">
         {format(point.label)}
       </text>
     );

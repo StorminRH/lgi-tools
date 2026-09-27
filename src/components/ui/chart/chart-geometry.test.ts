@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { continuousHoverTarget } from './chart-geometry';
+import { continuousHoverTarget, tickAnchor } from './chart-geometry';
 
 describe('continuousHoverTarget', () => {
   const data = [
@@ -21,5 +21,15 @@ describe('continuousHoverTarget', () => {
 
   it('returns null for an empty series', () => {
     expect(continuousHoverTarget([], 5, [])).toBeNull();
+  });
+});
+
+describe('tickAnchor', () => {
+  it('grows the edge labels inward and centres the rest', () => {
+    expect([0, 1, 2, 3].map((i) => tickAnchor(i, 4))).toEqual(['start', 'middle', 'middle', 'end']);
+  });
+
+  it('centres a lone label', () => {
+    expect(tickAnchor(0, 1)).toBe('middle');
   });
 });

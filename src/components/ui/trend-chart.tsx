@@ -1,7 +1,7 @@
 'use client';
 
 import { type SparklineTone } from './sparkline';
-import { tickIndices } from './chart/chart-geometry';
+import { tickAnchor, tickIndices } from './chart/chart-geometry';
 import { LineChart } from './chart/line-chart';
 import { ValueAxisGrid } from './chart/value-axis';
 
@@ -85,7 +85,7 @@ export function TrendChart({
                 key={i}
                 x={xScale(xs[i] ?? 0)}
                 y={height - 6}
-                textAnchor="middle"
+                textAnchor={tickAnchor(i, data.length)}
                 className="fill-[var(--color-muted)] font-data text-micro"
               >
                 {formatTick(labels[i] ?? '')}
