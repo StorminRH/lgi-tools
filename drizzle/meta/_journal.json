@@ -463,6 +463,13 @@
       "when": 1790535933854,
       "tag": "0065_net_worth_days",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790543048891,
+      "tag": "0066_character_sheet_refresh_queue",
+      "breakpoints": true
     }
   ]
 }

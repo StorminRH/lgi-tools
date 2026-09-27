@@ -75,7 +75,7 @@ describe('HomeBoardView', () => {
     expect(html).toContain('<strong>Estimated net worth</strong>');
     expect(html).toContain('Your ISK plus the market value of what your pilots own');
     expect(html).toContain('Prices follow recent Jita market prices');
-    expect(html).toContain('Not counted: blueprints, SKINs, and PLEX in your PLEX vault.');
+    expect(html).toContain('Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.');
   });
 
   it('never shows a zero net worth when no pilot has one', () => {

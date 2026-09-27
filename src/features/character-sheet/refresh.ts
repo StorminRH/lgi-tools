@@ -53,7 +53,8 @@ async function readParts<K extends DirectSectionKey>(
   const parts = Object.keys(spec.parts) as SheetPart<K>[];
   const reads = await Promise.all(
     parts.map((part) =>
-      port.readEndpoint(characterId, spec.parts[part].endpoint, accessToken, heldEtags[part] ?? null),
+      // A journal digest depends on the current window, even when ESI's body is unchanged.
+      port.readEndpoint(characterId, spec.parts[part].endpoint, accessToken, spec.key === 'journal' ? null : (heldEtags[part] ?? null)),
     ),
   );
   return Object.fromEntries(parts.map((part, i) => [part, reads[i]])) as Record<SheetPart<K>, SheetEsiRead>;
@@ -110,9 +111,17 @@ function structuresDescriptor(
       isStale: SECTION_GATES.structures.isStale,
       eligible: (owner) => canSyncSection('structures', owner),
       fetchAndPlan: async (characterId, accessToken, state) => {
-        const unresolved = state?.unresolved ?? [];
+        const previous = state?.previous;
+        const expired = SECTION_GATES.structures.isStale(
+          previous == null ? null : new Date(previous.refreshedAt),
+          port.now(),
+        );
+        const unresolved = new Set(state?.unresolved ?? []);
+        const readIds = (state?.referenced ?? []).filter((id) =>
+          unresolved.has(id) || (expired && previous?.data?.names[String(id)]?.kind === 'hidden'),
+        );
         const reads = await Promise.all(
-          unresolved.map(async (id) => [id, await port.readStructure(id, accessToken)] as const),
+          readIds.map(async (id) => [id, await port.readStructure(id, accessToken)] as const),
         );
         return planStructures(
           state?.referenced ?? [],

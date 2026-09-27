@@ -43,6 +43,32 @@ describe('planSectionRead', () => {
     expect(plan).toEqual({ kind: 'stamp' });
   });
 
+  it('does not stamp a journal digest on an unexpected 304', () => {
+    const previous: SectionEnvelope<'journal'> = {
+      data: { journal: digestJournalBody([], new Date(NOW.getTime() - DAY))! },
+      refreshedAt: new Date(NOW.getTime() - DAY).toISOString(),
+      etags: { journal: '"held"' },
+    };
+    expect(planSectionRead(SHEET_SECTIONS.journal, { journal: unchanged }, previous, NOW))
+      .toEqual({ kind: 'skip', code: 'esi_server_error' });
+  });
+
+  it('rebuilds the rolling journal window even when the body has not changed', () => {
+    const earlier = new Date(NOW.getTime() - DAY);
+    const body = [{
+      id: 1, date: new Date(NOW.getTime() - 30 * DAY - 1).toISOString(),
+      ref_type: 'player_donation', amount: 10, balance: 100, description: 'Gift',
+    }];
+    expect(digestJournalBody(body, earlier)?.inflow).toBe(10);
+    const plan = planSectionRead(SHEET_SECTIONS.journal, { journal: fresh(body) }, null, NOW);
+    expect(plan).toMatchObject({
+      kind: 'save',
+      envelope: { data: { journal: {
+        windowStart: new Date(NOW.getTime() - 30 * DAY).toISOString(), inflow: 0, series: [],
+      } } },
+    });
+  });
+
   it('saves a fresh part and carries the unchanged parts with their held ETags', () => {
     const plan = planSectionRead(
       SHEET_SECTIONS.status,
@@ -295,7 +321,7 @@ describe('referencedStructureIds / unresolvedStructureIds', () => {
 describe('planStructures', () => {
   const ids = [1099000000001, 1099000000002];
 
-  it('stores fresh names and records hidden structures as null so they are not re-requested', () => {
+  it('stores fresh names and records denied structures as hidden', () => {
     const reads = new Map<number, SheetEsiRead>([
       [1099000000001, fresh({ name: 'Sobaseki - Driftwood Anchorage', owner_id: 1 })],
       [1099000000002, error('esi_403')],
@@ -353,6 +379,25 @@ describe('planStructures', () => {
   it('skips a contract error', () => {
     const plan = planStructures([1099000000001], null, new Map([[1099000000001, fresh({ owner_id: 1 })]]), NOW);
     expect(plan).toEqual({ kind: 'skip', code: 'contract_error' });
+  });
+
+  it('retains a hidden entry on transient failure while saving another recovered name', () => {
+    const previous: SheetSectionData['structures'] = {
+      names: { '1099000000001': { kind: 'hidden' }, '1099000000002': { kind: 'hidden' } },
+    };
+    const reads = new Map<number, SheetEsiRead>([
+      [1099000000001, error('esi_server_error')],
+      [1099000000002, fresh({ name: 'Recovered' })],
+    ]);
+    expect(planStructures(ids, previous, reads, NOW)).toMatchObject({
+      kind: 'save',
+      envelope: { data: { names: {
+        '1099000000001': { kind: 'hidden' },
+        '1099000000002': { kind: 'named', name: 'Recovered' },
+      } } },
+    });
+    expect(planStructures([ids[0]!], previous, new Map([[ids[0]!, error('esi_server_error')]]), NOW))
+      .toEqual({ kind: 'skip', code: 'esi_server_error' });
   });
 });
 

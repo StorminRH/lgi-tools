@@ -1,8 +1,9 @@
 import { mergeSheetSection, readSheetRow, stampSheetSection } from '@/features/character-sheet/queries';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import type { SheetEndpoint, SheetPort } from '@/features/character-sheet/types';
-import type { OwnerSyncResult } from '@/platform/owner-sync';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { enqueueBudgetDeferral } from './esi-refresh-owner-sync';
 
 export const SHEET_ESI_PATHS = {
   character: (id: number) => `/characters/${id}/`,
@@ -46,5 +47,18 @@ export function makeSheetPort(): SheetPort {
 }
 
 export function refreshCharacterSheetsOnView(userId: string): Promise<OwnerSyncResult[]> {
-  return refreshCharacterSheetForUser(makeSheetPort(), userId);
+  return refreshCharacterSheetForUser(makeSheetPort(), userId, enqueueBudgetDeferral('character_sheet', userId));
+}
+
+/** Retry all stale sections for this pilot; one completed section cannot settle the whole sheet. */
+export async function runCharacterSheetRefreshJob(
+  userId: string,
+  target: OwnerSyncTarget,
+): Promise<OwnerSyncResult> {
+  const results = await refreshCharacterSheetForUser(makeSheetPort(), userId, { target });
+  return results.find((result) => result.kind === 'deferred_for_budget')
+    ?? results.find((result) => result.kind === 'failed_retryable')
+    ?? results.find((result) => result.kind === 'failed_permanent')
+    ?? results[0]
+    ?? { kind: 'failed_permanent', target, code: 'owner_unavailable' };
 }

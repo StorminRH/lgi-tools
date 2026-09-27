@@ -69,7 +69,7 @@ test('several pilots open on the wealth overview, with each pilot’s state on t
   await expect(overview(page).locator('[data-band]')).toHaveCount(2);
   await overview(page).getByRole('button', { name: 'About estimated net worth' }).click();
   await expect(page.getByRole('dialog', { name: 'About estimated net worth' })).toContainText('Estimated net worth');
-  await expect(page.getByText('Not counted: blueprints, SKINs, and PLEX in your PLEX vault.')).toBeVisible();
+  await expect(page.getByText('Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(overview(page).locator('section').getByText('Industry', { exact: true })).toBeVisible();
   for (const gone of ['Training', 'Whereabouts', 'Skill points']) {

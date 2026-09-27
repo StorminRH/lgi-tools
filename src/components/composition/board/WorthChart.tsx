@@ -116,7 +116,7 @@ function NetWorthHelp() {
       <p className="text-ui leading-snug text-muted">
         Prices follow recent Jita market prices, so this number moves with the market.
       </p>
-      <p className="text-ui leading-snug text-muted">Not counted: blueprints, SKINs, and PLEX in your PLEX vault.</p>
+      <p className="text-ui leading-snug text-muted">Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.</p>
     </Popover>
   );
 }

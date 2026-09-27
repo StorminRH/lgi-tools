@@ -254,7 +254,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetForUser' },
+    refreshOwner: { kind: 'deferred-queue', dataset: 'character_sheet' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -277,7 +277,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetForUser' },
+    refreshOwner: { kind: 'deferred-queue', dataset: 'character_sheet' },
     upstream: {
       kind: 'esi',
       specPaths: [
@@ -296,7 +296,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'entry-point', name: 'refreshCharacterSheetForUser' },
+    refreshOwner: { kind: 'deferred-queue', dataset: 'character_sheet' },
     upstream: {
       kind: 'esi',
       specPaths: ['/characters/{character_id}/'],

@@ -52,6 +52,10 @@ export function planSectionRead<K extends DirectSectionKey>(
   });
   if (errors.includes(DENIED_CODE)) return { kind: 'save', envelope: deniedEnvelope(previous, now) };
   if (errors.length > 0) return { kind: 'skip', code: errors[0] };
+  if (spec.key === 'journal' && parts.some((part) => reads[part].kind === 'unchanged')) {
+    // Journal reads are unconditional; a bodyless response is a transient upstream failure.
+    return { kind: 'skip', code: 'esi_server_error' };
+  }
   if (previous?.denied !== true && parts.every((part) => reads[part].kind === 'unchanged')) {
     return { kind: 'stamp' };
   }
@@ -172,6 +176,8 @@ export function planStructures(
       changed = true;
     } else if (read.kind === 'error') {
       retryCode = read.code;
+      const carried = previous?.names[key];
+      if (carried !== undefined) names[key] = carried;
     }
   }
   const pruned = Object.keys(previous?.names ?? {}).some((key) => !(key in names));

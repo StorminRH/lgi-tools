@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import type { SheetSections } from '@/features/character-sheet/types';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
 
 const mocks = vi.hoisted(() => ({
   listCharactersWithHealth: vi.fn(),
@@ -9,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   readSheetRow: vi.fn(),
   mergeSheetSection: vi.fn(),
   stampSheetSection: vi.fn(),
+  enqueueEsiRefreshJob: vi.fn(async () => 1),
+}));
+
+vi.mock('@/data/esi-refresh-jobs/queries', () => ({
+  enqueueEsiRefreshJob: mocks.enqueueEsiRefreshJob,
 }));
 
 vi.mock('./owner-sync-port', () => ({
@@ -26,6 +32,7 @@ vi.mock('@/features/character-sheet/queries', () => ({
 import {
   makeSheetPort,
   refreshCharacterSheetsOnView,
+  runCharacterSheetRefreshJob,
   SHEET_ESI_PATHS,
   STRUCTURE_ESI_PATH,
 } from './character-sheet-sync';
@@ -116,5 +123,83 @@ describe('makeSheetPort', () => {
     expect(mocks.readSingleEndpoint).toHaveBeenCalledWith('/universe/structures/1099000000001/', 'token', null);
     expect(mocks.mergeSheetSection).toHaveBeenCalledWith(7, 'wallet', sheet.wallet);
     expect(mocks.stampSheetSection).toHaveBeenCalledWith(7, 'wallet');
+  });
+});
+
+describe('character sheet budget recovery', () => {
+  const target = { ownerType: 'character' as const, ownerId: 1 };
+  const budget = new EsiBudgetExhaustedError(12, 'rate_limited', 900, '/characters/1/wallet/');
+
+  beforeEach(() => {
+    mocks.listCharactersWithHealth.mockResolvedValue([
+      { characterId: 1, corporationId: null, hasRefreshToken: true, missingScopes: [] },
+      { characterId: 2, corporationId: null, hasRefreshToken: true, missingScopes: [] },
+    ]);
+    mocks.vendTokenFor.mockResolvedValue('token');
+  });
+
+  it('queues a budget-blocked section with its character target and resource', async () => {
+    mocks.readSingleEndpoint.mockImplementation(async (path: string) => {
+      if (path === budget.resource) throw budget;
+      return { kind: 'fresh', body: BODIES[path.replace('/characters/2/', '/characters/1/')], etag: null };
+    });
+
+    await refreshCharacterSheetsOnView('user-1');
+
+    expect(mocks.enqueueEsiRefreshJob).toHaveBeenCalledExactlyOnceWith({
+      dataset: 'character_sheet', userId: 'user-1', target, error: budget,
+    });
+  });
+
+  it('keeps the queued job deferred when another section succeeded or failed permanently', async () => {
+    mocks.readSingleEndpoint.mockImplementation(async (path: string) => {
+      if (path === budget.resource) throw budget;
+      if (path === '/characters/1/implants/') return { kind: 'error', code: 'contract_error' };
+      return { kind: 'fresh', body: BODIES[path], etag: null };
+    });
+
+    await expect(runCharacterSheetRefreshJob('user-1', target)).resolves.toEqual({
+      kind: 'deferred_for_budget', target, error: budget,
+    });
+    expect(mocks.enqueueEsiRefreshJob).not.toHaveBeenCalled();
+    expect(mocks.vendTokenFor).toHaveBeenCalledExactlyOnceWith(1);
+    expect(mocks.readSingleEndpoint.mock.calls.every(([path]) => !String(path).includes('/characters/2/'))).toBe(true);
+  });
+
+  it('keeps a retryable section ahead of successful or permanently failed sections', async () => {
+    mocks.readSingleEndpoint.mockImplementation(async (path: string) => {
+      if (path === '/characters/1/wallet/') return { kind: 'error', code: 'esi_server_error' };
+      if (path === '/characters/1/implants/') return { kind: 'error', code: 'contract_error' };
+      return { kind: 'fresh', body: BODIES[path], etag: null };
+    });
+    await expect(runCharacterSheetRefreshJob('user-1', target)).resolves.toEqual({
+      kind: 'failed_retryable', target, code: 'esi_server_error',
+    });
+  });
+
+  it('settles success only when every eligible section completed', async () => {
+    await expect(runCharacterSheetRefreshJob('user-1', target)).resolves.toEqual({ kind: 'succeeded', target });
+  });
+
+  it('reports a remaining permanent failure after the other sections complete', async () => {
+    mocks.readSingleEndpoint.mockImplementation(async (path: string) =>
+      path === '/characters/1/wallet/'
+        ? { kind: 'error', code: 'contract_error' }
+        : { kind: 'fresh', body: BODIES[path], etag: null },
+    );
+    await expect(runCharacterSheetRefreshJob('user-1', target)).resolves.toEqual({
+      kind: 'failed_permanent', target, code: 'contract_error',
+    });
+  });
+
+  it.each([
+    { ownerType: 'character' as const, ownerId: 99 },
+    { ownerType: 'corporation' as const, ownerId: 1 },
+  ])('does not refresh an unavailable target %j', async (unavailable) => {
+    await expect(runCharacterSheetRefreshJob('user-1', unavailable)).resolves.toEqual({
+      kind: 'failed_permanent', target: unavailable, code: 'owner_unavailable',
+    });
+    expect(mocks.vendTokenFor).not.toHaveBeenCalled();
+    expect(mocks.readSingleEndpoint).not.toHaveBeenCalled();
   });
 });

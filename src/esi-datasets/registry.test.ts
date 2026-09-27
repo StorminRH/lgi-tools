@@ -307,7 +307,7 @@ describe('ESI dataset registry live gate', () => {
     }
   });
 
-  it('declares unique entry names and exactly one owner for every queue dataset', () => {
+  it('declares unique entry names and the explicit owners for every queue dataset', () => {
     const names = ESI_DATASET_ENTRIES.map((entry) => entry.name);
     expect(new Set(names).size).toBe(names.length);
 
@@ -318,7 +318,14 @@ describe('ESI dataset registry live gate', () => {
           && entry.refreshOwner.kind === 'deferred-queue'
           && entry.refreshOwner.dataset === dataset,
       );
-      expect(owners, dataset).toHaveLength(1);
+      if (dataset === 'character_sheet') {
+        // One dispatcher retries the sheet; its three entries retain their distinct TTLs.
+        expect(owners.map((owner) => owner.name).sort()).toEqual([
+          'character_sheet_daily', 'character_sheet_hourly', 'character_sheet_live',
+        ]);
+      } else {
+        expect(owners, dataset).toHaveLength(1);
+      }
     }
   });
 

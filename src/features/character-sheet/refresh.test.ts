@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CharacterOwner } from '@/platform/owner-sync';
 import { refreshCharacterSheetForUser } from './refresh';
+import { digestJournalBody } from './plan';
 import type {
   SectionEnvelope,
   SheetEndpoint,
@@ -195,6 +196,87 @@ describe('refreshCharacterSheetForUser', () => {
 
     expect(port.sheets.get(1)?.wallet).toEqual({ data: null, refreshedAt: NOW_ISO, etags: {}, denied: true });
     expect(port.sheets.get(1)?.journal?.data).toBeDefined();
+  });
+
+  it('retries hidden structure names after an hour while leaving named entries cached', async () => {
+    let now = NOW;
+    const port = makePort({
+      now: () => now,
+      readStructure: vi.fn(async (id): Promise<SheetEsiRead> =>
+        id === 1099000000001 && now === NOW
+          ? { kind: 'error', code: 'esi_403' }
+          : { kind: 'fresh', body: { name: `Recovered ${id}` }, etag: null },
+      ),
+    });
+    await refreshCharacterSheetForUser(port, 'u1');
+    expect(port.sheets.get(1)?.structures?.data?.names['1099000000001']).toEqual({ kind: 'hidden' });
+    vi.mocked(port.readStructure).mockClear();
+
+    now = new Date(NOW.getTime() + 30 * 60_000);
+    await refreshCharacterSheetForUser(port, 'u1');
+    expect(port.readStructure).not.toHaveBeenCalled();
+
+    now = new Date(NOW.getTime() + 60 * 60_000 + 1);
+    await refreshCharacterSheetForUser(port, 'u1');
+    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual([1099000000001]);
+    expect(port.sheets.get(1)?.structures?.data?.names['1099000000001'])
+      .toEqual({ kind: 'named', name: 'Recovered 1099000000001' });
+  });
+
+  it('reads unseen structures immediately without retrying a still-fresh hidden entry', async () => {
+    const port = makePort({
+      readStructure: vi.fn(async (id): Promise<SheetEsiRead> =>
+        id === 1099000000001
+          ? { kind: 'error', code: 'esi_403' }
+          : { kind: 'fresh', body: { name: `Structure ${id}` }, etag: null },
+      ),
+    });
+    await refreshCharacterSheetForUser(port, 'u1');
+    const sheet = port.sheets.get(1)!;
+    delete sheet.structures!.data!.names['1099000000002'];
+    vi.mocked(port.readStructure).mockClear();
+
+    await refreshCharacterSheetForUser(port, 'u1');
+    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual([1099000000002]);
+    expect(port.sheets.get(1)?.structures?.data?.names['1099000000001']).toEqual({ kind: 'hidden' });
+  });
+
+  it('fetches a full journal body to advance an unchanged empty window', async () => {
+    const earlier = new Date(NOW.getTime() - 2 * 24 * 60 * 60_000);
+    const sheet: SheetSections = {
+      ...freshSheet(ALL_KEYS),
+      journal: {
+        data: { journal: digestJournalBody([], earlier)! },
+        refreshedAt: earlier.toISOString(), etags: { journal: '"same-empty-body"' },
+      },
+    };
+    const port = makePort({}, new Map([[1, sheet]]));
+    await refreshCharacterSheetForUser(port, 'u1');
+    expect(port.readEndpoint).toHaveBeenCalledExactlyOnceWith(1, 'journal', 'token', null);
+    expect(port.sheets.get(1)?.journal?.data?.journal.windowStart)
+      .toBe(new Date(NOW.getTime() - 30 * 24 * 60 * 60_000).toISOString());
+    expect(port.stampSection).not.toHaveBeenCalled();
+  });
+
+  it('returns a retryable failure for an unexpected journal 304 without saving or stamping', async () => {
+    const sheet: SheetSections = {
+      ...freshSheet(ALL_KEYS),
+      journal: {
+        data: { journal: digestJournalBody([], new Date(STALE_STAMP))! },
+        refreshedAt: STALE_STAMP, etags: { journal: '"held"' },
+      },
+    };
+    const port = makePort({ readEndpoint: reader(() => ({ kind: 'unchanged' })) }, new Map([[1, sheet]]));
+
+    const results = await refreshCharacterSheetForUser(port, 'u1');
+
+    expect(results.filter((result) => result.kind !== 'succeeded')).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'character', ownerId: 1 }, code: 'esi_server_error' },
+    ]);
+    expect(port.readEndpoint).toHaveBeenCalledExactlyOnceWith(1, 'journal', 'token', null);
+    expect(port.mergeSection).not.toHaveBeenCalled();
+    expect(port.stampSection).not.toHaveBeenCalled();
+    expect(port.sheets.get(1)?.journal?.refreshedAt).toBe(STALE_STAMP);
   });
 
   it('reports a retryable failure for a server error without saving or stamping that section', async () => {
