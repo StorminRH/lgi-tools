@@ -7,6 +7,7 @@ import {
   parseImplantsBody,
   parseCurrentShipBody,
   parseOnlineStatusBody,
+  parseOrdersBody,
   parseWalletBody,
 } from './esi-projection';
 import { digestJournalBody } from './plan';
@@ -29,6 +30,7 @@ export const SHEET_SECTION_KEYS = [
   'clones',
   'wallet',
   'journal',
+  'orders',
   'structures',
 ] as const satisfies readonly SheetSectionKey[];
 
@@ -78,6 +80,12 @@ export const SHEET_SECTIONS: { [K in SheetSectionKey]: SheetSectionSpec<K> } = {
     tier: 'hourly',
     scopes: [WALLET_SCOPE],
     parts: { journal: { endpoint: 'journal', parse: digestJournalBody } },
+  },
+  orders: {
+    key: 'orders',
+    tier: 'hourly',
+    scopes: ['esi-markets.read_character_orders.v1'],
+    parts: { orders: { endpoint: 'orders', parse: parseOrdersBody } },
   },
   structures: {
     key: 'structures',

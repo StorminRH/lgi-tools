@@ -14,6 +14,7 @@ export const SHEET_ESI_PATHS = {
   clones: (id: number) => `/characters/${id}/clones/`,
   wallet: (id: number) => `/characters/${id}/wallet/`,
   journal: (id: number) => `/characters/${id}/wallet/journal/`,
+  orders: (id: number) => `/characters/${id}/orders/`,
 } as const satisfies Record<SheetEndpoint, (id: number) => string>;
 
 export const STRUCTURE_ESI_PATH = (structureId: number) => `/universe/structures/${structureId}/`;

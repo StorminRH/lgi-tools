@@ -4,6 +4,7 @@ import type {
   CharacterPart,
   ClonesPart,
   OnlinePart,
+  OrdersPart,
   ShipPart,
   StructureName,
 } from './types';
@@ -72,6 +73,15 @@ export type EsiJournalEntry = z.infer<typeof journalEntrySchema>;
 const structureBodySchema = z.object({
   name: z.string(),
 });
+
+const marketOrderSchema = z.object({
+  type_id: z.number().int(),
+  volume_remain: z.number().int(),
+  is_buy_order: z.boolean().optional(),
+  is_corporation: z.boolean(),
+  escrow: z.number().optional(),
+});
+const ordersBodySchema = z.array(marketOrderSchema);
 
 export function parseCharacterBody(body: unknown): CharacterPart | null {
   const parsed = characterBodySchema.safeParse(body);
@@ -155,4 +165,20 @@ export function parseJournalNewestFirst(body: unknown): EsiJournalEntry[] | null
 export function parseStructureBody(body: unknown): StructureName | null {
   const parsed = structureBodySchema.safeParse(body);
   return parsed.success ? { kind: 'named', name: parsed.data.name } : null;
+}
+
+/** Open personal orders only; orders placed for a corporation are corporate property, as CCP counts them. */
+export function parseOrdersBody(body: unknown): OrdersPart | null {
+  const parsed = ordersBodySchema.safeParse(body);
+  if (!parsed.success) return null;
+  const open = parsed.data
+    .filter((order) => !order.is_corporation)
+    .map((order) => ({
+      typeId: order.type_id,
+      volumeRemain: order.volume_remain,
+      isBuyOrder: order.is_buy_order ?? false,
+      escrow: order.is_buy_order === true ? (order.escrow ?? 0) : 0,
+    }))
+    .sort((a, b) => a.typeId - b.typeId || Number(a.isBuyOrder) - Number(b.isBuyOrder));
+  return { open };
 }

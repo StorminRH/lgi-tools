@@ -8,7 +8,7 @@ vi.mock('next/cache', () => ({
   revalidateTag: vi.fn(),
 }));
 
-import { getImplantDogma, getNpcStationFacts, getSkillCatalog, getSystemFacts } from './character-facts';
+import { getImplantDogma, getNpcStationFacts, getSkillCatalog, getSystemFacts, getTypeMarketFacts } from './character-facts';
 
 const harness = await createDbTestHarness({
   schema: 'test_character_facts',
@@ -131,6 +131,19 @@ describe.skipIf(!harness.reachable)('character facts read the SDE', () => {
       ]),
     );
     expect(await getImplantDogma([])).toEqual(new Map());
+  });
+
+  it('reports category, market group and published flag per type', async () => {
+    await harness.db.insert(eveTypes).values([{ id: 787, groupId: 105, name: 'Rifter Blueprint', published: true, marketGroupId: 1361 }]);
+    await harness.db.insert(eveGroups).values([group(105, 9, 'Frigate Blueprint')]);
+    expect(await getTypeMarketFacts([787, 3334, 3399, 1])).toEqual(
+      new Map([
+        [787, { categoryId: 9, marketGroupId: 1361, published: true }],
+        [3334, { categoryId: 16, marketGroupId: null, published: true }],
+        [3399, { categoryId: 16, marketGroupId: null, published: false }],
+      ]),
+    );
+    expect(await getTypeMarketFacts([])).toEqual(new Map());
   });
 
   it('builds the catalog from published skills only, ranked from dogma with a fallback', async () => {

@@ -97,7 +97,7 @@ describe('buildDemoBoard', () => {
 
   it('gives the tokenless character every gap and no data at all', () => {
     const bram = byName('Bram Oskarsen');
-    expect(bram.gaps).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry']);
+    expect(bram.gaps).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders', 'assets']);
     expect(bram.skills).toEqual({ state: 'reconnect' });
     expect(bram.wallet).toEqual({ state: 'reconnect' });
     expect(bram.status).toEqual({ state: 'reconnect' });
@@ -140,6 +140,40 @@ describe('buildDemoBoard', () => {
       'Amarr VIII (Oris) - Emperor Family Academy',
       'Sobaseki - Driftwood Anchorage',
     ]);
+  });
+
+  it('values the connected pilots and marks the others reconnect', () => {
+    const aurel = readyData(byName('Aurel Vantesse').netWorth);
+    expect(aurel.liquid).toBe(readyData(byName('Aurel Vantesse').wallet).balance);
+    expect(aurel.buyEscrow).toBe(7_900_000);
+    expect(aurel.implants).toBe(5 * 90_000_000 + 3 * 18_200_000);
+    expect(aurel.sellOrders).toBe(2 * 10_570_472.11 + 739_868_976.53);
+    expect(aurel.total).toBe(
+      Math.round((aurel.liquid + aurel.assets + aurel.sellOrders + aurel.buyEscrow + aurel.implants) * 100) / 100,
+    );
+    expect(aurel.assets).toBeGreaterThan(2_000_000_000);
+    expect(aurel.assets).toBeLessThan(2_200_000_000);
+    expect(byName('Kessa Draymoor').netWorth.state).toBe('ready');
+    expect(byName('Torvin Hale').netWorth.state).toBe('ready');
+    expect(byName('Ilyana Mirek').netWorth).toEqual({ state: 'reconnect' });
+    expect(byName('Bram Oskarsen').netWorth).toEqual({ state: 'reconnect' });
+  });
+
+  it("carries about 90 days of history with skipped days, ending on today's live figure", () => {
+    const days = full.history;
+    expect(days.length).toBeGreaterThan(60);
+    expect(days.length).toBeLessThan(90);
+    expect(days.every((day, i) => i === 0 || day.day > days[i - 1]!.day)).toBe(true);
+    expect(days.every((day) => day.included === 3 && day.total === 5)).toBe(true);
+    const ready = full.characters.filter((c) => c.netWorth.state === 'ready');
+    const last = days.at(-1)!;
+    expect(last.day).toBe('2026-09-27');
+    expect(last.netWorth).toBe(
+      Math.round(ready.reduce((sum, c) => sum + (c.netWorth.state === 'ready' ? c.netWorth.data.total : 0), 0) * 100) / 100,
+    );
+    expect(Object.keys(last.pilots)).toEqual(ready.map((c) => String(c.characterId)));
+    expect(buildDemoBoard(FIXTURE_NOW, 'empty').history).toEqual([]);
+    expect(buildDemoBoard(FIXTURE_NOW, 'reconnect').history).toEqual([]);
   });
 
   it('is deterministic for a fixed clock', () => {

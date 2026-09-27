@@ -28,6 +28,7 @@ const BODIES: Record<SheetEndpoint, unknown> = {
   },
   wallet: 12.5,
   journal: [],
+  orders: [],
 };
 
 const character = (id: number, extra: Partial<CharacterOwner> = {}): CharacterOwner => ({
@@ -82,7 +83,7 @@ function freshSheet(keys: SheetSectionKey[], refreshedAt = FRESH_STAMP): SheetSe
 }
 
 const ALL_KEYS: SheetSectionKey[] = [
-  'profile', 'status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'structures',
+  'profile', 'status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'orders', 'structures',
 ];
 
 describe('refreshCharacterSheetForUser', () => {
@@ -92,10 +93,10 @@ describe('refreshCharacterSheetForUser', () => {
     const results = await refreshCharacterSheetForUser(port, 'u1');
 
     expect(endpointsRead(port)).toEqual([
-      'attributes', 'character', 'clones', 'implants', 'journal', 'location', 'online', 'ship', 'wallet',
+      'attributes', 'character', 'clones', 'implants', 'journal', 'location', 'online', 'orders', 'ship', 'wallet',
     ]);
     expect(sectionsSaved(port).sort()).toEqual([...ALL_KEYS].sort());
-    expect(results).toHaveLength(8);
+    expect(results).toHaveLength(9);
     expect(results.every((result) => result.kind === 'succeeded')).toBe(true);
     expect(port.sheets.get(1)?.wallet).toEqual({ data: { balance: 12.5 }, refreshedAt: NOW_ISO, etags: { balance: '"wallet"' } });
   });
@@ -133,7 +134,7 @@ describe('refreshCharacterSheetForUser', () => {
 
   it('refreshes only the sections whose tier has expired', async () => {
     const sheet: SheetSections = {
-      ...freshSheet(['status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'structures']),
+      ...freshSheet(['status', 'attributes', 'implants', 'clones', 'wallet', 'journal', 'orders', 'structures']),
       profile: { data: { character: { birthday: '2014-03-11T09:42:00Z', securityStatus: null } }, refreshedAt: STALE_STAMP, etags: {} },
     };
     const port = makePort({}, new Map([[1, sheet]]));
@@ -157,7 +158,7 @@ describe('refreshCharacterSheetForUser', () => {
     expect(endpointsRead(port)).not.toContain('wallet');
     expect(endpointsRead(port)).not.toContain('journal');
     expect(vi.mocked(port.readEndpoint).mock.calls.every(([id]) => id === 1)).toBe(true);
-    expect(sectionsSaved(port).sort()).toEqual(['attributes', 'clones', 'implants', 'profile', 'status', 'structures']);
+    expect(sectionsSaved(port).sort()).toEqual(['attributes', 'clones', 'implants', 'orders', 'profile', 'status', 'structures']);
   });
 
   it('hands held ETags to ESI only for sections with previous data and stamps on 304', async () => {
@@ -166,7 +167,7 @@ describe('refreshCharacterSheetForUser', () => {
     };
     const port = makePort(
       {
-        listCharacters: vi.fn(async () => [character(1, { missingScopes: ['esi-location.read_online.v1', 'esi-skills.read_skills.v1', 'esi-clones.read_implants.v1', 'esi-clones.read_clones.v1', 'esi-universe.read_structures.v1'] })]),
+        listCharacters: vi.fn(async () => [character(1, { missingScopes: ['esi-location.read_online.v1', 'esi-skills.read_skills.v1', 'esi-clones.read_implants.v1', 'esi-clones.read_clones.v1', 'esi-universe.read_structures.v1', 'esi-markets.read_character_orders.v1'] })]),
         readEndpoint: reader((endpoint) =>
           endpoint === 'wallet' ? { kind: 'unchanged' } : { kind: 'fresh', body: BODIES[endpoint], etag: null },
         ),

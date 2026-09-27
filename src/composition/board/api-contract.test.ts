@@ -10,13 +10,14 @@ describe('boardEndpoint', () => {
   });
 
   it('pins the closed reconnect-gap vocabulary', () => {
-    expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry']);
+    expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders', 'assets']);
   });
 });
 
 describe('boardResponseSchema', () => {
   it('accepts an empty board with a catalog', () => {
-    expect(boardResponseSchema.parse({ characters: [], skillCatalog: [] })).toEqual({ characters: [], skillCatalog: [] });
+    const empty = { characters: [], skillCatalog: [], history: [] };
+    expect(boardResponseSchema.parse(empty)).toEqual(empty);
   });
 
   const section = { state: 'pending' } as const;
@@ -36,6 +37,7 @@ describe('boardResponseSchema', () => {
     wallet: section,
     journal: section,
     industry: section,
+    netWorth: section,
   };
 
   it('accepts pending and reconnect sections without data', () => {
@@ -46,6 +48,18 @@ describe('boardResponseSchema', () => {
   it('rejects a ready section without data and an unknown state', () => {
     expect(boardCharacterSchema.safeParse({ ...minimal, wallet: { state: 'ready', refreshedAt: 1 } }).success).toBe(false);
     expect(boardCharacterSchema.safeParse({ ...minimal, wallet: { state: 'stale' } }).success).toBe(false);
+  });
+
+  it('accepts a ready net worth and a history day, and rejects a malformed day', () => {
+    const netWorth = {
+      state: 'ready',
+      refreshedAt: 1,
+      data: { total: 6, liquid: 1, assets: 2, sellOrders: 1, buyEscrow: 1, implants: 1 },
+    };
+    expect(boardCharacterSchema.safeParse({ ...minimal, netWorth }).success).toBe(true);
+    const day = { day: '2026-09-27', netWorth: 6, liquidIsk: 1, included: 1, total: 2, pilots: { '1': { netWorth: 6, liquidIsk: 1 } } };
+    expect(boardResponseSchema.safeParse({ characters: [], skillCatalog: [], history: [day] }).success).toBe(true);
+    expect(boardResponseSchema.safeParse({ characters: [], skillCatalog: [], history: [{ ...day, day: '27/09/2026' }] }).success).toBe(false);
   });
 
   it('rejects a skill level outside 0..5 and an unlisted gap', () => {

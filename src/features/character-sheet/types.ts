@@ -10,6 +10,7 @@ export type SheetSectionKey =
   | 'clones'
   | 'wallet'
   | 'journal'
+  | 'orders'
   | 'structures';
 
 export type DirectSectionKey = Exclude<SheetSectionKey, 'structures'>;
@@ -83,6 +84,18 @@ export interface JournalDigest {
 
 export type StructureName = { kind: 'named'; name: string } | { kind: 'hidden' };
 
+export interface MarketOrder {
+  typeId: number;
+  volumeRemain: number;
+  isBuyOrder: boolean;
+  /** ISK held for a buy order; 0 for a sell order. */
+  escrow: number;
+}
+
+export interface OrdersPart {
+  open: MarketOrder[];
+}
+
 export interface SheetSectionData {
   profile: { character: CharacterPart };
   status: { location: LocationPart; ship: ShipPart; online: OnlinePart };
@@ -91,6 +104,7 @@ export interface SheetSectionData {
   clones: { clones: ClonesPart };
   wallet: { balance: number };
   journal: { journal: JournalDigest };
+  orders: { orders: OrdersPart };
   structures: { names: Record<string, StructureName> };
 }
 
@@ -132,7 +146,8 @@ export type SheetEndpoint =
   | 'implants'
   | 'clones'
   | 'wallet'
-  | 'journal';
+  | 'journal'
+  | 'orders';
 
 export interface PartSpec<K extends DirectSectionKey, P extends SheetPart<K>> {
   endpoint: SheetEndpoint;

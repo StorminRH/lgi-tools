@@ -4,6 +4,7 @@ import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
+import { NET_WORTH_HISTORY_DAYS } from '@/features/net-worth/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 import {
@@ -73,6 +74,14 @@ export const TABLE_GROWTH_STORIES = [
     retentionConstant: 'USAGE_LOG_RETENTION_DAYS',
     prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
     alsoPurgeManagedBy: 'telemetry',
+  },
+  {
+    kind: 'pruned',
+    table: schema.netWorthDays,
+    retentionDays: NET_WORTH_HISTORY_DAYS,
+    retentionConstant: 'NET_WORTH_HISTORY_DAYS',
+    prunedBy: 'each board snapshot write, a row cap to the newest 365 recorded days per account',
+    alsoPurgeManagedBy: 'net-worth',
   },
   {
     kind: 'pruned',

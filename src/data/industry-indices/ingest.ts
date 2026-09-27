@@ -67,12 +67,17 @@ async function persistAdjustedPrices(
         batch.map((r) => ({
           typeId: r.typeId,
           adjustedPrice: r.adjustedPrice,
+          averagePrice: r.averagePrice,
           updatedAt,
         })),
       )
       .onConflictDoUpdate({
         target: adjustedPrices.typeId,
-        set: { adjustedPrice: excluded('adjusted_price'), updatedAt: excluded('updated_at') },
+        set: {
+          adjustedPrice: excluded('adjusted_price'),
+          averagePrice: excluded('average_price'),
+          updatedAt: excluded('updated_at'),
+        },
       });
     written += batch.length;
   }

@@ -11,6 +11,7 @@ import { onlineStatusPurgeContributor } from '@/data/online-status/purge';
 import { locationTrackingPurgeContributor } from '@/data/location-tracking/purge';
 import { skillQueuePurgeContributor } from '@/features/skill-queue/purge';
 import { characterSheetPurgeContributor } from '@/features/character-sheet/purge';
+import { netWorthPurgeContributor } from '@/features/net-worth/purge';
 import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
@@ -40,4 +41,5 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   preferencesPurgeContributor,
   customStructuresPurgeContributor,
   savedPlansPurgeContributor,
+  netWorthPurgeContributor,
 ];

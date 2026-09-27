@@ -56,6 +56,7 @@ const TABLE_NAMES = [
   'user_preferences',
   'custom_structures',
   'saved_plans',
+  'net_worth_days',
 ] as const;
 
 const harness = await createDbTestHarness({
@@ -92,6 +93,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'session',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'net_worth_days',
       column: 'user_id',
       refTable: 'user',
       refColumn: 'id',
@@ -159,6 +167,10 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   }
 
   async function seedUserData() {
+    await harness.sql`
+      INSERT INTO net_worth_days (user_id, day, net_worth, liquid_isk, pilots_included, pilots_total, pilots, recorded_at)
+      VALUES (${USER_ID}, '2026-09-27', 1, 1, 1, 1, '{}'::jsonb, now())
+    `;
     await harness.db.insert(maps).values({
       id: '11111111-1111-4111-8111-111111111111',
       userId: USER_ID,
@@ -287,6 +299,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(userPreferences)).toHaveLength(1);
     expect(await countClonedRows('custom_structures')).toBe(1);
     expect(await countClonedRows('saved_plans')).toBe(1);
+    expect(await countClonedRows('net_worth_days')).toBe(1);
     expect(await harness.db.select().from(maps)).toHaveLength(1);
     expect(await harness.db.select().from(mapAccess)).toMatchObject([
       { ownerType: 'corporation', ownerId: 98000041 },
@@ -344,6 +357,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(userPreferences)).toHaveLength(0);
     expect(await countClonedRows('custom_structures')).toBe(0);
     expect(await countClonedRows('saved_plans')).toBe(0);
+    expect(await countClonedRows('net_worth_days')).toBe(0);
     expect(await harness.db.select().from(maps)).toHaveLength(0);
     expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
     expect(await harness.db.select().from(session)).toHaveLength(0);

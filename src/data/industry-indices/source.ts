@@ -22,6 +22,7 @@ const adjustedPricesBodySchema = z.array(
   z.object({
     type_id: z.number(),
     adjusted_price: z.number().optional(),
+    average_price: z.number().optional(),
   }),
 );
 
@@ -48,6 +49,7 @@ export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
   return result.data.map((r) => ({
     typeId: r.type_id,
     adjustedPrice: r.adjusted_price ?? null,
+    averagePrice: r.average_price ?? null,
   }));
 }
 
