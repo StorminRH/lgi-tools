@@ -1,20 +1,23 @@
 import { expect, type Page, test } from '@playwright/test';
-import { buildDemoBoard, FIXTURE_NOW } from '@/composition/board/demo-board';
+import { buildDemoBoard, type DemoVariant, FIXTURE_NOW } from '@/composition/board/demo-board';
 import { resolveE2eStorageStatePath } from './identity';
 
 test.use({ storageState: resolveE2eStorageStatePath() });
 
-test.beforeEach(async ({ page }) => {
+async function serveBoard(page: Page, variant: DemoVariant = 'full') {
   await page.clock.install({ time: FIXTURE_NOW });
   await page.route('**/api/account/board', (route) =>
-    route.fulfill({ json: buildDemoBoard(FIXTURE_NOW, 'full') }),
+    route.fulfill({ json: buildDemoBoard(FIXTURE_NOW, variant) }),
   );
-});
+}
 
-const pilots = (page: Page) => page.getByRole('group', { name: 'Characters' }).getByRole('button');
+const rail = (page: Page) => page.getByRole('navigation', { name: 'Pilots' });
+const pilot = (page: Page, id: number) => rail(page).locator(`[data-pilot-id="${id}"]`);
+const overview = (page: Page) => page.getByRole('region', { name: 'Pilot overview' });
 const sheet = (page: Page, name: string) => page.getByRole('article', { name: `${name} character sheet` });
 
 test('the board takes the folded hero’s place, and the hero keeps its DOM node', async ({ page }) => {
+  await serveBoard(page);
   type HeroProbe = Window & { heroAtParse?: Element | null };
   await page.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
@@ -23,7 +26,7 @@ test('the board takes the folded hero’s place, and the hero keeps its DOM node
   });
 
   await page.goto('/');
-  await expect(pilots(page)).toHaveCount(5, { timeout: 15_000 });
+  await expect(overview(page)).toBeVisible({ timeout: 15_000 });
 
   const kept = await page.evaluate(() => {
     const hero = (window as HeroProbe).heroAtParse;
@@ -36,64 +39,68 @@ test('the board takes the folded hero’s place, and the hero keeps its DOM node
     .toBe(0);
 });
 
-test('a pilot opens its sheet and Back returns to the roster without a document load', async ({ page }) => {
+test('several pilots open on the overview: the rail and the aggregate cards', async ({ page }) => {
+  await serveBoard(page);
+  await page.goto('/');
+  await expect(rail(page).locator('[data-pilot-id]')).toHaveCount(5, { timeout: 15_000 });
+  for (const title of ['Needs attention', 'Training', 'Wealth']) {
+    await expect(overview(page).locator('section').getByText(title, { exact: true }).first()).toBeVisible();
+  }
+});
+
+test('a pilot opens its sheet; Back and Escape return to the overview without a document load', async ({ page }) => {
+  await serveBoard(page);
   const documents: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'document') documents.push(request.url());
   });
   await page.goto('/');
-  await expect(pilots(page)).toHaveCount(5, { timeout: 15_000 });
+  await expect(overview(page)).toBeVisible({ timeout: 15_000 });
   await page.evaluate(() => {
     (window as Window & { boardProbe?: boolean }).boardProbe = true;
   });
   const loads = documents.length;
 
-  await pilots(page).nth(1).click();
+  await pilot(page, 9_900_000_002).click();
   await expect(sheet(page, 'Kessa Draymoor')).toBeVisible();
   await expect(page).toHaveURL(/[?&]character=9900000002/);
-  await expect(pilots(page)).toHaveCount(0);
+  await expect(pilot(page, 9_900_000_002)).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByRole('button', { name: /All characters/ }).click();
-  await expect(pilots(page)).toHaveCount(5);
+  await page.goBack();
+  await expect(overview(page)).toBeVisible();
   await expect(page).not.toHaveURL(/character=/);
 
-  await pilots(page).nth(2).click();
-  await expect(sheet(page, 'Torvin Hale')).toBeVisible();
-  await page.goBack();
-  await expect(pilots(page)).toHaveCount(5);
-
-  await page.goForward();
+  await pilot(page, 9_900_000_003).click();
   await expect(sheet(page, 'Torvin Hale')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(pilots(page)).toHaveCount(5);
+  await expect(overview(page)).toBeVisible();
+
+  await pilot(page, 9_900_000_004).click();
+  await expect(
+    page.getByText('Reconnect Ilyana Mirek to add wallet, clones, implants and structure names.').first(),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'All pilots' }).click();
+  await expect(overview(page)).toBeVisible();
 
   expect(documents.length, documents.join('\n')).toBe(loads);
   expect(await page.evaluate(() => (window as Window & { boardProbe?: boolean }).boardProbe)).toBe(true);
 });
 
-test('Ilyana’s sheet carries the one reconnect sentence', async ({ page }) => {
+test('a single-pilot account lands on that pilot’s sheet with no rail', async ({ page }) => {
+  await serveBoard(page, 'one');
   await page.goto('/');
-  await pilots(page).nth(3).click();
-  await expect(
-    page.getByText('Reconnect Ilyana Mirek to add wallet, clones, implants and structure names.'),
-  ).toBeVisible();
-});
-
-test('a reload opens the named character and an unknown one falls back to the roster', async ({ page }) => {
-  await page.goto('/?character=9900000003');
-  await expect(sheet(page, 'Torvin Hale')).toBeVisible({ timeout: 15_000 });
-  await page.goto('/?character=42');
-  await expect(pilots(page)).toHaveCount(5, { timeout: 15_000 });
+  await expect(sheet(page, 'Aurel Vantesse')).toBeVisible({ timeout: 15_000 });
+  await expect(rail(page)).toHaveCount(0);
 });
 
 test('the board fits a phone without horizontal page scroll', async ({ page }) => {
+  await serveBoard(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(pilots(page)).toHaveCount(5, { timeout: 15_000 });
-  const fits = () =>
-    page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  await expect(overview(page)).toBeVisible({ timeout: 15_000 });
+  const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   expect(await fits()).toBe(true);
-  await pilots(page).first().click();
+  await pilot(page, 9_900_000_001).click();
   await expect(sheet(page, 'Aurel Vantesse')).toBeVisible();
   expect(await fits()).toBe(true);
 });
