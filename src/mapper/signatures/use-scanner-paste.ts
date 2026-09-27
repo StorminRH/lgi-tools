@@ -54,12 +54,14 @@ export function applyScannerRows(
 function reportPasteDecision(
   decision: ScannerPasteDecision,
   applyRows: (systemId: number, rows: readonly ScannedRow[]) => Promise<void>,
-  onChoose: (pending: PendingScannerPaste) => void,
+  onPendingPasteChange: (pending: PendingScannerPaste | null) => void,
 ): void {
   if (decision.kind === 'choose') {
-    onChoose({ candidates: decision.candidates, rows: decision.rows });
+    onPendingPasteChange({ candidates: decision.candidates, rows: decision.rows });
     return;
   }
+  // A new scanner paste supersedes any scan still waiting for a character.
+  onPendingPasteChange(null);
   if (decision.kind !== 'apply') {
     const refusal = scannerPasteRefusalToast(decision);
     toast.error(refusal.message, refusal.options);
@@ -75,9 +77,9 @@ export function useScannerPaste(input: {
     systemId: number,
     rows: readonly ScannedRow[],
   ) => Promise<void>;
-  readonly onChoose: (pending: PendingScannerPaste) => void;
+  readonly onPendingPasteChange: (pending: PendingScannerPaste | null) => void;
 }): void {
-  const { canEdit, pasteTarget, applyRows, onChoose } = input;
+  const { canEdit, pasteTarget, applyRows, onPendingPasteChange } = input;
   useEffect(() => {
     function handlePaste(event: ClipboardEvent): void {
       if (yieldsToFocusedSurface(event)) return;
@@ -85,10 +87,10 @@ export function useScannerPaste(input: {
       const decision = scannerPasteDecision(text, canEdit, pasteTarget);
       if (decision === null) return;
       event.preventDefault();
-      reportPasteDecision(decision, applyRows, onChoose);
+      reportPasteDecision(decision, applyRows, onPendingPasteChange);
     }
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [applyRows, canEdit, onChoose, pasteTarget]);
+  }, [applyRows, canEdit, onPendingPasteChange, pasteTarget]);
 }

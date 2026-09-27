@@ -134,7 +134,7 @@ export function useSignatureMissingFlow(input: {
     canEdit: input.canEdit,
     pasteTarget: input.pasteTarget,
     applyRows,
-    onChoose: setPendingPaste,
+    onPendingPasteChange: setPendingPaste,
   });
   const { onScannerChosen } = input;
   const chooseScanner = useCallback(
