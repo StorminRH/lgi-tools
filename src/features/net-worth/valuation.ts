@@ -2,16 +2,16 @@ import {
   BLUEPRINT_CATEGORY_ID,
   EXCLUDED_LOCATION_FLAGS,
   IMPLANT_LOCATION_FLAG,
-  JITA_SPREAD_FLOOR_RATIO,
   PLEX_TYPE_ID,
   SKIN_CATEGORY_ID,
 } from './constants';
 
 export interface UnitPrices {
-  /** Mean of the Jita 5% buy and sell percentiles, one side when only one exists; null when the spread is junk. */
+  /**
+   * Mean of the Jita 5% buy and sell percentiles, one side when only one exists. The book's buy figures
+   * pass the market-prices spread floor first, so a junk bid under a thin ask leaves the sell side alone.
+   */
   jitaMid: number | null;
-  /** The Jita sell side on its own, the last resort when the mid is junk and CCP has no average. */
-  jitaSell: number | null;
   /** CCP's rolling average from /markets/prices. */
   average: number | null;
 }
@@ -69,22 +69,15 @@ function bookSides(book: BookSides): { buy: number | null; sell: number | null }
 export function jitaMid(book: BookSides): number | null {
   const { buy, sell } = bookSides(book);
   if (buy === null || sell === null) return buy ?? sell;
-  return buy < sell * JITA_SPREAD_FLOOR_RATIO ? null : (buy + sell) / 2;
+  return (buy + sell) / 2;
 }
 
-export function jitaSell(book: BookSides): number | null {
-  return bookSides(book).sell;
-}
-
-/**
- * min(Jita mid, CCP average) guards thin Jita books; a junk spread drops the mid so the average
- * stands alone, and the bare sell side is the last resort. PLEX has no Jita book and always takes the average.
- */
+/** min(Jita mid, CCP average) guards thin Jita books; PLEX has no Jita book and always takes the average. */
 export function unitValue(typeId: number, prices: UnitPrices | undefined): number | null {
   if (prices === undefined) return null;
   if (typeId === PLEX_TYPE_ID) return prices.average;
   if (prices.jitaMid !== null && prices.average !== null) return Math.min(prices.jitaMid, prices.average);
-  return prices.jitaMid ?? prices.average ?? prices.jitaSell;
+  return prices.jitaMid ?? prices.average;
 }
 
 function roundIsk(value: number): number {

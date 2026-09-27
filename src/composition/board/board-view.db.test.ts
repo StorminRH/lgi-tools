@@ -91,7 +91,7 @@ const ISHTAR = 12005;
 const CARACAL = 621;
 
 const WALLET = 3204115882.15;
-/** Tritanium min(4.0, 3.5); Tengu min(228M, 224M); PLEX at average; Ishtar junk spread -> average; Caracal junk spread, no average -> sell. */
+/** Tritanium min(4.0, 3.5); Tengu min(228M, 224M); PLEX at average; Ishtar's junk bid is floored away so min(ask 139.095M, average); Caracal likewise, no average, so the ask. */
 const ASSET_VALUE = 1_000_000 * 3.5 + 224_000_000 + 10 * 4_690_000 + 138_145_641.51 + 12_000_000;
 const SELL_ORDERS = 2 * 224_000_000;
 const BUY_ESCROW = 1_750;
@@ -270,8 +270,8 @@ async function seedWealth() {
     priceRow(RIFTER_BLUEPRINT, 2_000_000),
     priceRow(TENGU_SKIN, 500_000_000),
     priceRow(CALDARI_CRUISER_SKILLBOOK, 1_000_000),
-    { ...priceRow(ISHTAR, 139_095_000), pct5Buy: 3_275_400, pct5Sell: 139_095_000 },
-    { ...priceRow(CARACAL, 12_000_000), pct5Buy: 490_497, pct5Sell: 12_000_000 },
+    { ...priceRow(ISHTAR, 139_095_000), bestBuy: 3_300_000, pct5Buy: 3_275_400, pct5Sell: 139_095_000 },
+    { ...priceRow(CARACAL, 12_000_000), bestBuy: 500_000, pct5Buy: 490_497, pct5Sell: 12_000_000 },
   ]);
   await harness.db.insert(adjustedPrices).values([
     { typeId: TRITANIUM, adjustedPrice: 3.07, averagePrice: 3.5, updatedAt: new Date(STAMP) },
@@ -443,7 +443,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     expect(ilyana?.status).toEqual({ state: 'reconnect' });
   });
 
-  it('values the synced pilot from stored prices only, guarding junk spreads and excluding blueprints, SKINs and skillbooks', async () => {
+  it('values the synced pilot from stored prices only, flooring junk bids and excluding blueprints, SKINs and skillbooks', async () => {
     const board = await getBoardForUserOnView(USER_ID);
     const [aurel, bram, ilyana] = board.characters;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jitaMid, jitaSell, type PriceBook, type TypeCategories, unitValue, valueCharacter } from './valuation';
+import { jitaMid, type PriceBook, type TypeCategories, unitValue, valueCharacter } from './valuation';
 
 const TRITANIUM = 34;
 const TENGU = 29984;
@@ -11,11 +11,7 @@ const SKIN = 42000;
 const SKILLBOOK = 3334;
 const UNPRICED = 999_999;
 
-const quote = (jitaMid: number | null, average: number | null, jitaSell: number | null = jitaMid) => ({
-  jitaMid,
-  jitaSell,
-  average,
-});
+const quote = (jitaMid: number | null, average: number | null) => ({ jitaMid, average });
 
 const PRICES: PriceBook = new Map([
   [TRITANIUM, quote(4, 3.5)],
@@ -48,20 +44,8 @@ describe('jitaMid', () => {
     expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: null, bestSell: null })).toBeNull();
   });
 
-  it('returns null for a junk spread where the buy side is under half the sell side', () => {
-    expect(jitaMid({ pct5Buy: 3_275_400, pct5Sell: 139_095_000, bestBuy: 1, bestSell: 139_000_000 })).toBeNull();
-    expect(jitaMid({ pct5Buy: 69_500_000, pct5Sell: 139_000_000, bestBuy: null, bestSell: null })).toBe(104_250_000);
-    expect(jitaMid({ pct5Buy: 69_499_999, pct5Sell: 139_000_000, bestBuy: null, bestSell: null })).toBeNull();
-    expect(jitaMid({ pct5Buy: null, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBeNull();
-  });
-});
-
-describe('jitaSell', () => {
-  it('reads the 5% sell percentile, else the best sell, else null', () => {
-    expect(jitaSell({ pct5Buy: 3, pct5Sell: 5, bestBuy: 1, bestSell: 9 })).toBe(5);
-    expect(jitaSell({ pct5Buy: 3, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBeNull();
-    expect(jitaSell({ pct5Buy: null, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBe(9);
-    expect(jitaSell({ pct5Buy: null, pct5Sell: null, bestBuy: null, bestSell: null })).toBeNull();
+  it('prefers the percentile pair even when only one percentile exists', () => {
+    expect(jitaMid({ pct5Buy: 3, pct5Sell: null, bestBuy: 1, bestSell: 9 })).toBe(3);
   });
 });
 
@@ -73,13 +57,6 @@ describe('unitValue', () => {
     expect(unitValue(TENGU, quote(200, null))).toBe(200);
     expect(unitValue(TENGU, quote(null, null))).toBeNull();
     expect(unitValue(TENGU, undefined)).toBeNull();
-  });
-
-  it('uses the CCP average for an Ishtar-like junk spread, and the bare sell side when there is no average', () => {
-    const ISHTAR = 12005;
-    expect(unitValue(ISHTAR, quote(null, 138_145_641.51, 139_095_000))).toBe(138_145_641.51);
-    expect(unitValue(ISHTAR, quote(null, null, 139_095_000))).toBe(139_095_000);
-    expect(unitValue(ISHTAR, quote(120_000_000, 138_145_641.51, 139_095_000))).toBe(120_000_000);
   });
 
   it('prices PLEX at the CCP average even when a Jita figure exists', () => {

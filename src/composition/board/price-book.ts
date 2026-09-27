@@ -1,15 +1,26 @@
 import { db } from '@/db';
 import { getTypeMarketFacts } from '@/data/eve-data/character-facts';
 import { getAveragePrices } from '@/data/industry-indices/queries';
+import { applySpreadFloorToBuyFigures } from '@/data/market-prices/book-math';
 import { seedPlaceholderPrices } from '@/data/market-prices/ingest';
 import { getPrices } from '@/data/market-prices/queries';
-import { jitaMid, jitaSell, type PriceBook, type TypeCategories, type UnitPrices } from '@/features/net-worth/valuation';
+import type { MarketPrice } from '@/data/market-prices/types';
+import { jitaMid, type PriceBook, type TypeCategories, type UnitPrices } from '@/features/net-worth/valuation';
 
 export interface ValuationBook {
   prices: PriceBook;
   categories: TypeCategories;
   /** Published, marketable types with no market_prices row yet; seeding them lets the nightly sweep price them. */
   unseeded: number[];
+}
+
+/**
+ * Rows written before the ingest learned to drop bids under the spread floor still carry junk buy sides;
+ * flooring them here (the same rule the ingest applies) leaves only the ask, so min(ask, average) applies.
+ */
+function flooredMid(book: MarketPrice): number | null {
+  const buy = applySpreadFloorToBuyFigures(book, book.bestSell);
+  return jitaMid({ ...buy, pct5Sell: book.pct5Sell, bestSell: book.bestSell });
 }
 
 /** Stored prices only: one IN query each to market_prices and adjusted_prices, never an ESI call on view. */
@@ -22,10 +33,9 @@ export async function resolveValuationBook(typeIds: number[]): Promise<Valuation
   const prices = new Map<number, UnitPrices>();
   for (const typeId of typeIds) {
     const book = books.get(typeId);
-    const mid = book === undefined ? null : jitaMid(book);
-    const sell = book === undefined ? null : jitaSell(book);
+    const mid = book === undefined ? null : flooredMid(book);
     const average = averages.get(typeId) ?? null;
-    if (mid !== null || sell !== null || average !== null) prices.set(typeId, { jitaMid: mid, jitaSell: sell, average });
+    if (mid !== null || average !== null) prices.set(typeId, { jitaMid: mid, average });
   }
   const categories = new Map<number, number>();
   const unseeded: number[] = [];

@@ -245,7 +245,7 @@ const DEMO_PLACES = new Map([
   [HEK_8_12, { name: 'Hek VIII - Moon 12 - Boundless Creation Factory', systemId: HEK }],
 ]);
 
-const price = (jitaMid: number | null, average: number | null) => ({ jitaMid, jitaSell: jitaMid, average });
+const price = (jitaMid: number | null, average: number | null) => ({ jitaMid, average });
 
 /** Rounded from the local Jita book and CCP averages on 2026-09-27; PLEX has no Jita book. */
 const DEMO_PRICES: PriceBook = new Map([
