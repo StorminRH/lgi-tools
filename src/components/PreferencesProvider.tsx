@@ -13,12 +13,14 @@ import {
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
 import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
 import { authClient } from '@/platform/auth/auth-client';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { apiFetch } from '@/transport/api-client';
 import {
   PREFERENCES,
   RETIRED_PREFERENCE_KEYS,
   peekLocalPreference,
   pruneRetiredPreferences,
+  syncPreferenceCookies,
   writeLocalPreference,
   writePreferenceCookie,
   type PreferenceDef,
@@ -42,7 +44,10 @@ function readLocalValues(): Map<string, unknown> {
 }
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
-  const { data, isPending } = authClient.useSession();
+  const { data } = authClient.useSession();
+  // AuthProvider's settled flag, not better-auth's isPending: a signed-out
+  // refetch on window focus must not rebuild every preference consumer.
+  const { loading } = useAuth();
   const userId = data?.user?.id ?? null;
 
   const [values, setValues] = useState<Map<string, unknown>>(() => new Map());
@@ -54,7 +59,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    if (isPending) return;
+    if (loading) return;
     let alive = true;
 
     const timer = setTimeout(() => {
@@ -62,7 +67,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       if (RETIRED_PREFERENCE_KEYS.length > 0) pruneRetiredPreferences();
 
       if (!userId) {
-        setValues(readLocalValues());
+        const local = readLocalValues();
+        syncPreferenceCookies(local);
+        setValues(local);
         setReady(true);
         return;
       }
@@ -73,6 +80,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         if (!alive) return;
 
         const { reconciled, toSeed } = processPreferencesResponse(res, readLocalValues());
+        syncPreferenceCookies(reconciled);
         setValues(reconciled);
         setReady(true);
 
@@ -86,7 +94,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       alive = false;
       clearTimeout(timer);
     };
-  }, [isPending, userId]);
+  }, [loading, userId]);
 
   const set = useCallback(function set<T>(def: PreferenceDef<T>, value: T): void {
     setValues((prev) => {

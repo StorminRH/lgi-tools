@@ -1,4 +1,5 @@
 import { HeroBanner } from '@/components/composition/HeroBanner';
+import { HomeHeroPitch } from '@/components/composition/HomeHeroPitch';
 import { HomeHeroSearch } from '@/components/composition/HomeHeroSearch';
 
 // Decorative orbit rings behind the wordmark. Each ring carries one or two
@@ -32,18 +33,21 @@ function HomeOrbits() {
   );
 }
 
-export function HomeHero({ pitch = true }: { pitch?: boolean }) {
+// Session-independent on purpose: the hero is static shell, and nothing above
+// it may branch on the session, or resolving it would remount the hero and
+// restart every animation in it.
+export function HomeHero() {
   return (
-    <section className="home-hero relative isolate flex flex-col items-center gap-7 pt-14 pb-6 text-center">
+    <section className="home-hero relative isolate flex flex-col items-center pt-14 pb-6 text-center">
       <HomeOrbits />
       <HeroBanner />
-      {pitch && (
+      <HomeHeroPitch>
         <p className="reveal reveal-3 max-w-[560px] text-lead leading-[1.7] text-text">
           Eve Online tools for wormhole and industry pilots: a searchable wormhole
           site database with live Jita loot prices, and a manufacturing
           profitability planner.
         </p>
-      )}
+      </HomeHeroPitch>
       <HomeHeroSearch />
     </section>
   );

@@ -111,7 +111,7 @@ describe('SystemIntelligenceBody', () => {
     const body = bodyMarkup([combatSite, gas]);
     expect(body).toContain('>8.6M<');
     expect(body).toContain('>30.0M<');
-    expect(refresh).toHaveBeenCalledWith([30370], { enabled: true });
+    expect(refresh).toHaveBeenCalledWith([30370], { enabled: true, refreshKey: '30370' });
   });
 
   it('renders class or security as a title accessory and omits it until data resolves', () => {

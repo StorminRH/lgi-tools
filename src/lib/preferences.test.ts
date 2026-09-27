@@ -61,6 +61,7 @@ const {
   writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
+  syncPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -278,5 +279,21 @@ describe('retired preference keys', () => {
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
+  });
+});
+
+describe('syncPreferenceCookies', () => {
+  it('writes resolved values to the SSR cookie and leaves localStorage alone', () => {
+    lastCookieWrite = '';
+    window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('cards'));
+    syncPreferenceCookies(new Map([[sitesView.key, 'table']]));
+    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
+    expect(peekLocalPreference(sitesView)).toBe('cards');
+  });
+
+  it('leaves unresolved keys alone', () => {
+    lastCookieWrite = '';
+    syncPreferenceCookies(new Map());
+    expect(lastCookieWrite).toBe('');
   });
 });

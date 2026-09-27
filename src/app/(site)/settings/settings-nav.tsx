@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NavRailDrawer, NavRailPanel } from '@/components/ui/nav-rail';
 import { eyebrow } from '@/components/ui/type-roles';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 import {
   deriveActiveSettingsSection,
+  visibleSettingsGroups,
   type SettingsGroup,
   type SettingsSection,
 } from './settings-sections';
@@ -58,7 +60,7 @@ function SettingsNavTree({
   );
 }
 
-export function SettingsNavFrame({
+function SettingsNavFrame({
   groups,
   active,
 }: {
@@ -81,7 +83,14 @@ export function SettingsNavFrame({
   );
 }
 
-export function SettingsNav({ groups }: { groups: readonly SettingsGroup[] }) {
+// The rail reads the client session rather than awaiting one on the server, so
+// it prerenders into the static shell; only the admin group waits on sign-in.
+export function SettingsNav() {
   const pathname = usePathname();
+  const groups = visibleSettingsGroups(useAuth().isAdmin);
   return <SettingsNavFrame groups={groups} active={deriveActiveSettingsSection(pathname, groups)} />;
+}
+
+export function SettingsNavFallback() {
+  return <SettingsNavFrame groups={visibleSettingsGroups(false)} active={null} />;
 }

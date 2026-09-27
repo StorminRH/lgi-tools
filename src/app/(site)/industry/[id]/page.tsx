@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -63,6 +64,10 @@ export async function generateMetadata({
 }
 
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
+  // The open-timing metrics schedule after() work, which only exists at request
+  // time. The structure read is cached, so without this Next would prerender
+  // down to the first metric and fail on the timestamp after() takes.
+  await connection();
   const plannerTimer = startCostTimer();
   const { id: rawId } = await params;
   const id = parseNumericRouteId(rawId);

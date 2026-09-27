@@ -11,6 +11,7 @@ import {
   recentsStatus,
   savedStatus,
   type SectionStatus,
+  settledSectionOrder,
 } from './dashboard-sections';
 
 function status(
@@ -18,6 +19,21 @@ function status(
 ): Record<DashboardSectionId, SectionStatus> {
   return { recents: 'populated', saved: 'populated', active: 'populated', corp: 'populated', ...overrides };
 }
+
+describe('settledSectionOrder', () => {
+  it('holds while any section is pending, so a painted grid is not reshuffled', () => {
+    expect(settledSectionOrder(status({ corp: 'pending', saved: 'empty' }))).toBeNull();
+  });
+
+  it('sorts once every section has settled', () => {
+    expect(settledSectionOrder(status({ saved: 'empty' }))).toEqual([
+      'recents',
+      'active',
+      'corp',
+      'saved',
+    ]);
+  });
+});
 
 describe('orderSections', () => {
 

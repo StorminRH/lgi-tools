@@ -31,7 +31,15 @@ export interface RefreshOnViewResult {
 
 export function useRefreshOnView(
   typeIds: number[],
-  opts: { enabled: boolean; onBatch?: (prices: Map<number, RefreshedPrice>) => void },
+  opts: {
+    enabled: boolean;
+    onBatch?: (prices: Map<number, RefreshedPrice>) => void;
+    // typeIds are read once per run on purpose: the planner's list changes on
+    // every plan edit and must not refire refreshes. Changing this starts a
+    // new run for the current typeIds, without a `key` remounting whatever
+    // the caller renders around the hook.
+    refreshKey?: string;
+  },
 ): RefreshOnViewResult {
   const [prices, setPrices] = useState<Map<number, RefreshedPrice>>(() => new Map());
   const [pending, setPending] = useState<Set<number>>(() => new Set());
@@ -44,7 +52,7 @@ export function useRefreshOnView(
     onBatchRef.current = opts.onBatch;
   });
 
-  const { enabled } = opts;
+  const { enabled, refreshKey } = opts;
 
   useEffect(() => {
     if (!enabled) return;
@@ -104,7 +112,7 @@ export function useRefreshOnView(
     })();
 
     return () => controller.abort();
-  }, [enabled]);
+  }, [enabled, refreshKey]);
 
   const isPending = useCallback((typeId: number) => pending.has(typeId), [pending]);
 
