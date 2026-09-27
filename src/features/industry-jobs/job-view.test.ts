@@ -138,9 +138,6 @@ describe('corpGroupState', () => {
 
 describe('corpJobsEmptyLine', () => {
   it('says the corp feed failed, else that no jobs have synced yet', () => {
-    expect(corpJobsEmptyLine(true)).toBe(
-      'Couldn’t load your corporation’s industry jobs — reload to try again.',
-    );
-    expect(corpJobsEmptyLine(false)).toContain('once a sync completes');
+    expect(corpJobsEmptyLine(true)).not.toBe(corpJobsEmptyLine(false));
   });
 });

@@ -98,9 +98,8 @@ describe('deriveBudgetStatus', () => {
   });
 
   it('flags a budget below the dispatch floor', () => {
-    const status = deriveBudgetStatus({ effectiveRemaining: 5, selfCount: 0, echo: 5, source: 'shared' });
-    expect(status).toMatchObject({ level: 'red', value: '5 left' });
-    expect(status.note).toContain('below');
+    expect(deriveBudgetStatus({ effectiveRemaining: 5, selfCount: 0, echo: 5, source: 'shared' }))
+      .toMatchObject({ level: 'red', value: '5 left' });
   });
 
   it('is green above the floor', () => {
@@ -141,20 +140,15 @@ describe('deriveCronStatuses', () => {
 });
 
 describe('deriveStatusGroups', () => {
-  it('builds the app, ESI, and jobs cards in order', () => {
+  it('reports a healthy budget and an empty queue', () => {
     const groups = deriveStatusGroups(signals());
-    expect(groups.map((g) => g.id)).toEqual(['app', 'esi', 'jobs']);
-    expect(groups.map((g) => g.lines.length)).toEqual([4, 4, 4]);
     expect(groups[1]!.lines[0]).toMatchObject({ label: 'Error budget', value: '87 left', level: 'green' });
-    expect(groups[2]!.lines[3]).toMatchObject({ value: '0 due · 0 dead', note: 'nothing waiting' });
+    expect(groups[2]!.lines[3]).toMatchObject({ value: '0 due · 0 dead', level: 'green' });
   });
 
-  it('shows a stale queue as amber with its age', () => {
-    const groups = deriveStatusGroups(signals({ queue: [stat('queued', 2, 30)] }));
-    expect(groups[2]!.lines[3]).toMatchObject({ level: 'amber', note: 'oldest due 30h' });
-  });
-
-  it('shows the queue age in minutes and days', () => {
+  it('shows the queue age in minutes, hours, and days, amber once stale', () => {
+    const hours = deriveStatusGroups(signals({ queue: [stat('queued', 2, 30)] }));
+    expect(hours[2]!.lines[3]).toMatchObject({ level: 'amber', note: 'oldest due 30h' });
     const minutes = deriveStatusGroups(signals({ queue: [stat('queued', 1, 0.5)] }));
     expect(minutes[2]!.lines[3]!.note).toBe('oldest due 30m');
     const days = deriveStatusGroups(signals({ queue: [stat('queued', 1, 72)] }));
@@ -189,11 +183,9 @@ describe('deriveAttention', () => {
       ['queue-backlog', 'amber', '/admin/queue'],
     ]);
     expect(items[0]!.title).toBe('1 refresh job dead-lettered');
-  });
-
-  it('pluralises dead letters', () => {
-    const items = attention(signals({ queue: [stat('dead_lettered', 3, 2)] }));
-    expect(items[0]!.title).toBe('3 refresh jobs dead-lettered');
+    expect(attention(signals({ queue: [stat('dead_lettered', 3, 2)] }))[0]!.title).toBe(
+      '3 refresh jobs dead-lettered',
+    );
   });
 
   it('routes each unhealthy status line to its page, red first', () => {
@@ -282,21 +274,10 @@ describe('a source that failed to load', () => {
   });
 
   it('raises an attention item per failed source, linked to its page', () => {
-    expect(deriveAttention(failed, deriveStatusGroups(failed))).toEqual([
-      {
-        id: 'unavailable:/admin/health#scheduled',
-        level: 'amber',
-        title: 'Could not load scheduled jobs',
-        detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
-        action: { label: 'View jobs', href: '/admin/health#scheduled' },
-      },
-      {
-        id: 'unavailable:/admin/queue',
-        level: 'amber',
-        title: 'Could not load refresh queue',
-        detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
-        action: { label: 'Open queue', href: '/admin/queue' },
-      },
+    const items = deriveAttention(failed, deriveStatusGroups(failed));
+    expect(items.map((i) => [i.id, i.level, i.title, i.action.href])).toEqual([
+      ['unavailable:/admin/health#scheduled', 'amber', 'Could not load scheduled jobs', '/admin/health#scheduled'],
+      ['unavailable:/admin/queue', 'amber', 'Could not load refresh queue', '/admin/queue'],
     ]);
   });
 

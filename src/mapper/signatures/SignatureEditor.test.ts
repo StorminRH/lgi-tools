@@ -5,7 +5,7 @@ import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
-import { editorLeader, SCANNER_CARD_RISE_PX } from './editor-leader';
+import { editorLeader } from './editor-leader';
 import { measureEditorLeader } from './ScannerAnchoredPanel';
 import { SignatureEditor } from './SignatureEditor';
 
@@ -98,7 +98,7 @@ it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when
     panel: wide,
     origin,
   });
-  expect(callout?.end).toEqual({ x: 280, y: 114 - SCANNER_CARD_RISE_PX });
+  expect(callout?.end).toEqual({ x: 280, y: 74 });
   expect(callout?.path.startsWith('M 183 114 L ')).toBe(true);
   expect(callout?.path).toContain(' Q ');
 

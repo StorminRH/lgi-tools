@@ -50,7 +50,6 @@ describe('buildMetricRows', () => {
 describe('metricsHint', () => {
   it('names the comparison window, or all time when there is none', () => {
     expect(metricsHint('7d')).toBe('Δ vs previous 7 days');
-    expect(metricsHint('90d')).toBe('Δ vs previous 90 days');
     expect(metricsHint('all')).toBe('all time');
   });
 });

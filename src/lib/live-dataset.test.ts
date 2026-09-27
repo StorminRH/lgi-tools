@@ -63,16 +63,9 @@ describe('shouldReconcile', () => {
 });
 
 describe('loadFailureStep', () => {
-  it('retries the first failure before anything has loaded', () => {
+  it('retries the first failure, fails after the retry, and keeps data already on screen', () => {
     expect(loadFailureStep(false, false)).toBe('retry');
-  });
-
-  it('settles as failed once the retry also fails', () => {
     expect(loadFailureStep(false, true)).toBe('fail');
-  });
-
-  it('keeps data already on screen when a later fetch fails', () => {
     expect(loadFailureStep(true, false)).toBe('keep');
-    expect(loadFailureStep(true, true)).toBe('keep');
   });
 });

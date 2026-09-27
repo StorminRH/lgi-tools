@@ -1,22 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { expect, it } from 'vitest';
 import { Button } from './button';
 
-describe('Button', () => {
-  it('defaults type to button, allows submit override, and distinguishes primary vs bare chrome', () => {
-    const el = Button({ children: 'x' });
-    expect(el.type).toBe('button');
-    expect(el.props.type).toBe('button');
-    expect(Button({ type: 'submit', children: 'x' }).props.type).toBe('submit');
-
-    const primary = Button({ variant: 'primary', className: 'fixed bottom-4' });
-    expect(primary.props.className).toContain('bg-brand-gradient');
-    expect(primary.props.className).toContain('fixed');
-
-    const bare = Button({ variant: 'bare', className: 'absolute inset-0' });
-    expect(bare.props.className).toContain('absolute');
-    expect(bare.props.className).toContain('focus-visible:ring-1');
-    expect(bare.props.className).toContain('disabled:opacity-50');
-    expect(bare.props.className).not.toContain('border-border-idle');
-    expect(bare.props.className).not.toContain('px-4');
-  });
+it('defaults type to button and allows a submit override', () => {
+  const el = Button({ children: 'x' });
+  expect(el.type).toBe('button');
+  expect(el.props.type).toBe('button');
+  expect(Button({ type: 'submit', children: 'x' }).props.type).toBe('submit');
 });

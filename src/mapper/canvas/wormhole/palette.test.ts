@@ -42,9 +42,6 @@ test('bodies pick a shader mode and resolve their tint token, falling back to th
     palette: wormhole(null).palette,
   });
   expect(planet(0.9).tint).toEqual(HALO);
-});
-
-test('every effect has its own non-zero mode', () => {
   const modes = WORMHOLE_EFFECTS.map((effect) => EFFECT_MODE[effect]);
   expect(modes).toEqual([1, 2, 3, 4, 5, 6]);
   expect(modes).not.toContain(PLANET_MODE);

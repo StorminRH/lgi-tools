@@ -1,4 +1,4 @@
-import { beforeEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ locked: null as unknown, setLocked: vi.fn() }));
 
@@ -15,25 +15,21 @@ function status(
   return { recents: 'populated', saved: 'populated', active: 'populated', corp: 'populated', ...overrides };
 }
 
-beforeEach(() => {
+test('holds the preferred order while pending, then locks the first settled order', () => {
   h.locked = null;
   h.setLocked.mockReset();
-});
 
-test('keeps the preferred order while a section is pending', () => {
-  expect(useSettledSectionOrder(status({ saved: 'empty', corp: 'pending' }))).toBe(PREFERRED_SECTION_ORDER);
+  expect(useSettledSectionOrder(status({ saved: 'empty', corp: 'pending' }))).toBe(
+    PREFERRED_SECTION_ORDER,
+  );
   expect(h.setLocked).not.toHaveBeenCalled();
-});
 
-test('locks the sorted order once every section settles', () => {
   const order = useSettledSectionOrder(status({ saved: 'empty' }));
   expect(order).toEqual(['recents', 'active', 'corp', 'saved']);
   expect(h.setLocked).toHaveBeenCalledWith(order);
-});
 
-test('keeps a locked order when statuses change later', () => {
-  const locked: DashboardSectionId[] = ['recents', 'active', 'corp', 'saved'];
-  h.locked = locked;
-  expect(useSettledSectionOrder(status())).toBe(locked);
+  h.locked = order;
+  h.setLocked.mockReset();
+  expect(useSettledSectionOrder(status())).toBe(order);
   expect(h.setLocked).not.toHaveBeenCalled();
 });

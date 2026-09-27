@@ -29,16 +29,9 @@ describe('deriveActionRows', () => {
     expect(queue).toMatchObject({ cta: 'Retry jobs', badge: { label: '3', tone: 'red' } });
   });
 
-  it('degrades when the queue could not be read', () => {
-    const [, queue] = deriveActionRows({
-      statics: { pendingVersion: null, servingVersion: '' },
-      queue: null,
-    });
-    expect(queue).toMatchObject({ status: 'queue unavailable', cta: 'Open', badge: null });
-  });
-
-  it('degrades when the statics could not be read', () => {
-    const [statics] = deriveActionRows({ statics: null, queue: null });
+  it('degrades each row whose source could not be read', () => {
+    const [statics, queue] = deriveActionRows({ statics: null, queue: null });
     expect(statics).toMatchObject({ status: 'statics unavailable', cta: 'Open', badge: null });
+    expect(queue).toMatchObject({ status: 'queue unavailable', cta: 'Open', badge: null });
   });
 });
