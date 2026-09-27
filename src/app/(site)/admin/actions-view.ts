@@ -10,24 +10,18 @@ export interface AdminActionRow {
   badge: { label: string; tone: PillTone } | null;
 }
 
+export interface StaticsVersions {
+  pendingVersion: string | null;
+  servingVersion: string;
+}
+
 export function deriveActionRows(input: {
-  statics: { pendingVersion: string | null; servingVersion: string };
+  statics: StaticsVersions | null;
   queue: Pick<QueueSummary, 'due' | 'deadLettered'> | null;
 }): AdminActionRow[] {
   const { statics, queue } = input;
-  const serving = statics.servingVersion === '' ? 'nothing promoted yet' : `serving v${statics.servingVersion}`;
   return [
-    {
-      id: 'statics',
-      title: 'Wormhole statics',
-      status:
-        statics.pendingVersion === null
-          ? `${serving} · no review waiting`
-          : `v${statics.pendingVersion} waiting · ${serving}`,
-      href: '/admin/statics',
-      cta: statics.pendingVersion === null ? 'Check feed' : 'Review',
-      badge: statics.pendingVersion === null ? null : { label: 'review', tone: 'orange' },
-    },
+    staticsRow(statics),
     {
       id: 'queue',
       title: 'Refresh queue',
@@ -51,4 +45,19 @@ export function deriveActionRows(input: {
       badge: null,
     },
   ];
+}
+
+function staticsRow(statics: StaticsVersions | null): AdminActionRow {
+  const row = { id: 'statics', title: 'Wormhole statics', href: '/admin/statics' } as const;
+  if (statics === null) return { ...row, status: 'statics unavailable', cta: 'Open', badge: null };
+  const serving = statics.servingVersion === '' ? 'nothing promoted yet' : `serving v${statics.servingVersion}`;
+  if (statics.pendingVersion === null) {
+    return { ...row, status: `${serving} · no review waiting`, cta: 'Check feed', badge: null };
+  }
+  return {
+    ...row,
+    status: `v${statics.pendingVersion} waiting · ${serving}`,
+    cta: 'Review',
+    badge: { label: 'review', tone: 'orange' },
+  };
 }

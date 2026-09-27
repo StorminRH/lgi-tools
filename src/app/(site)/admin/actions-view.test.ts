@@ -36,4 +36,9 @@ describe('deriveActionRows', () => {
     });
     expect(queue).toMatchObject({ status: 'queue unavailable', cta: 'Open', badge: null });
   });
+
+  it('degrades when the statics could not be read', () => {
+    const [statics] = deriveActionRows({ statics: null, queue: null });
+    expect(statics).toMatchObject({ status: 'statics unavailable', cta: 'Open', badge: null });
+  });
 });

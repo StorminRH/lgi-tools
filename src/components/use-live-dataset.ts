@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { loadFailureStep, shouldReconcile } from '@/lib/live-dataset';
@@ -25,11 +25,13 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
 ): { response: TResponse | null; now: number; loading: boolean; failed: boolean } {
   const [response, setResponse] = useState<TResponse | null>(null);
   const [failed, setFailed] = useState(false);
+  // Outlives effect re-runs, like `response`: once data is on screen, a later
+  // run's failures keep it instead of replacing it with the failure line.
+  const loaded = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     let reconciled = false;
-    let loaded = false;
     let retried = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -40,7 +42,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
     // A failed fetch must still settle the dataset: one delayed retry, then
     // `failed`, so consumers can swap their loading state for an error line.
     const onFailure = () => {
-      const step = loadFailureStep(loaded, retried);
+      const step = loadFailureStep(loaded.current, retried);
       if (step === 'retry') {
         retried = true;
         schedule();
@@ -56,7 +58,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
         onFailure();
         return;
       }
-      loaded = true;
+      loaded.current = true;
       setResponse(result.data);
       setFailed(false);
       if (shouldReconcile(reconciled, result.data, coldKey, isCold)) {

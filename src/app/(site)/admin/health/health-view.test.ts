@@ -30,4 +30,9 @@ describe('deriveServiceLevels', () => {
     const backlog = deriveServiceLevels(healthy, { due: 4, deadLettered: 2, oldestDueHours: 1 }).at(-1);
     expect(backlog).toMatchObject({ value: '4 due · 2 dead', level: 'red' });
   });
+
+  it('turns a stale backlog amber, matching the overview', () => {
+    const backlog = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
+    expect(backlog).toMatchObject({ level: 'amber' });
+  });
 });

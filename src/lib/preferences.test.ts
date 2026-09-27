@@ -62,6 +62,7 @@ const {
   readPreferenceCookieValue,
   reconcilePreferences,
   syncPreferenceCookies,
+  clearPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -179,6 +180,26 @@ describe('cookie codec', () => {
     expect(lastCookieWrite).not.toContain('Secure');
     const raw = lastCookieWrite.split(';')[0]!.split('=')[1];
     expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
+  });
+
+  it('expires every ssrReadable cookie and only those on clear', () => {
+    const writes: string[] = [];
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        set cookie(v: string) {
+          writes.push(v);
+        },
+      },
+    });
+    try {
+      clearPreferenceCookies();
+      expect(writes).toContain('lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax');
+      expect(writes).toContain('lgi_pref_planner_buildCharacterId=; Path=/; Max-Age=0; SameSite=Lax');
+      expect(writes.some((w) => w.startsWith(`${cookieNameFor(plannerBuildLocation)}=`))).toBe(false);
+    } finally {
+      installDocumentShim();
+    }
   });
 
   it('does not write a cookie for a non-ssrReadable key', () => {

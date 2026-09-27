@@ -2,6 +2,7 @@ import type { StatusLevel } from '@/data/telemetry/health-metrics';
 import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli';
 import {
   formatSliValue,
+  queueLevel,
   sliLevel,
   sliTargetLabel,
   type QueueSummary,
@@ -30,16 +31,12 @@ const OWNER_LABEL: Record<SliOwner, string> = {
   'ccp-upstream': 'CCP',
 };
 
-function backlogLevel(queue: QueueSummary): StatusLevel {
-  return queue.deadLettered > 0 ? 'red' : 'green';
-}
-
 function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
   if (id === 'job_backlog') {
     return {
       value: `${queue.due.toLocaleString()} due · ${queue.deadLettered.toLocaleString()} dead`,
       target: '0 dead',
-      level: backlogLevel(queue),
+      level: queueLevel(queue),
     };
   }
   const key = SIGNAL_FOR[id];

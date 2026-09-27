@@ -122,7 +122,8 @@ export interface StatusLine {
   value: string;
   note: string;
   level: StatusLevel;
-  // Amber that informs rather than asks for action stays off the attention list.
+  // Stays off the attention list: amber that informs rather than asks for
+  // action, or a line whose attention item is built elsewhere.
   quiet?: boolean;
 }
 
@@ -204,7 +205,7 @@ export function summarizeQueue(stats: EsiRefreshQueueStat[], now: Date): QueueSu
   return { due, deadLettered, oldestDueHours: oldest === null ? null : elapsedHours(oldest, now) };
 }
 
-function queueLevel(queue: QueueSummary): StatusLevel {
+export function queueLevel(queue: QueueSummary): StatusLevel {
   if (queue.deadLettered > 0) return 'red';
   if (queue.oldestDueHours !== null && queue.oldestDueHours > QUEUE_STALE_HOURS) return 'amber';
   return 'green';
@@ -220,6 +221,7 @@ function queueLine(queue: QueueSummary): StatusLine {
         ? 'nothing waiting'
         : `oldest due ${formatHours(queue.oldestDueHours)}`,
     level: queueLevel(queue),
+    quiet: true,
   };
 }
 
@@ -381,9 +383,7 @@ export function deriveAttention(signals: AdminSignals, groups: StatusGroup[]): A
     jobs: { label: 'View jobs', href: '/admin/health#scheduled' },
   };
   const statusItems = groups.flatMap((group) =>
-    group.lines
-      .filter((line) => line.id !== 'queue')
-      .flatMap((line) => lineAttention(line, actionFor[group.id])),
+    group.lines.flatMap((line) => lineAttention(line, actionFor[group.id])),
   );
   const items = [
     ...statusItems,

@@ -58,7 +58,7 @@ async function loadActionRows(): Promise<AdminActionRow[]> {
     Promise.all([getStaticsReviewShared(), getSystemStatics(), getEsiRefreshQueueStatsShared()]),
   );
   if (fetched === SECTION_LOAD_FAILED) {
-    return deriveActionRows({ statics: { pendingVersion: null, servingVersion: '' }, queue: null });
+    return deriveActionRows({ statics: null, queue: null });
   }
   const [review, promoted, queueStats] = fetched;
   return deriveActionRows({

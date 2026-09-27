@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   apiFetch: vi.fn(),
   cleanups: [] as Array<() => void>,
+  refs: [] as Array<{ current: unknown }>,
+  refIndex: 0,
   setters: [] as Array<ReturnType<typeof vi.fn>>,
   state: [] as unknown[],
 }));
@@ -11,6 +13,11 @@ vi.mock('react', () => ({
   useEffect: (effect: () => void | (() => void)) => {
     const cleanup = effect();
     if (cleanup) h.cleanups.push(cleanup);
+  },
+  useRef: <T>(initial: T) => {
+    const index = h.refIndex++;
+    h.refs[index] ??= { current: initial };
+    return h.refs[index];
   },
   useState: <T>(initial: T | (() => T)) => {
     const index = h.setters.length;
@@ -50,6 +57,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.apiFetch.mockReset();
   h.cleanups.length = 0;
+  h.refs.length = 0;
+  h.refIndex = 0;
   h.setters.length = 0;
   h.state.length = 0;
 });
@@ -106,6 +115,19 @@ describe('useLiveDataset', () => {
     expect(setFailed()).not.toHaveBeenCalledWith(true);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps loaded data when a re-run for a new key fails twice', async () => {
+    h.apiFetch.mockResolvedValueOnce(ok({ rows: 1 })).mockResolvedValue(serverError);
+    useLiveDataset(endpoint, 'a', neverCold);
+    await flush();
+    h.setters.length = 0;
+    h.refIndex = 0;
+    h.state.push({ rows: 1 }, false);
+    useLiveDataset(endpoint, 'b', neverCold);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    expect(setFailed()).not.toHaveBeenCalledWith(true);
   });
 
   it('reports failed and not loading once the failure has settled', () => {
