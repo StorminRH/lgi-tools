@@ -10,6 +10,7 @@ import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/link
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
 import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
+import { refreshCharacterAssetsOnView } from '@/composition/sync/owned-assets-sync';
 import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import type { BoardResponse } from './api-contract';
 import { assembleBoard, type BoardRaw, collectNameIds } from './board-assemble';
@@ -57,7 +58,12 @@ export async function getBoardForUserOnView(userId: string): Promise<BoardRespon
   const linked = await listLinkedCharacters(userId);
   const raws = await readRaws(linked);
   after(() =>
-    Promise.all([refreshSkillsOnView(userId), refreshJobsOnView(userId), refreshCharacterSheetsOnView(userId)]),
+    Promise.all([
+      refreshSkillsOnView(userId),
+      refreshJobsOnView(userId),
+      refreshCharacterSheetsOnView(userId),
+      refreshCharacterAssetsOnView(userId),
+    ]),
   );
   const names = await resolveNameBook(collectNameIds(raws));
   return assembleBoard(raws, names, Date.now());

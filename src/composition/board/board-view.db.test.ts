@@ -30,6 +30,7 @@ vi.mock('@/data/eve-data/entity-names', () => ({ resolveEntityNames: mocks.resol
 vi.mock('@/composition/sync/skills-sync', () => ({ refreshSkillsOnView: vi.fn() }));
 vi.mock('@/composition/sync/industry-jobs-sync', () => ({ refreshJobsOnView: vi.fn() }));
 vi.mock('@/composition/sync/character-sheet-sync', () => ({ refreshCharacterSheetsOnView: vi.fn() }));
+vi.mock('@/composition/sync/owned-assets-sync', () => ({ refreshCharacterAssetsOnView: vi.fn() }));
 
 import { getBoardForUserOnView } from './board-view';
 

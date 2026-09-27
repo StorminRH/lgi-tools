@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
-import { refreshOwnedAssetsForUser } from './refresh';
+import { refreshCharacterOwnedAssetsForUser, refreshOwnedAssetsForUser } from './refresh';
 import type { OwnedAssetsPort } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
@@ -189,5 +189,43 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
     await refreshOwnedAssetsForUser(port, 'u1');
 
     expect(port.readRoles).not.toHaveBeenCalled();
+  });
+});
+
+describe('refreshCharacterOwnedAssetsForUser — the board variant', () => {
+  it('refreshes personal hangars and never reads roles or corporation assets, even for a Director', async () => {
+    const port = makePort({
+      listCharacters: vi.fn(async () => [character(1, { corporationId: 5000 }), character(2, { corporationId: 5000 })]),
+      readSyncState: vi.fn(async () => null),
+      vendToken: vi.fn(async (id: number) => `token-${id}`),
+      readRoles: vi.fn(async () => ['Director']),
+      read: vi.fn(
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiAsset(34)], etags: [], responseHeaders: [] }),
+      ),
+    });
+
+    await refreshCharacterOwnedAssetsForUser(port, 'u1');
+
+    expect(vi.mocked(port.read).mock.calls.map(([path]) => path).sort()).toEqual([
+      '/characters/1/assets/',
+      '/characters/2/assets/',
+    ]);
+    expect(port.readRoles).not.toHaveBeenCalled();
+    expect(vi.mocked(port.save).mock.calls.map(([owner]) => owner)).toEqual([
+      { ownerType: 'character', ownerId: 1 },
+      { ownerType: 'character', ownerId: 2 },
+    ]);
+  });
+
+  it('still honours the assets scope and the staleness gate', async () => {
+    const port = makePort({
+      listCharacters: vi.fn(async () => [character(1, { missingScopes: [CHAR_ASSETS_SCOPE] }), character(2)]),
+      readSyncState: vi.fn(async () => fresh()),
+    });
+
+    await refreshCharacterOwnedAssetsForUser(port, 'u1');
+
+    expect(port.read).not.toHaveBeenCalled();
+    expect(port.vendToken).not.toHaveBeenCalled();
   });
 });
