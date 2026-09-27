@@ -24,7 +24,7 @@ import {
 import type { DockCharacterSelection } from './use-tracked-system';
 
 const TRIGGER_CLASS =
-  'pointer-events-auto nopan -ml-0.5 flex max-w-full self-start cursor-pointer items-center gap-1.5 rounded-ctl px-0.5 py-0.5 font-data text-micro text-muted outline-none transition-colors hover:text-name focus-visible:text-name data-[popup-open]:text-name';
+  'pointer-events-auto nopan flex shrink-0 cursor-pointer items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-isk data-[popup-open]:ring-1 data-[popup-open]:ring-isk';
 
 const INDICATOR = (
   <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
@@ -83,27 +83,21 @@ export function DockCharacterPicker({
     <Menu
       label={`Current system follows ${label}. Choose character`}
       trigger={
-        <>
-          {shown === null || shownId === null ? (
-            <span
-              aria-hidden
-              className="flex size-icon-md shrink-0 items-center justify-center rounded-full border border-border-idle text-micro"
-            >
-              ?
-            </span>
-          ) : (
-            <CharacterPortrait
-              characterId={shownId}
-              name={shown.name}
-              src={shown.portraitUrl}
-              size={18}
-            />
-          )}
-          <span className="truncate">{label}</span>
-          <span aria-hidden className="text-micro leading-none">
-            ▾
+        shown === null || shownId === null ? (
+          <span
+            aria-hidden
+            className="flex size-5 items-center justify-center rounded-full border border-border-idle font-data text-micro text-muted"
+          >
+            ?
           </span>
-        </>
+        ) : (
+          <CharacterPortrait
+            characterId={shownId}
+            name={shown.name}
+            src={shown.portraitUrl}
+            size={20}
+          />
+        )
       }
       triggerProps={{ 'data-dock-character-picker': selection.mode }}
       triggerClassName={TRIGGER_CLASS}

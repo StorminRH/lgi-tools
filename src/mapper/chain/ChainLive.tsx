@@ -165,7 +165,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
           </OutboundArrowProvider>
           <MapWindowLayer
             dockSystemId={windowSystemId}
-            dockEyebrow={<DockCharacterPicker selection={tracked.dock} />}
+            dockTitleLead={<DockCharacterPicker selection={tracked.dock} />}
             onDeselect={deselectNodes}
           />
           <RightsTransitionToast canEdit={canEdit} />

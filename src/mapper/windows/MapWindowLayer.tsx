@@ -161,13 +161,13 @@ function DockSurface({
   visible,
   dockSystemId,
   title,
-  titleEyebrow,
+  titleLead,
   stackIndex,
 }: {
   readonly visible: boolean;
   readonly dockSystemId: number | null;
   readonly title: string | undefined;
-  readonly titleEyebrow: ReactNode;
+  readonly titleLead: ReactNode;
   readonly stackIndex: number;
 }) {
   if (!visible || dockSystemId === null) return null;
@@ -176,7 +176,7 @@ function DockSurface({
       windowId="dock"
       title={dockTitle(title, dockSystemId)}
       titleAccessory={<SystemTitleAccessory systemId={dockSystemId} />}
-      titleEyebrow={titleEyebrow}
+      titleLead={titleLead}
       placement={{ kind: 'docked' }}
       appearance="overlay"
       stackIndex={stackIndex}
@@ -227,8 +227,8 @@ function SummarySurface({
 
 export interface MapWindowLayerProps {
   readonly dockSystemId: number | null;
-  /** Rendered above the dock title (the dock character picker). */
-  readonly dockEyebrow?: ReactNode;
+  /** Rendered before the dock title (the dock character picker). */
+  readonly dockTitleLead?: ReactNode;
   readonly onDeselect: () => void;
 }
 
@@ -247,7 +247,7 @@ export function MapWindowLayer(props: MapWindowLayerProps) {
 
 function MountedMapWindowLayer({
   dockSystemId,
-  dockEyebrow,
+  dockTitleLead,
   onDeselect,
 }: MapWindowLayerProps) {
   const store = useStoreApi<ChainNode>();
@@ -286,7 +286,7 @@ function MountedMapWindowLayer({
         visible={liveIds.includes('dock')}
         dockSystemId={dockSystemId}
         title={dockTitleName}
-        titleEyebrow={dockEyebrow}
+        titleLead={dockTitleLead}
         stackIndex={zIndex('dock')}
       />
       <SummarySurface
