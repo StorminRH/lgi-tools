@@ -115,6 +115,13 @@ test('a pilot opens full width without the rail; Back, the back control and Esca
   await expect(overview(page)).toBeVisible();
   await expect(rail(page)).toBeVisible();
 
+  await pilot(page, 9_900_000_002).click();
+  await expect(sheet(page, 'Kessa Draymoor')).toBeVisible();
+  await page.locator('header a[href="/"]').first().click();
+  await expect(page).not.toHaveURL(/character=/);
+  await expect(overview(page)).toBeVisible();
+  await expect(sheet(page, 'Kessa Draymoor')).toHaveCount(0);
+
   expect(documents.length, documents.join('\n')).toBe(loads);
   expect(await page.evaluate(() => (window as Window & { boardProbe?: boolean }).boardProbe)).toBe(true);
 });

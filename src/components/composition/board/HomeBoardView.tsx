@@ -132,6 +132,13 @@ function PilotBoard({
     [board.characters],
   );
 
+  // Link/router navigation updates search params without a popstate event.
+  // Reconcile it through the same transition as the board's own controls.
+  const searchParam = characterParam(params);
+  useEffect(() => {
+    if (searchParam !== param) show(searchParam);
+  }, [searchParam, param, show]);
+
   const toOverview = useCallback(() => {
     if (urlParam() === null) return;
     if (focusedFromOverview()) {
