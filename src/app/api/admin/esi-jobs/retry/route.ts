@@ -5,7 +5,6 @@ import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
-import { parseRange } from '@/composition/admin-period';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -19,10 +18,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
   const parsed = await parseFormBody(
     request,
     retryEsiRefreshJobFormSchema,
-    (form) => ({
-      jobId: form.get('jobId'),
-      range: form.get('range') ?? undefined,
-    }),
+    (form) => ({ jobId: form.get('jobId') }),
     () => validationFailure('invalid_form_field', 'Invalid form'),
   );
   if (!parsed.ok) return problemResponse(parsed.failure);
@@ -42,7 +38,5 @@ async function handlePost(request: NextRequest): Promise<Response> {
     console.error('[admin/esi-jobs/retry] telemetry write failed', error),
   );
 
-  const destination = new URL('/admin', request.url);
-  destination.searchParams.set('range', parseRange(parsed.data.range));
-  return Response.redirect(destination, 303);
+  return Response.redirect(new URL('/admin/queue', request.url), 303);
 }

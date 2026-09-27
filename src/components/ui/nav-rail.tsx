@@ -12,14 +12,21 @@ import { scrollArea } from './scroll-area';
 export function NavRailPanel({
   className,
   children,
+  reveal = true,
   ...rest
-}: Omit<ComponentProps<'div'>, 'title'> & { children: ReactNode }) {
+}: Omit<ComponentProps<'div'>, 'title'> & {
+  children: ReactNode;
+  // False for a rail that replaces a Suspense fallback's rail: fading in
+  // again would blink a rail that is already on screen.
+  reveal?: boolean;
+}) {
   return (
     <div
       {...rest}
       className={cn(
         cardSurface,
-        'reveal reveal-1 hidden min-w-0 p-2 lg:sticky lg:top-24 lg:block lg:self-start',
+        reveal && 'reveal reveal-1',
+        'hidden min-w-0 p-2 lg:sticky lg:top-24 lg:block lg:self-start',
         className,
       )}
     >

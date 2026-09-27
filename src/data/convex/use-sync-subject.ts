@@ -1,15 +1,16 @@
 'use client';
 
-import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { useEffect } from 'react';
 import type { SyncDataset } from '@/lib/sync-engine';
 import { api } from './api';
+import { useConvexAuthState } from './convex-auth-store';
 import { startHeartbeatSession } from './heartbeat-session';
 import { postLeaveBeacon } from './leave-signal';
 
 export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
   const heartbeat = useMutation(api.engine.heartbeat);
-  const { isAuthenticated, isLoading, isRefreshing } = useConvexAuth();
+  const { isAuthenticated, isLoading, isRefreshing } = useConvexAuthState();
   const enabled = isAuthenticated && !isLoading && !isRefreshing;
   const currentUserId = useQuery(api.engine.currentUser, enabled ? {} : 'skip');
   const characterIdsKey = [...new Set(characterIds)].sort((a, b) => a - b).join(',');

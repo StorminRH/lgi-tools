@@ -17,5 +17,4 @@ export type EsiRefreshWorkerSummary = z.infer<typeof esiRefreshWorkerSummarySche
 
 export const retryEsiRefreshJobFormSchema = z.object({
   jobId: z.coerce.number().int().positive(),
-  range: z.string().optional(),
 });

@@ -7,6 +7,7 @@ import {
   type PaginatedQueryReference,
 } from 'convex/react';
 import { useEffect } from 'react';
+import { useHydrating } from '@/lib/use-hydrating';
 
 export interface DrainedPages<Row> {
   readonly rows: readonly Row[];
@@ -26,5 +27,6 @@ export function useDrainedPages<Query extends PaginatedQueryReference>(
     if (status === 'CanLoadMore') loadMore(pageSize);
   }, [status, loadMore, pageSize]);
 
+  if (useHydrating()) return { rows: [], complete: false };
   return { rows: results, complete: status === 'Exhausted' };
 }
