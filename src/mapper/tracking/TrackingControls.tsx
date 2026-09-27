@@ -156,11 +156,11 @@ function DefaultScannerRow({
   const [scannerCharacterId, setScanner] = usePreference(atlasScannerCharacter);
   return (
     <div data-default-scanner className={menuControlRow}>
-      <span>Default scanner</span>
+      <span className="whitespace-nowrap">Default scanner</span>
       <Select
         ariaLabel="Default scanner"
         size="sm"
-        className="w-40"
+        className="w-36 min-w-0"
         value={scannerSelectValue(scannerCharacterId, characters)}
         onValueChange={(value) =>
           setScanner(value === SCANNER_ASK_VALUE ? null : Number(value))
