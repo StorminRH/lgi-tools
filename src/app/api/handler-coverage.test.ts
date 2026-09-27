@@ -58,6 +58,7 @@ import { POST } from '@/app/api/account/corp-structures/sharing/route';
 import { POST as AppApiAccountCustomStructuresDeleteRoutePOST } from '@/app/api/account/custom-structures/delete/route';
 import { POST as AppApiAccountCustomStructuresSetPinRoutePOST } from '@/app/api/account/custom-structures/set-pin/route';
 import { POST as AppApiAccountCustomStructuresSetTaxRoutePOST } from '@/app/api/account/custom-structures/set-tax/route';
+import { GET as AppApiAccountBoardRouteGET } from '@/app/api/account/board/route';
 import { GET as AppApiAccountIndustryJobsRouteGET } from '@/app/api/account/industry-jobs/route';
 import { GET as AppApiAccountIndustrySlotsRouteGET } from '@/app/api/account/industry-slots/route';
 import { POST as AppApiAccountSavedPlansDeleteRoutePOST } from '@/app/api/account/saved-plans/delete/route';
@@ -100,6 +101,7 @@ describe('coverage-gaps', () => {
       AppApiAccountCustomStructuresDeleteRoutePOST,
       AppApiAccountCustomStructuresSetPinRoutePOST,
       AppApiAccountCustomStructuresSetTaxRoutePOST,
+      AppApiAccountBoardRouteGET,
       AppApiAccountIndustryJobsRouteGET,
       AppApiAccountIndustrySlotsRouteGET,
       AppApiAccountSavedPlansDeleteRoutePOST,
