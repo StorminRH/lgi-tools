@@ -60,6 +60,8 @@ interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
   readonly titleAccessory?: ReactNode;
+  /** A small control row above the title; must opt into pointer input. */
+  readonly titleEyebrow?: ReactNode;
   readonly placement: WindowPlacement;
   readonly stackIndex: number;
   readonly onClose: () => void;
@@ -115,6 +117,7 @@ function placementClassName(
 function WindowHeader({
   title,
   titleAccessory,
+  titleEyebrow,
   overlay,
   alignStart,
   showCloseButton,
@@ -122,6 +125,7 @@ function WindowHeader({
 }: {
   readonly title: string;
   readonly titleAccessory?: ReactNode;
+  readonly titleEyebrow?: ReactNode;
   readonly overlay: boolean;
   readonly alignStart: boolean;
   readonly showCloseButton: boolean;
@@ -131,6 +135,7 @@ function WindowHeader({
     <header
       className={cn(
         'flex shrink-0 items-center gap-1',
+        titleEyebrow !== undefined && 'flex-col items-stretch gap-0',
         overlay
           ? 'h-auto min-h-8 border-0 px-1.5 py-1'
           : alignStart
@@ -138,6 +143,7 @@ function WindowHeader({
             : 'h-8 border-b border-border-soft px-1.5',
       )}
     >
+      {titleEyebrow}
       <h2
         className={cn(
           'min-w-0 flex-1 truncate',
@@ -207,6 +213,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       windowId,
       title,
       titleAccessory,
+      titleEyebrow,
       placement,
       stackIndex,
       onClose,
@@ -261,6 +268,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
           <WindowHeader
             title={title}
             titleAccessory={titleAccessory}
+            titleEyebrow={titleEyebrow}
             overlay={overlay}
             alignStart={placement.kind === 'docked-bottom-left'}
             showCloseButton={showCloseButton}

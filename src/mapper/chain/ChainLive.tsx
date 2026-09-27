@@ -14,7 +14,8 @@ import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
 import { OutboundArrowProvider } from '../tracking/OutboundArrowProvider';
 import { MapPresenceProvider } from '../tracking/PresenceProvider';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
-import { useTrackedSystemTarget } from '../tracking/use-tracked-system';
+import { DockCharacterPicker } from '../tracking/DockCharacterPicker';
+import { useDockCharacter } from '../tracking/use-tracked-system';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import { persistentWindowSystemId } from '../windows/window-model';
 import { MotionLayer } from './MotionLayer';
@@ -95,7 +96,8 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
 
   const showHomePrompt =
     canEdit === true && systemsComplete && liveSystemCount === 0;
-  const trackedSystem = useTrackedSystemTarget(mapId);
+  const dockCharacter = useDockCharacter(mapId);
+  const trackedSystem = dockCharacter.target;
   const windowSystemId = persistentWindowSystemId(trackedSystem, rootSystemId);
 
   if (access === false) return <NoMapAccess />;
@@ -163,6 +165,7 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
           </OutboundArrowProvider>
           <MapWindowLayer
             dockSystemId={windowSystemId}
+            dockEyebrow={<DockCharacterPicker selection={dockCharacter} />}
             onDeselect={deselectNodes}
           />
           <RightsTransitionToast canEdit={canEdit} />

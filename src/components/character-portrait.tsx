@@ -4,9 +4,10 @@ import { characterPortraitUrl } from '@/lib/eve-image';
 import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 
-export type PortraitSize = 28 | 32 | 36 | 38 | 64;
+export type PortraitSize = 18 | 28 | 32 | 36 | 38 | 64;
 
 const SIZE_CLASS: Record<PortraitSize, string> = {
+  18: 'size-icon-md',
   28: 'size-7',
   32: 'size-8',
   36: 'size-9',

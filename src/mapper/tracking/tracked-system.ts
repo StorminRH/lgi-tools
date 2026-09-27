@@ -1,28 +1,116 @@
 export type TrackedSystemTarget =
-  | { readonly kind: 'ready'; readonly systemId: number }
+  | {
+      readonly kind: 'ready';
+      readonly systemId: number;
+      readonly characterId: number;
+    }
   | { readonly kind: 'none' }
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'ambiguous' };
+  | { readonly kind: 'loading' };
 
-export function trackedSystemTarget(input: {
+/** One of the caller's own tracked characters on this map. */
+export interface DockCharacter {
+  readonly characterId: number;
+  /** Null while the character is offline or has no known location. */
+  readonly systemId: number | null;
+  readonly lastMovementAt: number | null;
+}
+
+export type DockCharacterMode = 'auto' | 'pinned';
+
+export interface DockCharacterResolution {
+  readonly target: TrackedSystemTarget;
+  readonly mode: DockCharacterMode;
+  /** The pinned character, when it is tracked on this map. */
+  readonly pinnedCharacterId: number | null;
+  /** Sorted by character id so the menu order is stable. */
+  readonly characters: readonly DockCharacter[];
+}
+
+export function dockCharacters(input: {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {
     readonly userId: string;
     readonly characterId: number;
-    readonly location: { readonly solarSystemId: number } | null;
+    readonly location: {
+      readonly solarSystemId: number;
+      readonly transitionObservedAt: number | null;
+      readonly observedAt: number;
+    } | null;
   }[];
   readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
-}): TrackedSystemTarget {
+}): readonly DockCharacter[] {
   const own = new Set(input.ownTrackedCharacterIds);
-  const systems = new Set<number>();
+  const byId = new Map<number, DockCharacter>();
+  for (const characterId of own) {
+    byId.set(characterId, { characterId, systemId: null, lastMovementAt: null });
+  }
   for (const row of input.tracked) {
     if (!own.has(row.characterId) || row.location === null) continue;
     if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
-    systems.add(row.location.solarSystemId);
+    byId.set(row.characterId, {
+      characterId: row.characterId,
+      systemId: row.location.solarSystemId,
+      lastMovementAt: row.location.transitionObservedAt ?? row.location.observedAt,
+    });
   }
-  if (systems.size === 0) return { kind: 'none' };
-  if (systems.size > 1) return { kind: 'ambiguous' };
-  const systemId = systems.values().next().value;
-  if (systemId === undefined) return { kind: 'none' };
-  return { kind: 'ready', systemId };
+  return [...byId.values()].sort((left, right) => left.characterId - right.characterId);
+}
+
+function readyTarget(character: DockCharacter): TrackedSystemTarget {
+  return character.systemId === null
+    ? { kind: 'none' }
+    : { kind: 'ready', systemId: character.systemId, characterId: character.characterId };
+}
+
+/** Auto follows whichever online character moved most recently. */
+function latestMover(characters: readonly DockCharacter[]): DockCharacter | null {
+  let latest: DockCharacter | null = null;
+  for (const character of characters) {
+    if (character.systemId === null || character.lastMovementAt === null) continue;
+    if (latest === null || character.lastMovementAt > (latest.lastMovementAt ?? 0)) {
+      latest = character;
+    }
+  }
+  return latest;
+}
+
+/**
+ * Picks the character whose system the dock, scanner, and paste target use.
+ * A pinned character holds the dock while it is online; when it is offline or
+ * not tracked on this map the dock follows Auto instead.
+ */
+export function resolveDockCharacter(
+  characters: readonly DockCharacter[],
+  pinnedCharacterId: number | null,
+): DockCharacterResolution {
+  const pinned = characters.find((character) => character.characterId === pinnedCharacterId);
+  if (pinned !== undefined && pinned.systemId !== null) {
+    return {
+      target: readyTarget(pinned),
+      mode: 'pinned',
+      pinnedCharacterId: pinned.characterId,
+      characters,
+    };
+  }
+  const latest = latestMover(characters);
+  return {
+    target: latest === null ? { kind: 'none' } : readyTarget(latest),
+    mode: 'auto',
+    pinnedCharacterId: pinned?.characterId ?? null,
+    characters,
+  };
+}
+
+/** The radio value for Auto; character ids are always positive. */
+export const DOCK_AUTO_VALUE = 0;
+
+export function dockCharacterLabel(
+  resolution: Pick<DockCharacterResolution, 'target' | 'mode'>,
+  nameOf: (characterId: number) => string,
+): string {
+  const shown = resolution.target.kind === 'ready'
+    ? nameOf(resolution.target.characterId)
+    : null;
+  if (resolution.mode === 'pinned' && shown !== null) return shown;
+  return shown === null ? 'Auto' : `Auto (${shown})`;
 }

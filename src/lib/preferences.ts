@@ -74,6 +74,13 @@ export const atlasClickFocus = define<boolean>(
   true,
 );
 
+/** The character the Atlas dock follows; null is Auto (latest mover). */
+export const atlasDockCharacter = define<number | null>(
+  'atlas.dockCharacterId',
+  z.number().int().positive().nullable(),
+  null,
+);
+
 export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
@@ -104,6 +111,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   industryCostBasis,
   atlasCameraFollow,
   atlasClickFocus,
+  atlasDockCharacter,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));

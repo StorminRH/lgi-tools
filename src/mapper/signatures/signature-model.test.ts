@@ -24,9 +24,8 @@ import {
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 
 const SYSTEM = 31_000_001;
-const READY: TrackedSystemTarget = { kind: 'ready', systemId: SYSTEM };
+const READY: TrackedSystemTarget = { kind: 'ready', systemId: SYSTEM, characterId: 7 };
 const NONE: TrackedSystemTarget = { kind: 'none' };
-const AMBIGUOUS: TrackedSystemTarget = { kind: 'ambiguous' };
 
 function signature(
   partial: Partial<Doc<'mapSignatures'>> & { signatureId: string },
@@ -452,7 +451,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteDecision(valid, true, { kind: 'loading' })).toEqual({
       kind: 'loading',
     });
-    expect(scannerPasteDecision(valid, true, AMBIGUOUS)).toEqual({ kind: 'ambiguous' });
     expect(scannerPasteDecision(valid, true, READY)).toMatchObject({
       kind: 'apply',
       systemId: SYSTEM,
@@ -475,9 +473,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     );
     expect(scannerPasteRefusalToast({ kind: 'read-only' }).options.id).toBe(
       'scanner-paste:read-only',
-    );
-    expect(scannerPasteRefusalToast({ kind: 'ambiguous' }).options.id).toBe(
-      'scanner-paste:ambiguous',
     );
     expect(scannerPasteRefusalToast({ kind: 'untracked' }).options.id).toBe(
       'scanner-paste:untracked',

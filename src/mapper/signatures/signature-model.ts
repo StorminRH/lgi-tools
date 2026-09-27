@@ -44,8 +44,7 @@ export type ScannerPasteDecision =
   | { readonly kind: 'reject'; readonly rejectCount: number }
   | { readonly kind: 'read-only' }
   | { readonly kind: 'untracked' }
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'ambiguous' };
+  | { readonly kind: 'loading' };
 
 const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
 
@@ -347,7 +346,6 @@ export function scannerPasteDecision(
   if (!canEdit) return { kind: 'read-only' };
   if (target.kind === 'none') return { kind: 'untracked' };
   if (target.kind === 'loading') return { kind: 'loading' };
-  if (target.kind === 'ambiguous') return { kind: 'ambiguous' };
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
 
@@ -365,13 +363,6 @@ export function scannerPasteRefusalToast(
     return {
       message: 'Edit access is required to apply scanner output.',
       options: { id: 'scanner-paste:read-only' },
-    };
-  }
-  if (decision.kind === 'ambiguous') {
-    return {
-      message:
-        'Tracked characters are in different systems — paste target is ambiguous.',
-      options: { id: 'scanner-paste:ambiguous', duration: 5_000 },
     };
   }
   if (decision.kind === 'loading') {
