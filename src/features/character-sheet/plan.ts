@@ -177,9 +177,9 @@ export function planStructures(
     }
   }
   const pruned = Object.keys(previous?.names ?? {}).some((key) => !(key in names));
-  if (!changed && !pruned) {
-    return retryCode === null ? { kind: 'stamp' } : { kind: 'skip', code: retryCode };
-  }
+  if (!changed && retryCode !== null) return { kind: 'skip', code: retryCode };
+  // A first save with nothing referenced still lands so the tier stamp has a row to sit on.
+  if (!changed && !pruned && previous !== null) return { kind: 'stamp' };
   return { kind: 'save', envelope: { data: { names }, refreshedAt: now.toISOString(), etags: {} } };
 }
 

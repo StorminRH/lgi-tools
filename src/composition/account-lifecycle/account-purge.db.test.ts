@@ -41,6 +41,7 @@ const TABLE_NAMES = [
   'corp_access_audit',
   'character_skills',
   'character_skill_syncs',
+  'character_sheets',
   'character_industry_jobs',
   'character_industry_job_syncs',
   'corp_industry_jobs',
@@ -145,6 +146,10 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await harness.sql`
       INSERT INTO character_industry_jobs (character_id, jobs)
       VALUES (${characterId}, '[]'::jsonb)
+    `;
+    await harness.sql`
+      INSERT INTO character_sheets (character_id, sections, last_refreshed_at)
+      VALUES (${characterId}, '{}'::jsonb, now())
     `;
     await harness.db.insert(usageLogs).values({
       characterId,
@@ -256,6 +261,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await countClonedRows('character_industry_jobs', `character_id = ${FIRST_CHAR}`)).toBe(
       0,
     );
+    expect(await countClonedRows('character_sheets', `character_id = ${FIRST_CHAR}`)).toBe(0);
     expect(
       await harness.db.select().from(usageLogs).where(eq(usageLogs.characterId, FIRST_CHAR)),
     ).toHaveLength(0);
@@ -332,6 +338,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
     expect(await countClonedRows('character_industry_jobs')).toBe(0);
+    expect(await countClonedRows('character_sheets')).toBe(0);
     expect(await harness.db.select().from(usageLogs)).toHaveLength(0);
     expect(await countClonedRows('corp_industry_jobs')).toBe(0);
     expect(await harness.db.select().from(userPreferences)).toHaveLength(0);

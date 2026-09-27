@@ -255,6 +255,12 @@ export const TABLE_GROWTH_STORIES = [
   },
   {
     kind: 'bounded',
+    table: schema.characterSheets,
+    reason:
+      'one merge-in-place row per EVE character; the journal is stored as a digest (at most 20 rows and 48 series points), never as raw entries',
+  },
+  {
+    kind: 'bounded',
     table: schema.characterIndustryJobs,
     reason: 'one replace-in-place snapshot per EVE character',
   },

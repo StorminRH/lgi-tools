@@ -442,6 +442,13 @@
       "when": 1790281554042,
       "tag": "0062_solar_system_wormhole_effect",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790520054947,
+      "tag": "0063_character_sheets",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ export type SliceId =
   | 'data/telemetry'
   | 'data/wh-observations'
   | 'data/wh-statics'
+  | 'features/character-sheet'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -632,6 +633,17 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(character_id)'],
     boundary: SYNC_STAMP,
+    dataClass: 'personal',
+  },
+  {
+    table: schema.characterSheets,
+    owner: 'features/character-sheet',
+    reads: [],
+    invariants: ['pk(character_id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One jsonb envelope per section, saved with a keyed `insert … on conflict do update set sections = sections || excluded.sections`. Concurrent refreshes of different sections merge instead of clobbering, and a section\'s data, ETags and freshness stamp land in the same statement; the stamp is a `jsonb_set` on the section\'s refreshedAt.',
+    },
     dataClass: 'personal',
   },
   {

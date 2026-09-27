@@ -302,6 +302,13 @@ describe('planStructures', () => {
     expect(planStructures([1099000000001], previous, new Map(), NOW)).toEqual({ kind: 'stamp' });
   });
 
+  it('saves an empty map the first time so the section gains a freshness stamp', () => {
+    expect(planStructures([], null, new Map(), NOW)).toEqual({
+      kind: 'save',
+      envelope: { data: { names: {} }, refreshedAt: NOW_ISO, etags: {} },
+    });
+  });
+
   it('skips on a retryable error when nothing else changed, but saves the rest otherwise', () => {
     const previous = { names: { '1099000000001': { name: 'Kept' } } };
     const failing = new Map<number, SheetEsiRead>([[1099000000002, error('esi_server_error')]]);
