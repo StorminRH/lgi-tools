@@ -72,7 +72,7 @@ export function ScannerCharacterPrompt({
         Which character scanned this?
       </span>
       <p className="font-data text-micro text-name">
-        Your tracked characters are in different systems. Your pick becomes
+        Your logged-in characters are in different systems. Your pick becomes
         the default scanner; change it under Tracking in the map menu.
       </p>
       <div className="flex flex-col gap-1">
