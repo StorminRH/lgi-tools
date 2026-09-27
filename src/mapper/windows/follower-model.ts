@@ -1,6 +1,6 @@
 import { SYSTEM_DISC_SIZE } from '../canvas/SystemNode';
 import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
-import { roundedLeaderPath } from '@/lib/leader-path';
+import { roundedLeaderPath } from './leader-path';
 
 export interface FollowerNode {
   readonly measured: {

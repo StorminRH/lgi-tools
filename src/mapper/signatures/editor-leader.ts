@@ -1,4 +1,4 @@
-import { roundedLeaderPath } from '@/lib/leader-path';
+import { roundedLeaderPath } from '../windows/leader-path';
 
 export interface LeaderRect {
   readonly left: number;

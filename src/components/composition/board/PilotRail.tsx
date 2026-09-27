@@ -13,8 +13,7 @@ const HOVER_RING = 'group-hover:shadow-cta-glow group-focus-visible:shadow-cta-g
 /**
  * The pilots, frameless on the backdrop: the main pilot large, the rest as
  * compact rows, and an overview control on top. On phones it becomes a
- * horizontal strip that scrolls on its own. The selected entry carries
- * `data-leader-anchor` so the leader lines start from it.
+ * horizontal strip that scrolls on its own.
  */
 export function PilotRail({
   pilots,
@@ -31,13 +30,11 @@ export function PilotRail({
   return (
     <nav
       aria-label="Pilots"
-      data-leader-column
       className="-mx-4 flex min-w-0 gap-4 overflow-x-auto px-4 pb-2 sm:-mx-0 sm:px-0 lg:flex-col lg:gap-3 lg:overflow-visible lg:pb-0"
     >
       <Button
         variant="bare"
         aria-pressed={overview}
-        data-leader-anchor={overview ? '' : undefined}
         onClick={onOverview}
         className={cn(
           'size-12 shrink-0 justify-center self-start rounded-full border font-data text-micro uppercase tracking-copy lg:size-auto lg:px-4 lg:py-1.5',
@@ -76,7 +73,6 @@ function RailPilot({
       variant="bare"
       aria-pressed={selected}
       data-pilot-id={pilot.characterId}
-      data-leader-anchor={selected ? '' : undefined}
       onClick={() => onSelect(pilot.characterId)}
       className={cn(
         'group w-16 shrink-0 flex-col gap-1.5 rounded-card text-center lg:w-full lg:text-left',

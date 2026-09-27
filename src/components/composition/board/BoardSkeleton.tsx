@@ -6,7 +6,7 @@ const CARD_KEYS = ['attention', 'training', 'wealth', 'industry'] as const;
 /** The pilot rail and the overview cards, in outline. */
 export function BoardSkeleton() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-12 xl:gap-x-16" aria-busy="true">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-10" aria-busy="true">
       <div className="flex gap-4 lg:flex-col lg:gap-3">
         <Skeleton label="Loading overview control" className="h-8 w-24 rounded-full max-lg:hidden" />
         <Skeleton label="Loading your characters" className="size-12 shrink-0 rounded-full lg:size-28" />

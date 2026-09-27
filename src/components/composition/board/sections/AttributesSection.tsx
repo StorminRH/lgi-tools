@@ -50,7 +50,7 @@ export function AttributesSection({
 }) {
   const [open, setOpen] = useOpenOnDesktop();
   return (
-    <div data-leader-target className={cn(readoutSurface, className)}>
+    <div className={cn(readoutSurface, className)}>
       <Collapsible
         open={open}
         onOpenChange={setOpen}

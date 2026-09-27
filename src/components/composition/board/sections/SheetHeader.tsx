@@ -35,7 +35,7 @@ export function SheetHeader({
   );
   if (layout === 'card') {
     return (
-      <header data-leader-target className={cn(readoutSurface, 'flex flex-col gap-4 p-4')}>
+      <header className={cn(readoutSurface, 'flex flex-col gap-4 p-4')}>
         {identity}
         <Whereabouts character={character} columns="sm:grid-cols-2" />
         <Kpis character={character} columns="grid-cols-3" />
@@ -43,8 +43,8 @@ export function SheetHeader({
     );
   }
   return (
-    <header data-leader-column className="flex flex-col gap-5">
-      <div data-leader-anchor className="flex items-center gap-4 xl:flex-col xl:items-start">
+    <header className="flex flex-col gap-5">
+      <div className="flex items-center gap-4 xl:flex-col xl:items-start">
         <CharacterPortrait
           characterId={character.characterId}
           name={character.name}

@@ -10,11 +10,8 @@ import {
   useMemo,
   useRef,
   useState,
-  ViewTransition,
 } from 'react';
 import type { BoardCharacter, BoardResponse, SkillCatalogGroup } from '@/composition/board/api-contract';
-import { BoardLeaders } from './BoardLeaders';
-import { LEADERS_MOTION } from './board-motion';
 import {
   type BoardView,
   boardTransitionType,
@@ -78,16 +75,13 @@ function SinglePilot({
   names: Readonly<Record<string, string>>;
   now: number;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
   return (
     <div
-      ref={rootRef}
       role="article"
       aria-label={`${character.name} character sheet`}
-      className="relative grid gap-x-16 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]"
+      className="grid gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]"
     >
       <CharacterDetail character={character} catalog={catalog} names={names} now={now} identity="column" />
-      <BoardLeaders rootRef={rootRef} view="single" />
     </div>
   );
 }
@@ -179,7 +173,7 @@ function PilotBoard({
   return (
     <div
       ref={rootRef}
-      className="relative grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-12 xl:gap-x-16"
+      className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-x-10"
     >
       <PilotRail
         pilots={pilots}
@@ -205,9 +199,6 @@ function PilotBoard({
           />
         )}
       </div>
-      <ViewTransition key={key} {...LEADERS_MOTION} default="none">
-        <BoardLeaders rootRef={rootRef} view={key} />
-      </ViewTransition>
     </div>
   );
 }

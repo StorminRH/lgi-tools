@@ -14,4 +14,3 @@ function forEveryType(className: string): MotionClass {
  */
 export const CARDS_MOTION = { enter: forEveryType('board-cards-in'), exit: forEveryType('board-cards-out') };
 export const LATE_CARDS_MOTION = { enter: forEveryType('board-cards-in-late'), exit: forEveryType('board-cards-out') };
-export const LEADERS_MOTION = { exit: forEveryType('board-cards-out') };

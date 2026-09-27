@@ -20,7 +20,7 @@ export function SectionPanel({
   children: ReactNode;
 }) {
   return (
-    <section data-leader-target className={cn(readoutSurface, className)}>
+    <section className={cn(readoutSurface, className)}>
       <SectionHeader label={title} hint={meta} size="md" />
       {children}
     </section>
