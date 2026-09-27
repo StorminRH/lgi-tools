@@ -27,4 +27,8 @@ export const EVE_SCOPES = [
   'esi-location.read_ship_type.v1',
   'esi-corporations.read_structures.v1',
   EVE_CHARACTER_SEARCH_SCOPE,
+  'esi-wallet.read_character_wallet.v1',
+  'esi-clones.read_clones.v1',
+  'esi-clones.read_implants.v1',
+  'esi-universe.read_structures.v1',
 ] as const;
