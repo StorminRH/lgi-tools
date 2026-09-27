@@ -159,6 +159,23 @@ describe('resolvePasteTarget', () => {
     });
   });
 
+  it('uses the only logged-in character even when the default scanner is another one', () => {
+    // Day two: the default scanner alt stays logged off; the main scans alone.
+    expect(resolvePasteTarget([bravo, { ...alpha, systemId: null }], 7)).toEqual({
+      kind: 'ready',
+      systemId: SYSTEM + 1,
+      characterId: 8,
+    });
+  });
+
+  it('asks again when the logged-in alts do not include the default scanner', () => {
+    const charlie = { characterId: 10, systemId: SYSTEM + 2, lastMovementAt: 950 };
+    expect(resolvePasteTarget([{ ...alpha, systemId: null }, bravo, charlie], 7)).toEqual({
+      kind: 'choose',
+      candidates: [bravo, charlie],
+    });
+  });
+
   it('sends pastes to the online default scanner regardless of who jumped last', () => {
     expect(resolvePasteTarget([alpha, bravo], 7)).toEqual({
       kind: 'ready',
