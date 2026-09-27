@@ -25,6 +25,15 @@ function makeJobsPort(): JobsPort {
   };
 }
 
+/** The on-view write-behind: budget-deferred refresh of every linked character's jobs. */
+export function refreshJobsOnView(userId: string): Promise<OwnerSyncResult[]> {
+  return refreshJobsForUser(
+    makeJobsPort(),
+    userId,
+    enqueueBudgetDeferral('character_industry_jobs', userId),
+  );
+}
+
 export interface ViewerJobs {
   characterId: number;
   data: CharacterJobsData | null;
@@ -39,12 +48,7 @@ export interface ViewerJobsResult {
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
     read: (uid) => readCharacterOwners(uid, getJobsForCharacters, readCharacterJobSyncState),
-    refresh: (uid) =>
-      refreshJobsForUser(
-        makeJobsPort(),
-        uid,
-        enqueueBudgetDeferral('character_industry_jobs', uid),
-      ),
+    refresh: refreshJobsOnView,
     makeRow: characterRow,
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
   });

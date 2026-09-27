@@ -30,6 +30,11 @@ function makeSkillsPort(): SkillsPort {
   };
 }
 
+/** The on-view write-behind: budget-deferred refresh of every linked character's skills. */
+export function refreshSkillsOnView(userId: string): Promise<OwnerSyncResult[]> {
+  return refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId));
+}
+
 export interface ViewerSkills {
   characterId: number;
   data: CharacterSkillData | null;
@@ -44,8 +49,7 @@ export interface ViewerSkillsResult {
 export async function getSkillsForUserOnView(userId: string): Promise<ViewerSkillsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterSkillData, ViewerSkills>(userId, {
     read: (uid) => readCharacterOwners(uid, getSkillsForCharacters, readCharacterSyncState),
-    refresh: (uid) =>
-      refreshSkillsForUser(makeSkillsPort(), uid, enqueueBudgetDeferral('skills', uid)),
+    refresh: refreshSkillsOnView,
     makeRow: characterRow,
     nameIds: (viewerSkills) => {
       const skillIds = new Set<number>();
@@ -75,9 +79,7 @@ export async function getSkillLevelsForUserOnView(userId: string): Promise<Viewe
   const linked = await listLinkedCharacters(userId);
   const characterIds = linked.map((character) => character.characterId);
   const levelsMap = await getSkillLevelsForCharacters(characterIds);
-  after(() =>
-    refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId)),
-  );
+  after(() => refreshSkillsOnView(userId));
   return characterIds.map((characterId) => ({
     characterId,
     levels: levelsMap.get(characterId) ?? null,
@@ -91,9 +93,7 @@ export async function getSkillLevelsForCharacterOnView(
   const linked = await listLinkedCharacters(userId);
   if (!linked.some((character) => character.characterId === characterId)) return null;
   const levels = await getCharacterSkillLevels(characterId);
-  after(() =>
-    refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId)),
-  );
+  after(() => refreshSkillsOnView(userId));
   return levels;
 }
 
