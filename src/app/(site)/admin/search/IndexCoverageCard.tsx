@@ -7,14 +7,13 @@ import { scrollArea } from '@/components/ui/scroll-area';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { getSitemapEntries } from '@/composition/sitemap';
-import { isGscConfigured } from '@/data/gsc/constants';
 import { getCoverageTrend, getLatestUrlCoverage } from '@/data/gsc/queries';
 import type { GscRange } from '@/data/gsc/types';
 import { formatIsoDay } from '@/lib/format/time';
-import { AdminTrendChart } from './charts';
-import { deriveGscCoverageView, type GscCoverageRow } from './gsc-coverage-view';
-import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { SectionUnavailable } from './SectionUnavailable';
+import { AdminTrendChart } from '../charts';
+import { deriveGscCoverageView, type GscCoverageRow } from '../gsc-coverage-view';
+import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
+import { SectionUnavailable } from '../SectionUnavailable';
 
 function coverageTone(verdict: string | null): PillTone {
   if (verdict === 'PASS') return 'green';
@@ -62,19 +61,7 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
   );
 }
 
-export async function GscCoverageSection({ range }: { range: GscRange }) {
-  if (!isGscConfigured()) {
-    return (
-      <Card>
-        <SectionHeader size="md" label="Index coverage" hint="Google Search Console" />
-        <EmptyState>
-          Not connected — set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync index
-          coverage.
-        </EmptyState>
-      </Card>
-    );
-  }
-
+export async function IndexCoverageCard({ range }: { range: GscRange }) {
   const fetched = await loadSection('gsc-coverage', async () => {
     const sitemapUrls = (await getSitemapEntries()).map(({ url }) => url);
     return Promise.all([

@@ -348,6 +348,20 @@ describe('full-scope search over the real manifest (characterization anchor)', (
               "id": "cmd:open-access",
               "label": "Open admin users & roles",
             },
+            {
+              "disabled": false,
+              "hasOnSelect": false,
+              "href": "/admin/queue",
+              "id": "cmd:open-admin-queue",
+              "label": "Open admin refresh queue",
+            },
+            {
+              "disabled": false,
+              "hasOnSelect": false,
+              "href": "/admin/statics",
+              "id": "cmd:open-admin-statics",
+              "label": "Open admin wormhole statics",
+            },
           ],
         },
       ]

@@ -53,7 +53,6 @@ vi.mock('convex/react', () => ({
 
 import { AnnotatedDailyChart } from '@/components/ui/annotated-daily-chart';
 import { BarChart } from '@/components/ui/bar-chart';
-import { StaticSparkline } from '@/components/ui/chart/static-sparkline';
 import { ContentBrowser, landingContentSlug } from '@/components/ui/content-browser';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { LoadingLabel } from '@/components/ui/loading-label';
@@ -64,6 +63,7 @@ import { Breadcrumb, PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
 import { PopoverRow } from '@/components/ui/popover';
 import { PriceConfidence } from '@/components/ui/price-confidence';
+import { SectionHead } from '@/components/ui/section-head';
 import { StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { Tabs } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/toast';
@@ -74,7 +74,6 @@ describe('coverage-gaps', () => {
     const pinned = [
       AnnotatedDailyChart,
       BarChart,
-      StaticSparkline,
       ContentBrowser,
       landingContentSlug,
       DistributionBars,
@@ -90,6 +89,7 @@ describe('coverage-gaps', () => {
       Pagination,
       PopoverRow,
       PriceConfidence,
+      SectionHead,
       StackedShareBar,
       Tabs,
       Toaster,

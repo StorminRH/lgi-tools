@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  budgetSummary,
-  degradationCallerSummary,
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
   fallbackRatePoints,
-  fallbackSummary,
   formatAgo,
   formatPct,
   loginFrequencyBuckets,
@@ -27,52 +24,6 @@ describe('ratio + formatPct', () => {
   it('renders a real 0% distinctly from an empty window', () => {
     expect(formatPct(ratio(0, 10))).toBe('0%');
     expect(formatPct(ratio(10, 10))).toBe('100%');
-  });
-});
-
-describe('fallbackSummary edges', () => {
-  it('empty window', () => {
-    expect(fallbackSummary({ esi: 0, fallback: 0, perDay: [] })).toBe(
-      'No price refreshes recorded this period.',
-    );
-  });
-
-  it('real 0% (all ESI)', () => {
-    expect(fallbackSummary({ esi: 100, fallback: 0, perDay: [] })).toBe(
-      'ESI served every priced item this period.',
-    );
-  });
-
-  it('partial fallback', () => {
-    expect(fallbackSummary({ esi: 75, fallback: 25, perDay: [] })).toBe(
-      'Fuzzwork covered 25% of priced items when ESI was unavailable.',
-    );
-  });
-});
-
-describe('budgetSummary', () => {
-  it('zero', () => {
-    expect(budgetSummary(0)).toBe('ESI stayed within its error budget all period.');
-  });
-  it('singular vs plural', () => {
-    expect(budgetSummary(1)).toBe(
-      'ESI hit its error-budget floor 1 time, falling back to Fuzzwork.',
-    );
-    expect(budgetSummary(3)).toContain('3 times');
-  });
-});
-
-describe('degradationCallerSummary', () => {
-  it('empty', () => {
-    expect(degradationCallerSummary([])).toBe('No price-source degradation events this period.');
-  });
-  it('lists callers', () => {
-    expect(
-      degradationCallerSummary([
-        { caller: 'cron', count: 2 },
-        { caller: 'on-demand', count: 1 },
-      ]),
-    ).toBe('3 degradation events this period (2 cron, 1 on-demand).');
   });
 });
 

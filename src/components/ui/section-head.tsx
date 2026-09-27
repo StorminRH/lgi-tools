@@ -1,22 +1,24 @@
 import type { ReactNode } from 'react';
-import { cn } from '@/components/ui/cn';
+import { cn } from './cn';
 
-export function SettingsSectionHead({
+export function SectionHead({
   title,
   leading,
   chips,
+  description,
   meta,
   className,
 }: {
   title: ReactNode;
   leading?: ReactNode;
   chips?: ReactNode;
+  description?: ReactNode;
   meta?: ReactNode;
   className?: string;
 }) {
   return (
     <header
-      data-settings-section-head
+      data-section-head
       className={cn(
         'flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-border-soft pb-4',
         className,
@@ -29,9 +31,10 @@ export function SettingsSectionHead({
             {title}
           </h2>
           {chips != null && <span className="mt-1.5 flex items-center gap-[6px]">{chips}</span>}
+          {description != null && <p className="mt-2 font-ui text-ui text-muted">{description}</p>}
         </div>
       </div>
-      {meta != null && <div className="flex shrink-0 items-center gap-3">{meta}</div>}
+      {meta != null && <div className="flex shrink-0 flex-wrap items-center gap-3">{meta}</div>}
     </header>
   );
 }

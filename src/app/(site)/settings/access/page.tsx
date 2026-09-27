@@ -23,7 +23,7 @@ import {
 } from '@/platform/auth/admin-users';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
-import { SettingsSectionHead } from '../settings-section-head';
+import { SectionHead } from '@/components/ui/section-head';
 import {
   adminRoleBadge,
   deriveAccessView,
@@ -252,7 +252,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
 
   return (
     <>
-      <SettingsSectionHead
+      <SectionHead
         title="Users & roles"
         meta={
           <Link
