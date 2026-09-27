@@ -101,22 +101,22 @@ export async function getImplantDogma(typeIds: number[]): Promise<Map<number, Im
   return out;
 }
 
-export interface SkillCatalogSkill {
+export interface CatalogSkill {
   typeId: number;
   name: string;
   rank: number;
 }
 
-export interface SkillCatalogGroup {
+export interface CatalogGroup {
   groupId: number;
   name: string;
-  skills: SkillCatalogSkill[];
+  skills: CatalogSkill[];
 }
 
 const FALLBACK_SKILL_RANK = 1;
 
 /** Every published skill, grouped; the client names queue and trained skills from this alone. */
-export async function getSkillCatalog(): Promise<SkillCatalogGroup[]> {
+export async function getSkillCatalog(): Promise<CatalogGroup[]> {
   'use cache';
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
@@ -137,7 +137,7 @@ export async function getSkillCatalog(): Promise<SkillCatalogGroup[]> {
         .where(and(eq(eveGroups.categoryId, SDE_SKILL_CATEGORY_ID), eq(eveTypes.published, true))),
     ),
   ]);
-  const groups = new Map<number, SkillCatalogGroup>();
+  const groups = new Map<number, CatalogGroup>();
   for (const row of rows) {
     const group = groups.get(row.groupId) ?? { groupId: row.groupId, name: row.groupName, skills: [] };
     const rank = attributeValue((row.attributes ?? {}) as AttrMap, ids, SKILL_RANK_DOGMA);
