@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
-import { loadFailureStep, shouldReconcile } from '@/lib/live-dataset';
+import { loadFailureStep, RECONCILE_ONCE, reconcileDelay } from '@/lib/live-dataset';
 
 const TICK_MS = 30_000;
-const RECONCILE_DELAY_MS = 4_000;
+const RETRY_DELAY_MS = 4_000;
 
 /** What every live-dataset hook hands its consumers besides the derived rows. */
 export interface LiveDatasetState {
@@ -22,6 +22,10 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
   },
   coldKey: TKey,
   isCold: (response: TResponse, key: TKey) => boolean,
+  // Refetch delays while the data is still cold. The default reconciles once;
+  // a dataset whose first sync is slow can pass a longer, bounded backoff.
+  // Pass a module-level array: it is an effect dependency.
+  reconcileSchedule: readonly number[] = RECONCILE_ONCE,
 ): { response: TResponse | null; now: number; loading: boolean; failed: boolean } {
   const [response, setResponse] = useState<TResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -31,12 +35,12 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
 
   useEffect(() => {
     let cancelled = false;
-    let reconciled = false;
+    let attempt = 0;
     let retried = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const schedule = () => {
-      timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);
+    const schedule = (delay: number) => {
+      timer = setTimeout(() => void load(), delay);
     };
 
     // A failed fetch must still settle the dataset: one delayed retry, then
@@ -45,7 +49,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
       const step = loadFailureStep(loaded.current, retried);
       if (step === 'retry') {
         retried = true;
-        schedule();
+        schedule(RETRY_DELAY_MS);
       } else if (step === 'fail') {
         setFailed(true);
       }
@@ -61,9 +65,10 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
       loaded.current = true;
       setResponse(result.data);
       setFailed(false);
-      if (shouldReconcile(reconciled, result.data, coldKey, isCold)) {
-        reconciled = true;
-        schedule();
+      const delay = reconcileDelay(attempt, result.data, coldKey, isCold, reconcileSchedule);
+      if (delay !== null) {
+        attempt += 1;
+        schedule(delay);
       }
     };
 
@@ -72,7 +77,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [endpoint, coldKey, isCold]);
+  }, [endpoint, coldKey, isCold, reconcileSchedule]);
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
