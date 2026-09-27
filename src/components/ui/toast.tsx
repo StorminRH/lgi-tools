@@ -6,7 +6,8 @@ export { toast };
 
 // Toasts are dense glass like menus and popovers: readable over any page or
 // the map, with the type carried by the icon (and a red edge for errors)
-// rather than a tinted slab. Up to three stack; older ones slide down.
+// rather than a tinted slab. Each is sized to its text and centred; up to
+// three stack, older ones sliding down.
 export function Toaster() {
   return (
     <SonnerToaster
@@ -20,9 +21,13 @@ export function Toaster() {
       toastOptions={{
         unstyled: true,
         classNames: {
+          // Sized to its text and centred in the stack. `translate` composes
+          // with sonner's own transform animation; below sonner's 600px
+          // breakpoint its unlayered CSS pins toasts full width instead.
           toast:
-            'flex w-full items-center gap-2.5 rounded-card border border-border glass-dense glass-lit ' +
-            'px-3.5 py-2.5 font-ui text-ui tracking-copy text-name shadow-dd',
+            'left-1/2 flex w-max max-w-[var(--width)] -translate-x-1/2 items-center gap-2.5 rounded-card ' +
+            'border border-border glass-dense glass-lit px-3.5 py-2.5 font-ui text-ui tracking-copy ' +
+            'text-name shadow-dd max-[600px]:translate-x-0',
           icon: 'relative flex h-4 w-4 shrink-0 items-center justify-center',
           content: 'flex min-w-0 flex-col gap-0.5',
           title: 'leading-snug',
