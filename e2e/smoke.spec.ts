@@ -62,7 +62,7 @@ test('public home shell loads without console or page errors', async ({ page }) 
   const diag = attachDiagnostics(page);
   await page.goto('/');
   await expect(page.getByRole('link', { name: /LGI.*\.tools/i }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: /Log in with EVE Online/i })).toBeVisible();
   diag.assertClean();
 });
 

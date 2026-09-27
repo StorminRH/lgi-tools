@@ -366,7 +366,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         values: [
           { key: 'intelligence', base: 27, implant: 0 },
           { key: 'memory', base: 21, implant: 0 },
-          { key: 'perception', base: 17, implant: 5 },
+          { key: 'perception', base: 12, implant: 5 },
           { key: 'willpower', base: 17, implant: 0 },
           { key: 'charisma', base: 17, implant: 0 },
         ],

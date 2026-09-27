@@ -31,11 +31,6 @@ export function updatedLabel(section: BoardSection<unknown>, now: number): strin
   return section.state === 'ready' ? `updated ${formatRelativeTime(new Date(section.refreshedAt), now)}` : null;
 }
 
-/**
- * Ready renders the content. Pending is a quiet line, not a skeleton: the
- * board reconciles once, so a shimmer could run forever. Reconnect points at
- * the one reconnect sentence above the sheet instead of repeating its button.
- */
 export function SectionBody<T>({
   section,
   children,

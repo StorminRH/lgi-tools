@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { assembleBoardCharacter } from '@/composition/board/board-assemble';
 import { buildDemoBoard, type DemoVariant, FIXTURE_NOW } from '@/composition/board/demo-board';
 import { resolveE2eStorageStatePath } from './identity';
 
@@ -167,4 +168,71 @@ test('the board fits a phone without horizontal page scroll', async ({ page }) =
   await pilot(page, 9_900_000_001).click();
   await expect(sheet(page, 'Aurel Vantesse')).toBeVisible();
   expect(await fits()).toBe(true);
+});
+
+test('net worth appears after assets finish syncing without a reload', async ({ page }) => {
+  const ready = buildDemoBoard(FIXTURE_NOW, 'full');
+  const pending = structuredClone(ready);
+  for (const character of pending.characters) {
+    if (character.netWorth.state === 'ready') character.netWorth = { state: 'pending' };
+  }
+  let assetsSynced = false;
+  await page.clock.install({ time: FIXTURE_NOW });
+  await page.route('**/api/account/board', (route) => {
+    return route.fulfill({ json: assetsSynced ? ready : pending });
+  });
+  await page.goto('/');
+  await expect(overview(page)).toBeVisible({ timeout: 15_000 });
+  const chart = overview(page).getByRole('img', { name: 'Estimated net worth over time' });
+  await expect(chart).toHaveCount(0);
+  assetsSynced = true;
+  await page.clock.runFor(4_000);
+  await expect(chart).toBeVisible();
+  await expect(overview(page).getByText('7.75B', { exact: false }).first()).toBeVisible();
+});
+
+test('the sheet shows ESI attribute totals and a flat history for an inactive wallet', async ({ page }) => {
+  const board = buildDemoBoard(FIXTURE_NOW, 'one');
+  const character = board.characters[0]!;
+  const refreshedAt = new Date(FIXTURE_NOW).toISOString();
+  const assembled = assembleBoardCharacter({
+    identity: {
+      characterId: character.characterId, name: character.name, portraitUrl: character.portraitUrl,
+      corporationId: character.corporation?.id ?? null, allianceId: character.alliance?.id ?? null,
+    },
+    health: { hasRefreshToken: true, missingScopes: [] },
+    sheet: {
+      attributes: {
+        refreshedAt, etags: {},
+        data: { attributes: {
+          intelligence: 25, memory: 21, perception: 17, willpower: 17, charisma: 17,
+          bonusRemaps: 1, lastRemapDate: null, accruedRemapCooldownDate: null,
+        } },
+      },
+      implants: { refreshedAt, etags: {}, data: { implants: [10222] } },
+    },
+    skills: { data: null, levels: null, refreshedAt: null },
+    jobs: { data: null, refreshedAt: null },
+    assets: { rows: null, refreshedAt: null },
+  }, {
+    types: new Map([[10222, { name: 'Cybernetic Subprocessor', implantSlot: 4, attributeBonus: { intelligence: 4 } }]]),
+    systems: new Map(), npcStations: new Map(), entities: {}, skillCatalog: [], prices: new Map(), typeCategories: new Map(),
+  }, FIXTURE_NOW);
+  character.attributes = assembled.attributes;
+  character.wallet = { state: 'ready', refreshedAt: FIXTURE_NOW, data: { balance: 1_000_000_000 } };
+  character.journal = {
+    state: 'ready', refreshedAt: FIXTURE_NOW,
+    data: { windowStart: '2026-09-01T00:00:00Z', inflow: 0, outflow: 0, series: [], recent: [] },
+  };
+  board.history = [];
+  await serveBoard(page, 'one', board);
+  await page.goto('/');
+  const intelligence = page.locator('dt').filter({ hasText: /^Intelligence$/ }).locator('..').locator('dd');
+  await expect(intelligence).toHaveText('25(+4)');
+  const chart = page.getByRole('img', { name: 'Estimated net worth over time' });
+  await expect(chart).toBeVisible();
+  await page.getByLabel('Estimated net worth over time; use the arrow keys to read each day', { exact: true }).focus();
+  for (let day = 0; day < 26; day += 1) await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('.sparkline-tooltip').getByText('1 Sept 2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('ISK 1.00B', { exact: true })).toBeVisible();
 });

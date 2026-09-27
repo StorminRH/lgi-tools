@@ -383,6 +383,7 @@ const SECTION_KEYS = [
   'wallet',
   'journal',
   'industry',
+  'netWorth',
 ] as const satisfies readonly (keyof BoardCharacter)[];
 
 export function boardIsCold(response: { characters: readonly BoardCharacter[] }): boolean {
@@ -593,7 +594,12 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   const pilots = characters.flatMap((character) => {
     const journal = readyData(character.journal);
     const wallet = readyData(character.wallet);
-    return journal === null || wallet === null ? [] : [{ journal, wallet }];
+    if (journal === null || wallet === null) return [];
+    if (journal.series.length === 0 && journal.recent.length > 0) return [];
+    const series = journal.series.length > 0
+      ? journal.series
+      : [{ t: Date.parse(journal.windowStart), balance: wallet.balance }];
+    return [{ journal, wallet, series }];
   });
   const empty = { points: [], from: null, included: pilots.length, of: characters.length };
   if (pilots.length === 0) return empty;
@@ -603,7 +609,7 @@ export function netWorthSeries(characters: readonly BoardCharacter[], now: numbe
   if (today - firstDay < DAY) return { ...empty, from };
   const points: { t: number; balance: number }[] = [];
   for (let day = firstDay; day < today; day += DAY) {
-    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.journal.series, day + DAY - 1), 0);
+    const balance = pilots.reduce((sum, pilot) => sum + balanceBy(pilot.series, day + DAY - 1), 0);
     points.push({ t: day, balance });
   }
   points.push({ t: today, balance: pilots.reduce((sum, pilot) => sum + pilot.wallet.balance, 0) });

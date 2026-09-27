@@ -272,15 +272,15 @@ describe('assembleBoardCharacter ready data', () => {
     });
   });
 
-  it('adds implant bonuses per attribute and exposes the next remap date', () => {
+  it('separates implant bonuses from ESI totals and exposes the next remap date', () => {
     expect(character.attributes).toEqual({
       state: 'ready',
       refreshedAt: REFRESHED_MS,
       data: {
         values: [
-          { key: 'intelligence', base: 27, implant: 5 },
+          { key: 'intelligence', base: 22, implant: 5 },
           { key: 'memory', base: 21, implant: 0 },
-          { key: 'perception', base: 17, implant: 5 },
+          { key: 'perception', base: 12, implant: 5 },
           { key: 'willpower', base: 17, implant: 0 },
           { key: 'charisma', base: 17, implant: 0 },
         ],

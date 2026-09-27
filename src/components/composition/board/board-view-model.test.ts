@@ -218,6 +218,8 @@ describe('places and timeline', () => {
   it('flags a board with a syncing section as cold', () => {
     expect(boardIsCold(board)).toBe(false);
     expect(boardIsCold({ characters: [{ ...aurel!, wallet: { state: 'pending' } }] })).toBe(true);
+    expect(boardIsCold({ characters: [{ ...aurel!, netWorth: { state: 'pending' } }] })).toBe(true);
+    expect(boardIsCold({ characters: [{ ...aurel!, netWorth: { state: 'reconnect' } }] })).toBe(false);
   });
 });
 
@@ -314,6 +316,29 @@ describe('netWorthSeries', () => {
 
   it('equals a lone pilot’s own curve', () => {
     expect(netWorthSeries([pilotB], NOW).points.map((point) => point.balance)).toEqual([10, 10, 20, 25]);
+  });
+
+  it('keeps an inactive pilot’s balance across an empty synced journal window', () => {
+    const inactive = { ...pilotB, journal: journalOf('2026-09-24T00:00:00.000Z', []) };
+    expect(netWorthSeries([inactive], NOW).points.map((point) => point.balance)).toEqual([25, 25, 25, 25]);
+    expect(netWorthSeries([pilotA, inactive], NOW).points.map((point) => point.balance)).toEqual([125, 175, 175, 195]);
+  });
+
+  it('omits unknown history when journal entries have no balances', () => {
+    const journal = journalOf('2026-09-24T00:00:00.000Z', []);
+    const unknown = {
+      ...pilotB,
+      journal: {
+        ...journal,
+        data: {
+          ...journal.data,
+          recent: [{ id: 1, date: '2026-09-24T12:00:00Z', refLabel: 'Gift', amount: 25, description: '' }],
+        },
+      },
+    };
+    expect(netWorthSeries([unknown], NOW)).toEqual({ points: [], from: null, included: 0, of: 1 });
+    const mixed = netWorthSeries([pilotA, unknown], NOW);
+    expect([mixed.included, mixed.of, mixed.points.at(-1)?.balance]).toEqual([1, 2, 170]);
   });
 
   it('is empty with no included pilot or under two days of window', () => {

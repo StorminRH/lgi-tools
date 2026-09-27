@@ -267,11 +267,10 @@ function implantBonus(names: NameBook, implantIds: number[], key: AttributeKey):
 
 function mapAttributes(attributes: AttributesPart, implantIds: number[], names: NameBook) {
   return {
-    values: ATTRIBUTE_KEYS.map((key) => ({
-      key,
-      base: attributes[key],
-      implant: implantBonus(names, implantIds, key),
-    })),
+    values: ATTRIBUTE_KEYS.map((key) => {
+      const implant = implantBonus(names, implantIds, key);
+      return { key, base: attributes[key] - implant, implant };
+    }),
     bonusRemaps: attributes.bonusRemaps,
     lastRemapDate: attributes.lastRemapDate,
     nextRemapDate: attributes.accruedRemapCooldownDate,
