@@ -300,7 +300,13 @@ describe('refreshCharacterSheetForUser', () => {
 
     await refreshCharacterSheetForUser(port, 'u1', { target: { ownerType: 'character', ownerId: 2 } });
 
+    expect(endpointsRead(port)).toEqual([
+      'attributes', 'character', 'clones', 'implants', 'journal', 'location', 'online', 'orders', 'ship', 'wallet',
+    ]);
     expect(vi.mocked(port.readEndpoint).mock.calls.every(([id]) => id === 2)).toBe(true);
+    expect(vi.mocked(port.mergeSection).mock.calls.map(([id, key]) => `${id}:${key}`).sort())
+      .toEqual(ALL_KEYS.map((key) => `2:${key}`).sort());
+    expect(port.sheets.get(2)?.wallet).toEqual({ data: { balance: 12.5 }, refreshedAt: NOW_ISO, etags: { balance: '"wallet"' } });
     expect(port.sheets.has(1)).toBe(false);
   });
 });

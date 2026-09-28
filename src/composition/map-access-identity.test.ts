@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  affectedMapIdsForCharacter: vi.fn(),
   getOwnedMapIds: vi.fn(),
   projectMapAccess: vi.fn(),
   purgeMapChain: vi.fn(),
@@ -14,7 +13,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/data/maps/queries', () => ({
-  affectedMapIdsForCharacter: mocks.affectedMapIdsForCharacter,
   enqueueAffectedMapAccessChanges: mocks.enqueueAffectedMapAccessChanges,
   getOwnedMapIds: mocks.getOwnedMapIds,
 }));
@@ -54,7 +52,6 @@ const pending = (ids: string[]) => ids.map((mapId) => ({ mapId, version: mapId }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.affectedMapIdsForCharacter.mockResolvedValue([]);
   mocks.getOwnedMapIds.mockResolvedValue([]);
   mocks.projectMapAccess.mockResolvedValue({
     inserted: 0,
@@ -123,25 +120,32 @@ describe('map-access-identity', () => {
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
   });
 
-  it('revokes every affected map for only the departing user', async () => {
+  it('queues every affected map durably before revoking them for only the departing user', async () => {
     const ids = Array.from({ length: 101 }, (_, index) => `map-${index}`);
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(ids);
-    await revokeCharacterMapClaims('departing-user', 42);
+    mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(ids));
+    await expect(revokeCharacterMapClaims('departing-user', 42)).resolves.toEqual(ids);
+    expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledExactlyOnceWith(42);
     expect(mocks.revokeUserMapClaims).toHaveBeenCalledExactlyOnceWith('departing-user', ids);
+    expect(mocks.enqueueAffectedMapAccessChanges.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.revokeUserMapClaims.mock.invocationCallOrder[0]!,
+    );
   });
 
-  it('queues restoration and retains the error if revocation stops after a partial batch', async () => {
+  it('delivers restoration and retains the error if revocation stops after a partial batch', async () => {
     const failure = new Error('Convex unavailable');
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a']);
+    mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(['map-a']));
     mocks.revokeUserMapClaims.mockRejectedValueOnce(failure);
     await expect(identityProjectionRunners.runBeforeCharacterUnlink({
       userId: 'departing-user', characterId: 42,
     })).rejects.toBe(failure);
-    expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledWith(42);
+    expect(mocks.enqueueAffectedMapAccessChanges.mock.calls).toEqual([[42], [42]]);
+    expect(mocks.projectMapAccess).toHaveBeenCalledExactlyOnceWith('map-a', { timeoutMs: 4_000 });
+    expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith(
+      [{ mapId: 'map-a', version: 'map-a' }], [],
+    );
   });
 
   it('reasserts revocation after the durable unlink so prior snapshots cannot win', async () => {
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(['map-a']);
     await identityProjectionRunners.runAfterCharacterUnlink({
       userId: 'departing-user', characterId: 42, mapIds: ['map-a'],
     });

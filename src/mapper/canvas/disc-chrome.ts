@@ -1,3 +1,5 @@
+import { systemSecurityClass } from '@/data/eve-data/security';
+
 export const SYSTEM_DISC_SIZE = 55;
 const TRACK_ICON_PX = 14;
 const TRACK_AIR_GAP_PX = 4;
@@ -21,4 +23,18 @@ export function widgetSeatOffset(index: number): { readonly x: number; readonly 
 
 export function kspaceCaptionOffset(): { readonly x: number; readonly y: number } {
   return { x: 0, y: -(SYSTEM_DISC_SIZE / 2 + KSPACE_TITLE_GAP_PX) };
+}
+
+export interface NodeCaptionData {
+  readonly security?: number | null;
+  readonly whClassId?: number | null;
+  readonly halo?: unknown;
+  readonly stub?: unknown;
+}
+
+export function nodeCaptionKind(data: NodeCaptionData): 'kspace' | 'frame' {
+  if (data.halo !== undefined || data.stub !== undefined) return 'frame';
+  return systemSecurityClass(data.security ?? null, data.whClassId ?? null) === 'wormhole'
+    ? 'frame'
+    : 'kspace';
 }

@@ -4,11 +4,7 @@ import {
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
-import {
-  affectedMapIdsForCharacter,
-  enqueueAffectedMapAccessChanges,
-  getOwnedMapIds,
-} from '@/data/maps/queries';
+import { enqueueAffectedMapAccessChanges, getOwnedMapIds } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 import { deliverCapturedMapAccessChanges } from './map-affiliation-access';
@@ -20,7 +16,8 @@ export async function reprojectMapsForCharacter(characterId: number): Promise<vo
 }
 
 export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<string[]> {
-  const mapIds = await affectedMapIdsForCharacter(characterId);
+  const pending = await enqueueAffectedMapAccessChanges(characterId);
+  const mapIds = pending.map((change) => change.mapId);
   await revokeUserMapClaims(userId, mapIds);
   return mapIds;
 }

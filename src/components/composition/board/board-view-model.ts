@@ -18,8 +18,6 @@ const DAY = 24 * HOUR;
 
 export const BOARD_LOAD_FAILED = 'Couldn’t load your characters — reload the page to try again.';
 
-export type SectionState = BoardSection<unknown>['state'];
-
 function readyData<T>(section: BoardSection<T>): T | null {
   return section.state === 'ready' ? section.data : null;
 }
@@ -37,29 +35,6 @@ function coveredSum(values: readonly (number | null)[]): CoveredSum | null {
     value: present.reduce((sum, value) => sum + value, 0),
     covered: present.length,
     total: values.length,
-  };
-}
-
-export function coverageNote(sum: CoveredSum): string {
-  return sum.covered < sum.total ? ` (${sum.covered} of ${sum.total})` : '';
-}
-
-export interface RosterTotals {
-  pilots: number;
-  isk: CoveredSum | null;
-  sp: CoveredSum | null;
-  training: number;
-}
-
-export function rosterTotals(characters: readonly BoardCharacter[], now: number): RosterTotals {
-  return {
-    pilots: characters.length,
-    isk: coveredSum(characters.map((c) => readyData(c.wallet)?.balance ?? null)),
-    sp: coveredSum(characters.map((c) => readyData(c.skills)?.totalSp ?? null)),
-    training: characters.filter((c) => {
-      const skills = readyData(c.skills);
-      return skills !== null && currentTraining(skills.queue, now).kind === 'training';
-    }).length,
   };
 }
 
@@ -106,9 +81,6 @@ export interface BoardTileModel {
   name: string;
   portraitUrl: string;
   online: boolean | null;
-  isk: number | null;
-  totalSp: number | null;
-  skillsState: SectionState;
   training: CurrentTraining | null;
   skillName: string | null;
   remainingLabel: string | null;
@@ -147,9 +119,6 @@ export function tileModel(
     name: character.name,
     portraitUrl: character.portraitUrl,
     online: status?.online ?? null,
-    isk: readyData(character.wallet)?.balance ?? null,
-    totalSp: skills?.totalSp ?? null,
-    skillsState: character.skills.state,
     ...trainingOf(skills, names, now),
     health: queueHealth(character.skills, now),
     system: status?.system ?? null,

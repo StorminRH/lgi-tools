@@ -4,7 +4,6 @@ import type { PageControlModel } from '@/platform/page-settings/controls';
 import {
   deriveCorporationsView,
   settingsNeedsCorpSharing,
-  toManagerCorps,
 } from './corporations-view';
 
 const feature: PageControlModel = { kind: 'feature', id: 'corp-structure-sharing' };
@@ -47,13 +46,11 @@ test('the corporations section gates on the registry feature control and separat
     row({ corporationId: 3, corporationName: 'Beta', isStationManager: true, sharingEnabled: true, structures: [structure(9)] }),
   ];
 
-  expect(toManagerCorps(rows)).toEqual([
+  const view = deriveCorporationsView(rows);
+  expect(view.managerCorps).toEqual([
     { corporationId: 1, corporationName: 'Alpha', sharingEnabled: false },
     { corporationId: 3, corporationName: 'Beta', sharingEnabled: true },
   ]);
-
-  const view = deriveCorporationsView(rows);
-  expect(view.managerCorps.map((c) => c.corporationId)).toEqual([1, 3]);
   expect(view.memberships.map((m) => m.corporationName)).toEqual(['Alpha', 'Beta', 'Zeta']);
   expect(view.memberships[0]).toEqual({
     corporationId: 1,

@@ -5,7 +5,6 @@ import {
   balanceChart,
   characterAge,
   characterSecurityClass,
-  coverageNote,
   boardTransitionType,
   boardViewFrom,
   combinedFlow,
@@ -32,7 +31,6 @@ import {
   remainingQueue,
   recentJournal,
   reconnectSentence,
-  rosterTotals,
   skillNames,
   tileModel,
 } from './board-view-model';
@@ -41,23 +39,6 @@ const NOW = FIXTURE_NOW;
 const board = boardResponseSchema.parse(buildDemoBoard(NOW, 'full'));
 const [aurel, kessa, torvin, ilyana, bram] = board.characters;
 const names = skillNames(board.skillCatalog);
-
-describe('rosterTotals', () => {
-  it('sums only the characters that have the data and says how many', () => {
-    const totals = rosterTotals(board.characters, NOW);
-    expect(totals.pilots).toBe(5);
-    expect(totals.training).toBe(2);
-    expect(totals.isk).toEqual({ value: expect.closeTo(4_112_776_212.67, 1), covered: 3, total: 5 });
-    expect(totals.sp).toEqual({ value: 73_748_880, covered: 4, total: 5 });
-    expect(coverageNote(totals.isk!)).toBe(' (3 of 5)');
-  });
-
-  it('leaves a sum out entirely when no character has it', () => {
-    const reconnect = buildDemoBoard(NOW, 'reconnect').characters;
-    expect(rosterTotals(reconnect, NOW).isk).toBeNull();
-    expect(coverageNote({ value: 1, covered: 2, total: 2 })).toBe('');
-  });
-});
 
 describe('queueHealth', () => {
   it('reads ok, amber under a day, and red when paused or empty', () => {
@@ -71,13 +52,11 @@ describe('queueHealth', () => {
 });
 
 describe('tileModel', () => {
-  it('carries the training line, ISK, SP and system for a ready character', () => {
+  it('carries the training line and system for a ready character', () => {
     const tile = tileModel(aurel!, names, NOW);
     expect(tile).toMatchObject({
       name: 'Aurel Vantesse',
       online: true,
-      isk: 3_204_115_882.15,
-      totalSp: 41_512_880,
       skillName: 'Caldari Cruiser',
       remainingLabel: '20h',
       needsReconnect: false,
@@ -88,12 +67,9 @@ describe('tileModel', () => {
 
   it('never invents a zero for a section it cannot read', () => {
     const tile = tileModel(bram!, names, NOW);
-    expect(tile.isk).toBeNull();
     expect(tile.online).toBeNull();
-    expect(tile.totalSp).toBeNull();
     expect(tile.training).toBeNull();
     expect(tile.needsReconnect).toBe(true);
-    expect(tileModel(ilyana!, names, NOW).isk).toBeNull();
   });
 });
 

@@ -9,7 +9,6 @@ import {
 } from '@/data/maps/queries';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
-import { createCorpAccessSnapshot } from '@/platform/auth/corp-access';
 
 export interface MapAccessClaim {
   readonly userId: string;
@@ -59,6 +58,13 @@ export class ProjectionUnavailableError extends Error {
   }
 }
 
+function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]) {
+  return {
+    characterIds: rows.map((row) => row.characterId),
+    corporationIds: [...new Set(rows.flatMap((row) => row.corporationId ?? []))],
+  };
+}
+
 async function computeMapAccessClaimsForState(
   mapId: string,
   allowArchived: boolean,
@@ -93,14 +99,12 @@ async function computeMapAccessClaimsForState(
     byUser.set(row.userId, rows);
   }
 
-  const resolvedAt = Date.now();
   const claims: MapAccessClaim[] = [{ userId: map.userId, roles: ['admin'] }];
   for (const userId of candidateUserIds) {
-    const access = createCorpAccessSnapshot(userId, byUser.get(userId) ?? [], false, resolvedAt);
     const roles = resolveMatchedMapRoles({
       isCreator: false,
       grants,
-      principals: { characterIds: access.allCharacterIds, corporationIds: access.corporationIds },
+      principals: principalsIgnoringStampAge(byUser.get(userId) ?? []),
     });
     if (roles.length === 0) continue;
     claims.push({ userId, roles });
