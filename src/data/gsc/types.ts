@@ -82,7 +82,6 @@ export interface GscSitemapStatus {
   warnings: number;
   errors: number;
   submitted: number;
-  indexed: number;
 }
 
 export interface GscUrlStatus {

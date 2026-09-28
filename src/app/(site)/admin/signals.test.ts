@@ -143,16 +143,16 @@ describe('deriveStatusGroups', () => {
   it('reports a healthy budget and an empty queue', () => {
     const groups = deriveStatusGroups(signals());
     expect(groups[1]!.lines[0]).toMatchObject({ label: 'Error budget', value: '87 left', level: 'green' });
-    expect(groups[2]!.lines[3]).toMatchObject({ value: '0 due · 0 dead', level: 'green' });
+    expect(groups[2]!.lines[3]).toMatchObject({ value: '0 active · 0 dead', level: 'green' });
   });
 
   it('shows the queue age in minutes, hours, and days, amber once stale', () => {
     const hours = deriveStatusGroups(signals({ queue: [stat('queued', 2, 30)] }));
-    expect(hours[2]!.lines[3]).toMatchObject({ level: 'amber', note: 'oldest due 30h' });
+    expect(hours[2]!.lines[3]).toMatchObject({ level: 'amber', note: 'oldest job 30h' });
     const minutes = deriveStatusGroups(signals({ queue: [stat('queued', 1, 0.5)] }));
-    expect(minutes[2]!.lines[3]!.note).toBe('oldest due 30m');
+    expect(minutes[2]!.lines[3]!.note).toBe('oldest job 30m');
     const days = deriveStatusGroups(signals({ queue: [stat('queued', 1, 72)] }));
-    expect(days[2]!.lines[3]!.note).toBe('oldest due 3d');
+    expect(days[2]!.lines[3]!.note).toBe('oldest job 3d');
   });
 });
 
@@ -292,5 +292,18 @@ describe('a source that failed to load', () => {
       deriveStatusGroups(signals()),
     );
     expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load price source', '/admin/esi']]);
+  });
+});
+
+
+describe('independent service readings', () => {
+  it('keeps successful readings when latency is unavailable', () => {
+    const groups = deriveStatusGroups(signals({ sli: {
+      readSuccess: 1, mutationSuccess: 1, latencyP95: SECTION_LOAD_FAILED, esiSuccess: 0.99,
+    } }));
+    const lines = groups.flatMap((group) => group.lines);
+    expect(lines.find((line) => line.id === 'latencyP95')?.value).toBe('unavailable');
+    expect(lines.find((line) => line.id === 'readSuccess')?.value).toBe('100.0%');
+    expect(lines.find((line) => line.id === 'esiSuccess')?.value).toBe('99.0%');
   });
 });

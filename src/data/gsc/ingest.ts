@@ -63,10 +63,8 @@ export function searchRowsToRecords(
 
 export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): SitemapRecord {
   let submitted = 0;
-  let indexed = 0;
   for (const c of entry.contents ?? []) {
     submitted += coerceCount(c.submitted);
-    indexed += coerceCount(c.indexed);
   }
   return {
     path: entry.path,
@@ -78,7 +76,6 @@ export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): Sitemap
     warnings: coerceCount(entry.warnings),
     errors: coerceCount(entry.errors),
     submitted,
-    indexed,
     syncedAt,
   };
 }
@@ -292,7 +289,6 @@ async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult>
           warnings: excluded('warnings'),
           errors: excluded('errors'),
           submitted: excluded('submitted'),
-          indexed: excluded('indexed'),
           syncedAt: excluded('synced_at'),
         },
       });

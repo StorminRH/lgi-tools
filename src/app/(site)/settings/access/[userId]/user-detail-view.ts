@@ -1,5 +1,6 @@
 import type { ChipTone } from '@/components/ui/tones';
 import type { AdminUser } from '@/platform/auth/admin-users';
+import { adminRoleBadge } from '../access-view';
 
 export type UserDetailView = {
   characterIdLabel: string;
@@ -15,18 +16,17 @@ export function deriveUserDetailView({
   sessionCount,
   viewerUserId,
   userId,
+  isSuperadmin = false,
 }: {
   targetUser: AdminUser;
   charactersCount: number;
   sessionCount: number;
   viewerUserId: string;
   userId: string;
+  isSuperadmin?: boolean;
 }): UserDetailView {
   const isViewerSelf = userId === viewerUserId;
-  const roleChip: { tone: ChipTone; label: string } =
-    targetUser.role === 'ADMIN'
-      ? { tone: 'purple', label: 'Admin' }
-      : { tone: 'blue', label: 'User' };
+  const roleChip = adminRoleBadge({ isSuperadmin, role: targetUser.role });
   return {
     characterIdLabel: targetUser.characterId != null ? String(targetUser.characterId) : '—',
     identityChips: isViewerSelf ? [roleChip, { tone: 'green', label: 'You' }] : [roleChip],

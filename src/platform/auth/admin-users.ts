@@ -1,11 +1,11 @@
-import { and, asc, count, countDistinct, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, eq, exists, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
-import { accountMatch, eveAccountsForUser } from './eve-account-shared';
+import { accountMatch, characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
-import { account, session, user } from '@/db/auth-schema';
+import { account, characters, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';
 
 export interface AdminUser {
@@ -18,8 +18,8 @@ export interface AdminUser {
 
 const adminUserColumns = {
   userId: user.id,
-  name: user.name,
-  portraitUrl: user.image,
+  name: sql<string>`coalesce(${characters.name}, case when ${account.accountId} is not null then 'Character ' || ${account.accountId} else ${user.name} end)`,
+  portraitUrl: sql<string | null>`case when ${account.accountId} is null then ${user.image} else ${characters.portraitUrl} end`,
   role: user.role,
   characterId: account.accountId,
 };
@@ -69,6 +69,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
     .select(adminUserColumns)
     .from(user)
     .leftJoin(account, oldestEveAccountJoin())
+    .leftJoin(characters, characterProfileJoin)
     .where(eq(user.role, 'ADMIN'))
     .orderBy(asc(user.name));
 
@@ -80,6 +81,7 @@ export async function getUserById(userId: string): Promise<AdminUser | null> {
     .select(adminUserColumns)
     .from(user)
     .leftJoin(account, oldestEveAccountJoin())
+    .leftJoin(characters, characterProfileJoin)
     .where(eq(user.id, userId))
     .limit(1);
 
@@ -91,6 +93,7 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
     .select(adminUserColumns)
     .from(account)
     .innerJoin(user, eq(user.id, account.userId))
+    .leftJoin(characters, characterProfileJoin)
     .where(accountMatch(characterId))
     .limit(1);
 
@@ -119,11 +122,23 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
 
+  const linkedAccount = alias(account, 'searched_eve_account');
+  const linkedCharacter = alias(characters, 'searched_character');
   const rows = await db
     .select(adminUserColumns)
     .from(user)
     .leftJoin(account, oldestEveAccountJoin())
-    .where(ilike(user.name, `%${trimmed}%`))
+    .leftJoin(characters, characterProfileJoin)
+    .where(or(
+      ilike(user.name, `%${trimmed}%`),
+      exists(db.select({ one: sql`1` }).from(linkedAccount)
+        .innerJoin(linkedCharacter, eq(sql`${linkedCharacter.characterId}::text`, linkedAccount.accountId))
+        .where(and(
+          eq(linkedAccount.userId, user.id),
+          eq(linkedAccount.providerId, EVE_PROVIDER_ID),
+          ilike(linkedCharacter.name, `%${trimmed}%`),
+        ))),
+    ))
     .orderBy(asc(user.name))
     .limit(CHARACTER_SEARCH_LIMIT + 1);
 

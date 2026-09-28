@@ -40,8 +40,8 @@ export async function DeadLettersCard() {
     <Card id="dead-letters" className="scroll-mt-24">
       <SectionHeader
         size="md"
-        label={`Dead letters · ${rows.length}${rows.length === DEAD_LETTER_LIMIT ? '+' : ''}`}
-        hint="jobs that used every attempt · retry once the cause is fixed"
+        label={`Dead letters · ${rows.length}`}
+        hint={rows.length === DEAD_LETTER_LIMIT ? "latest 50 · retries exhausted" : "retries exhausted · retry after fixing the cause"}
       />
       {rows.length === 0 ? (
         <EmptyState>No dead-lettered refresh jobs. Nothing to retry.</EmptyState>

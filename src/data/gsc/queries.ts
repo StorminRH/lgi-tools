@@ -135,7 +135,6 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
       warnings: gscSitemaps.warnings,
       errors: gscSitemaps.errors,
       submitted: gscSitemaps.submitted,
-      indexed: gscSitemaps.indexed,
     })
     .from(gscSitemaps)
     .orderBy(gscSitemaps.path);
@@ -146,7 +145,6 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
     warnings: Number(r.warnings),
     errors: Number(r.errors),
     submitted: Number(r.submitted),
-    indexed: Number(r.indexed),
   }));
 }
 
@@ -202,7 +200,7 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
     where ${gscUrlInspection.verdict} = 'PASS'
   )`.mapWith(Number);
   const notIndexed = sql<number>`count(*) filter (
-    where ${gscUrlInspection.verdict} is distinct from 'PASS'
+    where ${gscUrlInspection.verdict} in ('FAIL', 'NEUTRAL')
   )`.mapWith(Number);
   const rows = await db
     .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
@@ -227,4 +225,13 @@ export async function getLastSyncedAt(): Promise<Date | null> {
     .from(gscSearchAnalytics);
   const raw = row?.lastSyncedAt ?? null;
   return raw === null ? null : new Date(raw as unknown as string);
+}
+
+/** Most recent finalized Google reporting day, distinct from ingestion time. */
+export async function getLatestReportDate(): Promise<string | null> {
+  const [row] = await db
+    .select({ day: sql<string | null>`max(${gscSearchAnalytics.date})` })
+    .from(gscSearchAnalytics)
+    .where(eq(gscSearchAnalytics.dimension, 'total'));
+  return row?.day ?? null;
 }

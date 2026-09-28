@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { distributionBars } from './distribution-bars';
 
 describe('distributionBars', () => {
+  it('uses the full population for truncated rankings', () => {
+    const [bar] = distributionBars([{ key: 'a', label: 'a', count: 326 }], 'desc', 1205);
+    expect(bar!.sharePct).toBeCloseTo(27.054, 2);
+  });
   it('sorts high→low and computes share of total plus fill vs the max', () => {
     const bars = distributionBars([
       { key: 'a', label: '/a', count: 20 },

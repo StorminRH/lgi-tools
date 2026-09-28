@@ -30,10 +30,10 @@ export interface CronSignals {
 }
 
 export interface SliSignals {
-  readSuccess: number | null;
-  mutationSuccess: number | null;
-  latencyP95: number | null;
-  esiSuccess: number | null;
+  readSuccess: Loaded<number | null>;
+  mutationSuccess: Loaded<number | null>;
+  latencyP95: Loaded<number | null>;
+  esiSuccess: Loaded<number | null>;
 }
 
 // Each source loads on its own, so one failed read marks only its own lines.
@@ -117,8 +117,8 @@ const SLI_TARGETS = {
   { warn: number; fail: number; direction: 'min' | 'max' }
 >;
 
-export function sliLevel(key: keyof SliSignals, value: number | null): StatusLevel {
-  if (value === null || Number.isNaN(value)) return 'neutral';
+export function sliLevel(key: keyof SliSignals, value: Loaded<number | null>): StatusLevel {
+  if (value === SECTION_LOAD_FAILED || value === null || Number.isNaN(value)) return 'neutral';
   const target = SLI_TARGETS[key];
   const breaches = (limit: number) =>
     target.direction === 'min' ? value < limit : value > limit;
@@ -127,7 +127,8 @@ export function sliLevel(key: keyof SliSignals, value: number | null): StatusLev
   return 'green';
 }
 
-export function formatSliValue(key: keyof SliSignals, value: number | null): string {
+export function formatSliValue(key: keyof SliSignals, value: Loaded<number | null>): string {
+  if (value === SECTION_LOAD_FAILED) return 'unavailable';
   if (value === null || Number.isNaN(value)) return 'no data';
   if (key === 'latencyP95') return `${Math.round(value).toLocaleString()} ms`;
   return `${(value * 100).toFixed(1)}%`;
@@ -239,11 +240,11 @@ function queueLine(queue: QueueSummary): StatusLine {
   return {
     id: 'queue',
     label: 'Refresh queue',
-    value: `${queue.due.toLocaleString()} due · ${queue.deadLettered.toLocaleString()} dead`,
+    value: `${queue.due.toLocaleString()} active · ${queue.deadLettered.toLocaleString()} dead`,
     note:
       queue.oldestDueHours === null
         ? 'nothing waiting'
-        : `oldest due ${formatHours(queue.oldestDueHours)}`,
+        : `oldest job ${formatHours(queue.oldestDueHours)}`,
     level: queueLevel(queue),
     quiet: true,
   };
@@ -343,7 +344,7 @@ export function deriveStatusGroups(signals: AdminSignals): StatusGroup[] {
       linkLabel: 'ESI',
       lines: [
         budgetLine(signals.budget),
-        sliLine('esiSuccess', 'ESI success', signals.sli),
+        sliLine('esiSuccess', 'ESI availability', signals.sli),
         priceSourceLine(signals),
         heldForBudgetLine(signals.queue),
       ],

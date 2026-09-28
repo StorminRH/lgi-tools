@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { characters } from '@/db/auth-schema';
+import { account, characters, user } from '@/db/auth-schema';
 import {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,
@@ -21,6 +21,7 @@ import {
   getTopEntryPages,
   getTopPages,
   getTopReferrers,
+  getTrafficTotals,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -31,7 +32,7 @@ import { usageLogs } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_telemetry_cov',
-  tables: ['usage_logs', 'characters'],
+  tables: ['usage_logs', 'characters', 'user', 'account'],
   steerDbProxy: true,
 });
 
@@ -149,7 +150,16 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         createdAt: new Date('2020-01-03T00:00:00Z'),
       },
     ]);
+    await seedDb.insert(user).values([
+      { id: 'telemetry-old', name: 'Old', email: 'telemetry-old@example.test', createdAt: new Date('2019-01-01') },
+      { id: 'telemetry-new', name: 'New', email: 'telemetry-new@example.test', createdAt: IN_RANGE },
+    ]);
+    await seedDb.insert(account).values([
+      { id: 'telemetry-old-account', accountId: String(CHAR_OLD), providerId: 'eve', userId: 'telemetry-old' },
+      { id: 'telemetry-new-account', accountId: String(CHAR_NEW), providerId: 'eve', userId: 'telemetry-new' },
+    ]);
     await seedDb.insert(usageLogs).values([
+      { action: 'page_view', characterId: CHAR_NEW, timestamp: IN_RANGE, metadata: { path: '/' } },
       {
         action: 'page_view',
         characterId: CHAR_OLD,
@@ -329,5 +339,38 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
       uniqueCharacters: 2,
       anonymousEvents: 1,
     });
+  });
+});
+
+
+describe.skipIf(!harness.reachable)('human audience and activity boundaries', () => {
+  it('deduplicates linked characters and includes returning persistent sessions', async () => {
+    const second = 91_000_003;
+    await harness.db.insert(characters).values({ characterId: second, name: 'Alt', portraitUrl: '' });
+    await harness.db.insert(account).values({ id: 'telemetry-alt', accountId: String(second), providerId: 'eve', userId: 'telemetry-old' });
+    const range = { from: new Date('2022-01-01'), to: new Date('2022-01-02') };
+    await harness.db.insert(usageLogs).values([
+      { timestamp: range.from, action: 'page_view', characterId: CHAR_OLD },
+      { timestamp: range.from, action: 'page_view', characterId: second },
+      { timestamp: range.from, action: 'cron_prices', metadata: { outcome: 'refreshed' } },
+      { timestamp: range.to, action: 'page_view', characterId: CHAR_NEW },
+    ]);
+    expect(await getReturningVsNew(range)).toEqual({ newUsers: 0, returning: 1 });
+    expect((await getDailyCounts(range)).map((row) => row.totalEvents)).toEqual([2]);
+  });
+});
+
+
+describe.skipIf(!harness.reachable)('SSO bounce attribution', () => {
+  it('excludes EVE login bounces from referrals consistently', async () => {
+    const range = { from: new Date('2023-01-01'), to: new Date('2023-01-02') };
+    await harness.db.insert(usageLogs).values([
+      { timestamp: range.from, action: 'page_view', metadata: { referrer: 'login.eveonline.com' } },
+      { timestamp: range.from, action: 'page_view', metadata: { referrer: 'google.com' } },
+      { timestamp: range.from, action: 'page_view', metadata: {} },
+    ]);
+    expect(await getTopReferrers(range)).toEqual([{ host: 'google.com', count: 1 }]);
+    expect(await getSearchVsDirect(range)).toEqual({ referred: 1, direct: 2 });
+    expect(await getTrafficTotals(range)).toEqual({ pageViews: 3, referrals: 1, entries: 0 });
   });
 });

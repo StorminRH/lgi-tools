@@ -3,17 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDbTestHarness,
   seedEveAccount as insertEveAccount,
+  seedCharacter,
   seedUser as insertUser,
 } from '@/db/__tests__/support/db-test-harness';
 import { getStoredActiveCharacterId } from './linked-characters';
-
-const runners = {
-  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
-  runBeforeCharacterUnlink: vi.fn().mockResolvedValue([]),
-  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
-  runAfterCharacterUnlink: vi.fn().mockResolvedValue(undefined),
-  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
-};
 
 import {
   CHARACTER_SEARCH_LIMIT,
@@ -30,9 +23,17 @@ import {
 } from './admin-users';
 import { account, session, user } from '@/db/auth-schema';
 
+const runners = {
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue([]),
+  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+};
+
 const harness = await createDbTestHarness({
   schema: 'test_auth_admin_users',
-  tables: ['user', 'account', 'session'],
+  tables: ['user', 'account', 'session', 'characters'],
   foreignKeys: [
     {
       table: 'account',
@@ -115,7 +116,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       {
         userId: SOURCE_ID,
         characterId: MOVED_CHAR,
-        name: 'Alpha Admin',
+        name: `Character ${MOVED_CHAR}`,
         portraitUrl: '',
         role: 'ADMIN',
       },
@@ -132,6 +133,20 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       userId: SOURCE_ID,
       characterId: SURVIVOR_CHAR,
     });
+  });
+
+  it('keeps displayed identity coherent and finds an account through any linked character', async () => {
+    await seedEveAccount('primary', MOVED_CHAR, SOURCE_ID, new Date('2026-07-01'));
+    await seedEveAccount('alt', SURVIVOR_CHAR, SOURCE_ID, new Date('2026-07-02'));
+    await seedCharacter(harness.db, MOVED_CHAR, { name: 'Primary Pilot', portraitUrl: 'primary-portrait' });
+    await seedCharacter(harness.db, SURVIVOR_CHAR, { name: 'Hidden Alt', portraitUrl: 'alt-portrait' });
+    await harness.db.update(user).set({ role: 'ADMIN', name: 'Unrelated account label' }).where(eq(user.id, SOURCE_ID));
+
+    const canonical = await getUserById(SOURCE_ID);
+    expect(canonical).toMatchObject({ characterId: MOVED_CHAR, name: 'Primary Pilot', portraitUrl: 'primary-portrait' });
+    expect(await listAdminUsers()).toEqual([canonical]);
+    expect(await searchUsersByLinkedCharacterName('hidden alt')).toEqual([canonical]);
+    expect(await searchUsersByLinkedCharacterName('pilot')).toHaveLength(2);
   });
 
   it('returns one row past the search cap without a false truncation signal at the exact cap', async () => {

@@ -27,6 +27,7 @@ function AdminNavLink({
   return (
     <Link
       href={href}
+      onNavigate={() => window.scrollTo({ top: 0, behavior: 'instant' })}
       aria-current={active ? 'page' : undefined}
       data-admin-nav-item={section.id}
       className={cn(navRailLink, 'flex items-center gap-2')}

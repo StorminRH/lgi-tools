@@ -50,6 +50,7 @@ function countLine(
 
 export function derivePressureLines(input: {
   esiSuccess: number | null;
+  esiSamples?: number;
   budgetExhaustions: number;
   fallback: FallbackRateData;
   degradation: DegradationCallerCount[];
@@ -68,30 +69,30 @@ export function derivePressureLines(input: {
   return [
     {
       id: 'esi-success',
-      label: 'ESI success',
+      label: 'ESI availability',
       value: formatSliValue('esiSuccess', input.esiSuccess),
-      note: `not rate limited or failed upstream · target ${sliTargetLabel('esiSuccess')}`,
+      note: `${input.esiSamples?.toLocaleString() ?? '—'} operations · no throttle/upstream failure · target ${sliTargetLabel('esiSuccess')}`,
       level: sliLevel('esiSuccess', input.esiSuccess),
     },
     countLine(
       'exhaustions',
-      'Budget exhaustions',
+      'Budget-blocked refreshes',
       input.budgetExhaustions,
-      'times public ESI calls hit the dispatch floor',
+      'recorded price refresh events',
     ),
     {
       id: 'fallback',
-      label: 'Fuzzwork fallback',
+      label: 'Scheduled Fuzzwork share',
       value: fallbackShare(input.fallback),
       note: `${input.fallback.fallback.toLocaleString()} of ${priced.toLocaleString()} priced items`,
       level: source.level,
     },
     countLine(
       'degradation',
-      'Degraded price reads',
+      'Degraded price refreshes',
       degradationTotal,
       input.degradation.length === 0
-        ? 'no caller fell back'
+        ? 'no degraded refresh events'
         : input.degradation.map((row) => `${row.caller} ${row.count}`).join(' · '),
     ),
     countLine('deferred', 'Jobs held for budget', deferred, 'refresh jobs waiting for budget to recover'),

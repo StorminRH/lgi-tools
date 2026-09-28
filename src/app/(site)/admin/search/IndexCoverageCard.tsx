@@ -23,7 +23,7 @@ function coverageTone(verdict: string | null): PillTone {
 }
 
 function shareLabel(value: number, total: number): string {
-  return total === 0 ? '0% of latest URLs' : `${Math.round((value / total) * 100)}% of latest URLs`;
+  return total === 0 ? '0% of sitemap URLs' : `${Math.round((value / total) * 100)}% of sitemap URLs`;
 }
 
 function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
@@ -75,7 +75,7 @@ export async function IndexCoverageCard({ range }: { range: GscRange }) {
   const view = deriveGscCoverageView({ latest, trend });
   return (
     <Card>
-      <SectionHeader size="md" label="Index coverage" hint="daily URL inspection" />
+      <SectionHeader size="md" label="Index coverage" hint="latest inspection per URL" />
       {view.total === 0 ? (
         <EmptyState>No URL inspection history synced yet.</EmptyState>
       ) : (
@@ -110,6 +110,11 @@ export async function IndexCoverageCard({ range }: { range: GscRange }) {
               />
             </MultiplesCell>
           </MultiplesGrid>
+          {view.unknown > 0 && (
+            <p className="px-3.5 py-2 font-data text-micro text-muted">
+              {view.unknown.toLocaleString()} URLs with unknown status · excluded from indexed / not indexed counts
+            </p>
+          )}
           <SectionHeader variant="sub" label="Latest coverage reasons" className="border-y border-border-soft px-3.5 py-2" />
           <DistributionBars rows={view.reasons} ariaLabel="Latest URL coverage reasons" />
           <SectionHeader variant="sub" label="Latest URL status · non-indexed first" className="border-t border-border-soft px-3.5 py-2" />

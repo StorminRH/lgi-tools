@@ -1,7 +1,6 @@
 import {
   and,
   avg,
-  between,
   count,
   countDistinct,
   desc,
@@ -10,16 +9,16 @@ import {
   inArray,
   isNotNull,
   lt,
-  ne,
   or,
   sql,
   sum,
 } from 'drizzle-orm';
+import { EVE_SSO_HOST } from '@/lib/eve-provider';
 import { db } from '@/db';
-import { characters } from '@/db/auth-schema';
+import { account, user } from '@/db/auth-schema';
 import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
 import { usageLogs } from './schema';
-import { inRange, jsonInt } from './sql';
+import { inRange, jsonInt, jsonNumber } from './sql';
 import type {
   CronLastRun,
   CronOutcomeCount,
@@ -55,7 +54,7 @@ export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
         sql<number>`count(*) filter (where ${usageLogs.characterId} is null)`.mapWith(Number),
     })
     .from(usageLogs)
-    .where(and(inRange(range), ne(usageLogs.action, 'capability_outcome')))
+    .where(and(inRange(range), eq(usageLogs.action, 'page_view')))
     .groupBy(day)
     .orderBy(day);
 
@@ -113,7 +112,7 @@ export async function getTopPages(range: DateRange, limit = 10): Promise<PathCou
 }
 
 export async function getTopReferrers(range: DateRange, limit = 10): Promise<ReferrerCount[]> {
-  const rows = await topByMetadataKey('referrer', 'page_view', range, limit);
+  const rows = await topByMetadataKey('referrer', 'page_view', range, limit, sql`lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST}`);
   return rows.map((r) => ({ host: r.value, count: r.count }));
 }
 
@@ -274,7 +273,7 @@ async function getCronOutcomes(
   action: UsageAction,
 ): Promise<CronOutcomeCount[]> {
   const outcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
-  const avgDurationMs = sql<number>`coalesce(avg(${jsonInt('durationMs')}), 0)`.mapWith(Number);
+  const avgDurationMs = sql<number>`coalesce(avg(${jsonNumber('durationMs')}), 0)`.mapWith(Number);
   const rows = await db
     .select({ outcome, count: count(), avgDurationMs })
     .from(usageLogs)
@@ -344,50 +343,44 @@ export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumeP
   }));
 }
 
+// Resolve recorded characters to their current human account, once per EVE account.
+const activityAccount = and(
+  eq(account.providerId, 'eve'),
+  eq(account.accountId, sql<string>`${usageLogs.characterId}::text`),
+);
+const audienceActions = ['page_view', 'auth_login'] as const;
+
 export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNew> {
-  const [newRow, retRow] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(characters)
-      .where(between(characters.createdAt, range.from, range.to)),
-    db
-      .select({ n: countDistinct(usageLogs.characterId) })
-      .from(usageLogs)
-      .innerJoin(characters, eq(characters.characterId, usageLogs.characterId))
-      .where(
-        and(
-          inRange(range),
-          eq(usageLogs.action, 'auth_login'),
-          lt(characters.createdAt, range.from),
-        ),
-      ),
-  ]);
-  return {
-    newUsers: Number(newRow[0]?.n ?? 0),
-    returning: Number(retRow[0]?.n ?? 0),
-  };
+  const [row] = await db.select({
+    newUsers: sql<number>`count(distinct ${user.id}) filter (where ${gte(user.createdAt, range.from)})`.mapWith(Number),
+    returning: sql<number>`count(distinct ${user.id}) filter (where ${lt(user.createdAt, range.from)})`.mapWith(Number),
+  }).from(usageLogs).innerJoin(account, activityAccount).innerJoin(user, eq(user.id, account.userId))
+    .where(and(inRange(range), inArray(usageLogs.action, [...audienceActions])));
+  return { newUsers: Number(row?.newUsers ?? 0), returning: Number(row?.returning ?? 0) };
 }
 
 export async function getLoginCountsPerUser(range: DateRange): Promise<number[]> {
-  const rows = await db
-    .select({ c: count() })
-    .from(usageLogs)
-    .where(
-      and(
-        inRange(range),
-        eq(usageLogs.action, 'auth_login'),
-        isNotNull(usageLogs.characterId),
-      ),
-    )
-    .groupBy(usageLogs.characterId);
+  const rows = await db.select({ c: count() }).from(usageLogs)
+    .innerJoin(account, activityAccount)
+    .where(and(inRange(range), eq(usageLogs.action, 'auth_login')))
+    .groupBy(account.userId);
   return rows.map((r) => Number(r.c));
 }
 
+export async function getTrafficTotals(range: DateRange) {
+  const [row] = await db.select({
+    pageViews: count(),
+    entries: sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'is_entry' = 'true')`.mapWith(Number),
+    referrals: sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null and lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST})`.mapWith(Number),
+  }).from(usageLogs).where(and(inRange(range), eq(usageLogs.action, 'page_view')));
+  return { pageViews: Number(row?.pageViews ?? 0), entries: Number(row?.entries ?? 0), referrals: Number(row?.referrals ?? 0) };
+}
+
 export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirect> {
-  const referred = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null)`.mapWith(
+  const referred = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null and lower(${usageLogs.metadata} ->> 'referrer') <> ${EVE_SSO_HOST})`.mapWith(
     Number,
   );
-  const direct = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is null)`.mapWith(
+  const direct = sql<number>`count(*) filter (where (${usageLogs.metadata} ->> 'referrer' is null or lower(${usageLogs.metadata} ->> 'referrer') = ${EVE_SSO_HOST}))`.mapWith(
     Number,
   );
   const [row] = await db
@@ -452,7 +445,7 @@ export async function getCriticalLatencyP95(range: DateRange): Promise<number | 
   const [row] = await db
     .select({
       p95: sql<number | null>`
-        percentile_cont(0.95) within group (order by ${jsonInt('durationMs')})
+        percentile_cont(0.95) within group (order by ${jsonNumber('durationMs')})
       `.mapWith(Number),
     })
     .from(usageLogs)
@@ -463,7 +456,7 @@ export async function getCriticalLatencyP95(range: DateRange): Promise<number | 
   return Math.round(p95);
 }
 
-export async function getEsiSuccessRate(range: DateRange): Promise<number | null> {
+export async function getEsiAvailability(range: DateRange) {
   const [row] = await db
     .select({
       total: count(),
@@ -483,8 +476,12 @@ export async function getEsiSuccessRate(range: DateRange): Promise<number | null
     );
 
   const total = Number(row?.total ?? 0);
-  if (total <= 0) return null;
-  return Number(row?.healthy ?? 0) / total;
+  const healthy = Number(row?.healthy ?? 0);
+  return { total, healthy, rate: total > 0 ? healthy / total : null };
+}
+
+export async function getEsiSuccessRate(range: DateRange): Promise<number | null> {
+  return (await getEsiAvailability(range)).rate;
 }
 
 export interface PriceSourceSplit {
@@ -589,7 +586,7 @@ export async function getTopCostlyEndpoints(
   limit: number,
 ): Promise<CostlyEndpoint[]> {
   const endpoint = sql<string>`${usageLogs.metadata} ->> 'endpoint'`;
-  const duration = jsonInt('durationMs');
+  const duration = jsonNumber('durationMs');
   const rows = await db
     .select({
       endpoint,
@@ -607,7 +604,7 @@ export async function getTopCostlyEndpoints(
       ),
     )
     .groupBy(endpoint)
-    .orderBy(desc(sum(duration)))
+    .orderBy(desc(count()), endpoint)
     .limit(limit);
   return rows
     .filter((row) => row.endpoint !== null)

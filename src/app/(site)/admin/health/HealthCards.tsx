@@ -64,10 +64,10 @@ const SERVICE_LEVEL_COLUMNS = [
 export async function ServiceLevelsCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('service-levels', () =>
     Promise.all([
-      getReadSuccessRate(range),
-      getMutationSuccessRate(range),
-      getCriticalLatencyP95(range),
-      getEsiSuccessRate(range),
+      loadSection('getReadSuccessRate', () => getReadSuccessRate(range)),
+      loadSection('getMutationSuccessRate', () => getMutationSuccessRate(range)),
+      loadSection('getCriticalLatencyP95', () => getCriticalLatencyP95(range)),
+      loadSection('getEsiSuccessRate', () => getEsiSuccessRate(range)),
       getEsiRefreshQueueStatsShared(),
     ]),
   );

@@ -53,7 +53,7 @@ function AllClear() {
 function AttentionList({ items }: { items: AttentionItem[] }) {
   return (
     <Card data-admin-attention>
-      <SectionHeader size="md" label="Needs attention" hint={`${items.length} open`} />
+      <SectionHeader size="md" label="Needs attention" hint={`${items.length} alerts`} />
       {items.length === 0 ? (
         <AllClear />
       ) : (

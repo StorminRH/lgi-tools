@@ -24,6 +24,7 @@ import {
 } from '@/platform/auth/linked-characters';
 import { getActiveSessionCount, getUserById } from '@/platform/auth/admin-users';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { readEnv } from '@/lib/env';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { SectionHead } from '@/components/ui/section-head';
 import { deriveUserDetailView } from './user-detail-view';
@@ -89,7 +90,7 @@ function CharacterAdminRow({
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {character.characterId}</Pill>
           <Pill tone="neutral">linked {formatDate(character.linkedAt)}</Pill>
-          {isActive ? <Chip tone="green">Active</Chip> : null}
+          {isActive ? <Chip tone="green">Selected</Chip> : null}
           {health.needsReconnect ? (
             <Chip tone="orange" className="normal-case">
               {character.hasRefreshToken ? 'Missing scopes' : 'Disconnected'}
@@ -154,6 +155,7 @@ async function UserDetailContent({
   const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'That action could not be completed.');
   const view = deriveUserDetailView({
     targetUser,
+    isSuperadmin: characters.some((character) => character.characterId === Number(readEnv('SUPERADMIN_CHARACTER_ID'))),
     charactersCount: characters.length,
     sessionCount,
     viewerUserId,
@@ -179,7 +181,7 @@ async function UserDetailContent({
         }
         chips={
           <>
-            <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
+            <Pill tone="neutral">Character ID {view.characterIdLabel}</Pill>
             {view.identityChips.map((chip) => (
               <Chip key={chip.label} tone={chip.tone}>
                 {chip.label}
@@ -208,7 +210,7 @@ async function UserDetailContent({
       />
 
       <Card className="reveal reveal-2">
-        <SectionHeader size="md" label="Sessions" hint={`${sessionCount} active`} />
+        <SectionHeader size="md" label="Sessions" hint={`${sessionCount} unexpired`} />
         <div className="flex items-center justify-between gap-3 border-t border-border-soft px-3.5 py-3">
           <span className="text-ui text-muted">
             Revoke all sign-ins for this account. May take a few minutes to fully apply.

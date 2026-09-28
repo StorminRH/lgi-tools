@@ -24,6 +24,7 @@ export function deriveGscCoverageView(input: {
       if (a.indexed !== b.indexed) return a.indexed ? 1 : -1;
       return a.url.localeCompare(b.url);
     });
+  const unknown = rows.filter((row) => !['PASS', 'FAIL', 'NEUTRAL'].includes(row.verdict ?? '')).length;
   const indexed = rows.filter((row) => row.indexed).length;
   const reasons = new Map<string, number>();
   for (const row of rows) reasons.set(row.reason, (reasons.get(row.reason) ?? 0) + 1);
@@ -33,7 +34,8 @@ export function deriveGscCoverageView(input: {
   return {
     total: rows.length,
     indexed,
-    notIndexed: rows.length - indexed,
+    notIndexed: rows.length - indexed - unknown,
+    unknown,
     rows,
     reasons: [...reasons]
       .map(([reason, count]) => ({ key: reason, label: reason, count }))

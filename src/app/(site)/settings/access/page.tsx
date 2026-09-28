@@ -18,6 +18,7 @@ import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm'
 import { requireAdminPage } from '@/composition/route-guards';
 import {
   getUserByCharacterId,
+  getUserById,
   listAdminUsers,
   searchUsersByLinkedCharacterName,
   type AdminUser,
@@ -48,7 +49,7 @@ async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: 
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
   const superUser =
     Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
-  return mergeAdminRows(dbAdmins, superUser);
+  return mergeAdminRows(dbAdmins, superUser ? await getUserById(superUser.userId) : null);
 }
 
 function AdminUserRow({
@@ -87,7 +88,7 @@ function AdminUserRow({
       }
       chips={
         <span className="flex items-center gap-[6px]">
-          <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
+          <Pill tone="neutral">Character ID {user.characterId ?? '—'}</Pill>
           <Chip tone={badge.tone}>{badge.label}</Chip>
         </span>
       }
@@ -130,7 +131,7 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       <SectionHeader
         size="md"
         label="Role change audit"
-        hint={`${audit.length} entries · last ${AUDIT_WINDOW_DAYS} days`}
+        hint={`${audit.length === 50 ? 'Latest 50' : audit.length} entries · last ${AUDIT_WINDOW_DAYS} days`}
       />
       {audit.length === 0 ? (
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
@@ -217,7 +218,7 @@ function SearchResultsCard({
       <SectionHeader size="md" label="Search results" hint={resultsHint} />
       {nonAdminMatches.length === 0 ? (
         <EmptyState>
-          No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
+          No non-admin accounts match &ldquo;{query}&rdquo;. Any matching admins are listed above.
         </EmptyState>
       ) : (
         nonAdminMatches.map((user) => (

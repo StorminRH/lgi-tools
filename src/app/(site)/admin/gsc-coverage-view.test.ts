@@ -33,7 +33,7 @@ describe('deriveGscCoverageView', () => {
       ],
     });
 
-    expect(view).toMatchObject({ total: 3, indexed: 1, notIndexed: 2 });
+    expect(view).toMatchObject({ total: 3, indexed: 1, notIndexed: 1, unknown: 1 });
     expect(view.rows.map((row) => row.url)).toEqual([
       'https://lgi.tools/excluded',
       'https://lgi.tools/unknown',

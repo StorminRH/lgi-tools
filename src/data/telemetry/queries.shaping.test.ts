@@ -62,7 +62,7 @@ describe('telemetry query result shaping', () => {
   });
 
   it('normalizes returning and new user counts', async () => {
-    cannedQueries = [[{ n: '7' }], [{ n: '4' }]];
+    cannedQueries = [[{ newUsers: '7', returning: '4' }]];
 
     await expect(getReturningVsNew(RANGE)).resolves.toEqual({
       newUsers: 7,

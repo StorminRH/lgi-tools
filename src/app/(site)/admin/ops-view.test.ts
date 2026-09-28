@@ -67,8 +67,8 @@ describe('deriveCostLensView', () => {
       budgetExhaustions: 2,
       degradationByCaller: [{ caller: 'cron', count: 1 }],
     });
-    expect(view.metrics.find((row) => row.label === 'Stale history returns')?.value).toBe('1');
-    expect(view.metrics.find((row) => row.label === 'Write-behind failures')?.value).toBe('2');
+    expect(view.metrics.find((row) => row.label === 'Stale item histories')?.value).toBe('1');
+    expect(view.metrics.find((row) => row.label === 'Background save failures')?.value).toBe('2');
     expect(view.endpoints[0]).toMatchObject({ count: 4 });
   });
 });

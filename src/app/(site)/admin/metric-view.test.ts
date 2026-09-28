@@ -16,12 +16,12 @@ describe('buildMetricRows', () => {
     const rows = buildMetricRows(base);
     expect(rows.map((r) => r.label)).toEqual([
       'Page views',
-      'Signed-in users',
+      'Active users',
       'Search clicks',
       'Search impressions',
     ]);
     expect(rows[0]).toMatchObject({ value: '900', avg: '30', delta: { pct: 20, direction: 'up' } });
-    expect(rows[1]?.avg).toBe('2.0');
+    expect(rows[1]?.avg).toBeNull();
   });
 
   it('degrades the GSC rows to em-dash with no avg or delta when GSC is off', () => {

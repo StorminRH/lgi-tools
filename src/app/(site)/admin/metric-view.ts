@@ -15,6 +15,7 @@ function perDay(total: number, rangeDays: number): string | null {
 
 export function buildMetricRows(args: {
   rangeDays: number;
+  gscRangeDays?: number;
   pageViews: { referred: number; direct: number };
   users: { newUsers: number; returning: number };
   gscTotals: { clicks: number; impressions: number } | null;
@@ -24,6 +25,7 @@ export function buildMetricRows(args: {
 }): MetricRow[] {
   const {
     rangeDays,
+    gscRangeDays = rangeDays,
     pageViews,
     users,
     gscTotals,
@@ -46,21 +48,21 @@ export function buildMetricRows(args: {
       ),
     },
     {
-      label: 'Signed-in users',
+      label: 'Active users',
       value: usersTotal.toLocaleString(),
-      avg: perDay(usersTotal, rangeDays),
+      avg: null,
       delta: computeDelta(usersTotal, prevUsers ? prevUsers.newUsers + prevUsers.returning : null),
     },
     {
       label: 'Search clicks',
       value: gscTotals ? gscTotals.clicks.toLocaleString() : '—',
-      avg: gscTotals ? perDay(gscTotals.clicks, rangeDays) : null,
+      avg: gscTotals ? perDay(gscTotals.clicks, gscRangeDays) : null,
       delta: gscTotals ? computeDelta(gscTotals.clicks, prevGscTotals?.clicks ?? null) : null,
     },
     {
       label: 'Search impressions',
       value: gscTotals ? gscTotals.impressions.toLocaleString() : '—',
-      avg: gscTotals ? perDay(gscTotals.impressions, rangeDays) : null,
+      avg: gscTotals ? perDay(gscTotals.impressions, gscRangeDays) : null,
       delta: gscTotals
         ? computeDelta(gscTotals.impressions, prevGscTotals?.impressions ?? null)
         : null,

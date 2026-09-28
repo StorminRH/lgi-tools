@@ -104,7 +104,7 @@ function DifferenceDetails({
       defaultOpen
       header={
         <span className="font-ui text-ui text-text">
-          Complete assignment difference ({difference.totalDifferences})
+          Systems with assignment changes ({difference.totalDifferences})
         </span>
       }
     >
@@ -137,13 +137,13 @@ function DifferenceDetails({
           )}
         </div>
         <div>
-          <h3 className="mb-2 font-ui text-ui text-muted">Codes added</h3>
+          <h3 className="mb-2 font-ui text-ui text-muted">New code types</h3>
           <p className="font-data text-ui text-text">
             {difference.codesAdded.join(', ') || 'None.'}
           </p>
         </div>
         <div>
-          <h3 className="mb-2 font-ui text-ui text-muted">Codes removed</h3>
+          <h3 className="mb-2 font-ui text-ui text-muted">Removed code types</h3>
           <p className="font-data text-ui text-text">
             {difference.codesRemoved.join(', ') || 'None.'}
           </p>

@@ -28,7 +28,7 @@ export function deriveActionRows(input: {
       status:
         queue === null
           ? 'queue unavailable'
-          : `${queue.deadLettered.toLocaleString()} dead-lettered · ${queue.due.toLocaleString()} due`,
+          : `${queue.deadLettered.toLocaleString()} dead-lettered · ${queue.due.toLocaleString()} active`,
       href: '/admin/queue',
       cta: queue !== null && queue.deadLettered > 0 ? 'Retry jobs' : 'Open',
       badge:
