@@ -1,5 +1,7 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { resolveUserCorpAccess } from '@/composition/corp-access';
+import { type CorpRolesRecord, parseCharacterRolesBody } from '@/platform/auth/corp-roles';
+import { upsertCorpRoles } from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
@@ -40,21 +42,36 @@ export async function vendTokenFor(characterId: number): Promise<string | null> 
   return result.kind === 'ok' ? result.accessToken : null;
 }
 
-function extractRoles(body: unknown): string[] {
-  if (typeof body !== 'object' || body === null) return [];
-  const roles = (body as { roles?: unknown }).roles;
-  return Array.isArray(roles) ? roles.filter((r): r is string => typeof r === 'string') : [];
+function softEsiFailure(error: unknown): null {
+  if (error instanceof EsiBudgetExhaustedError) throw error;
+  if (error instanceof EsiServerError) return null;
+  throw error;
 }
 
-export async function readRolesFor(characterId: number, accessToken: string): Promise<string[] | null> {
+/** Every live roles read keeps corp_member_roles warm; this is the one writer. */
+async function readCorpRolesRecord(characterId: number, accessToken: string): Promise<CorpRolesRecord | null> {
   try {
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
-    return read.kind === 'fresh' ? extractRoles(read.body) : null;
+    if (read.kind !== 'fresh') return null;
+    const record = parseCharacterRolesBody(read.body);
+    if (record === null) return null;
+    await upsertCorpRoles(characterId, record, new Date());
+    return record;
   } catch (error) {
-    if (error instanceof EsiBudgetExhaustedError) throw error;
-    if (error instanceof EsiServerError) return null;
-    throw error;
+    return softEsiFailure(error);
   }
+}
+
+/** The credential probe: the global roles list the corp sync selects a token by. */
+export async function readRolesFor(characterId: number, accessToken: string): Promise<string[] | null> {
+  const record = await readCorpRolesRecord(characterId, accessToken);
+  return record === null ? null : [...record.roles];
+}
+
+/** The viewer's inline refetch: vends the token itself and returns the full stored record. */
+export async function fetchCorpRoles(characterId: number): Promise<CorpRolesRecord | null> {
+  const accessToken = await vendTokenFor(characterId);
+  return accessToken === null ? null : readCorpRolesRecord(characterId, accessToken);
 }
 
 export type AuthedSingleRead =
@@ -68,9 +85,8 @@ export type AuthedPagedRead =
   | { kind: 'error'; code: string };
 
 function esiThrowToError(error: unknown): { kind: 'error'; code: string } {
-  if (error instanceof EsiBudgetExhaustedError) throw error;
-  if (error instanceof EsiServerError) return { kind: 'error', code: 'esi_server_error' };
-  throw error;
+  softEsiFailure(error);
+  return { kind: 'error', code: 'esi_server_error' };
 }
 
 export async function readSingleEndpoint(
