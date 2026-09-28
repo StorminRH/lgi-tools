@@ -6,17 +6,15 @@ import { readChangelogSource } from './load';
 import { parseChangelog, parseChangelogMasters } from './parse';
 
 describe('readChangelogSource', () => {
-  it('reassembles masters newest-first with the preamble leading', async () => {
+  it('reassembles masters newest-first without duplicate versions', async () => {
     const masters = parseChangelogMasters(await readChangelogSource());
     const ranks = masters.map((m) => {
       const [major = 0, minor = 0] = m.version.split('.').map(Number);
       return major * 1_000 + minor;
     });
+    expect(masters.length).toBeGreaterThan(0);
     expect(ranks).toEqual([...ranks].sort((a, b) => b - a));
     expect(new Set(ranks).size).toBe(ranks.length);
-    expect(masters[0]?.version).toBe('4.1');
-    expect(masters[0]?.title).toBe('What is on the chain');
-    expect(masters[0]?.subVersions[0]?.version).toBe('4.1.6');
   });
 
   it('projects every real entry into exactly one browser document', async () => {

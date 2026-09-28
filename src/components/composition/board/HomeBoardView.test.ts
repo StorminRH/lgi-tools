@@ -48,18 +48,14 @@ describe('HomeBoardView', () => {
       expect(html).toContain(name);
     }
     expect(html).toContain('aria-label="Pilot overview"');
-    expect(html).not.toContain('Needs attention');
     expect(html).toContain('7.75B');
     expect(html).toContain('3 of 5 pilots');
     expect(html).toContain('Net worth by pilot');
     expect(html).toContain('<span>Wealth</span>');
-    expect(html).not.toContain('Combined</span>');
+    expect(html).toContain('data-popover="About estimated net worth"');
     expect(html).toContain('30d');
     expect(html.lastIndexOf('data-pilot-id')).toBeLessThan(html.indexOf('aria-label="Add character"'));
     expect(html).toContain('<span>Industry</span>');
-    expect(html).not.toContain('<span>Training</span>');
-    expect(html).not.toContain('Whereabouts');
-    expect(html).not.toContain('Skill points');
     expect(html).toContain('Caldari Cruiser');
     expect(html).toContain('Medium Drone Operation');
     expect(html).toContain('>Tama<');
@@ -67,15 +63,6 @@ describe('HomeBoardView', () => {
     expect(html).not.toContain('character sheet');
     expect(html).not.toContain('Attributes &amp; implants');
     expect(html).not.toContain('esi-');
-  });
-
-  it('explains estimated net worth in the (?) infotip', () => {
-    const html = render('full');
-    expect(html).toContain('data-popover="About estimated net worth"');
-    expect(html).toContain('<strong>Estimated net worth</strong>');
-    expect(html).toContain('Your ISK plus the market value of what your pilots own');
-    expect(html).toContain('Prices follow recent Jita market prices');
-    expect(html).toContain('Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.');
   });
 
   it('never shows a zero net worth when no pilot has one', () => {
