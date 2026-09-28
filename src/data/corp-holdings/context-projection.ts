@@ -6,13 +6,15 @@ const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
 
 const id = z.number().int().positive();
 
-const corporationSchema = z.object({ home_station_id: id.optional() });
+const corporationSchema = z.object({ home_station_id: id.optional().catch(undefined) });
 
 const divisionsSchema = z.object({
   hangar: z.array(z.object({ division: z.number().int().min(1).max(7), name: z.string().optional() })).optional(),
 });
 
-const memberTrackingSchema = z.array(z.object({ character_id: id, base_id: id.optional() }));
+const memberTrackingSchema = z.array(z.unknown());
+
+const memberRowSchema = z.object({ character_id: id, base_id: id.optional() });
 
 const assetNamesSchema = z.array(z.object({ item_id: id, name: z.string() }));
 
@@ -37,6 +39,10 @@ export function parseMemberTrackingBody(body: unknown, linkedCharacterIds: Reado
   const parsed = memberTrackingSchema.safeParse(body);
   if (!parsed.success) return null;
   return parsed.data
+    .flatMap((row) => {
+      const member = memberRowSchema.safeParse(row);
+      return member.success ? [member.data] : [];
+    })
     .filter((member) => linkedCharacterIds.has(member.character_id))
     .map((member) => ({ characterId: member.character_id, baseId: member.base_id ?? null }));
 }

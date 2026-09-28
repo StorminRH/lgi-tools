@@ -47,6 +47,12 @@ describe('parseCorporationBody', () => {
     expect(parseCorporationBody({ name: 'Corp' })).toEqual({ hqStationId: null });
     expect(parseCorporationBody('nope')).toBeNull();
   });
+
+  it('reads a malformed home station as an unknown HQ instead of failing the corp', () => {
+    expect(parseCorporationBody({ name: 'Corp', home_station_id: 0 })).toEqual({ hqStationId: null });
+    expect(parseCorporationBody({ name: 'Corp', home_station_id: -5 })).toEqual({ hqStationId: null });
+    expect(parseCorporationBody({ name: 'Corp', home_station_id: '60003760' })).toEqual({ hqStationId: null });
+  });
 });
 
 describe('parseDivisionsBody', () => {
@@ -74,6 +80,23 @@ describe('parseMemberTrackingBody', () => {
       { characterId: 90002, baseId: null },
     ]);
     expect(parseMemberTrackingBody({ character_id: 1 }, new Set())).toBeNull();
+  });
+
+  it('drops a malformed row, leaving that member unknown, and keeps the rest', () => {
+    const body = [
+      { character_id: 90001, base_id: 0 },
+      { character_id: 90002, base_id: -1 },
+      { character_id: 90003, base_id: '60003760' },
+      { character_id: 90004, base_id: null },
+      { character_id: 'x', base_id: STATION },
+      'garbage',
+      { character_id: 90005, base_id: STATION },
+      { character_id: 90006 },
+    ];
+    expect(parseMemberTrackingBody(body, new Set([90001, 90002, 90003, 90004, 90005, 90006]))).toEqual([
+      { characterId: 90005, baseId: STATION },
+      { characterId: 90006, baseId: null },
+    ]);
   });
 });
 
