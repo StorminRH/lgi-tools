@@ -52,7 +52,7 @@ function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
   return health !== undefined && health.hasRefreshToken && !health.missingScopes.includes(ROLES_SCOPE);
 }
 
-async function refetchedRoles(characterId: number): Promise<MemberRoles> {
+async function fetchedRolesOrUnknown(characterId: number): Promise<MemberRoles> {
   try {
     const record = await fetchAndStoreCorpRoles(characterId);
     return record === null ? UNKNOWN : { kind: 'known', roles: narrowCorpRoles(record) };
@@ -66,7 +66,7 @@ function memberRoles(characterId: number, corporationId: number, sources: RoleSo
   if (usableStoredRoles(row, corporationId, sources.now)) {
     return Promise.resolve({ kind: 'known', roles: narrowCorpRoles(row) });
   }
-  return canFetchRoles(sources.health.get(characterId)) ? refetchedRoles(characterId) : Promise.resolve(UNKNOWN);
+  return canFetchRoles(sources.health.get(characterId)) ? fetchedRolesOrUnknown(characterId) : Promise.resolve(UNKNOWN);
 }
 
 function baseOf(bases: ReadonlyMap<number, number | null>, characterId: number): Knowable<number | null> {

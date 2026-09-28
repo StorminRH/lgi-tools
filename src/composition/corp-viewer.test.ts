@@ -162,6 +162,15 @@ describe('resolveCorpViewer', () => {
     expect(viewer.corporations[0]?.grant.structures).toBe('use');
   });
 
+  it('treats any other inline fetch failure as unknown roles too', async () => {
+    mocks.fetchAndStoreCorpRoles.mockRejectedValue(new Error('connection reset'));
+
+    const viewer = await resolveCorpViewer('u1');
+
+    expect(viewer.scope.corps).toEqual([]);
+    expect(viewer.corporations[0]?.grant.holdings).toEqual({ kind: 'none' });
+  });
+
   it('hides the corp when no record comes back at all', async () => {
     mocks.fetchAndStoreCorpRoles.mockResolvedValue(null);
 
