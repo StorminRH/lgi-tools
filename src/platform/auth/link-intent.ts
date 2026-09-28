@@ -2,7 +2,6 @@ import { getOAuthState } from 'better-auth/api';
 
 type LinkState = { link?: { userId: string } } | null;
 
-/** `link.userId` of the in-flight OAuth callback; null on sign-in or outside a Better Auth request. */
 export async function readLinkingUserId(): Promise<string | null> {
   try {
     const state = (await getOAuthState()) as LinkState;

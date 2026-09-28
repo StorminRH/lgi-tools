@@ -77,7 +77,6 @@ async function applyRule(tx: MergeTx, rule: TableMergeRule, subject: MergeSubjec
   }
 }
 
-/** Runs every contributor's rules in registry order on `tx`; the first failing statement throws so the caller rolls back. */
 export async function executeMergeRules(
   tx: MergeTx,
   contributors: readonly Pick<PurgeContributor, 'merge'>[],
@@ -94,7 +93,6 @@ function resultRows(result: unknown): unknown[] {
   return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
 }
 
-/** Postcondition before `DELETE user`: no user-keyed table in `tables` still holds a source row. */
 export async function assertSourceEmpty(
   tx: MergeTx,
   tables: readonly PgTable[],

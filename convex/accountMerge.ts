@@ -7,7 +7,6 @@ import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export interface MergeUserStateResult {
   readonly trackingMoved: number;
-  /** Source tracking rows past the survivor's per-map cap; their intent is lost. */
   readonly trackingDropped: number;
   readonly deleted: number;
 }
@@ -33,14 +32,6 @@ async function moveTrackingRow(
   return 'moved';
 }
 
-/**
- * Account merge: tracking intent moves from the source user to the survivor
- * (the only per-user Convex state that is not rebuilt), the source's map
- * claims go (reprojection rebuilds the survivor's), then the source's
- * location state and access leases are drained by the account-purge
- * mutation itself, in this same transaction. Runs before reprojection, which would otherwise delete the source's
- * tracking rows as revoked. Re-running with an empty source is a no-op.
- */
 export const mergeUserState = internalMutation({
   args: { sourceUserId: v.string(), survivorUserId: v.string() },
   returns: v.object({

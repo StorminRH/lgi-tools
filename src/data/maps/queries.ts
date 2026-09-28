@@ -569,12 +569,6 @@ export async function enqueueAffectedMapAccessChanges(
   `);
 }
 
-/**
- * Enqueues every map whose claims change when `movedCharacterIds` and the
- * source user's own maps move to another user. Runs on the caller's
- * transaction while `maps.user_id` still names the source. Delivery happens
- * after commit: a revision reserved before commit is overwritten by a later one.
- */
 export async function enqueueMergeReprojection(
   database: AnyPgDb,
   args: { sourceUserId: string; movedCharacterIds: readonly number[] },

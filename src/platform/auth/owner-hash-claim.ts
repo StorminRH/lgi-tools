@@ -18,7 +18,6 @@ export function readOwnerHashClaim(accessToken: string | null | undefined): stri
   }
 }
 
-/** For account.create.before: stamps the owner hash while the access token is still plaintext. */
 export function withOwnerHashFromToken<
   T extends { providerId?: string; accessToken?: string | null },
 >(acct: T): T & { ownerHash?: string | null } {

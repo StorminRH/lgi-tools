@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import type { MergeSubject, MergeTx, PurgeContributor } from '@/platform/purge/types';
 import {
@@ -8,34 +8,25 @@ import {
   corpIndustryJobSyncs,
 } from './schema';
 
-/**
- * Jobs and syncs are one snapshot per (user, corporation). A corporation the
- * survivor already has in EITHER table keeps the survivor's pair, so a merge
- * never splits a snapshot from its sync state. Both deletes run before either
- * move: a moved jobs row must not make the survivor "own" the corporation
- * when the syncs row is judged.
- */
 async function mergeCorpJobsPaired(tx: MergeTx, subject: MergeSubject): Promise<void> {
-  const kept = sql`
-    SELECT ${corpIndustryJobs.corporationId} FROM ${corpIndustryJobs}
-    WHERE ${corpIndustryJobs.userId} = ${subject.survivorUserId}
-    UNION
-    SELECT ${corpIndustryJobSyncs.corporationId} FROM ${corpIndustryJobSyncs}
-    WHERE ${corpIndustryJobSyncs.userId} = ${subject.survivorUserId}
-  `;
   const pair = [corpIndustryJobs, corpIndustryJobSyncs] as const;
+  const survivorRows = await Promise.all(
+    pair.map((table) =>
+      tx
+        .select({ corporationId: table.corporationId })
+        .from(table)
+        .where(eq(table.userId, subject.survivorUserId)),
+    ),
+  );
+  const kept = survivorRows.flat().map((row) => row.corporationId);
   for (const table of pair) {
-    await tx.execute(sql`
-      DELETE FROM ${table}
-      WHERE ${table.userId} = ${subject.sourceUserId}
-        AND ${table.corporationId} IN (${kept})
-    `);
-  }
-  for (const table of pair) {
-    await tx.execute(sql`
-      UPDATE ${table} SET user_id = ${subject.survivorUserId}
-      WHERE ${table.userId} = ${subject.sourceUserId}
-    `);
+    await tx
+      .delete(table)
+      .where(and(eq(table.userId, subject.sourceUserId), inArray(table.corporationId, kept)));
+    await tx
+      .update(table)
+      .set({ userId: subject.survivorUserId })
+      .where(eq(table.userId, subject.sourceUserId));
   }
 }
 

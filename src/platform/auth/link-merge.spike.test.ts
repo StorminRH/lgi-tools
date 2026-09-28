@@ -24,11 +24,6 @@ const STRAY_CHARACTER = '111';
 const FRESH_CHARACTER = '222';
 const OWNER_FROM_HOOK = 'owner-hash-from-plaintext-token';
 
-/**
- * Mirrors the production wiring that the merge relies on: allowDifferentEmails,
- * updateUserInfoOnLink left unset, ownerHash as an input:false additionalField,
- * and an account.create.before hook that sees the still-plaintext access token.
- */
 function makeHarness({
   rebindTo,
   provenCharacter = STRAY_CHARACTER,

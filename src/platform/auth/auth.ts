@@ -38,7 +38,6 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
 export interface CharacterProof {
   readonly characterId: number;
   readonly ownerHash: string | null;
-  /** `link.userId` of the OAuth state; null on a plain sign-in. */
   readonly linkingUserId: string | null;
 }
 
@@ -49,7 +48,6 @@ export type ProofOutcome =
 export interface CreateAuthDeps {
   readonly runners: IdentityProjectionRunners;
   readonly refreshCharacterAffiliations: (characterIds: number[]) => Promise<void>;
-  /** Owner reconcile, transfer purge and account merge; 'merged' only after the Neon transaction committed. */
   readonly proveCharacter: (proof: CharacterProof) => Promise<ProofOutcome>;
 }
 

@@ -1,10 +1,5 @@
 import ts from 'typescript';
 
-/**
- * Names of the Convex tables declared in `convex/schema.ts` whose document
- * has a top-level `userId` field. Works on the source text so the Neon
- * registry gate can census Convex homes without importing the Convex zone.
- */
 export function convexUserKeyedTables(schemaSource: string): string[] {
   const file = ts.createSourceFile('schema.ts', schemaSource, ts.ScriptTarget.Latest, true);
   const names: string[] = [];
@@ -26,7 +21,6 @@ export function convexUserKeyedTables(schemaSource: string): string[] {
   return names.sort();
 }
 
-/** `defineTable({...}).index(...).index(...)` is a chain of calls; the table definition is the innermost one. */
 function innermostCall(expression: ts.Expression): ts.CallExpression | null {
   let current: ts.Expression = expression;
   while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {

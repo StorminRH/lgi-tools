@@ -16,7 +16,6 @@ export class LocationTrackingMergeError extends Error {
   }
 }
 
-/** Moves the source user's map-tracking intent onto the survivor and drains the source's location state and leases. */
 export function mergeLocationTrackingState(
   sourceUserId: string,
   survivorUserId: string,

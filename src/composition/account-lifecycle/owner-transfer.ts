@@ -53,11 +53,6 @@ async function mergeProvenCharacter(
   }
 }
 
-/**
- * Owner reconcile, transfer purge and account merge decided once per proven
- * character. Returns 'merged' only after the Neon transaction committed; a
- * merge failure degrades to 'none' so Better Auth refuses the link as before.
- */
 export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcome> {
   const jwtOwnerHash = proof.ownerHash;
   if (!jwtOwnerHash) return NONE;

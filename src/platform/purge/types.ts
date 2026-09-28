@@ -22,12 +22,6 @@ export interface MergeSubject {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MergeTx = PgDatabase<any, any, any>;
 
-/**
- * How one user-keyed table converges when two users become one. Declared as
- * data so the registry gate can check each rule against the schema; only the
- * merge executor runs them. The executor finds the table's `user_id` column
- * by reflection, so a rule never names it.
- */
 export type TableMergeRule =
   | { readonly table: PgTable; readonly rule: 'rekey' }
   | { readonly table: PgTable; readonly rule: 'survivor-wins'; readonly key: readonly PgColumn[] }

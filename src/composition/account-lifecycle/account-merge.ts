@@ -44,12 +44,11 @@ export type MergeResult =
   | { readonly kind: 'noop'; readonly reason: MergeNoopReason };
 
 export interface MergeDeps {
-  /** Defaults to a postgres-js handle on the unpooled endpoint; neon-http cannot transact. */
+  /** neon-http cannot transact. */
   readonly database?: PostgresJsDb;
   readonly contributors?: readonly PurgeContributor[];
 }
 
-/** Re-checks the picture under the row locks; a concurrent merge, unlink, reassign or re-link converges to a noop. */
 export function resolveMergePair(
   request: MergeRequest,
   lockedUsers: readonly MergeCandidate[],
@@ -90,11 +89,6 @@ function directDatabase(): PostgresJsDb {
   return drizzle(directClient);
 }
 
-/**
- * Moves everything the source user owns onto the survivor in one transaction
- * and deletes the source last, once proven empty. Both user rows are locked
- * in id order for the whole transaction; a throw rolls everything back.
- */
 export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): Promise<MergeResult> {
   const database = deps.database ?? directDatabase();
   const contributors = deps.contributors ?? PURGE_CONTRIBUTORS;
@@ -126,13 +120,6 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
   return { kind: 'merged', ...outcome };
 }
 
-/**
- * Post-commit Convex work, in this order: move the source's tracking intent
- * (reprojection would otherwise delete it as revoked), then reproject the
- * captured maps, then sweep any source claims left behind. A failed merge
- * door degrades to a plain teardown: clearing the source's leases matters
- * more than keeping its toggles.
- */
 export async function settleConvexAfterMerge(committed: CommittedMerge): Promise<void> {
   const { sourceUserId, survivorUserId, captured } = committed;
   try {

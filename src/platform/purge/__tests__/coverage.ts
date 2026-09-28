@@ -49,7 +49,6 @@ export interface NonNeonHome {
   readonly coveredBy: string;
   readonly explicitTeardown: string;
   readonly reason: string;
-  /** What an account merge does to this home. */
   readonly merge: string;
 }
 
@@ -217,10 +216,6 @@ function countDeclarations(
   return { counts, findings };
 }
 
-/**
- * Gate findings for the declared merge rules, sorted. Empty means every claimed
- * or retained table has exactly one rule and each rule matches the schema.
- */
 export function findMergeRuleGaps(
   contributors: readonly Pick<PurgeContributor, 'claims' | 'retained' | 'merge'>[],
 ): string[] {
