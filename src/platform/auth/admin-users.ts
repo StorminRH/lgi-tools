@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { accountMatch, eveAccountsForUser } from './eve-account-shared';
@@ -95,6 +95,22 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
     .limit(1);
 
   return row ? toAdminUser(row) : null;
+}
+
+export interface AccountTotals {
+  users: number;
+  characters: number;
+}
+
+export async function getAccountTotals(): Promise<AccountTotals> {
+  const [[users], [characters]] = await Promise.all([
+    db.select({ n: count() }).from(user),
+    db
+      .select({ n: countDistinct(account.accountId) })
+      .from(account)
+      .where(eq(account.providerId, EVE_PROVIDER_ID)),
+  ]);
+  return { users: users?.n ?? 0, characters: characters?.n ?? 0 };
 }
 
 export const CHARACTER_SEARCH_LIMIT = 50;

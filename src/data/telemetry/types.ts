@@ -59,11 +59,6 @@ export interface PathCount {
   count: number;
 }
 
-export interface SearchCount {
-  query: string;
-  count: number;
-}
-
 export interface ReferrerCount {
   host: string;
   count: number;

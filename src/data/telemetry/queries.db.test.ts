@@ -21,7 +21,6 @@ import {
   getTopEntryPages,
   getTopPages,
   getTopReferrers,
-  getTopSearches,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -66,7 +65,6 @@ const cases: QueryCase[] = [
   { name: 'getTopPages', run: () => getTopPages(RANGE), check: expectNonEmptyArray },
   { name: 'getTopReferrers', run: () => getTopReferrers(RANGE), check: expectNonEmptyArray },
   { name: 'getTopEntryPages', run: () => getTopEntryPages(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopSearches', run: () => getTopSearches(RANGE), check: expectNonEmptyArray },
   { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
   {
     name: 'getFallbackRate',
