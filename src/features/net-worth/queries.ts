@@ -1,5 +1,7 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { account } from '@/db/auth-schema';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { NET_WORTH_HISTORY_DAYS } from './constants';
 import { netWorthDays } from './schema';
 import type { NetWorthDay } from './types';
@@ -15,15 +17,24 @@ export function utcDay(at: Date): string {
  * sibling inserts.
  */
 export async function upsertNetWorthDay(userId: string, snapshot: NetWorthDay, recordedAt: Date): Promise<void> {
+  const pilotIds = Object.keys(snapshot.pilots);
+  if (pilotIds.length === 0) return;
   const pilots = JSON.stringify(snapshot.pilots);
   await db.execute(sql`
-    WITH upserted AS (
+    -- Hold the links through the write. Unlink/transfer either waits and then purges
+    -- this row, or commits first and makes the captured snapshot ineligible.
+    WITH linked AS MATERIALIZED (
+      SELECT account_id FROM ${account}
+      WHERE user_id = ${userId} AND provider_id = ${EVE_PROVIDER_ID}
+        AND account_id IN (SELECT jsonb_object_keys(${pilots}::jsonb))
+      ORDER BY id FOR SHARE
+    ), upserted AS (
       INSERT INTO ${netWorthDays}
         (user_id, day, net_worth, liquid_isk, pilots_included, pilots_total, pilots, recorded_at)
-      VALUES (
+      SELECT
         ${userId}, ${snapshot.day}::date, ${snapshot.netWorth}, ${snapshot.liquidIsk},
         ${snapshot.pilotsIncluded}, ${snapshot.pilotsTotal}, ${pilots}::jsonb, ${recordedAt.toISOString()}::timestamptz
-      )
+      WHERE (SELECT count(*) FROM linked) = ${pilotIds.length}
       ON CONFLICT (user_id, day) DO UPDATE SET
         net_worth = excluded.net_worth,
         liquid_isk = excluded.liquid_isk,
@@ -43,6 +54,7 @@ export async function upsertNetWorthDay(userId: string, snapshot: NetWorthDay, r
     )
     DELETE FROM ${netWorthDays}
     WHERE user_id = ${userId} AND day NOT IN (SELECT day FROM kept)
+      AND EXISTS (SELECT 1 FROM upserted)
   `);
 }
 

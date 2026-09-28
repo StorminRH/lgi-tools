@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import type { ChainNode } from '../canvas/SystemNode';
 import { deriveFogReveals, sameFogReveals, type FogRevealSet } from './fog-model';
-import { useStableValue } from './use-stable-value';
+import { useStableValue } from '@/lib/use-stable-value';
 
 function node(id: number, x: number): ChainNode {
   return {

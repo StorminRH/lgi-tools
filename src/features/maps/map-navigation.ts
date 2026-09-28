@@ -14,7 +14,7 @@ export function mapSelectionHref(
   return `${pathname}?${next.toString()}`;
 }
 
-export function atlasSignInReturnHref(
+export function atlasMapHref(
   map: string | string[] | undefined,
 ): string {
   const mapId = Array.isArray(map) ? map[0] : map;

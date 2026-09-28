@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { useStableValue } from '@/lib/use-stable-value';
 import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import type { SigGroup } from '@/data/maps/scan-parse';
@@ -41,8 +42,7 @@ export function GlanceMarkIndexProvider({
       ),
     [pages.rows],
   );
-  const [index, setIndex] = useState(next);
-  if (index !== next && !sameGlanceMarkIndex(index, next)) setIndex(next);
+  const index = useStableValue(next, sameGlanceMarkIndex);
   return (
     <GlanceMarkIndexContext.Provider value={index}>
       {children}

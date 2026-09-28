@@ -14,7 +14,7 @@ import { BROWSER_MOTION_SEAMS } from '../motion/use-motion';
 import { createFogHostRuntime, runFogTick } from './fog-host';
 import { deriveFogReveals, sameFogReveals, type FogConfig } from './fog-model';
 import { fogBrushAlpha } from './fog-painter';
-import { useStableValue } from './use-stable-value';
+import { useStableValue } from '@/lib/use-stable-value';
 
 const FOG_BRUSH_SIZE = 256;
 

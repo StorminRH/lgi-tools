@@ -3,7 +3,7 @@ import { AccountsCard } from './AccountsCard';
 import { ActionsCard } from './ActionsCard';
 import { AdminPageFrame, AdminSlot } from './AdminFrame';
 import { AudienceCard } from './AudienceCard';
-import { AttentionCard, StatusCards } from './OverviewCards';
+import { AttentionCard, StatusCards } from './AdminOverviewCards';
 import type { RangeSearchParams } from './RangeControl';
 
 async function OverviewContent({ searchParams }: { searchParams: RangeSearchParams }) {

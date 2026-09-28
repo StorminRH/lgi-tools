@@ -19,7 +19,7 @@ import {
   type CameraBounds,
   type CameraFlight,
 } from './camera-follow-model';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 
 const SYSTEM_FRAME_SIZE = {
   width: SYSTEM_FRAME_WIDTH,

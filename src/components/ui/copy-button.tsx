@@ -1,41 +1,17 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { eyebrow } from './type-roles';
+import { useCopyFeedback } from './use-copy-feedback';
 
-type CopyState = 'idle' | 'copied' | 'unavailable';
+type CopyState = ReturnType<typeof useCopyFeedback>['state'];
 
 const STATE_CLASS: Record<CopyState, string | undefined> = {
   idle: undefined,
   copied: 'border-isk bg-isk text-isk-ink hover:text-isk-ink',
   unavailable: 'border-pill-red-border text-pill-red-text',
 };
-
-async function writeClipboard(value: string): Promise<CopyState> {
-  if (!navigator.clipboard) return 'unavailable';
-  try {
-    await navigator.clipboard.writeText(value);
-    return 'copied';
-  } catch {
-    return 'unavailable';
-  }
-}
-
-function useCopyFeedback(value: string) {
-  const [state, setState] = useState<CopyState>('idle');
-
-  useEffect(() => {
-    if (state !== 'copied') return;
-    const timeout = window.setTimeout(() => setState('idle'), 1200);
-    return () => window.clearTimeout(timeout);
-  }, [state]);
-
-  return {
-    state,
-    copy: async () => setState(await writeClipboard(value)),
-  };
-}
 
 export function CopyButton({
   value,

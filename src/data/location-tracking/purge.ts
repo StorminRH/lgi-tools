@@ -1,32 +1,17 @@
 import { bestEffort } from '@/lib/best-effort';
-import { readEnv } from '@/lib/env';
+import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 import type { PurgeContributor } from '@/platform/purge/types';
-
-function isSafePurgeUrl(siteUrl: string | null): siteUrl is string {
-  if (siteUrl === null) return false;
-  try {
-    const url = new URL(siteUrl);
-    return url.protocol === 'https:' || (
-      url.protocol === 'http:'
-      && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-    );
-  } catch {
-    return false;
-  }
-}
 
 export async function purgeLocationTracking(
   userId: string,
   characterId: number | null,
 ): Promise<void> {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const siteUrl = convexUrl ? deriveConvexSiteUrl(convexUrl) : null;
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  if (!isSafePurgeUrl(siteUrl) || !secret) {
+  const door = resolveConvexServiceDoor();
+  if (!door.ok) {
     throw new Error('Location tracking purge requires a valid Convex URL and service secret');
   }
+  const { siteUrl, secret } = door;
   const response = await fetchWithTimeout(`${siteUrl}/purge-location-tracking`, {
     method: 'POST',
     headers: {

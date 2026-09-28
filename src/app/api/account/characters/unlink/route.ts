@@ -70,19 +70,21 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'unlink_failed');
       }
 
-      await identityProjectionRunners.runAfterCharacterUnlink({
-        userId: session.user.id,
-        characterId,
-        mapIds,
-      });
-      await identityProjectionRunners.runAfterCharacterLinkChanged({
-        userId: session.user.id,
-        characterId,
-      });
-
-      const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
-      if (activeCharacterId === characterId) {
-        await repointActiveToOldest(session.user.id);
+      try {
+        await identityProjectionRunners.runAfterCharacterUnlink({
+          userId: session.user.id,
+          characterId,
+          mapIds,
+        });
+      } finally {
+        await identityProjectionRunners.runAfterCharacterLinkChanged({
+          userId: session.user.id,
+          characterId,
+        });
+        const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
+        if (activeCharacterId === characterId) {
+          await repointActiveToOldest(session.user.id);
+        }
       }
 
       void logUsageEvent({

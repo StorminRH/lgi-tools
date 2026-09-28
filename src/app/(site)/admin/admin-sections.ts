@@ -1,3 +1,4 @@
+import { sectionMatches } from '@/lib/section-path';
 import { parseRange, type RangeKey } from '@/composition/admin-period';
 
 export type AdminSectionId =
@@ -84,18 +85,12 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
   },
 ];
 
-function sectionMatches(pathname: string, href: string): boolean {
-  if (href === '/admin') return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function deriveActiveAdminSection(
   pathname: string,
   groups: readonly AdminNavGroup[] = ADMIN_NAV_GROUPS,
 ): AdminSection | null {
-  const trimmed = pathname.replace(/\/+$/, '') || '/';
   for (const group of groups) {
-    const match = group.sections.find((candidate) => sectionMatches(trimmed, candidate.href));
+    const match = group.sections.find((candidate) => sectionMatches(pathname, candidate.href, candidate.href === '/admin'));
     if (match) return match;
   }
   return null;

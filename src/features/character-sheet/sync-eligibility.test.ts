@@ -1,39 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { SHEET_SECTION_KEYS, SHEET_SECTIONS } from './sections';
 import { canSyncSection, SHEET_SECTION_SCOPES } from './sync-eligibility';
 
-describe('SHEET_SECTION_SCOPES', () => {
-  it('is derived from the section table, one scope list per section', () => {
-    expect(SHEET_SECTION_SCOPES).toEqual({
-      profile: [],
-      status: ['esi-location.read_location.v1', 'esi-location.read_ship_type.v1', 'esi-location.read_online.v1'],
-      attributes: ['esi-skills.read_skills.v1'],
-      implants: ['esi-clones.read_implants.v1'],
-      clones: ['esi-clones.read_clones.v1'],
-      wallet: ['esi-wallet.read_character_wallet.v1'],
-      journal: ['esi-wallet.read_character_wallet.v1'],
-      orders: ['esi-markets.read_character_orders.v1'],
-      structures: ['esi-universe.read_structures.v1'],
-    });
-  });
-});
-
-describe('canSyncSection', () => {
-  const withToken = (missingScopes: string[]) => ({ hasRefreshToken: true, missingScopes });
-
-  it('requires a refresh token even for the public profile section', () => {
-    expect(canSyncSection('profile', { hasRefreshToken: false, missingScopes: [] })).toBe(false);
-    expect(canSyncSection('profile', withToken(['esi-wallet.read_character_wallet.v1']))).toBe(true);
+describe('section sync eligibility', () => {
+  it('derives the eligibility scopes from the refresh section table', () => {
+    expect(Object.keys(SHEET_SECTION_SCOPES)).toEqual([...SHEET_SECTION_KEYS]);
+    for (const key of SHEET_SECTION_KEYS) {
+      expect(SHEET_SECTION_SCOPES[key]).toEqual(SHEET_SECTIONS[key].scopes);
+    }
   });
 
-  it('gates each section on its own scopes only', () => {
-    const missingWallet = withToken(['esi-wallet.read_character_wallet.v1']);
-    expect(canSyncSection('wallet', missingWallet)).toBe(false);
-    expect(canSyncSection('journal', missingWallet)).toBe(false);
-    expect(canSyncSection('clones', missingWallet)).toBe(true);
-    expect(canSyncSection('status', missingWallet)).toBe(true);
-  });
-
-  it('denies status when any one of its three location scopes is missing', () => {
-    expect(canSyncSection('status', withToken(['esi-location.read_online.v1']))).toBe(false);
+  it.each(SHEET_SECTION_KEYS)('requires a token and every required scope for %s', (key) => {
+    expect(canSyncSection(key, { hasRefreshToken: false, missingScopes: [] })).toBe(false);
+    expect(canSyncSection(key, { hasRefreshToken: true, missingScopes: [] })).toBe(true);
+    for (const scope of SHEET_SECTIONS[key].scopes) {
+      expect(canSyncSection(key, { hasRefreshToken: true, missingScopes: [scope] })).toBe(false);
+    }
+    const unrelated = Object.values(SHEET_SECTIONS).flatMap((spec) => [...spec.scopes])
+      .filter((scope) => !SHEET_SECTIONS[key].scopes.includes(scope));
+    expect(canSyncSection(key, { hasRefreshToken: true, missingScopes: unrelated })).toBe(true);
   });
 });

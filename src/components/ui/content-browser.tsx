@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ContentBrowserChapterTitle } from './content-browser-drawer';
 import { ContentBrowserNav, ContentBrowserNavTree } from './content-browser-nav';
 import type { ContentNavModel } from './content-browser-view';
-import { NavRailDrawer, NavRailPanel } from './nav-rail';
+import { NavRailFrame } from './nav-rail';
 
 export type { ContentNavModel } from './content-browser-view';
 export { landingContentSlug } from './content-browser-view';
@@ -29,8 +29,9 @@ export function ContentBrowser({
       data-content-browser-layout
       className="grid items-start gap-5 pb-16 lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-10"
     >
-      <NavRailDrawer
-        data-content-browser-mobile
+      <NavRailFrame
+        mobileProps={{ 'data-content-browser-mobile': true }}
+        panelProps={{ 'data-content-browser-rail': true }}
         title={railLabel}
         label={railLabel}
         current={
@@ -46,12 +47,7 @@ export function ContentBrowser({
         <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
           <ContentBrowserNav {...navProps} />
         </Suspense>
-      </NavRailDrawer>
-      <NavRailPanel data-content-browser-rail>
-        <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
-          <ContentBrowserNav {...navProps} />
-        </Suspense>
-      </NavRailPanel>
+      </NavRailFrame>
       <div className="min-w-0">{children}</div>
     </div>
   );

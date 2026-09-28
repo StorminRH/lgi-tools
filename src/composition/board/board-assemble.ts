@@ -170,10 +170,10 @@ export function collectNameIds(raws: BoardRaw[]): NameIdRequest {
       systemIds.push(status.location.solarSystemId);
       if (status.location.stationId !== null) stationIds.push(status.location.stationId);
     }
-    typeIds.push(...(raw.sheet?.implants?.data?.implants ?? []));
+    const implants = implantIdsOf(raw);
+    typeIds.push(...implants.active, ...implants.jumpClones.flat());
     const clones = raw.sheet?.clones?.data?.clones;
     stationIds.push(...cloneStationIds(clones));
-    for (const clone of clones?.jumpClones ?? []) typeIds.push(...clone.implantTypeIds);
   }
   return {
     typeIds: sorted(typeIds),
