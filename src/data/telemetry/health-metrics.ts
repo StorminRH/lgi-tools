@@ -132,7 +132,7 @@ export interface GscStatusInput {
 
 export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
   if (!input.configured) {
-    return { level: 'neutral', headline: 'not connected · set GSC env vars to sync search data' };
+    return { level: 'neutral', headline: 'not connected' };
   }
   const base = deriveCronStatus({
     lastRun: input.lastRun,

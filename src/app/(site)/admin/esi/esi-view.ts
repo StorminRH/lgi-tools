@@ -71,14 +71,14 @@ export function derivePressureLines(input: {
       id: 'esi-success',
       label: 'ESI availability',
       value: formatSliValue('esiSuccess', input.esiSuccess),
-      note: `${input.esiSamples?.toLocaleString() ?? '—'} operations · no throttle/upstream failure · target ${sliTargetLabel('esiSuccess')}`,
+      note: `${input.esiSamples?.toLocaleString() ?? '—'} operations · target ${sliTargetLabel('esiSuccess')}`,
       level: sliLevel('esiSuccess', input.esiSuccess),
     },
     countLine(
       'exhaustions',
       'Budget-blocked refreshes',
       input.budgetExhaustions,
-      'recorded price refresh events',
+      '',
     ),
     {
       id: 'fallback',
@@ -92,9 +92,9 @@ export function derivePressureLines(input: {
       'Degraded price refreshes',
       degradationTotal,
       input.degradation.length === 0
-        ? 'no degraded refresh events'
+        ? ''
         : input.degradation.map((row) => `${row.caller} ${row.count}`).join(' · '),
     ),
-    countLine('deferred', 'Jobs held for budget', deferred, 'refresh jobs waiting for budget to recover'),
+    countLine('deferred', 'Jobs held for budget', deferred, ''),
   ];
 }

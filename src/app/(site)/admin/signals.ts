@@ -67,7 +67,7 @@ const SOURCES: Record<Exclude<keyof AdminSignals, 'now'>, { label: string; page:
 };
 
 function unavailableLine(id: string, label: string): StatusLine {
-  return { id, label, value: 'unavailable', note: 'could not load', level: 'neutral' };
+  return { id, label, value: 'unavailable', note: '', level: 'neutral' };
 }
 
 export interface CronStatuses {
@@ -185,14 +185,14 @@ export interface BudgetStatus {
 
 export function deriveBudgetStatus(budget: EsiBudgetSnapshot | null): BudgetStatus {
   if (budget === null) {
-    return { level: 'red', value: 'unavailable', note: 'scoreboard down · dispatch failing closed' };
+    return { level: 'red', value: 'unavailable', note: 'dispatch paused' };
   }
   const below = budget.effectiveRemaining < ESI_BUDGET_FLOOR;
   return {
     level: below ? 'red' : 'green',
     value: `${budget.effectiveRemaining.toLocaleString()} left`,
     note: below
-      ? `below the ${ESI_BUDGET_FLOOR}-request floor · calls are held`
+      ? `floor ${ESI_BUDGET_FLOOR} · dispatch paused`
       : `floor ${ESI_BUDGET_FLOOR} · live`,
   };
 }
@@ -243,7 +243,7 @@ function queueLine(queue: QueueSummary): StatusLine {
     value: `${queue.due.toLocaleString()} active · ${queue.deadLettered.toLocaleString()} dead`,
     note:
       queue.oldestDueHours === null
-        ? 'nothing waiting'
+        ? ''
         : `oldest job ${formatHours(queue.oldestDueHours)}`,
     level: queueLevel(queue),
     quiet: true,
@@ -264,7 +264,7 @@ function releaseLine(releases: Loaded<Release[]>, now: Date): StatusLine {
     null,
   );
   if (latest === null) {
-    return { id: 'release', label: 'Latest release', value: 'none', note: 'no changelog entries', level: 'neutral' };
+    return { id: 'release', label: 'Latest release', value: 'none', note: '', level: 'neutral' };
   }
   const days = Math.max(0, Math.floor((now.getTime() - Date.parse(latest.date)) / 86_400_000));
   return {
@@ -285,7 +285,7 @@ function heldForBudgetLine(stats: Loaded<EsiRefreshQueueStat[]>): StatusLine {
     id: 'held-for-budget',
     label: 'Held for budget',
     value: `${held.toLocaleString()} job${held === 1 ? '' : 's'}`,
-    note: 'refreshes waiting for the budget to recover',
+    note: '',
     level: held > 0 ? 'amber' : 'green',
     quiet: true,
   };
@@ -381,7 +381,7 @@ function staticsAttention(statics: AdminSignals['statics']): AttentionItem[] {
       id: 'statics',
       level: 'amber',
       title: `Wormhole statics feed v${statics.feedVersion} is waiting for review`,
-      detail: `${statics.totalDifferences.toLocaleString()} assignment differences. Serving data only changes when you promote it.`,
+      detail: `${statics.totalDifferences.toLocaleString()} assignment differences`,
       action: { label: 'Review snapshot', href: '/admin/statics' },
     },
   ];
@@ -394,7 +394,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
       id: 'dead-letters',
       level: 'red',
       title: `${queue.deadLettered.toLocaleString()} refresh job${queue.deadLettered === 1 ? '' : 's'} dead-lettered`,
-      detail: 'Owner data for these pilots and corporations stops refreshing until you retry.',
+      detail: 'Refresh stopped',
       action: { label: 'Open queue', href: '/admin/queue' },
     });
   }
@@ -403,7 +403,7 @@ function queueAttention(queue: QueueSummary): AttentionItem[] {
       id: 'queue-backlog',
       level: 'amber',
       title: `Refresh backlog of ${queue.due.toLocaleString()} jobs, oldest ${formatHours(queue.oldestDueHours)}`,
-      detail: 'Jobs are waiting longer than usual; check whether the ESI budget is holding them.',
+      detail: `target ≤ ${QUEUE_STALE_HOURS}h`,
       action: { label: 'Open queue', href: '/admin/queue' },
     });
   }
@@ -437,7 +437,7 @@ function unavailableAttention(signals: AdminSignals): AttentionItem[] {
     id: `unavailable:${page.href}`,
     level: 'amber',
     title: `Could not load ${[...labels].join(', ')}`,
-    detail: 'The overview cannot tell whether anything there needs you. Reload to try again.',
+    detail: 'Status unknown',
     action: page,
   }));
 }

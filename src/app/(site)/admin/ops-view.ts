@@ -20,7 +20,7 @@ export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   if (snapshot === null) {
     return {
       level: 'red' as const,
-      headline: 'Scoreboard unavailable — ESI dispatch is failing closed.',
+      headline: 'Scoreboard unavailable · dispatch paused',
       metrics: [] as OpsMetricRow[],
     };
   }
@@ -28,23 +28,23 @@ export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   return {
     level: belowFloor ? ('red' as const) : ('green' as const),
     headline: belowFloor
-      ? `Below the ${ESI_BUDGET_FLOOR}-error safety threshold.`
-      : `At or above the ${ESI_BUDGET_FLOOR}-error safety threshold.`,
+      ? `floor ${ESI_BUDGET_FLOOR} · dispatch paused`
+      : `floor ${ESI_BUDGET_FLOOR}`,
     metrics: [
       {
         label: 'Effective remaining',
         value: snapshot.effectiveRemaining.toLocaleString(),
-        note: 'the exact global value used by the gate',
+        note: '',
       },
       {
         label: 'Observed HTTP errors',
         value: snapshot.selfCount.toLocaleString(),
-        note: '4xx/5xx · conservative two-minute count',
+        note: '4xx/5xx · last 2 min',
       },
       {
         label: 'Lowest recent CCP allowance',
         value: snapshot.echo?.toLocaleString() ?? '—',
-        note: snapshot.echo === null ? 'no live header observed' : 'X-ESI-Error-Limit-Remain',
+        note: snapshot.echo === null ? 'not observed' : 'CCP response header',
       },
       {
         label: 'Scoreboard source',
@@ -105,12 +105,12 @@ export function deriveCostLensView(input: {
       {
         label: 'Budget-blocked refreshes',
         value: input.budgetExhaustions.toLocaleString(),
-        note: 'scheduled and on-demand price refresh events',
+        note: 'scheduled + on-demand',
       },
       {
         label: 'Background save failures',
         value: writeBehindFailures.toLocaleString(),
-        note: `${input.writeBehind.reduce((total, row) => total + row.count, 0).toLocaleString()} price/history save attempts`,
+        note: `${input.writeBehind.reduce((total, row) => total + row.count, 0).toLocaleString()} save attempts`,
       },
     ] satisfies OpsMetricRow[],
     endpoints: input.endpoints.map((row) => ({

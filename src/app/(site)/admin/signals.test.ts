@@ -267,7 +267,7 @@ describe('a source that failed to load', () => {
 
   it('marks only its own lines unavailable', () => {
     for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'queue', 'held-for-budget']) {
-      expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: 'could not load', level: 'neutral' });
+      expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: '', level: 'neutral' });
     }
     expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });
     expect(byId.get('budget')).toMatchObject({ value: '87 left', level: 'green' });

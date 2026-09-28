@@ -23,7 +23,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
         <Dot tone={LEVEL_DOT_TONE[item.level]} size="lg" className="mt-1.5" />
         <span className="min-w-0">
           <span className="block font-ui text-ui text-text">{item.title}</span>
-          <span className="block font-ui text-label text-muted">{item.detail}</span>
+          {item.detail ? <span className="block font-ui text-label text-muted">{item.detail}</span> : null}
         </span>
       </span>
       <Link
@@ -42,9 +42,6 @@ function AllClear() {
       <Dot tone="green" size="lg" className="mt-1.5" />
       <span>
         <span className="block font-ui text-ui text-text">All clear</span>
-        <span className="block font-ui text-label text-muted">
-          No failing jobs, dead letters, ESI pressure or pending reviews.
-        </span>
       </span>
     </div>
   );

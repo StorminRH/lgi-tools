@@ -32,9 +32,9 @@ function promotedSubtitle(
   systemCount: number,
 ): string {
   if (version === '') {
-    return 'No snapshot is promoted yet. Review the community refresh before it reaches serving.';
+    return 'No promoted snapshot.';
   }
-  return `Serving feed v${version} across ${systemCount.toLocaleString()} systems.`;
+  return `v${version} · ${systemCount.toLocaleString()} systems`;
 }
 
 function ActionForm({
@@ -231,9 +231,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
         </div>
       </dl>
       <p className="border-t border-border-soft px-4 py-3 font-ui text-ui text-muted">
-        Independent lineage agrees across{' '}
-        {crossCheck.agreedSystems.toLocaleString()} systems. Inspect every
-        structural difference before promoting.
+        {crossCheck.agreedSystems.toLocaleString()} systems match independent lineage.
       </p>
       <DifferenceDetails snapshot={snapshot} />
       <LineageDetails snapshot={snapshot} />
@@ -291,8 +289,7 @@ async function StaticsContent({
         <Card>
           <SectionHeader size="md" label="Pending review" />
           <EmptyState>
-            No statics snapshot is waiting for review. The daily check records one when the
-            community feed changes; use Check feed now to look immediately.
+            No pending snapshot.
           </EmptyState>
         </Card>
       )}

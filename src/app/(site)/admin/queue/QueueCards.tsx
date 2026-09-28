@@ -43,7 +43,7 @@ export async function DeadLettersCard() {
         label={`Dead letters · ${rows.length}`}
       />
       {rows.length === 0 ? (
-        <EmptyState>No dead-lettered refresh jobs. Nothing to retry.</EmptyState>
+        <EmptyState>No dead-lettered jobs.</EmptyState>
       ) : (
         <ul>
           {rows.map((row) => (

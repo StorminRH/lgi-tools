@@ -60,8 +60,7 @@ export function SearchNotConnected() {
     <Card>
       <SectionHeader size="md" label="Search Console" />
       <EmptyState>
-        Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync clicks, queries, and index
-        coverage from Google Search Console.
+        Search Console not connected.
       </EmptyState>
     </Card>
   );

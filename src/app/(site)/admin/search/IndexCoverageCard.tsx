@@ -112,7 +112,7 @@ export async function IndexCoverageCard({ range }: { range: GscRange }) {
           </MultiplesGrid>
           {view.unknown > 0 && (
             <p className="px-3.5 py-2 font-data text-micro text-muted">
-              {view.unknown.toLocaleString()} URLs with unknown status · excluded from indexed / not indexed counts
+              {view.unknown.toLocaleString()} URLs unclassified
             </p>
           )}
           <SectionHeader variant="sub" label="Latest coverage reasons" className="border-y border-border-soft px-3.5 py-2" />

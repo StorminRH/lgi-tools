@@ -26,7 +26,7 @@ function ActionTile({ row }: { row: AdminActionRow }) {
         {row.title}
         {row.badge ? <Pill tone={row.badge.tone}>{row.badge.label}</Pill> : null}
       </span>
-      <span className="font-data text-micro text-muted">{row.status}</span>
+      {row.status ? <span className="font-data text-micro text-muted">{row.status}</span> : null}
       <Link
         href={row.href}
         className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'mt-auto self-start')}
@@ -41,7 +41,6 @@ function ReferenceTile() {
   return (
     <li className={TILE}>
       <span className="font-ui text-ui text-text">UI reference</span>
-      <span className="font-data text-micro text-muted">Preview pages for the design system</span>
       <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 font-ui text-label">
         {REFERENCE_LINKS.map((link) => (
           <Link key={link.href} href={link.href} className="text-isk no-underline transition-colors hover:text-name">

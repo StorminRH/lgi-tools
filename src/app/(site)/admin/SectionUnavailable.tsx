@@ -7,8 +7,7 @@ export function SectionUnavailable({ label }: { label: string }) {
     <Card>
       <SectionHeader size="md" label={label} />
       <EmptyState>
-        This section couldn’t load — the rest of the dashboard is unaffected.
-        Reload to try again.
+        Unable to load this section.
       </EmptyState>
     </Card>
   );

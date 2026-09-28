@@ -39,7 +39,7 @@ export function deriveActionRows(input: {
     {
       id: 'access',
       title: 'Users & roles',
-      status: 'Admins, sessions, character links, role audit',
+      status: '',
       href: '/settings/access',
       cta: 'Open',
       badge: null,

@@ -31,7 +31,6 @@ const SERVICE_LEVEL_COLUMNS = [
         <Dot tone={LEVEL_DOT_TONE[row.level]} size="lg" className="mt-1.5" />
         <span className="min-w-0">
           <span className="block text-text">{row.title}</span>
-          <span className="block max-w-prose text-micro text-muted">{row.responseAction}</span>
         </span>
       </span>
     ),

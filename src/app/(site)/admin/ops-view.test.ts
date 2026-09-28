@@ -12,7 +12,7 @@ describe('deriveBudgetView', () => {
   it('surfaces a missing scoreboard as the fail-closed state', () => {
     expect(deriveBudgetView(null)).toMatchObject({
       level: 'red',
-      headline: expect.stringContaining('failing closed'),
+      headline: expect.stringContaining('dispatch paused'),
       metrics: [],
     });
   });

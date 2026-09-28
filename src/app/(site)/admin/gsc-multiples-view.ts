@@ -26,7 +26,6 @@ export function deriveGscMultiples(input: {
       value: totals.impressions.toLocaleString(),
       delta: computeDelta(totals.impressions, prevTotals?.impressions ?? null),
       invert: false,
-      note: 'times shown in results',
     },
     {
       title: 'Avg position',
@@ -35,7 +34,6 @@ export function deriveGscMultiples(input: {
         ? computeDelta(totals.position, prevTotals.position)
         : null,
       invert: true,
-      note: 'lower = better',
     },
   ];
 }

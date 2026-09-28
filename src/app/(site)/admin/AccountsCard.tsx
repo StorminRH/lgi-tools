@@ -23,7 +23,6 @@ export async function AccountsCard() {
         <MultiplesCell
           title="Unique characters"
           value={totals.characters.toLocaleString()}
-          note="linked across all accounts"
         >
           {null}
         </MultiplesCell>

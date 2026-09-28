@@ -106,7 +106,7 @@ function SdeCronDetail({ sdeOutcomes }: { sdeOutcomes: CronOutcomeCount[] }) {
     <DetailBody>
       {sdeOutcomes.length === 0 ? (
         <DetailCaption>
-          No SDE cron runs in this range (it runs daily — pick a wider range to see history).
+          No runs in this period.
         </DetailCaption>
       ) : (
         <>
@@ -136,7 +136,7 @@ function GscSyncDetail({
     <DetailBody>
       {!gscConfigured ? (
         <DetailCaption>
-          Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync Search Console data.
+          Search Console not connected.
         </DetailCaption>
       ) : (
         <>

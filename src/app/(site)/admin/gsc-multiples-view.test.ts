@@ -13,7 +13,6 @@ describe('deriveGscMultiples', () => {
     expect(cells[2]).toMatchObject({
       value: '8.4',
       invert: true,
-      note: 'lower = better',
       delta: { pct: -20, direction: 'down' },
     });
   });
