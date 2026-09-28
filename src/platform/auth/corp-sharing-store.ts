@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { corpDataSharing } from '@/db/auth-schema';
 import type { SharingState } from './corp-visibility';
 
-/** Every requested corp maps to a state; a corp with no row is 'off'. */
 export async function readCorpSharing(corporationIds: readonly number[]): Promise<Map<number, SharingState>> {
   const states = new Map<number, SharingState>(corporationIds.map((id) => [id, 'off']));
   if (corporationIds.length === 0) return states;

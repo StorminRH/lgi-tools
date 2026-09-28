@@ -40,7 +40,6 @@ interface RoleSources {
   readonly now: Date;
 }
 
-/** A stored row serves only while it is inside the ESI window and was captured in this corp. */
 function usableStoredRoles(
   row: StoredCorpRoles | undefined,
   corporationId: number,
@@ -53,7 +52,6 @@ function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
   return health !== undefined && health.hasRefreshToken && !health.missingScopes.includes(ROLES_SCOPE);
 }
 
-/** Fail closed: a budget deferral or any other failure hides the corp for this request instead of erroring the viewer. */
 async function refetchedRoles(characterId: number): Promise<MemberRoles> {
   try {
     const record = await fetchCorpRoles(characterId);
@@ -98,12 +96,6 @@ function membersOf(access: UserCorpAccess, corporationId: number): readonly numb
   return access.characterIdsByCorporation[corporationId] ?? [];
 }
 
-/**
- * The one read-side assembler: fresh affiliations, the sharing switch, each
- * character's roles (refetched inline past the ESI window or after a corp
- * change), bases and the holding context, compiled into a branded scope the
- * owned-data queries filter by. Runs once per request.
- */
 export async function resolveCorpViewer(userId: string): Promise<CorpViewer> {
   const now = new Date();
   const [access, health] = await Promise.all([resolveUserCorpAccess(userId), listCharactersWithHealth(userId)]);

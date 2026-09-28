@@ -18,7 +18,6 @@ function ownedBlueprintsTag(owner: OwnerKey): string {
   return `owned-blueprints:${owner.ownerType}:${owner.ownerId}`;
 }
 
-/** Per owner and shared across viewers, so the per-viewer filter runs on the way out, never in here. */
 async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintRow[]> {
   'use cache';
   cacheLife('hours');
@@ -50,7 +49,6 @@ async function corpInputs(grant: CorpGrant): Promise<BlueprintMapInput[]> {
   );
 }
 
-/** The only way to read owned blueprints: a scope minted by compileReadScope, filtered before the best-copy pick. */
 export async function getOwnedBlueprintMap(scope: OwnedReadScope): Promise<OwnedBlueprintMap> {
   const [characters, corps] = await Promise.all([
     Promise.all(scope.characterIds.map(characterInputs)),

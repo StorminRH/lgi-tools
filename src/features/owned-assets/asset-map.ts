@@ -1,7 +1,6 @@
 import type { Placement } from '@/data/corp-holdings/placement';
 import { type CorpGrant, visiblePlacements } from '@/platform/auth/corp-visibility';
 
-/** One stored owned_assets row, without its owner. */
 export interface AssetRow {
   typeId: number;
   quantity: number;
@@ -10,11 +9,6 @@ export interface AssetRow {
   locationType: string;
 }
 
-/**
- * A corp holding cannot exist without a resolved placement: the filter that
- * admitted it is the same step that placed it, and the labels read nothing
- * else. Character holdings keep their raw ESI location.
- */
 export type AssetHolding =
   | {
       ownerType: 'character';
@@ -39,7 +33,6 @@ export function characterAssetInputs(rows: readonly AssetRow[], characterId: num
   return rows.map((row) => ({ ownerType: 'character', ownerId: characterId, ...row }));
 }
 
-/** Corp rows the grant cannot see never reach the map, so ownedQty and heldBy already reflect the viewer. */
 export function visibleCorpAssetInputs(rows: readonly AssetRow[], grant: CorpGrant): AssetMapInput[] {
   return visiblePlacements(rows, grant.holdings, grant.context).map(({ row, placement }) => ({
     ownerType: 'corporation',

@@ -19,7 +19,6 @@ function ownedAssetsTag(owner: OwnerKey): string {
   return `owned-assets:${owner.ownerType}:${owner.ownerId}`;
 }
 
-/** Per owner and shared across viewers, so the per-viewer filter runs on the way out, never in here. */
 async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetRow[]> {
   'use cache';
   cacheLife('hours');
@@ -47,7 +46,6 @@ async function corpInputs(grant: CorpGrant): Promise<AssetMapInput[]> {
   );
 }
 
-/** The only way to read owned assets: a scope minted by compileReadScope, filtered before any sum. */
 export async function getOwnedAssetMap(scope: OwnedReadScope, typeIds: number[]): Promise<OwnedAssetMap> {
   const [characters, corps] = await Promise.all([
     Promise.all(scope.characterIds.map(characterInputs)),

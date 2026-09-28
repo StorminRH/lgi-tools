@@ -7,13 +7,6 @@ export interface ContainerRef {
   readonly typeId: number;
 }
 
-/**
- * Where a corp item sits, as the client shows it. `rootId` is the NPC station,
- * Upwell structure, or corp-owned structure item; `containers` runs
- * outermost-first, so a container's contents share the division's visibility.
- * `unplaced` covers fittings, fuel bays, ship cargo, items in space, and
- * anything the tree cannot resolve; it is visible only under an 'all' rule.
- */
 export type Placement =
   | {
       readonly kind: 'hangar';
@@ -26,7 +19,6 @@ export type Placement =
 
 export type ContainedPlacement = Extract<Placement, { kind: 'hangar' | 'deliveries' }>;
 
-/** What a parent item means for its children. */
 export type Interior =
   | { readonly kind: 'office'; readonly rootId: number }
   | { readonly kind: 'root'; readonly rootId: number }
@@ -36,11 +28,9 @@ export type Interior =
 export type HoldingNodeKind = Interior['kind'];
 
 export interface HoldingIndex {
-  /** Keyed by parent item id. Only items that are some item's `location_id` appear. */
   readonly interiors: ReadonlyMap<number, Interior>;
 }
 
-/** One stored `corp_holding_nodes` row, minus the corp id and refresh stamp. */
 export interface HoldingNode {
   readonly itemId: number;
   readonly kind: HoldingNodeKind;
@@ -98,7 +88,6 @@ const OFFICE_FLAG = 'OfficeFolder';
 const DELIVERIES_FLAG = 'CorpDeliveries';
 const MAX_CONTAINER_NESTING = 16;
 
-/** The flags ESI gives items inside a cargo container. */
 const CONTAINER_CONTENT_FLAGS: ReadonlySet<string> = new Set(['Unlocked', 'Locked', 'AutoFit']);
 
 const DIVISION_BY_FLAG: ReadonlyMap<string, HangarDivision> = new Map([
@@ -142,14 +131,6 @@ function placeWithin(interior: Interior, flag: string): Placement {
   }
 }
 
-/**
- * The one placement function, for asset and blueprint rows alike (both carry
- * parent id + flag). The walk records every parent, stations and structures
- * included, and blueprints are assets too, so a parent the index has never
- * seen means the index is stale. Treating it as a root would let a CorpSAGn
- * row under an unindexed office resolve to the 'other' tier with the office
- * id as its root, so it fails closed instead.
- */
 export function placeUnder(index: HoldingIndex, parentId: number, locationFlag: string): Placement {
   const interior = index.interiors.get(parentId);
   return interior === undefined ? { kind: 'unplaced', rootId: null } : placeWithin(interior, locationFlag);
@@ -174,11 +155,6 @@ function resolveInterior(
   return containerInterior(item, placeWithin(parentInterior(item.locationId), item.locationFlag));
 }
 
-/**
- * Walks item_id → location_id up to the root for every item that is some item's
- * parent. A parent reached again while it is still being resolved is a cycle and
- * becomes opaque with no root, so every member of the cycle fails closed.
- */
 export function buildHoldingIndex(items: readonly CorpAssetItem[]): HoldingIndex {
   const byId = new Map(items.map((item) => [item.itemId, item]));
   const interiors = new Map<number, Interior>();
@@ -225,7 +201,6 @@ function withinFromNode(node: HoldingNode, rootId: number): Interior {
   return { kind: 'opaque', rootId };
 }
 
-/** A row the walker could not have written (no root, or a `within` with no hangar) reads as opaque. */
 function fromHoldingNode(node: HoldingNode): Interior {
   if (node.kind === 'opaque' || node.rootId === null) return { kind: 'opaque', rootId: node.rootId };
   if (node.kind === 'within') return withinFromNode(node, node.rootId);

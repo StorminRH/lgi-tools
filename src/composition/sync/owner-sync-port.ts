@@ -38,7 +38,6 @@ function softEsiFailure(error: unknown): null {
   throw error;
 }
 
-/** Every live roles read keeps corp_member_roles warm; this is the one writer. */
 async function readCorpRolesRecord(characterId: number, accessToken: string): Promise<CorpRolesRecord | null> {
   try {
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
@@ -52,13 +51,11 @@ async function readCorpRolesRecord(characterId: number, accessToken: string): Pr
   }
 }
 
-/** The credential probe: the global roles list the corp sync selects a token by. */
 export async function readRolesFor(characterId: number, accessToken: string): Promise<string[] | null> {
   const record = await readCorpRolesRecord(characterId, accessToken);
   return record === null ? null : [...record.roles];
 }
 
-/** The viewer's inline refetch: vends the token itself and returns the full stored record. */
 export async function fetchCorpRoles(characterId: number): Promise<CorpRolesRecord | null> {
   const accessToken = await vendTokenFor(characterId);
   return accessToken === null ? null : readCorpRolesRecord(characterId, accessToken);

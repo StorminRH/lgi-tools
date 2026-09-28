@@ -21,11 +21,6 @@ import {
 } from './context-projection';
 import type { CorpHoldingContext } from './placement';
 
-/**
- * Pinned ⊂ EVE_SCOPES by src/composition/sync/corp-context-sync.test.ts (data
- * cannot import EVE_SCOPES). The roles read shares the corp probes' scope; the
- * assets scope covers POST assets/names; read_structures names Upwell roots.
- */
 export const CORP_CONTEXT_SYNC_SCOPES = [
   'esi-characters.read_corporation_roles.v1',
   'esi-corporations.read_divisions.v1',
@@ -39,7 +34,6 @@ const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
 
-/** A Director who has not reconnected for the new scopes is not eligible; the profile then stays unknown. */
 function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
   if (!character.hasRefreshToken) return false;
   return !CORP_CONTEXT_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
@@ -50,7 +44,6 @@ export type CorpContextRead =
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-/** The injected I/O the Director context pass runs over; wired in src/composition/sync/corp-context-sync.ts. */
 export interface CorpContextPort {
   now(): Date;
   listMembers(userId: string): Promise<EnumeratedOwner[]>;
@@ -124,12 +117,6 @@ async function readStructureNames(
   return names;
 }
 
-/**
- * Names are incremental: only containers and structure roots the current
- * index refers to and the stored profile has not named yet are requested, so a
- * pass costs a handful of calls after the first. Any required read that fails
- * skips the pass and keeps the prior profile whole.
- */
 async function planContext(
   port: CorpContextPort,
   owner: CorpOwner,

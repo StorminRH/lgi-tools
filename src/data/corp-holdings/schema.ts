@@ -1,14 +1,6 @@
 import { bigint, boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import type { ContainerRef, HangarDivision, HoldingNodeKind } from './placement';
 
-/**
- * One row per parent item in the corp's last fresh assets payload: the tree of
- * parents every corp asset and blueprint row resolves its placement against.
- * Replaced per corp (delete-then-insert) before the asset rows, so a reader
- * between the two sees missing parents, which place as unplaced and fail
- * closed. The pk turns an interleaved concurrent refresh into a caught unique
- * violation, the same guard owned_assets relies on.
- */
 export const corpHoldingNodes = pgTable(
   'corp_holding_nodes',
   {
@@ -24,7 +16,6 @@ export const corpHoldingNodes = pgTable(
   (t) => [primaryKey({ columns: [t.corporationId, t.itemId] })],
 );
 
-/** One row per corp: the Director-token context (HQ, names). Written only by the corp_context pass. */
 export const corpProfiles = pgTable('corp_profiles', {
   corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
   hqStationId: bigint('hq_station_id', { mode: 'number' }),
@@ -34,11 +25,6 @@ export const corpProfiles = pgTable('corp_profiles', {
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
 });
 
-/**
- * The membertracking base of each linked character, per corp. Only characters
- * that are linked LGI accounts in the corp are written; a character linked
- * after the last context pass has no row and its base reads as unknown.
- */
 export const corpMemberBases = pgTable(
   'corp_member_bases',
   {

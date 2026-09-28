@@ -117,11 +117,6 @@ export const jwks = pgTable('jwks', {
   expiresAt: timestamp('expires_at'),
 });
 
-/**
- * The four ESI role arrays per linked character, as ESI sent them. The corp is
- * read from `characters` inside the same INSERT ... SELECT, so a row whose corp
- * no longer matches the fresh affiliation reads as roles unknown.
- */
 export const corpMemberRoles = pgTable('corp_member_roles', {
   characterId: bigint('character_id', { mode: 'number' })
     .primaryKey()
@@ -134,12 +129,6 @@ export const corpMemberRoles = pgTable('corp_member_roles', {
   fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
 });
 
-/**
- * The one Director-controlled sharing switch per corporation, covering assets,
- * blueprints, structures and industry jobs. Renamed in place from
- * corp_structure_sharing (same columns, same rows). No row reads as off.
- * `set_by` is the character that last flipped it (audit only).
- */
 export const corpDataSharing = pgTable('corp_data_sharing', {
   corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
   enabled: boolean('enabled').default(false).notNull(),

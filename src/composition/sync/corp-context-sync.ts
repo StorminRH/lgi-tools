@@ -40,7 +40,6 @@ function makeCorpContextPort(): CorpContextPort {
   };
 }
 
-/** The read path's write-behind: the Director context pass, budget-deferred like the owned datasets. */
 export function refreshCorpContextOnView(userId: string): Promise<OwnerSyncResult[]> {
   return refreshCorpContextForUser(makeCorpContextPort(), userId, enqueueBudgetDeferral('corp_context', userId));
 }

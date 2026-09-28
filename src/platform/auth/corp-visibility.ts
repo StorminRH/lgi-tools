@@ -1,7 +1,6 @@
 import { type CorpHoldingContext, type Knowable, type Placement, placeUnder } from '@/data/corp-holdings/placement';
 import type { CharacterCorpRoles, CorpRole } from './corp-roles';
 
-/** No `corp_data_sharing` row reads as 'off'. */
 export type SharingState = 'on' | 'off';
 export type Tier = 'hq' | 'base' | 'other';
 
@@ -9,11 +8,9 @@ export type MemberRoles =
   | { readonly kind: 'known'; readonly roles: CharacterCorpRoles }
   | { readonly kind: 'unknown' };
 
-/** A viewer character whose roles are known for this corp. Unknown characters never reach a grant. */
 export interface KnownMember {
   readonly characterId: number;
   readonly roles: CharacterCorpRoles;
-  /** null = the member has no base set. */
   readonly base: Knowable<number | null>;
 }
 
@@ -50,7 +47,6 @@ export interface CorpGrant {
   readonly context: CorpHoldingContext;
 }
 
-/** The only argument the owned-data queries accept. Minted by compileReadScope alone. */
 export interface OwnedReadScope {
   readonly [scopeBrand]: true;
   readonly characterIds: readonly number[];
@@ -78,12 +74,6 @@ function knownMembers(members: CorpGrantInput['members']): KnownMember[] {
   );
 }
 
-/**
- * Switch off is self-service parity: a viewer sees only what one of their
- * characters could pull from ESI. Switch on mirrors the in-game view, and a
- * viewer with no known-roles character sees nothing rather than an empty
- * by-location rule, so the read scope drops the corp outright.
- */
 function holdingsRule(on: boolean, holds: Holds, byLocation: HoldingRule & { kind: 'by-location' }): HoldingRule {
   if (holds('Director')) return ALL;
   if (!on || byLocation.members.length === 0) return NONE;
@@ -128,11 +118,6 @@ export function compileReadScope(characterIds: readonly number[], grants: readon
   };
 }
 
-/**
- * The tiers `rootId` might be. A grant holds only when every possible tier
- * grants, so an unknown base or HQ withholds tier-specific roles and keeps
- * global ones. A known base overrides the HQ.
- */
 export function possibleTiers(rootId: number, hq: Knowable<number>, base: Knowable<number | null>): readonly Tier[] {
   if (base.kind === 'known' && base.value === rootId) return ['base'];
   const tiers: Tier[] = base.kind === 'unknown' ? ['base'] : [];
@@ -174,11 +159,6 @@ export interface PlacedRow<T> {
   readonly placement: Placement;
 }
 
-/**
- * The per-viewer filter for asset and blueprint rows alike: each row is placed
- * against the grant's index and kept only when the rule can see it, so a
- * hidden row never reaches a sum, a held-by list or a best-copy pick.
- */
 export function visiblePlacements<T extends { locationId: number; locationFlag: string }>(
   rows: readonly T[],
   rule: HoldingRule,
@@ -189,7 +169,6 @@ export function visiblePlacements<T extends { locationId: number; locationFlag: 
     .filter(({ placement }) => canSeeHolding(rule, placement));
 }
 
-/** The contexts the labels need, keyed by corp, from the same grants that filtered the rows. */
 export function contextsByCorp(scope: OwnedReadScope): ReadonlyMap<number, CorpHoldingContext> {
   return new Map(scope.corps.map((grant) => [grant.corporationId, grant.context]));
 }

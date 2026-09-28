@@ -1,6 +1,5 @@
 import type { ContainerRef, CorpHoldingContext, HangarDivision, Placement } from './placement';
 
-/** The client's names for divisions the corp never renamed (jEveAssets uses the same fallback). */
 const DEFAULT_DIVISION_NAMES: Record<HangarDivision, string> = {
   1: '1st Division',
   2: '2nd Division',
@@ -15,18 +14,13 @@ const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
 const STRUCTURE_LABEL = 'Upwell structure';
 const UNKNOWN_LOCATION_LABEL = 'Unknown location';
 
-/** Resolved public names keyed by id, as resolveEntityNames returns them. */
 export type EntityNames = Readonly<Record<string, string>>;
 
 export type FormatStation = (name: string) => string;
 
-/** A corp holding the way the client shows it. */
 export interface CorpHoldingLabel {
-  /** The structure's name from the corp context, else the NPC station's public name, else a generic label. */
   readonly locationName: string;
-  /** The division's in-game name, 'Deliveries', or '' for an unplaced row. */
   readonly locationFlag: string;
-  /** The innermost container's in-game name, else its type name, else null when there is no container. */
   readonly containerName: string | null;
 }
 
@@ -69,7 +63,6 @@ function containerName(placement: Placement, context: CorpHoldingContext, names:
   return context.containerNames.get(container.itemId) ?? names[String(container.typeId)] ?? null;
 }
 
-/** The public ids to resolve for this holding: an NPC station root and, when the corp has not named it, the container's type. */
 export function corpHoldingNameIds(placement: Placement, context: CorpHoldingContext): number[] {
   const ids: number[] = [];
   if (placement.rootId !== null && isNpcStation(placement.rootId)) ids.push(placement.rootId);

@@ -7,11 +7,6 @@ import { readRolesFor, vendTokenFor } from './sync/owner-sync-port';
 
 type CorpRoleGateResult = { ok: true } | { ok: false; failure: AppFailure };
 
-/**
- * Membership is audited first, then the role is read live from ESI (which
- * also refreshes the stored roles), because a mutation must not trust roles
- * that may be up to an hour old.
- */
 async function corpRoleGate(
   userId: string,
   corporationId: number,

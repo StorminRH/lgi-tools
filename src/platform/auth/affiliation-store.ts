@@ -89,7 +89,6 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-/** Characters with an EVE account row whose cached affiliation is this corp, across every user. */
 export async function listLinkedCharacterIdsInCorporation(corporationId: number): Promise<number[]> {
   const rows = await db
     .selectDistinct({ accountId: account.accountId })

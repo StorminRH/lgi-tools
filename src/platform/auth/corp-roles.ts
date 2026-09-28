@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-/** The roles the access model reads. Every other ESI role grants nothing here. */
 const VISIBILITY_ROLES = [
   'Director',
   'Accountant',
@@ -27,10 +26,6 @@ export interface CharacterCorpRoles {
   readonly atOther: ReadonlySet<CorpRole>;
 }
 
-/**
- * The four ESI role arrays as ESI sent them. This is what gets stored, so a role
- * added to VISIBILITY_ROLES later needs no refetch; narrowing happens on read.
- */
 export interface CorpRolesRecord {
   readonly roles: readonly string[];
   readonly rolesAtHq: readonly string[];
@@ -67,7 +62,6 @@ function visibilityRoles(names: readonly string[]): ReadonlySet<CorpRole> {
   return new Set(names.filter((name): name is CorpRole => VISIBILITY_ROLE_SET.has(name)));
 }
 
-/** Narrows a stored record to the roles the access model reads. */
 export function narrowCorpRoles(record: CorpRolesRecord): CharacterCorpRoles {
   return {
     global: visibilityRoles(record.roles),

@@ -59,11 +59,6 @@ export async function saveOwnedAssetsFromSource(
   });
 }
 
-/**
- * The tree of parents lands before the rows that resolve against it, so a
- * reader between the two writes sees missing parents and fails closed rather
- * than placing new rows against an older tree.
- */
 async function saveCorpHoldings(
   owner: OwnerKey,
   index: HoldingIndex,

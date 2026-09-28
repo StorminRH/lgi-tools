@@ -47,7 +47,6 @@ async function readCorpHoldingRows(corporationId: number) {
   return { nodes, profile: profiles[0] ?? null };
 }
 
-/** Per corp and viewer-independent, so the row read is shared across viewers. */
 export async function getCorpHoldingContext(corporationId: number): Promise<CorpHoldingContext> {
   const { nodes, profile } = await readCorpHoldingRows(corporationId);
   return buildCorpHoldingContext(corporationId, nodes, profile);
@@ -75,11 +74,6 @@ export async function saveHoldingNodes(
   return 'saved';
 }
 
-/**
- * Bases are keyed by character, so a member who moved corps is re-keyed by
- * the upsert rather than colliding with their stale row under the old corp.
- * Members no longer in the set are deleted first.
- */
 export async function saveCorpProfile(
   corporationId: number,
   profile: CorpProfile,

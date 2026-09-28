@@ -1,7 +1,6 @@
 import type { Placement } from '@/data/corp-holdings/placement';
 import { type CorpGrant, visiblePlacements } from '@/platform/auth/corp-visibility';
 
-/** One stored owned_blueprints row, without its owner. */
 export interface BlueprintRow {
   typeId: number;
   materialEfficiency: number;
@@ -11,7 +10,6 @@ export interface BlueprintRow {
   locationFlag: string;
 }
 
-/** Who holds a copy and where; a corp copy carries the placement the filter admitted it with. */
 export type BlueprintHolder =
   | { ownerType: 'character'; ownerId: number; locationId: number; locationFlag: string }
   | { ownerType: 'corporation'; ownerId: number; placement: Placement };
@@ -36,7 +34,6 @@ export function characterBlueprintInputs(rows: readonly BlueprintRow[], characte
   return rows.map((row) => ({ ownerType: 'character', ownerId: characterId, ...row }));
 }
 
-/** Corp copies the grant cannot see never compete for the best copy, so the ME the planner prices with is one the viewer can use. */
 export function visibleCorpBlueprintInputs(rows: readonly BlueprintRow[], grant: CorpGrant): BlueprintMapInput[] {
   return visiblePlacements(rows, grant.blueprints, grant.context).map(({ row, placement }) => ({
     ownerType: 'corporation',

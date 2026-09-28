@@ -29,7 +29,6 @@ export type CorpCardView = {
   isEmpty: boolean;
 };
 
-/** The structures page lists only corps the viewer manages, so every card is the editor. */
 export function deriveCorpCardView(corp: CorpStructurePageView): CorpCardView {
   const on = corp.sharing === 'on';
   return {

@@ -5,12 +5,10 @@ import type { CorpRolesRecord } from './corp-roles';
 
 export interface StoredCorpRoles extends CorpRolesRecord {
   readonly characterId: number;
-  /** The character's corp when the roles were fetched; a mismatch with the fresh affiliation means roles unknown. */
   readonly corporationId: number | null;
   readonly fetchedAt: Date;
 }
 
-/** Captures the corp from `characters` in the same statement as the roles, so the two never drift. */
 export async function upsertCorpRoles(characterId: number, record: CorpRolesRecord, fetchedAt: Date): Promise<void> {
   const body = JSON.stringify(record);
   const textArray = (key: keyof CorpRolesRecord) =>
