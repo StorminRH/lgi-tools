@@ -1,6 +1,6 @@
+import { collectByUser } from './lib/indexedQuery';
 import { v } from 'convex/values';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
-import { collectByUser } from './lib/indexedQuery';
 import { getSyncSubjectForGeneration } from './lib/subjects';
 
 const leaseWriteValidator = v.object({
@@ -12,7 +12,7 @@ const leaseWriteValidator = v.object({
 export const accessLeases = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
-    const rows = await collectByUser(ctx, 'characterLocationAccess', userId);
+    const rows = await collectByUser(ctx.db, 'characterLocationAccess', userId);
     return rows.map((row) => ({
       characterId: row.characterId,
       accessToken: row.accessToken,

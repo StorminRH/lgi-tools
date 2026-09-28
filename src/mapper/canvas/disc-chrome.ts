@@ -1,5 +1,7 @@
 import { systemSecurityClass } from '@/data/eve-data/security';
 
+export const SYSTEM_FRAME_WIDTH = 150;
+export const SYSTEM_FRAME_HEIGHT = 110;
 export const SYSTEM_DISC_SIZE = 55;
 const TRACK_ICON_PX = 14;
 const TRACK_AIR_GAP_PX = 4;
@@ -32,8 +34,12 @@ export interface NodeCaptionData {
   readonly stub?: unknown;
 }
 
+export function isDerivedNode(data: Pick<NodeCaptionData, 'halo' | 'stub'>): boolean {
+  return data.halo !== undefined || data.stub !== undefined;
+}
+
 export function nodeCaptionKind(data: NodeCaptionData): 'kspace' | 'frame' {
-  if (data.halo !== undefined || data.stub !== undefined) return 'frame';
+  if (isDerivedNode(data)) return 'frame';
   return systemSecurityClass(data.security ?? null, data.whClassId ?? null) === 'wormhole'
     ? 'frame'
     : 'kspace';

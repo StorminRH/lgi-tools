@@ -10,13 +10,11 @@ export function deriveTrafficView(input: {
   topPages: { path: string; count: number }[];
   topReferrers: { host: string; count: number }[];
   topEntryPages: { path: string; count: number }[];
-  topSearches: { query: string; count: number }[];
 }) {
   return {
     topPages: barRows(input.topPages, (r) => r.path),
     topReferrers: barRows(input.topReferrers, (r) => r.host),
     topEntryPages: barRows(input.topEntryPages, (r) => r.path),
-    topSearches: barRows(input.topSearches, (r) => r.query),
   };
 }
 

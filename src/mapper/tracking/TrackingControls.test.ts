@@ -78,7 +78,8 @@ vi.mock('@/components/character-portrait', () => ({
     createElement('img', { alt: name }),
 }));
 
-vi.mock('@/components/ui/menu', () => ({
+vi.mock('@/components/ui/menu', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/menu')>(),
   MenuCheckboxItem: (props: {
     checked: boolean;
     children?: ReactNode;
@@ -98,8 +99,6 @@ vi.mock('@/components/ui/menu', () => ({
       props.children,
     ),
   menuControlRow: 'menu-control-row',
-  menuSection: 'menu-section',
-  menuSectionLabel: 'menu-section-label',
 }));
 
 vi.mock('@/components/PreferencesProvider', () => ({

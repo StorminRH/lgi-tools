@@ -1,6 +1,6 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { type CorpRolesRecord, parseCharacterRolesBody } from '@/platform/auth/corp-roles';
-import { upsertCorpRoles } from '@/platform/auth/corp-roles-store';
+import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
+import { readRoleCorporationId, type StoredCorpRoles, upsertCorpRoles } from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
@@ -38,25 +38,36 @@ function softEsiFailure(error: unknown): null {
   throw error;
 }
 
-async function probeAndStoreRolesRecord(characterId: number, accessToken: string): Promise<CorpRolesRecord | null> {
+async function probeAndStoreRolesRecord(
+  characterId: number,
+  accessToken: string,
+  expectedCorporationId?: number,
+): Promise<StoredCorpRoles | null> {
   try {
+    const corporationId = await readRoleCorporationId(characterId);
+    if (corporationId === null || (expectedCorporationId !== undefined && corporationId !== expectedCorporationId)) return null;
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
     if (read.kind !== 'fresh') return null;
     const record = parseCharacterRolesBody(read.body);
     if (record === null) return null;
-    await upsertCorpRoles(characterId, record, new Date());
-    return record;
+    const fetchedAt = new Date();
+    const stored = await upsertCorpRoles(characterId, record, fetchedAt, corporationId);
+    return stored ? { ...record, characterId, corporationId, fetchedAt } : null;
   } catch (error) {
     return softEsiFailure(error);
   }
 }
 
-export async function probeAndStoreRoles(characterId: number, accessToken: string): Promise<string[] | null> {
-  const record = await probeAndStoreRolesRecord(characterId, accessToken);
+export async function probeAndStoreRoles(
+  characterId: number,
+  accessToken: string,
+  expectedCorporationId?: number,
+): Promise<string[] | null> {
+  const record = await probeAndStoreRolesRecord(characterId, accessToken, expectedCorporationId);
   return record === null ? null : [...record.roles];
 }
 
-export async function fetchAndStoreCorpRoles(characterId: number): Promise<CorpRolesRecord | null> {
+export async function fetchAndStoreCorpRoles(characterId: number): Promise<StoredCorpRoles | null> {
   const accessToken = await vendTokenFor(characterId);
   return accessToken === null ? null : probeAndStoreRolesRecord(characterId, accessToken);
 }

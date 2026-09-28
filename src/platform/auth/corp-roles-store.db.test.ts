@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDbTestHarness, seedCharacter } from '@/db/__tests__/support/db-test-harness';
-import { readCorpRoles, upsertCorpRoles } from './corp-roles-store';
+import { readCorpRoles, readRoleCorporationId, upsertCorpRoles } from './corp-roles-store';
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_roles_store',
@@ -34,7 +34,7 @@ describe.skipIf(!harness.reachable)('corp roles store against Postgres', () => {
     await seedCharacter(harness.db, DIRECTOR, { corporationId: CORP });
     const fetchedAt = new Date('2026-09-28T10:00:00.000Z');
 
-    await upsertCorpRoles(DIRECTOR, directorRoles, fetchedAt);
+    await upsertCorpRoles(DIRECTOR, directorRoles, fetchedAt, CORP);
 
     expect(await readCorpRoles([DIRECTOR, LINE_MEMBER])).toEqual(
       new Map([[DIRECTOR, { characterId: DIRECTOR, corporationId: CORP, ...directorRoles, fetchedAt }]]),
@@ -43,11 +43,11 @@ describe.skipIf(!harness.reachable)('corp roles store against Postgres', () => {
 
   it('replaces the arrays and the corp on a second fetch', async () => {
     await seedCharacter(harness.db, LINE_MEMBER, { corporationId: CORP });
-    await upsertCorpRoles(LINE_MEMBER, directorRoles, new Date('2026-09-28T10:00:00.000Z'));
+    await upsertCorpRoles(LINE_MEMBER, directorRoles, new Date('2026-09-28T10:00:00.000Z'), CORP);
     await harness.sql`UPDATE characters SET corporation_id = ${CORP + 1} WHERE character_id = ${LINE_MEMBER}`;
     const later = new Date('2026-09-28T11:00:00.000Z');
 
-    await upsertCorpRoles(LINE_MEMBER, { roles: [], rolesAtHq: [], rolesAtBase: [], rolesAtOther: [] }, later);
+    await upsertCorpRoles(LINE_MEMBER, { roles: [], rolesAtHq: [], rolesAtBase: [], rolesAtOther: [] }, later, CORP + 1);
 
     expect((await readCorpRoles([LINE_MEMBER])).get(LINE_MEMBER)).toEqual({
       characterId: LINE_MEMBER,
@@ -60,8 +60,18 @@ describe.skipIf(!harness.reachable)('corp roles store against Postgres', () => {
     });
   });
 
+  it('does not attach an in-flight roles response to a changed corporation', async () => {
+    await seedCharacter(harness.db, DIRECTOR, { corporationId: CORP });
+    const observed = await readRoleCorporationId(DIRECTOR);
+    expect(observed).toBe(CORP);
+    await harness.sql`UPDATE characters SET corporation_id = ${CORP + 1} WHERE character_id = ${DIRECTOR}`;
+
+    await expect(upsertCorpRoles(DIRECTOR, directorRoles, new Date(), observed!)).resolves.toBe(false);
+    expect(await readCorpRoles([DIRECTOR])).toEqual(new Map());
+  });
+
   it('writes nothing for a character that has no profile row', async () => {
-    await upsertCorpRoles(90009, directorRoles, new Date());
+    await upsertCorpRoles(90009, directorRoles, new Date(), CORP);
     expect((await readCorpRoles([90009])).size).toBe(0);
   });
 });

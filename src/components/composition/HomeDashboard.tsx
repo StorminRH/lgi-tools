@@ -5,12 +5,12 @@ import { SignedInFold } from '@/components/composition/SignedInFold';
 
 export function HomeDashboard({ demoSlot }: { demoSlot?: ReactNode }) {
   return (
-    <div className="home-dashboard flex flex-col gap-10 [--fold-gap:--spacing(10)]">
-      <SignedInFold>
+    <div className="flex flex-col gap-10 [--fold-gap:--spacing(10)]">
+      <SignedInFold pendingFallback={<div className="min-h-104" />}>
         <HomeHero />
       </SignedInFold>
       {demoSlot}
-      <div className="home-board-slot empty:hidden">
+      <div className="empty:hidden">
         <HomeSignedInBoard />
       </div>
     </div>

@@ -148,7 +148,6 @@ import { trackedCharacterIds } from '../mapTrackingIds';
 import { coverage, forMap } from '../mapTrackingLive';
 import { setTracking } from '../mapTrackingOptIn';
 import {
-  forViewer as onlineForViewer,
   purgeForUser as purgeOnlineForUser,
 } from '../onlineStatus';
 
@@ -273,7 +272,6 @@ describe('convex runtime exports', () => {
       forMap,
       setTracking,
       trackedCharacterIds,
-      onlineForViewer,
       purgeOnlineForUser,
     ];
     expect(pinned.length).toBeGreaterThan(0);

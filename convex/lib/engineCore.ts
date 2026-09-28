@@ -60,16 +60,16 @@ export async function walkDueSubjects(
   now: number,
   options: {
     allowDelete: boolean;
-    counts?: DueWalkCounts;
     capScope: string;
     capNote: string;
   },
-): Promise<void> {
+): Promise<DueWalkCounts> {
+  const counts: DueWalkCounts = { dispatched: 0, retired: 0, deleted: 0 };
   const due = await dueSubjects(ctx, now);
   for (const subject of due) {
     if (!isRegisteredDataset(subject.dataset)) {
       await retireFromScan(ctx, subject);
-      if (options.counts !== undefined) options.counts.retired += 1;
+      counts.retired += 1;
       continue;
     }
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
@@ -81,11 +81,12 @@ export async function walkDueSubjects(
       now,
     );
     const action = classified === 'delete' && !options.allowDelete ? 'retire' : classified;
-    await applyDueAction(ctx, subject, presence, action, now, options.counts);
+    await applyDueAction(ctx, subject, presence, action, now, counts);
   }
   if (due.length === SCAN_DISPATCH_BATCH) {
     logBatchCapped(options.capScope, options.capNote, due.length);
   }
+  return counts;
 }
 
 async function applyDueAction(
@@ -94,20 +95,20 @@ async function applyDueAction(
   presence: Doc<'syncPresence'> | null,
   action: DueSubjectAction,
   now: number,
-  counts: DueWalkCounts | undefined,
+  counts: DueWalkCounts,
 ): Promise<void> {
   switch (action) {
     case 'delete':
       await ctx.db.delete(subject._id);
       if (presence !== null) await ctx.db.delete(presence._id);
-      if (counts !== undefined) counts.deleted += 1;
+      counts.deleted += 1;
       return;
     case 'retire':
       await retireFromScan(ctx, subject);
-      if (counts !== undefined) counts.retired += 1;
+      counts.retired += 1;
       return;
     case 'dispatch':
-      if (await dispatch(ctx, subject, now) && counts !== undefined) counts.dispatched += 1;
+      if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
       return;
     case 'skip':
       return;

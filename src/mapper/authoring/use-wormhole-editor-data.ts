@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { WormholeCodex } from '@/data/eve-data/universe-assets-client';
-import { loadSystemStatics } from '@/data/wh-statics/client';
+import { useSystemStaticCodes } from '@/data/wh-statics/use-system-static-codes';
 import { useWormholeCodex } from '../signatures/use-system-statics';
 
 export interface WormholeEditorData {
@@ -35,28 +34,10 @@ export function useWormholeEditorData(
   code: string | null,
 ): WormholeEditorData {
   const codexState = useWormholeCodexData(code);
-  const [statics, setStatics] = useState<{
-    readonly systemId: number;
-    readonly codes: readonly string[];
-  } | null>(null);
-
-  useEffect(() => {
-    if (systemId <= 0) return;
-    let alive = true;
-    loadSystemStatics(systemId).then(
-      (statics) => {
-        if (alive) setStatics({ systemId, codes: statics });
-      },
-      () => {
-      },
-    );
-    return () => {
-      alive = false;
-    };
-  }, [systemId]);
+  const preferredCodes = useSystemStaticCodes(systemId);
 
   return {
     ...codexState,
-    preferredCodes: statics?.systemId === systemId ? statics.codes : [],
+    preferredCodes,
   };
 }

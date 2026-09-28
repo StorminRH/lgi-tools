@@ -7,7 +7,7 @@ import {
 import { serviceFetch } from '@/platform/auth/service-client';
 import { minCacheWindow } from '@/lib/sync-engine';
 import type { Id } from '../_generated/dataModel';
-import type { MutationCtx, QueryCtx } from '../_generated/server';
+import type { MutationCtx } from '../_generated/server';
 import { runObservabilityFields } from './syncFields';
 
 export const characterSyncResultFields = {
@@ -22,11 +22,6 @@ export const characterSyncApplyFields = {
   enumeratedCharacterIds: v.array(v.number()),
   ...runObservabilityFields,
 };
-
-export async function authenticatedSubject(ctx: QueryCtx): Promise<string | null> {
-  const identity = await ctx.auth.getUserIdentity();
-  return identity?.subject ?? null;
-}
 
 export interface SyncEnv {
   siteUrl: string;

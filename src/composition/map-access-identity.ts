@@ -6,6 +6,7 @@ import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
 import { enqueueAffectedMapAccessChanges, getOwnedMapIds } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
+import { eraseNetWorthHistoryForCharacter } from '@/features/net-worth/purge';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 import { deliverCapturedMapAccessChanges } from './map-affiliation-access';
 
@@ -66,6 +67,7 @@ export const identityProjectionRunners: IdentityProjectionRunners = {
     await bestEffort('identity-projection', 'finalizeCharacterRevocation', `${userId}:${characterId}`, () =>
       revokeUserMapClaims(userId, mapIds),
     );
+    await eraseNetWorthHistoryForCharacter(userId, characterId);
   },
   runAfterCharacterLinkChanged: async (args) => {
     await bestEffort(

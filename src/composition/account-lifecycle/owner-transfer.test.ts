@@ -93,7 +93,7 @@ const tokenWithOwner = (owner: string): string =>
   `enc:h.${Buffer.from(JSON.stringify({ owner })).toString('base64url')}.s`;
 
 const row = (over: Partial<{ userId: string; ownerHash: string | null; accessToken: string | null }> = {}) => [
-  { userId: USER, ownerHash: H1, accessToken: null, ...over },
+  { id: 'acc-1', userId: USER, ownerHash: H1, accessToken: null, ...over },
 ];
 
 beforeEach(() => {
@@ -118,6 +118,20 @@ describe('purgeTransferredCharacter', () => {
     hooks.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
     await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
     expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
+  });
+
+  it('completes source reconciliation and final teardown before reporting a history-erasure failure', async () => {
+    state.results = [
+      [{ id: 'acc-1' }],
+      [{ accountId: String(OTHER_CHAR) }],
+      [{ email: syntheticEmail(CHAR), activeCharacterId: OTHER_CHAR }],
+      undefined,
+    ];
+    const failure = new Error('history deletion failed');
+    hooks.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
+    expect(state.calls.update).toBe(1);
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
   });
 
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
@@ -146,7 +160,7 @@ describe('proveCharacter on sign-in and same-user relink', () => {
     await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
     expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
 
-    state.results = [row({ ownerHash: null })];
+    state.results = [row({ ownerHash: null }), [{ id: 'acc-1' }]];
     await proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null });
     expect(state.calls.update).toBe(1);
 
@@ -219,7 +233,7 @@ describe('proveCharacter on a cross-user link', () => {
   });
 
   it('derives a null column from the stored token: a match backfills then merges, a mismatch purges', async () => {
-    state.results = [row({ ownerHash: null, accessToken: tokenWithOwner(H1) }), undefined];
+    state.results = [row({ ownerHash: null, accessToken: tokenWithOwner(H1) }), [{ id: 'acc-1' }]];
     merge.mergeUsers.mockResolvedValue({ kind: 'noop', reason: 'same-user' });
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await proveCharacter(linkProof);

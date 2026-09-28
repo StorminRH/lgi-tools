@@ -33,7 +33,6 @@ import type {
   RefreshVolumePoint,
   ReturningVsNew,
   RoleChangeAuditEntry,
-  SearchCount,
   SearchVsDirect,
   UsageAction,
 } from './types';
@@ -122,11 +121,6 @@ export async function getTopEntryPages(range: DateRange, limit = 10): Promise<En
   const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
   const rows = await topByMetadataKey('path', 'page_view', range, limit, eq(isEntry, 'true'));
   return rows.map((r) => ({ path: r.value, count: r.count }));
-}
-
-export async function getTopSearches(range: DateRange, limit = 10): Promise<SearchCount[]> {
-  const rows = await topByMetadataKey('query', 'terminal_search', range, limit);
-  return rows.map((r) => ({ query: r.value, count: r.count }));
 }
 
 export async function getRoleChangeAudit(

@@ -1,4 +1,4 @@
-import { SYSTEM_DISC_SIZE } from '../canvas/SystemNode';
+import { SYSTEM_DISC_SIZE } from '../canvas/disc-chrome';
 import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
 import { roundedLeaderPath } from './leader-path';
 

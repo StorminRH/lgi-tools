@@ -50,7 +50,7 @@ describe('stationManagerGate', () => {
     mocks.probeAndStoreRoles.mockResolvedValue(['Station_Manager']);
     await expect(stationManagerGate('u1', CORP)).resolves.toEqual({ ok: true });
     expect(mocks.getUserAffiliations).toHaveBeenCalledOnce();
-    expect(mocks.probeAndStoreRoles).toHaveBeenCalledWith(102, 'token');
+    expect(mocks.probeAndStoreRoles).toHaveBeenCalledWith(102, 'token', CORP);
     expect(mocks.recordCorpAccessDecision).toHaveBeenCalledWith(expect.objectContaining({ allowed: true }));
   });
 
@@ -94,10 +94,20 @@ describe('directorGate', () => {
     });
   });
 
+  it('fails closed when the bound role probe rejects a corporation change', async () => {
+    mocks.getUserAffiliations.mockResolvedValue(linked([101]));
+    mocks.probeAndStoreRoles.mockImplementation(async (_id, _token, expectedCorporationId) =>
+      expectedCorporationId === CORP ? null : ['Director'],
+    );
+    await expect(directorGate('u1', CORP)).resolves.toMatchObject({
+      ok: false, failure: { code: 'not_director' },
+    });
+  });
+
   it('allows a Director', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101]));
     mocks.probeAndStoreRoles.mockResolvedValue(['Director']);
     await expect(directorGate('u1', CORP)).resolves.toEqual({ ok: true });
-    expect(mocks.probeAndStoreRoles).toHaveBeenCalledWith(101, 'token');
+    expect(mocks.probeAndStoreRoles).toHaveBeenCalledWith(101, 'token', CORP);
   });
 });

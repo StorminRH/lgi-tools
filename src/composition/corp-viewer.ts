@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { getCorpHoldingContext, readCorpProfileState, readMemberBases } from '@/data/corp-holdings/queries';
+import { getCorpHoldingContext, readCorpMemberContext } from '@/data/corp-holdings/queries';
 import type { Knowable } from '@/data/corp-holdings/placement';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { UserCorpAccess } from '@/platform/auth/corp-access';
@@ -33,7 +33,7 @@ export interface CorpViewer {
 const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
 const ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 const UNKNOWN: MemberRoles = { kind: 'unknown' };
-const BASES_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const CONTEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const NO_KNOWN_BASES: ReadonlyMap<number, number | null> = new Map();
 
 interface RoleSources {
@@ -54,10 +54,10 @@ function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
   return health !== undefined && health.hasRefreshToken && !health.missingScopes.includes(ROLES_SCOPE);
 }
 
-async function fetchedRolesOrUnknown(characterId: number): Promise<MemberRoles> {
+async function fetchedRolesOrUnknown(characterId: number, corporationId: number): Promise<MemberRoles> {
   try {
     const record = await fetchAndStoreCorpRoles(characterId);
-    return record === null ? UNKNOWN : { kind: 'known', roles: narrowCorpRoles(record) };
+    return record === null || record.corporationId !== corporationId ? UNKNOWN : { kind: 'known', roles: narrowCorpRoles(record) };
   } catch {
     return UNKNOWN;
   }
@@ -68,11 +68,11 @@ function memberRoles(characterId: number, corporationId: number, sources: RoleSo
   if (usableStoredRoles(row, corporationId, sources.now)) {
     return Promise.resolve({ kind: 'known', roles: narrowCorpRoles(row) });
   }
-  return canFetchRoles(sources.health.get(characterId)) ? fetchedRolesOrUnknown(characterId) : Promise.resolve(UNKNOWN);
+  return canFetchRoles(sources.health.get(characterId)) ? fetchedRolesOrUnknown(characterId, corporationId) : Promise.resolve(UNKNOWN);
 }
 
-function basesAreFresh(profile: { lastRefreshedAt: Date } | null, now: Date): boolean {
-  return profile !== null && now.getTime() - profile.lastRefreshedAt.getTime() <= BASES_MAX_AGE_MS;
+function contextIsFresh(profile: { lastRefreshedAt: Date } | null, now: Date): boolean {
+  return profile !== null && now.getTime() - profile.lastRefreshedAt.getTime() <= CONTEXT_MAX_AGE_MS;
 }
 
 function baseOf(bases: ReadonlyMap<number, number | null>, characterId: number): Knowable<number | null> {
@@ -85,13 +85,17 @@ async function resolveCorporation(
   sharing: SharingState,
   sources: RoleSources,
 ): Promise<CorpViewerCorporation> {
-  const [context, profile, bases, roles] = await Promise.all([
+  const [cachedContext, profile, roles] = await Promise.all([
     getCorpHoldingContext(corporationId),
-    readCorpProfileState(corporationId),
-    readMemberBases(corporationId, characterIds),
+    readCorpMemberContext(corporationId, characterIds),
     Promise.all(characterIds.map((characterId) => memberRoles(characterId, corporationId, sources))),
   ]);
-  const knownBases = basesAreFresh(profile, sources.now) ? bases : NO_KNOWN_BASES;
+  const fresh = contextIsFresh(profile, sources.now);
+  const knownBases = fresh && profile !== null ? profile.bases : NO_KNOWN_BASES;
+  const hq: Knowable<number> = fresh && profile?.hqStationId != null
+    ? { kind: 'known', value: profile.hqStationId }
+    : { kind: 'unknown' };
+  const context = { ...cachedContext, hq };
   const members: CorpGrantInput['members'] = characterIds.map((characterId, i) => ({
     characterId,
     roles: roles[i] ?? UNKNOWN,
