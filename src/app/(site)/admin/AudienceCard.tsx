@@ -11,7 +11,7 @@ import { CardLink } from './CardLink';
 import { loadDeployMarkers } from './deploy-markers';
 import { KpiGrid } from './KpiGrid';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { buildMetricRows, metricsHint } from './metric-view';
+import { buildMetricRows } from './metric-view';
 import { searchPeriods } from './search/search-period';
 import { SectionUnavailable } from './SectionUnavailable';
 
@@ -72,7 +72,6 @@ export async function AudienceCard({ rangeKey, range }: { rangeKey: RangeKey; ra
         label="Audience"
         hint={
           <span className="flex items-center gap-3">
-            <span className="hidden sm:inline">{metricsHint(rangeKey)}</span>
             <CardLink href="/admin/traffic">Traffic</CardLink>
             <CardLink href="/admin/search">Search</CardLink>
           </span>

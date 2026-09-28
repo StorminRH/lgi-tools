@@ -87,7 +87,7 @@ export async function EventLogCard() {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Event log" />;
   return (
     <Card>
-      <SectionHeader size="md" label="Event log" hint="latest 30 operational events" />
+      <SectionHeader size="md" label="Event log" />
       {fetched.length === 0 ? (
         <EmptyState>No operational events recorded yet.</EmptyState>
       ) : (

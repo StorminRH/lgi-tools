@@ -75,7 +75,7 @@ export async function IndexCoverageCard({ range }: { range: GscRange }) {
   const view = deriveGscCoverageView({ latest, trend });
   return (
     <Card>
-      <SectionHeader size="md" label="Index coverage" hint="latest inspection per URL" />
+      <SectionHeader size="md" label="Index coverage" />
       {view.total === 0 ? (
         <EmptyState>No URL inspection history synced yet.</EmptyState>
       ) : (

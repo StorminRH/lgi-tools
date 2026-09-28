@@ -5,7 +5,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 export function SectionUnavailable({ label }: { label: string }) {
   return (
     <Card>
-      <SectionHeader size="md" label={label} hint="unavailable" />
+      <SectionHeader size="md" label={label} />
       <EmptyState>
         This section couldn’t load — the rest of the dashboard is unaffected.
         Reload to try again.

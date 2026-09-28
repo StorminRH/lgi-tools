@@ -58,7 +58,7 @@ function TermList({ terms, total, empty }: { terms: GscTermStat[]; total: number
 export function SearchNotConnected() {
   return (
     <Card>
-      <SectionHeader size="md" label="Search Console" hint="not connected" />
+      <SectionHeader size="md" label="Search Console" />
       <EmptyState>
         Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync clicks, queries, and index
         coverage from Google Search Console.
@@ -67,7 +67,7 @@ export function SearchNotConnected() {
   );
 }
 
-export async function PerformanceCard({ range, previous, latestDay }: { range: DateRange; previous: DateRange | null; latestDay: string | null }) {
+export async function PerformanceCard({ range, previous }: { range: DateRange; previous: DateRange | null }) {
   const fetched = await loadSection('search-performance', () =>
     Promise.all([
       getLastSyncedAtShared(),
@@ -82,7 +82,7 @@ export async function PerformanceCard({ range, previous, latestDay }: { range: D
   const trends = [view.clicksTrend, view.impressionsTrend, view.positionTrend] as const;
   return (
     <Card>
-      <SectionHeader size="md" label="Performance" hint={`Data through ${latestDay ?? 'not available'} · synced ${view.asOf}`} />
+      <SectionHeader size="md" label="Performance" />
       {view.hasTrend ? (
         <MultiplesGrid>
           {deriveGscMultiples({ totals, prevTotals }).map((cell, i) => (
@@ -119,11 +119,11 @@ export async function TermCards({ range }: { range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card className="h-full">
-        <SectionHeader size="md" label="Top queries" hint="clicks · share of all clicks" />
+        <SectionHeader size="md" label="Top queries" />
         <TermList terms={queries} total={totals.clicks} empty="No search queries in this range." />
       </Card>
       <Card className="h-full">
-        <SectionHeader size="md" label="Top pages in search" hint="clicks · share of all clicks" />
+        <SectionHeader size="md" label="Top pages in search" />
         <TermList terms={pages} total={totals.clicks} empty="No search-landing pages in this range." />
       </Card>
     </div>
@@ -153,7 +153,7 @@ export async function SitemapsCard() {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Sitemaps" />;
   return (
     <Card>
-      <SectionHeader size="md" label="Sitemaps" hint="as Google last read them" />
+      <SectionHeader size="md" label="Sitemaps" />
       {fetched.length === 0 ? (
         <EmptyState>No sitemap data synced yet.</EmptyState>
       ) : (

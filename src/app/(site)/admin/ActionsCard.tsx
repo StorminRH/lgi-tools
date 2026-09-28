@@ -71,7 +71,7 @@ export async function ActionsCard() {
   const rows = await loadActionRows();
   return (
     <Card data-admin-actions className="overflow-hidden">
-      <SectionHeader size="md" label="Actions" hint="admin tools" />
+      <SectionHeader size="md" label="Actions" />
       <ul className="grid grid-cols-1 gap-px bg-border-soft sm:grid-cols-2 lg:grid-cols-4">
         {rows.map((row) => (
           <ActionTile key={row.id} row={row} />

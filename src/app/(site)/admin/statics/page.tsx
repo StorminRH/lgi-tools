@@ -211,11 +211,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
   const { difference, crossCheck } = snapshot;
   return (
     <Card>
-      <SectionHeader
-        size="md"
-        label={`Pending feed v${snapshot.feedVersion}`}
-        hint={`${snapshot.systemCount.toLocaleString()} systems`}
-      />
+      <SectionHeader size="md" label={`Pending feed v${snapshot.feedVersion}`} />
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 py-4 font-data text-ui md:grid-cols-4">
         <div>
           <dt className="text-muted">Systems added</dt>
@@ -267,7 +263,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
 function ServingStatus({ version, systemCount }: { version: string; systemCount: number }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Serving copy" hint="what the app reads today" />
+      <SectionHeader size="md" label="Serving copy" />
       <p className="px-4 py-3 font-ui text-ui text-muted">{promotedSubtitle(version, systemCount)}</p>
     </Card>
   );

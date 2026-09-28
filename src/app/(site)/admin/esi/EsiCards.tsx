@@ -43,7 +43,7 @@ export async function BudgetCard() {
   const view = deriveBudgetView(fetched);
   return (
     <Card data-admin-budget className="h-full">
-      <SectionHeader size="md" label="Error budget" hint="live · shared across every ESI call" />
+      <SectionHeader size="md" label="Error budget" />
       <div className="flex flex-col gap-2 px-3.5 py-3">
         <div className="flex items-baseline gap-2">
           <span className={cn('font-data text-stat tabular-nums', LEVEL_VALUE_CLASS[gauge.level])}>
@@ -99,7 +99,7 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
   );
   return (
     <Card>
-      <SectionHeader size="md" label="Scheduled price sources" hint="ESI first · Fuzzwork when ESI cannot serve prices" />
+      <SectionHeader size="md" label="Scheduled price sources" />
       <div className="grid grid-cols-1 divide-y divide-border-soft md:grid-cols-2 md:divide-x md:divide-y-0">
         <div className="px-3.5 py-3">
           <SectionHeader variant="sub" label="Scheduled Fuzzwork share by day" className="mb-2" />
@@ -160,11 +160,11 @@ export async function CostCards({ range }: { range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card className="h-full">
-        <SectionHeader size="md" label="On-demand prices & history" hint="item results · selected period" />
+        <SectionHeader size="md" label="On-demand prices & history" />
         <MetricList rows={view.metrics} />
       </Card>
       <Card className="h-full">
-        <SectionHeader size="md" label="Busiest owned-data endpoints" hint="requests · avg duration" />
+        <SectionHeader size="md" label="Busiest owned-data endpoints" />
         {view.endpoints.length === 0 ? (
           <EmptyState>No owned-data reads in this range.</EmptyState>
         ) : (

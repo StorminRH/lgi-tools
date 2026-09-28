@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMetricRows, metricsHint } from './metric-view';
+import { buildMetricRows } from './metric-view';
 
 const base = {
   rangeDays: 30,
@@ -44,12 +44,5 @@ describe('buildMetricRows', () => {
     expect(rows[0]?.delta).toBeNull();
     expect(rows[1]?.delta).toBeNull();
     expect(rows[2]?.delta).toBeNull();
-  });
-});
-
-describe('metricsHint', () => {
-  it('names the comparison window, or all time when there is none', () => {
-    expect(metricsHint('7d')).toBe('Δ vs previous 7 days');
-    expect(metricsHint('all')).toBe('all time');
   });
 });

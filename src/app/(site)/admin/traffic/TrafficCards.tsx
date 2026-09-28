@@ -38,7 +38,7 @@ function ListCard({
   children,
 }: {
   label: string;
-  hint: ReactNode;
+  hint?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -67,7 +67,7 @@ export async function ActivityCard({ rangeKey, range }: { rangeKey: RangeKey; ra
   const [dailyCounts, prevDailyCounts, markers] = fetched;
   return (
     <Card>
-      <SectionHeader size="md" label="Activity" hint="page views / day · 7d avg · releases" />
+      <SectionHeader size="md" label="Activity" />
       <ActivityChart activity={deriveActivityView({ range, dailyCounts, prevDailyCounts, markers })} />
     </Card>
   );
@@ -87,10 +87,10 @@ export async function TrafficLists({ range }: { range: DateRange }) {
   const view = deriveTrafficView({ topPages, topReferrers, topEntryPages });
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <ListCard label="Top pages" hint="page views" className="lg:col-span-2">
+      <ListCard label="Top pages" className="lg:col-span-2">
         <BarList total={totals.pageViews} data={view.topPages} empty="No page-view events in this range." ariaLabel="Top pages by views" />
       </ListCard>
-      <ListCard label="Entry pages" hint="first page per tab session">
+      <ListCard label="Entry pages">
         <BarList
           total={totals.entries}
           data={view.topEntryPages}
@@ -122,12 +122,7 @@ export async function PilotsCard({ range }: { range: DateRange }) {
       <SectionHeader
         size="md"
         label="Visitors & users"
-        hint={
-          <span className="flex items-center gap-3">
-            <span>{pluralUsers(returningVsNew.newUsers + returningVsNew.returning)} active</span>
-            <CardLink href="/settings/access">Users &amp; roles</CardLink>
-          </span>
-        }
+        hint={<CardLink href="/settings/access">Users &amp; roles</CardLink>}
       />
       <div className="grid grid-cols-1 divide-y divide-border-soft md:grid-cols-2 md:divide-x md:divide-y-0">
         <div className="flex flex-col gap-4 px-3.5 py-3">

@@ -1,4 +1,4 @@
-import { computeDelta, type Delta, type RangeKey } from '@/composition/admin-period';
+import { computeDelta, type Delta } from '@/composition/admin-period';
 
 export interface MetricRow {
   label: string;
@@ -68,14 +68,4 @@ export function buildMetricRows(args: {
         : null,
     },
   ];
-}
-
-const RANGE_NOUN: Record<Exclude<RangeKey, 'all'>, string> = {
-  '7d': '7 days',
-  '30d': '30 days',
-  '90d': '90 days',
-};
-
-export function metricsHint(rangeKey: RangeKey): string {
-  return rangeKey === 'all' ? 'all time' : `Δ vs previous ${RANGE_NOUN[rangeKey]}`;
 }
