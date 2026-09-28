@@ -13,7 +13,7 @@ const roman = (level: number) => ROMAN[level] ?? String(level);
 
 function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 font-data text-micro">
+    <div className="flex items-baseline justify-between gap-3 text-ui leading-snug">
       <span className="truncate text-muted">
         {skill.name} {roman(skill.level)}
       </span>
@@ -24,7 +24,7 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
 
 function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: number; toneClass: string }) {
   return (
-    <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-data text-micro">
+    <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 text-ui leading-snug">
       <span className="uppercase tracking-wide text-muted">{label}</span>
       <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
     </div>
@@ -85,7 +85,7 @@ function MfgSkillMetric({
           {breakdown.perItem.map((skill) => (
             <SkillLine key={skill.name} skill={skill} />
           ))}
-          <p className="text-micro leading-snug tracking-copy text-faint">
+          <p className="text-ui leading-snug text-faint">
             Applied on top of the total, only to jobs requiring the skill.
           </p>
         </div>

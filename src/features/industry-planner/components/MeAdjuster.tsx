@@ -98,8 +98,8 @@ export function HourglassIcon({ state }: { state: IconState }) {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="shrink-0 text-label uppercase tracking-wide text-muted">{label}</span>
-      <span className="break-words text-right font-data text-micro tracking-copy text-faint">{value}</span>
+      <span className="shrink-0 text-ui text-muted">{label}</span>
+      <span className="min-w-0 break-words text-right text-ui leading-snug text-text">{value}</span>
     </div>
   );
 }
@@ -109,12 +109,12 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
     <div className="flex flex-col gap-1 border-t border-border-soft pt-1.5">
       <DetailRow label={detail.ownerType === 'corporation' ? 'Corp' : 'Owner'} value={detail.ownerName} />
       <div className="flex items-baseline justify-between gap-3">
-        <span className="shrink-0 text-label uppercase tracking-wide text-muted">At</span>
-        <span className="break-words text-right font-data text-micro tracking-copy text-faint">
+        <span className="shrink-0 text-ui text-muted">At</span>
+        <span className="min-w-0 break-words text-right text-ui leading-snug text-text">
           {detail.locationName}
-          <span className="block text-micro tracking-copy text-muted">{detail.locationFlag}</span>
+          <span className="block text-ui leading-snug text-muted">{detail.locationFlag}</span>
           {detail.containerName ? (
-            <span className="block text-micro tracking-copy text-muted">{detail.containerName}</span>
+            <span className="block text-ui leading-snug text-muted">{detail.containerName}</span>
           ) : null}
         </span>
       </div>

@@ -23,11 +23,11 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
   const breakdown = (
     <>
       <PopoverHeading>{view.breakdownHeading}</PopoverHeading>
-      <PopoverRow label="Liquidity">how fast a batch sells ({view.signals.liquidity})</PopoverRow>
-      <PopoverRow label="Price stability">recent swing in sell price ({view.signals.stability})</PopoverRow>
-      <PopoverRow label="Demand depth">buy volume vs. listed supply ({view.signals.demand})</PopoverRow>
+      <PopoverRow label="Liquidity" description="Time to sell a batch">{view.signals.liquidity}</PopoverRow>
+      <PopoverRow label="Price stability" description="Recent sell-price change">{view.signals.stability}</PopoverRow>
+      <PopoverRow label="Demand depth" description="Buy volume vs. listed supply">{view.signals.demand}</PopoverRow>
       {view.staleNote && (
-        <p className="text-body leading-snug text-tone-orange">
+        <p className="text-ui leading-snug text-tone-orange">
           Latest trade {view.staleNote.latestDate} ({view.staleNote.age} ago) — reflects that period, not
           today.
         </p>

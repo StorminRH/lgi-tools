@@ -47,11 +47,11 @@ export function AccountDangerZone({
             triggerClassName="grid h-4 w-4 place-items-center rounded-full border border-border text-micro text-muted hover:text-text"
           >
             <PopoverHeading>Purge vs unlink</PopoverHeading>
-            <PopoverRow label="Purge">
+            <PopoverRow layout="description" label="Purge">
               clears what the site has stored for a character and stops LGI.tools from accessing its
               EVE data.
             </PopoverRow>
-            <PopoverRow label="Unlink">
+            <PopoverRow layout="description" label="Unlink">
               detaches the character from your account. Unlink characters on{' '}
               <Link href="/settings/characters" className="text-tone-blue hover:underline">
                 Settings → Characters

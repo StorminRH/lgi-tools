@@ -11,7 +11,7 @@ import { eyebrow } from './type-roles';
 export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 
 const popup = cva(
-  'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] text-ui normal-case tracking-normal outline-none ' +
+  'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] font-ui text-ui leading-snug normal-case tracking-normal outline-none ' +
     'origin-[var(--transform-origin)] transition-[opacity,transform] duration-fast motion-reduce:transition-none ' +
     'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
     'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
@@ -78,11 +78,32 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
   );
 }
 
-export function PopoverRow({ label, children }: { label: string; children: ReactNode }) {
+export function PopoverRow({
+  label,
+  children,
+  description,
+  layout = 'value',
+}: {
+  label: string;
+  children: ReactNode;
+  description?: string;
+  layout?: 'value' | 'description';
+}) {
+  if (layout === 'description') {
+    return (
+      <div className="flex flex-col gap-1 text-ui leading-snug">
+        <span className="text-text">{label}</span>
+        <div className="text-muted">{children}</div>
+      </div>
+    );
+  }
   return (
-    <p className="font-ui text-body leading-snug text-muted">
-      <span className="font-semibold text-text">{label}</span> —{' '}
-      <span className="font-data">{children}</span>
-    </p>
+    <div className="flex flex-col gap-1 text-ui leading-snug">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-muted">{label}</span>
+        <span className="min-w-0 text-right tabular-nums text-text">{children}</span>
+      </div>
+      {description ? <p className="text-muted">{description}</p> : null}
+    </div>
   );
 }
