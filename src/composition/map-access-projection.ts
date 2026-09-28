@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { resolveMatchedMapRoles } from '@/data/maps/access';
+import { type MapPrincipals, resolveMatchedMapRoles } from '@/data/maps/access';
 import type { MapRole } from '@/data/maps/access-contract';
 import {
   getMapAccessSubject,
@@ -58,7 +58,7 @@ export class ProjectionUnavailableError extends Error {
   }
 }
 
-function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]) {
+function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrincipals {
   return {
     characterIds: rows.map((row) => row.characterId),
     corporationIds: [...new Set(rows.flatMap((row) => row.corporationId ?? []))],

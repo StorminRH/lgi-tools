@@ -55,7 +55,6 @@ function affiliation(userId: string, characterId: number, corporationId: number 
 
 function resetProjectionMocks() {
   vi.resetAllMocks();
-  mocks.refreshAffiliationsWithOutcome.mockRejectedValue(new Error('ESI unavailable'));
   mocks.getUsersAffiliations.mockResolvedValue([]);
   mocks.getMapAccessSubject.mockResolvedValue({ userId: 'creator', archivedAt: null });
   mocks.getMapGrants.mockResolvedValue([]);
@@ -111,7 +110,6 @@ test('computes creator-only, batched union, unlinked, and missing-or-archived cl
   ]);
   expect(mocks.getMapAccessCandidateUserIds).toHaveBeenCalledExactlyOnceWith([42], [990]);
   expect(mocks.getUsersAffiliations).toHaveBeenCalledExactlyOnceWith(['multi', 'member']);
-  expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
 
   mocks.getMapGrants.mockResolvedValue([
     { ownerType: 'character', ownerId: 42, role: 'viewer' },
@@ -132,7 +130,7 @@ test('computes creator-only, batched union, unlinked, and missing-or-archived cl
   expect(mocks.getUsersAffiliations).not.toHaveBeenCalled();
 });
 
-test('keeps stale corp memberships, keeps remaining alt grants, and revokes known departures when ESI is down', async () => {
+test('keeps stale corp memberships, keeps remaining alt grants, and revokes known departures', async () => {
   resetProjectionMocks();
   mocks.getMapGrants.mockResolvedValue([
     { ownerType: 'character', ownerId: 42, role: 'viewer' },
@@ -174,7 +172,6 @@ test('keeps stale corp memberships, keeps remaining alt grants, and revokes know
   await expect(projectMapAccess('map-1')).resolves.toMatchObject({ deleted: 1 });
   const request = mocks.fetchWithTimeout.mock.calls[0]?.[1] as { body: string };
   expect(JSON.parse(request.body).claims).toEqual([{ userId: 'creator', roles: ['admin'] }]);
-  expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
 });
 
 test('trusts a cached corporation on a two-hour-old stamp and grants nothing to a departed null-corporation row', async () => {

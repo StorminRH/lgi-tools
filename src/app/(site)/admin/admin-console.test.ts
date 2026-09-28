@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminPageFrame } from './AdminFrame';
 import AdminLayout from './layout';
 
@@ -53,6 +53,10 @@ describe('admin console gate', () => {
   beforeEach(() => {
     mocks.requireAdminPage.mockReset();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders only a neutral loading label for a non-admin', async () => {
