@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   atlasMapQueryPresent,
-  atlasSignInReturnHref,
+  atlasMapHref,
   mapDeletionHref,
   mapSelectionHref,
 } from './map-navigation';
@@ -31,9 +31,9 @@ it('selects maps through the query string and lands safely after deleting the cu
   expect(mapDeletionHref(new URLSearchParams(), 'map-a')).toBeNull();
 });
 
-it('returns a signed-out sign-in to the shared map and nothing else', () => {
-  expect(atlasSignInReturnHref(undefined)).toBe('/atlas');
-  expect(atlasSignInReturnHref('')).toBe('/atlas');
-  expect(atlasSignInReturnHref('map/one')).toBe('/atlas?map=map%2Fone');
-  expect(atlasSignInReturnHref(['map/one', 'ignored'])).toBe('/atlas?map=map%2Fone');
+it('builds a shared map URL for clipboard links and authentication returns', () => {
+  expect(atlasMapHref(undefined)).toBe('/atlas');
+  expect(atlasMapHref('')).toBe('/atlas');
+  expect(atlasMapHref('map/one')).toBe('/atlas?map=map%2Fone');
+  expect(atlasMapHref(['map/one', 'ignored'])).toBe('/atlas?map=map%2Fone');
 });

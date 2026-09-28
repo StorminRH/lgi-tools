@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import type { CronSyncSweeperResponse } from '@/data/convex/api-contract';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
-import { readEnv } from '@/lib/env';
+import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 import { isNoteworthySweep } from './noteworthy';
 
 export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperResponse> = {
@@ -57,37 +56,20 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
     retired: null,
     deleted: null,
   };
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (convexUrl === undefined || convexUrl === '') {
+  const door = resolveConvexServiceDoor();
+  if (!door.ok) {
     return {
-      status: 'skipped',
-      reason: 'convex_not_configured',
-      ...base,
-      durationMs: 0,
-    };
-  }
-  const siteUrl = deriveConvexSiteUrl(convexUrl);
-  if (siteUrl === null) {
-    return {
-      status: 'failed',
-      reason: 'unrecognized_convex_url',
+      status: door.reason === 'convex_not_configured' ? 'skipped' : 'failed',
+      reason: door.reason,
       ...base,
       durationMs: Date.now() - started,
     };
   }
-  const serviceSecret = readEnv('CONVEX_SERVICE_SECRET');
-  if (!serviceSecret) {
-    return {
-      status: 'failed',
-      reason: 'service_secret_missing',
-      ...base,
-      durationMs: Date.now() - started,
-    };
-  }
+  const { siteUrl, secret } = door;
   try {
     const response = await fetchWithTimeout(`${siteUrl}/sweep`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${serviceSecret}` },
+      headers: { authorization: `Bearer ${secret}` },
     });
     if (!response.ok) {
       return {

@@ -24,7 +24,6 @@
 @import "../components/composition/GlobalSearch.css";
 @import "../components/composition/HomeHero.css";
 @import "../components/composition/SignedInFold.css";
-@import "../components/composition/HomeDashboard.css";
 @import "../components/composition/board/HomeBoardView.css";
 @import "../components/type-icon.css";
 @import "../features/industry-planner/components/IndustryTypedHint.css";

@@ -23,6 +23,11 @@ const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
 const revokeUserMapClaimsMock = vi.fn();
+const eraseNetWorthHistoryMock = vi.fn();
+
+vi.mock('@/features/net-worth/purge', () => ({
+  eraseNetWorthHistoryForCharacter: (...args: unknown[]) => eraseNetWorthHistoryMock(...args),
+}));
 
 vi.mock('@/composition/auth', () => ({
   auth: {
@@ -94,6 +99,7 @@ describe('POST /api/account/characters/unlink', () => {
     teardownMapAccessProjectionMock.mockReset();
     purgeUserMapAccessProjectionMock.mockReset();
     revokeUserMapClaimsMock.mockReset().mockResolvedValue(undefined);
+    eraseNetWorthHistoryMock.mockReset().mockResolvedValue(undefined);
     teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
     getOwnedMapIdsMock.mockResolvedValue([]);
@@ -121,6 +127,7 @@ describe('POST /api/account/characters/unlink', () => {
     const notLinked = await POST(buildRequest({ characterId: '999' }));
     expect(locationOf(notLinked)).toContain('error=not_linked');
     expect(unlinkAccountMock).not.toHaveBeenCalled();
+    expect(eraseNetWorthHistoryMock).not.toHaveBeenCalled();
   });
 
   it('unlinks and re-points only when the removed character was active', async () => {
@@ -131,6 +138,7 @@ describe('POST /api/account/characters/unlink', () => {
 
     const active = await POST(buildRequest({ characterId: '100' }));
     expect(active.status).toBe(303);
+    expect(eraseNetWorthHistoryMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(locationOf(active)).toBe('http://localhost:3000/settings/characters');
     expect(unlinkAccountMock).toHaveBeenCalledWith({
       body: { providerId: 'eve', accountId: '100' },

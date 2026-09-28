@@ -1,12 +1,7 @@
 import { ConvexError } from 'convex/values';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader, QueryCtx } from '../_generated/server';
-import { authenticatedSubject } from './characterSync';
 
-export type UserIndexedTable =
-  | 'characterLocation'
-  | 'characterOnline'
-  | 'characterLocationAccess';
 export type UserCharacterIndexedTable =
   | 'characterLocation'
   | 'characterLocationCovered';
@@ -15,53 +10,23 @@ export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
 export type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
 export function collectByUser(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: 'characterLocation',
-  userId: string,
-): Promise<Doc<'characterLocation'>[]>;
-export function collectByUser(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: 'characterOnline',
-  userId: string,
-): Promise<Doc<'characterOnline'>[]>;
-export function collectByUser(
-  ctx: Pick<QueryCtx, 'db'>,
+  db: DatabaseReader,
   table: 'characterLocationAccess',
   userId: string,
 ): Promise<Doc<'characterLocationAccess'>[]>;
 export function collectByUser(
-  ctx: Pick<QueryCtx, 'db'>,
-  table: UserIndexedTable,
+  db: DatabaseReader,
+  table: 'mapTracking',
+  userId: string,
+): Promise<Doc<'mapTracking'>[]>;
+export function collectByUser(
+  db: DatabaseReader,
+  table: 'characterLocationAccess' | 'mapTracking',
   userId: string,
 ) {
-  switch (table) {
-    case 'characterLocation':
-      return ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) => q.eq('userId', userId))
-        .collect();
-    case 'characterOnline':
-      return ctx.db
-        .query('characterOnline')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect();
-    case 'characterLocationAccess':
-      return ctx.db
-        .query('characterLocationAccess')
-        .withIndex('by_user_character', (q) => q.eq('userId', userId))
-        .collect();
-  }
-}
-
-export async function viewerUserDocs<TDoc, TCharacter>(
-  ctx: QueryCtx,
-  loadDocs: (userId: string) => Promise<readonly TDoc[]>,
-  mapDoc: (doc: TDoc) => TCharacter,
-): Promise<{ characters: TCharacter[] } | null> {
-  const userId = await authenticatedSubject(ctx);
-  if (userId === null) return null;
-  const docs = await loadDocs(userId);
-  return { characters: docs.map(mapDoc) };
+  return db.query(table)
+    .withIndex('by_user_character', (q) => q.eq('userId', userId))
+    .collect();
 }
 
 export function uniqueByUserCharacter(

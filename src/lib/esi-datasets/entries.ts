@@ -114,7 +114,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'entry-point', name: 'refreshAffiliations' },
+    refreshOwner: { kind: 'entry-point', name: 'refreshAffiliationsWithOutcome' },
     cronBackstopRoute: '/api/cron/refresh-affiliations',
     upstream: {
       kind: 'esi',

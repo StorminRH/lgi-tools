@@ -4,7 +4,7 @@ import {
   ICON_TRACK_CLEARANCE_PX,
   kspaceCaptionOffset,
 } from './disc-chrome';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 
 const HUB_ROW_PX = 14;
 const CAPTION_NAME_PX = 14;

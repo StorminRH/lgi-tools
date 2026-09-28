@@ -9,9 +9,6 @@ describe('boardEndpoint', () => {
     expect(Object.keys(boardEndpoint.responses)).toEqual(['200']);
   });
 
-  it('pins the closed reconnect-gap vocabulary', () => {
-    expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders', 'assets']);
-  });
 });
 
 describe('boardResponseSchema', () => {
@@ -39,6 +36,10 @@ describe('boardResponseSchema', () => {
     industry: section,
     netWorth: section,
   };
+
+  it.each(BOARD_GAPS)('accepts the supported reconnect gap %s', (gap) => {
+    expect(boardCharacterSchema.parse({ ...minimal, gaps: [gap] }).gaps).toEqual([gap]);
+  });
 
   it('accepts pending and reconnect sections without data', () => {
     expect(boardCharacterSchema.safeParse(minimal).success).toBe(true);

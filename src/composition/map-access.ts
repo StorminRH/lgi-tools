@@ -29,11 +29,12 @@ export async function resolveMapPrincipals(userId: string): Promise<MapPrincipal
 
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {
   const principals = await resolveMapPrincipals(userId);
-  after(reconcileAffiliationAccess);
   const [maps, deletedMaps] = await Promise.all([
     listAuthorizedMapsForPrincipals(userId, principals),
     listDeletedRestorableMapsForPrincipals(userId, principals),
   ]);
+  // A render repairs only maps this viewer can see; the cron drains the global backlog.
+  after(() => reconcileAffiliationAccess({ mapIds: [...maps, ...deletedMaps].map((map) => map.id) }));
   const adminMapIds = maps
     .filter((map) => map.role === 'admin')
     .map((map) => map.id);

@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  SYSTEM_FRAME_HEIGHT,
-  SYSTEM_FRAME_WIDTH,
-} from '../canvas/SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import {
   NODE_CARD_FALLBACK,
   anchoredLeader,

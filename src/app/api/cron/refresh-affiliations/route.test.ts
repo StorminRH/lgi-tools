@@ -8,7 +8,7 @@ const reconcileAffiliationAccessMock = vi.fn();
 const reserveMock = vi.fn();
 
 vi.mock('@/platform/auth/affiliation', () => ({
-  refreshAffiliations: (...args: unknown[]) => refreshAffiliationsMock(...args),
+  refreshAffiliationsWithOutcome: (...args: unknown[]) => refreshAffiliationsMock(...args),
 }));
 
 vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: reconcileAffiliationAccessMock }));
@@ -61,14 +61,14 @@ test('rejects a missing cron token, retries pending access when affiliations are
   expect(listStaleLinkedCharacterIdsMock).not.toHaveBeenCalled();
 
   listStaleLinkedCharacterIdsMock.mockResolvedValue([]);
-  refreshAffiliationsMock.mockResolvedValue(0);
+  refreshAffiliationsMock.mockResolvedValue({ refreshed: 0, accessChanged: false, transientFailure: false });
   reconcileAffiliationAccessMock.mockResolvedValue({ processed: 2, failed: 0 });
   expect(await (await GET(authedRequest())).json()).toEqual({ status: 'refreshed', stale: 0, refreshed: 0 });
   expect(reconcileAffiliationAccessMock).toHaveBeenCalledOnce();
   expect(reserveMock).not.toHaveBeenCalled();
 
   listStaleLinkedCharacterIdsMock.mockResolvedValue([101, 202, 303]);
-  refreshAffiliationsMock.mockResolvedValue(2);
+  refreshAffiliationsMock.mockResolvedValue({ refreshed: 2, accessChanged: false, transientFailure: true });
   reconcileAffiliationAccessMock.mockResolvedValue({ processed: 0, failed: 0 });
   const response = await GET(authedRequest());
   expect(await response.json()).toEqual({
@@ -81,6 +81,7 @@ test('rejects a missing cron token, retries pending access when affiliations are
     action: 'cron_affiliations',
     metadata: {
       outcome: 'refreshed',
+      transientFailure: true,
       access: { processed: 0, failed: 0 },
       stale: 3,
       refreshed: 2,

@@ -105,7 +105,9 @@ describe('reassignCharacter', () => {
       }),
     ).rejects.toBe(failure);
     expect(state.calls.delete).toBe(0);
-    expect(runners.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+      userId: 'eve-user-2', characterId: 100,
+    });
   });
 
   it('does not move a character if its former map claims cannot be revoked', async () => {

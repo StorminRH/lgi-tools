@@ -241,6 +241,22 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     expect(await readPendingMapAccessChanges()).toHaveLength(2);
   });
 
+  it('scopes viewer and affiliation-event drains without taking unrelated pending work', async () => {
+    await seedCorpMap(98000011);
+    await seedCorpMap(98000012);
+    await seedCorpMap(98000013);
+    await harness.db.insert(pendingMapAccessChanges).values([
+      { mapId: mapId(98000011) }, { mapId: mapId(98000012) }, { mapId: mapId(98000013) },
+    ]);
+    const visible = await readPendingMapAccessChanges(MAX_PENDING_BATCH, { mapIds: [mapId(98000012)] });
+    expect(visible.map((row) => row.mapId)).toEqual([mapId(98000012)]);
+    const event = await readPendingMapAccessChanges(MAX_PENDING_BATCH, { corporationIds: [98000011, 98000012] });
+    expect(event.map((row) => row.mapId)).toEqual([mapId(98000011), mapId(98000012)]);
+    await acknowledgeMapAccessChanges(event);
+    expect((await readPendingMapAccessChanges()).map((row) => row.mapId)).toEqual([mapId(98000013)]);
+    expect(await readPendingMapAccessChanges(MAX_PENDING_BATCH, { mapIds: [] })).toEqual([]);
+  });
+
   it('bounds reads and rotates failed maps behind untouched work while acknowledging successes', async () => {
     const seeded = Array.from({ length: MAX_PENDING_BATCH + 1 }, (_, i) => ({ id: mapId(i), userId: USER_ID, name: 'Map' }));
     await harness.db.insert(maps).values(seeded);
@@ -256,7 +272,6 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
     await expect(readPendingMapAccessChanges(MAX_PENDING_BATCH + 1)).rejects.toThrow(RangeError);
     await expect(readPendingMapAccessChanges(0)).rejects.toThrow(RangeError);
     await expect(readPendingMapAccessChanges(1.5)).rejects.toThrow(RangeError);
-    await expect(acknowledgeMapAccessChanges(batch, batch.slice(0, 1))).rejects.toThrow(RangeError);
     await acknowledgeMapAccessChanges([]);
   });
 

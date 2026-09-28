@@ -1,15 +1,18 @@
 import { after } from 'next/server';
-import { getCharacterSheets } from '@/features/character-sheet/queries';
-import { getJobsForCharacters, readCharacterJobSyncState } from '@/features/industry-jobs/queries';
+import { getCharacterSheets, readSheetRow } from '@/features/character-sheet/queries';
+import { getJobsForCharacters, readCharacterJobs, readCharacterJobSyncState } from '@/features/industry-jobs/queries';
 import { getNetWorthHistory, upsertNetWorthDay, utcDay } from '@/features/net-worth/queries';
-import { listCharacterAssetRows, readOwnerSyncState } from '@/features/owned-assets/queries';
+import { listCharacterAssetRows, readOwnerAssetRows, readOwnerSyncState } from '@/features/owned-assets/queries';
 import {
   getSkillLevelsForCharacters,
   getSkillsForCharacters,
+  readCharacterSkills,
+  readCharacterSkillLevels,
   readCharacterSyncState,
 } from '@/features/skill-queue/queries';
 import { type LinkedCharacter, listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { refreshCharacterSheetsOnView } from '@/composition/sync/character-sheet-sync';
 import { refreshJobsOnView } from '@/composition/sync/industry-jobs-sync';
 import { refreshCharacterAssetsOnView } from '@/composition/sync/owned-assets-sync';
@@ -19,16 +22,18 @@ import { assembleBoard, type BoardRaw, collectNameIds, netWorthSnapshot, toHisto
 import { resolveNameBook } from './name-book';
 import { seedUnpricedTypes } from './price-book';
 
-async function readRaws(linked: LinkedCharacter[]): Promise<BoardRaw[]> {
+async function readRaws(linked: LinkedCharacter[], fresh = false): Promise<BoardRaw[]> {
   const ids = linked.map((character) => character.characterId);
   const [sheets, skills, levels, skillStates, jobs, jobStates, assets, assetStates] = await Promise.all([
-    getCharacterSheets(ids),
-    getSkillsForCharacters(ids),
-    getSkillLevelsForCharacters(ids),
+    fresh ? mapByIdDroppingNulls(ids, readSheetRow) : getCharacterSheets(ids),
+    fresh ? mapByIdDroppingNulls(ids, readCharacterSkills) : getSkillsForCharacters(ids),
+    fresh ? mapByIdDroppingNulls(ids, readCharacterSkillLevels) : getSkillLevelsForCharacters(ids),
     Promise.all(ids.map((id) => readCharacterSyncState(id))),
-    getJobsForCharacters(ids),
+    fresh ? mapByIdDroppingNulls(ids, readCharacterJobs) : getJobsForCharacters(ids),
     Promise.all(ids.map((id) => readCharacterJobSyncState(id))),
-    listCharacterAssetRows(ids),
+    fresh
+      ? mapByIdDroppingNulls(ids, (ownerId) => readOwnerAssetRows({ ownerType: 'character', ownerId }))
+      : listCharacterAssetRows(ids),
     Promise.all(ids.map((id) => readOwnerSyncState({ ownerType: 'character', ownerId: id }))),
   ]);
   return linked.map((character, i) => {
@@ -72,7 +77,8 @@ async function readRaws(linked: LinkedCharacter[]): Promise<BoardRaw[]> {
 export async function recordNetWorthSnapshot(userId: string, now = new Date()): Promise<void> {
   const linked = await listLinkedCharacters(userId);
   if (linked.length === 0) return;
-  const raws = await readRaws(linked);
+  // SWR caches can still hold the pre-refresh view here; snapshots must read the completed writes.
+  const raws = await readRaws(linked, true);
   const names = await resolveNameBook(collectNameIds(raws));
   const board = assembleBoard(raws, names, now.getTime(), []);
   const snapshot = netWorthSnapshot(board.characters, utcDay(now));

@@ -51,12 +51,6 @@ export type ChainNode = Node<ChainNodeData, 'chainSystem'>;
 
 export const CHAIN_NODE_TYPE = 'chainSystem';
 
-export const SYSTEM_FRAME_WIDTH = 150;
-
-export const SYSTEM_FRAME_HEIGHT = 110;
-
-export { SYSTEM_DISC_SIZE } from './disc-chrome';
-
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
 

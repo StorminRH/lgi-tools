@@ -5,9 +5,10 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
-import { identityProjectionRunners, reprojectMapsForCharacter } from '@/composition/map-access-identity';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
+import { runCharacterUnlink } from '@/platform/auth/identity-projection-runners';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
 import {
   getStoredActiveCharacterId,
@@ -48,39 +49,23 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'last_character');
       }
 
-      let mapIds: string[];
       try {
-        mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({
+        await runCharacterUnlink({
           userId: session.user.id,
           characterId,
+          runners: identityProjectionRunners,
+          mutate: async () => {
+            await auth.api.unlinkAccount({
+              body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
+              headers: await headers(),
+            });
+          },
+          changed: () => true,
         });
       } catch (err) {
-        console.error('[account/unlink] map access revocation failed', err);
+        console.error('[account/unlink] unlink failed', err);
         return redirectWithError(request, 'unlink_failed');
       }
-
-      try {
-        await auth.api.unlinkAccount({
-          body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
-          headers: await headers(),
-        });
-      } catch (err) {
-        console.error('[account/unlink] unlinkAccount failed', err);
-        await reprojectMapsForCharacter(characterId).catch((restoreError) =>
-          console.error('[account/unlink] map access restoration queued for retry', restoreError),
-        );
-        return redirectWithError(request, 'unlink_failed');
-      }
-
-      await identityProjectionRunners.runAfterCharacterUnlink({
-        userId: session.user.id,
-        characterId,
-        mapIds,
-      });
-      await identityProjectionRunners.runAfterCharacterLinkChanged({
-        userId: session.user.id,
-        characterId,
-      });
 
       const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
       if (activeCharacterId === characterId) {

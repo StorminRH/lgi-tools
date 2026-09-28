@@ -72,7 +72,7 @@ describe('postConvexHttpDoor', () => {
     h.readEnv.mockReturnValueOnce(undefined);
     await expect(postSample()).rejects.toMatchObject({
       name: 'DoorUnavailableError',
-      message: 'Sample door unavailable: Convex URL or service secret is unset',
+      message: 'Sample door unavailable: Convex URL or service secret is unset or unsafe',
     });
 
     h.fetchWithTimeout.mockRejectedValueOnce(new Error('down'));
