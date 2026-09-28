@@ -3,7 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { accountMatch, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import { runCharacterUnlink, type IdentityProjectionRunners } from './identity-projection-runners';
+import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
 import { account, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';
@@ -133,19 +133,30 @@ export async function deleteLinkedCharacter(
   characterId: number,
   runners: IdentityProjectionRunners,
 ): Promise<boolean> {
-  return runCharacterUnlink({
-    userId,
-    characterId,
-    runners,
-    mutate: async () => {
-      const deleted = await db
-        .delete(account)
-        .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
-        .returning({ id: account.id });
-      return deleted.length > 0;
-    },
-    changed: (deleted) => deleted,
-  });
+  const mapIds = await runners.runBeforeCharacterUnlink({ userId, characterId });
+  let deleted: Array<{ id: string }>;
+  try {
+    deleted = await db
+      .delete(account)
+      .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
+      .returning({ id: account.id });
+  } catch (error) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  if (deleted.length === 0) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    return false;
+  }
+  try {
+    await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
+  } finally {
+    await runners.runAfterCharacterLinkChanged({ userId, characterId });
+    if (await getStoredActiveCharacterId(userId) === characterId) {
+      await repointActiveToOldest(userId);
+    }
+  }
+  return true;
 }
 
 export async function revokeUserSessions(userId: string): Promise<number> {
@@ -175,40 +186,47 @@ export async function reassignCharacter({
   toUserId: string;
   runners: IdentityProjectionRunners;
 }): Promise<{ sourceDeleted: boolean }> {
+  const mapIds = await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
+  let moved: Array<{ id: string }>;
+  try {
+    moved = await db
+      .update(account)
+      .set({ userId: toUserId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(account.providerId, EVE_PROVIDER_ID),
+          eq(account.accountId, String(characterId)),
+          eq(account.userId, fromUserId),
+        ),
+      )
+      .returning({ id: account.id });
+  } catch (error) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  if (moved.length === 0) {
+    await runners.runAfterFailedCharacterUnlink(characterId);
+  }
   let sourceDeleted = false;
-  await runCharacterUnlink({
-    userId: fromUserId,
-    characterId,
-    runners,
-    mutate: async () => {
-      const moved = await db
-        .update(account)
-        .set({ userId: toUserId, updatedAt: new Date() })
-        .where(
-          and(
-            eq(account.providerId, EVE_PROVIDER_ID),
-            eq(account.accountId, String(characterId)),
-            eq(account.userId, fromUserId),
-          ),
-        )
-        .returning({ id: account.id });
-      return moved.length > 0;
-    },
-    changed: (moved) => moved,
-    afterMutation: async () => {
-      const [remaining] = await db
-        .select({ id: account.id })
-        .from(account)
-        .where(eveAccountsForUser(fromUserId))
-        .limit(1);
-      if (!remaining) {
-        await runners.runBeforeUserDelete(fromUserId);
-        await db.delete(user).where(eq(user.id, fromUserId));
-        sourceDeleted = true;
-      } else if (await getStoredActiveCharacterId(fromUserId) === characterId) {
-        await repointActiveToOldest(fromUserId);
-      }
-    },
-  });
+  try {
+    if (moved.length > 0) {
+      await runners.runAfterCharacterUnlink({ userId: fromUserId, characterId, mapIds });
+    }
+  } finally {
+    const [remaining] = await db
+      .select({ id: account.id })
+      .from(account)
+      .where(eveAccountsForUser(fromUserId))
+      .limit(1);
+
+    if (!remaining) {
+      await runners.runBeforeUserDelete(fromUserId);
+      await db.delete(user).where(eq(user.id, fromUserId));
+      sourceDeleted = true;
+    } else if (await getStoredActiveCharacterId(fromUserId) === characterId) {
+      await repointActiveToOldest(fromUserId);
+    }
+    await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
+  }
   return { sourceDeleted };
 }

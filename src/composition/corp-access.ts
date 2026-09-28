@@ -13,16 +13,10 @@ export async function resolveUserCorpAccess(userId: string): Promise<UserCorpAcc
     .map((row) => row.characterId);
   if (staleIds.length === 0) return createCorpAccessSnapshot(userId, affiliations);
   const refreshed = await refreshAffiliationsWithOutcome(staleIds);
-  const current = await getUserAffiliations(userId);
-  if (refreshed.accessChanged) {
-    // Include old corporations so departure revocations are delivered too.
-    const corporationIds = [...new Set([...affiliations, ...current]
-      .flatMap((row) => row.corporationId === null ? [] : [row.corporationId]))];
-    after(() => reconcileAffiliationAccess({ corporationIds }));
-  }
+  if (refreshed.accessChanged) after(reconcileAffiliationAccess);
   return createCorpAccessSnapshot(
     userId,
-    current,
+    await getUserAffiliations(userId),
     refreshed.transientFailure,
   );
 }

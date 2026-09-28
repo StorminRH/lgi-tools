@@ -1,3 +1,5 @@
+import { systemSecurityClass } from '@/data/eve-data/security';
+
 export const SYSTEM_FRAME_WIDTH = 150;
 export const SYSTEM_FRAME_HEIGHT = 110;
 export const SYSTEM_DISC_SIZE = 55;
@@ -23,4 +25,22 @@ export function widgetSeatOffset(index: number): { readonly x: number; readonly 
 
 export function kspaceCaptionOffset(): { readonly x: number; readonly y: number } {
   return { x: 0, y: -(SYSTEM_DISC_SIZE / 2 + KSPACE_TITLE_GAP_PX) };
+}
+
+export interface NodeCaptionData {
+  readonly security?: number | null;
+  readonly whClassId?: number | null;
+  readonly halo?: unknown;
+  readonly stub?: unknown;
+}
+
+export function isDerivedNode(data: Pick<NodeCaptionData, 'halo' | 'stub'>): boolean {
+  return data.halo !== undefined || data.stub !== undefined;
+}
+
+export function nodeCaptionKind(data: NodeCaptionData): 'kspace' | 'frame' {
+  if (isDerivedNode(data)) return 'frame';
+  return systemSecurityClass(data.security ?? null, data.whClassId ?? null) === 'wormhole'
+    ? 'frame'
+    : 'kspace';
 }

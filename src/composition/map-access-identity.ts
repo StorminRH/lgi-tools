@@ -21,12 +21,7 @@ export async function reprojectMapsForCharacter(characterId: number): Promise<vo
 }
 
 export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<string[]> {
-  const [affected, owned] = await Promise.all([
-    affectedMapIdsForCharacter(characterId),
-    getOwnedMapIds(userId),
-  ]);
-  const creators = new Set(owned);
-  const mapIds = affected.filter((mapId) => !creators.has(mapId));
+  const mapIds = await affectedMapIdsForCharacter(characterId);
   await revokeUserMapClaims(userId, mapIds);
   return mapIds;
 }
@@ -72,16 +67,10 @@ export const identityProjectionRunners: IdentityProjectionRunners = {
     );
   },
   runAfterCharacterUnlink: async ({ userId, characterId, mapIds }) => {
-    const results = await Promise.allSettled([
-      eraseNetWorthHistoryForCharacter(userId, characterId),
-      bestEffort('identity-projection', 'finalizeCharacterRevocation', `${userId}:${characterId}`, () =>
-        revokeUserMapClaims(userId, mapIds),
-      ),
-    ]);
-    // Do not start final reprojection while an earlier revocation is still in flight.
-    for (const result of results) {
-      if (result.status === 'rejected') throw result.reason;
-    }
+    await bestEffort('identity-projection', 'finalizeCharacterRevocation', `${userId}:${characterId}`, () =>
+      revokeUserMapClaims(userId, mapIds),
+    );
+    await eraseNetWorthHistoryForCharacter(userId, characterId);
   },
   runAfterCharacterLinkChanged: async (args) => {
     await bestEffort(

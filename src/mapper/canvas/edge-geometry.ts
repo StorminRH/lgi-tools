@@ -1,10 +1,12 @@
-import { systemSecurityClass } from '@/data/eve-data/security';
 import type { ChainPosition } from '../chain/intents';
 import {
   ICON_TRACK_CLEARANCE_PX,
   kspaceCaptionOffset,
+  nodeCaptionKind,
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+  type NodeCaptionData,
 } from './disc-chrome';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 
 const HUB_ROW_PX = 14;
 const CAPTION_NAME_PX = 14;
@@ -66,13 +68,6 @@ export interface EndpointLabels {
 
 const NO_LABELS: EndpointLabels = { source: null, target: null };
 
-export interface EndpointData {
-  readonly security?: number | null;
-  readonly whClassId?: number | null;
-  readonly halo?: unknown;
-  readonly stub?: unknown;
-}
-
 export function kspaceCaptionBox(): LabelBox {
   const half = SYSTEM_FRAME_WIDTH / 2;
   const bottom = kspaceCaptionOffset().y;
@@ -96,13 +91,9 @@ export function frameNameBox(): LabelBox {
   };
 }
 
-export function connectionLabelBox(data: EndpointData | undefined): LabelBox | null {
+export function connectionLabelBox(data: NodeCaptionData | undefined): LabelBox | null {
   if (data === undefined) return null;
-  const derived = data.halo !== undefined || data.stub !== undefined;
-  const wormhole =
-    systemSecurityClass(data.security ?? null, data.whClassId ?? null) === 'wormhole';
-  if (!derived && !wormhole) return kspaceCaptionBox();
-  return frameNameBox();
+  return nodeCaptionKind(data) === 'kspace' ? kspaceCaptionBox() : frameNameBox();
 }
 
 function rayFarDistance(dx: number, dy: number, box: LabelBox): number | null {
@@ -171,7 +162,7 @@ export interface EdgeEndpointNode {
   readonly measured: { readonly width?: number; readonly height?: number };
   readonly width?: number;
   readonly height?: number;
-  readonly data?: EndpointData;
+  readonly data?: NodeCaptionData;
 }
 
 export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | null {

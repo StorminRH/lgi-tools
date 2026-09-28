@@ -1,5 +1,5 @@
 import type { CronRefreshAffiliationsResponse } from '@/platform/auth/api-contract';
-import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
+import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { reconcileAffiliationAccess } from '@/composition/map-affiliation-access';
@@ -19,7 +19,7 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
   },
   work: async () => {
     const staleIds = await listStaleLinkedCharacterIds();
-    const { refreshed, transientFailure } = await refreshAffiliationsWithOutcome(staleIds);
+    const refreshed = await refreshAffiliations(staleIds);
     const access = await reconcileAffiliationAccess();
 
     return {
@@ -29,7 +29,6 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
         stale: staleIds.length,
         refreshed,
         access,
-        transientFailure,
       },
       body: {
         status: 'refreshed',

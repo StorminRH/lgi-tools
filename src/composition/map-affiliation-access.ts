@@ -12,10 +12,8 @@ const DELIVERY_TIMEOUT_MS = 4_000;
 const FINALIZE_RESERVE_MS = 1_000;
 const DELIVERY_CONCURRENCY = 4;
 
-export async function reconcileAffiliationAccess(
-  scope?: { mapIds?: readonly string[]; corporationIds?: readonly number[] },
-): Promise<{ processed: number; failed: number }> {
-  return deliverPendingMapAccessChanges(await readPendingMapAccessChanges(MAX_PENDING_BATCH, scope));
+export async function reconcileAffiliationAccess(): Promise<{ processed: number; failed: number }> {
+  return deliverPendingMapAccessChanges(await readPendingMapAccessChanges());
 }
 
 export async function deliverCapturedMapAccessChanges(

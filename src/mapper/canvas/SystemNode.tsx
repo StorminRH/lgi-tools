@@ -17,7 +17,7 @@ import {
 import type { NodeMotion } from '../motion/motion-contract';
 import { IntelIcon } from '../windows/IntelIcon';
 import { useUniverseAssets } from '../chain/use-universe-assets';
-import { kspaceCaptionOffset } from './disc-chrome';
+import { isDerivedNode, kspaceCaptionOffset, nodeCaptionKind } from './disc-chrome';
 import { SystemIntelMarks } from './SystemIntelMarks';
 import { ChainViewportContext } from './ChainViewportContext';
 import type { DiscBody } from './wormhole/palette';
@@ -69,7 +69,7 @@ function nodePresentation(data: ChainNodeData) {
     stub,
     staticStub,
     fogged,
-    derived: data.halo !== undefined || stub,
+    derived: isDerivedNode(data),
     exiting,
     chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto nopan',
   } as const;
@@ -287,8 +287,7 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
   const header = nodeHeader(data);
   const classification = nodeClassification(data, stub);
   const body = usePaintedBody(data, stub);
-  const showKspaceCaption =
-    !derived && systemSecurityClass(data.security ?? null, data.whClassId ?? null) !== 'wormhole';
+  const showKspaceCaption = nodeCaptionKind(data) === 'kspace';
   const paused = dragging === true || fogged || stub || exiting;
   const active = hovered || selected === true;
   useEffect(() => {

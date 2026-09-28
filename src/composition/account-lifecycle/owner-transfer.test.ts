@@ -91,6 +91,20 @@ describe('purgeTransferredCharacter', () => {
     expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
   });
 
+  it('completes source reconciliation and final teardown before reporting a history-erasure failure', async () => {
+    state.results = [
+      [{ id: 'acc-1' }],
+      [{ accountId: String(OTHER_CHAR) }],
+      [{ email: syntheticEmail(CHAR), activeCharacterId: OTHER_CHAR }],
+      undefined,
+    ];
+    const failure = new Error('history deletion failed');
+    hooks.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
+    expect(state.calls.update).toBe(1);
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
+  });
+
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
       [{ id: 'acc-1' }],

@@ -11,8 +11,6 @@ const getSessionMock = vi.fn();
 const accountBelongsToUserMock = vi.fn();
 const deleteLinkedCharacterMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
-const getStoredActiveCharacterIdMock = vi.fn();
-const repointActiveToOldestMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({
@@ -22,8 +20,6 @@ vi.mock('@/composition/auth', () => ({
 vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
-  getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),
-  repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
 }));
 
 vi.mock('@/platform/auth/admin-users', () => ({
@@ -58,8 +54,6 @@ describe('POST /api/admin/characters/unlink', () => {
     accountBelongsToUserMock.mockReset();
     deleteLinkedCharacterMock.mockReset();
     listLinkedCharactersMock.mockReset();
-    getStoredActiveCharacterIdMock.mockReset();
-    repointActiveToOldestMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
   });
@@ -86,12 +80,11 @@ describe('POST /api/admin/characters/unlink', () => {
     expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
   });
 
-  it('unlinks and re-points only when the removed character was active', async () => {
+  it('delegates unlink and active-character repair to the lifecycle operation', async () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     deleteLinkedCharacterMock.mockResolvedValue(true);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100);
 
     const active = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
     expect(active.status).toBe(303);
@@ -107,12 +100,8 @@ describe('POST /api/admin/characters/unlink', () => {
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     );
-    expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-2');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
 
-    repointActiveToOldestMock.mockClear();
-    const inactive = await POST(buildRequest({ userId: 'eve-user-2', characterId: '200' }));
-    expect(inactive.status).toBe(303);
-    expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+
   });
 });

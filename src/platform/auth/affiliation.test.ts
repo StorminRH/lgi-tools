@@ -11,7 +11,7 @@ vi.mock('./affiliation-store', () => ({
   captureAffiliationObservedAt: mocks.captureAffiliationObservedAt,
 }));
 
-import { refreshAffiliationsWithOutcome } from './affiliation';
+import { refreshAffiliations, refreshAffiliationsWithOutcome } from './affiliation';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -34,6 +34,7 @@ test('returns database-confirmed counts, preserving partial source failure', asy
     mocks.fetchAffiliations.mock.invocationCallOrder[0]!,
   );
   expect(mocks.updateAffiliations).toHaveBeenCalledWith(rows, '2026-09-15 12:00:00.000001');
+  await expect(refreshAffiliations([101, 102])).resolves.toBe(1);
 });
 
 test('does no work for empty input and fails closed when persistence fails', async () => {

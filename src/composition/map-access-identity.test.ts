@@ -76,21 +76,6 @@ beforeEach(() => {
 });
 
 describe('map-access-identity', () => {
-  it('preserves creator claims during both unlink fences', async () => {
-    mocks.affectedMapIdsForCharacter.mockResolvedValue(['owned', 'shared']);
-    mocks.getOwnedMapIds.mockResolvedValue(['owned']);
-    const mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({
-      userId: 'creator', characterId: 100,
-    });
-    await identityProjectionRunners.runAfterCharacterUnlink({
-      userId: 'creator', characterId: 100, mapIds,
-    });
-    expect(mapIds).toEqual(['shared']);
-    expect(mocks.revokeUserMapClaims.mock.calls).toEqual([
-      ['creator', ['shared']], ['creator', ['shared']],
-    ]);
-  });
-
   it('re-projects through failures, and tears down owned chains before claims', async () => {
     mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(['map-a', 'map-b']));
 
@@ -167,32 +152,6 @@ describe('map-access-identity', () => {
     });
     expect(mocks.revokeUserMapClaims).toHaveBeenCalledWith('departing-user', ['map-a']);
     expect(mocks.eraseNetWorthHistoryForCharacter).toHaveBeenCalledWith('departing-user', 42);
-  });
-
-  it('reports a history-erasure failure while still finalizing claim revocation', async () => {
-    const failure = new Error('history database unavailable');
-    mocks.eraseNetWorthHistoryForCharacter.mockRejectedValueOnce(failure);
-    await expect(identityProjectionRunners.runAfterCharacterUnlink({
-      userId: 'departing-user', characterId: 42, mapIds: ['map-a'],
-    })).rejects.toBe(failure);
-    expect(mocks.revokeUserMapClaims).toHaveBeenCalledWith('departing-user', ['map-a']);
-  });
-
-  it('waits for in-flight revocation before reporting a history failure', async () => {
-    const failure = new Error('history unavailable');
-    const events: string[] = [];
-    mocks.eraseNetWorthHistoryForCharacter.mockRejectedValueOnce(failure);
-    mocks.revokeUserMapClaims.mockImplementationOnce(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      events.push('revoked');
-    });
-    await identityProjectionRunners.runAfterCharacterUnlink({
-      userId: 'departing-user', characterId: 42, mapIds: ['map-a'],
-    }).catch((error: unknown) => {
-      expect(error).toBe(failure);
-      events.push('reported');
-    });
-    expect(events).toEqual(['revoked', 'reported']);
   });
 
   it.each(['enqueue', 'acknowledge'])('still tears down location when map %s fails', async (stage) => {

@@ -25,11 +25,11 @@ export interface ReconcileCounts {
   readonly unchanged: number;
 }
 
-type ReconcileResult = ReconcileCounts & {
+export type ReconcileResult = ReconcileCounts & {
   readonly outcome: 'applied' | 'duplicate' | 'stale';
 };
 
-interface UserClaimsPurgeResult {
+export interface UserClaimsPurgeResult {
   readonly deleted: number;
   readonly hasMore: boolean;
 }
@@ -104,19 +104,6 @@ async function deleteClaimRows(
     }
   }
   return deleted;
-}
-
-async function advanceWatermark(
-  ctx: MutationCtx,
-  mapId: string,
-  revision: number,
-  watermark: Doc<'mapAccessProjectionWatermarks'> | null,
-): Promise<void> {
-  if (watermark === null) {
-    await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
-  } else if (watermark.revision < revision) {
-    await ctx.db.patch(watermark._id, { revision });
-  }
 }
 
 export const reconcileMapClaims = internalMutation({
@@ -196,7 +183,11 @@ export const reconcileMapClaims = internalMutation({
         await deleteTrackingForUser(ctx, mapId, userId);
       }
     }
-    await advanceWatermark(ctx, mapId, revision, watermark);
+    if (watermark === null) {
+      await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
+    } else {
+      await ctx.db.patch(watermark._id, { revision });
+    }
     return {
       inserted,
       updated,
@@ -246,7 +237,11 @@ export const purgeUserMapClaims = internalMutation({
         .query('mapAccessProjectionWatermarks')
         .withIndex('by_map', (q) => q.eq('mapId', mapId))
         .unique();
-      await advanceWatermark(ctx, mapId, revision, watermark);
+      if (watermark === null) {
+        await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision });
+      } else if (watermark.revision < revision) {
+        await ctx.db.patch(watermark._id, { revision });
+      }
       const rows = await ctx.db
         .query('mapAccess')
         .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))

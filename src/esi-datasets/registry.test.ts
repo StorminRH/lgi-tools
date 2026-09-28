@@ -10,7 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/composition/drizzle-schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
-import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
+import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
@@ -49,7 +49,7 @@ const liveContext = {
   cronRoutes: new Set(vercelConfig.crons.map((cron) => cron.path)),
   deferredDatasets: new Set<string>(ESI_REFRESH_DATASETS),
   personalEntryPoints: new Set([
-    refreshAffiliationsWithOutcome.name,
+    refreshAffiliations.name,
     refreshCorpStructuresForUser.name,
     refreshCharacterSheetForUser.name,
   ]),

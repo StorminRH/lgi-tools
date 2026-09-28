@@ -1,5 +1,3 @@
-import { after } from 'next/server';
-import { reconcileAffiliationAccess } from '@/composition/map-affiliation-access';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/server', () => ({ after: vi.fn() }));
 vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
@@ -139,10 +137,6 @@ describe('map chrome data', () => {
         ],
       },
     });
-    const drain = vi.mocked(after).mock.calls[0]![0];
-    if (typeof drain !== 'function') throw new Error('Expected an after callback');
-    await drain();
-    expect(reconcileAffiliationAccess).toHaveBeenCalledWith({ mapIds: ['map-a', 'map-b', 'map-deleted'] });
     expect(mocks.listAuthorizedMapsForPrincipals).toHaveBeenCalledWith(
       'user-1',
       { characterIds: [42, 43], corporationIds: [99, 100] },

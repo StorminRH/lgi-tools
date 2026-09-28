@@ -63,8 +63,7 @@ test('reads once without refresh writes, rereads after a stale refresh, and reev
   expect(refreshed.allCharacterIds).toEqual([101, 102]);
   expect(refreshed.corporationIds).toEqual([3000]);
   expect(refreshed.characterIdsByCorporation[3000]).toEqual([101]);
-  await mocks.after.mock.calls[0]![0]();
-  expect(mocks.reconcile).toHaveBeenCalledWith({ corporationIds: [2000, 4000, 3000] });
+  expect(mocks.after).toHaveBeenCalledWith(mocks.reconcile);
 
   mocks.getUserAffiliations.mockResolvedValue([
     row(101, 2000, STALE), row(102, 3000),

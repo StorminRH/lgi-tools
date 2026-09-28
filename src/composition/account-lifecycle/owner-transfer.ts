@@ -1,7 +1,6 @@
 import { db } from '@/db';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { runPurge } from '@/composition/purge/orchestrator';
-import { runCharacterUnlink } from '@/platform/auth/identity-projection-runners';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountMatch } from '@/platform/auth/eve-account-shared';
 import { classifyOwnerReconcile } from '@/platform/auth/owner-reconcile';
@@ -36,14 +35,20 @@ export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
 ): Promise<void> {
-  await runCharacterUnlink({
-    userId: priorUserId,
-    characterId,
-    runners: identityProjectionRunners,
-    mutate: () => runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']),
-    changed: () => true,
-    afterMutation: async () => {
-      await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
-    },
-  });
+  const mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({ userId: priorUserId, characterId });
+  try {
+    await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
+  } catch (error) {
+    await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
+    throw error;
+  }
+  try {
+    await identityProjectionRunners.runAfterCharacterUnlink({ userId: priorUserId, characterId, mapIds });
+  } finally {
+    await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
+    await identityProjectionRunners.runAfterCharacterLinkChanged({
+      userId: priorUserId,
+      characterId,
+    });
+  }
 }

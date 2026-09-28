@@ -9,9 +9,7 @@ import { checkAdmin } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 import {
   accountBelongsToUser,
-  getStoredActiveCharacterId,
   listLinkedCharacters,
-  repointActiveToOldest,
 } from '@/platform/auth/linked-characters';
 import { deleteLinkedCharacter } from '@/platform/auth/admin-users';
 
@@ -51,11 +49,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       const removed = await deleteLinkedCharacter(userId, characterId, identityProjectionRunners);
       if (!removed) {
         return redirectTo(request, userId, 'unlink_failed');
-      }
-
-      const active = await getStoredActiveCharacterId(userId);
-      if (active === characterId) {
-        await repointActiveToOldest(userId);
       }
 
       void logUsageEvent({

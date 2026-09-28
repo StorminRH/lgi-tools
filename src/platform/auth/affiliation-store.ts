@@ -166,7 +166,6 @@ export async function updateAffiliations(
 
 export async function readPendingMapAccessChanges(
   limit = MAX_PENDING_BATCH,
-  scope?: { mapIds?: readonly string[]; corporationIds?: readonly number[] },
 ): Promise<PendingMapAccessChange[]> {
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PENDING_BATCH) {
     throw new RangeError(`Pending affiliation batch must be between 1 and ${MAX_PENDING_BATCH}`);
@@ -175,14 +174,6 @@ export async function readPendingMapAccessChanges(
     mapId: pendingMapAccessChanges.mapId,
     version: pendingMapAccessChanges.version,
   }).from(pendingMapAccessChanges)
-    .where(scope === undefined ? undefined : or(
-      inArray(pendingMapAccessChanges.mapId, [...(scope.mapIds ?? [])]),
-      inArray(pendingMapAccessChanges.mapId, db.select({ mapId: mapAccess.mapId })
-        .from(mapAccess).where(and(
-          eq(mapAccess.ownerType, 'corporation'),
-          inArray(mapAccess.ownerId, [...(scope.corporationIds ?? [])]),
-        ))),
-    ))
     .orderBy(asc(pendingMapAccessChanges.queuedAt), asc(pendingMapAccessChanges.mapId))
     .limit(limit);
 }
@@ -192,6 +183,11 @@ export async function acknowledgeMapAccessChanges(
   retry: PendingMapAccessChange[] = [],
 ): Promise<void> {
   if (changes.length + retry.length === 0) return;
+  if (changes.length + retry.length > MAX_PENDING_BATCH) throw new RangeError('Pending affiliation batch exceeds limit');
+  const seen = new Set(changes.map((row) => `${row.mapId}:${row.version}`));
+  if (retry.some((row) => seen.has(`${row.mapId}:${row.version}`))) {
+    throw new RangeError('Pending affiliation batch must not overlap completed and retried work');
+  }
   await db.execute(sql`
     WITH retried AS (
       UPDATE ${pendingMapAccessChanges} pending SET queued_at = clock_timestamp()
