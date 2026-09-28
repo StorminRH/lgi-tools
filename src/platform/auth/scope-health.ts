@@ -64,6 +64,8 @@ const SCOPE_GLOSS: Record<string, string> = {
   'esi-wallet.read_character_wallet.v1': 'Read your wallet balance and journal',
   'esi-universe.read_structures.v1': 'Read the names of structures you can dock at',
   'esi-markets.read_character_orders.v1': 'Read your open market orders',
+  'esi-corporations.read_divisions.v1': "Read your corporation's hangar division names",
+  'esi-corporations.track_members.v1': "Read your corporation members' home stations",
 };
 
 function describeScope(id: string, status: 'active' | 'legacy'): GrantedScope {
