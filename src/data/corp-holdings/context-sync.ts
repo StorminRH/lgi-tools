@@ -161,7 +161,6 @@ async function planContext(
       divisionNames: divisionNames.value,
       containerNames: mergeNames(context.containerNames, containerNames.value),
       structureNames: mergeNames(context.structureNames, structureNames),
-      pageEtags: [],
     },
     bases: bases.value,
   };

@@ -53,7 +53,6 @@ const profile = {
   divisionNames: { 2: 'Minerals' },
   containerNames: { [CAN]: 'Ore Can' },
   structureNames: {},
-  pageEtags: ['"e1"'],
 };
 
 async function committedNodeIds(): Promise<number[]> {

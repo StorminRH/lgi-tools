@@ -6,10 +6,7 @@ export interface CorpProfile {
   readonly divisionNames: Partial<Record<HangarDivision, string>>;
   readonly containerNames: Record<string, string>;
   readonly structureNames: Record<string, string>;
-  readonly pageEtags: string[];
 }
-
-export type CorpProfileRow = Omit<CorpProfile, 'pageEtags'>;
 
 export interface MemberBase {
   readonly characterId: number;
@@ -25,7 +22,7 @@ function namesById(names: Record<string, string>): ReadonlyMap<number, string> {
 export function buildCorpHoldingContext(
   corporationId: number,
   nodes: readonly HoldingNode[],
-  profile: CorpProfileRow | null,
+  profile: CorpProfile | null,
 ): CorpHoldingContext {
   const hqStationId = profile?.hqStationId ?? null;
   return {

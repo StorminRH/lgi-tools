@@ -32,7 +32,6 @@ export const corpProfiles = pgTable('corp_profiles', {
   containerNames: jsonb('container_names').$type<Record<string, string>>().notNull(),
   structureNames: jsonb('structure_names').$type<Record<string, string>>().notNull(),
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
-  pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
 });
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EnumeratedOwner } from '@/platform/owner-sync';
-import { buildCorpHoldingContext, type CorpProfileRow } from './context';
+import { buildCorpHoldingContext, type CorpProfile } from './context';
 import { type CorpContextPort, type CorpContextRead, refreshCorpContextForUser } from './context-sync';
 import { buildHoldingIndex, type CorpAssetItem, toHoldingNodes } from './placement';
 
@@ -34,7 +34,7 @@ const tree = buildHoldingIndex([
   item(2003, STRUCTURE, 'item', 'CorpDeliveries'),
 ]);
 
-const priorProfile: CorpProfileRow = {
+const priorProfile: CorpProfile = {
   hqStationId: null,
   divisionNames: {},
   containerNames: { [CAN]: 'Ore Can' },
@@ -97,7 +97,6 @@ describe('refreshCorpContextForUser', () => {
         divisionNames: { 2: 'Minerals' },
         containerNames: { [CAN]: 'Ore Can', [NEW_CAN]: `Can ${NEW_CAN}` },
         structureNames: { [STRUCTURE]: 'Jita Fort' },
-        pageEtags: [],
       },
       [
         { characterId: 90001, baseId: STATION },

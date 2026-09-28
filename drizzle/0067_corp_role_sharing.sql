@@ -35,8 +35,7 @@ CREATE TABLE "corp_profiles" (
 	"division_names" jsonb NOT NULL,
 	"container_names" jsonb NOT NULL,
 	"structure_names" jsonb NOT NULL,
-	"last_refreshed_at" timestamp with time zone NOT NULL,
-	"page_etags" jsonb DEFAULT '[]'::jsonb NOT NULL
+	"last_refreshed_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "corp_member_roles" ADD CONSTRAINT "corp_member_roles_character_id_characters_character_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."characters"("character_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

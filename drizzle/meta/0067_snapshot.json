@@ -5139,13 +5139,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "page_etags": {
-          "name": "page_etags",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
         }
       },
       "indexes": {},
