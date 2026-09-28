@@ -57,10 +57,10 @@ function CorpCard({
   const view = deriveCorpCardView(corp);
   return (
     <Card>
-      <SectionHeader size="md" label={corp.corporationName} hint={view.hint} />
+      <SectionHeader size="md" label={corp.corporationName} />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         <p className="text-body text-muted">
-          {view.sharingBlurb} A Director turns corporation data sharing on or off in{' '}
+          {view.sharingBlurb} ·{' '}
           <Link href="/settings/corporations" className="text-name underline hover:text-text">
             Corporation settings
           </Link>
@@ -68,7 +68,7 @@ function CorpCard({
         </p>
 
         {view.isEmpty ? (
-          <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
+          <EmptyState>No structures synced yet.</EmptyState>
         ) : (
           <ul className="flex flex-col gap-2.5">
             {corp.structures.map((s) => (

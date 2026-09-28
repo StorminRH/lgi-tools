@@ -10,17 +10,17 @@ import { ATLAS_TAGLINE } from '@/features/maps/atlas-copy';
 const SETUP_STEPS = [
   {
     title: 'Log in with EVE Online',
-    detail: 'The character you log in with creates your account and allows Atlas to track it.',
+    detail: 'Use your EVE character.',
   },
   {
     title: 'Link additional characters you fly',
     detail:
-      'Open the account menu behind your portrait, top right, and choose Add character for each alt you would like to track.',
+      'Use Add character in your account menu.',
   },
   {
     title: 'Open or create a map and turn on Tracking',
     detail:
-      "With a map open, you may enable or disable tracking by clicking your character's portrait. Initial tracking may take up to 30 seconds to start.",
+      "Toggle tracking from your portrait. Tracking may take up to 30 seconds.",
   },
 ] as const;
 
@@ -45,14 +45,14 @@ export function AtlasGuestLanding({
             tone="green"
             className="reveal reveal-1 glass-surface glass-lit border-hairline-accent shadow-card-edge"
             title="Sign in required"
-            reason="Log in with EVE Online to create a map, open one shared with you, or follow your pilots as they jump."
+            reason="Sign in to access maps and tracking."
             action={<EveSignInButton callbackURL={returnHref} />}
           >
             {null}
           </AccessGate>
 
           <Card className="reveal reveal-2">
-            <SectionHeader size="md" label="Set up tracking" hint="after you sign in" />
+            <SectionHeader size="md" label="Set up tracking" />
             <ol data-atlas-guest-steps>
               {SETUP_STEPS.map((step, index) => (
                 <li

@@ -79,7 +79,6 @@ export default function JobsPage() {
         <PageHead
           crumb="jobs"
           title="Industry Jobs"
-          subtitle="Live job board for every linked character · flips to ready on schedule"
         />
         <Suspense fallback={<JobsLoading />}>
           <JobsContent />

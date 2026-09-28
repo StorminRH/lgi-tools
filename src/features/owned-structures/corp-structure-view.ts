@@ -34,8 +34,8 @@ export function deriveCorpCardView(corp: CorpStructurePageView): CorpCardView {
   return {
     hint: on ? 'sharing on' : 'sharing off',
     sharingBlurb: on
-      ? 'Members can pick these structures as build locations in the planner.'
-      : 'Sharing is off, so only Station Managers and Directors can pick these structures in the planner.',
+      ? 'Sharing on'
+      : 'Sharing off',
     isEmpty: corp.structures.length === 0,
   };
 }

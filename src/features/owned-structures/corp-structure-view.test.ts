@@ -55,7 +55,7 @@ describe('deriveCorpCardView', () => {
   it('says members can pick the structures when sharing is on', () => {
     expect(deriveCorpCardView(corp({ sharing: 'on', structures: [structure({})] }))).toEqual({
       hint: 'sharing on',
-      sharingBlurb: 'Members can pick these structures as build locations in the planner.',
+      sharingBlurb: 'Sharing on',
       isEmpty: false,
     });
   });
@@ -63,7 +63,7 @@ describe('deriveCorpCardView', () => {
   it('says only managers can pick the structures when sharing is off', () => {
     expect(deriveCorpCardView(corp({ sharing: 'off' }))).toEqual({
       hint: 'sharing off',
-      sharingBlurb: 'Sharing is off, so only Station Managers and Directors can pick these structures in the planner.',
+      sharingBlurb: 'Sharing off',
       isEmpty: true,
     });
   });

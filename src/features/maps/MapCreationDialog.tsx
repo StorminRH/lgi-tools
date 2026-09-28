@@ -232,7 +232,6 @@ function CreationForm({
       <DialogHeader
         titleId={titleId}
         title="Create map"
-        description="Name the chain and explicitly assign any delegated access."
         closeLabel="Close map creation"
       />
 

@@ -206,7 +206,7 @@ export function IndustryDashboardGrid({
     recents: {
       label: 'Recents',
       body: <RecentsPanel recent={recent} />,
-      hint: 'No blueprints viewed yet — search above and open one to start your history.',
+      hint: 'No recent blueprints.',
     },
     saved: {
       label: 'Templates',

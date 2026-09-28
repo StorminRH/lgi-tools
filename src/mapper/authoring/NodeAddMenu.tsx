@@ -84,8 +84,7 @@ export function NodeAddMenu({
             </DialogClose>
           </div>
           <p className="font-ui text-ui leading-relaxed text-muted">
-            Pick a destination system. Loops back to systems already on the map
-            are allowed.
+            Existing systems supported.
           </p>
           <TerminalSearch<SystemParams, SystemErr>
             initialValue=""
