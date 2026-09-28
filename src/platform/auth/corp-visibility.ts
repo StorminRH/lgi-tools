@@ -80,11 +80,13 @@ function knownMembers(members: CorpGrantInput['members']): KnownMember[] {
 
 /**
  * Switch off is self-service parity: a viewer sees only what one of their
- * characters could pull from ESI. Switch on mirrors the in-game view.
+ * characters could pull from ESI. Switch on mirrors the in-game view, and a
+ * viewer with no known-roles character sees nothing rather than an empty
+ * by-location rule, so the read scope drops the corp outright.
  */
-function holdingsRule(on: boolean, holds: Holds, byLocation: HoldingRule): HoldingRule {
+function holdingsRule(on: boolean, holds: Holds, byLocation: HoldingRule & { kind: 'by-location' }): HoldingRule {
   if (holds('Director')) return ALL;
-  if (!on) return NONE;
+  if (!on || byLocation.members.length === 0) return NONE;
   return holds('Accountant') ? ALL : byLocation;
 }
 

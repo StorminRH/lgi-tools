@@ -135,7 +135,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'entry-point', name: 'readRolesFor' },
+    refreshOwner: { kind: 'entry-point', name: 'resolveCorpViewer' },
     upstream: {
       kind: 'esi',
       specPaths: ['/characters/{character_id}/roles/'],

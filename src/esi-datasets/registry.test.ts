@@ -13,7 +13,7 @@ import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
 import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
-import { readRolesFor } from '@/composition/sync/owner-sync-port';
+import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   effectiveTtlMs,
@@ -53,7 +53,7 @@ const liveContext = {
     refreshAffiliations.name,
     refreshCorpStructuresForUser.name,
     refreshCharacterSheetForUser.name,
-    readRolesFor.name,
+    resolveCorpViewer.name,
   ]),
   engineDatasets: new Set<string>(SYNC_DATASETS),
 };

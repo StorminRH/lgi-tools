@@ -109,8 +109,8 @@ describe('compileCorpGrant rule table', () => {
       sharing: 'on',
       members: [{ characterId: 1, roles: { kind: 'unknown' }, base: NO_BASE }],
       expected: {
-        holdings: byLocation([]),
-        blueprints: byLocation([]),
+        holdings: none,
+        blueprints: none,
         structures: 'use',
         jobs: 'none',
         manageSharing: false,
