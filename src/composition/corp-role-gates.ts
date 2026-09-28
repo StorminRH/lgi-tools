@@ -31,11 +31,11 @@ async function corpRoleGate(
   return selection.kind === 'sufficient' ? { ok: true } : { ok: false, failure: missingRole };
 }
 
-export function directorGate(userId: string, corporationId: number): Promise<CorpRoleGateResult> {
+export function directorGate(userId: string, corporationId: number): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
   return corpRoleGate(userId, corporationId, ['Director'], forbiddenFailure('not_director', 'Requires the Director role'));
 }
 
-export function stationManagerGate(userId: string, corporationId: number): Promise<CorpRoleGateResult> {
+export function stationManagerGate(userId: string, corporationId: number): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
   return corpRoleGate(
     userId,
     corporationId,
