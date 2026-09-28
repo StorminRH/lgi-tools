@@ -10,7 +10,8 @@ import {
   setCorpStructureSharing,
   upsertCorpStructureRigs,
 } from './queries';
-import { corpStructureRigs, corpStructures, corpStructureSharing, corpStructureSyncs } from './schema';
+import { corpDataSharing } from '@/db/auth-schema';
+import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 
 vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
@@ -23,7 +24,7 @@ const harness = await createDbTestHarness({
   tables: [
     'corp_structures',
     'corp_structure_syncs',
-    'corp_structure_sharing',
+    'corp_data_sharing',
     'corp_structure_rigs',
   ],
   steerDbProxy: true,
@@ -45,7 +46,7 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
 
   it('disable WIPES the corp structures, sync state, and authored rigs (off ⇒ gone)', async () => {
     const corp = 9003;
-    await harness.db.insert(corpStructureSharing).values({ corporationId: corp, enabled: true, setBy: 7 });
+    await harness.db.insert(corpDataSharing).values({ corporationId: corp, enabled: true, setBy: 7 });
     await harness.db.insert(corpStructures).values({
       corporationId: corp,
       structureId: 600001,

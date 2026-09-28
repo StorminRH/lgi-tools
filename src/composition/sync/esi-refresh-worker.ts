@@ -65,6 +65,11 @@ const RUNNERS: Record<EsiRefreshDataset, RefreshJobRunner> = {
   owned_blueprints: runOwnedBlueprintsRefreshJob,
   owned_assets: runOwnedAssetsRefreshJob,
   character_sheet: runCharacterSheetRefreshJob,
+  corp_context: async (_userId, target) => ({
+    kind: 'failed_permanent',
+    target,
+    code: 'corp_context_sync_unwired',
+  }),
 };
 
 function targetOf(job: EsiRefreshJob): OwnerSyncTarget {

@@ -1,10 +1,12 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { corpDataSharing } from '@/db/auth-schema';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import type { ParsedCorpStructure } from './esi-projection';
-import { corpStructureRigs, corpStructures, corpStructureSharing, corpStructureSyncs } from './schema';
+import { readCorpSharing, setCorpSharing } from '@/platform/auth/corp-sharing-store';
+import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 import type { CorpStructureRow, CorpStructureSharingState, CorpStructuresSyncState } from './types';
 
 function corpStructuresTag(corporationId: number): string {
@@ -120,12 +122,7 @@ export async function stampCorpStructuresFresh(corporationId: number): Promise<v
 }
 
 export async function isCorpStructureSharingEnabled(corporationId: number): Promise<boolean> {
-  const rows = await db
-    .select({ enabled: corpStructureSharing.enabled })
-    .from(corpStructureSharing)
-    .where(eq(corpStructureSharing.corporationId, corporationId))
-    .limit(1);
-  return rows[0]?.enabled ?? false;
+  return (await readCorpSharing([corporationId])).get(corporationId) === 'on';
 }
 
 export async function readCorpStructureSharings(
@@ -134,13 +131,13 @@ export async function readCorpStructureSharings(
   if (corporationIds.length === 0) return new Map();
   const rows = await db
     .select({
-      corporationId: corpStructureSharing.corporationId,
-      enabled: corpStructureSharing.enabled,
-      setBy: corpStructureSharing.setBy,
-      setAt: corpStructureSharing.setAt,
+      corporationId: corpDataSharing.corporationId,
+      enabled: corpDataSharing.enabled,
+      setBy: corpDataSharing.setBy,
+      setAt: corpDataSharing.setAt,
     })
-    .from(corpStructureSharing)
-    .where(inArray(corpStructureSharing.corporationId, corporationIds));
+    .from(corpDataSharing)
+    .where(inArray(corpDataSharing.corporationId, corporationIds));
   return new Map(rows.map((r) => [r.corporationId, { enabled: r.enabled, setBy: r.setBy, setAt: r.setAt }]));
 }
 
@@ -149,14 +146,7 @@ export async function setCorpStructureSharing(
   enabled: boolean,
   setBy: number | null,
 ): Promise<void> {
-  const now = new Date();
-  await db
-    .insert(corpStructureSharing)
-    .values({ corporationId, enabled, setBy, setAt: now })
-    .onConflictDoUpdate({
-      target: corpStructureSharing.corporationId,
-      set: { enabled, setBy, setAt: now },
-    });
+  await setCorpSharing(corporationId, enabled, setBy);
   if (enabled) return;
   await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
   await db.delete(corpStructureSyncs).where(eq(corpStructureSyncs.corporationId, corporationId));

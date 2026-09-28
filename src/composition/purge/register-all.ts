@@ -4,6 +4,8 @@ import { purgeMapChain } from '@/composition/map-purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
 import { authPurgeContributor } from '@/platform/auth/purge';
+import { corpRolesPurgeContributor } from '@/platform/auth/corp-roles-purge';
+import { corpHoldingsPurgeContributor } from '@/data/corp-holdings/purge';
 import { industryJobsPurgeContributor } from '@/features/industry-jobs/purge';
 import { ownedAssetsPurgeContributor } from '@/features/owned-assets/purge';
 import { ownedBlueprintsPurgeContributor } from '@/features/owned-blueprints/purge';
@@ -33,6 +35,8 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   industryJobsPurgeContributor,
   ownedAssetsPurgeContributor,
   ownedBlueprintsPurgeContributor,
+  corpRolesPurgeContributor,
+  corpHoldingsPurgeContributor,
   esiSnapshotsPurgeContributor,
   esiRefreshJobsPurgeContributor,
   onlineStatusPurgeContributor,

@@ -470,6 +470,13 @@
       "when": 1790543048891,
       "tag": "0066_character_sheet_refresh_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1790610756214,
+      "tag": "0067_corp_role_sharing",
+      "breakpoints": true
     }
   ]
 }

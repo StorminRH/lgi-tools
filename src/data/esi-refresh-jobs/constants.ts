@@ -5,6 +5,7 @@ export const ESI_REFRESH_DATASETS = [
   'owned_blueprints',
   'owned_assets',
   'character_sheet',
+  'corp_context',
 ] as const;
 
 export const ESI_REFRESH_JOB_STATUSES = [
