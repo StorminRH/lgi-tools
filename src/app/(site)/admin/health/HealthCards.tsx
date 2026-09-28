@@ -51,14 +51,6 @@ const SERVICE_LEVEL_COLUMNS = [
     className: 'hidden whitespace-nowrap text-muted md:table-cell',
     headerClassName: 'hidden md:table-cell',
   },
-  {
-    key: 'owner',
-    label: 'Owner',
-    align: 'right',
-    render: (row) => row.owner,
-    className: 'hidden text-muted md:table-cell',
-    headerClassName: 'hidden md:table-cell',
-  },
 ] satisfies readonly StaticTableColumn<ServiceLevelRow>[];
 
 export async function ServiceLevelsCard({ range }: { range: DateRange }) {
