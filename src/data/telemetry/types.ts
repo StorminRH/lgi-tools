@@ -1,4 +1,4 @@
-export const CLIENT_USAGE_ACTIONS = ['page_view', 'terminal_search'] as const;
+export const CLIENT_USAGE_ACTIONS = ['page_view'] as const;
 
 export type ServerUsageAction =
   | 'auth_login'

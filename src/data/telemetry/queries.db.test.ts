@@ -158,12 +158,6 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
       },
       { action: 'page_view', characterId: null, timestamp: IN_RANGE, metadata: { path: '/planner' } },
       {
-        action: 'terminal_search',
-        characterId: CHAR_OLD,
-        timestamp: IN_RANGE,
-        metadata: { query: 'tritanium' },
-      },
-      {
         action: 'role_change',
         characterId: CHAR_OLD,
         timestamp: IN_RANGE,
@@ -302,7 +296,6 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
     await harness.db.insert(usageLogs).values([
       { timestamp: AT, action: 'page_view', characterId: CHAR_OLD, metadata: { path: '/' } },
       { timestamp: AT, action: 'page_view', characterId: null, metadata: { path: '/sites' } },
-      { timestamp: AT, action: 'terminal_search', characterId: CHAR_NEW, metadata: { query: 'x' } },
     ]);
 
     const before = await getDailyCounts(NEUTRALITY_RANGE);
