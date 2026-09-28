@@ -568,3 +568,25 @@ export async function enqueueAffectedMapAccessChanges(
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
   `);
 }
+
+/**
+ * Enqueues every map whose claims change when `movedCharacterIds` and the
+ * source user's own maps move to another user. Runs on the caller's
+ * transaction while `maps.user_id` still names the source. Delivery happens
+ * after commit: a revision reserved before commit is overwritten by a later one.
+ */
+export async function enqueueMergeReprojection(
+  database: AnyPgDb,
+  args: { sourceUserId: string; movedCharacterIds: readonly number[] },
+): Promise<PendingMapAccessChange[]> {
+  const selections = [
+    sql`SELECT ${maps.id} AS id FROM ${maps} WHERE ${maps.userId} = ${args.sourceUserId}`,
+    ...args.movedCharacterIds.map((characterId) => affectedMapIdsSelection(characterId)),
+  ];
+  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+    WITH affected AS (
+      ${sql.join(selections, sql` UNION `)}
+    )
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
+  `);
+}

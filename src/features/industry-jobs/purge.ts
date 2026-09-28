@@ -11,7 +11,9 @@ import {
 /**
  * Jobs and syncs are one snapshot per (user, corporation). A corporation the
  * survivor already has in EITHER table keeps the survivor's pair, so a merge
- * never splits a snapshot from its sync state.
+ * never splits a snapshot from its sync state. Both deletes run before either
+ * move: a moved jobs row must not make the survivor "own" the corporation
+ * when the syncs row is judged.
  */
 export async function mergeCorpJobsPaired(tx: MergeTx, subject: MergeSubject): Promise<void> {
   const kept = sql`
@@ -21,12 +23,15 @@ export async function mergeCorpJobsPaired(tx: MergeTx, subject: MergeSubject): P
     SELECT ${corpIndustryJobSyncs.corporationId} FROM ${corpIndustryJobSyncs}
     WHERE ${corpIndustryJobSyncs.userId} = ${subject.survivorUserId}
   `;
-  for (const table of [corpIndustryJobs, corpIndustryJobSyncs]) {
+  const pair = [corpIndustryJobs, corpIndustryJobSyncs] as const;
+  for (const table of pair) {
     await tx.execute(sql`
       DELETE FROM ${table}
       WHERE ${table.userId} = ${subject.sourceUserId}
         AND ${table.corporationId} IN (${kept})
     `);
+  }
+  for (const table of pair) {
     await tx.execute(sql`
       UPDATE ${table} SET user_id = ${subject.survivorUserId}
       WHERE ${table.userId} = ${subject.sourceUserId}
