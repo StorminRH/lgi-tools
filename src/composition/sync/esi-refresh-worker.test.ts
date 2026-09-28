@@ -52,6 +52,7 @@ vi.mock('@/data/esi-refresh-jobs/queries', () => ({
   recoverStaleRunningJobs: mocks.recover,
 }));
 vi.mock('@/lib/alerts', () => ({ alertEsiRefreshDeadLetter: mocks.alertDeadLetter }));
+vi.mock('./corp-context-sync', () => ({ runCorpContextRefreshJob: vi.fn() }));
 vi.mock('./corp-industry-jobs-sync', () => ({
   runCorporationIndustryJobsRefreshJob: mocks.runCorporationJobs,
 }));

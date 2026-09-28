@@ -1,7 +1,14 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { getCorpHoldingContext, readMemberBases, saveCorpProfile, saveHoldingNodes } from './queries';
+import {
+  getCorpHoldingContext,
+  readCorpProfileState,
+  readMemberBases,
+  saveCorpProfile,
+  saveHoldingNodes,
+  stampCorpProfileFresh,
+} from './queries';
 import { buildHoldingIndex, type CorpAssetItem, placeUnder } from './placement';
 import { corpHoldingNodes, corpMemberBases } from './schema';
 
@@ -136,6 +143,17 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
     expect(context.hq).toEqual({ kind: 'known', value: STATION });
     expect(context.divisionNames).toEqual({ 2: 'Ore' });
     expect(context.containerNames.get(CAN)).toBe('Ore Can');
+  });
+
+  it('reports no state before the first pass, then the save and stamp times', async () => {
+    expect(await readCorpProfileState(CORP)).toBeNull();
+
+    await saveCorpProfile(CORP, profile, [], NOW);
+    expect(await readCorpProfileState(CORP)).toEqual({ lastRefreshedAt: NOW });
+
+    const later = new Date('2026-09-28T11:00:00.000Z');
+    await stampCorpProfileFresh(CORP, later);
+    expect(await readCorpProfileState(CORP)).toEqual({ lastRefreshedAt: later });
   });
 
   it('returns only the members with a row, and null for a member with no base', async () => {

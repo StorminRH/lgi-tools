@@ -11,6 +11,12 @@ export interface CorpProfile {
 
 export type CorpProfileRow = Omit<CorpProfile, 'pageEtags'>;
 
+export interface MemberBase {
+  readonly characterId: number;
+  /** null = the member has no base set. */
+  readonly baseId: number | null;
+}
+
 function namesById(names: Record<string, string>): ReadonlyMap<number, string> {
   return new Map(Object.entries(names).map(([id, name]) => [Number(id), name]));
 }

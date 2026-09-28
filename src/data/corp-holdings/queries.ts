@@ -3,7 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { chunk } from '@/lib/array';
-import { buildCorpHoldingContext, type CorpProfile } from './context';
+import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
 import { type CorpHoldingContext, type HoldingIndex, toHoldingNodes } from './placement';
 import { corpHoldingNodes, corpMemberBases, corpProfiles } from './schema';
 
@@ -15,12 +15,6 @@ function holdingsTag(corporationId: number): string {
 
 function profileTag(corporationId: number): string {
   return `corp-profile:${corporationId}`;
-}
-
-export interface MemberBase {
-  readonly characterId: number;
-  /** null = the member has no base set. */
-  readonly baseId: number | null;
 }
 
 async function readCorpHoldingRows(corporationId: number) {
@@ -110,6 +104,22 @@ export async function saveCorpProfile(
       });
   }
   revalidateTag(profileTag(corporationId), 'max');
+}
+
+export async function readCorpProfileState(corporationId: number): Promise<{ lastRefreshedAt: Date } | null> {
+  const rows = await db
+    .select({ lastRefreshedAt: corpProfiles.lastRefreshedAt })
+    .from(corpProfiles)
+    .where(eq(corpProfiles.corporationId, corporationId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function stampCorpProfileFresh(corporationId: number, refreshedAt: Date): Promise<void> {
+  await db
+    .update(corpProfiles)
+    .set({ lastRefreshedAt: refreshedAt })
+    .where(eq(corpProfiles.corporationId, corporationId));
 }
 
 export async function readMemberBases(

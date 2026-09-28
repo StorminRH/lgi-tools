@@ -30,6 +30,7 @@ import type {
 import { alertEsiRefreshDeadLetter } from '@/lib/alerts';
 import { swallow } from '@/transport/cron';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
+import { runCorpContextRefreshJob } from './corp-context-sync';
 import { runCorporationIndustryJobsRefreshJob } from './corp-industry-jobs-sync';
 import { runCharacterIndustryJobsRefreshJob } from './industry-jobs-sync';
 import { runOwnedAssetsRefreshJob } from './owned-assets-sync';
@@ -65,11 +66,7 @@ const RUNNERS: Record<EsiRefreshDataset, RefreshJobRunner> = {
   owned_blueprints: runOwnedBlueprintsRefreshJob,
   owned_assets: runOwnedAssetsRefreshJob,
   character_sheet: runCharacterSheetRefreshJob,
-  corp_context: async (_userId, target) => ({
-    kind: 'failed_permanent',
-    target,
-    code: 'corp_context_sync_unwired',
-  }),
+  corp_context: runCorpContextRefreshJob,
 };
 
 function targetOf(job: EsiRefreshJob): OwnerSyncTarget {
