@@ -35,7 +35,7 @@ describe('buildCorpHoldingContext', () => {
     expect(context.hq).toEqual({ kind: 'unknown' });
     expect(context.divisionNames).toEqual({});
     expect(context.containerNames.size).toBe(0);
-    expect(placeUnder(context.index, 1001, 'Unlocked')).toEqual({ kind: 'unplaced', rootId: 1001 });
+    expect(placeUnder(context.index, 1001, 'Unlocked')).toEqual({ kind: 'unplaced', rootId: null });
   });
 
   it('reads a profile with no home station as an unknown HQ', () => {

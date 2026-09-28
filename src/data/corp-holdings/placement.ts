@@ -142,9 +142,17 @@ function placeWithin(interior: Interior, flag: string): Placement {
   }
 }
 
-/** The one placement function, for asset and blueprint rows alike (both carry parent id + flag). */
+/**
+ * The one placement function, for asset and blueprint rows alike (both carry
+ * parent id + flag). The walk records every parent, stations and structures
+ * included, and blueprints are assets too, so a parent the index has never
+ * seen means the index is stale. Treating it as a root would let a CorpSAGn
+ * row under an unindexed office resolve to the 'other' tier with the office
+ * id as its root, so it fails closed instead.
+ */
 export function placeUnder(index: HoldingIndex, parentId: number, locationFlag: string): Placement {
-  return placeWithin(index.interiors.get(parentId) ?? { kind: 'root', rootId: parentId }, locationFlag);
+  const interior = index.interiors.get(parentId);
+  return interior === undefined ? { kind: 'unplaced', rootId: null } : placeWithin(interior, locationFlag);
 }
 
 function containerInterior(item: CorpAssetItem, placement: Placement): Interior {

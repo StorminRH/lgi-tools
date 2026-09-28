@@ -117,8 +117,12 @@ describe('placeUnder', () => {
     expect(placeUnder(index, 5002, 'Unlocked')).toEqual({ kind: 'unplaced', rootId: null });
   });
 
-  it('treats a missing parent as a root, so container contents fail closed', () => {
-    expect(placeUnder(index, 7777, 'Unlocked')).toEqual({ kind: 'unplaced', rootId: 7777 });
+  it('leaves a row under a parent the index has never seen unplaced with no root', () => {
+    expect(placeUnder(index, 7777, 'Unlocked')).toEqual({ kind: 'unplaced', rootId: null });
+  });
+
+  it('does not let a CorpSAG flag under an unindexed office pick a tier', () => {
+    expect(placeUnder(index, 7777, 'CorpSAG3')).toEqual({ kind: 'unplaced', rootId: null });
   });
 
   it('roots an office inside a corp-owned structure at the structure item', () => {
