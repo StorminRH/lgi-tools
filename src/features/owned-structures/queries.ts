@@ -5,7 +5,7 @@ import { corpDataSharing } from '@/db/auth-schema';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import type { ParsedCorpStructure } from './esi-projection';
-import { readCorpSharing, setCorpSharing } from '@/platform/auth/corp-sharing-store';
+import { setCorpSharing } from '@/platform/auth/corp-sharing-store';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 import type { CorpStructureRow, CorpStructureSharingState, CorpStructuresSyncState } from './types';
 
@@ -88,7 +88,6 @@ export async function saveCorpStructures(
   rows: ParsedCorpStructure[],
   etags: string[],
 ): Promise<void> {
-  if (!(await isCorpStructureSharingEnabled(corporationId))) return;
   const now = new Date();
   const securityByStructure = await deriveSecurityClasses(rows);
   await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
@@ -119,10 +118,6 @@ export async function stampCorpStructuresFresh(corporationId: number): Promise<v
     .update(corpStructureSyncs)
     .set({ lastRefreshedAt: new Date() })
     .where(eq(corpStructureSyncs.corporationId, corporationId));
-}
-
-export async function isCorpStructureSharingEnabled(corporationId: number): Promise<boolean> {
-  return (await readCorpSharing([corporationId])).get(corporationId) === 'on';
 }
 
 export async function readCorpStructureSharings(

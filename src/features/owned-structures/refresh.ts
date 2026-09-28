@@ -16,7 +16,6 @@ function makeDescriptor(port: CorpStructuresPort) {
     ownerOf: (_userId, corporationId) => ({ corporationId }),
     eligible: (owner) => canSyncCorpStructures(owner),
     requiredRoles: CORP_STRUCTURES_REQUIRED_ROLES,
-    precondition: (owner) => port.isSharingEnabled(owner.corporationId),
     isStale: STRUCTURES_FRESHNESS.isStale,
     readState: (owner) => port.readSyncState(owner.corporationId),
     fetchAndPlan: async (owner, accessToken, state) => {

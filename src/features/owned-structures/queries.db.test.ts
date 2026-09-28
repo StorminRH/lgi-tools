@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpStructureRigs,
-  isCorpStructureSharingEnabled,
   readCorpStructureSharings,
   readCorpStructureSyncState,
   saveCorpStructures,
@@ -26,19 +25,18 @@ const harness = await createDbTestHarness({
     'corp_structure_syncs',
     'corp_data_sharing',
     'corp_structure_rigs',
+    'eve_solar_systems',
   ],
   steerDbProxy: true,
 });
 
 describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queries against Postgres', () => {
   it('defaults sharing OFF for a corp with no row', async () => {
-    expect(await isCorpStructureSharingEnabled(9001)).toBe(false);
     expect((await readCorpStructureSharings([9001])).size).toBe(0);
   });
 
   it('enables sharing (upsert) and reflects it in the read', async () => {
     await setCorpStructureSharing(9002, true, 42);
-    expect(await isCorpStructureSharingEnabled(9002)).toBe(true);
     const sharings = await readCorpStructureSharings([9002]);
     expect(sharings.get(9002)?.enabled).toBe(true);
     expect(sharings.get(9002)?.setBy).toBe(42);
@@ -60,7 +58,7 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
 
     await setCorpStructureSharing(corp, false, 7);
 
-    expect(await isCorpStructureSharingEnabled(corp)).toBe(false);
+    expect((await readCorpStructureSharings([corp])).get(corp)?.enabled).toBe(false);
     expect(await readCorpStructureSyncState(corp)).toBeNull();
     expect((await getCorpStructureRigs([corp])).size).toBe(0);
     const remainingStructures = await harness.db
@@ -116,11 +114,14 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
     expect((await getCorpStructureRigs([corp])).get(600005)?.taxPct).toBeNull();
   });
 
-  it('saveCorpStructures no-ops when sharing is disabled (the resurrection guard)', async () => {
+  it('saves the corp structures whether or not sharing is on', async () => {
     const corp = 9006;
-    await saveCorpStructures(corp, [{ structure_id: 600004, type_id: 35825, system_id: 30000142, name: 'Ghost' }], []);
-    const rows = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
-    expect(rows).toHaveLength(0);
-    expect(await readCorpStructureSyncState(corp)).toBeNull();
+    await saveCorpStructures(corp, [{ structure_id: 600004, type_id: 35825, system_id: 30000142, name: 'Fort' }], ['"s1"']);
+    const rows = await harness.db
+      .select({ structureId: corpStructures.structureId, name: corpStructures.name })
+      .from(corpStructures)
+      .where(eq(corpStructures.corporationId, corp));
+    expect(rows).toEqual([{ structureId: 600004, name: 'Fort' }]);
+    expect((await readCorpStructureSyncState(corp))?.pageEtags).toEqual(['"s1"']);
   });
 });

@@ -57,7 +57,6 @@ export type CorpStructuresReadResult =
  */
 export interface CorpStructuresPort {
   now(): Date;
-  isSharingEnabled(corporationId: number): Promise<boolean>;
   listMembers(userId: string): Promise<RefreshCorpMember[]>;
   vendToken(characterId: number): Promise<string | null>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;

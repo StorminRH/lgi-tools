@@ -5,7 +5,6 @@ import { selectCorpCredential } from '@/platform/owner-sync';
 import {
   getCorpStructureRigs,
   getCorpStructures,
-  isCorpStructureSharingEnabled,
   listCorpStructureSyncStates,
   readCorpStructureSharings,
   readCorpStructureSyncState,
@@ -27,7 +26,6 @@ import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor
 function makeCorpStructuresPort(): CorpStructuresPort {
   return {
     now: () => new Date(),
-    isSharingEnabled: isCorpStructureSharingEnabled,
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesFor,

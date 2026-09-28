@@ -31,7 +31,6 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
 vi.mock('@/features/owned-structures/queries', () => ({
   getCorpStructureRigs: vi.fn(),
   getCorpStructures: mocks.getCorpStructures,
-  isCorpStructureSharingEnabled: vi.fn(),
   listCorpStructureSyncStates: mocks.listCorpStructureSyncStates,
   readCorpStructureSharings: mocks.readCorpStructureSharings,
   readCorpStructureSyncState: vi.fn(),
