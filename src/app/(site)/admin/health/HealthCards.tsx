@@ -79,7 +79,7 @@ export async function ServiceLevelsCard({ range }: { range: DateRange }) {
   );
   return (
     <Card>
-      <SectionHeader size="md" label="Service levels" hint="what to do when a line turns amber or red" />
+      <SectionHeader size="md" label="Service levels" />
       <StaticTable
         ariaLabel="Service levels"
         columns={SERVICE_LEVEL_COLUMNS}

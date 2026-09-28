@@ -25,8 +25,7 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     measures:
       'Share of recorded page and tool-read operations that completed without a failure category.',
     owner: 'operator',
-    responseAction:
-      'Read the failing capability’s recorded code and correlation id, then fix the failing read path before shipping anything else.',
+    responseAction: 'Check failed reads.',
     unit: 'percent',
   },
   {
@@ -35,8 +34,7 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     measures:
       'Share of recorded mutations that succeeded, excluding validation failures — a rejected bad request is the system working, not failing.',
     owner: 'operator',
-    responseAction:
-      'Identify the failing mutation capability and roll back or fix it; a sustained drop here means users cannot save their work.',
+    responseAction: 'Check failed saves and actions.',
     unit: 'percent',
   },
   {
@@ -45,8 +43,7 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     measures:
       '95th-percentile total duration across recorded read and mutation capabilities.',
     owner: 'operator',
-    responseAction:
-      'Compare the recorded per-dependency durations to find whether Neon, ESI, or our own work grew, and address that dependency.',
+    responseAction: 'Check slow operations.',
     unit: 'milliseconds',
   },
   {
@@ -55,8 +52,7 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     measures:
       'Share of ESI-dependent operations that were neither rate limited nor failed by the upstream service.',
     owner: 'ccp-upstream',
-    responseAction:
-      'Wait out CCP’s budget window; do not raise call volume. Confirm the shared budget gate is degrading as designed rather than retrying harder.',
+    responseAction: 'Check upstream errors and limits.',
     unit: 'percent',
   },
   {
@@ -65,8 +61,7 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     measures:
       'Active ESI-refresh jobs, plus jobs that exhausted their attempts and were dead-lettered.',
     owner: 'operator',
-    responseAction:
-      'Inspect the dead-letter reasons on the admin queue panel and requeue once the underlying cause is fixed; a rising backlog means owner data is going stale.',
+    responseAction: 'Review the refresh queue.',
     unit: 'count',
   },
 ];
