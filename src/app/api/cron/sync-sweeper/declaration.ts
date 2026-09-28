@@ -62,7 +62,7 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
       status: door.reason === 'convex_not_configured' ? 'skipped' : 'failed',
       reason: door.reason,
       ...base,
-      durationMs: Date.now() - started,
+      durationMs: door.reason === 'convex_not_configured' ? 0 : Date.now() - started,
     };
   }
   const { siteUrl, secret } = door;

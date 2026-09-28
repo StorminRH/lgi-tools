@@ -83,20 +83,20 @@ function AdminNavFrame({
   active,
   badges,
   range,
-  reveal,
+  entrance,
 }: {
   groups: readonly AdminNavGroup[];
   active: AdminSection | null;
   badges: AdminNavBadges;
   range: string | null;
-  reveal: boolean;
+  entrance: 'animate' | 'none';
 }) {
   const tree = <AdminNavTree groups={groups} active={active} badges={badges} range={range} />;
   return (
     <NavRailFrame
       title="Admin"
       current={active?.title ?? 'Choose a section'}
-      reveal={reveal}
+      entrance={entrance}
       mobileProps={{ 'data-admin-nav-mobile': true }}
       panelProps={{ 'data-admin-nav-rail': true }}
     >
@@ -117,7 +117,7 @@ export function AdminNavFallback({ groups }: { groups: readonly AdminNavGroup[] 
       active={deriveActiveAdminSection(usePathname(), groups)}
       badges={{}}
       range={null}
-      reveal
+      entrance="animate"
     />
   );
 }
@@ -135,7 +135,7 @@ export function AdminNav({
       active={deriveActiveAdminSection(usePathname(), groups)}
       badges={badges}
       range={useSearchParams().get('range')}
-      reveal={false}
+      entrance="none"
     />
   );
 }

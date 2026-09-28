@@ -54,6 +54,7 @@ function SettingsNavFrame({
   return (
     <NavRailFrame
       title="Settings"
+      entrance="animate"
       current={active?.title ?? 'Choose a section'}
       mobileProps={{ 'data-settings-nav-mobile': true }}
       panelProps={{ 'data-settings-nav-rail': true }}

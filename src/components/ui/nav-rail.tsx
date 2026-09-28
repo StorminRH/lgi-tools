@@ -13,20 +13,19 @@ import { eyebrow } from './type-roles';
 function NavRailPanel({
   className,
   children,
-  reveal = true,
+  entrance = 'animate',
   ...rest
 }: Omit<ComponentProps<'div'>, 'title'> & {
   children: ReactNode;
-  // False for a rail that replaces a Suspense fallback's rail: fading in
-  // again would blink a rail that is already on screen.
-  reveal?: boolean;
+  // Skip the entrance when replacing a Suspense fallback's visible rail.
+  entrance?: 'animate' | 'none';
 }) {
   return (
     <div
       {...rest}
       className={cn(
         cardSurface,
-        reveal && 'reveal reveal-1',
+        entrance === 'animate' && 'reveal reveal-1',
         'hidden min-w-0 p-2 lg:sticky lg:top-24 lg:block lg:self-start',
         className,
       )}
@@ -143,7 +142,7 @@ export function NavRailFrame({
   label = 'Section',
   current,
   children,
-  reveal = true,
+  entrance = 'animate',
   mobileProps,
   panelProps,
 }: {
@@ -151,7 +150,7 @@ export function NavRailFrame({
   label?: string;
   current: ReactNode;
   children: ReactNode;
-  reveal?: boolean;
+  entrance?: 'animate' | 'none';
   mobileProps?: ComponentProps<'div'> & { [key: `data-${string}`]: string | boolean };
   panelProps?: ComponentProps<'div'> & { [key: `data-${string}`]: string | boolean };
 }) {
@@ -160,7 +159,7 @@ export function NavRailFrame({
       <NavRailDrawer {...mobileProps} title={title} label={label} current={current}>
         {children}
       </NavRailDrawer>
-      <NavRailPanel {...panelProps} reveal={reveal}>
+      <NavRailPanel {...panelProps} entrance={entrance}>
         {children}
       </NavRailPanel>
     </>
