@@ -25,7 +25,6 @@ export default function AdminHealthPage({ searchParams }: { searchParams: RangeS
   return (
     <AdminPageFrame
       title="Health"
-      description="Service levels against their targets, the scheduled tasks, and the operational event log."
       rangeBasePath="/admin/health"
       fallbackLabel="Service levels"
     >

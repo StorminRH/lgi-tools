@@ -25,7 +25,6 @@ export default function AdminTrafficPage({ searchParams }: { searchParams: Range
   return (
     <AdminPageFrame
       title="Traffic"
-      description="How much the app is used, where visitors land and come from, and how often pilots return."
       rangeBasePath="/admin/traffic"
       fallbackLabel="Activity"
     >

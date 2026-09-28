@@ -308,7 +308,6 @@ export default function StaticsPage({
   return (
     <AdminPageFrame
       title="Wormhole statics"
-      description="Review the complete community-feed difference before it changes what the app serves."
       actions={<ActionForm action="refresh" label="Check feed now" />}
       fallbackLabel="Serving copy"
     >

@@ -37,7 +37,6 @@ export default function AdminSearchPage({ searchParams }: { searchParams: RangeS
   return (
     <AdminPageFrame
       title="Search"
-      description="Google Search Console: clicks, what people searched, and which pages Google has indexed."
       rangeBasePath="/admin/search"
       fallbackLabel="Performance"
     >

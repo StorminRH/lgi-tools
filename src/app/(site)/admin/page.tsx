@@ -34,7 +34,6 @@ export default function AdminOverviewPage({ searchParams }: { searchParams: Rang
   return (
     <AdminPageFrame
       title="Overview"
-      description="What needs you now, how each system is doing, and who is using the app."
       rangeBasePath="/admin"
       fallbackLabel="Needs attention"
     >
