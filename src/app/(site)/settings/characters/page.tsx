@@ -4,16 +4,14 @@ import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
-import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Collapsible } from '@/components/ui/collapsible';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
-import { SectionHeader } from '@/components/ui/section-header';
 import { getFullSession } from '@/composition/session';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
+import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
 import { SwitchCharacterForm } from '@/components/composition/account/SwitchCharacterForm';
 import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
@@ -142,20 +140,18 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
     <>
       {error ? <Callout label="Heads up">{error}</Callout> : null}
 
-      <Card className="reveal reveal-1">
-        <SectionHeader size="md" label="Your characters" hint={`${characters.length} linked`} />
-        {characters.length === 0 ? (
-          <EmptyState>No characters linked to this account.</EmptyState>
-        ) : (
-          characters.map((character) => (
-            <CharacterRow
-              key={character.characterId}
-              character={character}
-              isActive={character.characterId === session.characterId}
-              isOnlyCharacter={isOnlyCharacter}
-            />
-          ))
-        )}
+      <LinkedCharactersCard
+        label="Your characters"
+        count={characters.length}
+        rows={characters.map((character) => (
+          <CharacterRow
+            key={character.characterId}
+            character={character}
+            isActive={character.characterId === session.characterId}
+            isOnlyCharacter={isOnlyCharacter}
+          />
+        ))}
+      >
         <div className="border-t border-border-soft px-3.5 py-3">
           <LinkCharacterButton label="Link another character" />
         </div>
@@ -179,7 +175,7 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
           </Link>
           .
         </div>
-      </Card>
+      </LinkedCharactersCard>
     </>
   );
 }

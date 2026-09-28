@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const doors = vi.hoisted(() => ({
+  logUsageEvent: vi.fn().mockResolvedValue(undefined),
   mergeLocationTrackingState: vi.fn(),
   teardownLocationTracking: vi.fn(),
   deliverCapturedMapAccessChanges: vi.fn(),
@@ -33,10 +34,38 @@ vi.mock('@/composition/map-access-projection', () => ({
   },
 }));
 vi.mock('@/composition/purge/register-all', () => ({ PURGE_CONTRIBUTORS: [] }));
-vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: doors.logUsageEvent }));
 vi.mock('@/db', () => ({ directClient: {}, resolveLockConnectionUrl: () => 'postgres://direct' }));
 
-import { resolveMergePair, settleConvexAfterMerge, type MergeRequest } from './account-merge';
+import type { PostgresJsDb } from '@/lib/db-types';
+import { mergeUsers, resolveMergePair, settleConvexAfterMerge, type MergeRequest } from './account-merge';
+
+const { chain, state } = vi.hoisted(() => {
+  const state = { results: [] as unknown[], calls: { update: 0, delete: 0, execute: 0 } };
+  const chain: Record<string, unknown> = {
+    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
+  };
+  for (const method of ['select', 'from', 'where', 'orderBy', 'for', 'set', 'limit']) {
+    chain[method] = () => chain;
+  }
+  chain.update = () => {
+    state.calls.update += 1;
+    return chain;
+  };
+  chain.delete = () => {
+    state.calls.delete += 1;
+    return chain;
+  };
+  chain.execute = async () => {
+    state.calls.execute += 1;
+    return [];
+  };
+  return { chain, state };
+});
+
+const fakeDatabase = {
+  transaction: (work: (tx: unknown) => Promise<unknown>) => work(chain),
+} as unknown as PostgresJsDb;
 
 const request: MergeRequest = {
   linkingUserId: 'linker',
@@ -50,6 +79,9 @@ const captured = [{ mapId: 'map-1', version: 'v1' }];
 
 beforeEach(() => {
   doors.order.length = 0;
+  doors.logUsageEvent.mockClear();
+  state.results = [];
+  state.calls = { update: 0, delete: 0, execute: 0 };
   for (const door of [
     doors.mergeLocationTrackingState,
     doors.teardownLocationTracking,
@@ -83,6 +115,68 @@ describe('resolveMergePair', () => {
     expect(resolveMergePair(request, [linker, other], { ...proven, ownerHash: null })).toEqual({
       noop: 'owner-unverified',
     });
+  });
+});
+
+describe('mergeUsers', () => {
+  it('locks, re-checks, runs the rules, lifts the role, proves the source empty, deletes it last, and logs the merge', async () => {
+    state.results = [
+      [linker, other],
+      [{ userId: 'other', ownerHash: 'owner-one' }],
+      [{ accountId: '200' }, { accountId: 'not-a-character' }],
+      undefined,
+      undefined,
+    ];
+    const result = await mergeUsers(request, { database: fakeDatabase, contributors: [] });
+    expect(result).toEqual({
+      kind: 'merged',
+      survivorUserId: 'other',
+      sourceUserId: 'linker',
+      movedCharacterIds: [200],
+      captured: [],
+    });
+    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 12 });
+    expect(doors.logUsageEvent).toHaveBeenCalledWith({
+      action: 'auth_merge',
+      characterId: 100,
+      metadata: { sourceUserId: 'linker', survivorUserId: 'other', movedCharacterIds: [200] },
+    });
+  });
+
+  it('promotes the survivor when only the source was an admin', async () => {
+    state.results = [
+      [linker, { ...other, role: 'USER' as const }],
+      [{ userId: 'other', ownerHash: 'owner-one' }],
+      [],
+      undefined,
+      undefined,
+    ];
+    await mergeUsers(
+      { ...request, linkingUserId: 'linker', otherUserId: 'other' },
+      { database: fakeDatabase, contributors: [] },
+    );
+    expect(state.calls.update).toBe(0);
+
+    state.results = [
+      [{ ...linker, role: 'ADMIN' as const }, { ...other, role: 'USER' as const }],
+      [{ userId: 'other', ownerHash: 'owner-one' }],
+      [],
+      undefined,
+      undefined,
+      undefined,
+    ];
+    await mergeUsers(request, { database: fakeDatabase, contributors: [] });
+    expect(state.calls.update).toBe(1);
+  });
+
+  it('writes nothing and logs nothing when the locked picture says noop', async () => {
+    state.results = [[linker], [{ userId: 'other', ownerHash: 'owner-one' }]];
+    await expect(mergeUsers(request, { database: fakeDatabase })).resolves.toEqual({
+      kind: 'noop',
+      reason: 'source-gone',
+    });
+    expect(state.calls).toEqual({ update: 0, delete: 0, execute: 0 });
+    expect(doors.logUsageEvent).not.toHaveBeenCalled();
   });
 });
 

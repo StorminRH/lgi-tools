@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
+import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { purgeUserScope } from './characterLocationPurge';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
@@ -37,8 +37,8 @@ async function moveTrackingRow(
  * Account merge: tracking intent moves from the source user to the survivor
  * (the only per-user Convex state that is not rebuilt), the source's map
  * claims go (reprojection rebuilds the survivor's), then the source's
- * location state and access leases are drained like an account purge.
- * Runs before reprojection, which would otherwise delete the source's
+ * location state and access leases are drained by the account-purge
+ * mutation itself, in this same transaction. Runs before reprojection, which would otherwise delete the source's
  * tracking rows as revoked. Re-running with an empty source is a no-op.
  */
 export const mergeUserState = internalMutation({
@@ -67,7 +67,10 @@ export const mergeUserState = internalMutation({
     for (const claim of claims) {
       await ctx.db.delete(claim._id);
     }
-    const drained = await purgeUserScope(ctx, { userId: sourceUserId, characterId: null });
+    const drained = await ctx.runMutation(internal.characterLocationPurge.purgeForUser, {
+      userId: sourceUserId,
+      characterId: null,
+    });
     counts.deleted += claims.length + drained.deletedLocations + drained.deletedTracking;
     return counts;
   },

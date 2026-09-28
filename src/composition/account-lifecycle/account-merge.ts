@@ -49,16 +49,11 @@ export interface MergeDeps {
   readonly contributors?: readonly PurgeContributor[];
 }
 
-interface ProvenAccount {
-  readonly userId: string;
-  readonly ownerHash: string | null;
-}
-
 /** Re-checks the picture under the row locks; a concurrent merge, unlink, reassign or re-link converges to a noop. */
 export function resolveMergePair(
   request: MergeRequest,
   lockedUsers: readonly MergeCandidate[],
-  provenAccount: ProvenAccount | undefined,
+  provenAccount: { readonly userId: string; readonly ownerHash: string | null } | undefined,
 ): { survivor: MergeCandidate; source: MergeCandidate } | { noop: MergeNoopReason } {
   const linking = lockedUsers.find((candidate) => candidate.id === request.linkingUserId);
   const other = lockedUsers.find((candidate) => candidate.id === request.otherUserId);

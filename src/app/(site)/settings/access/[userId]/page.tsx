@@ -14,6 +14,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from '@/components/composition/account/AdminReassignCharacterForm';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
+import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
 import { requireAdminPage } from '@/composition/route-guards';
 import {
   getStoredActiveCharacterId,
@@ -191,23 +192,20 @@ async function UserDetailContent({
 
       {error ? <Callout label="Heads up">{error}</Callout> : null}
 
-      <Card className="reveal reveal-1">
-        <SectionHeader size="md" label="Linked characters" hint={`${characters.length} linked`} />
-        {characters.length === 0 ? (
-          <EmptyState>No characters linked to this account.</EmptyState>
-        ) : (
-          characters.map((character) => (
-            <CharacterAdminRow
-              key={character.characterId}
-              character={character}
-              userId={userId}
-              isActive={character.characterId === activeId}
-              isViewerSelf={view.isViewerSelf}
-              isOnlyCharacter={view.isOnlyCharacter}
-            />
-          ))
-        )}
-      </Card>
+      <LinkedCharactersCard
+        label="Linked characters"
+        count={characters.length}
+        rows={characters.map((character) => (
+          <CharacterAdminRow
+            key={character.characterId}
+            character={character}
+            userId={userId}
+            isActive={character.characterId === activeId}
+            isViewerSelf={view.isViewerSelf}
+            isOnlyCharacter={view.isOnlyCharacter}
+          />
+        ))}
+      />
 
       <Card className="reveal reveal-2">
         <SectionHeader size="md" label="Sessions" hint={`${sessionCount} active`} />

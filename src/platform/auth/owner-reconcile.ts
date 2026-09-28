@@ -1,15 +1,12 @@
 import type { CharacterRole } from './types';
 
 export interface ProofFacts {
-  /** `owner` claim of the EVE JWT just verified. */
   readonly jwtOwnerHash: string;
-  /** `account.owner_hash` as stored. */
   readonly columnOwnerHash: string | null;
   /** `owner` claim decoded from the row's stored access token; null when nothing is derivable. */
   readonly tokenOwnerHash: string | null;
-  /** User the account row sits on. */
   readonly accountUserId: string;
-  /** `link.userId` from the OAuth state; null on a plain sign-in. */
+  /** null on a plain sign-in */
   readonly linkingUserId: string | null;
 }
 

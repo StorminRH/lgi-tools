@@ -15,7 +15,7 @@ import {
  * move: a moved jobs row must not make the survivor "own" the corporation
  * when the syncs row is judged.
  */
-export async function mergeCorpJobsPaired(tx: MergeTx, subject: MergeSubject): Promise<void> {
+async function mergeCorpJobsPaired(tx: MergeTx, subject: MergeSubject): Promise<void> {
   const kept = sql`
     SELECT ${corpIndustryJobs.corporationId} FROM ${corpIndustryJobs}
     WHERE ${corpIndustryJobs.userId} = ${subject.survivorUserId}

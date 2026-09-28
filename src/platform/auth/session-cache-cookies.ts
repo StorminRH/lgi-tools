@@ -1,14 +1,11 @@
 import { parseCookies } from 'better-auth/cookies';
 import { serializeCookie, type CookieOptions } from 'better-call';
 
-type CacheCookie = { readonly name: string; readonly attributes: CookieOptions };
-
 export interface AuthCookieContext {
-  readonly authCookies: {
-    readonly sessionData: CacheCookie;
-    readonly accountData: CacheCookie;
-    readonly dontRememberToken: CacheCookie;
-  };
+  readonly authCookies: Record<
+    'sessionData' | 'accountData' | 'dontRememberToken',
+    { readonly name: string; readonly attributes: CookieOptions }
+  >;
 }
 
 /**

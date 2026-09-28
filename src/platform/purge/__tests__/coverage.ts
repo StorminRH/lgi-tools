@@ -188,6 +188,35 @@ function ruleFindings(rule: TableMergeRule): string[] {
   return [];
 }
 
+function expectedTableNames(
+  contributors: readonly Pick<PurgeContributor, 'claims' | 'retained'>[],
+): Set<string> {
+  return new Set(
+    contributors.flatMap((contributor) =>
+      [...contributor.claims, ...(contributor.retained ?? []).map((r) => r.table)].map(
+        (table) => getTableConfig(table).name,
+      ),
+    ),
+  );
+}
+
+function countDeclarations(
+  rules: readonly TableMergeRule[],
+  expected: ReadonlySet<string>,
+): { counts: Map<string, number>; findings: string[] } {
+  const counts = new Map<string, number>();
+  const findings: string[] = [];
+  for (const rule of rules) {
+    findings.push(...ruleFindings(rule));
+    for (const table of ruleTables(rule)) {
+      const name = getTableConfig(table).name;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+      if (!expected.has(name)) findings.push(`${name}: merge rule on a table no contributor claims or retains`);
+    }
+  }
+  return { counts, findings };
+}
+
 /**
  * Gate findings for the declared merge rules, sorted. Empty means every claimed
  * or retained table has exactly one rule and each rule matches the schema.
@@ -195,27 +224,13 @@ function ruleFindings(rule: TableMergeRule): string[] {
 export function findMergeRuleGaps(
   contributors: readonly Pick<PurgeContributor, 'claims' | 'retained' | 'merge'>[],
 ): string[] {
-  const expected = new Set(
-    contributors.flatMap((contributor) =>
-      [...contributor.claims, ...(contributor.retained ?? []).map((r) => r.table)].map(
-        (table) => getTableConfig(table).name,
-      ),
-    ),
+  const expected = expectedTableNames(contributors);
+  const { counts, findings } = countDeclarations(
+    contributors.flatMap((contributor) => contributor.merge),
+    expected,
   );
-  const declared = new Map<string, number>();
-  const findings: string[] = [];
-  for (const contributor of contributors) {
-    for (const rule of contributor.merge) {
-      findings.push(...ruleFindings(rule));
-      for (const table of ruleTables(rule)) {
-        const name = getTableConfig(table).name;
-        declared.set(name, (declared.get(name) ?? 0) + 1);
-        if (!expected.has(name)) findings.push(`${name}: merge rule on a table no contributor claims or retains`);
-      }
-    }
-  }
   for (const name of expected) {
-    const count = declared.get(name) ?? 0;
+    const count = counts.get(name) ?? 0;
     if (count === 0) findings.push(`${name}: no merge rule`);
     if (count > 1) findings.push(`${name}: ${count} merge rules`);
   }
