@@ -18,8 +18,7 @@ const mocks = vi.hoisted(() => ({
   readCorpSharing: vi.fn(),
   readCorpRoles: vi.fn(),
   getCorpHoldingContext: vi.fn(),
-  readCorpProfileState: vi.fn(),
-  readMemberBases: vi.fn(),
+  readCorpMemberContext: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({ after: mocks.after }));
@@ -33,8 +32,7 @@ vi.mock('@/platform/auth/corp-sharing-store', () => ({ readCorpSharing: mocks.re
 vi.mock('@/platform/auth/corp-roles-store', () => ({ readCorpRoles: mocks.readCorpRoles }));
 vi.mock('@/data/corp-holdings/queries', () => ({
   getCorpHoldingContext: mocks.getCorpHoldingContext,
-  readCorpProfileState: mocks.readCorpProfileState,
-  readMemberBases: mocks.readMemberBases,
+  readCorpMemberContext: mocks.readCorpMemberContext,
 }));
 
 import { resolveCorpViewer } from './corp-viewer';
@@ -96,6 +94,7 @@ const health = (characterId: number, missingScopes: string[] = []) => ({
 });
 
 const record = (roles: string[], rolesAtBase: string[] = []) => ({
+  corporationId: CORP,
   roles,
   rolesAtHq: [],
   rolesAtBase,
@@ -113,8 +112,7 @@ beforeEach(() => {
   mocks.getCorpHoldingContext.mockImplementation(async (corporationId: number) =>
     buildCorpHoldingContext(corporationId, [], { hqStationId: HQ, divisionNames: {}, containerNames: {}, structureNames: {} }),
   );
-  mocks.readCorpProfileState.mockResolvedValue({ lastRefreshedAt: NOW });
-  mocks.readMemberBases.mockResolvedValue(new Map());
+  mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: NOW, hqStationId: HQ, bases: new Map() });
   mocks.fetchAndStoreCorpRoles.mockResolvedValue(null);
 });
 
@@ -153,6 +151,40 @@ describe('resolveCorpViewer', () => {
     expect(mocks.fetchAndStoreCorpRoles).toHaveBeenCalledWith(ALICE);
     expect(viewer.corporations[0]?.grant.manageSharing).toBe(false);
     expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(HQ, 1))).toBe(true);
+  });
+
+  it('rejects freshly fetched Director roles associated with a different corporation', async () => {
+    mocks.fetchAndStoreCorpRoles.mockResolvedValue({ ...record(['Director']), corporationId: OTHER_CORP });
+    mocks.readCorpSharing.mockResolvedValue(new Map([[CORP, 'off']]));
+
+    const viewer = await resolveCorpViewer('u1');
+
+    expect(viewer.scope.corps).toEqual([]);
+    expect(viewer.corporations[0]?.grant.manageSharing).toBe(false);
+    expect(viewer.corporations[0]?.grant.structures).toBe('none');
+  });
+
+  it.each([null, new Date('2026-09-27T11:00:00Z')])('does not authorize from stale cached HQ data (%s)', async (lastRefreshedAt) => {
+    mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, [], { rolesAtHq: ['Hangar_Query_1'] })]));
+    mocks.readCorpMemberContext.mockResolvedValue(lastRefreshedAt === null ? null : {
+      lastRefreshedAt, hqStationId: HQ, bases: new Map([[ALICE, null]]),
+    });
+
+    const viewer = await resolveCorpViewer('u1');
+
+    expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(HQ, 1))).toBe(false);
+  });
+
+  it('uses the fresh snapshot HQ instead of the independently cached label context', async () => {
+    mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, [], { rolesAtHq: ['Hangar_Query_1'] })]));
+    mocks.readCorpMemberContext.mockResolvedValue({
+      lastRefreshedAt: NOW, hqStationId: ELSEWHERE, bases: new Map([[ALICE, null]]),
+    });
+
+    const viewer = await resolveCorpViewer('u1');
+
+    expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(HQ, 1))).toBe(false);
+    expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(ELSEWHERE, 1))).toBe(true);
   });
 
   it('hides the corp from a non-Director when the inline fetch fails, without erroring', async () => {
@@ -214,11 +246,11 @@ describe('resolveCorpViewer', () => {
     mocks.readCorpRoles.mockResolvedValue(
       new Map([stored(ALICE, [], { rolesAtBase: ['Hangar_Query_4'] })]),
     );
-    mocks.readMemberBases.mockResolvedValue(new Map([[ALICE, BASE]]));
+    mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: NOW, hqStationId: HQ, bases: new Map([[ALICE, BASE]]) });
 
     const viewer = await resolveCorpViewer('u1');
 
-    expect(mocks.readMemberBases).toHaveBeenCalledWith(CORP, [ALICE]);
+    expect(mocks.readCorpMemberContext).toHaveBeenCalledWith(CORP, [ALICE]);
     const rule = viewer.corporations[0]!.grant.holdings;
     expect(canSeeHolding(rule, hangar(BASE, 4))).toBe(true);
     expect(canSeeHolding(rule, hangar(HQ, 4))).toBe(false);
@@ -228,8 +260,7 @@ describe('resolveCorpViewer', () => {
     mocks.readCorpRoles.mockResolvedValue(
       new Map([stored(ALICE, [], { rolesAtBase: ['Hangar_Query_4'] })]),
     );
-    mocks.readMemberBases.mockResolvedValue(new Map([[ALICE, BASE]]));
-    mocks.readCorpProfileState.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-27T11:00:00Z') });
+    mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-27T11:00:00Z'), hqStationId: HQ, bases: new Map([[ALICE, BASE]]) });
 
     const viewer = await resolveCorpViewer('u1');
 
@@ -242,8 +273,7 @@ describe('resolveCorpViewer', () => {
     mocks.readCorpRoles.mockResolvedValue(
       new Map([stored(ALICE, [], { rolesAtBase: ['Hangar_Query_4'] })]),
     );
-    mocks.readMemberBases.mockResolvedValue(new Map([[ALICE, BASE]]));
-    mocks.readCorpProfileState.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-27T13:00:00Z') });
+    mocks.readCorpMemberContext.mockResolvedValue({ lastRefreshedAt: new Date('2026-09-27T13:00:00Z'), hqStationId: HQ, bases: new Map([[ALICE, BASE]]) });
 
     const viewer = await resolveCorpViewer('u1');
 
@@ -254,8 +284,7 @@ describe('resolveCorpViewer', () => {
     mocks.readCorpRoles.mockResolvedValue(
       new Map([stored(ALICE, [], { rolesAtBase: ['Hangar_Query_4'] })]),
     );
-    mocks.readMemberBases.mockResolvedValue(new Map([[ALICE, BASE]]));
-    mocks.readCorpProfileState.mockResolvedValue(null);
+    mocks.readCorpMemberContext.mockResolvedValue(null);
 
     const viewer = await resolveCorpViewer('u1');
 

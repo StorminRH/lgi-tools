@@ -21,7 +21,10 @@ async function corpRoleGate(
   const selection = await selectCorpCredential(
     access.characterIdsByCorporation[corporationId] ?? [],
     requiredRoles,
-    { vendToken: vendTokenFor, readRoles: probeAndStoreRoles },
+    {
+      vendToken: vendTokenFor,
+      readRoles: (characterId, accessToken) => probeAndStoreRoles(characterId, accessToken, corporationId),
+    },
   );
   return selection.kind === 'sufficient' ? { ok: true } : { ok: false, failure: missingRole };
 }

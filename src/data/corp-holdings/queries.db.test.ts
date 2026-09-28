@@ -4,13 +4,14 @@ import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpHoldingContext,
   readCorpProfileState,
-  readMemberBases,
-  saveCorpProfile,
+  readCorpMemberContext,
+  saveCorpProfile as persistCorpProfile,
   saveHoldingNodes,
   stampCorpProfileFresh,
 } from './queries';
 import { buildHoldingIndex, type CorpAssetItem, placeUnder } from './placement';
 import { corpHoldingNodes, corpMemberBases } from './schema';
+import type { CorpProfile, MemberBase } from './context';
 
 vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
@@ -24,6 +25,10 @@ const harness = await createDbTestHarness({
   steerDbProxy: true,
   resetBetweenTests: 'delete',
 });
+
+function saveCorpProfile(corporationId: number, profile: CorpProfile, bases: readonly MemberBase[], refreshedAt: Date) {
+  return persistCorpProfile(corporationId, profile, bases, refreshedAt, { database: harness.db });
+}
 
 const CORP = 98000001;
 const OTHER_CORP = 98000002;
@@ -146,9 +151,13 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
 
   it('reports no state before the first pass, then the save and stamp times', async () => {
     expect(await readCorpProfileState(CORP)).toBeNull();
+    expect(await readCorpMemberContext(CORP, [90001])).toBeNull();
 
     await saveCorpProfile(CORP, profile, [], NOW);
     expect(await readCorpProfileState(CORP)).toEqual({ lastRefreshedAt: NOW });
+    expect(await readCorpMemberContext(CORP, [])).toEqual({
+      lastRefreshedAt: NOW, hqStationId: STATION, bases: new Map(),
+    });
 
     const later = new Date('2026-09-28T11:00:00.000Z');
     await stampCorpProfileFresh(CORP, later);
@@ -166,13 +175,73 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
       NOW,
     );
 
-    expect(await readMemberBases(CORP, [90001, 90002, 90003])).toEqual(
+    expect((await readCorpMemberContext(CORP, [90001, 90002, 90003]))?.bases).toEqual(
       new Map([
         [90001, STATION],
         [90002, null],
       ]),
     );
-    expect(await readMemberBases(CORP, [])).toEqual(new Map());
+    expect((await readCorpMemberContext(CORP, []))?.bases).toEqual(new Map());
+  });
+
+  it('rolls the profile and member snapshot back together when a base write fails', async () => {
+    await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
+    await harness.sql`ALTER TABLE corp_member_bases ADD CONSTRAINT reject_test_base CHECK (base_id <> 60008494)`;
+    try {
+      await expect(saveCorpProfile(
+        CORP,
+        { ...profile, hqStationId: 60008494, divisionNames: { 2: 'Changed' } },
+        [{ characterId: 90002, baseId: 60008494 }],
+        new Date('2026-09-28T11:00:00.000Z'),
+      )).rejects.toThrow();
+      expect(await readCorpMemberContext(CORP, [90001, 90002])).toEqual({
+        lastRefreshedAt: NOW,
+        hqStationId: STATION,
+        bases: new Map([[90001, STATION]]),
+      });
+      expect((await getCorpHoldingContext(CORP)).divisionNames).toEqual(profile.divisionNames);
+    } finally {
+      await harness.sql`ALTER TABLE corp_member_bases DROP CONSTRAINT reject_test_base`;
+    }
+  });
+
+  it('serializes concurrent profile saves so the final member list belongs to the final profile', async () => {
+    await saveCorpProfile(CORP, profile, [{ characterId: 90001, baseId: STATION }], NOW);
+    const blocker = await harness.sql.reserve();
+    let saves: Promise<void[]> | undefined;
+    try {
+      await blocker`BEGIN`;
+      await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
+      await blocker`SELECT 1 FROM corp_profiles WHERE corporation_id = ${CORP} FOR UPDATE`;
+      const [holder] = await blocker<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+      saves = Promise.all([
+        saveCorpProfile(CORP, { ...profile, hqStationId: 60008494 }, [{ characterId: 90002, baseId: 60008494 }], NOW),
+        saveCorpProfile(CORP, { ...profile, hqStationId: 60011866 }, [{ characterId: 90003, baseId: 60011866 }], NOW),
+      ]);
+      await expect.poll(async () => {
+        const [row] = await harness.sql<{ count: number }[]>`
+          WITH RECURSIVE waiting AS (
+            SELECT pid FROM pg_stat_activity WHERE ${holder!.pid} = ANY(pg_blocking_pids(pid))
+            UNION
+            SELECT activity.pid FROM pg_stat_activity activity
+            JOIN waiting ON waiting.pid = ANY(pg_blocking_pids(activity.pid))
+          )
+          SELECT count(*)::integer AS count FROM waiting
+        `;
+        return row?.count;
+      }, { timeout: 3_000, interval: 20 }).toBe(2);
+      expect((await readCorpMemberContext(CORP, [90001, 90002, 90003]))?.bases).toEqual(new Map([[90001, STATION]]));
+      await blocker`COMMIT`;
+      await saves;
+      const snapshot = await readCorpMemberContext(CORP, [90001, 90002, 90003]);
+      expect(snapshot?.bases).toEqual(new Map([
+        snapshot?.hqStationId === 60008494 ? [90002, 60008494] : [90003, 60011866],
+      ]));
+    } finally {
+      await blocker`ROLLBACK`;
+      blocker.release();
+      await saves;
+    }
   });
 
   it('drops departed members and re-keys a member who moved in from another corp', async () => {
@@ -204,6 +273,6 @@ describe.skipIf(!harness.reachable)('corp profile and member bases against Postg
       { characterId: 90001, corporationId: CORP, baseId: null },
       { characterId: 90005, corporationId: CORP, baseId: STATION },
     ]);
-    expect(await readMemberBases(OTHER_CORP, [90005])).toEqual(new Map());
+    expect((await readCorpMemberContext(OTHER_CORP, [90005]))?.bases).toEqual(new Map());
   });
 });

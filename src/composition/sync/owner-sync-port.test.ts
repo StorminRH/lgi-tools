@@ -3,7 +3,8 @@ import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 
 const mocks = vi.hoisted(() => ({
   readEsiAuthed: vi.fn(),
-  upsertCorpRoles: vi.fn(async () => {}),
+  upsertCorpRoles: vi.fn(async () => true),
+  readRoleCorporationId: vi.fn(async (): Promise<number | null> => 98001),
   getFreshAccessTokenForCharacter: vi.fn(),
 }));
 
@@ -17,6 +18,7 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 
 vi.mock('@/platform/auth/corp-roles-store', () => ({
   upsertCorpRoles: mocks.upsertCorpRoles,
+  readRoleCorporationId: mocks.readRoleCorporationId,
 }));
 
 vi.mock('@/platform/esi/authed-read', () => ({
@@ -42,7 +44,8 @@ const storedRecord = {
 
 beforeEach(() => {
   mocks.readEsiAuthed.mockReset();
-  mocks.upsertCorpRoles.mockClear();
+  mocks.upsertCorpRoles.mockReset().mockResolvedValue(true);
+  mocks.readRoleCorporationId.mockReset().mockResolvedValue(98001);
   mocks.getFreshAccessTokenForCharacter.mockReset();
 });
 
@@ -52,7 +55,7 @@ describe('probeAndStoreRoles', () => {
 
     await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toEqual(['Director', 'Accountant']);
     expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles', 'access-token', null);
-    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date));
+    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
   });
 
   it('stores nothing and returns null for a body that is not a roles record', async () => {
@@ -79,6 +82,18 @@ describe('probeAndStoreRoles', () => {
     expect(mocks.upsertCorpRoles).not.toHaveBeenCalled();
   });
 
+  it('rejects another corporation before the ESI roles read', async () => {
+    await expect(probeAndStoreRoles(9001, 'access-token', 98002)).resolves.toBeNull();
+    expect(mocks.readEsiAuthed).not.toHaveBeenCalled();
+  });
+
+  it('rejects a corporation change during a bound roles read', async () => {
+    mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
+    mocks.upsertCorpRoles.mockResolvedValue(false);
+    await expect(probeAndStoreRoles(9001, 'access-token', 98001)).resolves.toBeNull();
+    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
+  });
+
   it('does not hide an unexpected failure', async () => {
     const failure = new Error('unexpected');
     mocks.readEsiAuthed.mockRejectedValue(failure);
@@ -92,9 +107,24 @@ describe('fetchAndStoreCorpRoles', () => {
     mocks.getFreshAccessTokenForCharacter.mockResolvedValue({ kind: 'ok', accessToken: 'vended', expiresAt: 1 });
     mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
 
-    await expect(fetchAndStoreCorpRoles(9001)).resolves.toEqual(storedRecord);
+    await expect(fetchAndStoreCorpRoles(9001)).resolves.toEqual({ ...storedRecord, characterId: 9001, corporationId: 98001, fetchedAt: expect.any(Date) });
     expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles', 'vended', null);
-    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date));
+    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
+  });
+
+  it('does not return roles when the affiliation changed while ESI was in flight', async () => {
+    mocks.getFreshAccessTokenForCharacter.mockResolvedValue({ kind: 'ok', accessToken: 'vended', expiresAt: 1 });
+    mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
+    mocks.upsertCorpRoles.mockResolvedValue(false);
+
+    await expect(fetchAndStoreCorpRoles(9001)).resolves.toBeNull();
+    expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date), 98001);
+  });
+
+  it('does not query roles without a known corporation', async () => {
+    mocks.readRoleCorporationId.mockResolvedValue(null);
+    await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toBeNull();
+    expect(mocks.readEsiAuthed).not.toHaveBeenCalled();
   });
 
   it('returns null without an ESI call when no token can be vended', async () => {

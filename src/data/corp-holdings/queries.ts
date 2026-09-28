@@ -1,6 +1,8 @@
 import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { db } from '@/db';
+import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import type { PostgresJsDb } from '@/lib/db-types';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { chunk } from '@/lib/array';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
@@ -79,24 +81,36 @@ export async function saveCorpProfile(
   profile: CorpProfile,
   bases: readonly MemberBase[],
   refreshedAt: Date,
+  options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  await db
-    .insert(corpProfiles)
-    .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })
-    .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } });
-  const kept = bases.map((base) => base.characterId);
-  await db
-    .delete(corpMemberBases)
-    .where(and(eq(corpMemberBases.corporationId, corporationId), notInArray(corpMemberBases.characterId, kept)));
-  if (bases.length > 0) {
-    await db
-      .insert(corpMemberBases)
-      .values(bases.map((base) => ({ corporationId, ...base })))
-      .onConflictDoUpdate({
-        target: corpMemberBases.characterId,
-        set: { corporationId, baseId: sql`excluded.base_id` },
-      });
+  let database = options.database;
+  if (database === undefined) {
+    resolveLockConnectionUrl();
+    database = drizzle(directClient);
   }
+  await database.transaction(async (tx) => {
+    // The profile write serializes corporation refreshes before replacing its bases.
+    // Freshness, HQ, and bases commit together as one authorization snapshot.
+    await tx
+      .insert(corpProfiles)
+      .values({ corporationId, ...profile, lastRefreshedAt: refreshedAt })
+      .onConflictDoUpdate({ target: corpProfiles.corporationId, set: { ...profile, lastRefreshedAt: refreshedAt } });
+    await tx
+      .delete(corpMemberBases)
+      .where(and(
+        eq(corpMemberBases.corporationId, corporationId),
+        notInArray(corpMemberBases.characterId, bases.map((base) => base.characterId)),
+      ));
+    if (bases.length > 0) {
+      await tx
+        .insert(corpMemberBases)
+        .values(bases.map((base) => ({ corporationId, ...base })))
+        .onConflictDoUpdate({
+          target: corpMemberBases.characterId,
+          set: { corporationId, baseId: sql`excluded.base_id` },
+        });
+    }
+  });
   revalidateTag(profileTag(corporationId), 'max');
 }
 
@@ -116,14 +130,28 @@ export async function stampCorpProfileFresh(corporationId: number, refreshedAt: 
     .where(eq(corpProfiles.corporationId, corporationId));
 }
 
-export async function readMemberBases(
+export async function readCorpMemberContext(
   corporationId: number,
   characterIds: readonly number[],
-): Promise<Map<number, number | null>> {
-  if (characterIds.length === 0) return new Map();
+): Promise<{ lastRefreshedAt: Date; hqStationId: number | null; bases: Map<number, number | null> } | null> {
   const rows = await db
-    .select({ characterId: corpMemberBases.characterId, baseId: corpMemberBases.baseId })
-    .from(corpMemberBases)
-    .where(and(eq(corpMemberBases.corporationId, corporationId), inArray(corpMemberBases.characterId, [...characterIds])));
-  return new Map(rows.map((row) => [row.characterId, row.baseId]));
+    .select({
+      lastRefreshedAt: corpProfiles.lastRefreshedAt,
+      hqStationId: corpProfiles.hqStationId,
+      characterId: corpMemberBases.characterId,
+      baseId: corpMemberBases.baseId,
+    })
+    .from(corpProfiles)
+    .leftJoin(corpMemberBases, and(
+      eq(corpMemberBases.corporationId, corpProfiles.corporationId),
+      inArray(corpMemberBases.characterId, [...characterIds]),
+    ))
+    .where(eq(corpProfiles.corporationId, corporationId));
+  const profile = rows[0];
+  if (profile === undefined) return null;
+  return {
+    lastRefreshedAt: profile.lastRefreshedAt,
+    hqStationId: profile.hqStationId,
+    bases: new Map(rows.flatMap((row) => row.characterId === null ? [] : [[row.characterId, row.baseId]])),
+  };
 }
