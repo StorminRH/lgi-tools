@@ -11,12 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { CorpSharingSettings } from '@/features/owned-structures/components/CorpSharingSettings';
-import type { CorpStructurePageView } from '@/features/owned-structures/types';
 import { accountPageSettings } from '@/platform/page-settings/account';
 import { resolvePageControls } from '@/platform/page-settings/controls';
 import { SectionHead } from '@/components/ui/section-head';
 import {
   type CorporationMembershipView,
+  type CorporationsView,
   deriveCorporationsView,
   settingsNeedsCorpSharing,
 } from './corporations-view';
@@ -47,8 +47,7 @@ function MembershipRow({ membership }: { membership: CorporationMembershipView }
   );
 }
 
-function MembershipsCard({ rows }: { rows: CorpStructurePageView[] }) {
-  const view = deriveCorporationsView(rows);
+function MembershipsCard({ view }: { view: CorporationsView }) {
   return (
     <Card className="reveal reveal-1">
       <SectionHeader size="md" label="Memberships" hint={view.membershipHint} />
@@ -94,7 +93,7 @@ async function CorporationsContent() {
   return (
     <>
       {view.managerCorps.length > 0 ? <CorpSharingSettings corps={view.managerCorps} /> : null}
-      <MembershipsCard rows={rows} />
+      <MembershipsCard view={view} />
     </>
   );
 }

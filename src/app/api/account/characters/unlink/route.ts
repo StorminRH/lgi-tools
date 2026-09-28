@@ -5,7 +5,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { problemResponse } from '@/transport/api-response';
-import { identityProjectionRunners, reprojectMapsForCharacter } from '@/composition/map-access-identity';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/composition/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
@@ -66,9 +66,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
       } catch (err) {
         console.error('[account/unlink] unlinkAccount failed', err);
-        await reprojectMapsForCharacter(characterId).catch((restoreError) =>
-          console.error('[account/unlink] map access restoration queued for retry', restoreError),
-        );
+        await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
         return redirectWithError(request, 'unlink_failed');
       }
 

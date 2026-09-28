@@ -20,7 +20,7 @@ export function settingsNeedsCorpSharing(models: readonly PageControlModel[]): b
   return models.some((m) => m.kind === 'feature' && m.id === 'corp-structure-sharing');
 }
 
-export function toManagerCorps(rows: readonly CorpStructurePageView[]): SharingCorpView[] {
+function toManagerCorps(rows: readonly CorpStructurePageView[]): SharingCorpView[] {
   return rows
     .filter((corp) => corp.isStationManager)
     .map((corp) => ({

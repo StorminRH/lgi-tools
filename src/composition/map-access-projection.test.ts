@@ -55,7 +55,6 @@ function affiliation(userId: string, characterId: number, corporationId: number 
 
 function resetProjectionMocks() {
   vi.resetAllMocks();
-  mocks.refreshAffiliationsWithOutcome.mockRejectedValue(new Error('ESI unavailable'));
   mocks.getUsersAffiliations.mockResolvedValue([]);
   mocks.getMapAccessSubject.mockResolvedValue({ userId: 'creator', archivedAt: null });
   mocks.getMapGrants.mockResolvedValue([]);
@@ -111,7 +110,6 @@ test('computes creator-only, batched union, unlinked, and missing-or-archived cl
   ]);
   expect(mocks.getMapAccessCandidateUserIds).toHaveBeenCalledExactlyOnceWith([42], [990]);
   expect(mocks.getUsersAffiliations).toHaveBeenCalledExactlyOnceWith(['multi', 'member']);
-  expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
 
   mocks.getMapGrants.mockResolvedValue([
     { ownerType: 'character', ownerId: 42, role: 'viewer' },
@@ -132,7 +130,7 @@ test('computes creator-only, batched union, unlinked, and missing-or-archived cl
   expect(mocks.getUsersAffiliations).not.toHaveBeenCalled();
 });
 
-test('excludes stale corp memberships, keeps remaining alt grants, and revokes known departures when ESI is down', async () => {
+test('keeps stale corp memberships, keeps remaining alt grants, and revokes known departures', async () => {
   resetProjectionMocks();
   mocks.getMapGrants.mockResolvedValue([
     { ownerType: 'character', ownerId: 42, role: 'viewer' },
@@ -145,7 +143,9 @@ test('excludes stale corp memberships, keeps remaining alt grants, and revokes k
     affiliation('stale-member', 43, 990, false),
   ]);
   await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-    { userId: 'creator', roles: ['admin'] }, { userId: 'direct', roles: ['viewer'] },
+    { userId: 'creator', roles: ['admin'] },
+    { userId: 'direct', roles: ['editor', 'viewer'] },
+    { userId: 'stale-member', roles: ['editor'] },
   ]);
 
   mocks.getMapGrants.mockResolvedValue([
@@ -172,7 +172,26 @@ test('excludes stale corp memberships, keeps remaining alt grants, and revokes k
   await expect(projectMapAccess('map-1')).resolves.toMatchObject({ deleted: 1 });
   const request = mocks.fetchWithTimeout.mock.calls[0]?.[1] as { body: string };
   expect(JSON.parse(request.body).claims).toEqual([{ userId: 'creator', roles: ['admin'] }]);
-  expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
+});
+
+test('trusts a cached corporation on a two-hour-old stamp and grants nothing to a departed null-corporation row', async () => {
+  resetProjectionMocks();
+  mocks.getMapGrants.mockResolvedValue([
+    { ownerType: 'character', ownerId: 44, role: 'viewer' },
+    { ownerType: 'corporation', ownerId: 990, role: 'editor' },
+  ]);
+  mocks.getMapAccessCandidateUserIds.mockResolvedValue(['stale-member', 'departed', 'departed-alt']);
+  mocks.getUsersAffiliations.mockResolvedValue([
+    affiliation('stale-member', 42, 990, false),
+    affiliation('departed', 43, null, false),
+    affiliation('departed-alt', 44, null),
+  ]);
+
+  await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
+    { userId: 'creator', roles: ['admin'] },
+    { userId: 'departed-alt', roles: ['viewer'] },
+    { userId: 'stale-member', roles: ['editor'] },
+  ]);
 });
 
 test('posts computed claims, refuses door/env/stale/purge failures, and does not deliver after cancellation', async () => {

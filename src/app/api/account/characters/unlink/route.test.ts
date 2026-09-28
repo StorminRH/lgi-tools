@@ -18,7 +18,7 @@ const repointActiveToOldestMock = vi.fn();
 const getStoredActiveCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const getOwnedMapIdsMock = vi.fn();
-const affectedMapIdsForCharacterMock = vi.fn();
+const enqueueAffectedMapAccessChangesMock = vi.fn();
 const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
@@ -45,9 +45,8 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 
 vi.mock('@/data/maps/queries', () => ({
   getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
-  affectedMapIdsForCharacter: (characterId: number) =>
-    affectedMapIdsForCharacterMock(characterId),
-  enqueueAffectedMapAccessChanges: async () => [],
+  enqueueAffectedMapAccessChanges: (characterId: number) =>
+    enqueueAffectedMapAccessChangesMock(characterId),
 }));
 
 vi.mock('@/composition/map-access-projection', () => ({
@@ -93,7 +92,7 @@ describe('POST /api/account/characters/unlink', () => {
     getStoredActiveCharacterIdMock.mockReset();
     logUsageEventMock.mockReset();
     getOwnedMapIdsMock.mockReset();
-    affectedMapIdsForCharacterMock.mockReset();
+    enqueueAffectedMapAccessChangesMock.mockReset();
     projectMapAccessMock.mockReset();
     teardownMapAccessProjectionMock.mockReset();
     purgeUserMapAccessProjectionMock.mockReset();
@@ -102,7 +101,7 @@ describe('POST /api/account/characters/unlink', () => {
     teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
     getOwnedMapIdsMock.mockResolvedValue([]);
-    affectedMapIdsForCharacterMock.mockResolvedValue([]);
+    enqueueAffectedMapAccessChangesMock.mockResolvedValue([]);
     projectMapAccessMock.mockResolvedValue({
       inserted: 0,
       updated: 0,
@@ -143,17 +142,20 @@ describe('POST /api/account/characters/unlink', () => {
       headers: expect.any(Headers),
     });
     expect(revokeUserMapClaimsMock).toHaveBeenCalledWith('eve-user-1', []);
+    expect(enqueueAffectedMapAccessChangesMock).toHaveBeenCalledWith(100);
+    expect(enqueueAffectedMapAccessChangesMock.mock.invocationCallOrder[0]).toBeLessThan(
+      revokeUserMapClaimsMock.mock.invocationCallOrder[0]!,
+    );
     expect(revokeUserMapClaimsMock.mock.invocationCallOrder[0]).toBeLessThan(
       unlinkAccountMock.mock.invocationCallOrder[0]!,
     );
-    expect(affectedMapIdsForCharacterMock).toHaveBeenCalledWith(100);
     expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
 
     unlinkAccountMock.mockClear();
     repointActiveToOldestMock.mockClear();
-    affectedMapIdsForCharacterMock.mockClear();
+    enqueueAffectedMapAccessChangesMock.mockClear();
     teardownLocationTrackingMock.mockClear();
     logUsageEventMock.mockClear();
     const inactive = await POST(buildRequest({ characterId: '200' }));
@@ -181,13 +183,16 @@ describe('POST /api/account/characters/unlink', () => {
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
-    expect(affectedMapIdsForCharacterMock).toHaveBeenCalledWith(200);
+    expect(enqueueAffectedMapAccessChangesMock.mock.calls).toEqual([[200], [200]]);
+    expect(enqueueAffectedMapAccessChangesMock.mock.invocationCallOrder[1]).toBeGreaterThan(
+      unlinkAccountMock.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('keeps the character linked when Convex revocation fails', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    affectedMapIdsForCharacterMock.mockResolvedValue(['map-1']);
+    enqueueAffectedMapAccessChangesMock.mockResolvedValueOnce([{ mapId: 'map-1', version: 'v1' }]);
     revokeUserMapClaimsMock.mockRejectedValue(new Error('Convex unavailable'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -200,12 +205,12 @@ describe('POST /api/account/characters/unlink', () => {
     errorSpy.mockRestore();
   });
 
-  it('keeps the character linked when map enumeration fails', async () => {
+  it('keeps the character linked when queuing the affected maps fails', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     getStoredActiveCharacterIdMock.mockResolvedValue(100);
     unlinkAccountMock.mockResolvedValue({ status: true });
-    affectedMapIdsForCharacterMock.mockRejectedValue(new Error('neon enumeration failed'));
+    enqueueAffectedMapAccessChangesMock.mockRejectedValue(new Error('neon enqueue failed'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const res = await POST(buildRequest({ characterId: '100' }));

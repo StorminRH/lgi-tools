@@ -105,11 +105,6 @@ function AdminNavFrame({
   );
 }
 
-// The rail reads ?range= and streams its badges, so it always resolves at
-// request time and replaces this fallback. Every admin route is a static
-// segment, so the fallback can prerender the active section, and the
-// resolved rail skips its entrance to take the fallback's place without a
-// blink.
 export function AdminNavFallback({ groups }: { groups: readonly AdminNavGroup[] }) {
   return (
     <AdminNavFrame

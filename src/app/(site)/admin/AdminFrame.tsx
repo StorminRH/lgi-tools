@@ -1,11 +1,11 @@
 import { Suspense, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionHead } from '@/components/ui/section-head';
 import { AdminGate } from './AdminGate';
 import { CardFallback } from './CardFallback';
 import { RangeControl } from './RangeControl';
 
-// The section head prerenders; everything under it waits on the admin gate.
 export function AdminPageFrame({
   title,
   description,
@@ -22,23 +22,23 @@ export function AdminPageFrame({
   children: ReactNode;
 }) {
   return (
-    <>
-      <SectionHead
-        title={title}
-        description={description}
-        meta={
-          actions || rangeBasePath ? (
-            <>
-              {actions}
-              {rangeBasePath ? <RangeControl basePath={rangeBasePath} /> : null}
-            </>
-          ) : undefined
-        }
-      />
-      <Suspense fallback={<CardFallback label={fallbackLabel} rows={5} />}>
-        <AdminGate>{children}</AdminGate>
-      </Suspense>
-    </>
+    <Suspense fallback={<LoadingLabel />}>
+      <AdminGate>
+        <SectionHead
+          title={title}
+          description={description}
+          meta={
+            actions || rangeBasePath ? (
+              <>
+                {actions}
+                {rangeBasePath ? <RangeControl basePath={rangeBasePath} /> : null}
+              </>
+            ) : undefined
+          }
+        />
+        <Suspense fallback={<CardFallback label={fallbackLabel} rows={5} />}>{children}</Suspense>
+      </AdminGate>
+    </Suspense>
   );
 }
 

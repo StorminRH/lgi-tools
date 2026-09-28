@@ -557,17 +557,6 @@ export function affectedMapIdsSelection(characterId: number): SQL {
   `;
 }
 
-export async function affectedMapIdsForCharacter(
-  characterId: number,
-  database: AnyPgDb = db,
-): Promise<string[]> {
-  const rows = await mapAuthorizationRows<{ id: string }>(
-    database,
-    affectedMapIdsSelection(characterId),
-  );
-  return rows.map((row) => row.id);
-}
-
 export async function enqueueAffectedMapAccessChanges(
   characterId: number,
   database: AnyPgDb = db,
