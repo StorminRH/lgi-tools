@@ -23,3 +23,9 @@
 @media (prefers-reduced-motion: reduce) {
   .signed-in-fold { transition: none; }
 }
+
+/* Consumers may reserve space while the returning-session hint is unresolved. */
+.signed-in-fold-pending { display: none; }
+.signed-in-fold[data-signed-in-hint]:not([data-settled]) + .signed-in-fold-pending {
+  display: block;
+}

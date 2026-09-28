@@ -102,10 +102,13 @@ export async function purgeTransferredCharacter(
     await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
     throw error;
   }
-  await identityProjectionRunners.runAfterCharacterUnlink({ userId: priorUserId, characterId, mapIds });
-  await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
-  await identityProjectionRunners.runAfterCharacterLinkChanged({
-    userId: priorUserId,
-    characterId,
-  });
+  try {
+    await identityProjectionRunners.runAfterCharacterUnlink({ userId: priorUserId, characterId, mapIds });
+  } finally {
+    await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
+    await identityProjectionRunners.runAfterCharacterLinkChanged({
+      userId: priorUserId,
+      characterId,
+    });
+  }
 }

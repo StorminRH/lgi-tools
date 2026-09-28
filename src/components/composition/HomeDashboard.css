@@ -1,6 +1,0 @@
-/* A returning pilot's hero folds before first paint; hold the board's space
- * until the session settles so the footer does not jump up and back. */
-.home-dashboard:has(> .signed-in-fold[data-signed-in-hint]:not([data-settled])) > .home-board-slot {
-  display: block;
-  min-height: 26rem;
-}

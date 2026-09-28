@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { convexClient } from '@/data/convex/client';
-import { atlasSignInReturnHref } from '@/features/maps/map-navigation';
+import { atlasMapHref } from '@/features/maps/map-navigation';
 import { TrackingControls } from '@/mapper';
 
 export function MapTrackingMenu() {
@@ -17,7 +17,7 @@ export function MapTrackingMenu() {
         <LinkCharacterButton
           label="Reconnect"
           emphasis="reconnect"
-          callbackURL={atlasSignInReturnHref(mapId)}
+          callbackURL={atlasMapHref(mapId)}
         />
       }
     />

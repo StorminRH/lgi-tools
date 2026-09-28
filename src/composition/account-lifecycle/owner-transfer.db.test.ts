@@ -3,6 +3,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
 import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
+import { netWorthDays } from '@/features/net-worth/schema';
 import {
   createDbTestHarness,
   seedCharacter as insertCharacter,
@@ -220,7 +221,16 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID, H1, { createdAt: new Date('2026-07-01T00:00:00Z') });
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, H1, { createdAt: new Date('2026-07-02T00:00:00Z') });
 
+    await harness.db.insert(netWorthDays).values([
+      { userId: SOURCE_ID, day: '2026-09-26', netWorth: 500, liquidIsk: 500, pilotsIncluded: 1, pilotsTotal: 2,
+        pilots: { [MOVED_CHAR]: { netWorth: 500, liquidIsk: 500 } }, recordedAt: new Date() },
+      { userId: SOURCE_ID, day: '2026-09-27', netWorth: 200, liquidIsk: 200, pilotsIncluded: 1, pilotsTotal: 2,
+        pilots: { [SURVIVOR_CHAR]: { netWorth: 200, liquidIsk: 200 } }, recordedAt: new Date() },
+    ]);
+
     await purgeTransferredCharacter(SOURCE_ID, MOVED_CHAR);
+
+    expect((await harness.db.select().from(netWorthDays)).map((row) => row.day)).toEqual(['2026-09-27']);
 
     const [source] = await harness.db
       .select({ email: user.email, activeCharacterId: user.activeCharacterId })

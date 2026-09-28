@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { usePreference } from '@/components/PreferencesProvider';
-import { MenuCheckboxItem, menuControlRow } from '@/components/ui/menu';
+import { MenuCheckboxItem, MenuGroup, menuControlRow } from '@/components/ui/menu';
 import { Select } from '@/components/ui/select';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
@@ -88,15 +88,7 @@ function TrackingControlsView({
   const showReconnect = characters.some((character) => character.needsLocationReconnect);
 
   return (
-    <div
-      data-map-tracking
-      className="flex flex-col pt-1"
-      role="group"
-      aria-label="Tracking"
-    >
-      <div className="px-3 pb-1.5 font-ui text-nav text-muted" aria-hidden="true">
-        Tracking
-      </div>
+    <MenuGroup data-map-tracking label="Tracking">
       {characters.length === 0 ? (
         <span className="px-3 pb-2 font-data text-micro text-muted">
           No linked characters
@@ -144,7 +136,7 @@ function TrackingControlsView({
           {reconnectAction}
         </div>
       ) : null}
-    </div>
+    </MenuGroup>
   );
 }
 

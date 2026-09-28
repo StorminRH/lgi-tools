@@ -2,7 +2,7 @@
 
 import { Menu as Base } from '@base-ui/react/menu';
 import { cva } from 'class-variance-authority';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { cn } from './cn';
 import {
   menuControlRow,
@@ -71,7 +71,7 @@ export function Menu({
   modal?: boolean;
   triggerClassName?: string;
   triggerProps?: MenuTriggerProps;
-  popupProps?: DataAttributes;
+  popupProps?: DataAttributes & { style?: CSSProperties };
   className?: string;
 }) {
   return (
@@ -112,4 +112,22 @@ export const MenuRadioGroup = Base.RadioGroup;
 export const MenuRadioItem = Base.RadioItem;
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;
 
-export { menuControlRow, menuRow, menuSection, menuSectionLabel, menuSeparator };
+export function MenuGroup({
+  label,
+  hideLabel = false,
+  children,
+  ...props
+}: DataAttributes & { label: string; hideLabel?: boolean; children: ReactNode }) {
+  return (
+    <div {...props} className={cn(menuSection, hideLabel && 'pt-1')} role="group" aria-label={label}>
+      {!hideLabel && (
+        <div className={menuSectionLabel} aria-hidden="true">
+          {label}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+export { menuControlRow, menuRow, menuSeparator };

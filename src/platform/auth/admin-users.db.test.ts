@@ -18,6 +18,7 @@ const runners = {
 import {
   CHARACTER_SEARCH_LIMIT,
   deleteLinkedCharacter,
+  getAccountTotals,
   getActiveSessionCount,
   getUserByCharacterId,
   getUserById,
@@ -172,6 +173,31 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).resolves.toBe(false);
   });
 
+  it('repairs the active character after operator unlink even if history erasure fails', async () => {
+    await harness.db.update(user).set({ activeCharacterId: MOVED_CHAR }).where(eq(user.id, SOURCE_ID));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
+    const failure = new Error('history deletion failed');
+    runners.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).rejects.toBe(failure);
+    expect(await getStoredActiveCharacterId(SOURCE_ID)).toBe(SURVIVOR_CHAR);
+    expect(await getUserByCharacterId(MOVED_CHAR)).toBeNull();
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: SOURCE_ID, characterId: MOVED_CHAR });
+  });
+
+  it.each([false, true])('finishes reassignment source cleanup when history erasure fails (survivor: %s)', async (survivor) => {
+    await harness.db.update(user).set({ activeCharacterId: MOVED_CHAR }).where(eq(user.id, SOURCE_ID));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
+    if (survivor) await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
+    const failure = new Error('history deletion failed');
+    runners.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(reassignCharacter({ characterId: MOVED_CHAR, fromUserId: SOURCE_ID, toUserId: TARGET_ID, runners })).rejects.toBe(failure);
+    expect(await getUserByCharacterId(MOVED_CHAR)).toMatchObject({ userId: TARGET_ID });
+    if (survivor) expect(await getStoredActiveCharacterId(SOURCE_ID)).toBe(SURVIVOR_CHAR);
+    else expect(await getUserById(SOURCE_ID)).toBeNull();
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: SOURCE_ID, characterId: MOVED_CHAR });
+  });
+
   it('counts only unexpired sessions and revokes the exact stored row count', async () => {
     await seedSession('future', SOURCE_ID, new Date(Date.now() + 60_000));
     await seedSession('expired', SOURCE_ID, new Date(Date.now() - 60_000));
@@ -179,6 +205,19 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(1);
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(2);
     await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(0);
+  });
+
+  it('counts every user and each distinct linked EVE character', async () => {
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
+    await harness.db.insert(account).values({
+      id: 'discord',
+      accountId: 'not-a-character',
+      providerId: 'discord',
+      userId: TARGET_ID,
+    });
+
+    await expect(getAccountTotals()).resolves.toEqual({ users: 2, characters: 2 });
   });
 
   it('moves the last character, deletes the emptied source, and cascades its sessions', async () => {
