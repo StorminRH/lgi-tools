@@ -34,6 +34,7 @@ const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
 const STRUCTURE_NAME_READS_PER_PASS = 10;
+const HOUR_MS = 3_600_000;
 
 function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
   if (!character.hasRefreshToken) return false;
@@ -118,6 +119,14 @@ async function readStructureNames(
   return names;
 }
 
+/** Rotates by the hour so structures that keep answering 403 cannot starve the rest past the per-pass cap. */
+function structureNameBatch(ids: readonly number[], now: Date): number[] {
+  const sorted = [...ids].sort((a, b) => a - b);
+  if (sorted.length <= STRUCTURE_NAME_READS_PER_PASS) return sorted;
+  const start = (Math.floor(now.getTime() / HOUR_MS) * STRUCTURE_NAME_READS_PER_PASS) % sorted.length;
+  return [...sorted.slice(start), ...sorted.slice(0, start)].slice(0, STRUCTURE_NAME_READS_PER_PASS);
+}
+
 async function planContext(
   port: CorpContextPort,
   owner: CorpOwner,
@@ -140,9 +149,7 @@ async function planContext(
   const containerIds = unnamedContainerIds(context.index, context.containerNames);
   const containerNames = await readContainerNames(port, corporationId, accessToken, containerIds);
   if (containerNames.kind === 'skip') return containerNames;
-  const structureIds = unnamedStructureIds(context.index, context.structureNames)
-    .sort((a, b) => a - b)
-    .slice(0, STRUCTURE_NAME_READS_PER_PASS);
+  const structureIds = structureNameBatch(unnamedStructureIds(context.index, context.structureNames), port.now());
   const structureNames = await readStructureNames(port, accessToken, structureIds);
   return {
     kind: 'save',

@@ -123,21 +123,34 @@ describe('refreshCorpContextForUser', () => {
     expect(saved.containerNames['10000']).toBe('Can 10000');
   });
 
-  it('reads at most ten unnamed structures per pass, lowest ids first', async () => {
+  it.each([
+    [
+      '2026-09-28T12:00:00Z',
+      [
+        1000000000086, 1000000000087, 1000000000088, 1000000000089, 1000000000090, 1000000000091, 1000000000092,
+        1000000000093, 1000000000094, 1000000000095,
+      ],
+    ],
+    [
+      '2026-09-28T13:00:00Z',
+      [
+        1000000000096, 1000000000097, 1000000000098, 1000000000099, 1000000000100, 1000000000086, 1000000000087,
+        1000000000088, 1000000000089, 1000000000090,
+      ],
+    ],
+  ])('reads ten unnamed structures per pass, rotating by the hour (%s)', async (at, expected) => {
     const structures = Array.from({ length: 15 }, (_unused, i) => item(1000000000100 - i, SYSTEM, 'solar_system', 'AutoFit', 35825));
     const contents = structures.map((structure, i) => item(40_000 + i, structure.itemId, 'item', 'CorpDeliveries'));
     const many = buildHoldingIndex([...structures, ...contents]);
     const port = makePort({
+      now: () => new Date(at),
       currentContext: vi.fn(async () => buildCorpHoldingContext(CORP, toHoldingNodes(many), null)),
       readStructure: vi.fn(async () => failed('esi_403')),
     });
 
     await refreshCorpContextForUser(port, 'u1');
 
-    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual([
-      1000000000086, 1000000000087, 1000000000088, 1000000000089, 1000000000090, 1000000000091, 1000000000092,
-      1000000000093, 1000000000094, 1000000000095,
-    ]);
+    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual(expected);
   });
 
   it('skips the pass and keeps the prior profile when a required read fails', async () => {
