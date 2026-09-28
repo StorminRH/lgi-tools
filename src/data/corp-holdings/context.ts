@@ -37,3 +37,11 @@ export function buildCorpHoldingContext(
     structureNames: namesById(profile?.structureNames ?? {}),
   };
 }
+
+/** Rows reach the labels only through a grant, so a corp missing here is a defensive empty context, not an error. */
+export function corpContextOf(
+  contexts: ReadonlyMap<number, CorpHoldingContext>,
+  corporationId: number,
+): CorpHoldingContext {
+  return contexts.get(corporationId) ?? buildCorpHoldingContext(corporationId, [], null);
+}

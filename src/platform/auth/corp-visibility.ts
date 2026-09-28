@@ -1,4 +1,4 @@
-import type { CorpHoldingContext, Knowable, Placement } from '@/data/corp-holdings/placement';
+import { type CorpHoldingContext, type Knowable, type Placement, placeUnder } from '@/data/corp-holdings/placement';
 import type { CharacterCorpRoles, CorpRole } from './corp-roles';
 
 /** No `corp_data_sharing` row reads as 'off'. */
@@ -167,4 +167,29 @@ export function canSeeHolding(rule: HoldingRule, placement: Placement): boolean 
   if (rule.kind === 'all') return true;
   if (placement.kind === 'unplaced') return false;
   return rule.members.some((member) => memberSees(member, rule.hq, placement));
+}
+
+export interface PlacedRow<T> {
+  readonly row: T;
+  readonly placement: Placement;
+}
+
+/**
+ * The per-viewer filter for asset and blueprint rows alike: each row is placed
+ * against the grant's index and kept only when the rule can see it, so a
+ * hidden row never reaches a sum, a held-by list or a best-copy pick.
+ */
+export function visiblePlacements<T extends { locationId: number; locationFlag: string }>(
+  rows: readonly T[],
+  rule: HoldingRule,
+  context: CorpHoldingContext,
+): PlacedRow<T>[] {
+  return rows
+    .map((row) => ({ row, placement: placeUnder(context.index, row.locationId, row.locationFlag) }))
+    .filter(({ placement }) => canSeeHolding(rule, placement));
+}
+
+/** The contexts the labels need, keyed by corp, from the same grants that filtered the rows. */
+export function contextsByCorp(scope: OwnedReadScope): ReadonlyMap<number, CorpHoldingContext> {
+  return new Map(scope.corps.map((grant) => [grant.corporationId, grant.context]));
 }

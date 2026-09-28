@@ -34,13 +34,13 @@ export const CORP_CONTEXT_SYNC_SCOPES = [
   'esi-universe.read_structures.v1',
 ] as const;
 
-export const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
+const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 
 const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
 
 /** A Director who has not reconnected for the new scopes is not eligible; the profile then stays unknown. */
-export function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
+function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
   if (!character.hasRefreshToken) return false;
   return !CORP_CONTEXT_SYNC_SCOPES.some((scope) => character.missingScopes.includes(scope));
 }

@@ -11,10 +11,6 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: mocks.getFreshAccessTokenForCharacter,
 }));
 
-vi.mock('@/composition/corp-access', () => ({
-  resolveUserCorpAccess: vi.fn(),
-}));
-
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(),
 }));

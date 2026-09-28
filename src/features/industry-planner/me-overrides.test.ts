@@ -163,6 +163,7 @@ describe('mapOwnedBlueprints', () => {
     ownerName: 'Lo-Gang Industries',
     locationName: 'Assembly Array',
     locationFlag: 'CorpSAG1',
+    containerName: null,
   };
 
   it('splits a response row into the compute ME map and the readout detail map', () => {
@@ -178,6 +179,7 @@ describe('mapOwnedBlueprints', () => {
             ownerName: 'Lo-Gang Industries',
             locationName: 'Assembly Array',
             locationFlag: 'CorpSAG1',
+            containerName: null,
           },
         ],
       ]),

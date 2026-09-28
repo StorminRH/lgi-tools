@@ -5,13 +5,16 @@ import {
   canSeeHolding,
   compileCorpGrant,
   compileReadScope,
+  contextsByCorp,
   type CorpGrantInput,
   type HoldingRule,
   type OwnedReadScope,
   possibleTiers,
   rolesAt,
   type SharingState,
+  visiblePlacements,
 } from './corp-visibility';
+import { buildHoldingIndex } from '@/data/corp-holdings/placement';
 
 const CORP = 98000001;
 const HQ = 60003760;
@@ -339,5 +342,37 @@ describe('compileReadScope', () => {
     // @ts-expect-error the brand is a module-private symbol, so only compileReadScope can mint a scope
     const forged: OwnedReadScope = { characterIds: [1], corps: [] };
     expect(compileReadScope(forged.characterIds, forged.corps).corps).toEqual([]);
+  });
+});
+
+describe('visiblePlacements', () => {
+  const OFFICE = 1001;
+  const index = buildHoldingIndex([
+    { itemId: OFFICE, typeId: 27, locationId: HQ, locationType: 'station', locationFlag: 'OfficeFolder' },
+    { itemId: 2001, typeId: 34, locationId: OFFICE, locationType: 'item', locationFlag: 'CorpSAG1' },
+  ]);
+  const placed = { ...context(), index };
+  const rows = [
+    { id: 'div1', locationId: OFFICE, locationFlag: 'CorpSAG1' },
+    { id: 'div2', locationId: OFFICE, locationFlag: 'CorpSAG2' },
+    { id: 'fuel', locationId: HQ, locationFlag: 'StructureFuel' },
+  ];
+
+  it('places each row against the index and keeps the ones the rule can see', () => {
+    const rule: HoldingRule = { kind: 'by-location', hq: KNOWN_HQ, members: [known(1, roles({ global: ['Hangar_Query_1'] }))].map((m) => ({ characterId: m.characterId, roles: m.roles.roles, base: m.base })) };
+    expect(visiblePlacements(rows, rule, placed)).toEqual([
+      { row: rows[0], placement: { kind: 'hangar', rootId: HQ, division: 1, containers: [] } },
+    ]);
+    expect(visiblePlacements(rows, { kind: 'all' }, placed).map(({ row }) => row.id)).toEqual(['div1', 'div2', 'fuel']);
+    expect(visiblePlacements(rows, { kind: 'none' }, placed)).toEqual([]);
+  });
+});
+
+describe('contextsByCorp', () => {
+  it('keys each in-scope grant\'s context by its corp', () => {
+    const grant = grantFor('on', [known(1, roles({ global: ['Director'] }))]).grant;
+    const contexts = contextsByCorp(compileReadScope([1], [grant]));
+    expect([...contexts.keys()]).toEqual([CORP]);
+    expect(contexts.get(CORP)?.hq).toEqual(KNOWN_HQ);
   });
 });

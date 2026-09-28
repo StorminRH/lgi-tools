@@ -1,12 +1,10 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { resolveUserCorpAccess } from '@/composition/corp-access';
 import { type CorpRolesRecord, parseCharacterRolesBody } from '@/platform/auth/corp-roles';
 import { upsertCorpRoles } from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed } from '@/platform/esi/authed-read';
-import type { OwnerKey } from '@/platform/owner-sync';
 import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
 
 export interface LinkedCharacterHealth {
@@ -27,14 +25,6 @@ export async function listCharactersWithHealth(userId: string): Promise<LinkedCh
       hasRefreshToken: character.hasRefreshToken,
     }).missingScopes,
   }));
-}
-
-export async function resolveOwnedOwnersForUser(userId: string): Promise<OwnerKey[]> {
-  const access = await resolveUserCorpAccess(userId);
-  return [
-    ...access.allCharacterIds.map((ownerId): OwnerKey => ({ ownerType: 'character', ownerId })),
-    ...access.corporationIds.map((ownerId): OwnerKey => ({ ownerType: 'corporation', ownerId })),
-  ];
 }
 
 export async function vendTokenFor(characterId: number): Promise<string | null> {

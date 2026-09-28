@@ -153,6 +153,8 @@ export interface OwnedBlueprintMeEntry {
   ownerName: string;
   locationName: string;
   locationFlag: string;
+  /** The in-game container the copy sits in, when it sits in one. */
+  containerName: string | null;
 }
 
 export interface OwnedBlueprintsResponse {
@@ -166,6 +168,8 @@ export interface AssetHolding {
   ownerName: string;
   locationName: string;
   locationFlag: string;
+  /** The in-game container the items sit in, when they sit in one. */
+  containerName: string | null;
   quantity: number;
 }
 

@@ -9,14 +9,13 @@ import {
 } from '@/data/esi-snapshots/queries';
 import { snapshotRequestHash } from '@/data/esi-snapshots/request-hash';
 import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
+import type { OwnedAsset } from '@/features/owned-assets/esi-projection';
 import { saveOwnedAssets } from '@/features/owned-assets/queries';
 import type { OwnerKey } from '@/platform/owner-sync';
 
-type AssetRows = Parameters<typeof saveOwnedAssets>[1];
-
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
-  rows: AssetRows,
+  rows: OwnedAsset[],
   etags: string[],
   source: EsiSnapshotSource,
 ): Promise<void> {
@@ -68,7 +67,7 @@ export async function saveOwnedAssetsFromSource(
 async function saveCorpHoldings(
   owner: OwnerKey,
   index: HoldingIndex,
-  rows: AssetRows,
+  rows: OwnedAsset[],
   etags: string[],
   snapshotId: number,
 ): Promise<'saved' | 'superseded'> {

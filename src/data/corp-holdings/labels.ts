@@ -1,4 +1,4 @@
-import type { CorpHoldingContext, HangarDivision, Placement } from './placement';
+import type { ContainerRef, CorpHoldingContext, HangarDivision, Placement } from './placement';
 
 /** The client's names for divisions the corp never renamed (jEveAssets uses the same fallback). */
 const DEFAULT_DIVISION_NAMES: Record<HangarDivision, string> = {
@@ -11,12 +11,22 @@ const DEFAULT_DIVISION_NAMES: Record<HangarDivision, string> = {
   7: '7th Division',
 };
 
-export interface PlacementLabel {
-  /** The structure name from the corp context; null when the caller resolves the NPC station or falls back. */
-  readonly rootName: string | null;
+const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
+const STRUCTURE_LABEL = 'Upwell structure';
+const UNKNOWN_LOCATION_LABEL = 'Unknown location';
+
+/** Resolved public names keyed by id, as resolveEntityNames returns them. */
+export type EntityNames = Readonly<Record<string, string>>;
+
+export type FormatStation = (name: string) => string;
+
+/** A corp holding the way the client shows it. */
+export interface CorpHoldingLabel {
+  /** The structure's name from the corp context, else the NPC station's public name, else a generic label. */
+  readonly locationName: string;
   /** The division's in-game name, 'Deliveries', or '' for an unplaced row. */
-  readonly hangar: string;
-  /** The innermost container's in-game name; null when there is no container or it is not named yet. */
+  readonly locationFlag: string;
+  /** The innermost container's in-game name, else its type name, else null when there is no container. */
   readonly containerName: string | null;
 }
 
@@ -24,18 +34,59 @@ function divisionName(division: HangarDivision, context: CorpHoldingContext): st
   return context.divisionNames[division] ?? DEFAULT_DIVISION_NAMES[division];
 }
 
-function rootName(rootId: number | null, context: CorpHoldingContext): string | null {
-  return rootId === null ? null : (context.structureNames.get(rootId) ?? null);
+function innermostContainer(placement: Placement): ContainerRef | undefined {
+  return placement.kind === 'unplaced' ? undefined : placement.containers.at(-1);
 }
 
-export function labelPlacement(placement: Placement, context: CorpHoldingContext): PlacementLabel {
-  if (placement.kind === 'unplaced') {
-    return { rootName: rootName(placement.rootId, context), hangar: '', containerName: null };
-  }
-  const innermost = placement.containers.at(-1);
+function isNpcStation(rootId: number): boolean {
+  return rootId < STRUCTURE_ID_FLOOR;
+}
+
+function publicRootName(rootId: number, names: EntityNames, formatStation: FormatStation): string {
+  if (!isNpcStation(rootId)) return STRUCTURE_LABEL;
+  const name = names[String(rootId)];
+  return name === undefined ? UNKNOWN_LOCATION_LABEL : formatStation(name);
+}
+
+function rootName(
+  rootId: number | null,
+  context: CorpHoldingContext,
+  names: EntityNames,
+  formatStation: FormatStation,
+): string {
+  if (rootId === null) return UNKNOWN_LOCATION_LABEL;
+  return context.structureNames.get(rootId) ?? publicRootName(rootId, names, formatStation);
+}
+
+function hangarName(placement: Placement, context: CorpHoldingContext): string {
+  if (placement.kind === 'unplaced') return '';
+  return placement.kind === 'hangar' ? divisionName(placement.division, context) : 'Deliveries';
+}
+
+function containerName(placement: Placement, context: CorpHoldingContext, names: EntityNames): string | null {
+  const container = innermostContainer(placement);
+  if (container === undefined) return null;
+  return context.containerNames.get(container.itemId) ?? names[String(container.typeId)] ?? null;
+}
+
+/** The public ids to resolve for this holding: an NPC station root and, when the corp has not named it, the container's type. */
+export function corpHoldingNameIds(placement: Placement, context: CorpHoldingContext): number[] {
+  const ids: number[] = [];
+  if (placement.rootId !== null && isNpcStation(placement.rootId)) ids.push(placement.rootId);
+  const container = innermostContainer(placement);
+  if (container !== undefined && !context.containerNames.has(container.itemId)) ids.push(container.typeId);
+  return ids;
+}
+
+export function labelCorpHolding(
+  placement: Placement,
+  context: CorpHoldingContext,
+  names: EntityNames,
+  formatStation: FormatStation,
+): CorpHoldingLabel {
   return {
-    rootName: rootName(placement.rootId, context),
-    hangar: placement.kind === 'hangar' ? divisionName(placement.division, context) : 'Deliveries',
-    containerName: innermost === undefined ? null : (context.containerNames.get(innermost.itemId) ?? null),
+    locationName: rootName(placement.rootId, context, names, formatStation),
+    locationFlag: hangarName(placement, context),
+    containerName: containerName(placement, context, names),
   };
 }
