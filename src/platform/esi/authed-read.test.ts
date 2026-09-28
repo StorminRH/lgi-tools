@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readEsiAuthed, readEsiPagedAuthed, type RlSnapshot } from './authed-read';
+import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed, type RlSnapshot } from './authed-read';
 import { __resetEsiGateForTests } from './index';
 
 const TOKEN = 'access-token-xyz';
@@ -96,6 +96,28 @@ describe('readEsiAuthed', () => {
     await readEsiAuthed('/characters/1/online', TOKEN, null, rl);
 
     expect(rl).toEqual({ rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null });
+  });
+
+  it('posts a JSON body with the bearer token and returns the fresh reply', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, [{ item_id: 3001, name: 'Ore Can' }]));
+
+    const read = await readEsiAuthedPost('/corporations/2/assets/names/', TOKEN, [3001]);
+
+    expect(read).toEqual({ kind: 'fresh', body: [{ item_id: 3001, name: 'Ore Can' }], etag: null, expiresAt: null });
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe('[3001]');
+    expect(authHeader(fetchSpy, 0).get('Authorization')).toBe(`Bearer ${TOKEN}`);
+    expect(authHeader(fetchSpy, 0).get('content-type')).toBe('application/json');
+  });
+
+  it('maps a failed POST to the same soft error shape as a GET', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(403));
+
+    await expect(readEsiAuthedPost('/corporations/2/assets/names/', TOKEN, [3001])).resolves.toEqual({
+      kind: 'error',
+      code: 'esi_403',
+    });
   });
 });
 
