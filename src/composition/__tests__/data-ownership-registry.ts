@@ -15,9 +15,11 @@ export type SliceId =
   | 'data/telemetry'
   | 'data/wh-observations'
   | 'data/wh-statics'
+  | 'features/character-sheet'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
+  | 'features/net-worth'
   | 'features/owned-assets'
   | 'features/owned-blueprints'
   | 'features/owned-structures'
@@ -26,6 +28,7 @@ export type SliceId =
   | 'platform/auth'
   | 'composition/account-lifecycle'
   | 'composition/pipelines'
+  | 'composition/synthetic-pilot-store.ts'
   | 'scripts';
 
 export type DataClassId =
@@ -457,6 +460,11 @@ export const DATA_OWNERSHIP = [
     ],
     writers: [
       {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Resets and recreates only the reserved synthetic user after local environment checks, session revocation, and owned map cleanup.',
+      },
+      {
         by: 'composition/account-lifecycle',
         reason:
           'Owns the whole-account deletion that must run after every slice purge contributor; sequencing it inside the auth slice would invert the composition direction.',
@@ -485,6 +493,11 @@ export const DATA_OWNERSHIP = [
       },
     ],
     writers: [
+      {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Creates the reserved token-free EVE account after rejecting conflicting character ownership and resetting the synthetic user.',
+      },
       {
         by: 'composition/account-lifecycle',
         reason:
@@ -519,6 +532,13 @@ export const DATA_OWNERSHIP = [
         by: 'data/telemetry',
         purpose:
           'Joins the character profile onto usage-log rows for the admin activity readout; telemetry holds the foreign key and never writes back.',
+      },
+    ],
+    writers: [
+      {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Clears the reserved synthetic character affiliations and restores its fixed profile during the local fixture reset.',
       },
     ],
     invariants: ['pk(character_id)'],
@@ -562,13 +582,41 @@ export const DATA_OWNERSHIP = [
     table: schema.mapAccess,
     owner: 'data/maps',
     reads: [],
+    writers: [
+      {
+        by: 'composition/synthetic-pilot-store.ts',
+        reason:
+          'Removes direct grants for the reserved synthetic character because those grants have no user foreign key.',
+      },
+    ],
     invariants: [
       'fk(map_id→maps.id)',
       'unique(map_id,owner_type,owner_id)',
     ],
     boundary: {
       kind: 'single-statement',
-      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds. Lifecycle archive tears the projection down only after the durable guard succeeds; restore re-projects only after its durable guard succeeds.',
+      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds. Lifecycle archive and restore enqueue the captured generation in the same statement as the lifecycle write, then tear down or re-project only after that write succeeds. Character-grant purge captures affected map ids, deletes those grants, and enqueues in one statement before captured delivery.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.pendingMapAccessChanges,
+    owner: 'data/maps',
+    reads: [],
+    writers: [
+      {
+        by: 'platform/auth',
+        reason: 'Affiliation updates atomically queue affected maps; successful projection acknowledges only the captured generation.',
+      },
+      {
+        by: 'data/maps',
+        reason: 'Authorized grant edits, lifecycle archive and restore, and character-grant purge enqueue the same pending generation in the same statement as the mutation.',
+      },
+    ],
+    invariants: ['fk(map_id→maps.id)', 'pk(map_id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One pending generation per map coalesces membership changes. Conditional acknowledgement preserves newer work; retries rotate to avoid starvation. Map deletion cascades pending work.',
     },
     dataClass: 'personal',
   },
@@ -586,6 +634,28 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: ['pk(character_id)'],
     boundary: SYNC_STAMP,
+    dataClass: 'personal',
+  },
+  {
+    table: schema.characterSheets,
+    owner: 'features/character-sheet',
+    reads: [],
+    invariants: ['pk(character_id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One jsonb envelope per section, saved with a keyed `insert … on conflict do update set sections = sections || excluded.sections`. Concurrent refreshes of different sections merge instead of clobbering, and a section\'s data, ETags and freshness stamp land in the same statement; the stamp is a `jsonb_set` on the section\'s refreshedAt.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.netWorthDays,
+    owner: 'features/net-worth',
+    reads: [],
+    invariants: ['fk(user_id→user.id)', 'pk(user_id,day)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One statement per board view: a data-modifying CTE upserts the account\'s row for the UTC day (last view of the day wins) and the outer DELETE prunes the account to its newest 365 days, ranked against the pre-statement rows plus today, so the snapshot and its prune land together on the transaction-free request path.',
+    },
     dataClass: 'personal',
   },
   {

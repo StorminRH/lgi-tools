@@ -48,7 +48,7 @@ export function Banner({
     <div
       role={appearance.role}
       className={cn(
-        'flex items-center gap-3 rounded-ctl border px-4 py-2.5 font-ui text-ui text-text shadow-card-edge',
+        'flex items-center gap-3 rounded-card border px-4 py-2.5 font-ui text-ui text-text shadow-card-edge',
         appearance.container,
         className,
       )}

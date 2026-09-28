@@ -1,9 +1,11 @@
 'use client';
 
+import { cn } from '@/components/ui/cn';
 import { type RefObject, useReducer, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, insetSurface } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -20,18 +22,21 @@ import {
 } from '@/platform/auth/account-actions';
 import { authClient } from '@/platform/auth/auth-client';
 import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '@/platform/auth/confirm-gate';
+import { forgetSignedInBrowser } from '@/platform/auth/reload-document-home';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
 export function AccountDangerZone({
   characters,
+  className,
 }: {
   characters: { characterId: number; name: string }[];
+  className?: string;
 }) {
   const [emptied, setEmptied] = useState(false);
   const onEmptied = () => setEmptied(true);
 
   return (
-    <Card>
+    <Card className={className}>
       <SectionHeader
         size="md"
         label={<span className="text-ui text-tone-red">Danger zone</span>}
@@ -47,7 +52,11 @@ export function AccountDangerZone({
               EVE data.
             </PopoverRow>
             <PopoverRow label="Unlink">
-              just detaches the character (on the roster above) — you can link it again later.
+              detaches the character from your account. Unlink characters on{' '}
+              <Link href="/settings/characters" className="text-tone-blue hover:underline">
+                Settings → Characters
+              </Link>
+              . You can link them again later.
             </PopoverRow>
           </Popover>
         }
@@ -164,20 +173,20 @@ function PurgeCharacterControl({
   async function onConfirm() {
     const outcome = await gate.run(
       () => runPurgeCharacter(characterId, apiFetch),
-      `Could not purge ${characterName}`,
+      'Purge failed',
     );
     if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();
     } else if (outcome.kind === 'stayed') {
       gate.reset();
-      toast.success(`${characterName}’s data was purged`);
+      toast.success('Character data purged');
       router.refresh();
     }
   }
 
   return (
-    <Card className="flex items-center justify-between gap-2 px-3 py-2">
+    <div className={cn(insetSurface, 'flex items-center justify-between gap-2 px-3 py-2')}>
       <span className="min-w-0 truncate font-data text-ui text-text">{characterName}</span>
       <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
       <ConfirmDialog
@@ -205,7 +214,7 @@ function PurgeCharacterControl({
         finalFocus={triggerRef}
         className="w-[min(380px,calc(100vw-2rem))]"
       />
-    </Card>
+    </div>
   );
 }
 
@@ -216,11 +225,12 @@ function LogoutEverywhereControl() {
   async function onConfirm() {
     const outcome = await gate.run(
       () => runLogoutEverywhere(apiFetch),
-      'Could not sign out everywhere',
+      'Sign-out failed',
     );
     if (outcome.kind === 'done') {
       const target = redirectTargetFor(outcome) ?? '/';
       void authClient.signOut().finally(() => {
+        forgetSignedInBrowser();
         window.location.href = target;
       });
     }
@@ -274,7 +284,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
 
   async function onConfirm() {
     if (!isDeleteAcknowledged(acknowledged)) return;
-    const outcome = await gate.run(() => runDeleteAccount(apiFetch), 'Could not delete your account');
+    const outcome = await gate.run(() => runDeleteAccount(apiFetch), 'Account deletion failed');
     if (outcome.kind === 'emptied') {
       gate.reset();
       onEmptied();

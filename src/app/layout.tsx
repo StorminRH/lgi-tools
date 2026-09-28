@@ -3,6 +3,7 @@ import { Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
+import { EntranceOnce } from "@/components/composition/EntranceOnce";
 import { TelemetryReporter } from "@/components/composition/TelemetryReporter";
 import { AuthProvider } from "@/platform/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/platform/auth/components/ConvexClientProvider";
@@ -90,6 +91,7 @@ export default function RootLayout({
           </PreferencesProvider>
         </AuthProvider>
         <Toaster />
+        <EntranceOnce />
         <Suspense fallback={null}>
           <TelemetryReporter />
         </Suspense>

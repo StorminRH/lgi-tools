@@ -5,7 +5,7 @@ import { APP_VERSION } from '@/config/app-version';
 export function Footer() {
   return (
     <PageFooter
-      className="pr-[150px]"
+      className="md:pr-[150px] max-md:pb-16"
       left={
         <span className="block max-w-[720px] text-muted tracking-[0.03em] leading-[1.7]">
           Lo-Gang Industries — EVE Online and all related marks are property of Fenris Creations.

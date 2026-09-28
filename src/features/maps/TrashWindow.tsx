@@ -1,5 +1,7 @@
 'use client';
 
+import { insetSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banner } from '@/components/ui/banner';
@@ -66,7 +68,7 @@ function TrashMapRows({
   return maps.map((map) => (
     <label
       key={map.id}
-      className="flex cursor-pointer items-center gap-3 rounded-ctl border border-border-soft bg-surface-sunk px-3 py-2"
+      className={cn(insetSurface, 'flex cursor-pointer items-center gap-3 px-3 py-2')}
     >
       <Checkbox
         checked={selected.has(map.id)}

@@ -324,11 +324,13 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
   if (tiers.length === 0) {
     return (
-      <div className="mt-7">
-        <SectionLabel>Build plan</SectionLabel>
-        <p className="mt-3 text-ui text-muted">
-          No build breakdown — this blueprint has no resolved inputs yet.
-        </p>
+      <div className="reveal reveal-3 mt-7">
+        <SectionLabel className="mb-cluster">Build plan</SectionLabel>
+        <Card>
+          <p className="px-3.5 py-3 text-ui text-muted">
+            No build breakdown — this blueprint has no resolved inputs yet.
+          </p>
+        </Card>
       </div>
     );
   }
@@ -336,7 +338,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
 
   return (
-    <div className="mt-7">
+    <div className="reveal reveal-3 mt-7">
       <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
           <SectionLabel>Build plan</SectionLabel>

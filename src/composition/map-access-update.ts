@@ -2,18 +2,22 @@ import { resolveMapPrincipals } from '@/composition/map-access';
 import {
   projectMapAccess,
   ProjectionUnavailableError,
+  requireCurrentProjection,
 } from '@/composition/map-access-projection';
 import type { UpdateMapAccessRequest } from '@/data/maps/api-contract';
 import { applyAuthorizedMapGrantChange } from '@/data/maps/queries';
+import { acknowledgeMapAccessChanges } from '@/platform/auth/affiliation-store';
 
 export type ResolvePrincipals = typeof resolveMapPrincipals;
 export type ApplyGrantChange = typeof applyAuthorizedMapGrantChange;
 export type ProjectAccess = typeof projectMapAccess;
+export type AcknowledgeAccess = typeof acknowledgeMapAccessChanges;
 
 export interface MapAccessUpdateDependencies {
   readonly resolvePrincipals?: ResolvePrincipals;
   readonly applyGrantChange?: ApplyGrantChange;
   readonly projectAccess?: ProjectAccess;
+  readonly acknowledgeAccess?: AcknowledgeAccess;
 }
 
 export type MapAccessUpdateResult =
@@ -34,15 +38,17 @@ export async function applyMapAccessUpdate(
   const applyGrantChange =
     dependencies.applyGrantChange ?? applyAuthorizedMapGrantChange;
   const projectAccess = dependencies.projectAccess ?? projectMapAccess;
+  const acknowledgeAccess = dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges;
   const principals = await resolvePrincipals(userId);
 
   const change = input.operation === 'upsert'
     ? { operation: input.operation, grant: input.grant }
     : { operation: input.operation, principal: input.principal };
-  const authorized = await applyGrantChange(userId, principals, input.mapId, change);
-  if (!authorized) return { ok: false, reason: 'forbidden' };
+  const pending = await applyGrantChange(userId, principals, input.mapId, change);
+  if (!pending) return { ok: false, reason: 'forbidden' };
   try {
-    await projectAccess(input.mapId);
+    requireCurrentProjection(await projectAccess(input.mapId));
+    await acknowledgeAccess([pending]);
     return { ok: true };
   } catch (cause) {
     if (cause instanceof ProjectionUnavailableError) {

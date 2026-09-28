@@ -1,0 +1,7 @@
+.industry-cur {
+  animation: industry-cur 1.1s step-end infinite;
+}
+@keyframes industry-cur { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .industry-cur { animation: none; }
+}

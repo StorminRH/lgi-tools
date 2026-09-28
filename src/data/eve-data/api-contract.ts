@@ -15,11 +15,17 @@ import type {
 } from './universe-assets';
 import {
   FAR_SIDE_WORMHOLE_CODE,
+  WORMHOLE_EFFECTS,
   WORMHOLE_SIZE_CLASSES,
   WORMHOLE_TYPE_CODE,
 } from './wormhole-contract';
 
 export const ENTITY_NAMES_MAX_IDS = 200;
+export const TYPE_NAMES_MAX_IDS = 200;
+
+export const typeNamesRequestSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(TYPE_NAMES_MAX_IDS),
+});
 
 export const entityNamesRequestSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
@@ -44,6 +50,16 @@ export const entityNamesEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/eve/names',
   request: entityNamesRequestSchema,
+  responses: {
+    200: jsonBody(entityNamesResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
+
+export const typeNamesEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/eve/type-names',
+  request: typeNamesRequestSchema,
   responses: {
     200: jsonBody(entityNamesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
@@ -96,8 +112,10 @@ const universeAssetManifestResponseSchema = z.object({
 const systemDirectoryEntrySchema = z.object({
   id: z.number().int(),
   name: z.string(),
+  regionName: z.string(),
   whClassId: z.number().int().nullable(),
   security: z.number().nullable(),
+  effect: z.enum(WORMHOLE_EFFECTS).nullable(),
 });
 
 const systemDirectoryResponseSchema = z.object({
@@ -138,10 +156,24 @@ const wormholeCodexEntrySchema = z.discriminatedUnion('farSide', [
   farSideWormholeCodexEntrySchema,
 ]) satisfies z.ZodType<WormholeCodexEntry>;
 
+const wormholeEffectEntrySchema = z.object({
+  effect: z.enum(WORMHOLE_EFFECTS),
+  wormholeClass: z.number().int(),
+  typeId: z.number().int().positive(),
+  modifiers: z.array(z.object({
+    attributeId: z.number().int(),
+    label: z.string(),
+    percent: z.number(),
+  })),
+});
+
 const wormholeCodexResponseSchema = z.object({
   version: universeAssetVersionSchema,
   types: z.array(wormholeCodexEntrySchema),
-}) satisfies z.ZodType<WormholeCodexAsset>;
+  // Defaults so a codex from an older asset layout still parses; only the
+  // effect lists go empty rather than the whole codex failing.
+  effects: z.array(wormholeEffectEntrySchema).default([]),
+}) satisfies z.ZodType<WormholeCodexAsset, unknown>;
 
 export const universeAssetManifestEndpoint = defineEndpoint({
   method: 'GET',

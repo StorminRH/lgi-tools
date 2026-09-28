@@ -4,7 +4,7 @@ import { useCallback, useRef, useState, type ReactNode, type UIEvent } from 'rea
 import { cn } from '@/components/ui/cn';
 import { scrollAreaStart } from '@/components/ui/scroll-area';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
-import { mapFrostedSurface } from '../map-frosted-surface';
+import { mapNestedSurface } from '../map-frosted-surface';
 import { MapWindow } from '../windows/MapWindow';
 import { ScannerSections } from './scanner-section-table';
 import {
@@ -21,7 +21,7 @@ function ScannerPasteHint() {
   return (
     <section
       data-scanner-paste-hint
-      className={cn(mapFrostedSurface, 'min-w-0 max-w-full')}
+      className={cn(mapNestedSurface, 'min-w-0 max-w-full')}
     >
       <h3 className="px-2.5 py-1.5 text-center font-ui text-label font-semibold text-isk">
         Paste signatures anywhere on the page.
@@ -106,6 +106,7 @@ export function ScannerWindowFrame({
   scannerSystemId,
   rows,
   missingIds,
+  updatedIds,
   canEdit,
   complete,
   now,
@@ -118,6 +119,7 @@ export function ScannerWindowFrame({
   readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];
   readonly missingIds: ReadonlySet<string>;
+  readonly updatedIds: ReadonlySet<string>;
   readonly canEdit: boolean;
   readonly complete: boolean;
   readonly now: number;
@@ -161,6 +163,7 @@ export function ScannerWindowFrame({
                 sections={sections}
                 scannerSystemId={scannerSystemId}
                 missingIds={missingIds}
+                updatedIds={updatedIds}
                 canEdit={canEdit}
                 resolveSiteId={resolveSiteId}
                 complete={complete}

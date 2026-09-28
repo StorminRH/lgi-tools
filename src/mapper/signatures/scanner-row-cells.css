@@ -1,0 +1,39 @@
+[data-signature-row] [data-signature-signal-fill] {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: var(--signature-signal, 0%);
+  background: var(--color-row-hover);
+  opacity: 0.65;
+}
+.map-signature-missing {
+  color: var(--color-tone-red-soft);
+  background: var(--color-pill-red-soft-bg);
+}
+/* A row the eliminator or jump resolver just filled in: an ISK edge and tint
+ * that hold briefly, then fade. The class lives about as long as the animation
+ * (SIGNATURE_UPDATE_FLASH_MS); reduced motion keeps it as a static mark. */
+.map-signature-updated {
+  animation: map-signature-updated 2.4s ease-in both;
+}
+@keyframes map-signature-updated {
+  0% {
+    box-shadow: inset 2px 0 0 var(--color-isk);
+    background-color: color-mix(in oklab, var(--color-isk) 24%, transparent);
+  }
+  30% {
+    box-shadow: inset 2px 0 0 var(--color-isk);
+    background-color: color-mix(in oklab, var(--color-isk) 14%, transparent);
+  }
+  100% {
+    box-shadow: inset 2px 0 0 transparent;
+    background-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-signature-updated {
+    animation: none;
+    box-shadow: inset 2px 0 0 var(--color-isk);
+    background-color: var(--color-isk-selected);
+  }
+}

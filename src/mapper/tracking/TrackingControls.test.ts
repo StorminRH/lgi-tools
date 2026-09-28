@@ -10,6 +10,8 @@ import { TrackingControls, TrackingHeartbeat } from './TrackingControls';
 
 const mocks = vi.hoisted(() => ({
   heartbeat: vi.fn(),
+  scannerCharacterId: null as number | null,
+  setScanner: vi.fn(),
   mutate: vi.fn(async () => ({ tracked: true })),
   queryResult: {
     tracked: [
@@ -95,8 +97,28 @@ vi.mock('@/components/ui/menu', () => ({
       },
       props.children,
     ),
+  menuControlRow: 'menu-control-row',
   menuSection: 'menu-section',
   menuSectionLabel: 'menu-section-label',
+}));
+
+vi.mock('@/components/PreferencesProvider', () => ({
+  usePreference: () => [mocks.scannerCharacterId, mocks.setScanner],
+}));
+
+vi.mock('@/components/ui/select', () => ({
+  Select: (props: {
+    value: string;
+    ariaLabel: string;
+    items: readonly { value: string; label: string }[];
+  }) =>
+    createElement(
+      'select',
+      { 'aria-label': props.ariaLabel, value: props.value, onChange: () => undefined },
+      props.items.map((item) =>
+        createElement('option', { key: item.value, value: item.value }, item.label),
+      ),
+    ),
 }));
 
 describe('TrackingControls', () => {
@@ -131,6 +153,10 @@ describe('TrackingControls', () => {
     expect(markup).toContain('aria-checked="false"');
     expect(markup).not.toContain('Cannot sync location');
     expect(markup).not.toContain('data-tracking-reconnect-action');
+    expect(markup).toContain('data-default-scanner');
+    expect(markup).toContain('aria-label="Default scanner"');
+    expect(markup).toContain('<option value="ask" selected="">Ask when unclear</option>');
+    expect(markup).toContain('<option value="202">Bob Own</option>');
 
     const view = element as ReactElement<{
       onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
@@ -171,6 +197,27 @@ describe('TrackingControls', () => {
       expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', []);
     } finally {
       mocks.afk.paused = false;
+    }
+  });
+
+  it('shows the chosen default scanner and hides the row for a single character', () => {
+    mocks.scannerCharacterId = 202;
+    try {
+      const element = TrackingControls({ mapId: 'map-a', reconnectAction });
+      if (!isValidElement(element)) throw new Error('tracking controls did not render');
+      expect(renderToStaticMarkup(element)).toContain(
+        '<option value="202" selected="">Bob Own</option>',
+      );
+      const removed = mocks.characters.splice(1, 1);
+      try {
+        const single = TrackingControls({ mapId: 'map-a', reconnectAction });
+        if (!isValidElement(single)) throw new Error('tracking controls did not render');
+        expect(renderToStaticMarkup(single)).not.toContain('data-default-scanner');
+      } finally {
+        mocks.characters.push(...removed);
+      }
+    } finally {
+      mocks.scannerCharacterId = null;
     }
   });
 });

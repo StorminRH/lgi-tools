@@ -1,3 +1,5 @@
+import { roundedLeaderPath } from '../windows/leader-path';
+
 export interface LeaderRect {
   readonly left: number;
   readonly right: number;
@@ -7,25 +9,43 @@ export interface LeaderRect {
 
 export interface EditorLeader {
   readonly bracket: { readonly x: number; readonly top: number; readonly bottom: number };
-  readonly line: {
-    readonly x1: number;
-    readonly y1: number;
-    readonly x2: number;
-    readonly y2: number;
-  };
+  /** Rounded connector from the bracket to the panel edge, drawn in that order. */
+  readonly path: string;
+  readonly end: { readonly x: number; readonly y: number };
 }
 
 const BRACKET_GAP_PX = 3;
 
 const MIN_BRACKET_PX = 10;
 
-const PANEL_INSET_PX = 8;
+/** Keeps the attach point clear of the panel's rounded corners. */
+const PANEL_INSET_PX = 18;
+
+/**
+ * How far above the row the card's attach point sits, so the card floats up
+ * and away from the scanner the way system cards rise off their disc.
+ */
+export const SCANNER_CARD_RISE_PX = 40;
+
+/** Level run off the bracket before the leader turns toward the card. */
+const STUB_PX = 12;
+
+/** Level run into the card edge after the turn. */
+const MIN_RUN_PX = 14;
+
+const CORNER_RADIUS_PX = 8;
 
 function clamp(value: number, low: number, high: number): number {
   if (high < low) return low;
   return Math.min(Math.max(value, low), high);
 }
 
+/**
+ * A bracket on the selected row's right edge and a callout to the card: a
+ * short level stub, a 45° turn toward the card's attach point, and a level
+ * run into its edge. The attach point sits SCANNER_CARD_RISE_PX above the
+ * row, clamped to the card's side when the card cannot reach that height.
+ */
 export function editorLeader(input: {
   readonly row: LeaderRect;
   readonly panel: LeaderRect;
@@ -50,20 +70,35 @@ export function editorLeader(input: {
   const bottom =
     clip === undefined ? floor : Math.min(floor, clip.bottom - origin.top);
   const middle = (top + bottom) / 2;
-  const panelTop = panel.top - origin.top;
-  const panelBottom = panel.bottom - origin.top;
+  const attachY = clamp(
+    middle - SCANNER_CARD_RISE_PX,
+    panel.top - origin.top + PANEL_INSET_PX,
+    panel.bottom - origin.top - PANEL_INSET_PX,
+  );
+  const start = { x, y: middle };
+  const end = { x: panelLeft, y: attachY };
+  const rise = attachY - middle;
+  const stubX = Math.min(x + STUB_PX, panelLeft);
+  const room = panelLeft - MIN_RUN_PX - stubX;
+  // Too little room to turn: run level into the panel, at the row's height
+  // when the panel spans it and at the nearest panel edge otherwise.
+  const levelY = clamp(
+    middle,
+    panel.top - origin.top + PANEL_INSET_PX,
+    panel.bottom - origin.top - PANEL_INSET_PX,
+  );
+  const points = Math.abs(rise) < 1 || room <= 0
+    ? [start, { x: panelLeft, y: levelY }]
+    : [
+        start,
+        { x: stubX, y: middle },
+        { x: stubX + Math.min(Math.abs(rise), room), y: attachY },
+        end,
+      ];
 
   return {
     bracket: { x, top, bottom },
-    line: {
-      x1: x,
-      y1: middle,
-      x2: panelLeft,
-      y2: clamp(
-        middle,
-        panelTop + PANEL_INSET_PX,
-        panelBottom - PANEL_INSET_PX,
-      ),
-    },
+    path: roundedLeaderPath(points, CORNER_RADIUS_PX),
+    end: points[points.length - 1] ?? end,
   };
 }

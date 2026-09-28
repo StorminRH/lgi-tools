@@ -1,5 +1,7 @@
 export const SYNC_DATASETS = ['characterLocation'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
+// Every dataset ever stored: retired rows must stay schema-valid until the sweep deletes them.
+export const SYNC_DATASET_HISTORY = ['onlineStatus', 'characterLocation'] as const;
 
 export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
   return (SYNC_DATASETS as readonly string[]).includes(dataset);

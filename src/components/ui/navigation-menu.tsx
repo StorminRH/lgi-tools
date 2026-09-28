@@ -8,7 +8,7 @@ import type { Tone } from './tones';
 
 export type NavigationMenuTone = Extract<Tone, 'neutral'>;
 
-const list = cva('flex items-stretch divide-x divide-border list-none m-0 p-0', {
+const list = cva('flex items-center gap-0.5 list-none m-0 p-0', {
   variants: {
     tone: {
       neutral: '',
@@ -25,13 +25,13 @@ export const navigationMenuLink = cva(
     variants: {
       placement: {
         desktop:
-          'relative px-6 ' +
-          'after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-isk after:opacity-0 ' +
-          'after:transition-opacity motion-reduce:after:transition-none',
+          'relative h-9 rounded-full px-3.5 ' +
+          'after:absolute after:inset-x-3.5 after:-bottom-[9px] after:h-px after:bg-isk after:opacity-0 ' +
+          'after:shadow-status-info after:transition-opacity motion-reduce:after:transition-none',
         menu: 'w-full border-b border-border-soft px-4 py-3',
       },
       active: {
-        true: 'text-name after:opacity-100',
+        true: 'text-name bg-row-on shadow-card-edge after:opacity-100',
         false: '',
       },
       disabled: {
@@ -43,7 +43,7 @@ export const navigationMenuLink = cva(
       {
         placement: 'desktop',
         disabled: false,
-        className: 'hover:bg-row-hover hover:text-name hover:after:opacity-80',
+        className: 'hover:bg-row-related hover:text-name',
       },
       {
         placement: 'menu',

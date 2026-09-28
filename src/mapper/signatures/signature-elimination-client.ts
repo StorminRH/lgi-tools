@@ -24,6 +24,20 @@ type EliminationAttempt =
 
 const eliminationBySystem = new Map<string, EliminationAttempt>();
 
+const eliminationListeners = new Set<
+  (mapId: string, systemId: number, signatureIds: readonly string[]) => void
+>();
+
+/** Hears every applied elimination this client requests; returns an unsubscribe. */
+export function subscribeEliminationApplied(
+  listener: (mapId: string, systemId: number, signatureIds: readonly string[]) => void,
+): () => void {
+  eliminationListeners.add(listener);
+  return () => {
+    eliminationListeners.delete(listener);
+  };
+}
+
 function systemKey(mapId: string, systemId: number): string {
   return `${mapId}:${systemId}`;
 }
@@ -53,22 +67,13 @@ function recordEliminationOutcome(
   eliminationBySystem.delete(key);
 }
 
-function signatureIdList(signatureIds: readonly string[]): string {
-  if (signatureIds.length === 1) return signatureIds[0]!;
-  if (signatureIds.length === 2) return `${signatureIds[0]} and ${signatureIds[1]}`;
-  return `${signatureIds.slice(0, -1).join(', ')}, and ${signatureIds.at(-1)}`;
-}
-
 function announceApplied(mapId: string, result: Extract<
   SignatureEliminationResponse['results'][number],
   { status: 'applied' }
 >): void {
   const { signatureIds, systemId } = result;
-  const verb = signatureIds.length === 1 ? 'has' : 'have';
-  toast.success(
-    `${signatureIdList(signatureIds)} ${verb} been identified.`,
-    { id: `signature-elimination:${mapId}:${systemId}` },
-  );
+  toast.success(signatureIds.length === 1 ? 'Signature identified' : 'Signatures identified');
+  for (const listener of eliminationListeners) listener(mapId, systemId, signatureIds);
 }
 
 async function requestEliminationAndAnnounce(

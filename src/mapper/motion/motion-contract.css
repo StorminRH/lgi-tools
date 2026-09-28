@@ -1,0 +1,340 @@
+[data-map-shell],
+[data-map-motion-scope] {
+  /* React Flow's own edge greys (#b1b1b7, selected #555) read darker when
+   * selected on a dark canvas. Route them through the palette instead. */
+  --xy-edge-stroke: var(--color-map-edge);
+  --xy-edge-stroke-selected: var(--color-map-edge-selected);
+  --map-motion-fast: 250ms;
+  --map-motion-mid: 1000ms;
+  --map-motion-slow: 1000ms;
+}
+
+@keyframes map-node-enter {
+  from { scale: 0.82; opacity: 0.25; }
+  to { scale: 1; opacity: 1; }
+}
+.map-node-enter {
+  animation: map-node-enter var(--map-motion-mid) var(--map-motion-ease, ease-out) both;
+}
+
+@keyframes map-node-exit {
+  to { scale: 0.78; opacity: 0; }
+}
+.map-node-exit {
+  animation: map-node-exit var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+@keyframes map-node-exit-heavy {
+  to { scale: 0.55; opacity: 0; }
+}
+.map-node-exit-heavy {
+  animation: map-node-exit-heavy var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+@keyframes map-node-breathe {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.045; }
+}
+[data-chain-node]:hover .map-node-disc,
+[data-chain-node-selected] .map-node-disc-wormhole,
+[data-chain-node-selected] .map-node-disc-planet {
+  box-shadow:
+    0 0 0 1px var(--color-card-glow-ring),
+    0 0 12px var(--color-card-glow-shadow);
+}
+[data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole, .map-node-disc-planet) {
+  animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
+}
+
+.map-node-disc-wormhole {
+  background: transparent;
+}
+
+.map-node-disc-planet {
+  background: transparent;
+  border-color: transparent;
+}
+
+.map-node-disc-wormhole [data-chain-node-classification],
+.map-node-disc-planet [data-chain-node-classification] {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 3px #000, 0 0 5px #000;
+}
+
+.map-node-disc-wormhole [data-chain-node-widgets],
+.map-node-disc-planet [data-chain-node-widgets],
+[data-chain-node]:has(.map-node-disc-wormhole) [data-chain-node-name] {
+  z-index: 1;
+}
+
+.map-node-disc [data-chain-node-classification] {
+  --chip-fs: var(--text-nav);
+
+  font-size: var(--chip-fs);
+}
+
+.react-flow__node.dragging [data-chain-node],
+.react-flow__node.dragging [data-chain-node] .map-node-disc {
+  animation: none;
+}
+
+@keyframes map-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes map-fade-out {
+  to { opacity: 0; }
+}
+
+.map-edge-fade-enter {
+  animation: map-fade-in var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-fade-exit {
+  animation: map-fade-out var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-fade-exit-heavy {
+  animation: map-fade-out var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+.react-flow__edge-path.map-edge-derived {
+  opacity: 0.45;
+}
+
+.react-flow__edge-path.map-edge-taper,
+.react-flow__edge.selected .react-flow__edge-path.map-edge-taper,
+.react-flow__edge.selectable:focus .react-flow__edge-path.map-edge-taper,
+.react-flow__edge.selectable:focus-visible .react-flow__edge-path.map-edge-taper,
+.react-flow__edge-path.map-edge-taper.map-edge-dying {
+  stroke: var(--map-edge-taper);
+}
+
+.react-flow__edge .map-edge-taper-stop {
+  stop-color: var(--xy-edge-stroke, var(--xy-edge-stroke-default));
+}
+.react-flow__edge.selected .map-edge-taper-stop,
+.react-flow__edge.selectable:focus .map-edge-taper-stop,
+.react-flow__edge.selectable:focus-visible .map-edge-taper-stop {
+  stop-color: var(--xy-edge-stroke-selected, var(--xy-edge-stroke-selected-default));
+}
+.react-flow__edge:has(.map-edge-dying) .map-edge-taper-stop {
+  stop-color: var(--color-alert-red);
+}
+
+.react-flow__edge.selectable {
+  pointer-events: stroke;
+}
+.react-flow__edge.selectable .react-flow__edge-interaction {
+  stroke: transparent;
+  /* Beats BaseEdge's inline stroke-opacity: 0 so visibleStroke/stroke can hit. */
+  stroke-opacity: 1 !important;
+}
+.react-flow__edge.selectable:hover .react-flow__edge-path {
+  filter: drop-shadow(0 0 6px var(--color-card-glow-shadow));
+}
+
+.map-pilot-arrow {
+  position: absolute;
+  pointer-events: none;
+  transform: var(--map-pilot-arrow-transform);
+}
+
+@keyframes map-edge-dying-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.react-flow__edge-path.map-edge-dying {
+  stroke: var(--color-alert-red);
+  --map-edge-dying-opacity: 0.7;
+
+  animation: map-edge-dying-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes map-edge-grow-enter {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes map-edge-grow-enter-rev {
+  from { stroke-dashoffset: -1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes map-edge-grow-exit {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1; }
+}
+@keyframes map-edge-grow-exit-rev {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1; }
+}
+.map-edge-grow-enter,
+.map-edge-grow-enter-rev,
+.map-edge-grow-exit,
+.map-edge-grow-exit-rev,
+.map-edge-grow-exit-heavy,
+.map-edge-grow-exit-heavy-rev {
+  stroke-dasharray: 1;
+}
+.map-edge-grow-enter {
+  animation: map-edge-grow-enter var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-grow-enter-rev {
+  animation: map-edge-grow-enter-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-grow-exit {
+  animation: map-edge-grow-exit var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-heavy {
+  animation: map-edge-grow-exit var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-heavy-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-node-enter {
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-node-exit {
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-node-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  [data-chain-node]:hover .map-node-disc:not(.map-node-disc-wormhole, .map-node-disc-planet) {
+    animation: none;
+  }
+  .map-edge-grow-enter,
+  .map-edge-grow-enter-rev {
+    stroke-dasharray: none;
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-edge-grow-exit,
+  .map-edge-grow-exit-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-grow-exit-heavy,
+  .map-edge-grow-exit-heavy-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  .map-edge-fade-enter {
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit {
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  .react-flow__edge-path.map-edge-dying {
+    animation: none;
+    opacity: var(--map-edge-dying-opacity, 0.7);
+  }
+}
+
+/* ── Anchored cards and their leaders ─────────────────────────────────────
+ * One sequence: the leader draws out from its source (disc rim or scanner
+ * row), and the card settles in from the leader's side just as the line
+ * reaches it. On close the card leaves first and the line retracts after it.
+ * Timings pair with CARD_EXIT_MS in MapWindowLayer.tsx. */
+@keyframes map-leader-draw {
+  from { stroke-dashoffset: 1; }
+}
+@keyframes map-leader-retract {
+  to { stroke-dashoffset: 1; }
+}
+@keyframes map-leader-dot-in {
+  from { scale: 0; }
+}
+@keyframes map-leader-dot-out {
+  to { scale: 0; }
+}
+@keyframes map-card-in {
+  from {
+    opacity: 0;
+    translate: var(--map-card-shift, -10px) 0;
+    scale: 0.97;
+  }
+}
+@keyframes map-card-out {
+  to {
+    opacity: 0;
+    translate: var(--map-card-shift, -10px) 0;
+    scale: 0.97;
+  }
+}
+
+.map-leader-path {
+  stroke-dasharray: 1 1;
+  animation: map-leader-draw 260ms var(--ease-out-expo) both;
+}
+.map-leader-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-leader-dot-in 220ms var(--ease-out-expo) both;
+}
+[data-closing] > .map-leader-path {
+  animation: map-leader-retract 140ms ease-in 40ms both;
+}
+[data-closing] > .map-leader-dot {
+  animation: map-leader-dot-out 120ms ease-in 60ms both;
+}
+
+.map-card-enter {
+  transform-origin: left 18px;
+  animation: map-card-in 320ms var(--ease-out-expo) 140ms both;
+}
+.map-card-enter[data-anchor-side='left'] {
+  --map-card-shift: 10px;
+  transform-origin: right 18px;
+}
+.map-card-enter[data-map-window-placement='scanner-anchored'] {
+  transform-origin: left center;
+}
+.map-card-enter[data-closing] {
+  animation: map-card-out 160ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-leader-path,
+  .map-leader-dot {
+    stroke-dasharray: none;
+    animation: map-fade-in 160ms linear both;
+  }
+  [data-closing] > .map-leader-path,
+  [data-closing] > .map-leader-dot {
+    animation: map-fade-out 160ms linear both;
+  }
+  .map-card-enter {
+    animation: map-fade-in 160ms linear both;
+  }
+  .map-card-enter[data-closing] {
+    animation: map-fade-out 160ms linear both;
+  }
+}
+
+/* The scanner bracket opens from the row's centre, then its connector draws. */
+@keyframes map-leader-bracket-in {
+  from { opacity: 0; scale: 1 0; }
+}
+.map-leader-bracket {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-leader-bracket-in 180ms var(--ease-out-expo) both;
+}
+.map-leader-path-after-bracket {
+  animation-delay: 60ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-leader-bracket {
+    animation: map-fade-in 160ms linear both;
+  }
+}

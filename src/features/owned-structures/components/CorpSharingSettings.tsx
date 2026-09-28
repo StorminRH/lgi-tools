@@ -46,14 +46,14 @@ function SharingRow({ corp }: { corp: SharingCorpView }) {
     });
     setBusy(false);
     if (!res.ok) {
-      toast.error('Could not change sharing');
+      toast.error('Sharing not changed');
       return;
     }
     setEnabled(next);
     if (next) {
-      toast.success('Sharing on — structures appear after the next refresh');
+      toast.success('Sharing on');
     } else {
-      toast.success('Sharing off — this corp’s structures were removed');
+      toast.success('Sharing off');
     }
   }
 

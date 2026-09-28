@@ -7,6 +7,8 @@ import {
   ServerStatus,
   ServerStatusFallback,
 } from '@/components/composition/ServerStatus';
+import { floatSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
@@ -23,8 +25,13 @@ export async function AppHeader() {
   const siteIndex = await getSiteSearchIndex();
 
   return (
-    <header className="app-header flex h-[50px] items-stretch border-b border-border bg-section text-ui max-lg:h-auto max-lg:flex-wrap">
-      <div className="flex items-center shrink-0 px-4 border-r border-border">
+    <header
+      className={cn(
+        floatSurface,
+        'app-header sticky top-3 z-sticky mx-3 mt-3 flex h-[56px] items-center gap-1 rounded-full pl-5 pr-2 text-ui max-lg:h-auto max-lg:flex-wrap max-lg:rounded-sheet max-lg:py-1.5 max-lg:pr-1.5',
+      )}
+    >
+      <div className="flex items-center shrink-0 pr-1">
         <Link
           href="/"
           className="font-data font-extrabold text-lead tracking-copy uppercase text-name inline-flex items-center"

@@ -1,17 +1,14 @@
 import { z } from 'zod';
-import { resolveMatchedMapRoles } from '@/data/maps/access';
+import { type MapPrincipals, resolveMatchedMapRoles } from '@/data/maps/access';
 import type { MapRole } from '@/data/maps/access-contract';
 import {
   getMapAccessSubject,
   getMapGrants,
-  getUserIdsInCorporations,
-  getUserIdsOwningCharacters,
+  getMapAccessCandidateUserIds,
   reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
-import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
-import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
-import { resolveMapPrincipalsWithOutcome } from './map-access';
+import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
 
 export interface MapAccessClaim {
   readonly userId: string;
@@ -61,6 +58,13 @@ export class ProjectionUnavailableError extends Error {
   }
 }
 
+function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrincipals {
+  return {
+    characterIds: rows.map((row) => row.characterId),
+    corporationIds: [...new Set(rows.flatMap((row) => row.corporationId ?? []))],
+  };
+}
+
 async function computeMapAccessClaimsForState(
   mapId: string,
   allowArchived: boolean,
@@ -85,41 +89,22 @@ async function computeMapAccessClaimsForState(
     ),
   ];
 
-  if (corporationIds.length > 0) {
-    const staleCharacterIds = await listStaleLinkedCharacterIds();
-    const { transientFailure } = await refreshAffiliationsWithOutcome(staleCharacterIds);
-    if (transientFailure) {
-      throw new ProjectionUnavailableError(
-        'Map access projection unavailable: affiliation refresh failed transiently while discovering corporation candidates',
-      );
-    }
+  const candidateUserIds = (await getMapAccessCandidateUserIds(characterIds, corporationIds))
+    .filter((userId) => userId !== map.userId);
+  const affiliations = await getUsersAffiliations(candidateUserIds);
+  const byUser = new Map<string, CachedAffiliation[]>();
+  for (const row of affiliations) {
+    const rows = byUser.get(row.userId) ?? [];
+    rows.push(row);
+    byUser.set(row.userId, rows);
   }
 
-  const [characterOwners, corporationMembers] = await Promise.all([
-    getUserIdsOwningCharacters(characterIds),
-    getUserIdsInCorporations(corporationIds),
-  ]);
-
-  const candidateUserIds = new Set<string>([
-    map.userId,
-    ...characterOwners.values(),
-    ...corporationMembers,
-  ]);
-
-  const claims: MapAccessClaim[] = [];
+  const claims: MapAccessClaim[] = [{ userId: map.userId, roles: ['admin'] }];
   for (const userId of candidateUserIds) {
-    const { principals, refreshTransientFailure } =
-      await resolveMapPrincipalsWithOutcome(userId);
-    if (refreshTransientFailure) {
-      throw new ProjectionUnavailableError(
-        `Map access projection unavailable: affiliation refresh failed transiently for user ${userId}`,
-      );
-    }
-
     const roles = resolveMatchedMapRoles({
-      isCreator: map.userId === userId,
+      isCreator: false,
       grants,
-      principals,
+      principals: principalsIgnoringStampAge(byUser.get(userId) ?? []),
     });
     if (roles.length === 0) continue;
     claims.push({ userId, roles });
@@ -204,4 +189,22 @@ export async function purgeUserMapAccessProjection(
     error: ProjectionUnavailableError,
     label: 'Map access projection unavailable',
   });
+}
+
+export async function revokeUserMapClaims(
+  userId: string,
+  mapIds: readonly string[],
+): Promise<void> {
+  // Keep each mutation below Convex's read/write limits; complete all batches
+  // before unlinking so a failed delivery leaves the character linked.
+  for (let start = 0; start < mapIds.length; start += 32) {
+    const revision = await reserveMapAccessProjectionRevision();
+    await postConvexHttpDoor({
+      path: '/purge-user-map-claims',
+      body: { userId, revision, mapIds: mapIds.slice(start, start + 32) },
+      schema: userPurgeResultSchema,
+      error: ProjectionUnavailableError,
+      label: 'Map access revocation unavailable',
+    });
+  }
 }

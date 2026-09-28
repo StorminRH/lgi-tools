@@ -1,14 +1,11 @@
 export type SliOwner = 'operator' | 'ccp-upstream';
 
-export const SLI_IDS = [
-  'read_success_rate',
-  'mutation_success_rate',
-  'critical_latency_p95',
-  'esi_success_rate',
-  'job_backlog',
-] as const;
-
-export type SliId = (typeof SLI_IDS)[number];
+export type SliId =
+  | 'read_success_rate'
+  | 'mutation_success_rate'
+  | 'critical_latency_p95'
+  | 'esi_success_rate'
+  | 'job_backlog';
 
 export type SliUnit = 'percent' | 'milliseconds' | 'count';
 

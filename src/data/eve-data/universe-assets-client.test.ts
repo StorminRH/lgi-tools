@@ -7,9 +7,17 @@ vi.mock('@/transport/api-client', () => ({
 }));
 
 const SYSTEMS = [
-  { id: 30000142, name: 'Jita', whClassId: 7, security: 0.9 },
+  { id: 30000142, name: 'Jita', regionName: 'The Forge', whClassId: 7, security: 0.9 },
 ];
 const ADJACENCY = [[30000142, [30000144]]] as const;
+const EFFECTS = [
+  {
+    effect: 'pulsar',
+    wormholeClass: 3,
+    typeId: 30_852,
+    modifiers: [{ attributeId: 1, label: 'Shield HP', percent: 50 }],
+  },
+];
 const CODEX = [
   {
     code: 'B274',
@@ -57,7 +65,7 @@ function installSuccess(version = '3444265') {
       return Promise.resolve({
         ok: true,
         status: 200,
-        data: { version, types: CODEX },
+        data: { version, types: CODEX, effects: EFFECTS },
       });
     },
   );
@@ -81,6 +89,11 @@ describe('universe asset client loaders', () => {
     expect(first.systemInfo(0)).toBeNull();
     expect(first.neighbours(30000142)).toEqual([30000144]);
     expect(first.neighbours(0)).toEqual([]);
+    expect(first.hubJumps(30000142)[0]).toEqual({
+      id: 30000142,
+      name: 'Jita',
+      jumps: 0,
+    });
   });
 
   it('refetches the manifest exactly once after a stale versioned asset', async () => {
@@ -225,6 +238,10 @@ describe('universe asset client loaders', () => {
       farSide: true,
     });
     expect(first.byCode('NOPE')).toBeNull();
+    expect(first.effect('pulsar', 3)?.modifiers).toEqual([
+      { attributeId: 1, label: 'Shield HP', percent: 50 },
+    ]);
+    expect(first.effect('pulsar', 4)).toBeNull();
   });
 
   it('exposes one typeahead code per SDE clone cluster and prefers the lowest typeId', async () => {
@@ -266,6 +283,7 @@ describe('universe asset client loaders', () => {
             },
             { code: 'K162', typeId: 30831, farSide: true },
           ],
+          effects: [],
         },
       });
     });
@@ -302,7 +320,7 @@ describe('universe asset client loaders', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          data: { version: 'new', types: CODEX },
+          data: { version: 'new', types: CODEX, effects: [] },
         });
       },
     );

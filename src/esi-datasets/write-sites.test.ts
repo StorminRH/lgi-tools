@@ -137,6 +137,19 @@ describe('findWrittenTables', () => {
     expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
   });
 
+  it('distinguishes write targets from read-only joins in an atomic CTE', () => {
+    const source = [
+      "import { ownedAssets } from './schema';",
+      "import { marketPrices } from '@/data/market-prices/schema';",
+      'await db.execute(sql`WITH changed AS (',
+      '  UPDATE ${ownedAssets} SET quantity = prices.price FROM ${marketPrices} prices',
+      '  RETURNING *',
+      ') SELECT * FROM changed`);',
+    ].join('\n');
+
+    expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
+  });
+
   it('does not read a column named updated_at as an UPDATE statement', () => {
     const source = [
       "import { ownedAssets } from './schema';",

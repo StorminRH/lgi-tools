@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import {
   eliminationFollowUpNeeded,
   identifySemanticWrite,
@@ -8,106 +8,49 @@ import {
   typeSetterSemanticWrite,
 } from './semantic-write';
 
-describe('paste semantic write', () => {
-  it('treats unchanged and conflicted scans as idle', () => {
-    expect(pasteSemanticWrite({
-      inserted: 0,
-      updated: 0,
-      migrated: 0,
-      removedConfident: 0,
-    })).toEqual({ kind: 'idle' });
-  });
-
-  it('treats inserts, updates, migrations, and confident removals as mutated', () => {
-    expect(pasteSemanticWrite({
-      inserted: 1,
-      updated: 0,
-      migrated: 0,
-      removedConfident: 0,
-    })).toEqual({ kind: 'mutated' });
-    expect(pasteSemanticWrite({
-      inserted: 0,
-      updated: 1,
-      migrated: 0,
-      removedConfident: 0,
-    })).toEqual({ kind: 'mutated' });
-    expect(pasteSemanticWrite({
-      inserted: 0,
-      updated: 0,
-      migrated: 1,
-      removedConfident: 0,
-    })).toEqual({ kind: 'mutated' });
-    expect(pasteSemanticWrite({
-      inserted: 0,
-      updated: 0,
-      migrated: 0,
-      removedConfident: 1,
-    })).toEqual({ kind: 'mutated' });
-  });
+it.each([
+  [{ inserted: 0, updated: 0, migrated: 0, removedConfident: 0 }, 'idle'],
+  [{ inserted: 1, updated: 0, migrated: 0, removedConfident: 0 }, 'mutated'],
+  [{ inserted: 0, updated: 1, migrated: 0, removedConfident: 0 }, 'mutated'],
+  [{ inserted: 0, updated: 0, migrated: 1, removedConfident: 0 }, 'mutated'],
+  [{ inserted: 0, updated: 0, migrated: 0, removedConfident: 1 }, 'mutated'],
+] as const)('pasteSemanticWrite(%j) is %s', (counts, kind) => {
+  expect(pasteSemanticWrite(counts)).toEqual({ kind });
 });
 
-describe('identify semantic write', () => {
-  it('does not treat an unchanged boolean as idle when a connection was claimed', () => {
-    expect(identifySemanticWrite({
-      changed: false,
-      connectionId: 'connection-1',
-    })).toEqual({ kind: 'claimed' });
-  });
-
-  it('classifies a field change as mutated and a no-op as idle', () => {
-    expect(identifySemanticWrite({
-      changed: true,
-      connectionId: 'connection-1',
-    })).toEqual({ kind: 'mutated' });
-    expect(identifySemanticWrite({
-      changed: true,
-      connectionId: null,
-    })).toEqual({ kind: 'mutated' });
-    expect(identifySemanticWrite({
-      changed: false,
-      connectionId: null,
-    })).toEqual({ kind: 'idle' });
-  });
+it.each([
+  [{ changed: false, connectionId: 'connection-1' }, 'claimed'],
+  [{ changed: true, connectionId: 'connection-1' }, 'mutated'],
+  [{ changed: true, connectionId: null }, 'mutated'],
+  [{ changed: false, connectionId: null }, 'idle'],
+] as const)('identifySemanticWrite(%j) is %s', (result, kind) => {
+  expect(identifySemanticWrite(result)).toEqual({ kind });
 });
 
-describe('type setter semantic write', () => {
-  it('treats a field change as mutated even when a placeholder was also claimed', () => {
-    expect(typeSetterSemanticWrite({ changed: true, claimed: false })).toEqual({
-      kind: 'mutated',
-    });
-    expect(typeSetterSemanticWrite({ changed: true, claimed: true })).toEqual({
-      kind: 'mutated',
-    });
-  });
-
-  it('does not treat an unchanged boolean as idle when a placeholder was claimed', () => {
-    expect(typeSetterSemanticWrite({ changed: false, claimed: true })).toEqual({
-      kind: 'claimed',
-    });
-  });
-
-  it('treats a true no-op as idle', () => {
-    expect(typeSetterSemanticWrite({ changed: false, claimed: false })).toEqual({
-      kind: 'idle',
-    });
-  });
+it.each([
+  [{ changed: true, claimed: false }, 'mutated'],
+  [{ changed: true, claimed: true }, 'mutated'],
+  [{ changed: false, claimed: true }, 'claimed'],
+  [{ changed: false, claimed: false }, 'idle'],
+] as const)('typeSetterSemanticWrite(%j) is %s', (result, kind) => {
+  expect(typeSetterSemanticWrite(result)).toEqual({ kind });
 });
 
-describe('elimination follow-up', () => {
-  it('skips only idle work whose digest already succeeded', () => {
-    expect(eliminationFollowUpNeeded({ kind: 'idle' }, '1:AAA-111', '1:AAA-111')).toBe(false);
-    expect(eliminationFollowUpNeeded({ kind: 'idle' }, undefined, '1:AAA-111')).toBe(true);
-    expect(eliminationFollowUpNeeded({ kind: 'idle' }, '1:AAA-111', '1:BBB-222')).toBe(true);
-    expect(eliminationFollowUpNeeded({ kind: 'mutated' }, '1:AAA-111', '1:AAA-111')).toBe(true);
-    expect(eliminationFollowUpNeeded({ kind: 'claimed' }, '1:AAA-111', '1:AAA-111')).toBe(true);
-  });
+it.each([
+  [{ kind: 'idle' as const }, '1:AAA-111', '1:AAA-111', false],
+  [{ kind: 'idle' as const }, undefined, '1:AAA-111', true],
+  [{ kind: 'idle' as const }, '1:AAA-111', '1:BBB-222', true],
+  [{ kind: 'mutated' as const }, '1:AAA-111', '1:AAA-111', true],
+  [{ kind: 'claimed' as const }, '1:AAA-111', '1:AAA-111', true],
+])('eliminationFollowUpNeeded(%j, %s, %s) is %s', (write, lastDigest, digest, needed) => {
+  expect(eliminationFollowUpNeeded(write, lastDigest, digest)).toBe(needed);
+});
 
-  it('stores per-system digests from paste rows and identify facts', () => {
-    expect(pasteWriteDigest(31_000_001, ['BBB-222', 'AAA-111'])).toBe(
-      '31000001:AAA-111,BBB-222',
-    );
-    expect(identifyWriteDigest(31_000_001, 'AAA-111', 'Wormhole')).toBe(
-      '31000001:AAA-111:Wormhole',
-    );
-  });
+it('stores per-system paste and identify digests', () => {
+  expect(pasteWriteDigest(31_000_001, ['BBB-222', 'AAA-111'])).toBe(
+    '31000001:AAA-111,BBB-222',
+  );
+  expect(identifyWriteDigest(31_000_001, 'AAA-111', 'Wormhole')).toBe(
+    '31000001:AAA-111:Wormhole',
+  );
 });

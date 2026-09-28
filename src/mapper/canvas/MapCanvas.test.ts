@@ -43,6 +43,7 @@ vi.mock('@xyflow/react', async () => {
     Handle: () => element('div', { 'data-handle': '' }),
     Position: { Left: 'left', Right: 'right' },
     applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
+    useOnViewportChange: () => undefined,
   };
 });
 

@@ -1,0 +1,30 @@
+.nav-host {
+  display: flex;
+  align-items: center;
+  flex: 0 1 380px;
+  min-width: 11rem;
+  margin: 0 8px 0 10px;
+}
+
+.nav-search {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 38px;
+  border-radius: 9999px;
+  padding-inline: 14px 8px;
+}
+
+@media (width < --theme(--breakpoint-lg)) {
+  .app-header .nav-host {
+    order: 99;
+    flex-basis: 100%;
+    margin: 6px 0 2px;
+  }
+  .app-header .nav-search {
+    width: 100% !important;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Measured } from '@/components/ui/measured';
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import type { SparklineTone } from '@/components/ui/sparkline';
 import type { BarDatum } from '@/components/ui/bar-chart';
@@ -59,21 +60,25 @@ export function AdminDailyChart({
       ? undefined
       : endLabelFor(formatY(endValue), endDelta ?? null, invert);
   return (
-    <AnnotatedDailyChart
-      points={points}
-      average={average}
-      labels={labels}
-      weekend={weekend}
-      referenceLine={referenceLine}
-      eventMarkers={eventMarkers}
-      endLabel={endLabel}
-      tone={tone}
-      width={width}
-      height={height}
-      formatY={formatY}
-      formatTick={(s) => s.slice(5)}
-      ariaLabel={ariaLabel}
-    />
+    <Measured width={width}>
+      {(measuredWidth) => (
+        <AnnotatedDailyChart
+          points={points}
+          average={average}
+          labels={labels}
+          weekend={weekend}
+          referenceLine={referenceLine}
+          eventMarkers={eventMarkers}
+          endLabel={endLabel}
+          tone={tone}
+          width={measuredWidth}
+          height={height}
+          formatY={formatY}
+          formatTick={(s) => s.slice(5)}
+          ariaLabel={ariaLabel}
+        />
+      )}
+    </Measured>
   );
 }
 
@@ -94,23 +99,21 @@ export function AdminTrendChart({
   height?: number;
   ariaLabel?: string;
 }) {
-  const formatY =
-    unit === 'percent'
-      ? (y: number) => `${y}%`
-      : unit === 'position'
-        ? (y: number) => y.toFixed(1)
-        : (y: number) => y.toLocaleString();
   return (
-    <TrendChart
-      data={points}
-      labels={labels}
-      tone={tone}
-      width={width}
-      height={height}
-      formatY={formatY}
-      formatTick={(s) => s.slice(5)}
-      ariaLabel={ariaLabel}
-    />
+    <Measured width={width}>
+      {(measuredWidth) => (
+        <TrendChart
+          data={points}
+          labels={labels}
+          tone={tone}
+          width={measuredWidth}
+          height={height}
+          formatY={formatterFor(unit)}
+          formatTick={(s) => s.slice(5)}
+          ariaLabel={ariaLabel}
+        />
+      )}
+    </Measured>
   );
 }
 
@@ -128,13 +131,17 @@ export function AdminBarChart({
   ariaLabel?: string;
 }) {
   return (
-    <BarChart
-      data={data}
-      tone={tone}
-      width={width}
-      height={height}
-      formatValue={(v) => v.toLocaleString()}
-      ariaLabel={ariaLabel}
-    />
+    <Measured width={width}>
+      {(measuredWidth) => (
+        <BarChart
+          data={data}
+          tone={tone}
+          width={measuredWidth}
+          height={height}
+          formatValue={(v) => v.toLocaleString()}
+          ariaLabel={ariaLabel}
+        />
+      )}
+    </Measured>
   );
 }

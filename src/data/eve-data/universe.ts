@@ -12,6 +12,7 @@ import {
 } from './schema';
 import { intOrNull, localizedEn, numOrNull } from './coerce';
 import type { SdeJsonlPaths } from './source';
+import type { WormholeEffect } from './wormhole-contract';
 import type { AnyPgDb } from '@/lib/db-types';
 
 const PERSISTENT_REGION_MAX_EXCLUSIVE = 12_000_000;
@@ -36,6 +37,7 @@ export type UniverseSolarSystem = {
   name: string;
   securityStatus: number | null;
   wormholeClassId: number | null;
+  wormholeEffect: WormholeEffect | null;
 };
 
 export type UniverseSystemJump = {
@@ -73,10 +75,33 @@ export type RawUniverseFiles = {
   constellations: Record<string, unknown>[];
   systems: Record<string, unknown>[];
   stargates: Record<string, unknown>[];
+  secondarySuns: Record<string, unknown>[];
   stations: Record<string, unknown>[];
   operations: Record<string, unknown>[];
   services: Record<string, unknown>[];
 };
+
+// Keyed on the sun's typeID, not effectBeaconTypeID: two SDE rows carry a
+// beacon that disagrees with their sun, and the sun matches in-game effects.
+const SECONDARY_SUN_EFFECT: ReadonlyMap<number, WormholeEffect> = new Map([
+  [30_574, 'magnetar'],
+  [30_575, 'black-hole'],
+  [30_576, 'red-giant'],
+  [30_577, 'pulsar'],
+  [30_669, 'wolf-rayet'],
+  [30_670, 'cataclysmic-variable'],
+]);
+
+function effectsBySystem(raw: RawUniverseFiles): Map<number, WormholeEffect> {
+  const effects = new Map<number, WormholeEffect>();
+  for (const sun of raw.secondarySuns) {
+    const systemId = intOrNull(sun.solarSystemID);
+    const typeId = intOrNull(sun.typeID);
+    const effect = typeId === null ? undefined : SECONDARY_SUN_EFFECT.get(typeId);
+    if (systemId !== null && effect !== undefined) effects.set(systemId, effect);
+  }
+  return effects;
+}
 
 /**
  * Resolve the Factory (manufacturing) and Laboratory (research) service `_key`s
@@ -118,13 +143,13 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
   const { regions, regionIds, regionClass } = projectRegions(raw);
   const { constellations, constellationIds, constellationClass } =
     projectConstellations(raw, regionIds);
-  const { systems, systemIds } = projectSystems(
-    raw,
+  const { systems, systemIds } = projectSystems(raw, {
     regionIds,
     constellationIds,
     regionClass,
     constellationClass,
-  );
+    effects: effectsBySystem(raw),
+  });
   const jumps = projectStargates(raw, systemIds);
   const { operations, operationIds, operationCapability } = projectOperations(raw);
   const stations = projectStations(raw, systemIds, operationIds, operationCapability);
@@ -175,12 +200,23 @@ function projectConstellations(
   };
 }
 
+interface SystemProjectionContext {
+  readonly regionIds: Set<number>;
+  readonly constellationIds: Set<number>;
+  readonly regionClass: Map<number, number>;
+  readonly constellationClass: Map<number, number>;
+  readonly effects: Map<number, WormholeEffect>;
+}
+
 function projectSystems(
   raw: RawUniverseFiles,
-  regionIds: Set<number>,
-  constellationIds: Set<number>,
-  regionClass: Map<number, number>,
-  constellationClass: Map<number, number>,
+  {
+    regionIds,
+    constellationIds,
+    regionClass,
+    constellationClass,
+    effects,
+  }: SystemProjectionContext,
 ): { systems: UniverseSolarSystem[]; systemIds: Set<number> } {
   const systems: UniverseSolarSystem[] = [];
   const systemIds = new Set<number>();
@@ -202,6 +238,7 @@ function projectSystems(
       name: requireName(s.name, 'solar system', id),
       securityStatus: numOrNull(s.securityStatus),
       wormholeClassId,
+      wormholeEffect: effects.get(id) ?? null,
     });
     systemIds.add(id);
   }
@@ -320,22 +357,32 @@ async function readJsonl(path: string): Promise<Record<string, unknown>[]> {
 }
 
 export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDataset> {
-  const [regions, constellations, systems, stargates, stations, operations, services] =
-    await Promise.all([
-      readJsonl(paths.mapRegions),
-      readJsonl(paths.mapConstellations),
-      readJsonl(paths.mapSolarSystems),
-      readJsonl(paths.mapStargates),
-      readJsonl(paths.npcStations),
-      readJsonl(paths.stationOperations),
-      readJsonl(paths.stationServices),
-    ]);
+  const [
+    regions,
+    constellations,
+    systems,
+    stargates,
+    secondarySuns,
+    stations,
+    operations,
+    services,
+  ] = await Promise.all([
+    readJsonl(paths.mapRegions),
+    readJsonl(paths.mapConstellations),
+    readJsonl(paths.mapSolarSystems),
+    readJsonl(paths.mapStargates),
+    readJsonl(paths.mapSecondarySuns),
+    readJsonl(paths.npcStations),
+    readJsonl(paths.stationOperations),
+    readJsonl(paths.stationServices),
+  ]);
 
   const dataset = buildUniverseDataset({
     regions,
     constellations,
     systems,
     stargates,
+    secondarySuns,
     stations,
     operations,
     services,

@@ -35,6 +35,7 @@ import { runCharacterIndustryJobsRefreshJob } from './industry-jobs-sync';
 import { runOwnedAssetsRefreshJob } from './owned-assets-sync';
 import { runOwnedBlueprintsRefreshJob } from './owned-blueprints-sync';
 import { runSkillsRefreshJob } from './skills-sync';
+import { runCharacterSheetRefreshJob } from './character-sheet-sync';
 
 type RefreshJobRunner = (
   userId: string,
@@ -63,6 +64,7 @@ const RUNNERS: Record<EsiRefreshDataset, RefreshJobRunner> = {
   corporation_industry_jobs: runCorporationIndustryJobsRefreshJob,
   owned_blueprints: runOwnedBlueprintsRefreshJob,
   owned_assets: runOwnedAssetsRefreshJob,
+  character_sheet: runCharacterSheetRefreshJob,
 };
 
 function targetOf(job: EsiRefreshJob): OwnerSyncTarget {

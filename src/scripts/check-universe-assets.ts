@@ -9,6 +9,7 @@ import {
 } from '@/db';
 import { readEnv } from '@/lib/env';
 import {
+  composeUniverseAssetVersion,
   readAdjacencyGraph,
   readSystemDirectory,
   readWormholeCodex,
@@ -154,7 +155,29 @@ function buildReport(
   );
   const { b274, regenerating, k162 } = requireCodexProof(codex);
   const jitaDegree = requireReciprocalJitaPerimeter(adjacency);
+  const jita = requireSystem(systemById, JITA_ID);
   strictEqual(jitaDegree, 7, 'Jita degree does not match the expected SDE contract.');
+  strictEqual(
+    directory.version,
+    adjacency.version,
+    'System and adjacency assets must share one composed version.',
+  );
+  strictEqual(
+    directory.version,
+    codex.version,
+    'System and wormhole assets must share one composed version.',
+  );
+  if (!directory.version.endsWith('+u5')) {
+    throw new Error(
+      `Universe asset version ${directory.version} is missing the +u5 layout stamp.`,
+    );
+  }
+  strictEqual(jita.regionName, 'The Forge');
+  strictEqual(jita.effect, null);
+  strictEqual(
+    composeUniverseAssetVersion(directory.version.slice(0, -3)),
+    directory.version,
+  );
   deepStrictEqual(
     {
       lifetimeMinutes: b274.lifetimeMinutes,
@@ -177,7 +200,7 @@ function buildReport(
   return {
     version: directory.version,
     systems: {
-      jita: requireSystem(systemById, JITA_ID),
+      jita,
       perimeter: requireSystem(systemById, PERIMETER_ID),
       jitaDegree,
       reciprocalJitaPerimeter: true,

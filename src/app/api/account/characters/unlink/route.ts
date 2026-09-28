@@ -18,7 +18,7 @@ import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {
-  const url = new URL('/characters', request.url);
+  const url = new URL('/settings/characters', request.url);
   url.searchParams.set('error', code);
   return Response.redirect(url, 303);
 }
@@ -48,6 +48,17 @@ export async function POST(request: NextRequest): Promise<Response> {
         return redirectWithError(request, 'last_character');
       }
 
+      let mapIds: string[];
+      try {
+        mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({
+          userId: session.user.id,
+          characterId,
+        });
+      } catch (err) {
+        console.error('[account/unlink] map access revocation failed', err);
+        return redirectWithError(request, 'unlink_failed');
+      }
+
       try {
         await auth.api.unlinkAccount({
           body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
@@ -55,9 +66,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
       } catch (err) {
         console.error('[account/unlink] unlinkAccount failed', err);
+        await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
         return redirectWithError(request, 'unlink_failed');
       }
 
+      await identityProjectionRunners.runAfterCharacterUnlink({
+        userId: session.user.id,
+        characterId,
+        mapIds,
+      });
       await identityProjectionRunners.runAfterCharacterLinkChanged({
         userId: session.user.id,
         characterId,
@@ -74,7 +91,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
       }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
 
-      return Response.redirect(new URL('/characters', request.url), 303);
+      return Response.redirect(new URL('/settings/characters', request.url), 303);
     },
   });
 }

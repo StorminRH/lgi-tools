@@ -74,7 +74,21 @@ export const atlasClickFocus = define<boolean>(
   true,
 );
 
-export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
+/** The character the Atlas dock follows; null is Auto (latest mover). */
+export const atlasDockCharacter = define<number | null>(
+  'atlas.dockCharacterId',
+  z.number().int().positive().nullable(),
+  null,
+);
+
+/** The character whose system scanner pastes go to; null asks when unclear. */
+export const atlasScannerCharacter = define<number | null>(
+  'atlas.scannerCharacterId',
+  z.number().int().positive().nullable(),
+  null,
+);
+
+export const STRIP_SURFACE_IDS = ['jobs'] as const;
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
 export function stripDimmedKey(surfaceId: string): string {
@@ -104,13 +118,15 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   industryCostBasis,
   atlasCameraFollow,
   atlasClickFocus,
+  atlasDockCharacter,
+  atlasScannerCharacter,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
 export const PREFERENCE_KEYS: readonly string[] = PREFERENCES.map((p) => p.key);
 
-export const RETIRED_PREFERENCE_KEYS = ['atlas.autoLayout'] as const;
+export const RETIRED_PREFERENCE_KEYS = ['atlas.autoLayout', 'strip.skills.dimmed'] as const;
 
 export function pruneRetiredPreferences(): void {
   const store = safeStorage();
@@ -167,12 +183,40 @@ export function cookieNameFor(def: PreferenceDef<unknown>): string {
   return COOKIE_PREFIX + def.key.replace(/\./g, '_');
 }
 
-export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void {
-  if (typeof document === 'undefined' || !def.ssrReadable) return;
-  const encoded = encodeURIComponent(JSON.stringify(value));
+function setPreferenceCookie(def: PreferenceDef<unknown>, encoded: string, maxAge: number): void {
   const secure =
     typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
-  document.cookie = `${cookieNameFor(def)}=${encoded}; Path=/; Max-Age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+  document.cookie = `${cookieNameFor(def)}=${encoded}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+}
+
+export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void {
+  if (typeof document === 'undefined' || !def.ssrReadable) return;
+  setPreferenceCookie(def, encodeURIComponent(JSON.stringify(value)), COOKIE_MAX_AGE_SECONDS);
+}
+
+/**
+ * Mirror resolved values into the SSR cookies. A signed-in account value wins
+ * over the device's, and without this write-back every server render kept
+ * using the stale cookie, so the page swapped after load on each visit. Only
+ * cookies are written: account values copied into localStorage would outlive
+ * sign-out and be seeded into the next account on a shared browser. Sign-out
+ * clears the cookies (`clearPreferenceCookies`) for the same reason.
+ */
+export function syncPreferenceCookies(values: ReadonlyMap<string, unknown>): void {
+  for (const def of PREFERENCES) {
+    if (values.has(def.key)) writePreferenceCookie(def, values.get(def.key));
+  }
+}
+
+/**
+ * Expire every SSR preference cookie. The next load rewrites the device's own
+ * values from localStorage, so only account-resolved values are lost.
+ */
+export function clearPreferenceCookies(): void {
+  if (typeof document === 'undefined') return;
+  for (const def of PREFERENCES) {
+    if (def.ssrReadable) setPreferenceCookie(def, '', 0);
+  }
 }
 
 export function readPreferenceCookieValue<T>(

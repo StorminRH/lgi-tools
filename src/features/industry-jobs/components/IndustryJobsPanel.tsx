@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
-import { jobRowFrameData, jobsCardModel } from '../job-view';
+import { JOBS_LOAD_FAILED, jobRowFrameData, jobsCardModel } from '../job-view';
 import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
@@ -28,10 +28,10 @@ export function IndustryJobsPanel({
 }) {
   if (characters.length === 0) {
     return (
-      <Card>
+      <Card className="reveal reveal-1">
         <EmptyState>
           No characters linked to this account —{' '}
-          <a href="/characters" className="underline text-name">
+          <a href="/settings/characters" className="underline text-name">
             link one on the Characters page
           </a>{' '}
           to see live industry jobs.
@@ -52,15 +52,16 @@ function LiveJobs({
   initialDimmed?: number[];
 }) {
   const eligibleIds = syncEligibleIds(characters);
-  const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
+  const { jobsByCharacter, names, now, loading, failed } = useJobsLive(eligibleIds);
 
   return (
-    <div className="w-full max-w-[760px] flex flex-col gap-6">
+    <div className="reveal reveal-1 w-full max-w-[760px] flex flex-col gap-6">
       <CharacterStripSection
         characters={characters}
         strip={strip}
         initialDimmed={initialDimmed}
         loading={loading}
+        failure={failed ? JOBS_LOAD_FAILED : null}
       >
         {(visible) =>
           visible.map((character) => {

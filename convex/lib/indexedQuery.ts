@@ -38,7 +38,7 @@ export function collectByUser(
     case 'characterLocation':
       return ctx.db
         .query('characterLocation')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .withIndex('by_user_character', (q) => q.eq('userId', userId))
         .collect();
     case 'characterOnline':
       return ctx.db
@@ -48,7 +48,7 @@ export function collectByUser(
     case 'characterLocationAccess':
       return ctx.db
         .query('characterLocationAccess')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .withIndex('by_user_character', (q) => q.eq('userId', userId))
         .collect();
   }
 }

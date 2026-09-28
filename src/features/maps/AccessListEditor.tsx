@@ -1,5 +1,7 @@
 'use client';
 
+import { insetSurface } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { useMemo, useState, type ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EveImage } from '@/components/eve-image';
@@ -112,7 +114,7 @@ export function AccessListEditor({
               return (
                 <div
                   key={key}
-                  className="flex items-center gap-2 rounded-ctl border border-border-soft bg-bg-deep px-2.5 py-2"
+                  className={cn(insetSurface, 'flex items-center gap-2 px-2.5 py-2')}
                 >
                   <Checkbox
                     checked={selected}
@@ -155,7 +157,7 @@ export function AccessListEditor({
             {currentGrants.map((grant) => (
               <div
                 key={accessPrincipalKey(grant)}
-                className="grid gap-3 rounded-ctl border border-border-soft bg-surface-sunk px-3 py-2.5 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center"
+                className={cn(insetSurface, 'grid gap-3 px-3 py-2.5 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center')}
                 data-map-access-principal={accessPrincipalKey(grant)}
               >
                 <div className="flex min-w-0 items-center gap-2">

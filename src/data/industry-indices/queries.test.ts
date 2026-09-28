@@ -15,6 +15,7 @@ vi.mock('@/db', () => ({
 import {
   getAdjustedPrice,
   getAdjustedPrices,
+  getAveragePrices,
   getSystemCostIndices,
   getSystemCostIndicesBatch,
 } from './queries';
@@ -63,6 +64,19 @@ describe('getAdjustedPrices', () => {
     expect(out.get(34)).toBe(2.9);
     expect(out.get(41)).toBe(0);
     expect(out.has(99)).toBe(false);
+  });
+});
+
+describe('getAveragePrices', () => {
+  it('builds Map<typeId, average>, skipping rows without one', async () => {
+    cannedRows = [
+      { typeId: 44992, averagePrice: 4_690_000 },
+      { typeId: 34, averagePrice: 3.1 },
+      { typeId: 99, averagePrice: null },
+    ];
+    const out = await getAveragePrices([44992, 34, 99]);
+    expect(out).toEqual(new Map([[44992, 4_690_000], [34, 3.1]]));
+    expect((await getAveragePrices([])).size).toBe(0);
   });
 });
 

@@ -1,17 +1,15 @@
 import { after } from 'next/server';
-import { refreshAffiliations } from '@/platform/auth/affiliation';
+import { refreshAffiliationsAndReconcile } from '@/composition/map-affiliation-access';
 import {
   eveCharactersEndpoint,
   eveCharactersRequestSchema,
 } from '@/platform/auth/api-contract';
+import { AFFILIATION_FRESHNESS } from '@/platform/auth/affiliation-policy';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
-import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { checkBearerSecret } from '@/lib/service-auth';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
-
-const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
@@ -31,7 +29,7 @@ export async function POST(req: Request): Promise<Response> {
     )
     .map((character) => character.characterId);
   if (staleIds.length > 0) {
-    after(() => refreshAffiliations(staleIds));
+    after(() => refreshAffiliationsAndReconcile(staleIds));
   }
 
   return apiResponse(eveCharactersEndpoint, 200, {

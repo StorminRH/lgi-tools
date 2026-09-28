@@ -36,13 +36,13 @@ export default function ContactPage() {
       />
 
       <div className="pb-16">
-        <p className="mb-[26px] max-w-[640px] text-pretty text-body leading-[1.72] tracking-optical text-text">
+        <p className="reveal reveal-1 mb-[26px] max-w-[640px] text-pretty text-body leading-[1.72] tracking-optical text-text">
           Found a bug, have data that looks wrong, or want a tool added? Email{' '}
           <b>Lo-Gang Industries</b>{' '}directly, or open a GitHub issue for anything you&apos;d like
           tracked.
         </p>
 
-        <div className="grid items-stretch gap-4 md:grid-cols-2">
+        <div className="reveal reveal-2 grid items-stretch gap-4 md:grid-cols-2">
           <Card>
             <SectionLabel className="mb-cluster px-3.5 pt-3.5">Get in touch</SectionLabel>
             <EntityRow

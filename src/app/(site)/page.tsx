@@ -1,11 +1,14 @@
 import { Suspense } from 'react';
+import { connection } from 'next/server';
+import { BoardEmpty } from '@/components/composition/board/BoardEmpty';
+import { BoardFrame } from '@/components/composition/board/BoardFrame';
+import { HomeBoardView } from '@/components/composition/board/HomeBoardView';
 import { HomeDashboard } from '@/components/composition/HomeDashboard';
-import { HomeRosterPanel } from '@/components/composition/HomeRosterPanel';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
-import { buildDemoRoster } from '@/features/skill-queue/roster-demo-data';
+import { buildDemoBoard, demoVariant } from '@/composition/board/demo-board';
 import { readEnv } from '@/lib/env';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
@@ -67,21 +70,24 @@ async function AuthErrorNotice({
   );
 }
 
-async function RosterDemo({
+async function requestNow(): Promise<number> {
+  await connection();
+  return Date.now();
+}
+
+async function BoardDemo({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const params = await searchParams;
-  if (params.demo === undefined || readEnv('VERCEL_ENV') === 'production') return null;
-  const roster = buildDemoRoster(params.demo === 'one');
+  const variant = demoVariant((await searchParams).demo);
+  if (variant === null || readEnv('VERCEL_ENV') === 'production') return null;
+  const now = await requestNow();
+  const board = buildDemoBoard(now, variant);
   return (
-    <div className="w-full max-w-[360px] mb-8 border border-border-soft p-3">
-      <p className="text-label uppercase tracking-wide text-muted mb-3">
-        Demo · sample data
-      </p>
-      <HomeRosterPanel demo={roster} />
-    </div>
+    <BoardFrame demo>
+      {board.characters.length === 0 ? <BoardEmpty /> : <HomeBoardView board={board} now={now} />}
+    </BoardFrame>
   );
 }
 
@@ -96,10 +102,13 @@ export default function Home({
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
       </Suspense>
-      <Suspense fallback={null}>
-        <RosterDemo searchParams={searchParams} />
-      </Suspense>
-      <HomeDashboard />
+      <HomeDashboard
+        demoSlot={
+          <Suspense fallback={null}>
+            <BoardDemo searchParams={searchParams} />
+          </Suspense>
+        }
+      />
     </PageShell>
   );
 }

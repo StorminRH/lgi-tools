@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
-import { mapAccess, maps } from '@/data/maps/schema';
+import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import {
   createDbTestHarness,
   seedCharacter as insertCharacter,
@@ -18,6 +18,16 @@ vi.mock('better-auth/api', () => ({
   },
 }));
 vi.mock('@/platform/auth/eve-token-service', () => ({ revokeCharacterToken: vi.fn() }));
+vi.mock('@/lib/convex-http-door', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
+  return {
+    ...actual,
+    postConvexHttpDoor: (options: Parameters<typeof actual.postConvexHttpDoor>[0]) =>
+      options.path === '/purge-user-map-claims'
+        ? Promise.resolve(options.schema.parse({ deleted: 1 }))
+        : actual.postConvexHttpDoor(options),
+  };
+});
 
 import { identityProjectionRunners } from '@/composition/map-access-identity';
 import {
@@ -36,6 +46,7 @@ const harness = await createDbTestHarness({
     'user',
     'maps',
     'map_access',
+    'map_access_changes',
     'account',
     'characters',
     'session',
@@ -52,6 +63,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_access_changes',
       column: 'map_id',
       refTable: 'maps',
       refColumn: 'id',
@@ -192,6 +210,12 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     ).toHaveLength(1);
     expect(await harness.db.select().from(maps)).toHaveLength(1);
     expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([
+      expect.objectContaining({
+        mapId: '11111111-1111-4111-8111-111111111111',
+        version: expect.any(String),
+      }),
+    ]);
     const [profile] = await harness.db
       .select({ characterId: characters.characterId, name: characters.name })
       .from(characters)

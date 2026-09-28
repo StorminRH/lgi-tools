@@ -1,0 +1,42 @@
+.scroll-area {
+  scrollbar-gutter: stable;
+}
+/* Firefox uses the standardized color/width properties. Chromium/WebKit stay
+ * on the explicitly painted pseudo-elements below: on macOS that opts bounded
+ * regions out of the disappearing system-overlay treatment. */
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-area {
+    scrollbar-color: var(--color-scroll-thumb) var(--color-scroll-track);
+    scrollbar-width: thin;
+  }
+}
+.scroll-area::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scroll-area::-webkit-scrollbar-track {
+  background: var(--color-scroll-track);
+  border-left: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  background: var(--color-scroll-thumb);
+  border: 2px solid var(--color-scroll-track);
+  border-radius: 999px;
+}
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scroll-thumb-hover);
+}
+
+.scroll-area-start {
+  direction: rtl;
+  scrollbar-gutter: auto;
+}
+.scroll-area-start > * {
+  direction: ltr;
+}
+.scroll-area-start::-webkit-scrollbar-track {
+  border-left: 0;
+  border-right: 1px solid var(--color-border-soft);
+}

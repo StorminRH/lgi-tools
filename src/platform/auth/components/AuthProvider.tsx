@@ -1,25 +1,41 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { createClientStore, useClientStore } from '@/lib/client-store';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import { authClient } from '../auth-client';
-import { resolveAuthState, type AuthState } from './auth-state';
+import { writeSignedInHint } from '../signed-in-hint';
+import { HELD_AUTH_STATE, resolveAuthState, type AuthState } from './auth-state';
 
-const AuthContext = createContext<AuthState | null>(null);
+const authStore = createClientStore<AuthState>(HELD_AUTH_STATE);
 
+// Resolves the session and publishes it to a client store, not a context
+// value: see createClientStore for why resolving it must not reach
+// boundaries that are still hydrating.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
   const clientCommitted = useClientCommitted();
+  const [settled, setSettled] = useState(false);
+  if (!settled && clientCommitted && !isPending) setSettled(true);
 
-  const state = resolveAuthState(clientCommitted, data ?? null, isPending);
+  const session = data ?? null;
+  const state = useMemo(
+    () => resolveAuthState(clientCommitted, session, isPending, settled),
+    [clientCommitted, session, isPending, settled],
+  );
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
+  useLayoutEffect(() => {
+    authStore.set(state);
+  }, [state]);
+
+  const signedIn = state.session !== null;
+  useEffect(() => {
+    if (!state.loading) writeSignedInHint(signedIn);
+  }, [state.loading, signedIn]);
+
+  return children;
 }
 
 export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within an <AuthProvider>');
-  }
-  return ctx;
+  return useClientStore(authStore);
 }

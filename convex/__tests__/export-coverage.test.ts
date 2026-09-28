@@ -47,6 +47,7 @@ import {
 } from '../lib/mapEntityContracts';
 import {
   purgeUserClaims,
+  purgeUserMapClaims,
   reconcileMapClaims,
   remapLegacyOwnerRoles,
 } from '../mapAccessProjection';
@@ -137,7 +138,7 @@ import {
   purgeExpiredSignatureTombstones,
   removeSignatures,
   restoreSignatures,
-  watchMapSignatures,
+  watchMapGlanceGroups,
   watchSystemSignatures,
 } from '../mapScan';
 import { trackedCharacterIds } from '../mapTrackingIds';
@@ -190,6 +191,7 @@ describe('convex runtime exports', () => {
       WORMHOLE_DESTINATION_HINTS,
       WORMHOLE_LIFE_STAGES,
       purgeUserClaims,
+      purgeUserMapClaims,
       reconcileMapClaims,
       remapLegacyOwnerRoles,
       CEILING_SWEEP_BATCH,
@@ -259,7 +261,7 @@ describe('convex runtime exports', () => {
       purgeExpiredSignatureTombstones,
       removeSignatures,
       restoreSignatures,
-      watchMapSignatures,
+      watchMapGlanceGroups,
       watchSystemSignatures,
       coverage,
       forMap,

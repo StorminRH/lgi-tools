@@ -51,22 +51,16 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { skillsEndpoint } from '@/features/skill-queue/api-contract';
-import { RosterCard } from '@/features/skill-queue/components/RosterCard';
-import { SkillQueuePanel } from '@/features/skill-queue/components/SkillQueuePanel';
+import { SkillQueueRows } from '@/features/skill-queue/components/SkillQueueRows';
+import { TrainingLine } from '@/features/skill-queue/components/TrainingLine';
 import { skillQueueEntrySchema } from '@/features/skill-queue/esi-projection';
-import { buildDemoRoster } from '@/features/skill-queue/roster-demo-data';
-import { useSkillsLive } from '@/features/skill-queue/use-skills-live';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      skillsEndpoint,
-      RosterCard,
-      SkillQueuePanel,
+      SkillQueueRows,
+      TrainingLine,
       skillQueueEntrySchema,
-      buildDemoRoster,
-      useSkillsLive,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import {
@@ -80,16 +80,6 @@ export async function readShipMassByType(
     .where(eq(eveTypes.id, typeId))
     .limit(1);
   return row?.mass ?? null;
-}
-
-export async function getCachedBlueprintCount(): Promise<number> {
-  'use cache';
-  cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
-  return withColdStartRetry(async () => {
-    const [row] = await db.select({ n: count() }).from(industryBlueprints);
-    return Number(row?.n ?? 0);
-  });
 }
 
 export async function getTypeNames(ids: number[]): Promise<Map<number, string>> {

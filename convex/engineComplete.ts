@@ -3,9 +3,9 @@ import {
   computeChainBoundary,
   computeNextDueAt,
   isColdFromPresence,
-  isRegisteredDataset,
   isRunningFresh,
   SYNC_DATASET_CONFIG,
+  type SyncDataset,
 } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
@@ -20,9 +20,8 @@ const chainDispatchArgs = {
 
 async function runChainDispatch(
   ctx: MutationCtx,
-  { dataset, userId }: { dataset: 'onlineStatus' | 'characterLocation'; userId: string },
+  { dataset, userId }: { dataset: SyncDataset; userId: string },
 ): Promise<void> {
-  if (!isRegisteredDataset(dataset)) return;
   const subject = await getSyncSubject(ctx.db, dataset, userId);
   if (subject === null) return;
   const now = Date.now();
@@ -40,36 +39,6 @@ export const chainDispatch = internalMutation({
 
 type CompletionSchedule = { nextDueAt: number | null; chainAt: number | null };
 
-function freshFailureHop(cadenceFloorMs: number, now: number): CompletionSchedule {
-  const boundary = now + cadenceFloorMs;
-  return { nextDueAt: boundary, chainAt: boundary };
-}
-
-function coldFailureReArm(cadenceFloorMs: number, now: number): CompletionSchedule {
-  return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
-}
-
-function parkUntilTargets(): CompletionSchedule {
-  return { nextDueAt: null, chainAt: null };
-}
-
-function chainHop(
-  minExpiresAt: number,
-  cadenceFloorMs: number,
-  now: number,
-): CompletionSchedule {
-  const boundary = computeChainBoundary(minExpiresAt, cadenceFloorMs, now);
-  return { nextDueAt: boundary, chainAt: boundary };
-}
-
-function jitteredScanReArm(
-  minExpiresAt: number | null,
-  cadenceFloorMs: number,
-  now: number,
-): CompletionSchedule {
-  return { nextDueAt: computeNextDueAt(minExpiresAt, cadenceFloorMs, now), chainAt: null };
-}
-
 async function resolveCompletionSchedule(
   ctx: MutationCtx,
   subject: Doc<'syncSubjects'>,
@@ -82,22 +51,27 @@ async function resolveCompletionSchedule(
   if (failed) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      return freshFailureHop(cadenceFloorMs, now);
+      const boundary = now + cadenceFloorMs;
+      return { nextDueAt: boundary, chainAt: boundary };
     }
-    return coldFailureReArm(cadenceFloorMs, now);
+    return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
   }
   if (subject.syncedCharacterIds.length === 0) {
-    return parkUntilTargets();
+    return { nextDueAt: null, chainAt: null };
   }
   const yielded =
     subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
   if (chainOnSuccess && yielded && subject.minExpiresAt !== null) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      return chainHop(subject.minExpiresAt, cadenceFloorMs, now);
+      const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
+      return { nextDueAt: boundary, chainAt: boundary };
     }
   }
-  return jitteredScanReArm(subject.minExpiresAt, cadenceFloorMs, now);
+  return {
+    nextDueAt: computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
+    chainAt: null,
+  };
 }
 
 const onSyncCompleteArgs = {
@@ -113,11 +87,10 @@ async function completeSyncRun(
   ctx: MutationCtx,
   { workId, context, result }: {
     workId: string;
-    context: { dataset: 'onlineStatus' | 'characterLocation'; userId: string };
+    context: { dataset: SyncDataset; userId: string };
     result: { kind: 'success' } | { kind: 'failed'; error: string };
   },
 ): Promise<void> {
-  if (!isRegisteredDataset(context.dataset)) return;
   const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
   if (subject === null || subject.workId !== workId) return;
   const now = Date.now();
@@ -155,7 +128,7 @@ async function completeSyncRun(
 
   if (chainAt !== null) {
     await ctx.scheduler.runAt(chainAt, internal.engineComplete.chainDispatch, {
-      dataset: subject.dataset,
+      dataset: context.dataset,
       userId: subject.userId,
     });
   }

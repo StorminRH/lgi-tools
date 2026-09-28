@@ -114,13 +114,13 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
-  it('requeues, records one admin audit event, and redirects with the range', async () => {
+  it('requeues, records one admin audit event, and redirects to the queue', async () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'requeued' });
     const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7', range: '7d' }));
+    const response = await POST(buildRequest({ jobId: '7' }));
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toBe('http://localhost:3000/admin?range=7d');
+    expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(requeueMock).toHaveBeenCalledWith(7);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'admin_esi_job_requeued',
@@ -133,9 +133,9 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     getSessionMock.mockResolvedValue(ADMIN);
     requeueMock.mockResolvedValue({ outcome: 'superseded' });
     const { POST } = await importRoute();
-    const response = await POST(buildRequest({ jobId: '7', range: 'bad' }));
+    const response = await POST(buildRequest({ jobId: '7' }));
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toBe('http://localhost:3000/admin?range=30d');
+    expect(response.headers.get('location')).toBe('http://localhost:3000/admin/queue');
     expect(logUsageEventMock).toHaveBeenCalledOnce();
   });
 });

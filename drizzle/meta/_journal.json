@@ -428,6 +428,48 @@
       "when": 1788562847655,
       "tag": "0060_retire_atlas_auto_layout",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1789476204284,
+      "tag": "0061_affiliation_access_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790281554042,
+      "tag": "0062_solar_system_wormhole_effect",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790520054947,
+      "tag": "0063_character_sheets",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790534125354,
+      "tag": "0064_adjusted_price_average",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1790535933854,
+      "tag": "0065_net_worth_days",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790543048891,
+      "tag": "0066_character_sheet_refresh_queue",
+      "breakpoints": true
     }
   ]
 }

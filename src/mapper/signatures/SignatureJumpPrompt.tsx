@@ -22,7 +22,7 @@ export function SignatureJumpPrompt({
     <div
       data-signature-jump-prompt
       className={cn(
-        'flex flex-col gap-2 rounded-card p-3 text-ui',
+        'flex flex-col gap-2 p-3 text-ui',
         mapFrostedSurface,
       )}
     >

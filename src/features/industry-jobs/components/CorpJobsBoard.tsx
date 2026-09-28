@@ -13,7 +13,7 @@ import { ENTITY_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
-import { corpEntityIds, corpGroupState, jobRowFrameData, runnerName } from '../job-view';
+import { corpEntityIds, corpGroupState, corpJobsEmptyLine, jobRowFrameData, runnerName } from '../job-view';
 import { useCorpJobsLive } from '../use-corp-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
@@ -34,7 +34,7 @@ export function CorpJobsBoard({
   if (!hasLinkedCharacters) return null;
 
   return (
-    <section>
+    <section className="reveal reveal-2">
       <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
@@ -48,16 +48,14 @@ export function CorpJobsBoard({
 }
 
 function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[] }) {
-  const { corporations, names, now, loading } = useCorpJobsLive(eligibleCharacterIds);
+  const { corporations, names, now, loading, failed } = useCorpJobsLive(eligibleCharacterIds);
 
   if (loading) return <LoadingLabel label="Loading…" />;
 
-  if (corporations.length === 0) {
+  if (failed || corporations.length === 0) {
     return (
       <Card>
-        <EmptyState>
-          No corporation industry jobs yet — they’ll appear here once a sync completes.
-        </EmptyState>
+        <EmptyState>{corpJobsEmptyLine(failed)}</EmptyState>
       </Card>
     );
   }

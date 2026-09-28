@@ -45,7 +45,7 @@ export function MapEventLog({
     >
       <div
         className={cn(
-          'pointer-events-auto rounded-card text-ui',
+          'pointer-events-auto text-ui',
           mapFrostedSurface,
         )}
       >

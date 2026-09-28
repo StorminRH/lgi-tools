@@ -260,6 +260,7 @@ export function syncNodes(
         className: label.className,
         security: label.security ?? null,
         whClassId: label.whClassId ?? null,
+        effect: label.effect ?? null,
       },
     };
   });
@@ -284,6 +285,7 @@ export function syncNodes(
           className: label.className,
           security: label.security ?? null,
           whClassId: label.whClassId ?? null,
+          effect: label.effect ?? null,
           halo: { ring: placed.ring, fogged: placed.fogged },
         },
       };

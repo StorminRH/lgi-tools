@@ -4,6 +4,9 @@ import { syntheticEmail } from '@/platform/auth/synthetic-email';
 const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runBeforeCharacterUnlink: vi.fn().mockResolvedValue([]),
+  runAfterFailedCharacterUnlink: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterUnlink: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/composition/map-access-identity', () => {
@@ -13,7 +16,7 @@ vi.mock('@/composition/map-access-identity', () => {
 const { chain, state } = vi.hoisted(() => {
   const state = {
     results: [] as unknown[],
-    calls: { delete: 0, update: 0 },
+    calls: { delete: 0, update: 0, execute: 0 },
   };
   const chain: Record<string, unknown> = {
     then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
@@ -21,6 +24,10 @@ const { chain, state } = vi.hoisted(() => {
   for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy', 'returning']) {
     chain[method] = () => chain;
   }
+  chain.execute = async () => {
+    state.calls.execute += 1;
+    return [];
+  };
   chain.update = () => {
     state.calls.update += 1;
     return chain;
@@ -38,7 +45,6 @@ vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
   return {
     ...actual,
-    affectedMapIdsForCharacter: vi.fn().mockResolvedValue([]),
     getOwnedMapIds: vi.fn().mockResolvedValue([]),
   };
 });
@@ -71,19 +77,31 @@ beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
+  state.calls.execute = 0;
   hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
+  hooks.runBeforeCharacterUnlink.mockReset().mockResolvedValue(['map-pre-removal']);
 });
 
 describe('purgeTransferredCharacter', () => {
+  it('keeps the prior link when revocation cannot be confirmed', async () => {
+    const failure = new Error('Convex unavailable');
+    hooks.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
+    await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
+    expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
+  });
+
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
       [{ id: 'acc-1' }],
-      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    expect(state.calls).toEqual({ delete: 2, update: 0 });
+    expect(hooks.runBeforeCharacterUnlink).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
+    expect(hooks.runAfterCharacterUnlink).toHaveBeenCalledWith({
+      userId: USER, characterId: CHAR, mapIds: ['map-pre-removal'],
+    });
+    expect(state.calls).toEqual({ delete: 1, update: 0, execute: 1 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
       characterId: CHAR,
@@ -97,7 +115,7 @@ describe('reconcileCharacterOwner', () => {
     await reconcileCharacterOwner(CHAR, undefined);
     state.results = [[]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
+    expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
 
     state.results = [[{ userId: USER, ownerHash: null }]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
@@ -106,17 +124,16 @@ describe('reconcileCharacterOwner', () => {
     state.calls.update = 0;
     state.results = [[{ userId: USER, ownerHash: 'owner-one' }]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
+    expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
 
     state.results = [
       [{ userId: USER, ownerHash: 'owner-old' }],
       [{ id: 'acc-1' }],
-      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await reconcileCharacterOwner(CHAR, 'owner-new');
-    expect(state.calls).toEqual({ delete: 2, update: 0 });
+    expect(state.calls).toEqual({ delete: 1, update: 0, execute: 1 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
       characterId: CHAR,

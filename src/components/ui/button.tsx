@@ -7,16 +7,18 @@ const buttonStateClasses =
   'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-isk-sub';
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center font-ui text-nav ' +
-    `rounded-ctl ${buttonStateClasses}`,
+  'inline-flex items-center justify-center gap-2 font-ui text-nav font-medium ' +
+    'active:scale-[0.97] transition-[color,background-color,border-color,box-shadow,filter,scale] ' +
+    `ease-spring rounded-ctl ${buttonStateClasses}`,
   {
     variants: {
       variant: {
         primary:
-          'bg-feedback-bg text-isk border border-isk-dim shadow-btn-bezel ' +
-          'hover:bg-isk hover:text-isk-ink hover:border-isk',
+          'bg-brand-gradient text-isk-ink font-semibold border border-transparent shadow-cta-glow ' +
+          'hover:brightness-110 hover:text-isk-ink',
         secondary:
-          'border border-border-idle text-name shadow-btn-bezel hover:border-border-active',
+          'border border-border-idle bg-row-on text-name shadow-btn-bezel ' +
+          'hover:border-border-active hover:bg-row-related',
         ghost: 'text-muted hover:text-isk',
         danger:
           'bg-pill-red-bg text-pill-red-text border border-pill-red-border shadow-btn-bezel ' +

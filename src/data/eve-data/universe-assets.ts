@@ -10,6 +10,7 @@ import {
 import { getSdeMetaValue } from './meta';
 import {
   dgmAttributeTypes,
+  eveRegions,
   eveSolarSystems,
   eveSystemJumps,
   eveTypes,
@@ -19,8 +20,15 @@ import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
   wormholeSizeClass,
+  type WormholeEffect,
   type WormholeSizeClass,
 } from './wormhole-contract';
+import {
+  EFFECT_BEACON_GROUP_ID,
+  beaconAttributeIds,
+  buildWormholeEffects,
+  type WormholeEffectEntry,
+} from './wormhole-effects';
 
 const WORMHOLE_GROUP_ID = 988;
 const K162_CODE = FAR_SIDE_WORMHOLE_CODE;
@@ -44,8 +52,14 @@ type WormholeAttributeName =
 export interface SystemDirectoryEntry {
   id: number;
   name: string;
+  regionName: string;
   whClassId: number | null;
   security: number | null;
+  effect: WormholeEffect | null;
+}
+
+export function composeUniverseAssetVersion(sdeVersion: string): string {
+  return `${sdeVersion}+u5`;
 }
 
 export type AdjacencyEntry = [
@@ -88,6 +102,8 @@ export interface AdjacencyAsset {
 export interface WormholeCodexAsset {
   version: string;
   types: WormholeCodexEntry[];
+  /** System effect modifiers per (effect, wormhole class), from the SDE. */
+  effects: WormholeEffectEntry[];
 }
 
 export interface WormholeTypeRow {
@@ -235,19 +251,26 @@ async function requireSdeVersion(database: AnyPgDb): Promise<string> {
   return version;
 }
 
+async function requireUniverseAssetVersion(database: AnyPgDb): Promise<string> {
+  return composeUniverseAssetVersion(await requireSdeVersion(database));
+}
+
 export async function readSystemDirectory(
   database: AnyPgDb,
 ): Promise<SystemDirectoryAsset> {
   const [version, systems] = await Promise.all([
-    requireSdeVersion(database),
+    requireUniverseAssetVersion(database),
     database
       .select({
         id: eveSolarSystems.id,
         name: eveSolarSystems.name,
+        regionName: eveRegions.name,
         whClassId: eveSolarSystems.wormholeClassId,
         security: eveSolarSystems.securityStatus,
+        effect: eveSolarSystems.wormholeEffect,
       })
-      .from(eveSolarSystems),
+      .from(eveSolarSystems)
+      .innerJoin(eveRegions, eq(eveSolarSystems.regionId, eveRegions.id)),
   ]);
   return { version, systems: buildSystemDirectory(systems) };
 }
@@ -256,7 +279,7 @@ export async function readAdjacencyGraph(
   database: AnyPgDb,
 ): Promise<AdjacencyAsset> {
   const [version, jumps] = await Promise.all([
-    requireSdeVersion(database),
+    requireUniverseAssetVersion(database),
     database
       .select({
         fromSystemId: eveSystemJumps.fromSystemId,
@@ -270,8 +293,8 @@ export async function readAdjacencyGraph(
 export async function readWormholeCodex(
   database: AnyPgDb,
 ): Promise<WormholeCodexAsset> {
-  const [version, attributeRows, typeRows] = await Promise.all([
-    requireSdeVersion(database),
+  const [version, attributeRows, typeRows, beaconRows] = await Promise.all([
+    requireUniverseAssetVersion(database),
     database
       .select({ id: dgmAttributeTypes.id, name: dgmAttributeTypes.name })
       .from(dgmAttributeTypes)
@@ -287,10 +310,32 @@ export async function readWormholeCodex(
       .from(eveTypes)
       .leftJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
       .where(eq(eveTypes.groupId, WORMHOLE_GROUP_ID)),
+    database
+      .select({
+        id: eveTypes.id,
+        name: eveTypes.name,
+        attributes: typeDogma.attributes,
+      })
+      .from(eveTypes)
+      .innerJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
+      .where(eq(eveTypes.groupId, EFFECT_BEACON_GROUP_ID)),
   ]);
+  const effectAttributeIds = beaconAttributeIds(beaconRows);
+  const effectAttributes = effectAttributeIds.length === 0
+    ? []
+    : await database
+      .select({
+        id: dgmAttributeTypes.id,
+        name: dgmAttributeTypes.name,
+        displayName: dgmAttributeTypes.displayName,
+        unitId: dgmAttributeTypes.unitId,
+      })
+      .from(dgmAttributeTypes)
+      .where(inArray(dgmAttributeTypes.id, effectAttributeIds));
   return {
     version,
     types: buildWormholeCodex(typeRows, attributeRows),
+    effects: buildWormholeEffects(beaconRows, effectAttributes),
   };
 }
 

@@ -133,7 +133,7 @@ function LockedSystemBox({
     <div
       className={cn(
         HERO_LOCATION_CONTROL_WELL_CLASS,
-        'flex h-[30px] items-center border border-border bg-bg px-2',
+        'flex h-[30px] items-center rounded-ctl border border-border bg-bg-deep/60 px-2 shadow-field-inset',
       )}
     >
       <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>

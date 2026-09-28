@@ -53,13 +53,10 @@ vi.mock('convex/react', () => ({
 
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { HeroBanner } from '@/components/composition/HeroBanner';
+import { EntranceOnce } from '@/components/composition/EntranceOnce';
 import { HomeDashboard } from '@/components/composition/HomeDashboard';
-import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
 import { HomeHero } from '@/components/composition/HomeHero';
-import { HomeLeftColumn } from '@/components/composition/HomeLeftColumn';
-import { HomeLiveStats } from '@/components/composition/HomeLiveStats';
-import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
-import { HomeRosterPanel } from '@/components/composition/HomeRosterPanel';
+import { SignedInFold } from '@/components/composition/SignedInFold';
 import { TelemetryReporter } from '@/components/composition/TelemetryReporter';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
@@ -76,13 +73,10 @@ describe('coverage-gaps', () => {
     const pinned = [
       CharacterPanelSkeleton,
       HeroBanner,
+      EntranceOnce,
       HomeDashboard,
-      HomeFeatureCards,
       HomeHero,
-      HomeLeftColumn,
-      HomeLiveStats,
-      HomeNewsCard,
-      HomeRosterPanel,
+      SignedInFold,
       TelemetryReporter,
       AccountDangerZone,
       AdminUnlinkCharacterForm,

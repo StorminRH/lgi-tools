@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo } from 'react';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -24,11 +25,11 @@ import {
   corpStatus,
   type DashboardSectionId,
   deriveSectionRender,
-  orderSections,
   recentsStatus,
   savedStatus,
   type SectionStatus,
 } from './dashboard-sections';
+import { useSettledSectionOrder } from './use-settled-section-order';
 
 interface SectionCell {
   label: string;
@@ -39,14 +40,29 @@ interface SectionCell {
 
 const countBadge = 'text-evb-bright font-semibold';
 
-function DashboardSection({ status, cell }: { status: SectionStatus; cell: SectionCell }) {
+// Literal class names so Tailwind and the reduced-motion list can see them.
+const SECTION_REVEAL = ['reveal-2', 'reveal-3', 'reveal-4', 'reveal-5'] as const;
+
+function DashboardSection({
+  status,
+  cell,
+  reveal,
+}: {
+  status: SectionStatus;
+  cell: SectionCell;
+  reveal: string;
+}) {
   const render = deriveSectionRender(status, cell.hint);
   return (
-    <section>
+    <section className={cn('reveal', reveal)}>
       <SectionLabel className="mb-cluster" meta={render.meta ? cell.meta : undefined}>
         {cell.label}
       </SectionLabel>
-      {render.hint !== null && <p className="text-ui text-muted">{render.hint}</p>}
+      {render.hint !== null && (
+        <Card>
+          <p className="px-3.5 py-3 text-ui text-muted">{render.hint}</p>
+        </Card>
+      )}
       {render.body && cell.body}
     </section>
   );
@@ -86,7 +102,11 @@ function ActiveJobsPanel({
   now: number;
 }) {
   if (loading) return <LoadingLabel label="Loading…" />;
-  return <IndustryActiveJobs jobs={jobs} names={names} now={now} />;
+  return (
+    <Card className="overflow-x-auto">
+      <IndustryActiveJobs jobs={jobs} names={names} now={now} />
+    </Card>
+  );
 }
 
 function CorpSectionBody({
@@ -145,6 +165,7 @@ export function IndustryDashboardGrid({
     saved: savedStatus(plans, listFailed),
     active: activeStatus({
       loading: jobsLive.loading,
+      failed: jobsLive.failed,
       rosterSize: jobsLive.jobsByCharacter.size,
       jobCount: jobs.length,
     }),
@@ -152,9 +173,12 @@ export function IndustryDashboardGrid({
       hasLinkedCharacters,
       eligibleCount: corpEligibleCharacterIds.length,
       loading: corpLive.loading,
+      failed: corpLive.failed,
       corpCount: corpLive.corporations.length,
     }),
   };
+
+  const order = useSettledSectionOrder(status);
 
   const allPlans = plans ?? [];
   const { tiles, overflow } = savedTiles(allPlans);
@@ -201,7 +225,7 @@ export function IndustryDashboardGrid({
           now={jobsLive.now}
         />
       ),
-      hint: activeJobsHint(jobsLive.jobsByCharacter.size),
+      hint: activeJobsHint(jobsLive.jobsByCharacter.size, jobsLive.failed),
     },
     corp: {
       label: 'Corporation industry jobs',
@@ -215,14 +239,19 @@ export function IndustryDashboardGrid({
           reconnectAction={reconnectAction}
         />
       ),
-      hint: corpHint(hasLinkedCharacters),
+      hint: corpHint(hasLinkedCharacters, corpLive.failed),
     },
   };
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
-      {orderSections(status).map((id) => (
-        <DashboardSection key={id} status={status[id]} cell={cells[id]} />
+      {order.map((id, index) => (
+        <DashboardSection
+          key={id}
+          status={status[id]}
+          cell={cells[id]}
+          reveal={SECTION_REVEAL[index] ?? 'reveal-5'}
+        />
       ))}
     </div>
   );

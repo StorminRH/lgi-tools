@@ -8,6 +8,7 @@ import {
 
 const CODEX: WormholeCodexAsset = {
   version: 'test',
+  effects: [],
   types: [
     {
       code: 'A001',

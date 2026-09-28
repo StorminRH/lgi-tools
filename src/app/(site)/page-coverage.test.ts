@@ -51,34 +51,52 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
+import { ActionsCard } from '@/app/(site)/admin/ActionsCard';
+import { ActivityChart } from '@/app/(site)/admin/ActivityChart';
+import { AdminPageFrame, AdminSlot } from '@/app/(site)/admin/AdminFrame';
+import { AdminGate } from '@/app/(site)/admin/AdminGate';
+import { AdminRail, AdminRailFallback } from '@/app/(site)/admin/AdminRail';
+import { AudienceCard } from '@/app/(site)/admin/AudienceCard';
+import { CardFallback } from '@/app/(site)/admin/CardFallback';
+import { CardLink } from '@/app/(site)/admin/CardLink';
 import { DeltaBadge } from '@/app/(site)/admin/DeltaBadge';
-import { GscCoverageSection } from '@/app/(site)/admin/GscCoverageSection';
-import { MetricTable } from '@/app/(site)/admin/MetricTable';
-import { MetricsSection } from '@/app/(site)/admin/MetricsSection';
-import { OpsSection } from '@/app/(site)/admin/OpsSection';
-import { PrintButton } from '@/app/(site)/admin/PrintButton';
-import { RetryJobForm } from '@/app/(site)/admin/RetryJobForm';
+import { KpiGrid } from '@/app/(site)/admin/KpiGrid';
+import { AttentionCard, StatusCards } from '@/app/(site)/admin/OverviewCards';
+import { RangeControl } from '@/app/(site)/admin/RangeControl';
+import { RangeSelector, RangeSelectorFallback } from '@/app/(site)/admin/RangeSelector';
 import { SectionUnavailable } from '@/app/(site)/admin/SectionUnavailable';
-import { StatusRow } from '@/app/(site)/admin/StatusRow';
-import { StatusStrip } from '@/app/(site)/admin/StatusStrip';
-import { TrafficSection } from '@/app/(site)/admin/TrafficSection';
-import { UsersSection } from '@/app/(site)/admin/UsersSection';
-import AppSiteAdminAccessUserIdPage from '@/app/(site)/admin/access/[userId]/page';
-import AppSiteAdminAccessPage from '@/app/(site)/admin/access/page';
+import { StatusLines } from '@/app/(site)/admin/StatusLines';
+import { AdminNav, AdminNavFallback } from '@/app/(site)/admin/admin-nav';
 import { AdminBarChart, AdminDailyChart, AdminTrendChart } from '@/app/(site)/admin/charts';
 import { loadDeployMarkers } from '@/app/(site)/admin/deploy-markers';
+import { BudgetCard, CostCards, PressureCard, PriceSourceCard } from '@/app/(site)/admin/esi/EsiCards';
+import AppSiteAdminEsiPage from '@/app/(site)/admin/esi/page';
 import { getBudgetExhaustionCountShared, getFallbackRateShared } from '@/app/(site)/admin/esi-source-shared';
+import { EventLogCard, ServiceLevelsCard } from '@/app/(site)/admin/health/HealthCards';
+import { ScheduledTasks } from '@/app/(site)/admin/health/ScheduledTasks';
+import { StatusRow } from '@/app/(site)/admin/health/StatusRow';
+import AppSiteAdminHealthPage from '@/app/(site)/admin/health/page';
 import { getLastSyncedAtShared } from '@/app/(site)/admin/last-synced';
-import { metricLabelColumn } from '@/app/(site)/admin/metric-label-column';
+import AppSiteAdminLayout from '@/app/(site)/admin/layout';
+import { loadAdminSignals } from '@/app/(site)/admin/load-signals';
 import AppSiteAdminPage from '@/app/(site)/admin/page';
+import { DeadLettersCard, QueueSummaryCard } from '@/app/(site)/admin/queue/QueueCards';
+import { RetryJobForm } from '@/app/(site)/admin/queue/RetryJobForm';
+import AppSiteAdminQueuePage from '@/app/(site)/admin/queue/page';
 import { getEsiRefreshQueueStatsShared } from '@/app/(site)/admin/queue-stats-shared';
+import { IndexCoverageCard } from '@/app/(site)/admin/search/IndexCoverageCard';
+import { PerformanceCard, SearchNotConnected, SitemapsCard, TermCards } from '@/app/(site)/admin/search/SearchCards';
+import AppSiteAdminSearchPage from '@/app/(site)/admin/search/page';
 import AppSiteAdminStaticsPage from '@/app/(site)/admin/statics/page';
+import { getStaticsReviewShared } from '@/app/(site)/admin/statics-review-shared';
+import { LEVEL_DOT_TONE, LEVEL_VALUE_CLASS } from '@/app/(site)/admin/status-tone';
+import { ActivityCard, PilotsCard, TrafficLists } from '@/app/(site)/admin/traffic/TrafficCards';
+import AppSiteAdminTrafficPage from '@/app/(site)/admin/traffic/page';
 import AppSiteAtlasError from '@/app/(site)/atlas/error';
 import { metadata } from '@/app/(site)/atlas/page';
 import AppSiteChangelogSlugPage, { generateMetadata, generateStaticParams } from '@/app/(site)/changelog/[slug]/page';
 import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
-import AppSiteCharactersPage from '@/app/(site)/characters/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
 import AppSiteError from '@/app/(site)/error';
 import { IndustryDashboardGrid } from '@/app/(site)/industry/IndustryDashboardGrid';
@@ -93,42 +111,84 @@ import { PrimitivesDemo } from '@/app/(site)/preview/primitives/PrimitivesDemo';
 import AppSitePreviewPrimitivesPage, { metadata as AppSitePreviewPrimitivesPageMetadata } from '@/app/(site)/preview/primitives/page';
 import AppSitePreviewWidgetsPage, { metadata as AppSitePreviewWidgetsPageMetadata } from '@/app/(site)/preview/widgets/page';
 import { UniverseAssetsProof } from '@/app/(site)/preview/widgets/universe-assets-proof';
-import AppSiteSettingsPage from '@/app/(site)/settings/page';
+import AppSiteSettingsAccessUserIdPage from '@/app/(site)/settings/access/[userId]/page';
+import AppSiteSettingsAccessPage from '@/app/(site)/settings/access/page';
+import AppSiteSettingsAccountPage from '@/app/(site)/settings/account/page';
+import AppSiteSettingsCharactersPage from '@/app/(site)/settings/characters/page';
+import AppSiteSettingsCorporationsPage from '@/app/(site)/settings/corporations/page';
+import AppSiteSettingsLayout from '@/app/(site)/settings/layout';
+import AppSiteSettingsPreferencesPage from '@/app/(site)/settings/preferences/page';
+import { PreferenceGroups } from '@/app/(site)/settings/preferences/preference-groups';
 import { SettingsControlRow } from '@/app/(site)/settings/settings-control-row';
+import { SettingsNav, SettingsNavFallback } from '@/app/(site)/settings/settings-nav';
 import AppSiteSitesIdOpengraphImage, { alt, contentType, size } from '@/app/(site)/sites/[id]/opengraph-image';
 import { generateMetadata as AppSiteSitesIdPageGenerateMetadata, generateStaticParams as AppSiteSitesIdPageGenerateStaticParams } from '@/app/(site)/sites/[id]/page';
 import AppSiteSitesPage, { metadata as AppSiteSitesPageMetadata } from '@/app/(site)/sites/page';
-import AppSiteSkillsPage from '@/app/(site)/skills/page';
 import AppSiteStructuresPage from '@/app/(site)/structures/page';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
+      ActionsCard,
+      ActivityChart,
+      AdminPageFrame,
+      AdminSlot,
+      AdminGate,
+      AdminRail,
+      AdminRailFallback,
+      AudienceCard,
+      CardFallback,
+      CardLink,
       DeltaBadge,
-      GscCoverageSection,
-      MetricTable,
-      MetricsSection,
-      OpsSection,
-      PrintButton,
-      RetryJobForm,
+      KpiGrid,
+      AttentionCard,
+      StatusCards,
+      RangeControl,
+      RangeSelector,
+      RangeSelectorFallback,
       SectionUnavailable,
-      StatusRow,
-      StatusStrip,
-      TrafficSection,
-      UsersSection,
-      AppSiteAdminAccessUserIdPage,
-      AppSiteAdminAccessPage,
+      StatusLines,
+      AdminNav,
+      AdminNavFallback,
       AdminBarChart,
       AdminDailyChart,
       AdminTrendChart,
       loadDeployMarkers,
+      BudgetCard,
+      CostCards,
+      PressureCard,
+      PriceSourceCard,
+      AppSiteAdminEsiPage,
       getBudgetExhaustionCountShared,
       getFallbackRateShared,
+      EventLogCard,
+      ServiceLevelsCard,
+      ScheduledTasks,
+      StatusRow,
+      AppSiteAdminHealthPage,
       getLastSyncedAtShared,
-      metricLabelColumn,
+      AppSiteAdminLayout,
+      loadAdminSignals,
       AppSiteAdminPage,
+      DeadLettersCard,
+      QueueSummaryCard,
+      RetryJobForm,
+      AppSiteAdminQueuePage,
       getEsiRefreshQueueStatsShared,
+      IndexCoverageCard,
+      PerformanceCard,
+      SearchNotConnected,
+      SitemapsCard,
+      TermCards,
+      AppSiteAdminSearchPage,
       AppSiteAdminStaticsPage,
+      getStaticsReviewShared,
+      LEVEL_DOT_TONE,
+      LEVEL_VALUE_CLASS,
+      ActivityCard,
+      PilotsCard,
+      TrafficLists,
+      AppSiteAdminTrafficPage,
       AppSiteAtlasError,
       metadata,
       generateMetadata,
@@ -137,7 +197,6 @@ describe('coverage-gaps', () => {
       AppSiteChangelogLayout,
       AppSiteChangelogPageMetadata,
       AppSiteChangelogPage,
-      AppSiteCharactersPage,
       AppSiteContactPageMetadata,
       AppSiteContactPage,
       AppSiteError,
@@ -161,8 +220,17 @@ describe('coverage-gaps', () => {
       AppSitePreviewWidgetsPageMetadata,
       AppSitePreviewWidgetsPage,
       UniverseAssetsProof,
-      AppSiteSettingsPage,
+      AppSiteSettingsAccessUserIdPage,
+      AppSiteSettingsAccessPage,
+      AppSiteSettingsAccountPage,
+      AppSiteSettingsCharactersPage,
+      AppSiteSettingsCorporationsPage,
+      AppSiteSettingsLayout,
+      AppSiteSettingsPreferencesPage,
+      PreferenceGroups,
       SettingsControlRow,
+      SettingsNav,
+      SettingsNavFallback,
       alt,
       contentType,
       size,
@@ -171,7 +239,6 @@ describe('coverage-gaps', () => {
       AppSiteSitesIdPageGenerateStaticParams,
       AppSiteSitesPageMetadata,
       AppSiteSitesPage,
-      AppSiteSkillsPage,
       AppSiteStructuresPage,
     ];
     expect(pinned.length).toBeGreaterThan(0);

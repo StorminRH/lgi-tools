@@ -11,12 +11,12 @@ const character = (characterId: number, needsReconnect = false): PanelCharacter 
   needsReconnect,
 });
 
-const strip: CharacterStripSpec = { surfaceId: 'skills' };
+const strip: CharacterStripSpec = { surfaceId: 'jobs' };
 
 describe('stripPreferenceBinding', () => {
   it('offers the surface def and the first-paint dimmed set when a strip is declared', () => {
     const binding = stripPreferenceBinding(strip, [7, 8]);
-    expect(binding.def).toEqual(stripDimmedDef('skills'));
+    expect(binding.def).toEqual(stripDimmedDef('jobs'));
     expect(binding.serverValue).toEqual([7, 8]);
   });
 
@@ -56,5 +56,10 @@ describe('deriveStripView', () => {
   it('renders the loading caption while loading and the steady caption otherwise', () => {
     expect(deriveStripView(strip, [], [], true).syncCaption).toBe('Loading…');
     expect(deriveStripView(strip, [], [], false).syncCaption).toBe('Synced from ESI on view');
+  });
+
+  it('swaps the caption for the failure line once a failed load settles', () => {
+    expect(deriveStripView(strip, [], [], false, 'Couldn’t load.').syncCaption).toBe('Couldn’t load.');
+    expect(deriveStripView(strip, [], [], false, null).syncCaption).toBe('Synced from ESI on view');
   });
 });

@@ -48,10 +48,10 @@ export function NavMenu() {
     <Menu
       label="Menu"
       trigger={<HamburgerGlyph />}
-      triggerClassName="hidden cursor-pointer items-center justify-center border-l border-border px-4 text-muted transition-colors hover:bg-row-hover hover:text-name data-[popup-open]:bg-row-hover data-[popup-open]:text-name max-lg:inline-flex"
+      triggerClassName="hidden size-10 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-row-on hover:text-name data-[popup-open]:bg-row-on data-[popup-open]:text-name max-lg:inline-flex"
       triggerProps={{ 'data-nav-menu-toggle': '' }}
       popupProps={{ 'data-nav-menu-panel': '' }}
-      className="min-w-56 border-t-0"
+      className="mt-2 min-w-56"
       anchor={() => document.querySelector('.app-header')}
     >
       <Suspense fallback={null}>

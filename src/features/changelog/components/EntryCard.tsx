@@ -12,12 +12,12 @@ const TYPE_TONE: Record<ChangeType, PillTone> = {
 
 export function EntryCard({ entry }: { entry: ChangelogEntry }) {
   return (
-    <div className="grid grid-cols-1 gap-0 sm:grid-cols-[116px_1fr]">
+    <div className="grid grid-cols-1 gap-0 last:*:last:pb-0 sm:grid-cols-[116px_1fr]">
       <div className="pb-3 text-left sm:pr-[26px] sm:pt-0.5 sm:text-right">
         <div className="font-data text-lead font-extrabold tracking-optical text-name">v{entry.version}</div>
         <div className="mt-1.5 font-data text-label uppercase tracking-[0.08em] text-muted">{formatUtcDate(entry.date)}</div>
       </div>
-      <div className="relative pb-[34px] sm:border-l sm:border-border sm:pl-7 sm:before:absolute sm:before:-left-[5px] sm:before:top-1 sm:before:size-[9px] sm:before:rounded-full sm:before:bg-isk sm:before:shadow-[0_0_0_3px_var(--color-bg-deep),0_0_10px_var(--color-card-glow-shadow)] sm:before:content-['']">
+      <div className="relative pb-[34px] sm:border-l sm:border-border-soft sm:pl-7 sm:before:absolute sm:before:-left-[5px] sm:before:top-1 sm:before:size-[9px] sm:before:rounded-full sm:before:bg-isk sm:before:shadow-[0_0_0_3px_var(--color-bg-deep),0_0_10px_var(--color-card-glow-shadow)] sm:before:content-['']">
         {entry.summary.length > 0 && (
           <div className="mb-4 flex max-w-[72ch] flex-col gap-[0.7em]">
             {entry.summary.map((para, i) => (

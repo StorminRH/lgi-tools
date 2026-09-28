@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, type ReactNode } from 'react';
-import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
 import { useMapCatalogueData } from '@/features/maps/map-catalogue-data';
 import { MapSwitcher } from '@/features/maps/MapSwitcher';
@@ -20,7 +19,6 @@ export function MapChrome({
   const {
     corporations,
     maps,
-    deletedMaps,
     grantsByMapId,
     listingAvailable,
   } = useMapCatalogueData();
@@ -30,19 +28,11 @@ export function MapChrome({
       data-map-chrome
       className="pointer-events-none absolute inset-0 z-dropdown"
     >
-      <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
-        {session ? (
-          <div data-map-account-anchor>
-            <AccountMenu
-              session={session}
-              anchor={() => document.querySelector('[data-map-account-anchor]')}
-              contextualSection={contextualSection}
-            />
-          </div>
-        ) : null}
+      <div className="pointer-events-auto absolute right-4 top-4">
         <MapMenu
+          session={session}
+          contextualSection={contextualSection}
           corporations={corporations}
-          deletedMaps={deletedMaps}
           mapActionsAvailable={listingAvailable}
         />
       </div>

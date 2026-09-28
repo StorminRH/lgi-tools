@@ -8,7 +8,7 @@ import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 
 const STATUS_PILL_CLASS =
-  'h-full gap-2 whitespace-nowrap border-transparent bg-transparent px-3 uppercase tracking-label';
+  'h-8 gap-2 whitespace-nowrap border-transparent bg-transparent px-3 uppercase tracking-label';
 
 export function ServerStatus({ status }: { status: ServerStatusValue }) {
   const { label, ariaLabel, reachable } = serverStatusPresentation(status);

@@ -7,8 +7,8 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: vi.fn(),
 }));
 
-vi.mock('@/platform/auth/affiliation-store', () => ({
-  getUserAffiliations: vi.fn(),
+vi.mock('@/composition/corp-access', () => ({
+  resolveUserCorpAccess: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/linked-characters', () => ({

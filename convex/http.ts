@@ -2,7 +2,7 @@ import { httpRouter } from 'convex/server';
 import { sweep, purgeOnline } from './httpEngine';
 import { jumpEvidence, resolveJump, signatureElimination } from './httpJump';
 import { leaveSync, purgeLocationTracking } from './httpLocation';
-import { projectMapAccess, purgeMapAccess, purgeMapChain } from './httpMapAccess';
+import { projectMapAccess, purgeMapAccess, purgeMapChain, purgeUserMapClaims } from './httpMapAccess';
 
 const http = httpRouter();
 
@@ -58,6 +58,12 @@ http.route({
   path: '/purge-map-access',
   method: 'POST',
   handler: purgeMapAccess,
+});
+
+http.route({
+  path: '/purge-user-map-claims',
+  method: 'POST',
+  handler: purgeUserMapClaims,
 });
 
 http.route({

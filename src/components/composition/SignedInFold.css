@@ -1,0 +1,25 @@
+/* Visitor-only content folds shut when a session resolves rather than
+ * unmounting, or from first paint when this browser was signed in last time
+ * (the hint only counts until the session settles). The negative margin
+ * cancels the parent's flex gap (--fold-gap) the empty row would otherwise
+ * keep. Clipping only applies once folded, so a reveal's rise is never cut. */
+.signed-in-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 600ms var(--ease-out-expo),
+    margin-block-end 600ms var(--ease-out-expo),
+    opacity 300ms ease-out;
+}
+.signed-in-fold:is([data-folded], [data-signed-in-hint]:not([data-settled])) {
+  grid-template-rows: 0fr;
+  margin-block-end: calc(-1 * var(--fold-gap, 0px));
+  opacity: 0;
+}
+.signed-in-fold:is([data-folded], [data-signed-in-hint]:not([data-settled])) > * {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signed-in-fold { transition: none; }
+}

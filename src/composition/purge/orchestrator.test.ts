@@ -1,8 +1,9 @@
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { chain, recorded } = vi.hoisted(() => {
+const { chain, recorded, executions } = vi.hoisted(() => {
   const recorded: { op: 'delete' | 'update'; table: unknown }[] = [];
+  const executions = { count: 0 };
   const chain: Record<string, unknown> = {
     then: (resolve: (v: unknown) => void) => resolve([]),
   };
@@ -17,7 +18,11 @@ const { chain, recorded } = vi.hoisted(() => {
     recorded.push({ op: 'update', table });
     return chain;
   };
-  return { chain, recorded };
+  chain.execute = async () => {
+    executions.count += 1;
+    return [];
+  };
+  return { chain, recorded, executions };
 });
 
 vi.mock('@/db', () => ({ db: chain }));
@@ -26,7 +31,6 @@ vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
   return {
     ...actual,
-    affectedMapIdsForCharacter: vi.fn().mockResolvedValue([]),
     getOwnedMapIds: vi.fn().mockResolvedValue([]),
   };
 });
@@ -55,19 +59,20 @@ const names = (): string[] => recorded.map((r) => getTableConfig(r.table as PgTa
 
 beforeEach(() => {
   recorded.length = 0;
+  executions.count = 0;
 });
 
 describe('runPurge orchestrator', () => {
-  it('transfer scope removes auth custody and direct map grants at the credential tier', async () => {
+  it('credential character purge removes account rows and runs the map grant statement', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
-    expect(names()).toEqual(['account', 'map_access']);
+    expect(names()).toEqual(['account']);
+    expect(executions.count).toBe(1);
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 });
     const seq = names();
     expect(seq[0]).toBe('account');
-    expect(seq[1]).toBe('map_access');
     expect(seq).not.toContain('characters');
     for (const cacheTable of [
       'character_skills',

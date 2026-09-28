@@ -5,10 +5,11 @@ import { EveImage } from '@/components/eve-image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip } from '@/components/ui/tooltip';
+import { LocalSyntheticPilotControl } from '@/components/composition/LocalSyntheticPilotControl';
 import { authClient } from '@/platform/auth/auth-client';
 import { reloadDocumentHome } from '@/platform/auth/reload-document-home';
-import { AccountMenu } from './AccountMenu';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
+import { AccountMenu } from './AccountMenu';
 
 type SignedInSession = NonNullable<ReturnType<typeof useAuth>['session']>;
 
@@ -21,14 +22,24 @@ function AdminChip({ show }: { show: boolean }) {
   );
 }
 
-export function EveSignInButton({ callbackURL = '/' }: { callbackURL?: string }) {
+export function EveSignInButton({
+  callbackURL = '/',
+  size = 'sm',
+}: {
+  callbackURL?: string;
+  size?: 'sm' | 'lg';
+}) {
   return (
     <button
       type="button"
       onClick={() => {
         void authClient.signIn.oauth2({ providerId: 'eve', callbackURL });
       }}
-      className="inline-flex items-center hover:opacity-80 transition-opacity"
+      className={
+        size === 'lg'
+          ? 'inline-flex items-center rounded-ctl shadow-cta-glow transition-[filter] hover:brightness-110'
+          : 'inline-flex items-center hover:opacity-80 transition-opacity'
+      }
     >
       <EveImage
         source="static"
@@ -36,7 +47,7 @@ export function EveSignInButton({ callbackURL = '/' }: { callbackURL?: string })
         alt="Log in with EVE Online"
         width={270}
         height={45}
-        className="h-8 w-auto"
+        className={size === 'lg' ? 'h-11 w-auto' : 'h-8 w-auto'}
       />
     </button>
   );
@@ -57,7 +68,7 @@ function SignedInCluster({
         <AdminChip show={showAdminLink} />
         <Tooltip content={session.name}>
           <a
-            href="/characters"
+            href="/settings/characters"
             aria-label={`${session.name} — manage your characters`}
             className="flex items-center transition-opacity hover:opacity-80"
           >
@@ -106,7 +117,12 @@ export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' })
   }
 
   if (!session) {
-    return <EveSignInButton />;
+    return (
+      <div className="flex items-center gap-3">
+        <EveSignInButton />
+        <LocalSyntheticPilotControl />
+      </div>
+    );
   }
 
   return <SignedInCluster variant={variant} session={session} showAdminLink={showAdminLink} />;

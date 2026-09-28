@@ -15,6 +15,7 @@ import {
 import { formatIskShort } from '@/lib/format/isk';
 import {
   scannerLiveEstIsk,
+  scannerEstIskSum,
   scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
 } from '../scanner-live-isk';
@@ -48,23 +49,12 @@ export function ScannerLivePricesProvider({
     () => scannerLiveTypeIdsForNames(harvestableNames, catalogue.liveRecipesForName),
     [catalogue, harvestableNames],
   );
-  const typeIdKey = scannerLiveTypeIdKey(typeIds);
-  return (
-    <ScannerLivePricesEngine key={typeIdKey} typeIds={typeIds}>
-      {children}
-    </ScannerLivePricesEngine>
-  );
-}
-
-function ScannerLivePricesEngine({
-  typeIds,
-  children,
-}: {
-  readonly typeIds: readonly number[];
-  readonly children: ReactNode;
-}) {
-  const enabled = typeIds.length > 0;
-  const { prices, isPending } = useRefreshOnView([...typeIds], { enabled });
+  // A new harvestable set (a jump, a fresh gas or ore signature) refetches
+  // prices in place; keying a wrapper instead remounted the whole scanner dock.
+  const { prices, isPending } = useRefreshOnView([...typeIds], {
+    enabled: typeIds.length > 0,
+    refreshKey: scannerLiveTypeIdKey(typeIds),
+  });
   const value = useMemo<ScannerLiveValue>(
     () => ({
       priceOf: (typeId) => prices.get(typeId),
@@ -77,6 +67,12 @@ function ScannerLivePricesEngine({
       {children}
     </ScannerLiveContext.Provider>
   );
+}
+
+export function useScannerEstIskSum(names: readonly (string | null)[]): number | null {
+  const catalogue = useSiteCatalogue();
+  const live = useScannerLive();
+  return scannerEstIskSum(names, catalogue, live.priceOf);
 }
 
 export function ScannerEstIskCell({

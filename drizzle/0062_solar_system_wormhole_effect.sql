@@ -1,0 +1,1 @@
+ALTER TABLE "eve_solar_systems" ADD COLUMN "wormhole_effect" text;

@@ -44,7 +44,8 @@ function placedControls(
 
 function labelFromKey(key: string): string {
   const segment = key.slice(key.lastIndexOf('.') + 1);
-  return segment.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  const words = segment.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function preferenceModel(ref: { key: string }): MenuControlModel | null {

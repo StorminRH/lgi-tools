@@ -3,17 +3,17 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
 export const fieldVariants = cva(
-  'bg-bg-deep border border-border-soft shadow-field-inset rounded-ctl field-own-focus',
+  'bg-bg-deep/60 border border-border shadow-field-inset rounded-ctl field-own-focus transition-[border-color,box-shadow]',
   {
     variants: {
-      size: { md: 'px-2 py-1', sm: 'px-2 py-0.5' },
+      size: { md: 'px-2.5 py-1.5', sm: 'px-2 py-0.5' },
     },
     defaultVariants: { size: 'md' },
   },
 );
 
 export const fieldText = 'text-ui font-data text-text placeholder:text-muted';
-export const focusWell = 'focus-within:border-isk-sub focus-within:shadow-field-focus';
+export const focusWell = 'focus-within:border-hairline-accent focus-within:shadow-field-focus';
 const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
 export type FieldSize = VariantProps<typeof fieldVariants>;
@@ -48,7 +48,7 @@ export function Textarea({
       className={cn(
         fieldVariants({ size }),
         fieldText,
-        'block w-full resize-y focus:border-isk-sub focus:shadow-field-focus',
+        'block w-full resize-y focus:border-hairline-accent focus:shadow-field-focus',
         className,
       )}
       {...props}

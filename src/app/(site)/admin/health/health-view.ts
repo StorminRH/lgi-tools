@@ -1,0 +1,58 @@
+import type { StatusLevel } from '@/data/telemetry/health-metrics';
+import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli';
+import {
+  formatSliValue,
+  queueLevel,
+  sliLevel,
+  sliTargetLabel,
+  type QueueSummary,
+  type SliSignals,
+} from '../signals';
+
+export interface ServiceLevelRow {
+  id: SliId;
+  title: string;
+  value: string;
+  target: string;
+  level: StatusLevel;
+  owner: string;
+  responseAction: string;
+}
+
+const SIGNAL_FOR: Record<Exclude<SliId, 'job_backlog'>, keyof SliSignals> = {
+  read_success_rate: 'readSuccess',
+  mutation_success_rate: 'mutationSuccess',
+  critical_latency_p95: 'latencyP95',
+  esi_success_rate: 'esiSuccess',
+};
+
+const OWNER_LABEL: Record<SliOwner, string> = {
+  operator: 'you',
+  'ccp-upstream': 'CCP',
+};
+
+function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
+  if (id === 'job_backlog') {
+    return {
+      value: `${queue.due.toLocaleString()} due · ${queue.deadLettered.toLocaleString()} dead`,
+      target: '0 dead',
+      level: queueLevel(queue),
+    };
+  }
+  const key = SIGNAL_FOR[id];
+  return {
+    value: formatSliValue(key, sli[key]),
+    target: sliTargetLabel(key),
+    level: sliLevel(key, sli[key]),
+  };
+}
+
+export function deriveServiceLevels(sli: SliSignals, queue: QueueSummary): ServiceLevelRow[] {
+  return SLI_DEFINITIONS.map((definition) => ({
+    id: definition.id,
+    title: definition.title,
+    owner: OWNER_LABEL[definition.owner],
+    responseAction: definition.responseAction,
+    ...measure(definition.id, sli, queue),
+  }));
+}

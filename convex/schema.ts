@@ -16,11 +16,14 @@ import {
   shipSizeValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
+import { SYNC_DATASET_HISTORY } from '@/lib/sync-engine';
 import { runObservabilityFields } from './lib/syncFields';
+
+const syncDataset = v.union(...SYNC_DATASET_HISTORY.map((dataset) => v.literal(dataset)));
 
 export default defineSchema({
   syncSubjects: defineTable({
-    dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
+    dataset: syncDataset,
     userId: v.string(),
     status: v.union(v.literal('idle'), v.literal('running')),
     lastRequestedAt: v.number(),
@@ -33,10 +36,11 @@ export default defineSchema({
     ...runObservabilityFields,
   })
     .index('by_user_dataset', ['userId', 'dataset'])
-    .index('by_next_due', ['nextDueAt']),
+    .index('by_next_due', ['nextDueAt'])
+    .index('by_dataset', ['dataset']),
 
   syncPresence: defineTable({
-    dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
+    dataset: syncDataset,
     userId: v.string(),
     lastSeenAt: v.number(),
     lastVisibleAt: v.optional(v.number()),
@@ -44,7 +48,8 @@ export default defineSchema({
     leftTabId: v.optional(v.string()),
   })
     .index('by_user_dataset', ['userId', 'dataset'])
-    .index('by_last_seen', ['lastSeenAt']),
+    .index('by_last_seen', ['lastSeenAt'])
+    .index('by_dataset', ['dataset']),
 
   characterOnline: defineTable({
     userId: v.string(),
@@ -138,6 +143,7 @@ export default defineSchema({
   })
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId'])
+    .index('by_map_live_group', ['mapId', 'deletedAt', 'group'])
     .index('by_purge_after', ['purgeAfter']),
 
   mapNotes: defineTable({
@@ -182,14 +188,12 @@ export default defineSchema({
     etagLocation: v.union(v.string(), v.null()),
     etagShip: v.union(v.string(), v.null()),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
   characterLocationCovered: defineTable({
     userId: v.string(),
     characterId: v.number(),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
   characterLocationOnline: defineTable({
@@ -199,7 +203,6 @@ export default defineSchema({
     etagOnline: v.union(v.string(), v.null()),
     onlineExpiresAt: v.number(),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
   characterLocationAccess: defineTable({
@@ -209,6 +212,5 @@ export default defineSchema({
     expiresAt: v.number(),
     updatedAt: v.number(),
   })
-    .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 });

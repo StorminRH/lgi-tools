@@ -1,21 +1,16 @@
-import Link from 'next/link';
-import { Suspense } from 'react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Banner } from '@/components/ui/banner';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHead } from '@/components/ui/page-head';
-import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Skeleton } from '@/components/ui/skeleton';
-import { getWhStaticsOperatorReview } from '@/composition/wh-statics-refresh';
 import {
   getSystemStatics,
   type PendingWhStaticsReview,
 } from '@/data/wh-statics/queries';
 import type { WhStaticsSystemCodes } from '@/data/wh-statics/schema';
-import { requireAdminPage } from '@/composition/route-guards';
+import { AdminPageFrame } from '../AdminFrame';
+import { getStaticsReviewShared } from '../statics-review-shared';
 
 const OUTCOME_LABELS: Readonly<Record<string, string>> = {
   busy: 'Another statics refresh is already running.',
@@ -269,41 +264,43 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
   );
 }
 
+function ServingStatus({ version, systemCount }: { version: string; systemCount: number }) {
+  return (
+    <Card>
+      <SectionHeader size="md" label="Serving copy" hint="what the app reads today" />
+      <p className="px-4 py-3 font-ui text-ui text-muted">{promotedSubtitle(version, systemCount)}</p>
+    </Card>
+  );
+}
+
 async function StaticsContent({
   searchParams,
 }: {
   searchParams: Promise<{ outcome?: string | string[] }>;
 }) {
-  await requireAdminPage();
   const [snapshot, promoted, raw] = await Promise.all([
-    getWhStaticsOperatorReview(),
+    getStaticsReviewShared(),
     getSystemStatics(),
     searchParams,
   ]);
   const outcome = outcomeMessage(raw.outcome);
 
   return (
-    <>
-      <div className="w-full space-y-5">
-        <Card className="px-4 py-3 font-ui text-ui text-muted">
-          {promotedSubtitle(promoted.version, promoted.systems.length)}
+    <div className="reveal reveal-1 flex w-full flex-col gap-4">
+      {outcome ? <Banner tone="info">{outcome}</Banner> : null}
+      <ServingStatus version={promoted.version} systemCount={promoted.systems.length} />
+      {snapshot ? (
+        <ReviewSummary snapshot={snapshot} />
+      ) : (
+        <Card>
+          <SectionHeader size="md" label="Pending review" />
+          <EmptyState>
+            No statics snapshot is waiting for review. The daily check records one when the
+            community feed changes; use Check feed now to look immediately.
+          </EmptyState>
         </Card>
-        {outcome ? (
-          <Card className="px-4 py-3 font-ui text-ui text-muted">{outcome}</Card>
-        ) : null}
-        <div className="flex justify-end">
-          <ActionForm action="refresh" label="Check feed now" />
-        </div>
-        {snapshot ? (
-          <ReviewSummary snapshot={snapshot} />
-        ) : (
-          <Card>
-            <SectionHeader size="md" label="Pending review" />
-            <EmptyState>No statics snapshot is waiting for review.</EmptyState>
-          </Card>
-        )}
-      </div>
-    </>
+      )}
+    </div>
   );
 }
 
@@ -313,36 +310,13 @@ export default function StaticsPage({
   searchParams: Promise<{ outcome?: string | string[] }>;
 }) {
   return (
-    <PageShell mode="workspace">
-      <div className="flex flex-col items-center gap-0 pb-20">
-        <PageHead
-          size="compact"
-          crumb="admin / statics"
-          title="Wormhole statics"
-          subtitle="Review the complete community-feed difference before changing the promoted serving copy."
-          meta={
-            <Link
-              href="/admin"
-              className={cn(
-                buttonVariants({ variant: 'secondary' }),
-                'text-muted hover:text-text',
-              )}
-            >
-              ← Dashboard
-            </Link>
-          }
-        />
-        <Suspense
-          fallback={
-            <Skeleton
-              label="Loading statics review"
-              className="h-72 w-full"
-            />
-          }
-        >
-          <StaticsContent searchParams={searchParams} />
-        </Suspense>
-      </div>
-    </PageShell>
+    <AdminPageFrame
+      title="Wormhole statics"
+      description="Review the complete community-feed difference before it changes what the app serves."
+      actions={<ActionForm action="refresh" label="Check feed now" />}
+      fallbackLabel="Serving copy"
+    >
+      <StaticsContent searchParams={searchParams} />
+    </AdminPageFrame>
   );
 }

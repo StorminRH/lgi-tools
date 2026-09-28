@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
   createDbTestHarness,
@@ -21,11 +21,11 @@ import {
   listDeletedRestorableMapsForPrincipals,
   publishCreatedMap,
 } from './queries';
-import { mapAccess, maps } from './schema';
+import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_map_lifecycle',
-  tables: ['user', 'maps', 'map_access'],
+  tables: ['user', 'maps', 'map_access', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'maps',
@@ -36,6 +36,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_access_changes',
       column: 'map_id',
       refTable: 'maps',
       refColumn: 'id',
@@ -75,7 +82,7 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
 
     await expect(
       archiveAuthorizedMap(ADMIN, ADMIN_PRINCIPALS, MAP_ID, NOW, harness.db),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId: MAP_ID, version: expect.any(String) });
     await expect(
       listAuthorizedMapsForPrincipals(ADMIN, ADMIN_PRINCIPALS, harness.db),
     ).resolves.toEqual([]);
@@ -99,7 +106,7 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
         restoreAt,
         harness.db,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId: MAP_ID, version: expect.any(String) });
     const [restored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
     expect(restored).toMatchObject(activeMapLifecycle(restoreAt));
     await expect(
@@ -117,10 +124,10 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
         NOW,
         harness.db,
       ),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     await expect(
       archiveAuthorizedMap(CREATOR, { characterIds: [], corporationIds: [] }, MAP_ID, NOW, harness.db),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mapId: MAP_ID, version: expect.any(String) });
 
     await expect(
       restoreAuthorizedMap(
@@ -130,7 +137,7 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
         new Date(NOW.getTime() + MAP_DELETE_GRACE_MS),
         harness.db,
       ),
-    ).resolves.toBe(false);
+    ).resolves.toBeNull();
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
     expect(stored).toMatchObject({
       archivedAt: NOW,
@@ -244,5 +251,83 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(
       harness.db.select().from(maps).where(eq(maps.id, MAP_ID)),
     ).resolves.toHaveLength(1);
+  });
+
+  it('rolls archive and restore back when the durable queue write fails', async () => {
+    await seedManagedMap();
+    await harness.db.execute(sql`
+      ALTER TABLE map_access_changes ADD CONSTRAINT reject_test_queue CHECK (false)
+    `);
+    try {
+      await expect(
+        archiveAuthorizedMap(ADMIN, ADMIN_PRINCIPALS, MAP_ID, NOW, harness.db),
+      ).rejects.toThrow();
+      const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
+      expect(stored).toMatchObject({
+        archivedAt: null,
+        lifecycleStatus: 'active',
+      });
+      expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+    } finally {
+      await harness.db.execute(sql`
+        ALTER TABLE map_access_changes DROP CONSTRAINT reject_test_queue
+      `);
+    }
+
+    await expect(
+      archiveAuthorizedMap(ADMIN, ADMIN_PRINCIPALS, MAP_ID, NOW, harness.db),
+    ).resolves.toEqual({ mapId: MAP_ID, version: expect.any(String) });
+    await harness.db.delete(pendingMapAccessChanges);
+    await harness.db.execute(sql`
+      ALTER TABLE map_access_changes ADD CONSTRAINT reject_test_queue CHECK (false)
+    `);
+    try {
+      await expect(
+        restoreAuthorizedMap(
+          ADMIN,
+          ADMIN_PRINCIPALS,
+          MAP_ID,
+          new Date(NOW.getTime() + 1),
+          harness.db,
+        ),
+      ).rejects.toThrow();
+      const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
+      expect(stored).toMatchObject({
+        archivedAt: NOW,
+        lifecycleStatus: 'archived',
+      });
+      expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+    } finally {
+      await harness.db.execute(sql`
+        ALTER TABLE map_access_changes DROP CONSTRAINT reject_test_queue
+      `);
+    }
+  });
+
+  it('replaces the pending generation when restore follows archive', async () => {
+    await seedManagedMap();
+    const archived = await archiveAuthorizedMap(
+      ADMIN,
+      ADMIN_PRINCIPALS,
+      MAP_ID,
+      NOW,
+      harness.db,
+    );
+    const restoreAt = new Date(NOW.getTime() + 1);
+    const restored = await restoreAuthorizedMap(
+      ADMIN,
+      ADMIN_PRINCIPALS,
+      MAP_ID,
+      restoreAt,
+      harness.db,
+    );
+    expect(archived).toEqual({ mapId: MAP_ID, version: expect.any(String) });
+    expect(restored).toEqual({ mapId: MAP_ID, version: expect.any(String) });
+    expect(restored?.version).not.toBe(archived?.version);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([
+      expect.objectContaining({ mapId: MAP_ID, version: restored?.version }),
+    ]);
+    const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
+    expect(stored).toMatchObject(activeMapLifecycle(restoreAt));
   });
 });

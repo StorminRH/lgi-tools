@@ -16,7 +16,7 @@ import {
   lifetimeUpperBoundLabel,
 } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/connection-detail';
-import type { TrackedSystemTarget } from '../tracking/tracked-system';
+import type { DockCharacter, PasteTarget } from '../tracking/tracked-system';
 
 export interface SignatureWindowRow {
   readonly key: string;
@@ -34,20 +34,17 @@ export interface SignatureWindowRow {
 
 export type ConnectionSignatureInput = ConnectionEditorDetail;
 
-export interface SignatureCounts {
-  readonly signatures: number;
-  readonly anomalies: number;
-}
-
 export type ScannerPasteDecision =
   | { readonly kind: 'apply'; readonly systemId: number; readonly rows: readonly ScannedRow[] }
   | { readonly kind: 'reject'; readonly rejectCount: number }
   | { readonly kind: 'read-only' }
   | { readonly kind: 'untracked' }
   | { readonly kind: 'loading' }
-  | { readonly kind: 'ambiguous' };
-
-const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
+  | {
+      readonly kind: 'choose';
+      readonly candidates: readonly DockCharacter[];
+      readonly rows: readonly ScannedRow[];
+    };
 
 function signatureDocumentRow(
   row: Doc<'mapSignatures'>,
@@ -188,6 +185,58 @@ export function scannerSectionForGroup(
   }
 }
 
+export const GLANCE_BUCKETS = ['harvestables', 'hacking', 'combat'] as const;
+
+export type GlanceBucket = (typeof GLANCE_BUCKETS)[number];
+
+export function identifiedGlanceBucket(
+  group: SigGroup | null,
+): GlanceBucket | null {
+  const section = scannerSectionForGroup(group);
+  if (
+    section === 'harvestables'
+    || section === 'hacking'
+    || section === 'combat'
+  ) {
+    return section;
+  }
+  return null;
+}
+
+export function glanceMarkIndex(
+  rows: readonly { readonly systemId: number; readonly group: SigGroup | null }[],
+): ReadonlyMap<number, readonly GlanceBucket[]> {
+  const presentBySystem = new Map<number, Set<GlanceBucket>>();
+  for (const row of rows) {
+    const bucket = identifiedGlanceBucket(row.group);
+    if (bucket === null) continue;
+    const present = presentBySystem.get(row.systemId) ?? new Set<GlanceBucket>();
+    present.add(bucket);
+    presentBySystem.set(row.systemId, present);
+  }
+  const index = new Map<number, readonly GlanceBucket[]>();
+  for (const [systemId, present] of presentBySystem) {
+    index.set(
+      systemId,
+      GLANCE_BUCKETS.filter((bucket) => present.has(bucket)),
+    );
+  }
+  return index;
+}
+
+export function sameGlanceMarkIndex(
+  left: ReadonlyMap<number, readonly GlanceBucket[]>,
+  right: ReadonlyMap<number, readonly GlanceBucket[]>,
+): boolean {
+  if (left.size !== right.size) return false;
+  for (const [systemId, buckets] of left) {
+    const other = right.get(systemId);
+    if (other === undefined || other.length !== buckets.length) return false;
+    if (buckets.some((bucket, index) => other[index] !== bucket)) return false;
+  }
+  return true;
+}
+
 export function filterSignatureRows(
   rows: readonly SignatureWindowRow[],
   systemId: number | null,
@@ -251,21 +300,6 @@ export function scannerLifeUpperBound(
   return lifetimeUpperBoundLabel(connection, entry, now) ?? '—';
 }
 
-export function signatureCounts(
-  rows: readonly SignatureWindowRow[],
-  systemId: number | null,
-): SignatureCounts {
-  if (systemId === null) return EMPTY_COUNTS;
-  let signatures = 0;
-  let anomalies = 0;
-  for (const row of rows) {
-    if (row.systemId !== systemId) continue;
-    if (row.kind === 'anomaly') anomalies += 1;
-    else signatures += 1;
-  }
-  return { signatures, anomalies };
-}
-
 export function formatSignatureAge(firstSeenAt: number, now: number): string {
   const minutes = Math.max(0, Math.floor((now - firstSeenAt) / 60_000));
   if (minutes < 1) return '<1m';
@@ -285,7 +319,7 @@ export function isEditablePasteTarget(target: EventTarget | null): boolean {
 export function scannerPasteDecision(
   text: string,
   canEdit: boolean,
-  target: TrackedSystemTarget,
+  target: PasteTarget,
 ): ScannerPasteDecision | null {
   if (!isScannerPasteCandidate(text)) return null;
   const parsed = parseScannerPaste(text);
@@ -295,41 +329,35 @@ export function scannerPasteDecision(
   if (!canEdit) return { kind: 'read-only' };
   if (target.kind === 'none') return { kind: 'untracked' };
   if (target.kind === 'loading') return { kind: 'loading' };
-  if (target.kind === 'ambiguous') return { kind: 'ambiguous' };
+  if (target.kind === 'choose') {
+    return { kind: 'choose', candidates: target.candidates, rows: parsed.rows };
+  }
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
 
 export function scannerPasteRefusalToast(
-  decision: Exclude<ScannerPasteDecision, { kind: 'apply' }>,
+  decision: Exclude<ScannerPasteDecision, { kind: 'apply' | 'choose' }>,
 ): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
   if (decision.kind === 'reject') {
-    const suffix = decision.rejectCount === 1 ? '' : 's';
     return {
-      message: `Scanner paste rejected — ${decision.rejectCount} row${suffix} need attention.`,
+      message: 'Formatting error',
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     };
   }
   if (decision.kind === 'read-only') {
     return {
-      message: 'Edit access is required to apply scanner output.',
+      message: 'Read-only access',
       options: { id: 'scanner-paste:read-only' },
-    };
-  }
-  if (decision.kind === 'ambiguous') {
-    return {
-      message:
-        'Tracked characters are in different systems — paste target is ambiguous.',
-      options: { id: 'scanner-paste:ambiguous', duration: 5_000 },
     };
   }
   if (decision.kind === 'loading') {
     return {
-      message: 'Location tracking is still loading — paste again in a moment.',
+      message: 'Tracking not ready',
       options: { id: 'scanner-paste:loading', duration: 5_000 },
     };
   }
   return {
-    message: 'Track an online character before pasting scanner output.',
+    message: 'No character online',
     options: { id: 'scanner-paste:untracked' },
   };
 }

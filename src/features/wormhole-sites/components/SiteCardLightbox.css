@@ -1,0 +1,31 @@
+.sites-lightbox-dialog {
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+}
+.sites-lightbox-panel {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+.sites-lightbox-zoom {
+  zoom: 1.4;
+  width: 480px;
+}
+@media (width < --theme(--breakpoint-sm)) {
+  .sites-lightbox-dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    scale: 1;
+  }
+  .sites-lightbox-panel {
+    max-height: 100dvh;
+  }
+  .sites-lightbox-zoom {
+    zoom: 1;
+    width: auto;
+  }
+}

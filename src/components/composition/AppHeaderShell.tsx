@@ -28,13 +28,13 @@ export function AppHeaderShell({
       <NavTools />
       <div
         data-server-status-slot
-        className="flex shrink-0 items-stretch border-l border-border max-lg:ml-auto"
+        className="flex h-10 shrink-0 items-center max-lg:ml-auto"
       >
         {serverStatusSlot}
       </div>
       <div
         data-account-slot
-        className="flex shrink-0 items-center border-l border-border px-3 max-lg:hidden"
+        className="flex shrink-0 items-center pl-1 max-lg:hidden"
       >
         <LoginButton />
       </div>

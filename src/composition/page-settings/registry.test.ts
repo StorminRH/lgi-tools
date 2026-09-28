@@ -76,7 +76,6 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
   it('resolves the tracker surfaces to their strip-declaring specs; /sites declares none (D-7)', () => {
     for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
 
-    expect(resolvePageSettings('/skills')?.strip?.surfaceId).toBe('skills');
     expect(resolvePageSettings('/jobs')?.strip?.surfaceId).toBe('jobs');
     expect(resolvePageSettings('/sites')?.strip).toBeUndefined();
   });

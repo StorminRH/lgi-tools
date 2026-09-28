@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import type { ConnectionDetail, UnresolvedHoleSummary } from '../chain/connection-detail';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
-import { SignatureDataProvider, useSignatureCounts } from './signature-context';
+import { SignatureDataProvider, useSignatureRows } from './signature-context';
 import type { SignatureWindowRow } from './signature-model';
 import { useSignaturePage } from './use-signature-page';
 
@@ -49,7 +49,11 @@ function PageProbe({ systemId }: { readonly systemId: number | null }) {
 }
 
 function CountProbe({ systemId }: { readonly systemId: number }) {
-  const counts = useSignatureCounts(systemId);
+  const rows = useSignatureRows(systemId);
+  const counts = {
+    signatures: rows.filter((row) => row.systemId === systemId && row.kind === 'signature').length,
+    anomalies: rows.filter((row) => row.systemId === systemId && row.kind === 'anomaly').length,
+  };
   return createElement('output', null, `${counts.signatures}/${counts.anomalies}`);
 }
 

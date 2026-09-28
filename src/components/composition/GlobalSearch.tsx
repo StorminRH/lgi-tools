@@ -108,7 +108,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           ref={inputRef}
           data-search-input
           aria-label="Search"
-          className="nav-search w-[480px] max-lg:w-full"
+          className="nav-search max-lg:w-full"
           prompt={<span className="shrink-0 font-data text-ui font-bold text-isk">&gt;</span>}
           trailing={<SearchHints active={active} />}
           type="text"

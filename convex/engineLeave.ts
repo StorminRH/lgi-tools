@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { isRegisteredDataset, SYNC_DATASET_CONFIG } from '@/lib/sync-engine';
+import { SYNC_DATASET_CONFIG } from '@/lib/sync-engine';
 import { internalMutation } from './_generated/server';
 import { retireFromScan, syncDatasetValidator } from './lib/engineCore';
 import { clearCoverageForUser } from './lib/locationCoverage';
@@ -12,7 +12,6 @@ export const leave = internalMutation({
     tabId: v.string(),
   },
   handler: async (ctx, { userId, dataset, tabId }) => {
-    if (!isRegisteredDataset(dataset)) return { retired: false };
     const presence = await getPresence(ctx.db, dataset, userId);
     if (presence !== null && presence.tabId !== undefined && presence.tabId !== tabId) {
       return { retired: false };

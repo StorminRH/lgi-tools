@@ -1,7 +1,5 @@
-import {
-  projectMapAccess,
-  purgeUserMapAccessProjection,
-} from '@/composition/map-access-projection';
+import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
+import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
 import { purgeMapChain } from '@/composition/map-purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
@@ -12,6 +10,8 @@ import { ownedBlueprintsPurgeContributor } from '@/features/owned-blueprints/pur
 import { onlineStatusPurgeContributor } from '@/data/online-status/purge';
 import { locationTrackingPurgeContributor } from '@/data/location-tracking/purge';
 import { skillQueuePurgeContributor } from '@/features/skill-queue/purge';
+import { characterSheetPurgeContributor } from '@/features/character-sheet/purge';
+import { netWorthPurgeContributor } from '@/features/net-worth/purge';
 import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
@@ -20,7 +20,7 @@ import { createMapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
 
 const mapsPurgeContributor = createMapsPurgeContributor({
-  projectMap: projectMapAccess,
+  deliverCaptured: deliverCapturedMapAccessChanges,
   purgeMapChain,
   purgeUserClaims: purgeUserMapAccessProjection,
 });
@@ -29,6 +29,7 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   authPurgeContributor,
   mapsPurgeContributor,
   skillQueuePurgeContributor,
+  characterSheetPurgeContributor,
   industryJobsPurgeContributor,
   ownedAssetsPurgeContributor,
   ownedBlueprintsPurgeContributor,
@@ -40,4 +41,5 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   preferencesPurgeContributor,
   customStructuresPurgeContributor,
   savedPlansPurgeContributor,
+  netWorthPurgeContributor,
 ];

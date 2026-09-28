@@ -91,13 +91,16 @@ describe('POST /api/admin/characters/reassign', () => {
     reassignCharacterMock.mockResolvedValue({ sourceDeleted: true });
     const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
     expect(res.status).toBe(303);
-    expect(locationOf(res)).toBe('http://localhost:3000/admin/access/admin-1');
+    expect(locationOf(res)).toBe('http://localhost:3000/settings/access/admin-1');
     expect(reassignCharacterMock).toHaveBeenCalledWith({
       characterId: 200,
       fromUserId: 'eve-user-2',
       toUserId: 'admin-1',
       runners: expect.objectContaining({
         runBeforeUserDelete: expect.any(Function),
+        runBeforeCharacterUnlink: expect.any(Function),
+        runAfterFailedCharacterUnlink: expect.any(Function),
+        runAfterCharacterUnlink: expect.any(Function),
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     });
@@ -119,6 +122,9 @@ describe('POST /api/admin/characters/reassign', () => {
       200,
       expect.objectContaining({
         runBeforeUserDelete: expect.any(Function),
+        runBeforeCharacterUnlink: expect.any(Function),
+        runAfterFailedCharacterUnlink: expect.any(Function),
+        runAfterCharacterUnlink: expect.any(Function),
         runAfterCharacterLinkChanged: expect.any(Function),
       }),
     );

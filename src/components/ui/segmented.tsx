@@ -9,8 +9,8 @@ import type { Tone } from './tones';
 export type SegmentedTone = Extract<Tone, 'green'>;
 
 const segment = cva(
-  'rounded-ctl border border-transparent font-ui ' +
-    'transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted',
+  'rounded-full border border-transparent font-ui ' +
+    'transition-[color,background-color,border-color,box-shadow] duration-fast disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted',
   {
     variants: {
       tone: {
@@ -29,7 +29,7 @@ const segment = cva(
       {
         tone: 'green',
         active: true,
-        className: 'border-isk-dim bg-section text-isk shadow-btn-bezel',
+        className: 'border-border-active bg-row-on text-isk shadow-card-edge',
       },
     ],
     defaultVariants: { tone: 'green', active: false, density: 'default' },
@@ -44,7 +44,7 @@ export interface SegmentedOption {
 }
 
 const track = cva(
-  'inline-flex rounded-ctl border border-border-soft bg-bg-deep shadow-field-inset',
+  'inline-flex rounded-full border border-border bg-bg-deep/60 shadow-field-inset',
   {
     variants: {
       density: {

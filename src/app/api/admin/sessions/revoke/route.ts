@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       }).catch((err) => console.error('[admin/sessions/revoke] telemetry write failed', err));
 
-      return Response.redirect(new URL(`/admin/access/${userId}`, request.url), 303);
+      return Response.redirect(new URL(`/settings/access/${userId}`, request.url), 303);
     },
   });
 }

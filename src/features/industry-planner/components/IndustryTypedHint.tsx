@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Kbd } from '@/components/ui/kbd';
 import { Button } from '@/components/ui/button';
+import { cardSurface, surfaceGlowHover } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 
 const HINT = 'search for any blueprint or reaction to get started';
 const STEP_MS = 26;
@@ -15,16 +17,13 @@ function focusNavSearch() {
 }
 
 export function IndustryTypedHint() {
-  const reduced = useMemo(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-    [],
-  );
-  const [shown, setShown] = useState(reduced ? HINT.length : 0);
+  const [shown, setShown] = useState(0);
 
+  // The motion preference is read after hydration: reading it during render
+  // gave reduced-motion visitors different markup from the server's, and the
+  // mismatch made React re-render the page from the root.
   useEffect(() => {
-    if (reduced) {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       const t = setTimeout(() => setShown(HINT.length), 0);
       return () => clearTimeout(t);
     }
@@ -35,7 +34,7 @@ export function IndustryTypedHint() {
       if (i >= HINT.length) clearInterval(timer);
     }, STEP_MS);
     return () => clearInterval(timer);
-  }, [reduced]);
+  }, []);
 
   const done = shown >= HINT.length;
 
@@ -43,7 +42,11 @@ export function IndustryTypedHint() {
     <Button
       variant="bare"
       type="button"
-      className="inline-flex items-center gap-[9px] py-1 text-left font-ui text-ui tracking-[0.03em] text-muted"
+      className={cn(
+        cardSurface,
+        surfaceGlowHover,
+        'reveal reveal-1 inline-flex max-w-full items-center gap-[9px] self-start rounded-sheet px-4 py-2 text-left font-ui text-ui tracking-[0.03em] text-muted',
+      )}
       onClick={focusNavSearch}
     >
       <span className="shrink-0 text-ui font-bold text-isk">{'>'}</span>

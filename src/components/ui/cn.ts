@@ -35,6 +35,7 @@ const twMerge = extendTailwindMerge({
             'title',
             'display',
             'hero',
+            'mega',
           ],
         },
       ],
@@ -43,7 +44,7 @@ const twMerge = extendTailwindMerge({
           tracking: ['optical', 'copy', 'label', 'wide', 'eyebrow'],
         },
       ],
-      rounded: [{ rounded: ['ctl', 'card'] }],
+      rounded: [{ rounded: ['ctl', 'card', 'panel', 'sheet'] }],
       shadow: [
         {
           shadow: [
@@ -53,6 +54,8 @@ const twMerge = extendTailwindMerge({
             'card-edge',
             'dd',
             'card-hover',
+            'float',
+            'cta-glow',
             'popover-green',
             'toast',
             'status-info',

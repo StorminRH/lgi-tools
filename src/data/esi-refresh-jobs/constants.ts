@@ -4,6 +4,7 @@ export const ESI_REFRESH_DATASETS = [
   'corporation_industry_jobs',
   'owned_blueprints',
   'owned_assets',
+  'character_sheet',
 ] as const;
 
 export const ESI_REFRESH_JOB_STATUSES = [

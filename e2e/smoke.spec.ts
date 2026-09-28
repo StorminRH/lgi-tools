@@ -52,11 +52,17 @@ function accountMenuLocator(page: Page) {
   return page.getByRole('button', { name: /— account menu$/ });
 }
 
+test('/skills permanently redirects home', async ({ request }) => {
+  const response = await request.get('/skills', { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  expect(new URL(response.headers().location ?? '', 'http://localhost').pathname).toBe('/');
+});
+
 test('public home shell loads without console or page errors', async ({ page }) => {
   const diag = attachDiagnostics(page);
   await page.goto('/');
   await expect(page.getByRole('link', { name: /LGI.*\.tools/i }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: /Log in with EVE Online/i })).toBeVisible();
   diag.assertClean();
 });
 
@@ -71,7 +77,7 @@ test.describe('authenticated smoke', () => {
     await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 
-    for (const route of ['/industry', '/atlas', '/skills', '/jobs', '/structures'] as const) {
+    for (const route of ['/industry', '/atlas', '/jobs', '/structures', '/settings/characters'] as const) {
       await page.goto(route);
       await expect(page.locator('body')).toBeVisible();
       await expectAuthenticatedSession(page);
@@ -79,5 +85,23 @@ test.describe('authenticated smoke', () => {
     }
 
     diag.assertClean();
+  });
+
+  test('home hero keeps its DOM while the session resolves', async ({ page }) => {
+    type HeroProbe = Window & { heroAtParse?: Element | null };
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        (window as HeroProbe).heroAtParse = document.querySelector('.home-hero');
+      });
+    });
+
+    await page.goto('/');
+    await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
+
+    const kept = await page.evaluate(() => {
+      const hero = (window as HeroProbe).heroAtParse;
+      return hero != null && hero.isConnected && hero === document.querySelector('.home-hero');
+    });
+    expect(kept, 'the static-shell hero was replaced when the session resolved').toBe(true);
   });
 });

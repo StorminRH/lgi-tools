@@ -1,0 +1,16 @@
+.price-confidence {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.price-confidence--high { background: var(--color-confidence-high-bg); box-shadow: inset 0 0 0 1.5px var(--color-isk); }
+.price-confidence--medium { background: var(--color-confidence-medium-bg); box-shadow: inset 0 0 0 1.5px var(--color-dps-mid); }
+.price-confidence--low { background: transparent; box-shadow: inset 0 0 0 1.5px var(--color-dps-high); }
+.price-confidence--unknown { background: transparent; box-shadow: inset 0 0 0 1.5px var(--color-muted); }
+.price-confidence--high::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--color-isk); }
+.price-confidence--medium::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--color-dps-mid); clip-path: inset(0 50% 0 0); }

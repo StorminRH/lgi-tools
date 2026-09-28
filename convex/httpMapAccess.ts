@@ -37,6 +37,12 @@ const purgeMapAccessBodySchema = z.object({
   userId: z.string(),
 });
 
+const purgeUserMapClaimsBodySchema = z.object({
+  userId: z.string().min(1),
+  revision: z.number().int().positive(),
+  mapIds: z.array(z.string().min(1)).min(1).max(32),
+});
+
 const purgeMapChainBodySchema = z.object({
   mapId: z.string().min(1),
 });
@@ -74,6 +80,14 @@ export const purgeMapAccess: PublicHttpAction = authorizedJsonAction(purgeMapAcc
   }
   return new Response('Purge batch limit exceeded', { status: 503 });
 });
+
+export const purgeUserMapClaims: PublicHttpAction = authorizedJsonAction(
+  purgeUserMapClaimsBodySchema,
+  async (ctx, body) => Response.json(await ctx.runMutation(
+    internal.mapAccessProjection.purgeUserMapClaims,
+    body,
+  )),
+);
 
 export const purgeMapChain: PublicHttpAction = authorizedJsonAction(purgeMapChainBodySchema, async (ctx, body) => {
   let deleted = 0;

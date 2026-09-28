@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { useClientCommitted } from '@/lib/use-client-committed';
 import type { ChainNode } from '../canvas/SystemNode';
@@ -80,6 +81,28 @@ function useWindowStack(liveIds: readonly MapWindowId[]) {
   return { renderedStack, activate };
 }
 
+/** Matches the exit timing in motion-contract.css (.map-card-exit). */
+const CARD_EXIT_MS = 180;
+
+/**
+ * Keeps the last anchored card on screen for its exit animation after the
+ * selection clears. A new selection replaces it at once.
+ */
+function useLingeringCard(liveId: number | null): {
+  readonly id: number | null;
+  readonly closing: boolean;
+} {
+  const [heldId, setHeldId] = useState<number | null>(liveId);
+  if (liveId !== null && liveId !== heldId) setHeldId(liveId);
+  const closing = liveId === null && heldId !== null;
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setTimeout(() => setHeldId(null), CARD_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [closing]);
+  return { id: liveId ?? heldId, closing };
+}
+
 function useNodeFollower(
   store: NodeFollowerStore,
   summaryId: number | null,
@@ -138,11 +161,13 @@ function DockSurface({
   visible,
   dockSystemId,
   title,
+  titleLead,
   stackIndex,
 }: {
   readonly visible: boolean;
   readonly dockSystemId: number | null;
   readonly title: string | undefined;
+  readonly titleLead: ReactNode;
   readonly stackIndex: number;
 }) {
   if (!visible || dockSystemId === null) return null;
@@ -151,6 +176,7 @@ function DockSurface({
       windowId="dock"
       title={dockTitle(title, dockSystemId)}
       titleAccessory={<SystemTitleAccessory systemId={dockSystemId} />}
+      titleLead={titleLead}
       placement={{ kind: 'docked' }}
       appearance="overlay"
       stackIndex={stackIndex}
@@ -165,6 +191,7 @@ function DockSurface({
 
 function SummarySurface({
   summaryId,
+  closing,
   title,
   stackIndex,
   cardRef,
@@ -172,6 +199,7 @@ function SummarySurface({
   onActivate,
 }: {
   readonly summaryId: number | null;
+  readonly closing: boolean;
   readonly title: string | undefined;
   readonly stackIndex: number;
   readonly cardRef: React.RefObject<HTMLDivElement | null>;
@@ -186,6 +214,7 @@ function SummarySurface({
       title={title ?? String(summaryId)}
       titleAccessory={<SystemTitleAccessory systemId={summaryId} />}
       placement={{ kind: 'node-anchored', systemId: summaryId }}
+      closing={closing}
       stackIndex={stackIndex}
       onClose={onClose}
       showCloseButton={false}
@@ -198,6 +227,8 @@ function SummarySurface({
 
 export interface MapWindowLayerProps {
   readonly dockSystemId: number | null;
+  /** Rendered before the dock title (the dock character picker). */
+  readonly dockTitleLead?: ReactNode;
   readonly onDeselect: () => void;
 }
 
@@ -216,6 +247,7 @@ export function MapWindowLayer(props: MapWindowLayerProps) {
 
 function MountedMapWindowLayer({
   dockSystemId,
+  dockTitleLead,
   onDeselect,
 }: MapWindowLayerProps) {
   const store = useStoreApi<ChainNode>();
@@ -229,8 +261,9 @@ function MountedMapWindowLayer({
     selectedIds,
   });
   const { renderedStack, activate } = useWindowStack(liveIds);
+  const card = useLingeringCard(summarySystemId);
   const dockTitleName = useSystemLabel(dockSystemId)?.name;
-  const summaryTitle = useSystemLabel(summarySystemId)?.name;
+  const summaryTitle = useSystemLabel(card.id)?.name;
   const followerStore = useMemo<NodeFollowerStore>(
     () => ({
       getState: () => store.getState(),
@@ -238,7 +271,7 @@ function MountedMapWindowLayer({
     }),
     [store],
   );
-  useNodeFollower(followerStore, summarySystemId, cardRef, leaderRef);
+  useNodeFollower(followerStore, card.id, cardRef, leaderRef);
   useCardDismissal(summarySystemId !== null, onDeselect);
 
   const zIndex = (id: MapWindowId) => renderedStack.indexOf(id) + 1;
@@ -248,17 +281,20 @@ function MountedMapWindowLayer({
       data-map-window-layer
       className="pointer-events-none absolute inset-0 z-float"
     >
-      <MapWindowLeader ref={leaderRef} />
+      <MapWindowLeader key={`leader-${card.id}`} ref={leaderRef} closing={card.closing} />
       <DockSurface
         visible={liveIds.includes('dock')}
         dockSystemId={dockSystemId}
         title={dockTitleName}
+        titleLead={dockTitleLead}
         stackIndex={zIndex('dock')}
       />
       <SummarySurface
-        summaryId={summarySystemId}
+        key={`card-${card.id}`}
+        summaryId={card.id}
+        closing={card.closing}
         title={summaryTitle}
-        stackIndex={zIndex('summary')}
+        stackIndex={Math.max(1, zIndex('summary'))}
         cardRef={cardRef}
         onClose={onDeselect}
         onActivate={() => activate('summary')}

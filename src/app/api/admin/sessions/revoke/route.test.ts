@@ -69,7 +69,7 @@ describe('POST /api/admin/sessions/revoke', () => {
     revokeUserSessionsMock.mockResolvedValue(3);
     const res = await POST(buildRequest({ userId: 'eve-user-2' }));
     expect(res.status).toBe(303);
-    expect(locationOf(res)).toBe('http://localhost:3000/admin/access/eve-user-2');
+    expect(locationOf(res)).toBe('http://localhost:3000/settings/access/eve-user-2');
     expect(revokeUserSessionsMock).toHaveBeenCalledWith('eve-user-2');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });

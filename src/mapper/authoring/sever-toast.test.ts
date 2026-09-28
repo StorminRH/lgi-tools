@@ -17,7 +17,7 @@ it('announces removed and retained sever outcomes, skips already-applied, and wi
     onUndo,
   });
   expect(toastSuccess).toHaveBeenCalledWith(
-    'Severed — 3 downstream systems removed',
+    'Branch removed',
     expect.objectContaining({
       id: 'sever:c1',
       action: expect.objectContaining({ label: 'Undo' }),
@@ -36,7 +36,7 @@ it('announces removed and retained sever outcomes, skips already-applied, and wi
     onUndo: vi.fn(),
   });
   expect(toastSuccess).toHaveBeenCalledWith(
-    'Severed — 1 downstream system removed',
+    'Branch removed',
     expect.objectContaining({ id: 'sever:c1' }),
   );
 
@@ -54,7 +54,7 @@ it('announces removed and retained sever outcomes, skips already-applied, and wi
     onUndo: vi.fn(),
   });
   expect(toastSuccess).toHaveBeenCalledWith(
-    'Severed — branch kept',
+    'Connection severed',
     expect.objectContaining({ id: 'sever:c2' }),
   );
 });

@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   recipeLiveIsk,
+  scannerEstIskSum,
   scannerLiveEstIsk,
   scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
@@ -58,4 +59,16 @@ test('scanner live Est. ISK sums recipes, tracks pending, and keys unique type i
   ).toEqual([30370, 1]);
   expect(scannerLiveTypeIdKey([3, 1, 2, 1])).toBe('1,2,3');
   expect(scannerLiveTypeIdKey([])).toBe('');
+});
+
+test('site totals preserve duplicate sites and withhold incomplete estimates', () => {
+  const catalogue = {
+    estIskForName: (name: string) => name === 'Seeded' ? 50 : null,
+    liveRecipesForName: (name: string) => name === 'Gas' ? [RECIPE] : [],
+  };
+  const prices = () => ({ bestSell: 30 });
+  expect(scannerEstIskSum(['Gas', 'Gas', 'Seeded'], catalogue, prices)).toBe(60_050);
+  expect(scannerEstIskSum(['Gas', 'Unknown'], catalogue, prices)).toBeNull();
+  expect(scannerEstIskSum(['Gas', null], catalogue, prices)).toBeNull();
+  expect(scannerEstIskSum(['Gas'], catalogue, () => undefined)).toBe(28_100_000);
 });

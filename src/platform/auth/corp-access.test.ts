@@ -1,97 +1,43 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import type { CachedAffiliation } from './membership';
+import type { CachedAffiliation } from './affiliation-store';
+import { createCorpAccessSnapshot } from './corp-access';
 
-const fetchAffiliationsMock = vi.fn();
-const updateAffiliationsMock = vi.fn();
-const getUserAffiliationsMock = vi.fn();
-const recordCorpAccessDecisionMock = vi.fn();
+const NOW = new Date('2026-09-15T12:00:00Z');
+const TTL = freshnessGate('affiliations').ttlMs;
+const FRESH = NOW;
+const STALE = new Date(NOW.getTime() - TTL - 1);
 
-vi.mock('./affiliation-source', () => ({
-  fetchAffiliations: (...args: unknown[]) => fetchAffiliationsMock(...args),
-}));
-vi.mock('./affiliation-store', () => ({
-  getUserAffiliations: (...args: unknown[]) => getUserAffiliationsMock(...args),
-  updateAffiliations: (...args: unknown[]) => updateAffiliationsMock(...args),
-  getCharacterAffiliation: vi.fn(),
-  recordCorpAccessDecision: (...args: unknown[]) => recordCorpAccessDecisionMock(...args),
-}));
-
-import { decideCorpAccess } from './corp-access';
-
-const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
-const FRESH = new Date(Date.now() - 1_000);
-const STALE = new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000);
-
-function rowFor(characterId: number, corporationId: number, refreshedAt: Date | null): CachedAffiliation {
+function row(characterId: number, corporationId: number | null, refreshedAt: Date | null = FRESH): CachedAffiliation {
   return { characterId, corporationId, allianceId: null, factionId: null, refreshedAt };
 }
 
-beforeEach(() => {
-  fetchAffiliationsMock.mockReset().mockResolvedValue({ rows: [], transientFailure: false });
-  updateAffiliationsMock.mockReset().mockResolvedValue(undefined);
-  getUserAffiliationsMock.mockReset();
-  recordCorpAccessDecisionMock.mockReset().mockResolvedValue(undefined);
-});
-afterEach(() => vi.restoreAllMocks());
+test('groups fresh members, drops stale and null corps, treats the TTL boundary as fresh, and freezes the snapshot', () => {
+  const members = createCorpAccessSnapshot('u1', [row(101, 2000), row(102, 2000), row(103, null)], false, NOW.getTime());
+  expect(members.allCharacterIds).toEqual([101, 102, 103]);
+  expect(members.corporationIds).toEqual([2000]);
+  expect(members.characterIdsByCorporation[2000]).toEqual([101, 102]);
+  expect(members.refreshTransientFailure).toBe(false);
+  expect(members.resolvedAt).toBe(NOW.getTime());
 
-describe('decideCorpAccess', () => {
-  it('allows a member and records the granting character', async () => {
-    getUserAffiliationsMock.mockResolvedValue([rowFor(101, 2000, FRESH)]);
+  const stale = createCorpAccessSnapshot('u1', [row(101, 2000, STALE), row(102, null), row(103, 3000)], false, NOW.getTime());
+  expect(stale.allCharacterIds).toEqual([101, 102, 103]);
+  expect(stale.corporationIds).toEqual([3000]);
+  expect(stale.characterIdsByCorporation[2000]).toBeUndefined();
+  expect(stale.characterIdsByCorporation[3000]).toEqual([103]);
 
-    const decision = await decideCorpAccess({ userId: 'u1', corporationId: 2000 });
+  const boundary = createCorpAccessSnapshot(
+    'u1',
+    [row(101, 2000, new Date(NOW.getTime() - TTL))],
+    false,
+    NOW.getTime(),
+  );
+  expect(boundary.corporationIds).toEqual([2000]);
+  expect(boundary.characterIdsByCorporation[2000]).toEqual([101]);
 
-    expect(decision).toEqual({ allowed: true, reason: 'member', characterId: 101 });
-    expect(recordCorpAccessDecisionMock).toHaveBeenCalledTimes(1);
-    expect(recordCorpAccessDecisionMock).toHaveBeenCalledWith({
-      userId: 'u1',
-      corporationId: 2000,
-      characterId: 101,
-      allowed: true,
-      reason: 'member',
-    });
-  });
-
-  it('denies a non-member and records the deny (no granting character)', async () => {
-    getUserAffiliationsMock.mockResolvedValue([rowFor(101, 2000, FRESH)]);
-
-    const decision = await decideCorpAccess({ userId: 'u1', corporationId: 3000 });
-
-    expect(decision).toEqual({ allowed: false, reason: 'not_member', characterId: null });
-    expect(recordCorpAccessDecisionMock).toHaveBeenCalledWith({
-      userId: 'u1',
-      corporationId: 3000,
-      characterId: null,
-      allowed: false,
-      reason: 'not_member',
-    });
-  });
-
-  it('refreshes a stale affiliation before deciding, then allows on the fresh re-read', async () => {
-    getUserAffiliationsMock
-      .mockResolvedValueOnce([rowFor(101, 2000, STALE)])
-      .mockResolvedValueOnce([rowFor(101, 2000, FRESH)]);
-    fetchAffiliationsMock.mockResolvedValue({
-      rows: [{ characterId: 101, corporationId: 2000, allianceId: null, factionId: null }],
-      transientFailure: false,
-    });
-
-    const decision = await decideCorpAccess({ userId: 'u1', corporationId: 2000 });
-
-    expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
-    expect(decision).toEqual({ allowed: true, reason: 'member', characterId: 101 });
-  });
-
-  it('fails closed when a refresh cannot reach ESI: never-refreshed data stays a deny', async () => {
-    getUserAffiliationsMock.mockResolvedValue([rowFor(101, 2000, null)]);
-    fetchAffiliationsMock.mockRejectedValue(new Error('ESI unreachable'));
-
-    const decision = await decideCorpAccess({ userId: 'u1', corporationId: 2000 });
-
-    expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
-    expect(decision).toEqual({ allowed: false, reason: 'not_member', characterId: null });
-    expect(recordCorpAccessDecisionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1', corporationId: 2000, allowed: false }),
-    );
-  });
+  expect(Object.isFrozen(members)).toBe(true);
+  expect(Object.isFrozen(members.allCharacterIds)).toBe(true);
+  expect(Object.isFrozen(members.corporationIds)).toBe(true);
+  expect(Object.isFrozen(members.characterIdsByCorporation)).toBe(true);
+  expect(Object.isFrozen(members.characterIdsByCorporation[2000])).toBe(true);
 });

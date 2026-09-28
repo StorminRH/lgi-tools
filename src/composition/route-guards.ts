@@ -6,7 +6,7 @@ import {
   unauthenticatedFailure,
 } from '@/lib/failure';
 import { auth } from '@/composition/auth';
-import { getCurrentUserId } from '@/composition/session';
+import { getCurrentUserId, getFullSession } from '@/composition/session';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 export type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
@@ -54,7 +54,7 @@ export async function checkUserId(): Promise<UserIdCheckResult> {
 }
 
 export async function requireAdminPage(): Promise<BetterAuthSession> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getFullSession();
   if (!session?.isAdmin) {
     redirect('/?auth_error=admin_required');
   }

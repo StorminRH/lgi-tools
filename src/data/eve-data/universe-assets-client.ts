@@ -9,17 +9,23 @@ import type {
   SystemDirectoryEntry,
   WormholeCodexEntry,
 } from './universe-assets';
+import { buildHubJumpIndex, type HubJumpTuple } from './trade-hubs';
+import type { WormholeEffect } from './wormhole-contract';
+import type { WormholeEffectEntry } from './wormhole-effects';
 
 export interface UniverseAssets {
   version: string;
   systemInfo(id: number): SystemDirectoryEntry | null;
   neighbours(id: number): readonly number[];
+  hubJumps(id: number): HubJumpTuple;
 }
 
 export interface WormholeCodex {
   version: string;
   byCode(code: string): WormholeCodexEntry | null;
   codes(): readonly string[];
+  /** The effect's modifiers at a wormhole class, or null when the SDE has none. */
+  effect(effect: WormholeEffect, wormholeClass: number): WormholeEffectEntry | null;
 }
 
 let universeAssetsPromise: Promise<UniverseAssets> | null = null;
@@ -66,6 +72,7 @@ async function fetchUniverseAssets(
     systemsResult.data.systems.map((system) => [system.id, system]),
   );
   const neighboursById = new Map(adjacencyResult.data.adjacency);
+  const hubJumpsOf = buildHubJumpIndex((id) => neighboursById.get(id) ?? []);
   return {
     version,
     systemInfo(id) {
@@ -73,6 +80,9 @@ async function fetchUniverseAssets(
     },
     neighbours(id) {
       return neighboursById.get(id) ?? [];
+    },
+    hubJumps(id) {
+      return hubJumpsOf(id);
     },
   };
 }
@@ -95,6 +105,9 @@ async function fetchWormholeCodex(
     }
   }
   const codes = [...typeByCode.keys()].toSorted();
+  const effectByKey = new Map(
+    (result.data.effects ?? []).map((entry) => [`${entry.effect}:${entry.wormholeClass}`, entry]),
+  );
   return {
     version,
     byCode(code) {
@@ -102,6 +115,9 @@ async function fetchWormholeCodex(
     },
     codes() {
       return codes;
+    },
+    effect(effect, wormholeClass) {
+      return effectByKey.get(`${effect}:${wormholeClass}`) ?? null;
     },
   };
 }

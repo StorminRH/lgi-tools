@@ -67,7 +67,7 @@ describe('map chrome variants', () => {
     vi.stubGlobal('document', { querySelector: mocks.querySelector });
   });
 
-  it('preserves account-menu anchoring, compact feedback, and contextual settings before logout', () => {
+  it('preserves account-menu anchoring and compact feedback', () => {
     const markup = renderToStaticMarkup(
       createElement(AccountMenu, {
         session: {
@@ -76,17 +76,13 @@ describe('map chrome variants', () => {
           portraitUrl: '/portrait.png',
           role: 'ADMIN',
         },
-        contextualSection: createElement('div', { 'data-contextual-settings': '' }),
       }),
     );
 
     expect(markup).toContain('data-character-portrait');
     expect(mocks.querySelector).toHaveBeenCalledWith('.app-header');
     expect(mocks.anchorResult).toHaveBeenCalledWith({ id: 'site-header' });
-    expect(markup).toContain('data-contextual-settings');
-    expect(markup.indexOf('data-contextual-settings')).toBeLessThan(
-      markup.indexOf('Log out'),
-    );
+    expect(markup).toContain('Log out');
 
     const standard = renderToStaticMarkup(createElement(FeedbackButton));
     const compact = renderToStaticMarkup(

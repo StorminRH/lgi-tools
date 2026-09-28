@@ -28,7 +28,7 @@ async function StructuresContent() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <Card>
+      <Card className="reveal reveal-1">
         <SectionHeader size="md" label="Custom structures" hint={`${saved.length} saved`} />
         <div className="px-3.5 py-3.5">
           <CustomStructureBuilder

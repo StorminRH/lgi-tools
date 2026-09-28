@@ -4,6 +4,7 @@ import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
+import { NET_WORTH_HISTORY_DAYS } from '@/features/net-worth/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 import {
@@ -76,6 +77,14 @@ export const TABLE_GROWTH_STORIES = [
   },
   {
     kind: 'pruned',
+    table: schema.netWorthDays,
+    retentionDays: NET_WORTH_HISTORY_DAYS,
+    retentionConstant: 'NET_WORTH_HISTORY_DAYS',
+    prunedBy: 'each board snapshot write, a row cap to the newest 365 recorded days per account',
+    alsoPurgeManagedBy: 'net-worth',
+  },
+  {
+    kind: 'pruned',
     table: schema.marketHistory,
     retentionDays: HISTORY_RETENTION_DAYS,
     retentionConstant: 'HISTORY_RETENTION_DAYS',
@@ -145,6 +154,7 @@ export const TABLE_GROWTH_STORIES = [
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },
+  { kind: 'bounded', table: schema.pendingMapAccessChanges, reason: 'at most one pending generation per map; successful delivery deletes it and map deletion cascades it' },
   {
     kind: 'purge-managed',
     table: schema.customStructures,
@@ -251,6 +261,12 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'bounded',
     table: schema.characterSkillSyncs,
     reason: 'one freshness row per EVE character',
+  },
+  {
+    kind: 'bounded',
+    table: schema.characterSheets,
+    reason:
+      'one merge-in-place row per EVE character; the journal is stored as a digest (at most 20 rows and 48 series points), never as raw entries',
   },
   {
     kind: 'bounded',

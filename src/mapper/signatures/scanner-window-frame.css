@@ -1,0 +1,52 @@
+.scanner-scroll-fade-end {
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 2rem);
+  mask-image: linear-gradient(to top, transparent 0, #000 2rem);
+}
+
+.scanner-scroll-fade-end.scanner-scroll-fade-start {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 2rem,
+    #000 calc(100% - 2rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 2rem,
+    #000 calc(100% - 2rem),
+    transparent 100%
+  );
+}
+
+.scanner-scroll-frost {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  height: 2rem;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+.scanner-scroll-frost-start {
+  top: 0;
+  opacity: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 100%);
+}
+
+.scanner-scroll-frost-start.is-active {
+  opacity: 1;
+}
+
+.scanner-scroll-frost-end {
+  bottom: 0;
+  opacity: 0;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, transparent 100%);
+}
+
+.scanner-scroll-frost-end.is-active {
+  opacity: 1;
+}

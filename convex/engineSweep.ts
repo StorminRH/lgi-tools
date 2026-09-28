@@ -1,5 +1,4 @@
 import {
-  classifyDueSubject,
   hasSyncTarget,
   isColdFromPresence,
   isRegisteredDataset,
@@ -8,35 +7,34 @@ import {
   MAX_COLD_AFTER_MS,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
-  SYNC_DATASETS,
+  SYNC_DATASET_HISTORY,
 } from '@/lib/sync-engine';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
   dispatch,
-  dueSubjects,
   logBatchCapped,
-  retireFromScan,
   SCAN_DISPATCH_BATCH,
+  walkDueSubjects,
+  type DueWalkCounts,
 } from './lib/engineCore';
-import { getPresence, getSyncSubject } from './lib/subjects';
+import { getSyncSubject } from './lib/subjects';
 import { drainCharacterOnline } from './onlineStatus';
 
 const SWEEP_DELETE_BATCH = 512;
 const RETIRED_GC_BATCH = 512;
 
-interface SweepCounts {
-  dispatched: number;
-  retired: number;
-  deleted: number;
-}
-
 export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const counts: SweepCounts = { dispatched: 0, retired: 0, deleted: 0 };
-    await sweepOverdue(ctx, now, counts);
+    const counts: DueWalkCounts = { dispatched: 0, retired: 0, deleted: 0 };
+    await walkDueSubjects(ctx, now, {
+      allowDelete: true,
+      counts,
+      capScope: 'engine:sweep',
+      capNote: 'overdue_batch_capped',
+    });
     await sweepDropped(ctx, now, counts);
     await sweepAbandoned(ctx, now, counts);
     await sweepRetiredDatasets(ctx, counts);
@@ -44,14 +42,22 @@ export const sweep = internalMutation({
   },
 });
 
-function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
-  return ctx.db
-    .query(table)
-    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
-    .take(RETIRED_GC_BATCH);
+const RETIRED_DATASETS = SYNC_DATASET_HISTORY.filter((dataset) => !isRegisteredDataset(dataset));
+
+async function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
+  const rows: Doc<typeof table>[] = [];
+  for (const dataset of RETIRED_DATASETS) {
+    const remaining: number = RETIRED_GC_BATCH - rows.length;
+    if (remaining <= 0) break;
+    rows.push(...await ctx.db
+      .query(table)
+      .withIndex('by_dataset', (q) => q.eq('dataset', dataset))
+      .take(remaining));
+  }
+  return rows;
 }
 
-async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
+async function sweepRetiredDatasets(ctx: MutationCtx, counts: DueWalkCounts): Promise<void> {
   const subjects = await takeRetiredRows(ctx, 'syncSubjects');
   for (const row of subjects) {
     await ctx.db.delete(row._id);
@@ -62,46 +68,7 @@ async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Prom
   await drainCharacterOnline(ctx, RETIRED_GC_BATCH);
 }
 
-async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
-  const due = await dueSubjects(ctx, now);
-  for (const subject of due) {
-    if (!isRegisteredDataset(subject.dataset)) {
-      await retireFromScan(ctx, subject);
-      counts.retired += 1;
-      continue;
-    }
-    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    switch (
-      classifyDueSubject(
-        presence,
-        subject.status,
-        subject.lastRequestedAt,
-        SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs,
-        now,
-      )
-    ) {
-      case 'delete':
-        await ctx.db.delete(subject._id);
-        if (presence !== null) await ctx.db.delete(presence._id);
-        counts.deleted += 1;
-        break;
-      case 'retire':
-        await retireFromScan(ctx, subject);
-        counts.retired += 1;
-        break;
-      case 'dispatch':
-        if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
-        break;
-      case 'skip':
-        break;
-    }
-  }
-  if (due.length === SCAN_DISPATCH_BATCH) {
-    logBatchCapped('engine:sweep', 'overdue_batch_capped', due.length);
-  }
-}
-
-async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
+async function sweepDropped(ctx: MutationCtx, now: number, counts: DueWalkCounts): Promise<void> {
   const hot = await ctx.db
     .query('syncPresence')
     .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - MAX_COLD_AFTER_MS))
@@ -130,7 +97,7 @@ function droppedTimerReady(subject: Doc<'syncSubjects'>, now: number): boolean {
   );
 }
 
-async function sweepAbandoned(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
+async function sweepAbandoned(ctx: MutationCtx, now: number, counts: DueWalkCounts): Promise<void> {
   const abandoned = await ctx.db
     .query('syncPresence')
     .withIndex('by_last_seen', (q) => q.lt('lastSeenAt', now - RETENTION_MS))

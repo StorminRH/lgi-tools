@@ -1,4 +1,4 @@
-const SKIP_PREFIXES = ['/admin', '/api/'];
+const SKIP_PREFIXES = ['/admin', '/settings/access', '/api/'];
 
 export function shouldSkip(path: string): boolean {
   return SKIP_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix));

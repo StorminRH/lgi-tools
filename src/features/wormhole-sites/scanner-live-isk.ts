@@ -42,3 +42,31 @@ export function scannerLiveTypeIdsForNames(
   }
   return [...ids];
 }
+
+export function scannerEstIskSum(
+  names: readonly (string | null)[],
+  catalogue: {
+    readonly estIskForName: (name: string) => number | null;
+    readonly liveRecipesForName: (name: string) => readonly SiteLiveRecipe[];
+  },
+  priceOf: (typeId: number) => { bestSell: number | null } | undefined,
+): number | null {
+  if (names.length === 0) return null;
+  let total = 0;
+  for (const name of names) {
+    if (name === null) return null;
+    const recipes = catalogue.liveRecipesForName(name);
+    if (recipes.length === 0) {
+      const seed = catalogue.estIskForName(name);
+      if (seed === null) return null;
+      total += seed;
+      continue;
+    }
+    for (const recipe of recipes) {
+      const value = recipeLiveIsk(recipe, priceOf(recipe.typeId)?.bestSell);
+      if (value === null) return null;
+      total += value;
+    }
+  }
+  return total;
+}

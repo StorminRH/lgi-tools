@@ -252,6 +252,12 @@ async function convergeExistingPair(
     observedMassKg: nextObservedMass(connection, observedShipMassKg),
     observationKey: connection.observationKey ?? args.observationKey,
   };
+  if (
+    patch.observedMassKg === connection.observedMassKg
+    && patch.observationKey === connection.observationKey
+  ) {
+    return { outcome: 'converged', connection };
+  }
   await ctx.db.patch(connection._id, patch);
   return { outcome: 'converged', connection: { ...connection, ...patch } };
 }

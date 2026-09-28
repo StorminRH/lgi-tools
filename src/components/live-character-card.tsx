@@ -32,6 +32,7 @@ export function LiveCharacterCard({
   emptyRowsText,
   reconnectAction,
   reconnectReason,
+  className,
   children,
 }: {
   character: PanelCharacter;
@@ -48,6 +49,7 @@ export function LiveCharacterCard({
   emptyRowsText: string;
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
+  className?: string;
   children?: ReactNode;
 }) {
   const grantedContent = (
@@ -67,7 +69,7 @@ export function LiveCharacterCard({
   );
 
   return (
-    <Card>
+    <Card className={className}>
       <LiveCharacterCardHeader
         character={character}
         headerRight={headerRight}
@@ -88,7 +90,7 @@ export function LiveCharacterCard({
           {character.needsReconnect && (
             <Callout className="mx-3.5 my-2" label="Reconnect">
               This character is missing {scopePhrase} —{' '}
-              <a href="/characters" className="underline text-name">
+              <a href="/settings/characters" className="underline text-name">
                 reconnect it on the Characters page
               </a>{' '}
               to sync its {noun}.

@@ -1,0 +1,77 @@
+/* Overview ↔ one pilot's sheet, in two phases that never overlap.
+ * Open:  the pilot's rail portrait morphs into the sheet (0–360ms) while the
+ *        rail and the overview fade out (0–180ms); the sheet then rises in
+ *        (360ms+), panels a beat after the identity.
+ * Close: the sheet fades out (0–180ms); the portrait then morphs back
+ *        (180–540ms) and the overview fades in as it lands (420ms+). */
+:root:active-view-transition-type(board-open, board-close)::view-transition-old(root) {
+  animation: none;
+  opacity: 0;
+}
+:root:active-view-transition-type(board-open, board-close)::view-transition-new(root) {
+  animation: none;
+}
+
+/* The page under the board is live during the swap, so the footer would jump
+ * to its new height mid-flight. Lift it out and show it once things land. */
+:root:active-view-transition-type(board-open, board-close) [data-site-footer] {
+  view-transition-name: board-site-footer;
+}
+::view-transition-group(board-site-footer) {
+  animation: none;
+}
+::view-transition-old(board-site-footer) {
+  display: none;
+}
+::view-transition-new(board-site-footer) {
+  animation: 200ms ease-out 560ms both board-fade-in;
+}
+
+::view-transition-group(.morph) {
+  z-index: 50;
+  animation-duration: 360ms;
+  animation-timing-function: var(--ease-out-expo);
+}
+::view-transition-image-pair(.morph) {
+  animation: 360ms both board-morph-blur;
+}
+:root:active-view-transition-type(board-close)::view-transition-group(.morph),
+:root:active-view-transition-type(board-close)::view-transition-image-pair(.morph) {
+  animation-delay: 180ms;
+}
+@keyframes board-morph-blur {
+  35% { filter: blur(2px); }
+}
+
+::view-transition-old(.board-overview-out),
+::view-transition-old(.board-sheet-out) {
+  animation: 180ms ease-in both board-fade-out;
+}
+::view-transition-new(.board-sheet-in) {
+  animation: 300ms var(--ease-out-expo) 360ms both board-rise-in;
+}
+::view-transition-new(.board-panels-in) {
+  animation: 340ms var(--ease-out-expo) 440ms both board-rise-in;
+}
+::view-transition-new(.board-overview-in) {
+  animation: 260ms ease-out 420ms both board-fade-in;
+}
+@keyframes board-fade-out {
+  to { opacity: 0; }
+}
+@keyframes board-fade-in {
+  from { opacity: 0; }
+}
+@keyframes board-rise-in {
+  from { opacity: 0; translate: 0 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

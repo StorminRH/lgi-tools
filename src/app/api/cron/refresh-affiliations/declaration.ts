@@ -1,10 +1,8 @@
 import type { CronRefreshAffiliationsResponse } from '@/platform/auth/api-contract';
-import {
-  ADVISORY_LOCK_AFFILIATION_REFRESH,
-  refreshAffiliations,
-} from '@/platform/auth/affiliation';
+import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { reconcileAffiliationAccess } from '@/composition/map-affiliation-access';
 
 export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAffiliationsResponse> = {
   name: 'cron:affiliations',
@@ -16,19 +14,21 @@ export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAff
     justification: 'daily batch wakes Neon by design and preserves every-run history',
   },
   lock: {
-    key: Number(ADVISORY_LOCK_AFFILIATION_REFRESH),
-    busyBody: () => ({ status: 'busy' }),
+    mode: 'none',
+    justification: 'Atomic affiliation writes, pending generations, and Convex revisions tolerate overlap without holding a database connection across network calls.',
   },
   work: async () => {
     const staleIds = await listStaleLinkedCharacterIds();
     const refreshed = await refreshAffiliations(staleIds);
+    const access = await reconcileAffiliationAccess();
 
     return {
       outcome: 'refreshed',
-      workDone: staleIds.length > 0,
+      workDone: staleIds.length > 0 || access.processed > 0,
       telemetry: {
         stale: staleIds.length,
         refreshed,
+        access,
       },
       body: {
         status: 'refreshed',

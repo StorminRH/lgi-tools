@@ -7,7 +7,7 @@ import { eyebrow } from './type-roles';
 export type { ChipTone };
 
 export const chipVariants = cva(
-  `inline-flex items-center px-[5px] py-px rounded-ctl border leading-[1.5] shrink-0 ${eyebrow({
+  `inline-flex items-center px-[7px] py-px rounded-full border leading-[1.5] shrink-0 ${eyebrow({
     weight: 'semibold',
   })}`,
   {

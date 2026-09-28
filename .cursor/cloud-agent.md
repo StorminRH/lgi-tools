@@ -13,8 +13,10 @@ These addresses help distinguish a missing service from an app failure.
 - The snapshot includes the migrated database and EVE SDE data. Check
 service readiness and whether the branch adds migrations before repeating
 setup. Installation details are in [install.sh](install.sh).
-- Files under [vm-home](vm-home) are copied onto `~/.cursor` by `install.sh`
-and again by `start.sh`.
+- The pstack role map is [rules/pstack-models.mdc](rules/pstack-models.mdc).
+Cloud injects that project rule. `install.sh` and `start.sh` also copy it
+to `~/.cursor/rules/pstack-models.mdc`, which arena, swarm, and interrogate
+open by path. Edit the project rule; the home copy is replaced on boot.
 - Authenticated Atlas work also needs the `configure-convex-auth` terminal
 to finish. Its readiness file is `/tmp/lgi-convex-auth.status`: `0` means
 setup succeeded. If it is missing or reports failure, inspect that
@@ -25,3 +27,9 @@ For startup or local-service selection failures, inspect
 [dev.sh](dev.sh), [convex.sh](convex.sh), and their shared checks in
 [lib.sh](lib.sh). These wrappers select the VM's local services; preserve
 that setup when investigating failures.
+
+To sign in without CCP SSO, open `http://localhost:3000` and choose
+**Reset and continue as E2E Pilot**. This resets the reserved test pilot,
+including its maps, permissions, linked accounts, and earlier sessions.
+The pilot has no ESI tokens. Playwright uses `pnpm e2e:seed` for the same
+reset and writes its cookie jar to `e2e/auth-storage.json`.

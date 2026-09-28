@@ -14,10 +14,7 @@ export function announceSeverOutcome(input: {
   if (input.result.outcome === 'already_applied') return;
   const id = `sever:${input.connectionId}`;
   const duration = input.durationMs ?? 3_000;
-  const message =
-    input.result.outcome === 'removed'
-      ? severedRemovedMessage(input.result.systemIds.length)
-      : 'Severed — branch kept';
+  const message = input.result.outcome === 'removed' ? 'Branch removed' : 'Connection severed';
   toast.success(message, {
     id,
     duration,
@@ -28,8 +25,4 @@ export function announceSeverOutcome(input: {
       },
     },
   });
-}
-
-function severedRemovedMessage(count: number): string {
-  return `Severed — ${count} downstream system${count === 1 ? '' : 's'} removed`;
 }

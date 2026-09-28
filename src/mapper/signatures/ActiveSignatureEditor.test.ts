@@ -159,8 +159,10 @@ it('restores inside the undo window, closes when the row left the feed, and keep
   assets.systemInfo.mockReturnValue({
     id: 31_000_002,
     name: 'J123456',
+    regionName: 'Test Region',
     security: -1,
     whClassId: 4,
+    effect: null,
   });
   const locked = render(RESOLVED_ID);
   expect(locked).not.toContain('data-map-connection-leads-locked');
@@ -179,6 +181,7 @@ it('destinationReadout covers unresolved, known, and bare-id fallback', () => {
       directory({
         id: 31_000_002,
         name: 'J123456',
+        regionName: 'Test Region',
         security: -1,
         whClassId: 4,
       } as SystemDirectoryEntry),

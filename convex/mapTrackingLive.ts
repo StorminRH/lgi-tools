@@ -29,20 +29,18 @@ function findCharacterLocation(
   return uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId);
 }
 
-async function readTrackedLocations(
+function readTrackedLocations(
   ctx: QueryCtx,
   rows: readonly Doc<'mapTracking'>[],
 ) {
-  const tracked = [];
-  for (const row of rows) {
+  return Promise.all(rows.map(async (row) => {
     const location = await findCharacterLocation(ctx, row.userId, row.characterId);
-    tracked.push({
+    return {
       userId: row.userId,
       characterId: row.characterId,
       location: location === null ? null : trackedLocationPayload(location),
-    });
-  }
-  return tracked;
+    };
+  }));
 }
 
 export const forMap = query({
@@ -122,23 +120,20 @@ export const coverage = query({
       });
     }
 
-    const trackedByUser = new Map<string, ReadonlySet<number>>();
-    const coverageRows: CoverageRow[] = [];
-    for (const identity of identities) {
-      let tracked = trackedByUser.get(identity.userId);
-      if (tracked === undefined) {
-        tracked = await trackedCharacterIdsOnMap(ctx, mapId, identity.userId);
-        trackedByUser.set(identity.userId, tracked);
-      }
-      const held = tracked.has(identity.characterId)
+    const userIds = [...new Set(identities.map((identity) => identity.userId))];
+    const trackedByUser = new Map(await Promise.all(userIds.map(
+      async (userId) => [userId, await trackedCharacterIdsOnMap(ctx, mapId, userId)] as const,
+    )));
+    const coverageRows: CoverageRow[] = await Promise.all(identities.map(async (identity) => {
+      const held = trackedByUser.get(identity.userId)?.has(identity.characterId)
         ? await findCoverage(ctx, identity.userId, identity.characterId)
         : null;
-      coverageRows.push({
+      return {
         userId: identity.userId,
         characterId: identity.characterId,
         covered: held !== null,
-      });
-    }
+      };
+    }));
 
     return {
       coverage: coverageRows.sort(compareCoverageRows),
@@ -160,9 +155,11 @@ export async function readTrackedPilotSystemIds(
       detail: `Map ${mapId} exceeds the ${TRACKING_MAP_SCAN_CAP}-row tracked-presence bound.`,
     });
   }
+  const locations = await Promise.all(
+    rows.map((row) => findCharacterLocation(ctx, row.userId, row.characterId)),
+  );
   const systemIds = new Set<number>();
-  for (const row of rows) {
-    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
+  for (const location of locations) {
     if (location !== null) systemIds.add(location.solarSystemId);
   }
   return systemIds;

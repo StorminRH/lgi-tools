@@ -69,8 +69,8 @@ function LightboxDialog({
       finalFocus={summaryRef}
       className="sites-lightbox-dialog"
     >
-      <div className="sites-lightbox-panel">
-        <div className="sticky top-0 z-sticky flex justify-end bg-bg px-2 py-1.5">
+      <div className="sites-lightbox-panel rounded-panel max-sm:rounded-none">
+        <div className="sticky top-0 z-sticky flex justify-end border-b border-border-soft glass-dense px-2 py-1.5">
           <DialogClose
             aria-label="Close"
             className="text-ui leading-none text-muted hover:text-name px-1.5 py-0.5"

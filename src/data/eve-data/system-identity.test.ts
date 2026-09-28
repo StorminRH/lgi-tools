@@ -17,13 +17,13 @@ it.each([
   [7, 'HS'],
   [8, 'LS'],
   [9, 'NS'],
-  [12, 'Thera'],
+  [12, 'C12'],
   [13, 'C13'],
-  [14, 'Drifter'],
-  [15, 'Drifter'],
-  [16, 'Drifter'],
-  [17, 'Drifter'],
-  [18, 'Drifter'],
+  [14, 'C14'],
+  [15, 'C15'],
+  [16, 'C16'],
+  [17, 'C17'],
+  [18, 'C18'],
   [25, 'Pochven'],
 ])('labels class id %i as %s', (classId, label) => {
   expect(systemClassText(classId)).toBe(label);
@@ -85,10 +85,10 @@ it('keeps distinct J-space tones and lets class win over security', () => {
   ).toEqual({ label: 'J005160 - C13', tone: 'text-wh-c6' });
   expect(
     systemIdentityReadout({ name: 'Thera', security: -0.5, whClassId: 12 }),
-  ).toEqual({ label: 'Thera - Thera', tone: 'text-tone-teal' });
+  ).toEqual({ label: 'Thera - C12', tone: 'text-tone-teal' });
   expect(
     systemIdentityReadout({ name: 'Vidette', security: -0.5, whClassId: 16 }),
-  ).toEqual({ label: 'Vidette - Drifter', tone: 'text-tone-purple' });
+  ).toEqual({ label: 'Vidette - C16', tone: 'text-tone-purple' });
   expect(
     systemIdentityReadout({ name: 'Raravoss', security: -0.5, whClassId: 25 }),
   ).toEqual({ label: 'Raravoss - Pochven', tone: 'text-tone-red' });
@@ -131,7 +131,7 @@ it.each([
   ['hisec', 'HS', 'text-sec-10'],
   ['lowsec', 'LS', 'text-sec-04'],
   ['nullsec', 'NS', 'text-sec-null'],
-  ['thera', 'Thera', 'text-tone-teal'],
+  ['thera', 'C12', 'text-tone-teal'],
   ['pochven', 'Pochven', 'text-tone-red'],
   ['drifter', 'Drifter', 'text-tone-purple'],
 ] as const)('destination hint %s reads %s in %s', (hint, label, tone) => {

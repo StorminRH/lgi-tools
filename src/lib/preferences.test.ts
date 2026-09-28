@@ -49,7 +49,6 @@ const {
   plannerBuildLocation,
   plannerBuildCharacter,
   PREFERENCE_KEYS,
-  RETIRED_PREFERENCE_KEYS,
   pruneRetiredPreferences,
   STRIP_SURFACE_IDS,
   stripDimmedDef,
@@ -61,6 +60,8 @@ const {
   writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
+  syncPreferenceCookies,
+  clearPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -131,6 +132,7 @@ describe('validatePreferenceValue', () => {
     expect(PREFERENCE_KEYS).toContain('planner.buildLocation');
     expect(PREFERENCE_KEYS).toContain('planner.buildCharacterId');
     expect(PREFERENCE_KEYS).not.toContain('atlas.autoLayout');
+    expect(PREFERENCE_KEYS).not.toContain('strip.skills.dimmed');
   });
 });
 
@@ -178,6 +180,26 @@ describe('cookie codec', () => {
     expect(lastCookieWrite).not.toContain('Secure');
     const raw = lastCookieWrite.split(';')[0]!.split('=')[1];
     expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
+  });
+
+  it('expires every ssrReadable cookie and only those on clear', () => {
+    const writes: string[] = [];
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        set cookie(v: string) {
+          writes.push(v);
+        },
+      },
+    });
+    try {
+      clearPreferenceCookies();
+      expect(writes).toContain('lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax');
+      expect(writes).toContain('lgi_pref_planner_buildCharacterId=; Path=/; Max-Age=0; SameSite=Lax');
+      expect(writes.some((w) => w.startsWith(`${cookieNameFor(plannerBuildLocation)}=`))).toBe(false);
+    } finally {
+      installDocumentShim();
+    }
   });
 
   it('does not write a cookie for a non-ssrReadable key', () => {
@@ -270,13 +292,34 @@ describe('strip dimmed-set defs', () => {
 });
 
 describe('retired preference keys', () => {
-  it('names atlas.autoLayout and prunes its localStorage row', () => {
-    expect(RETIRED_PREFERENCE_KEYS).toEqual(['atlas.autoLayout']);
+  it('prunes a retired atlas.autoLayout localStorage row and leaves other keys', () => {
     window.localStorage.setItem(lsKey('atlas.autoLayout'), JSON.stringify(false));
     window.localStorage.setItem(lsKey('sites.view'), JSON.stringify('table'));
     pruneRetiredPreferences();
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
+  });
+
+  it('prunes the retired /skills strip row', () => {
+    window.localStorage.setItem(lsKey('strip.skills.dimmed'), JSON.stringify([1]));
+    pruneRetiredPreferences();
+    expect(window.localStorage.getItem(lsKey('strip.skills.dimmed'))).toBeNull();
+  });
+});
+
+describe('syncPreferenceCookies', () => {
+  it('writes resolved values to the SSR cookie and leaves localStorage alone', () => {
+    lastCookieWrite = '';
+    window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('cards'));
+    syncPreferenceCookies(new Map([[sitesView.key, 'table']]));
+    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
+    expect(peekLocalPreference(sitesView)).toBe('cards');
+  });
+
+  it('leaves unresolved keys alone', () => {
+    lastCookieWrite = '';
+    syncPreferenceCookies(new Map());
+    expect(lastCookieWrite).toBe('');
   });
 });

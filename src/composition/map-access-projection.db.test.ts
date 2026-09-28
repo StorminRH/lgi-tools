@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
+import { characters } from '@/db/auth-schema';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -10,20 +11,8 @@ import { archivedMapLifecycle } from '@/data/maps/lifecycle-contract';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { computeMapAccessClaims } from './map-access-projection';
 
-const mocks = vi.hoisted(() => ({
-  refreshAffiliationsWithOutcome: vi.fn().mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  }),
-  refreshStaleAffiliationsForUserWithOutcome: vi.fn().mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  }),
-}));
-
 vi.mock('@/platform/auth/affiliation', () => ({
-  refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
-  refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
+  refreshAffiliationsWithOutcome: vi.fn(() => { throw new Error('Projection must not call ESI'); }),
 }));
 
 const harness = await createDbTestHarness({
@@ -54,19 +43,6 @@ const harness = await createDbTestHarness({
   ],
   steerDbProxy: true,
   resetBetweenTests: 'truncate',
-});
-
-beforeEach(() => {
-  mocks.refreshAffiliationsWithOutcome.mockReset();
-  mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  });
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockReset();
-  mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
-    refreshed: 0,
-    transientFailure: false,
-  });
 });
 
 describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', () => {
@@ -113,6 +89,12 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
       { userId: 'char-owner', roles: ['editor'] },
       { userId: 'corp-member', roles: ['viewer'] },
+      { userId: 'creator', roles: ['admin'] },
+    ]);
+
+    await harness.db.update(characters).set({ corporationId: 991 }).where(eq(characters.characterId, 43));
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
+      { userId: 'char-owner', roles: ['editor'] },
       { userId: 'creator', roles: ['admin'] },
     ]);
 
