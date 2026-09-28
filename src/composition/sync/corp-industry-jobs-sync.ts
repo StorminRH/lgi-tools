@@ -12,7 +12,7 @@ import {
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
-import { listCharactersWithHealth, readRolesFor, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, probeAndStoreRoles, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 function makeCorpJobsPort(): CorpJobsPort {
@@ -20,7 +20,7 @@ function makeCorpJobsPort(): CorpJobsPort {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     readJobs: (corporationId, accessToken, heldEtag) =>
       readSingleEndpoint(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
     readSyncState: (userId, corporationId) => readCorpJobSyncState(userId, corporationId),

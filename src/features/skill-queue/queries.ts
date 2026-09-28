@@ -13,6 +13,10 @@ async function getCharacterSkills(characterId: number): Promise<CharacterSkillDa
   'use cache';
   cacheLife('minutes');
   cacheTag(skillsTag(characterId));
+  return readCharacterSkills(characterId);
+}
+
+export async function readCharacterSkills(characterId: number): Promise<CharacterSkillData | null> {
   const rows = await db
     .select({
       queue: characterSkills.queue,
@@ -41,6 +45,10 @@ export async function getCharacterSkillLevels(
   'use cache';
   cacheLife('minutes');
   cacheTag(skillsTag(characterId));
+  return readCharacterSkillLevels(characterId);
+}
+
+export async function readCharacterSkillLevels(characterId: number): Promise<Record<string, number> | null> {
   const rows = await db
     .select({ skillLevels: characterSkills.skillLevels })
     .from(characterSkills)

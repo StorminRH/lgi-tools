@@ -60,6 +60,10 @@ export function createMapsPurgeContributor(
     name: 'maps',
     tier: 'credential',
     claims: [maps, mapAccess],
+    merge: [
+      { table: maps, rule: 'rekey' },
+      { table: mapAccess, rule: 'follows-character' },
+    ],
     async purgeCharacter({ characterId }) {
       const pending = await purgeCharacterMapGrants(characterId);
       // Retry work is already durable; delivery must not stop the remaining purge.

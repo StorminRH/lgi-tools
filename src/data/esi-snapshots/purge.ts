@@ -7,6 +7,7 @@ export const esiSnapshotsPurgeContributor: PurgeContributor = {
   name: 'esi-snapshots',
   tier: 'cache',
   claims: [esiSnapshots],
+  merge: [{ table: esiSnapshots, rule: 'follows-character' }],
   async purgeCharacter({ characterId }) {
     await db
       .delete(esiSnapshots)

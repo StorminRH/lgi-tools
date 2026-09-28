@@ -24,7 +24,7 @@ export interface MapChromeData {
 
 export async function resolveMapPrincipals(userId: string): Promise<MapPrincipals> {
   const access = await resolveUserCorpAccess(userId);
-  return { characterIds: access.allCharacterIds, corporationIds: access.corporationIds };
+  return { characterIds: access.authorizedCharacterIds, corporationIds: access.corporationIds };
 }
 
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {

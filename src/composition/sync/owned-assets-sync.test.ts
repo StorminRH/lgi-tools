@@ -13,6 +13,14 @@ const mocks = vi.hoisted(() => ({
     ): Promise<'saved' | 'superseded'> => 'saved',
   ),
   emitDomainEventMock: vi.fn(),
+  saveHoldingNodesMock: vi.fn(
+    async (_corporationId: number, _index: unknown, _refreshedAt: Date): Promise<'saved' | 'superseded'> => 'saved',
+  ),
+}));
+
+vi.mock('@/data/corp-holdings/queries', () => ({
+  saveHoldingNodes: (corporationId: number, index: unknown, refreshedAt: Date) =>
+    mocks.saveHoldingNodesMock(corporationId, index, refreshedAt),
 }));
 
 vi.mock('@/data/domain-events/queries', () => ({
@@ -49,7 +57,10 @@ const rows = [
 ];
 const source = {
   endpoint: '/corporations/5000/assets/',
-  items: [{ item_id: 101 }],
+  items: [
+    { item_id: 101, type_id: 27, quantity: 1, location_id: 60003760, location_type: 'station', location_flag: 'OfficeFolder' },
+    { item_id: 102, type_id: 34, quantity: 12, location_id: 101, location_type: 'item', location_flag: 'CorpSAG1' },
+  ],
   responseHeaders: [
     {
       page: 1,
@@ -74,7 +85,9 @@ describe('saveOwnedAssetsFromSource', () => {
     mocks.deleteEsiSnapshotMock.mockClear();
     mocks.saveOwnedAssetsMock.mockReset();
     mocks.emitDomainEventMock.mockReset();
+    mocks.saveHoldingNodesMock.mockReset();
     mocks.saveOwnedAssetsMock.mockResolvedValue('saved');
+    mocks.saveHoldingNodesMock.mockResolvedValue('saved');
   });
 
   it('keeps character saves on the existing path with no snapshot', async () => {
@@ -83,12 +96,54 @@ describe('saveOwnedAssetsFromSource', () => {
     await save({ ownerType: 'character', ownerId: 7 }, rows, ['"etag"'], source);
 
     expect(mocks.insertEsiSnapshotMock).not.toHaveBeenCalled();
+    expect(mocks.saveHoldingNodesMock).not.toHaveBeenCalled();
     expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
     expect(mocks.saveOwnedAssetsMock).toHaveBeenCalledWith(
       { ownerType: 'character', ownerId: 7 },
       rows,
       ['"etag"'],
     );
+  });
+
+  it('writes the holding index from the raw payload before the corp rows', async () => {
+    const save = await loadSave();
+
+    await save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source);
+
+    expect(mocks.saveHoldingNodesMock).toHaveBeenCalledTimes(1);
+    const [corporationId, index] = mocks.saveHoldingNodesMock.mock.calls[0]!;
+    expect(corporationId).toBe(5000);
+    expect([...(index as { interiors: Map<number, unknown> }).interiors]).toEqual([
+      [60003760, { kind: 'root', rootId: 60003760 }],
+      [101, { kind: 'office', rootId: 60003760 }],
+    ]);
+    expect(mocks.saveHoldingNodesMock.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.saveOwnedAssetsMock.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('saves neither the index nor the rows when the payload is not a corp asset list', async () => {
+    const save = await loadSave();
+
+    await save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], { ...source, items: [{ item_id: 101 }] });
+
+    expect(mocks.insertEsiSnapshotMock).not.toHaveBeenCalled();
+    expect(mocks.saveHoldingNodesMock).not.toHaveBeenCalled();
+    expect(mocks.saveOwnedAssetsMock).not.toHaveBeenCalled();
+    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
+  });
+
+  it('stops before the rows and discards the snapshot when a concurrent refresh supersedes the index', async () => {
+    const save = await loadSave();
+    mocks.saveHoldingNodesMock.mockResolvedValueOnce('superseded');
+
+    await expect(
+      save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source),
+    ).resolves.toBeUndefined();
+
+    expect(mocks.saveOwnedAssetsMock).not.toHaveBeenCalled();
+    expect(mocks.deleteEsiSnapshotMock).toHaveBeenCalledWith(44);
+    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
   });
 
   it('writes one encrypted corp snapshot and gives its id to every derived row save', async () => {
@@ -121,7 +176,7 @@ describe('saveOwnedAssetsFromSource', () => {
         dataset: 'owned_assets',
         ownerType: 'corporation',
         ownerId: 5000,
-        itemCount: 1,
+        itemCount: 2,
       },
     });
   });

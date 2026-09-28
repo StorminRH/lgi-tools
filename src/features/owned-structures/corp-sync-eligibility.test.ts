@@ -13,7 +13,7 @@ describe('canSyncCorpStructures', () => {
     expect(canSyncCorpStructures(input)).toBe(expected);
   });
 
-  it('rejects a missing roles or structures scope, and pins Station_Manager on the refresh layer', () => {
+  it('rejects a missing roles or structures scope, and pins Station_Manager or Director on the refresh layer', () => {
     for (const scope of CORP_STRUCTURES_SYNC_SCOPES) {
       expect(canSyncCorpStructures({ hasRefreshToken: true, missingScopes: [scope] })).toBe(false);
     }
@@ -22,6 +22,6 @@ describe('canSyncCorpStructures', () => {
       'esi-characters.read_corporation_roles.v1',
       'esi-corporations.read_structures.v1',
     ]);
-    expect([...CORP_STRUCTURES_REQUIRED_ROLES]).toEqual(['Station_Manager']);
+    expect([...CORP_STRUCTURES_REQUIRED_ROLES]).toEqual(['Station_Manager', 'Director']);
   });
 });

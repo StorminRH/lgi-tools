@@ -13,6 +13,16 @@ export type EsiAuthedRead =
   | { kind: 'unchanged'; expiresAt: number | null }
   | { kind: 'error'; code: string };
 
+async function toAuthedRead(res: Response, rl?: RlSnapshot): Promise<EsiAuthedRead> {
+  if (rl !== undefined) captureRl(res, rl);
+  const expiresAt = parseExpires(res);
+  if (res.status === 304) return { kind: 'unchanged', expiresAt };
+  if (res.status === 200) {
+    return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt };
+  }
+  return { kind: 'error', code: `esi_${res.status}` };
+}
+
 export async function readEsiAuthed(
   path: string,
   accessToken: string,
@@ -21,14 +31,21 @@ export async function readEsiAuthed(
 ): Promise<EsiAuthedRead> {
   const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
   if (heldEtag !== null) headers['If-None-Match'] = heldEtag;
-  const res = await esiFetch(esiUrl(path), { headers });
-  if (rl !== undefined) captureRl(res, rl);
-  const expiresAt = parseExpires(res);
-  if (res.status === 304) return { kind: 'unchanged', expiresAt };
-  if (res.status === 200) {
-    return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt };
-  }
-  return { kind: 'error', code: `esi_${res.status}` };
+  return toAuthedRead(await esiFetch(esiUrl(path), { headers }), rl);
+}
+
+/**
+ * A POST-as-read (ESI's `assets/names` takes its id list in the body). A POST
+ * is never ETag-eligible, so every call reaches ESI and the result is fresh or
+ * an error.
+ */
+export async function readEsiAuthedPost(path: string, accessToken: string, body: unknown): Promise<EsiAuthedRead> {
+  const res = await esiFetch(esiUrl(path), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return toAuthedRead(res);
 }
 
 /**

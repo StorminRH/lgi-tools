@@ -34,26 +34,6 @@ export const corpStructuresEndpoint = defineEndpoint({
   },
 });
 
-export const setCorpStructureSharingRequestSchema = z.object({
-  corporationId: z.number().int().positive(),
-  enabled: z.boolean(),
-});
-const corpStructureSharingResponseSchema = z.object({
-  corporationId: z.number(),
-  enabled: z.boolean(),
-});
-export const setCorpStructureSharingEndpoint = defineEndpoint({
-  method: 'POST',
-  path: '/api/account/corp-structures/sharing',
-  request: setCorpStructureSharingRequestSchema,
-  responses: {
-    200: jsonBody(corpStructureSharingResponseSchema),
-    400: problem('invalid_json', 'invalid_body'),
-    401: problem('unauthenticated'),
-    403: problem('not_corp_member', 'not_station_manager', 'cross_origin'),
-  },
-});
-
 const PG_INT4_MAX = 2_147_483_647;
 export const MAX_CORP_STRUCTURE_RIGS = 3;
 export const setCorpStructureRigsRequestSchema = z.object({

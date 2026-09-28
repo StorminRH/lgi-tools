@@ -82,6 +82,7 @@ const ownedBlueprintMeEntrySchema = z.object({
   ownerName: z.string(),
   locationName: z.string(),
   locationFlag: z.string(),
+  containerName: z.string().nullable(),
 }) satisfies z.ZodType<OwnedBlueprintMeEntry>;
 
 const ownedBlueprintsResponseSchema = z.object({
@@ -107,6 +108,7 @@ const assetHoldingSchema = z.object({
   ownerName: z.string(),
   locationName: z.string(),
   locationFlag: z.string(),
+  containerName: z.string().nullable(),
   quantity: z.number(),
 }) satisfies z.ZodType<AssetHolding>;
 

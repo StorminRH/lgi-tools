@@ -16,7 +16,7 @@ vi.mock('@/features/industry-jobs/queries', () => ({
 vi.mock('@/features/industry-jobs/corp-refresh', () => ({ refreshCorpJobsForUser: vi.fn() }));
 vi.mock('@/data/eve-data/queries', () => ({ getTypeNames: vi.fn().mockResolvedValue(new Map()) }));
 vi.mock('@/platform/auth/linked-characters', () => ({ listLinkedCharacters: vi.fn() }));
-vi.mock('./owner-sync-port', () => ({ listCharactersWithHealth: vi.fn(), readRolesFor: vi.fn(), readSingleEndpoint: vi.fn(), vendTokenFor: vi.fn() }));
+vi.mock('./owner-sync-port', () => ({ listCharactersWithHealth: vi.fn(), probeAndStoreRoles: vi.fn(), readSingleEndpoint: vi.fn(), vendTokenFor: vi.fn() }));
 vi.mock('./esi-refresh-owner-sync', () => ({ enqueueBudgetDeferral: vi.fn(), targetedOwnerResult: vi.fn() }));
 
 import { getCorpJobsForUserOnView } from './corp-industry-jobs-sync';

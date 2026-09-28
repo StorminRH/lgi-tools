@@ -1,4 +1,5 @@
 import { httpRouter } from 'convex/server';
+import { mergeUserState } from './httpAccountMerge';
 import { sweep, purgeOnline } from './httpEngine';
 import { jumpEvidence, resolveJump, signatureElimination } from './httpJump';
 import { leaveSync, purgeLocationTracking } from './httpLocation';
@@ -70,6 +71,12 @@ http.route({
   path: '/purge-map-chain',
   method: 'POST',
   handler: purgeMapChain,
+});
+
+http.route({
+  path: '/merge-user-state',
+  method: 'POST',
+  handler: mergeUserState,
 });
 
 export default http;

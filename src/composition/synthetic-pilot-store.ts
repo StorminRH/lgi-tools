@@ -12,25 +12,13 @@ import { mapAccess, maps } from '@/data/maps/schema';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv, isHostedVercel } from '@/lib/env';
+import { isLocalUrl } from '@/lib/url-safety';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
 import { createLocalSession, type LocalSession } from '@/platform/auth/local-session';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { SYNTHETIC_PILOT } from '@/platform/auth/synthetic-pilot';
-
-function isLocalUrl(
-  value: string | undefined,
-  protocols: readonly string[],
-  hosts: readonly string[] = ['localhost', '127.0.0.1', '[::1]'],
-): boolean {
-  try {
-    const url = new URL(value ?? '');
-    return protocols.includes(url.protocol) && hosts.includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
 
 function assertLocalSyntheticEnvironment(): string {
   if (process.env.NODE_ENV === 'production') {
@@ -88,6 +76,9 @@ export async function becomeSyntheticPilot(requestHeaders?: Headers): Promise<Lo
     throw new Error('The synthetic character belongs to another user');
   }
 
+  // Reset must atomically replace the fixture below and also work without Convex.
+  // nukeAccount commits deletion first and requires owned-map Convex teardown,
+  // so it cannot preserve either reset guarantee.
   await revokeUserSessions(SYNTHETIC_PILOT.userId);
   if (process.env.NEXT_PUBLIC_CONVEX_URL) {
     const ownedMaps = await db

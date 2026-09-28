@@ -14,4 +14,5 @@ export type {
   OwnerSyncRunOptions,
   OwnerSyncTarget,
   PagedOwnerSyncState,
+  PersistVerdict,
 } from './types';

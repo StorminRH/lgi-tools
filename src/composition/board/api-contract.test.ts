@@ -35,6 +35,10 @@ describe('boardResponseSchema', () => {
     netWorth: section,
   };
 
+  it.each(BOARD_GAPS)('accepts the supported reconnect gap %s', (gap) => {
+    expect(boardCharacterSchema.parse({ ...minimal, gaps: [gap] }).gaps).toEqual([gap]);
+  });
+
   it('accepts pending and reconnect sections without data', () => {
     expect(boardCharacterSchema.safeParse(minimal).success).toBe(true);
     expect(boardCharacterSchema.safeParse({ ...minimal, wallet: { state: 'reconnect' } }).success).toBe(true);

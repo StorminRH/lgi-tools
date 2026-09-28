@@ -211,6 +211,14 @@ const convexLocationSyncUser = convexEntry({
 });
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
+  {
+    id: 'convex/crons:character authorization',
+    workKind: 'convex-cron',
+    module: 'convex/crons.ts',
+    redeliverySource: 'The five-minute scheduler may overlap with a returning user or retry a failed request.',
+    verdict: 'key-protected',
+    evidence: 'The authenticated service endpoint claims due accounts with a persisted lease; token writes compare stored ciphertext and map-access delivery uses the existing durable outbox.',
+  },
   convexMapSignaturePurge,
   convexMapChainPurge,
   convexMapCeilingCollapse,
@@ -387,11 +395,11 @@ const preferencesRoute = mutationRoute({
   evidence:
     'Upserts one preference key to a named value; a repeat writes the same value.',
 });
-const corpStructuresSharingRoute = mutationRoute({
-  route: 'src/app/api/account/corp-structures/sharing/route.ts',
+const corpSharingRoute = mutationRoute({
+  route: 'src/app/api/account/corp-sharing/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'Sets a corporation’s sharing flag to a named boolean; a repeat sets the same flag.',
+    'Upserts a corporation’s data-sharing switch to a named boolean keyed by corporation id; a repeat sets the same value.',
 });
 const corpStructuresRigsRoute = mutationRoute({
   route: 'src/app/api/account/corp-structures/rigs/route.ts',
@@ -601,6 +609,11 @@ const syncLeaveRoute = mutationRoute({
 });
 
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
+  mutationRoute({
+    route: 'src/app/api/internal/verify-character-authorization/route.ts',
+    verdict: 'key-protected',
+    evidence: 'Per-account leases deduplicate verification. Access changes are enqueued before version-matched acknowledgement, so retry after a crash safely replays projection.',
+  }),
   mapsSearchCharactersRoute,
   eveNamesRoute,
   eveTypeNamesRoute,
@@ -611,7 +624,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   customStructuresParseFitRoute,
   accountActiveCharacterRoute,
   preferencesRoute,
-  corpStructuresSharingRoute,
+  corpSharingRoute,
   corpStructuresRigsRoute,
   customStructuresSetPinRoute,
   customStructuresSetTaxRoute,

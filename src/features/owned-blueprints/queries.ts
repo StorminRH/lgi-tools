@@ -1,7 +1,15 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
-import { type BlueprintMapInput, type OwnedBlueprintMap, toOwnedBlueprintMap } from './blueprint-map';
+import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
+import {
+  type BlueprintMapInput,
+  type BlueprintRow,
+  characterBlueprintInputs,
+  type OwnedBlueprintMap,
+  toOwnedBlueprintMap,
+  visibleCorpBlueprintInputs,
+} from './blueprint-map';
 import type { OwnedBlueprint } from './esi-projection';
 import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
@@ -10,11 +18,11 @@ function ownedBlueprintsTag(owner: OwnerKey): string {
   return `owned-blueprints:${owner.ownerType}:${owner.ownerId}`;
 }
 
-async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintMapInput[]> {
+async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintRow[]> {
   'use cache';
   cacheLife('hours');
   cacheTag(ownedBlueprintsTag(owner));
-  const rows = await db
+  return db
     .select({
       typeId: ownedBlueprints.typeId,
       materialEfficiency: ownedBlueprints.materialEfficiency,
@@ -25,12 +33,28 @@ async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintMapInput
     })
     .from(ownedBlueprints)
     .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
-  return rows.map((row) => ({ ...row, ownerType: owner.ownerType, ownerId: owner.ownerId }));
 }
 
-export async function getOwnedBlueprintMap(owners: OwnerKey[]): Promise<OwnedBlueprintMap> {
-  const perOwner = await Promise.all(owners.map(getOwnerBlueprintRows));
-  return toOwnedBlueprintMap(perOwner.flat());
+async function characterInputs(characterId: number): Promise<BlueprintMapInput[]> {
+  return characterBlueprintInputs(
+    await getOwnerBlueprintRows({ ownerType: 'character', ownerId: characterId }),
+    characterId,
+  );
+}
+
+async function corpInputs(grant: CorpGrant): Promise<BlueprintMapInput[]> {
+  return visibleCorpBlueprintInputs(
+    await getOwnerBlueprintRows({ ownerType: 'corporation', ownerId: grant.corporationId }),
+    grant,
+  );
+}
+
+export async function getOwnedBlueprintMap(scope: OwnedReadScope): Promise<OwnedBlueprintMap> {
+  const [characters, corps] = await Promise.all([
+    Promise.all(scope.characterIds.map(characterInputs)),
+    Promise.all(scope.corps.map(corpInputs)),
+  ]);
+  return toOwnedBlueprintMap([...characters.flat(), ...corps.flat()]);
 }
 
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {

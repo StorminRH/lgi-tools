@@ -1,4 +1,5 @@
 import { after } from 'next/server';
+import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { formatStationName } from '@/features/industry-planner/format-station-name';
 import {
@@ -12,14 +13,9 @@ import {
   refreshOwnedAssetsForUser,
 } from '@/features/owned-assets/refresh';
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
+import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import {
-  listCharactersWithHealth,
-  readPagedEndpoint,
-  readRolesFor,
-  resolveOwnedOwnersForUser,
-  vendTokenFor,
-} from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
@@ -28,7 +24,7 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
     save: saveOwnedAssetsFromSource,
@@ -40,8 +36,8 @@ export async function getOwnedAssetDetailOnView(
   userId: string,
   requestedTypeIds: number[],
 ): Promise<OwnedAssetDetailEntry[]> {
-  const owners = await resolveOwnedOwnersForUser(userId);
-  const map = await getOwnedAssetMap(owners, requestedTypeIds);
+  const viewer = await resolveCorpViewer(userId);
+  const map = await getOwnedAssetMap(viewer.scope, requestedTypeIds);
   after(() =>
     refreshOwnedAssetsForUser(
       makeOwnedAssetsPort(),
@@ -49,8 +45,9 @@ export async function getOwnedAssetDetailOnView(
       enqueueBudgetDeferral('owned_assets', userId),
     ),
   );
-  const names = await resolveEntityNames(collectAssetNameIds(map));
-  return buildOwnedAssetDetail(map, names, formatStationName);
+  const contexts = contextsByCorp(viewer.scope);
+  const names = await resolveEntityNames(collectAssetNameIds(map, contexts));
+  return buildOwnedAssetDetail(map, names, formatStationName, contexts);
 }
 
 /** The board's write-behind: personal assets only, budget-deferred like the planner's refresh. */

@@ -9,7 +9,7 @@ const FRESH = NOW;
 const STALE = new Date(NOW.getTime() - TTL - 1);
 
 function row(characterId: number, corporationId: number | null, refreshedAt: Date | null = FRESH): CachedAffiliation {
-  return { characterId, corporationId, allianceId: null, factionId: null, refreshedAt };
+  return { sharedAccessEligible: true, characterId, corporationId, allianceId: null, factionId: null, refreshedAt };
 }
 
 test('groups fresh members, drops stale and null corps, treats the TTL boundary as fresh, and freezes the snapshot', () => {
@@ -40,4 +40,18 @@ test('groups fresh members, drops stale and null corps, treats the TTL boundary 
   expect(Object.isFrozen(members.corporationIds)).toBe(true);
   expect(Object.isFrozen(members.characterIdsByCorporation)).toBe(true);
   expect(Object.isFrozen(members.characterIdsByCorporation[2000])).toBe(true);
+});
+
+test('excludes disconnected shared principals while retaining personal identity and another valid corp member', () => {
+  const alice = { ...row(101, 2000), sharedAccessEligible: false };
+  const bob = row(102, 2000);
+  const snapshot = createCorpAccessSnapshot('u1', [alice, bob], false, NOW.getTime());
+  expect(snapshot.allCharacterIds).toEqual([101, 102]);
+  expect(snapshot.authorizedCharacterIds).toEqual([102]);
+  expect(snapshot.characterIdsByCorporation[2000]).toEqual([102]);
+  expect(snapshot.corporationIds).toEqual([2000]);
+  const disconnected = createCorpAccessSnapshot('u1', [alice], false, NOW.getTime());
+  expect(disconnected.allCharacterIds).toEqual([101]);
+  expect(disconnected.authorizedCharacterIds).toEqual([]);
+  expect(disconnected.corporationIds).toEqual([]);
 });

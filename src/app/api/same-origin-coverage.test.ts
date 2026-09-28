@@ -8,8 +8,8 @@ const API_DIR = dirname(fileURLToPath(import.meta.url));
 const PIPELINE_MUTATIONS = [
   'account/active-character/route.ts',
   'account/characters/unlink/route.ts',
+  'account/corp-sharing/route.ts',
   'account/corp-structures/rigs/route.ts',
-  'account/corp-structures/sharing/route.ts',
   'account/custom-structures/delete/route.ts',
   'account/custom-structures/route.ts',
   'account/custom-structures/set-pin/route.ts',
@@ -49,6 +49,10 @@ const ADMIN_MUTATIONS = [
 ] as const;
 
 const EXEMPT_MUTATIONS = {
+  'internal/verify-character-authorization/route.ts': {
+    authz: 'service',
+    reason: 'service-authenticated internal authorization verification',
+  },
   'internal/eve-characters/route.ts': {
     authz: 'service',
     reason: 'service-authenticated internal character enumeration',

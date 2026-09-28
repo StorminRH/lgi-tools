@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { accountMatch, eveAccountsForUser } from './eve-account-shared';
@@ -97,6 +97,22 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
   return row ? toAdminUser(row) : null;
 }
 
+export interface AccountTotals {
+  users: number;
+  characters: number;
+}
+
+export async function getAccountTotals(): Promise<AccountTotals> {
+  const [[users], [characters]] = await Promise.all([
+    db.select({ n: count() }).from(user),
+    db
+      .select({ n: countDistinct(account.accountId) })
+      .from(account)
+      .where(eq(account.providerId, EVE_PROVIDER_ID)),
+  ]);
+  return { users: users?.n ?? 0, characters: characters?.n ?? 0 };
+}
+
 export const CHARACTER_SEARCH_LIMIT = 50;
 
 export async function searchUsersByLinkedCharacterName(query: string): Promise<AdminUser[]> {
@@ -148,8 +164,14 @@ export async function deleteLinkedCharacter(
     await runners.runAfterFailedCharacterUnlink(characterId);
     return false;
   }
-  await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
-  await runners.runAfterCharacterLinkChanged({ userId, characterId });
+  try {
+    await runners.runAfterCharacterUnlink({ userId, characterId, mapIds });
+  } finally {
+    await runners.runAfterCharacterLinkChanged({ userId, characterId });
+    if (await getStoredActiveCharacterId(userId) === characterId) {
+      await repointActiveToOldest(userId);
+    }
+  }
   return true;
 }
 
@@ -200,27 +222,27 @@ export async function reassignCharacter({
   }
   if (moved.length === 0) {
     await runners.runAfterFailedCharacterUnlink(characterId);
-  } else {
-    await runners.runAfterCharacterUnlink({ userId: fromUserId, characterId, mapIds });
   }
+  let sourceDeleted = false;
+  try {
+    if (moved.length > 0) {
+      await runners.runAfterCharacterUnlink({ userId: fromUserId, characterId, mapIds });
+    }
+  } finally {
+    const [remaining] = await db
+      .select({ id: account.id })
+      .from(account)
+      .where(eveAccountsForUser(fromUserId))
+      .limit(1);
 
-  const [remaining] = await db
-    .select({ id: account.id })
-    .from(account)
-    .where(eveAccountsForUser(fromUserId))
-    .limit(1);
-
-  if (!remaining) {
-    await runners.runBeforeUserDelete(fromUserId);
-    await db.delete(user).where(eq(user.id, fromUserId));
+    if (!remaining) {
+      await runners.runBeforeUserDelete(fromUserId);
+      await db.delete(user).where(eq(user.id, fromUserId));
+      sourceDeleted = true;
+    } else if (await getStoredActiveCharacterId(fromUserId) === characterId) {
+      await repointActiveToOldest(fromUserId);
+    }
     await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
-    return { sourceDeleted: true };
   }
-
-  const active = await getStoredActiveCharacterId(fromUserId);
-  if (active === characterId) {
-    await repointActiveToOldest(fromUserId);
-  }
-  await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
-  return { sourceDeleted: false };
+  return { sourceDeleted };
 }

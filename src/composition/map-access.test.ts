@@ -38,6 +38,7 @@ function affiliation(
   refreshedAt: Date,
 ): CachedAffiliation {
   return {
+    sharedAccessEligible: true,
     characterId,
     corporationId,
     allianceId: null,
@@ -166,6 +167,13 @@ describe('resolveMapPrincipals', () => {
     });
     expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
     expect(mocks.getUserAffiliations).toHaveBeenCalledOnce();
+    mocks.getUserAffiliations.mockResolvedValue([
+      { ...affiliation(42, 99, new Date()), sharedAccessEligible: false },
+      affiliation(43, 99, new Date()),
+    ]);
+    await expect(resolveMapPrincipals('user-1')).resolves.toEqual({
+      characterIds: [43], corporationIds: [99],
+    });
   });
 
   it('keeps character identity but fails closed on a stale corporation affiliation', async () => {

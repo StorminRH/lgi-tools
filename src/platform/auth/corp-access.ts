@@ -13,6 +13,7 @@ export interface UserCorpAccess {
   readonly userId: string;
   readonly resolvedAt: number;
   readonly allCharacterIds: readonly number[];
+  readonly authorizedCharacterIds: readonly number[];
   readonly corporationIds: readonly number[];
   readonly characterIdsByCorporation: Readonly<Record<number, readonly number[]>>;
   readonly refreshTransientFailure: boolean;
@@ -27,7 +28,7 @@ export function createCorpAccessSnapshot(
   const members: Record<number, number[]> = {};
   const now = new Date(resolvedAt);
   for (const row of affiliations) {
-    if (row.corporationId !== null && !AFFILIATION_FRESHNESS.isStale(row.refreshedAt, now)) {
+    if (row.sharedAccessEligible && row.corporationId !== null && !AFFILIATION_FRESHNESS.isStale(row.refreshedAt, now)) {
       (members[row.corporationId] ??= []).push(row.characterId);
     }
   }
@@ -36,6 +37,7 @@ export function createCorpAccessSnapshot(
     userId,
     resolvedAt,
     allCharacterIds: Object.freeze(affiliations.map((row) => row.characterId)),
+    authorizedCharacterIds: Object.freeze(affiliations.filter((row) => row.sharedAccessEligible).map((row) => row.characterId)),
     corporationIds: Object.freeze(Object.keys(members).map(Number).sort((a, b) => a - b)),
     characterIdsByCorporation: Object.freeze(members),
     refreshTransientFailure,

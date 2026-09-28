@@ -1,3 +1,4 @@
+import { ACCESS_HREF } from '../settings-sections';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
@@ -35,7 +36,6 @@ const MAX_QUERY_LENGTH = 200;
 
 const AUDIT_WINDOW_DAYS = 90;
 
-const ACCESS_HREF = '/settings/access';
 
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;

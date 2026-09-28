@@ -4,8 +4,8 @@ import { db } from '@/db';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import type { ParsedCorpStructure } from './esi-projection';
-import { corpStructureRigs, corpStructures, corpStructureSharing, corpStructureSyncs } from './schema';
-import type { CorpStructureRow, CorpStructureSharingState, CorpStructuresSyncState } from './types';
+import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
+import type { CorpStructureRow, CorpStructuresSyncState } from './types';
 
 function corpStructuresTag(corporationId: number): string {
   return `corp-structures:${corporationId}`;
@@ -86,7 +86,6 @@ export async function saveCorpStructures(
   rows: ParsedCorpStructure[],
   etags: string[],
 ): Promise<void> {
-  if (!(await isCorpStructureSharingEnabled(corporationId))) return;
   const now = new Date();
   const securityByStructure = await deriveSecurityClasses(rows);
   await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
@@ -117,51 +116,6 @@ export async function stampCorpStructuresFresh(corporationId: number): Promise<v
     .update(corpStructureSyncs)
     .set({ lastRefreshedAt: new Date() })
     .where(eq(corpStructureSyncs.corporationId, corporationId));
-}
-
-export async function isCorpStructureSharingEnabled(corporationId: number): Promise<boolean> {
-  const rows = await db
-    .select({ enabled: corpStructureSharing.enabled })
-    .from(corpStructureSharing)
-    .where(eq(corpStructureSharing.corporationId, corporationId))
-    .limit(1);
-  return rows[0]?.enabled ?? false;
-}
-
-export async function readCorpStructureSharings(
-  corporationIds: number[],
-): Promise<Map<number, CorpStructureSharingState>> {
-  if (corporationIds.length === 0) return new Map();
-  const rows = await db
-    .select({
-      corporationId: corpStructureSharing.corporationId,
-      enabled: corpStructureSharing.enabled,
-      setBy: corpStructureSharing.setBy,
-      setAt: corpStructureSharing.setAt,
-    })
-    .from(corpStructureSharing)
-    .where(inArray(corpStructureSharing.corporationId, corporationIds));
-  return new Map(rows.map((r) => [r.corporationId, { enabled: r.enabled, setBy: r.setBy, setAt: r.setAt }]));
-}
-
-export async function setCorpStructureSharing(
-  corporationId: number,
-  enabled: boolean,
-  setBy: number | null,
-): Promise<void> {
-  const now = new Date();
-  await db
-    .insert(corpStructureSharing)
-    .values({ corporationId, enabled, setBy, setAt: now })
-    .onConflictDoUpdate({
-      target: corpStructureSharing.corporationId,
-      set: { enabled, setBy, setAt: now },
-    });
-  if (enabled) return;
-  await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
-  await db.delete(corpStructureSyncs).where(eq(corpStructureSyncs.corporationId, corporationId));
-  await db.delete(corpStructureRigs).where(eq(corpStructureRigs.corporationId, corporationId));
-  revalidateTag(corpStructuresTag(corporationId), 'max');
 }
 
 export interface CorpStructureCompletion {

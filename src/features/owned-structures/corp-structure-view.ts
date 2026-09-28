@@ -9,9 +9,6 @@ export type CorpStructureItemView = {
   typeName: string;
   displayName: string;
   validRigs: StructureRigOption[];
-  rigLabels: { key: number; label: string }[];
-  taxLabel: string | null;
-  hasDetails: boolean;
 };
 
 export function deriveCorpStructureItemView(
@@ -23,33 +20,26 @@ export function deriveCorpStructureItemView(
   const validRigs = typeOption
     ? opts.structureRigs.filter((r) => rigFitsStructure(r, typeOption))
     : [];
-  const rigName = new Map(opts.structureRigs.map((r) => [r.typeId, r.name]));
-  return {
-    typeName,
-    displayName: structure.name ?? typeName,
-    validRigs,
-    rigLabels: structure.rigTypeIds.map((r) => ({ key: r, label: rigName.get(r) ?? `Rig ${r}` })),
-    taxLabel: structure.taxPct !== null ? `tax ${structure.taxPct}%` : null,
-    hasDetails: structure.rigTypeIds.length > 0 || structure.taxPct !== null,
-  };
+  return { typeName, displayName: structure.name ?? typeName, validRigs };
 }
 
 export type CorpCardView = {
   hint: string;
-  showManagerNote: boolean;
-  managerBlurb: string;
-  showStructures: boolean;
+  sharingBlurb: string;
   isEmpty: boolean;
 };
 
 export function deriveCorpCardView(corp: CorpStructurePageView): CorpCardView {
+  const on = corp.sharing === 'on';
   return {
-    hint: corp.isStationManager ? (corp.sharingEnabled ? 'sharing on' : 'sharing off') : 'shared',
-    showManagerNote: corp.isStationManager,
-    managerBlurb: corp.sharingEnabled
-      ? '.'
-      : ' — turn it on to make this corporation’s structures selectable as build locations for every member.',
-    showStructures: corp.sharingEnabled,
+    hint: on ? 'sharing on' : 'sharing off',
+    sharingBlurb: on
+      ? 'Members can pick these structures as build locations in the planner.'
+      : 'Sharing is off, so only Station Managers and Directors can pick these structures in the planner.',
     isEmpty: corp.structures.length === 0,
   };
+}
+
+export function managedCorps(corps: readonly CorpStructurePageView[]): CorpStructurePageView[] {
+  return corps.filter((corp) => corp.structureAccess === 'manage');
 }

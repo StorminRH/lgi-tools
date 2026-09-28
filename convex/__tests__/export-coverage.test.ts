@@ -13,6 +13,7 @@ vi.mock('convex/server', async (importOriginal) => {
   };
 });
 
+import { mergeUserState } from '../accountMerge';
 import authConfig from '../auth.config';
 import {
   accessLeases,
@@ -29,8 +30,10 @@ import { currentUser, heartbeat } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
 import { scan } from '../engineScan';
+import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
+import { mergeUserState as httpMergeUserState } from '../httpAccountMerge';
 import { purgeOnline, sweep as httpSweep } from '../httpEngine';
 import { jumpEvidence as httpJumpEvidence, resolveJump, signatureElimination } from '../httpJump';
 import { leaveSync, purgeLocationTracking } from '../httpLocation';
@@ -145,7 +148,6 @@ import { trackedCharacterIds } from '../mapTrackingIds';
 import { coverage, forMap } from '../mapTrackingLive';
 import { setTracking } from '../mapTrackingOptIn';
 import {
-  forViewer as onlineForViewer,
   purgeForUser as purgeOnlineForUser,
 } from '../onlineStatus';
 
@@ -166,6 +168,8 @@ describe('convex runtime exports', () => {
       projectMapAccess,
       purgeMapAccess,
       purgeMapChain,
+      httpMergeUserState,
+      mergeUserState,
       authorizedAction,
       authorizedJsonAction,
       JUMP_CONTINUITY_MS,
@@ -182,6 +186,7 @@ describe('convex runtime exports', () => {
       leave,
       onSyncComplete,
       scan,
+      verify,
       sweep,
       requireSyncEnv,
       MAP_CONNECTION_SIGNATURE_SCAN_LIMIT,
@@ -267,7 +272,6 @@ describe('convex runtime exports', () => {
       forMap,
       setTracking,
       trackedCharacterIds,
-      onlineForViewer,
       purgeOnlineForUser,
     ];
     expect(pinned.length).toBeGreaterThan(0);

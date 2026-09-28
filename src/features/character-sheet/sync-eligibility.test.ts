@@ -1,15 +1,23 @@
-import { expect, test } from 'vitest';
-import { canSyncSection } from './sync-eligibility';
+import { describe, expect, it } from 'vitest';
+import { SHEET_SECTION_KEYS, SHEET_SECTIONS } from './sections';
+import { canSyncSection, SHEET_SECTION_SCOPES } from './sync-eligibility';
 
-test('a section syncs only with a refresh token and every scope it needs', () => {
-  expect(canSyncSection('profile', { hasRefreshToken: false, missingScopes: [] })).toBe(false);
-  const withToken = (missingScopes: string[]) => ({ hasRefreshToken: true, missingScopes });
-  expect(canSyncSection('profile', withToken(['esi-wallet.read_character_wallet.v1']))).toBe(true);
+describe('section sync eligibility', () => {
+  it('derives the eligibility scopes from the refresh section table', () => {
+    expect(Object.keys(SHEET_SECTION_SCOPES)).toEqual([...SHEET_SECTION_KEYS]);
+    for (const key of SHEET_SECTION_KEYS) {
+      expect(SHEET_SECTION_SCOPES[key]).toEqual(SHEET_SECTIONS[key].scopes);
+    }
+  });
 
-  const missingWallet = withToken(['esi-wallet.read_character_wallet.v1']);
-  expect(canSyncSection('wallet', missingWallet)).toBe(false);
-  expect(canSyncSection('journal', missingWallet)).toBe(false);
-  expect(canSyncSection('clones', missingWallet)).toBe(true);
-  expect(canSyncSection('status', missingWallet)).toBe(true);
-  expect(canSyncSection('status', withToken(['esi-location.read_online.v1']))).toBe(false);
+  it.each(SHEET_SECTION_KEYS)('requires a token and every required scope for %s', (key) => {
+    expect(canSyncSection(key, { hasRefreshToken: false, missingScopes: [] })).toBe(false);
+    expect(canSyncSection(key, { hasRefreshToken: true, missingScopes: [] })).toBe(true);
+    for (const scope of SHEET_SECTIONS[key].scopes) {
+      expect(canSyncSection(key, { hasRefreshToken: true, missingScopes: [scope] })).toBe(false);
+    }
+    const unrelated = Object.values(SHEET_SECTIONS).flatMap((spec) => [...spec.scopes])
+      .filter((scope) => !SHEET_SECTIONS[key].scopes.includes(scope));
+    expect(canSyncSection(key, { hasRefreshToken: true, missingScopes: unrelated })).toBe(true);
+  });
 });

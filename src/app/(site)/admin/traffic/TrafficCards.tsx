@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -14,7 +15,6 @@ import {
   getTopEntryPages,
   getTopPages,
   getTopReferrers,
-  getTopSearches,
 } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { ActivityChart } from '../ActivityChart';
@@ -30,9 +30,19 @@ function BarList({ data, empty, ariaLabel }: { data: BarRows; empty: string; ari
   return <DistributionBars rows={data} ariaLabel={ariaLabel} />;
 }
 
-function ListCard({ label, hint, children }: { label: string; hint: ReactNode; children: ReactNode }) {
+function ListCard({
+  label,
+  hint,
+  className,
+  children,
+}: {
+  label: string;
+  hint: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <Card className="h-full">
+    <Card className={cn('h-full', className)}>
       <SectionHeader size="md" label={label} hint={hint} />
       {children}
     </Card>
@@ -68,15 +78,14 @@ export async function TrafficLists({ range }: { range: DateRange }) {
       getTopPages(range, 10),
       getTopReferrers(range, 10),
       getTopEntryPages(range, 10),
-      getTopSearches(range, 10),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Traffic" />;
-  const [topPages, topReferrers, topEntryPages, topSearches] = fetched;
-  const view = deriveTrafficView({ topPages, topReferrers, topEntryPages, topSearches });
+  const [topPages, topReferrers, topEntryPages] = fetched;
+  const view = deriveTrafficView({ topPages, topReferrers, topEntryPages });
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <ListCard label="Top pages" hint="page views">
+      <ListCard label="Top pages" hint="page views" className="lg:col-span-2">
         <BarList data={view.topPages} empty="No page-view events in this range." ariaLabel="Top pages by views" />
       </ListCard>
       <ListCard label="Entry pages" hint="where sessions start">
@@ -92,9 +101,6 @@ export async function TrafficLists({ range }: { range: DateRange }) {
           empty="No external referrers in this range."
           ariaLabel="Top referrers by page views"
         />
-      </ListCard>
-      <ListCard label="Terminal searches" hint="what pilots look for">
-        <BarList data={view.topSearches} empty="No terminal searches in this range." ariaLabel="Top terminal searches" />
       </ListCard>
     </div>
   );

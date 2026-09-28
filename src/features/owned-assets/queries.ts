@@ -2,7 +2,15 @@ import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { isUniqueViolation } from '@/db/pg-errors';
-import { type AssetMapInput, buildOwnedAssetMap, type OwnedAssetMap } from './asset-map';
+import { type CorpGrant, type OwnedReadScope } from '@/platform/auth/corp-visibility';
+import {
+  type AssetMapInput,
+  type AssetRow,
+  buildOwnedAssetMap,
+  characterAssetInputs,
+  type OwnedAssetMap,
+  visibleCorpAssetInputs,
+} from './asset-map';
 import type { OwnedAsset } from './esi-projection';
 import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedAssets, ownedAssetSyncs } from './schema';
@@ -11,11 +19,15 @@ function ownedAssetsTag(owner: OwnerKey): string {
   return `owned-assets:${owner.ownerType}:${owner.ownerId}`;
 }
 
-async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetMapInput[]> {
+async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetRow[]> {
   'use cache';
   cacheLife('hours');
   cacheTag(ownedAssetsTag(owner));
-  const rows = await db
+  return readOwnerAssetRows(owner);
+}
+
+export async function readOwnerAssetRows(owner: OwnerKey): Promise<AssetRow[]> {
+  return db
     .select({
       typeId: ownedAssets.typeId,
       quantity: ownedAssets.quantity,
@@ -25,16 +37,29 @@ async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetMapInput[]> {
     })
     .from(ownedAssets)
     .where(and(eq(ownedAssets.ownerType, owner.ownerType), eq(ownedAssets.ownerId, owner.ownerId)));
-  return rows.map((row) => ({ ...row, ownerType: owner.ownerType, ownerId: owner.ownerId }));
 }
 
-export async function getOwnedAssetMap(owners: OwnerKey[], typeIds: number[]): Promise<OwnedAssetMap> {
-  const perOwner = await Promise.all(owners.map(getOwnerAssetRows));
-  return buildOwnedAssetMap(perOwner.flat(), typeIds);
+async function characterInputs(characterId: number): Promise<AssetMapInput[]> {
+  return characterAssetInputs(await getOwnerAssetRows({ ownerType: 'character', ownerId: characterId }), characterId);
+}
+
+async function corpInputs(grant: CorpGrant): Promise<AssetMapInput[]> {
+  return visibleCorpAssetInputs(
+    await getOwnerAssetRows({ ownerType: 'corporation', ownerId: grant.corporationId }),
+    grant,
+  );
+}
+
+export async function getOwnedAssetMap(scope: OwnedReadScope, typeIds: number[]): Promise<OwnedAssetMap> {
+  const [characters, corps] = await Promise.all([
+    Promise.all(scope.characterIds.map(characterInputs)),
+    Promise.all(scope.corps.map(corpInputs)),
+  ]);
+  return buildOwnedAssetMap([...characters.flat(), ...corps.flat()], typeIds);
 }
 
 /** Every stored row per character, for valuation; characters without rows map to an empty list. */
-export async function listCharacterAssetRows(characterIds: number[]): Promise<Map<number, AssetMapInput[]>> {
+export async function listCharacterAssetRows(characterIds: number[]): Promise<Map<number, AssetRow[]>> {
   const perOwner = await Promise.all(
     characterIds.map((ownerId) => getOwnerAssetRows({ ownerType: 'character', ownerId })),
   );

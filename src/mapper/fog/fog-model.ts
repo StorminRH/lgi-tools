@@ -1,5 +1,5 @@
 import type { ChainNode } from '../canvas/SystemNode';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import { frameCenter } from '../canvas/edge-geometry';
 import type { ChainEdge } from '../chain/nodes';
 import { springFamily, type MotionConfig } from '../motion/motion-contract';

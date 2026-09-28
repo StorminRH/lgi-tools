@@ -10,6 +10,7 @@ import type {
 export interface ServiceCallInit {
   baseUrl: string;
   secret: string;
+  timeoutMs?: number;
 }
 
 export type ServiceBodyArgs<TEndpoint extends EndpointContract> = TEndpoint['request'] extends null
@@ -37,6 +38,7 @@ export async function serviceFetch<const TEndpoint extends EndpointContract>(
         headers,
         ...(bodyless ? {} : { body: JSON.stringify(body) }),
       },
+      init.timeoutMs,
     );
   } catch (cause) {
     return networkFailure(cause);
