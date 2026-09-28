@@ -7,6 +7,7 @@ export const netWorthPurgeContributor: PurgeContributor = {
   name: 'net-worth',
   tier: 'durable',
   claims: [netWorthDays],
+  merge: [{ table: netWorthDays, rule: 'survivor-wins', key: [netWorthDays.day] }],
   async purgeUser({ userId }) {
     await db.delete(netWorthDays).where(eq(netWorthDays.userId, userId));
   },

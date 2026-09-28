@@ -7,6 +7,7 @@ export const characterSheetPurgeContributor: PurgeContributor = {
   name: 'character-sheet',
   tier: 'cache',
   claims: [characterSheets],
+  merge: [{ table: characterSheets, rule: 'follows-character' }],
   async purgeCharacter({ characterId }) {
     await db.delete(characterSheets).where(eq(characterSheets.characterId, characterId));
   },

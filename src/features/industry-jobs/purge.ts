@@ -1,12 +1,38 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/platform/purge/types';
+import type { MergeSubject, MergeTx, PurgeContributor } from '@/platform/purge/types';
 import {
   characterIndustryJobs,
   characterIndustryJobSyncs,
   corpIndustryJobs,
   corpIndustryJobSyncs,
 } from './schema';
+
+/**
+ * Jobs and syncs are one snapshot per (user, corporation). A corporation the
+ * survivor already has in EITHER table keeps the survivor's pair, so a merge
+ * never splits a snapshot from its sync state.
+ */
+export async function mergeCorpJobsPaired(tx: MergeTx, subject: MergeSubject): Promise<void> {
+  const kept = sql`
+    SELECT ${corpIndustryJobs.corporationId} FROM ${corpIndustryJobs}
+    WHERE ${corpIndustryJobs.userId} = ${subject.survivorUserId}
+    UNION
+    SELECT ${corpIndustryJobSyncs.corporationId} FROM ${corpIndustryJobSyncs}
+    WHERE ${corpIndustryJobSyncs.userId} = ${subject.survivorUserId}
+  `;
+  for (const table of [corpIndustryJobs, corpIndustryJobSyncs]) {
+    await tx.execute(sql`
+      DELETE FROM ${table}
+      WHERE ${table.userId} = ${subject.sourceUserId}
+        AND ${table.corporationId} IN (${kept})
+    `);
+    await tx.execute(sql`
+      UPDATE ${table} SET user_id = ${subject.survivorUserId}
+      WHERE ${table.userId} = ${subject.sourceUserId}
+    `);
+  }
+}
 
 export const industryJobsPurgeContributor: PurgeContributor = {
   name: 'industry-jobs',
@@ -16,6 +42,16 @@ export const industryJobsPurgeContributor: PurgeContributor = {
     characterIndustryJobSyncs,
     corpIndustryJobs,
     corpIndustryJobSyncs,
+  ],
+  merge: [
+    { table: characterIndustryJobs, rule: 'follows-character' },
+    { table: characterIndustryJobSyncs, rule: 'follows-character' },
+    {
+      tables: [corpIndustryJobs, corpIndustryJobSyncs],
+      rule: 'custom',
+      reason: 'jobs and syncs are one snapshot per (user, corporation) and must move or drop as a pair',
+      merge: mergeCorpJobsPaired,
+    },
   ],
   async purgeCharacter({ characterId }) {
     await db

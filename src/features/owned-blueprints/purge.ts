@@ -7,6 +7,10 @@ export const ownedBlueprintsPurgeContributor: PurgeContributor = {
   name: 'owned-blueprints',
   tier: 'cache',
   claims: [ownedBlueprints, ownedBlueprintSyncs],
+  merge: [
+    { table: ownedBlueprints, rule: 'follows-character' },
+    { table: ownedBlueprintSyncs, rule: 'follows-character' },
+  ],
   async purgeCharacter({ characterId }) {
     await db
       .delete(ownedBlueprints)

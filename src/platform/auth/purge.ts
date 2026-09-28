@@ -15,6 +15,12 @@ export const authPurgeContributor: PurgeContributor = {
         'FK-less corp-access authz trail (3.7.3.3) — denials/decisions outlive the user or character they record, so personal-data teardown retains them; the separate 400-day retention policy ages them out.',
     },
   ],
+  merge: [
+    { table: account, rule: 'rekey' },
+    { table: session, rule: 'rekey' },
+    { table: characters, rule: 'follows-character' },
+    { table: corpAccessAudit, rule: 'rekey' },
+  ],
   async purgeCharacter({ userId, characterId }) {
     await db
       .delete(account)
