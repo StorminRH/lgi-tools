@@ -844,7 +844,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['pk(character_id)'],
     boundary: {
       kind: 'ordered-sequence',
-      note: 'Replace-all per corporation after the profile upsert: delete the corp\'s rows, then insert the linked members\' bases. Not atomic; the pk turns an interleaved concurrent context pass into a caught unique violation (\'superseded\'), and a missing row reads as base unknown, which withholds tier-specific grants.',
+      note: 'After the profile upsert: delete the corp\'s rows for members no longer in the pass, then upsert the linked members\' bases on pk(character_id), re-homing a member who changed corps. Not atomic and there is no superseded path; an interleaved concurrent context pass resolves last writer wins, and a missing row reads as base unknown, which withholds tier-specific grants.',
     },
     dataClass: 'corp-shared',
   },
