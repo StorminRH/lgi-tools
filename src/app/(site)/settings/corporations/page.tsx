@@ -50,7 +50,7 @@ function MembershipRow({ membership }: { membership: CorporationMembershipView }
 function MembershipsCard({ view }: { view: CorporationsView }) {
   return (
     <Card className="reveal reveal-1">
-      <SectionHeader size="md" label="Memberships" hint={view.membershipHint} />
+      <SectionHeader size="md" label="Memberships" />
       {view.memberships.length === 0 ? (
         <EmptyState>
           No corporation memberships known yet — they appear once a linked character&apos;s
@@ -62,7 +62,7 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
         ))
       )}
       <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
-        Station Managers and Directors set corporation structure rig fits and facility taxes on{' '}
+        Manage stations and taxes on{' '}
         <Link href="/structures" className="text-tone-blue hover:underline">
           Structures
         </Link>

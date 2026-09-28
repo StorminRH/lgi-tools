@@ -10,11 +10,6 @@ import { setCorpDataSharingEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
 import type { SharingCorpView } from './corporations-view';
 
-const SHARING_OFF_COPY =
-  'Only Directors see this corporation’s assets and blueprints here. Station Managers still see structures and Factory Managers still see industry jobs.';
-const SHARING_ON_COPY =
-  'Members see what their in-game roles allow: the hangar divisions they can view, deliveries, all blueprints for Factory Managers, all assets for Accountants, and the corporation’s structures in the planner.';
-
 export function CorpSharingCard({
   directorCorps,
   memberCorps,
@@ -24,7 +19,7 @@ export function CorpSharingCard({
 }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Share corporation data" hint="Director" />
+      <SectionHeader size="md" label="Share corporation data" />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         {directorCorps.map((corp) => (
           <SharingSwitchRow key={corp.corporationId} corp={corp} />
@@ -32,7 +27,7 @@ export function CorpSharingCard({
         {memberCorps.map((corp) => (
           <p key={corp.corporationId} className="text-body text-muted">
             <span className="text-text">{corp.corporationName}</span>: Sharing is{' '}
-            {corp.sharingEnabled ? 'on' : 'off'}. A Director controls this.
+            {corp.sharingEnabled ? 'on' : 'off'}.
           </p>
         ))}
       </div>
@@ -80,7 +75,7 @@ function SharingSwitchRow({ corp }: { corp: SharingCorpView }) {
           {enabled ? 'sharing on' : 'sharing off'}
         </span>
       </label>
-      <p className="text-body text-muted">{enabled ? SHARING_ON_COPY : SHARING_OFF_COPY}</p>
+      <p className="text-body text-muted">Share corporation data with members based on their in-game role access.</p>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen} labelledBy={confirmLabelId}>
         <div className="flex flex-col gap-3 p-4 max-w-[360px]">

@@ -16,8 +16,7 @@ async function PreferencesContent() {
     <>
       <PreferenceGroups specs={PAGE_SETTINGS_SPECS} />
       <p className="text-ui leading-relaxed text-muted">
-        These preferences are saved on this device. Each page also offers its own settings in the
-        account menu while you are on it.
+        Saved on this device.
       </p>
     </>
   );

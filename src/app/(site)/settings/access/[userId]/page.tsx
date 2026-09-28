@@ -210,10 +210,10 @@ async function UserDetailContent({
       />
 
       <Card className="reveal reveal-2">
-        <SectionHeader size="md" label="Sessions" hint={`${sessionCount} unexpired`} />
+        <SectionHeader size="md" label="Sessions" />
         <div className="flex items-center justify-between gap-3 border-t border-border-soft px-3.5 py-3">
           <span className="text-ui text-muted">
-            Revoke all sign-ins for this account. May take a few minutes to fully apply.
+            {sessionCount} unexpired sessions · logout may take a few minutes.
           </span>
           <AdminForceLogoutForm
             userId={userId}

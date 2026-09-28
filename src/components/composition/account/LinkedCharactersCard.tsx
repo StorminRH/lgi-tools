@@ -16,7 +16,7 @@ export function LinkedCharactersCard({
 }) {
   return (
     <Card className="reveal reveal-1">
-      <SectionHeader size="md" label={label} hint={`${count} linked`} />
+      <SectionHeader size="md" label={label} />
       {count === 0 ? <EmptyState>No characters linked to this account.</EmptyState> : rows}
       {children}
     </Card>

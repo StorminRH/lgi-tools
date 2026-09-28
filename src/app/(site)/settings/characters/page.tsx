@@ -162,7 +162,7 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
           <LinkCharacterButton label="Link another character" />
         </div>
         <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
-          LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
+          Manage EVE access:{' '}
           <a
             href={EVE_AUTHORIZED_APPS_URL}
             target="_blank"
@@ -170,14 +170,13 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
             className="text-tone-blue hover:underline"
           >
             EVE authorized apps
-          </a>{' '}
-          page, or see{' '}
+          </a> ·{' '}
           <Link href="/legal" className="text-tone-blue hover:underline">
-            how we handle your data
+            Data policy
           </Link>
-          . Purging a character&apos;s stored data lives under{' '}
+          {' '}·{' '}
           <Link href="/settings/account" className="text-tone-blue hover:underline">
-            Account
+            Purge data
           </Link>
           .
         </div>

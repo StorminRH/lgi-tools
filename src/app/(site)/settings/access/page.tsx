@@ -131,7 +131,6 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       <SectionHeader
         size="md"
         label="Role change audit"
-        hint={`${audit.length === 50 ? 'Latest 50' : audit.length} entries · last ${AUDIT_WINDOW_DAYS} days`}
       />
       {audit.length === 0 ? (
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
@@ -183,7 +182,7 @@ function AdminsCard({
 }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Admins" hint={`${adminRows.length} with elevated access`} />
+      <SectionHeader size="md" label="Admins" />
       {adminRows.length === 0 ? (
         <EmptyState>No admins currently configured.</EmptyState>
       ) : (
@@ -204,18 +203,16 @@ function AdminsCard({
 
 function SearchResultsCard({
   nonAdminMatches,
-  resultsHint,
   query,
   viewerUserId,
 }: {
   nonAdminMatches: AdminUser[];
-  resultsHint: string;
   query: string;
   viewerUserId: string;
 }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Search results" hint={resultsHint} />
+      <SectionHeader size="md" label="Search results" />
       {nonAdminMatches.length === 0 ? (
         <EmptyState>
           No non-admin accounts match &ldquo;{query}&rdquo;. Any matching admins are listed above.
@@ -273,7 +270,6 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
         {query ? (
           <SearchResultsCard
             nonAdminMatches={view.nonAdminMatches}
-            resultsHint={view.resultsHint}
             query={query}
             viewerUserId={viewerUserId}
           />
