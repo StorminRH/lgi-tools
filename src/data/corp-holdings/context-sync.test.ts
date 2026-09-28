@@ -123,6 +123,23 @@ describe('refreshCorpContextForUser', () => {
     expect(saved.containerNames['10000']).toBe('Can 10000');
   });
 
+  it('reads at most ten unnamed structures per pass, lowest ids first', async () => {
+    const structures = Array.from({ length: 15 }, (_unused, i) => item(1000000000100 - i, SYSTEM, 'solar_system', 'AutoFit', 35825));
+    const contents = structures.map((structure, i) => item(40_000 + i, structure.itemId, 'item', 'CorpDeliveries'));
+    const many = buildHoldingIndex([...structures, ...contents]);
+    const port = makePort({
+      currentContext: vi.fn(async () => buildCorpHoldingContext(CORP, toHoldingNodes(many), null)),
+      readStructure: vi.fn(async () => failed('esi_403')),
+    });
+
+    await refreshCorpContextForUser(port, 'u1');
+
+    expect(vi.mocked(port.readStructure).mock.calls.map(([id]) => id)).toEqual([
+      1000000000086, 1000000000087, 1000000000088, 1000000000089, 1000000000090, 1000000000091, 1000000000092,
+      1000000000093, 1000000000094, 1000000000095,
+    ]);
+  });
+
   it('skips the pass and keeps the prior profile when a required read fails', async () => {
     const port = makePort({
       readDivisions: vi.fn(async () => failed('esi_server_error')),

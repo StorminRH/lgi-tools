@@ -33,6 +33,7 @@ const CORP_CONTEXT_REQUIRED_ROLES = ['Director'] as const;
 
 const CONTEXT_FRESHNESS = freshnessGate('corp_context');
 const NAMES_BATCH = 1000;
+const STRUCTURE_NAME_READS_PER_PASS = 10;
 
 function canSyncCorpContext(character: { hasRefreshToken: boolean; missingScopes: string[] }): boolean {
   if (!character.hasRefreshToken) return false;
@@ -139,7 +140,9 @@ async function planContext(
   const containerIds = unnamedContainerIds(context.index, context.containerNames);
   const containerNames = await readContainerNames(port, corporationId, accessToken, containerIds);
   if (containerNames.kind === 'skip') return containerNames;
-  const structureIds = unnamedStructureIds(context.index, context.structureNames);
+  const structureIds = unnamedStructureIds(context.index, context.structureNames)
+    .sort((a, b) => a - b)
+    .slice(0, STRUCTURE_NAME_READS_PER_PASS);
   const structureNames = await readStructureNames(port, accessToken, structureIds);
   return {
     kind: 'save',
