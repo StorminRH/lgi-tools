@@ -186,7 +186,7 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
 
   return (
     <Card id="scheduled" className="scroll-mt-24">
-      <SectionHeader size="md" label="Scheduled tasks" hint="status as of now · expand for the range" />
+      <SectionHeader size="md" label="Scheduled tasks" />
 
       <StatusRow name="Price cron" status={statuses.price}>
         <PriceCronDetail
