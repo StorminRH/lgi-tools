@@ -1,17 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { BOARD_GAPS, boardCharacterSchema, boardEndpoint, boardResponseSchema } from './api-contract';
 
-describe('boardEndpoint', () => {
-  it('is the one GET the board reads', () => {
-    expect(boardEndpoint.method).toBe('GET');
-    expect(boardEndpoint.path).toBe('/api/account/board');
-    expect(boardEndpoint.request).toBeNull();
-    expect(Object.keys(boardEndpoint.responses)).toEqual(['200']);
-  });
-
-  it('pins the closed reconnect-gap vocabulary', () => {
-    expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders', 'assets']);
-  });
+test('the board is one GET and a closed reconnect-gap vocabulary', () => {
+  expect(boardEndpoint.method).toBe('GET');
+  expect(boardEndpoint.path).toBe('/api/account/board');
+  expect(boardEndpoint.request).toBeNull();
+  expect(Object.keys(boardEndpoint.responses)).toEqual(['200']);
+  expect([...BOARD_GAPS]).toEqual(['skills', 'location', 'wallet', 'clones', 'implants', 'structures', 'industry', 'orders', 'assets']);
 });
 
 describe('boardResponseSchema', () => {

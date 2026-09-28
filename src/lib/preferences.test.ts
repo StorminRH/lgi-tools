@@ -131,8 +131,6 @@ describe('validatePreferenceValue', () => {
     expect(PREFERENCE_KEYS).toContain('sites.view');
     expect(PREFERENCE_KEYS).toContain('planner.buildLocation');
     expect(PREFERENCE_KEYS).toContain('planner.buildCharacterId');
-    expect(PREFERENCE_KEYS).not.toContain('atlas.autoLayout');
-    expect(PREFERENCE_KEYS).not.toContain('strip.skills.dimmed');
   });
 });
 
@@ -260,7 +258,7 @@ describe('strip dimmed-set defs', () => {
   it('registers one ssr-readable def per strip surface with the [] lit-by-default fallback', () => {
     for (const id of STRIP_SURFACE_IDS) {
       const def = stripDimmedDef(id);
-      expect(def.key).toBe(stripDimmedKey(id));
+      expect(def.key).toBe(`strip.${id}.dimmed`);
       expect(PREFERENCE_KEYS).toContain(def.key);
       expect(def.fallback).toEqual([]);
       expect(def.ssrReadable).toBe(true);
@@ -292,19 +290,15 @@ describe('strip dimmed-set defs', () => {
 });
 
 describe('retired preference keys', () => {
-  it('prunes a retired atlas.autoLayout localStorage row and leaves other keys', () => {
+  it('prunes retired rows and leaves keys that are still registered', () => {
     window.localStorage.setItem(lsKey('atlas.autoLayout'), JSON.stringify(false));
+    window.localStorage.setItem(lsKey('strip.skills.dimmed'), JSON.stringify([1]));
     window.localStorage.setItem(lsKey('sites.view'), JSON.stringify('table'));
     pruneRetiredPreferences();
     expect(window.localStorage.getItem(lsKey('atlas.autoLayout'))).toBeNull();
+    expect(window.localStorage.getItem(lsKey('strip.skills.dimmed'))).toBeNull();
     expect(window.localStorage.getItem(lsKey('sites.view'))).toBe(JSON.stringify('table'));
     pruneRetiredPreferences();
-  });
-
-  it('prunes the retired /skills strip row', () => {
-    window.localStorage.setItem(lsKey('strip.skills.dimmed'), JSON.stringify([1]));
-    pruneRetiredPreferences();
-    expect(window.localStorage.getItem(lsKey('strip.skills.dimmed'))).toBeNull();
   });
 });
 

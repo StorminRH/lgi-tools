@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { deriveStripView, stripPreferenceBinding } from './character-strip-view';
 import type { PanelCharacter } from './live-character-card';
 import { stripDimmedDef } from '@/lib/preferences';
@@ -13,53 +13,30 @@ const character = (characterId: number, needsReconnect = false): PanelCharacter 
 
 const strip: CharacterStripSpec = { surfaceId: 'jobs' };
 
-describe('stripPreferenceBinding', () => {
-  it('offers the surface def and the first-paint dimmed set when a strip is declared', () => {
-    const binding = stripPreferenceBinding(strip, [7, 8]);
-    expect(binding.def).toEqual(stripDimmedDef('jobs'));
-    expect(binding.serverValue).toEqual([7, 8]);
-  });
+test('a declared strip binds the registered dimmed-set and an undeclared strip binds nothing', () => {
+  const binding = stripPreferenceBinding(strip, [7, 8]);
+  expect(binding.def).toBe(stripDimmedDef('jobs'));
+  expect(binding.serverValue).toEqual([7, 8]);
 
-  it('falls back to the sentinel def and offers no serverValue without a strip', () => {
-    const binding = stripPreferenceBinding(undefined, [7, 8]);
-    expect(binding.def).toEqual(stripDimmedDef(undefined));
-    expect(binding.serverValue).toBeUndefined();
-  });
+  const absent = stripPreferenceBinding(undefined, [7, 8]);
+  expect(absent.def).toBe(stripDimmedDef(undefined));
+  expect(absent.serverValue).toBeUndefined();
 });
 
-describe('deriveStripView', () => {
-  it('without a strip leaves the character list untouched — today’s render exactly', () => {
-    const characters = [character(1), character(2, true)];
-    const view = deriveStripView(undefined, characters, [1], false);
-    expect(view.hasStrip).toBe(false);
-    expect(view.visible).toEqual(characters);
-    expect(view.showEmptyNotice).toBe(false);
-  });
+test('dims healthy pilots on a strip, notices when none stay lit, and names a failed load', () => {
+  const untouched = [character(1), character(2, true)];
+  const plain = deriveStripView(undefined, untouched, [1], false);
+  expect(plain).toMatchObject({ hasStrip: false, visible: untouched, showEmptyNotice: false });
 
-  it('with a strip drops dimmed healthy characters and keeps the full list off the filter', () => {
-    const characters = [character(1), character(2, true), character(3)];
-    const view = deriveStripView(strip, characters, [1], false);
-    expect(view.hasStrip).toBe(true);
-    expect(view.visible).toEqual([character(2, true), character(3)]);
-    expect(view.showEmptyNotice).toBe(false);
-  });
+  const characters = [character(1), character(2, true), character(3)];
+  const view = deriveStripView(strip, characters, [1], false);
+  expect(view.hasStrip).toBe(true);
+  expect(view.visible).toEqual([character(2, true), character(3)]);
+  expect(view.showEmptyNotice).toBe(false);
+  expect(deriveStripView(strip, [character(1)], [1], false).showEmptyNotice).toBe(true);
+  expect(deriveStripView(undefined, [], [], false).showEmptyNotice).toBe(false);
 
-  it('shows the all-hidden notice only when a strip leaves nothing lit', () => {
-    const characters = [character(1)];
-    expect(deriveStripView(strip, characters, [1], false).showEmptyNotice).toBe(true);
-    expect(deriveStripView(undefined, [], [], false).showEmptyNotice).toBe(false);
-    expect(deriveStripView(strip, [character(1), character(2)], [1], false).showEmptyNotice).toBe(
-      false,
-    );
-  });
-
-  it('renders the loading caption while loading and the steady caption otherwise', () => {
-    expect(deriveStripView(strip, [], [], true).syncCaption).toBe('Loading…');
-    expect(deriveStripView(strip, [], [], false).syncCaption).toBe('Synced from ESI on view');
-  });
-
-  it('swaps the caption for the failure line once a failed load settles', () => {
-    expect(deriveStripView(strip, [], [], false, 'Couldn’t load.').syncCaption).toBe('Couldn’t load.');
-    expect(deriveStripView(strip, [], [], false, null).syncCaption).toBe('Synced from ESI on view');
-  });
+  expect(deriveStripView(strip, [], [], true, 'Couldn’t load.').syncCaption).toBe('Loading…');
+  expect(deriveStripView(strip, [], [], false, 'Couldn’t load.').syncCaption).toBe('Couldn’t load.');
+  expect(deriveStripView(strip, [], [], false, null).syncCaption).toBe('Synced from ESI on view');
 });
