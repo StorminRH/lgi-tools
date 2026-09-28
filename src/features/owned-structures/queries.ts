@@ -1,13 +1,12 @@
 import { eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
-import { corpDataSharing } from '@/db/auth-schema';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import type { ParsedCorpStructure } from './esi-projection';
 import { setCorpSharing } from '@/platform/auth/corp-sharing-store';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
-import type { CorpStructureRow, CorpStructureSharingState, CorpStructuresSyncState } from './types';
+import type { CorpStructureRow, CorpStructuresSyncState } from './types';
 
 function corpStructuresTag(corporationId: number): string {
   return `corp-structures:${corporationId}`;
@@ -118,22 +117,6 @@ export async function stampCorpStructuresFresh(corporationId: number): Promise<v
     .update(corpStructureSyncs)
     .set({ lastRefreshedAt: new Date() })
     .where(eq(corpStructureSyncs.corporationId, corporationId));
-}
-
-export async function readCorpStructureSharings(
-  corporationIds: number[],
-): Promise<Map<number, CorpStructureSharingState>> {
-  if (corporationIds.length === 0) return new Map();
-  const rows = await db
-    .select({
-      corporationId: corpDataSharing.corporationId,
-      enabled: corpDataSharing.enabled,
-      setBy: corpDataSharing.setBy,
-      setAt: corpDataSharing.setAt,
-    })
-    .from(corpDataSharing)
-    .where(inArray(corpDataSharing.corporationId, corporationIds));
-  return new Map(rows.map((r) => [r.corporationId, { enabled: r.enabled, setBy: r.setBy, setAt: r.setAt }]));
 }
 
 export async function setCorpStructureSharing(

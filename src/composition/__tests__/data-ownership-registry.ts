@@ -802,13 +802,7 @@ export const DATA_OWNERSHIP = [
   {
     table: schema.corpDataSharing,
     owner: 'platform/auth',
-    reads: [
-      {
-        by: 'features/owned-structures',
-        purpose:
-          'The structure sync precondition and the settings roster read the switch until the grant-based reads land; the write already goes through the auth store.',
-      },
-    ],
+    reads: [],
     invariants: ['pk(corporation_id)'],
     boundary: APP_SINGLE,
     dataClass: 'corp-shared',

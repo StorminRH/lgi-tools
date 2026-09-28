@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCorpStructureRigs,
-  readCorpStructureSharings,
   readCorpStructureSyncState,
   saveCorpStructures,
   setCorpStructureSharing,
   upsertCorpStructureRigs,
 } from './queries';
 import { corpDataSharing } from '@/db/auth-schema';
+import { readCorpSharing } from '@/platform/auth/corp-sharing-store';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 
 vi.mock('next/cache', () => ({
@@ -32,14 +32,12 @@ const harness = await createDbTestHarness({
 
 describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queries against Postgres', () => {
   it('defaults sharing OFF for a corp with no row', async () => {
-    expect((await readCorpStructureSharings([9001])).size).toBe(0);
+    expect(await readCorpSharing([9001])).toEqual(new Map([[9001, 'off']]));
   });
 
   it('enables sharing (upsert) and reflects it in the read', async () => {
     await setCorpStructureSharing(9002, true, 42);
-    const sharings = await readCorpStructureSharings([9002]);
-    expect(sharings.get(9002)?.enabled).toBe(true);
-    expect(sharings.get(9002)?.setBy).toBe(42);
+    expect(await readCorpSharing([9002])).toEqual(new Map([[9002, 'on']]));
   });
 
   it('disable WIPES the corp structures, sync state, and authored rigs (off ⇒ gone)', async () => {
@@ -58,7 +56,7 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
 
     await setCorpStructureSharing(corp, false, 7);
 
-    expect((await readCorpStructureSharings([corp])).get(corp)?.enabled).toBe(false);
+    expect(await readCorpSharing([corp])).toEqual(new Map([[corp, 'off']]));
     expect(await readCorpStructureSyncState(corp)).toBeNull();
     expect((await getCorpStructureRigs([corp])).size).toBe(0);
     const remainingStructures = await harness.db

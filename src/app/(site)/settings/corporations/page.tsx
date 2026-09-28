@@ -28,12 +28,12 @@ function MembershipRow({ membership }: { membership: CorporationMembershipView }
       name={membership.corporationName}
       chips={
         <span className="flex items-center gap-[6px]">
-          {membership.isStationManager ? (
-            <Chip tone="green" className="normal-case">
-              Station Manager
-            </Chip>
-          ) : (
+          {membership.roleLabel === 'Member' ? (
             <Pill tone="neutral">Member</Pill>
+          ) : (
+            <Chip tone="green" className="normal-case">
+              {membership.roleLabel}
+            </Chip>
           )}
           <Pill tone="neutral">{membership.sharingLabel}</Pill>
           {membership.structureCount !== null ? (
@@ -62,13 +62,10 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
         ))
       )}
       <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
-        {view.managerCorps.length === 0 ? (
-          <>
-            Sharing controls appear here when one of your linked characters holds the Station
-            Manager role in its corporation.{' '}
-          </>
+        {view.directorCorps.length === 0 ? (
+          <>Only a Director can turn corporation data sharing on or off. </>
         ) : null}
-        Shared structures, their rig fits, and facility taxes are managed on{' '}
+        Station Managers and Directors set corporation structure rig fits and facility taxes on{' '}
         <Link href="/structures" className="text-tone-blue hover:underline">
           Structures
         </Link>
@@ -92,7 +89,7 @@ async function CorporationsContent() {
 
   return (
     <>
-      {view.managerCorps.length > 0 ? <CorpSharingSettings corps={view.managerCorps} /> : null}
+      {view.directorCorps.length > 0 ? <CorpSharingSettings corps={view.directorCorps} /> : null}
       <MembershipsCard view={view} />
     </>
   );

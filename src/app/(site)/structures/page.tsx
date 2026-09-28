@@ -59,7 +59,7 @@ export default function StructuresPage() {
         <PageHead
           crumb="structures"
           title="Structures"
-          subtitle="Build a custom structure to place a build in, or share your corporation’s structures with every member — pick a type and rigs to apply their bonuses in the planner."
+          subtitle="Build a custom structure to place a build in, or record the rigs and tax on your corporation’s structures — pick a type and rigs to apply their bonuses in the planner."
         />
         <Suspense fallback={<StructuresLoading />}>
           <StructuresContent />
