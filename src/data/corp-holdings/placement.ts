@@ -131,9 +131,11 @@ function placeWithin(interior: Interior, flag: string): Placement {
   }
 }
 
+const STALE_PARENT: Placement = { kind: 'unplaced', rootId: null };
+
 export function placeUnder(index: HoldingIndex, parentId: number, locationFlag: string): Placement {
   const interior = index.interiors.get(parentId);
-  return interior === undefined ? { kind: 'unplaced', rootId: null } : placeWithin(interior, locationFlag);
+  return interior === undefined ? STALE_PARENT : placeWithin(interior, locationFlag);
 }
 
 function containerInterior(item: CorpAssetItem, placement: Placement): Interior {
