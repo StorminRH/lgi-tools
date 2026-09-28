@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
 import type { CorpHoldingContext, Placement } from '@/data/corp-holdings/placement';
 import type { OwnedBlueprintMap, OwnedBlueprintSummary } from './blueprint-map';
 import { buildOwnedDetail, collectDetailNameIds, isPlayerStructure } from './detail';
@@ -44,6 +45,7 @@ const context: CorpHoldingContext = {
 };
 const contexts = new Map([[CORP, context]]);
 const noContexts = new Map<number, CorpHoldingContext>();
+const profileless = new Map([[CORP, buildCorpHoldingContext(CORP, [], null)]]);
 
 const fmt = (name: string) => `F:${name}`;
 
@@ -142,7 +144,7 @@ describe('buildOwnedDetail', () => {
     const map: OwnedBlueprintMap = new Map([
       [200, corpSummary({ kind: 'hangar', rootId: 1_036_000_000_002, division: 1, containers: [] })],
     ]);
-    const entry = buildOwnedDetail(map, [200], { [CORP]: 'Test Corp' }, fmt, noContexts)[0]!;
+    const entry = buildOwnedDetail(map, [200], { [CORP]: 'Test Corp' }, fmt, profileless)[0]!;
     expect(entry.ownerName).toBe('Test Corp');
     expect(entry.locationName).toBe('Upwell structure');
     expect(entry.locationFlag).toBe('1st Division');

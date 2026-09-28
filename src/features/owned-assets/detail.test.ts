@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
 import type { CorpHoldingContext } from '@/data/corp-holdings/placement';
 import type { AssetHolding, OwnedAssetMap, OwnedAssetSummary } from './asset-map';
 import { buildOwnedAssetDetail, collectAssetNameIds } from './detail';
@@ -43,6 +44,7 @@ const context: CorpHoldingContext = {
 };
 const contexts = new Map([[CORP, context]]);
 const noContexts = new Map<number, CorpHoldingContext>();
+const profileless = new Map([[CORP, buildCorpHoldingContext(CORP, [], null)]]);
 
 const fmt = (name: string) => `F:${name}`;
 
@@ -143,11 +145,11 @@ describe('buildOwnedAssetDetail', () => {
     ]);
   });
 
-  it('labels a corp holding with default names when no context was supplied for its corp', () => {
+  it('labels a corp holding with default names when its corp has no stored profile', () => {
     const map: OwnedAssetMap = new Map([
       [34, summary([corpHolding({ kind: 'hangar', rootId: STRUCTURE, division: 2, containers: [] })])],
     ]);
-    expect(buildOwnedAssetDetail(map, {}, fmt, noContexts)[0]!.heldBy[0]).toEqual({
+    expect(buildOwnedAssetDetail(map, {}, fmt, profileless)[0]!.heldBy[0]).toEqual({
       ownerType: 'corporation',
       ownerName: `Corporation ${CORP}`,
       locationName: 'Upwell structure',

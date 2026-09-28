@@ -36,5 +36,7 @@ export function corpContextOf(
   contexts: ReadonlyMap<number, CorpHoldingContext>,
   corporationId: number,
 ): CorpHoldingContext {
-  return contexts.get(corporationId) ?? buildCorpHoldingContext(corporationId, [], null);
+  const context = contexts.get(corporationId);
+  if (context === undefined) throw new Error(`No holding context for corporation ${corporationId}`);
+  return context;
 }

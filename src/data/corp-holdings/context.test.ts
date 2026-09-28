@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCorpHoldingContext } from './context';
+import { buildCorpHoldingContext, corpContextOf } from './context';
 import { placeUnder } from './placement';
 
 const STATION = 60003760;
@@ -46,5 +46,16 @@ describe('buildCorpHoldingContext', () => {
       structureNames: {},
     });
     expect(context.hq).toEqual({ kind: 'unknown' });
+  });
+});
+
+describe('corpContextOf', () => {
+  it('returns the context held for the corp', () => {
+    const context = buildCorpHoldingContext(98000001, [], null);
+    expect(corpContextOf(new Map([[98000001, context]]), 98000001)).toBe(context);
+  });
+
+  it('throws for a corp the caller never loaded a context for', () => {
+    expect(() => corpContextOf(new Map(), 98000002)).toThrow('No holding context for corporation 98000002');
   });
 });
