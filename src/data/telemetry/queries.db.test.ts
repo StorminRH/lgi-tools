@@ -296,6 +296,7 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
     await harness.db.insert(usageLogs).values([
       { timestamp: AT, action: 'page_view', characterId: CHAR_OLD, metadata: { path: '/' } },
       { timestamp: AT, action: 'page_view', characterId: null, metadata: { path: '/sites' } },
+      { timestamp: AT, action: 'page_view', characterId: CHAR_NEW, metadata: { path: '/planner' } },
     ]);
 
     const before = await getDailyCounts(NEUTRALITY_RANGE);
