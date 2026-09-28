@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { getCorpHoldingContext, readMemberBases } from '@/data/corp-holdings/queries';
+import { getCorpHoldingContext, readCorpProfileState, readMemberBases } from '@/data/corp-holdings/queries';
 import type { Knowable } from '@/data/corp-holdings/placement';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { UserCorpAccess } from '@/platform/auth/corp-access';
@@ -33,6 +33,8 @@ export interface CorpViewer {
 const ROLES_FRESHNESS = freshnessGate('character_corp_roles');
 const ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 const UNKNOWN: MemberRoles = { kind: 'unknown' };
+const BASES_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const NO_KNOWN_BASES: ReadonlyMap<number, number | null> = new Map();
 
 interface RoleSources {
   readonly stored: ReadonlyMap<number, StoredCorpRoles>;
@@ -69,6 +71,10 @@ function memberRoles(characterId: number, corporationId: number, sources: RoleSo
   return canFetchRoles(sources.health.get(characterId)) ? fetchedRolesOrUnknown(characterId) : Promise.resolve(UNKNOWN);
 }
 
+function basesAreFresh(profile: { lastRefreshedAt: Date } | null, now: Date): boolean {
+  return profile !== null && now.getTime() - profile.lastRefreshedAt.getTime() <= BASES_MAX_AGE_MS;
+}
+
 function baseOf(bases: ReadonlyMap<number, number | null>, characterId: number): Knowable<number | null> {
   return bases.has(characterId) ? { kind: 'known', value: bases.get(characterId) ?? null } : { kind: 'unknown' };
 }
@@ -79,15 +85,17 @@ async function resolveCorporation(
   sharing: SharingState,
   sources: RoleSources,
 ): Promise<CorpViewerCorporation> {
-  const [context, bases, roles] = await Promise.all([
+  const [context, profile, bases, roles] = await Promise.all([
     getCorpHoldingContext(corporationId),
+    readCorpProfileState(corporationId),
     readMemberBases(corporationId, characterIds),
     Promise.all(characterIds.map((characterId) => memberRoles(characterId, corporationId, sources))),
   ]);
+  const knownBases = basesAreFresh(profile, sources.now) ? bases : NO_KNOWN_BASES;
   const members: CorpGrantInput['members'] = characterIds.map((characterId, i) => ({
     characterId,
     roles: roles[i] ?? UNKNOWN,
-    base: baseOf(bases, characterId),
+    base: baseOf(knownBases, characterId),
   }));
   return { corporationId, sharing, grant: compileCorpGrant({ corporationId, sharing, context, members }) };
 }
