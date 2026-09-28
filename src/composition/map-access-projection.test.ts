@@ -48,6 +48,7 @@ import {
 
 function affiliation(userId: string, characterId: number, corporationId: number | null, fresh = true) {
   return {
+    sharedAccessEligible: true,
     userId, characterId, corporationId, allianceId: null, factionId: null,
     refreshedAt: fresh ? new Date() : new Date(Date.now() - 2 * 60 * 60 * 1000),
   };
@@ -110,6 +111,17 @@ test('computes creator-only, batched union, unlinked, and missing-or-archived cl
   ]);
   expect(mocks.getMapAccessCandidateUserIds).toHaveBeenCalledExactlyOnceWith([42], [990]);
   expect(mocks.getUsersAffiliations).toHaveBeenCalledExactlyOnceWith(['multi', 'member']);
+
+  mocks.getUsersAffiliations.mockResolvedValue([
+    { ...affiliation('multi', 42, 990), sharedAccessEligible: false },
+    affiliation('multi', 44, 990),
+    { ...affiliation('member', 43, 990), sharedAccessEligible: false },
+  ]);
+  await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
+    { userId: 'creator', roles: ['admin'] },
+    { userId: 'multi', roles: ['editor'] },
+  ]);
+
 
   mocks.getMapGrants.mockResolvedValue([
     { ownerType: 'character', ownerId: 42, role: 'viewer' },

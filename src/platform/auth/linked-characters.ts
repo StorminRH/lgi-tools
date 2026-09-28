@@ -4,6 +4,7 @@ import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from '
 import { portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
+import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
 
 export interface CharacterLoginIdentity {
   characterId: number;
@@ -59,6 +60,7 @@ export interface LinkedCharacter {
   portraitUrl: string;
   scope: string | null;
   hasRefreshToken: boolean;
+  authorizationDelayed?: boolean;
   linkedAt: Date;
   corporationId: number | null;
   allianceId: number | null;
@@ -71,6 +73,7 @@ function toLinkedCharacter(
     accountId: string;
     scope: string | null;
     refreshToken: string | null;
+    authorizationFailureFirstAt: Date | null;
     createdAt: Date;
     name: string | null;
     portraitUrl: string | null;
@@ -85,6 +88,8 @@ function toLinkedCharacter(
     portraitUrl: r.portraitUrl ?? portraitUrl(characterId),
     scope: r.scope,
     hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
+    authorizationDelayed: r.authorizationFailureFirstAt != null
+      && Date.now() - r.authorizationFailureFirstAt.getTime() >= AUTHORIZATION_MAX_FAILURE_AGE_MS,
     linkedAt: r.createdAt,
     corporationId: r.corporationId ?? null,
     allianceId: r.allianceId ?? null,
@@ -98,6 +103,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
       accountId: account.accountId,
       scope: account.scope,
       refreshToken: account.refreshToken,
+      authorizationFailureFirstAt: account.authorizationFailureFirstAt,
       createdAt: account.createdAt,
       name: characters.name,
       portraitUrl: characters.portraitUrl,

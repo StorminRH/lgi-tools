@@ -1,5 +1,6 @@
 export const modules = import.meta.glob([
   '../accountMerge.ts',
+  '../characterAuthorization.ts',
   '../auth.config.ts',
   '../characterLocationAccess.ts',
   '../characterLocationApply.ts',

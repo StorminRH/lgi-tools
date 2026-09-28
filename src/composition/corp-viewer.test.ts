@@ -60,6 +60,7 @@ function access(members: Record<number, number[]>): UserCorpAccess {
     userId: 'u1',
     resolvedAt: NOW.getTime(),
     allCharacterIds,
+    authorizedCharacterIds: allCharacterIds,
     corporationIds: Object.keys(members).map(Number),
     characterIdsByCorporation: members,
     refreshTransientFailure: false,

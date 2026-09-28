@@ -46,7 +46,7 @@ function request(body: unknown): NextRequest {
 }
 
 function pilotIn(corporationId: number) {
-  return [{ characterId: 90001, corporationId, allianceId: null, factionId: null, refreshedAt: new Date() }];
+  return [{ characterId: 90001, sharedAccessEligible: true, corporationId, allianceId: null, factionId: null, refreshedAt: new Date() }];
 }
 
 beforeEach(() => {

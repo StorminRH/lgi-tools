@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { characters } from '@/db/auth-schema';
+import { account, characters } from '@/db/auth-schema';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -62,12 +62,12 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
       id: 'acc-42',
       characterId: 42,
       userId: 'char-owner',
-    });
+    }, { refreshToken: 'valid-refresh' });
     await seedEveAccount(harness.db, {
       id: 'acc-43',
       characterId: 43,
       userId: 'corp-member',
-    });
+    }, { refreshToken: 'valid-refresh' });
 
     const mapId = '11111111-1111-4111-8111-111111111111';
     await harness.db.insert(maps).values({ id: mapId, userId: 'creator', name: 'Atlas' });
@@ -91,6 +91,26 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
       { userId: 'corp-member', roles: ['viewer'] },
       { userId: 'creator', roles: ['admin'] },
     ]);
+
+    // Invalid authorization removes direct grants without deleting the grant itself.
+    await harness.db.update(account).set({ refreshToken: null }).where(eq(account.id, 'acc-42'));
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
+      { userId: 'corp-member', roles: ['viewer'] },
+      { userId: 'creator', roles: ['admin'] },
+    ]);
+    await harness.db.update(account).set({ refreshToken: 'reconnected' }).where(eq(account.id, 'acc-42'));
+    // A short outage retains access; the 24-hour failure window ends it automatically.
+    await harness.db.update(account).set({ authorizationFailureFirstAt: new Date(Date.now() - 60_000) })
+      .where(eq(account.id, 'acc-43'));
+    expect(await computeMapAccessClaims(mapId)).toContainEqual({ userId: 'corp-member', roles: ['viewer'] });
+    await harness.db.update(account).set({ authorizationFailureFirstAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+      .where(eq(account.id, 'acc-43'));
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
+      { userId: 'char-owner', roles: ['editor'] },
+      { userId: 'creator', roles: ['admin'] },
+    ]);
+    await harness.db.update(account).set({ authorizationFailureFirstAt: null }).where(eq(account.id, 'acc-43'));
+    expect(await computeMapAccessClaims(mapId)).toContainEqual({ userId: 'corp-member', roles: ['viewer'] });
 
     await harness.db.update(characters).set({ corporationId: 991 }).where(eq(characters.characterId, 43));
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
@@ -116,7 +136,7 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
       id: 'acc-42',
       characterId: 42,
       userId: 'char-owner',
-    });
+    }, { refreshToken: 'valid-refresh' });
 
     const mapId = '22222222-2222-4222-8222-222222222222';
     const goneAt = new Date('2026-08-12T00:00:00.000Z');

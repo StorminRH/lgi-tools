@@ -285,11 +285,12 @@ describe('refreshEveToken', () => {
     });
   });
 
-  it('classifies a non-5xx HTTP failure such as 429 as unexpected', async () => {
-    fetchSpy.mockResolvedValueOnce(new Response('rate limited', { status: 429 }));
+  it('preserves server retry delays without treating rate limiting as revocation', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: { 'Retry-After': '600' } }));
     expect(await refreshEveToken(input)).toEqual({
       kind: 'retryable',
       failureClass: 'unexpected',
+      retryAfterMs: 600_000,
     });
   });
 

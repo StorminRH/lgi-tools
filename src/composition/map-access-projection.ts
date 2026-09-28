@@ -59,9 +59,10 @@ export class ProjectionUnavailableError extends Error {
 }
 
 function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrincipals {
+  const eligible = rows.filter((row) => row.sharedAccessEligible);
   return {
-    characterIds: rows.map((row) => row.characterId),
-    corporationIds: [...new Set(rows.flatMap((row) => row.corporationId ?? []))],
+    characterIds: eligible.map((row) => row.characterId),
+    corporationIds: [...new Set(eligible.flatMap((row) => row.corporationId ?? []))],
   };
 }
 

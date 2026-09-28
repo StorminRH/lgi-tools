@@ -25,3 +25,22 @@ test('deriveCharacterRowView reports healthy, disconnected, and missing-scope re
   expect(missingScopes.needsReconnect).toBe(true);
   expect(missingScopes.healthLabel).toBe('Missing scopes');
 });
+
+test('delayed verification does not request reconnect and clears when authorization recovers', () => {
+  const character = { scope: EVE_SCOPES.join(' '), hasRefreshToken: true };
+  expect(deriveCharacterRowView({ ...character, authorizationDelayed: true })).toMatchObject({
+    needsReconnect: false,
+    healthLabel: 'Verification delayed',
+    authorizationDelayed: true,
+  });
+  expect(deriveCharacterRowView({ ...character, authorizationDelayed: false })).toMatchObject({
+    needsReconnect: false,
+    healthLabel: null,
+    authorizationDelayed: false,
+  });
+  expect(deriveCharacterRowView({ ...character, authorizationDelayed: true, hasRefreshToken: false })).toMatchObject({
+    needsReconnect: true,
+    healthLabel: 'Disconnected',
+    authorizationDelayed: false,
+  });
+});

@@ -77,6 +77,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
 
     await expect(getUserAffiliations(USER_ID)).resolves.toEqual([
       {
+        sharedAccessEligible: false,
         characterId: FIRST_CHAR,
         corporationId: 98000011,
         allianceId: 99000011,
@@ -84,6 +85,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
         refreshedAt,
       },
       {
+        sharedAccessEligible: false,
         characterId: SECOND_CHAR,
         corporationId: null,
         allianceId: null,

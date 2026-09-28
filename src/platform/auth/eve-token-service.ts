@@ -11,6 +11,7 @@ import {
   type RefreshFailureClass,
 } from './eve-sso';
 import { account } from '@/db/auth-schema';
+import { authorizationRetryAt, successfulAuthorization } from './authorization-policy';
 import { decryptToken, encryptToken } from './token-crypto';
 
 const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
@@ -42,6 +43,9 @@ function loadAccountRow(characterId: number) {
   return db
     .select({
       id: account.id,
+      authorizationFailureFirstAt: account.authorizationFailureFirstAt,
+      authorizationFailureCount: account.authorizationFailureCount,
+      authorizationNextCheckAt: account.authorizationNextCheckAt,
       accessToken: account.accessToken,
       refreshToken: account.refreshToken,
       accessTokenExpiresAt: account.accessTokenExpiresAt,
@@ -110,6 +114,7 @@ async function recordInvalidGrant(
     .set(
       confirming
         ? {
+            authorizationAccessChangedAt: invalidGrantAt,
             accessToken: null,
             refreshToken: null,
             accessTokenExpiresAt: null,
@@ -118,6 +123,7 @@ async function recordInvalidGrant(
             updatedAt: invalidGrantAt,
           }
         : {
+            authorizationNextCheckAt: new Date(invalidGrantAt.getTime() + INVALID_GRANT_CONFIRMATION_GRACE_MS),
             refreshTokenInvalidGrantCount: 1,
             refreshTokenInvalidGrantFirstAt: invalidGrantAt,
             updatedAt: invalidGrantAt,
@@ -152,28 +158,22 @@ async function recordInvalidGrant(
   return reflectStoredToken(characterId);
 }
 
-async function deferInvalidGrantConfirmation(
+async function recordRetryableFailure(
   row: LoadedAccountRow,
-  characterId: number,
   refreshCiphertext: string,
+  retryAfterMs = 0,
 ): Promise<FreshTokenResult> {
-  const deferredAt = new Date();
-  const deferred = await db
-    .update(account)
-    .set({
-      refreshTokenInvalidGrantFirstAt: deferredAt,
-      updatedAt: deferredAt,
-    })
-    .where(
-      and(
-        eq(account.id, row.id),
-        eq(account.refreshToken, refreshCiphertext),
-        eq(account.refreshTokenInvalidGrantCount, 1),
-      ),
-    )
+  const now = new Date();
+  await db.update(account).set({
+    authorizationFailureFirstAt: row.authorizationFailureFirstAt ?? now,
+    authorizationFailureCount: (row.authorizationFailureCount ?? 0) + 1,
+    authorizationNextCheckAt: authorizationRetryAt(row.authorizationFailureCount ?? 0, now.getTime(), retryAfterMs),
+    // Durable signal: the worker republishes claims, including timeout suspension.
+    authorizationAccessChangedAt: now,
+    ...(row.refreshTokenInvalidGrantCount === 1 ? { refreshTokenInvalidGrantFirstAt: now } : {}),
+  }).where(and(eq(account.id, row.id), eq(account.refreshToken, refreshCiphertext)))
     .returning({ id: account.id });
-
-  return deferred.length > 0 ? { kind: 'upstream_error' } : reflectStoredToken(characterId);
+  return { kind: 'upstream_error' };
 }
 
 /**
@@ -207,6 +207,7 @@ export async function revokeCharacterToken(characterId: number): Promise<void> {
 
 export async function getFreshAccessTokenForCharacter(
   characterId: number,
+  options: { forceRefresh?: boolean } = {},
 ): Promise<FreshTokenResult> {
   const row = await loadAccountRow(characterId);
   if (!row) return { kind: 'not_found' };
@@ -215,13 +216,16 @@ export async function getFreshAccessTokenForCharacter(
 
   if (refreshCiphertext === null) return { kind: 'reauth_required' };
 
+  if (!options.forceRefresh && row.authorizationFailureFirstAt &&
+      row.authorizationNextCheckAt?.getTime() > Date.now()) return { kind: 'upstream_error' };
+
   if (hasActiveInvalidGrantGrace(row)) return { kind: 'upstream_error' };
 
   const refreshToken = decryptToken(refreshCiphertext);
-  if (refreshToken === null) return { kind: 'reauth_required' };
+  if (refreshToken === null) return recordRetryableFailure(row, refreshCiphertext);
 
   const cached = readCachedToken(row);
-  if (cached !== null) return cached;
+  if (!options.forceRefresh && cached !== null) return cached;
 
   const result = await refreshEveToken({
     refreshToken,
@@ -232,9 +236,7 @@ export async function getFreshAccessTokenForCharacter(
   if (result.kind !== 'ok') logTokenRefreshFailure(characterId, result.failureClass);
 
   if (result.kind === 'retryable') {
-    return row.refreshTokenInvalidGrantCount === 1
-      ? deferInvalidGrantConfirmation(row, characterId, refreshCiphertext)
-      : { kind: 'upstream_error' };
+    return recordRetryableFailure(row, refreshCiphertext, result.retryAfterMs);
   }
 
   if (result.kind === 'dead') return recordInvalidGrant(row, characterId, refreshCiphertext);
@@ -243,6 +245,9 @@ export async function getFreshAccessTokenForCharacter(
   const written = await db
     .update(account)
     .set({
+      ...successfulAuthorization(),
+      ...(row.authorizationFailureFirstAt || row.refreshTokenInvalidGrantCount === 1
+        ? { authorizationAccessChangedAt: new Date() } : {}),
       accessToken: encryptToken(result.access_token),
       refreshToken: encryptToken(result.refresh_token),
       accessTokenExpiresAt: expiresAt,

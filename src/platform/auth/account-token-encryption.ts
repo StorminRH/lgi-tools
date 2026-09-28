@@ -1,9 +1,16 @@
 import { EVE_PROVIDER_ID } from './eve-sso';
+import { successfulAuthorization } from './authorization-policy';
 import { TOKEN_CRYPTO_VERSION } from './token-crypto';
 
 const CIPHERTEXT_PREFIX = `${TOKEN_CRYPTO_VERSION}:`;
 
 export type PreparedAccountTokenWrite<T> = T & {
+  authorizationVerifiedAt?: Date;
+  authorizationSuspended?: boolean;
+  authorizationNextCheckAt?: Date;
+  authorizationFailureFirstAt?: Date | null;
+  authorizationFailureCount?: number;
+  authorizationAccessChangedAt?: Date;
   refreshTokenInvalidGrantCount?: number;
   refreshTokenInvalidGrantFirstAt?: Date | null;
 };
@@ -32,6 +39,8 @@ export function encryptAccountTokens<
     out.refreshToken = encrypt(out.refreshToken);
   }
   if (typeof data.refreshToken === 'string' && data.refreshToken.length > 0) {
+    Object.assign(out, successfulAuthorization());
+    out.authorizationAccessChangedAt = new Date();
     out.refreshTokenInvalidGrantCount = 0;
     out.refreshTokenInvalidGrantFirstAt = null;
   }

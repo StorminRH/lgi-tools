@@ -119,7 +119,7 @@ export type RefreshFailureClass =
 export type RefreshResult =
   | { kind: 'ok'; access_token: string; refresh_token: string; expires_in: number }
   | { kind: 'dead'; failureClass: 'invalid_grant' }
-  | { kind: 'retryable'; failureClass: Exclude<RefreshFailureClass, 'invalid_grant'> };
+  | { kind: 'retryable'; failureClass: Exclude<RefreshFailureClass, 'invalid_grant'>; retryAfterMs?: number };
 
 function isTimeoutError(error: unknown): boolean {
   return (
@@ -128,6 +128,12 @@ function isTimeoutError(error: unknown): boolean {
     'name' in error &&
     error.name === 'TimeoutError'
   );
+}
+
+function readRetryAfter(value: string | null): number {
+  if (value === null) return 0;
+  const delay = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
+  return Number.isFinite(delay) ? Math.max(0, delay) : 0;
 }
 
 export async function refreshEveToken({
@@ -158,6 +164,11 @@ export async function refreshEveToken({
     return errBody.success && errBody.data.error === 'invalid_grant'
       ? { kind: 'dead', failureClass: 'invalid_grant' }
       : { kind: 'retryable', failureClass: 'unexpected' };
+  }
+  const retryAfterMs = readRetryAfter(res.headers.get('retry-after'));
+  const retryAfterFailureClass = res.status >= 500 ? 'provider_5xx' : 'unexpected';
+  if (retryAfterMs > 0) {
+    return { kind: 'retryable', failureClass: retryAfterFailureClass, retryAfterMs };
   }
   if (res.status >= 500 && res.status <= 599) {
     return { kind: 'retryable', failureClass: 'provider_5xx' };

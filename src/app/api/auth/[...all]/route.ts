@@ -1,3 +1,5 @@
+import { after } from 'next/server';
+import { checkUserCharacterAuthorizations } from '@/composition/character-authorization';
 import { toNextJsHandler } from 'better-auth/next-js';
 import { auth } from '@/composition/auth';
 import { runWithMergeTracking } from '@/platform/auth/merge-context';
@@ -10,6 +12,12 @@ const { GET: betterAuthGet, POST: betterAuthPost } = toNextJsHandler(auth);
 
 export async function GET(request: Request): Promise<Response> {
   const { result: response, merged } = await runWithMergeTracking(() => betterAuthGet(request));
+  if (new URL(request.url).pathname === '/api/auth/get-session') {
+    after(async () => {
+      const session = await auth.api.getSession({ headers: request.headers });
+      if (session) await checkUserCharacterAuthorizations(session.user.id);
+    });
+  }
   if (!merged) return response;
   const headers = new Headers(response.headers);
   for (const expired of expireSessionCacheCookies(await auth.$context, request.headers.get('cookie'))) {
