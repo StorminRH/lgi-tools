@@ -10,7 +10,6 @@ import { PANELS_MOTION, SHEET_MOTION } from './board-motion';
 import { reconnectSentence } from './board-view-model';
 import { AttributesSection } from './sections/AttributesSection';
 import { ClonesSection } from './sections/ClonesSection';
-import { IndustrySection } from './sections/IndustrySection';
 import { QueueSection } from './sections/QueueSection';
 import { SheetHeader } from './sections/SheetHeader';
 import { SkillsSection } from './sections/SkillsSection';
@@ -71,11 +70,8 @@ export function CharacterDetail({
         </SheetHeader>
       </ViewTransition>
       <ViewTransition {...PANELS_MOTION} default="none">
-        {/* Two independent column stacks, so a tall card never opens a hole beside
-            it. On phones the columns dissolve and `order` sets the phone order:
-            queue, wallet, attributes, clones, industry, skills. */}
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
-          <div className="contents lg:flex lg:flex-col lg:gap-4">
+        <div className="flex min-w-0 flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
+          <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
             <QueueSection
               section={character.skills}
               names={names}
@@ -86,19 +82,17 @@ export function CharacterDetail({
             <AttributesSection
               attributes={character.attributes}
               implants={character.implants}
-              now={now}
               className="order-3 lg:order-none"
             />
-            <ClonesSection section={character.clones} now={now} className="order-4 lg:order-none" />
-            <IndustrySection section={character.industry} now={now} className="order-5 lg:order-none" />
           </div>
-          <div className="contents lg:flex lg:flex-col lg:gap-4">
+          <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
             <WalletSection
               character={character}
               history={history}
               now={now}
               className="order-2 lg:order-none"
             />
+            <ClonesSection section={character.clones} className="order-4 lg:order-none" />
           </div>
           <SkillsSection section={character.skills} catalog={catalog} now={now} className="order-6 lg:col-span-2" />
         </div>

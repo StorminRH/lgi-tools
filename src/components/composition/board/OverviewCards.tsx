@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { cn } from '@/components/ui/cn';
 import { DistributionBars } from '@/components/ui/distribution-bars';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
@@ -88,7 +87,16 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
   return (
     <SectionPanel
       title="Industry"
-      meta={totals === null || totals.covered === totals.total ? undefined : `${totals.covered} of ${totals.total}`}
+      meta={
+        <span className="flex items-center gap-3">
+          {totals !== null && totals.covered !== totals.total ? (
+            <span>{totals.covered} of {totals.total}</span>
+          ) : null}
+          <Link href="/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
+            Open jobs →
+          </Link>
+        </span>
+      }
     >
       {totals === null ? (
         <p className="px-3.5 py-3 text-ui text-faint">No industry jobs have synced yet.</p>
@@ -99,14 +107,9 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
             <StatFigure label="Ready" value={totals.ready} tone={totals.ready > 0 ? 'text-isk' : 'text-name'} />
             <StatFigure label="Slots" value={`${totals.used}/${totals.max}`} />
           </dl>
-          <div className="flex min-w-0 flex-1 basis-full items-center justify-between gap-4 text-ui sm:basis-auto sm:justify-end">
-            <span className={cn('min-w-0 truncate', totals.readyPilots.length > 0 ? 'text-isk' : 'text-faint')}>
-              {totals.readyPilots.length > 0 ? `Ready: ${totals.readyPilots.join(', ')}` : 'Nothing to deliver'}
-            </span>
-            <Link href="/jobs" className="shrink-0 whitespace-nowrap text-muted underline-offset-2 hover:text-isk hover:underline">
-              Open jobs →
-            </Link>
-          </div>
+          {totals.readyPilots.length > 0 ? (
+            <span className="min-w-0 truncate text-ui text-isk">Ready: {totals.readyPilots.join(', ')}</span>
+          ) : null}
         </div>
       )}
     </SectionPanel>

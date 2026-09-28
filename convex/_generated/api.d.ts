@@ -8,8 +8,8 @@
  * @module
  */
 
-import type * as characterAuthorization from "../characterAuthorization.js";
 import type * as accountMerge from "../accountMerge.js";
+import type * as characterAuthorization from "../characterAuthorization.js";
 import type * as characterLocationAccess from "../characterLocationAccess.js";
 import type * as characterLocationApply from "../characterLocationApply.js";
 import type * as characterLocationPurge from "../characterLocationPurge.js";
@@ -90,8 +90,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  characterAuthorization: typeof characterAuthorization;
   accountMerge: typeof accountMerge;
+  characterAuthorization: typeof characterAuthorization;
   characterLocationAccess: typeof characterLocationAccess;
   characterLocationApply: typeof characterLocationApply;
   characterLocationPurge: typeof characterLocationPurge;
