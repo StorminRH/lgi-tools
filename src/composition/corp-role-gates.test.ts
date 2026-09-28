@@ -28,6 +28,7 @@ const CORP = 2000;
 
 function linked(characterIds: number[], corporationId = CORP) {
   return characterIds.map((characterId) => ({
+    sharedAccessEligible: true,
     characterId,
     corporationId,
     allianceId: null,

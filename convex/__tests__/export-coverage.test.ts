@@ -30,6 +30,7 @@ import { currentUser, heartbeat } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
 import { scan } from '../engineScan';
+import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
 import { mergeUserState as httpMergeUserState } from '../httpAccountMerge';
@@ -186,6 +187,7 @@ describe('convex runtime exports', () => {
       leave,
       onSyncComplete,
       scan,
+      verify,
       sweep,
       requireSyncEnv,
       MAP_CONNECTION_SIGNATURE_SCAN_LIMIT,

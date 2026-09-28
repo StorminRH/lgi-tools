@@ -120,6 +120,7 @@
     "/api/dev/synthetic-pilot": "dynamic",
     "/api/cron/drain-esi-refresh-jobs": "dynamic",
     "/api/cron/refresh-affiliations": "dynamic",
+    "/api/internal/verify-character-authorization": "dynamic",
     "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-industry-indices": "dynamic",
     "/api/eve/names": "dynamic",

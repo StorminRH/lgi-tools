@@ -97,6 +97,12 @@ function CharacterRow({
           />
         }
       />
+      {view.authorizationDelayed ? (
+        <Callout className="mx-3.5 my-2" label="Verification delayed">
+          We couldn&apos;t verify this character with EVE. Shared access through this character is
+          paused while we retry automatically. Access resumes when verification succeeds.
+        </Callout>
+      ) : null}
       {view.scopes.length > 0 ? (
         <Collapsible
           className="border-b-0"

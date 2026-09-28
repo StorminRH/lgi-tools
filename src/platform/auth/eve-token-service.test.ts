@@ -82,13 +82,14 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
   });
 
-  it('returns reauth_required (no network) when the refresh token will not decrypt', async () => {
+  it('schedules a retry without claiming revocation when the stored token will not decrypt', async () => {
     h.selectRows = [
       { id: 'acc1', accessToken: null, refreshToken: 'legacy-plaintext', accessTokenExpiresAt: null, scope: null },
     ];
-    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
     expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
-    expect(h.updateSpy).not.toHaveBeenCalled();
+    expect(h.updateSpy).toHaveBeenCalledWith(expect.objectContaining({ authorizationFailureCount: 1 }));
+    expect(h.updateSpy.mock.calls[0]![0]).not.toHaveProperty('refreshToken');
   });
 
   it('hands back a still-valid cached access token without hitting EVE', async () => {
@@ -563,7 +564,11 @@ describe('getFreshAccessTokenForCharacter', () => {
     });
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
-    expect(h.updateSpy).not.toHaveBeenCalled();
+    const deferred = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(deferred.authorizationFailureCount).toBe(1);
+    expect(deferred).not.toHaveProperty('refreshTokenInvalidGrantCount');
+    expect(deferred).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
+    expect(deferred).not.toHaveProperty('refreshToken');
   });
 
   it('does not let a rejected telemetry write fail a vend', async () => {
@@ -590,4 +595,58 @@ describe('getFreshAccessTokenForCharacter', () => {
     ));
     consoleSpy.mockRestore();
   });
+});
+
+
+it('silently verifies a cached credential, backs off during an outage, and recovers without reconnecting', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-28T10:00:00Z'));
+  const row: Record<string, unknown> = {
+    id: 'acc1', accessToken: encryptToken('cached-access'),
+    refreshToken: encryptToken('initial-refresh'), accessTokenExpiresAt: future(),
+    refreshTokenInvalidGrantCount: 0, refreshTokenInvalidGrantFirstAt: null,
+    authorizationFailureFirstAt: null, authorizationFailureCount: 0,
+  };
+  h.selectRows = [row];
+  const persist = () => Object.assign(row, h.updateSpy.mock.lastCall![0]);
+  h.refreshEveTokenMock.mockResolvedValueOnce({
+    kind: 'ok', access_token: 'verified-access', refresh_token: 'rotated-refresh', expires_in: 1200,
+  });
+  expect(await getFreshAccessTokenForCharacter(CHAR_ID, { forceRefresh: true }))
+    .toMatchObject({ kind: 'ok', accessToken: 'verified-access' });
+  persist();
+  expect(row.authorizationNextCheckAt).toEqual(new Date('2026-09-29T10:00:00Z'));
+  expect(row.authorizationVerifiedAt).toEqual(new Date('2026-09-28T10:00:00Z'));
+
+  vi.setSystemTime(new Date('2026-09-29T10:00:00Z'));
+  h.refreshEveTokenMock.mockResolvedValue({ kind: 'retryable', failureClass: 'timeout' });
+  expect(await getFreshAccessTokenForCharacter(CHAR_ID, { forceRefresh: true }))
+    .toEqual({ kind: 'upstream_error' });
+  persist();
+  expect(row.authorizationNextCheckAt).toEqual(new Date('2026-09-29T10:05:00Z'));
+  expect(row.refreshTokenInvalidGrantCount).toBe(0);
+  expect(decryptToken(row.refreshToken as string)).toBe('rotated-refresh');
+  expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+  expect(h.refreshEveTokenMock).toHaveBeenCalledTimes(2);
+
+  for (const [attemptAt, nextAt] of [
+    ['10:05', '10:15'], ['10:15', '10:30'], ['10:30', '11:30'],
+  ]) {
+    vi.setSystemTime(new Date(`2026-09-29T${attemptAt}:00Z`));
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    persist();
+    expect(row.authorizationNextCheckAt).toEqual(new Date(`2026-09-29T${nextAt}:00Z`));
+  }
+  vi.setSystemTime(new Date('2026-09-29T11:30:00Z'));
+  h.refreshEveTokenMock.mockResolvedValueOnce({
+    kind: 'ok', access_token: 'recovered-access', refresh_token: 'recovered-refresh', expires_in: 1200,
+  });
+  expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toMatchObject({ kind: 'ok', accessToken: 'recovered-access' });
+  persist();
+  expect(row.authorizationFailureFirstAt).toBeNull();
+  expect(row.authorizationFailureCount).toBe(0);
+  expect(row.authorizationSuspended).toBe(false);
+  expect(row.authorizationNextCheckAt).toEqual(new Date('2026-09-30T11:30:00Z'));
+  expect(decryptToken(row.refreshToken as string)).toBe('recovered-refresh');
+  expect(h.emitDomainEventMock).not.toHaveBeenCalled();
 });

@@ -48,10 +48,11 @@ export type ProofOutcome =
 export interface CreateAuthDeps {
   readonly runners: IdentityProjectionRunners;
   readonly refreshCharacterAffiliations: (characterIds: number[]) => Promise<void>;
+  readonly checkCharacterAuthorization?: (userId: string) => Promise<void>;
   readonly proveCharacter: (proof: CharacterProof) => Promise<ProofOutcome>;
 }
 
-export function createAuth({ runners, proveCharacter, refreshCharacterAffiliations }: CreateAuthDeps) {
+export function createAuth({ runners, proveCharacter, refreshCharacterAffiliations, checkCharacterAuthorization }: CreateAuthDeps) {
   const options = {
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -90,6 +91,12 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
           input: false,
           returned: false,
         },
+        authorizationSuspended: { type: 'boolean', required: false, defaultValue: false, input: false, returned: false },
+        authorizationVerifiedAt: { type: 'date', required: false, input: false, returned: false },
+        authorizationNextCheckAt: { type: 'date', required: false, input: false, returned: false },
+        authorizationFailureFirstAt: { type: 'date', required: false, input: false, returned: false },
+        authorizationFailureCount: { type: 'number', required: false, defaultValue: 0, input: false, returned: false },
+        authorizationAccessChangedAt: { type: 'date', required: false, input: false, returned: false },
         ownerHash: { type: 'string', required: false, input: false, returned: false },
       },
       accountLinking: { allowDifferentEmails: true },
@@ -192,6 +199,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
     plugins: [
       ...options.plugins,
       customSession(async ({ user: u, session: s }) => {
+        if (checkCharacterAuthorization) after(() => checkCharacterAuthorization(u.id));
         const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
         return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
       }, options),

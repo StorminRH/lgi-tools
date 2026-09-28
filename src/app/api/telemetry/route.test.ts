@@ -8,15 +8,9 @@ const getSessionCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const checkRateLimitMock = vi.fn();
 
-vi.mock('@/composition/session', async () => {
-  const actual = await vi.importActual<typeof import('@/composition/session')>(
-    '@/composition/session',
-  );
-  return {
-    ...actual,
-    getSessionCharacterId: () => getSessionCharacterIdMock(),
-  };
-});
+vi.mock('@/composition/session', () => ({
+  getSessionCharacterId: () => getSessionCharacterIdMock(),
+}));
 
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),

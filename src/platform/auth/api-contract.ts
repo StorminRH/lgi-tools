@@ -62,6 +62,17 @@ export const eveCharactersEndpoint = defineEndpoint({
   },
 });
 
+export const verifyCharacterAuthorizationEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/internal/verify-character-authorization',
+  request: null,
+  responses: {
+    200: jsonBody(z.object({ status: z.literal('checked') })),
+    401: problem('unauthenticated'),
+    500: problem('not_configured'),
+  },
+});
+
 export type CronRefreshAffiliationsResponse =
   { status: 'refreshed'; stale: number; refreshed: number };
 

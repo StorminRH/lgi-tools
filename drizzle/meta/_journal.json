@@ -477,6 +477,13 @@
       "when": 1790610756214,
       "tag": "0067_corp_role_sharing",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1790617935095,
+      "tag": "0068_character_authorization",
+      "breakpoints": true
     }
   ]
 }
