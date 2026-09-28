@@ -15,7 +15,7 @@ import {
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 import { saveOwnedAssetsFromSource } from './owned-assets-source-save';
 
@@ -24,7 +24,7 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
     save: saveOwnedAssetsFromSource,

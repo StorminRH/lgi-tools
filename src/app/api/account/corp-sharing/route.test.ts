@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   getUserAffiliations: vi.fn(),
-  readRolesFor: vi.fn(),
+  probeAndStoreRoles: vi.fn(),
   switches: new Map<number, { enabled: boolean; setBy: number | null }>(),
 }));
 
@@ -23,7 +23,7 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
 }));
 vi.mock('@/composition/sync/owner-sync-port', () => ({
   vendTokenFor: async () => 'token',
-  readRolesFor: (...args: unknown[]) => h.readRolesFor(...args),
+  probeAndStoreRoles: (...args: unknown[]) => h.probeAndStoreRoles(...args),
 }));
 vi.mock('@/platform/auth/corp-sharing-store', () => ({
   setCorpSharing: async (corporationId: number, enabled: boolean, setBy: number | null) => {
@@ -52,7 +52,7 @@ function pilotIn(corporationId: number) {
 beforeEach(() => {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.getUserAffiliations.mockReset().mockResolvedValue(pilotIn(CORP));
-  h.readRolesFor.mockReset().mockResolvedValue(['Director']);
+  h.probeAndStoreRoles.mockReset().mockResolvedValue(['Director']);
   h.switches.clear();
 });
 
@@ -66,7 +66,7 @@ describe('POST /api/account/corp-sharing', () => {
   });
 
   it('refuses a member who is not a Director', async () => {
-    h.readRolesFor.mockResolvedValue(['Station_Manager', 'Factory_Manager']);
+    h.probeAndStoreRoles.mockResolvedValue(['Station_Manager', 'Factory_Manager']);
     const res = await POST(request({ corporationId: CORP, enabled: true }));
     expect(res.status).toBe(403);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({

@@ -24,7 +24,7 @@ vi.mock('@/platform/esi/authed-read', () => ({
   readEsiPagedAuthed: vi.fn(),
 }));
 
-import { fetchCorpRoles, readRolesFor } from './owner-sync-port';
+import { fetchAndStoreCorpRoles, probeAndStoreRoles } from './owner-sync-port';
 
 const fullBody = {
   roles: ['Director', 'Accountant'],
@@ -46,11 +46,11 @@ beforeEach(() => {
   mocks.getFreshAccessTokenForCharacter.mockReset();
 });
 
-describe('readRolesFor', () => {
+describe('probeAndStoreRoles', () => {
   it('stores all four role arrays and returns the global list the credential probe selects by', async () => {
     mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
 
-    await expect(readRolesFor(9001, 'access-token')).resolves.toEqual(['Director', 'Accountant']);
+    await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toEqual(['Director', 'Accountant']);
     expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles', 'access-token', null);
     expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date));
   });
@@ -63,19 +63,19 @@ describe('readRolesFor', () => {
       expiresAt: null,
     });
 
-    await expect(readRolesFor(9001, 'access-token')).resolves.toBeNull();
+    await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toBeNull();
     expect(mocks.upsertCorpRoles).not.toHaveBeenCalled();
   });
 
   it('returns null for soft ESI failures but preserves budget deferrals', async () => {
     mocks.readEsiAuthed.mockResolvedValueOnce({ kind: 'error', code: 'esi_403' });
-    await expect(readRolesFor(9001, 'access-token')).resolves.toBeNull();
+    await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toBeNull();
 
     mocks.readEsiAuthed.mockRejectedValueOnce(new EsiBudgetExhaustedError(19));
-    await expect(readRolesFor(9001, 'access-token')).rejects.toBeInstanceOf(EsiBudgetExhaustedError);
+    await expect(probeAndStoreRoles(9001, 'access-token')).rejects.toBeInstanceOf(EsiBudgetExhaustedError);
 
     mocks.readEsiAuthed.mockRejectedValueOnce(new EsiServerError(503));
-    await expect(readRolesFor(9001, 'access-token')).resolves.toBeNull();
+    await expect(probeAndStoreRoles(9001, 'access-token')).resolves.toBeNull();
     expect(mocks.upsertCorpRoles).not.toHaveBeenCalled();
   });
 
@@ -83,16 +83,16 @@ describe('readRolesFor', () => {
     const failure = new Error('unexpected');
     mocks.readEsiAuthed.mockRejectedValue(failure);
 
-    await expect(readRolesFor(9001, 'access-token')).rejects.toBe(failure);
+    await expect(probeAndStoreRoles(9001, 'access-token')).rejects.toBe(failure);
   });
 });
 
-describe('fetchCorpRoles', () => {
+describe('fetchAndStoreCorpRoles', () => {
   it('vends the token itself and returns the full record it stored', async () => {
     mocks.getFreshAccessTokenForCharacter.mockResolvedValue({ kind: 'ok', accessToken: 'vended', expiresAt: 1 });
     mocks.readEsiAuthed.mockResolvedValue({ kind: 'fresh', body: fullBody, etag: null, expiresAt: null });
 
-    await expect(fetchCorpRoles(9001)).resolves.toEqual(storedRecord);
+    await expect(fetchAndStoreCorpRoles(9001)).resolves.toEqual(storedRecord);
     expect(mocks.readEsiAuthed).toHaveBeenCalledWith('/characters/9001/roles', 'vended', null);
     expect(mocks.upsertCorpRoles).toHaveBeenCalledWith(9001, storedRecord, expect.any(Date));
   });
@@ -100,7 +100,7 @@ describe('fetchCorpRoles', () => {
   it('returns null without an ESI call when no token can be vended', async () => {
     mocks.getFreshAccessTokenForCharacter.mockResolvedValue({ kind: 'reauth_required' });
 
-    await expect(fetchCorpRoles(9001)).resolves.toBeNull();
+    await expect(fetchAndStoreCorpRoles(9001)).resolves.toBeNull();
     expect(mocks.readEsiAuthed).not.toHaveBeenCalled();
   });
 });

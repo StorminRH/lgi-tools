@@ -19,14 +19,14 @@ import type {
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
-import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 
 function makeCorpStructuresPort(): CorpStructuresPort {
   return {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     readStructures: (corporationId, accessToken, heldEtags) =>
       readPagedEndpoint(`/corporations/${corporationId}/structures/`, accessToken, heldEtags),
     readSyncState: (corporationId) => readCorpStructureSyncState(corporationId),

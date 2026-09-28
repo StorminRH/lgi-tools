@@ -17,7 +17,7 @@ import {
 } from '@/platform/auth/corp-visibility';
 import { resolveUserCorpAccess } from './corp-access';
 import { refreshCorpContextOnView } from './sync/corp-context-sync';
-import { fetchCorpRoles, type LinkedCharacterHealth, listCharactersWithHealth } from './sync/owner-sync-port';
+import { fetchAndStoreCorpRoles, type LinkedCharacterHealth, listCharactersWithHealth } from './sync/owner-sync-port';
 
 export interface CorpViewerCorporation {
   readonly corporationId: number;
@@ -54,7 +54,7 @@ function canFetchRoles(health: LinkedCharacterHealth | undefined): boolean {
 
 async function refetchedRoles(characterId: number): Promise<MemberRoles> {
   try {
-    const record = await fetchCorpRoles(characterId);
+    const record = await fetchAndStoreCorpRoles(characterId);
     return record === null ? UNKNOWN : { kind: 'known', roles: narrowCorpRoles(record) };
   } catch {
     return UNKNOWN;

@@ -38,7 +38,7 @@ function softEsiFailure(error: unknown): null {
   throw error;
 }
 
-async function readCorpRolesRecord(characterId: number, accessToken: string): Promise<CorpRolesRecord | null> {
+async function probeAndStoreRolesRecord(characterId: number, accessToken: string): Promise<CorpRolesRecord | null> {
   try {
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
     if (read.kind !== 'fresh') return null;
@@ -51,14 +51,14 @@ async function readCorpRolesRecord(characterId: number, accessToken: string): Pr
   }
 }
 
-export async function readRolesFor(characterId: number, accessToken: string): Promise<string[] | null> {
-  const record = await readCorpRolesRecord(characterId, accessToken);
+export async function probeAndStoreRoles(characterId: number, accessToken: string): Promise<string[] | null> {
+  const record = await probeAndStoreRolesRecord(characterId, accessToken);
   return record === null ? null : [...record.roles];
 }
 
-export async function fetchCorpRoles(characterId: number): Promise<CorpRolesRecord | null> {
+export async function fetchAndStoreCorpRoles(characterId: number): Promise<CorpRolesRecord | null> {
   const accessToken = await vendTokenFor(characterId);
-  return accessToken === null ? null : readCorpRolesRecord(characterId, accessToken);
+  return accessToken === null ? null : probeAndStoreRolesRecord(characterId, accessToken);
 }
 
 export type AuthedSingleRead =

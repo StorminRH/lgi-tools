@@ -3,7 +3,7 @@ import { type AppFailure, forbiddenFailure } from '@/lib/failure';
 import { authorizeCorpMutation } from '@/platform/auth/corp-access';
 import { selectCorpCredential } from '@/platform/owner-sync';
 import { resolveUserCorpAccess } from './corp-access';
-import { readRolesFor, vendTokenFor } from './sync/owner-sync-port';
+import { probeAndStoreRoles, vendTokenFor } from './sync/owner-sync-port';
 
 type CorpRoleGateResult = { ok: true } | { ok: false; failure: AppFailure };
 
@@ -21,7 +21,7 @@ async function corpRoleGate(
   const selection = await selectCorpCredential(
     access.characterIdsByCorporation[corporationId] ?? [],
     requiredRoles,
-    { vendToken: vendTokenFor, readRoles: readRolesFor },
+    { vendToken: vendTokenFor, readRoles: probeAndStoreRoles },
   );
   return selection.kind === 'sufficient' ? { ok: true } : { ok: false, failure: missingRole };
 }

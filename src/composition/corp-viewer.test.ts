@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   }),
   resolveUserCorpAccess: vi.fn(),
   listCharactersWithHealth: vi.fn(),
-  fetchCorpRoles: vi.fn(),
+  fetchAndStoreCorpRoles: vi.fn(),
   refreshCorpContextOnView: vi.fn(async () => []),
   readCorpSharing: vi.fn(),
   readCorpRoles: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('next/server', () => ({ after: mocks.after }));
 vi.mock('./corp-access', () => ({ resolveUserCorpAccess: mocks.resolveUserCorpAccess }));
 vi.mock('./sync/owner-sync-port', () => ({
   listCharactersWithHealth: mocks.listCharactersWithHealth,
-  fetchCorpRoles: mocks.fetchCorpRoles,
+  fetchAndStoreCorpRoles: mocks.fetchAndStoreCorpRoles,
 }));
 vi.mock('./sync/corp-context-sync', () => ({ refreshCorpContextOnView: mocks.refreshCorpContextOnView }));
 vi.mock('@/platform/auth/corp-sharing-store', () => ({ readCorpSharing: mocks.readCorpSharing }));
@@ -112,7 +112,7 @@ beforeEach(() => {
     buildCorpHoldingContext(corporationId, [], { hqStationId: HQ, divisionNames: {}, containerNames: {}, structureNames: {} }),
   );
   mocks.readMemberBases.mockResolvedValue(new Map());
-  mocks.fetchCorpRoles.mockResolvedValue(null);
+  mocks.fetchAndStoreCorpRoles.mockResolvedValue(null);
 });
 
 describe('resolveCorpViewer', () => {
@@ -121,7 +121,7 @@ describe('resolveCorpViewer', () => {
 
     const viewer = await resolveCorpViewer('u1');
 
-    expect(mocks.fetchCorpRoles).not.toHaveBeenCalled();
+    expect(mocks.fetchAndStoreCorpRoles).not.toHaveBeenCalled();
     expect(viewer.scope.characterIds).toEqual([ALICE]);
     expect(viewer.scope.corps.map((grant) => grant.corporationId)).toEqual([CORP]);
     const [corp] = viewer.corporations;
@@ -132,28 +132,28 @@ describe('resolveCorpViewer', () => {
 
   it('refetches roles inline past the ESI window and uses what came back', async () => {
     mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, ['Hangar_Query_2'], { fetchedAt: STALE })]));
-    mocks.fetchCorpRoles.mockResolvedValue(record(['Director']));
+    mocks.fetchAndStoreCorpRoles.mockResolvedValue(record(['Director']));
 
     const viewer = await resolveCorpViewer('u1');
 
-    expect(mocks.fetchCorpRoles).toHaveBeenCalledWith(ALICE);
+    expect(mocks.fetchAndStoreCorpRoles).toHaveBeenCalledWith(ALICE);
     expect(viewer.corporations[0]?.grant.holdings).toEqual({ kind: 'all' });
     expect(viewer.corporations[0]?.grant.manageSharing).toBe(true);
   });
 
   it('refetches when the stored row was captured in another corp', async () => {
     mocks.readCorpRoles.mockResolvedValue(new Map([stored(ALICE, ['Director'], { corporationId: OTHER_CORP })]));
-    mocks.fetchCorpRoles.mockResolvedValue(record(['Hangar_Query_1']));
+    mocks.fetchAndStoreCorpRoles.mockResolvedValue(record(['Hangar_Query_1']));
 
     const viewer = await resolveCorpViewer('u1');
 
-    expect(mocks.fetchCorpRoles).toHaveBeenCalledWith(ALICE);
+    expect(mocks.fetchAndStoreCorpRoles).toHaveBeenCalledWith(ALICE);
     expect(viewer.corporations[0]?.grant.manageSharing).toBe(false);
     expect(canSeeHolding(viewer.corporations[0]!.grant.holdings, hangar(HQ, 1))).toBe(true);
   });
 
   it('hides the corp from a non-Director when the inline fetch fails, without erroring', async () => {
-    mocks.fetchCorpRoles.mockRejectedValue(new EsiBudgetExhaustedError(19));
+    mocks.fetchAndStoreCorpRoles.mockRejectedValue(new EsiBudgetExhaustedError(19));
 
     const viewer = await resolveCorpViewer('u1');
 
@@ -163,7 +163,7 @@ describe('resolveCorpViewer', () => {
   });
 
   it('hides the corp when no record comes back at all', async () => {
-    mocks.fetchCorpRoles.mockResolvedValue(null);
+    mocks.fetchAndStoreCorpRoles.mockResolvedValue(null);
 
     const viewer = await resolveCorpViewer('u1');
 
@@ -177,7 +177,7 @@ describe('resolveCorpViewer', () => {
 
     const viewer = await resolveCorpViewer('u1');
 
-    expect(mocks.fetchCorpRoles).not.toHaveBeenCalled();
+    expect(mocks.fetchAndStoreCorpRoles).not.toHaveBeenCalled();
     expect(viewer.scope.corps).toEqual([]);
   });
 

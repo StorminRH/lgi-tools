@@ -11,7 +11,7 @@ import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-
 import {
   listCharactersWithHealth,
   postSingleEndpoint,
-  readRolesFor,
+  probeAndStoreRoles,
   readSingleEndpoint,
   vendTokenFor,
 } from './owner-sync-port';
@@ -21,7 +21,7 @@ function makeCorpContextPort(): CorpContextPort {
     now: () => new Date(),
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     readCorporation: (corporationId, accessToken) =>
       readSingleEndpoint(`/corporations/${corporationId}/`, accessToken, null),
     readDivisions: (corporationId, accessToken) =>

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   getUserAffiliations: vi.fn(),
   recordCorpAccessDecision: vi.fn(),
   vendTokenFor: vi.fn(),
-  readRolesFor: vi.fn(),
+  probeAndStoreRoles: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/affiliation', () => ({
@@ -18,7 +18,7 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   recordCorpAccessDecision: mocks.recordCorpAccessDecision,
 }));
 vi.mock('./sync/owner-sync-port', () => ({
-  readRolesFor: mocks.readRolesFor,
+  probeAndStoreRoles: mocks.probeAndStoreRoles,
   vendTokenFor: mocks.vendTokenFor,
 }));
 
@@ -46,22 +46,22 @@ describe('stationManagerGate', () => {
   it('reuses one snapshot for membership and roles, trying another linked pilot when needed', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101, 102]));
     mocks.vendTokenFor.mockResolvedValueOnce(null).mockResolvedValueOnce('token');
-    mocks.readRolesFor.mockResolvedValue(['Station_Manager']);
+    mocks.probeAndStoreRoles.mockResolvedValue(['Station_Manager']);
     await expect(stationManagerGate('u1', CORP)).resolves.toEqual({ ok: true });
     expect(mocks.getUserAffiliations).toHaveBeenCalledOnce();
-    expect(mocks.readRolesFor).toHaveBeenCalledWith(102, 'token');
+    expect(mocks.probeAndStoreRoles).toHaveBeenCalledWith(102, 'token');
     expect(mocks.recordCorpAccessDecision).toHaveBeenCalledWith(expect.objectContaining({ allowed: true }));
   });
 
   it('lets a Director edit structures', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101]));
-    mocks.readRolesFor.mockResolvedValue(['Director']);
+    mocks.probeAndStoreRoles.mockResolvedValue(['Director']);
     await expect(stationManagerGate('u1', CORP)).resolves.toEqual({ ok: true });
   });
 
   it('refuses a member with neither role', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101]));
-    mocks.readRolesFor.mockResolvedValue(['Accountant']);
+    mocks.probeAndStoreRoles.mockResolvedValue(['Accountant']);
     await expect(stationManagerGate('u1', CORP)).resolves.toEqual({
       ok: false,
       failure: {
@@ -86,7 +86,7 @@ describe('stationManagerGate', () => {
 describe('directorGate', () => {
   it('refuses a Station Manager', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101]));
-    mocks.readRolesFor.mockResolvedValue(['Station_Manager']);
+    mocks.probeAndStoreRoles.mockResolvedValue(['Station_Manager']);
     await expect(directorGate('u1', CORP)).resolves.toEqual({
       ok: false,
       failure: { category: 'forbidden', code: 'not_director', detail: 'Requires the Director role' },
@@ -95,8 +95,8 @@ describe('directorGate', () => {
 
   it('allows a Director', async () => {
     mocks.getUserAffiliations.mockResolvedValue(linked([101]));
-    mocks.readRolesFor.mockResolvedValue(['Director']);
+    mocks.probeAndStoreRoles.mockResolvedValue(['Director']);
     await expect(directorGate('u1', CORP)).resolves.toEqual({ ok: true });
-    expect(mocks.readRolesFor).toHaveBeenCalledWith(101, 'token');
+    expect(mocks.probeAndStoreRoles).toHaveBeenCalledWith(101, 'token');
   });
 });
