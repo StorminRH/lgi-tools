@@ -156,3 +156,23 @@ export const sessionsRevokeEndpoint = defineEndpoint({
     429: problem('rate_limited'),
   },
 });
+
+export const setCorpDataSharingRequestSchema = z.object({
+  corporationId: z.number().int().positive(),
+  enabled: z.boolean(),
+});
+const corpDataSharingResponseSchema = z.object({
+  corporationId: z.number(),
+  enabled: z.boolean(),
+});
+export const setCorpDataSharingEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/account/corp-sharing',
+  request: setCorpDataSharingRequestSchema,
+  responses: {
+    200: jsonBody(corpDataSharingResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('not_corp_member', 'not_director', 'cross_origin'),
+  },
+});

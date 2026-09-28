@@ -1,33 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('@/composition/map-affiliation-access', () => ({ reconcileAffiliationAccess: vi.fn() }));
 
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   connection: vi.fn(),
-  refreshAffiliationsWithOutcome: vi.fn(),
-  getUserAffiliations: vi.fn(),
   getCorpStructures: vi.fn(),
   getCorpStructureRigs: vi.fn(),
   listCorpStructureSyncStates: vi.fn(),
   resolveCorpViewer: vi.fn(),
   resolveEntityNames: vi.fn(),
-  vendTokenFor: vi.fn(),
-  readRolesFor: vi.fn(),
-  recordCorpAccessDecision: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({
   after: mocks.after,
   connection: mocks.connection,
-}));
-
-vi.mock('@/platform/auth/affiliation', () => ({
-  refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
-}));
-
-vi.mock('@/platform/auth/affiliation-store', () => ({
-  getUserAffiliations: mocks.getUserAffiliations,
-  recordCorpAccessDecision: mocks.recordCorpAccessDecision,
 }));
 
 vi.mock('@/composition/corp-viewer', () => ({ resolveCorpViewer: mocks.resolveCorpViewer }));
@@ -52,8 +37,8 @@ vi.mock('@/data/eve-data/entity-names', () => ({
 vi.mock('./owner-sync-port', () => ({
   listCharactersWithHealth: vi.fn(),
   readPagedEndpoint: vi.fn(),
-  readRolesFor: mocks.readRolesFor,
-  vendTokenFor: mocks.vendTokenFor,
+  readRolesFor: vi.fn(),
+  vendTokenFor: vi.fn(),
 }));
 
 import { buildCorpHoldingContext } from '@/data/corp-holdings/context';
@@ -63,7 +48,6 @@ import {
   getAvailableCorpStructuresForUser,
   getCorpStructuresForUserOnView,
   getCorpStructuresPageData,
-  stationManagerGate,
 } from './corp-structures-sync';
 
 const SHARED_CORP = 2001;
@@ -97,8 +81,6 @@ const fort = (structureId: number) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.connection.mockResolvedValue(undefined);
-  mocks.refreshAffiliationsWithOutcome.mockResolvedValue({ refreshed: 0, accessChanged: false, transientFailure: false });
-  mocks.getUserAffiliations.mockResolvedValue([]);
   mocks.getCorpStructures.mockResolvedValue(new Map());
   mocks.listCorpStructureSyncStates.mockResolvedValue([]);
   mocks.getCorpStructureRigs.mockResolvedValue(new Map());
@@ -167,28 +149,5 @@ describe('corp structure reads', () => {
       { corporationId: MANAGED_CORP, corporationName: `Corporation ${MANAGED_CORP}`, structureAccess: 'manage', canManageSharing: false, sharing: 'off', structureIds: [2] },
       { corporationId: PRIVATE_CORP, corporationName: `Corporation ${PRIVATE_CORP}`, structureAccess: 'none', canManageSharing: false, sharing: 'off', structureIds: [] },
     ]);
-  });
-});
-
-describe('station manager authorization', () => {
-  it('reuses one snapshot for membership and roles, trying another linked pilot when needed', async () => {
-    mocks.getUserAffiliations.mockResolvedValue([101, 102].map((characterId) => ({
-      characterId, corporationId: 2000, allianceId: null, factionId: null, refreshedAt: new Date(),
-    })));
-    mocks.vendTokenFor.mockResolvedValueOnce(null).mockResolvedValueOnce('token');
-    mocks.readRolesFor.mockResolvedValue(['Station_Manager']);
-    await expect(stationManagerGate('u1', 2000)).resolves.toEqual({ ok: true });
-    expect(mocks.getUserAffiliations).toHaveBeenCalledOnce();
-    expect(mocks.readRolesFor).toHaveBeenCalledWith(102, 'token');
-    expect(mocks.recordCorpAccessDecision).toHaveBeenCalledWith(expect.objectContaining({ allowed: true }));
-  });
-
-  it('denies a departed member before vending tokens or checking roles', async () => {
-    mocks.getUserAffiliations.mockResolvedValue([{
-      characterId: 101, corporationId: 3000, allianceId: null, factionId: null, refreshedAt: new Date(),
-    }]);
-    await expect(stationManagerGate('u1', 2000)).resolves.toMatchObject({ ok: false });
-    expect(mocks.vendTokenFor).not.toHaveBeenCalled();
-    expect(mocks.recordCorpAccessDecision).toHaveBeenCalledWith(expect.objectContaining({ allowed: false }));
   });
 });

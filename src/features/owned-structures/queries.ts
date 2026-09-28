@@ -4,7 +4,6 @@ import { db } from '@/db';
 import { eveSolarSystems } from '@/data/eve-data/schema';
 import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import type { ParsedCorpStructure } from './esi-projection';
-import { setCorpSharing } from '@/platform/auth/corp-sharing-store';
 import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
 import type { CorpStructureRow, CorpStructuresSyncState } from './types';
 
@@ -117,19 +116,6 @@ export async function stampCorpStructuresFresh(corporationId: number): Promise<v
     .update(corpStructureSyncs)
     .set({ lastRefreshedAt: new Date() })
     .where(eq(corpStructureSyncs.corporationId, corporationId));
-}
-
-export async function setCorpStructureSharing(
-  corporationId: number,
-  enabled: boolean,
-  setBy: number | null,
-): Promise<void> {
-  await setCorpSharing(corporationId, enabled, setBy);
-  if (enabled) return;
-  await db.delete(corpStructures).where(eq(corpStructures.corporationId, corporationId));
-  await db.delete(corpStructureSyncs).where(eq(corpStructureSyncs.corporationId, corporationId));
-  await db.delete(corpStructureRigs).where(eq(corpStructureRigs.corporationId, corporationId));
-  revalidateTag(corpStructuresTag(corporationId), 'max');
 }
 
 export interface CorpStructureCompletion {

@@ -25,7 +25,7 @@ export type CorporationsView = {
 };
 
 export function settingsNeedsCorpSharing(models: readonly PageControlModel[]): boolean {
-  return models.some((m) => m.kind === 'feature' && m.id === 'corp-structure-sharing');
+  return models.some((m) => m.kind === 'feature' && m.id === 'corp-data-sharing');
 }
 
 const ROLE_ORDER: readonly CorporationRoleLabel[] = ['Director', 'Station Manager', 'Member'];

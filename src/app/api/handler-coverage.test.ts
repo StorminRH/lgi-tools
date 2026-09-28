@@ -54,7 +54,7 @@ vi.mock('convex/react', () => ({
 import { GET } from '@/app/api/account/characters/route';
 import { GET as AppApiAccountCorpIndustryJobsRouteGET } from '@/app/api/account/corp-industry-jobs/route';
 import { GET as AppApiAccountCorpStructuresRouteGET } from '@/app/api/account/corp-structures/route';
-import { POST } from '@/app/api/account/corp-structures/sharing/route';
+import { POST } from '@/app/api/account/corp-sharing/route';
 import { POST as AppApiAccountCustomStructuresDeleteRoutePOST } from '@/app/api/account/custom-structures/delete/route';
 import { POST as AppApiAccountCustomStructuresSetPinRoutePOST } from '@/app/api/account/custom-structures/set-pin/route';
 import { POST as AppApiAccountCustomStructuresSetTaxRoutePOST } from '@/app/api/account/custom-structures/set-tax/route';

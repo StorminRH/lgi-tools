@@ -6,7 +6,7 @@ import {
   settingsNeedsCorpSharing,
 } from './corporations-view';
 
-const feature: PageControlModel = { kind: 'feature', id: 'corp-structure-sharing' };
+const feature: PageControlModel = { kind: 'feature', id: 'corp-data-sharing' };
 const preference: PageControlModel = {
   kind: 'preference-enum',
   key: 'sites.detailMode',

@@ -10,10 +10,10 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
-import { CorpSharingSettings } from '@/features/owned-structures/components/CorpSharingSettings';
 import { accountPageSettings } from '@/platform/page-settings/account';
 import { resolvePageControls } from '@/platform/page-settings/controls';
 import { SectionHead } from '@/components/ui/section-head';
+import { CorpSharingCard } from './corp-sharing-card';
 import {
   type CorporationMembershipView,
   type CorporationsView,
@@ -62,9 +62,6 @@ function MembershipsCard({ view }: { view: CorporationsView }) {
         ))
       )}
       <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
-        {view.directorCorps.length === 0 ? (
-          <>Only a Director can turn corporation data sharing on or off. </>
-        ) : null}
         Station Managers and Directors set corporation structure rig fits and facility taxes on{' '}
         <Link href="/structures" className="text-tone-blue hover:underline">
           Structures
@@ -89,7 +86,9 @@ async function CorporationsContent() {
 
   return (
     <>
-      {view.directorCorps.length > 0 ? <CorpSharingSettings corps={view.directorCorps} /> : null}
+      {view.memberships.length > 0 ? (
+        <CorpSharingCard directorCorps={view.directorCorps} memberCorps={view.memberCorps} />
+      ) : null}
       <MembershipsCard view={view} />
     </>
   );

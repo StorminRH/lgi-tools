@@ -1,9 +1,6 @@
 import { after, connection } from 'next/server';
-import { resolveUserCorpAccess } from '@/composition/corp-access';
 import { type CorpViewer, resolveCorpViewer } from '@/composition/corp-viewer';
-import { authorizeCorpMutation, type UserCorpAccess } from '@/platform/auth/corp-access';
 import type { StructuresAccess } from '@/platform/auth/corp-visibility';
-import { selectCorpCredential } from '@/platform/owner-sync';
 import {
   type CorpStructureCompletion,
   getCorpStructureRigs,
@@ -13,7 +10,6 @@ import {
   saveCorpStructures,
   stampCorpStructuresFresh,
 } from '@/features/owned-structures/queries';
-import { CORP_STRUCTURES_REQUIRED_ROLES } from '@/features/owned-structures/corp-sync-eligibility';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import type {
   CorpStructurePageStructure,
@@ -23,7 +19,6 @@ import type {
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
-import { forbiddenFailure, type AppFailure } from '@/lib/failure';
 import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor } from './owner-sync-port';
 
 function makeCorpStructuresPort(): CorpStructuresPort {
@@ -155,41 +150,4 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
     ),
     lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
   }));
-}
-
-async function userHoldsCorpRole(
-  access: UserCorpAccess,
-  corporationId: number,
-  requiredRoles: readonly string[],
-): Promise<boolean> {
-  const selection = await selectCorpCredential(
-    access.characterIdsByCorporation[corporationId] ?? [],
-    requiredRoles,
-    { vendToken: vendTokenFor, readRoles: readRolesFor },
-  );
-  return selection.kind === 'sufficient';
-}
-
-export async function stationManagerGate(
-  userId: string,
-  corporationId: number,
-): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
-  const access = await resolveUserCorpAccess(userId);
-  const decision = await authorizeCorpMutation(access, corporationId);
-  if (!decision.allowed) {
-    return {
-      ok: false,
-      failure: forbiddenFailure('not_corp_member', 'Not a member of this corporation'),
-    };
-  }
-  if (!(await userHoldsCorpRole(access, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
-    return {
-      ok: false,
-      failure: forbiddenFailure(
-        'not_station_manager',
-        'Requires the Station Manager role',
-      ),
-    };
-  }
-  return { ok: true };
 }

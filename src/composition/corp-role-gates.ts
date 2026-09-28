@@ -1,0 +1,45 @@
+import { CORP_STRUCTURES_REQUIRED_ROLES } from '@/features/owned-structures/corp-sync-eligibility';
+import { type AppFailure, forbiddenFailure } from '@/lib/failure';
+import { authorizeCorpMutation } from '@/platform/auth/corp-access';
+import { selectCorpCredential } from '@/platform/owner-sync';
+import { resolveUserCorpAccess } from './corp-access';
+import { readRolesFor, vendTokenFor } from './sync/owner-sync-port';
+
+type CorpRoleGateResult = { ok: true } | { ok: false; failure: AppFailure };
+
+/**
+ * Membership is audited first, then the role is read live from ESI (which
+ * also refreshes the stored roles), because a mutation must not trust roles
+ * that may be up to an hour old.
+ */
+async function corpRoleGate(
+  userId: string,
+  corporationId: number,
+  requiredRoles: readonly string[],
+  missingRole: AppFailure,
+): Promise<CorpRoleGateResult> {
+  const access = await resolveUserCorpAccess(userId);
+  const decision = await authorizeCorpMutation(access, corporationId);
+  if (!decision.allowed) {
+    return { ok: false, failure: forbiddenFailure('not_corp_member', 'Not a member of this corporation') };
+  }
+  const selection = await selectCorpCredential(
+    access.characterIdsByCorporation[corporationId] ?? [],
+    requiredRoles,
+    { vendToken: vendTokenFor, readRoles: readRolesFor },
+  );
+  return selection.kind === 'sufficient' ? { ok: true } : { ok: false, failure: missingRole };
+}
+
+export function directorGate(userId: string, corporationId: number): Promise<CorpRoleGateResult> {
+  return corpRoleGate(userId, corporationId, ['Director'], forbiddenFailure('not_director', 'Requires the Director role'));
+}
+
+export function stationManagerGate(userId: string, corporationId: number): Promise<CorpRoleGateResult> {
+  return corpRoleGate(
+    userId,
+    corporationId,
+    CORP_STRUCTURES_REQUIRED_ROLES,
+    forbiddenFailure('not_station_manager', 'Requires the Station Manager or Director role'),
+  );
+}

@@ -5,12 +5,9 @@ import {
   getCorpStructureRigs,
   readCorpStructureSyncState,
   saveCorpStructures,
-  setCorpStructureSharing,
   upsertCorpStructureRigs,
 } from './queries';
-import { corpDataSharing } from '@/db/auth-schema';
-import { readCorpSharing } from '@/platform/auth/corp-sharing-store';
-import { corpStructureRigs, corpStructures, corpStructureSyncs } from './schema';
+import { corpStructures } from './schema';
 
 vi.mock('next/cache', () => ({
   cacheLife: vi.fn(),
@@ -23,52 +20,15 @@ const harness = await createDbTestHarness({
   tables: [
     'corp_structures',
     'corp_structure_syncs',
-    'corp_data_sharing',
     'corp_structure_rigs',
     'eve_solar_systems',
   ],
   steerDbProxy: true,
 });
 
-describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queries against Postgres', () => {
-  it('defaults sharing OFF for a corp with no row', async () => {
-    expect(await readCorpSharing([9001])).toEqual(new Map([[9001, 'off']]));
-  });
-
-  it('enables sharing (upsert) and reflects it in the read', async () => {
-    await setCorpStructureSharing(9002, true, 42);
-    expect(await readCorpSharing([9002])).toEqual(new Map([[9002, 'on']]));
-  });
-
-  it('disable WIPES the corp structures, sync state, and authored rigs (off ⇒ gone)', async () => {
-    const corp = 9003;
-    await harness.db.insert(corpDataSharing).values({ corporationId: corp, enabled: true, setBy: 7 });
-    await harness.db.insert(corpStructures).values({
-      corporationId: corp,
-      structureId: 600001,
-      typeId: 35825,
-      systemId: 30000142,
-      securityClass: 'high',
-      name: 'Raitaru A',
-    });
-    await harness.db.insert(corpStructureSyncs).values({ corporationId: corp, lastRefreshedAt: new Date(), pageEtags: [] });
-    await harness.db.insert(corpStructureRigs).values({ corporationId: corp, structureId: 600001, rigTypeIds: [37178] });
-
-    await setCorpStructureSharing(corp, false, 7);
-
-    expect(await readCorpSharing([corp])).toEqual(new Map([[corp, 'off']]));
-    expect(await readCorpStructureSyncState(corp)).toBeNull();
-    expect((await getCorpStructureRigs([corp])).size).toBe(0);
-    const remainingStructures = await harness.db
-      .select()
-      .from(corpStructures)
-      .where(eq(corpStructures.corporationId, corp));
-    expect(remainingStructures).toHaveLength(0);
-  });
-
+describe.skipIf(!harness.reachable)('corp-structure and authored-rig queries against Postgres', () => {
   it('authored completions SURVIVE the full-replace pull (saveCorpStructures never clobbers them)', async () => {
     const corp = 9004;
-    await setCorpStructureSharing(corp, true, 11);
     await harness.db.insert(corpStructures).values({
       corporationId: corp,
       structureId: 600002,
@@ -90,7 +50,6 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
 
   it('upserts authored rigs (replace the set for one structure)', async () => {
     const corp = 9005;
-    await setCorpStructureSharing(corp, true, 11);
     await upsertCorpStructureRigs(corp, 600003, [37178]);
     await upsertCorpStructureRigs(corp, 600003, [37180, 37182]);
     const rigs = await getCorpStructureRigs([corp]);
@@ -99,7 +58,6 @@ describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queri
 
   it('taxPct is tri-state: a rig-only save leaves the stored tax, null clears it, a number sets it', async () => {
     const corp = 9007;
-    await setCorpStructureSharing(corp, true, 11);
     await upsertCorpStructureRigs(corp, 600005, [37178], 2.5);
     await upsertCorpStructureRigs(corp, 600005, [37180]);
     expect((await getCorpStructureRigs([corp])).get(600005)).toEqual({
