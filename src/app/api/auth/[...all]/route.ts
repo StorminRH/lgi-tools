@@ -1,7 +1,7 @@
 import { toNextJsHandler } from 'better-auth/next-js';
 import { auth } from '@/composition/auth';
-import { runWithAbsorbTracking } from '@/platform/auth/absorb-context';
-import { decorateAbsorbRedirect } from '@/platform/auth/absorb-redirect';
+import { runWithMergeTracking } from '@/platform/auth/merge-context';
+import { expireSessionCacheCookies } from '@/platform/auth/session-cache-cookies';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { problemResponse } from '@/transport/api-response';
 
@@ -9,10 +9,15 @@ import { problemResponse } from '@/transport/api-response';
 const { GET: betterAuthGet, POST: betterAuthPost } = toNextJsHandler(auth);
 
 export async function GET(request: Request): Promise<Response> {
-  const { result: response, absorbedCharacterId } = await runWithAbsorbTracking(() =>
-    betterAuthGet(request),
-  );
-  return decorateAbsorbRedirect(response, request.url, absorbedCharacterId);
+  const { result: response, merged } = await runWithMergeTracking(() => betterAuthGet(request));
+  if (!merged) return response;
+  // The browser's session token now belongs to the survivor; drop the cached
+  // session so the next request reads the re-pointed row.
+  const headers = new Headers(response.headers);
+  for (const expired of expireSessionCacheCookies(await auth.$context, request.headers.get('cookie'))) {
+    headers.append('set-cookie', expired);
+  }
+  return new Response(response.body, { status: response.status, headers });
 }
 
 const OAUTH_ENTRY_LIMITS = new Map<string, { name: string; perMinute: number }>([

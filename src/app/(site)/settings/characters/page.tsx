@@ -20,7 +20,7 @@ import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { SectionHead } from '@/components/ui/section-head';
-import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
+import { deriveCharacterRowView } from './characters-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
   account_already_linked_to_different_user: 'That character is already linked to another account.',
@@ -30,7 +30,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "email_doesn't_match": 'Linking failed. Please try again.',
 };
 
-type CharactersSearchParams = Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
+type CharactersSearchParams = Promise<{ error?: string | string[] }>;
 
 function CharacterRowActions({
   characterId,
@@ -125,43 +125,22 @@ function CharacterRow({
   );
 }
 
-function CharacterNotices({
-  absorbedCharacter,
-  error,
-}: {
-  absorbedCharacter: LinkedCharacter | undefined;
-  error: string | null;
-}) {
-  return (
-    <>
-      {absorbedCharacter ? (
-        <Callout label="Character moved">
-          {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
-          moved it into this one. Everything tracked for that character came along.
-        </Callout>
-      ) : null}
-      {error ? <Callout label="Heads up">{error}</Callout> : null}
-    </>
-  );
-}
-
 async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
   const session = await getFullSession();
   if (!session) {
     redirect('/?auth_error=login_required');
   }
 
-  const [{ error: rawError, absorbed: rawAbsorbed }, characters] = await Promise.all([
+  const [{ error: rawError }, characters] = await Promise.all([
     searchParams,
     listLinkedCharacters(session.user.id),
   ]);
   const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
   const isOnlyCharacter = characters.length <= 1;
-  const absorbedCharacter = deriveAbsorbedCharacter(rawAbsorbed, characters);
 
   return (
     <>
-      <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
+      {error ? <Callout label="Heads up">{error}</Callout> : null}
 
       <Card className="reveal reveal-1">
         <SectionHeader size="md" label="Your characters" hint={`${characters.length} linked`} />

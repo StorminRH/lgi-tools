@@ -51,14 +51,12 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { runWithAbsorbTracking } from '@/platform/auth/absorb-context';
 import { isDeleteAcknowledged } from '@/platform/auth/account-actions';
 import { ConvexClientProvider } from '@/platform/auth/components/ConvexClientProvider';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
-      runWithAbsorbTracking,
       isDeleteAcknowledged,
       ConvexClientProvider,
     ];
