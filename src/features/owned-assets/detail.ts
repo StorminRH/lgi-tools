@@ -25,11 +25,6 @@ function isShipFlag(flag: string): boolean {
   return /Slot\d+$/.test(flag) || /(?:Hold|Bay)$/.test(flag) || /.Hangar$/.test(flag) || flag === 'Cargo';
 }
 
-function friendlyFlag(flag: string): string {
-  const corpHangar = /^CorpSAG([1-7])$/.exec(flag);
-  return corpHangar ? `Corp Hangar ${corpHangar[1]}` : '';
-}
-
 export interface ResolvedHolding {
   ownerType: OwnedAssetOwnerType;
   ownerName: string;
@@ -106,7 +101,7 @@ function resolveHolding(
     ownerType: 'character',
     ownerName,
     locationName: resolveLocationName(holding, names, formatStation),
-    locationFlag: friendlyFlag(holding.locationFlag),
+    locationFlag: '',
     containerName: null,
     quantity: holding.quantity,
   };

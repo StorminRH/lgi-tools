@@ -166,7 +166,7 @@ describe('buildOwnedAssetDetail', () => {
     expect(entry!.heldBy[0]!.locationFlag).toBe('');
   });
 
-  it('names the kind of nested parent from the location flag, with a friendly corp division', () => {
+  it('names the kind of nested parent from the location flag', () => {
     const nested = (flag: string) =>
       summary([holding({ locationId: 1_053_000_000_001, locationFlag: flag, locationType: 'item' })]);
     const map: OwnedAssetMap = new Map([
@@ -178,7 +178,7 @@ describe('buildOwnedAssetDetail', () => {
       [6, nested('SomethingNew')],
     ]);
     const byType = new Map(buildOwnedAssetDetail(map, {}, fmt, noContexts).map((e) => [e.typeId, e.heldBy[0]]));
-    expect(byType.get(1)).toMatchObject({ locationName: 'Upwell structure', locationFlag: 'Corp Hangar 4' });
+    expect(byType.get(1)).toMatchObject({ locationName: 'Upwell structure', locationFlag: '' });
     expect(byType.get(2)).toMatchObject({ locationName: 'Upwell structure', locationFlag: '' });
     expect(byType.get(3)).toMatchObject({ locationName: 'In a ship', locationFlag: '' });
     expect(byType.get(4)).toMatchObject({ locationName: 'In a ship', locationFlag: '' });
