@@ -1,3 +1,4 @@
+import { and, eq, isNull } from 'drizzle-orm';
 import { after } from 'next/server';
 import { db } from '@/db';
 import { identityProjectionRunners } from '@/composition/map-access-identity';
@@ -22,18 +23,31 @@ function storedTokenOwnerHash(accessToken: string | null): string | null {
   }
 }
 
-async function backfillOwnerHash(characterId: number, ownerHash: string): Promise<void> {
-  await db
+type ObservedAccount = Pick<typeof account.$inferSelect, 'id' | 'userId' | 'accessToken'>;
+
+async function backfillOwnerHash(observed: ObservedAccount, ownerHash: string): Promise<boolean> {
+  // Evidence belongs to this exact stored row, not a later link for the same character.
+  const updated = await db
     .update(account)
     .set({ ownerHash, updatedAt: new Date() })
-    .where(accountMatch(characterId));
+    .where(and(
+      eq(account.id, observed.id),
+      eq(account.userId, observed.userId),
+      isNull(account.ownerHash),
+      observed.accessToken === null
+        ? isNull(account.accessToken)
+        : eq(account.accessToken, observed.accessToken),
+    ))
+    .returning({ id: account.id });
+  return updated.length > 0;
 }
 
 async function mergeProvenCharacter(
   proof: CharacterProof & { ownerHash: string },
   decision: Extract<ProofDecision, { kind: 'merge' }>,
+  observed: ObservedAccount,
 ): Promise<ProofOutcome> {
-  if (decision.backfill) await backfillOwnerHash(proof.characterId, proof.ownerHash);
+  if (decision.backfill && !await backfillOwnerHash(observed, proof.ownerHash)) return NONE;
   try {
     const result = await mergeUsers({
       linkingUserId: decision.linkingUserId,
@@ -57,7 +71,7 @@ export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcom
   const jwtOwnerHash = proof.ownerHash;
   if (!jwtOwnerHash) return NONE;
   const [row] = await db
-    .select({ userId: account.userId, ownerHash: account.ownerHash, accessToken: account.accessToken })
+    .select({ id: account.id, userId: account.userId, ownerHash: account.ownerHash, accessToken: account.accessToken })
     .from(account)
     .where(accountMatch(proof.characterId))
     .limit(1);
@@ -81,13 +95,13 @@ export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcom
       });
       return NONE;
     case 'backfill':
-      await backfillOwnerHash(proof.characterId, jwtOwnerHash);
+      await backfillOwnerHash(row, jwtOwnerHash);
       return NONE;
     case 'transfer':
       await purgeTransferredCharacter(row.userId, proof.characterId);
       return NONE;
     case 'merge':
-      return mergeProvenCharacter({ ...proof, ownerHash: jwtOwnerHash }, decision);
+      return mergeProvenCharacter({ ...proof, ownerHash: jwtOwnerHash }, decision, row);
   }
 }
 

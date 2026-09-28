@@ -277,6 +277,55 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     expect(await userIds()).toEqual([TARGET_ID]);
   });
 
+  it.each(
+    [null, TARGET_ID].flatMap((linkingUserId) =>
+      ['id', 'user', 'owner', 'token'].map((changed) => ({ linkingUserId, changed })),
+    ),
+  )('does not backfill changed evidence ($changed, linking user $linkingUserId)', async ({ linkingUserId, changed }) => {
+    const originalToken = encryptToken(eveToken(H1));
+    const replacementToken = encryptToken(eveToken(H2));
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, null, { accessToken: originalToken });
+    const blocker = await harness.sql.reserve();
+    let proof: ReturnType<typeof proveCharacter> | undefined;
+    try {
+      await blocker`BEGIN`;
+      await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
+      await blocker`
+        UPDATE account SET
+          id = CASE WHEN ${changed} = 'id' THEN 'replacement' ELSE id END,
+          user_id = CASE WHEN ${changed} = 'user' THEN ${TARGET_ID} ELSE user_id END,
+          owner_hash = CASE WHEN ${changed} = 'owner' THEN ${H2} ELSE owner_hash END,
+          access_token = CASE WHEN ${changed} = 'token' THEN ${replacementToken} ELSE access_token END
+        WHERE id = 'moved'
+      `;
+      const [holder] = await blocker<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+      // The proof sees the committed legacy row, then waits to backfill behind the changed row.
+      proof = proveCharacter({ characterId: MOVED_CHAR, ownerHash: H1, linkingUserId });
+      await expect.poll(async () => {
+        const [row] = await harness.sql<{ count: number }[]>`
+          SELECT count(*)::integer AS count FROM pg_stat_activity
+          WHERE ${holder!.pid} = ANY(pg_blocking_pids(pid))
+        `;
+        return row?.count;
+      }, { timeout: 3_000, interval: 20 }).toBe(1);
+      await blocker`COMMIT`;
+      await expect(proof).resolves.toEqual({ kind: 'none' });
+      const [stored] = await harness.db.select().from(account);
+      expect(stored).toMatchObject({
+        id: changed === 'id' ? 'replacement' : 'moved',
+        userId: changed === 'user' ? TARGET_ID : SOURCE_ID,
+        ownerHash: changed === 'owner' ? H2 : null,
+        accessToken: changed === 'token' ? replacementToken : originalToken,
+      });
+      expect(await userIds()).toEqual([SOURCE_ID, TARGET_ID]);
+      expect(after).not.toHaveBeenCalled();
+    } finally {
+      await blocker`ROLLBACK`;
+      blocker.release();
+      await proof;
+    }
+  });
+
   it('derives a null owner hash from the stored token: a mismatch purges the sold character', async () => {
     await seedCharacter(MOVED_CHAR);
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, null, { accessToken: encryptToken(eveToken(H2)) });
