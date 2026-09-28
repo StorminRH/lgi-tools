@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountMerge from "../accountMerge.js";
 import type * as characterLocationAccess from "../characterLocationAccess.js";
 import type * as characterLocationApply from "../characterLocationApply.js";
 import type * as characterLocationPurge from "../characterLocationPurge.js";
@@ -20,6 +21,7 @@ import type * as engineLeave from "../engineLeave.js";
 import type * as engineScan from "../engineScan.js";
 import type * as engineSweep from "../engineSweep.js";
 import type * as http from "../http.js";
+import type * as httpAccountMerge from "../httpAccountMerge.js";
 import type * as httpEngine from "../httpEngine.js";
 import type * as httpJump from "../httpJump.js";
 import type * as httpLocation from "../httpLocation.js";
@@ -87,6 +89,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountMerge: typeof accountMerge;
   characterLocationAccess: typeof characterLocationAccess;
   characterLocationApply: typeof characterLocationApply;
   characterLocationPurge: typeof characterLocationPurge;
@@ -99,6 +102,7 @@ declare const fullApi: ApiFromModules<{
   engineScan: typeof engineScan;
   engineSweep: typeof engineSweep;
   http: typeof http;
+  httpAccountMerge: typeof httpAccountMerge;
   httpEngine: typeof httpEngine;
   httpJump: typeof httpJump;
   httpLocation: typeof httpLocation;
