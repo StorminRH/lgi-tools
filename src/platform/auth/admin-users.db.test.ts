@@ -18,6 +18,7 @@ const runners = {
 import {
   CHARACTER_SEARCH_LIMIT,
   deleteLinkedCharacter,
+  getAccountTotals,
   getActiveSessionCount,
   getUserByCharacterId,
   getUserById,
@@ -204,6 +205,19 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(1);
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(2);
     await expect(getActiveSessionCount(SOURCE_ID)).resolves.toBe(0);
+  });
+
+  it('counts every user and each distinct linked EVE character', async () => {
+    await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID);
+    await seedEveAccount('survivor', SURVIVOR_CHAR, SOURCE_ID);
+    await harness.db.insert(account).values({
+      id: 'discord',
+      accountId: 'not-a-character',
+      providerId: 'discord',
+      userId: TARGET_ID,
+    });
+
+    await expect(getAccountTotals()).resolves.toEqual({ users: 2, characters: 2 });
   });
 
   it('moves the last character, deletes the emptied source, and cascades its sessions', async () => {

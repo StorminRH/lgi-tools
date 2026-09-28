@@ -10,16 +10,13 @@ describe('deriveTrafficView', () => {
       ],
       topReferrers: [{ host: 'g.com', count: 5 }],
       topEntryPages: [{ path: '/land', count: 2 }],
-      topSearches: [{ query: 'ore', count: 9 }],
     });
     expect(view.topPages).toEqual([
       { key: '/a', label: '/a', count: 10 },
       { key: '/b', label: '/b', count: 4 },
     ]);
     expect(view.topReferrers[0]).toEqual({ key: 'g.com', label: 'g.com', count: 5 });
-    expect(view.topSearches).toEqual([{ key: 'ore', label: 'ore', count: 9 }]);
   });
-
 });
 
 describe('deriveGscPerformanceView', () => {
