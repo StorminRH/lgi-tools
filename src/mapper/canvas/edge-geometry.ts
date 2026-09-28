@@ -3,9 +3,10 @@ import {
   ICON_TRACK_CLEARANCE_PX,
   kspaceCaptionOffset,
   nodeCaptionKind,
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
   type NodeCaptionData,
 } from './disc-chrome';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
 
 const HUB_ROW_PX = 14;
 const CAPTION_NAME_PX = 14;

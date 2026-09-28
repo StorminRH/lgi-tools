@@ -23,6 +23,10 @@ const projectMapAccessMock = vi.fn();
 const teardownMapAccessProjectionMock = vi.fn();
 const purgeUserMapAccessProjectionMock = vi.fn();
 const revokeUserMapClaimsMock = vi.fn();
+const eraseNetWorthHistoryMock = vi.fn();
+vi.mock('@/features/net-worth/purge', () => ({
+  eraseNetWorthHistoryForCharacter: (...args: unknown[]) => eraseNetWorthHistoryMock(...args),
+}));
 
 vi.mock('@/composition/auth', () => ({
   auth: {
@@ -93,6 +97,7 @@ describe('POST /api/account/characters/unlink', () => {
     teardownMapAccessProjectionMock.mockReset();
     purgeUserMapAccessProjectionMock.mockReset();
     revokeUserMapClaimsMock.mockReset().mockResolvedValue(undefined);
+    eraseNetWorthHistoryMock.mockReset().mockResolvedValue(undefined);
     teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
     getOwnedMapIdsMock.mockResolvedValue([]);
@@ -130,6 +135,7 @@ describe('POST /api/account/characters/unlink', () => {
 
     const active = await POST(buildRequest({ characterId: '100' }));
     expect(active.status).toBe(303);
+    expect(eraseNetWorthHistoryMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(locationOf(active)).toBe('http://localhost:3000/settings/characters');
     expect(unlinkAccountMock).toHaveBeenCalledWith({
       body: { providerId: 'eve', accountId: '100' },
@@ -155,6 +161,18 @@ describe('POST /api/account/characters/unlink', () => {
     const inactive = await POST(buildRequest({ characterId: '200' }));
     expect(inactive.status).toBe(303);
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+  });
+
+  it('finishes location and active-character cleanup before reporting a history-erasure failure', async () => {
+    getSessionMock.mockResolvedValue(SESSION);
+    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    getStoredActiveCharacterIdMock.mockResolvedValue(100);
+    unlinkAccountMock.mockResolvedValue({ status: true });
+    const failure = new Error('history deletion failed');
+    eraseNetWorthHistoryMock.mockRejectedValueOnce(failure);
+    await expect(POST(buildRequest({ characterId: '100' }))).rejects.toBe(failure);
+    expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
+    expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
   });
 
   it('maps an unlinkAccount failure to a clean error redirect (not a 500)', async () => {

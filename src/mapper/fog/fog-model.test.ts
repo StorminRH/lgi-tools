@@ -1,9 +1,6 @@
 import { expect, test } from 'vitest';
-import {
-  SYSTEM_FRAME_HEIGHT,
-  SYSTEM_FRAME_WIDTH,
-  type ChainNode,
-} from '../canvas/SystemNode';
+import { type ChainNode } from '../canvas/SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import type { ChainEdge } from '../chain/nodes';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
 import {
