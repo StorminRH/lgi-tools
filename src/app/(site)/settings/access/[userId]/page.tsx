@@ -1,3 +1,4 @@
+import { ACCESS_HREF } from '../../settings-sections';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { EveImage } from '@/components/eve-image';
@@ -33,7 +34,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   unlink_failed: 'Could not unlink that character. Please try again.',
 };
 
-const ACCESS_HREF = '/settings/access';
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);

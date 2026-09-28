@@ -21,7 +21,6 @@ import {
   getTopEntryPages,
   getTopPages,
   getTopReferrers,
-  getTopSearches,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -66,7 +65,6 @@ const cases: QueryCase[] = [
   { name: 'getTopPages', run: () => getTopPages(RANGE), check: expectNonEmptyArray },
   { name: 'getTopReferrers', run: () => getTopReferrers(RANGE), check: expectNonEmptyArray },
   { name: 'getTopEntryPages', run: () => getTopEntryPages(RANGE), check: expectNonEmptyArray },
-  { name: 'getTopSearches', run: () => getTopSearches(RANGE), check: expectNonEmptyArray },
   { name: 'getRoleChangeAudit', run: () => getRoleChangeAudit(RANGE), check: expectNonEmptyArray },
   {
     name: 'getFallbackRate',
@@ -159,12 +157,6 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
         metadata: { path: '/sites', referrer: 'google.com', is_entry: 'true' },
       },
       { action: 'page_view', characterId: null, timestamp: IN_RANGE, metadata: { path: '/planner' } },
-      {
-        action: 'terminal_search',
-        characterId: CHAR_OLD,
-        timestamp: IN_RANGE,
-        metadata: { query: 'tritanium' },
-      },
       {
         action: 'role_change',
         characterId: CHAR_OLD,
@@ -304,7 +296,7 @@ describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability
     await harness.db.insert(usageLogs).values([
       { timestamp: AT, action: 'page_view', characterId: CHAR_OLD, metadata: { path: '/' } },
       { timestamp: AT, action: 'page_view', characterId: null, metadata: { path: '/sites' } },
-      { timestamp: AT, action: 'terminal_search', characterId: CHAR_NEW, metadata: { query: 'x' } },
+      { timestamp: AT, action: 'page_view', characterId: CHAR_NEW, metadata: { path: '/planner' } },
     ]);
 
     const before = await getDailyCounts(NEUTRALITY_RANGE);

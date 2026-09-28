@@ -28,10 +28,8 @@ export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const counts: DueWalkCounts = { dispatched: 0, retired: 0, deleted: 0 };
-    await walkDueSubjects(ctx, now, {
+    const counts = await walkDueSubjects(ctx, now, {
       allowDelete: true,
-      counts,
       capScope: 'engine:sweep',
       capNote: 'overdue_batch_capped',
     });

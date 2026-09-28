@@ -17,6 +17,7 @@ import {
 import { adjustedPrices } from '@/data/industry-indices/schema';
 import { marketPrices } from '@/data/market-prices/schema';
 import { characterSheets } from '@/features/character-sheet/schema';
+import * as sheetQueries from '@/features/character-sheet/queries';
 import type { SheetSections } from '@/features/character-sheet/types';
 import { netWorthDays } from '@/features/net-worth/schema';
 import { ownedAssets, ownedAssetSyncs } from '@/features/owned-assets/schema';
@@ -27,6 +28,7 @@ import { BOARD_GAPS, boardResponseSchema } from './api-contract';
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   resolveEntityNames: vi.fn(),
+  refreshSheets: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({ after: mocks.after }));
@@ -34,7 +36,7 @@ vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidate
 vi.mock('@/data/eve-data/entity-names', () => ({ resolveEntityNames: mocks.resolveEntityNames }));
 vi.mock('@/composition/sync/skills-sync', () => ({ refreshSkillsOnView: vi.fn() }));
 vi.mock('@/composition/sync/industry-jobs-sync', () => ({ refreshJobsOnView: vi.fn() }));
-vi.mock('@/composition/sync/character-sheet-sync', () => ({ refreshCharacterSheetsOnView: vi.fn() }));
+vi.mock('@/composition/sync/character-sheet-sync', () => ({ refreshCharacterSheetsOnView: mocks.refreshSheets }));
 vi.mock('@/composition/sync/owned-assets-sync', () => ({ refreshCharacterAssetsOnView: vi.fn() }));
 
 import { getBoardForUserOnView, recordNetWorthSnapshot } from './board-view';
@@ -492,5 +494,38 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
 
   it('returns an empty roster for a user with no linked characters', async () => {
     await expect(getBoardForUserOnView('nobody')).resolves.toMatchObject({ characters: [], history: [] });
+  });
+
+  it.each([false, true])('records the refreshed wallet through after even with a stale sheet cache (first view: %s)', async (firstView) => {
+    const userId = `refresh-user-${firstView}`;
+    const characterId = firstView ? 90000201 : 90000202;
+    await seedUser(harness.db, userId);
+    await seedCharacter(harness.db, characterId);
+    await seedEveAccount(harness.db, { id: userId, characterId, userId }, {
+      refreshToken: 'rt', scope: EVE_SCOPES.join(' '),
+    });
+    await harness.db.insert(ownedAssetSyncs).values({ ownerType: 'character', ownerId: characterId, lastRefreshedAt: new Date(STAMP) });
+    if (!firstView) await sheetQueries.mergeSheetSection(characterId, 'wallet', {
+      data: { balance: 100 }, refreshedAt: STAMP, etags: {},
+    });
+    const staleSheets = await sheetQueries.getCharacterSheets([characterId]);
+    const cachedRead = vi.spyOn(sheetQueries, 'getCharacterSheets').mockResolvedValue(staleSheets);
+    mocks.refreshSheets.mockImplementationOnce(async () => {
+      await sheetQueries.mergeSheetSection(characterId, 'wallet', {
+        data: { balance: 750 }, refreshedAt: STAMP, etags: {},
+      });
+    });
+    try {
+      const before = await getBoardForUserOnView(userId);
+      expect(before.characters[0]?.wallet).toMatchObject(firstView ? { state: 'pending' } : { data: { balance: 100 } });
+      const callback = mocks.after.mock.lastCall?.[0] as () => Promise<void>;
+      await callback();
+      const [row] = await harness.db.select().from(netWorthDays).where(eq(netWorthDays.userId, userId));
+      expect(row).toMatchObject({ day: new Date().toISOString().slice(0, 10), liquidIsk: 750, netWorth: 750 });
+      expect(row?.pilots).toEqual({ [characterId]: { liquidIsk: 750, netWorth: 750 } });
+      expect(cachedRead).toHaveBeenCalledTimes(1);
+    } finally {
+      cachedRead.mockRestore();
+    }
   });
 });

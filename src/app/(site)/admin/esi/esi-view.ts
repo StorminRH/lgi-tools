@@ -57,6 +57,7 @@ export function derivePressureLines(input: {
 }): StatusLine[] {
   const source = deriveEsiSourceStatus({
     fallback: input.fallback,
+    // This row rates fallback share; the separate exhaustions row reports budget pressure.
     budgetExhaustions: 0,
   });
   const priced = input.fallback.esi + input.fallback.fallback;

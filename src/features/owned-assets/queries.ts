@@ -23,6 +23,10 @@ async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetRow[]> {
   'use cache';
   cacheLife('hours');
   cacheTag(ownedAssetsTag(owner));
+  return readOwnerAssetRows(owner);
+}
+
+export async function readOwnerAssetRows(owner: OwnerKey): Promise<AssetRow[]> {
   return db
     .select({
       typeId: ownedAssets.typeId,
