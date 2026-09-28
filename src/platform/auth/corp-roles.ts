@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** The roles the access model reads. Every other ESI role grants nothing here. */
-export const VISIBILITY_ROLES = [
+const VISIBILITY_ROLES = [
   'Director',
   'Accountant',
   'Junior_Accountant',

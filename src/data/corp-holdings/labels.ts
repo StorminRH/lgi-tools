@@ -1,7 +1,7 @@
 import type { CorpHoldingContext, HangarDivision, Placement } from './placement';
 
 /** The client's names for divisions the corp never renamed (jEveAssets uses the same fallback). */
-export const DEFAULT_DIVISION_NAMES: Record<HangarDivision, string> = {
+const DEFAULT_DIVISION_NAMES: Record<HangarDivision, string> = {
   1: '1st Division',
   2: '2nd Division',
   3: '3rd Division',

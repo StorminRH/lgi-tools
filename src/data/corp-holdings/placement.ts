@@ -61,7 +61,7 @@ export interface CorpHoldingContext {
   readonly structureNames: ReadonlyMap<number, string>;
 }
 
-export const CORP_ASSET_LOCATION_TYPES = ['station', 'solar_system', 'item', 'other'] as const;
+const CORP_ASSET_LOCATION_TYPES = ['station', 'solar_system', 'item', 'other'] as const;
 
 export interface CorpAssetItem {
   readonly itemId: number;
@@ -99,7 +99,7 @@ const DELIVERIES_FLAG = 'CorpDeliveries';
 const MAX_CONTAINER_NESTING = 16;
 
 /** The flags ESI gives items inside a cargo container. */
-export const CONTAINER_CONTENT_FLAGS: ReadonlySet<string> = new Set(['Unlocked', 'Locked', 'AutoFit']);
+const CONTAINER_CONTENT_FLAGS: ReadonlySet<string> = new Set(['Unlocked', 'Locked', 'AutoFit']);
 
 const DIVISION_BY_FLAG: ReadonlyMap<string, HangarDivision> = new Map([
   ['CorpSAG1', 1],
