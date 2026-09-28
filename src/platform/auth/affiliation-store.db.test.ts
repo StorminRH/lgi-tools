@@ -14,6 +14,7 @@ import {
   MAX_PENDING_BATCH,
   readPendingMapAccessChanges,
   getUserAffiliations,
+  listLinkedCharacterIdsInCorporation,
   listStaleLinkedCharacterIds,
   recordCorpAccessDecision,
   updateAffiliations,
@@ -109,6 +110,22 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
 
     expect(stale.sort((a, b) => a - b)).toEqual([FIRST_CHAR, 90000013]);
     expect(new Set(stale).size).toBe(stale.length);
+  });
+
+  it('lists the linked characters in one corp across users, ignoring unlinked profiles', async () => {
+    await seedUser(harness.db, 'other-user', { name: 'Other', email: 'other@eve.invalid' });
+    await seedCharacter(FIRST_CHAR, { corporationId: 2000 });
+    await seedCharacter(SECOND_CHAR, { corporationId: 2000 });
+    await seedCharacter(90000013, { corporationId: 3000 });
+    await seedCharacter(90000014, { corporationId: 2000 });
+    await seedEveAccount('first', FIRST_CHAR);
+    await insertEveAccount(harness.db, { id: 'second', characterId: SECOND_CHAR, userId: 'other-user' });
+    await seedEveAccount('third', 90000013);
+
+    const linked = await listLinkedCharacterIdsInCorporation(2000);
+
+    expect(linked.sort((a, b) => a - b)).toEqual([FIRST_CHAR, SECOND_CHAR]);
+    expect(await listLinkedCharacterIdsInCorporation(4000)).toEqual([]);
   });
 
   it('updates existing character rows, creates no missing row, and treats empty input as a no-op', async () => {

@@ -50,6 +50,8 @@ describe('purge registry gate', () => {
         'corp_access_audit',
         'corp_industry_job_syncs',
         'corp_industry_jobs',
+        'corp_member_bases',
+        'corp_member_roles',
         'custom_structures',
         'esi_refresh_jobs',
         'esi_snapshots',

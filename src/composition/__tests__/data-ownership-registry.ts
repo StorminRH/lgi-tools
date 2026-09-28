@@ -2,6 +2,7 @@ import type { PgTable } from 'drizzle-orm/pg-core';
 import * as schema from '../drizzle-schema';
 
 export type SliceId =
+  | 'data/corp-holdings'
   | 'data/domain-events'
   | 'data/esi-refresh-jobs'
   | 'data/esi-snapshots'
@@ -799,11 +800,52 @@ export const DATA_OWNERSHIP = [
     dataClass: 'corp-shared',
   },
   {
-    table: schema.corpStructureSharing,
-    owner: 'features/owned-structures',
+    table: schema.corpDataSharing,
+    owner: 'platform/auth',
     reads: [],
     invariants: ['pk(corporation_id)'],
     boundary: APP_SINGLE,
+    dataClass: 'corp-shared',
+  },
+  {
+    table: schema.corpMemberRoles,
+    owner: 'platform/auth',
+    reads: [],
+    invariants: ['fk(character_id→characters.character_id)', 'pk(character_id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One keyed INSERT ... SELECT ... ON CONFLICT DO UPDATE per character that also captures the corp from `characters` in the same statement, so the stored corp and the roles come from one point in time.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.corpHoldingNodes,
+    owner: 'data/corp-holdings',
+    reads: [],
+    invariants: ['pk(corporation_id,item_id)'],
+    boundary: {
+      kind: 'ordered-sequence',
+      note: 'Replace-all per corporation on the transaction-free neon-http driver: delete the corp\'s nodes, then insert the fresh tree. Not atomic; a reader between the two sees missing parents, which place as unplaced and fail closed, and the pk turns an interleaved concurrent refresh into a caught unique violation (\'superseded\').',
+    },
+    dataClass: 'corp-shared',
+  },
+  {
+    table: schema.corpProfiles,
+    owner: 'data/corp-holdings',
+    reads: [],
+    invariants: ['pk(corporation_id)'],
+    boundary: KEYED_UPSERT,
+    dataClass: 'corp-shared',
+  },
+  {
+    table: schema.corpMemberBases,
+    owner: 'data/corp-holdings',
+    reads: [],
+    invariants: ['pk(character_id)'],
+    boundary: {
+      kind: 'ordered-sequence',
+      note: 'After the profile upsert: delete the corp\'s rows for members no longer in the pass, then upsert the linked members\' bases on pk(character_id), re-homing a member who changed corps. Not atomic and there is no superseded path; an interleaved concurrent context pass resolves last writer wins, and a missing row reads as base unknown, which withholds tier-specific grants.',
+    },
     dataClass: 'corp-shared',
   },
   {

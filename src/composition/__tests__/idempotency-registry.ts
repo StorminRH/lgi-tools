@@ -387,11 +387,11 @@ const preferencesRoute = mutationRoute({
   evidence:
     'Upserts one preference key to a named value; a repeat writes the same value.',
 });
-const corpStructuresSharingRoute = mutationRoute({
-  route: 'src/app/api/account/corp-structures/sharing/route.ts',
+const corpSharingRoute = mutationRoute({
+  route: 'src/app/api/account/corp-sharing/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'Sets a corporation’s sharing flag to a named boolean; a repeat sets the same flag.',
+    'Upserts a corporation’s data-sharing switch to a named boolean keyed by corporation id; a repeat sets the same value.',
 });
 const corpStructuresRigsRoute = mutationRoute({
   route: 'src/app/api/account/corp-structures/rigs/route.ts',
@@ -611,7 +611,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   customStructuresParseFitRoute,
   accountActiveCharacterRoute,
   preferencesRoute,
-  corpStructuresSharingRoute,
+  corpSharingRoute,
   corpStructuresRigsRoute,
   customStructuresSetPinRoute,
   customStructuresSetTaxRoute,

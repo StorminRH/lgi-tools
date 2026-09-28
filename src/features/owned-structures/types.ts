@@ -1,4 +1,5 @@
 import type { SecurityClass } from '@/data/eve-data/security';
+import type { SharingState, StructuresAccess } from '@/platform/auth/corp-visibility';
 import type { ParsedCorpStructure } from './esi-projection';
 
 export interface CorpStructureRow {
@@ -9,12 +10,6 @@ export interface CorpStructureRow {
   name: string | null;
 }
 
-export interface CorpStructureSharingState {
-  enabled: boolean;
-  setBy: number | null;
-  setAt: Date;
-}
-
 export interface CorpStructurePageStructure extends CorpStructureRow {
   rigTypeIds: number[];
   taxPct: number | null;
@@ -23,8 +18,9 @@ export interface CorpStructurePageStructure extends CorpStructureRow {
 export interface CorpStructurePageView {
   corporationId: number;
   corporationName: string;
-  isStationManager: boolean;
-  sharingEnabled: boolean;
+  structureAccess: StructuresAccess;
+  canManageSharing: boolean;
+  sharing: SharingState;
   structures: CorpStructurePageStructure[];
   lastRefreshedAt: number | null;
 }
@@ -57,7 +53,6 @@ export type CorpStructuresReadResult =
  */
 export interface CorpStructuresPort {
   now(): Date;
-  isSharingEnabled(corporationId: number): Promise<boolean>;
   listMembers(userId: string): Promise<RefreshCorpMember[]>;
   vendToken(characterId: number): Promise<string | null>;
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;

@@ -113,6 +113,9 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
         <span className="break-words text-right font-data text-micro tracking-copy text-faint">
           {detail.locationName}
           <span className="block text-micro tracking-copy text-muted">{detail.locationFlag}</span>
+          {detail.containerName ? (
+            <span className="block text-micro tracking-copy text-muted">{detail.containerName}</span>
+          ) : null}
         </span>
       </div>
     </div>

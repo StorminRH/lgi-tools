@@ -33,15 +33,20 @@ describe('EVE_SCOPES', () => {
       'esi-clones.read_implants.v1',
       'esi-universe.read_structures.v1',
       'esi-markets.read_character_orders.v1',
+      'esi-corporations.read_divisions.v1',
+      'esi-corporations.track_members.v1',
     ]);
   });
 
   it('requests ZERO write scope (read-only by construction)', () => {
+    // track_members gates only GET /corporations/{id}/membertracking; its name lacks `.read_`.
+    const READ_ONLY_EXCEPTIONS = ['esi-corporations.track_members.v1'];
     for (const scope of EVE_SCOPES) {
       const readOnly =
         scope === 'publicData' ||
         /\.read_/.test(scope) ||
-        scope === 'esi-search.search_structures.v1';
+        scope === 'esi-search.search_structures.v1' ||
+        READ_ONLY_EXCEPTIONS.includes(scope);
       expect(readOnly, `${scope} is not a read-only scope`).toBe(true);
     }
   });

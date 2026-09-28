@@ -1,4 +1,5 @@
 import { after } from 'next/server';
+import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { formatStationName } from '@/features/industry-planner/format-station-name';
 import {
@@ -9,14 +10,9 @@ import {
 import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
+import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import {
-  listCharactersWithHealth,
-  readPagedEndpoint,
-  readRolesFor,
-  resolveOwnedOwnersForUser,
-  vendTokenFor,
-} from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
@@ -24,7 +20,7 @@ function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
     save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
@@ -36,8 +32,8 @@ export async function getOwnedBlueprintDetailOnView(
   userId: string,
   requestedTypeIds: number[],
 ): Promise<OwnedBlueprintDetailEntry[]> {
-  const owners = await resolveOwnedOwnersForUser(userId);
-  const map = await getOwnedBlueprintMap(owners);
+  const viewer = await resolveCorpViewer(userId);
+  const map = await getOwnedBlueprintMap(viewer.scope);
   after(() =>
     refreshOwnedBlueprintsForUser(
       makeOwnedBlueprintsPort(),
@@ -45,8 +41,9 @@ export async function getOwnedBlueprintDetailOnView(
       enqueueBudgetDeferral('owned_blueprints', userId),
     ),
   );
-  const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds));
-  return buildOwnedDetail(map, requestedTypeIds, names, formatStationName);
+  const contexts = contextsByCorp(viewer.scope);
+  const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds, contexts));
+  return buildOwnedDetail(map, requestedTypeIds, names, formatStationName, contexts);
 }
 
 export async function runOwnedBlueprintsRefreshJob(

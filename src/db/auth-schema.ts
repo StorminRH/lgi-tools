@@ -117,6 +117,25 @@ export const jwks = pgTable('jwks', {
   expiresAt: timestamp('expires_at'),
 });
 
+export const corpMemberRoles = pgTable('corp_member_roles', {
+  characterId: bigint('character_id', { mode: 'number' })
+    .primaryKey()
+    .references(() => characters.characterId, { onDelete: 'cascade' }),
+  corporationId: bigint('corporation_id', { mode: 'number' }),
+  roles: text('roles').array().notNull(),
+  rolesAtHq: text('roles_at_hq').array().notNull(),
+  rolesAtBase: text('roles_at_base').array().notNull(),
+  rolesAtOther: text('roles_at_other').array().notNull(),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+});
+
+export const corpDataSharing = pgTable('corp_data_sharing', {
+  corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
+  enabled: boolean('enabled').default(false).notNull(),
+  setBy: bigint('set_by', { mode: 'number' }),
+  setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const corpAccessAudit = pgTable(
   'corp_access_audit',
   {

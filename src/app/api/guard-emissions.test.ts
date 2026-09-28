@@ -12,7 +12,7 @@ const CORE_EXPORTS = new Map([
   ['src/lib/service-auth.ts', new Set(['checkBearerSecret'])],
   ['src/lib/rate-limit.ts', new Set(['checkRateLimit'])],
   ['src/transport/route-body.ts', new Set(['readJsonBody', 'parseFormBody'])],
-  ['src/composition/sync/corp-structures-sync.ts', new Set(['stationManagerGate'])],
+  ['src/composition/corp-role-gates.ts', new Set(['directorGate', 'stationManagerGate'])],
   ['src/features/custom-structures/system-pin.ts', new Set(['rejectUnknownSystemPin'])],
   ['src/features/wormhole-sites/sites-query.ts', new Set(['parseSitesQuery'])],
 ]);

@@ -19,11 +19,7 @@ import {
 } from '@/data/industry-math/fees';
 import { apiFetch } from '@/transport/api-client';
 import { MAX_CORP_STRUCTURE_RIGS, setCorpStructureRigsEndpoint } from '../api-contract';
-import {
-  deriveCorpCardView,
-  deriveCorpStructureItemView,
-  type CorpStructureItemView,
-} from '../corp-structure-view';
+import { deriveCorpCardView, deriveCorpStructureItemView, managedCorps } from '../corp-structure-view';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '../types';
 
 export function CorpStructureSection({
@@ -35,7 +31,7 @@ export function CorpStructureSection({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
-  const visible = corps.filter((c) => c.isStationManager || c.sharingEnabled);
+  const visible = managedCorps(corps);
   if (visible.length === 0) return null;
 
   return (
@@ -63,61 +59,42 @@ function CorpCard({
     <Card>
       <SectionHeader size="md" label={corp.corporationName} hint={view.hint} />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
-        {view.showManagerNote && (
-          <p className="text-body text-muted">
-            Structure sharing is managed in{' '}
-            <Link href="/settings/corporations" className="text-name underline hover:text-text">
-              Corporation settings
-            </Link>
-            {view.managerBlurb}
-          </p>
-        )}
+        <p className="text-body text-muted">
+          {view.sharingBlurb} A Director turns corporation data sharing on or off in{' '}
+          <Link href="/settings/corporations" className="text-name underline hover:text-text">
+            Corporation settings
+          </Link>
+          .
+        </p>
 
-        {view.showStructures &&
-          (view.isEmpty ? (
-            <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
-          ) : (
-            <ul className="flex flex-col gap-2.5">
-              {corp.structures.map((s) => (
-                <CorpStructureItem
-                  key={s.structureId}
-                  corporationId={corp.corporationId}
-                  structure={s}
-                  canEdit={corp.isStationManager}
-                  structureTypes={structureTypes}
-                  structureRigs={structureRigs}
-                />
-              ))}
-            </ul>
-          ))}
+        {view.isEmpty ? (
+          <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
+        ) : (
+          <ul className="flex flex-col gap-2.5">
+            {corp.structures.map((s) => (
+              <CorpStructureItem
+                key={s.structureId}
+                corporationId={corp.corporationId}
+                structure={s}
+                structureTypes={structureTypes}
+                structureRigs={structureRigs}
+              />
+            ))}
+          </ul>
+        )}
       </div>
     </Card>
-  );
-}
-
-function CorpStructureReadonlyDetails({ view }: { view: CorpStructureItemView }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {view.rigLabels.map((r) => (
-        <Pill key={r.key} tone="blue">
-          {r.label}
-        </Pill>
-      ))}
-      {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
-    </div>
   );
 }
 
 function CorpStructureItem({
   corporationId,
   structure,
-  canEdit,
   structureTypes,
   structureRigs,
 }: {
   corporationId: number;
   structure: CorpStructurePageStructure;
-  canEdit: boolean;
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
@@ -129,17 +106,7 @@ function CorpStructureItem({
         <span className="font-data text-ui text-text">{view.displayName}</span>
         <Pill tone="neutral">{view.typeName}</Pill>
       </div>
-      {canEdit ? (
-        <CorpStructureRigEditor
-          corporationId={corporationId}
-          structure={structure}
-          validRigs={view.validRigs}
-        />
-      ) : view.hasDetails ? (
-        <CorpStructureReadonlyDetails view={view} />
-      ) : (
-        <span className="text-micro text-muted">no rigs recorded</span>
-      )}
+      <CorpStructureRigEditor corporationId={corporationId} structure={structure} validRigs={view.validRigs} />
     </li>
   );
 }

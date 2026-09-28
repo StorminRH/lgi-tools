@@ -63,6 +63,7 @@ function HoldingLine({ holding }: { holding: AssetHolding }) {
         <span className="block text-micro tracking-copy text-muted">
           {holding.locationName}
           {holding.locationFlag ? ` · ${holding.locationFlag}` : ''}
+          {holding.containerName ? ` › ${holding.containerName}` : ''}
         </span>
       </span>
       <span className="shrink-0 tabular-nums text-faint">{formatQuantity(holding.quantity)}</span>

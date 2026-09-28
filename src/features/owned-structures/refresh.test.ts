@@ -20,7 +20,6 @@ function esiStructure(structureId: number, extra: Record<string, unknown> = {}) 
 function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPort {
   return {
     now: () => NOW,
-    isSharingEnabled: vi.fn(async () => true),
     listMembers: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => ['Station_Manager']),
@@ -59,21 +58,25 @@ describe('refreshCorpStructuresForUser', () => {
     expect(port.saveStructures).not.toHaveBeenCalled();
   });
 
-  it('dispatches nothing for a corp that has not opted in to sharing (the consent gate)', async () => {
+  it('reads with a Director token whatever the sharing switch says', async () => {
     const port = makePort({
-      isSharingEnabled: vi.fn(async () => false),
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => null),
+      vendToken: vi.fn(async () => 'director-token'),
+      readRoles: vi.fn(async () => ['Director']),
+      readStructures: vi.fn(
+        async (): Promise<CorpStructuresReadResult> => ({ kind: 'fresh', items: [esiStructure(1001)], etags: ['"d1"'] }),
+      ),
     });
 
     await refreshCorpStructuresForUser(port, 'u1');
 
-    expect(port.readSyncState).not.toHaveBeenCalled();
-    expect(port.vendToken).not.toHaveBeenCalled();
-    expect(port.readRoles).not.toHaveBeenCalled();
-    expect(port.readStructures).not.toHaveBeenCalled();
-    expect(port.saveStructures).not.toHaveBeenCalled();
-    expect(port.stampFresh).not.toHaveBeenCalled();
+    expect(port.readStructures).toHaveBeenCalledWith(5000, 'director-token', []);
+    expect(port.saveStructures).toHaveBeenCalledWith(
+      5000,
+      [{ structure_id: 1001, type_id: 35832, system_id: 30000142, name: 'Struct 1001' }],
+      ['"d1"'],
+    );
   });
 
   it('reads with a Station_Manager member token and saves the shared corp-keyed row', async () => {
@@ -103,7 +106,7 @@ describe('refreshCorpStructuresForUser', () => {
     expect(save[2]).toEqual(['"e1"']);
   });
 
-  it('skips a corp with no Station_Manager member — never clobbering the shared board', async () => {
+  it('skips a corp with no Station_Manager or Director member — never clobbering the shared board', async () => {
     const port = makePort({
       listMembers: vi.fn(async () => [member(1)]),
       readSyncState: vi.fn(async () => null),

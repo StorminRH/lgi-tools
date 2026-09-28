@@ -13,6 +13,7 @@ import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
 import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
+import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   effectiveTtlMs,
@@ -52,6 +53,7 @@ const liveContext = {
     refreshAffiliations.name,
     refreshCorpStructuresForUser.name,
     refreshCharacterSheetForUser.name,
+    resolveCorpViewer.name,
   ]),
   engineDatasets: new Set<string>(SYNC_DATASETS),
 };
@@ -275,6 +277,8 @@ describe('ESI dataset registry live gate', () => {
         'character_skill_syncs',
         'characters',
         'corp_industry_job_syncs',
+        'corp_member_roles',
+        'corp_profiles',
         'corp_structure_syncs',
         'esi_snapshots',
         'market_history_meta',
@@ -382,6 +386,8 @@ describe('ESI dataset registry live gate', () => {
     expect(effectiveTtlMs(entryNamed('owned_structures'))).toBe(
       3_600_000,
     );
+    expect(effectiveTtlMs(entryNamed('corp_context'))).toBe(3_600_000);
+    expect(effectiveTtlMs(entryNamed('character_corp_roles'))).toBe(3_600_000);
     expect(effectiveTtlMs(entryNamed('affiliations'))).toBe(
       3_600_000,
     );

@@ -1,5 +1,7 @@
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
+import { buildHoldingIndex, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
+import { saveHoldingNodes } from '@/data/corp-holdings/queries';
 import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import {
   deleteEsiSnapshot,
@@ -7,12 +9,13 @@ import {
 } from '@/data/esi-snapshots/queries';
 import { snapshotRequestHash } from '@/data/esi-snapshots/request-hash';
 import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
+import type { OwnedAsset } from '@/features/owned-assets/esi-projection';
 import { saveOwnedAssets } from '@/features/owned-assets/queries';
 import type { OwnerKey } from '@/platform/owner-sync';
 
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
-  rows: Parameters<typeof saveOwnedAssets>[1],
+  rows: OwnedAsset[],
   etags: string[],
   source: EsiSnapshotSource,
 ): Promise<void> {
@@ -20,6 +23,8 @@ export async function saveOwnedAssetsFromSource(
     await saveOwnedAssets(owner, rows, etags);
     return;
   }
+  const items = parseCorpAssetItems(source.items);
+  if (items === null) return;
   const snapshotId = await insertEsiSnapshot({
     ownerType: owner.ownerType,
     ownerId: owner.ownerId,
@@ -31,9 +36,9 @@ export async function saveOwnedAssetsFromSource(
     sourceVersion: ESI_COMPATIBILITY_DATE,
     bodyCiphertext: encryptSnapshotBody(source.items),
   });
-  let outcome: Awaited<ReturnType<typeof saveOwnedAssets>>;
+  let outcome: 'saved' | 'superseded';
   try {
-    outcome = await saveOwnedAssets(owner, rows, etags, snapshotId);
+    outcome = await saveCorpHoldings(owner, buildHoldingIndex(items), rows, etags, snapshotId);
   } catch (error) {
     await discardSnapshot(snapshotId);
     throw error;
@@ -52,6 +57,18 @@ export async function saveOwnedAssetsFromSource(
       itemCount: source.items.length,
     },
   });
+}
+
+async function saveCorpHoldings(
+  owner: OwnerKey,
+  index: HoldingIndex,
+  rows: OwnedAsset[],
+  etags: string[],
+  snapshotId: number,
+): Promise<'saved' | 'superseded'> {
+  const nodes = await saveHoldingNodes(owner.ownerId, index, new Date());
+  if (nodes === 'superseded') return 'superseded';
+  return saveOwnedAssets(owner, rows, etags, snapshotId);
 }
 
 async function discardSnapshot(snapshotId: number): Promise<void> {

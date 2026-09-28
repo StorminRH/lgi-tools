@@ -89,6 +89,18 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
+export async function listLinkedCharacterIdsInCorporation(corporationId: number): Promise<number[]> {
+  const rows = await db
+    .selectDistinct({ accountId: account.accountId })
+    .from(account)
+    .innerJoin(characters, characterProfileJoin)
+    .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(characters.corporationId, corporationId)));
+  return rows.flatMap((r) => {
+    const characterId = parseLinkedAccountId(r.accountId);
+    return characterId === null ? [] : [characterId];
+  });
+}
+
 function formatAffiliationObservedAt(observedAt: Date | string): string {
   if (typeof observedAt === 'string') return observedAt;
   return observedAt.toISOString().replace('T', ' ').replace('Z', '');
