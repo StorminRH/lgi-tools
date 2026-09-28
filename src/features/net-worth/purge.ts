@@ -15,6 +15,7 @@ export const netWorthPurgeContributor: PurgeContributor = {
   name: 'net-worth',
   tier: 'durable',
   claims: [netWorthDays],
+  merge: [{ table: netWorthDays, rule: 'survivor-wins', key: [netWorthDays.day] }],
   async purgeCharacter({ userId, characterId }) {
     await eraseNetWorthHistoryForCharacter(userId, characterId);
   },

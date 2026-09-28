@@ -38,7 +38,7 @@ export type ServerUsageAction =
   | 'eve_token_refresh_unexpected'
   | 'eve_token_refresh_race'
   | 'account_purge'
-  | 'auth_absorb'
+  | 'auth_merge'
   | 'capability_outcome';
 export type UsageAction = (typeof CLIENT_USAGE_ACTIONS)[number] | ServerUsageAction;
 

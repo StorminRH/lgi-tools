@@ -40,6 +40,7 @@ export const locationTrackingPurgeContributor: PurgeContributor = {
   name: 'location-tracking',
   tier: 'durable',
   claims: [],
+  merge: [],
   purgeCharacter: ({ userId, characterId }) =>
     teardownLocationTracking(userId, characterId),
   purgeUser: ({ userId }) => teardownLocationTracking(userId, null),

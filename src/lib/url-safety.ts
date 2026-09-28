@@ -10,4 +10,3 @@ export function isLocalUrl(
     return false;
   }
 }
-

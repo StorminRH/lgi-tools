@@ -23,6 +23,7 @@ export const onlineStatusPurgeContributor: PurgeContributor = {
   name: 'online-status',
   tier: 'cache',
   claims: [],
+  merge: [],
   purgeCharacter: ({ userId, characterId }) => postPurgeOnline(userId, characterId),
   purgeUser: ({ userId }) => postPurgeOnline(userId, null),
 };

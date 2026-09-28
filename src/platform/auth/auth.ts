@@ -16,9 +16,10 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
-import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
-import { absorbLinkedCharacterOnProof } from './owner-transfer';
+import { readLinkingUserId, rebindLinkTarget } from './link-intent';
+import { recordMerge } from './merge-context';
+import { withOwnerHashFromToken } from './owner-hash-claim';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
@@ -34,16 +35,23 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
   return characterId !== null && characterId === superId;
 }
 
+export interface CharacterProof {
+  readonly characterId: number;
+  readonly ownerHash: string | null;
+  readonly linkingUserId: string | null;
+}
+
+export type ProofOutcome =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'merged'; readonly survivorUserId: string; readonly sourceUserId: string };
+
 export interface CreateAuthDeps {
   readonly runners: IdentityProjectionRunners;
   readonly refreshCharacterAffiliations: (characterIds: number[]) => Promise<void>;
-  readonly reconcileCharacterOwner: (
-    characterId: number,
-    jwtOwnerHash: string | null | undefined,
-  ) => Promise<void>;
+  readonly proveCharacter: (proof: CharacterProof) => Promise<ProofOutcome>;
 }
 
-export function createAuth({ runners, reconcileCharacterOwner, refreshCharacterAffiliations }: CreateAuthDeps) {
+export function createAuth({ runners, proveCharacter, refreshCharacterAffiliations }: CreateAuthDeps) {
   const options = {
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -54,7 +62,9 @@ export function createAuth({ runners, reconcileCharacterOwner, refreshCharacterA
     databaseHooks: {
       account: {
         create: {
-          before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }),
+          before: async (acct) => ({
+            data: encryptAccountTokens(withOwnerHashFromToken(acct), encryptToken),
+          }),
           after: async (acct) => {
             if (acct.providerId !== EVE_PROVIDER_ID) return;
             const characterId = Number(acct.accountId);
@@ -80,6 +90,7 @@ export function createAuth({ runners, reconcileCharacterOwner, refreshCharacterA
           input: false,
           returned: false,
         },
+        ownerHash: { type: 'string', required: false, input: false, returned: false },
       },
       accountLinking: { allowDifferentEmails: true },
     },
@@ -132,12 +143,15 @@ export function createAuth({ runners, reconcileCharacterOwner, refreshCharacterA
               if (!tokens.accessToken) return null;
               const claims = await verifyEveJwt(tokens.accessToken);
               const character = claimsToCharacter(claims);
-              await reconcileCharacterOwner(character.characterId, claims.owner);
-              const { absorbed } = await absorbLinkedCharacterOnProof(
-                character.characterId,
-                runners,
-              );
-              if (absorbed) recordAbsorb(character.characterId);
+              const outcome = await proveCharacter({
+                characterId: character.characterId,
+                ownerHash: claims.owner ?? null,
+                linkingUserId: await readLinkingUserId(),
+              });
+              if (outcome.kind === 'merged') {
+                await rebindLinkTarget(outcome.survivorUserId);
+                recordMerge();
+              }
               await upsertCharacterLoginIdentity(character);
               after(() => refreshCharacterAffiliations([character.characterId]));
               void logUsageEvent({

@@ -1,4 +1,3 @@
-import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth, type GrantedScope, listGrantedScopes } from '@/platform/auth/scope-health';
 
 export type CharacterRowView = {
@@ -25,14 +24,4 @@ export function deriveCharacterRowView(character: {
     healthLabel,
     scopes: listGrantedScopes(character.scope),
   };
-}
-
-export function deriveAbsorbedCharacter(
-  rawAbsorbed: string | string[] | undefined,
-  characters: LinkedCharacter[],
-): LinkedCharacter | undefined {
-  const absorbedId = typeof rawAbsorbed === 'string' ? Number(rawAbsorbed) : null;
-  return absorbedId !== null
-    ? characters.find((c) => c.characterId === absorbedId)
-    : undefined;
 }
