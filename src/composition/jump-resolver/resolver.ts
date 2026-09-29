@@ -34,6 +34,7 @@ import {
   readTransitionEvidence,
   type AnswerJumpInput,
   type AuthorJumpInput,
+  type AuthorJumpResult,
   type ConnectionEmissionFacts,
   type TransitionEvidence,
 } from './convex-door';
@@ -265,33 +266,31 @@ async function eliminateAfterCommit(
   }
 }
 
-async function resolveDoorbell(
-  database: AnyPgDb,
-  userId: string,
-  request: Extract<JumpResolverRequest, { kind: 'doorbell' }>,
-  dependencies: JumpResolverDependencies,
-): Promise<JumpResolverResponse> {
-  const ready = await readReadyTransition(userId, request, dependencies);
-  if ('status' in ready) return ready;
-  const evidence = ready;
-  const transition = evidence.transition;
+interface DoorbellGeography {
+  readonly systems: SystemDirectoryAsset;
+  readonly adjacency: AdjacencyAsset;
+  readonly codex: WormholeCodexAsset;
+}
 
-  let systems: SystemDirectoryAsset;
-  let adjacency: AdjacencyAsset;
-  let codex: WormholeCodexAsset;
+async function loadDoorbellGeography(
+  dependencies: JumpResolverDependencies,
+): Promise<DoorbellGeography | null> {
   try {
-    [systems, adjacency, codex] = await Promise.all([
+    const [systems, adjacency, codex] = await Promise.all([
       dependencies.getSystemDirectory(),
       dependencies.getAdjacencyGraph(),
       dependencies.getWormholeCodex(),
     ]);
+    return { systems, adjacency, codex };
   } catch {
-    return retry('neon-geography');
+    return null;
   }
+}
 
-  const origin = systemFacts(systems, transition.fromSolarSystemId);
-  const destination = systemFacts(systems, transition.toSolarSystemId);
-  if (origin === null || destination === null) return retry('neon-geography');
+function holeCrossingSkip(
+  { systems, adjacency }: DoorbellGeography,
+  transition: ReadyTransitionEvidence['transition'],
+): JumpResolverResponse | null {
   const verdict = classifyMovement(
     {
       fromSolarSystemId: transition.fromSolarSystemId,
@@ -312,11 +311,16 @@ async function resolveDoorbell(
   ) {
     return skipped('known-space-crossing');
   }
+  return null;
+}
 
-  let staticTypeCodes: string[];
-  let observedShipMassKg: number | null;
+async function readJumpShipEvidence(
+  database: AnyPgDb,
+  transition: ReadyTransitionEvidence['transition'],
+  dependencies: JumpResolverDependencies,
+): Promise<{ staticTypeCodes: string[]; observedShipMassKg: number | null } | null> {
   try {
-    [staticTypeCodes, observedShipMassKg] = await Promise.all([
+    const [staticTypeCodes, observedShipMassKg] = await Promise.all([
       dependencies.readSystemStaticsForSystem(
         database,
         transition.fromSolarSystemId,
@@ -325,9 +329,66 @@ async function resolveDoorbell(
         ? Promise.resolve(null)
         : dependencies.readShipMassByType(database, transition.shipTypeId),
     ]);
+    return { staticTypeCodes, observedShipMassKg };
   } catch {
-    return retry('neon-evidence');
+    return null;
   }
+}
+
+async function settleAuthoredJump(
+  database: AnyPgDb,
+  userId: string,
+  mapId: string,
+  resolved: AuthorJumpResult,
+  dependencies: JumpResolverDependencies,
+): Promise<JumpResolverResponse> {
+  if (resolved.status === 'stale') {
+    return RETRYABLE_STALE_REASONS.has(resolved.reason)
+      ? retry(resolved.reason)
+      : resolved;
+  }
+  if ('reason' in resolved) {
+    return { status: 'processed', outcome: 'converged', emitted: false };
+  }
+  if (resolved.emission.toSystemId === null) {
+    return { status: 'processed', outcome: resolved.status, emitted: false };
+  }
+  await eliminateAfterCommit(
+    database,
+    userId,
+    mapId,
+    resolved.emission,
+    dependencies,
+  );
+  const tier = resolved.emission.destinationProvenance;
+  const emitted = tier === null
+    ? false
+    : await emitAfterCommit(database, resolved.emission, tier, dependencies);
+  return { status: 'processed', outcome: resolved.status, emitted };
+}
+
+async function resolveDoorbell(
+  database: AnyPgDb,
+  userId: string,
+  request: Extract<JumpResolverRequest, { kind: 'doorbell' }>,
+  dependencies: JumpResolverDependencies,
+): Promise<JumpResolverResponse> {
+  const ready = await readReadyTransition(userId, request, dependencies);
+  if ('status' in ready) return ready;
+  const evidence = ready;
+  const transition = evidence.transition;
+
+  const geography = await loadDoorbellGeography(dependencies);
+  if (geography === null) return retry('neon-geography');
+  const origin = systemFacts(geography.systems, transition.fromSolarSystemId);
+  const destination = systemFacts(geography.systems, transition.toSolarSystemId);
+  if (origin === null || destination === null) return retry('neon-geography');
+  const skip = holeCrossingSkip(geography, transition);
+  if (skip !== null) return skip;
+
+  const shipEvidence = await readJumpShipEvidence(database, transition, dependencies);
+  if (shipEvidence === null) return retry('neon-evidence');
+  const { staticTypeCodes, observedShipMassKg } = shipEvidence;
 
   const matched = matchJump({
     origin,
@@ -336,12 +397,12 @@ async function resolveDoorbell(
     candidates: evidence.candidates,
     scannedTypeCodes: evidence.scannedTypeCodes,
     staticTypeCodes,
-    codex: codex.types,
+    codex: geography.codex.types,
   });
   const candidateIds = evidence.candidates.map((candidate) => candidate.id);
   const decision = { ...matched, candidateIds } satisfies AuthorJumpInput['decision'];
 
-  let resolved;
+  let resolved: AuthorJumpResult;
   try {
     resolved = await dependencies.authorJump({
       userId,
@@ -357,29 +418,7 @@ async function resolveDoorbell(
   } catch {
     return retry('convex-resolve');
   }
-  if (resolved.status === 'stale') {
-    return RETRYABLE_STALE_REASONS.has(resolved.reason)
-      ? retry(resolved.reason)
-      : resolved;
-  }
-  if ('reason' in resolved) {
-    return { status: 'processed', outcome: 'converged', emitted: false };
-  }
-  if (resolved.emission.toSystemId === null) {
-    return { status: 'processed', outcome: resolved.status, emitted: false };
-  }
-  await eliminateAfterCommit(
-    database,
-    userId,
-    request.mapId,
-    resolved.emission,
-    dependencies,
-  );
-  const tier = resolved.emission.destinationProvenance;
-  const emitted = tier === null
-    ? false
-    : await emitAfterCommit(database, resolved.emission, tier, dependencies);
-  return { status: 'processed', outcome: resolved.status, emitted };
+  return settleAuthoredJump(database, userId, request.mapId, resolved, dependencies);
 }
 
 async function resolveConfirmation(

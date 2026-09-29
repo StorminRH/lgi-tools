@@ -83,6 +83,34 @@ interface SingleRowPass {
   readonly resolved: Doc<'mapConnections'>[];
 }
 
+function markRowChanged(pass: SingleRowPass, signatureId: string): void {
+  pass.changed += 1;
+  pass.changedRowIds.push(signatureId);
+}
+
+async function tombstoneStubConnection(
+  ctx: MutationCtx,
+  connection: Doc<'mapConnections'>,
+  activity: Doc<'mapSignatureActivity'> | undefined,
+  write: SelectionWrite,
+): Promise<boolean> {
+  const didChange = await tombstoneConnectionRow(
+    ctx,
+    connection,
+    activity,
+    write.deletedAt,
+    write.purgeAfter,
+  );
+  if (!didChange) return false;
+  if (write.deletedAt !== null) {
+    await respawnAfterTombstone(ctx, connection._id);
+  } else {
+    const restored = await ctx.db.get(connection._id);
+    if (restored !== null) await deleteUnclaimedRespawn(ctx, restored);
+  }
+  return true;
+}
+
 async function tombstoneSingleRows(
   ctx: MutationCtx,
   state: ScanState,
@@ -103,10 +131,7 @@ async function tombstoneSingleRows(
         write.deletedAt,
         write.purgeAfter,
       );
-      if (didChange) {
-        pass.changed += 1;
-        pass.changedRowIds.push(signatureId);
-      }
+      if (didChange) markRowChanged(pass, signatureId);
       continue;
     }
     const connection = findLocalSignatureConnection(
@@ -119,22 +144,9 @@ async function tombstoneSingleRows(
       pass.resolved.push(connection);
       continue;
     }
-    const didChange = await tombstoneConnectionRow(
-      ctx,
-      connection,
-      activities.get(signatureId),
-      write.deletedAt,
-      write.purgeAfter,
-    );
-    if (didChange) {
-      if (write.deletedAt !== null) {
-        await respawnAfterTombstone(ctx, connection._id);
-      } else {
-        const restored = await ctx.db.get(connection._id);
-        if (restored !== null) await deleteUnclaimedRespawn(ctx, restored);
-      }
-      pass.changed += 1;
-      pass.changedRowIds.push(signatureId);
+    const activity = activities.get(signatureId);
+    if (await tombstoneStubConnection(ctx, connection, activity, write)) {
+      markRowChanged(pass, signatureId);
     }
   }
   return pass;

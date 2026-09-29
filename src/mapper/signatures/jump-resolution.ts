@@ -87,6 +87,46 @@ export function jumpResolutionCandidates(
   return candidates;
 }
 
+function resolutionOwnerId(
+  connection: ConnectionDetail | AwaitingJumpSummary,
+): number | null {
+  return connection.resolution.kind === 'pending' || connection.resolution.kind === 'awaiting-signature'
+    ? connection.resolution.characterId
+    : null;
+}
+
+function isOwnOpenPrompt(
+  connection: ConnectionDetail | AwaitingJumpSummary,
+  dismissed: ReadonlySet<string>,
+  ownCharacterIds: ReadonlySet<number>,
+): boolean {
+  if (!hasPendingResolution(connection)) return false;
+  const ownerId = resolutionOwnerId(connection);
+  if (ownerId === null || !ownCharacterIds.has(ownerId)) return false;
+  return !dismissed.has(connection.connectionId);
+}
+
+function jumpResolutionModel(
+  connection: ConnectionDetail | AwaitingJumpSummary,
+  unresolvedHoles: readonly UnresolvedHoleSummary[],
+  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+): JumpResolutionModel | null {
+  const candidates = jumpResolutionCandidates(connection, unresolvedHoles);
+  const destination = destinationReadout(
+    connection.resolution.kind === 'awaiting-signature'
+      ? connection.resolution.destinationSystemId
+      : connection.toSystemId,
+    systemInfo,
+  );
+  const minimumChoices = connection.resolution.kind === 'awaiting-signature' ? 1 : 2;
+  if (candidates === null || candidates.length < minimumChoices || destination === null) return null;
+  return {
+    connectionId: connection.connectionId,
+    destination,
+    candidates,
+  };
+}
+
 export function pendingJumpResolution(
   details: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
@@ -98,29 +138,11 @@ export function pendingJumpResolution(
   let newest: JumpResolutionModel | null = null;
   let newestCreatedAt = Number.NEGATIVE_INFINITY;
   for (const connection of [...details.values(), ...awaitingJumps]) {
-    if (!hasPendingResolution(connection)) continue;
-    const ownerId =
-      connection.resolution.kind === 'pending' || connection.resolution.kind === 'awaiting-signature'
-        ? connection.resolution.characterId
-        : null;
-    if (ownerId === null || !ownCharacterIds.has(ownerId)) continue;
-    if (dismissed.has(connection.connectionId)) continue;
-    const candidates = jumpResolutionCandidates(connection, unresolvedHoles);
-    const destination = destinationReadout(
-      connection.resolution.kind === 'awaiting-signature'
-        ? connection.resolution.destinationSystemId
-        : connection.toSystemId,
-      systemInfo,
-    );
-    const minimumChoices = connection.resolution.kind === 'awaiting-signature' ? 1 : 2;
-    if (candidates === null || candidates.length < minimumChoices || destination === null) continue;
-    if (connection._creationTime <= newestCreatedAt) continue;
+    if (!isOwnOpenPrompt(connection, dismissed, ownCharacterIds)) continue;
+    const model = jumpResolutionModel(connection, unresolvedHoles, systemInfo);
+    if (model === null || connection._creationTime <= newestCreatedAt) continue;
     newestCreatedAt = connection._creationTime;
-    newest = {
-      connectionId: connection.connectionId,
-      destination,
-      candidates,
-    };
+    newest = model;
   }
   return newest;
 }

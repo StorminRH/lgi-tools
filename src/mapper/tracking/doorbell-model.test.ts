@@ -419,3 +419,123 @@ describe('doorbell snapshot handshake', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+describe('doorbell snapshot parsing', () => {
+  it('keeps only well-formed entries and drops leases that cannot be trusted', () => {
+    const storage = new MemoryStorage();
+    const valid = { transitionObservedAt: 5_000, attempts: 0, settled: false, inFlight: false };
+    storage.setItem(JSON.stringify([DOORBELL_CHANNEL_PREFIX, 'map-a']), JSON.stringify({
+      101: valid,
+      102: null,
+      103: { ...valid, transitionObservedAt: '5000' },
+      104: { ...valid, attempts: undefined },
+      105: { ...valid, settled: 'no' },
+      106: { ...valid, inFlight: 1 },
+      107: { ...valid, transitionObservedAt: 0 },
+      108: { ...valid, transitionObservedAt: 1.5 },
+      109: { ...valid, attempts: -1 },
+      110: { ...valid, attempts: 0.5 },
+      111: { ...valid, inFlight: true, lease: { id: '', expiresAt: 20_000 } },
+      112: { ...valid, inFlight: true, lease: { id: 'lease', expiresAt: 0 } },
+      113: { ...valid, inFlight: true, lease: { id: 'lease', expiresAt: 20_000 } },
+      0: valid,
+      abc: valid,
+    }));
+    const memory = hydrateDoorbellMemory(storage, 'map-a');
+    expect([...memory.keys()].sort()).toEqual([101, 111, 112, 113]);
+    expect(memory.get(101)).toEqual(valid);
+    expect(memory.get(111)).toEqual({ ...valid, inFlight: false });
+    expect(memory.get(112)).toEqual({ ...valid, inFlight: false });
+    expect(memory.get(113)).toEqual({ ...valid, inFlight: true, lease: { id: 'lease', expiresAt: 20_000 } });
+
+    storage.setItem(JSON.stringify([DOORBELL_CHANNEL_PREFIX, 'map-array']), '[]');
+    expect(hydrateDoorbellMemory(storage, 'map-array').size).toBe(0);
+  });
+});
+
+describe('doorbell channel messages', () => {
+  function listen(memory = new Map<number, DoorbellMemoryEntry>()) {
+    const bus = new TestBus();
+    const persist = vi.fn();
+    const handle = joinDoorbellChannel({
+      userId: 'user-a', mapId: 'map-a', tabId: 'tab-a', memory,
+      openChannel: bus.open, persist,
+    });
+    const channel = bus.channels[0];
+    if (channel === undefined) throw new Error('channel not opened');
+    return { bus, channel, handle, memory, persist };
+  }
+
+  it('ignores malformed, own-tab, and other-map messages', () => {
+    const { channel, handle, memory, persist } = listen();
+    const entries = { 101: settled };
+    for (const data of [
+      null,
+      'message',
+      { mapId: 'map-a', entries },
+      { tabId: '', mapId: 'map-a', entries },
+      { tabId: 'tab-b', entries },
+      { tabId: 'tab-b', mapId: '', entries },
+      { tabId: 'tab-b', mapId: 'map-a' },
+      { tabId: 'tab-b', mapId: 'map-a', entries: null },
+      { tabId: 'tab-b', mapId: 'map-a', entries: [] },
+      { tabId: 'tab-b', mapId: 'map-a', entries: 'entries' },
+      { tabId: 'tab-a', mapId: 'map-a', entries },
+      { tabId: 'tab-b', mapId: 'map-b', entries },
+    ]) {
+      channel.deliver(data);
+    }
+    expect(memory.size).toBe(0);
+    expect(persist).not.toHaveBeenCalled();
+    channel.deliver({ tabId: 'tab-b', mapId: 'map-a', entries });
+    expect(memory.get(101)).toEqual(settled);
+    expect(persist).toHaveBeenCalledOnce();
+    handle.close();
+  });
+
+  it('answers a snapshot request with its own memory', () => {
+    const { bus, channel, handle } = listen(new Map([[101, settled]]));
+    const peer = bus.open(channel.name);
+    const received = vi.fn();
+    peer.onmessage = (event) => received(event.data);
+    channel.deliver({ tabId: 'tab-b', mapId: 'map-a', entries: {}, requestSnapshot: true });
+    bus.flush();
+    expect(received).toHaveBeenCalledWith(expect.objectContaining({
+      tabId: 'tab-a', entries: { 101: settled },
+    }));
+    handle.close();
+  });
+
+  it('merges peer entries by transition, attempts, lease, and settlement', () => {
+    const base = { settled: false, inFlight: true };
+    const lease = (id: string, expiresAt: number) => ({ lease: { id, expiresAt } });
+    const { channel, handle, memory } = listen(new Map<number, DoorbellMemoryEntry>([
+      [1, { ...base, transitionObservedAt: 6_000, attempts: 1, ...lease('a', 20_000) }],
+      [2, { ...base, transitionObservedAt: 5_000, attempts: 1, ...lease('a', 20_000) }],
+      [3, { ...base, transitionObservedAt: 5_000, attempts: 3, ...lease('a', 20_000) }],
+      [4, { ...base, transitionObservedAt: 5_000, attempts: 2, ...lease('a', 20_000) }],
+      [5, { ...base, transitionObservedAt: 5_000, attempts: 2, ...lease('a', 30_000) }],
+      [6, { ...base, transitionObservedAt: 5_000, attempts: 2, ...lease('a', 20_000) }],
+      [7, { ...base, transitionObservedAt: 5_000, attempts: 2, settled: true, inFlight: false }],
+    ]));
+    channel.deliver({ tabId: 'tab-b', mapId: 'map-a', entries: {
+      1: { ...base, transitionObservedAt: 5_000, attempts: 4, ...lease('b', 40_000) },
+      2: { ...base, transitionObservedAt: 7_000, attempts: 1, ...lease('b', 40_000) },
+      3: { ...base, transitionObservedAt: 5_000, attempts: 2, ...lease('b', 40_000) },
+      4: { ...base, transitionObservedAt: 5_000, attempts: 2, ...lease('b', 40_000) },
+      5: { ...base, transitionObservedAt: 5_000, attempts: 2, ...lease('b', 10_000) },
+      6: { transitionObservedAt: 5_000, attempts: 2, settled: false, inFlight: false, ...lease('a', 20_000) },
+      7: { ...base, transitionObservedAt: 5_000, attempts: 3, ...lease('b', 40_000) },
+      8: { ...base, transitionObservedAt: 5_000, attempts: 1, ...lease('b', 40_000) },
+    } });
+    expect(memory.get(1)).toMatchObject({ transitionObservedAt: 6_000, lease: { id: 'a' } });
+    expect(memory.get(2)).toMatchObject({ transitionObservedAt: 7_000, lease: { id: 'b' } });
+    expect(memory.get(3)).toMatchObject({ attempts: 3, inFlight: true, lease: { id: 'a' } });
+    expect(memory.get(4)).toMatchObject({ attempts: 2, inFlight: true, lease: { id: 'b' } });
+    expect(memory.get(5)).toMatchObject({ inFlight: true, lease: { id: 'a', expiresAt: 30_000 } });
+    expect(memory.get(6)).toMatchObject({ inFlight: false, settled: false });
+    expect(memory.get(7)).toMatchObject({ attempts: 3, settled: true, inFlight: false });
+    expect(memory.get(8)).toMatchObject({ attempts: 1, inFlight: true });
+    handle.close();
+  });
+});
