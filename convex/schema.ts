@@ -39,6 +39,19 @@ export default defineSchema({
     .index('by_next_due', ['nextDueAt'])
     .index('by_dataset', ['dataset']),
 
+  // Per-user location sync state. jobId is the one scheduled syncUser run
+  // (pending or in flight) and runId the generation that run carries; a
+  // result whose generation no longer matches is dropped.
+  locationSync: defineTable({
+    userId: v.string(),
+    runId: v.number(),
+    jobId: v.union(v.id('_scheduled_functions'), v.null()),
+    minExpiresAt: v.union(v.number(), v.null()),
+    syncedCharacterIds: v.array(v.number()),
+    coveredCharacterIds: v.array(v.number()),
+    lastFinishedAt: v.union(v.number(), v.null()),
+  }).index('by_user', ['userId']),
+
   syncPresence: defineTable({
     dataset: syncDataset,
     userId: v.string(),

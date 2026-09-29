@@ -131,10 +131,19 @@ export const NON_NEON_HOMES: readonly NonNeonHome[] = [
   {
     home: 'convex:syncSubjects',
     coveredBy:
-      'the daily retention cron (convex/engineSweep) deletes cold subjects past the retention window; no identity door touches it',
+      'retired by the location scheduler; the daily retention cron (convex/engineSweep) drains every remaining row',
     explicitTeardown: 'convex/engineSweep.ts — retention GC',
     reason:
-      'per-user scheduling state for the sync engine; rebuilt on the next heartbeat, so nothing durable is lost when a row disappears.',
+      'legacy per-user scheduling state for the retired scan engine; nothing reads it, so deleting any row loses nothing.',
+    merge: 'never rebuilt; source and survivor rows alike drain through the daily retention GC',
+  },
+  {
+    home: 'convex:locationSync',
+    coveredBy:
+      'the daily retention cron (convex/engineSweep) deletes the state of presence past the retention window; /leave-sync stops a closing tab',
+    explicitTeardown: 'convex/engineSweep.ts — retention GC',
+    reason:
+      'per-user location scheduling state (the one scheduled run and its generation); rebuilt on the next heartbeat, so nothing durable is lost when a row disappears.',
     merge: 'rebuilt on the survivor heartbeat; source rows age out through the 7-day retention GC',
   },
   {

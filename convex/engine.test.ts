@@ -1,56 +1,244 @@
 // @vitest-environment edge-runtime
 import { readFileSync } from 'node:fs';
-import { RateLimiter } from '@convex-dev/rate-limiter';
-import { convexTest } from 'convex-test';
+import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   computeChainBoundary,
+  computeNextDueAt,
   HIDDEN_PRESENCE_MAX_MS,
   isColdFromPresence,
+  LOCATION_CADENCE_FLOOR_MS,
+  LOCATION_COLD_AFTER_MS,
   RETENTION_MS,
-  SYNC_DATASET_CONFIG,
 } from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
-import { SCAN_DISPATCH_BATCH } from './lib/engineCore';
+import type { Doc, Id } from './_generated/dataModel';
 import schema from './schema';
 import { modules } from './__tests__/modules.setup';
 
-function stubDispatch() {
-  vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
-}
+type T = TestConvex<typeof schema>;
+type JobId = Id<'_scheduled_functions'>;
 
-async function scheduledFunctionsNamed(
-  t: ReturnType<typeof convexTest>,
-  name: string,
-) {
+async function scheduledFunctionsNamed(t: T, name: string) {
   return t.run(async (ctx) => {
     const rows = await ctx.db.system.query('_scheduled_functions').collect();
     return rows.filter((row) => row.name.includes(name));
   });
 }
 
-async function scheduledChainDispatches(t: ReturnType<typeof convexTest>) {
-  return scheduledFunctionsNamed(t, 'chainDispatch');
-}
-
-async function scheduledSyncUsers(t: ReturnType<typeof convexTest>) {
+async function scheduledSyncUsers(t: T) {
   return scheduledFunctionsNamed(t, 'syncUser');
 }
 
+async function pendingSyncUsers(t: T) {
+  return (await scheduledSyncUsers(t)).filter((job) => job.state.kind === 'pending');
+}
+
+function jobById(t: T, id: JobId) {
+  return t.run((ctx) => ctx.db.system.get('_scheduled_functions', id));
+}
+
 const USER = 'user_engine_1';
+const CHAR = 101;
 
 function beat(args: {
-  dataset: 'characterLocation';
   characterIdsHint: number[];
   reason: 'mount' | 'visible' | 'interval';
   visible?: boolean;
   tabId?: string;
   expectedUserId?: string;
 }) {
-  return { visible: true, tabId: 'tab-one', expectedUserId: USER, ...args };
+  return {
+    dataset: 'characterLocation' as const,
+    visible: true,
+    tabId: 'tab-one',
+    expectedUserId: USER,
+    ...args,
+  };
 }
 
-function subjectRow(overrides: Record<string, unknown> = {}) {
+function heartbeat(t: T, args: Parameters<typeof beat>[0]) {
+  return t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat(args));
+}
+
+function stateRow(overrides: Partial<Doc<'locationSync'>> = {}) {
+  return {
+    userId: USER,
+    runId: 0,
+    jobId: null,
+    minExpiresAt: null,
+    syncedCharacterIds: [] as number[],
+    coveredCharacterIds: [] as number[],
+    lastFinishedAt: null,
+    ...overrides,
+  };
+}
+
+async function seedState(t: T, overrides: Partial<Doc<'locationSync'>> = {}) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('locationSync', stateRow(overrides));
+  });
+}
+
+function readState(t: T, userId = USER) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('locationSync')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .unique(),
+  );
+}
+
+async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) {
+  const now = Date.now();
+  await t.run(async (ctx) => {
+    await ctx.db.insert('syncPresence', {
+      dataset: 'characterLocation',
+      userId: USER,
+      lastSeenAt: now,
+      lastVisibleAt: now,
+      tabId: 'tab-one',
+      leftTabId: '',
+      ...overrides,
+    });
+  });
+}
+
+// Warm, but past the 45s presence-refresh window, so an interval beat is not skipped.
+function warmPresence() {
+  const at = Date.now() - 50_000;
+  return { lastSeenAt: at, lastVisibleAt: at };
+}
+
+function coldPresence() {
+  const at = Date.now() - LOCATION_COLD_AFTER_MS - 60_000;
+  return { lastSeenAt: at, lastVisibleAt: at };
+}
+
+async function seedTracking(t: T, characterId = CHAR) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: USER, characterId });
+  });
+}
+
+/** A pending syncUser job carrying `generation`, as the scheduler would leave it. */
+function schedulePending(t: T, at: number, generation: number) {
+  return t.run((ctx) =>
+    ctx.scheduler.runAt(at, internal.characterLocationSync.syncUser, { userId: USER, generation }),
+  );
+}
+
+/**
+ * A finished job row in each terminal state runState reads as 'none'.
+ * Scheduled-function rows are read-only from t.run, so the row is driven
+ * there: canceled via scheduler.cancel; success by running a syncUser whose
+ * generation owns nothing (no tracking, so it never calls out); failed by
+ * running one whose args fail validation (convex-test only validates at run
+ * time).
+ */
+async function terminalJob(t: T, kind: 'canceled' | 'success' | 'failed'): Promise<JobId> {
+  const now = Date.now();
+  if (kind === 'canceled') {
+    return t.run(async (ctx) => {
+      const id = await ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, {
+        userId: USER,
+        generation: -1,
+      });
+      await ctx.scheduler.cancel(id);
+      return id;
+    });
+  }
+  vi.stubEnv('SITE_URL', 'https://app.test');
+  vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const args = kind === 'success' ? { userId: USER, generation: -1 } : ({ userId: USER } as never);
+  const id = await t.run((ctx) =>
+    ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, args),
+  );
+  vi.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect((await jobById(t, id))?.state.kind).toBe(kind);
+  return id;
+}
+
+type CharacterResult = {
+  characterId: number;
+  expiresAt: number | null;
+  error: string | null;
+  solarSystemId: number | null;
+  stationId: number | null;
+  structureId: number | null;
+  shipTypeId: number | null;
+  systemChanged: boolean;
+  etagLocation: string | null;
+  etagShip: string | null;
+  online: boolean | null;
+  etagOnline: string | null;
+  onlineExpiresAt: number | null;
+};
+
+function onlineResult(characterId: number, expiresAt: number): CharacterResult {
+  return {
+    characterId,
+    expiresAt,
+    error: null,
+    solarSystemId: 30_000_142,
+    stationId: null,
+    structureId: null,
+    shipTypeId: 670,
+    systemChanged: true,
+    etagLocation: 'loc',
+    etagShip: 'ship',
+    online: true,
+    etagOnline: 'on',
+    onlineExpiresAt: expiresAt + 55_000,
+  };
+}
+
+function offlineResult(characterId: number, expiresAt: number): CharacterResult {
+  return {
+    ...onlineResult(characterId, expiresAt),
+    solarSystemId: null,
+    shipTypeId: null,
+    systemChanged: false,
+    online: false,
+    onlineExpiresAt: expiresAt,
+  };
+}
+
+function success(
+  trackedCharacterIds: number[],
+  results: CharacterResult[],
+  runError: string | null = null,
+) {
+  return {
+    kind: 'success' as const,
+    trackedCharacterIds,
+    results,
+    runError,
+    rlGroup: null,
+    rlRemaining: null,
+  };
+}
+
+function finish(
+  t: T,
+  generation: number,
+  outcome: ReturnType<typeof success> | { kind: 'failed'; error: string },
+  leases: Array<{ characterId: number; accessToken: string; expiresAt: number }> = [],
+  clearedLeaseCharacterIds: number[] = [],
+) {
+  return t.mutation(internal.characterLocationApply.finishSync, {
+    userId: USER,
+    generation,
+    outcome,
+    leases,
+    clearedLeaseCharacterIds,
+  });
+}
+
+// Legacy scan-engine rows the retention sweep drains.
+function legacySubjectRow(overrides: Record<string, unknown> = {}) {
   return {
     dataset: 'characterLocation' as const,
     userId: USER,
@@ -72,164 +260,313 @@ function subjectRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
 });
 
 afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe('engine.heartbeat', () => {
   it('does nothing when signed out', async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' }));
-    const { presence, subjects } = await t.run(async (ctx) => ({
+    await t.mutation(api.engine.heartbeat, beat({ characterIdsHint: [CHAR], reason: 'mount' }));
+    const { presence, state } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
-      subjects: await ctx.db.query('syncSubjects').collect(),
+      state: await ctx.db.query('locationSync').collect(),
     }));
     expect(presence).toHaveLength(0);
-    expect(subjects).toHaveLength(0);
+    expect(state).toHaveLength(0);
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
 
-  it('an interval beat writes only presence, never the subject', async () => {
+  it('a mount beat with no target creates the sync state and schedules nothing', async () => {
     const t = convexTest(schema, modules);
-    await t
-      .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval' }));
-    const { presence, subjects } = await t.run(async (ctx) => ({
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount' });
+    expect(await readState(t)).toMatchObject(stateRow());
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
+  });
+
+  it('a stale mount schedules a run now under a fresh generation', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+
+    const state = await readState(t);
+    const jobs = await scheduledSyncUsers(t);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.scheduledTime).toBe(now);
+    expect(jobs[0]?.state.kind).toBe('pending');
+    expect(state?.jobId).toBe(jobs[0]?._id);
+    expect(state?.runId).toBe(now);
+    expect(jobs[0]?.args).toEqual([{ userId: USER, generation: now }]);
+  });
+
+  it('a stale beat replaces a pending run: expired cache or a hinted pilot not yet synced', async () => {
+    for (const reason of ['mount', 'visible'] as const) {
+      for (const staleness of [
+        { minExpiresAt: Date.now() - 1, hint: [CHAR] },
+        { minExpiresAt: Date.now() + 600_000, hint: [CHAR, 102] },
+      ]) {
+        const t = convexTest(schema, modules);
+        const now = Date.now();
+        const oldJob = await schedulePending(t, now + 60_000, now - 10_000);
+        await seedPresence(t);
+        await seedState(t, {
+          runId: now - 10_000,
+          jobId: oldJob,
+          minExpiresAt: staleness.minExpiresAt,
+          syncedCharacterIds: [CHAR],
+          lastFinishedAt: now - 1_000,
+        });
+
+        await heartbeat(t, { characterIdsHint: staleness.hint, reason });
+
+        expect((await jobById(t, oldJob))?.state.kind).toBe('canceled');
+        const pending = await pendingSyncUsers(t);
+        expect(pending).toHaveLength(1);
+        expect(pending[0]?.scheduledTime).toBe(now);
+        const state = await readState(t);
+        expect(state?.jobId).toBe(pending[0]?._id);
+        expect(state?.runId).toBe(now);
+      }
+    }
+  });
+
+  it('arms a fresh cache with nothing scheduled at the jittered next due time', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const minExpiresAt = now + 600_000;
+    const lastFinishedAt = now - 1_000;
+    await seedState(t, { minExpiresAt, syncedCharacterIds: [CHAR], lastFinishedAt });
+
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+
+    const expected = computeNextDueAt(
+      minExpiresAt,
+      LOCATION_CADENCE_FLOOR_MS,
+      lastFinishedAt,
+      () => 0.5,
+    );
+    const jobs = await scheduledSyncUsers(t);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.scheduledTime).toBe(expected);
+    expect((await readState(t))?.jobId).toBe(jobs[0]?._id);
+  });
+
+  it('paces a fresh cache from its last finish, not from the beat', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    // Cache expires before the floor after the last finish, so the floor decides.
+    await seedState(t, {
+      minExpiresAt: now + 1_000,
+      syncedCharacterIds: [CHAR],
+      lastFinishedAt: now - 2_000,
+    });
+
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+
+    const jobs = await scheduledSyncUsers(t);
+    expect(jobs[0]?.scheduledTime).toBe(now - 2_000 + LOCATION_CADENCE_FLOOR_MS);
+  });
+
+  it('leaves a pending run alone when the cache is not stale', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const job = await schedulePending(t, now + 30_000, now - 10_000);
+    await seedState(t, {
+      runId: now - 10_000,
+      jobId: job,
+      minExpiresAt: now + 30_000,
+      syncedCharacterIds: [CHAR],
+      lastFinishedAt: now - 1_000,
+    });
+    const before = await readState(t);
+
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+
+    expect(await readState(t)).toEqual(before);
+    const jobs = await scheduledSyncUsers(t);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.state.kind).toBe('pending');
+  });
+
+  it('never touches an in-flight run, even when the cache reads stale', async () => {
+    vi.stubEnv('SITE_URL', 'https://app.test');
+    vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
+    let release: ((response: Response) => void) | undefined;
+    const fetchFn = vi.fn(() => new Promise<Response>((resolve) => {
+      release = resolve;
+    }));
+    vi.stubGlobal('fetch', fetchFn);
+    const t = convexTest(schema, modules);
+    await seedTracking(t);
+
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+    const [job] = await scheduledSyncUsers(t);
+    // Start the run and hold it at the token vend so its job row reads inProgress.
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+    expect((await jobById(t, job!._id))?.state.kind).toBe('inProgress');
+    const before = await readState(t);
+
+    await heartbeat(t, { characterIdsHint: [CHAR, 102], reason: 'mount' });
+
+    expect(await readState(t)).toEqual(before);
+    expect(await scheduledSyncUsers(t)).toHaveLength(1);
+
+    release?.(new Response(null, { status: 503 }));
+    await t.finishInProgressScheduledFunctions();
+    expect((await jobById(t, job!._id))?.state.kind).toBe('success');
+    const after = await readState(t);
+    expect(after?.lastFinishedAt).not.toBeNull();
+    expect(after?.runId).toBeGreaterThan(before!.runId);
+    expect(await pendingSyncUsers(t)).toHaveLength(1);
+  });
+
+  it('a warm interval beat is a safety net: it never moves a pending run', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const job = await schedulePending(t, now + 30_000, now - 10_000);
+    await seedPresence(t, warmPresence());
+    await seedState(t, {
+      runId: now - 10_000,
+      jobId: job,
+      minExpiresAt: null,
+      syncedCharacterIds: [CHAR],
+    });
+    const before = await readState(t);
+
+    await heartbeat(t, { characterIdsHint: [CHAR, 102], reason: 'interval' });
+
+    expect(await readState(t)).toEqual(before);
+    expect((await jobById(t, job))?.state.kind).toBe('pending');
+    expect(await scheduledSyncUsers(t)).toHaveLength(1);
+    const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(presence?.lastSeenAt).toBe(now);
+  });
+
+  it('a warm interval beat re-arms a user whose run ended without scheduling another', async () => {
+    for (const kind of ['canceled', 'success', 'failed', null] as const) {
+      const t = convexTest(schema, modules);
+      const now = Date.now();
+      const dead = kind === null ? null : await terminalJob(t, kind);
+      await seedPresence(t, warmPresence());
+      await seedState(t, {
+        runId: now - 10_000,
+        jobId: dead,
+        minExpiresAt: null,
+        syncedCharacterIds: [CHAR],
+      });
+
+      await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval' });
+
+      const pending = await pendingSyncUsers(t);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]?.scheduledTime).toBe(now);
+      const state = await readState(t);
+      expect(state?.jobId).toBe(pending[0]?._id);
+      expect(state?.runId).toBe(now);
+    }
+  });
+
+  it('a first interval beat with no presence yet writes presence and arms a run', async () => {
+    const t = convexTest(schema, modules);
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval' });
+    const { presence, state } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
-      subjects: await ctx.db.query('syncSubjects').collect(),
+      state: await ctx.db.query('locationSync').unique(),
     }));
     expect(presence).toHaveLength(1);
-    expect(subjects).toHaveLength(0);
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(state?.jobId).toBe(pending[0]?._id);
   });
 
-  it('a mount beat with no target creates an idle subject and does not dispatch', async () => {
-    const t = convexTest(schema, modules);
-    await t
-      .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' }));
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(subject?.workId).toBeNull();
-    expect(subject?.nextDueAt).toBeNull();
-  });
-
-  it('re-arms a retired-but-fresh subject without dispatching', async () => {
+  it('an interval beat after a cold gap behaves like a mount and replaces a pending run', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        syncedCharacterIds: [101],
-        minExpiresAt: now + 600_000,
-        nextDueAt: null,
-        lastFinishedAt: now - 1000,
-      }));
+    const job = await schedulePending(t, now + 30_000, now - 10_000);
+    await seedPresence(t, coldPresence());
+    await seedState(t, {
+      runId: now - 10_000,
+      jobId: job,
+      minExpiresAt: null,
+      syncedCharacterIds: [CHAR],
     });
 
-    await t
-      .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' }));
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval', visible: false });
 
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(typeof subject?.nextDueAt).toBe('number');
-    expect(subject?.status).toBe('idle');
+    expect((await jobById(t, job))?.state.kind).toBe('canceled');
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.scheduledTime).toBe(now);
+    expect((await readState(t))?.jobId).toBe(pending[0]?._id);
   });
 
-  it('returns early while a run is still fresh', async () => {
+  it('an interval beat inside the presence-refresh window skips every write', async () => {
     const t = convexTest(schema, modules);
-    const now = Date.now();
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount' });
+    const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    // A stale target would schedule a run if the beat got that far.
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        nextDueAt: now + 60_000,
-        syncedCharacterIds: [101],
-      }));
+      const state = await ctx.db.query('locationSync').unique();
+      await ctx.db.patch(state!._id, { syncedCharacterIds: [CHAR] });
     });
+    const before = await readState(t);
 
-    await t
-      .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, beat({ dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' }));
+    vi.setSystemTime(Date.now() + 44_000);
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval' });
 
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('running');
-    expect(subject?.workId).toBe('w1');
+    expect(await t.run((ctx) => ctx.db.query('syncPresence').unique())).toEqual(mounted);
+    expect(await readState(t)).toEqual(before);
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
 
-  it('a recovery interval beat revives a subject the scan retired during a beat gap', async () => {
+  it('a tab hidden past the visible cap never revives a run, until it is visible again', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    stubDispatch();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: null,
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 60_000,
-        lastVisibleAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 60_000,
-      });
+    await seedTracking(t);
+    await seedState(t, { syncedCharacterIds: [CHAR] });
+    await seedPresence(t, {
+      lastSeenAt: now - 50_000,
+      lastVisibleAt: now - HIDDEN_PRESENCE_MAX_MS - 1,
     });
 
-    await t
-      .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, beat({
-        dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval', visible: false,
-      }));
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval', visible: false });
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
+    expect((await readState(t))?.jobId).toBeNull();
 
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject?.status).toBe('running');
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'visible', visible: true });
+    expect(await pendingSyncUsers(t)).toHaveLength(1);
   });
 
   it('stamps lastVisibleAt on visible beats but never on hidden ones', async () => {
     const t = convexTest(schema, modules);
-    const authed = t.withIdentity({ subject: USER });
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation', characterIdsHint: [], reason: 'mount', visible: false,
-    }));
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount', visible: false });
     const inserted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(typeof inserted?.lastVisibleAt).toBe('number');
 
     await t.run((ctx) => ctx.db.patch(inserted!._id, { lastSeenAt: 123, lastVisibleAt: 123 }));
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation', characterIdsHint: [], reason: 'interval', visible: false,
-    }));
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false });
     const afterHidden = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(afterHidden?.lastSeenAt).toBeGreaterThan(123);
     expect(afterHidden?.lastVisibleAt).toBe(123);
 
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation', characterIdsHint: [], reason: 'interval', visible: true,
-    }));
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: true });
     const afterVisible = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(afterVisible?.lastVisibleAt).toBeGreaterThan(123);
   });
 
   it('skips the presence write for interval beats while presence is fresh', async () => {
     const t = convexTest(schema, modules);
-    const authed = t.withIdentity({ subject: USER });
-    const send = (reason: 'mount' | 'interval', tabId = 'tab-one') => authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation', characterIdsHint: [], reason, tabId,
-    }));
+    const send = (reason: 'mount' | 'interval', tabId = 'tab-one') =>
+      heartbeat(t, { characterIdsHint: [], reason, tabId });
     await send('mount');
     const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
 
@@ -251,40 +588,29 @@ describe('engine.heartbeat', () => {
 
   it('stamps the beating tab id onto presence', async () => {
     const t = convexTest(schema, modules);
-    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [],
-      reason: 'mount',
-      tabId: 'tab-one',
-    }));
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount', tabId: 'tab-one' });
     const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(presence?.tabId).toBe('tab-one');
   });
 });
 
 describe('engine.leave', () => {
-  it('retires a matching tab, ages presence, and ignores a newer tab', async () => {
+  it('retires a matching tab: ages presence, cancels the pending run, and ignores a newer tab', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        nextDueAt: now + 5_000,
-        lastRequestedAt: now,
-        workId: String(now),
-        syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now,
-        lastVisibleAt: now,
-        tabId: 'tab-a',
-      });
-      await ctx.db.insert('characterLocationCovered', {
-        userId: USER,
-        characterId: 101,
-      });
+    const job = await schedulePending(t, now + 5_000, now - 10_000);
+    await seedPresence(t, { tabId: 'tab-a' });
+    await seedState(t, {
+      runId: now - 10_000,
+      jobId: job,
+      minExpiresAt: now + 5_000,
+      syncedCharacterIds: [CHAR],
+      coveredCharacterIds: [CHAR],
     });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR });
+    });
+    const before = await readState(t);
 
     const ignored = await t.mutation(internal.engineLeave.leave, {
       userId: USER,
@@ -292,12 +618,9 @@ describe('engine.leave', () => {
       tabId: 'tab-b',
     });
     expect(ignored).toEqual({ retired: false });
-    const stillHot = await t.run(async (ctx) => ({
-      subject: await ctx.db.query('syncSubjects').unique(),
-      covered: await ctx.db.query('characterLocationCovered').collect(),
-    }));
-    expect(stillHot.subject?.nextDueAt).toBe(now + 5_000);
-    expect(stillHot.covered).toHaveLength(1);
+    expect(await readState(t)).toEqual(before);
+    expect((await jobById(t, job))?.state.kind).toBe('pending');
+    expect(await t.run((ctx) => ctx.db.query('characterLocationCovered').collect())).toHaveLength(1);
 
     const retired = await t.mutation(internal.engineLeave.leave, {
       userId: USER,
@@ -306,99 +629,110 @@ describe('engine.leave', () => {
     });
     expect(retired).toEqual({ retired: true });
     const after = await t.run(async (ctx) => ({
-      subject: await ctx.db.query('syncSubjects').unique(),
+      state: await ctx.db.query('locationSync').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
       covered: await ctx.db.query('characterLocationCovered').collect(),
     }));
-    expect(after.subject?.nextDueAt).toBeNull();
-    expect(after.subject?.workId).toBeNull();
-    expect(after.subject?.lastRequestedAt).toBe(0);
+    expect((await jobById(t, job))?.state.kind).toBe('canceled');
+    expect(after.state?.jobId).toBeNull();
+    expect(after.state?.runId).toBeGreaterThan(before!.runId);
     expect(after.covered).toEqual([]);
     expect(after.presence?.leftTabId).toBe('tab-a');
-    expect(
-      isColdFromPresence(
-        after.presence,
-        SYNC_DATASET_CONFIG.characterLocation.coldAfterMs,
-        Date.now(),
-      ),
-    ).toBe(true);
+    expect(isColdFromPresence(after.presence, LOCATION_COLD_AFTER_MS, Date.now())).toBe(true);
+    expect(await pendingSyncUsers(t)).toHaveLength(0);
+  });
+
+  it('clears coverage for a user with no sync state yet', async () => {
+    const t = convexTest(schema, modules);
+    await seedPresence(t, { tabId: 'tab-a' });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR });
+    });
+
+    expect(await t.mutation(internal.engineLeave.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-a',
+    })).toEqual({ retired: true });
+
+    expect(await t.run((ctx) => ctx.db.query('characterLocationCovered').collect())).toEqual([]);
+    expect(await readState(t)).toBeNull();
+  });
+
+  it('drops a late finish from the run the leave orphaned', async () => {
+    const t = convexTest(schema, modules);
+    await seedTracking(t);
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount', tabId: 'tab-a' });
+    const orphan = await readState(t);
+
+    await t.mutation(internal.engineLeave.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-a',
+    });
+    const left = await readState(t);
+
+    const now = Date.now();
+    await finish(
+      t,
+      orphan!.runId,
+      success([CHAR], [onlineResult(CHAR, now + 5_000)]),
+      [{ characterId: CHAR, accessToken: 'tok', expiresAt: now + 1_200_000 }],
+    );
+
+    const after = await t.run(async (ctx) => ({
+      locations: await ctx.db.query('characterLocation').collect(),
+      leases: await ctx.db.query('characterLocationAccess').collect(),
+      covered: await ctx.db.query('characterLocationCovered').collect(),
+    }));
+    expect(after).toEqual({ locations: [], leases: [], covered: [] });
+    expect(await readState(t)).toEqual(left);
+    expect(await pendingSyncUsers(t)).toHaveLength(0);
   });
 
   it('ignores a delayed beat from the tab that left and lets a new tab recover', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    stubDispatch();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        nextDueAt: now + 5_000,
-        syncedCharacterIds: [101],
-        minExpiresAt: null,
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now,
-        lastVisibleAt: now,
-        tabId: 'tab-a',
-      });
-    });
+    await seedPresence(t, { tabId: 'tab-a' });
+    await seedState(t, { minExpiresAt: null, syncedCharacterIds: [CHAR] });
     await t.mutation(internal.engineLeave.leave, {
       userId: USER,
       dataset: 'characterLocation',
       tabId: 'tab-a',
     });
 
-    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [101],
-      reason: 'interval',
-      tabId: 'tab-a',
-    }));
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval', tabId: 'tab-a' });
     const fenced = await t.run(async (ctx) => ({
-      subject: await ctx.db.query('syncSubjects').unique(),
+      state: await ctx.db.query('locationSync').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
     }));
-    expect(fenced.subject?.nextDueAt).toBeNull();
+    expect(fenced.state?.jobId).toBeNull();
     expect(fenced.presence?.leftTabId).toBe('tab-a');
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
 
-    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [101],
+    await heartbeat(t, {
+      characterIdsHint: [CHAR],
       reason: 'interval',
       visible: false,
       tabId: 'tab-b',
-    }));
+    });
     const recovered = await t.run(async (ctx) => ({
-      subject: await ctx.db.query('syncSubjects').unique(),
+      state: await ctx.db.query('locationSync').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
     }));
-    expect(recovered.subject?.status).toBe('running');
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.scheduledTime).toBe(now);
+    expect(recovered.state?.jobId).toBe(pending[0]?._id);
     expect(recovered.presence?.tabId).toBe('tab-b');
     expect(recovered.presence?.leftTabId).toBe('');
   });
 
   it('recovers the remaining tab after an older tab beats last and then leaves', async () => {
     const t = convexTest(schema, modules);
-    stubDispatch();
-    const authed = t.withIdentity({ subject: USER });
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [101],
-      reason: 'mount',
-      tabId: 'tab-a',
-    }));
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [101],
-      reason: 'mount',
-      tabId: 'tab-b',
-    }));
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [101],
-      reason: 'interval',
-      tabId: 'tab-a',
-    }));
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount', tabId: 'tab-a' });
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount', tabId: 'tab-b' });
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval', tabId: 'tab-a' });
     const lastBeater = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(lastBeater?.tabId).toBe('tab-a');
 
@@ -407,624 +741,326 @@ describe('engine.leave', () => {
       dataset: 'characterLocation',
       tabId: 'tab-a',
     })).toEqual({ retired: true });
+    expect(await pendingSyncUsers(t)).toHaveLength(0);
 
-    await authed.mutation(api.engine.heartbeat, beat({
-      dataset: 'characterLocation',
-      characterIdsHint: [101],
-      reason: 'interval',
-      tabId: 'tab-b',
-    }));
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'interval', tabId: 'tab-b' });
     const recovered = await t.run(async (ctx) => ({
-      subject: await ctx.db.query('syncSubjects').unique(),
+      state: await ctx.db.query('locationSync').unique(),
       presence: await ctx.db.query('syncPresence').unique(),
     }));
-    expect(recovered.subject?.status).toBe('running');
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(recovered.state?.jobId).toBe(pending[0]?._id);
     expect(recovered.presence?.tabId).toBe('tab-b');
     expect(recovered.presence?.leftTabId).toBe('');
   });
 });
 
-describe('engine.scan', () => {
-  it('keeps a hidden-throttled subject hot inside the widened cold window', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    stubDispatch();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({ nextDueAt: now - 1000, syncedCharacterIds: [101] }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation', userId: USER, lastSeenAt: now - 2 * 60_000,
-      });
-    });
-
-    await t.mutation(internal.engineScan.scan, {});
-
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject?.status).toBe('running');
-  });
-
-  it('retires a retired-dataset leftover row instead of dispatching it', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    stubDispatch();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'onlineStatus', nextDueAt: now - 1000, syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
-    });
-
-    await t.mutation(internal.engineScan.scan, {});
-
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject?.status).toBe('idle');
-    expect(subject?.nextDueAt).toBeNull();
-  });
-
-  it('retires hidden-only presence past the visible backstop despite fresh beats', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation', nextDueAt: now - 1000, syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
+describe('engineComplete deploy shims', () => {
+  const shims = {
+    chainDispatch: (t: T) =>
+      t.mutation(internal.engineComplete.chainDispatch, {
         dataset: 'characterLocation',
         userId: USER,
-        lastSeenAt: now,
-        lastVisibleAt: now - HIDDEN_PRESENCE_MAX_MS - 1,
+      }),
+    onSyncComplete: (t: T) =>
+      t.mutation(internal.engineComplete.onSyncComplete, {
+        workId: 'w-previous-deploy',
+        context: { dataset: 'characterLocation', userId: USER },
+        result: { kind: 'failed', error: 'boom' },
+      }),
+  };
+
+  for (const [name, call] of Object.entries(shims)) {
+    describe(name, () => {
+      it('hands a warm user with nothing scheduled to the scheduler', async () => {
+        const t = convexTest(schema, modules);
+        const now = Date.now();
+        await seedPresence(t);
+
+        await call(t);
+
+        const pending = await pendingSyncUsers(t);
+        expect(pending).toHaveLength(1);
+        expect(pending[0]?.scheduledTime).toBe(now);
+        const state = await readState(t);
+        expect(state?.jobId).toBe(pending[0]?._id);
+        expect(pending[0]?.args).toEqual([{ userId: USER, generation: state?.runId }]);
       });
-    });
 
-    await t.mutation(internal.engineScan.scan, {});
+      it('re-arms a warm user whose previous run already finished', async () => {
+        const t = convexTest(schema, modules);
+        const dead = await terminalJob(t, 'success');
+        await seedPresence(t);
+        await seedState(t, { jobId: dead, syncedCharacterIds: [CHAR] });
 
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.nextDueAt).toBeNull();
-  });
+        await call(t);
 
-  it('retires a cold due subject from the scan set', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({ nextDueAt: now - 1000 }));
-      await ctx.db.insert('characterLocationCovered', {
-        userId: USER,
-        characterId: 9_000_001,
+        const pending = await pendingSyncUsers(t);
+        expect(pending).toHaveLength(1);
+        expect((await readState(t))?.jobId).toBe(pending[0]?._id);
       });
-    });
-    await t.mutation(internal.engineScan.scan, {});
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.nextDueAt).toBeNull();
-    const covered = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocationCovered')
-        .withIndex('by_user_character', (q) => q.eq('userId', USER))
-        .collect(),
-    );
-    expect(covered).toEqual([]);
-  });
 
-  it('skips a hot due subject whose run is still fresh', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        nextDueAt: now - 1000,
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt: now });
-    });
-    await t.mutation(internal.engineScan.scan, {});
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.nextDueAt).toBe(now - 1000);
-    expect(subject?.status).toBe('running');
-  });
+      it('does nothing for a cold or absent watcher', async () => {
+        for (const presence of [null, coldPresence()]) {
+          const t = convexTest(schema, modules);
+          if (presence !== null) await seedPresence(t, presence);
 
-  it('dispatches every due subject in one tick when under the cap', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    stubDispatch();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await t.run(async (ctx) => {
-      for (let i = 0; i < 3; i++) {
-        await ctx.db.insert('syncSubjects', subjectRow({
-          userId: `u${i}`,
-          nextDueAt: now - 1000,
-          syncedCharacterIds: [101],
-        }));
-        await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: `u${i}`, lastSeenAt: now });
-      }
-    });
+          await call(t);
 
-    await t.mutation(internal.engineScan.scan, {});
-
-    const statuses = await t.run(async (ctx) =>
-      (await ctx.db.query('syncSubjects').collect()).map((s) => s.status).sort(),
-    );
-    expect(statuses).toEqual(['running', 'running', 'running']);
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  it('caps the dispatch at the batch and drains the backlog on the next tick', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    stubDispatch();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const total = SCAN_DISPATCH_BATCH + 1;
-    await t.run(async (ctx) => {
-      for (let i = 0; i < total; i++) {
-        await ctx.db.insert('syncSubjects', subjectRow({
-          userId: `u${i}`,
-          nextDueAt: now - total + i,
-          syncedCharacterIds: [101],
-        }));
-        await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: `u${i}`, lastSeenAt: now });
-      }
-    });
-
-    await t.mutation(internal.engineScan.scan, {});
-    const tick1 = await t.run(async (ctx) => {
-      const rows = await ctx.db.query('syncSubjects').collect();
-      return {
-        running: rows.filter((s) => s.status === 'running').length,
-        idle: rows.filter((s) => s.status === 'idle').length,
-      };
-    });
-    expect(tick1).toEqual({ running: SCAN_DISPATCH_BATCH, idle: 1 });
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]![0]).toContain('scan_batch_capped');
-
-    await t.mutation(internal.engineScan.scan, {});
-    const tick2Running = await t.run(async (ctx) =>
-      (await ctx.db.query('syncSubjects').collect()).filter((s) => s.status === 'running').length,
-    );
-    expect(tick2Running).toBe(total);
-    expect(warn).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('engineComplete.onSyncComplete', () => {
-  function callComplete(t: ReturnType<typeof convexTest>, result: unknown, workId = 'w1') {
-    return t.mutation(internal.engineComplete.onSyncComplete, {
-      workId: workId as never,
-      context: { dataset: 'characterLocation', userId: USER },
-      result: result as never,
-    });
-  }
-
-  it('re-arms and records the error on a terminal failure', async () => {
-    const t = convexTest(schema, modules);
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        nextDueAt: now + 60_000,
-        minExpiresAt: now + 5000,
-        syncedCharacterIds: [101],
-      }));
-    });
-
-    await callComplete(t, { kind: 'failed', error: 'boom' });
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(subject?.workId).toBeNull();
-    expect(subject?.minExpiresAt).toBeNull();
-    expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
-    expect(typeof subject?.nextDueAt).toBe('number');
-  });
-
-  it('arms the next due time off the cache window on success with targets', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt: now + 50_000,
-        syncedCharacterIds: [101],
-      }));
-    });
-
-    await callComplete(t, { kind: 'success' });
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(typeof subject?.nextDueAt).toBe('number');
-    expect(subject?.minExpiresAt).toBe(now + 50_000);
-  });
-
-  it('parks a successful run with nothing synced at null', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        syncedCharacterIds: [],
-      }));
-    });
-
-    await callComplete(t, { kind: 'success' });
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.nextDueAt).toBeNull();
-  });
-
-  it('no-ops when the workId no longer owns the subject', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        nextDueAt: now + 60_000,
-      }));
-    });
-
-    await callComplete(t, { kind: 'success' }, 'stale-work');
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('running');
-    expect(subject?.workId).toBe('w1');
-  });
-
-});
-
-describe('engine chain-on-success', () => {
-  function callLocationComplete(
-    t: ReturnType<typeof convexTest>,
-    result: unknown,
-    workId = 'w1',
-  ) {
-    return t.mutation(internal.engineComplete.onSyncComplete, {
-      workId: workId as never,
-      context: { dataset: 'characterLocation', userId: USER },
-      result: result as never,
-    });
-  }
-
-  it('re-arms jitter-free and chainDispatch dispatches the next hop', async () => {
-    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
-    const t = convexTest(schema, modules);
-    stubDispatch();
-    const now = Date.now();
-    const minExpiresAt = now + 5_000;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation',
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt,
-        syncedCharacterIds: [101],
-        coveredCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now,
-      });
-    });
-
-    await callLocationComplete(t, { kind: 'success' });
-
-    const boundary = computeChainBoundary(minExpiresAt, 5_000, now);
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(subject?.nextDueAt).toBe(boundary);
-
-    const pending = await scheduledChainDispatches(t);
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.scheduledTime).toBe(boundary);
-    expect(pending[0]?.args).toEqual([{ dataset: 'characterLocation', userId: USER }]);
-
-    vi.setSystemTime(boundary);
-    await t.mutation(internal.engineComplete.chainDispatch, {
-      dataset: 'characterLocation',
-      userId: USER,
-    });
-
-    const afterHop = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(afterHop?.status).toBe('running');
-    expect(afterHop?.workId).toBe(String(Date.now()));
-    expect(afterHop?.nextDueAt).toBe(Date.now() + 5_000);
-    expect(await scheduledSyncUsers(t)).toHaveLength(1);
-  });
-
-  it('chains a failed completion at the cadence floor while presence is fresh, and never when cold', async () => {
-    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    const fresh = convexTest(schema, modules);
-    stubDispatch();
-    const now = Date.now();
-    await fresh.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation',
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt: now + 5_000,
-        syncedCharacterIds: [101],
-        coveredCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now,
-      });
-    });
-
-    await callLocationComplete(fresh, { kind: 'failed', error: 'boom' });
-
-    const boundary = now + 5_000;
-    const freshSubject = await fresh.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(freshSubject?.status).toBe('idle');
-    expect(freshSubject?.nextDueAt).toBe(boundary);
-    expect(freshSubject?.lastError?.startsWith('sync_failed:')).toBe(true);
-
-    const pending = await scheduledChainDispatches(fresh);
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.scheduledTime).toBe(boundary);
-
-    vi.setSystemTime(boundary);
-    await fresh.mutation(internal.engineComplete.chainDispatch, {
-      dataset: 'characterLocation',
-      userId: USER,
-    });
-
-    const afterHop = await fresh.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(afterHop?.status).toBe('running');
-    expect(afterHop?.workId).toBe(String(Date.now()));
-    expect(await scheduledSyncUsers(fresh)).toHaveLength(1);
-
-    const cold = convexTest(schema, modules);
-    await cold.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation',
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt: now + 5_000,
-        syncedCharacterIds: [101],
-        coveredCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 1,
-      });
-    });
-
-    await callLocationComplete(cold, { kind: 'failed', error: 'boom' });
-
-    expect(await scheduledChainDispatches(cold)).toHaveLength(0);
-    const coldSubject = await cold.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(coldSubject?.status).toBe('idle');
-    expect(typeof coldSubject?.nextDueAt).toBe('number');
-    expect(coldSubject?.lastError?.startsWith('sync_failed:')).toBe(true);
-  });
-
-  it('never chains a cold-presence completion', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation',
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt: now + 5_000,
-        syncedCharacterIds: [101],
-        coveredCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 1,
-      });
-    });
-
-    await callLocationComplete(t, { kind: 'success' });
-
-    expect(await scheduledChainDispatches(t)).toHaveLength(0);
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(typeof subject?.nextDueAt).toBe('number');
-  });
-
-  it('never chains a poisoned (null-window) completion — the 5s floor is unreachable', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt: null,
-        syncedCharacterIds: [101, 102],
-        coveredCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt: now });
-    });
-
-    await callLocationComplete(t, { kind: 'success' });
-
-    expect(await scheduledChainDispatches(t)).toHaveLength(0);
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(typeof subject?.nextDueAt).toBe('number');
-  });
-
-  it('never chains a zero-yield success (empty covered set or run-level error)', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    for (const overrides of [
-      { coveredCharacterIds: [] as number[] },
-      { coveredCharacterIds: [101], lastError: 'budget_exhausted:daily' },
-    ]) {
-      await t.run(async (ctx) => {
-        const stale = await ctx.db
-          .query('syncSubjects')
-          .withIndex('by_user_dataset', (q) =>
-            q.eq('userId', USER).eq('dataset', 'characterLocation'),
-          )
-          .unique();
-        if (stale !== null) await ctx.db.delete(stale._id);
-        await ctx.db.insert('syncSubjects', subjectRow({
-          dataset: 'characterLocation',
-          status: 'running',
-          lastRequestedAt: now,
-          workId: 'w1',
-          minExpiresAt: now + 5_000,
-          syncedCharacterIds: [101],
-          ...overrides,
-        }));
-        const presence = await ctx.db
-          .query('syncPresence')
-          .withIndex('by_user_dataset', (q) =>
-            q.eq('userId', USER).eq('dataset', 'characterLocation'),
-          )
-          .unique();
-        if (presence === null) {
-          await ctx.db.insert('syncPresence', {
-            dataset: 'characterLocation',
-            userId: USER,
-            lastSeenAt: now,
-          });
+          expect(await readState(t)).toBeNull();
+          expect(await scheduledSyncUsers(t)).toHaveLength(0);
         }
       });
 
-      await callLocationComplete(t, { kind: 'success' });
+      it('does nothing when a run is already scheduled', async () => {
+        const t = convexTest(schema, modules);
+        const now = Date.now();
+        const job = await schedulePending(t, now + 30_000, now - 10_000);
+        await seedPresence(t);
+        await seedState(t, { runId: now - 10_000, jobId: job, syncedCharacterIds: [CHAR] });
+        const before = await readState(t);
 
-      expect(await scheduledChainDispatches(t)).toHaveLength(0);
-      const subject = await t.run((ctx) =>
-        ctx.db
-          .query('syncSubjects')
-          .withIndex('by_user_dataset', (q) =>
-            q.eq('userId', USER).eq('dataset', 'characterLocation'),
-          )
-          .unique(),
-      );
-      expect(typeof subject?.nextDueAt).toBe('number');
+        await call(t);
+
+        expect(await readState(t)).toEqual(before);
+        expect(await scheduledSyncUsers(t)).toHaveLength(1);
+      });
+    });
+  }
+});
+
+describe('characterLocationApply.finishSync scheduling', () => {
+  async function seedRunning(t: T, overrides: Partial<Doc<'locationSync'>> = {}) {
+    const runId = Date.now() - 10_000;
+    await seedState(t, { runId, syncedCharacterIds: [CHAR], ...overrides });
+    return runId;
+  }
+
+  it('drops a result whose generation no longer owns the state', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await seedTracking(t);
+    await seedPresence(t);
+    const runId = await seedRunning(t, { minExpiresAt: now + 1_000 });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationAccess', {
+        userId: USER,
+        characterId: CHAR,
+        accessToken: 'held',
+        expiresAt: now + 600_000,
+        updatedAt: now - 1_000,
+      });
+    });
+    const before = await t.run(async (ctx) => ({
+      state: await ctx.db.query('locationSync').unique(),
+      leases: await ctx.db.query('characterLocationAccess').collect(),
+    }));
+
+    await finish(
+      t,
+      runId - 1,
+      success([CHAR], [onlineResult(CHAR, now + 30_000)]),
+      [{ characterId: CHAR, accessToken: 'vended', expiresAt: now + 1_200_000 }],
+      [CHAR],
+    );
+    await finish(t, runId + 1, { kind: 'failed', error: 'boom' });
+
+    const after = await t.run(async (ctx) => ({
+      state: await ctx.db.query('locationSync').unique(),
+      leases: await ctx.db.query('characterLocationAccess').collect(),
+    }));
+    expect(after).toEqual(before);
+    expect(await t.run((ctx) => ctx.db.query('characterLocation').collect())).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query('characterLocationCovered').collect())).toEqual([]);
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
+  });
+
+  it('chains a yielding run exactly at the cache boundary, without jitter', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    for (const expiresIn of [30_000, 1_000]) {
+      const t = convexTest(schema, modules);
+      const now = Date.now();
+      await seedPresence(t);
+      const runId = await seedRunning(t);
+
+      await finish(t, runId, success([CHAR], [onlineResult(CHAR, now + expiresIn)]));
+
+      const boundary = computeChainBoundary(now + expiresIn, LOCATION_CADENCE_FLOOR_MS, now);
+      expect(boundary).toBe(now + Math.max(expiresIn, LOCATION_CADENCE_FLOOR_MS));
+      const pending = await pendingSyncUsers(t);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]?.scheduledTime).toBe(boundary);
+      const state = await readState(t);
+      expect(state).toMatchObject({
+        runId: now,
+        jobId: pending[0]?._id,
+        minExpiresAt: now + expiresIn,
+        syncedCharacterIds: [CHAR],
+        coveredCharacterIds: [CHAR],
+        lastFinishedAt: now,
+      });
+      expect(pending[0]?.args).toEqual([{ userId: USER, generation: now }]);
+    }
+    random.mockRestore();
+  });
+
+  it('never cancels the job it runs under when it schedules the next one', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    // Stand-in for the job this finish is running under.
+    const current = await schedulePending(t, now, now - 10_000);
+    await seedPresence(t);
+    const runId = await seedRunning(t, { jobId: current });
+
+    await finish(t, runId, success([CHAR], [onlineResult(CHAR, now + 30_000)]));
+
+    expect((await jobById(t, current))?.state.kind).toBe('pending');
+    expect((await readState(t))?.jobId).not.toBe(current);
+    expect(await pendingSyncUsers(t)).toHaveLength(2);
+  });
+
+  it('re-arms a zero-yield run with jitter: all offline, nothing read, or a run-level error', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const now = Date.now();
+    const cases = [
+      { outcome: success([CHAR], [offlineResult(CHAR, now + 60_000)]), minExpiresAt: now + 60_000 },
+      { outcome: success([CHAR], []), minExpiresAt: null },
+      {
+        outcome: success([CHAR], [onlineResult(CHAR, now + 30_000)], 'budget_exhausted:daily'),
+        minExpiresAt: now + 30_000,
+      },
+    ];
+    for (const { outcome, minExpiresAt } of cases) {
+      const t = convexTest(schema, modules);
+      await seedPresence(t);
+      const runId = await seedRunning(t);
+
+      await finish(t, runId, outcome);
+
+      const expected = computeNextDueAt(minExpiresAt, LOCATION_CADENCE_FLOOR_MS, now, () => 0.5);
+      expect(expected).toBeGreaterThan(computeChainBoundary(minExpiresAt, LOCATION_CADENCE_FLOOR_MS, now));
+      const pending = await pendingSyncUsers(t);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]?.scheduledTime).toBe(expected);
+      const state = await readState(t);
+      expect(state?.jobId).toBe(pending[0]?._id);
+      expect(state?.minExpiresAt).toBe(minExpiresAt);
+      expect(state?.lastFinishedAt).toBe(now);
     }
   });
 
-  it('keys the rate limiter per subject for characterLocation', async () => {
+  it('retries a failed run at the cadence floor and forgets the cache window', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const t = convexTest(schema, modules);
     const now = Date.now();
-    const limit = vi
-      .spyOn(RateLimiter.prototype, 'limit')
-      .mockResolvedValue({ ok: true, retryAfter: 0 } as never);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation',
-        nextDueAt: now - 1000,
-        syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now,
-      });
+    await seedPresence(t);
+    const runId = await seedRunning(t, {
+      minExpiresAt: now + 50_000,
+      coveredCharacterIds: [CHAR],
+      lastFinishedAt: now - 5_000,
     });
 
-    await t.mutation(internal.engineScan.scan, {});
+    await finish(t, runId, { kind: 'failed', error: 'boom' });
 
-    expect(limit).toHaveBeenCalledWith(
-      expect.anything(),
-      'syncDispatch',
-      { key: `char-location:${USER}` },
-    );
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.scheduledTime).toBe(now + LOCATION_CADENCE_FLOOR_MS);
+    expect(await readState(t)).toMatchObject({
+      runId: now,
+      jobId: pending[0]?._id,
+      minExpiresAt: null,
+      syncedCharacterIds: [CHAR],
+      coveredCharacterIds: [CHAR],
+      lastFinishedAt: now - 5_000,
+    });
+    expect(error.mock.calls[0]?.[0]).toContain('"outcome":"failed"');
+  });
+
+  it('stops when the watcher has gone cold: no next run, jobId null, coverage cleared', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const now = Date.now();
+    for (const presence of [coldPresence(), null]) {
+      for (const outcome of [
+        success([CHAR], [onlineResult(CHAR, now + 30_000)]),
+        { kind: 'failed' as const, error: 'boom' },
+      ]) {
+        const t = convexTest(schema, modules);
+        if (presence !== null) await seedPresence(t, presence);
+        const runId = await seedRunning(t, { coveredCharacterIds: [CHAR] });
+        await t.run(async (ctx) => {
+          await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR });
+        });
+
+        await finish(t, runId, outcome);
+
+        expect(await scheduledSyncUsers(t)).toHaveLength(0);
+        const state = await readState(t);
+        expect(state?.jobId).toBeNull();
+        expect(state?.runId).toBe(runId);
+        expect(await t.run((ctx) => ctx.db.query('characterLocationCovered').collect())).toEqual([]);
+        if (outcome.kind === 'success') expect(state?.lastFinishedAt).toBe(now);
+      }
+    }
+  });
+
+  it('stops a successful run with nothing tracked', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await seedPresence(t);
+    const runId = await seedRunning(t);
+
+    await finish(t, runId, success([], []));
+
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
+    expect(await readState(t)).toMatchObject({
+      runId,
+      jobId: null,
+      syncedCharacterIds: [],
+      coveredCharacterIds: [],
+      lastFinishedAt: now,
+    });
+  });
+
+  it('carries a heartbeat-scheduled run through syncUser into the next run', async () => {
+    vi.stubEnv('SITE_URL', undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const t = convexTest(schema, modules);
+    await seedTracking(t);
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+    const first = await readState(t);
+
+    // Fire only the due run; the retry it schedules stays pending.
+    vi.runOnlyPendingTimers();
+    await t.finishInProgressScheduledFunctions();
+
+    const jobs = await scheduledSyncUsers(t);
+    expect(jobs.map((job) => job.state.kind)).toEqual(['success', 'pending']);
+    const next = await readState(t);
+    expect(next?.jobId).toBe(jobs[1]?._id);
+    expect(next?.runId).toBeGreaterThan(first!.runId);
+    expect(jobs[1]?.args).toEqual([{ userId: USER, generation: next?.runId }]);
+    expect(jobs[1]?.scheduledTime).toBe(Date.now() + LOCATION_CADENCE_FLOOR_MS);
   });
 });
 
 describe('engine.sweep (daily retention)', () => {
-  it('deletes only presence and subjects past retention, never dispatching overdue work', async () => {
+  it('deletes only presence and sync state past retention, never scheduling overdue work', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    stubDispatch();
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-overdue', nextDueAt: now - 1000, syncedCharacterIds: [101] }));
+      await ctx.db.insert('locationSync', stateRow({
+        userId: 'u-overdue', minExpiresAt: now - 1000, syncedCharacterIds: [CHAR],
+      }));
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-overdue', lastSeenAt: now - 1000 });
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-cold', nextDueAt: null }));
+      await ctx.db.insert('locationSync', stateRow({ userId: 'u-cold' }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: 'u-cold',
-        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 5000,
+        lastSeenAt: now - LOCATION_COLD_AFTER_MS - 5000,
       });
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-abandoned', nextDueAt: null }));
+      await ctx.db.insert('locationSync', stateRow({ userId: 'u-abandoned' }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: 'u-abandoned',
@@ -1035,11 +1071,11 @@ describe('engine.sweep (daily retention)', () => {
     const counts = await t.mutation(internal.engineSweep.sweep, {});
     expect(counts).toEqual({ deleted: 1, capped: false });
 
-    const { subjects, presence } = await t.run(async (ctx) => ({
-      subjects: (await ctx.db.query('syncSubjects').collect()).map((row) => row.userId).sort(),
+    const { state, presence } = await t.run(async (ctx) => ({
+      state: (await ctx.db.query('locationSync').collect()).map((row) => row.userId).sort(),
       presence: (await ctx.db.query('syncPresence').collect()).map((row) => row.userId).sort(),
     }));
-    expect(subjects).toEqual(['u-cold', 'u-overdue']);
+    expect(state).toEqual(['u-cold', 'u-overdue']);
     expect(presence).toEqual(['u-cold', 'u-overdue']);
     expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
@@ -1048,27 +1084,57 @@ describe('engine.sweep (daily retention)', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'onlineStatus', userId: 'u-old', nextDueAt: null,
-      }));
+      await ctx.db.insert('syncSubjects', legacySubjectRow({ dataset: 'onlineStatus', userId: 'u-old' }));
       await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u-old', lastSeenAt: now });
       await ctx.db.insert('characterOnline', {
-        userId: 'u-old', characterId: 101, online: true, etag: 'e1',
+        userId: 'u-old', characterId: CHAR, online: true, etag: 'e1',
       });
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-live', nextDueAt: null }));
+      await ctx.db.insert('locationSync', stateRow({ userId: 'u-live' }));
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-live', lastSeenAt: now });
     });
 
     await t.mutation(internal.engineSweep.sweep, {});
 
-    const { subjects, presence, online } = await t.run(async (ctx) => ({
+    const { subjects, presence, online, state } = await t.run(async (ctx) => ({
       subjects: await ctx.db.query('syncSubjects').collect(),
       presence: await ctx.db.query('syncPresence').collect(),
       online: await ctx.db.query('characterOnline').collect(),
+      state: await ctx.db.query('locationSync').collect(),
     }));
-    expect(subjects.map((row) => row.dataset)).toEqual(['characterLocation']);
+    expect(subjects).toEqual([]);
     expect(presence.map((row) => row.dataset)).toEqual(['characterLocation']);
     expect(online).toEqual([]);
+    expect(state.map((row) => row.userId)).toEqual(['u-live']);
+  });
+
+  it('drains every syncSubjects row, live dataset included, continuing past a full batch', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const total = 513;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < total; i++) {
+        await ctx.db.insert('syncSubjects', legacySubjectRow({
+          userId: `u${i}`, nextDueAt: now - 1000, syncedCharacterIds: [CHAR],
+        }));
+      }
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u0', lastSeenAt: now });
+      await ctx.db.insert('locationSync', stateRow({ userId: 'u0' }));
+    });
+
+    const first = await t.mutation(internal.engineSweep.sweep, {});
+    expect(first).toEqual({ deleted: 512, capped: true });
+    expect(await scheduledFunctionsNamed(t, 'engineSweep')).toHaveLength(1);
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const after = await t.run(async (ctx) => ({
+      subjects: await ctx.db.query('syncSubjects').collect(),
+      presence: await ctx.db.query('syncPresence').collect(),
+      state: await ctx.db.query('locationSync').collect(),
+    }));
+    expect(after.subjects).toEqual([]);
+    expect(after.presence).toHaveLength(1);
+    expect(after.state).toHaveLength(1);
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
 
   it('schedules an immediate continuation when a batch fills', async () => {
@@ -1094,10 +1160,11 @@ describe('engine.sweep (daily retention)', () => {
     expect(remaining).toHaveLength(0);
   });
 
-  it('runs from a daily Convex cron with no Vercel watchdog door', () => {
+  it('runs from a daily Convex cron with no Vercel watchdog door and no scan cron', () => {
     const cronSource = readFileSync('convex/crons.ts', 'utf8');
     const httpSource = readFileSync('convex/http.ts', 'utf8');
     expect(cronSource).toContain("'sync engine retention', { hours: 24 }, internal.engineSweep.sweep");
+    expect(cronSource).not.toContain('engineScan');
     expect(httpSource).not.toContain("'/sweep'");
   });
 });

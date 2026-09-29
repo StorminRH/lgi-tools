@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { internal } from './_generated/api';
 import { JUMP_CONTINUITY_MS } from './characterLocationApply';
 import schema from './schema';
@@ -15,26 +15,55 @@ import {
   USER,
 } from './__tests__/characterLocation.setup';
 
+const NOW = GEN + 1_000;
 const WINDOW = GEN + 5_000;
 
-function subjectRow(overrides: Record<string, unknown> = {}) {
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
+
+// The watcher is warm so a finish chains rather than stopping and clearing coverage.
+function syncStateRow(overrides: Record<string, unknown> = {}) {
   return {
-    dataset: 'characterLocation' as const,
     userId: USER,
-    status: 'running' as const,
-    lastRequestedAt: GEN,
-    workId: 'w1',
-    nextDueAt: GEN + 30_000,
+    runId: GEN,
+    jobId: null,
     minExpiresAt: null,
     syncedCharacterIds: [] as number[],
+    coveredCharacterIds: [] as number[],
     lastFinishedAt: null as number | null,
-    lastError: null,
-    rlGroup: null,
-    rlLimit: null,
-    rlRemaining: null,
-    rlUsed: null,
     ...overrides,
   };
+}
+
+async function seedSyncState(
+  t: TestConvex<typeof schema>,
+  overrides: Record<string, unknown> = {},
+) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('locationSync', syncStateRow(overrides));
+    await ctx.db.insert('syncPresence', {
+      dataset: 'characterLocation',
+      userId: USER,
+      lastSeenAt: GEN,
+      lastVisibleAt: GEN,
+    });
+  });
+}
+
+function readSyncState(t: TestConvex<typeof schema>) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('locationSync')
+      .withIndex('by_user', (q) => q.eq('userId', USER))
+      .unique(),
+  );
 }
 
 type ApplyResult = {
@@ -53,40 +82,44 @@ type ApplyResult = {
   onlineExpiresAt?: number | null;
 };
 
-function apply(
+// Each successful finish chains under a fresh generation, so by default the
+// finish claims whatever generation currently owns the state.
+async function apply(
   t: TestConvex<typeof schema>,
   args: {
     results: ApplyResult[];
     generation?: number;
-    enumeratedCharacterIds?: number[];
     trackedCharacterIds?: number[];
   },
 ) {
-  return t.mutation(internal.characterLocationApply.applySyncResults, {
+  const generation = args.generation ?? (await readSyncState(t))?.runId ?? GEN;
+  return t.mutation(internal.characterLocationApply.finishSync, {
     userId: USER,
-    generation: args.generation ?? GEN,
-    enumeratedCharacterIds:
-      args.enumeratedCharacterIds ?? args.results.map((r) => r.characterId),
-    trackedCharacterIds:
-      args.trackedCharacterIds ?? args.results.map((r) => r.characterId),
-    results: args.results.map((r) => ({
-      ...r,
-      online: r.online ?? null,
-      etagOnline: r.etagOnline ?? null,
-      onlineExpiresAt: r.onlineExpiresAt ?? null,
-    })),
-    lastError: null,
-    rlGroup: null,
-    rlLimit: null,
-    rlRemaining: null,
-    rlUsed: null,
+    generation,
+    outcome: {
+      kind: 'success',
+      trackedCharacterIds:
+        args.trackedCharacterIds ?? args.results.map((r) => r.characterId),
+      results: args.results.map((r) => ({
+        ...r,
+        online: r.online ?? null,
+        etagOnline: r.etagOnline ?? null,
+        onlineExpiresAt: r.onlineExpiresAt ?? null,
+      })),
+      runError: null,
+      rlGroup: null,
+      rlRemaining: null,
+    },
+    leases: [],
+    clearedLeaseCharacterIds: [],
   });
 }
 
-describe('characterLocationApply.applySyncResults', () => {
+describe('characterLocationApply.finishSync (apply)', () => {
   it('no-ops on a generation mismatch', async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
+    await seedSyncState(t);
+    const state = await readSyncState(t);
     await apply(t, {
       generation: GEN + 1,
       results: [
@@ -101,16 +134,25 @@ describe('characterLocationApply.applySyncResults', () => {
           etagShip: 's',
           expiresAt: WINDOW,
           error: null,
+          online: true,
+          etagOnline: 'on',
+          onlineExpiresAt: WINDOW,
         },
       ],
     });
     expect(await readDoc(t)).toBeNull();
+    expect(await readSyncState(t)).toEqual(state);
+    const touched = await t.run(async (ctx) => ({
+      online: await ctx.db.query('characterLocationOnline').collect(),
+      covered: await ctx.db.query('characterLocationCovered').collect(),
+    }));
+    expect(touched).toEqual({ online: [], covered: [] });
   });
 
   it('writes nothing for a 304 unchanged result (stationary zero-write)', async () => {
     const t = convexTest(schema, modules);
+    await seedSyncState(t);
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow());
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
     });
     const before = await readDoc(t);
@@ -134,6 +176,7 @@ describe('characterLocationApply.applySyncResults', () => {
     });
 
     const after = await readDoc(t);
+    expect(after).toEqual(before);
     expect(after?._id).toBe(before?._id);
     expect(after?._creationTime).toBe(before?._creationTime);
     expect(after).toMatchObject({
@@ -146,8 +189,8 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('advances observedAt for a dock update without advancing the system-transition epoch', async () => {
     const t = convexTest(schema, modules);
+    await seedSyncState(t);
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow());
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
     });
 
@@ -173,23 +216,18 @@ describe('characterLocationApply.applySyncResults', () => {
       transitionObservedAt: 1_699_999_999_000,
       etagLocation: 'loc-docked',
     });
-    expect((await readDoc(t))?.observedAt).not.toBe(1_700_000_000_000);
+    expect((await readDoc(t))?.observedAt).toBe(NOW);
   });
 
   it('stamps prevFresh true when the previous covered run finished 17s ago', async () => {
     const t = convexTest(schema, modules);
     expect(JUMP_CONTINUITY_MS).toBeGreaterThan(17_000);
-    await t.run(async (ctx) => {
-      await ctx.db.insert(
-        'syncSubjects',
-        subjectRow({
-          lastFinishedAt: Date.now() - 17_000,
-          syncedCharacterIds: [CHAR_A],
-          coveredCharacterIds: [CHAR_A],
-        }),
-      );
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    await seedSyncState(t, {
+      lastFinishedAt: Date.now() - 17_000,
+      syncedCharacterIds: [CHAR_A],
+      coveredCharacterIds: [CHAR_A],
     });
+    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
 
     await apply(t, {
       results: [
@@ -217,17 +255,12 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('stamps prevFresh false when the previous run is outside JUMP_CONTINUITY_MS', async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert(
-        'syncSubjects',
-        subjectRow({
-          lastFinishedAt: Date.now() - 60_000,
-          syncedCharacterIds: [CHAR_A],
-          coveredCharacterIds: [CHAR_A],
-        }),
-      );
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    await seedSyncState(t, {
+      lastFinishedAt: Date.now() - 60_000,
+      syncedCharacterIds: [CHAR_A],
+      coveredCharacterIds: [CHAR_A],
     });
+    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
 
     await apply(t, {
       results: [
@@ -256,17 +289,12 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('stamps prevFresh false when the previous run did not cover the character', async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert(
-        'syncSubjects',
-        subjectRow({
-          lastFinishedAt: Date.now() - 1_000,
-          syncedCharacterIds: [CHAR_A],
-          coveredCharacterIds: [],
-        }),
-      );
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    await seedSyncState(t, {
+      lastFinishedAt: Date.now() - 1_000,
+      syncedCharacterIds: [CHAR_A],
+      coveredCharacterIds: [],
     });
+    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
 
     await apply(t, {
       results: [
@@ -294,13 +322,12 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('stamps this run\'s covered set from clean results only (304 included)', async () => {
     const t = convexTest(schema, modules);
+    await seedSyncState(t);
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow());
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
     });
 
     await apply(t, {
-      enumeratedCharacterIds: [CHAR_A, CHAR_B],
       trackedCharacterIds: [CHAR_A, CHAR_B],
       results: [
         {
@@ -331,16 +358,10 @@ describe('characterLocationApply.applySyncResults', () => {
       ],
     });
 
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', USER).eq('dataset', 'characterLocation'),
-        )
-        .unique(),
-    );
+    const subject = await readSyncState(t);
     expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
     expect(subject?.syncedCharacterIds).toEqual([CHAR_A, CHAR_B]);
+    expect(subject?.lastFinishedAt).toBe(NOW);
     const covered = await t.run((ctx) =>
       ctx.db
         .query('characterLocationCovered')
@@ -352,14 +373,13 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('keeps last-known location for a character missing from this run\'s tracked set', async () => {
     const t = convexTest(schema, modules);
+    await seedSyncState(t);
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow());
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
     });
 
     await apply(t, {
-      enumeratedCharacterIds: [CHAR_A],
       trackedCharacterIds: [CHAR_A],
       results: [
         {
@@ -385,7 +405,7 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('excludes an offline probe result from the covered set (no fabricated continuity)', async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
+    await seedSyncState(t);
 
     await apply(t, {
       results: [
@@ -420,19 +440,14 @@ describe('characterLocationApply.applySyncResults', () => {
       ],
     });
 
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
+    const subject = await readSyncState(t);
     expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
   });
 
   it('keeps held location when the pilot is logged off', async () => {
     const t = convexTest(schema, modules);
+    await seedSyncState(t);
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow());
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
     });
 
@@ -472,7 +487,7 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('upserts the held online-probe row only on a fresh probe read', async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
+    await seedSyncState(t);
     const offlineResult = {
       characterId: CHAR_A,
       solarSystemId: null as number | null,
@@ -521,8 +536,8 @@ describe('characterLocationApply.applySyncResults', () => {
 
   it('keeps held online-probe rows for a character missing from this run\'s tracked set', async () => {
     const t = convexTest(schema, modules);
+    await seedSyncState(t);
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow());
       for (const characterId of [CHAR_A, CHAR_B]) {
         await ctx.db.insert('characterLocationOnline', {
           userId: USER,
@@ -535,7 +550,6 @@ describe('characterLocationApply.applySyncResults', () => {
     });
 
     await apply(t, {
-      enumeratedCharacterIds: [CHAR_A],
       trackedCharacterIds: [CHAR_A],
       results: [],
     });

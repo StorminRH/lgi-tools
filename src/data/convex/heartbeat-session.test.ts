@@ -145,11 +145,12 @@ describe('heartbeat participants', () => {
   it('rephases a returning tab interval while sending its direct visible beat', () => {
     const bus = new TestBus();
     const tab = participant(bus, 'a', { visible: false });
-    advance(bus, 10_000);
+    const half = HEARTBEAT_MS / 2;
+    advance(bus, half);
     tab.visibility(true);
-    advance(bus, 10_000);
+    advance(bus, half);
     expect(tab.intervals()).toHaveLength(0);
-    advance(bus, 10_000);
+    advance(bus, half);
     expect(tab.intervals()).toHaveLength(1);
     expect(tab.beats.map((beat) => beat.reason)).toEqual(['mount', 'visible', 'interval']);
   });

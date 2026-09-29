@@ -5,9 +5,8 @@ import type { DatabaseReader, QueryCtx } from '../_generated/server';
 export type UserCharacterIndexedTable =
   | 'characterLocation'
   | 'characterLocationCovered';
-export type UserDatasetTable = 'syncSubjects' | 'syncPresence';
 export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
-export type StoredDataset = Doc<'syncSubjects'>['dataset'];
+export type StoredDataset = Doc<'syncPresence'>['dataset'];
 
 export function collectByUser(
   db: DatabaseReader,
@@ -67,38 +66,15 @@ export function uniqueByUserCharacter(
 
 export function uniqueByUserDataset(
   db: DatabaseReader,
-  table: 'syncSubjects',
   dataset: StoredDataset,
   userId: string,
-): Promise<Doc<'syncSubjects'> | null>;
-export function uniqueByUserDataset(
-  db: DatabaseReader,
-  table: 'syncPresence',
-  dataset: StoredDataset,
-  userId: string,
-): Promise<Doc<'syncPresence'> | null>;
-export function uniqueByUserDataset(
-  db: DatabaseReader,
-  table: UserDatasetTable,
-  dataset: StoredDataset,
-  userId: string,
-) {
-  switch (table) {
-    case 'syncSubjects':
-      return db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', userId).eq('dataset', dataset),
-        )
-        .unique();
-    case 'syncPresence':
-      return db
-        .query('syncPresence')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', userId).eq('dataset', dataset),
-        )
-        .unique();
-  }
+): Promise<Doc<'syncPresence'> | null> {
+  return db
+    .query('syncPresence')
+    .withIndex('by_user_dataset', (q) =>
+      q.eq('userId', userId).eq('dataset', dataset),
+    )
+    .unique();
 }
 
 export function takeExpiredByPurgeAfter(

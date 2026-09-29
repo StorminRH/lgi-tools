@@ -6,6 +6,7 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import {
+  accessLease,
   CHAR_A,
   CHAR_B,
   GEN,
@@ -14,11 +15,16 @@ import {
   USER,
 } from './__tests__/characterLocation.setup';
 
-describe('characterLocationReads.heldState', () => {
-  it('returns system id, dual etags, and the held online probe in one snapshot', async () => {
+describe('characterLocationReads.syncInputs', () => {
+  it('returns tracked ids, system id, dual etags, the held online probe, and leases in one snapshot', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
+      // The same character tracked on two maps is enumerated once.
+      await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: USER, characterId: CHAR_A });
+      await ctx.db.insert('mapTracking', { mapId: 'map-b', userId: USER, characterId: CHAR_A });
+      await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: OTHER, characterId: CHAR_B });
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+      await ctx.db.insert('characterLocation', locationDoc(OTHER, CHAR_B));
       await ctx.db.insert('characterLocationOnline', {
         userId: USER,
         characterId: CHAR_A,
@@ -33,9 +39,12 @@ describe('characterLocationReads.heldState', () => {
         etagOnline: null,
         onlineExpiresAt: GEN,
       });
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+      await ctx.db.insert('characterLocationAccess', accessLease(OTHER, CHAR_B));
     });
-    const held = await t.query(internal.characterLocationReads.heldState, { userId: USER });
-    expect(held).toEqual({
+    const inputs = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
+    expect(inputs).toEqual({
+      trackedIds: [CHAR_A],
       locations: [
         {
           characterId: CHAR_A,
@@ -52,6 +61,26 @@ describe('characterLocationReads.heldState', () => {
           onlineExpiresAt: GEN + 60_000,
         },
       ],
+      leases: [
+        { characterId: CHAR_A, accessToken: `tok-${CHAR_A}`, expiresAt: GEN + 1_200_000 },
+      ],
     });
+  });
+
+  it('returns empty arrays for an untracked user even when held rows remain', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+      await ctx.db.insert('characterLocationOnline', {
+        userId: USER,
+        characterId: CHAR_A,
+        online: true,
+        etagOnline: 'on',
+        onlineExpiresAt: GEN + 60_000,
+      });
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+    });
+    const inputs = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
+    expect(inputs).toEqual({ trackedIds: [], locations: [], online: [], leases: [] });
   });
 });

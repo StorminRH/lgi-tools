@@ -3,15 +3,14 @@ import {
   computeNextDueAt,
   hasSyncTarget,
   isCold,
-  isRunningFresh,
   isStaleForImmediate,
-  SYNC_DATASET_CONFIG,
-  type SyncDataset,
+  LOCATION_CADENCE_FLOOR_MS,
+  LOCATION_COLD_AFTER_MS,
 } from '@/lib/sync-engine';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query, type MutationCtx } from './_generated/server';
-import { dispatch, syncDatasetValidator } from './lib/engineCore';
-import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
+import { ensureLocationSync, runState, scheduleRun } from './lib/locationSchedule';
+import { getPresence } from './lib/subjects';
 
 export const currentUser = query({
   args: {},
@@ -21,78 +20,71 @@ export const currentUser = query({
 
 export const heartbeat = mutation({
   args: {
-    dataset: syncDatasetValidator,
+    dataset: v.literal('characterLocation'),
     characterIdsHint: v.array(v.number()),
     reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
     visible: v.boolean(),
     tabId: v.string(),
     expectedUserId: v.string(),
   },
-  handler: async (ctx, { dataset, characterIdsHint, reason, visible, tabId, expectedUserId }) => {
+  handler: async (ctx, { characterIdsHint, reason, visible, tabId, expectedUserId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
     if (expectedUserId !== identity.subject) return;
     const userId = identity.subject;
     const now = Date.now();
-    const presence = await getPresence(ctx.db, dataset, userId);
+    const presence = await getPresence(ctx.db, 'characterLocation', userId);
     if (presence !== null && isLeftTab(presence.leftTabId, tabId)) return;
 
-    if (reason === 'interval' && isPresenceFresh(presence, dataset, visible, tabId, now)) {
+    if (reason === 'interval' && isPresenceFresh(presence, visible, tabId, now)) {
       return;
     }
 
-    const wasCold = await upsertPresence(
-      ctx,
-      presence,
-      dataset,
-      userId,
-      visible,
+    const wasCold = await upsertPresence(ctx, presence, userId, visible, now, tabId);
+    // A tab hidden past the visible cap stays cold even after this beat, so it
+    // must not revive a run that finishSync would immediately stop again.
+    const afterBeat = {
+      lastSeenAt: now,
+      lastVisibleAt: visible ? now : presence?.lastVisibleAt,
+    };
+    if (isCold(afterBeat, LOCATION_COLD_AFTER_MS, now)) return;
+
+    const state = await ensureLocationSync(ctx, userId);
+    if (!hasSyncTarget(state.syncedCharacterIds, characterIdsHint)) return;
+    const run = await runState(ctx.db, state);
+    if (run === 'inProgress') return;
+
+    const stale = isStaleForImmediate(
+      state.minExpiresAt,
+      state.syncedCharacterIds,
+      characterIdsHint,
       now,
-      tabId,
     );
+    const dueAt = stale
+      ? now
+      : computeNextDueAt(state.minExpiresAt, LOCATION_CADENCE_FLOOR_MS, state.lastFinishedAt ?? now);
 
-    if (reason === 'interval' && !wasCold) return;
+    // An interval beat on a warm session is the safety net: it only re-arms a
+    // user whose run died or was never scheduled, and never moves a pending run.
+    const safetyNetOnly = reason === 'interval' && !wasCold;
+    if (run === 'pending' && (safetyNetOnly || !stale)) return;
 
-    let subject = await getSyncSubject(ctx.db, dataset, userId);
-    if (subject === null) {
-      const id = await ctx.db.insert('syncSubjects', newIdleSubject(dataset, userId));
-      subject = await ctx.db.get(id);
-      if (subject === null) return;
-    }
-
-    if (!hasSyncTarget(subject.syncedCharacterIds, characterIdsHint)) return;
-    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
-    if (!isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, characterIdsHint, now)) {
-      if (subject.nextDueAt === null) {
-        const { cadenceFloorMs } = SYNC_DATASET_CONFIG[dataset];
-        await ctx.db.patch(subject._id, {
-          nextDueAt: computeNextDueAt(
-            subject.minExpiresAt,
-            cadenceFloorMs,
-            subject.lastFinishedAt ?? now,
-          ),
-        });
-      }
-      return;
-    }
-    await dispatch(ctx, subject, now);
+    await ctx.db.patch('locationSync', state._id, await scheduleRun(ctx, state, dueAt, now));
   },
 });
 
 async function upsertPresence(
   ctx: MutationCtx,
   presence: Doc<'syncPresence'> | null,
-  dataset: SyncDataset,
   userId: string,
   visible: boolean,
   now: number,
   tabId: string,
 ): Promise<boolean> {
-  const wasCold =
-    presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
+  const wasCold = presence !== null && isCold(presence, LOCATION_COLD_AFTER_MS, now);
   if (presence === null) {
     await ctx.db.insert('syncPresence', {
-      dataset,
+      dataset: 'characterLocation',
       userId,
       lastSeenAt: now,
       lastVisibleAt: now,
@@ -100,7 +92,7 @@ async function upsertPresence(
       leftTabId: '',
     });
   } else {
-    await ctx.db.patch(presence._id, {
+    await ctx.db.patch('syncPresence', presence._id, {
       lastSeenAt: now,
       ...(visible ? { lastVisibleAt: now } : {}),
       tabId,
@@ -113,18 +105,18 @@ async function upsertPresence(
 /**
  * An interval beat inside this window of the last presence write changes no
  * liveness decision (cold is minutes away), so it skips the write entirely.
+ * It sits below HEARTBEAT_MS so timer jitter cannot skip every other beat.
  */
-const PRESENCE_REFRESH_MS = 60_000;
+const PRESENCE_REFRESH_MS = 45_000;
 
 function isPresenceFresh(
   presence: Doc<'syncPresence'> | null,
-  dataset: SyncDataset,
   visible: boolean,
   tabId: string,
   now: number,
 ): boolean {
   if (presence === null) return false;
-  if (isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return false;
+  if (isCold(presence, LOCATION_COLD_AFTER_MS, now)) return false;
   if (presence.tabId !== tabId || (presence.leftTabId ?? '') !== '') return false;
   if (now - presence.lastSeenAt >= PRESENCE_REFRESH_MS) return false;
   return !visible || now - (presence.lastVisibleAt ?? 0) < PRESENCE_REFRESH_MS;

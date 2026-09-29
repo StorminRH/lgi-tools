@@ -158,23 +158,6 @@ const convexMapCeilingCollapse = convexEntry({
   evidence:
     'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
 });
-const convexSyncEngineScan = convexEntry({
-  id: 'convex/crons:sync engine scan',
-  workKind: 'convex-cron',
-  module: 'convex/crons.ts',
-  redeliverySource:
-    'The 30-second Convex interval cron.',
-  evidence:
-    'internal.engineScan.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
-});
-const convexEngineScan = convexEntry({
-  id: 'convex/engineScan:scan',
-  workKind: 'convex-mutation',
-  module: 'convex/engineScan.ts',
-  redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
-  evidence:
-    'Declared internalMutation, so a retry re-runs the whole transaction atomically and cannot half-apply.',
-});
 const convexSyncEngineRetention = convexEntry({
   id: 'convex/crons:sync engine retention',
   workKind: 'convex-cron',
@@ -192,22 +175,31 @@ const convexEngineSweep = convexEntry({
   evidence:
     'Declared internalMutation that only deletes retention-expired and retired-dataset rows; a retry re-runs the whole transaction atomically, and deleting an already-deleted row set is a no-op.',
 });
-const convexEngineOnSyncComplete = convexEntry({
-  id: 'convex/engineComplete:onSyncComplete',
+const convexLocationFinishSync = convexEntry({
+  id: 'convex/characterLocationApply:finishSync',
   workKind: 'convex-mutation',
-  module: 'convex/engineComplete.ts',
+  module: 'convex/characterLocationApply.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
-    'Declared internalMutation whose workId ownership guard makes a late or repeated completion a no-op, so it cannot clear a newer run’s status.',
+    'Declared internalMutation guarded by locationSync.runId: a late or repeated finish whose generation no longer owns the state writes nothing, and the one it does commit applies results, leases, the state stamp, and the next scheduled run atomically.',
+});
+const convexEngineTransitionShims = convexEntry({
+  id: 'convex/engineComplete:chainDispatch+onSyncComplete',
+  workKind: 'convex-mutation',
+  module: 'convex/engineComplete.ts',
+  redeliverySource:
+    'A chain hop or in-flight run scheduled by the pre-scheduler deployment calling the retired names once.',
+  evidence:
+    'Both hand the user to the location scheduler only when presence is warm and no run is pending or in flight, so a repeat finds the run it scheduled and no-ops.',
 });
 const convexLocationSyncUser = convexEntry({
   id: 'convex/characterLocationSync:syncUser',
   workKind: 'convex-action',
   module: 'convex/characterLocationSync.ts',
   redeliverySource:
-    'A single scheduled Convex action (engine dispatch via scheduler.runAfter). Scheduled actions execute at most once and are not retried.',
+    'A single scheduled Convex action (scheduler.runAt from the location scheduler). Scheduled actions execute at most once and are not retried.',
   evidence:
-    'convex/lib/engineCore.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
+    'The action writes nothing itself; its one finishSync call carries the generation guard (locationSync.runId), so a duplicate or orphaned run is dropped whole. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
 });
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
@@ -222,11 +214,10 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
   convexMapSignaturePurge,
   convexMapChainPurge,
   convexMapCeilingCollapse,
-  convexSyncEngineScan,
   convexSyncEngineRetention,
-  convexEngineScan,
   convexEngineSweep,
-  convexEngineOnSyncComplete,
+  convexLocationFinishSync,
+  convexEngineTransitionShims,
   convexLocationSyncUser,
 ];
 

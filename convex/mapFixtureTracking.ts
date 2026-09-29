@@ -4,7 +4,7 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
-import { getSyncSubject, newIdleSubject } from './lib/subjects';
+import { ensureLocationSync } from './lib/locationSchedule';
 
 function requireTrackedFixtureIdentity(
   userId: string,
@@ -37,22 +37,11 @@ async function stampSubjectFreshness(
   characterId: number,
   lastFinishedAt: number,
 ): Promise<void> {
-  const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
-  if (subject !== null) {
-    const covered = subject.coveredCharacterIds ?? [];
-    await ctx.db.patch('syncSubjects', subject._id, {
-      lastFinishedAt,
-      coveredCharacterIds: covered.includes(characterId)
-        ? covered
-        : [...covered, characterId],
-    });
-    await stampCoverage(ctx, userId, characterId);
-    return;
-  }
-  await ctx.db.insert('syncSubjects', {
-    ...newIdleSubject('characterLocation', userId),
+  const state = await ensureLocationSync(ctx, userId);
+  const covered = state.coveredCharacterIds;
+  await ctx.db.patch('locationSync', state._id, {
     lastFinishedAt,
-    coveredCharacterIds: [characterId],
+    coveredCharacterIds: covered.includes(characterId) ? covered : [...covered, characterId],
   });
   await stampCoverage(ctx, userId, characterId);
 }

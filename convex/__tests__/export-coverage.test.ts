@@ -15,21 +15,15 @@ vi.mock('convex/server', async (importOriginal) => {
 
 import { mergeUserState, snapshotMergeTracking, restoreMergeTracking } from '../accountMerge';
 import authConfig from '../auth.config';
-import {
-  accessLeases,
-  clearAccessLease,
-  putAccessLeases,
-} from '../characterLocationAccess';
-import { applySyncResults, JUMP_CONTINUITY_MS } from '../characterLocationApply';
+import { finishSync, JUMP_CONTINUITY_MS } from '../characterLocationApply';
 import { purgeForUser as purgeLocationForUser } from '../characterLocationPurge';
-import { heldState } from '../characterLocationReads';
+import { syncInputs } from '../characterLocationReads';
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
 import { currentUser, heartbeat } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
-import { scan } from '../engineScan';
 import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
@@ -144,7 +138,6 @@ import {
   watchMapGlanceGroups,
   watchSystemSignatures,
 } from '../mapScan';
-import { trackedCharacterIds } from '../mapTrackingIds';
 import { coverage, forMap } from '../mapTrackingLive';
 import { setTracking } from '../mapTrackingOptIn';
 import {
@@ -177,18 +170,14 @@ describe('convex runtime exports', () => {
       authorizedJsonAction,
       JUMP_CONTINUITY_MS,
       syncUser,
-      accessLeases,
-      applySyncResults,
-      clearAccessLease,
-      heldState,
+      finishSync,
+      syncInputs,
       purgeLocationForUser,
-      putAccessLeases,
       chainDispatch,
       heartbeat,
       currentUser,
       leave,
       onSyncComplete,
-      scan,
       verify,
       sweep,
       requireSyncEnv,
@@ -274,7 +263,6 @@ describe('convex runtime exports', () => {
       coverage,
       forMap,
       setTracking,
-      trackedCharacterIds,
       purgeOnlineForUser,
     ];
     expect(pinned.length).toBeGreaterThan(0);

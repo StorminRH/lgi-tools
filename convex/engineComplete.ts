@@ -1,140 +1,37 @@
 import { v } from 'convex/values';
-import {
-  computeChainBoundary,
-  computeNextDueAt,
-  isColdFromPresence,
-  isRunningFresh,
-  SYNC_DATASET_CONFIG,
-  type SyncDataset,
-} from '@/lib/sync-engine';
-import { internal } from './_generated/api';
-import type { Doc } from './_generated/dataModel';
+import { LOCATION_COLD_AFTER_MS, isColdFromPresence } from '@/lib/sync-engine';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { dispatch, syncDatasetValidator } from './lib/engineCore';
-import { getPresence, getSyncSubject } from './lib/subjects';
+import { ensureLocationSync, runState, scheduleRun } from './lib/locationSchedule';
+import { getPresence } from './lib/subjects';
 
-const chainDispatchArgs = {
-  dataset: syncDatasetValidator,
-  userId: v.string(),
-};
-
-async function runChainDispatch(
-  ctx: MutationCtx,
-  { dataset, userId }: { dataset: SyncDataset; userId: string },
-): Promise<void> {
-  const subject = await getSyncSubject(ctx.db, dataset, userId);
-  if (subject === null) return;
+/**
+ * Deploy-transition stand-ins for the retired scan engine. A chain hop or an
+ * in-flight run scheduled by the previous deployment still calls these names
+ * once; each hands the user to the location scheduler if nothing is scheduled
+ * for them. Delete once no pre-scheduler job can remain.
+ */
+async function handOff(ctx: MutationCtx, userId: string): Promise<void> {
   const now = Date.now();
-  if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
-  if (subject.nextDueAt === null || subject.nextDueAt > now) return;
-  const presence = await getPresence(ctx.db, dataset, userId);
-  if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return;
-  await dispatch(ctx, subject, now);
+  const presence = await getPresence(ctx.db, 'characterLocation', userId);
+  if (isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, now)) return;
+  const state = await ensureLocationSync(ctx, userId);
+  if (await runState(ctx.db, state) !== 'none') return;
+  await ctx.db.patch('locationSync', state._id, await scheduleRun(ctx, state, now, now));
 }
 
 export const chainDispatch = internalMutation({
-  args: chainDispatchArgs,
-  handler: runChainDispatch,
+  args: { dataset: v.literal('characterLocation'), userId: v.string() },
+  handler: async (ctx, { userId }) => handOff(ctx, userId),
 });
 
-type CompletionSchedule = { nextDueAt: number | null; chainAt: number | null };
-
-async function resolveCompletionSchedule(
-  ctx: MutationCtx,
-  subject: Doc<'syncSubjects'>,
-  failed: boolean,
-  cadenceFloorMs: number,
-  coldAfterMs: number,
-  chainOnSuccess: boolean,
-  now: number,
-): Promise<CompletionSchedule> {
-  if (failed) {
-    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      const boundary = now + cadenceFloorMs;
-      return { nextDueAt: boundary, chainAt: boundary };
-    }
-    return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
-  }
-  if (subject.syncedCharacterIds.length === 0) {
-    return { nextDueAt: null, chainAt: null };
-  }
-  const yielded =
-    subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
-  if (chainOnSuccess && yielded && subject.minExpiresAt !== null) {
-    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
-      return { nextDueAt: boundary, chainAt: boundary };
-    }
-  }
-  return {
-    nextDueAt: computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
-    chainAt: null,
-  };
-}
-
-const onSyncCompleteArgs = {
-  workId: v.string(),
-  context: v.object({ dataset: syncDatasetValidator, userId: v.string() }),
-  result: v.union(
-    v.object({ kind: v.literal('success') }),
-    v.object({ kind: v.literal('failed'), error: v.string() }),
-  ),
-};
-
-async function completeSyncRun(
-  ctx: MutationCtx,
-  { workId, context, result }: {
-    workId: string;
-    context: { dataset: SyncDataset; userId: string };
-    result: { kind: 'success' } | { kind: 'failed'; error: string };
-  },
-): Promise<void> {
-  const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
-  if (subject === null || subject.workId !== workId) return;
-  const now = Date.now();
-  const { cadenceFloorMs, coldAfterMs, chainOnSuccess } = SYNC_DATASET_CONFIG[context.dataset];
-  const failed = result.kind === 'failed';
-  if (failed) {
-    console.error(
-      JSON.stringify({
-        scope: 'engine:sync',
-        dataset: subject.dataset,
-        outcome: 'failed',
-        error: result.error.slice(0, 500),
-      }),
-    );
-  }
-
-  const { nextDueAt, chainAt } = await resolveCompletionSchedule(
-    ctx,
-    subject,
-    failed,
-    cadenceFloorMs,
-    coldAfterMs,
-    chainOnSuccess === true,
-    now,
-  );
-
-  await ctx.db.patch(subject._id, {
-    status: 'idle',
-    workId: null,
-    nextDueAt,
-    ...(failed
-      ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
-      : {}),
-  });
-
-  if (chainAt !== null) {
-    await ctx.scheduler.runAt(chainAt, internal.engineComplete.chainDispatch, {
-      dataset: context.dataset,
-      userId: subject.userId,
-    });
-  }
-}
-
 export const onSyncComplete = internalMutation({
-  args: onSyncCompleteArgs,
-  handler: completeSyncRun,
+  args: {
+    workId: v.string(),
+    context: v.object({ dataset: v.literal('characterLocation'), userId: v.string() }),
+    result: v.union(
+      v.object({ kind: v.literal('success') }),
+      v.object({ kind: v.literal('failed'), error: v.string() }),
+    ),
+  },
+  handler: async (ctx, { context }) => handOff(ctx, context.userId),
 });

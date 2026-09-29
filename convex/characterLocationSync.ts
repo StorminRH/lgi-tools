@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { type Infer, v } from 'convex/values';
 import {
   parseLocationBody,
   parseOnlineBody,
@@ -13,6 +13,7 @@ import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
 import { internal } from './_generated/api';
 import { internalAction, type ActionCtx } from './_generated/server';
+import type { syncOutcomeValidator } from './characterLocationApply';
 import {
   requireSyncEnv,
   resolveExpiresAt,
@@ -21,7 +22,6 @@ import {
 } from './lib/characterSync';
 
 const FALLBACK_TTL_MS = 5_000;
-const ACCESS_LEASE_BATCH_SIZE = 32;
 
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
@@ -29,6 +29,8 @@ interface AccessLease {
   accessToken: string;
   expiresAt: number;
 }
+
+type LeaseWrite = AccessLease & { characterId: number };
 
 interface HeldState {
   solarSystemId: number | null;
@@ -59,23 +61,39 @@ type CharacterOutcome =
   | { kind: 'result'; result: CharacterResult }
   | { kind: 'stop'; runError: string; result: CharacterResult };
 
+type SyncOutcome = Infer<typeof syncOutcomeValidator>;
+
+/** Leases vended and leases rejected during one run, persisted by finishSync. */
+interface LeaseChanges {
+  vended: Map<number, LeaseWrite>;
+  cleared: Set<number>;
+}
+
+/**
+ * One scheduled location run. It reads its inputs through one cacheable
+ * query, calls ESI, and hands everything to finishSync in one mutation —
+ * which also schedules the next run. Leases vended before a throw still reach
+ * finishSync so the next run does not re-vend them.
+ */
 export const syncUser = internalAction({
   args: { userId: v.string(), generation: v.number() },
   handler: async (ctx, { userId, generation }) => {
-    let result: { kind: 'success' } | { kind: 'failed'; error: string };
+    const leases: LeaseChanges = { vended: new Map(), cleared: new Set() };
+    let outcome: SyncOutcome;
     try {
-      await runLocationSync(ctx, userId, generation);
-      result = { kind: 'success' };
+      outcome = await runLocationSync(ctx, userId, leases);
     } catch (error) {
-      result = {
+      outcome = {
         kind: 'failed',
         error: error instanceof Error ? error.message : String(error),
       };
     }
-    await ctx.runMutation(internal.engineComplete.onSyncComplete, {
-      workId: String(generation),
-      context: { dataset: 'characterLocation', userId },
-      result,
+    await ctx.runMutation(internal.characterLocationApply.finishSync, {
+      userId,
+      generation,
+      outcome,
+      leases: [...leases.vended.values()],
+      clearedLeaseCharacterIds: [...leases.cleared],
     });
   },
 });
@@ -83,92 +101,62 @@ export const syncUser = internalAction({
 async function runLocationSync(
   ctx: ActionCtx,
   userId: string,
-  generation: number,
-): Promise<void> {
+  leases: LeaseChanges,
+): Promise<SyncOutcome> {
   const env = requireSyncEnv();
-
-  const prep = await prepareLocationSync(ctx, userId);
-  const heldByCharacter = new Map(prep.locations.map((h) => [h.characterId, h]));
-  const heldOnlineByCharacter = new Map(prep.online.map((h) => [h.characterId, h]));
-  const leaseByCharacter = new Map(prep.leases.map((row) => [row.characterId, row]));
-  const pendingLeases = new Map<number, AccessLease & { characterId: number }>();
+  const inputs = await ctx.runQuery(internal.characterLocationReads.syncInputs, { userId });
+  const heldByCharacter = new Map(inputs.locations.map((h) => [h.characterId, h]));
+  const heldOnlineByCharacter = new Map(inputs.online.map((h) => [h.characterId, h]));
+  const leaseByCharacter = new Map(inputs.leases.map((row) => [row.characterId, row]));
   const now = Date.now();
 
   const results: CharacterResult[] = [];
   const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
   let runError: string | null = null;
 
-  try {
-    for (const characterId of prep.trackedIds) {
-      const heldState = heldByCharacter.get(characterId) ?? {
-        solarSystemId: null,
-        etagLocation: null,
-        etagShip: null,
-      };
-      const heldOnline = heldOnlineByCharacter.get(characterId);
-      const lease = leaseByCharacter.get(characterId);
-      const outcome = await syncLocationCharacter(
-        ctx,
-        env,
-        userId,
-        generation,
-        characterId,
-        heldState,
-        heldOnline,
-        lease,
-        pendingLeases,
-        now,
-        rl,
-      );
-      if (pendingLeases.size >= ACCESS_LEASE_BATCH_SIZE) {
-        await flushPendingLeases(ctx, userId, generation, pendingLeases);
-      }
-      if (outcome.kind === 'skip') continue;
-      results.push(outcome.result);
-      if (outcome.kind === 'stop') {
-        runError = outcome.runError;
-        break;
-      }
-    }
-
-    await flushPendingLeases(ctx, userId, generation, pendingLeases);
-    await ctx.runMutation(internal.characterLocationApply.applySyncResults, {
+  for (const characterId of inputs.trackedIds) {
+    const heldState = heldByCharacter.get(characterId) ?? {
+      solarSystemId: null,
+      etagLocation: null,
+      etagShip: null,
+    };
+    const outcome = await syncLocationCharacter(
+      env,
       userId,
-      generation,
-      enumeratedCharacterIds: prep.trackedIds,
-      trackedCharacterIds: prep.trackedIds,
-      results,
-      lastError: runError,
-      ...rl,
-    });
-  } catch (error) {
-    await flushPendingLeases(ctx, userId, generation, pendingLeases).catch(() => undefined);
-    throw error;
+      characterId,
+      heldState,
+      heldOnlineByCharacter.get(characterId),
+      leaseByCharacter.get(characterId),
+      leases,
+      now,
+      rl,
+    );
+    if (outcome.kind === 'skip') continue;
+    results.push(outcome.result);
+    if (outcome.kind === 'stop') {
+      runError = outcome.runError;
+      break;
+    }
   }
-}
 
-async function prepareLocationSync(ctx: ActionCtx, userId: string) {
-  const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
-    userId,
-  });
-  if (trackedIds.length === 0) {
-    return { trackedIds, locations: [], online: [], leases: [] };
-  }
-  const held = await ctx.runQuery(internal.characterLocationReads.heldState, { userId });
-  const leases = await ctx.runQuery(internal.characterLocationAccess.accessLeases, { userId });
-  return { trackedIds, ...held, leases };
+  return {
+    kind: 'success',
+    trackedCharacterIds: inputs.trackedIds,
+    results,
+    runError,
+    rlGroup: rl.rlGroup,
+    rlRemaining: rl.rlRemaining,
+  };
 }
 
 async function syncLocationCharacter(
-  ctx: ActionCtx,
   env: SyncEnv,
   userId: string,
-  generation: number,
   characterId: number,
   held: HeldState,
   heldOnline: HeldOnlineState | undefined,
   lease: AccessLease | undefined,
-  pendingLeases: Map<number, AccessLease & { characterId: number }>,
+  leases: LeaseChanges,
   now: number,
   rl: RlSnapshot,
 ): Promise<CharacterOutcome> {
@@ -183,7 +171,7 @@ async function syncLocationCharacter(
       return { kind: 'result', result: errorResult(characterId, code, held) };
     }
     accessToken = vend.accessToken;
-    pendingLeases.set(characterId, {
+    leases.vended.set(characterId, {
       characterId,
       accessToken: vend.accessToken,
       expiresAt: vend.expiresAt,
@@ -193,12 +181,8 @@ async function syncLocationCharacter(
   try {
     const result = await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl);
     if (result.error === 'esi_401' || result.error === 'esi_403') {
-      pendingLeases.delete(characterId);
-      await ctx.runMutation(internal.characterLocationAccess.clearAccessLease, {
-        userId,
-        generation,
-        characterId,
-      });
+      leases.vended.delete(characterId);
+      leases.cleared.add(characterId);
     }
     return { kind: 'result', result };
   } catch (error) {
@@ -211,18 +195,6 @@ async function syncLocationCharacter(
     }
     throw error;
   }
-}
-
-async function flushPendingLeases(
-  ctx: ActionCtx,
-  userId: string,
-  generation: number,
-  pendingLeases: Map<number, AccessLease & { characterId: number }>,
-): Promise<void> {
-  if (pendingLeases.size === 0) return;
-  const leases = [...pendingLeases.values()];
-  await ctx.runMutation(internal.characterLocationAccess.putAccessLeases, { userId, generation, leases });
-  pendingLeases.clear();
 }
 
 interface ProbeResolution {
