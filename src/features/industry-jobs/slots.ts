@@ -1,12 +1,21 @@
 import type { IndustryJob, JobStatus } from './esi-projection';
 import { type JobCategory, jobCategory } from './industry-jobs-styles';
 
-const MASS_PRODUCTION_SKILL_ID = 3387;
-const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
-const LABORATORY_OPERATION_SKILL_ID = 3406;
-const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
-const MASS_REACTIONS_SKILL_ID = 45748;
-const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
+/** The skills that add job slots, one extra slot per trained level. */
+export const SLOT_SKILLS: Readonly<Record<JobCategory, readonly { id: number; name: string }[]>> = {
+  manufacturing: [
+    { id: 3387, name: 'Mass Production' },
+    { id: 24625, name: 'Advanced Mass Production' },
+  ],
+  science: [
+    { id: 3406, name: 'Laboratory Operation' },
+    { id: 24624, name: 'Advanced Laboratory Operation' },
+  ],
+  reactions: [
+    { id: 45748, name: 'Mass Reactions' },
+    { id: 45749, name: 'Advanced Mass Reactions' },
+  ],
+};
 
 const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
 
@@ -17,13 +26,12 @@ export interface SlotCapacity {
 }
 
 export function slotCapacity(levels: Record<string, number> | null): SlotCapacity {
-  const rank = (skillId: number) => levels?.[String(skillId)] ?? 0;
+  const slots = (category: JobCategory) =>
+    SLOT_SKILLS[category].reduce((total, skill) => total + (levels?.[String(skill.id)] ?? 0), 1);
   return {
-    manufacturing:
-      1 + rank(MASS_PRODUCTION_SKILL_ID) + rank(ADVANCED_MASS_PRODUCTION_SKILL_ID),
-    science:
-      1 + rank(LABORATORY_OPERATION_SKILL_ID) + rank(ADVANCED_LABORATORY_OPERATION_SKILL_ID),
-    reactions: 1 + rank(MASS_REACTIONS_SKILL_ID) + rank(ADVANCED_MASS_REACTIONS_SKILL_ID),
+    manufacturing: slots('manufacturing'),
+    science: slots('science'),
+    reactions: slots('reactions'),
   };
 }
 
