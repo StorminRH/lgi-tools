@@ -145,6 +145,23 @@ export interface BlueprintPricing {
   net: NetMarginView | null;
 }
 
+/** One run of a watched blueprint, priced for research. */
+export interface ResearchEconomics {
+  blueprintTypeId: number;
+  productTypeId: number;
+  activityId: number;
+  quantityPerRun: number;
+  /** Base job time for one run, before skills, TE or structure bonuses. */
+  jobSeconds: number | null;
+  /** Raw materials for one run at Jita buy. */
+  inputCost: number;
+  /** Install fee for one run at the reference cost index; null without adjusted prices. */
+  jobFee: number | null;
+  incomplete: boolean;
+  /** The inputs that make up most of the cost, largest first. */
+  drivers: { typeId: number; name: string; share: number }[];
+}
+
 export interface OwnedBlueprintMeEntry {
   blueprintTypeId: number;
   me: number;

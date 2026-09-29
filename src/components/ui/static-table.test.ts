@@ -38,4 +38,28 @@ describe('StaticTable', () => {
     expect(tbody.props.children[0].props.children[1].props.className).toContain('text-right');
     expect(tbody.props.children[0].props.children[1].props.className).toContain('tabular-nums');
   });
+
+  it('adds a click target and a full-width detail row under an expanded row', () => {
+    const onClick = () => undefined;
+    const el = StaticTable({
+      columns: [
+        { key: 'a', label: 'A', render: (row: { id: number }) => row.id },
+        { key: 'b', label: 'B', render: (row: { id: number }) => row.id * 2 },
+      ],
+      rows: [{ id: 1 }, { id: 2 }],
+      getRowKey: (row) => row.id,
+      ariaLabel: 'Rows',
+      rowProps: (row) => ({ onClick, expanded: row.id === 1, className: 'hover:bg-row-hover' }),
+      renderDetail: (row) => (row.id === 1 ? 'detail' : null),
+    });
+    const [, tbody] = el.props.children;
+    const rows = tbody.props.children;
+    expect(rows).toHaveLength(3);
+    expect(rows[0].props.onClick).toBe(onClick);
+    expect(rows[0].props['aria-expanded']).toBe(true);
+    expect(rows[0].props.className).toContain('cursor-pointer');
+    expect(rows[1].key).toBe('1:detail');
+    expect(rows[1].props.children.props.colSpan).toBe(2);
+    expect(rows[2].props['aria-expanded']).toBe(false);
+  });
 });

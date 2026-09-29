@@ -565,6 +565,12 @@ const marketPricesRefreshRoute = mutationRoute({
   evidence:
     'Refreshes prices for the posted type ids and persists write-behind as the new seed; a repeat re-reads and rewrites the same seed rows last-write-wins.',
 });
+const industryResearchRoute = mutationRoute({
+  route: 'src/app/api/industry/research/route.ts',
+  verdict: 'inherently-idempotent',
+  evidence:
+    'Reads research economics and refreshes history for the posted blueprints, upserting per (typeId, date); a repeat rewrites the same rows.',
+});
 const marketHistoryRefreshRoute = mutationRoute({
   route: 'src/app/api/market-history/refresh/route.ts',
   verdict: 'inherently-idempotent',
@@ -654,6 +660,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   adminEsiJobsRetryRoute,
   marketPricesRefreshRoute,
   marketHistoryRefreshRoute,
+  industryResearchRoute,
   authCatchAllRoute,
   syntheticPilotRoute,
   internalEveCharactersRoute,

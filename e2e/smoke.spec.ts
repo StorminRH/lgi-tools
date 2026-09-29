@@ -81,7 +81,6 @@ test.describe('authenticated smoke', () => {
       '/industry',
       '/industry/jobs',
       '/industry/plan',
-      '/industry/research',
       '/industry/templates',
       '/atlas',
       '/structures',

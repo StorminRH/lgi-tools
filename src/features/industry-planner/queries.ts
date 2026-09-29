@@ -37,6 +37,7 @@ import type {
   BlueprintPricing,
   BlueprintStructure,
   BuildLocationData,
+  ResearchEconomics,
 } from './types';
 
 function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
@@ -181,26 +182,76 @@ export async function getBlueprintPricing(
   const structure = await getBlueprintStructure(blueprintId);
   if (!structure) return null;
 
-  const priceIds = dedupe([
+  const priceMap = await getPrices(pricedTypeIds(structure));
+  return assemblePricing(structure, priceLiteOf(priceMap), { basis: 'marginal' });
+}
+
+function pricedTypeIds(structure: BlueprintStructure): number[] {
+  return dedupe([
     ...collectRawTypeIds(structure.tree),
     structure.product.typeId,
     ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
   ]);
-  const priceMap = await getPrices(priceIds);
+}
 
-  return assemblePricing(
-    structure,
-    (typeId): PriceLite | undefined => {
-      const p = priceMap.get(typeId);
-      if (!p) return undefined;
-      return {
-        ...toPlainPriceFigures(p),
-        source: p.source,
-        staleAfterMs: p.staleAfter.getTime(),
-      };
+function priceLiteOf(priceMap: Awaited<ReturnType<typeof getPrices>>) {
+  return (typeId: number): PriceLite | undefined => {
+    const p = priceMap.get(typeId);
+    if (!p) return undefined;
+    return {
+      ...toPlainPriceFigures(p),
+      source: p.source,
+      staleAfterMs: p.staleAfter.getTime(),
+    };
+  };
+}
+
+/**
+ * Research prices a job fee without a build system, so it assumes this cost
+ * index; the job plan swaps in the real one once a system is picked.
+ */
+const RESEARCH_REFERENCE_COST_INDEX = 0.05;
+
+const RESEARCH_COST_DRIVERS = 3;
+
+/**
+ * What one run of a blueprint costs to build from raw materials at Jita buy,
+ * with a job fee at the reference cost index, and which inputs drive it.
+ */
+export async function getResearchEconomics(blueprintId: number): Promise<ResearchEconomics | null> {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(PRICES_FRESHNESS_TAG, BLUEPRINT_STRUCTURE_TAG);
+
+  const structure = await getBlueprintStructure(blueprintId);
+  if (!structure) return null;
+  const baseIds = (structure.buildTree[0]?.inputs ?? []).map((input) => input.typeId);
+  const [priceMap, adjusted] = await Promise.all([getPrices(pricedTypeIds(structure)), getAdjustedPrices(baseIds)]);
+  const pricing = assemblePricing(structure, priceLiteOf(priceMap), {
+    basis: 'marginal',
+    fee: {
+      adjustedPriceOf: (typeId) => adjusted.get(typeId) ?? null,
+      systemCostIndex: RESEARCH_REFERENCE_COST_INDEX,
+      reaction: { systemCostIndex: RESEARCH_REFERENCE_COST_INDEX },
     },
-    { basis: 'marginal' },
-  );
+  });
+  const inputCost = pricing.summary.inputCost;
+  const drivers = pricing.rows
+    .filter((row) => row.extendedCost !== null && row.extendedCost > 0)
+    .sort((a, b) => (b.extendedCost ?? 0) - (a.extendedCost ?? 0))
+    .slice(0, RESEARCH_COST_DRIVERS)
+    .map((row) => ({ typeId: row.typeId, name: row.name, share: inputCost > 0 ? (row.extendedCost ?? 0) / inputCost : 0 }));
+  return {
+    blueprintTypeId: blueprintId,
+    productTypeId: structure.product.typeId,
+    activityId: structure.activityId,
+    quantityPerRun: structure.product.quantityPerRun,
+    jobSeconds: structure.topJobSeconds,
+    inputCost,
+    jobFee: pricing.net?.jobFee.total ?? null,
+    incomplete: pricing.summary.incomplete,
+    drivers,
+  };
 }
 
 export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> {

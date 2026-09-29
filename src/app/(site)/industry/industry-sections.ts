@@ -1,4 +1,4 @@
-export type IndustrySectionId = 'overview' | 'jobs' | 'plan' | 'research' | 'templates';
+export type IndustrySectionId = 'research' | 'plan' | 'jobs' | 'templates';
 
 export interface IndustrySection {
   id: IndustrySectionId;
@@ -8,12 +8,15 @@ export interface IndustrySection {
   segment: string | null;
 }
 
-/** The workspace's sections, in tab order. A new page is a new entry here plus its route. */
+/**
+ * The workspace's sections, in tab order: research what to build, plan it,
+ * follow the jobs, keep the builds worth repeating. A new page is a new entry
+ * here plus its route.
+ */
 export const INDUSTRY_SECTIONS: readonly IndustrySection[] = [
-  { id: 'overview', title: 'Overview', href: '/industry', segment: null },
-  { id: 'jobs', title: 'Active jobs', href: '/industry/jobs', segment: 'jobs' },
+  { id: 'research', title: 'Market research', href: '/industry', segment: null },
   { id: 'plan', title: 'Job plan', href: '/industry/plan', segment: 'plan' },
-  { id: 'research', title: 'Market research', href: '/industry/research', segment: 'research' },
+  { id: 'jobs', title: 'Active jobs', href: '/industry/jobs', segment: 'jobs' },
   { id: 'templates', title: 'Templates', href: '/industry/templates', segment: 'templates' },
 ];
 

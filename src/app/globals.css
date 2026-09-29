@@ -146,6 +146,14 @@
   --color-dps-mid:  #ffaa22;
   --color-dps-high: #ff5555;
 
+  /* ── Market research chart series. Checked as a set for colour-blind
+   * separation and lightness on the section surface; the brand green is too
+   * light for a data line, so price draws a step deeper. ── */
+  --color-chart-price:     #26a96b;
+  --color-chart-average:   #3399cc;
+  --color-chart-breakeven: #c9812f;
+  --color-chart-forecast:  #a35cf0;
+
   /* Hostile entities — the red of the NPC ship-class chevrons, matching the
    * EVE overview's red-for-hostiles convention. Surfaced as text-hostile. */
   --color-hostile: #dd4444;

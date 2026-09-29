@@ -5,19 +5,17 @@ import type { SavedPlanRow } from '@/features/industry-planner/api-contract';
 import type { RecentBlueprint } from '@/features/industry-planner/recent-blueprints';
 import type { IndustrySectionId } from './industry-sections';
 
-export type RailTone = 'isk' | 'name' | 'muted' | 'faint' | 'warn';
+export type SummaryTone = 'isk' | 'name' | 'muted' | 'faint' | 'warn';
 
-export interface RailSegment {
+export interface SummarySegment {
   text: string;
-  tone: RailTone;
+  tone: SummaryTone;
 }
 
-/** A rail line is a run of segments, so a count can be lit inside quieter text. */
-export type RailLine = RailSegment[];
+/** A summary line is a run of segments, so a count can be lit inside quieter text. */
+export type SummaryLine = SummarySegment[];
 
-export type RailSectionId = Exclude<IndustrySectionId, 'overview'>;
-
-export interface OverviewInputs {
+export interface TabSummaryInputs {
   signedIn: boolean;
   jobs: { loading: boolean; failed: boolean; list: readonly IndustryJob[] };
   slots: SlotMetaModel | null;
@@ -27,14 +25,14 @@ export interface OverviewInputs {
   watchlist: readonly RecentBlueprint[] | null;
 }
 
-const line = (text: string, tone: RailTone): RailLine => [{ text, tone }];
+const line = (text: string, tone: SummaryTone): SummaryLine => [{ text, tone }];
 
-function jobsLines({ signedIn, jobs, slots }: OverviewInputs): RailLine[] {
+function jobsLines({ signedIn, jobs, slots }: TabSummaryInputs): SummaryLine[] {
   if (!signedIn) return [line('Sign in to follow live jobs', 'faint')];
   if (jobs.loading) return [line('Syncing…', 'faint')];
   if (jobs.failed) return [line('Couldn’t load jobs', 'warn')];
   const { complete, inProgress } = jobCounts(jobs.list);
-  const status: RailLine = [];
+  const status: SummaryLine = [];
   if (complete > 0) status.push({ text: `${complete} ready`, tone: 'isk' });
   if (inProgress > 0) status.push({ text: `${status.length > 0 ? ' · ' : ''}${inProgress} running`, tone: 'muted' });
   const lines = [status.length > 0 ? status : line('No jobs running', 'faint')];
@@ -45,32 +43,32 @@ function jobsLines({ signedIn, jobs, slots }: OverviewInputs): RailLine[] {
   return lines;
 }
 
-function planLines({ recent }: OverviewInputs): RailLine[] {
+function planLines({ recent }: TabSummaryInputs): SummaryLine[] {
   if (recent === null) return [];
   const [latest] = recent;
   if (latest === undefined) return [line('Pick a blueprint to plan', 'faint')];
   return [[{ text: 'Continue ', tone: 'faint' }, { text: latest.name, tone: 'name' }]];
 }
 
-function researchLines({ watchlist }: OverviewInputs): RailLine[] {
+function researchLines({ watchlist }: TabSummaryInputs): SummaryLine[] {
   if (watchlist === null) return [];
-  if (watchlist.length === 0) return [line('Compare prices and demand', 'faint')];
+  if (watchlist.length === 0) return [line('Find what to build', 'faint')];
   return [line(`${watchlist.length} watched`, 'muted')];
 }
 
-function templatesLines({ signedIn, plans, plansFailed }: OverviewInputs): RailLine[] {
+function templatesLines({ signedIn, plans, plansFailed }: TabSummaryInputs): SummaryLine[] {
   if (!signedIn) return [line('Sign in to save templates', 'faint')];
   if (plansFailed) return [line('Couldn’t load templates', 'warn')];
   if (plans === null) return [];
   if (plans.length === 0) return [line('None saved yet', 'faint')];
   const favorites = plans.filter((plan) => plan.favorite).length;
-  const saved: RailLine = [{ text: `${plans.length} saved`, tone: 'muted' }];
+  const saved: SummaryLine = [{ text: `${plans.length} saved`, tone: 'muted' }];
   if (favorites > 0) saved.push({ text: ` · ${favorites} ★`, tone: 'isk' });
   return [saved];
 }
 
-/** What each section's rail entry says about it right now. */
-export function railSummaries(inputs: OverviewInputs): Record<RailSectionId, RailLine[]> {
+/** What each section's tab says about it right now. */
+export function tabSummaries(inputs: TabSummaryInputs): Record<IndustrySectionId, SummaryLine[]> {
   return {
     jobs: jobsLines(inputs),
     plan: planLines(inputs),
