@@ -60,9 +60,15 @@ export const heartbeat = mutation({
       characterIdsHint,
       now,
     );
-    const dueAt = stale
-      ? now
-      : computeNextDueAt(state.minExpiresAt, LOCATION_CADENCE_FLOOR_MS, state.lastFinishedAt ?? now);
+    // The client decides staleness through its hint, so the floor after the
+    // last run is enforced here: a beat can pull a run forward, never faster.
+    const floorAt = (state.lastRunAt ?? 0) + LOCATION_CADENCE_FLOOR_MS;
+    const dueAt = Math.max(
+      floorAt,
+      stale
+        ? now
+        : computeNextDueAt(state.minExpiresAt, LOCATION_CADENCE_FLOOR_MS, state.lastFinishedAt ?? now),
+    );
 
     // An interval beat on a warm session is the safety net: it only re-arms a
     // user whose run died or was never scheduled, and never moves a pending run.

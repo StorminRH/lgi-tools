@@ -337,6 +337,23 @@ describe('engine.heartbeat', () => {
     }
   });
 
+  it('a stale beat never schedules sooner than the cadence floor after the last run', async () => {
+    for (const reason of ['mount', 'visible'] as const) {
+      const t = convexTest(schema, modules);
+      const now = Date.now();
+      await seedPresence(t);
+      // A hinted pilot that never syncs keeps the cache stale on every beat.
+      await seedState(t, { syncedCharacterIds: [], lastRunAt: now - 1_000 });
+
+      await heartbeat(t, { characterIdsHint: [CHAR, 999], reason });
+      await heartbeat(t, { characterIdsHint: [CHAR, 998], reason });
+
+      const pending = await pendingSyncUsers(t);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]?.scheduledTime).toBe(now - 1_000 + LOCATION_CADENCE_FLOOR_MS);
+    }
+  });
+
   it('arms a fresh cache with nothing scheduled at the jittered next due time', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const t = convexTest(schema, modules);
@@ -874,6 +891,19 @@ describe('characterLocationApply.finishSync scheduling', () => {
     expect(await t.run((ctx) => ctx.db.query('characterLocation').collect())).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query('characterLocationCovered').collect())).toEqual([]);
     expect(await scheduledSyncUsers(t)).toHaveLength(0);
+  });
+
+  it('stamps lastRunAt on success and on failure', async () => {
+    for (const outcome of [success([CHAR], [onlineResult(CHAR, Date.now() + 30_000)]), { kind: 'failed' as const, error: 'boom' }]) {
+      const t = convexTest(schema, modules);
+      const now = Date.now();
+      await seedPresence(t);
+      const runId = await seedRunning(t, { lastRunAt: now - 60_000 });
+
+      await finish(t, runId, outcome);
+
+      expect((await readState(t))?.lastRunAt).toBe(now);
+    }
   });
 
   it('chains a yielding run exactly at the cache boundary, without jitter', async () => {

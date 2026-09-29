@@ -75,9 +75,12 @@ export const finishSync = internalMutation({
     await writeAccessLeases(ctx, args.userId, args.leases, now);
     await clearAccessLeases(ctx, args.userId, args.clearedLeaseCharacterIds);
 
-    const stamp = args.outcome.kind === 'success'
-      ? await applySuccess(ctx, args.userId, args.outcome, state, now)
-      : recordFailure(args.outcome.error);
+    const stamp = {
+      ...(args.outcome.kind === 'success'
+        ? await applySuccess(ctx, args.userId, args.outcome, state, now)
+        : recordFailure(args.outcome.error)),
+      lastRunAt: now,
+    };
     const next = { ...state, ...stamp };
 
     const presence = await getPresence(ctx.db, 'characterLocation', args.userId);

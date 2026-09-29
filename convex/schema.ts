@@ -50,6 +50,9 @@ export default defineSchema({
     syncedCharacterIds: v.array(v.number()),
     coveredCharacterIds: v.array(v.number()),
     lastFinishedAt: v.union(v.number(), v.null()),
+    // When the last run ended, success or failure. The heartbeat never
+    // schedules a run sooner than the cadence floor after it.
+    lastRunAt: v.optional(v.number()),
   }).index('by_user', ['userId']),
 
   syncPresence: defineTable({
