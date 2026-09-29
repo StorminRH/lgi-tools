@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { INDUSTRY_SECTIONS, industrySectionFor } from './industry-sections';
 
 describe('industrySectionFor', () => {
-  it('maps the layout page to the overview', () => {
-    expect(industrySectionFor(null)).toBe('overview');
+  it('maps the layout page to market research', () => {
+    expect(industrySectionFor(null)).toBe('research');
   });
 
   it('maps each section segment to its section', () => {
     expect(industrySectionFor('jobs')).toBe('jobs');
     expect(industrySectionFor('plan')).toBe('plan');
-    expect(industrySectionFor('research')).toBe('research');
     expect(industrySectionFor('templates')).toBe('templates');
   });
 

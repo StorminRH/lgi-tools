@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { SavedPlanRow } from '@/features/industry-planner/api-contract';
-import { type OverviewInputs, railSummaries } from './overview-model';
+import { type TabSummaryInputs, tabSummaries } from './tab-summaries';
 
 function job(job_id: number, status: IndustryJob['status']): IndustryJob {
   return {
@@ -28,7 +28,7 @@ function plan(id: string, favorite = false): SavedPlanRow {
   };
 }
 
-const base: OverviewInputs = {
+const base: TabSummaryInputs = {
   signedIn: true,
   jobs: { loading: false, failed: false, list: [] },
   slots: null,
@@ -38,21 +38,21 @@ const base: OverviewInputs = {
   watchlist: [],
 };
 
-const text = (lines: ReturnType<typeof railSummaries>[keyof ReturnType<typeof railSummaries>]) =>
+const text = (lines: ReturnType<typeof tabSummaries>[keyof ReturnType<typeof tabSummaries>]) =>
   lines.map((segments) => segments.map((segment) => segment.text).join(''));
 
-describe('railSummaries — jobs', () => {
+describe('tabSummaries — jobs', () => {
   it('asks a signed-out visitor to sign in', () => {
-    expect(text(railSummaries({ ...base, signedIn: false }).jobs)).toEqual(['Sign in to follow live jobs']);
+    expect(text(tabSummaries({ ...base, signedIn: false }).jobs)).toEqual(['Sign in to follow live jobs']);
   });
 
   it('shows the sync and failure states', () => {
-    expect(text(railSummaries({ ...base, jobs: { loading: true, failed: false, list: [] } }).jobs)).toEqual(['Syncing…']);
-    expect(railSummaries({ ...base, jobs: { loading: false, failed: true, list: [] } }).jobs[0]?.[0]?.tone).toBe('warn');
+    expect(text(tabSummaries({ ...base, jobs: { loading: true, failed: false, list: [] } }).jobs)).toEqual(['Syncing…']);
+    expect(tabSummaries({ ...base, jobs: { loading: false, failed: true, list: [] } }).jobs[0]?.[0]?.tone).toBe('warn');
   });
 
   it('lights the ready count and adds slot usage', () => {
-    const jobs = railSummaries({
+    const jobs = tabSummaries({
       ...base,
       jobs: { loading: false, failed: false, list: [job(1, 'ready'), job(2, 'active'), job(3, 'active')] },
       slots: {
@@ -66,19 +66,19 @@ describe('railSummaries — jobs', () => {
   });
 
   it('says so when nothing is running', () => {
-    expect(text(railSummaries(base).jobs)).toEqual(['No jobs running']);
+    expect(text(tabSummaries(base).jobs)).toEqual(['No jobs running']);
   });
 });
 
-describe('railSummaries — plans, research, templates', () => {
+describe('tabSummaries — plans, research, templates', () => {
   it('offers to continue the latest plan', () => {
-    const plan = railSummaries({ ...base, recent: [{ typeId: 1, productTypeId: 2, name: 'Raven' }] }).plan;
+    const plan = tabSummaries({ ...base, recent: [{ typeId: 1, productTypeId: 2, name: 'Raven' }] }).plan;
     expect(text(plan)).toEqual(['Continue Raven']);
-    expect(railSummaries(base).plan.map((l) => l[0]?.text)).toEqual(['Pick a blueprint to plan']);
+    expect(tabSummaries(base).plan.map((l) => l[0]?.text)).toEqual(['Pick a blueprint to plan']);
   });
 
   it('stays quiet until browser storage has been read', () => {
-    const unread = railSummaries({ ...base, recent: null, watchlist: null, plans: null });
+    const unread = tabSummaries({ ...base, recent: null, watchlist: null, plans: null });
     expect(unread.plan).toEqual([]);
     expect(unread.research).toEqual([]);
     expect(unread.templates).toEqual([]);
@@ -86,15 +86,15 @@ describe('railSummaries — plans, research, templates', () => {
 
   it('counts watched products', () => {
     const watched = [{ typeId: 1, productTypeId: 2, name: 'Raven' }];
-    expect(text(railSummaries({ ...base, watchlist: watched }).research)).toEqual(['1 watched']);
-    expect(text(railSummaries(base).research)).toEqual(['Compare prices and demand']);
+    expect(text(tabSummaries({ ...base, watchlist: watched }).research)).toEqual(['1 watched']);
+    expect(text(tabSummaries(base).research)).toEqual(['Find what to build']);
   });
 
   it('counts saved templates and favorites', () => {
-    expect(text(railSummaries({ ...base, plans: [plan('a', true), plan('b')] }).templates)).toEqual(['2 saved · 1 ★']);
-    expect(text(railSummaries({ ...base, plans: [plan('a')] }).templates)).toEqual(['1 saved']);
-    expect(text(railSummaries(base).templates)).toEqual(['None saved yet']);
-    expect(text(railSummaries({ ...base, plansFailed: true }).templates)).toEqual(['Couldn’t load templates']);
-    expect(text(railSummaries({ ...base, signedIn: false }).templates)).toEqual(['Sign in to save templates']);
+    expect(text(tabSummaries({ ...base, plans: [plan('a', true), plan('b')] }).templates)).toEqual(['2 saved · 1 ★']);
+    expect(text(tabSummaries({ ...base, plans: [plan('a')] }).templates)).toEqual(['1 saved']);
+    expect(text(tabSummaries(base).templates)).toEqual(['None saved yet']);
+    expect(text(tabSummaries({ ...base, plansFailed: true }).templates)).toEqual(['Couldn’t load templates']);
+    expect(text(tabSummaries({ ...base, signedIn: false }).templates)).toEqual(['Sign in to save templates']);
   });
 });

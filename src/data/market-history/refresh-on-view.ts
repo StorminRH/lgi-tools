@@ -8,7 +8,7 @@ import { historyTag } from './constants';
 import { persistHistory } from './ingest';
 import { getHistoryMeta, getStoredHistory } from './queries';
 import { fetchHistoryFromSource } from './source';
-import type { MarketHistoryInputs } from './types';
+import type { HistoryDailyRow, MarketHistoryInputs } from './types';
 
 export interface HistoryDegradation {
   fetched: number;
@@ -43,6 +43,8 @@ function notifyWriteBehind(
 
 export interface LiveHistoryResult {
   inputs: Map<number, MarketHistoryInputs>;
+  /** The daily rows each input was computed from. */
+  rows: Map<number, HistoryDailyRow[]>;
   degraded: HistoryDegradation;
   metrics: LiveHistoryMetrics;
 }
@@ -60,7 +62,7 @@ export async function getLiveHistory(
     staleStored: 0,
     missing: 0,
   };
-  if (ids.length === 0) return { inputs: new Map(), degraded, metrics };
+  if (ids.length === 0) return { inputs: new Map(), rows: new Map(), degraded, metrics };
 
   const meta = await getHistoryMeta(ids);
   const now = new Date();
@@ -79,10 +81,12 @@ export async function getLiveHistory(
   const staleSet = new Set(staleIds);
   const stored = await getStoredHistory(ids);
   const inputs = new Map<number, MarketHistoryInputs>();
+  const rowsByType = new Map<number, HistoryDailyRow[]>();
   for (const id of ids) {
     const rows = freshByType.get(id) ?? stored.get(id) ?? [];
     if (rows.length > 0) {
       inputs.set(id, computeHistoryInputs(id, rows));
+      rowsByType.set(id, rows);
       if (freshByType.has(id)) metrics.freshEsi++;
       else if (staleSet.has(id)) metrics.staleStored++;
       else metrics.warmStored++;
@@ -115,5 +119,5 @@ export async function getLiveHistory(
     });
   }
 
-  return { inputs, degraded, metrics };
+  return { inputs, rows: rowsByType, degraded, metrics };
 }
