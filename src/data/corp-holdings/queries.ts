@@ -2,7 +2,7 @@ import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db, directClient, resolveLockConnectionUrl } from '@/db';
-import type { PostgresJsDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { chunk } from '@/lib/array';
 import { buildCorpHoldingContext, type CorpProfile, type MemberBase } from './context';
@@ -58,6 +58,7 @@ export async function saveHoldingNodes(
   corporationId: number,
   index: HoldingIndex,
   refreshedAt: Date,
+  database: AnyPgDb = db,
 ): Promise<'saved' | 'superseded'> {
   const rows = toHoldingNodes(index).map((node) => ({
     ...node,
@@ -65,15 +66,19 @@ export async function saveHoldingNodes(
     refreshedAt,
     containers: [...node.containers],
   }));
-  await db.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
+  await database.delete(corpHoldingNodes).where(eq(corpHoldingNodes.corporationId, corporationId));
   try {
-    for (const batch of chunk(rows, NODE_INSERT_BATCH)) await db.insert(corpHoldingNodes).values(batch);
+    for (const batch of chunk(rows, NODE_INSERT_BATCH)) await database.insert(corpHoldingNodes).values(batch);
   } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
+    if (database !== db || !isUniqueViolation(error)) throw error;
     return 'superseded';
   }
-  revalidateTag(holdingsTag(corporationId), 'max');
+  if (database === db) invalidateHoldingNodes(corporationId);
   return 'saved';
+}
+
+export function invalidateHoldingNodes(corporationId: number): void {
+  revalidateTag(holdingsTag(corporationId), 'max');
 }
 
 export async function saveCorpProfile(

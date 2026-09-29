@@ -1,6 +1,12 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { db } from '@/db';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import { buildHoldingIndex, type CorpAssetEvidence, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
+import { invalidateHoldingNodes, saveHoldingNodes } from '@/data/corp-holdings/queries';
+import { decryptSnapshotBody } from '@/data/esi-snapshots/crypto';
+import { readCorpAssetSnapshots } from '@/data/esi-snapshots/queries';
 import { isUniqueViolation } from '@/db/pg-errors';
 import { type CorpGrant, type OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
@@ -43,11 +49,39 @@ async function characterInputs(characterId: number): Promise<AssetMapInput[]> {
   return characterAssetInputs(await getOwnerAssetRows({ ownerType: 'character', ownerId: characterId }), characterId);
 }
 
+async function getCorpAssetSnapshot(corporationId: number) {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(ownedAssetsTag({ ownerType: 'corporation', ownerId: corporationId }));
+  const rows = await db.select().from(ownedAssets).where(and(
+    eq(ownedAssets.ownerType, 'corporation'), eq(ownedAssets.ownerId, corporationId),
+  ));
+  const ids = [...new Set(rows.flatMap((row) => row.snapshotId === null ? [] : [row.snapshotId]))];
+  const snapshots = await readCorpAssetSnapshots(corporationId, ids);
+  return snapshots.flatMap((snapshot) => {
+    const body = decryptSnapshotBody(snapshot.bodyCiphertext);
+    const items = Array.isArray(body) ? parseCorpAssetItems(body) : null;
+    return items === null ? [] : [{
+      rows: rows.filter((row) => row.snapshotId === snapshot.id),
+      complete: rows.every((row) => row.snapshotId === snapshot.id),
+      index: buildHoldingIndex(items),
+      items,
+    }];
+  });
+}
+
+export async function getCorpAssetEvidence(corporationId: number): Promise<CorpAssetEvidence | null> {
+  const snapshots = await getCorpAssetSnapshot(corporationId);
+  if (snapshots.length !== 1 || !snapshots[0]!.complete) return null;
+  const { index, items } = snapshots[0]!;
+  return { corporationId, index, items };
+}
+
 async function corpInputs(grant: CorpGrant): Promise<AssetMapInput[]> {
-  return visibleCorpAssetInputs(
-    await getOwnerAssetRows({ ownerType: 'corporation', ownerId: grant.corporationId }),
-    grant,
-  );
+  const snapshots = await getCorpAssetSnapshot(grant.corporationId);
+  return snapshots.flatMap(({ rows, index }) => visibleCorpAssetInputs(rows, {
+    ...grant, context: { ...grant.context, index },
+  }));
 }
 
 export async function getOwnedAssetMap(scope: OwnedReadScope, typeIds: number[]): Promise<OwnedAssetMap> {
@@ -84,14 +118,15 @@ export async function saveOwnedAssets(
   rows: OwnedAsset[],
   etags: string[],
   snapshotId: number | null = null,
+  database: AnyPgDb = db,
 ): Promise<'saved' | 'superseded'> {
   const now = new Date();
-  await db
+  await database
     .delete(ownedAssets)
     .where(and(eq(ownedAssets.ownerType, owner.ownerType), eq(ownedAssets.ownerId, owner.ownerId)));
   if (rows.length > 0) {
     try {
-      await db.insert(ownedAssets).values(
+      await database.insert(ownedAssets).values(
         rows.map((r) => ({
           ownerType: owner.ownerType,
           ownerId: owner.ownerId,
@@ -104,18 +139,18 @@ export async function saveOwnedAssets(
         })),
       );
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
+      if (database !== db || !isUniqueViolation(error)) throw error;
       return 'superseded';
     }
   }
-  await db
+  await database
     .insert(ownedAssetSyncs)
     .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
     .onConflictDoUpdate({
       target: [ownedAssetSyncs.ownerType, ownedAssetSyncs.ownerId],
       set: { lastRefreshedAt: now, pageEtags: etags },
     });
-  revalidateTag(ownedAssetsTag(owner), 'max');
+  if (database === db) revalidateTag(ownedAssetsTag(owner), 'max');
   return 'saved';
 }
 
@@ -124,4 +159,41 @@ export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
     .update(ownedAssetSyncs)
     .set({ lastRefreshedAt: new Date() })
     .where(and(eq(ownedAssetSyncs.ownerType, owner.ownerType), eq(ownedAssetSyncs.ownerId, owner.ownerId)));
+}
+
+/** Publish corporation contents and placement nodes under one serialized commit. */
+export async function saveCorpOwnedAssets(
+  corporationId: number,
+  index: HoldingIndex,
+  rows: OwnedAsset[],
+  etags: string[],
+  snapshotId: number,
+  options: { database?: PostgresJsDb } = {},
+): Promise<'saved' | 'superseded'> {
+  let database = options.database;
+  if (database === undefined) {
+    resolveLockConnectionUrl();
+    database = drizzle(directClient);
+  }
+  const owner = { ownerType: 'corporation', ownerId: corporationId } as const;
+  try {
+    await database.transaction(async (tx) => {
+      // Upsert first: it locks even a corporation's initial publication, making
+      // concurrent refreshes replace complete snapshots rather than interleave.
+      await tx.insert(ownedAssetSyncs).values({
+        ...owner, lastRefreshedAt: new Date(), pageEtags: etags,
+      }).onConflictDoUpdate({
+        target: [ownedAssetSyncs.ownerType, ownedAssetSyncs.ownerId],
+        set: { pageEtags: etags },
+      });
+      await saveHoldingNodes(corporationId, index, new Date(), tx);
+      await saveOwnedAssets(owner, rows, etags, snapshotId, tx);
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    return 'superseded';
+  }
+  invalidateHoldingNodes(corporationId);
+  revalidateTag(ownedAssetsTag(owner), 'max');
+  return 'saved';
 }

@@ -1,7 +1,8 @@
-import type { Placement } from '@/data/corp-holdings/placement';
+import type { CorpAssetEvidence, Placement } from '@/data/corp-holdings/placement';
 import { type CorpGrant, visiblePlacements } from '@/platform/auth/corp-visibility';
 
 export interface BlueprintRow {
+  itemId?: number | null;
   typeId: number;
   materialEfficiency: number;
   timeEfficiency: number;
@@ -34,8 +35,24 @@ export function characterBlueprintInputs(rows: readonly BlueprintRow[], characte
   return rows.map((row) => ({ ownerType: 'character', ownerId: characterId, ...row }));
 }
 
-export function visibleCorpBlueprintInputs(rows: readonly BlueprintRow[], grant: CorpGrant): BlueprintMapInput[] {
-  return visiblePlacements(rows, grant.blueprints, grant.context).map(({ row, placement }) => ({
+export function visibleCorpBlueprintInputs(
+  rows: readonly BlueprintRow[],
+  grant: CorpGrant,
+  evidence: CorpAssetEvidence | null = null,
+): BlueprintMapInput[] {
+  let matching = rows;
+  let context = grant.context;
+  if (grant.blueprints.kind !== 'all') {
+    if (evidence === null || evidence.corporationId !== grant.corporationId) return [];
+    const items = new Map(evidence.items.map((item) => [item.itemId, item]));
+    matching = rows.filter((row) => {
+      const item = row.itemId == null ? undefined : items.get(row.itemId);
+      return item !== undefined && item.typeId === row.typeId &&
+        item.locationId === row.locationId && item.locationFlag === row.locationFlag;
+    });
+    context = { ...context, index: evidence.index };
+  }
+  return visiblePlacements(matching, grant.blueprints, context).map(({ row, placement }) => ({
     ownerType: 'corporation',
     ownerId: grant.corporationId,
     placement,

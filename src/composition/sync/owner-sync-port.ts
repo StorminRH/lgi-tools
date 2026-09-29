@@ -1,4 +1,5 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
+import { fetchAffiliations } from '@/platform/auth/affiliation-source';
 import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
 import { readRoleCorporationId, type StoredCorpRoles, upsertCorpRoles } from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
@@ -38,6 +39,12 @@ function softEsiFailure(error: unknown): null {
   throw error;
 }
 
+async function hasMatchingLiveCorporation(characterId: number, corporationId: number): Promise<boolean> {
+  const result = await fetchAffiliations([characterId]);
+  return !result.transientFailure
+    && result.rows.some((row) => row.characterId === characterId && row.corporationId === corporationId);
+}
+
 async function probeAndStoreRolesRecord(
   characterId: number,
   accessToken: string,
@@ -46,10 +53,14 @@ async function probeAndStoreRolesRecord(
   try {
     const corporationId = await readRoleCorporationId(characterId);
     if (corporationId === null || (expectedCorporationId !== undefined && corporationId !== expectedCorporationId)) return null;
+    if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
     if (read.kind !== 'fresh') return null;
     const record = parseCharacterRolesBody(read.body);
     if (record === null) return null;
+    // Roles do not identify their corporation. Reject a transfer during the read,
+    // even when the stored affiliation has not caught up yet.
+    if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
     const fetchedAt = new Date();
     const stored = await upsertCorpRoles(characterId, record, fetchedAt, corporationId);
     return stored ? { ...record, characterId, corporationId, fetchedAt } : null;

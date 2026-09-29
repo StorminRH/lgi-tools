@@ -1,6 +1,9 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
-import { db } from '@/db';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import type { CorpAssetEvidence } from '@/data/corp-holdings/placement';
+import type { PostgresJsDb } from '@/lib/db-types';
 import type { CorpGrant, OwnedReadScope } from '@/platform/auth/corp-visibility';
 import {
   type BlueprintMapInput,
@@ -24,6 +27,7 @@ async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintRow[]> {
   cacheTag(ownedBlueprintsTag(owner));
   return db
     .select({
+      itemId: ownedBlueprints.itemId,
       typeId: ownedBlueprints.typeId,
       materialEfficiency: ownedBlueprints.materialEfficiency,
       timeEfficiency: ownedBlueprints.timeEfficiency,
@@ -42,22 +46,26 @@ async function characterInputs(characterId: number): Promise<BlueprintMapInput[]
   );
 }
 
-async function corpInputs(grant: CorpGrant): Promise<BlueprintMapInput[]> {
+async function corpInputs(grant: CorpGrant, evidence: CorpAssetEvidence | null): Promise<BlueprintMapInput[]> {
   return visibleCorpBlueprintInputs(
     await getOwnerBlueprintRows({ ownerType: 'corporation', ownerId: grant.corporationId }),
     grant,
+    evidence,
   );
 }
 
-export async function getOwnedBlueprintMap(scope: OwnedReadScope): Promise<OwnedBlueprintMap> {
+export async function getOwnedBlueprintMap(
+  scope: OwnedReadScope,
+  evidenceByCorp: ReadonlyMap<number, CorpAssetEvidence | null>,
+): Promise<OwnedBlueprintMap> {
   const [characters, corps] = await Promise.all([
     Promise.all(scope.characterIds.map(characterInputs)),
-    Promise.all(scope.corps.map(corpInputs)),
+    Promise.all(scope.corps.map((grant) => corpInputs(grant, evidenceByCorp.get(grant.corporationId) ?? null))),
   ]);
   return toOwnedBlueprintMap([...characters.flat(), ...corps.flat()]);
 }
 
-export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
+export async function readBlueprintSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({
       lastRefreshedAt: ownedBlueprintSyncs.lastRefreshedAt,
@@ -74,37 +82,45 @@ export async function saveOwnedBlueprints(
   owner: OwnerKey,
   rows: OwnedBlueprint[],
   etags: string[],
+  options: { database?: PostgresJsDb } = {},
 ): Promise<void> {
-  const now = new Date();
-  await db
-    .delete(ownedBlueprints)
-    .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
-  if (rows.length > 0) {
-    await db.insert(ownedBlueprints).values(
-      rows.map((r) => ({
-        ownerType: owner.ownerType,
-        ownerId: owner.ownerId,
-        typeId: r.type_id,
-        materialEfficiency: r.material_efficiency,
-        timeEfficiency: r.time_efficiency,
-        runs: r.runs,
-        quantity: r.quantity,
-        locationId: r.location_id,
-        locationFlag: r.location_flag,
-      })),
-    );
+  let database = options.database;
+  if (database === undefined) {
+    resolveLockConnectionUrl();
+    database = drizzle(directClient);
   }
-  await db
-    .insert(ownedBlueprintSyncs)
-    .values({ ownerType: owner.ownerType, ownerId: owner.ownerId, lastRefreshedAt: now, pageEtags: etags })
-    .onConflictDoUpdate({
-      target: [ownedBlueprintSyncs.ownerType, ownedBlueprintSyncs.ownerId],
-      set: { lastRefreshedAt: now, pageEtags: etags },
-    });
+  const now = new Date();
+  await database.transaction(async (tx) => {
+    await tx.insert(ownedBlueprintSyncs)
+      .values({ ...owner, lastRefreshedAt: now, pageEtags: etags })
+      .onConflictDoUpdate({
+        target: [ownedBlueprintSyncs.ownerType, ownedBlueprintSyncs.ownerId],
+        set: { lastRefreshedAt: now, pageEtags: etags },
+      });
+    await tx
+      .delete(ownedBlueprints)
+      .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
+    if (rows.length > 0) {
+      await tx.insert(ownedBlueprints).values(
+        rows.map((r) => ({
+          ownerType: owner.ownerType,
+          ownerId: owner.ownerId,
+          itemId: r.item_id,
+          typeId: r.type_id,
+          materialEfficiency: r.material_efficiency,
+          timeEfficiency: r.time_efficiency,
+          runs: r.runs,
+          quantity: r.quantity,
+          locationId: r.location_id,
+          locationFlag: r.location_flag,
+        })),
+      );
+    }
+  });
   revalidateTag(ownedBlueprintsTag(owner), 'max');
 }
 
-export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
+export async function stampBlueprintFresh(owner: OwnerKey): Promise<void> {
   await db
     .update(ownedBlueprintSyncs)
     .set({ lastRefreshedAt: new Date() })

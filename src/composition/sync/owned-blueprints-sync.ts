@@ -1,4 +1,5 @@
 import { after } from 'next/server';
+import { getCorpAssetEvidence } from '@/features/owned-assets/queries';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { formatStationName } from '@/features/industry-planner/format-station-name';
@@ -7,7 +8,7 @@ import {
   collectDetailNameIds,
   type OwnedBlueprintDetailEntry,
 } from '@/features/owned-blueprints/detail';
-import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
+import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints, stampBlueprintFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
 import { contextsByCorp } from '@/platform/auth/corp-visibility';
@@ -22,9 +23,9 @@ function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
     vendToken: vendTokenFor,
     readRoles: probeAndStoreRoles,
     read: readPagedEndpoint,
-    readSyncState: (owner) => readOwnerSyncState(owner),
+    readSyncState: (owner) => readBlueprintSyncState(owner),
     save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
-    stampFresh: (owner) => stampOwnerFresh(owner),
+    stampFresh: (owner) => stampBlueprintFresh(owner),
   };
 }
 
@@ -33,7 +34,11 @@ export async function getOwnedBlueprintDetailOnView(
   requestedTypeIds: number[],
 ): Promise<OwnedBlueprintDetailEntry[]> {
   const viewer = await resolveCorpViewer(userId);
-  const map = await getOwnedBlueprintMap(viewer.scope);
+  const evidence = new Map(await Promise.all(viewer.scope.corps.map(async (grant) =>
+    [grant.corporationId, grant.blueprints.kind === 'by-location'
+      ? await getCorpAssetEvidence(grant.corporationId) : null] as const,
+  )));
+  const map = await getOwnedBlueprintMap(viewer.scope, evidence);
   after(() =>
     refreshOwnedBlueprintsForUser(
       makeOwnedBlueprintsPort(),

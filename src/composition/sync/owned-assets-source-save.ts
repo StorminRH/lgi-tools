@@ -1,7 +1,6 @@
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
-import { buildHoldingIndex, type HoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
-import { saveHoldingNodes } from '@/data/corp-holdings/queries';
+import { buildHoldingIndex, parseCorpAssetItems } from '@/data/corp-holdings/placement';
 import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
 import {
   deleteEsiSnapshot,
@@ -10,7 +9,7 @@ import {
 import { snapshotRequestHash } from '@/data/esi-snapshots/request-hash';
 import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
 import type { OwnedAsset } from '@/features/owned-assets/esi-projection';
-import { saveOwnedAssets } from '@/features/owned-assets/queries';
+import { saveCorpOwnedAssets, saveOwnedAssets } from '@/features/owned-assets/queries';
 import type { OwnerKey } from '@/platform/owner-sync';
 
 export async function saveOwnedAssetsFromSource(
@@ -38,7 +37,7 @@ export async function saveOwnedAssetsFromSource(
   });
   let outcome: 'saved' | 'superseded';
   try {
-    outcome = await saveCorpHoldings(owner, buildHoldingIndex(items), rows, etags, snapshotId);
+    outcome = await saveCorpOwnedAssets(owner.ownerId, buildHoldingIndex(items), rows, etags, snapshotId);
   } catch (error) {
     await discardSnapshot(snapshotId);
     throw error;
@@ -57,18 +56,6 @@ export async function saveOwnedAssetsFromSource(
       itemCount: source.items.length,
     },
   });
-}
-
-async function saveCorpHoldings(
-  owner: OwnerKey,
-  index: HoldingIndex,
-  rows: OwnedAsset[],
-  etags: string[],
-  snapshotId: number,
-): Promise<'saved' | 'superseded'> {
-  const nodes = await saveHoldingNodes(owner.ownerId, index, new Date());
-  if (nodes === 'superseded') return 'superseded';
-  return saveOwnedAssets(owner, rows, etags, snapshotId);
 }
 
 async function discardSnapshot(snapshotId: number): Promise<void> {

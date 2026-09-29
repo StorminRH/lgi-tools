@@ -44,10 +44,13 @@ function item(
   return { itemId, typeId, locationId, locationType, locationFlag };
 }
 
-const index = buildHoldingIndex([
+const items = [
   item(OFFICE, STATION, 'station', 'OfficeFolder', 27),
   item(2001, OFFICE, 'item', 'CorpSAG1'),
-]);
+  item(2002, OFFICE, 'item', 'CorpSAG2'),
+];
+const index = buildHoldingIndex(items);
+const evidence = { corporationId: CORP, index, items };
 const context = buildCorpHoldingContext(CORP, toHoldingNodes(index), null);
 
 function grantWith(roles: CorpRole[]): CorpGrant {
@@ -66,13 +69,13 @@ function grantWith(roles: CorpRole[]): CorpGrant {
 }
 
 const corpRows: BlueprintRow[] = [
-  { typeId: 34, materialEfficiency: 10, timeEfficiency: 20, runs: -1, locationId: OFFICE, locationFlag: 'CorpSAG2' },
-  { typeId: 34, materialEfficiency: 5, timeEfficiency: 10, runs: 30, locationId: OFFICE, locationFlag: 'CorpSAG1' },
+  { itemId: 2002, typeId: 34, materialEfficiency: 10, timeEfficiency: 20, runs: -1, locationId: OFFICE, locationFlag: 'CorpSAG2' },
+  { itemId: 2001, typeId: 34, materialEfficiency: 5, timeEfficiency: 10, runs: 30, locationId: OFFICE, locationFlag: 'CorpSAG1' },
 ];
 
 describe('visibleCorpBlueprintInputs', () => {
   it('keeps only the copies the blueprint rule can see, with their placement', () => {
-    expect(visibleCorpBlueprintInputs(corpRows, grantWith(['Hangar_Query_1']))).toEqual([
+    expect(visibleCorpBlueprintInputs(corpRows, grantWith(['Hangar_Query_1']), evidence)).toEqual([
       {
         ownerType: 'corporation',
         ownerId: CORP,
@@ -96,7 +99,7 @@ describe('toOwnedBlueprintMap', () => {
   it('never lets a hidden corp BPO win the ME, and counts only visible copies', () => {
     const map = toOwnedBlueprintMap([
       ...characterBlueprintInputs([{ typeId: 34, materialEfficiency: 7, timeEfficiency: 14, runs: -1, locationId: STATION, locationFlag: 'Hangar' }], 1),
-      ...visibleCorpBlueprintInputs(corpRows, grantWith(['Hangar_Query_1'])),
+      ...visibleCorpBlueprintInputs(corpRows, grantWith(['Hangar_Query_1']), evidence),
     ]);
     expect(map.get(34)).toEqual({
       me: 7,
@@ -113,7 +116,7 @@ describe('toOwnedBlueprintMap', () => {
   it('lets a visible corp BPO win and records its placement', () => {
     const map = toOwnedBlueprintMap([
       ...characterBlueprintInputs([{ typeId: 34, materialEfficiency: 7, timeEfficiency: 14, runs: -1, locationId: STATION, locationFlag: 'Hangar' }], 1),
-      ...visibleCorpBlueprintInputs(corpRows, grantWith(['Hangar_Query_2'])),
+      ...visibleCorpBlueprintInputs(corpRows, grantWith(['Hangar_Query_2']), evidence),
     ]);
     expect(map.get(34)).toEqual({
       me: 10,

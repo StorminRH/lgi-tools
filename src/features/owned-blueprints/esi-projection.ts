@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const ownedBlueprintSchema = z.object({
+  item_id: z.number().int().positive(),
   type_id: z.number().int(),
   material_efficiency: z.number().int(),
   time_efficiency: z.number().int(),
@@ -21,7 +22,8 @@ function compareBlueprints(a: OwnedBlueprint, b: OwnedBlueprint): number {
     a.runs - b.runs ||
     a.quantity - b.quantity ||
     a.location_id - b.location_id ||
-    (a.location_flag < b.location_flag ? -1 : a.location_flag > b.location_flag ? 1 : 0)
+    (a.location_flag < b.location_flag ? -1 : a.location_flag > b.location_flag ? 1 : 0) ||
+    a.item_id - b.item_id
   );
 }
 

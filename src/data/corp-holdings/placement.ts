@@ -53,6 +53,12 @@ export interface CorpHoldingContext {
 
 const CORP_ASSET_LOCATION_TYPES = ['station', 'solar_system', 'item', 'other'] as const;
 
+export interface CorpAssetEvidence {
+  readonly corporationId: number;
+  readonly index: HoldingIndex;
+  readonly items: readonly CorpAssetItem[];
+}
+
 export interface CorpAssetItem {
   readonly itemId: number;
   readonly typeId: number;
