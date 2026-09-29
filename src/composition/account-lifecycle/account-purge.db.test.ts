@@ -59,12 +59,14 @@ const TABLE_NAMES = [
   'custom_structures',
   'saved_plans',
   'net_worth_days',
+  'pending_tracking_merges',
 ] as const;
 
 const harness = await createDbTestHarness({
   schema: SCHEMA,
   tables: TABLE_NAMES,
   foreignKeys: [
+    { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     {
       table: 'maps',
       column: 'user_id',

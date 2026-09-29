@@ -1,6 +1,8 @@
 import { asc, eq } from 'drizzle-orm';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
+import { snapshotMergeTracking } from '@/data/location-tracking/merge';
+import { pendingTrackingMerges } from '@/data/location-tracking/schema';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { mapAccess, maps, pendingMapAccessChanges } from '@/data/maps/schema';
 import { userPreferences } from '@/data/preferences/schema';
@@ -21,6 +23,12 @@ import { MergeIncompleteError } from '@/platform/purge/merge';
 import type { PurgeContributor } from '@/platform/purge/types';
 import { mergeUsers, type MergeRequest } from './account-merge';
 
+vi.mock('@/data/location-tracking/merge', () => ({ snapshotMergeTracking: vi.fn() }));
+
+beforeEach(() => {
+  vi.mocked(snapshotMergeTracking).mockReset().mockResolvedValue([]);
+});
+
 const harness = await createDbTestHarness({
   schema: 'test_account_merge',
   tables: [
@@ -40,8 +48,10 @@ const harness = await createDbTestHarness({
     'custom_structures',
     'esi_refresh_jobs',
     'usage_logs',
+    'pending_tracking_merges',
   ],
   foreignKeys: [
+    { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'session', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -263,6 +273,51 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
         metadata: { sourceUserId: NEW, survivorUserId: OLD, movedCharacterIds: [NEW_CHAR, NEW_ALT] },
       });
     });
+  });
+
+  it('persists the tracking snapshot with the merge even after the source user is deleted', async () => {
+    await seedPair();
+    const selections = [{ mapId: NEW_MAP, characterId: NEW_CHAR }];
+    vi.mocked(snapshotMergeTracking).mockResolvedValueOnce(selections);
+
+    await merge(request());
+
+    expect(snapshotMergeTracking).toHaveBeenCalledWith(NEW);
+    expect(await userIds()).toEqual([OLD]);
+    expect(await harness.db.select().from(pendingTrackingMerges)).toEqual([
+      expect.objectContaining({ userId: OLD, sourceUserId: NEW, selections }),
+    ]);
+  });
+
+  it('does not merge or delete anything when the tracking snapshot cannot be captured', async () => {
+    await seedPair();
+    await seedUserData();
+    vi.mocked(snapshotMergeTracking).mockRejectedValueOnce(new Error('Convex unavailable'));
+
+    await expect(merge(request())).rejects.toThrow('Convex unavailable');
+
+    expect(await userIds()).toEqual([NEW, OLD].sort());
+    expect(await ownersOf(harness.db.select().from(account).orderBy(asc(account.accountId)))).toEqual([OLD, NEW, NEW]);
+    expect(await ownersOf(harness.db.select().from(session).orderBy(asc(session.token)))).toEqual([NEW, NEW, OLD]);
+    expect(await harness.db.select().from(pendingTrackingMerges)).toEqual([]);
+    expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+  });
+
+  it('rekeys an earlier pending transfer when its survivor is merged again', async () => {
+    await seedPair();
+    const selections = [{ mapId: NEW_MAP, characterId: NEW_ALT }];
+    const [earlier] = await harness.db.insert(pendingTrackingMerges).values({
+      userId: NEW, sourceUserId: 'previously-deleted-user', selections,
+    }).returning();
+
+    await merge(request());
+
+    const rows = await harness.db.select().from(pendingTrackingMerges);
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual(expect.objectContaining({
+      id: earlier!.id, userId: OLD, sourceUserId: 'previously-deleted-user', selections,
+    }));
+    expect(rows).toContainEqual(expect.objectContaining({ userId: OLD, sourceUserId: NEW, selections: [] }));
   });
 
   it('keeps the linking user when it is the older one and moves the proven character onto it', async () => {

@@ -1,6 +1,8 @@
 import { bestEffort } from '@/lib/best-effort';
 import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { cancelPendingTracking } from './merge-store';
+import { pendingTrackingMerges } from './schema';
 import type { PurgeContributor } from '@/platform/purge/types';
 
 export async function purgeLocationTracking(
@@ -29,6 +31,7 @@ export async function teardownLocationTracking(
   userId: string,
   characterId: number | null,
 ): Promise<void> {
+  await cancelPendingTracking(userId, characterId);
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) return;
   const subject = characterId === null ? userId : `${userId}:${characterId}`;
   await bestEffort('location-tracking/purge', 'convex-teardown', subject, () =>
@@ -39,9 +42,8 @@ export async function teardownLocationTracking(
 export const locationTrackingPurgeContributor: PurgeContributor = {
   name: 'location-tracking',
   tier: 'durable',
-  claims: [],
-  merge: [],
-  purgeCharacter: ({ userId, characterId }) =>
-    teardownLocationTracking(userId, characterId),
+  claims: [pendingTrackingMerges],
+  merge: [{ table: pendingTrackingMerges, rule: 'rekey' }],
+  purgeCharacter: ({ userId, characterId }) => teardownLocationTracking(userId, characterId),
   purgeUser: ({ userId }) => teardownLocationTracking(userId, null),
 };

@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const doors = vi.hoisted(() => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
-  mergeLocationTrackingState: vi.fn(),
+  snapshotMergeTracking: vi.fn(),
+  enqueueTrackingMerge: vi.fn(),
+  reconcileTrackingMerges: vi.fn(),
   teardownLocationTracking: vi.fn(),
   deliverCapturedMapAccessChanges: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
@@ -10,9 +12,13 @@ const doors = vi.hoisted(() => ({
 }));
 
 vi.mock('@/data/location-tracking/merge', () => ({
-  mergeLocationTrackingState: (...args: unknown[]) => {
-    doors.order.push('merge-door');
-    return doors.mergeLocationTrackingState(...args);
+  snapshotMergeTracking: (...args: unknown[]) => doors.snapshotMergeTracking(...args),
+}));
+vi.mock('@/data/location-tracking/merge-store', () => ({ enqueueTrackingMerge: (...args: unknown[]) => doors.enqueueTrackingMerge(...args) }));
+vi.mock('./tracking-merge-retry', () => ({
+  reconcileTrackingMerges: (...args: unknown[]) => {
+    doors.order.push('retry');
+    return doors.reconcileTrackingMerges(...args);
   },
 }));
 vi.mock('@/data/location-tracking/purge', () => ({
@@ -83,7 +89,9 @@ beforeEach(() => {
   state.results = [];
   state.calls = { update: 0, delete: 0, execute: 0 };
   for (const door of [
-    doors.mergeLocationTrackingState,
+    doors.snapshotMergeTracking,
+    doors.enqueueTrackingMerge,
+    doors.reconcileTrackingMerges,
     doors.teardownLocationTracking,
     doors.deliverCapturedMapAccessChanges,
     doors.purgeUserMapAccessProjection,
@@ -135,7 +143,7 @@ describe('mergeUsers', () => {
       movedCharacterIds: [200],
       captured: [],
     });
-    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 12 });
+    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 13 });
     expect(doors.logUsageEvent).toHaveBeenCalledWith({
       action: 'auth_merge',
       characterId: 100,
@@ -188,15 +196,15 @@ describe('settleConvexAfterMerge', () => {
       movedCharacterIds: [100],
       captured,
     });
-    expect(doors.order).toEqual(['merge-door', 'deliver', 'backstop']);
-    expect(doors.mergeLocationTrackingState).toHaveBeenCalledWith('src', 'surv');
+    expect(doors.order).toEqual(['retry', 'deliver', 'backstop']);
+    expect(doors.reconcileTrackingMerges).toHaveBeenCalledWith('surv');
     expect(doors.deliverCapturedMapAccessChanges).toHaveBeenCalledWith(captured);
     expect(doors.purgeUserMapAccessProjection).toHaveBeenCalledWith('src');
   });
 
-  it('falls back to tearing the source down when the merge door fails, and still reprojects', async () => {
+  it('retains durable retry work on failure while continuing source revocation', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    doors.mergeLocationTrackingState.mockRejectedValue(new Error('door down'));
+    doors.reconcileTrackingMerges.mockRejectedValue(new Error('door down'));
     doors.deliverCapturedMapAccessChanges.mockRejectedValue(new Error('projection down'));
     await expect(
       settleConvexAfterMerge({
@@ -206,10 +214,10 @@ describe('settleConvexAfterMerge', () => {
         captured,
       }),
     ).resolves.toBeUndefined();
-    expect(doors.order).toEqual(['merge-door', 'teardown', 'deliver', 'backstop']);
-    expect(doors.teardownLocationTracking).toHaveBeenCalledWith('src', null);
+    expect(doors.order).toEqual(['retry', 'deliver', 'backstop']);
+    expect(doors.teardownLocationTracking).not.toHaveBeenCalled();
     expect(errorSpy.mock.calls.map((call) => call[0])).toEqual([
-      '[account-merge] merge door failed; tearing down source tracking',
+      '[account-merge] tracking transfer failed for src',
       '[account-merge] reprojection failed for src',
     ]);
     errorSpy.mockRestore();

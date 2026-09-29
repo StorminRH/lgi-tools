@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { locationTrackingPurgeContributor, purgeLocationTracking, teardownLocationTracking } from './purge';
 
+const cancelPendingTracking = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('./merge-store', () => ({ cancelPendingTracking }));
+
 const USER = 'eve-user-1';
 const CHAR = 90_000_001;
 
@@ -28,9 +31,9 @@ afterEach(() => {
 });
 
 describe('locationTrackingPurgeContributor', () => {
-  it('is a durable-tier contributor that claims no Neon table (its homes live in Convex)', () => {
+  it('is a durable-tier contributor that claims the durable tracking recovery queue', () => {
     expect(locationTrackingPurgeContributor.tier).toBe('durable');
-    expect(locationTrackingPurgeContributor.claims).toEqual([]);
+    expect(locationTrackingPurgeContributor.claims).toHaveLength(1);
   });
 
   it('purgeCharacter POSTs the one-character teardown to /purge-location-tracking with the bearer secret', async () => {

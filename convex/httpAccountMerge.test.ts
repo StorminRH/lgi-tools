@@ -46,3 +46,41 @@ describe('POST /merge-user-state', () => {
     expect(tracking.map((row) => row.userId)).toEqual(['surv']);
   });
 });
+
+describe('merge tracking recovery service doors', () => {
+  it('requires service authorization and validates both request shapes', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    for (const path of ['/snapshot-merge-tracking', '/restore-merge-tracking'] as const) {
+      expect((await postConvexHttp(path, '{}', false)).status).toBe(401);
+      expect((await postConvexHttp(path, 'not-json')).status).toBe(400);
+      expect((await postConvexHttp(path, '{}')).status).toBe(400);
+    }
+    expect((await postConvexHttp('/restore-merge-tracking', JSON.stringify({
+      operationId: 'a', survivorUserId: 'b', selections: [{ mapId: 'x', characterId: -1 }],
+    }))).status).toBe(400);
+  });
+
+  it('snapshots and restores selections through authenticated endpoints', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: 'src', characterId: 1 });
+      await ctx.db.insert('mapAccess', { mapId: 'map-a', userId: 'surv', roles: ['viewer'] });
+      await ctx.db.insert('mapJumpBookkeeping', { mapId: 'map-a', characterId: 1, lastProcessedTransitionAt: 123 });
+    });
+    const request = (path: string, body: unknown) => t.fetch(path, {
+      method: 'POST', headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify(body),
+    });
+    const snapshot = await request('/snapshot-merge-tracking', { sourceUserId: 'src' });
+    expect(snapshot.status).toBe(200);
+    const { selections } = await snapshot.json();
+    expect(selections).toEqual([{ mapId: 'map-a', characterId: 1, lastProcessedTransitionAt: 123 }]);
+    const restored = await request('/restore-merge-tracking', {
+      operationId: 'recovery', survivorUserId: 'surv', selections,
+    });
+    expect(restored.status).toBe(200);
+    expect(await restored.json()).toEqual({ restored: 1, skipped: 0, alreadyApplied: false });
+    expect(await t.run((ctx) => ctx.db.query('mapTracking').collect())).toHaveLength(2);
+  });
+});

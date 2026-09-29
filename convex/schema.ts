@@ -164,6 +164,10 @@ export default defineSchema({
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId']),
 
+  accountMergeTrackingReceipts: defineTable({
+    operationId: v.string(),
+  }).index('by_operation', ['operationId']),
+
   mapTracking: defineTable({
     mapId: v.string(),
     userId: v.string(),

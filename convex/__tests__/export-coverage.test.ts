@@ -13,7 +13,7 @@ vi.mock('convex/server', async (importOriginal) => {
   };
 });
 
-import { mergeUserState } from '../accountMerge';
+import { mergeUserState, snapshotMergeTracking, restoreMergeTracking } from '../accountMerge';
 import authConfig from '../auth.config';
 import {
   accessLeases,
@@ -33,7 +33,7 @@ import { scan } from '../engineScan';
 import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
-import { mergeUserState as httpMergeUserState } from '../httpAccountMerge';
+import { mergeUserState as httpMergeUserState, snapshotMergeTracking as httpSnapshotMergeTracking, restoreMergeTracking as httpRestoreMergeTracking } from '../httpAccountMerge';
 import { purgeOnline, sweep as httpSweep } from '../httpEngine';
 import { jumpEvidence as httpJumpEvidence, resolveJump, signatureElimination } from '../httpJump';
 import { leaveSync, purgeLocationTracking } from '../httpLocation';
@@ -169,7 +169,11 @@ describe('convex runtime exports', () => {
       purgeMapAccess,
       purgeMapChain,
       httpMergeUserState,
+      httpSnapshotMergeTracking,
+      httpRestoreMergeTracking,
       mergeUserState,
+      snapshotMergeTracking,
+      restoreMergeTracking,
       authorizedAction,
       authorizedJsonAction,
       JUMP_CONTINUITY_MS,

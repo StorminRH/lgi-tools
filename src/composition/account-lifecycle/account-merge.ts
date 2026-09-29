@@ -5,8 +5,8 @@ import * as schema from '@/composition/drizzle-schema';
 import { purgeUserMapAccessProjection } from '@/composition/map-access-projection';
 import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
-import { mergeLocationTrackingState } from '@/data/location-tracking/merge';
-import { teardownLocationTracking } from '@/data/location-tracking/purge';
+import { snapshotMergeTracking } from '@/data/location-tracking/merge';
+import { enqueueTrackingMerge } from '@/data/location-tracking/merge-store';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { enqueueMergeReprojection } from '@/data/maps/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
@@ -18,6 +18,7 @@ import { accountMatch, eveAccountsForUser } from '@/platform/auth/eve-account-sh
 import { pickSurvivor, type MergeCandidate } from '@/platform/auth/owner-reconcile';
 import { assertSourceEmpty, executeMergeRules } from '@/platform/purge/merge';
 import type { MergeTx, PurgeContributor } from '@/platform/purge/types';
+import { reconcileTrackingMerges } from './tracking-merge-retry';
 
 const SCHEMA_TABLES = (Object.values(schema) as unknown[]).filter((value): value is PgTable =>
   is(value, PgTable),
@@ -69,6 +70,7 @@ async function commitMerge(
   contributors: readonly PurgeContributor[],
   { survivor, source }: { survivor: MergeCandidate; source: MergeCandidate },
 ): Promise<CommittedMerge> {
+  const selections = await snapshotMergeTracking(source.id);
   const movedCharacterIds = (
     await tx.select({ accountId: account.accountId }).from(account).where(eveAccountsForUser(source.id))
   )
@@ -79,6 +81,7 @@ async function commitMerge(
   if (source.role === 'ADMIN' && survivor.role !== 'ADMIN') {
     await tx.update(user).set({ role: 'ADMIN', updatedAt: new Date() }).where(eq(user.id, survivor.id));
   }
+  await enqueueTrackingMerge(tx, source.id, survivor.id, selections);
   await assertSourceEmpty(tx, SCHEMA_TABLES, source.id);
   await tx.delete(user).where(eq(user.id, source.id));
   return { survivorUserId: survivor.id, sourceUserId: source.id, movedCharacterIds, captured };
@@ -122,12 +125,9 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
 
 export async function settleConvexAfterMerge(committed: CommittedMerge): Promise<void> {
   const { sourceUserId, survivorUserId, captured } = committed;
-  try {
-    await mergeLocationTrackingState(sourceUserId, survivorUserId);
-  } catch (error) {
-    console.error('[account-merge] merge door failed; tearing down source tracking', sourceUserId, error);
-    await teardownLocationTracking(sourceUserId, null);
-  }
+  await bestEffort('account-merge', 'tracking transfer', sourceUserId, () =>
+    reconcileTrackingMerges(survivorUserId),
+  );
   await bestEffort('account-merge', 'reprojection', sourceUserId, () =>
     deliverCapturedMapAccessChanges([...captured]),
   );

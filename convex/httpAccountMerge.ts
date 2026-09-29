@@ -17,3 +17,24 @@ export const mergeUserState: PublicHttpAction = authorizedJsonAction(
   async (ctx, body) =>
     Response.json(await ctx.runMutation(internal.accountMerge.mergeUserState, body)),
 );
+
+
+export const snapshotMergeTracking: PublicHttpAction = authorizedJsonAction(
+  z.object({ sourceUserId: z.string().min(1) }),
+  async (ctx, body) =>
+    Response.json(await ctx.runQuery(internal.accountMerge.snapshotMergeTracking, body)),
+);
+
+export const restoreMergeTracking: PublicHttpAction = authorizedJsonAction(
+  z.object({
+    operationId: z.string().min(1),
+    survivorUserId: z.string().min(1),
+    selections: z.array(z.object({
+      mapId: z.string().min(1),
+      characterId: z.number().int().positive(),
+      lastProcessedTransitionAt: z.number().nonnegative().optional(),
+    })).max(1000),
+  }),
+  async (ctx, body) =>
+    Response.json(await ctx.runMutation(internal.accountMerge.restoreMergeTracking, body)),
+);

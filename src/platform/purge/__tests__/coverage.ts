@@ -52,7 +52,7 @@ export interface NonNeonHome {
   readonly merge: string;
 }
 
-const MERGE_DOOR = 'POST /merge-user-state (convex/accountMerge.mergeUserState)';
+const MERGE_DOOR = 'durable tracking recovery (POST /purge-location-tracking then /restore-merge-tracking)';
 
 export const NON_NEON_HOMES: readonly NonNeonHome[] = [
   {
@@ -108,7 +108,7 @@ export const NON_NEON_HOMES: readonly NonNeonHome[] = [
     explicitTeardown: 'src/data/location-tracking/purge.ts — shipped 4.0.4.2.1',
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Access revocation and map deletion cascade-delete mapTracking inside the projection apply; account/character purge hits the same HTTP door as characterLocation.',
-    merge: `user intent, not rebuilt: re-keyed source→survivor by ${MERGE_DOOR} BEFORE reprojection (which would delete the source rows as revoked); deduped on (map, character), excess past the per-map cap dropped`,
+    merge: `user intent captured BEFORE reprojection in pending_tracking_merges, then restored by ${MERGE_DOOR} after checking current ownership and map access; global operation receipts prevent replay after opt-out; deduped on (map, character), excess past the per-map cap dropped`,
   },
   {
     home: 'convex:mapJumpBookkeeping',
@@ -117,7 +117,7 @@ export const NON_NEON_HOMES: readonly NonNeonHome[] = [
     explicitTeardown: 'convex/mapJumpBookkeeping.ts — deleteForMapCharacter on untrack/teardown; purgeForMap on map drain',
     reason:
       'the table is (mapId, characterId)-keyed exactly-once state rather than account-owned payload: no userId column. Untrack and tracking teardown drop that stamp so a stale lastProcessedTransitionAt cannot suppress the next jump after retrack. Character identity still leaves with the account/character purge drain; the map teardown door still deletes leftovers with the collaborative map.',
-    merge: 'unchanged: keyed by map and character, and the moved tracking rows keep the same (map, character) pairs',
+    merge: 'captured with pending tracking selections and restored atomically with tracking using max(current, captured) so recovery does not replay a consumed jump',
   },
   {
     home: 'convex:mapAccess',

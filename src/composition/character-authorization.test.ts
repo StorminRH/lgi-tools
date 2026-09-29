@@ -1,5 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 
+vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
+  reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+}));
+
 const mocks = vi.hoisted(() => ({
   hasAuthorizationWork: vi.fn(),
   suspendOverdueAuthorizations: vi.fn(),

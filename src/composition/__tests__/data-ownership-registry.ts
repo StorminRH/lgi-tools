@@ -12,6 +12,7 @@ export type SliceId =
   | 'data/market-history'
   | 'data/market-prices'
   | 'data/maps'
+  | 'data/location-tracking'
   | 'data/preferences'
   | 'data/telemetry'
   | 'data/wh-observations'
@@ -597,6 +598,18 @@ export const DATA_OWNERSHIP = [
     boundary: {
       kind: 'single-statement',
       note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds. Lifecycle archive and restore enqueue the captured generation in the same statement as the lifecycle write, then tear down or re-project only after that write succeeds. Character-grant purge captures affected map ids, deletes those grants, and enqueues in one statement before captured delivery.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.pendingTrackingMerges,
+    owner: 'data/location-tracking',
+    reads: [{ by: 'composition/account-lifecycle', purpose: 'Reconcile durable tracking selections after a login merge.' }],
+    writers: [{ by: 'composition/account-lifecycle', reason: 'Locked delivery acknowledges successful restores and rotates failed work for retry.' }],
+    invariants: ['fk(user_id→user.id)', 'pk(id)'],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'Snapshot jobs commit with the login merge. Delivery locks the destination and linked characters through Convex restore and acknowledgement; an atomic Convex receipt makes response-loss retries safe. Chained merges rekey jobs, unlink cancels selections, and user deletion cascades them.',
     },
     dataClass: 'personal',
   },

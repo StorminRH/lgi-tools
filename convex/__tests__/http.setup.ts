@@ -16,7 +16,9 @@ export const postConvexHttp = (
     | '/project-map-access'
     | '/purge-map-access'
     | '/purge-map-chain'
-    | '/merge-user-state',
+    | '/merge-user-state'
+    | '/snapshot-merge-tracking'
+    | '/restore-merge-tracking',
   body: BodyInit | null,
   authorized = true,
 ) =>
