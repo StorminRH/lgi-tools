@@ -1,15 +1,21 @@
+import { v } from 'convex/values';
 import {
   RETENTION_MS,
+  LOCATION_COLD_AFTER_MS,
+  isColdFromPresence,
   SYNC_DATASET_HISTORY,
   SYNC_DATASETS,
 } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { getLocationSync } from './lib/locationSchedule';
+import { ensureLocationSync, getLocationSync, stopSync } from './lib/locationSchedule';
+import { ensurePresenceExpiry } from './engine';
+import { getPresence } from './lib/subjects';
+import { clearCoverageForUser } from './lib/locationCoverage';
 import { drainCharacterOnline } from './onlineStatus';
 
-const SWEEP_DELETE_BATCH = 512;
-const RETIRED_GC_BATCH = 512;
+const SWEEP_DELETE_BATCH = 128;
+const RETIRED_GC_BATCH = 128;
 
 /**
  * Daily retention GC. Deletes presence (and its location sync state)
@@ -20,6 +26,7 @@ const RETIRED_GC_BATCH = 512;
  */
 export const sweep = internalMutation({
   args: {},
+  returns: v.object({ deleted: v.number(), capped: v.boolean() }),
   handler: async (ctx) => {
     const now = Date.now();
     const abandoned = await sweepAbandoned(ctx, now);
@@ -41,7 +48,18 @@ async function sweepRetiredRows(
   ctx: MutationCtx,
 ): Promise<{ deleted: number; capped: boolean }> {
   const subjects = await ctx.db.query('syncSubjects').take(RETIRED_GC_BATCH);
-  for (const row of subjects) await ctx.db.delete('syncSubjects', row._id);
+  for (const row of subjects) {
+    if (row.dataset === 'characterLocation') {
+      const presence = await getPresence(ctx.db, 'characterLocation', row.userId);
+      if (!isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, Date.now())) {
+        await ensureLocationSync(ctx, row.userId);
+        await ensurePresenceExpiry(ctx, row.userId);
+      } else {
+        await clearCoverageForUser(ctx, row.userId);
+      }
+    }
+    await ctx.db.delete('syncSubjects', row._id);
+  }
   let presenceCount = 0;
   for (const dataset of RETIRED_DATASETS) {
     const rows = await ctx.db
@@ -76,8 +94,12 @@ async function sweepAbandoned(
       ? await getLocationSync(ctx.db, presence.userId)
       : null;
     if (state !== null) {
+      await stopSync(ctx, state, now);
       await ctx.db.delete('locationSync', state._id);
       deleted += 1;
+    }
+    if (presence.dataset === 'characterLocation' && state === null) {
+      await clearCoverageForUser(ctx, presence.userId);
     }
     await ctx.db.delete('syncPresence', presence._id);
   }

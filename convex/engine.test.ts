@@ -124,7 +124,7 @@ async function seedTracking(t: T, characterId = CHAR) {
 /** A pending syncUser job carrying `generation`, as the scheduler would leave it. */
 function schedulePending(t: T, at: number, generation: number) {
   return t.run((ctx) =>
-    ctx.scheduler.runAt(at, internal.characterLocationSync.syncUser, { userId: USER, generation }),
+    ctx.scheduler.runAt(at, internal.characterLocationSync.syncUser, { userId: USER, generation, schedulerVersion: 2 }),
   );
 }
 
@@ -143,6 +143,7 @@ async function terminalJob(t: T, kind: 'canceled' | 'success' | 'failed'): Promi
       const id = await ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, {
         userId: USER,
         generation: -1,
+        schedulerVersion: 2,
       });
       await ctx.scheduler.cancel(id);
       return id;
@@ -151,11 +152,11 @@ async function terminalJob(t: T, kind: 'canceled' | 'success' | 'failed'): Promi
   vi.stubEnv('SITE_URL', 'https://app.test');
   vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  const args = kind === 'success' ? { userId: USER, generation: -1 } : ({ userId: USER } as never);
+  const args = kind === 'success' ? { userId: USER, generation: -1, schedulerVersion: 2 as const } : ({ userId: USER } as never);
   const id = await t.run((ctx) =>
     ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, args),
   );
-  vi.runOnlyPendingTimers();
+  vi.advanceTimersByTime(0);
   await t.finishInProgressScheduledFunctions();
   expect((await jobById(t, id))?.state.kind).toBe(kind);
   return id;
@@ -303,7 +304,7 @@ describe('engine.heartbeat', () => {
     expect(jobs[0]?.state.kind).toBe('pending');
     expect(state?.jobId).toBe(jobs[0]?._id);
     expect(state?.runId).toBe(now);
-    expect(jobs[0]?.args).toEqual([{ userId: USER, generation: now }]);
+    expect(jobs[0]?.args).toEqual([{ userId: USER, generation: now, schedulerVersion: 2 }]);
   });
 
   it('a stale beat replaces a pending run: expired cache or a hinted pilot not yet synced', async () => {
@@ -418,8 +419,11 @@ describe('engine.heartbeat', () => {
     vi.stubEnv('SITE_URL', 'https://app.test');
     vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
     let release: ((response: Response) => void) | undefined;
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => { markStarted = resolve; });
     const fetchFn = vi.fn(() => new Promise<Response>((resolve) => {
       release = resolve;
+      markStarted();
     }));
     vi.stubGlobal('fetch', fetchFn);
     const t = convexTest(schema, modules);
@@ -428,7 +432,9 @@ describe('engine.heartbeat', () => {
     await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
     const [job] = await scheduledSyncUsers(t);
     // Start the run and hold it at the token vend so its job row reads inProgress.
-    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+    vi.advanceTimersByTime(0);
+    await started;
+    expect(fetchFn).toHaveBeenCalled();
     expect((await jobById(t, job!._id))?.state.kind).toBe('inProgress');
     const before = await readState(t);
 
@@ -774,6 +780,44 @@ describe('engine.leave', () => {
 });
 
 describe('engineComplete deploy shims', () => {
+  it('hands off an unversioned action that owns an earlier scheduler deployment state', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await seedPresence(t);
+    const legacyJob = await t.run((ctx) => ctx.scheduler.runAt(now, internal.characterLocationSync.syncUser, {
+      userId: USER, generation: now - 1,
+    }));
+    await seedState(t, { runId: now - 1, jobId: legacyJob, minExpiresAt: now + 20_000, syncedCharacterIds: [CHAR] });
+    vi.advanceTimersByTime(0);
+    await t.finishInProgressScheduledFunctions();
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.args).toEqual([{ userId: USER, generation: now, schedulerVersion: 2 }]);
+    expect(pending[0]?.scheduledTime).toBe(now + 20_000);
+    expect((await readState(t))?.jobId).toBe(pending[0]?._id);
+  });
+
+  it('does not let matching or orphaned legacy completions replace a modern in-flight job', async () => {
+    vi.stubEnv('SITE_URL', 'https://app.test');
+    vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
+    let release: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { release = resolve; })));
+    const t = convexTest(schema, modules);
+    await seedTracking(t);
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+    vi.advanceTimersByTime(0);
+    await vi.waitFor(() => expect(release).toBeDefined());
+    const before = await readState(t);
+    for (const workId of [String(before!.runId), String(before!.runId - 1)]) {
+      await t.mutation(internal.engineComplete.onSyncComplete, {
+        workId, context: { dataset: 'characterLocation', userId: USER }, result: { kind: 'success' },
+      });
+      expect(await readState(t)).toEqual(before);
+    }
+    release!(new Response(JSON.stringify({ characters: [] }), { status: 200 }));
+    await t.finishInProgressScheduledFunctions();
+  });
+
   const shims = {
     chainDispatch: (t: T) =>
       t.mutation(internal.engineComplete.chainDispatch, {
@@ -802,7 +846,7 @@ describe('engineComplete deploy shims', () => {
         expect(pending[0]?.scheduledTime).toBe(now);
         const state = await readState(t);
         expect(state?.jobId).toBe(pending[0]?._id);
-        expect(pending[0]?.args).toEqual([{ userId: USER, generation: state?.runId }]);
+        expect(pending[0]?.args).toEqual([{ userId: USER, generation: state?.runId, schedulerVersion: 2 }]);
       });
 
       it('re-arms a warm user whose previous run already finished', async () => {
@@ -930,7 +974,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
         coveredCharacterIds: [CHAR],
         lastFinishedAt: now,
       });
-      expect(pending[0]?.args).toEqual([{ userId: USER, generation: now }]);
+      expect(pending[0]?.args).toEqual([{ userId: USER, generation: now, schedulerVersion: 2 }]);
     }
     random.mockRestore();
   });
@@ -1062,7 +1106,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
     const first = await readState(t);
 
     // Fire only the due run; the retry it schedules stays pending.
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(0);
     await t.finishInProgressScheduledFunctions();
 
     const jobs = await scheduledSyncUsers(t);
@@ -1070,7 +1114,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
     const next = await readState(t);
     expect(next?.jobId).toBe(jobs[1]?._id);
     expect(next?.runId).toBeGreaterThan(first!.runId);
-    expect(jobs[1]?.args).toEqual([{ userId: USER, generation: next?.runId }]);
+    expect(jobs[1]?.args).toEqual([{ userId: USER, generation: next?.runId, schedulerVersion: 2 }]);
     expect(jobs[1]?.scheduledTime).toBe(Date.now() + LOCATION_CADENCE_FLOOR_MS);
   });
 });
@@ -1140,7 +1184,7 @@ describe('engine.sweep (daily retention)', () => {
   it('drains every syncSubjects row, live dataset included, continuing past a full batch', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    const total = 513;
+    const total = 129;
     await t.run(async (ctx) => {
       for (let i = 0; i < total; i++) {
         await ctx.db.insert('syncSubjects', legacySubjectRow({
@@ -1152,7 +1196,7 @@ describe('engine.sweep (daily retention)', () => {
     });
 
     const first = await t.mutation(internal.engineSweep.sweep, {});
-    expect(first).toEqual({ deleted: 512, capped: true });
+    expect(first).toEqual({ deleted: 128, capped: true });
     expect(await scheduledFunctionsNamed(t, 'engineSweep')).toHaveLength(1);
 
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -1170,7 +1214,7 @@ describe('engine.sweep (daily retention)', () => {
   it('schedules an immediate continuation when a batch fills', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    const total = 513;
+    const total = 129;
     await t.run(async (ctx) => {
       for (let i = 0; i < total; i++) {
         await ctx.db.insert('syncPresence', {
@@ -1196,5 +1240,65 @@ describe('engine.sweep (daily retention)', () => {
     expect(cronSource).toContain("'sync engine retention', { hours: 24 }, internal.engineSweep.sweep");
     expect(cronSource).not.toContain('engineScan');
     expect(httpSource).not.toContain("'/sweep'");
+  });
+});
+
+
+describe('scheduler migration and independent liveness', () => {
+  it('preserves recent jump continuity when retention runs before the first heartbeat', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await seedPresence(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', legacySubjectRow({
+        minExpiresAt: now + 10_000,
+        syncedCharacterIds: [CHAR], coveredCharacterIds: [CHAR], lastFinishedAt: now - 1_000,
+      }));
+    });
+    await t.mutation(internal.engineSweep.sweep, {});
+    await t.mutation(internal.engineComplete.chainDispatch, { dataset: 'characterLocation', userId: USER });
+    expect(await readState(t)).toMatchObject({
+      minExpiresAt: now + 10_000,
+      syncedCharacterIds: [CHAR], coveredCharacterIds: [CHAR],
+      lastFinishedAt: now - 1_000, lastRunAt: now - 1_000,
+    });
+    expect((await pendingSyncUsers(t))[0]?.scheduledTime).toBe(now + 10_000);
+    expect(await t.run((ctx) => ctx.db.query('syncSubjects').collect())).toEqual([]);
+  });
+
+  it('expires coverage after a dead action and a vanished browser without another heartbeat', async () => {
+    const t = convexTest(schema, modules);
+    const failed = await terminalJob(t, 'failed');
+    await seedState(t, { jobId: failed, syncedCharacterIds: [CHAR], coveredCharacterIds: [CHAR] });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR });
+    });
+    // A warm heartbeat arms liveness; then the newly scheduled action is cancelled
+    // to model no further completion mutation reaching the server.
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+    const state = await readState(t);
+    await t.run((ctx) => ctx.scheduler.cancel(state!.jobId!));
+    await vi.advanceTimersByTimeAsync(LOCATION_COLD_AFTER_MS + 1);
+    await t.finishInProgressScheduledFunctions();
+    expect(await t.run((ctx) => ctx.db.query('characterLocationCovered').collect())).toEqual([]);
+    expect((await readState(t))?.jobId).toBeNull();
+    const checks = await scheduledFunctionsNamed(t, 'expirePresence');
+    expect(checks).toHaveLength(1);
+    expect(checks[0]?.state.kind).toBe('success');
+  });
+
+  it('extends one liveness check for fresh presence and stops after that presence expires', async () => {
+    const t = convexTest(schema, modules);
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount' });
+    await vi.advanceTimersByTimeAsync(240_000);
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval' });
+    expect(await scheduledFunctionsNamed(t, 'expirePresence')).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(60_001);
+    await t.finishInProgressScheduledFunctions();
+    const checks = await scheduledFunctionsNamed(t, 'expirePresence');
+    expect(checks.map((job) => job.state.kind)).toEqual(['success', 'pending']);
+    await vi.advanceTimersByTimeAsync(240_000);
+    await t.finishInProgressScheduledFunctions();
+    expect((await scheduledFunctionsNamed(t, 'expirePresence')).map((job) => job.state.kind)).toEqual(['success', 'success']);
   });
 });

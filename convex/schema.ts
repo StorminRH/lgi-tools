@@ -62,6 +62,7 @@ export default defineSchema({
     lastVisibleAt: v.optional(v.number()),
     tabId: v.optional(v.string()),
     leftTabId: v.optional(v.string()),
+    expiryJobId: v.optional(v.id('_scheduled_functions')),
   })
     .index('by_user_dataset', ['userId', 'dataset'])
     .index('by_last_seen', ['lastSeenAt'])

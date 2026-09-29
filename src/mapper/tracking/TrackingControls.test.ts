@@ -10,6 +10,7 @@ import { TrackingControls, TrackingHeartbeat } from './TrackingControls';
 
 const mocks = vi.hoisted(() => ({
   heartbeat: vi.fn(),
+  toastError: vi.fn(),
   scannerCharacterId: null as number | null,
   setScanner: vi.fn(),
   mutate: vi.fn(async () => ({ tracked: true })),
@@ -39,6 +40,8 @@ const mocks = vi.hoisted(() => ({
     },
   ],
 }));
+
+vi.mock('@/components/ui/toast', () => ({ toast: { error: mocks.toastError } }));
 
 vi.mock('@/data/convex/use-mutation', () => ({
   useMutation: () => mocks.mutate,
@@ -169,6 +172,18 @@ describe('TrackingControls', () => {
 
     TrackingHeartbeat({ mapId: 'map-a' });
     expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
+  });
+
+  it('explains a refused tracking change instead of dropping the rejection', async () => {
+    const detail = 'This map has reached its tracking limit.';
+    mocks.mutate.mockRejectedValueOnce({ data: { code: 'TRACKING_MAP_CAP_EXCEEDED', detail } });
+    const view = TrackingControls({ mapId: 'map-a', reconnectAction }) as ReactElement<{
+      onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
+    }>;
+    await view.props.onToggle(202, true);
+    expect(mocks.toastError).toHaveBeenCalledWith('Tracking was not changed', {
+      description: detail,
+    });
   });
 
   it('surfaces location reconnect on the control even when skill-queue health is fine', () => {

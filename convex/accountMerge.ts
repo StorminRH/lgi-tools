@@ -4,6 +4,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
+import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export interface MergeUserStateResult {
@@ -130,6 +131,7 @@ export const restoreMergeTracking = internalMutation({
         .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
       const tracked = new Set(existing.map((row) => row.characterId));
       let count = existing.length;
+      let mapCount = (await readMapTracking(ctx, mapId)).length;
       for (const { characterId, lastProcessedTransitionAt } of characterIds) {
         if (tracked.has(characterId)) {
           skipped += 1;
@@ -138,7 +140,10 @@ export const restoreMergeTracking = internalMutation({
             skipped += 1;
             continue;
           }
+          // Fail atomically without recording a receipt so recovery can retry.
+          requireMapTrackingSpace(mapCount);
           await ctx.db.insert('mapTracking', { mapId, userId: survivorUserId, characterId });
+          mapCount += 1;
           tracked.add(characterId);
           count += 1;
           restored += 1;

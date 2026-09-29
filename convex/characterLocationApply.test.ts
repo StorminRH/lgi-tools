@@ -219,14 +219,30 @@ describe('characterLocationApply.finishSync (apply)', () => {
     expect((await readDoc(t))?.observedAt).toBe(NOW);
   });
 
-  it('stamps prevFresh true when the previous covered run finished 17s ago', async () => {
+  it.each(['current', 'legacy'] as const)('preserves jump continuity from a recent %s run', async (source) => {
     const t = convexTest(schema, modules);
     expect(JUMP_CONTINUITY_MS).toBeGreaterThan(17_000);
-    await seedSyncState(t, {
+    const freshness = {
       lastFinishedAt: Date.now() - 17_000,
       syncedCharacterIds: [CHAR_A],
       coveredCharacterIds: [CHAR_A],
-    });
+    };
+    if (source === 'current') {
+      await seedSyncState(t, freshness);
+    } else {
+      await t.run(async (ctx) => {
+        await ctx.db.insert('syncSubjects', {
+          dataset: 'characterLocation', userId: USER, status: 'idle',
+          lastRequestedAt: GEN - 18_000, workId: null, nextDueAt: GEN,
+          minExpiresAt: GEN, lastError: null, rlGroup: null,
+          rlLimit: null, rlRemaining: null, rlUsed: null, ...freshness,
+        });
+        await ctx.db.insert('syncPresence', {
+          dataset: 'characterLocation', userId: USER, lastSeenAt: GEN, lastVisibleAt: GEN,
+        });
+      });
+      await t.mutation(internal.engineComplete.chainDispatch, { dataset: 'characterLocation', userId: USER });
+    }
     await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
 
     await apply(t, {

@@ -173,7 +173,7 @@ const convexEngineSweep = convexEntry({
   module: 'convex/engineSweep.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
-    'Declared internalMutation that only deletes retention-expired and retired-dataset rows; a retry re-runs the whole transaction atomically, and deleting an already-deleted row set is a no-op.',
+    'Declared internalMutation that preserves live legacy freshness before deleting retired rows and clears coverage for abandoned users; a retry re-runs the whole transaction atomically, and deleting an already-deleted row set is a no-op.',
 });
 const convexLocationFinishSync = convexEntry({
   id: 'convex/characterLocationApply:finishSync',
@@ -190,7 +190,7 @@ const convexEngineTransitionShims = convexEntry({
   redeliverySource:
     'A chain hop or in-flight run scheduled by the pre-scheduler deployment calling the retired names once.',
   evidence:
-    'Both hand the user to the location scheduler only when presence is warm and no run is pending or in flight, so a repeat finds the run it scheduled and no-ops.',
+    'Both require warm presence and no active job, except the exact owning unversioned in-flight generation can hand itself off; repeats and orphan completions cannot replace a modern or pending successor.',
 });
 const convexLocationSyncUser = convexEntry({
   id: 'convex/characterLocationSync:syncUser',
@@ -216,6 +216,13 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
   convexMapCeilingCollapse,
   convexSyncEngineRetention,
   convexEngineSweep,
+  convexEntry({
+    id: 'convex/engine:expirePresence',
+    workKind: 'convex-mutation',
+    module: 'convex/engine.ts',
+    redeliverySource: 'Convex transactional retry of the scheduled presence-expiry mutation.',
+    evidence: 'Reads current presence before deciding liveness; clearing coverage and stopping the owned sync, or scheduling the next check and storing its ID, commit atomically.',
+  }),
   convexLocationFinishSync,
   convexEngineTransitionShims,
   convexLocationSyncUser,

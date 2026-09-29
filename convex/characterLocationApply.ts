@@ -67,9 +67,10 @@ export const finishSync = internalMutation({
     leases: v.array(leaseWriteValidator),
     clearedLeaseCharacterIds: v.array(v.number()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const state = await getLocationSync(ctx.db, args.userId);
-    if (state === null || state.runId !== args.generation) return;
+    if (state === null || state.runId !== args.generation) return null;
     const now = Date.now();
 
     await writeAccessLeases(ctx, args.userId, args.leases, now);
@@ -89,10 +90,11 @@ export const finishSync = internalMutation({
     if (at === null) {
       await ctx.db.patch('locationSync', state._id, { ...stamp, jobId: null });
       if (cold) await clearCoverageForUser(ctx, args.userId);
-      return;
+      return null;
     }
     const scheduled = await scheduleRun(ctx, state, at, now, { replacePending: false });
     await ctx.db.patch('locationSync', state._id, { ...stamp, ...scheduled });
+    return null;
   },
 });
 
@@ -103,20 +105,10 @@ async function applySuccess(
   state: Freshness,
   now: number,
 ): Promise<Partial<LocationSyncState>> {
-  const docs = await ctx.db
-    .query('characterLocation')
-    .withIndex('by_user_character', (q) => q.eq('userId', userId))
-    .collect();
-  const onlineDocs = await ctx.db
-    .query('characterLocationOnline')
-    .withIndex('by_user_character', (q) => q.eq('userId', userId))
-    .collect();
   const { windows, coveredCharacterIds } = await applyCharacterResults(
     ctx,
     userId,
     outcome,
-    indexByCharacter(docs),
-    indexByCharacter(onlineDocs),
     state,
     now,
   );
@@ -165,20 +157,10 @@ function nextRunAt(
     : computeNextDueAt(next.minExpiresAt, LOCATION_CADENCE_FLOOR_MS, now);
 }
 
-function indexByCharacter<D extends { characterId: number }>(docs: D[]): Map<number, D> {
-  const byCharacter = new Map<number, D>();
-  for (const doc of docs) {
-    byCharacter.set(doc.characterId, doc);
-  }
-  return byCharacter;
-}
-
 async function applyCharacterResults(
   ctx: MutationCtx,
   userId: string,
   args: { trackedCharacterIds: number[]; results: CharacterResult[] },
-  byCharacter: Map<number, Doc<'characterLocation'>>,
-  onlineByCharacter: Map<number, Doc<'characterLocationOnline'>>,
   freshness: Freshness,
   now: number,
 ): Promise<{ windows: Array<number | null>; coveredCharacterIds: number[] }> {
@@ -190,12 +172,23 @@ async function applyCharacterResults(
     if (result.error === null && result.online === true) {
       coveredCharacterIds.push(result.characterId);
     }
-    await applyOnlineProbeResult(ctx, userId, result, onlineByCharacter.get(result.characterId));
+    // A held probe and a 304 location need no read of their stored documents.
+    if (result.online !== null && result.onlineExpiresAt !== null) {
+      const probe = await ctx.db.query('characterLocationOnline')
+        .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', result.characterId))
+        .unique();
+      await applyOnlineProbeResult(ctx, userId, result, probe ?? undefined);
+    }
+    const location = result.error === null && result.solarSystemId !== null
+      ? await ctx.db.query('characterLocation')
+        .withIndex('by_user_character', (q) => q.eq('userId', userId).eq('characterId', result.characterId))
+        .unique()
+      : null;
     const window = await applyLocationResult(
       ctx,
       userId,
       result,
-      byCharacter.get(result.characterId),
+      location ?? undefined,
       freshness,
       now,
     );

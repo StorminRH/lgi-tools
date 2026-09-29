@@ -8,26 +8,6 @@ export type UserCharacterIndexedTable =
 export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
 export type StoredDataset = Doc<'syncPresence'>['dataset'];
 
-export function collectByUser(
-  db: DatabaseReader,
-  table: 'characterLocationAccess',
-  userId: string,
-): Promise<Doc<'characterLocationAccess'>[]>;
-export function collectByUser(
-  db: DatabaseReader,
-  table: 'mapTracking',
-  userId: string,
-): Promise<Doc<'mapTracking'>[]>;
-export function collectByUser(
-  db: DatabaseReader,
-  table: 'characterLocationAccess' | 'mapTracking',
-  userId: string,
-) {
-  return db.query(table)
-    .withIndex('by_user_character', (q) => q.eq('userId', userId))
-    .collect();
-}
-
 export function uniqueByUserCharacter(
   ctx: Pick<QueryCtx, 'db'>,
   table: 'characterLocation',

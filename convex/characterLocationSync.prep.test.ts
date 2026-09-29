@@ -43,6 +43,7 @@ describe('location-sync preparation I/O', () => {
   it.each([
     { tracked: 0, leftover: 12 },
     { tracked: 1, leftover: 2 },
+    { tracked: 2, leftover: 12 },
     { tracked: 32, leftover: 12 },
   ])('reads only tracking, held state, and leases once for $tracked tracked characters', async (workload) => {
     const reads: PrepRead[] = [];
@@ -90,14 +91,13 @@ describe('location-sync preparation I/O', () => {
     const fetch = vi.fn(() => { throw new Error('unexpected network request'); });
     vi.stubGlobal('fetch', fetch);
 
-    await t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN });
+    await t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN, schedulerVersion: 2 });
 
     expect(fetch).not.toHaveBeenCalled();
     expect(reads.map((read) => read.name)).toEqual(['inputs']);
     expect(reads[0]).toEqual(baseline);
-    const held = workload.tracked + workload.leftover;
     expect(reads[0]?.documentsRead).toBe(
-      workload.tracked === 0 ? 0 : workload.tracked + held * 3,
+      workload.tracked * 4,
     );
   });
 });

@@ -71,6 +71,7 @@ export const modules = import.meta.glob([
   '../lib/mapSignatureCleanup.ts',
   '../lib/mapSignatures.ts',
   '../lib/mapSystemLookup.ts',
+  '../lib/mapTrackingCapacity.ts',
   '../lib/observationKey.ts',
   '../lib/subjects.ts',
   '../lib/syncFields.ts',

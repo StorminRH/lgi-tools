@@ -4,6 +4,7 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
+import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { ensureLocationSync } from './lib/locationSchedule';
 
 function requireTrackedFixtureIdentity(
@@ -137,6 +138,9 @@ export const seedTrackedLocationFixture = internalMutation({
       args.userId,
       args.characterId,
     );
+    if (tracking === null) {
+      requireMapTrackingSpace((await readMapTracking(ctx, args.mapId)).length);
+    }
     const trackingId = tracking?._id ?? await ctx.db.insert('mapTracking', {
       mapId: args.mapId,
       userId: args.userId,

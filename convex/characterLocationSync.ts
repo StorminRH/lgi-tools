@@ -76,8 +76,19 @@ interface LeaseChanges {
  * finishSync so the next run does not re-vend them.
  */
 export const syncUser = internalAction({
-  args: { userId: v.string(), generation: v.number() },
-  handler: async (ctx, { userId, generation }) => {
+  args: { userId: v.string(), generation: v.number(), schedulerVersion: v.optional(v.literal(2)) },
+  returns: v.null(),
+  handler: async (ctx, { userId, generation, schedulerVersion }) => {
+    // A queued pre-deploy action must hand off before making external requests.
+    // Modern runs retain the same single input query and finishing mutation.
+    if (schedulerVersion === undefined) {
+      await ctx.runMutation(internal.engineComplete.onSyncComplete, {
+        workId: String(generation),
+        context: { dataset: 'characterLocation', userId },
+        result: { kind: 'success' },
+      });
+      return null;
+    }
     const leases: LeaseChanges = { vended: new Map(), cleared: new Set() };
     let outcome: SyncOutcome;
     try {
@@ -95,6 +106,7 @@ export const syncUser = internalAction({
       leases: [...leases.vended.values()],
       clearedLeaseCharacterIds: [...leases.cleared],
     });
+    return null;
   },
 });
 

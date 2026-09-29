@@ -91,7 +91,7 @@ afterEach(() => {
 });
 
 type RunCall = { name: string; args: Record<string, unknown> };
-type SyncUserHandler = (ctx: ActionCtx, args: { userId: string; generation: number }) => Promise<unknown>;
+type SyncUserHandler = (ctx: ActionCtx, args: { userId: string; generation: number; schedulerVersion?: 2 }) => Promise<unknown>;
 
 // Every runQuery/runMutation the action issues, in order.
 const calls: RunCall[] = [];
@@ -230,7 +230,7 @@ async function seedLease(
 }
 
 function run(t: TestConvex<typeof schema>) {
-  return t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN });
+  return t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN, schedulerVersion: 2 });
 }
 
 // A newer run takes the generation mid-flight and stores its own token.

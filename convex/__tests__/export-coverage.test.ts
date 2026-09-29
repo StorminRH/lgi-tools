@@ -21,7 +21,7 @@ import { syncInputs } from '../characterLocationReads';
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
-import { currentUser, heartbeat } from '../engine';
+import { currentUser, heartbeat, expirePresence } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
 import { verify } from '../characterAuthorization';
@@ -175,6 +175,7 @@ describe('convex runtime exports', () => {
       purgeLocationForUser,
       chainDispatch,
       heartbeat,
+      expirePresence,
       currentUser,
       leave,
       onSyncComplete,

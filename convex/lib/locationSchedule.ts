@@ -29,14 +29,18 @@ export async function ensureLocationSync(
 ): Promise<LocationSyncState> {
   const existing = await getLocationSync(ctx.db, userId);
   if (existing !== null) return existing;
+  const legacy = await ctx.db.query('syncSubjects')
+    .withIndex('by_user_dataset', (q) => q.eq('userId', userId).eq('dataset', 'characterLocation'))
+    .unique();
   const id = await ctx.db.insert('locationSync', {
     userId,
     runId: 0,
     jobId: null,
-    minExpiresAt: null,
-    syncedCharacterIds: [],
-    coveredCharacterIds: [],
-    lastFinishedAt: null,
+    minExpiresAt: legacy?.minExpiresAt ?? null,
+    syncedCharacterIds: legacy?.syncedCharacterIds ?? [],
+    coveredCharacterIds: legacy?.coveredCharacterIds ?? [],
+    lastFinishedAt: legacy?.lastFinishedAt ?? null,
+    ...(legacy?.lastFinishedAt != null ? { lastRunAt: legacy.lastFinishedAt } : {}),
   });
   const created = await ctx.db.get('locationSync', id);
   if (created === null) throw new Error('locationSync row vanished inside its own transaction');
@@ -83,6 +87,7 @@ export async function scheduleRun(
   const jobId = await ctx.scheduler.runAt(at, internal.characterLocationSync.syncUser, {
     userId: state.userId,
     generation: runId,
+    schedulerVersion: 2,
   });
   return { runId, jobId };
 }

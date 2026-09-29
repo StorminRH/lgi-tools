@@ -6,10 +6,13 @@ import {
   isStaleForImmediate,
   LOCATION_CADENCE_FLOOR_MS,
   LOCATION_COLD_AFTER_MS,
+  HIDDEN_PRESENCE_MAX_MS,
 } from '@/lib/sync-engine';
 import type { Doc } from './_generated/dataModel';
-import { mutation, query, type MutationCtx } from './_generated/server';
-import { ensureLocationSync, runState, scheduleRun } from './lib/locationSchedule';
+import { mutation, query, internalMutation, type MutationCtx } from './_generated/server';
+import { ensureLocationSync, getLocationSync, runState, scheduleRun, stopSync } from './lib/locationSchedule';
+import { internal } from './_generated/api';
+import { clearCoverageForUser } from './lib/locationCoverage';
 import { getPresence } from './lib/subjects';
 
 export const currentUser = query({
@@ -27,6 +30,7 @@ export const heartbeat = mutation({
     tabId: v.string(),
     expectedUserId: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, { characterIdsHint, reason, visible, tabId, expectedUserId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
@@ -48,6 +52,7 @@ export const heartbeat = mutation({
       lastVisibleAt: visible ? now : presence?.lastVisibleAt,
     };
     if (isCold(afterBeat, LOCATION_COLD_AFTER_MS, now)) return;
+    await ensurePresenceExpiry(ctx, userId);
 
     const state = await ensureLocationSync(ctx, userId);
     if (!hasSyncTarget(state.syncedCharacterIds, characterIdsHint)) return;
@@ -131,3 +136,41 @@ function isPresenceFresh(
 function isLeftTab(leftTabId: string | undefined, tabId: string): boolean {
   return leftTabId !== undefined && leftTabId !== '' && tabId === leftTabId;
 }
+
+/** One liveness check per cold window, independent of external action completion. */
+export async function ensurePresenceExpiry(ctx: MutationCtx, userId: string): Promise<void> {
+  const presence = await getPresence(ctx.db, 'characterLocation', userId);
+  if (presence === null) return;
+  if (presence.expiryJobId !== undefined) return;
+  await schedulePresenceExpiry(ctx, presence);
+}
+
+async function schedulePresenceExpiry(ctx: MutationCtx, presence: Doc<'syncPresence'>): Promise<void> {
+  const at = Math.min(
+    presence.lastSeenAt + LOCATION_COLD_AFTER_MS,
+    (presence.lastVisibleAt ?? presence.lastSeenAt) + HIDDEN_PRESENCE_MAX_MS,
+  ) + 1;
+  const expiryJobId = await ctx.scheduler.runAt(at, internal.engine.expirePresence, {
+    presenceId: presence._id,
+  });
+  await ctx.db.patch('syncPresence', presence._id, { expiryJobId });
+}
+
+export const expirePresence = internalMutation({
+  args: { presenceId: v.id('syncPresence') },
+  returns: v.null(),
+  handler: async (ctx, { presenceId }) => {
+    const presence = await ctx.db.get('syncPresence', presenceId);
+    if (presence === null) return null;
+    const now = Date.now();
+    if (!isCold(presence, LOCATION_COLD_AFTER_MS, now)) {
+      await schedulePresenceExpiry(ctx, presence);
+      return null;
+    }
+    const state = await getLocationSync(ctx.db, presence.userId);
+    if (state !== null) await stopSync(ctx, state, now);
+    else await clearCoverageForUser(ctx, presence.userId);
+    await ctx.db.patch('syncPresence', presenceId, { expiryJobId: undefined });
+    return null;
+  },
+});

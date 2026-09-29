@@ -1,30 +1,50 @@
 import { v } from 'convex/values';
 import { internalQuery } from './_generated/server';
-import { collectByUser } from './lib/indexedQuery';
+import type { Doc } from './_generated/dataModel';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 
 /**
  * Everything one location run reads before calling ESI, in one query. It only
- * reads rows that change rarely (tracking, held location/probe, access
- * leases) and never the per-run locationSync or presence rows, so between
- * probe updates Convex serves it from the query cache.
+ * excludes per-run scheduling and presence rows. Reads are restricted to
+ * currently tracked characters, so leftover state neither costs reads nor
+ * invalidates this cache. Probe or location changes still invalidate it.
  */
 export const syncInputs = internalQuery({
   args: { userId: v.string() },
+  returns: v.object({
+    trackedIds: v.array(v.number()),
+    locations: v.array(v.object({ characterId: v.number(), solarSystemId: v.number(),
+      etagLocation: v.union(v.string(), v.null()), etagShip: v.union(v.string(), v.null()) })),
+    online: v.array(v.object({ characterId: v.number(), online: v.boolean(),
+      etagOnline: v.union(v.string(), v.null()), onlineExpiresAt: v.number() })),
+    leases: v.array(v.object({ characterId: v.number(), accessToken: v.string(), expiresAt: v.number() })),
+  }),
   handler: async (ctx, { userId }) => {
-    const tracking = await collectByUser(ctx.db, 'mapTracking', userId);
+    const tracking = await takeIndexedOrThrow(
+      ctx.db.query('mapTracking').withIndex('by_user_character', (q) => q.eq('userId', userId)),
+      1024,
+      { code: 'TRACKING_SCAN_LIMIT', detail: 'Location sync exceeds 1024 tracking memberships for one user.' },
+    );
     const trackedIds = [...new Set(tracking.map((row) => row.characterId))];
     if (trackedIds.length === 0) {
       return { trackedIds, locations: [], online: [], leases: [] };
     }
-    const locations = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) => q.eq('userId', userId))
-      .collect();
-    const online = await ctx.db
-      .query('characterLocationOnline')
-      .withIndex('by_user_character', (q) => q.eq('userId', userId))
-      .collect();
-    const leases = await collectByUser(ctx.db, 'characterLocationAccess', userId);
+    const locations: Doc<'characterLocation'>[] = [];
+    const online: Doc<'characterLocationOnline'>[] = [];
+    const leases: Doc<'characterLocationAccess'>[] = [];
+    for (const characterId of trackedIds) {
+      const [location, probe, lease] = await Promise.all([
+        ctx.db.query('characterLocation').withIndex('by_user_character', (q) =>
+          q.eq('userId', userId).eq('characterId', characterId)).unique(),
+        ctx.db.query('characterLocationOnline').withIndex('by_user_character', (q) =>
+          q.eq('userId', userId).eq('characterId', characterId)).unique(),
+        ctx.db.query('characterLocationAccess').withIndex('by_user_character', (q) =>
+          q.eq('userId', userId).eq('characterId', characterId)).unique(),
+      ]);
+      if (location !== null) locations.push(location);
+      if (probe !== null) online.push(probe);
+      if (lease !== null) leases.push(lease);
+    }
     return {
       trackedIds,
       locations: locations.map((doc) => ({
