@@ -8,12 +8,13 @@ import { SITE_URL } from '@/config/site-url';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
-import { IndustryDashboardGrid } from './IndustryDashboardGrid';
+import { WorkspaceNav, WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
+import { IndustryLanding } from './IndustryLanding';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
   description:
-    'Your Eve Online manufacturing dashboard — search any blueprint to see its build cost, profit margin, and price confidence at live Jita rates, jump back to builds you recently viewed, and watch your live industry jobs.',
+    'Your Eve Online industry workspace — set up production profiles for your characters and structures, search any blueprint to see its build cost, profit margin, and price confidence at live Jita rates, and watch your live industry jobs.',
   alternates: { canonical: '/industry' },
   openGraph: {
     title: 'Industry Planner — LGI.tools',
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
 async function DashboardSections() {
   const [characterIds, corp] = await Promise.all([activeJobCharacterIds(), corpJobsAccess()]);
   return (
-    <IndustryDashboardGrid
+    <IndustryLanding
       characterIds={characterIds}
       corpEligibleCharacterIds={corp.eligibleCharacterIds}
       hasLinkedCharacters={corp.hasLinkedCharacters}
@@ -55,31 +56,32 @@ async function SlotMeta() {
 
 function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
-      {(
-        [
-          ['Recents', 'panel'],
-          ['Templates', 'panel'],
-          ['Active jobs', 'loading'],
-          ['Corporation industry jobs', 'loading'],
-        ] as const
-      ).map(([label, kind]) => (
-        <section key={label}>
-          <SectionLabel className="mb-cluster">{label}</SectionLabel>
-          <Card className="overflow-hidden" aria-label={`Loading ${label.toLowerCase()}`}>
-            <div className="flex items-center gap-3 px-3.5 py-3">
-              {kind === 'loading' ? (
-                <Skeleton className="size-9 rounded-full" />
-              ) : null}
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton className={kind === 'panel' ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
-                <Skeleton className="h-2.5 w-1/3" />
+    <>
+      <WorkspaceSkeleton />
+      <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
+        {(
+          [
+            ['Recents', 'panel'],
+            ['Templates', 'panel'],
+            ['Active jobs', 'loading'],
+            ['Corporation industry jobs', 'loading'],
+          ] as const
+        ).map(([label, kind]) => (
+          <section key={label}>
+            <SectionLabel className="mb-cluster">{label}</SectionLabel>
+            <Card className="overflow-hidden" aria-label={`Loading ${label.toLowerCase()}`}>
+              <div className="flex items-center gap-3 px-3.5 py-3">
+                {kind === 'loading' ? <Skeleton className="size-9 rounded-full" /> : null}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <Skeleton className={kind === 'panel' ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
+                  <Skeleton className="h-2.5 w-1/3" />
+                </div>
               </div>
-            </div>
-          </Card>
-        </section>
-      ))}
-    </div>
+            </Card>
+          </section>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -88,13 +90,18 @@ export default function IndustryDashboardPage() {
     <PageShell mode="workspace">
       <h1 className="sr-only">Industry</h1>
       <div className="pb-16 flex flex-col gap-5">
-        <Suspense fallback={null}>
-          <SlotMeta />
-        </Suspense>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <WorkspaceNav />
+          <Suspense fallback={null}>
+            <SlotMeta />
+          </Suspense>
+        </div>
 
-        <Suspense fallback={<DashboardSkeleton />}>
-          <DashboardSections />
-        </Suspense>
+        <div className="flex flex-col gap-9">
+          <Suspense fallback={<DashboardSkeleton />}>
+            <DashboardSections />
+          </Suspense>
+        </div>
       </div>
     </PageShell>
   );

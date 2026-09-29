@@ -17,6 +17,7 @@ import { createFailureMessage, type PendingEdit } from './profile-view';
 
 export interface IndustryProfilesState extends ProfileSyncState {
   busy: boolean;
+  refresh: () => void;
   create: (name: string, document: ProfileDocument) => Promise<string | null>;
   duplicate: (id: string, name: string) => Promise<string | null>;
   save: (id: string, edit: PendingEdit) => void;
@@ -103,5 +104,7 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
     [sync],
   );
 
-  return { ...state, busy, create, duplicate, save: sync.save, remove };
+  const refresh = useCallback(() => void sync.refresh(), [sync]);
+
+  return { ...state, busy, refresh, create, duplicate, save: sync.save, remove };
 }

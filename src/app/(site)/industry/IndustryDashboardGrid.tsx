@@ -11,8 +11,8 @@ import { SectionLabel } from '@/components/ui/section-label';
 import { CORP_ACCESS_REASON, CorpJobsList } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryActiveJobs } from '@/features/industry-jobs/components/IndustryActiveJobs';
 import { flattenJobs, jobCounts } from '@/features/industry-jobs/flatten-jobs';
-import { useCorpJobsLive } from '@/features/industry-jobs/use-corp-jobs-live';
-import { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
+import type { useCorpJobsLive } from '@/features/industry-jobs/use-corp-jobs-live';
+import type { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
 import { RecentBlueprintRows } from '@/features/industry-planner/components/RecentBlueprintRows';
 import { SavedBuildTiles } from '@/features/industry-planner/components/SavedBuildTiles';
 import { savedEmptyLine, savedTiles } from '@/features/industry-planner/saved-plans-view';
@@ -136,20 +136,20 @@ function CorpSectionBody({
 }
 
 export function IndustryDashboardGrid({
-  characterIds,
+  jobsLive,
+  corpLive,
   corpEligibleCharacterIds,
   hasLinkedCharacters,
   reconnectAction,
 }: {
-  characterIds: number[];
+  jobsLive: ReturnType<typeof useJobsLive>;
+  corpLive: ReturnType<typeof useCorpJobsLive>;
   corpEligibleCharacterIds: number[];
   hasLinkedCharacters: boolean;
   reconnectAction: ReactNode;
 }) {
   const recent = useRecentBlueprints();
   const { plans, listFailed, refresh } = useSavedPlans();
-  const jobsLive = useJobsLive(characterIds);
-  const corpLive = useCorpJobsLive(corpEligibleCharacterIds);
 
   useEffect(() => {
     refresh();
