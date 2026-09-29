@@ -7,6 +7,7 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import {
   type CapacitySources,
   facilityEffects,
+  facilityForValue,
   freeSlots,
   memberCapacity,
   profileSummary,
@@ -214,4 +215,13 @@ test('facility effects keep hull, rigs at a known security, and tax apart', () =
   // An engineering complex cannot run reactions; a refinery can.
   expect(facilityEffects(structure({}), 'reactions', 'null').suitsActivity).toBe(false);
   expect(facilityEffects(structure({ groupId: 1406 }), 'reactions', 'null').suitsActivity).toBe(true);
+});
+
+test('a picked facility becomes a named reference, and gone or unchanged picks change nothing', () => {
+  const list = [structure({ id: 'corp:5', name: 'Azbel' })];
+  expect(facilityForValue('structure:corp:5', null, list)).toEqual({ id: 'corp:5', name: 'Azbel' });
+  expect(facilityForValue('', { id: 'corp:5', name: 'Azbel' }, list)).toBeNull();
+  // Re-picking the unavailable entry that stands for the current facility keeps it.
+  expect(facilityForValue('structure:gone', { id: 'gone', name: 'Old Fort' }, list)).toBeUndefined();
+  expect(facilityForValue('structure:corp:9', null, list)).toBeUndefined();
 });

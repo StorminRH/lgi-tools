@@ -25,6 +25,7 @@ import {
   type StructureBonus,
 } from '@/features/industry-planner/structure-bonus';
 import { hostsReactions } from '@/features/industry-planner/structure-factors';
+import { parseFacilityValue } from '@/features/industry-planner/facility-value';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
@@ -286,6 +287,22 @@ export type ResponsibilityActivity = 'manufacturing' | 'reactions';
 
 export function activityOf(responsibility: Responsibility): ResponsibilityActivity {
   return responsibility === 'reactions' ? 'reactions' : 'manufacturing';
+}
+
+/**
+ * The facility a picker value names: null to clear it, undefined to leave it
+ * alone (re-picking the current one, or a structure that has since gone).
+ */
+export function facilityForValue(
+  raw: string,
+  current: FacilityRef | null,
+  structures: readonly AvailableStructure[] | null,
+): FacilityRef | null | undefined {
+  const selection = parseFacilityValue(raw);
+  if (selection.kind !== 'structure') return null;
+  if (selection.id === current?.id) return undefined;
+  const structure = structures?.find((s) => s.id === selection.id);
+  return structure === undefined ? undefined : { id: structure.id, name: structure.name };
 }
 
 export type RigEffect =

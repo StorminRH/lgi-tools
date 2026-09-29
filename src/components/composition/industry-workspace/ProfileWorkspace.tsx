@@ -12,15 +12,9 @@ import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
-import {
-  emptyProfileDocument,
-  type ProfileDocument,
-  RESPONSIBILITIES,
-} from '@/features/industry-planner/profiles/profile-document';
-import { copyName, suggestProfileName } from '@/features/industry-planner/profiles/profile-view';
+import { type ProfileDocument, RESPONSIBILITIES } from '@/features/industry-planner/profiles/profile-document';
 import {
   addMember,
-  removeMember,
   setDefaultFacility,
   setResponsibility,
   setRuleFacility,
@@ -35,8 +29,8 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { type FacilityContext, MemberDetail } from './MemberDetail';
 import { MemberRail } from './MemberRail';
 import { ProfileBar, type ProfileAction } from './ProfileBar';
-import { DeleteProfileDialog, ProfileNameDialog, RemoveMemberDialog } from './ProfileDialogs';
 import { ProfileSummaryPanels, SummaryTiles } from './ProfileSummary';
+import { type DialogState, WorkspaceDialogs } from './WorkspaceDialogs';
 import { FirstProfile, SignedOutWorkspace, WorkspaceSkeleton } from './WorkspaceStates';
 import {
   addableCharacters,
@@ -62,14 +56,6 @@ export interface WorkspaceCorpJobs {
   loading: boolean;
   failed: boolean;
 }
-
-type DialogState =
-  | { kind: 'create' }
-  | { kind: 'rename' }
-  | { kind: 'duplicate' }
-  | { kind: 'delete' }
-  | { kind: 'remove-member'; characterId: number }
-  | null;
 
 /**
  * Slot capacity and usage for every linked character, from one skills read
@@ -189,12 +175,8 @@ function ProfileWorkspaceBody({
   const dialogs = (
     <WorkspaceDialogs
       dialog={dialog}
-      state={state}
       profile={profile}
-      roster={roster}
-      nameOf={nameOf}
-      onClose={() => setDialog(null)}
-      onSelectProfile={selectProfile}
+      ctx={{ state, roster, nameOf, onClose: () => setDialog(null), onSelectProfile: selectProfile }}
     />
   );
 
@@ -319,106 +301,6 @@ function SelectedMember({
         onEdit(setRuleFacility(doc, characterId, responsibility, facility))
       }
       onRemove={() => onRemove(characterId)}
-    />
-  );
-}
-
-function WorkspaceDialogs({
-  dialog,
-  state,
-  profile,
-  roster,
-  nameOf,
-  onClose,
-  onSelectProfile,
-}: {
-  dialog: DialogState;
-  state: IndustryProfilesState & { profiles: IndustryProfileRow[] };
-  profile: IndustryProfileRow | null;
-  roster: RosterCharacter[];
-  nameOf: (characterId: number) => string;
-  onClose: () => void;
-  onSelectProfile: (id: string | null) => void;
-}) {
-  if (dialog === null) return null;
-  if (dialog.kind === 'create') {
-    return (
-      <ProfileNameDialog
-        mode="create"
-        initialName={suggestProfileName(state.profiles)}
-        rosterSize={roster.length}
-        busy={state.busy}
-        onClose={onClose}
-        onSubmit={async (name, includeRoster) => {
-          const members = includeRoster ? roster.map((c) => ({ characterId: c.characterId, name: c.name })) : [];
-          const id = await state.create(name, emptyProfileDocument(members));
-          if (id !== null) {
-            onClose();
-            onSelectProfile(id);
-          }
-        }}
-      />
-    );
-  }
-  if (profile === null) return null;
-  if (dialog.kind === 'rename') {
-    return (
-      <ProfileNameDialog
-        mode="rename"
-        initialName={profile.name}
-        rosterSize={0}
-        busy={state.busy}
-        onClose={onClose}
-        onSubmit={(name) => {
-          state.save(profile.id, { name, document: profile.document });
-          onClose();
-        }}
-      />
-    );
-  }
-  if (dialog.kind === 'duplicate') {
-    return (
-      <ProfileNameDialog
-        mode="duplicate"
-        initialName={copyName(profile.name, state.profiles)}
-        rosterSize={0}
-        busy={state.busy}
-        onClose={onClose}
-        onSubmit={async (name) => {
-          const id = await state.duplicate(profile.id, name);
-          if (id !== null) {
-            onClose();
-            onSelectProfile(id);
-          }
-        }}
-      />
-    );
-  }
-  if (dialog.kind === 'delete') {
-    return (
-      <DeleteProfileDialog
-        name={profile.name}
-        busy={state.busy}
-        onClose={onClose}
-        onConfirm={async () => {
-          if (await state.remove(profile.id)) {
-            onClose();
-            onSelectProfile(null);
-          }
-        }}
-      />
-    );
-  }
-  const characterId = dialog.characterId;
-  return (
-    <RemoveMemberDialog
-      name={nameOf(characterId)}
-      roleCount={profile.document.rules.filter((r) => r.characterId === characterId).length}
-      onClose={onClose}
-      onConfirm={() => {
-        state.save(profile.id, { name: profile.name, document: removeMember(profile.document, characterId) });
-        onClose();
-      }}
     />
   );
 }

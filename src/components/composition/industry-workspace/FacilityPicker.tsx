@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { Select, type SelectItems } from '@/components/ui/select';
 import { structureOptionGroups } from '@/features/industry-planner/components/structure-options';
-import { facilityValueFor, parseFacilityValue } from '@/features/industry-planner/facility-value';
+import { facilityValueFor } from '@/features/industry-planner/facility-value';
 import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
 import { hostsReactions } from '@/features/industry-planner/structure-factors';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import type { FacilityRef } from '@/features/industry-planner/profiles/profile-document';
 import type { StructureBonus } from '@/features/industry-planner/structure-bonus';
-import { type FacilityEffects, type ResponsibilityActivity } from './workspace-model';
+import { type FacilityEffects, facilityForValue, type ResponsibilityActivity } from './workspace-model';
 
 function facilityItems(
   structures: readonly AvailableStructure[] | null,
@@ -51,11 +51,8 @@ export function FacilityPicker({
       disabled={structures === null}
       items={facilityItems(structures, activity, value, noneLabel)}
       onValueChange={(raw) => {
-        const selection = parseFacilityValue(raw);
-        if (selection.kind !== 'structure') return onChange(null);
-        if (selection.id === value?.id) return;
-        const structure = structures?.find((s) => s.id === selection.id);
-        if (structure !== undefined) onChange({ id: structure.id, name: structure.name });
+        const next = facilityForValue(raw, value, structures);
+        if (next !== undefined) onChange(next);
       }}
     />
   );

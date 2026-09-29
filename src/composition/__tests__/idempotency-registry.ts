@@ -537,6 +537,30 @@ const savedPlansCreateRoute = mutationRoute({
   evidence:
     'A double submit can create a second plan. Nothing redelivers it, the route already enforces a per-user plan cap, and a client-supplied key would add a protection HC-4 bars where the risk is not real; the duplicate is user-visible and user-deletable.',
 });
+const industryProfilesCreateRoute = mutationRoute({
+  route: 'src/app/api/account/industry-profiles/route.ts',
+  verdict: 'accepted-risk',
+  evidence:
+    'A double submit can create a second profile. Nothing redelivers it, the route enforces a per-user profile cap, and the duplicate is user-visible and user-deletable.',
+});
+const industryProfilesDuplicateRoute = mutationRoute({
+  route: 'src/app/api/account/industry-profiles/duplicate/route.ts',
+  verdict: 'accepted-risk',
+  evidence:
+    'A double submit can make two copies. Nothing redelivers it, the per-user profile cap still applies, and the extra copy is user-visible and user-deletable.',
+});
+const industryProfilesUpdateRoute = mutationRoute({
+  route: 'src/app/api/account/industry-profiles/update/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'An atomic compare-and-set in one UPDATE: each write names the revision it was based on and bumps it, so a repeat of the same write carries a revision that no longer matches and is refused as stale.',
+});
+const industryProfilesDeleteRoute = mutationRoute({
+  route: 'src/app/api/account/industry-profiles/delete/route.ts',
+  verdict: 'inherently-idempotent',
+  evidence:
+    'Marks one owned live profile deleted by id; a repeat matches no live row and changes nothing.',
+});
 const customStructuresCreateRoute = mutationRoute({
   route: 'src/app/api/account/custom-structures/route.ts',
   verdict: 'accepted-risk',
@@ -645,6 +669,10 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   adminSessionsRevokeRoute,
   mapsCreateRoute,
   savedPlansCreateRoute,
+  industryProfilesCreateRoute,
+  industryProfilesDuplicateRoute,
+  industryProfilesUpdateRoute,
+  industryProfilesDeleteRoute,
   customStructuresCreateRoute,
   feedbackRoute,
   adminCharactersReassignRoute,
