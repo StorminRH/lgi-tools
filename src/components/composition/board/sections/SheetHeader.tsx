@@ -8,7 +8,8 @@ import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 import { characterAge, characterSecurityClass, effectiveSkills, placeName } from '../board-view-model';
 import { pilotTransitionName } from '../board-motion';
-import { KpiTile, SystemName } from '../board-bits';
+import { KpiTile } from '@/components/ui/readout';
+import { SystemName } from '../board-bits';
 import { EntityLogo } from './EntityLogo';
 import { IndustrySection } from './IndustrySection';
 

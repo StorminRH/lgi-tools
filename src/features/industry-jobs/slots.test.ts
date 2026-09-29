@@ -5,7 +5,29 @@ import {
   jobOccupiesSlot,
   slotCapacity,
   slotMetaTotals,
+  slotRows,
+  slotTotal,
 } from './slots';
+
+describe('slotTotal and slotRows', () => {
+  const model = {
+    manufacturing: { used: 8, total: 10 },
+    science: { used: 3, total: 5 },
+    reactions: { used: 0, total: 3 },
+  };
+
+  it('sums every slot kind', () => {
+    expect(slotTotal(model)).toEqual({ used: 11, total: 18 });
+  });
+
+  it('lists the kinds in display order with their labels', () => {
+    expect(slotRows(model).map((row) => [row.label, row.usage.used])).toEqual([
+      ['Manufacturing', 8],
+      ['Science', 3],
+      ['Reactions', 0],
+    ]);
+  });
+});
 
 function job(
   overrides: Partial<IndustryJob> & { job_id: number; activity_id: number },

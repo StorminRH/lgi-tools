@@ -35,26 +35,32 @@ export function isRecentBlueprint(value: unknown): value is RecentBlueprint {
   );
 }
 
-export function parseRecentBlueprints(raw: string | null): RecentBlueprint[] {
+export function parseRecentBlueprints(raw: string | null, max: number = MAX_RECENT): RecentBlueprint[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isRecentBlueprint).slice(0, MAX_RECENT);
+    return parsed.filter(isRecentBlueprint).slice(0, max);
   } catch {
     return [];
   }
 }
 
-export function readRecentBlueprints(): RecentBlueprint[] {
+/** A stored list of blueprints: the recents, the research watchlist. */
+export function readBlueprintList(key: string, max: number): RecentBlueprint[] {
   const store = safeStorage();
   if (!store) return [];
-  return parseRecentBlueprints(store.getItem(STORAGE_KEY));
+  return parseRecentBlueprints(store.getItem(key), max);
+}
+
+export function writeBlueprintList(key: string, list: RecentBlueprint[]): void {
+  safeStorage()?.setItem(key, JSON.stringify(list));
+}
+
+export function readRecentBlueprints(): RecentBlueprint[] {
+  return readBlueprintList(STORAGE_KEY, MAX_RECENT);
 }
 
 export function recordRecentBlueprint(entry: RecentBlueprint): void {
-  const store = safeStorage();
-  if (!store) return;
-  const next = mergeRecent(readRecentBlueprints(), entry);
-  store.setItem(STORAGE_KEY, JSON.stringify(next));
+  writeBlueprintList(STORAGE_KEY, mergeRecent(readRecentBlueprints(), entry));
 }

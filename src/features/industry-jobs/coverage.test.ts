@@ -52,12 +52,14 @@ vi.mock('convex/react', () => ({
 }));
 
 import { corpIndustryJobsEndpoint, industryJobsEndpoint, industrySlotsEndpoint } from '@/features/industry-jobs/api-contract';
-import { CORP_ACCESS_REASON, CorpJobsBoard, CorpJobsList } from '@/features/industry-jobs/components/CorpJobsBoard';
+import { ActiveJobsBoard } from '@/features/industry-jobs/components/ActiveJobsBoard';
+import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryActiveJobs } from '@/features/industry-jobs/components/IndustryActiveJobs';
 import { IndustryJobsPanel } from '@/features/industry-jobs/components/IndustryJobsPanel';
-import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { JobRowFrame } from '@/features/industry-jobs/components/JobRowFrame';
+import { SlotUsage } from '@/features/industry-jobs/components/SlotUsage';
 import { useCorpJobsLive } from '@/features/industry-jobs/use-corp-jobs-live';
+import { useIndustryDesk } from '@/features/industry-jobs/use-industry-desk';
 import { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
 
@@ -67,14 +69,14 @@ describe('coverage-gaps', () => {
       corpIndustryJobsEndpoint,
       industryJobsEndpoint,
       industrySlotsEndpoint,
-      CORP_ACCESS_REASON,
+      ActiveJobsBoard,
       CorpJobsBoard,
-      CorpJobsList,
       IndustryActiveJobs,
       IndustryJobsPanel,
-      IndustrySlotMeta,
       JobRowFrame,
+      SlotUsage,
       useCorpJobsLive,
+      useIndustryDesk,
       useJobsLive,
       useSlotsLive,
     ];

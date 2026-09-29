@@ -19,14 +19,7 @@ import {
   type BuildCharacter,
 } from './run-as-state';
 
-const FRAME_CLASSES =
-  'relative flex w-[108px] shrink-0 flex-col items-center justify-center gap-1.5 p-2';
-
-const HEADING = (
-  <span className="whitespace-nowrap text-label uppercase tracking-wide text-muted">
-    Build character
-  </span>
-);
+const FRAME_CLASSES = 'flex w-full min-w-0 items-center gap-3 text-left';
 
 function InertRunAsFrame({ loading }: { loading: boolean }) {
   return (
@@ -35,18 +28,17 @@ function InertRunAsFrame({ loading }: { loading: boolean }) {
       className={FRAME_CLASSES}
       aria-label={loading ? undefined : 'Building character'}
     >
-      {HEADING}
       {loading ? (
-        <Skeleton label="Loading build character" className="size-16 rounded-full" />
+        <Skeleton label="Loading build character" className="size-12 rounded-full" />
       ) : (
         <>
           <span
             aria-hidden
-            className="flex size-16 items-center justify-center rounded-full border border-border-idle text-lead text-muted"
+            className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border-idle text-lead text-muted"
           >
             —
           </span>
-          <span className="text-label uppercase tracking-wide text-muted">Sign in</span>
+          <span className="text-ui text-muted">Sign in to build with your skills</span>
         </>
       )}
     </div>
@@ -99,22 +91,25 @@ export function RunAsFrame({
       label={`Building as ${view.name} — choose build character`}
       trigger={
         <>
-          {HEADING}
           <CharacterPortrait
             characterId={view.characterId}
             name={view.name}
             src={view.portraitUrl}
             size={64}
+            className="size-12"
           />
-          <span className="flex max-w-full items-center gap-1 font-data text-label uppercase tracking-label text-muted">
-            <span className="truncate">{view.name}</span>
-            <span aria-hidden className="text-micro leading-none">
-              ▾
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate font-display text-nav font-bold leading-tight text-name">{view.name}</span>
+            <span className="flex items-center gap-1 font-data text-micro uppercase tracking-label text-muted">
+              Change
+              <span aria-hidden className="leading-none">
+                ▾
+              </span>
             </span>
           </span>
         </>
       }
-      triggerClassName={`${FRAME_CLASSES} cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80`}
+      triggerClassName={`${FRAME_CLASSES} cursor-pointer rounded-ctl transition-opacity hover:opacity-80 data-[popup-open]:opacity-80`}
       className="min-w-60"
       align="start"
       sideOffset={4}

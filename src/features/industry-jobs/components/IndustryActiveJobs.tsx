@@ -14,11 +14,21 @@ export function IndustryActiveJobs({
   jobs,
   names,
   now,
+  pilotNames,
 }: {
   jobs: IndustryJob[];
   names: Record<string, string>;
   now: number;
+  /** Adds a pilot column, for a list that mixes pilots. */
+  pilotNames?: Readonly<Record<number, string>>;
 }) {
+  const pilotColumn = {
+    key: 'pilot',
+    label: 'Pilot',
+    className: 'whitespace-nowrap text-muted',
+    render: (job: IndustryJob) =>
+      (job.installer_id !== undefined ? pilotNames?.[job.installer_id] : undefined) ?? '—',
+  } satisfies StaticTableColumn<IndustryJob>;
   const columns = [
     {
       key: 'status',
@@ -64,7 +74,7 @@ export function IndustryActiveJobs({
   return (
     <StaticTable
       ariaLabel="Active industry jobs"
-      columns={columns}
+      columns={pilotNames === undefined ? columns : [...columns.slice(0, 3), pilotColumn, ...columns.slice(3)]}
       rows={jobs}
       getRowKey={(job) => job.job_id}
     />

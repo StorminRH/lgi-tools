@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { DistributionBars } from '@/components/ui/distribution-bars';
+import { SectionPanel, StatFigure } from '@/components/ui/readout';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
-import { FlowLine, StatFigure } from './board-bits';
+import { FlowLine } from './board-bits';
 import {
   accountWorthSeries,
   combinedFlow,
@@ -13,7 +14,6 @@ import {
   worthShares,
 } from './board-view-model';
 import { WorthChart, WorthHeadline } from './WorthChart';
-import { SectionPanel } from './SectionBody';
 
 /**
  * The aggregate across pilots: wealth as the main card, industry as a slim
@@ -92,7 +92,7 @@ function IndustryCard({ characters }: { characters: readonly BoardCharacter[] })
           {totals !== null && totals.covered !== totals.total ? (
             <span>{totals.covered} of {totals.total}</span>
           ) : null}
-          <Link href="/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
+          <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
             Open jobs →
           </Link>
         </span>

@@ -1,11 +1,21 @@
 import { apiFetch } from '@/transport/api-client';
 import { blueprintImage } from '@/data/eve-data/type-images';
-import type { SearchSource } from '@/platform/search';
+import type { SearchResult, SearchSource } from '@/platform/search';
 import { rankFuzzyResults } from '@/platform/search/rank';
 import { blueprintsEndpoint } from './api-contract';
+import type { RecentBlueprint } from './recent-blueprints';
 import type { BlueprintIndexEntry } from './types';
 
 const MAX_RESULTS = 20;
+const RESULT_ID_PREFIX = 'blueprint:';
+
+/** The blueprint a search result opens, or null for a result from another source. */
+export function blueprintRefOf(result: SearchResult): RecentBlueprint | null {
+  if (!result.id.startsWith(RESULT_ID_PREFIX) || result.typeId === undefined) return null;
+  const typeId = Number(result.id.slice(RESULT_ID_PREFIX.length));
+  if (!Number.isInteger(typeId) || typeId <= 0) return null;
+  return { typeId, productTypeId: result.typeId, name: result.label };
+}
 
 let indexPromise: Promise<BlueprintIndexEntry[]> | null = null;
 
@@ -43,7 +53,7 @@ export const blueprintsSource: SearchSource = {
       (entry) => entry.name,
       (entry, match) => ({
         kind: 'blueprint',
-        id: `blueprint:${entry.blueprintTypeId}`,
+        id: `${RESULT_ID_PREFIX}${entry.blueprintTypeId}`,
         label: entry.name,
         sub: 'Blueprint',
         href: `/industry/${entry.blueprintTypeId}`,

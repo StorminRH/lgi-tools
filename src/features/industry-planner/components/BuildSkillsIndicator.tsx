@@ -127,7 +127,7 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
   const view = buildSkillsView(buildCharacter, skillTimeFactors.active, buildCharacterSkillLevels, structure);
   if (view === null) return null;
   return (
-    <div className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 flex-col items-start gap-3">
+    <div className="flex shrink-0 items-center gap-2">
       {view.showMfg && (
         <MfgSkillMetric characterName={view.characterName} breakdown={view.breakdown} />
       )}

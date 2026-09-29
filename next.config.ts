@@ -61,6 +61,11 @@ const nextConfig: NextConfig = {
         destination: "/admin",
         permanent: false,
       },
+      {
+        source: "/jobs",
+        destination: "/industry/jobs",
+        permanent: false,
+      },
     ];
   },
 };

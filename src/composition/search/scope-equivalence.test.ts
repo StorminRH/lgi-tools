@@ -252,7 +252,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
             {
               "disabled": false,
               "hasOnSelect": false,
-              "href": "/jobs",
+              "href": "/industry/jobs",
               "id": "tool:Industry Jobs",
               "label": "Industry Jobs",
             },

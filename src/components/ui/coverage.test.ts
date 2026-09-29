@@ -63,7 +63,9 @@ import { Breadcrumb, PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
 import { PopoverRow } from '@/components/ui/popover';
 import { PriceConfidence } from '@/components/ui/price-confidence';
+import { KpiTile, readoutSurface, SectionPanel, StatFigure } from '@/components/ui/readout';
 import { SectionHead } from '@/components/ui/section-head';
+import { SheetHeading, SheetLayout } from '@/components/ui/sheet-layout';
 import { StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { Tabs } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/toast';
@@ -91,7 +93,13 @@ describe('coverage-gaps', () => {
       Pagination,
       PopoverRow,
       PriceConfidence,
+      KpiTile,
+      readoutSurface,
+      SectionPanel,
+      StatFigure,
       SectionHead,
+      SheetHeading,
+      SheetLayout,
       StackedShareBar,
       Tabs,
       Toaster,

@@ -14,41 +14,43 @@ import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
 import { corpEntityIds, corpGroupState, corpJobsEmptyLine, jobRowFrameData, runnerName } from '../job-view';
-import { useCorpJobsLive } from '../use-corp-jobs-live';
+import type { useCorpJobsLive } from '../use-corp-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
-export type CorpEntry = CorpJobsResponse['corporations'][number];
+type CorpEntry = CorpJobsResponse['corporations'][number];
 
-export const CORP_ACCESS_REASON =
+const CORP_ACCESS_REASON =
   "Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here.";
 
 export function CorpJobsBoard({
   eligibleCharacterIds,
   hasLinkedCharacters,
+  live,
   reconnectAction,
 }: {
   eligibleCharacterIds: number[];
   hasLinkedCharacters: boolean;
+  live: ReturnType<typeof useCorpJobsLive>;
   reconnectAction: ReactNode;
 }) {
   if (!hasLinkedCharacters) return null;
 
   return (
-    <section className="reveal reveal-2">
+    <section>
       <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
           {null}
         </AccessGate>
       ) : (
-        <LiveCorpJobs eligibleCharacterIds={eligibleCharacterIds} />
+        <LiveCorpJobs live={live} />
       )}
     </section>
   );
 }
 
-function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[] }) {
-  const { corporations, names, now, loading, failed } = useCorpJobsLive(eligibleCharacterIds);
+function LiveCorpJobs({ live }: { live: ReturnType<typeof useCorpJobsLive> }) {
+  const { corporations, names, now, loading, failed } = live;
 
   if (loading) return <LoadingLabel label="Loading…" />;
 
@@ -63,7 +65,7 @@ function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[]
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
-export function CorpJobsList({
+function CorpJobsList({
   corporations,
   names,
   now,

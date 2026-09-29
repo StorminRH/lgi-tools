@@ -58,17 +58,19 @@ import { CockpitBuildPlan } from '@/features/industry-planner/components/Cockpit
 import { CockpitKpis } from '@/features/industry-planner/components/CockpitKpis';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { CockpitRawLedger } from '@/features/industry-planner/components/CockpitRawLedger';
-import { HeroCard } from '@/features/industry-planner/components/HeroCard';
-import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
+import { BlueprintSearch, BlueprintSearchPanel } from '@/features/industry-planner/components/BlueprintSearch';
 import { MarketScorePanel } from '@/features/industry-planner/components/MarketScorePanel';
 import { GemIcon, HourglassIcon, MeField, NodeAdjusters, TeField } from '@/features/industry-planner/components/MeAdjuster';
 import { MultibuyPanel } from '@/features/industry-planner/components/MultibuyPanel';
+import { PlanLanding } from '@/features/industry-planner/components/PlanLanding';
+import { PlanSetup } from '@/features/industry-planner/components/PlanSetup';
 import { ReactionStructureSelect } from '@/features/industry-planner/components/ReactionStructureSelect';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
+import { ResearchBoard } from '@/features/industry-planner/components/ResearchBoard';
 import { SavedPlanRows } from '@/features/industry-planner/components/SavedPlanRows';
-import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { SelectedSystemBox } from '@/features/industry-planner/components/SelectedSystemBox';
 import { TemplateLoader } from '@/features/industry-planner/components/TemplateLoader';
+import { TemplatesBoard } from '@/features/industry-planner/components/TemplatesBoard';
 import { TemplatesMenu } from '@/features/industry-planner/components/TemplatesMenu';
 import { KPI_FIG, KpiHead, KpiHelp, KpiTile, SimpleTile } from '@/features/industry-planner/components/kpi-tile';
 import { useTemplatePlanner } from '@/features/industry-planner/components/planner-contexts';
@@ -78,10 +80,13 @@ import { getBlueprintPricing, getBlueprintSearchIndex, getBuildLocation } from '
 import { readRecentBlueprints, recordRecentBlueprint } from '@/features/industry-planner/recent-blueprints';
 import { renameSavedPlan, setSavedPlanFavorite } from '@/features/industry-planner/saved-plans-queries';
 import { TEMPLATE_APPLY_GATE_MS } from '@/features/industry-planner/template-load';
+import { useBlueprintSearch } from '@/features/industry-planner/use-blueprint-search';
 import { useBuildCharacterSkillLevels } from '@/features/industry-planner/use-build-character-skills';
 import { useManagedRowMenu } from '@/features/industry-planner/use-managed-row-menu';
 import { useRecentBlueprints } from '@/features/industry-planner/use-recent-blueprints';
 import { useSavedPlans } from '@/features/industry-planner/use-saved-plans';
+import { useWatchlist } from '@/features/industry-planner/use-watchlist';
+import { readWatchlist, writeWatchlist } from '@/features/industry-planner/watchlist';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
@@ -101,8 +106,8 @@ describe('coverage-gaps', () => {
       CockpitKpis,
       CockpitPlanner,
       CockpitRawLedger,
-      HeroCard,
-      IndustryTypedHint,
+      BlueprintSearch,
+      BlueprintSearchPanel,
       MarketScorePanel,
       GemIcon,
       HourglassIcon,
@@ -110,12 +115,15 @@ describe('coverage-gaps', () => {
       NodeAdjusters,
       TeField,
       MultibuyPanel,
+      PlanLanding,
+      PlanSetup,
       ReactionStructureSelect,
       RecordRecentBlueprint,
+      ResearchBoard,
       SavedPlanRows,
-      SavedPlansManager,
       SelectedSystemBox,
       TemplateLoader,
+      TemplatesBoard,
       TemplatesMenu,
       KPI_FIG,
       KpiHead,
@@ -138,10 +146,14 @@ describe('coverage-gaps', () => {
       renameSavedPlan,
       setSavedPlanFavorite,
       TEMPLATE_APPLY_GATE_MS,
+      useBlueprintSearch,
       useBuildCharacterSkillLevels,
       useManagedRowMenu,
       useRecentBlueprints,
       useSavedPlans,
+      useWatchlist,
+      readWatchlist,
+      writeWatchlist,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

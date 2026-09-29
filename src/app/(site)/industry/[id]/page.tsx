@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
-import { PageShell } from '@/components/ui/page-shell';
+import { SheetLayout } from '@/components/ui/sheet-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
@@ -115,9 +115,8 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   });
 
   return (
-    <div className="w-full">
+    <>
       <JsonLd data={breadcrumbJsonLd} />
-      <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
         productTypeId={structure.product.typeId}
@@ -133,25 +132,29 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         <TemplateLoader structure={structure} />
         <CockpitPlanner structure={structure} />
       </PricingProvider>
-    </div>
+    </>
   );
 }
 
 function PlannerSkeleton() {
   return (
-    <div className="flex w-full flex-col gap-6">
-      <Skeleton label="Loading blueprint" className="sr-only" />
-      <div className="grid gap-4 split:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-        <Skeleton aria-hidden="true" className="h-44 w-full rounded-panel" />
-        <Skeleton aria-hidden="true" className="h-44 w-full rounded-panel" />
-      </div>
-      <div className="grid grid-cols-2 gap-3 split:grid-cols-6">
+    <SheetLayout
+      aside={
+        <>
+          <Skeleton label="Loading blueprint" className="h-24 w-full rounded-card" />
+          <Skeleton aria-hidden className="h-20 w-full rounded-card" />
+          <Skeleton aria-hidden className="h-32 w-full rounded-card" />
+          <Skeleton aria-hidden className="h-40 w-full rounded-card" />
+        </>
+      }
+    >
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} aria-hidden="true" className="h-24 w-full rounded-card" />
+          <Skeleton key={index} aria-hidden className="h-24 w-full rounded-card" />
         ))}
       </div>
-      <Skeleton aria-hidden="true" className="h-64 w-full rounded-card" />
-    </div>
+      <Skeleton aria-hidden className="h-64 w-full rounded-card" />
+    </SheetLayout>
   );
 }
 
@@ -161,12 +164,8 @@ export default function BlueprintPlannerPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <PageShell mode="detail">
-      <div className="flex flex-col items-center pb-20">
-        <Suspense fallback={<PlannerSkeleton />}>
-          <PlannerContent params={params} />
-        </Suspense>
-      </div>
-    </PageShell>
+    <Suspense fallback={<PlannerSkeleton />}>
+      <PlannerContent params={params} />
+    </Suspense>
   );
 }

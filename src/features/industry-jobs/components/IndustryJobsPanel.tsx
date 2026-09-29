@@ -1,6 +1,5 @@
 'use client';
 
-import { syncEligibleIds } from '@/components/character-strip-model';
 import { CharacterStripSection } from '@/components/character-strip-section';
 import {
   type CharacterCardContent,
@@ -14,21 +13,23 @@ import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { JOBS_LOAD_FAILED, jobRowFrameData, jobsCardModel } from '../job-view';
 import type { CharacterJobsData } from '../types';
-import { useJobsLive } from '../use-jobs-live';
+import type { useJobsLive } from '../use-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
 export function IndustryJobsPanel({
   characters,
+  live,
   strip,
   initialDimmed,
 }: {
   characters: PanelCharacter[];
+  live: ReturnType<typeof useJobsLive>;
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
   if (characters.length === 0) {
     return (
-      <Card className="reveal reveal-1">
+      <Card>
         <EmptyState>
           No characters linked to this account —{' '}
           <a href="/settings/characters" className="underline text-name">
@@ -39,23 +40,9 @@ export function IndustryJobsPanel({
       </Card>
     );
   }
-  return <LiveJobs characters={characters} strip={strip} initialDimmed={initialDimmed} />;
-}
-
-function LiveJobs({
-  characters,
-  strip,
-  initialDimmed,
-}: {
-  characters: PanelCharacter[];
-  strip?: CharacterStripSpec;
-  initialDimmed?: number[];
-}) {
-  const eligibleIds = syncEligibleIds(characters);
-  const { jobsByCharacter, names, now, loading, failed } = useJobsLive(eligibleIds);
-
+  const { jobsByCharacter, names, now, loading, failed } = live;
   return (
-    <div className="reveal reveal-1 w-full max-w-[760px] flex flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <CharacterStripSection
         characters={characters}
         strip={strip}
@@ -65,15 +52,15 @@ function LiveJobs({
       >
         {(visible) =>
           visible.map((character) => {
-            const live = jobsByCharacter.get(character.characterId);
-            const data = live?.data ?? null;
+            const pilotJobs = jobsByCharacter.get(character.characterId);
+            const data = pilotJobs?.data ?? null;
             const { isEmpty, subtitle, headerRight, rows } = renderJobsCard(data, names, now);
             return (
               <LiveCharacterCard
                 key={character.characterId}
                 character={character}
                 syncError={null}
-                lastSyncedAt={live?.lastRefreshedAt}
+                lastSyncedAt={pilotJobs?.lastRefreshedAt}
                 hasData={data !== null}
                 isEmpty={isEmpty}
                 syncing={false}

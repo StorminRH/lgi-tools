@@ -35,16 +35,18 @@ import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
 
 const COLS_TABLET = ['', 'sm:grid-cols-1', 'sm:grid-cols-2'];
+// From xl the plan shares the row with the setup column, so deep trees wrap
+// after four tiers instead of squeezing every tier into one line.
 const COLS_DESKTOP = [
   '',
   'cockpit:grid-cols-1',
   'cockpit:grid-cols-2',
   'cockpit:grid-cols-3',
   'cockpit:grid-cols-4',
-  'cockpit:grid-cols-5',
-  'cockpit:grid-cols-6',
-  'cockpit:grid-cols-7',
-  'cockpit:grid-cols-8',
+  'cockpit:grid-cols-5 xl:grid-cols-4',
+  'cockpit:grid-cols-6 xl:grid-cols-4',
+  'cockpit:grid-cols-7 xl:grid-cols-4',
+  'cockpit:grid-cols-8 xl:grid-cols-4',
 ];
 
 interface Focus {
@@ -324,7 +326,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
   if (tiers.length === 0) {
     return (
-      <div className="reveal reveal-3 mt-7">
+      <div className="mt-4">
         <SectionLabel className="mb-cluster">Build plan</SectionLabel>
         <Card>
           <p className="px-3.5 py-3 text-ui text-muted">
@@ -338,7 +340,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
 
   return (
-    <div className="reveal reveal-3 mt-7">
+    <div className="mt-4">
       <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
           <SectionLabel>Build plan</SectionLabel>

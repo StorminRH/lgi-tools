@@ -33,9 +33,9 @@ export const TOOLS: Tool[] = [
   {
     label: 'Industry Jobs',
     abbr: 'IJ',
-    href: '/jobs',
-    matchPrefix: '/jobs',
-    description: 'Live · /jobs',
+    href: '/industry/jobs',
+    matchPrefix: '/industry/jobs',
+    description: 'Live · /industry/jobs',
     navHidden: true,
   },
   {

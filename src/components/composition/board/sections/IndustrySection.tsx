@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import type { BoardIndustryData, BoardSection } from '@/composition/board/api-contract';
 import { Pill } from '@/components/ui/pill';
-import { StatFigure } from '../board-bits';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { SectionPanel, StatFigure } from '@/components/ui/readout';
+import { SectionBody } from '../SectionBody';
 
 export function IndustrySection({
   section,
@@ -16,7 +16,7 @@ export function IndustrySection({
       title="Industry"
       className={className}
       meta={
-        <Link href="/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
+        <Link href="/industry/jobs" className="whitespace-nowrap text-isk no-underline transition-colors hover:text-name">
           Open jobs →
         </Link>
       }

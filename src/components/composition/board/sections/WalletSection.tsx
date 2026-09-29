@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionPanel } from '@/components/ui/readout';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { BoardCharacter, BoardHistoryDay } from '@/composition/board/api-contract';
 import { formatIsk } from '@/lib/format/isk';
@@ -7,7 +8,7 @@ import { formatUtcDate } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
 import { pilotWorthSeries, recentJournal } from '../board-view-model';
-import { SectionBody, SectionPanel } from '../SectionBody';
+import { SectionBody } from '../SectionBody';
 import { WorthChart, WorthHeadline } from '../WorthChart';
 
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];

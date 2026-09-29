@@ -63,6 +63,27 @@ export interface SlotUsage {
 
 export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 
+const SLOT_LABELS: Record<JobCategory, string> = {
+  manufacturing: 'Manufacturing',
+  science: 'Science',
+  reactions: 'Reactions',
+};
+
+export function slotRows(model: SlotMetaModel): { category: JobCategory; label: string; usage: SlotUsage }[] {
+  return SLOT_CATEGORIES.map((category) => ({ category, label: SLOT_LABELS[category], usage: model[category] }));
+}
+
+/** Every slot kind together: the one figure a summary line has room for. */
+export function slotTotal(model: SlotMetaModel): SlotUsage {
+  let used = 0;
+  let total = 0;
+  for (const category of SLOT_CATEGORIES) {
+    used += model[category].used;
+    total += model[category].total;
+  }
+  return { used, total };
+}
+
 export function slotMetaTotals(args: {
   loading: boolean;
   failed: boolean;

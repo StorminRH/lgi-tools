@@ -355,7 +355,7 @@ export function CockpitKpis({
   });
 
   return (
-    <div className="reveal reveal-2 grid grid-cols-2 gap-3 md:grid-cols-3 cockpit:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 cockpit:grid-cols-6 xl:grid-cols-3">
       <InputCostTile />
       <SellTile />
       <NetMarginTile
