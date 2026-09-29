@@ -140,12 +140,14 @@ gh workflow run Verify --ref <head>
 
 Watch that run. Its head SHA must equal the pull request head. If the run started on an older SHA, dispatch Verify again.
 
-If Verify fails, fix that failure as one commit. Use the Verify subject above. Run `pnpm verify`, push once, comment once, and dispatch Verify once more.
+Also check the Coverage health run for the pull request head. It starts on every push; its head SHA must equal the pull request head.
+
+If Verify or Coverage health fails, fix that failure as one commit. Use the Verify subject above. Run `pnpm verify`, push once, comment once, and dispatch Verify once more.
 
 If the second Verify run fails, stop and report the run URL. Do not start another review round.
 
 ## Hold
 
-When Verify is green, stop. Reply with the pull request URL, the head SHA, and the Verify run URL.
+When Verify and Coverage health are green, stop. Reply with the pull request URL, the head SHA, and both run URLs.
 
 Do not merge. Do not turn on auto-merge. Do not add reviewers.

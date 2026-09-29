@@ -1,0 +1,124 @@
+# The coverage-backed half of the Fallow gate, on every pull request
+# push (drafts included, any base branch so stacked PRs are checked).
+# `pnpm check` covers typecheck, lint, and static Fallow locally; this
+# job runs only what needs Postgres and a full Istanbul map: the test
+# suite with coverage, production dead code, and CRAP. A newer push to
+# the same PR cancels the older run.
+
+name: Coverage health
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'convex/**'
+      - 'scripts/**'
+      - 'drizzle/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.fallowrc.json'
+      - 'vitest.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/coverage-health.yml'
+      - '.github/actions/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-health-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  coverage-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: SDE cache identity
+        id: seed-key
+        env:
+          SEED_SOURCE: ${{ hashFiles('src/data/eve-data/**', 'src/scripts/sde-*.ts', 'src/scripts/ci-sde-seed.ts', 'drizzle/**') }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/sde-cache"
+          version=$(pnpm exec tsx -e 'import { getRemoteSdeVersion } from "./src/data/eve-data/source"; getRemoteSdeVersion().then(v => console.log(v ?? "unknown"))')
+          echo "prefix=sde-pg16-Fc-v1-$version-$SEED_SOURCE-" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v6
+        id: seed-cache
+        with:
+          path: ${{ runner.temp }}/sde-cache
+          key: ${{ steps.seed-key.outputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.seed-key.outputs.prefix }}
+
+      - name: Record restored seed manifest
+        run: find "$RUNNER_TEMP/sde-cache" -type f -name '*.dump' -exec sha256sum {} + | sort > "$RUNNER_TEMP/seed-before"
+
+      - run: pnpm db:migrate
+
+      - run: pnpm db:ci-sde-seed --cache-dir "$RUNNER_TEMP/sde-cache"
+
+      - name: Measure seed and database readiness
+        id: seed-result
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/sde-cache"
+          find "$RUNNER_TEMP/sde-cache" -type f -name '*.dump' -exec sha256sum {} + | sort > "$RUNNER_TEMP/seed-after"
+          if ! cmp -s "$RUNNER_TEMP/seed-before" "$RUNNER_TEMP/seed-after"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+          du -sb "$RUNNER_TEMP/sde-cache" >> "$GITHUB_STEP_SUMMARY"
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:16 \
+            psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "SELECT 'eve_types' AS relation, count(*) FROM eve_types UNION ALL SELECT 'eve_solar_systems', count(*) FROM eve_solar_systems;" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/cache/save@v6
+        if: steps.seed-result.outputs.changed == 'true'
+        with:
+          path: ${{ runner.temp }}/sde-cache
+          key: ${{ steps.seed-cache.outputs.cache-primary-key }}
+
+      - run: pnpm test:coverage --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/vitest-results.json"
+
+      - run: pnpm fallow:coverage
+
+      - name: Verification evidence
+        if: always()
+        run: |
+          git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
+          free -m >> "$GITHUB_STEP_SUMMARY"
+          df -h / >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: verification-evidence
+          path: |
+            coverage/coverage-final.json
+            ${{ runner.temp }}/vitest-results.json
+          if-no-files-found: warn
+          retention-days: 1
