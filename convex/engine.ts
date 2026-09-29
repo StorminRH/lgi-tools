@@ -10,7 +10,14 @@ import {
 } from '@/lib/sync-engine';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query, internalMutation, type MutationCtx } from './_generated/server';
-import { ensureLocationSync, getLocationSync, runState, scheduleRun, stopSync } from './lib/locationSchedule';
+import {
+  ensureLocationSync,
+  getLocationSync,
+  type LocationSyncState,
+  runState,
+  scheduleRun,
+  stopSync,
+} from './lib/locationSchedule';
 import { internal } from './_generated/api';
 import { clearCoverageForUser } from './lib/locationCoverage';
 import { getPresence } from './lib/subjects';
@@ -45,44 +52,69 @@ export const heartbeat = mutation({
     }
 
     const wasCold = await upsertPresence(ctx, presence, userId, visible, now, tabId);
-    // A tab hidden past the visible cap stays cold even after this beat, so it
-    // must not revive a run that finishSync would immediately stop again.
-    const afterBeat = {
-      lastSeenAt: now,
-      lastVisibleAt: visible ? now : presence?.lastVisibleAt,
-    };
-    if (isCold(afterBeat, LOCATION_COLD_AFTER_MS, now)) return;
+    if (staysColdAfterBeat(presence, visible, now)) return;
     await ensurePresenceExpiry(ctx, userId);
-
-    const state = await ensureLocationSync(ctx, userId);
-    if (!hasSyncTarget(state.syncedCharacterIds, characterIdsHint)) return;
-    const run = await runState(ctx.db, state);
-    if (run === 'inProgress') return;
-
-    const stale = isStaleForImmediate(
-      state.minExpiresAt,
-      state.syncedCharacterIds,
-      characterIdsHint,
-      now,
-    );
-    // The client decides staleness through its hint, so the floor after the
-    // last run is enforced here: a beat can pull a run forward, never faster.
-    const floorAt = (state.lastRunAt ?? 0) + LOCATION_CADENCE_FLOOR_MS;
-    const dueAt = Math.max(
-      floorAt,
-      stale
-        ? now
-        : computeNextDueAt(state.minExpiresAt, LOCATION_CADENCE_FLOOR_MS, state.lastFinishedAt ?? now),
-    );
-
-    // An interval beat on a warm session is the safety net: it only re-arms a
-    // user whose run died or was never scheduled, and never moves a pending run.
-    const safetyNetOnly = reason === 'interval' && !wasCold;
-    if (run === 'pending' && (safetyNetOnly || !stale)) return;
-
-    await ctx.db.patch('locationSync', state._id, await scheduleRun(ctx, state, dueAt, now));
+    await scheduleFromBeat(ctx, userId, characterIdsHint, reason === 'interval' && !wasCold, now);
   },
 });
+
+/**
+ * A tab hidden past the visible cap stays cold even after this beat, so it
+ * must not revive a run that finishSync would immediately stop again.
+ */
+function staysColdAfterBeat(
+  presence: Doc<'syncPresence'> | null,
+  visible: boolean,
+  now: number,
+): boolean {
+  const afterBeat = {
+    lastSeenAt: now,
+    lastVisibleAt: visible ? now : presence?.lastVisibleAt,
+  };
+  return isCold(afterBeat, LOCATION_COLD_AFTER_MS, now);
+}
+
+/**
+ * A warm interval beat (safetyNetOnly) only re-arms a user whose run died or
+ * was never scheduled, and never moves a pending run. Mount, visible, and
+ * post-cold beats may also pull a pending run forward when the cache is stale.
+ */
+async function scheduleFromBeat(
+  ctx: MutationCtx,
+  userId: string,
+  characterIdsHint: number[],
+  safetyNetOnly: boolean,
+  now: number,
+): Promise<void> {
+  const state = await ensureLocationSync(ctx, userId);
+  if (!hasSyncTarget(state.syncedCharacterIds, characterIdsHint)) return;
+  const run = await runState(ctx.db, state);
+  if (run === 'inProgress') return;
+  const stale = isStaleForImmediate(
+    state.minExpiresAt,
+    state.syncedCharacterIds,
+    characterIdsHint,
+    now,
+  );
+  if (run === 'pending' && (safetyNetOnly || !stale)) return;
+  await ctx.db.patch(
+    'locationSync',
+    state._id,
+    await scheduleRun(ctx, state, beatDueAt(state, stale, now), now),
+  );
+}
+
+/**
+ * The client decides staleness through its hint, so the floor after the last
+ * run is enforced here: a beat can pull a run forward, never faster.
+ */
+function beatDueAt(state: LocationSyncState, stale: boolean, now: number): number {
+  const floorAt = (state.lastRunAt ?? 0) + LOCATION_CADENCE_FLOOR_MS;
+  const cacheDueAt = stale
+    ? now
+    : computeNextDueAt(state.minExpiresAt, LOCATION_CADENCE_FLOOR_MS, state.lastFinishedAt ?? now);
+  return Math.max(floorAt, cacheDueAt);
+}
 
 async function upsertPresence(
   ctx: MutationCtx,
@@ -141,7 +173,12 @@ function isLeftTab(leftTabId: string | undefined, tabId: string): boolean {
 export async function ensurePresenceExpiry(ctx: MutationCtx, userId: string): Promise<void> {
   const presence = await getPresence(ctx.db, 'characterLocation', userId);
   if (presence === null) return;
-  if (presence.expiryJobId !== undefined) return;
+  // A check that already ran, failed, or was cancelled no longer guards this
+  // presence, so only a live one short-circuits.
+  if (presence.expiryJobId !== undefined) {
+    const job = await ctx.db.system.get('_scheduled_functions', presence.expiryJobId);
+    if (job !== null && (job.state.kind === 'pending' || job.state.kind === 'inProgress')) return;
+  }
   await schedulePresenceExpiry(ctx, presence);
 }
 

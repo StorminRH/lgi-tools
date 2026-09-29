@@ -1287,6 +1287,39 @@ describe('scheduler migration and independent liveness', () => {
     expect(checks[0]?.state.kind).toBe('success');
   });
 
+  it('re-arms liveness when the recorded check is no longer live', async () => {
+    for (const end of ['canceled', 'success'] as const) {
+      const t = convexTest(schema, modules);
+      await seedPresence(t, warmPresence());
+      const dead = await t.run(async (ctx) => {
+        const presence = await ctx.db.query('syncPresence').unique();
+        const id = await ctx.scheduler.runAt(Date.now() + 60_000, internal.engine.expirePresence, {
+          presenceId: presence!._id,
+        });
+        if (end === 'canceled') await ctx.scheduler.cancel(id);
+        await ctx.db.patch(presence!._id, { expiryJobId: id });
+        return id;
+      });
+      if (end === 'success') {
+        await vi.advanceTimersByTimeAsync(60_001);
+        await t.finishInProgressScheduledFunctions();
+        // The run itself re-arms while warm; drop that so only the stale id remains.
+        await t.run(async (ctx) => {
+          const presence = await ctx.db.query('syncPresence').unique();
+          const live = presence!.expiryJobId!;
+          if (live !== dead) await ctx.scheduler.cancel(live);
+          await ctx.db.patch(presence!._id, { expiryJobId: dead });
+        });
+      }
+
+      await heartbeat(t, { characterIdsHint: [], reason: 'mount' });
+
+      const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+      expect(presence?.expiryJobId).not.toBe(dead);
+      expect((await jobById(t, presence!.expiryJobId!))?.state.kind).toBe('pending');
+    }
+  });
+
   it('extends one liveness check for fresh presence and stops after that presence expires', async () => {
     const t = convexTest(schema, modules);
     await heartbeat(t, { characterIdsHint: [], reason: 'mount' });
