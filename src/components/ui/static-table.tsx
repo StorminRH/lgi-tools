@@ -37,6 +37,13 @@ function headerClass(
   );
 }
 
+/** What a row may add: a click target, its own class, and whether its detail is showing. */
+export interface StaticTableRowProps {
+  onClick?: () => void;
+  className?: string;
+  expanded?: boolean;
+}
+
 export function StaticTable<Row>({
   columns,
   rows,
@@ -44,6 +51,8 @@ export function StaticTable<Row>({
   ariaLabel,
   className,
   theadClassName,
+  rowProps,
+  renderDetail,
 }: {
   columns: readonly StaticTableColumn<Row>[];
   rows: readonly Row[];
@@ -51,6 +60,9 @@ export function StaticTable<Row>({
   ariaLabel: string;
   className?: string;
   theadClassName?: string;
+  rowProps?: (row: Row) => StaticTableRowProps;
+  /** A full-width row under a row, for its expanded detail; null shows none. */
+  renderDetail?: (row: Row) => ReactNode;
 }) {
   return (
     <table aria-label={ariaLabel} className={cn('w-full border-collapse font-data text-ui', className)}>
@@ -68,25 +80,42 @@ export function StaticTable<Row>({
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, index) => (
-          <tr key={getRowKey(row, index)} className="border-b border-border-soft last:border-b-0">
-            {columns.map((column) => {
-              const Cell = column.rowHeader ? 'th' : 'td';
-              return (
-                <Cell
-                  key={column.key}
-                  scope={column.rowHeader ? 'row' : undefined}
-                  className={cellClass(
-                    column.align,
-                    cn(column.rowHeader && 'font-normal', column.className),
-                  )}
-                >
-                  {column.render(row)}
-                </Cell>
-              );
-            })}
-          </tr>
-        ))}
+        {rows.flatMap((row, index) => {
+          const key = getRowKey(row, index);
+          const extra = rowProps?.(row);
+          const detail = renderDetail?.(row) ?? null;
+          const cells = (
+            <tr
+              key={key}
+              onClick={extra?.onClick}
+              aria-expanded={extra?.expanded}
+              className={cn('border-b border-border-soft last:border-b-0', extra?.onClick && 'cursor-pointer', extra?.className)}
+            >
+              {columns.map((column) => {
+                const Cell = column.rowHeader ? 'th' : 'td';
+                return (
+                  <Cell
+                    key={column.key}
+                    scope={column.rowHeader ? 'row' : undefined}
+                    className={cellClass(
+                      column.align,
+                      cn(column.rowHeader && 'font-normal', column.className),
+                    )}
+                  >
+                    {column.render(row)}
+                  </Cell>
+                );
+              })}
+            </tr>
+          );
+          if (detail === null) return [cells];
+          return [
+            cells,
+            <tr key={`${String(key)}:detail`} className="border-b border-border-soft last:border-b-0">
+              <td colSpan={columns.length}>{detail}</td>
+            </tr>,
+          ];
+        })}
       </tbody>
     </table>
   );

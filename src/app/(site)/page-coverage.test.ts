@@ -100,15 +100,12 @@ import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
 import AppSiteError from '@/app/(site)/error';
-import { IndustryOverview } from '@/app/(site)/industry/IndustryOverview';
-import { IndustryRail } from '@/app/(site)/industry/IndustryRail';
-import { IndustryTabs, IndustryTabStrip } from '@/app/(site)/industry/IndustryTabs';
+import { IndustryTabs, IndustryTabsShell, IndustryTabStrip } from '@/app/(site)/industry/IndustryTabs';
 import AppSiteIndustryIdPage, { generateMetadata as AppSiteIndustryIdPageGenerateMetadata } from '@/app/(site)/industry/[id]/page';
 import AppSiteIndustryJobsPage, { metadata as AppSiteIndustryJobsPageMetadata } from '@/app/(site)/industry/jobs/page';
 import AppSiteIndustryLayout from '@/app/(site)/industry/layout';
 import AppSiteIndustryPage, { metadata as AppSiteIndustryPageMetadata } from '@/app/(site)/industry/page';
 import AppSiteIndustryPlanPage, { metadata as AppSiteIndustryPlanPageMetadata } from '@/app/(site)/industry/plan/page';
-import AppSiteIndustryResearchPage, { metadata as AppSiteIndustryResearchPageMetadata } from '@/app/(site)/industry/research/page';
 import AppSiteIndustryTemplatesPage, { metadata as AppSiteIndustryTemplatesPageMetadata } from '@/app/(site)/industry/templates/page';
 import AppSiteLegalPage, { metadata as AppSiteLegalPageMetadata } from '@/app/(site)/legal/page';
 import AppSitePage, { metadata as AppSitePageMetadata } from '@/app/(site)/page';
@@ -207,9 +204,8 @@ describe('coverage-gaps', () => {
       AppSiteContactPageMetadata,
       AppSiteContactPage,
       AppSiteError,
-      IndustryOverview,
-      IndustryRail,
       IndustryTabs,
+      IndustryTabsShell,
       IndustryTabStrip,
       AppSiteIndustryIdPageGenerateMetadata,
       AppSiteIndustryIdPage,
@@ -220,8 +216,6 @@ describe('coverage-gaps', () => {
       AppSiteIndustryPage,
       AppSiteIndustryPlanPageMetadata,
       AppSiteIndustryPlanPage,
-      AppSiteIndustryResearchPageMetadata,
-      AppSiteIndustryResearchPage,
       AppSiteIndustryTemplatesPageMetadata,
       AppSiteIndustryTemplatesPage,
       AppSiteLegalPageMetadata,

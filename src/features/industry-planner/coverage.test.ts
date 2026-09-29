@@ -66,7 +66,6 @@ import { PlanLanding } from '@/features/industry-planner/components/PlanLanding'
 import { PlanSetup } from '@/features/industry-planner/components/PlanSetup';
 import { ReactionStructureSelect } from '@/features/industry-planner/components/ReactionStructureSelect';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
-import { ResearchBoard } from '@/features/industry-planner/components/ResearchBoard';
 import { SavedPlanRows } from '@/features/industry-planner/components/SavedPlanRows';
 import { SelectedSystemBox } from '@/features/industry-planner/components/SelectedSystemBox';
 import { TemplateLoader } from '@/features/industry-planner/components/TemplateLoader';
@@ -119,7 +118,6 @@ describe('coverage-gaps', () => {
       PlanSetup,
       ReactionStructureSelect,
       RecordRecentBlueprint,
-      ResearchBoard,
       SavedPlanRows,
       SelectedSystemBox,
       TemplateLoader,

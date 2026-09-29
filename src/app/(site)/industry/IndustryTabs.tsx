@@ -1,58 +1,65 @@
 'use client';
 
-import Link from 'next/link';
 import { useSelectedLayoutSegment } from 'next/navigation';
-import { cn } from '@/components/ui/cn';
-import { INDUSTRY_SECTIONS, type IndustrySectionId, industrySectionFor } from './industry-sections';
+import { useEffect } from 'react';
+import { useIndustryDesk } from '@/features/industry-jobs/use-industry-desk';
+import { useRecentBlueprints } from '@/features/industry-planner/use-recent-blueprints';
+import { useSavedPlans } from '@/features/industry-planner/use-saved-plans';
+import { useWatchlist } from '@/features/industry-planner/use-watchlist';
+import { type IndustrySectionId, industrySectionFor } from './industry-sections';
+import { type SummaryLine, tabSummaries } from './tab-summaries';
+import { CardTabs } from './tabs/CardTabs';
 
-/**
- * The workspace tabs above every section but the overview, where the rail
- * beside the cards does the same job with live summaries.
- */
-export function IndustryTabs() {
-  const active = industrySectionFor(useSelectedLayoutSegment());
-  if (active === 'overview') return null;
-  return <IndustryTabStrip active={active} />;
+export interface IndustryTabsLive {
+  signedIn: boolean;
+  characterIds: number[];
+  corpEligibleCharacterIds: number[];
 }
 
-export function IndustryTabStrip({ active }: { active: IndustrySectionId | null }) {
-  const current = INDUSTRY_SECTIONS.find((section) => section.id === active);
-  return (
-    <div className="reveal flex flex-col gap-3 pt-[26px] pb-7">
-      <div className="font-data text-label tracking-label text-muted">
-        <span className="text-isk">lgi://</span>
-        <Link href="/industry" className="text-muted no-underline hover:text-isk">
-          industry
-        </Link>
-        {current?.segment ? `/${current.segment}` : null}
-      </div>
-      <nav
-        aria-label="Industry sections"
-        className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-      >
-        <ul className="flex min-w-max list-none gap-1 border-b border-border">
-          {INDUSTRY_SECTIONS.map((section) => {
-            const isActive = section.id === active;
-            return (
-              <li key={section.id}>
-                <Link
-                  href={section.href}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={cn(
-                    'relative block px-3.5 py-2.5 font-ui text-nav no-underline transition-colors motion-reduce:transition-none',
-                    isActive ? 'text-name' : 'text-muted hover:text-text',
-                  )}
-                >
-                  {section.title}
-                  {isActive && (
-                    <span aria-hidden className="absolute inset-x-3.5 -bottom-px h-0.5 rounded-full bg-isk" />
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </div>
+export interface TabStripProps {
+  active: IndustrySectionId | null;
+  summaries: Record<IndustrySectionId, SummaryLine[]> | null;
+}
+
+const NO_IDS: number[] = [];
+
+function useTabSummaries(live: IndustryTabsLive, active: IndustrySectionId | null) {
+  // The jobs page reads the live feeds itself; the tab doesn't read them twice.
+  const onJobs = active === 'jobs';
+  const desk = useIndustryDesk(
+    onJobs ? NO_IDS : live.characterIds,
+    onJobs ? NO_IDS : live.corpEligibleCharacterIds,
   );
+  const recent = useRecentBlueprints();
+  const { plans, listFailed, refresh } = useSavedPlans();
+  const { watchlist } = useWatchlist();
+  useEffect(() => {
+    if (live.signedIn) refresh();
+  }, [live.signedIn, refresh]);
+  return tabSummaries({
+    signedIn: live.signedIn,
+    jobs: { loading: desk.jobsLive.loading, failed: desk.jobsLive.failed, list: desk.personalJobs },
+    slots: desk.slots,
+    recent,
+    plans,
+    plansFailed: listFailed,
+    watchlist,
+  });
+}
+
+export function IndustryTabStrip(props: TabStripProps) {
+  return <CardTabs {...props} />;
+}
+
+/** The workspace tabs above every section, each with what it holds right now. */
+export function IndustryTabs({ live }: { live: IndustryTabsLive }) {
+  const active = industrySectionFor(useSelectedLayoutSegment());
+  const summaries = useTabSummaries(live, active);
+  return <IndustryTabStrip active={active} summaries={summaries} />;
+}
+
+/** The tabs before the session is read: the active one, without live lines. */
+export function IndustryTabsShell() {
+  const active = industrySectionFor(useSelectedLayoutSegment());
+  return <IndustryTabStrip active={active} summaries={null} />;
 }

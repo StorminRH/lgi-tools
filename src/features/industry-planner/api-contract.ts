@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
+import type { MarketDay } from '@/data/industry-math/market-analytics';
+import { wireHistoryInputsSchema } from '@/data/market-history/api-contract';
 import {
   defineEndpoint,
   jsonBody,
@@ -15,6 +17,7 @@ import type {
   OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
   OwnedBlueprintsResponse,
+  ResearchEconomics,
 } from './types';
 
 const PG_INT4_MAX = 2_147_483_647;
@@ -67,6 +70,56 @@ export const buildLocationEndpoint = defineEndpoint({
   responses: {
     200: jsonBody(buildLocationResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
+  },
+});
+
+/** One watch batch: the watchlist is capped to a single price refresh. */
+const RESEARCH_MAX_BLUEPRINTS = 50;
+const RESEARCH_MAX_SERIES_DAYS = 180;
+
+export const researchRequestSchema = z.object({
+  blueprintTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).min(1).max(RESEARCH_MAX_BLUEPRINTS),
+  seriesDays: z.number().int().min(1).max(RESEARCH_MAX_SERIES_DAYS),
+});
+
+const researchEconomicsSchema = z.object({
+  blueprintTypeId: z.number(),
+  productTypeId: z.number(),
+  activityId: z.number(),
+  quantityPerRun: z.number(),
+  jobSeconds: z.number().nullable(),
+  inputCost: z.number(),
+  jobFee: z.number().nullable(),
+  incomplete: z.boolean(),
+  drivers: z.array(z.object({ typeId: z.number(), name: z.string(), share: z.number() })),
+}) satisfies z.ZodType<ResearchEconomics>;
+
+const marketDaySchema = z.object({
+  date: z.string(),
+  average: z.number(),
+  highest: z.number(),
+  lowest: z.number(),
+  volume: z.number(),
+  orderCount: z.number(),
+}) satisfies z.ZodType<MarketDay>;
+
+const researchItemSchema = z.object({
+  blueprintTypeId: z.number(),
+  economics: researchEconomicsSchema.nullable(),
+  history: wireHistoryInputsSchema.nullable(),
+  series: z.array(marketDaySchema),
+});
+export type ResearchItem = z.infer<typeof researchItemSchema>;
+
+const researchResponseSchema = z.object({ items: z.array(researchItemSchema) });
+export const researchEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/industry/research',
+  request: researchRequestSchema,
+  responses: {
+    200: jsonBody(researchResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    429: problem('rate_limited'),
   },
 });
 
