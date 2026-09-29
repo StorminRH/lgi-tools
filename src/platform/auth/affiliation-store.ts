@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
 import {
@@ -7,6 +7,7 @@ import {
 } from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 import type { AnyPgDb } from '@/lib/db-types';
+import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, parseLinkedAccountId } from './eve-account-shared';
@@ -18,6 +19,7 @@ export interface CachedAffiliation {
   allianceId: number | null;
   factionId: number | null;
   refreshedAt: Date | null;
+  sharedAccessEligible: boolean;
 }
 
 export const MAX_PENDING_BATCH = 100;
@@ -29,6 +31,7 @@ function rowToCachedAffiliation(
     allianceId: number | null;
     factionId: number | null;
     refreshedAt: Date | null;
+    sharedAccessEligible: boolean;
   },
 ): CachedAffiliation {
   return {
@@ -37,6 +40,7 @@ function rowToCachedAffiliation(
     allianceId: row.allianceId ?? null,
     factionId: row.factionId ?? null,
     refreshedAt: row.refreshedAt ?? null,
+    sharedAccessEligible: row.sharedAccessEligible,
   };
 }
 
@@ -56,6 +60,13 @@ export async function getUsersAffiliations(
       allianceId: characters.allianceId,
       factionId: characters.factionId,
       refreshedAt: characters.affiliationRefreshedAt,
+      sharedAccessEligible: sql<boolean>`${and(
+        isNotNull(account.refreshToken),
+        or(
+          isNull(account.authorizationFailureFirstAt),
+          gt(account.authorizationFailureFirstAt, new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS)),
+        ),
+      )}`,
     })
     .from(account)
     .leftJoin(characters, characterProfileJoin)
@@ -83,6 +94,18 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
         ),
       ),
     );
+  return rows.flatMap((r) => {
+    const characterId = parseLinkedAccountId(r.accountId);
+    return characterId === null ? [] : [characterId];
+  });
+}
+
+export async function listLinkedCharacterIdsInCorporation(corporationId: number): Promise<number[]> {
+  const rows = await db
+    .selectDistinct({ accountId: account.accountId })
+    .from(account)
+    .innerJoin(characters, characterProfileJoin)
+    .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(characters.corporationId, corporationId)));
   return rows.flatMap((r) => {
     const characterId = parseLinkedAccountId(r.accountId);
     return characterId === null ? [] : [characterId];

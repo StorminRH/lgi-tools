@@ -1,7 +1,7 @@
-import { parseCookies } from 'better-auth/cookies';
 import { makeSignature } from 'better-auth/crypto';
 import { serializeCookie } from 'better-call';
 import type { createAuth } from './auth';
+import { expireSessionCacheCookies } from './session-cache-cookies';
 
 export interface LocalSession {
   cookies: Array<{
@@ -47,23 +47,8 @@ export async function createLocalSession(
     maxAgeSec,
   };
   const headers = new Headers();
-  const existingCookies = parseCookies(requestHeaders?.get('cookie') ?? '');
-  for (const cached of [
-    ctx.authCookies.sessionData,
-    ctx.authCookies.accountData,
-    ctx.authCookies.dontRememberToken,
-  ]) {
-    const names = new Set([
-      cached.name,
-      ...[...existingCookies.keys()].filter((key) => key.startsWith(`${cached.name}.`)),
-    ]);
-    for (const key of names) {
-      headers.append('Set-Cookie', serializeCookie(key, '', {
-        ...cached.attributes,
-        path: cached.attributes.path ?? '/',
-        maxAge: 0,
-      }));
-    }
+  for (const expired of expireSessionCacheCookies(ctx, requestHeaders?.get('cookie'))) {
+    headers.append('Set-Cookie', expired);
   }
   headers.append('Set-Cookie', serializeCookie(cookie.name, cookie.value, {
     ...attributes,

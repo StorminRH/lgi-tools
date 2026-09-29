@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
-import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 import {
   CAMERA_FIT_MAX_ZOOM,
   IDLE_FLIGHT,

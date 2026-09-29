@@ -1,3 +1,4 @@
+import { sectionMatches } from '@/lib/section-path';
 export type SettingsSectionId =
   | 'characters'
   | 'corporations'
@@ -17,6 +18,8 @@ export type SettingsGroup = {
   adminOnly: boolean;
   sections: readonly SettingsSection[];
 };
+
+export const ACCESS_HREF = '/settings/access';
 
 export const SETTINGS_LANDING_HREF = '/settings/characters';
 
@@ -55,7 +58,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
     sections: [
       {
         id: 'access',
-        href: '/settings/access',
+        href: ACCESS_HREF,
         title: 'Users & roles',
       },
     ],
@@ -66,19 +69,14 @@ export function visibleSettingsGroups(isAdmin: boolean): readonly SettingsGroup[
   return SETTINGS_GROUPS.filter((group) => isAdmin || !group.adminOnly);
 }
 
-function sectionMatches(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function deriveActiveSettingsSection(
   pathname: string,
   groups: readonly SettingsGroup[],
 ): SettingsSection | null {
-  const trimmed = pathname.replace(/\/+$/, '') || '/';
   let best: SettingsSection | null = null;
   for (const group of groups) {
     for (const section of group.sections) {
-      if (sectionMatches(trimmed, section.href) && (best === null || section.href.length > best.href.length)) {
+      if (sectionMatches(pathname, section.href) && (best === null || section.href.length > best.href.length)) {
         best = section;
       }
     }

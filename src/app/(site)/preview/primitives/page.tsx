@@ -24,7 +24,7 @@ export default function PrimitiveReferencePage() {
       <PageHead
         size="compact"
         crumb="admin / primitive reference"
-        title="Future primitives"
+        title="UI primitives"
         subtitle="Inset Instrument · rendered system reference"
       />
       <Suspense fallback={<Skeleton className="h-64 w-full" label="Loading primitive reference" />}>

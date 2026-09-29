@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { previousRange, type RangeKey } from '@/composition/admin-period';
 import { isGscConfigured } from '@/data/gsc/constants';
-import { getSearchTotals } from '@/data/gsc/queries';
+import { getLatestReportDate, getSearchTotals } from '@/data/gsc/queries';
 import { getDailyCounts, getReturningVsNew, getSearchVsDirect } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { ActivityChart } from './ActivityChart';
@@ -11,7 +11,8 @@ import { CardLink } from './CardLink';
 import { loadDeployMarkers } from './deploy-markers';
 import { KpiGrid } from './KpiGrid';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { buildMetricRows, metricsHint } from './metric-view';
+import { buildMetricRows } from './metric-view';
+import { searchPeriods } from './search/search-period';
 import { SectionUnavailable } from './SectionUnavailable';
 
 function maybe<T>(cond: boolean, thunk: () => Promise<T>): Promise<T | null> {
@@ -23,19 +24,22 @@ export async function AudienceCard({ rangeKey, range }: { rangeKey: RangeKey; ra
   const gsc = isGscConfigured();
   const hasPrev = prev != null;
 
-  const fetched = await loadSection('audience', () =>
-    Promise.all([
+  const fetched = await loadSection('audience', async () => {
+    const latestDay = gsc ? await getLatestReportDate() : null;
+    const periods = searchPeriods(rangeKey, latestDay ?? range.to.toISOString().slice(0, 10));
+    const values = await Promise.all([
       getSearchVsDirect(range),
       getReturningVsNew(range),
-      maybe(gsc, () => getSearchTotals(range)),
+      maybe(gsc && latestDay !== null, () => getSearchTotals(periods.range)),
       maybe(hasPrev, () => getSearchVsDirect(prev!)),
       maybe(hasPrev, () => getReturningVsNew(prev!)),
-      maybe(gsc && hasPrev, () => getSearchTotals(prev!)),
+      maybe(gsc && latestDay !== null && periods.previous !== null, () => getSearchTotals(periods.previous!)),
       getDailyCounts(range),
       maybe(hasPrev, () => getDailyCounts(prev!)),
       loadDeployMarkers(),
-    ]),
-  );
+    ]);
+    return { values, gscRangeDays: Math.round((periods.range.to.getTime() - periods.range.from.getTime()) / 86_400_000) + 1 };
+  });
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Audience" />;
 
   const [
@@ -48,9 +52,10 @@ export async function AudienceCard({ rangeKey, range }: { rangeKey: RangeKey; ra
     dailyCounts,
     prevDailyCounts,
     markers,
-  ] = fetched;
+  ] = fetched.values;
   const rows = buildMetricRows({
     rangeDays: rangeDayCount(range),
+    gscRangeDays: fetched.gscRangeDays,
     pageViews,
     users,
     gscTotals,
@@ -67,7 +72,6 @@ export async function AudienceCard({ rangeKey, range }: { rangeKey: RangeKey; ra
         label="Audience"
         hint={
           <span className="flex items-center gap-3">
-            <span className="hidden sm:inline">{metricsHint(rangeKey)}</span>
             <CardLink href="/admin/traffic">Traffic</CardLink>
             <CardLink href="/admin/search">Search</CardLink>
           </span>

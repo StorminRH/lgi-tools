@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
+vi.mock('next/server', () => ({ after: vi.fn() }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string): never => {
     h.redirectMock(url);

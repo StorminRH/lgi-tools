@@ -35,6 +35,7 @@ describe('deriveActivityView', () => {
     expect(view.average[0]).toBe(10);
     expect(view.average[2]).toBe(10);
     expect(view.endValue).toBe(5);
+    expect(view.totalValue).toBe(35);
     expect(view.endDelta).toBeNull();
   });
 
@@ -84,7 +85,7 @@ describe('deriveActivityView', () => {
     });
     expect(view.eventMarkers).toEqual([
       { x: 0, label: 'v0' },
-      { x: 2, label: '2 deploys' },
+      { x: 2, label: '2 releases' },
     ]);
   });
 

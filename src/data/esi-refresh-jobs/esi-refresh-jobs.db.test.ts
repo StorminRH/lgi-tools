@@ -123,6 +123,20 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
     ]);
   });
 
+  it('counts recent results while retaining older active and exhausted jobs', async () => {
+    await harness.db.delete(esiRefreshJobs);
+    await harness.db.insert(esiRefreshJobs).values([
+      terminalJob('old-success', 'succeeded', OLD),
+      terminalJob('recent-success', 'succeeded', NOW),
+      terminalJob('old-permanent', 'failed_permanent', OLD),
+      terminalJob('old-dead', 'dead_lettered', OLD),
+    ]);
+    const stats = await getEsiRefreshQueueStats(NOW);
+    expect(stats.map(({ status, count }) => ({ status, count }))).toEqual([
+      { status: 'succeeded', count: 1 }, { status: 'dead_lettered', count: 1 },
+    ]);
+  });
+
   it('decodes the grouped oldest-created aggregate as a Date', async () => {
     const database = harness.db;
     await database.delete(esiRefreshJobs);

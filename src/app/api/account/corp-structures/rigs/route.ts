@@ -12,7 +12,7 @@ import {
 } from '@/features/owned-structures/queries';
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
 import { checkUserId } from '@/composition/route-guards';
-import { stationManagerGate } from '@/composition/sync/corp-structures-sync';
+import { stationManagerGate } from '@/composition/corp-role-gates';
 import { validationFailure } from '@/lib/failure';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';

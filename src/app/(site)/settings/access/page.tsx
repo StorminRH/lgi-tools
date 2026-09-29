@@ -1,3 +1,4 @@
+import { ACCESS_HREF } from '../settings-sections';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
@@ -17,6 +18,7 @@ import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm'
 import { requireAdminPage } from '@/composition/route-guards';
 import {
   getUserByCharacterId,
+  getUserById,
   listAdminUsers,
   searchUsersByLinkedCharacterName,
   type AdminUser,
@@ -35,7 +37,6 @@ const MAX_QUERY_LENGTH = 200;
 
 const AUDIT_WINDOW_DAYS = 90;
 
-const ACCESS_HREF = '/settings/access';
 
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;
@@ -48,7 +49,7 @@ async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: 
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
   const superUser =
     Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
-  return mergeAdminRows(dbAdmins, superUser);
+  return mergeAdminRows(dbAdmins, superUser ? await getUserById(superUser.userId) : null);
 }
 
 function AdminUserRow({
@@ -87,7 +88,7 @@ function AdminUserRow({
       }
       chips={
         <span className="flex items-center gap-[6px]">
-          <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
+          <Pill tone="neutral">Character ID {user.characterId ?? '—'}</Pill>
           <Chip tone={badge.tone}>{badge.label}</Chip>
         </span>
       }
@@ -130,7 +131,6 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
       <SectionHeader
         size="md"
         label="Role change audit"
-        hint={`${audit.length} entries · last ${AUDIT_WINDOW_DAYS} days`}
       />
       {audit.length === 0 ? (
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
@@ -182,7 +182,7 @@ function AdminsCard({
 }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Admins" hint={`${adminRows.length} with elevated access`} />
+      <SectionHeader size="md" label="Admins" />
       {adminRows.length === 0 ? (
         <EmptyState>No admins currently configured.</EmptyState>
       ) : (
@@ -203,21 +203,19 @@ function AdminsCard({
 
 function SearchResultsCard({
   nonAdminMatches,
-  resultsHint,
   query,
   viewerUserId,
 }: {
   nonAdminMatches: AdminUser[];
-  resultsHint: string;
   query: string;
   viewerUserId: string;
 }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Search results" hint={resultsHint} />
+      <SectionHeader size="md" label="Search results" />
       {nonAdminMatches.length === 0 ? (
         <EmptyState>
-          No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
+          No non-admin accounts match &ldquo;{query}&rdquo;. Any matching admins are listed above.
         </EmptyState>
       ) : (
         nonAdminMatches.map((user) => (
@@ -272,7 +270,6 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
         {query ? (
           <SearchResultsCard
             nonAdminMatches={view.nonAdminMatches}
-            resultsHint={view.resultsHint}
             query={query}
             viewerUserId={viewerUserId}
           />

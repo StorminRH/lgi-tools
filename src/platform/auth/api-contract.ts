@@ -62,6 +62,17 @@ export const eveCharactersEndpoint = defineEndpoint({
   },
 });
 
+export const verifyCharacterAuthorizationEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/internal/verify-character-authorization',
+  request: null,
+  responses: {
+    200: jsonBody(z.object({ status: z.literal('checked') })),
+    401: problem('unauthenticated'),
+    500: problem('not_configured'),
+  },
+});
+
 export type CronRefreshAffiliationsResponse =
   { status: 'refreshed'; stale: number; refreshed: number };
 
@@ -154,5 +165,25 @@ export const sessionsRevokeEndpoint = defineEndpoint({
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
     429: problem('rate_limited'),
+  },
+});
+
+export const setCorpDataSharingRequestSchema = z.object({
+  corporationId: z.number().int().positive(),
+  enabled: z.boolean(),
+});
+const corpDataSharingResponseSchema = z.object({
+  corporationId: z.number(),
+  enabled: z.boolean(),
+});
+export const setCorpDataSharingEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/account/corp-sharing',
+  request: setCorpDataSharingRequestSchema,
+  responses: {
+    200: jsonBody(corpDataSharingResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('not_corp_member', 'not_director', 'cross_origin'),
   },
 });

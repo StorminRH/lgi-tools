@@ -25,7 +25,6 @@ export default function BuildTemplatesPage() {
       <PageHead
         crumb="industry/templates"
         title="Templates"
-        subtitle="Load a template into the planner — favorites lead the list"
       />
       <div className="reveal reveal-1 pb-16">
         <SavedPlansManager />

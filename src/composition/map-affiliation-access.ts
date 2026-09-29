@@ -1,3 +1,4 @@
+import { reconcileTrackingMerges } from './account-lifecycle/tracking-merge-retry';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import {
@@ -13,6 +14,7 @@ const FINALIZE_RESERVE_MS = 1_000;
 const DELIVERY_CONCURRENCY = 4;
 
 export async function reconcileAffiliationAccess(): Promise<{ processed: number; failed: number }> {
+  await reconcileTrackingMerges();
   return deliverPendingMapAccessChanges(await readPendingMapAccessChanges());
 }
 

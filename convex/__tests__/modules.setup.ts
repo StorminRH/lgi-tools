@@ -1,4 +1,6 @@
 export const modules = import.meta.glob([
+  '../accountMerge.ts',
+  '../characterAuthorization.ts',
   '../auth.config.ts',
   '../characterLocationAccess.ts',
   '../characterLocationApply.ts',
@@ -13,6 +15,7 @@ export const modules = import.meta.glob([
   '../engineScan.ts',
   '../engineSweep.ts',
   '../http.ts',
+  '../httpAccountMerge.ts',
   '../httpEngine.ts',
   '../httpJump.ts',
   '../httpLocation.ts',

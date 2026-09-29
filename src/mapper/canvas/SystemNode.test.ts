@@ -16,14 +16,8 @@ import {
 } from './ChainLinkEdge';
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import { PresenceBadgeView } from './PilotPresenceBadge';
-import {
-  SYSTEM_FRAME_HEIGHT,
-  SYSTEM_FRAME_WIDTH,
-  SystemNode,
-  chipFontSizePx,
-  nodeMotionClass,
-  type ChainNode,
-} from './SystemNode';
+import { SystemNode, chipFontSizePx, nodeMotionClass, type ChainNode } from './SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 
 const { internalNodes } = vi.hoisted(() => ({
   internalNodes: new Map<string, unknown>(),

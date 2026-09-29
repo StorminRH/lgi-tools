@@ -28,13 +28,13 @@ const SIGNAL_FOR: Record<Exclude<SliId, 'job_backlog'>, keyof SliSignals> = {
 
 const OWNER_LABEL: Record<SliOwner, string> = {
   operator: 'you',
-  'ccp-upstream': 'CCP',
+  'ccp-upstream': 'upstream',
 };
 
 function measure(id: SliId, sli: SliSignals, queue: QueueSummary) {
   if (id === 'job_backlog') {
     return {
-      value: `${queue.due.toLocaleString()} due · ${queue.deadLettered.toLocaleString()} dead`,
+      value: `${queue.due.toLocaleString()} active · ${queue.deadLettered.toLocaleString()} dead`,
       target: '0 dead',
       level: queueLevel(queue),
     };

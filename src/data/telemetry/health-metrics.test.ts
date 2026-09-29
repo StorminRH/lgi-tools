@@ -189,7 +189,7 @@ describe('deriveGscStatus', () => {
     });
     expect(s).toEqual({
       level: 'green',
-      headline: 'healthy · last run 3h ago · data through 2026-06-09',
+      headline: 'healthy · last run 3h ago · last synced 2026-06-09',
     });
   });
 

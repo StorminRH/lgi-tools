@@ -1,14 +1,29 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { is } from 'drizzle-orm';
-import { getTableConfig, integer, PgTable, pgTable, text } from 'drizzle-orm/pg-core';
+import {
+  getTableConfig,
+  integer,
+  PgTable,
+  pgTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/composition/drizzle-schema';
+import { convexUserKeyedTables } from '@/platform/purge/__tests__/convex-user-homes';
 import {
   NON_NEON_HOMES,
   findIdentityFkLeaks,
+  findMergeRuleGaps,
   findUnclaimed,
   isUserDataTable,
 } from '@/platform/purge/__tests__/coverage';
+import type { TableMergeRule } from '@/platform/purge/types';
 import { PURGE_CONTRIBUTORS } from './register-all';
+
+const CONVEX_SCHEMA_PATH = join(process.cwd(), 'convex', 'schema.ts');
 
 const tables = (Object.values(schema) as unknown[]).filter((v): v is PgTable =>
   is(v, PgTable),
@@ -35,6 +50,8 @@ describe('purge registry gate', () => {
         'corp_access_audit',
         'corp_industry_job_syncs',
         'corp_industry_jobs',
+        'corp_member_bases',
+        'corp_member_roles',
         'custom_structures',
         'esi_refresh_jobs',
         'esi_snapshots',
@@ -45,6 +62,7 @@ describe('purge registry gate', () => {
         'owned_assets',
         'owned_blueprint_syncs',
         'owned_blueprints',
+        'pending_tracking_merges',
         'saved_plans',
         'session',
         'usage_logs',
@@ -96,6 +114,97 @@ describe('purge registry gate', () => {
     expect(findUnclaimed(['corp_access_audit'], new Set(), new Set(['corp_access_audit']))).toEqual(
       [],
     );
+  });
+
+  it('every claimed or retained table has exactly one schema-consistent merge rule', () => {
+    expect(findMergeRuleGaps(PURGE_CONTRIBUTORS)).toEqual([]);
+  });
+
+  it('goes red when a real contributor drops its merge rule', () => {
+    const withoutPreferences = PURGE_CONTRIBUTORS.map((contributor) =>
+      contributor.name === 'preferences' ? { ...contributor, merge: [] } : contributor,
+    );
+    expect(findMergeRuleGaps(withoutPreferences)).toEqual(['user_preferences: no merge rule']);
+  });
+
+  it('flags missing, duplicated, stale, and schema-inconsistent merge rules', () => {
+    const owner = pgTable('user', { id: text('id').primaryKey() });
+    const orphan = pgTable('synthetic_orphan', { userId: text('user_id').references(() => owner.id) });
+    const twice = pgTable('synthetic_twice', { userId: text('user_id') });
+    const characterKeyed = pgTable('synthetic_character_keyed', {
+      characterId: integer('character_id').primaryKey(),
+    });
+    const userKeyed = pgTable('synthetic_user_keyed', { userId: text('user_id') });
+    const perUserUnique = pgTable(
+      'synthetic_per_user_unique',
+      { userId: text('user_id'), key: text('key'), day: text('day') },
+      (t) => [primaryKey({ columns: [t.userId, t.key] }), uniqueIndex('synthetic_day').on(t.day)],
+    );
+    const unclaimed = pgTable('synthetic_unclaimed', { userId: text('user_id') });
+    const rules: TableMergeRule[] = [
+      { table: twice, rule: 'rekey' },
+      { table: twice, rule: 'discard', reason: 'twice' },
+      { table: characterKeyed, rule: 'rekey' },
+      { table: userKeyed, rule: 'follows-character' },
+      { table: perUserUnique, rule: 'rekey' },
+      { table: perUserUnique, rule: 'survivor-wins', key: [perUserUnique.day] },
+      { table: unclaimed, rule: 'rekey' },
+    ];
+    expect(
+      findMergeRuleGaps([
+        { claims: [orphan, twice, characterKeyed, userKeyed, perUserUnique], merge: rules },
+      ]),
+    ).toEqual([
+      "synthetic_character_keyed: 'rekey' needs a user_id column",
+      'synthetic_orphan: no merge rule',
+      "synthetic_per_user_unique: 'rekey' would collide on the unique key (user_id, key)",
+      "synthetic_per_user_unique: 'survivor-wins' key (day, user_id) is not a declared primary key or unique constraint",
+      'synthetic_per_user_unique: 2 merge rules',
+      'synthetic_twice: 2 merge rules',
+      'synthetic_unclaimed: merge rule on a table no contributor claims or retains',
+      "synthetic_user_keyed: 'follows-character' on a table with a user_id column",
+    ]);
+    expect(
+      findMergeRuleGaps([
+        {
+          claims: [perUserUnique, characterKeyed],
+          merge: [
+            { table: perUserUnique, rule: 'survivor-wins', key: [perUserUnique.key] },
+            { table: characterKeyed, rule: 'follows-character' },
+          ],
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('every Convex table with a userId field is a declared non-Neon home with a merge statement', () => {
+    const userKeyed = convexUserKeyedTables(readFileSync(CONVEX_SCHEMA_PATH, 'utf8'));
+    expect(userKeyed).toEqual([
+      'characterLocation',
+      'characterLocationAccess',
+      'characterLocationCovered',
+      'characterLocationOnline',
+      'characterOnline',
+      'mapAccess',
+      'mapTracking',
+      'syncPresence',
+      'syncSubjects',
+    ]);
+    const homes = new Map(NON_NEON_HOMES.map((home) => [home.home, home.merge]));
+    const missing = userKeyed.filter((name) => !homes.has(`convex:${name}`));
+    expect(missing, `Convex table(s) without a NON_NEON_HOMES entry: ${missing.join(', ')}`).toEqual([]);
+    expect(homes.get('convex:mapTracking')).toContain('BEFORE reprojection');
+  });
+
+  it('the Convex census reads defineTable fields and ignores tables without userId', () => {
+    expect(
+      convexUserKeyedTables(`
+        export default defineSchema({
+          withUser: defineTable({ mapId: v.string(), userId: v.string() }).index('by_user', ['userId']),
+          withoutUser: defineTable({ mapId: v.string(), characterId: v.number() }),
+        });
+      `),
+    ).toEqual(['withUser']);
   });
 
   it('finds a novel-named foreign key to an identity table', () => {

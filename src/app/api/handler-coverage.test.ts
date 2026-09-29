@@ -54,7 +54,7 @@ vi.mock('convex/react', () => ({
 import { GET } from '@/app/api/account/characters/route';
 import { GET as AppApiAccountCorpIndustryJobsRouteGET } from '@/app/api/account/corp-industry-jobs/route';
 import { GET as AppApiAccountCorpStructuresRouteGET } from '@/app/api/account/corp-structures/route';
-import { POST } from '@/app/api/account/corp-structures/sharing/route';
+import { POST } from '@/app/api/account/corp-sharing/route';
 import { POST as AppApiAccountCustomStructuresDeleteRoutePOST } from '@/app/api/account/custom-structures/delete/route';
 import { POST as AppApiAccountCustomStructuresSetPinRoutePOST } from '@/app/api/account/custom-structures/set-pin/route';
 import { POST as AppApiAccountCustomStructuresSetTaxRoutePOST } from '@/app/api/account/custom-structures/set-tax/route';
@@ -69,6 +69,7 @@ import { POST as AppApiAdminEsiJobsRetryRoutePOST } from '@/app/api/admin/esi-jo
 import { POST as AppApiAdminWhStaticsRoutePOST } from '@/app/api/admin/wh-statics/route';
 import { GET as AppApiAuthAllRouteGET } from '@/app/api/auth/[...all]/route';
 import { maxDuration } from '@/app/api/cron/purge-maps/route';
+import { maxDuration as CharacterAuthorizationMaxDuration } from '@/app/api/internal/verify-character-authorization/route';
 import { GET as AppApiCronRefreshAffiliationsRouteGET, maxDuration as AppApiCronRefreshAffiliationsRouteMaxDuration } from '@/app/api/cron/refresh-affiliations/route';
 import { GET as AppApiCronRefreshGscRouteGET } from '@/app/api/cron/refresh-gsc/route';
 import { GET as AppApiCronRefreshIndustryIndicesRouteGET, maxDuration as AppApiCronRefreshIndustryIndicesRouteMaxDuration } from '@/app/api/cron/refresh-industry-indices/route';
@@ -111,6 +112,7 @@ describe('coverage-gaps', () => {
       AppApiAdminWhStaticsRoutePOST,
       AppApiAuthAllRouteGET,
       maxDuration,
+      CharacterAuthorizationMaxDuration,
       AppApiCronRefreshAffiliationsRouteGET,
       AppApiCronRefreshAffiliationsRouteMaxDuration,
       AppApiCronRefreshGscRouteGET,

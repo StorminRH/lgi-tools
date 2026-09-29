@@ -3,6 +3,7 @@ import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   getCoverageTrend,
   getLastSyncedAt,
+  getLatestReportDate,
   getLatestUrlCoverage,
   getSearchTotals,
   getSearchTrend,
@@ -42,6 +43,7 @@ function expectNonEmptyArray(result: unknown): void {
 }
 
 const cases: QueryCase[] = [
+  { name: 'getLatestReportDate', run: () => getLatestReportDate(), check: (day) => expect(day).toBe('2020-01-02') },
   { name: 'getSearchTrend', run: () => getSearchTrend(RANGE), check: expectNonEmptyArray },
   {
     name: 'getSearchTotals',
@@ -93,6 +95,7 @@ const cases: QueryCase[] = [
         { day: '2020-01-02', indexed: 0, notIndexed: 2 },
         { day: '2020-01-03', indexed: 1, notIndexed: 1 },
         { day: '2020-01-05', indexed: 0, notIndexed: 1 },
+        { day: '2020-01-07', indexed: 0, notIndexed: 0 },
       ]);
     },
   },
@@ -118,6 +121,7 @@ describe.skipIf(!harness.reachable)('admin GSC analytics queries execute against
       { path: '/sitemap.xml', submitted: 100, indexed: 90, syncedAt: SYNCED_AT },
     ]);
     await seedDb.insert(gscUrlInspection).values([
+      { inspectionDate: '2020-01-07', url: 'https://lgi.tools/unknown', sitemapUrlCount: 1, verdict: null, syncedAt: SYNCED_AT },
       {
         inspectionDate: '2020-01-01',
         url: 'https://lgi.tools/',
@@ -223,5 +227,6 @@ describe.skipIf(!harness.reachable)('admin GSC analytics queries execute against
   it('getLastSyncedAt returns null when nothing has synced', async () => {
     await harness.db.delete(gscSearchAnalytics);
     expect(await getLastSyncedAt()).toBeNull();
+    expect(await getLatestReportDate()).toBeNull();
   });
 });

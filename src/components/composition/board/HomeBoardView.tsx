@@ -132,8 +132,8 @@ function PilotBoard({
     [board.characters],
   );
 
-  // Link/router navigation updates search params without a popstate event.
-  // Reconcile it through the same transition as the board's own controls.
+  // Reconcile history navigation after Next updates the URL. Starting this
+  // transition inside popstate makes React skip the animation for restoration.
   const searchParam = characterParam(params);
   useEffect(() => {
     if (searchParam !== param) show(searchParam);
@@ -161,20 +161,17 @@ function PilotBoard({
   // On the always-mounted board, not on the sheet: an Escape pressed while
   // the sheet is still animating in was missed when the sheet owned it.
   useEffect(() => {
-    const onPop = () => show(urlParam());
     const onKey = (event: KeyboardEvent) => {
       // An open drawer or dialog owns Escape: it closes first, the sheet stays.
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (document.querySelector('[data-drawer-popup], [role="dialog"]') !== null) return;
       toOverview();
     };
-    window.addEventListener('popstate', onPop);
     window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('popstate', onPop);
       window.removeEventListener('keydown', onKey);
     };
-  }, [show, toOverview]);
+  }, [toOverview]);
 
   const shownId = view.view === 'character' ? view.characterId : null;
   const shownBefore = useRef(shownId);

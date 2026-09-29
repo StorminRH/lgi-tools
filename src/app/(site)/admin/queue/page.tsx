@@ -5,7 +5,6 @@ export default function AdminQueuePage() {
   return (
     <AdminPageFrame
       title="Refresh queue"
-      description="Deferred ESI refreshes for pilot and corporation data. Retry dead-lettered jobs here once the cause is fixed."
       fallbackLabel="Queue"
     >
       <AdminSlot label="Queue" rows={2} reveal={1}>

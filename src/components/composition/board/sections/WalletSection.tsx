@@ -7,7 +7,7 @@ import { formatUtcDate } from '@/lib/format/time';
 import { BalanceTrend } from '../BalanceTrend';
 import { FlowLine } from '../board-bits';
 import { pilotWorthSeries, recentJournal } from '../board-view-model';
-import { SectionBody, SectionPanel, updatedLabel } from '../SectionBody';
+import { SectionBody, SectionPanel } from '../SectionBody';
 import { WorthChart, WorthHeadline } from '../WorthChart';
 
 type Journal = Extract<BoardCharacter['journal'], { state: 'ready' }>['data'];
@@ -60,7 +60,7 @@ export function WalletSection({
   const { wallet, journal } = character;
   const worth = character.netWorth.state === 'ready' ? character.netWorth.data.total : null;
   return (
-    <SectionPanel title="Wallet" meta={updatedLabel(wallet, now)} className={className}>
+    <SectionPanel title="Wallet" className={className}>
       <SectionBody section={wallet}>
         {({ balance }) => (
           <>

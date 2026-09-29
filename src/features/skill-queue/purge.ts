@@ -7,6 +7,10 @@ export const skillQueuePurgeContributor: PurgeContributor = {
   name: 'skill-queue',
   tier: 'cache',
   claims: [characterSkills, characterSkillSyncs],
+  merge: [
+    { table: characterSkills, rule: 'follows-character' },
+    { table: characterSkillSyncs, rule: 'follows-character' },
+  ],
   async purgeCharacter({ characterId }) {
     await db.delete(characterSkills).where(eq(characterSkills.characterId, characterId));
     await db.delete(characterSkillSyncs).where(eq(characterSkillSyncs.characterId, characterId));

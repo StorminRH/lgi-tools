@@ -26,14 +26,14 @@ export function deriveGscMultiples(input: {
       value: totals.impressions.toLocaleString(),
       delta: computeDelta(totals.impressions, prevTotals?.impressions ?? null),
       invert: false,
-      note: 'times shown in results',
     },
     {
       title: 'Avg position',
-      value: totals.position.toFixed(1),
-      delta: computeDelta(totals.position, prevTotals?.position ?? null),
+      value: totals.impressions > 0 ? totals.position.toFixed(1) : '—',
+      delta: totals.impressions > 0 && prevTotals && prevTotals.impressions > 0
+        ? computeDelta(totals.position, prevTotals.position)
+        : null,
       invert: true,
-      note: 'lower = better',
     },
   ];
 }

@@ -133,6 +133,18 @@ const SECTION_KEYS = ['skills', 'profile', 'status', 'attributes', 'implants', '
 const states = (character: BoardCharacter) =>
   Object.fromEntries(SECTION_KEYS.map((key) => [key, character[key].state]));
 
+it('excludes denied active implants from name lookup and valuation while keeping jump-clone implants', () => {
+  const ids = collectNameIds([raw({ sheet: {
+    ...FULL_SHEET,
+    implants: { ...envelope<'implants'>({ implants: [10222, 10217] }), denied: true },
+  } })]);
+  expect(ids.typeIds).not.toContain(10222);
+  expect(ids.typeIds).not.toContain(10217);
+  expect(ids.valuationTypeIds).not.toContain(10222);
+  expect(ids.valuationTypeIds).not.toContain(10217);
+  expect(ids.typeIds).toEqual(expect.arrayContaining([10216, 10208]));
+});
+
 describe('assembleBoardCharacter section states', () => {
   it('marks every section reconnect and names every gap when there is no refresh token', () => {
     const character = assembleBoardCharacter(raw({ health: { hasRefreshToken: false, missingScopes: [] } }), NAMES, NOW);

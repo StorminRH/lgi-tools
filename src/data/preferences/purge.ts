@@ -7,6 +7,7 @@ export const preferencesPurgeContributor: PurgeContributor = {
   name: 'preferences',
   tier: 'durable',
   claims: [userPreferences],
+  merge: [{ table: userPreferences, rule: 'survivor-wins', key: [userPreferences.key] }],
   async purgeUser({ userId }) {
     await db.delete(userPreferences).where(eq(userPreferences.userId, userId));
   },

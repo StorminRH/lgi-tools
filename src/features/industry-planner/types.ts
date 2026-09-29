@@ -153,6 +153,7 @@ export interface OwnedBlueprintMeEntry {
   ownerName: string;
   locationName: string;
   locationFlag: string;
+  containerName: string | null;
 }
 
 export interface OwnedBlueprintsResponse {
@@ -166,6 +167,7 @@ export interface AssetHolding {
   ownerName: string;
   locationName: string;
   locationFlag: string;
+  containerName: string | null;
   quantity: number;
 }
 

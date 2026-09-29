@@ -1,4 +1,4 @@
-import { computeDelta, type Delta, type RangeKey } from '@/composition/admin-period';
+import { computeDelta, type Delta } from '@/composition/admin-period';
 
 export interface MetricRow {
   label: string;
@@ -15,6 +15,7 @@ function perDay(total: number, rangeDays: number): string | null {
 
 export function buildMetricRows(args: {
   rangeDays: number;
+  gscRangeDays?: number;
   pageViews: { referred: number; direct: number };
   users: { newUsers: number; returning: number };
   gscTotals: { clicks: number; impressions: number } | null;
@@ -24,6 +25,7 @@ export function buildMetricRows(args: {
 }): MetricRow[] {
   const {
     rangeDays,
+    gscRangeDays = rangeDays,
     pageViews,
     users,
     gscTotals,
@@ -46,34 +48,24 @@ export function buildMetricRows(args: {
       ),
     },
     {
-      label: 'Signed-in users',
+      label: 'Active users',
       value: usersTotal.toLocaleString(),
-      avg: perDay(usersTotal, rangeDays),
+      avg: null,
       delta: computeDelta(usersTotal, prevUsers ? prevUsers.newUsers + prevUsers.returning : null),
     },
     {
       label: 'Search clicks',
       value: gscTotals ? gscTotals.clicks.toLocaleString() : '—',
-      avg: gscTotals ? perDay(gscTotals.clicks, rangeDays) : null,
+      avg: gscTotals ? perDay(gscTotals.clicks, gscRangeDays) : null,
       delta: gscTotals ? computeDelta(gscTotals.clicks, prevGscTotals?.clicks ?? null) : null,
     },
     {
       label: 'Search impressions',
       value: gscTotals ? gscTotals.impressions.toLocaleString() : '—',
-      avg: gscTotals ? perDay(gscTotals.impressions, rangeDays) : null,
+      avg: gscTotals ? perDay(gscTotals.impressions, gscRangeDays) : null,
       delta: gscTotals
         ? computeDelta(gscTotals.impressions, prevGscTotals?.impressions ?? null)
         : null,
     },
   ];
-}
-
-const RANGE_NOUN: Record<Exclude<RangeKey, 'all'>, string> = {
-  '7d': '7 days',
-  '30d': '30 days',
-  '90d': '90 days',
-};
-
-export function metricsHint(rangeKey: RangeKey): string {
-  return rangeKey === 'all' ? 'all time' : `Δ vs previous ${RANGE_NOUN[rangeKey]}`;
 }

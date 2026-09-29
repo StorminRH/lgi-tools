@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { Input } from '@/components/ui/input';
-import { Popover } from '@/components/ui/popover';
+import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
@@ -101,9 +101,7 @@ export function TemplatesMenu({
         </>
       }
     >
-      <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
-        Saved templates
-      </span>
+      <PopoverHeading>Saved templates</PopoverHeading>
 
       <div className="flex items-center gap-2">
         <Input

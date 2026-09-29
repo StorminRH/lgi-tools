@@ -4,23 +4,21 @@ import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
-import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Collapsible } from '@/components/ui/collapsible';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
-import { SectionHeader } from '@/components/ui/section-header';
 import { getFullSession } from '@/composition/session';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
+import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
 import { SwitchCharacterForm } from '@/components/composition/account/SwitchCharacterForm';
 import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { SectionHead } from '@/components/ui/section-head';
-import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
+import { deriveCharacterRowView } from './characters-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
   account_already_linked_to_different_user: 'That character is already linked to another account.',
@@ -30,7 +28,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "email_doesn't_match": 'Linking failed. Please try again.',
 };
 
-type CharactersSearchParams = Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
+type CharactersSearchParams = Promise<{ error?: string | string[] }>;
 
 function CharacterRowActions({
   characterId,
@@ -99,6 +97,12 @@ function CharacterRow({
           />
         }
       />
+      {view.authorizationDelayed ? (
+        <Callout className="mx-3.5 my-2" label="Verification delayed">
+          We couldn&apos;t verify this character with EVE. Shared access through this character is
+          paused while we retry automatically. Access resumes when verification succeeds.
+        </Callout>
+      ) : null}
       {view.scopes.length > 0 ? (
         <Collapsible
           className="border-b-0"
@@ -125,63 +129,40 @@ function CharacterRow({
   );
 }
 
-function CharacterNotices({
-  absorbedCharacter,
-  error,
-}: {
-  absorbedCharacter: LinkedCharacter | undefined;
-  error: string | null;
-}) {
-  return (
-    <>
-      {absorbedCharacter ? (
-        <Callout label="Character moved">
-          {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
-          moved it into this one. Everything tracked for that character came along.
-        </Callout>
-      ) : null}
-      {error ? <Callout label="Heads up">{error}</Callout> : null}
-    </>
-  );
-}
-
 async function CharactersContent({ searchParams }: { searchParams: CharactersSearchParams }) {
   const session = await getFullSession();
   if (!session) {
     redirect('/?auth_error=login_required');
   }
 
-  const [{ error: rawError, absorbed: rawAbsorbed }, characters] = await Promise.all([
+  const [{ error: rawError }, characters] = await Promise.all([
     searchParams,
     listLinkedCharacters(session.user.id),
   ]);
   const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
   const isOnlyCharacter = characters.length <= 1;
-  const absorbedCharacter = deriveAbsorbedCharacter(rawAbsorbed, characters);
 
   return (
     <>
-      <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
+      {error ? <Callout label="Heads up">{error}</Callout> : null}
 
-      <Card className="reveal reveal-1">
-        <SectionHeader size="md" label="Your characters" hint={`${characters.length} linked`} />
-        {characters.length === 0 ? (
-          <EmptyState>No characters linked to this account.</EmptyState>
-        ) : (
-          characters.map((character) => (
-            <CharacterRow
-              key={character.characterId}
-              character={character}
-              isActive={character.characterId === session.characterId}
-              isOnlyCharacter={isOnlyCharacter}
-            />
-          ))
-        )}
+      <LinkedCharactersCard
+        label="Your characters"
+        count={characters.length}
+        rows={characters.map((character) => (
+          <CharacterRow
+            key={character.characterId}
+            character={character}
+            isActive={character.characterId === session.characterId}
+            isOnlyCharacter={isOnlyCharacter}
+          />
+        ))}
+      >
         <div className="border-t border-border-soft px-3.5 py-3">
           <LinkCharacterButton label="Link another character" />
         </div>
         <div className="border-t border-border-soft px-3.5 py-2.5 text-ui leading-relaxed text-muted">
-          LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
+          Manage EVE access:{' '}
           <a
             href={EVE_AUTHORIZED_APPS_URL}
             target="_blank"
@@ -189,18 +170,17 @@ async function CharactersContent({ searchParams }: { searchParams: CharactersSea
             className="text-tone-blue hover:underline"
           >
             EVE authorized apps
-          </a>{' '}
-          page, or see{' '}
+          </a> ·{' '}
           <Link href="/legal" className="text-tone-blue hover:underline">
-            how we handle your data
+            Data policy
           </Link>
-          . Purging a character&apos;s stored data lives under{' '}
+          {' '}·{' '}
           <Link href="/settings/account" className="text-tone-blue hover:underline">
-            Account
+            Purge data
           </Link>
           .
         </div>
-      </Card>
+      </LinkedCharactersCard>
     </>
   );
 }

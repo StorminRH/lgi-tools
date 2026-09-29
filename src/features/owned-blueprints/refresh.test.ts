@@ -64,7 +64,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     expect(port.save).not.toHaveBeenCalled();
   });
 
-  it('fetches and saves a stale owner, dropping item_id via the projection', async () => {
+  it('fetches and saves a stale owner, retaining item_id in the projection', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => null),
@@ -85,6 +85,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     expect(save[0]).toEqual({ ownerType: 'character', ownerId: 1 });
     expect(save[1]).toEqual([
       {
+        item_id: 9_999,
         type_id: 34,
         material_efficiency: 10,
         time_efficiency: 20,

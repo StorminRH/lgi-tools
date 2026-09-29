@@ -10,7 +10,7 @@ export const CORP_STRUCTURES_SYNC_SCOPES = [
   'esi-corporations.read_structures.v1',
 ] as const;
 
-export const CORP_STRUCTURES_REQUIRED_ROLES = ['Station_Manager'] as const;
+export const CORP_STRUCTURES_REQUIRED_ROLES = ['Station_Manager', 'Director'] as const;
 
 export function canSyncCorpStructures(character: {
   hasRefreshToken: boolean;

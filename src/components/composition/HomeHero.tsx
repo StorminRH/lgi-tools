@@ -41,9 +41,7 @@ export function HomeHero() {
       <HomeOrbits />
       <HeroBanner />
       <p className="reveal reveal-3 max-w-[560px] text-lead leading-[1.7] text-text">
-        Eve Online tools for wormhole and industry pilots: a searchable wormhole
-        site database with live Jita loot prices, and a manufacturing
-        profitability planner.
+        Wormhole sites, Jita loot prices, and industry planning.
       </p>
       <div className="reveal reveal-4">
         <EveSignInButton size="lg" />

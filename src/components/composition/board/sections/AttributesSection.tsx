@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
 import { TypeIcon } from '@/components/type-icon';
-import { Collapsible } from '@/components/ui/collapsible';
-import { cn } from '@/components/ui/cn';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { eyebrow } from '@/components/ui/type-roles';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { AttributeKey } from '@/data/eve-data/character-attributes';
 import { formatUtcDate } from '@/lib/format/time';
-import { readoutSurface, SectionBody, updatedLabel } from '../SectionBody';
+import { SectionPanel, SectionBody } from '../SectionBody';
 
 const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   intelligence: 'Intelligence',
@@ -23,55 +20,21 @@ const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
 type Attributes = Extract<BoardCharacter['attributes'], { state: 'ready' }>['data'];
 type Implants = Extract<BoardCharacter['implants'], { state: 'ready' }>['data'];
 
-const DESKTOP = '(min-width: 1024px)';
-
-function subscribeDesktop(onChange: () => void): () => void {
-  const query = window.matchMedia(DESKTOP);
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-function useOpenOnDesktop(): [boolean, (open: boolean) => void] {
-  const desktop = useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP).matches, () => false);
-  const [toggled, setToggled] = useState<boolean | null>(null);
-  return [toggled ?? desktop, setToggled];
-}
-
 export function AttributesSection({
   attributes,
   implants,
-  now,
   className,
 }: {
   attributes: BoardCharacter['attributes'];
   implants: BoardCharacter['implants'];
-  now: number;
   className?: string;
 }) {
-  const [open, setOpen] = useOpenOnDesktop();
   return (
-    <div className={cn(readoutSurface, className)}>
-      <Collapsible
-        open={open}
-        onOpenChange={setOpen}
-        headerClassName="bg-row-hover px-3.5 py-2"
-        header={
-          <span className="flex w-full items-center justify-between gap-2">
-            <span className={eyebrow({ weight: 'semibold', emphasis: 'strong' })}>
-              <span aria-hidden className="mr-2 inline-block text-faint transition-transform group-open:rotate-90">
-                ›
-              </span>
-              Attributes &amp; implants
-            </span>
-            <span className="text-micro text-muted">{updatedLabel(attributes, now)}</span>
-          </span>
-        }
-      >
-        <SectionBody section={attributes}>{(data) => <AttributeGrid attributes={data} />}</SectionBody>
-        <SectionHeader label="Implants" variant="bar" className="border-t" />
-        <SectionBody section={implants}>{(data) => <ImplantList implants={data} />}</SectionBody>
-      </Collapsible>
-    </div>
+    <SectionPanel title="Attributes & implants" className={className}>
+      <SectionBody section={attributes}>{(data) => <AttributeGrid attributes={data} />}</SectionBody>
+      <SectionHeader label="Implants" variant="bar" className="border-t" />
+      <SectionBody section={implants}>{(data) => <ImplantList implants={data} />}</SectionBody>
+    </SectionPanel>
   );
 }
 

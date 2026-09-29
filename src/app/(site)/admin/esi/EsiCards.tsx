@@ -8,7 +8,7 @@ import { trendSeries } from '@/composition/admin-period';
 import { fallbackRatePoints } from '@/data/telemetry/health-metrics';
 import {
   getDegradationByCaller,
-  getEsiSuccessRate,
+  getEsiAvailability,
   getHistorySourceSplit,
   getPriceSourceSplit,
   getTopCostlyEndpoints,
@@ -43,13 +43,13 @@ export async function BudgetCard() {
   const view = deriveBudgetView(fetched);
   return (
     <Card data-admin-budget className="h-full">
-      <SectionHeader size="md" label="Error budget" hint="live · shared across every ESI call" />
+      <SectionHeader size="md" label="Error budget" />
       <div className="flex flex-col gap-2 px-3.5 py-3">
         <div className="flex items-baseline gap-2">
           <span className={cn('font-data text-stat tabular-nums', LEVEL_VALUE_CLASS[gauge.level])}>
             {gauge.remaining}
           </span>
-          <span className="font-ui text-ui text-muted">of {gauge.ceiling} errors left in CCP&apos;s window</span>
+          <span className="font-ui text-ui text-muted">of {gauge.ceiling} estimated errors remaining</span>
         </div>
         <ProgressBar pct={gauge.pct} />
         <span className="font-ui text-label text-muted">{view.headline}</span>
@@ -66,7 +66,7 @@ export async function BudgetCard() {
 export async function PressureCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('esi-pressure', () =>
     Promise.all([
-      getEsiSuccessRate(range),
+      getEsiAvailability(range),
       getBudgetExhaustionCountShared(range),
       getFallbackRateShared(range),
       getDegradationByCaller(range),
@@ -82,7 +82,7 @@ export async function PressureCard({ range }: { range: DateRange }) {
         label="Rate-limit pressure"
         hint={<CardLink href="/admin/queue">Queue</CardLink>}
       />
-      <StatusLines lines={derivePressureLines({ esiSuccess, budgetExhaustions, fallback, degradation, queue })} />
+      <StatusLines lines={derivePressureLines({ esiSuccess: esiSuccess.rate, esiSamples: esiSuccess.total, budgetExhaustions, fallback, degradation, queue })} />
     </Card>
   );
 }
@@ -99,10 +99,10 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
   );
   return (
     <Card>
-      <SectionHeader size="md" label="Price-source health" hint="ESI first, Fuzzwork when ESI is out of budget" />
+      <SectionHeader size="md" label="Scheduled price sources" />
       <div className="grid grid-cols-1 divide-y divide-border-soft md:grid-cols-2 md:divide-x md:divide-y-0">
         <div className="px-3.5 py-3">
-          <SectionHeader variant="sub" label="Fuzzwork share by day" className="mb-2" />
+          <SectionHeader variant="sub" label="Scheduled Fuzzwork share by day" className="mb-2" />
           {fallback.perDay.length === 0 ? (
             <EmptyState>No price refreshes in this range.</EmptyState>
           ) : (
@@ -115,7 +115,7 @@ export async function PriceSourceCard({ range }: { range: DateRange }) {
           )}
         </div>
         <div className="px-3.5 py-3">
-          <SectionHeader variant="sub" label="Degraded reads by caller" className="mb-2" />
+          <SectionHeader variant="sub" label="Fallback refreshes by caller" className="mb-2" />
           {degradation.length === 0 ? (
             <EmptyState>No degraded price reads in this range.</EmptyState>
           ) : (
@@ -160,11 +160,11 @@ export async function CostCards({ range }: { range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card className="h-full">
-        <SectionHeader size="md" label="Request cost" hint="where prices and history came from" />
+        <SectionHeader size="md" label="On-demand prices & history" />
         <MetricList rows={view.metrics} />
       </Card>
       <Card className="h-full">
-        <SectionHeader size="md" label="Busiest owned-data endpoints" hint="requests · avg duration" />
+        <SectionHeader size="md" label="Busiest owned-data endpoints" />
         {view.endpoints.length === 0 ? (
           <EmptyState>No owned-data reads in this range.</EmptyState>
         ) : (

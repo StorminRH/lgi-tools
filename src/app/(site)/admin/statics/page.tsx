@@ -32,9 +32,9 @@ function promotedSubtitle(
   systemCount: number,
 ): string {
   if (version === '') {
-    return 'No snapshot is promoted yet. Review the community refresh before it reaches serving.';
+    return 'No promoted snapshot.';
   }
-  return `Serving feed v${version} across ${systemCount.toLocaleString()} systems.`;
+  return `v${version} · ${systemCount.toLocaleString()} systems`;
 }
 
 function ActionForm({
@@ -104,7 +104,7 @@ function DifferenceDetails({
       defaultOpen
       header={
         <span className="font-ui text-ui text-text">
-          Complete assignment difference ({difference.totalDifferences})
+          Systems with assignment changes ({difference.totalDifferences})
         </span>
       }
     >
@@ -137,13 +137,13 @@ function DifferenceDetails({
           )}
         </div>
         <div>
-          <h3 className="mb-2 font-ui text-ui text-muted">Codes added</h3>
+          <h3 className="mb-2 font-ui text-ui text-muted">New code types</h3>
           <p className="font-data text-ui text-text">
             {difference.codesAdded.join(', ') || 'None.'}
           </p>
         </div>
         <div>
-          <h3 className="mb-2 font-ui text-ui text-muted">Codes removed</h3>
+          <h3 className="mb-2 font-ui text-ui text-muted">Removed code types</h3>
           <p className="font-data text-ui text-text">
             {difference.codesRemoved.join(', ') || 'None.'}
           </p>
@@ -211,11 +211,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
   const { difference, crossCheck } = snapshot;
   return (
     <Card>
-      <SectionHeader
-        size="md"
-        label={`Pending feed v${snapshot.feedVersion}`}
-        hint={`${snapshot.systemCount.toLocaleString()} systems`}
-      />
+      <SectionHeader size="md" label={`Pending feed v${snapshot.feedVersion}`} />
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 py-4 font-data text-ui md:grid-cols-4">
         <div>
           <dt className="text-muted">Systems added</dt>
@@ -235,9 +231,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
         </div>
       </dl>
       <p className="border-t border-border-soft px-4 py-3 font-ui text-ui text-muted">
-        Independent lineage agrees across{' '}
-        {crossCheck.agreedSystems.toLocaleString()} systems. Inspect every
-        structural difference before promoting.
+        {crossCheck.agreedSystems.toLocaleString()} systems match independent lineage.
       </p>
       <DifferenceDetails snapshot={snapshot} />
       <LineageDetails snapshot={snapshot} />
@@ -267,7 +261,7 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
 function ServingStatus({ version, systemCount }: { version: string; systemCount: number }) {
   return (
     <Card>
-      <SectionHeader size="md" label="Serving copy" hint="what the app reads today" />
+      <SectionHeader size="md" label="Serving copy" />
       <p className="px-4 py-3 font-ui text-ui text-muted">{promotedSubtitle(version, systemCount)}</p>
     </Card>
   );
@@ -295,8 +289,7 @@ async function StaticsContent({
         <Card>
           <SectionHeader size="md" label="Pending review" />
           <EmptyState>
-            No statics snapshot is waiting for review. The daily check records one when the
-            community feed changes; use Check feed now to look immediately.
+            No pending snapshot.
           </EmptyState>
         </Card>
       )}
@@ -312,7 +305,6 @@ export default function StaticsPage({
   return (
     <AdminPageFrame
       title="Wormhole statics"
-      description="Review the complete community-feed difference before it changes what the app serves."
       actions={<ActionForm action="refresh" label="Check feed now" />}
       fallbackLabel="Serving copy"
     >

@@ -54,7 +54,7 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
 vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: (...args: unknown[]) => h.accountBelongsToUser(...args),
 }));
-vi.mock('@/composition/sync/corp-structures-sync', () => ({
+vi.mock('@/composition/corp-role-gates', () => ({
   stationManagerGate: (...args: unknown[]) => h.stationManagerGate(...args),
 }));
 vi.mock('@/features/owned-structures/queries', () => ({
@@ -261,7 +261,7 @@ describe('route-level problem status matrix', () => {
       failure: {
         category: 'forbidden',
         code: 'not_station_manager',
-        detail: 'Requires the Station Manager role',
+        detail: 'Requires the Station Manager or Director role',
       },
     });
     await expectProblem(

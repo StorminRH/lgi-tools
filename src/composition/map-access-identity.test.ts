@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
+  reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+}));
+
 const mocks = vi.hoisted(() => ({
   getOwnedMapIds: vi.fn(),
   projectMapAccess: vi.fn(),
@@ -10,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   enqueueAffectedMapAccessChanges: vi.fn(),
   acknowledgeMapAccessChanges: vi.fn(),
   readPendingMapAccessChanges: vi.fn(),
+  eraseNetWorthHistoryForCharacter: vi.fn(),
+}));
+
+vi.mock('@/features/net-worth/purge', () => ({
+  eraseNetWorthHistoryForCharacter: mocks.eraseNetWorthHistoryForCharacter,
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -150,6 +159,7 @@ describe('map-access-identity', () => {
       userId: 'departing-user', characterId: 42, mapIds: ['map-a'],
     });
     expect(mocks.revokeUserMapClaims).toHaveBeenCalledWith('departing-user', ['map-a']);
+    expect(mocks.eraseNetWorthHistoryForCharacter).toHaveBeenCalledWith('departing-user', 42);
   });
 
   it.each(['enqueue', 'acknowledge'])('still tears down location when map %s fails', async (stage) => {

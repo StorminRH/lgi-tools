@@ -32,7 +32,6 @@ vi.mock('./statics-review-shared', () => ({
 function staticsFrame() {
   return AdminPageFrame({
     title: 'Wormhole statics',
-    description: 'Review the feed difference.',
     rangeBasePath: '/admin/statics',
     actions: createElement('button', { type: 'submit' }, 'Check feed now'),
     fallbackLabel: 'Serving copy',

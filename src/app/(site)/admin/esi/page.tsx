@@ -29,7 +29,6 @@ export default function AdminEsiPage({ searchParams }: { searchParams: RangeSear
   return (
     <AdminPageFrame
       title="ESI & rate limits"
-      description="CCP's shared error budget, how often we run into it, and what our ESI traffic costs."
       rangeBasePath="/admin/esi"
       fallbackLabel="Error budget"
     >

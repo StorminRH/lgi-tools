@@ -50,6 +50,7 @@ test('sends a JSON body request with bearer auth and returns the declared succes
 
   const outcome = await serviceFetch(bodyEndpoint, {
     ...init,
+    timeoutMs: 115_000,
     body: { userId: 'user-1' },
   });
 
@@ -61,8 +62,7 @@ test('sends a JSON body request with bearer auth and returns the declared succes
       Authorization: 'Bearer service-secret',
     },
     body: JSON.stringify({ userId: 'user-1' }),
-  });
-  expect(fetchWithTimeout.mock.calls[0]).toHaveLength(2);
+  }, 115_000);
 });
 
 test('omits the body for a request-less endpoint and attaches the Vercel bypass header when set', async () => {
@@ -72,7 +72,7 @@ test('omits the body for a request-less endpoint and attaches the Vercel bypass 
   expect(fetchWithTimeout).toHaveBeenCalledWith('https://app.test/api/internal/test-status', {
     method: 'GET',
     headers: { Authorization: 'Bearer service-secret' },
-  });
+  }, undefined);
 
   fetchWithTimeout.mockClear();
   vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
@@ -85,7 +85,7 @@ test('omits the body for a request-less endpoint and attaches the Vercel bypass 
       Authorization: 'Bearer service-secret',
       'x-vercel-protection-bypass': 'bypass-secret',
     },
-  });
+  }, undefined);
 });
 
 test('classifies API, protocol, and network failures without throwing', async () => {

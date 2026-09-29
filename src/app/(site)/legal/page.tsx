@@ -121,9 +121,9 @@ export default function LegalPage() {
                 , EVE tells us who your character is, and you grant LGI.tools access to some of your EVE
                 character data. EVE lists the requested scopes on its consent screen. You can review
                 the granted scopes afterward on your EVE account&apos;s{' '}
-                <a href={EVE_AUTHORIZED_APPS_URL} target="_blank" rel="noopener noreferrer">
+                <ExternalLink href={EVE_AUTHORIZED_APPS_URL}>
                   Authorized Applications page
-                </a>
+                </ExternalLink>
                 . The <Link href="/settings/characters">Characters settings page</Link> also shows what each linked
                 character has granted.
               </p>

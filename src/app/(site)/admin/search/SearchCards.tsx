@@ -3,7 +3,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
-import { previousRange, type RangeKey } from '@/composition/admin-period';
 import {
   getSearchTotals,
   getSearchTrend,
@@ -23,11 +22,6 @@ import { SectionUnavailable } from '../SectionUnavailable';
 import { deriveGscPerformanceView } from '../traffic-view';
 
 const TREND_UNITS = ['count', 'count', 'position'] as const;
-
-function pctLabel(part: number, total: number): string {
-  if (total === 0) return '0%';
-  return `${Math.round((part / total) * 100)}%`;
-}
 
 function GscTermRow({ term, max, total }: { term: GscTermStat; max: number; total: number }) {
   const pct = max === 0 ? 0 : Math.max(2, Math.round((term.clicks / max) * 100));
@@ -64,23 +58,21 @@ function TermList({ terms, total, empty }: { terms: GscTermStat[]; total: number
 export function SearchNotConnected() {
   return (
     <Card>
-      <SectionHeader size="md" label="Search Console" hint="not connected" />
+      <SectionHeader size="md" label="Search Console" />
       <EmptyState>
-        Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync clicks, queries, and index
-        coverage from Google Search Console.
+        Search Console not connected.
       </EmptyState>
     </Card>
   );
 }
 
-export async function PerformanceCard({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
-  const prev = previousRange(rangeKey, range);
+export async function PerformanceCard({ range, previous }: { range: DateRange; previous: DateRange | null }) {
   const fetched = await loadSection('search-performance', () =>
     Promise.all([
       getLastSyncedAtShared(),
       getSearchTrend(range),
       getSearchTotals(range),
-      prev ? getSearchTotals(prev) : Promise.resolve(null),
+      previous ? getSearchTotals(previous) : Promise.resolve(null),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Search performance" />;
@@ -89,7 +81,7 @@ export async function PerformanceCard({ rangeKey, range }: { rangeKey: RangeKey;
   const trends = [view.clicksTrend, view.impressionsTrend, view.positionTrend] as const;
   return (
     <Card>
-      <SectionHeader size="md" label="Performance" hint={`Google data lags ~2–3 days · last synced ${view.asOf}`} />
+      <SectionHeader size="md" label="Performance" />
       {view.hasTrend ? (
         <MultiplesGrid>
           {deriveGscMultiples({ totals, prevTotals }).map((cell, i) => (
@@ -126,11 +118,11 @@ export async function TermCards({ range }: { range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card className="h-full">
-        <SectionHeader size="md" label="Top queries" hint="clicks · share of all clicks" />
+        <SectionHeader size="md" label="Top queries" />
         <TermList terms={queries} total={totals.clicks} empty="No search queries in this range." />
       </Card>
       <Card className="h-full">
-        <SectionHeader size="md" label="Top pages in search" hint="clicks · share of all clicks" />
+        <SectionHeader size="md" label="Top pages in search" />
         <TermList terms={pages} total={totals.clicks} empty="No search-landing pages in this range." />
       </Card>
     </div>
@@ -143,15 +135,12 @@ function SitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
       <div className="mb-1 flex items-center justify-between">
         <span className="break-all font-data text-ui text-text">{sitemap.path}</span>
         <span className="ml-3 shrink-0 font-data text-ui tabular-nums text-muted">
-          {sitemap.indexed.toLocaleString()} / {sitemap.submitted.toLocaleString()} indexed
+          {sitemap.submitted.toLocaleString()} URLs submitted
         </span>
       </div>
       <div className="font-data text-micro text-muted">
-        {sitemap.submitted === 0
-          ? 'no URLs submitted'
-          : `${pctLabel(sitemap.indexed, sitemap.submitted)} coverage`}{' '}
-        · {sitemap.errors} errors · {sitemap.warnings} warnings
-        {sitemap.lastDownloaded ? ` · crawled ${formatIsoDay(sitemap.lastDownloaded)}` : ''}
+        {sitemap.errors} errors · {sitemap.warnings} warnings
+        {sitemap.lastDownloaded ? ` · downloaded ${formatIsoDay(sitemap.lastDownloaded)}` : ''}
         {sitemap.isPending ? ' · pending' : ''}
       </div>
     </li>
@@ -163,7 +152,7 @@ export async function SitemapsCard() {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Sitemaps" />;
   return (
     <Card>
-      <SectionHeader size="md" label="Sitemaps" hint="as Google last read them" />
+      <SectionHeader size="md" label="Sitemaps" />
       {fetched.length === 0 ? (
         <EmptyState>No sitemap data synced yet.</EmptyState>
       ) : (

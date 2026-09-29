@@ -1,3 +1,5 @@
+import { EVE_SSO_HOST } from '@/lib/eve-provider';
+
 const SKIP_PREFIXES = ['/admin', '/settings/access', '/api/'];
 
 export function shouldSkip(path: string): boolean {
@@ -24,7 +26,7 @@ export function readUtmTags(params: URLSearchParams): UtmTags | undefined {
 export function referrerHostFrom(raw: string, currentHost: string): string | null {
   if (!raw) return null;
   const url = new URL(raw);
-  if (url.host === currentHost) return null;
+  if (url.host === currentHost || url.hostname === EVE_SSO_HOST) return null;
   return url.host || null;
 }
 

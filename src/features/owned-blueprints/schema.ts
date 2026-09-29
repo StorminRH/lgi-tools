@@ -11,11 +11,9 @@ export const ownedBlueprintOwnerTypeEnum = pgEnum(
 /**
  * The owned-blueprint rows. Columns are the OwnedBlueprint projection
  * (esi-projection.ts) verbatim plus the owner key. A refresh REPLACES the whole
- * set for an owner (delete-then-insert), so there is no natural unique key to
- * reconcile against — ESI's `item_id` is intentionally dropped by the projection,
- * and two BPCs of the same type/location/ME/TE/runs are legitimately
- * indistinguishable rows. A synthetic `id` keeps each row addressable; the owner
- * index serves the per-owner read.
+ * set for an owner. ESI item identity is retained for matching corporation
+ * blueprints to their asset-source placement. Legacy rows have no item identity
+ * until refreshed. The owner index serves the per-owner read.
  *
  * No foreign key on owner_id: for a corporation owner it is a corp id with no
  * `characters` row, so the column can't FK uniformly — the same FK-less posture
@@ -27,6 +25,7 @@ export const ownedBlueprints = pgTable(
     id: bigserial('id', { mode: 'number' }).primaryKey(),
     ownerType: ownedBlueprintOwnerTypeEnum('owner_type').notNull(),
     ownerId: bigint('owner_id', { mode: 'number' }).notNull(),
+    itemId: bigint('item_id', { mode: 'number' }),
     typeId: integer('type_id').notNull(),
     materialEfficiency: integer('material_efficiency').notNull(),
     timeEfficiency: integer('time_efficiency').notNull(),

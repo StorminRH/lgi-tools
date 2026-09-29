@@ -152,6 +152,7 @@ export const TABLE_GROWTH_STORIES = [
   },
 
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },
+  { kind: 'purge-managed', table: schema.pendingTrackingMerges, purgeContributor: 'location-tracking' },
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },
   { kind: 'bounded', table: schema.pendingMapAccessChanges, reason: 'at most one pending generation per map; successful delivery deletes it and map deletion cascades it' },
@@ -320,8 +321,28 @@ export const TABLE_GROWTH_STORIES = [
   },
   {
     kind: 'bounded',
-    table: schema.corpStructureSharing,
+    table: schema.corpDataSharing,
     reason: 'one sharing decision per corporation',
+  },
+  {
+    kind: 'bounded',
+    table: schema.corpHoldingNodes,
+    reason: 'replace-all per corporation: one row per parent item in the last fresh corp assets payload',
+  },
+  {
+    kind: 'bounded',
+    table: schema.corpProfiles,
+    reason: 'one Director-context row per corporation',
+  },
+  {
+    kind: 'bounded',
+    table: schema.corpMemberBases,
+    reason: 'replace-all per corporation, at most one row per linked character',
+  },
+  {
+    kind: 'bounded',
+    table: schema.corpMemberRoles,
+    reason: 'one keyed-upsert row per linked character',
   },
   {
     kind: 'bounded',

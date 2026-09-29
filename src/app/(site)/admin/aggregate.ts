@@ -1,6 +1,3 @@
-import type { Delta } from '@/composition/admin-period';
-import { computeDelta } from '@/composition/admin-period';
-
 const MS_PER_DAY = 86_400_000;
 
 export function toDayNumber(date: string): number {
@@ -52,19 +49,4 @@ export function movingAverage(values: number[], window: number): number[] {
     out.push(running / Math.min(i + 1, window));
   }
   return out;
-}
-
-export function sum(values: number[]): number {
-  let total = 0;
-  for (const v of values) total += v;
-  return total;
-}
-
-export function mean(values: number[]): number {
-  return values.length === 0 ? 0 : sum(values) / values.length;
-}
-
-export function weekOverWeekDelta(values: number[]): Delta | null {
-  if (values.length < 14) return null;
-  return computeDelta(sum(values.slice(-7)), sum(values.slice(-14, -7)));
 }

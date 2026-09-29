@@ -568,3 +568,19 @@ export async function enqueueAffectedMapAccessChanges(
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
   `);
 }
+
+export async function enqueueMergeReprojection(
+  database: AnyPgDb,
+  args: { sourceUserId: string; movedCharacterIds: readonly number[] },
+): Promise<PendingMapAccessChange[]> {
+  const selections = [
+    sql`SELECT ${maps.id} AS id FROM ${maps} WHERE ${maps.userId} = ${args.sourceUserId}`,
+    ...args.movedCharacterIds.map((characterId) => affectedMapIdsSelection(characterId)),
+  ];
+  return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
+    WITH affected AS (
+      ${sql.join(selections, sql` UNION `)}
+    )
+    ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
+  `);
+}

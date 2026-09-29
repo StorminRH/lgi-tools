@@ -1,4 +1,5 @@
 import { httpRouter } from 'convex/server';
+import { mergeUserState, snapshotMergeTracking, restoreMergeTracking } from './httpAccountMerge';
 import { sweep, purgeOnline } from './httpEngine';
 import { jumpEvidence, resolveJump, signatureElimination } from './httpJump';
 import { leaveSync, purgeLocationTracking } from './httpLocation';
@@ -71,5 +72,14 @@ http.route({
   method: 'POST',
   handler: purgeMapChain,
 });
+
+http.route({
+  path: '/merge-user-state',
+  method: 'POST',
+  handler: mergeUserState,
+});
+
+http.route({ path: '/snapshot-merge-tracking', method: 'POST', handler: snapshotMergeTracking });
+http.route({ path: '/restore-merge-tracking', method: 'POST', handler: restoreMergeTracking });
 
 export default http;

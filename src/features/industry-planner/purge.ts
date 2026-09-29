@@ -7,6 +7,7 @@ export const savedPlansPurgeContributor: PurgeContributor = {
   name: 'saved-plans',
   tier: 'durable',
   claims: [savedPlans],
+  merge: [{ table: savedPlans, rule: 'rekey' }],
   async purgeUser({ userId }) {
     await db.delete(savedPlans).where(eq(savedPlans.userId, userId));
   },

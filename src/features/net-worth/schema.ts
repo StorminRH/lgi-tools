@@ -4,7 +4,7 @@ import type { PilotWorth } from './types';
 
 /**
  * One row per account per UTC day; the last board view of the day wins. Keyed to the account, not the
- * character, so a sold character's history never follows it and link/unlink never reads as a gain or loss.
+ * character. Unlink and owner transfer erase every day that included the removed pilot.
  */
 export const netWorthDays = pgTable(
   'net_worth_days',

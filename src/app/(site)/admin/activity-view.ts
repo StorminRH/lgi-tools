@@ -1,6 +1,6 @@
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
-import { movingAverage, weekOverWeekDelta, zeroFillDaily } from './aggregate';
-import type { Delta } from '@/composition/admin-period';
+import { movingAverage, zeroFillDaily } from './aggregate';
+import { computeDelta, type Delta } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
 
 const MS_PER_DAY = 86_400_000;
@@ -10,6 +10,7 @@ const MARKER_DENSITY_CAP = 120;
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
 export interface ActivityChartData extends DailyChartSeries {
+  totalValue: number;
   endValue: number;
   endDelta: Delta | null;
   hasData: boolean;
@@ -22,6 +23,7 @@ const EMPTY: ActivityChartData = {
   weekend: [],
   referenceLine: null,
   eventMarkers: [],
+  totalValue: 0,
   endValue: 0,
   endDelta: null,
   hasData: false,
@@ -38,7 +40,7 @@ function dedupeMarkersByDay(
   }
   return [...byDay.entries()].map(([date, labels]) => ({
     date,
-    label: labels.length === 1 ? labels[0]! : `${labels.length} deploys`,
+    label: labels.length === 1 ? labels[0]! : `${labels.length} releases`,
   }));
 }
 
@@ -89,8 +91,9 @@ export function deriveActivityView(input: {
     weekend: series.weekend,
     referenceLine,
     eventMarkers,
+    totalValue: dailyCounts.reduce((sum, day) => sum + day.totalEvents, 0),
     endValue: series.values[series.values.length - 1]!,
-    endDelta: weekOverWeekDelta(series.values),
+    endDelta: computeDelta(dailyCounts.reduce((sum, day) => sum + day.totalEvents, 0), prevDailyCounts === null ? null : prevTotal),
     hasData: true,
   };
 }

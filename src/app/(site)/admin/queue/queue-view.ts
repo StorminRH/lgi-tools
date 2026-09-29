@@ -11,7 +11,7 @@ export interface QueueCell {
 const CELLS: readonly { id: QueueCell['id']; title: string; statuses: readonly EsiRefreshJobStatus[] }[] = [
   { id: 'waiting', title: 'Queued & running', statuses: ['queued', 'running'] },
   { id: 'deferred', title: 'Held for budget', statuses: ['deferred_for_budget'] },
-  { id: 'retrying', title: 'Retrying', statuses: ['failed_retryable'] },
+  { id: 'retrying', title: 'Awaiting retry', statuses: ['failed_retryable'] },
   { id: 'dead', title: 'Dead-lettered', statuses: ['dead_lettered'] },
 ];
 
@@ -40,7 +40,7 @@ export function deriveQueueCells(stats: EsiRefreshQueueStat[], now: Date): Queue
       id: cell.id,
       title: cell.title,
       value: count.toLocaleString(),
-      note: oldest === null ? 'none' : `oldest ${ageLabel(oldest, now)}`,
+      note: oldest === null ? 'none' : `oldest job ${ageLabel(oldest, now)}`,
     };
   });
 }

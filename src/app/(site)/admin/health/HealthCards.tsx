@@ -31,7 +31,6 @@ const SERVICE_LEVEL_COLUMNS = [
         <Dot tone={LEVEL_DOT_TONE[row.level]} size="lg" className="mt-1.5" />
         <span className="min-w-0">
           <span className="block text-text">{row.title}</span>
-          <span className="block max-w-prose text-micro text-muted">{row.responseAction}</span>
         </span>
       </span>
     ),
@@ -51,23 +50,15 @@ const SERVICE_LEVEL_COLUMNS = [
     className: 'hidden whitespace-nowrap text-muted md:table-cell',
     headerClassName: 'hidden md:table-cell',
   },
-  {
-    key: 'owner',
-    label: 'Owner',
-    align: 'right',
-    render: (row) => row.owner,
-    className: 'hidden text-muted md:table-cell',
-    headerClassName: 'hidden md:table-cell',
-  },
 ] satisfies readonly StaticTableColumn<ServiceLevelRow>[];
 
 export async function ServiceLevelsCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('service-levels', () =>
     Promise.all([
-      getReadSuccessRate(range),
-      getMutationSuccessRate(range),
-      getCriticalLatencyP95(range),
-      getEsiSuccessRate(range),
+      loadSection('getReadSuccessRate', () => getReadSuccessRate(range)),
+      loadSection('getMutationSuccessRate', () => getMutationSuccessRate(range)),
+      loadSection('getCriticalLatencyP95', () => getCriticalLatencyP95(range)),
+      loadSection('getEsiSuccessRate', () => getEsiSuccessRate(range)),
       getEsiRefreshQueueStatsShared(),
     ]),
   );
@@ -79,7 +70,7 @@ export async function ServiceLevelsCard({ range }: { range: DateRange }) {
   );
   return (
     <Card>
-      <SectionHeader size="md" label="Service levels" hint="what to do when a line turns amber or red" />
+      <SectionHeader size="md" label="Service levels" />
       <StaticTable
         ariaLabel="Service levels"
         columns={SERVICE_LEVEL_COLUMNS}
@@ -95,7 +86,7 @@ export async function EventLogCard() {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Event log" />;
   return (
     <Card>
-      <SectionHeader size="md" label="Event log" hint="latest 30 operational events" />
+      <SectionHeader size="md" label="Event log" />
       {fetched.length === 0 ? (
         <EmptyState>No operational events recorded yet.</EmptyState>
       ) : (

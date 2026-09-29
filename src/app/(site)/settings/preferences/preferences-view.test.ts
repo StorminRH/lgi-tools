@@ -37,7 +37,7 @@ test('inline and section placements merge without duplicates and unknown keys ar
       { key: sitesView.key, placement: 'inline' },
       { key: atlasCameraFollow.key, placement: 'inline' },
       { key: 'nope.missing', placement: 'section' },
-      { kind: 'feature', id: 'corp-structure-sharing', placement: 'inline' },
+      { kind: 'feature', id: 'corp-data-sharing', placement: 'inline' },
     ],
   };
 

@@ -8,14 +8,12 @@ import { RangeControl } from './RangeControl';
 
 export function AdminPageFrame({
   title,
-  description,
   rangeBasePath,
   actions,
   fallbackLabel,
   children,
 }: {
   title: string;
-  description: ReactNode;
   rangeBasePath?: `/${string}`;
   actions?: ReactNode;
   fallbackLabel: string;
@@ -26,7 +24,6 @@ export function AdminPageFrame({
       <AdminGate>
         <SectionHead
           title={title}
-          description={description}
           meta={
             actions || rangeBasePath ? (
               <>

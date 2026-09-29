@@ -13,7 +13,6 @@ describe('deriveGscMultiples', () => {
     expect(cells[2]).toMatchObject({
       value: '8.4',
       invert: true,
-      note: 'lower = better',
       delta: { pct: -20, direction: 'down' },
     });
   });
@@ -24,5 +23,15 @@ describe('deriveGscMultiples', () => {
       prevTotals: null,
     });
     expect(cells.every((c) => c.delta === null)).toBe(true);
+  });
+});
+
+describe('missing position observations', () => {
+  it('does not treat no impressions as a perfect rank or a rank improvement', () => {
+    const previous = { clicks: 1, impressions: 10, position: 7 };
+    const cells = deriveGscMultiples({ totals: { clicks: 0, impressions: 0, ctr: 0, position: 0 }, prevTotals: previous });
+    expect(cells[2]).toMatchObject({ value: '—', delta: null });
+    const observed = deriveGscMultiples({ totals: { ...previous, ctr: 0.1 }, prevTotals: { clicks: 0, impressions: 0, position: 0 } });
+    expect(observed[2]?.delta).toBeNull();
   });
 });
