@@ -1,17 +1,11 @@
 import { httpRouter } from 'convex/server';
 import { mergeUserState, snapshotMergeTracking, restoreMergeTracking } from './httpAccountMerge';
-import { sweep, purgeOnline } from './httpEngine';
+import { purgeOnline } from './httpEngine';
 import { jumpEvidence, resolveJump, signatureElimination } from './httpJump';
 import { leaveSync, purgeLocationTracking } from './httpLocation';
 import { projectMapAccess, purgeMapAccess, purgeMapChain, purgeUserMapClaims } from './httpMapAccess';
 
 const http = httpRouter();
-
-http.route({
-  path: '/sweep',
-  method: 'POST',
-  handler: sweep,
-});
 
 http.route({
   path: '/jump-evidence',

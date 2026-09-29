@@ -22,7 +22,6 @@ const CRON_ROUTES = new Set([
   'cron/purge-maps/route.ts',
   'cron/refresh-sde/route.ts',
   'cron/refresh-wh-statics/route.ts',
-  'cron/sync-sweeper/route.ts',
 ]);
 
 const FORM_ROUTES = new Set([

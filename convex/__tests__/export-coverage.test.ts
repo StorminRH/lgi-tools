@@ -34,7 +34,7 @@ import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
 import { mergeUserState as httpMergeUserState, snapshotMergeTracking as httpSnapshotMergeTracking, restoreMergeTracking as httpRestoreMergeTracking } from '../httpAccountMerge';
-import { purgeOnline, sweep as httpSweep } from '../httpEngine';
+import { purgeOnline } from '../httpEngine';
 import { jumpEvidence as httpJumpEvidence, resolveJump, signatureElimination } from '../httpJump';
 import { leaveSync, purgeLocationTracking } from '../httpLocation';
 import { projectMapAccess, purgeMapAccess, purgeMapChain } from '../httpMapAccess';
@@ -158,7 +158,6 @@ describe('convex runtime exports', () => {
       convexApp,
       crons,
       http,
-      httpSweep,
       purgeOnline,
       httpJumpEvidence,
       resolveJump,

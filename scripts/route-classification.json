@@ -129,7 +129,6 @@
     "/api/cron/refresh-sde": "dynamic",
     "/api/cron/refresh-wh-statics": "dynamic",
     "/api/cron/purge-maps": "dynamic",
-    "/api/cron/sync-sweeper": "dynamic",
     "/api/feedback": "dynamic",
     "/api/industry/blueprints": "static",
     "/api/industry/systems": "static",
