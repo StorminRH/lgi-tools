@@ -15,6 +15,15 @@ const JITA = 30_000_142;
 const AMARR = 30_002_187;
 const OWNER = 'owner';
 
+const LOCATION_DEFAULTS: NonNullable<TrackedPresenceRow['location']> = {
+  solarSystemId: JITA,
+  stationId: null,
+  structureId: null,
+  shipTypeId: 670,
+  transitionObservedAt: NOW - 60_000,
+  observedAt: NOW - 60_000,
+};
+
 function row(overrides: {
   userId?: string;
   characterId: number;
@@ -26,25 +35,11 @@ function row(overrides: {
   observedAt?: number;
   location?: null;
 }): TrackedPresenceRow {
-  if (overrides.location === null) {
-    return {
-      userId: overrides.userId ?? OWNER,
-      characterId: overrides.characterId,
-      location: null,
-    };
+  const { userId = OWNER, characterId, location, ...fields } = overrides;
+  if (location === null) {
+    return { userId, characterId, location: null };
   }
-  return {
-    userId: overrides.userId ?? OWNER,
-    characterId: overrides.characterId,
-    location: {
-      solarSystemId: overrides.solarSystemId ?? JITA,
-      stationId: overrides.stationId ?? null,
-      structureId: overrides.structureId ?? null,
-      shipTypeId: overrides.shipTypeId ?? 670,
-      transitionObservedAt: overrides.transitionObservedAt ?? NOW - 60_000,
-      observedAt: overrides.observedAt ?? NOW - 60_000,
-    },
-  };
+  return { userId, characterId, location: { ...LOCATION_DEFAULTS, ...fields } };
 }
 
 function derive(

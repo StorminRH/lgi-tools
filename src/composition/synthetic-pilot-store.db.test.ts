@@ -162,8 +162,8 @@ describe.skipIf(!harness.reachable)('becomeSyntheticPilot (real Postgres)', () =
     expect(characterRow).toMatchObject({
       characterId: SYNTHETIC_PILOT.characterId,
       name: SYNTHETIC_PILOT.name,
+      portraitUrl: expect.stringContaining(`/characters/${SYNTHETIC_PILOT.characterId}/portrait`),
     });
-    expect(characterRow?.portraitUrl).toContain(`/characters/${SYNTHETIC_PILOT.characterId}/portrait`);
 
     const [accountRow] = await harness.db
       .select()
@@ -188,10 +188,12 @@ describe.skipIf(!harness.reachable)('becomeSyntheticPilot (real Postgres)', () =
     const session = await auth.api.getSession({
       headers: new Headers({ cookie: `${cookie.name}=${cookie.value}` }),
     });
-    expect(session?.user.id).toBe(SYNTHETIC_PILOT.userId);
-    expect(session?.characterId).toBe(SYNTHETIC_PILOT.characterId);
-    expect(session?.name).toBe(SYNTHETIC_PILOT.name);
-    expect(session?.role).toBe('USER');
+    expect(session).toMatchObject({
+      user: { id: SYNTHETIC_PILOT.userId },
+      characterId: SYNTHETIC_PILOT.characterId,
+      name: SYNTHETIC_PILOT.name,
+      role: 'USER',
+    });
 
     const second = await becomeSyntheticPilot();
     const [secondCookie] = second.cookies;
@@ -201,14 +203,12 @@ describe.skipIf(!harness.reachable)('becomeSyntheticPilot (real Postgres)', () =
       .select()
       .from(account)
       .where(eq(account.userId, SYNTHETIC_PILOT.userId));
-    expect(accountAfter?.accessToken).toBeNull();
-    expect(accountAfter?.refreshToken).toBeNull();
-    expect(accountAfter?.scope).toBeNull();
+    expect(accountAfter).toMatchObject({ accessToken: null, refreshToken: null, scope: null });
 
     const sessionAfter = await auth.api.getSession({
       headers: new Headers({ cookie: `${secondCookie.name}=${secondCookie.value}` }),
     });
-    expect(sessionAfter?.user.id).toBe(SYNTHETIC_PILOT.userId);
+    expect(sessionAfter).toMatchObject({ user: { id: SYNTHETIC_PILOT.userId } });
     expect(await auth.api.getSession({
       headers: new Headers({ cookie: `${cookie.name}=${cookie.value}` }),
     })).toBeNull();

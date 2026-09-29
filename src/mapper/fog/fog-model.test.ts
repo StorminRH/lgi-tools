@@ -104,10 +104,10 @@ test('deriveFogReveals membership: discs, fogged exclusion, and stroke endpoints
   ).toMatchObject({ phase: 'departing', heavy: true });
 });
 
-test('fog timeline opens, closes, vanishes, and reopens across motion windows', () => {
-  const steadySet = (): FogRevealSet =>
-    deriveFogReveals([node(1, 0, 0), node(2, 200, 0)], [edge('a', 1, 2)]);
+const steadySet = (): FogRevealSet =>
+  deriveFogReveals([node(1, 0, 0), node(2, 200, 0)], [edge('a', 1, 2)]);
 
+function expectFogOpensAndSettles(): void {
   expect(REDUCED.ease(0.25)).toBe(0.25);
   expect(REDUCED.ease(0.5)).toBe(0.5);
   expect(TIMING.ease(0.5)).toBeGreaterThan(0.5);
@@ -134,7 +134,9 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
   const done = advanceFogTimeline(mid.timeline, grown, 2100, TIMING);
   expect(newDisc(done)?.strength).toBe(1);
   expect(done.animating).toBe(false);
+}
 
+function expectFogClosesWithHeavyLinger(): void {
   const timing = fogTimingOf(
     { ...DEFAULT_MOTION_CONFIG, tempo: { fast: 250, mid: 400, slow: 1200 } },
     false,
@@ -155,7 +157,9 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
   expect(heavy?.strength).toBeGreaterThan(0);
   expect(heavy?.strength).toBeLessThan(1);
   expect(late.animating).toBe(true);
+}
 
+function expectFogVanishesThenClears(): void {
   const vanishBase = advanceFogTimeline(EMPTY_FOG_TIMELINE, steadySet(), 0, TIMING);
   const gone = advanceFogTimeline(
     vanishBase.timeline,
@@ -183,7 +187,9 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
   );
   expect(settled.discs.find((disc) => disc.key === 'd:2')).toBeUndefined();
   expect(settled.animating).toBe(false);
+}
 
+function expectFogReopens(): void {
   const reopenBase = advanceFogTimeline(EMPTY_FOG_TIMELINE, steadySet(), 0, TIMING);
   const reopenDeparting = deriveFogReveals(
     [node(1, 0, 0), node(2, 200, 0, { motion: { phase: 'departing' } })],
@@ -208,7 +214,9 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
       TIMING,
     ).discs.find((disc) => disc.key === 'd:2')?.strength,
   ).toBe(1);
+}
 
+function expectFogSnapDropsDeparting(): void {
   const snap = snapFogFrame(
     deriveFogReveals(
       [node(1, 0, 0), node(2, 200, 0, { motion: { phase: 'departing' } })],
@@ -221,6 +229,14 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
     { key: 'd:1', x: SYSTEM_FRAME_WIDTH / 2, y: SYSTEM_FRAME_HEIGHT / 2, strength: 1 },
   ]);
   expect(snap.strokes.map((stroke) => stroke.strength)).toEqual([1]);
+}
+
+test('fog timeline opens, closes, vanishes, and reopens across motion windows', () => {
+  expectFogOpensAndSettles();
+  expectFogClosesWithHeavyLinger();
+  expectFogVanishesThenClears();
+  expectFogReopens();
+  expectFogSnapDropsDeparting();
 });
 
 test('fog wake stamps movement, fades orphans, and skips stationary discs', () => {
