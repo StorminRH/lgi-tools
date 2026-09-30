@@ -27,7 +27,10 @@ async function publishAccessChanges(userId: string): Promise<void> {
  * character is re-checked with EVE at most daily; nothing runs for absent users.
  */
 export async function checkCharacterAuthorizations(userId: string): Promise<void> {
-  if (!await hasAuthorizationWork(userId)) return;
+  if (!await hasAuthorizationWork(userId)) {
+    await reconcileAffiliationAccess();
+    return;
+  }
   const deadline = Date.now() + 35_000;
   // Revoke already-known invalid/overdue access before any slow network requests.
   await publishAccessChanges(userId);

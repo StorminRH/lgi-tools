@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => {
   const order: string[] = [];
+  const workByName = new Map<string, () => Promise<void>>();
   const declaration = (name: string) => ({
     name,
     action: 'cron_prices',
@@ -11,10 +12,11 @@ const h = vi.hoisted(() => {
     lock: { mode: 'none', justification: 'test step is lock-free' },
     work: async () => {
       order.push(name);
+      await workByName.get(name)?.();
       return { outcome: 'idle', workDone: false, body: {} };
     },
   });
-  return { order, declaration, logUsageEvent: vi.fn() };
+  return { order, workByName, declaration, logUsageEvent: vi.fn() };
 });
 
 vi.mock('../purge-maps/declaration', () => ({ purgeMapsDeclaration: h.declaration('cron:purge-maps') }));
@@ -33,6 +35,7 @@ vi.mock('next/server', () => ({
 }));
 
 import { GET } from './route';
+import { purgeEligibleMaps } from '@/composition/map-purge';
 
 function authedRequest(): Request {
   return new Request('http://localhost:3000/api/cron/daily-batch', {
@@ -45,6 +48,7 @@ describe('GET /api/cron/daily-batch', () => {
     vi.useFakeTimers();
     vi.stubEnv('CRON_SECRET', 'cron-secret');
     h.order.length = 0;
+    h.workByName.clear();
     h.logUsageEvent.mockReset().mockResolvedValue(undefined);
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
@@ -67,5 +71,43 @@ describe('GET /api/cron/daily-batch', () => {
     await expect(response.json()).resolves.toMatchObject({
       steps: expect.arrayContaining([{ name: 'cron:wh-statics', status: 'skipped' }]),
     });
+  });
+
+  it('starts later jobs within the invocation window after a slow purge backlog', async () => {
+    vi.setSystemTime(new Date('2026-09-28T12:20:00Z'));
+    const started = Date.now();
+    let pricesStartedAt: number | null = null;
+    const tombstoned: string[] = [];
+    h.workByName.set('cron:purge-maps', async () => {
+      await purgeEligibleMaps({
+        claimMaps: async () => Array.from({ length: 25 }, (_, i) => ({ id: `map-${i}` })),
+        purgeChain: async () => {
+          vi.advanceTimersByTime(6_000);
+          return { deleted: 1, remaining: false };
+        },
+        teardownAccess: async () => {
+          vi.advanceTimersByTime(6_000);
+          return { inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'applied' };
+        },
+        tombstoneMap: async (mapId) => {
+          tombstoned.push(mapId);
+          return true;
+        },
+      });
+    });
+    h.workByName.set('cron:prices', async () => { pricesStartedAt = Date.now(); });
+
+    const response = await GET(authedRequest());
+
+    expect(response.status).toBe(200);
+    expect(tombstoned).toEqual(['map-0', 'map-1', 'map-2', 'map-3', 'map-4']);
+    expect(pricesStartedAt).toBe(started + 60_000);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics']);
+    await expect(response.json()).resolves.toEqual({ steps: [
+      { name: 'cron:purge-maps', status: 'ok' },
+      { name: 'cron:prices', status: 'ok' },
+      { name: 'cron:industry-indices', status: 'ok' },
+      { name: 'cron:wh-statics', status: 'ok' },
+    ] });
   });
 });
