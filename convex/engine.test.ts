@@ -565,8 +565,12 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await heartbeat(t, { characterIdsHint: [], reason: 'mount', visible: false, tabId: 'tab-one' });
     const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    const visibleAt = mounted?.lastVisibleAt;
     expect(mounted?.tabId).toBe('tab-one');
-    expect(typeof mounted?.lastVisibleAt).toBe('number');
+    expect(typeof visibleAt).toBe('number');
+    if (mounted === null || typeof visibleAt !== 'number') {
+      throw new Error('mount did not stamp visibility');
+    }
 
     vi.advanceTimersByTime(20_000);
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-one' });
@@ -576,18 +580,18 @@ describe('engine.heartbeat', () => {
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-two' });
     const otherTab = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(otherTab?.tabId).toBe('tab-two');
-    expect(otherTab?.lastSeenAt).toBeGreaterThan(mounted!.lastSeenAt);
-    expect(otherTab?.lastVisibleAt).toBe(mounted?.lastVisibleAt);
+    expect(otherTab?.lastSeenAt).toBeGreaterThan(mounted.lastSeenAt);
+    expect(otherTab?.lastVisibleAt).toBe(visibleAt);
 
     vi.advanceTimersByTime(60_000);
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-two' });
     const hiddenRefresh = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(hiddenRefresh?.lastSeenAt).toBeGreaterThan(otherTab!.lastSeenAt);
-    expect(hiddenRefresh?.lastVisibleAt).toBe(mounted?.lastVisibleAt);
+    expect(hiddenRefresh?.lastVisibleAt).toBe(visibleAt);
 
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: true, tabId: 'tab-two' });
     const afterVisible = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(afterVisible?.lastVisibleAt).toBeGreaterThan(mounted!.lastVisibleAt);
+    expect(afterVisible?.lastVisibleAt).toBeGreaterThan(visibleAt);
   });
 });
 
