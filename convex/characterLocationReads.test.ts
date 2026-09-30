@@ -16,7 +16,7 @@ import {
 } from './__tests__/characterLocation.setup';
 
 describe('characterLocationReads.syncInputs', () => {
-  it('returns tracked ids, system id, dual etags, the held online probe, and leases in one snapshot', async () => {
+  it('returns one tracked snapshot, then empty arrays once that tracking is gone', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       // The same character tracked on two maps is enumerated once.
@@ -65,6 +65,15 @@ describe('characterLocationReads.syncInputs', () => {
         { characterId: CHAR_A, accessToken: `tok-${CHAR_A}`, expiresAt: GEN + 1_200_000 },
       ],
     });
+
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query('mapTracking').collect();
+      for (const row of rows) {
+        if (row.userId === USER) await ctx.db.delete(row._id);
+      }
+    });
+    const untracked = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
+    expect(untracked).toEqual({ trackedIds: [], locations: [], online: [], leases: [] });
   });
 
   it('syncs distinct pilots when valid memberships across maps exceed 1024', async () => {
@@ -82,22 +91,5 @@ describe('characterLocationReads.syncInputs', () => {
     const inputs = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
     expect(inputs.trackedIds).toEqual(characterIds);
     expect(inputs.locations).toEqual([expect.objectContaining({ characterId: CHAR_A })]);
-  });
-
-  it('returns empty arrays for an untracked user even when held rows remain', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('characterLocationOnline', {
-        userId: USER,
-        characterId: CHAR_A,
-        online: true,
-        etagOnline: 'on',
-        onlineExpiresAt: GEN + 60_000,
-      });
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
-    });
-    const inputs = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
-    expect(inputs).toEqual({ trackedIds: [], locations: [], online: [], leases: [] });
   });
 });
