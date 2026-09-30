@@ -94,6 +94,10 @@ vi.mock('./AtlasCanvasFrame', () => ({
     }),
 }));
 
+vi.mock('./AtlasReturnRefresh', () => ({
+  AtlasReturnRefresh: () => createElement('div', { 'data-atlas-return-refresh': '' }),
+}));
+
 const session = {
   user: { id: 'user-1' },
   characterId: 1,
@@ -135,6 +139,7 @@ describe('AtlasBound', () => {
       await AtlasBound({ mapSelected: false, returnHref: '/atlas' }),
     );
     expect(signedOut).toContain('data-atlas-guest-landing');
+    expect(signedOut).not.toContain('data-atlas-return-refresh');
     expect(signedOut).not.toContain('data-map-catalogue');
     expect(signedOut).not.toContain('data-map-canvas-frame');
     expect(signedOut).not.toContain('data-map-development-wall');
@@ -152,6 +157,7 @@ describe('AtlasBound', () => {
     mocks.checkSession.mockResolvedValue({ ok: true, session });
     const landing = renderToStaticMarkup(await AtlasBound({ mapSelected: false, returnHref: '/atlas' }));
     expect(landing).toContain('data-map-catalogue');
+    expect(landing).toContain('data-atlas-return-refresh');
     expect(landing).toContain('data-site-catalogue');
     expect(landing).toContain('data-map-site-index="1"');
     expect(landing).toContain('data-map-catalogue-provider');
@@ -163,6 +169,7 @@ describe('AtlasBound', () => {
 
     const canvas = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(canvas).toContain('data-map-canvas-frame');
+    expect(canvas).toContain('data-atlas-return-refresh');
     expect(canvas).toContain('data-map-account-session="true"');
     expect(canvas).not.toContain('data-map-catalogue=""');
 
