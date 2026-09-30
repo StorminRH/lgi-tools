@@ -5,6 +5,7 @@ import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { usePreference } from '@/components/PreferencesProvider';
 import { MenuCheckboxItem, MenuGroup, menuControlRow } from '@/components/ui/menu';
+import { toast } from '@/components/ui/toast';
 import { Select } from '@/components/ui/select';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
@@ -71,9 +72,18 @@ export function TrackingControls({
     <TrackingControlsView
       characters={characters}
       trackedIds={new Set(trackedIds)}
-      onToggle={(characterId, tracked) =>
-        setTracking({ mapId, characterId, tracked })
-      }
+      onToggle={async (characterId, tracked) => {
+        try {
+          await setTracking({ mapId, characterId, tracked });
+        } catch (error) {
+          const data = typeof error === 'object' && error !== null && 'data' in error
+            ? error.data : null;
+          const description = typeof data === 'object' && data !== null
+            && 'detail' in data && typeof data.detail === 'string'
+            ? data.detail : 'Please try again.';
+          toast.error('Tracking was not changed', { description });
+        }
+      }}
       reconnectAction={reconnectAction}
     />
   );

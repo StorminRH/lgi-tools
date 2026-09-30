@@ -455,15 +455,13 @@ describe('map chain fixtures', () => {
       expect(after.bookkeeping).toEqual([]);
     });
 
-    it('stamps the owner\'s characterLocation subject freshness on seed and advance', async () => {
+    it('stamps the owner\'s location sync freshness on seed and advance', async () => {
       const t = convexTest(schema, modules);
       const readSubject = () =>
         t.run(async (ctx) =>
           await ctx.db
-            .query('syncSubjects')
-            .withIndex('by_user_dataset', (q) =>
-              q.eq('userId', EDITOR).eq('dataset', 'characterLocation'),
-            )
+            .query('locationSync')
+            .withIndex('by_user', (q) => q.eq('userId', EDITOR))
             .unique(),
         );
 
@@ -477,9 +475,8 @@ describe('map chain fixtures', () => {
       });
       const seeded = await readSubject();
       expect(seeded).toMatchObject({
-        dataset: 'characterLocation',
         userId: EDITOR,
-        status: 'idle',
+        jobId: null,
         lastFinishedAt: NOW,
         coveredCharacterIds: [90_404_222],
       });

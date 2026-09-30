@@ -1,11 +1,12 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
-import { makeFunctionReference, type FunctionArgs } from 'convex/server';
+import { getFunctionName, type FunctionReference } from 'convex/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
-import type { MutationCtx } from './_generated/server';
+import type { ActionCtx } from './_generated/server';
+import { clearAccessLeases, writeAccessLeases } from './characterLocationAccess';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -86,32 +87,75 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   __resetEsiGateForTests();
+  vi.restoreAllMocks();
 });
 
-function subjectRow(overrides: Record<string, unknown> = {}) {
-  return {
-    dataset: 'characterLocation' as const,
-    userId: USER,
-    status: 'running' as const,
-    lastRequestedAt: GEN,
-    workId: String(GEN),
-    nextDueAt: GEN + 30_000,
-    minExpiresAt: null,
-    syncedCharacterIds: [] as number[],
-    lastFinishedAt: null,
-    lastError: null,
-    rlGroup: null,
-    rlLimit: null,
-    rlRemaining: null,
-    rlUsed: null,
-    ...overrides,
-  };
+type RunCall = { name: string; args: Record<string, unknown> };
+type SyncUserHandler = (ctx: ActionCtx, args: { userId: string; generation: number; schedulerVersion?: 2 }) => Promise<unknown>;
+
+// Every runQuery/runMutation the action issues, in order.
+const calls: RunCall[] = [];
+
+beforeEach(() => {
+  calls.length = 0;
+});
+
+/**
+ * A convex-test instance whose syncUser records every nested call. No
+ * presence row is seeded, so each finish sees a cold watcher and schedules
+ * nothing: one action call is exactly one run.
+ */
+async function testConvex() {
+  const sync = await import('./characterLocationSync');
+  const handler = (sync.syncUser as unknown as { _handler: SyncUserHandler })._handler;
+  const observed: SyncUserHandler = (ctx, args) => handler({
+    ...ctx,
+    runQuery: ((ref: FunctionReference<'query', 'internal'>, queryArgs: Record<string, unknown>) => {
+      calls.push({ name: getFunctionName(ref), args: queryArgs });
+      return ctx.runQuery(ref, queryArgs);
+    }) as ActionCtx['runQuery'],
+    runMutation: ((ref: FunctionReference<'mutation', 'internal'>, mutationArgs: Record<string, unknown>) => {
+      calls.push({ name: getFunctionName(ref), args: mutationArgs });
+      return ctx.runMutation(ref, mutationArgs);
+    }) as ActionCtx['runMutation'],
+  }, args);
+  return convexTest(schema, {
+    ...modules,
+    '../characterLocationSync.ts': async () => ({
+      ...sync,
+      syncUser: { ...sync.syncUser, _handler: observed },
+    }),
+  });
 }
 
-async function seedSubject(t: TestConvex<typeof schema>, overrides?: Record<string, unknown>) {
+function finishArgs() {
+  const finishes = calls.filter((call) => call.name === 'characterLocationApply:finishSync');
+  expect(finishes).toHaveLength(1);
+  return finishes[0]!.args;
+}
+
+async function seedSyncState(t: TestConvex<typeof schema>, overrides: Record<string, unknown> = {}) {
   await t.run(async (ctx) => {
-    await ctx.db.insert('syncSubjects', subjectRow(overrides));
+    await ctx.db.insert('locationSync', {
+      userId: USER,
+      runId: GEN,
+      jobId: null,
+      minExpiresAt: null,
+      syncedCharacterIds: [] as number[],
+      coveredCharacterIds: [] as number[],
+      lastFinishedAt: null,
+      ...overrides,
+    });
   });
+}
+
+function readSyncState(t: TestConvex<typeof schema>) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('locationSync')
+      .withIndex('by_user', (q) => q.eq('userId', USER))
+      .unique(),
+  );
 }
 
 async function seedTracking(t: TestConvex<typeof schema>, characterId = 101) {
@@ -186,58 +230,43 @@ async function seedLease(
 }
 
 function run(t: TestConvex<typeof schema>) {
-  return t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN });
+  return t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN, schedulerVersion: 2 });
 }
 
+// A newer run takes the generation mid-flight and stores its own token.
 async function replaceRunLease(t: TestConvex<typeof schema>) {
   await t.run(async (ctx) => {
-    const subject = await ctx.db.query('syncSubjects').unique();
-    if (subject === null) throw new Error('missing sync subject');
-    await ctx.db.patch(subject._id, { lastRequestedAt: GEN + 1, workId: String(GEN + 1) });
+    const state = await ctx.db.query('locationSync').unique();
+    if (state === null) throw new Error('missing location sync state');
+    await ctx.db.patch(state._id, { runId: GEN + 1 });
+    await writeAccessLeases(ctx, USER, [
+      { characterId: 101, accessToken: 'new-run-token', expiresAt: TOKEN_EXP },
+    ], Date.now());
   });
-  await t.mutation(internal.characterLocationAccess.putAccessLeases, {
-    userId: USER,
-    generation: GEN + 1,
-    leases: [{ characterId: 101, accessToken: 'new-run-token', expiresAt: TOKEN_EXP }],
-  });
-}
-
-async function observeLeaseWrites() {
-  const access = await import('./characterLocationAccess');
-  const persist = vi.fn((
-    ctx: MutationCtx,
-    args: FunctionArgs<typeof internal.characterLocationAccess.putAccessLeases>,
-  ) => ctx.runMutation(makeFunctionReference<
-    'mutation',
-    FunctionArgs<typeof internal.characterLocationAccess.putAccessLeases>,
-    null
-  >('actualLocationAccess:putAccessLeases'), args));
-  const t = convexTest(schema, {
-    ...modules,
-    '../actualLocationAccess.ts': async () => access,
-    '../characterLocationAccess.ts': async () => ({
-      ...access,
-      putAccessLeases: { ...access.putAccessLeases, _handler: persist },
-    }),
-  });
-  return { t, persist };
 }
 
 describe('characterLocationSync.syncUser', () => {
   it('completes as failed when the deployment env is unset', async () => {
     vi.unstubAllEnvs();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
+    await seedTracking(t);
     await run(t);
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject?.status).toBe('idle');
-    expect(subject?.lastError).toMatch(/SITE_URL/);
+    expect(calls.map((call) => call.name)).toEqual(['characterLocationApply:finishSync']);
+    expect(finishArgs()).toEqual({
+      userId: USER,
+      generation: GEN,
+      outcome: { kind: 'failed', error: expect.stringMatching(/SITE_URL/) },
+      leases: [],
+      clearedLeaseCharacterIds: [],
+    });
+    expect(await readSyncState(t)).toMatchObject({ minExpiresAt: null, lastFinishedAt: null, jobId: null });
   });
 
   it('writes a fresh 200 location + ship for a tracked character', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     const fetchFn = stubFetch({
@@ -270,11 +299,17 @@ describe('characterLocationSync.syncUser', () => {
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
     const lease = await readLease(t);
     expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect(await readSyncState(t)).toMatchObject({
+      syncedCharacterIds: [101],
+      coveredCharacterIds: [101],
+      minExpiresAt: expect.any(Number),
+      lastFinishedAt: expect.any(Number),
+    });
   });
 
   it('keeps the held document byte-identical on a 304', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     const before = await t.run(async (ctx) =>
@@ -311,9 +346,9 @@ describe('characterLocationSync.syncUser', () => {
   });
 
   it('fetches ship and stamps prev on a system change', async () => {
-    const t = convexTest(schema, modules);
+    const t = await testConvex();
     const recentFinish = Date.now() - 5_000;
-    await seedSubject(t, {
+    await seedSyncState(t, {
       lastFinishedAt: recentFinish,
       syncedCharacterIds: [101],
       coveredCharacterIds: [101],
@@ -362,8 +397,8 @@ describe('characterLocationSync.syncUser', () => {
   });
 
   it('does not fetch ship on a same-system dock change', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     await t.run((ctx) =>
@@ -409,8 +444,8 @@ describe('characterLocationSync.syncUser', () => {
   });
 
   it('skips untracked characters entirely (no token vend)', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     const fetchFn = stubFetch({
       esi: () => {
         throw new Error('should not call ESI');
@@ -421,11 +456,13 @@ describe('characterLocationSync.syncUser', () => {
 
     expect(await readDoc(t)).toBeNull();
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    expect(finishArgs().outcome).toMatchObject({ kind: 'success', trackedCharacterIds: [], results: [] });
+    expect(await readSyncState(t)).toMatchObject({ syncedCharacterIds: [], jobId: null });
   });
 
   it('records reauth_required when vend returns 409', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     const fetchFn = stubFetch({
       token: () => problemResponse('reauth_required', 409),
@@ -436,21 +473,14 @@ describe('characterLocationSync.syncUser', () => {
     expect(await readDoc(t)).toBeNull();
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
     expect(await readLease(t)).toBeNull();
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', USER).eq('dataset', 'characterLocation'),
-        )
-        .unique(),
-    );
+    const subject = await readSyncState(t);
     expect(subject?.minExpiresAt).toBeNull();
     expect(subject?.syncedCharacterIds).toEqual([101]);
   });
 
   it('clears a freshly vended lease when ESI returns 403', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     await t.run((ctx) =>
@@ -477,11 +507,12 @@ describe('characterLocationSync.syncUser', () => {
     expect(doc?.etagLocation).toBe('loc0');
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
     expect(await readLease(t)).toBeNull();
+    expect(finishArgs()).toMatchObject({ leases: [], clearedLeaseCharacterIds: [101] });
   });
 
   it('keeps the last-known doc on ESI 403, drops a held lease, and does not vend', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     await seedLease(t);
@@ -509,11 +540,12 @@ describe('characterLocationSync.syncUser', () => {
     expect(doc?.etagLocation).toBe('loc0');
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
     expect(await readLease(t)).toBeNull();
+    expect(finishArgs()).toMatchObject({ leases: [], clearedLeaseCharacterIds: [101] });
   });
 
   it('reuses a held online answer inside its window — no /online read', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     const fetchFn = stubFetch({
@@ -532,8 +564,8 @@ describe('characterLocationSync.syncUser', () => {
   });
 
   it('re-reads /online past the window; a 304 keeps the flag and refreshes the window', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     const lapsed = Date.now() - 1;
     await seedOnline(t, { onlineExpiresAt: lapsed });
@@ -564,8 +596,8 @@ describe('characterLocationSync.syncUser', () => {
   });
 
   it('skips location and ship for an offline pilot and paces at the online window', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
     const fetchFn = stubFetch({
@@ -585,21 +617,14 @@ describe('characterLocationSync.syncUser', () => {
     const row = await readOnlineRow(t);
     expect(row?.online).toBe(false);
     expect(row?.etagOnline).toBe('on1');
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', USER).eq('dataset', 'characterLocation'),
-        )
-        .unique(),
-    );
+    const subject = await readSyncState(t);
     expect(subject?.minExpiresAt).toBeGreaterThan(Date.now() + 30_000);
     expect(subject?.coveredCharacterIds).toEqual([]);
   });
 
   it('resumes the location loop when the probe sees a login', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t, { online: false, onlineExpiresAt: Date.now() - 1 });
     const fetchFn = stubFetch({
@@ -637,8 +662,8 @@ describe('characterLocationSync.syncUser', () => {
       },
     };
 
-    const held = convexTest(schema, modules);
-    await seedSubject(held);
+    const held = await testConvex();
+    await seedSyncState(held);
     await seedTracking(held);
     await seedOnline(held);
     await seedLease(held);
@@ -649,8 +674,8 @@ describe('characterLocationSync.syncUser', () => {
     expect((await readDoc(held))?.solarSystemId).toBe(SYSTEM_A);
     expect((await readLease(held))?.accessToken).toBe('leased-tok');
 
-    const stale = convexTest(schema, modules);
-    await seedSubject(stale);
+    const stale = await testConvex();
+    await seedSyncState(stale);
     await seedTracking(stale);
     await seedOnline(stale);
     await seedLease(stale, { expiresAt: Date.now() - 1, accessToken: 'stale-tok' });
@@ -661,9 +686,10 @@ describe('characterLocationSync.syncUser', () => {
     expect((await readDoc(stale))?.solarSystemId).toBe(SYSTEM_A);
   });
 
-  it('persists a vended lease when a later character throws', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+  it('persists vended leases via finishSync when a later character throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t, 101);
     await seedTracking(t, 102);
     await seedOnline(t, {}, 101);
@@ -683,71 +709,66 @@ describe('characterLocationSync.syncUser', () => {
 
     await run(t);
 
+    expect(finishArgs()).toEqual({
+      userId: USER,
+      generation: GEN,
+      outcome: { kind: 'failed', error: expect.stringMatching(/esi_down/) },
+      leases: [
+        { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
+        { characterId: 102, accessToken: 'tok', expiresAt: TOKEN_EXP },
+      ],
+      clearedLeaseCharacterIds: [],
+    });
     expect(await readLease(t, 101)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
     expect(await readLease(t, 102)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    // A failed run applies no results, so the first character's read is discarded.
     expect(await readDoc(t, 101)).toBeNull();
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', USER).eq('dataset', 'characterLocation'),
-        )
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(subject?.lastError).toMatch(/esi_down/);
+    expect(await readSyncState(t)).toMatchObject({ minExpiresAt: null, lastFinishedAt: null });
+    expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/esi_down/));
   });
 
-  it.each([false, true])(
-    'retries a rejected lease batch and preserves the first error, retry fails: %s',
-    async (retryFails) => {
-      const { t, persist } = await observeLeaseWrites();
-      persist.mockRejectedValueOnce(new Error('lease_write_failed'));
-      if (retryFails) persist.mockRejectedValueOnce(new Error('retry_write_failed'));
-      await seedSubject(t);
-      await seedTracking(t, 101);
-      await seedTracking(t, 102);
-      await seedOnline(t, {}, 101);
-      await seedOnline(t, {}, 102);
-      stubFetch({
-        esi: (url) => {
-          if (url.includes('/location')) {
-            return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
-          }
-          if (url.includes('/ship')) {
-            return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
-          }
-          throw new Error(`unexpected esi ${url}`);
-        },
-      });
+  it('stops at budget exhaustion and hands the partial run to finishSync', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    __setScoreboardForTests({
+      ...permissiveScoreboard,
+      async preDispatch() {
+        return { effectiveRemaining: 1000, blockedRetryAfter: 30, etag: null };
+      },
+    });
+    const t = await testConvex();
+    await seedSyncState(t);
+    await seedTracking(t, 101);
+    await seedTracking(t, 102);
+    await seedOnline(t, {}, 101);
+    await seedOnline(t, {}, 102);
+    const fetchFn = stubFetch({
+      esi: (url) => {
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
 
-      await run(t);
+    await run(t);
 
-      expect(persist).toHaveBeenCalledTimes(2);
-      expect(persist.mock.calls[0]?.[1]).toEqual({
-        userId: USER,
-        generation: GEN,
-        leases: [
-          { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
-          { characterId: 102, accessToken: 'tok', expiresAt: TOKEN_EXP },
-        ],
-      });
-      expect(persist.mock.calls[1]?.[1]).toEqual(persist.mock.calls[0]?.[1]);
-      for (const characterId of [101, 102]) {
-        const lease = await readLease(t, characterId);
-        if (retryFails) expect(lease).toBeNull();
-        else expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-        expect(await readDoc(t, characterId)).toBeNull();
-      }
-      const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-      expect(subject?.status).toBe('idle');
-      expect(subject?.lastError).toBe('sync_failed: lease_write_failed');
-    },
-  );
+    const tokenCalls = fetchFn.mock.calls.filter(([u]) => String(u).endsWith('/eve-token'));
+    expect(tokenCalls).toHaveLength(1);
+    expect(finishArgs().outcome).toMatchObject({
+      kind: 'success',
+      trackedCharacterIds: [101, 102],
+      results: [expect.objectContaining({ characterId: 101, error: 'budget_exhausted' })],
+      runError: 'budget_exhausted:rate_limited',
+    });
+    expect(await readDoc(t, 101)).toBeNull();
+    expect(await readSyncState(t)).toMatchObject({
+      minExpiresAt: null,
+      syncedCharacterIds: [101, 102],
+      coveredCharacterIds: [],
+    });
+    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/budget_exhausted/));
+  });
 
-  it('persists full lease batches before fetching the next character', async () => {
-    const { t, persist } = await observeLeaseWrites();
-    await seedSubject(t);
+  it('issues exactly one syncInputs query and one finishSync mutation per run', async () => {
+    const t = await testConvex();
+    await seedSyncState(t);
     for (let characterId = 101; characterId <= 133; characterId += 1) {
       await t.run((ctx) => ctx.db.insert('mapTracking', {
         mapId: characterId === 133 ? 'map-b' : 'map-a', userId: USER, characterId,
@@ -758,7 +779,6 @@ describe('characterLocationSync.syncUser', () => {
     stubFetch({
       token: () => {
         tokenRequests += 1;
-        if (tokenRequests === 33) expect(persist).toHaveBeenCalledTimes(1);
         return jsonResponse({ accessToken: 'tok', expiresAt: TOKEN_EXP });
       },
       esi: (url) => {
@@ -771,30 +791,32 @@ describe('characterLocationSync.syncUser', () => {
     await run(t);
 
     expect(tokenRequests).toBe(33);
-    expect(persist.mock.calls.map((call) => call[1].leases.length)).toEqual([32, 1]);
-    expect(persist.mock.calls.map((call) => call[1].generation)).toEqual([GEN, GEN]);
+    expect(calls.map((call) => call.name)).toEqual([
+      'characterLocationReads:syncInputs',
+      'characterLocationApply:finishSync',
+    ]);
+    expect(calls[0]?.args).toEqual({ userId: USER });
+    const finish = finishArgs();
+    expect(finish.generation).toBe(GEN);
+    expect(finish.leases).toHaveLength(33);
     const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
     expect(leases).toHaveLength(33);
     expect((await readDoc(t, 133))?.solarSystemId).toBe(SYSTEM_A);
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject?.status).toBe('idle');
-    expect(subject?.lastError).toBeNull();
+    const state = await readSyncState(t);
+    expect(state?.syncedCharacterIds).toHaveLength(33);
+    expect(state?.coveredCharacterIds).toHaveLength(33);
   });
 
-  it.each([false, true])('does not flush an old action token after a newer run stores then clears: %s', async (clear) => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+  it.each([false, true])('drops an old action\'s token after a newer run stores then clears: %s', async (clear) => {
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     stubFetch({
       esi: async (url) => {
         if (url.includes('/location')) {
           await replaceRunLease(t);
-          if (clear) {
-            await t.mutation(internal.characterLocationAccess.clearAccessLease, {
-              userId: USER, characterId: 101, generation: GEN + 1,
-            });
-          }
+          if (clear) await t.run((ctx) => clearAccessLeases(ctx, USER, [101]));
           return new Response(null, { status: 304, headers: RL });
         }
         throw new Error(`unexpected esi ${url}`);
@@ -803,16 +825,18 @@ describe('characterLocationSync.syncUser', () => {
 
     await run(t);
 
+    expect(finishArgs().leases).toEqual([
+      { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
+    ]);
     if (clear) expect(await readLease(t)).toBeNull();
     else expect(await readLease(t)).toMatchObject({ accessToken: 'new-run-token' });
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject).toMatchObject({ lastRequestedAt: GEN + 1, status: 'running' });
+    expect(await readSyncState(t)).toMatchObject({ runId: GEN + 1, lastFinishedAt: null, syncedCharacterIds: [] });
     expect(await readDoc(t)).toBeNull();
   });
 
   it.each([401, 403])('preserves a newer run token when an old action receives ESI %s', async (status) => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t);
     await seedOnline(t);
     await seedLease(t);
@@ -825,14 +849,14 @@ describe('characterLocationSync.syncUser', () => {
 
     await run(t);
 
+    expect(finishArgs().clearedLeaseCharacterIds).toEqual([101]);
     expect(await readLease(t)).toMatchObject({ accessToken: 'new-run-token' });
-    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
-    expect(subject).toMatchObject({ lastRequestedAt: GEN + 1, status: 'running' });
+    expect(await readSyncState(t)).toMatchObject({ runId: GEN + 1, lastFinishedAt: null });
   });
 
   it('re-vends two expired leases in one batch and keeps both', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
+    const t = await testConvex();
+    await seedSyncState(t);
     await seedTracking(t, 101);
     await seedTracking(t, 102);
     await seedOnline(t, {}, 101);

@@ -5,22 +5,11 @@ import {
   eveTokenEndpoint,
 } from '@/platform/auth/api-contract';
 import { serviceFetch } from '@/platform/auth/service-client';
-import { minCacheWindow } from '@/lib/sync-engine';
-import type { Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
-import { runObservabilityFields } from './syncFields';
 
 export const characterSyncResultFields = {
   characterId: v.number(),
   expiresAt: v.union(v.number(), v.null()),
   error: v.union(v.string(), v.null()),
-};
-
-export const characterSyncApplyFields = {
-  userId: v.string(),
-  generation: v.number(),
-  enumeratedCharacterIds: v.array(v.number()),
-  ...runObservabilityFields,
 };
 
 export interface SyncEnv {
@@ -90,36 +79,4 @@ export function resolveExpiresAt(
 ): number {
   const present = windows.filter((w): w is number => w !== null);
   return present.length > 0 ? Math.min(...present) : now + fallbackTtlMs;
-}
-
-export interface SubjectStamp {
-  enumeratedCharacterIds: number[];
-  coveredCharacterIds?: number[];
-  lastError: string | null;
-  rlGroup: string | null;
-  rlLimit: number | null;
-  rlRemaining: number | null;
-  rlUsed: number | null;
-}
-
-export async function stampSyncSubject(
-  ctx: MutationCtx,
-  subjectId: Id<'syncSubjects'>,
-  windows: Array<number | null>,
-  stamp: SubjectStamp,
-  now: number,
-): Promise<void> {
-  await ctx.db.patch(subjectId, {
-    minExpiresAt: minCacheWindow(windows),
-    syncedCharacterIds: stamp.enumeratedCharacterIds,
-    ...(stamp.coveredCharacterIds !== undefined
-      ? { coveredCharacterIds: stamp.coveredCharacterIds }
-      : {}),
-    lastFinishedAt: now,
-    lastError: stamp.lastError,
-    rlGroup: stamp.rlGroup,
-    rlLimit: stamp.rlLimit,
-    rlRemaining: stamp.rlRemaining,
-    rlUsed: stamp.rlUsed,
-  });
 }

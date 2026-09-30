@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
+import { readTrackedPilotSystemIds } from './mapTrackingLive';
+import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
 import { modules } from './__tests__/modules.setup';
 
@@ -291,6 +293,44 @@ describe('mapTracking.setTracking', () => {
       characterId: 92_000_000,
       tracked: true,
     });
+  });
+
+  it('shows all pilots beyond 256 and enforces map capacity without blocking opt-out', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < TRACKED_CHARACTERS_PER_MAP_CAP - 1; index += 1) {
+        await ctx.db.insert('mapTracking', {
+          mapId: MAP_A, userId: `pilot-${index}`, characterId: index + 1,
+        });
+      }
+    });
+    const caller = asUser(t, OWNER);
+    const selection = { mapId: MAP_A, characterId: CHAR, tracked: true };
+    await caller.mutation(tracking.setTracking, selection);
+    await caller.mutation(tracking.setTracking, selection);
+    const result = await caller.query(tracking.forMap, { mapId: MAP_A });
+    expect(result.tracked).toHaveLength(TRACKED_CHARACTERS_PER_MAP_CAP);
+    expect(result.ownTrackedCharacterIds).toEqual([CHAR]);
+    const coverage = await caller.query(tracking.coverage, {
+      mapId: MAP_A,
+      identities: result.tracked.map(({ userId, characterId }) => ({ userId, characterId })),
+    });
+    expect(coverage.coverage).toHaveLength(TRACKED_CHARACTERS_PER_MAP_CAP);
+    await expect(caller.mutation(tracking.setTracking, {
+      ...selection, characterId: CHAR_B,
+    })).rejects.toThrow('TRACKING_MAP_CAP_EXCEEDED');
+    await caller.mutation(tracking.setTracking, { ...selection, tracked: false });
+    await caller.mutation(tracking.setTracking, { ...selection, characterId: CHAR_B });
+
+    // A legacy or directly imported oversized map must fail visibly, never truncate.
+    await t.run((ctx) => ctx.db.insert('mapTracking', {
+      mapId: MAP_A, userId: 'legacy-overflow', characterId: CHAR,
+    }));
+    await expect(caller.query(tracking.forMap, { mapId: MAP_A }))
+      .rejects.toThrow('TRACKING_SCAN_LIMIT');
+    await expect(t.run((ctx) => readTrackedPilotSystemIds(ctx, MAP_A)))
+      .rejects.toThrow('TRACKING_SCAN_LIMIT');
   });
 
   it('refuses setTracking without a map-access claim', async () => {

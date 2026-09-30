@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { internal } from './_generated/api';
 import schema from './schema';
 
 import { CONVEX_HTTP_SECRET, postConvexHttp } from './__tests__/http.setup';
@@ -35,36 +36,36 @@ describe('POST /leave-sync', () => {
   it('retires a matching tab and ignores a stale close', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', {
-        dataset: 'characterLocation',
+    const now = Date.now();
+    const jobId = await t.run(async (ctx) => {
+      const id = await ctx.scheduler.runAt(now + 5_000, internal.characterLocationSync.syncUser, {
         userId: 'user-1',
-        status: 'idle',
-        lastRequestedAt: 0,
-        workId: null,
-        nextDueAt: Date.now() + 5_000,
+        generation: now,
+      });
+      await ctx.db.insert('locationSync', {
+        userId: 'user-1',
+        runId: now,
+        jobId: id,
         minExpiresAt: null,
         syncedCharacterIds: [101],
-        lastFinishedAt: Date.now(),
-        lastError: null,
         coveredCharacterIds: [101],
-        rlGroup: null,
-        rlLimit: null,
-        rlRemaining: null,
-        rlUsed: null,
+        lastFinishedAt: now,
       });
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: 'user-1',
-        lastSeenAt: Date.now(),
-        lastVisibleAt: Date.now(),
+        lastSeenAt: now,
+        lastVisibleAt: now,
         tabId: 'tab-live-aaaa',
       });
       await ctx.db.insert('characterLocationCovered', {
         userId: 'user-1',
         characterId: 101,
       });
+      return id;
     });
+    const jobState = () =>
+      t.run(async (ctx) => (await ctx.db.system.get('_scheduled_functions', jobId))?.state.kind);
 
     const stale = await t.fetch('/leave-sync', {
       method: 'POST',
@@ -77,6 +78,7 @@ describe('POST /leave-sync', () => {
     });
     expect(stale.status).toBe(200);
     expect(await stale.json()).toEqual({ retired: false });
+    expect(await jobState()).toBe('pending');
 
     const live = await t.fetch('/leave-sync', {
       method: 'POST',
@@ -91,10 +93,12 @@ describe('POST /leave-sync', () => {
     expect(await live.json()).toEqual({ retired: true });
 
     const after = await t.run(async (ctx) => ({
-      subject: await ctx.db.query('syncSubjects').unique(),
+      state: await ctx.db.query('locationSync').unique(),
       covered: await ctx.db.query('characterLocationCovered').collect(),
     }));
-    expect(after.subject?.nextDueAt).toBeNull();
+    expect(after.state?.jobId).toBeNull();
+    expect(after.state?.runId).toBeGreaterThan(now);
+    expect(await jobState()).toBe('canceled');
     expect(after.covered).toEqual([]);
   });
 });

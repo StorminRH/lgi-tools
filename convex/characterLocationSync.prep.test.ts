@@ -5,7 +5,7 @@ import { v } from 'convex/values';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { internal } from './_generated/api';
 import { internalQuery } from './_generated/server';
-import { accessLease, GEN, locationDoc, USER } from './__tests__/characterLocation.setup';
+import { accessLease, GEN, locationDoc, OTHER, USER } from './__tests__/characterLocation.setup';
 import { modules } from './__tests__/modules.setup';
 import schema from './schema';
 
@@ -26,13 +26,6 @@ function measureQuery(name: string, reference: string, reads: PrepRead[]) {
   });
 }
 
-function totalReads(reads: PrepRead[]) {
-  return reads.reduce((total, read) => ({
-    documentsRead: total.documentsRead + read.documentsRead,
-    bytesRead: total.bytesRead + read.bytesRead,
-  }), { documentsRead: 0, bytesRead: 0 });
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(GEN);
@@ -48,32 +41,19 @@ afterEach(() => {
 
 describe('location-sync preparation I/O', () => {
   it.each([
-    { tracked: 0, leftover: 12, documentsRead: 100 },
-    { tracked: 1, leftover: 2, documentsRead: 8 },
-    { tracked: 32, leftover: 12, documentsRead: 100 },
-  ])('preserves separate read budgets for $tracked tracked characters', async (workload) => {
+    { tracked: 0, leftover: 12 },
+    { tracked: 1, leftover: 2 },
+    { tracked: 2, leftover: 12 },
+    { tracked: 32, leftover: 12 },
+  ])('reads only tracking, held state, and leases once for $tracked tracked characters', async (workload) => {
     const reads: PrepRead[] = [];
-    const t = convexTest({
-      schema,
-      transactionLimits: { documentsRead: workload.documentsRead },
-      modules: {
-        ...modules,
-        '../actualLocationReads.ts': () => import('./characterLocationReads'),
-        '../actualLocationAccess.ts': () => import('./characterLocationAccess'),
-        '../actualTrackingIds.ts': () => import('./mapTrackingIds'),
-        '../characterLocationReads.ts': async () => ({
-          ...await import('./characterLocationReads'),
-          heldState: measureQuery('held', 'actualLocationReads:heldState', reads),
-        }),
-        '../characterLocationAccess.ts': async () => ({
-          ...await import('./characterLocationAccess'),
-          accessLeases: measureQuery('leases', 'actualLocationAccess:accessLeases', reads),
-        }),
-        '../mapTrackingIds.ts': async () => ({
-          ...await import('./mapTrackingIds'),
-          trackedCharacterIds: measureQuery('tracking', 'actualTrackingIds:trackedCharacterIds', reads),
-        }),
-      },
+    const t = convexTest(schema, {
+      ...modules,
+      '../actualLocationReads.ts': () => import('./characterLocationReads'),
+      '../characterLocationReads.ts': async () => ({
+        ...await import('./characterLocationReads'),
+        syncInputs: measureQuery('inputs', 'actualLocationReads:syncInputs', reads),
+      }),
     });
     await t.run(async (ctx) => {
       for (let index = 0; index < workload.tracked + workload.leftover; index += 1) {
@@ -87,30 +67,37 @@ describe('location-sync preparation I/O', () => {
           userId: USER, characterId, online: false, etagOnline: 'offline', onlineExpiresAt: GEN + 60_000,
         });
       }
+      // Per-run rows and another user's rows are never part of the cacheable read set.
+      await ctx.db.insert('locationSync', {
+        userId: USER,
+        runId: GEN,
+        jobId: null,
+        minExpiresAt: null,
+        syncedCharacterIds: [],
+        coveredCharacterIds: [],
+        lastFinishedAt: null,
+      });
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation', userId: USER, lastSeenAt: GEN, lastVisibleAt: GEN,
+      });
+      await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: OTHER, characterId: 81_000_000 });
+      await ctx.db.insert('characterLocation', locationDoc(OTHER, 81_000_000));
     });
 
-    await t.query(internal.characterLocationReads.heldState, { userId: USER });
-    await t.query(internal.mapTrackingIds.trackedCharacterIds, { userId: USER });
-    await t.query(internal.characterLocationAccess.accessLeases, { userId: USER });
-    const baseline = totalReads(reads);
-    expect(reads).toHaveLength(3);
+    await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
+    const [baseline] = reads;
+    expect(reads).toHaveLength(1);
     reads.length = 0;
     const fetch = vi.fn(() => { throw new Error('unexpected network request'); });
     vi.stubGlobal('fetch', fetch);
 
-    await t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN });
+    await t.action(internal.characterLocationSync.syncUser, { userId: USER, generation: GEN, schedulerVersion: 2 });
 
-    const candidate = totalReads(reads);
     expect(fetch).not.toHaveBeenCalled();
-    if (workload.tracked === 0) {
-      expect(reads.map((read) => read.name)).toEqual(['tracking']);
-      expect(candidate).toEqual({ documentsRead: 0, bytesRead: 0 });
-      expect(candidate.documentsRead).toBeLessThan(baseline.documentsRead);
-      expect(candidate.bytesRead).toBeLessThan(baseline.bytesRead);
-    } else {
-      expect(reads.map((read) => read.name)).toEqual(['tracking', 'held', 'leases']);
-      expect(candidate).toEqual(baseline);
-      expect(candidate.documentsRead).toBeGreaterThan(workload.documentsRead);
-    }
+    expect(reads.map((read) => read.name)).toEqual(['inputs']);
+    expect(reads[0]).toEqual(baseline);
+    expect(reads[0]?.documentsRead).toBe(
+      workload.tracked * 4,
+    );
   });
 });

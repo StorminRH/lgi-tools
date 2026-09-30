@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
+import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
@@ -25,6 +26,8 @@ async function enableTracking(
       detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
     });
   }
+  // Reading capacity and inserting in one mutation makes concurrent opt-ins conflict.
+  requireMapTrackingSpace((await readMapTracking(ctx, identity.mapId)).length);
   await ctx.db.insert('mapTracking', identity);
 }
 

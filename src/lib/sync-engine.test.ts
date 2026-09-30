@@ -1,21 +1,20 @@
 import { expect, test } from 'vitest';
 import {
-  classifyDueSubject,
   computeChainBoundary,
   computeNextDueAt,
   deriveConvexSiteUrl,
   hasSyncTarget,
+  HEARTBEAT_MS,
   HIDDEN_PRESENCE_MAX_MS,
   isCold,
   isColdFromPresence,
-  isRegisteredDataset,
-  isRunningFresh,
   isStaleForImmediate,
-  MAX_COLD_AFTER_MS,
+  LOCATION_CADENCE_FLOOR_MS,
+  LOCATION_COLD_AFTER_MS,
   minCacheWindow,
   RETENTION_MS,
-  STALE_RUNNING_MS,
-  SYNC_DATASET_CONFIG,
+  SYNC_DATASET_HISTORY,
+  SYNC_DATASETS,
   SYNC_JITTER_MS,
 } from './sync-engine';
 
@@ -25,33 +24,32 @@ const ONLINE_COLD_MS = 60_000;
 
 const seenAt = (lastSeenAt: number) => ({ lastSeenAt, lastVisibleAt: lastSeenAt });
 
-test('dataset registration pins live-read cadence and rejects retired literals', () => {
-  expect(SYNC_DATASET_CONFIG.characterLocation).toEqual({
-    cadenceFloorMs: 5_000,
-    coldAfterMs: 5 * 60_000,
-    tokenGroup: 'char-location',
-    chainOnSuccess: true,
-    rateKeyScope: 'subject',
-  });
-  expect(MAX_COLD_AFTER_MS).toBe(5 * 60_000);
-  expect(isRegisteredDataset('characterLocation')).toBe(true);
-  expect(isRegisteredDataset('onlineStatus')).toBe(false);
-  expect(isRegisteredDataset('skills')).toBe(false);
+test('location pacing constants pin the live-read cadence and the stored dataset set', () => {
+  expect(LOCATION_CADENCE_FLOOR_MS).toBe(5_000);
+  expect(LOCATION_COLD_AFTER_MS).toBe(5 * 60_000);
+  expect(HEARTBEAT_MS).toBe(60_000);
+  expect(HIDDEN_PRESENCE_MAX_MS).toBe(90 * 60_000);
+  expect(RETENTION_MS).toBe(7 * 24 * 60 * 60_000);
+  expect(SYNC_JITTER_MS).toBe(10_000);
+  // Presence must survive several missed beats before it reads cold.
+  expect(LOCATION_COLD_AFTER_MS).toBeGreaterThanOrEqual(3 * HEARTBEAT_MS);
+  expect(SYNC_DATASETS).toEqual(['characterLocation']);
+  expect(SYNC_DATASET_HISTORY).toEqual(['onlineStatus', 'characterLocation']);
 });
 
-test('isCold / isColdFromPresence / isRunningFresh decide warmth across windows', () => {
+test('isCold / isColdFromPresence decide warmth across windows', () => {
   expect(isCold(seenAt(NOW - ONLINE_COLD_MS), ONLINE_COLD_MS, NOW)).toBe(false);
   expect(isCold(seenAt(NOW - ONLINE_COLD_MS - 1), ONLINE_COLD_MS, NOW)).toBe(true);
   expect(isCold(seenAt(NOW), ONLINE_COLD_MS, NOW)).toBe(false);
 
   const beat = seenAt(NOW - 2 * 60_000);
   expect(isCold(beat, ONLINE_COLD_MS, NOW)).toBe(true);
-  expect(isCold(beat, SYNC_DATASET_CONFIG.characterLocation.coldAfterMs, NOW)).toBe(false);
+  expect(isCold(beat, LOCATION_COLD_AFTER_MS, NOW)).toBe(false);
 
   const hiddenOnly = { lastSeenAt: NOW, lastVisibleAt: NOW - HIDDEN_PRESENCE_MAX_MS - 1 };
-  expect(isCold(hiddenOnly, MAX_COLD_AFTER_MS, NOW)).toBe(true);
+  expect(isCold(hiddenOnly, LOCATION_COLD_AFTER_MS, NOW)).toBe(true);
   const withinCap = { lastSeenAt: NOW, lastVisibleAt: NOW - HIDDEN_PRESENCE_MAX_MS };
-  expect(isCold(withinCap, MAX_COLD_AFTER_MS, NOW)).toBe(false);
+  expect(isCold(withinCap, LOCATION_COLD_AFTER_MS, NOW)).toBe(false);
 
   expect(isCold({ lastSeenAt: NOW }, ONLINE_COLD_MS, NOW)).toBe(false);
   expect(isCold({ lastSeenAt: NOW - ONLINE_COLD_MS - 1 }, ONLINE_COLD_MS, NOW)).toBe(true);
@@ -60,41 +58,10 @@ test('isCold / isColdFromPresence / isRunningFresh decide warmth across windows'
   expect(isColdFromPresence(seenAt(NOW - ONLINE_COLD_MS), ONLINE_COLD_MS, NOW)).toBe(false);
   expect(isColdFromPresence(seenAt(NOW - ONLINE_COLD_MS - 1), ONLINE_COLD_MS, NOW)).toBe(true);
   expect(isColdFromPresence(seenAt(NOW), ONLINE_COLD_MS, NOW)).toBe(false);
-
-  expect(isRunningFresh('running', NOW - 1_000, NOW)).toBe(true);
-  expect(isRunningFresh('running', NOW - STALE_RUNNING_MS, NOW)).toBe(false);
-  expect(isRunningFresh('idle', NOW, NOW)).toBe(false);
-});
-
-test('classifyDueSubject decides delete / retire / skip / dispatch as one table', () => {
-  expect(classifyDueSubject(null, 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('delete');
-  expect(classifyDueSubject(seenAt(NOW - RETENTION_MS - 1), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
-    'delete',
-  );
-  expect(classifyDueSubject(seenAt(NOW - RETENTION_MS), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
-    'retire',
-  );
-  expect(
-    classifyDueSubject(seenAt(NOW - ONLINE_COLD_MS - 1), 'idle', 0, ONLINE_COLD_MS, NOW),
-  ).toBe('retire');
-
-  const hiddenOnly = { lastSeenAt: NOW, lastVisibleAt: NOW - HIDDEN_PRESENCE_MAX_MS - 1 };
-  expect(classifyDueSubject(hiddenOnly, 'idle', 0, MAX_COLD_AFTER_MS, NOW)).toBe('retire');
-
-  expect(classifyDueSubject(seenAt(NOW), 'running', NOW - 1_000, ONLINE_COLD_MS, NOW)).toBe(
-    'skip',
-  );
-  expect(classifyDueSubject(seenAt(NOW), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('dispatch');
-  expect(
-    classifyDueSubject(seenAt(NOW), 'running', NOW - STALE_RUNNING_MS, ONLINE_COLD_MS, NOW),
-  ).toBe('dispatch');
-  expect(classifyDueSubject(seenAt(NOW - ONLINE_COLD_MS), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe(
-    'dispatch',
-  );
 });
 
 test('scheduling helpers bound chain, due-at, stale-immediate, and sync targets', () => {
-  const floor = 5_000;
+  const floor = LOCATION_CADENCE_FLOOR_MS;
   expect(computeChainBoundary(NOW + 300_000, floor, NOW)).toBe(NOW + 300_000);
   expect(computeChainBoundary(NOW + 1_000, floor, NOW)).toBe(NOW + floor);
   expect(computeChainBoundary(null, floor, NOW)).toBe(NOW + floor);
