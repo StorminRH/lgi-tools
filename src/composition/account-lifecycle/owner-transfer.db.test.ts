@@ -24,7 +24,7 @@ vi.mock('./account-merge', async (importOriginal) => {
   };
 });
 vi.mock('@/data/location-tracking/merge', () => ({ snapshotMergeTracking: vi.fn().mockResolvedValue([]) }));
-vi.mock('@/platform/auth/eve-token-service', () => ({ revokeCharacterToken: vi.fn() }));
+vi.mock('@/platform/auth/eve-token-service', () => ({ revokeStoredCharacterToken: vi.fn() }));
 vi.mock('@/lib/convex-http-door', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/convex-http-door')>();
   return {
@@ -62,6 +62,7 @@ const harness = await createDbTestHarness({
     'custom_structures',
     'esi_refresh_jobs',
     'pending_tracking_merges',
+    'pending_deletions',
   ],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },

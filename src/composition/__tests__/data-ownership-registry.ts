@@ -602,6 +602,18 @@ export const DATA_OWNERSHIP = [
     dataClass: 'personal',
   },
   {
+    table: schema.pendingDeletions,
+    owner: 'platform/auth',
+    reads: [{ by: 'composition/account-lifecycle', purpose: 'Resumes the immutable deletion or transfer request, including reconciliation after its original link is gone.' }],
+    writers: [{ by: 'composition/account-lifecycle', reason: 'Locked delivery acknowledges the independent receipt only after purge and identity reconciliation succeed.' }],
+    invariants: ['pk(id)', 'unique(user_id)'],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'Enqueue captures original identity under the same user lock as merge and admin movement. Delivery locks only the independent receipt in a dedicated transaction pool while purge and projection use their existing connections; no cascading foreign key or purge contributor removes the held row. Immutable request identity fences stale discoveries; failure rotates queued_at without changing requested_at, and acknowledgement waits for final reconciliation.',
+    },
+    dataClass: 'personal',
+  },
+  {
     table: schema.pendingTrackingMerges,
     owner: 'data/location-tracking',
     reads: [{ by: 'composition/account-lifecycle', purpose: 'Reconcile durable tracking selections after a login merge.' }],
@@ -612,6 +624,17 @@ export const DATA_OWNERSHIP = [
       note: 'Snapshot jobs commit with the login merge. Delivery locks the destination and linked characters through Convex restore and acknowledgement; an atomic Convex receipt makes response-loss retries safe. Chained merges rekey jobs, unlink cancels selections, and user deletion cascades them.',
     },
     dataClass: 'personal',
+  },
+  {
+    table: schema.trackingReceiptCleanup,
+    owner: 'data/location-tracking',
+    reads: [],
+    invariants: ['check(tracking_receipt_cleanup_singleton)', 'pk(task)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'A singleton insert fixes the cutoff for one receipt-cleanup traversal. Cursor advancement and terminal deletion compare both the captured cutoff and cursor, so stale workers cannot overwrite newer progress. The checkpoint holds no user or character identity.',
+    },
+    dataClass: 'operational',
   },
   {
     table: schema.pendingMapAccessChanges,

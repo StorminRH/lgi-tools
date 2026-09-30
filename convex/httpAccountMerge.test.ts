@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import schema from './schema';
 
 import { CONVEX_HTTP_SECRET, postConvexHttp } from './__tests__/http.setup';
@@ -8,6 +9,43 @@ import { modules } from './__tests__/modules.setup';
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
+
+describe('tracking receipt retention service doors', () => {
+  it('requires service authorization and validates bounded candidate bodies', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    for (const path of ['/list-expired-tracking-receipts', '/delete-expired-tracking-receipts'] as const) {
+      expect((await postConvexHttp(path, '{}', false)).status).toBe(401);
+      expect((await postConvexHttp(path, 'not-json')).status).toBe(400);
+      expect((await postConvexHttp(path, '{}')).status).toBe(400);
+    }
+    expect((await postConvexHttp('/delete-expired-tracking-receipts', JSON.stringify({
+      cutoff: 123, receipts: Array.from({ length: MERGE_RECEIPT_BATCH_SIZE + 1 }, () => ({ receiptId: 'r', operationId: 'op' })),
+    }))).status).toBe(400);
+  });
+
+  it('lists and deletes expired receipts through authenticated endpoints', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    vi.useFakeTimers();
+    const now = Date.now();
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'completed' }));
+    vi.setSystemTime(now + MERGE_RECEIPT_RETENTION_MS + 1);
+    const request = (path: string, body: unknown) => t.fetch(path, {
+      method: 'POST', headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify(body),
+    });
+    const listed = await request('/list-expired-tracking-receipts', { cutoff: now + 1, cursor: null });
+    expect(listed.status).toBe(200);
+    const { receipts, done } = await listed.json();
+    expect(done).toBe(true);
+    expect(receipts).toEqual([expect.objectContaining({ operationId: 'completed' })]);
+    const deleted = await request('/delete-expired-tracking-receipts', { cutoff: now + 1, receipts });
+    expect(deleted.status).toBe(200);
+    expect(await deleted.json()).toEqual({ deleted: 1 });
+    expect(await t.run((ctx) => ctx.db.query('accountMergeTrackingReceipts').collect())).toEqual([]);
+  });
 });
 
 describe('POST /merge-user-state', () => {

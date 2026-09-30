@@ -1,5 +1,6 @@
 import { retryRequestedDeletions } from '@/composition/account-lifecycle/account-purge';
 import { reconcileTrackingMerges } from '@/composition/account-lifecycle/tracking-merge-retry';
+import { pruneTrackingMergeReceipts } from '@/composition/account-lifecycle/tracking-receipt-retention';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { pruneDomainEvents } from '@/data/domain-events/queries';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
@@ -29,6 +30,7 @@ import { pruneEsiSnapshots } from './esi-snapshot-retention';
 /** Time the deletes share; a delete stopped by it reports unfinished and resumes tomorrow. */
 const DELETE_BUDGET_MS = 60_000;
 const DELETION_RETRY_BUDGET_MS = 30_000;
+const RECEIPT_CLEANUP_BUDGET_MS = 10_000;
 
 export interface HousekeepingDeleteResult {
   readonly task: string;
@@ -157,6 +159,11 @@ export async function runHousekeeping(now: Date = new Date()): Promise<Housekeep
       return { succeeded: result.processed, failed: result.failed };
     }),
   ];
+
+  deletes.push(await runDelete({
+    task: 'account_merge_tracking_receipts',
+    run: pruneTrackingMergeReceipts,
+  }, now, Date.now() + RECEIPT_CLEANUP_BUDGET_MS));
 
   const failed =
     deletes.some((result) => result.error !== null)

@@ -54,7 +54,13 @@ vi.mock('./account-merge', () => ({
 }));
 vi.mock('@/platform/auth/token-crypto', () => ({ decryptToken: merge.decryptToken }));
 const finishPendingDeletion = vi.hoisted(() => vi.fn());
-vi.mock('./account-purge', () => ({ finishPendingDeletion }));
+vi.mock('./account-purge', async () => ({
+  finishPendingDeletion,
+  transferCharacter: async (userId: string, characterId: number, accountRowId?: string) => {
+    const { finishCharacterTransfer } = await import('./character-transfer');
+    await finishCharacterTransfer(userId, characterId, accountRowId ?? 'acc-1');
+  },
+}));
 
 vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
@@ -117,6 +123,7 @@ afterEach(() => {
 
 describe('purgeTransferredCharacter', () => {
   it('keeps the prior link when revocation cannot be confirmed', async () => {
+    state.results = [[{ id: 'acc-1' }]];
     const failure = new Error('Convex unavailable');
     hooks.runBeforeCharacterUnlink.mockRejectedValueOnce(failure);
     await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
@@ -125,6 +132,7 @@ describe('purgeTransferredCharacter', () => {
 
   it('completes source reconciliation and final teardown before reporting a history-erasure failure', async () => {
     state.results = [
+      [{ id: 'acc-1' }],
       [{ id: 'acc-1' }],
       undefined,
       [{ accountId: String(OTHER_CHAR) }],
@@ -140,6 +148,7 @@ describe('purgeTransferredCharacter', () => {
 
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
+      [{ id: 'acc-1' }],
       [{ id: 'acc-1' }],
       undefined,
       [{ accountId: String(OTHER_CHAR) }],
@@ -196,6 +205,7 @@ describe('proveCharacter on sign-in and same-user relink', () => {
 
     state.results = [
       row({ ownerHash: 'owner-old' }),
+      [{ id: 'acc-1' }],
       [{ id: 'acc-1' }],
       undefined,
       [{ accountId: String(OTHER_CHAR) }],
@@ -270,6 +280,7 @@ describe('proveCharacter on a cross-user link', () => {
     merge.mergeUsers.mockClear();
     state.results = [
       row({ ownerHash: null, accessToken: tokenWithOwner(H2) }),
+      [{ id: 'acc-1' }],
       [{ id: 'acc-1' }],
       undefined,
       [{ accountId: String(OTHER_CHAR) }],

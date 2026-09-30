@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
@@ -266,4 +267,56 @@ it('does not restore stamps for denied or cap-skipped tracking selections', asyn
     selections: ['full', 'denied'].map((mapId) => ({ mapId, characterId: CHAR_A, lastProcessedTransitionAt: 100 })),
   });
   expect(await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect())).toEqual([]);
+});
+
+
+describe('merge tracking receipt retention', () => {
+  const NOW = 1_800_000_000_000;
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
+  afterEach(() => vi.useRealTimers());
+
+  it('pages expired candidates past a full batch and excludes the cutoff and recent receipts', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let i = 0; i <= MERGE_RECEIPT_BATCH_SIZE; i += 1) {
+        await ctx.db.insert('accountMergeTrackingReceipts', { operationId: `old-${i}` });
+      }
+    });
+    vi.setSystemTime(NOW + MERGE_RECEIPT_RETENTION_MS);
+    const recent = await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'recent' }));
+    const atCutoff = await t.query(internal.accountMerge.listExpiredTrackingReceipts, { cutoff: NOW, cursor: null });
+    expect(atCutoff.receipts).toEqual([]);
+    vi.setSystemTime(NOW + MERGE_RECEIPT_RETENTION_MS + 1);
+    const args = { cutoff: NOW + 1, cursor: null };
+    const first = await t.query(internal.accountMerge.listExpiredTrackingReceipts, args);
+    expect(first.receipts).toHaveLength(MERGE_RECEIPT_BATCH_SIZE);
+    expect(first.done).toBe(false);
+    await t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, { cutoff: args.cutoff, receipts: first.receipts });
+    const last = await t.query(internal.accountMerge.listExpiredTrackingReceipts, { ...args, cursor: first.cursor });
+    expect(last.receipts).toHaveLength(1);
+    expect(last.done).toBe(true);
+    expect(last.receipts[0]?.operationId).toMatch(/^old-/);
+    expect(await t.run((ctx) => ctx.db.get(recent))).not.toBeNull();
+  });
+
+  it('deletes only exact expired candidates and makes repeated deletion a no-op', async () => {
+    const t = convexTest(schema, modules);
+    const old = await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'old' }));
+    vi.setSystemTime(NOW + MERGE_RECEIPT_RETENTION_MS + 1);
+    const recent = await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'recent' }));
+    const cutoff = NOW + 1;
+    const badCandidates = [
+      { receiptId: old, operationId: 'wrong' }, { receiptId: recent, operationId: 'recent' },
+    ];
+    await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
+      cutoff: Date.now() + MERGE_RECEIPT_RETENTION_MS, receipts: badCandidates,
+    })).resolves.toEqual({ deleted: 0 });
+    const args = { cutoff, receipts: [{ receiptId: old, operationId: 'old' }] };
+    await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, args)).resolves.toEqual({ deleted: 1 });
+    await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, args)).resolves.toEqual({ deleted: 0 });
+    expect(await t.run((ctx) => ctx.db.get(recent))).not.toBeNull();
+    await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
+      cutoff, receipts: Array.from({ length: MERGE_RECEIPT_BATCH_SIZE + 1 }, () => args.receipts[0]!),
+    })).rejects.toThrow('Too many tracking receipts');
+  });
 });

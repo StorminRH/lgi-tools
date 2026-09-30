@@ -11,6 +11,7 @@ export async function reconcileAfterCharacterRemoval(
   userId: string,
   characterId: number,
   runners: IdentityProjectionRunners,
+  deletionRecorded = false,
 ): Promise<{ accountEmptied: boolean }> {
   const remaining = await db
     .select({ accountId: account.accountId })
@@ -21,7 +22,7 @@ export async function reconcileAfterCharacterRemoval(
   const [firstRemaining] = remaining;
   if (firstRemaining === undefined) {
     // A user left with no characters is deleted; if teardown fails, the daily run retries it.
-    await markUserDeletionRequested(userId);
+    if (!deletionRecorded) await markUserDeletionRequested(userId);
     await runners.runBeforeUserDelete(userId);
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };

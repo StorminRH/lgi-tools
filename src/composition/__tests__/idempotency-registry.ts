@@ -67,7 +67,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: DAILY_BATCH_ONLY_REDELIVERY,
     verdict: 'inherently-idempotent',
     evidence:
-      'Declares lock mode none: every retention delete removes only rows already past their cutoff, a retried deletion resumes from the account or user row it keeps until done, and a tracking-merge delivery locks its own rows and is deduplicated by its Convex receipt.',
+      'Declares lock mode none: retention deletes remove only rows past their cutoff; deletion jobs lock the original request and survive unlink through reconciliation; tracking delivery locks its own row and is deduplicated by its Convex receipt. Receipt cleanup protects pending Neon operations, deletes exact expired completed candidates, and advances its fixed-cutoff checkpoint by compare-and-set after each successful page.',
   },
   {
     id: 'cron/purge-maps',
@@ -176,7 +176,7 @@ const convexSyncEngineRetention = convexEntry({
   redeliverySource:
     'The daily Convex interval cron, plus the immediate continuation a full batch schedules.',
   evidence:
-    'internal.engineSweep.sweep only deletes rows past the retention window, rows of retired datasets, or account-merge receipts older than 90 days; a repeat or overlapping run finds those rows already gone.',
+    'internal.engineSweep.sweep only deletes rows past the retention window or rows of retired datasets; a repeat or overlapping run finds those rows already gone.',
 });
 const convexEngineSweep = convexEntry({
   id: 'convex/engineSweep:sweep',

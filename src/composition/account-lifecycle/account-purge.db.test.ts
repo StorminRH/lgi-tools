@@ -10,18 +10,30 @@ import {
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
 
+const jobDatabase = vi.hoisted(() => ({ current: null as PostgresJsDatabase | null }));
+vi.mock('@/db/deletion-client', () => ({ deletionDatabase: () => jobDatabase.current }));
+const discovery = vi.hoisted(() => ({ original: undefined as undefined | ((limit: number) => Promise<DeletionJob[]>), read: vi.fn() }));
+vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/platform/auth/deletion-jobs')>();
+  discovery.original = actual.readDeletionJobs;
+  return { ...actual, readDeletionJobs: discovery.read };
+});
+
 const revokeMock = vi.hoisted(() => vi.fn());
 const mapPurge = vi.hoisted(() => ({
   purgeMapChain: vi.fn().mockResolvedValue({ deleted: 0, remaining: false }),
 }));
 vi.mock('@/platform/auth/eve-token-service', () => ({
-  revokeCharacterToken: (characterId: number) => revokeMock(characterId),
+  revokeStoredCharacterToken: (ciphertext: string | null) => revokeMock(ciphertext),
 }));
 vi.mock('@/composition/map-purge', () => ({
   purgeMapChain: mapPurge.purgeMapChain,
 }));
 
-import { nukeAccount, purgeOwnCharacter } from './account-purge';
+import { finishPendingDeletion, nukeAccount, purgeOwnCharacter, retryRequestedDeletions } from './account-purge';
+import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } from '@/platform/auth/deletion-jobs';
+import { pendingDeletions } from '@/platform/auth/deletion-schema';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { account, characters, corpAccessAudit, session, user } from '@/db/auth-schema';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
@@ -60,6 +72,7 @@ const TABLE_NAMES = [
   'saved_plans',
   'net_worth_days',
   'pending_tracking_merges',
+    'pending_deletions',
 ] as const;
 
 const harness = await createDbTestHarness({
@@ -120,6 +133,8 @@ const harness = await createDbTestHarness({
 
 describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () => {
   beforeEach(async () => {
+    jobDatabase.current = harness.db;
+    discovery.read.mockReset().mockImplementation(discovery.original!);
     revokeMock.mockReset();
     revokeMock.mockResolvedValue(undefined);
     mapPurge.purgeMapChain.mockReset().mockResolvedValue({
@@ -147,6 +162,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await insertEveAccount(harness.db, { id, characterId, userId: USER_ID }, {
       createdAt,
       updatedAt: createdAt,
+      refreshToken: `grant-${characterId}`,
     });
   }
 
@@ -361,7 +377,7 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(mapPurge.purgeMapChain).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
     );
-    expect(revokeMock.mock.calls).toEqual([[FIRST_CHAR], [SECOND_CHAR]]);
+    expect(revokeMock.mock.calls).toEqual([[`grant-${FIRST_CHAR}`], [`grant-${SECOND_CHAR}`]]);
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
     expect(await countClonedRows('character_industry_jobs')).toBe(0);
@@ -381,7 +397,116 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);
 
     await expect(nukeAccount(USER_ID)).resolves.toBeUndefined();
-    expect(revokeMock.mock.calls).toEqual([[FIRST_CHAR], [SECOND_CHAR]]);
+    expect(revokeMock.mock.calls).toEqual([[`grant-${FIRST_CHAR}`], [`grant-${SECOND_CHAR}`]]);
     expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);
   });
+
+  function gate() {
+    let release!: () => void;
+    const promise = new Promise<void>((resolve) => { release = resolve; });
+    return { promise, release };
+  }
+
+  async function queueCharacter(characterId: number, userId = USER_ID) {
+    const request = await requestDeletion(userId, characterId);
+    expect(request).not.toBeNull();
+    return enqueueDeletion(request!);
+  }
+
+  it('ignores a stale discovered job after OAuth completes deletion and the same user relinks fresh data', async () => {
+    await seedEveAccount('old', FIRST_CHAR, new Date());
+    await seedEveAccount('other', SECOND_CHAR, new Date());
+    await seedCharacterCache(FIRST_CHAR);
+    await queueCharacter(FIRST_CHAR);
+    const captured = gate();
+    const resume = gate();
+    discovery.read.mockImplementationOnce(async (limit: number) => {
+      const rows = await discovery.original!(limit);
+      captured.release();
+      await resume.promise;
+      return rows;
+    });
+    const cron = retryRequestedDeletions(Date.now() + 60000);
+    await captured.promise;
+    await finishPendingDeletion(FIRST_CHAR);
+    await insertEveAccount(harness.db, { id: 'fresh', characterId: FIRST_CHAR, userId: USER_ID }, { refreshToken: 'fresh-grant' });
+    await seedCharacterCache(FIRST_CHAR);
+    resume.release();
+    expect(await cron).toEqual({ retried: 0, failed: 0 });
+    expect(await harness.db.select().from(account).where(eq(account.id, 'fresh'))).toMatchObject([{ refreshToken: 'fresh-grant', deletionRequestedAt: null }]);
+    expect(await countClonedRows('character_skills', `character_id = ${FIRST_CHAR}`)).toBe(1);
+    expect(revokeMock).not.toHaveBeenCalledWith('fresh-grant');
+  });
+
+  it('serializes duplicate finishers on the real job row and revokes the original grant once', async () => {
+    await seedEveAccount('old', FIRST_CHAR, new Date());
+    await seedEveAccount('other', SECOND_CHAR, new Date());
+    await queueCharacter(FIRST_CHAR);
+    const entered = gate();
+    const resume = gate();
+    revokeMock.mockImplementationOnce(async () => { entered.release(); await resume.promise; });
+    const cron = retryRequestedDeletions(Date.now() + 60000);
+    await entered.promise;
+    const oauth = finishPendingDeletion(FIRST_CHAR);
+    let blocked = false;
+    for (let pass = 0; pass < 100; pass += 1) {
+      const [row] = await harness.sql<{ n: number }[]>`select count(*)::int n from pg_stat_activity where cardinality(pg_blocking_pids(pid)) > 0 and query like '%pending_deletions%'`;
+      if (row!.n > 0) { blocked = true; break; }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    resume.release();
+    await Promise.all([cron, oauth]);
+    expect(blocked).toBe(true);
+    expect(revokeMock).toHaveBeenCalledExactlyOnceWith(`grant-${FIRST_CHAR}`);
+    expect(await harness.db.select().from(pendingDeletions)).toHaveLength(0);
+  });
+
+  it('retains the independent receipt after unlink and resumes reconciliation without another character purge', async () => {
+    await seedEveAccount('old', FIRST_CHAR, new Date());
+    await seedUserData();
+    mapPurge.purgeMapChain.mockRejectedValueOnce(new Error('Convex unavailable'));
+    await expect(purgeOwnCharacter(USER_ID, FIRST_CHAR)).rejects.toThrow('Convex unavailable');
+    expect(await harness.db.select().from(account)).toHaveLength(0);
+    expect(await harness.db.select().from(pendingDeletions)).toHaveLength(1);
+    expect((await harness.db.select().from(user))[0]?.deletionRequestedAt).toBeNull();
+    await finishPendingDeletion(FIRST_CHAR);
+    expect(revokeMock).toHaveBeenCalledOnce();
+    expect(await harness.db.select().from(user)).toHaveLength(0);
+    expect(await harness.db.select().from(pendingDeletions)).toHaveLength(0);
+  });
+
+  it('keeps incoming whole-user intent while a character job fails, then drains both scopes', async () => {
+    await seedEveAccount('old', FIRST_CHAR, new Date());
+    await seedEveAccount('other', SECOND_CHAR, new Date());
+    await queueCharacter(FIRST_CHAR);
+    revokeMock.mockRejectedValueOnce(new Error('fixture purge unavailable'));
+    await expect(nukeAccount(USER_ID)).rejects.toThrow('fixture purge unavailable');
+    expect((await harness.db.select().from(user))[0]?.deletionRequestedAt).not.toBeNull();
+    expect((await harness.db.select().from(pendingDeletions))[0]?.scope).toBe('character');
+    await finishPendingDeletion(SECOND_CHAR);
+    expect(await harness.db.select().from(account)).toHaveLength(0);
+    expect(await harness.db.select().from(user)).toHaveLength(0);
+    expect(await harness.db.select().from(pendingDeletions)).toHaveLength(0);
+  });
+
+  it('moves failed old jobs behind a newly queued request without changing their request identity', async () => {
+    const old = new Date('2026-01-01T00:00:00Z');
+    await seedEveAccount('old', FIRST_CHAR, old);
+    const first = await queueCharacter(FIRST_CHAR);
+    await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, first!.id));
+    revokeMock.mockRejectedValueOnce(new Error('fixture failure'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
+    error.mockRestore();
+    const [retained] = await harness.db.select().from(pendingDeletions);
+    expect(retained!.id).toBe(first!.id);
+    expect(retained!.requestedAt).toEqual(first!.requestedAt);
+    expect(retained!.queuedAt.getTime()).toBeGreaterThan(old.getTime());
+    await seedUser(harness.db, 'new-owner');
+    await insertEveAccount(harness.db, { id: 'new-link', characterId: 90000099, userId: 'new-owner' });
+    const newer = await queueCharacter(90000099, 'new-owner');
+    await harness.db.update(pendingDeletions).set({ queuedAt: old }).where(eq(pendingDeletions.id, newer!.id));
+    expect((await readDeletionJobs(1))[0]?.id).toBe(newer!.id);
+  });
+
 });

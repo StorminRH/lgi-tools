@@ -127,6 +127,53 @@ describe('map chain cleanup', () => {
     expect(events.map((event) => event.kind)).toContain('branch_removed');
   });
 
+  it('keeps an expired sibling rearmed by an earlier settlement until the new undo window ends', async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', liveSystem(ROOT));
+      const island = await ctx.db.insert('mapSystems', liveSystem(LIVE_ISLAND));
+      const cut = await ctx.db.insert('mapConnections', connection(ROOT, LIVE_ISLAND, EXPIRED));
+      const sibling = await ctx.db.insert('mapConnections', connection(ROOT, LIVE_ISLAND, EXPIRED));
+      return { island, cut, sibling };
+    });
+
+    await expect(purge(t)).resolves.toMatchObject({
+      deletedConnections: 0,
+      removedBranches: 1,
+      hasMore: false,
+    });
+    expect(await get(t, ids.island)).toMatchObject({
+      deletedAt: NOW,
+      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+    });
+    expect(await get(t, ids.cut)).toMatchObject({
+      tombstone: { kind: 'removed', deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
+    });
+    expect(await get(t, ids.sibling)).toMatchObject({
+      tombstone: {
+        kind: 'removed',
+        deletedAt: EXPIRED.deletedAt,
+        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      },
+    });
+    await expect(purge(t)).resolves.toMatchObject({
+      deletedConnections: 0,
+      removedBranches: 0,
+      hasMore: false,
+    });
+
+    vi.setSystemTime(NOW + MAP_CHAIN_UNDO_WINDOW_MS + 1);
+    await expect(purge(t)).resolves.toMatchObject({
+      deletedSystems: 1,
+      deletedConnections: 2,
+      removedBranches: 0,
+      hasMore: false,
+    });
+    expect(await get(t, ids.island)).toBeNull();
+    expect(await get(t, ids.cut)).toBeNull();
+    expect(await get(t, ids.sibling)).toBeNull();
+  });
+
   it('deletes a removed connection whose systems are still linked another way', async () => {
     const t = convexTest(schema, modules);
     const ids = await t.run(async (ctx) => {

@@ -17,7 +17,9 @@ export const postConvexHttp = (
     | '/purge-map-chain'
     | '/merge-user-state'
     | '/snapshot-merge-tracking'
-    | '/restore-merge-tracking',
+    | '/restore-merge-tracking'
+    | '/list-expired-tracking-receipts'
+    | '/delete-expired-tracking-receipts',
   body: BodyInit | null,
   authorized = true,
 ) =>

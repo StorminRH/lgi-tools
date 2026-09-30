@@ -10,7 +10,7 @@ import {
   SYNC_JITTER_MS,
 } from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
-import { MERGE_RECEIPT_RETENTION_MS } from './engineSweep';
+import { MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import type { Doc, Id } from './_generated/dataModel';
 import schema from './schema';
 import { modules } from './__tests__/modules.setup';
@@ -1093,7 +1093,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
 });
 
 describe('engine.sweep (daily retention)', () => {
-  it('deletes account-merge receipts past the retention window and keeps newer ones', async () => {
+  it('leaves merge receipts for Neon-coordinated retention even past the retention window', async () => {
     const t = convexTest(schema, modules);
     const start = Date.now();
     await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'old-op' }));
@@ -1101,10 +1101,10 @@ describe('engine.sweep (daily retention)', () => {
     await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'recent-op' }));
     vi.setSystemTime(start + MERGE_RECEIPT_RETENTION_MS + 60_000);
 
-    await expect(t.mutation(internal.engineSweep.sweep, {})).resolves.toEqual({ deleted: 1, capped: false });
+    await expect(t.mutation(internal.engineSweep.sweep, {})).resolves.toEqual({ deleted: 0, capped: false });
 
     const remaining = await t.run((ctx) => ctx.db.query('accountMergeTrackingReceipts').collect());
-    expect(remaining.map((receipt) => receipt.operationId)).toEqual(['recent-op']);
+    expect(remaining.map((receipt) => receipt.operationId)).toEqual(['old-op', 'recent-op']);
   });
 
   it('deletes only presence and sync state past retention, never scheduling overdue work', async () => {

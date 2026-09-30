@@ -26,6 +26,7 @@ function timedPostgres(url: string, options: Parameters<typeof postgres>[1]): Sq
 let _client: HttpClient | undefined;
 let _db: Db | undefined;
 let _directClient: Sql | undefined;
+let _deletionClient: Sql | undefined;
 
 function getClient(): HttpClient {
   if (_client) return _client;
@@ -89,6 +90,15 @@ function getDirectClient(): Sql {
     connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
   });
   return _directClient;
+}
+
+/** Deletion jobs must not occupy the pool used by their nested projection work. */
+export function getDeletionClient(): Sql {
+  _deletionClient ??= timedPostgres(resolveLockConnectionUrl(), {
+    max: 1,
+    connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
+  });
+  return _deletionClient;
 }
 
 export const db: Db = new Proxy({} as Db, {

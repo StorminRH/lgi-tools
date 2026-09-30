@@ -31,9 +31,8 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { revokeCharacterToken } from './eve-token-service';
+import { revokeStoredCharacterToken } from './eve-token-service';
 
-const CHAR = 90000001;
 
 beforeEach(() => {
   state.results = [];
@@ -42,12 +41,12 @@ beforeEach(() => {
   revokeEveRefreshTokenMock.mockResolvedValue({ ok: true });
 });
 
-describe('revokeCharacterToken', () => {
+describe('revokeStoredCharacterToken', () => {
   it('revokes the decrypted refresh token at EVE with the confidential-client creds', async () => {
     state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
     decryptTokenMock.mockReturnValue('plain-refresh');
 
-    await revokeCharacterToken(CHAR);
+    await revokeStoredCharacterToken('cipher');
 
     expect(decryptTokenMock).toHaveBeenCalledWith('cipher');
     expect(revokeEveRefreshTokenMock).toHaveBeenCalledWith({
@@ -58,15 +57,14 @@ describe('revokeCharacterToken', () => {
   });
 
   it('skips the revoke when there is no account row (nothing to revoke)', async () => {
-    state.results = [[]];
-    await revokeCharacterToken(CHAR);
+    await revokeStoredCharacterToken(null);
     expect(revokeEveRefreshTokenMock).not.toHaveBeenCalled();
   });
 
   it('skips the revoke when the stored token decrypts to null (legacy/tampered)', async () => {
     state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
     decryptTokenMock.mockReturnValue(null);
-    await revokeCharacterToken(CHAR);
+    await revokeStoredCharacterToken('cipher');
     expect(revokeEveRefreshTokenMock).not.toHaveBeenCalled();
   });
 
@@ -74,6 +72,6 @@ describe('revokeCharacterToken', () => {
     state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
     decryptTokenMock.mockReturnValue('plain-refresh');
     revokeEveRefreshTokenMock.mockRejectedValue(new Error('CCP down'));
-    await expect(revokeCharacterToken(CHAR)).resolves.toBeUndefined();
+    await expect(revokeStoredCharacterToken('cipher')).resolves.toBeUndefined();
   });
 });

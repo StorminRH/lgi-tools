@@ -163,6 +163,8 @@ export const TABLE_GROWTH_STORIES = [
     alsoPurgeManagedBy: 'auth',
   },
   { kind: 'purge-managed', table: schema.pendingTrackingMerges, purgeContributor: 'location-tracking' },
+  { kind: 'bounded', table: schema.trackingReceiptCleanup, reason: 'database check constraint permits one cleanup checkpoint; the daily drain advances it until completion deletes it' },
+  { kind: 'bounded', table: schema.pendingDeletions, reason: 'at most one coordinator per user; successful reconciliation deletes it, failed authorized deletions retain it for the daily retry' },
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },
   { kind: 'bounded', table: schema.pendingMapAccessChanges, reason: 'at most one pending generation per map; successful delivery deletes it and map deletion cascades it' },

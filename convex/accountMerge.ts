@@ -1,4 +1,5 @@
 import { ConvexError, v, type Infer } from 'convex/values';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
@@ -124,6 +125,49 @@ export const restoreMergeTracking = internalMutation({
     // response must never make a later retry undo the user's subsequent opt-out.
     await ctx.db.insert('accountMergeTrackingReceipts', { operationId });
     return { restored, skipped, alreadyApplied: false };
+  },
+});
+
+const receiptCandidateValidator = v.object({
+  receiptId: v.id('accountMergeTrackingReceipts'),
+  operationId: v.string(),
+});
+
+export const listExpiredTrackingReceipts = internalQuery({
+  args: { cutoff: v.number(), cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    receipts: v.array(receiptCandidateValidator),
+    cursor: v.string(),
+    done: v.boolean(),
+  }),
+  handler: async (ctx, { cutoff, cursor }) => {
+    const page = await ctx.db.query('accountMergeTrackingReceipts')
+      .withIndex('by_creation_time', (q) => q.lt('_creationTime', cutoff))
+      .paginate({ cursor, numItems: MERGE_RECEIPT_BATCH_SIZE });
+    return {
+      receipts: page.page.map((row) => ({ receiptId: row._id, operationId: row.operationId })),
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
+  },
+});
+
+export const deleteExpiredTrackingReceipts = internalMutation({
+  args: { cutoff: v.number(), receipts: v.array(receiptCandidateValidator) },
+  returns: v.object({ deleted: v.number() }),
+  handler: async (ctx, { cutoff, receipts }) => {
+    if (receipts.length > MERGE_RECEIPT_BATCH_SIZE) {
+      throw new ConvexError('Too many tracking receipts to delete in one batch');
+    }
+    const expiredBefore = Math.min(cutoff, Date.now() - MERGE_RECEIPT_RETENTION_MS);
+    let deleted = 0;
+    for (const { receiptId, operationId } of receipts) {
+      const receipt = await ctx.db.get('accountMergeTrackingReceipts', receiptId);
+      if (receipt === null || receipt.operationId !== operationId || receipt._creationTime >= expiredBefore) continue;
+      await ctx.db.delete('accountMergeTrackingReceipts', receiptId);
+      deleted += 1;
+    }
+    return { deleted };
   },
 });
 

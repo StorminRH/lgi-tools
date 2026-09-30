@@ -11,6 +11,7 @@ const { chain, state } = vi.hoisted(() => {
   for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy', 'returning']) {
     chain[method] = () => chain;
   }
+  chain.for = () => Promise.resolve([]);
   chain.update = () => {
     state.calls.update += 1;
     return chain;
@@ -22,7 +23,14 @@ const { chain, state } = vi.hoisted(() => {
   return { chain, state };
 });
 
-vi.mock('@/db', () => ({ db: chain }));
+vi.mock('@/db', () => ({ db: chain, directClient: chain, resolveLockConnectionUrl: () => undefined }));
+vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => ({
+  transaction: (work: (tx: unknown) => unknown) => work(chain),
+}) }));
+vi.mock('./deletion-jobs', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./deletion-jobs')>(),
+  usersHavePendingDeletion: vi.fn().mockResolvedValue(false),
+}));
 
 const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),

@@ -174,7 +174,15 @@ async function purgeExpiredConnections(
   const state: SettleState = { liveness: new Map(), tracked: new Map() };
   const fates: Record<ConnectionFate, number> = { deleted: 0, branch_removed: 0, held: 0, deferred: 0 };
   let settled = 0;
-  for (const connection of expired.slice(0, CHAIN_PURGE_BATCH)) {
+  for (const candidate of expired.slice(0, CHAIN_PURGE_BATCH)) {
+    // An earlier settlement can give a sibling connection a fresh undo window.
+    const connection = await ctx.db.get(candidate._id);
+    if (
+      connection === null
+      || connection.tombstone.kind !== 'removed'
+      || connection.tombstone.purgeAfter === null
+      || connection.tombstone.purgeAfter > now
+    ) continue;
     const bothEndpointsLive =
       await endpointIsLive(ctx, state.liveness, connection.mapId, connection.fromSystemId)
       && await endpointIsLive(ctx, state.liveness, connection.mapId, connection.toSystemId);
