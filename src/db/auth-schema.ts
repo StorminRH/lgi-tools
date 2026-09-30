@@ -37,6 +37,8 @@ export const user = pgTable('user', {
   image: text('image'),
   role: characterRoleEnum('role').default('USER').notNull(),
   activeCharacterId: bigint('active_character_id', { mode: 'number' }),
+  // Set when account deletion starts; the daily run retries until the row is gone.
+  deletionRequestedAt: timestamp('deletion_requested_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -84,6 +86,8 @@ export const account = pgTable(
     authorizationAccessChangedAt: timestamp('authorization_access_changed_at'),
     scope: text('scope'),
     ownerHash: text('owner_hash'),
+    // Set when a character purge starts; the daily run retries until the link is gone.
+    deletionRequestedAt: timestamp('deletion_requested_at'),
     password: text('password'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

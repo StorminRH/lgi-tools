@@ -53,6 +53,8 @@ vi.mock('./account-merge', () => ({
   settleConvexAfterMerge: merge.settleConvexAfterMerge,
 }));
 vi.mock('@/platform/auth/token-crypto', () => ({ decryptToken: merge.decryptToken }));
+const finishPendingDeletion = vi.hoisted(() => vi.fn());
+vi.mock('./account-purge', () => ({ finishPendingDeletion }));
 
 vi.mock('@/data/maps/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/maps/queries')>();
@@ -106,6 +108,7 @@ beforeEach(() => {
   merge.mergeUsers.mockReset();
   merge.after.mockReset();
   merge.settleConvexAfterMerge.mockReset().mockResolvedValue(undefined);
+  finishPendingDeletion.mockReset().mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -123,6 +126,7 @@ describe('purgeTransferredCharacter', () => {
   it('completes source reconciliation and final teardown before reporting a history-erasure failure', async () => {
     state.results = [
       [{ id: 'acc-1' }],
+      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(CHAR), activeCharacterId: OTHER_CHAR }],
       undefined,
@@ -130,13 +134,14 @@ describe('purgeTransferredCharacter', () => {
     const failure = new Error('history deletion failed');
     hooks.runAfterCharacterUnlink.mockRejectedValueOnce(failure);
     await expect(purgeTransferredCharacter(USER, CHAR)).rejects.toBe(failure);
-    expect(state.calls.update).toBe(1);
+    expect(state.calls.update).toBe(2);
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
   });
 
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
       [{ id: 'acc-1' }],
+      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
@@ -145,11 +150,31 @@ describe('purgeTransferredCharacter', () => {
     expect(hooks.runAfterCharacterUnlink).toHaveBeenCalledWith({
       userId: USER, characterId: CHAR, mapIds: ['map-pre-removal'],
     });
-    expect(state.calls).toEqual({ delete: 1, update: 0, execute: 1 });
+    expect(state.calls).toEqual({ delete: 1, update: 1, execute: 1 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
       characterId: CHAR,
     });
+  });
+});
+
+describe('proveCharacter with a pending deletion', () => {
+  it('finishes the pending deletion before proving ownership', async () => {
+    const order: string[] = [];
+    finishPendingDeletion.mockImplementationOnce(async () => {
+      order.push('finish');
+    });
+    state.results = [[]];
+    await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
+    expect(finishPendingDeletion).toHaveBeenCalledWith(CHAR);
+    expect(order).toEqual(['finish']);
+  });
+
+  it('refuses the sign-in when the pending deletion cannot finish', async () => {
+    const failure = new Error('Convex unavailable');
+    finishPendingDeletion.mockRejectedValueOnce(failure);
+    await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).rejects.toBe(failure);
+    expect(state.calls).toEqual({ delete: 0, update: 0, execute: 0 });
   });
 });
 
@@ -172,11 +197,12 @@ describe('proveCharacter on sign-in and same-user relink', () => {
     state.results = [
       row({ ownerHash: 'owner-old' }),
       [{ id: 'acc-1' }],
+      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
-    expect(state.calls).toEqual({ delete: 1, update: 0, execute: 1 });
+    expect(state.calls).toEqual({ delete: 1, update: 1, execute: 1 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
     expect(merge.mergeUsers).not.toHaveBeenCalled();
   });
@@ -245,11 +271,12 @@ describe('proveCharacter on a cross-user link', () => {
     state.results = [
       row({ ownerHash: null, accessToken: tokenWithOwner(H2) }),
       [{ id: 'acc-1' }],
+      undefined,
       [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await expect(proveCharacter(linkProof)).resolves.toEqual({ kind: 'none' });
-    expect(state.calls).toEqual({ delete: 1, update: 0, execute: 1 });
+    expect(state.calls).toEqual({ delete: 1, update: 1, execute: 1 });
     expect(merge.mergeUsers).not.toHaveBeenCalled();
   });
 
