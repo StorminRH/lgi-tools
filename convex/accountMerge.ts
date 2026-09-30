@@ -131,7 +131,7 @@ export const restoreMergeTracking = internalMutation({
         .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
       const tracked = new Set(existing.map((row) => row.characterId));
       let count = existing.length;
-      let mapCount = (await readMapTracking(ctx, mapId)).length;
+      let mapCount: number | undefined;
       for (const { characterId, lastProcessedTransitionAt } of characterIds) {
         if (tracked.has(characterId)) {
           skipped += 1;
@@ -140,7 +140,8 @@ export const restoreMergeTracking = internalMutation({
             skipped += 1;
             continue;
           }
-          // Fail atomically without recording a receipt so recovery can retry.
+          // Check capacity only for inserts; fail atomically so recovery can retry.
+          mapCount ??= (await readMapTracking(ctx, mapId)).length;
           requireMapTrackingSpace(mapCount);
           await ctx.db.insert('mapTracking', { mapId, userId: survivorUserId, characterId });
           mapCount += 1;

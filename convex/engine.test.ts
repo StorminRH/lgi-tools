@@ -1208,7 +1208,8 @@ describe('engine.sweep (daily retention)', () => {
     expect(after.subjects).toEqual([]);
     expect(after.presence).toHaveLength(1);
     expect(after.state).toHaveLength(1);
-    expect(await scheduledSyncUsers(t)).toHaveLength(0);
+    expect(await pendingSyncUsers(t)).toHaveLength(0);
+    expect(after.state[0]?.jobId).toBeNull();
   });
 
   it('schedules an immediate continuation when a batch fills', async () => {
@@ -1245,6 +1246,89 @@ describe('engine.sweep (daily retention)', () => {
 
 
 describe('scheduler migration and independent liveness', () => {
+  it.each([
+    { cacheWindow: 10_000, dueIn: 10_000 },
+    { cacheWindow: 1_000, dueIn: 4_000 },
+  ])('retention schedules an offline legacy watcher without a heartbeat, due in $dueIn ms', async ({ cacheWindow, dueIn }) => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await seedPresence(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', legacySubjectRow({
+        minExpiresAt: now + cacheWindow,
+        syncedCharacterIds: [CHAR], coveredCharacterIds: [], lastFinishedAt: now - 1_000,
+      }));
+      await ctx.db.insert('characterLocationOnline', {
+        userId: USER, characterId: CHAR, online: false,
+        etagOnline: 'offline', onlineExpiresAt: now + cacheWindow,
+      });
+    });
+
+    await t.mutation(internal.engineSweep.sweep, {});
+
+    const state = await readState(t);
+    expect(state).toMatchObject({
+      minExpiresAt: now + cacheWindow,
+      syncedCharacterIds: [CHAR], coveredCharacterIds: [],
+      lastFinishedAt: now - 1_000, lastRunAt: now - 1_000,
+    });
+    const pending = await pendingSyncUsers(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({
+      _id: state!.jobId,
+      scheduledTime: now + dueIn,
+      args: [{ userId: USER, generation: state!.runId, schedulerVersion: 2 }],
+    });
+    expect(await t.run((ctx) => ctx.db.query('syncSubjects').collect())).toEqual([]);
+  });
+
+  it('retention preserves a modern pending run while draining its legacy row', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const jobId = await schedulePending(t, now + 30_000, now - 10_000);
+    await seedPresence(t);
+    await seedState(t, {
+      runId: now - 10_000, jobId, minExpiresAt: now + 30_000,
+      syncedCharacterIds: [CHAR], coveredCharacterIds: [CHAR], lastFinishedAt: now - 2_000,
+    });
+    await t.run((ctx) => ctx.db.insert('syncSubjects', legacySubjectRow({
+      minExpiresAt: now + 1_000, syncedCharacterIds: [CHAR], coveredCharacterIds: [],
+      lastFinishedAt: now - 1_000,
+    })));
+    const before = await readState(t);
+
+    await t.mutation(internal.engineSweep.sweep, {});
+
+    expect(await readState(t)).toEqual(before);
+    expect((await pendingSyncUsers(t)).map((job) => job._id)).toEqual([jobId]);
+    expect(await t.run((ctx) => ctx.db.query('syncSubjects').collect())).toEqual([]);
+  });
+
+  it('retention preserves a modern in-flight run while draining its legacy row', async () => {
+    vi.stubEnv('SITE_URL', 'https://app.test');
+    vi.stubEnv('CONVEX_SERVICE_SECRET', 'secret');
+    let release: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { release = resolve; })));
+    const t = convexTest(schema, modules);
+    await seedTracking(t);
+    await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
+    vi.advanceTimersByTime(0);
+    await vi.waitFor(() => expect(release).toBeDefined());
+    await t.run((ctx) => ctx.db.insert('syncSubjects', legacySubjectRow({
+      minExpiresAt: Date.now() + 1_000, syncedCharacterIds: [CHAR], coveredCharacterIds: [],
+    })));
+    const before = await readState(t);
+
+    await t.mutation(internal.engineSweep.sweep, {});
+
+    expect(await readState(t)).toEqual(before);
+    expect((await jobById(t, before!.jobId!))?.state.kind).toBe('inProgress');
+    expect(await pendingSyncUsers(t)).toHaveLength(0);
+    expect(await t.run((ctx) => ctx.db.query('syncSubjects').collect())).toEqual([]);
+    release!(new Response(JSON.stringify({ characters: [] }), { status: 200 }));
+    await t.finishInProgressScheduledFunctions();
+  });
+
   it('preserves recent jump continuity when retention runs before the first heartbeat', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
