@@ -1,5 +1,5 @@
-# The coverage-backed half of the Fallow gate, on every pull request
-# push (drafts included, any base branch so stacked PRs are checked).
+# The coverage-backed half of the Fallow gate. The paths below select
+# pull request pushes, including drafts and stacked PRs on any base.
 # `pnpm check` covers typecheck, lint, and static Fallow locally; this
 # job runs only what needs Postgres and a full Istanbul map: the test
 # suite with coverage, production dead code, and CRAP. A newer push to
@@ -12,13 +12,23 @@ on:
       - 'src/**'
       - 'convex/**'
       - 'scripts/**'
+      - 'e2e/**'
       - 'drizzle/**'
+      - '*.js'
+      - '*.jsx'
+      - '*.mjs'
+      - '*.cjs'
+      - '*.ts'
+      - '*.tsx'
+      - '*.mts'
+      - '*.cts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.fallowrc.json'
       - 'vitest.config.ts'
       - 'tsconfig.json'
       - '.github/workflows/coverage-health.yml'
+      - '.github/workflows/test.yml'
       - '.github/actions/**'
   workflow_dispatch:
 

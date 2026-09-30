@@ -1,5 +1,6 @@
-# Manual pre-merge run: typecheck, lint, static Fallow, and route
-# presence in `verify`, then the production build and e2e smoke. Tests
+# Manual pre-merge run. Typecheck, lint, static Fallow, and route
+# presence run in `verify`. The production build runs in parallel, and
+# e2e smoke follows the build. Tests
 # with coverage and the coverage-backed Fallow gate run automatically on
 # pull requests in Coverage health (coverage-health.yml). Do not invoke
 # vercel-build / build:vercel. Starts only from Actions → Verify → Run
