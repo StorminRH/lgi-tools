@@ -19,7 +19,7 @@ import {
   effectiveTtlMs,
   type EsiDatasetEntry,
 } from '@/lib/esi-datasets/types';
-import { SYNC_DATASET_CONFIG, SYNC_DATASETS } from '@/lib/sync-engine';
+import { LOCATION_CADENCE_FLOOR_MS, SYNC_DATASETS } from '@/lib/sync-engine';
 import {
   checkEntries,
   CONVEX_ESI_HOMES,
@@ -394,9 +394,7 @@ describe('ESI dataset registry live gate', () => {
     expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
       86_400_000,
     );
-    expect(effectiveTtlMs(entryNamed('character_location'))).toBe(
-      SYNC_DATASET_CONFIG.characterLocation.cadenceFloorMs,
-    );
+    expect(effectiveTtlMs(entryNamed('character_location'))).toBe(LOCATION_CADENCE_FLOOR_MS);
     expect(effectiveTtlMs(entryNamed('character_sheet_live'))).toBe(120_000);
     expect(effectiveTtlMs(entryNamed('character_sheet_hourly'))).toBe(3_600_000);
     expect(effectiveTtlMs(entryNamed('character_sheet_daily'))).toBe(86_400_000);

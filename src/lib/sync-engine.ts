@@ -1,52 +1,22 @@
 export const SYNC_DATASETS = ['characterLocation'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
-// Every dataset ever stored: retired rows must stay schema-valid until the sweep deletes them.
+// Every dataset ever stored: retired rows must stay schema-valid until the retention GC deletes them.
 export const SYNC_DATASET_HISTORY = ['onlineStatus', 'characterLocation'] as const;
 
-export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
-  return (SYNC_DATASETS as readonly string[]).includes(dataset);
-}
-
 /**
- * Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
- * the real schedule comes off each run's stored ESI Expires (minExpiresAt),
- * and the floor only guards against polling faster than the dataset's cache
- * (~300s jobs / 60s online, both read live).
- * tokenGroup names the ESI token bucket the dataset bills (per-character
- * buckets, group-keyed) — the engine's rate limiter smooths dispatch per
- * group so a re-arm herd can't burst one group's spend.
- * chainOnSuccess / rateKeyScope are opt-in; omitted keeps today's scan-owned
- * jittered re-arm and group-keyed limiter (onlineStatus stays byte-identical).
+ * Location sync pacing. The floor is the minimum gap between runs, not the
+ * target: the real schedule comes off each run's stored ESI Expires
+ * (minExpiresAt), and the floor only guards against polling faster than the
+ * 5s location cache.
  */
-export type SyncDatasetConfig = {
-  cadenceFloorMs: number;
-  coldAfterMs: number;
-  tokenGroup: string;
-  chainOnSuccess?: boolean;
-  rateKeyScope?: 'group' | 'subject';
-};
+export const LOCATION_CADENCE_FLOOR_MS = 5_000;
+export const LOCATION_COLD_AFTER_MS = 5 * 60_000;
 
-export const SYNC_DATASET_CONFIG: Record<SyncDataset, SyncDatasetConfig> = {
-  characterLocation: {
-    cadenceFloorMs: 5_000,
-    coldAfterMs: 5 * 60_000,
-    tokenGroup: 'char-location',
-    chainOnSuccess: true,
-    rateKeyScope: 'subject',
-  },
-};
-
-export const MAX_COLD_AFTER_MS = Math.max(
-  ...Object.values(SYNC_DATASET_CONFIG).map((config) => config.coldAfterMs),
-);
-
-export const HEARTBEAT_MS = 20_000;
+export const HEARTBEAT_MS = 60_000;
 
 export const HIDDEN_PRESENCE_MAX_MS = 90 * 60_000;
 
 export const RETENTION_MS = 7 * 24 * 60 * 60_000;
-
-export const STALE_RUNNING_MS = 3 * 60_000;
 
 export const SYNC_JITTER_MS = 10_000;
 
@@ -66,30 +36,6 @@ export function isColdFromPresence(
   now: number,
 ): boolean {
   return presence === null || isCold(presence, coldAfterMs, now);
-}
-
-export function isRunningFresh(
-  status: 'idle' | 'running',
-  lastRequestedAt: number,
-  now: number,
-): boolean {
-  return status === 'running' && now - lastRequestedAt < STALE_RUNNING_MS;
-}
-
-export type DueSubjectAction = 'delete' | 'retire' | 'skip' | 'dispatch';
-
-export function classifyDueSubject(
-  presence: PresenceLiveness | null,
-  status: 'idle' | 'running',
-  lastRequestedAt: number,
-  coldAfterMs: number,
-  now: number,
-): DueSubjectAction {
-  if (isColdFromPresence(presence, coldAfterMs, now)) {
-    return presence === null || now - presence.lastSeenAt > RETENTION_MS ? 'delete' : 'retire';
-  }
-  if (isRunningFresh(status, lastRequestedAt, now)) return 'skip';
-  return 'dispatch';
 }
 
 export function computeChainBoundary(

@@ -1,28 +1,36 @@
+import { v } from 'convex/values';
 import {
-  isRegisteredDataset,
   RETENTION_MS,
+  LOCATION_COLD_AFTER_MS,
+  isColdFromPresence,
   SYNC_DATASET_HISTORY,
+  SYNC_DATASETS,
 } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
-import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { getSyncSubject } from './lib/subjects';
+import { getLocationSync, stopSync } from './lib/locationSchedule';
+import { handOffLocationSync } from './engineComplete';
+import { getPresence } from './lib/subjects';
+import { clearCoverageForUser } from './lib/locationCoverage';
 import { drainCharacterOnline } from './onlineStatus';
 
-const SWEEP_DELETE_BATCH = 512;
-const RETIRED_GC_BATCH = 512;
+const SWEEP_DELETE_BATCH = 128;
+const RETIRED_GC_BATCH = 128;
 
 /**
- * Daily retention GC. Deletes presence (and its subject) untouched for the
- * retention window, and drains rows left by retired datasets. A full batch
- * schedules an immediate continuation so a backlog drains in one pass.
+ * Daily retention GC. Deletes presence (and its location sync state)
+ * untouched for the retention window, and drains rows the location scheduler
+ * no longer reads: every syncSubjects row, retired-dataset presence, and the
+ * characterOnline table. A full batch schedules an immediate continuation so
+ * a backlog drains in one pass.
  */
 export const sweep = internalMutation({
   args: {},
+  returns: v.object({ deleted: v.number(), capped: v.boolean() }),
   handler: async (ctx) => {
     const now = Date.now();
     const abandoned = await sweepAbandoned(ctx, now);
-    const retired = await sweepRetiredDatasets(ctx);
+    const retired = await sweepRetiredRows(ctx);
     const deleted = abandoned.deleted + retired.deleted;
     const capped = abandoned.capped || retired.capped;
     if (capped) {
@@ -32,34 +40,41 @@ export const sweep = internalMutation({
   },
 });
 
-const RETIRED_DATASETS = SYNC_DATASET_HISTORY.filter((dataset) => !isRegisteredDataset(dataset));
+const RETIRED_DATASETS = SYNC_DATASET_HISTORY.filter(
+  (dataset) => !(SYNC_DATASETS as readonly string[]).includes(dataset),
+);
 
-async function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
-  const rows: Doc<typeof table>[] = [];
-  for (const dataset of RETIRED_DATASETS) {
-    const remaining: number = RETIRED_GC_BATCH - rows.length;
-    if (remaining <= 0) break;
-    rows.push(...await ctx.db
-      .query(table)
-      .withIndex('by_dataset', (q) => q.eq('dataset', dataset))
-      .take(remaining));
-  }
-  return rows;
-}
-
-async function sweepRetiredDatasets(
+async function sweepRetiredRows(
   ctx: MutationCtx,
 ): Promise<{ deleted: number; capped: boolean }> {
-  const subjects = await takeRetiredRows(ctx, 'syncSubjects');
-  for (const row of subjects) await ctx.db.delete(row._id);
-  const presence = await takeRetiredRows(ctx, 'syncPresence');
-  for (const row of presence) await ctx.db.delete(row._id);
+  const subjects = await ctx.db.query('syncSubjects').take(RETIRED_GC_BATCH);
+  for (const row of subjects) {
+    if (row.dataset === 'characterLocation') {
+      const presence = await getPresence(ctx.db, 'characterLocation', row.userId);
+      if (!isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, Date.now())) {
+        await handOffLocationSync(ctx, row.userId);
+      } else {
+        await clearCoverageForUser(ctx, row.userId);
+      }
+    }
+    await ctx.db.delete('syncSubjects', row._id);
+  }
+  let presenceCount = 0;
+  for (const dataset of RETIRED_DATASETS) {
+    const rows = await ctx.db
+      .query('syncPresence')
+      .withIndex('by_dataset', (q) => q.eq('dataset', dataset))
+      .take(RETIRED_GC_BATCH - presenceCount);
+    for (const row of rows) await ctx.db.delete('syncPresence', row._id);
+    presenceCount += rows.length;
+    if (presenceCount >= RETIRED_GC_BATCH) break;
+  }
   const online = await drainCharacterOnline(ctx, RETIRED_GC_BATCH);
   return {
     deleted: subjects.length,
     capped:
       subjects.length === RETIRED_GC_BATCH
-      || presence.length === RETIRED_GC_BATCH
+      || presenceCount === RETIRED_GC_BATCH
       || online === RETIRED_GC_BATCH,
   };
 }
@@ -74,12 +89,18 @@ async function sweepAbandoned(
     .take(SWEEP_DELETE_BATCH);
   let deleted = 0;
   for (const presence of abandoned) {
-    const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
-    if (subject !== null) {
-      await ctx.db.delete(subject._id);
+    const state = presence.dataset === 'characterLocation'
+      ? await getLocationSync(ctx.db, presence.userId)
+      : null;
+    if (state !== null) {
+      await stopSync(ctx, state, now);
+      await ctx.db.delete('locationSync', state._id);
       deleted += 1;
     }
-    await ctx.db.delete(presence._id);
+    if (presence.dataset === 'characterLocation' && state === null) {
+      await clearCoverageForUser(ctx, presence.userId);
+    }
+    await ctx.db.delete('syncPresence', presence._id);
   }
   return { deleted, capped: abandoned.length === SWEEP_DELETE_BATCH };
 }

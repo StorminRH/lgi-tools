@@ -1,88 +1,64 @@
-import { collectByUser } from './lib/indexedQuery';
-import { v } from 'convex/values';
-import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
-import { getSyncSubjectForGeneration } from './lib/subjects';
+import { v, type Infer } from 'convex/values';
+import type { MutationCtx } from './_generated/server';
 
-const leaseWriteValidator = v.object({
+export const leaseWriteValidator = v.object({
   characterId: v.number(),
   accessToken: v.string(),
   expiresAt: v.number(),
 });
 
-export const accessLeases = internalQuery({
-  args: { userId: v.string() },
-  handler: async (ctx, { userId }) => {
-    const rows = await collectByUser(ctx.db, 'characterLocationAccess', userId);
-    return rows.map((row) => ({
-      characterId: row.characterId,
-      accessToken: row.accessToken,
-      expiresAt: row.expiresAt,
-    }));
-  },
-});
+export type LeaseWrite = Infer<typeof leaseWriteValidator>;
 
-export const putAccessLeases = internalMutation({
-  args: {
-    userId: v.string(),
-    generation: v.number(),
-    leases: v.array(leaseWriteValidator),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    if (await getSyncSubjectForGeneration(ctx.db, 'characterLocation', args) === null) return null;
-    for (const lease of args.leases) {
-      await upsertAccessLease(ctx, { userId: args.userId, ...lease });
-    }
-    return null;
-  },
-});
+/** Upserts leases for still-tracked characters; a lease never outlives its tracking row. */
+export async function writeAccessLeases(
+  ctx: MutationCtx,
+  userId: string,
+  leases: readonly LeaseWrite[],
+  now: number,
+): Promise<void> {
+  for (const lease of leases) {
+    await upsertAccessLease(ctx, userId, lease, now);
+  }
+}
 
-export const clearAccessLease = internalMutation({
-  args: {
-    userId: v.string(),
-    generation: v.number(),
-    characterId: v.number(),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    if (await getSyncSubjectForGeneration(ctx.db, 'characterLocation', args) === null) return null;
-    const existing = await findAccessLease(ctx, args.userId, args.characterId);
-    if (existing !== null) await ctx.db.delete(existing._id);
-    return null;
-  },
-});
+export async function clearAccessLeases(
+  ctx: MutationCtx,
+  userId: string,
+  characterIds: readonly number[],
+): Promise<void> {
+  for (const characterId of characterIds) {
+    const existing = await findAccessLease(ctx, userId, characterId);
+    if (existing !== null) await ctx.db.delete('characterLocationAccess', existing._id);
+  }
+}
 
 async function upsertAccessLease(
   ctx: MutationCtx,
-  args: {
-    userId: string;
-    characterId: number;
-    accessToken: string;
-    expiresAt: number;
-  },
+  userId: string,
+  lease: LeaseWrite,
+  now: number,
 ): Promise<void> {
   const tracking = await ctx.db
     .query('mapTracking')
     .withIndex('by_user_character', (q) =>
-      q.eq('userId', args.userId).eq('characterId', args.characterId),
+      q.eq('userId', userId).eq('characterId', lease.characterId),
     )
     .first();
   if (tracking === null) return;
-  const existing = await findAccessLease(ctx, args.userId, args.characterId);
-  const now = Date.now();
+  const existing = await findAccessLease(ctx, userId, lease.characterId);
   if (existing !== null) {
-    await ctx.db.patch(existing._id, {
-      accessToken: args.accessToken,
-      expiresAt: args.expiresAt,
+    await ctx.db.patch('characterLocationAccess', existing._id, {
+      accessToken: lease.accessToken,
+      expiresAt: lease.expiresAt,
       updatedAt: now,
     });
     return;
   }
   await ctx.db.insert('characterLocationAccess', {
-    userId: args.userId,
-    characterId: args.characterId,
-    accessToken: args.accessToken,
-    expiresAt: args.expiresAt,
+    userId,
+    characterId: lease.characterId,
+    accessToken: lease.accessToken,
+    expiresAt: lease.expiresAt,
     updatedAt: now,
   });
 }

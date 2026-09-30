@@ -28,9 +28,10 @@ describe('heartbeat account scope', () => {
     });
     const rows = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
-      subjects: await ctx.db.query('syncSubjects').collect(),
+      state: await ctx.db.query('locationSync').collect(),
+      jobs: await ctx.db.system.query('_scheduled_functions').collect(),
     }));
-    expect(rows).toEqual({ presence: [], subjects: [] });
+    expect(rows).toEqual({ presence: [], state: [], jobs: [] });
   });
 
   it('accepts the matching account', async () => {

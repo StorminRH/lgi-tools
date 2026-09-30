@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import schema from './schema';
+import { TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
 import { modules } from './__tests__/modules.setup';
 import { accessLease, CHAR_A, CHAR_B, locationDoc } from './__tests__/characterLocation.setup';
@@ -152,6 +153,59 @@ describe('durable merge tracking recovery', () => {
     await expect(t.mutation(internal.accountMerge.restoreMergeTracking, { ...args, survivorUserId: BYSTANDER }))
       .resolves.toEqual({ restored: 0, skipped: 0, alreadyApplied: true });
     expect(await readTracking(t)).toEqual([]);
+  });
+
+  it('records a no-insert recovery on a legacy oversized map', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapAccess', { mapId: 'oversized', userId: SURVIVOR, roles: ['viewer'] });
+      await ctx.db.insert('mapTracking', {
+        mapId: 'oversized', userId: SURVIVOR, characterId: CHAR_A,
+      });
+      for (let i = 0; i < TRACKED_CHARACTERS_PER_MAP_CAP; i += 1) {
+        await ctx.db.insert('mapTracking', {
+          mapId: 'oversized', userId: `pilot-${i}`, characterId: i + 1,
+        });
+      }
+    });
+    const args = { operationId: 'oversized-no-insert', survivorUserId: SURVIVOR,
+      selections: [{ mapId: 'oversized', characterId: CHAR_A, lastProcessedTransitionAt: 100 }] };
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .resolves.toEqual({ restored: 0, skipped: 1, alreadyApplied: false });
+    expect(await readTracking(t)).toHaveLength(TRACKED_CHARACTERS_PER_MAP_CAP + 1);
+    const state = await t.run(async (ctx) => ({
+      receipt: await ctx.db.query('accountMergeTrackingReceipts')
+        .withIndex('by_operation', (q) => q.eq('operationId', args.operationId)).unique(),
+      stamp: await ctx.db.query('mapJumpBookkeeping')
+        .withIndex('by_map_character', (q) => q.eq('mapId', 'oversized').eq('characterId', CHAR_A)).unique(),
+    }));
+    expect(state.receipt?.operationId).toBe(args.operationId);
+    expect(state.stamp?.lastProcessedTransitionAt).toBe(100);
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .resolves.toEqual({ restored: 0, skipped: 0, alreadyApplied: true });
+  });
+
+  it('leaves a full-map recovery retryable until capacity becomes available', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapAccess', { mapId: 'full', userId: SURVIVOR, roles: ['viewer'] });
+      for (let i = 0; i < TRACKED_CHARACTERS_PER_MAP_CAP; i += 1) {
+        await ctx.db.insert('mapTracking', {
+          mapId: 'full', userId: `pilot-${i}`, characterId: i + 1,
+        });
+      }
+    });
+    const args = { operationId: 'full-map', survivorUserId: SURVIVOR,
+      selections: [{ mapId: 'full', characterId: CHAR_A }] };
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .rejects.toThrow('TRACKING_MAP_CAP_EXCEEDED');
+    expect(await t.run((ctx) => ctx.db.query('accountMergeTrackingReceipts').collect())).toEqual([]);
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query('mapTracking').first();
+      if (row !== null) await ctx.db.delete(row._id);
+    });
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .resolves.toEqual({ restored: 1, skipped: 0, alreadyApplied: false });
   });
 
   it('rejects oversized restore atomically without recording a receipt', async () => {

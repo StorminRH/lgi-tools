@@ -185,6 +185,7 @@ describe('purge registry gate', () => {
       'characterLocationCovered',
       'characterLocationOnline',
       'characterOnline',
+      'locationSync',
       'mapAccess',
       'mapTracking',
       'syncPresence',

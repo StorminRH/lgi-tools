@@ -1,140 +1,53 @@
 import { v } from 'convex/values';
-import {
-  computeChainBoundary,
-  computeNextDueAt,
-  isColdFromPresence,
-  isRunningFresh,
-  SYNC_DATASET_CONFIG,
-  type SyncDataset,
-} from '@/lib/sync-engine';
-import { internal } from './_generated/api';
-import type { Doc } from './_generated/dataModel';
+import { LOCATION_COLD_AFTER_MS, LOCATION_CADENCE_FLOOR_MS, isColdFromPresence } from '@/lib/sync-engine';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { dispatch, syncDatasetValidator } from './lib/engineCore';
-import { getPresence, getSyncSubject } from './lib/subjects';
+import { ensureLocationSync, runState, scheduleRun } from './lib/locationSchedule';
+import { ensurePresenceExpiry } from './engine';
+import { getPresence } from './lib/subjects';
 
-const chainDispatchArgs = {
-  dataset: syncDatasetValidator,
-  userId: v.string(),
-};
-
-async function runChainDispatch(
-  ctx: MutationCtx,
-  { dataset, userId }: { dataset: SyncDataset; userId: string },
-): Promise<void> {
-  const subject = await getSyncSubject(ctx.db, dataset, userId);
-  if (subject === null) return;
+/**
+ * Hands a warm legacy watcher to the location scheduler before retention
+ * deletes their old state, or when a previous deployment's queued job ends.
+ * An existing modern run is preserved.
+ */
+export async function handOffLocationSync(ctx: MutationCtx, userId: string, completedGeneration?: string): Promise<void> {
   const now = Date.now();
-  if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
-  if (subject.nextDueAt === null || subject.nextDueAt > now) return;
-  const presence = await getPresence(ctx.db, dataset, userId);
-  if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return;
-  await dispatch(ctx, subject, now);
+  const presence = await getPresence(ctx.db, 'characterLocation', userId);
+  if (isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, now)) return;
+  await ensurePresenceExpiry(ctx, userId);
+  const state = await ensureLocationSync(ctx, userId);
+  const running = await runState(ctx.db, state);
+  if (running !== 'none') {
+    // An unversioned action from an earlier PR deployment may still own this
+    // state. Only that exact in-flight legacy generation may hand itself off;
+    // old completions cannot replace a modern job or a pending successor.
+    if (running !== 'inProgress' || completedGeneration !== String(state.runId) || state.jobId === null) return;
+    const job = await ctx.db.system.get('_scheduled_functions', state.jobId);
+    const args = job?.args[0];
+    if (args === null || typeof args !== 'object' || Array.isArray(args)
+      || !('userId' in args) || args.userId !== userId
+      || !('generation' in args) || args.generation !== state.runId
+      || 'schedulerVersion' in args) return;
+  }
+  const at = Math.max(now, state.minExpiresAt ?? 0, (state.lastRunAt ?? 0) + LOCATION_CADENCE_FLOOR_MS);
+  await ctx.db.patch('locationSync', state._id, await scheduleRun(ctx, state, at, now));
 }
 
 export const chainDispatch = internalMutation({
-  args: chainDispatchArgs,
-  handler: runChainDispatch,
+  args: { dataset: v.literal('characterLocation'), userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { userId }) => handOffLocationSync(ctx, userId),
 });
 
-type CompletionSchedule = { nextDueAt: number | null; chainAt: number | null };
-
-async function resolveCompletionSchedule(
-  ctx: MutationCtx,
-  subject: Doc<'syncSubjects'>,
-  failed: boolean,
-  cadenceFloorMs: number,
-  coldAfterMs: number,
-  chainOnSuccess: boolean,
-  now: number,
-): Promise<CompletionSchedule> {
-  if (failed) {
-    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      const boundary = now + cadenceFloorMs;
-      return { nextDueAt: boundary, chainAt: boundary };
-    }
-    return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
-  }
-  if (subject.syncedCharacterIds.length === 0) {
-    return { nextDueAt: null, chainAt: null };
-  }
-  const yielded =
-    subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
-  if (chainOnSuccess && yielded && subject.minExpiresAt !== null) {
-    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    if (!isColdFromPresence(presence, coldAfterMs, now)) {
-      const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
-      return { nextDueAt: boundary, chainAt: boundary };
-    }
-  }
-  return {
-    nextDueAt: computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
-    chainAt: null,
-  };
-}
-
-const onSyncCompleteArgs = {
-  workId: v.string(),
-  context: v.object({ dataset: syncDatasetValidator, userId: v.string() }),
-  result: v.union(
-    v.object({ kind: v.literal('success') }),
-    v.object({ kind: v.literal('failed'), error: v.string() }),
-  ),
-};
-
-async function completeSyncRun(
-  ctx: MutationCtx,
-  { workId, context, result }: {
-    workId: string;
-    context: { dataset: SyncDataset; userId: string };
-    result: { kind: 'success' } | { kind: 'failed'; error: string };
-  },
-): Promise<void> {
-  const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
-  if (subject === null || subject.workId !== workId) return;
-  const now = Date.now();
-  const { cadenceFloorMs, coldAfterMs, chainOnSuccess } = SYNC_DATASET_CONFIG[context.dataset];
-  const failed = result.kind === 'failed';
-  if (failed) {
-    console.error(
-      JSON.stringify({
-        scope: 'engine:sync',
-        dataset: subject.dataset,
-        outcome: 'failed',
-        error: result.error.slice(0, 500),
-      }),
-    );
-  }
-
-  const { nextDueAt, chainAt } = await resolveCompletionSchedule(
-    ctx,
-    subject,
-    failed,
-    cadenceFloorMs,
-    coldAfterMs,
-    chainOnSuccess === true,
-    now,
-  );
-
-  await ctx.db.patch(subject._id, {
-    status: 'idle',
-    workId: null,
-    nextDueAt,
-    ...(failed
-      ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
-      : {}),
-  });
-
-  if (chainAt !== null) {
-    await ctx.scheduler.runAt(chainAt, internal.engineComplete.chainDispatch, {
-      dataset: context.dataset,
-      userId: subject.userId,
-    });
-  }
-}
-
 export const onSyncComplete = internalMutation({
-  args: onSyncCompleteArgs,
-  handler: completeSyncRun,
+  args: {
+    workId: v.string(),
+    context: v.object({ dataset: v.literal('characterLocation'), userId: v.string() }),
+    result: v.union(
+      v.object({ kind: v.literal('success') }),
+      v.object({ kind: v.literal('failed'), error: v.string() }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { context, workId }) => handOffLocationSync(ctx, context.userId, workId),
 });
