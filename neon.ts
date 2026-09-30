@@ -19,15 +19,9 @@ const PRODUCTION_POLICY = {
 
 const STAGING_POLICY = { ...PREVIEW_COMPUTE } as const;
 
-const EPHEMERAL_PREVIEW_POLICY = {
-  ttl: '3d',
-  ...PREVIEW_COMPUTE,
-} as const;
-
 export function resolveNeonBranchPolicy(branch: BranchTarget): BranchTuning {
   if (branch.isDefault) return PRODUCTION_POLICY;
   if (STANDING_PREVIEW_NAMES.has(branch.name)) return STAGING_POLICY;
-  if (branch.name.startsWith('preview/')) return EPHEMERAL_PREVIEW_POLICY;
   return {};
 }
 

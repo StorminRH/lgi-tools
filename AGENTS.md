@@ -5,7 +5,9 @@ An EVE Online multi-tool focused on simplifying complex tasks.
 ## Work Flow
 
 Work targets `development`. Promote is `development` → `staging`;
-release is `staging` → `main`.
+release is `staging` → `main`. There are no per-PR preview
+deployments: test with local dev servers, and `staging` is the
+long-lived test environment.
 
 Sub-agent usage is encouraged, especially for context isolation.
 For noisy work such as testing, documentation lookup, and exploring

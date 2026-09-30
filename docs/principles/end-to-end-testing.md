@@ -76,7 +76,7 @@ Avoid `page.locator('css')` unless no accessible alternative exists.
 - Local authenticated runs seed a test-only Better Auth session with
   `pnpm e2e:seed` (`e2e/auth-seed.ts`). Never put `testUtils()` on the
   production `auth` export.
-- Remote preview/production runs cannot forge that cookie against production
+- Remote staging/production runs cannot forge that cookie against production
   DB — use an operator-exported `storageState` with `E2E_SKIP_SEED=1` and
   `E2E_STORAGE_STATE`. `scripts/run-e2e-guard.mjs` refuses a remote skip-seed
   run that would fall back to the local seed file.
