@@ -11,7 +11,7 @@ import {
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { reconcileAffiliationAccess } from './map-affiliation-access';
 
-async function publishAccessChanges(userId?: string): Promise<void> {
+async function publishAccessChanges(userId: string): Promise<void> {
   await suspendOverdueAuthorizations(userId);
   for (const change of await listAuthorizationAccessChanges(userId)) {
     if (change.changedAt === null) continue;
@@ -22,11 +22,12 @@ async function publishAccessChanges(userId?: string): Promise<void> {
   await reconcileAffiliationAccess();
 }
 
-export async function checkCharacterAuthorizations(userId?: string): Promise<void> {
-  if (!await hasAuthorizationWork(userId)) {
-    if (userId === undefined) await reconcileAffiliationAccess();
-    return;
-  }
+/**
+ * Verifies one user's linked characters while that user is on the site. Each
+ * character is re-checked with EVE at most daily; nothing runs for absent users.
+ */
+export async function checkCharacterAuthorizations(userId: string): Promise<void> {
+  if (!await hasAuthorizationWork(userId)) return;
   const deadline = Date.now() + 35_000;
   // Revoke already-known invalid/overdue access before any slow network requests.
   await publishAccessChanges(userId);

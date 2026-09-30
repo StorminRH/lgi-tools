@@ -7,10 +7,6 @@ const API_ROOT = path.join(process.cwd(), 'src/app/api');
 
 const EXCLUSIONS = new Map<string, string>([
   [
-    'src/app/api/internal/verify-character-authorization/route.ts',
-    'Machine-to-machine security maintenance, scheduled by Convex; token-state transitions retain their existing domain telemetry.',
-  ],
-  [
     'src/app/api/auth/[...all]/route.ts',
     'Better Auth owns its own request lifecycle end to end.',
   ],
@@ -91,7 +87,6 @@ describe('capability coverage', () => {
       'src/app/api/dev/synthetic-pilot/route.ts',
       'src/app/api/internal/eve-characters/route.ts',
       'src/app/api/internal/eve-token/route.ts',
-      'src/app/api/internal/verify-character-authorization/route.ts',
       'src/app/api/telemetry/route.ts',
     ]);
     for (const [relative, reason] of EXCLUSIONS) {

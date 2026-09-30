@@ -23,6 +23,4 @@ crons.interval(
   {},
 );
 
-crons.interval('character authorization', { minutes: 5 }, internal.characterAuthorization.verify, {});
-
 export default crons;

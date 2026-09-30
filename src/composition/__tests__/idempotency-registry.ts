@@ -203,14 +203,6 @@ const convexLocationSyncUser = convexEntry({
 });
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
-  {
-    id: 'convex/crons:character authorization',
-    workKind: 'convex-cron',
-    module: 'convex/crons.ts',
-    redeliverySource: 'The five-minute scheduler may overlap with a returning user or retry a failed request.',
-    verdict: 'key-protected',
-    evidence: 'The authenticated service endpoint claims due accounts with a persisted lease; token writes compare stored ciphertext and map-access delivery uses the existing durable outbox.',
-  },
   convexMapSignaturePurge,
   convexMapChainPurge,
   convexMapCeilingCollapse,
@@ -608,11 +600,6 @@ const syncLeaveRoute = mutationRoute({
 });
 
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
-  mutationRoute({
-    route: 'src/app/api/internal/verify-character-authorization/route.ts',
-    verdict: 'key-protected',
-    evidence: 'Per-account leases deduplicate verification. Access changes are enqueued before version-matched acknowledgement, so retry after a crash safely replays projection.',
-  }),
   mapsSearchCharactersRoute,
   eveNamesRoute,
   eveTypeNamesRoute,

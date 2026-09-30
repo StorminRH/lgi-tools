@@ -4,11 +4,11 @@ import { account } from '@/db/auth-schema';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
 
-function ownerCondition(userId?: string) {
-  return and(eq(account.providerId, EVE_PROVIDER_ID), userId === undefined ? undefined : eq(account.userId, userId));
+function ownerCondition(userId: string) {
+  return and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.userId, userId));
 }
 
-export async function hasAuthorizationWork(userId?: string): Promise<boolean> {
+export async function hasAuthorizationWork(userId: string): Promise<boolean> {
   const now = new Date();
   const rows = await db.select({ id: account.id }).from(account).where(and(ownerCondition(userId), or(
     and(isNotNull(account.refreshToken), lte(account.authorizationNextCheckAt, now)),
@@ -19,7 +19,7 @@ export async function hasAuthorizationWork(userId?: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function listDueAuthorizations(userId?: string) {
+export async function listDueAuthorizations(userId: string) {
   return db.select({ id: account.id, characterId: account.accountId, dueAt: account.authorizationNextCheckAt })
     .from(account).where(and(ownerCondition(userId), isNotNull(account.refreshToken),
       lte(account.authorizationNextCheckAt, new Date())))
@@ -34,13 +34,13 @@ export async function claimAuthorization(id: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function suspendOverdueAuthorizations(userId?: string): Promise<void> {
+export async function suspendOverdueAuthorizations(userId: string): Promise<void> {
   await db.update(account).set({ authorizationSuspended: true, authorizationAccessChangedAt: new Date() })
     .where(and(ownerCondition(userId), eq(account.authorizationSuspended, false),
       lte(account.authorizationFailureFirstAt, new Date(Date.now() - AUTHORIZATION_MAX_FAILURE_AGE_MS))));
 }
 
-export async function listAuthorizationAccessChanges(userId?: string) {
+export async function listAuthorizationAccessChanges(userId: string) {
   return db.select({ id: account.id, characterId: account.accountId, changedAt: account.authorizationAccessChangedAt })
     .from(account).where(and(ownerCondition(userId), isNotNull(account.authorizationAccessChangedAt)))
     .orderBy(asc(account.authorizationAccessChangedAt), asc(account.id)).limit(100);
