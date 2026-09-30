@@ -4,7 +4,7 @@ export function listenForAtlasReturn(host: {
   now: () => number;
   refresh: () => boolean;
 }): () => void {
-  let lastRefreshAt = host.now();
+  let lastRefreshAt = Number.NEGATIVE_INFINITY;
   const refresh = () => {
     const now = host.now();
     if (host.document.visibilityState !== 'visible' || now - lastRefreshAt < 5_000) return;

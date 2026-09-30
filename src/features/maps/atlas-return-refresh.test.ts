@@ -31,9 +31,20 @@ function returnEvents() {
 }
 
 describe('Atlas return refresh', () => {
+  it('checks the first return immediately after mounting', () => {
+    const events = returnEvents();
+    events.document.visibilityState = 'hidden';
+    events.document.dispatchEvent(new Event('visibilitychange'));
+    events.document.visibilityState = 'visible';
+    events.document.dispatchEvent(new Event('visibilitychange'));
+    events.window.dispatchEvent(new Event('focus'));
+    events.show(true);
+    expect(events.checks()).toBe(1);
+    events.stop();
+  });
+
   it('checks a visible return once across overlapping visibility, focus, and restoration events', () => {
     const events = returnEvents();
-    events.window.dispatchEvent(new Event('focus'));
     events.advance(6_000);
     events.document.visibilityState = 'hidden';
     events.document.dispatchEvent(new Event('visibilitychange'));
