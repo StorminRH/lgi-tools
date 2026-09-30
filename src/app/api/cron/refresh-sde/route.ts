@@ -5,9 +5,9 @@ import { refreshSdeDeclaration } from './declaration';
 type SdePreLockState = Parameters<typeof refreshSdeDeclaration.work>[1];
 
 /**
- * Vercel cron endpoint. Wired to "50 11 * * *" in vercel.json (daily
- * 11:50 UTC — right after EVE's 11:00 downtime and the prices/indices
- * crons, so a same-day SDE patch is detected within the hour). Vercel
+ * Vercel cron endpoint. Wired to "0 14 * * *" in vercel.json. Hobby fires
+ * it anywhere in the 14:00 UTC hour, which keeps it in its own invocation and
+ * after the whole 12:00 daily batch, however late either fires. Vercel
  * dispatches GET with `Authorization: Bearer ${CRON_SECRET}`.
  *
  * On drift (stored sde_version != CCP's current build number),

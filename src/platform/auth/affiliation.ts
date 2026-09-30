@@ -21,7 +21,3 @@ export async function refreshAffiliationsWithOutcome(
     return { refreshed: 0, accessChanged: false, transientFailure: true };
   }
 }
-
-export async function refreshAffiliations(characterIds: number[]): Promise<number> {
-  return (await refreshAffiliationsWithOutcome(characterIds)).refreshed;
-}

@@ -1,10 +1,15 @@
 // @vitest-environment edge-runtime
 import { readFileSync } from 'node:fs';
 import { convexTest } from 'convex-test';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { CEILING_COLLAPSE_GRACE_MS, CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
+import {
+  CEILING_COLLAPSE_GRACE_MS,
+  CEILING_SWEEP_ACTOR,
+  CEILING_SWEEP_BATCH,
+  CEILING_SWEEP_SCAN,
+} from './mapAuthoringSweep';
 import {
   MAP_CHAIN_UNDO_WINDOW_MS,
   tombstoneDeletedAt,
@@ -391,6 +396,93 @@ describe('map authoring', () => {
       expect(tombstoneDeletedAt(await readConnection(t, poisonedA))).toBe(null);
       expect(tombstoneDeletedAt(await readConnection(t, poisonedB))).toBe(null);
       expect(tombstoneDeletedAt(await readConnection(t, otherStub))).toBe(NOW);
+    });
+
+    it('continues a full batch until every due stub is removed', async () => {
+      const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      const stubIds = await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_A,
+          systemId: JITA,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+        const ids: Id<'mapConnections'>[] = [];
+        for (let i = 0; i <= CEILING_SWEEP_BATCH; i += 1) {
+          ids.push(await ctx.db.insert('mapConnections', connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: null,
+            wormholeTypeCode: null,
+            massState: null,
+            shipSize: null,
+            deathEarliestAt: EXPIRED - 60_000,
+            deathLatestAt: EXPIRED + i,
+            deletedAt: null,
+            purgeAfter: null,
+          })));
+        }
+        return ids;
+      });
+
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
+        .toEqual({ collapsed: 0, removedStubs: CEILING_SWEEP_BATCH, skipped: 0, failed: 0, hasMore: true });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      for (const stubId of stubIds) {
+        expect(tombstoneDeletedAt(await readConnection(t, stubId))).toBe(NOW);
+      }
+    });
+
+    it('does not continue a full batch that made no progress', async () => {
+      const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      await t.run(async (ctx) => {
+        for (const systemId of [JITA, WH_A]) {
+          await ctx.db.insert('mapSystems', {
+            mapId: MAP_A,
+            systemId,
+            deletedAt: null,
+            purgeAfter: null,
+          });
+        }
+        // Enough unresolved doors on JITA to make every collapse on this map fail.
+        for (let i = 0; i < 128; i += 1) {
+          await ctx.db.insert('mapConnections', connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: null,
+            wormholeTypeCode: null,
+            massState: null,
+            shipSize: null,
+            deathEarliestAt: null,
+            deathLatestAt: null,
+            deletedAt: null,
+            purgeAfter: null,
+          }));
+        }
+        for (let i = 0; i <= CEILING_SWEEP_SCAN; i += 1) {
+          await ctx.db.insert('mapConnections', connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: WH_A,
+            wormholeTypeCode: null,
+            massState: null,
+            shipSize: null,
+            deathEarliestAt: EXPIRED - 60_000,
+            deathLatestAt: EXPIRED + i,
+            deletedAt: null,
+            purgeAfter: null,
+          }));
+        }
+      });
+
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
+        .toMatchObject({ collapsed: 0, removedStubs: 0, hasMore: true });
+      const scheduled = await t.run(async (ctx) =>
+        await ctx.db.system.query('_scheduled_functions').collect(),
+      );
+      expect(scheduled).toEqual([]);
     });
 
     it('keeps one collapse-decision owner and registers the sweep cron', () => {

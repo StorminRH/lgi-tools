@@ -8,8 +8,8 @@ import {
 } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { ensureLocationSync, getLocationSync, stopSync } from './lib/locationSchedule';
-import { ensurePresenceExpiry } from './engine';
+import { getLocationSync, stopSync } from './lib/locationSchedule';
+import { handOffLocationSync } from './engineComplete';
 import { getPresence } from './lib/subjects';
 import { clearCoverageForUser } from './lib/locationCoverage';
 import { drainCharacterOnline } from './onlineStatus';
@@ -52,8 +52,7 @@ async function sweepRetiredRows(
     if (row.dataset === 'characterLocation') {
       const presence = await getPresence(ctx.db, 'characterLocation', row.userId);
       if (!isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, Date.now())) {
-        await ensureLocationSync(ctx, row.userId);
-        await ensurePresenceExpiry(ctx, row.userId);
+        await handOffLocationSync(ctx, row.userId);
       } else {
         await clearCoverageForUser(ctx, row.userId);
       }

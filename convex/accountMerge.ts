@@ -137,7 +137,7 @@ interface RestoreCounts {
 interface SurvivorTrackingSlots {
   readonly tracked: Set<number>;
   count: number;
-  mapCount: number;
+  mapCount: number | undefined;
 }
 
 function groupSelectionsByMap(
@@ -167,7 +167,7 @@ async function restoreMapSelections(
   const slots: SurvivorTrackingSlots = {
     tracked: new Set(existing.map((row) => row.characterId)),
     count: existing.length,
-    mapCount: (await readMapTracking(ctx, mapId)).length,
+    mapCount: undefined,
   };
   const counts: RestoreCounts = { restored: 0, skipped: 0 };
   for (const { characterId, lastProcessedTransitionAt } of selections) {
@@ -195,6 +195,7 @@ async function restoreTrackingRow(
   if (slots.tracked.has(characterId)) return 'present';
   if (slots.count >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) return 'full';
   // Fail atomically without recording a receipt so recovery can retry.
+  slots.mapCount ??= (await readMapTracking(ctx, mapId)).length;
   requireMapTrackingSpace(slots.mapCount);
   await ctx.db.insert('mapTracking', { mapId, userId: survivorUserId, characterId });
   slots.mapCount += 1;

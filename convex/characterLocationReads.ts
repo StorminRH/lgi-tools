@@ -1,7 +1,6 @@
 import { v } from 'convex/values';
 import { internalQuery } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
-import { takeIndexedOrThrow } from './lib/indexedQuery';
 
 /**
  * Everything one location run reads before calling ESI, in one query. It only
@@ -20,12 +19,19 @@ export const syncInputs = internalQuery({
     leases: v.array(v.object({ characterId: v.number(), accessToken: v.string(), expiresAt: v.number() })),
   }),
   handler: async (ctx, { userId }) => {
-    const tracking = await takeIndexedOrThrow(
-      ctx.db.query('mapTracking').withIndex('by_user_character', (q) => q.eq('userId', userId)),
-      1024,
-      { code: 'TRACKING_SCAN_LIMIT', detail: 'Location sync exceeds 1024 tracking memberships for one user.' },
-    );
-    const trackedIds = [...new Set(tracking.map((row) => row.characterId))];
+    const trackedIds: number[] = [];
+    while (true) {
+      const previous = trackedIds.at(-1);
+      // Seek past this pilot's memberships instead of reading each map copy.
+      const tracking = await ctx.db.query('mapTracking')
+        .withIndex('by_user_character', (q) => {
+          const user = q.eq('userId', userId);
+          return previous === undefined ? user : user.gt('characterId', previous);
+        })
+        .first();
+      if (tracking === null) break;
+      trackedIds.push(tracking.characterId);
+    }
     if (trackedIds.length === 0) {
       return { trackedIds, locations: [], online: [], leases: [] };
     }

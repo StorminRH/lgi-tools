@@ -5,7 +5,7 @@ import { readCorpSharing, setCorpSharing } from './corp-sharing-store';
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_sharing_store',
-  tables: ['corp_data_sharing'],
+  tables: ['corp_structure_sharing'],
   steerDbProxy: true,
   resetBetweenTests: 'delete',
 });

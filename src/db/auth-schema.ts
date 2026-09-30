@@ -135,7 +135,7 @@ export const corpMemberRoles = pgTable('corp_member_roles', {
   fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
 });
 
-export const corpDataSharing = pgTable('corp_data_sharing', {
+export const corpDataSharing = pgTable('corp_structure_sharing', {
   corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
   enabled: boolean('enabled').default(false).notNull(),
   setBy: bigint('set_by', { mode: 'number' }),

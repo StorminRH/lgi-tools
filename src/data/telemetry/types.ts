@@ -27,7 +27,6 @@ export type ServerUsageAction =
   | 'cron_sde'
   | 'cron_gsc'
   | 'cron_esi_refresh_jobs'
-  | 'cron_affiliations'
   | 'cron_wh_statics'
   | 'cron_map_purge'
   | 'eve_token_refresh_invalid_grant'

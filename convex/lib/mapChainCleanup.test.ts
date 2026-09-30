@@ -172,6 +172,9 @@ describe('map chain cleanup', () => {
       await ctx.db.query('mapSystems').collect(),
     );
     expect(remainingSystems).toHaveLength(1);
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.run(async (ctx) => await ctx.db.query('mapSystems').collect())).toEqual([]);
   });
 
   it('registers the bounded purge on the production Convex cron registry', () => {

@@ -6,12 +6,11 @@ import { ensurePresenceExpiry } from './engine';
 import { getPresence } from './lib/subjects';
 
 /**
- * Deploy-transition stand-ins for the retired scan engine. A chain hop or an
- * in-flight run scheduled by the previous deployment still calls these names
- * once; each hands the user to the location scheduler if nothing is scheduled
- * for them. Delete once no pre-scheduler job can remain.
+ * Hands a warm legacy watcher to the location scheduler before retention
+ * deletes their old state, or when a previous deployment's queued job ends.
+ * An existing modern run is preserved.
  */
-async function handOff(ctx: MutationCtx, userId: string, completedGeneration?: string): Promise<void> {
+export async function handOffLocationSync(ctx: MutationCtx, userId: string, completedGeneration?: string): Promise<void> {
   const now = Date.now();
   const presence = await getPresence(ctx.db, 'characterLocation', userId);
   if (isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, now)) return;
@@ -37,7 +36,7 @@ async function handOff(ctx: MutationCtx, userId: string, completedGeneration?: s
 export const chainDispatch = internalMutation({
   args: { dataset: v.literal('characterLocation'), userId: v.string() },
   returns: v.null(),
-  handler: async (ctx, { userId }) => handOff(ctx, userId),
+  handler: async (ctx, { userId }) => handOffLocationSync(ctx, userId),
 });
 
 export const onSyncComplete = internalMutation({
@@ -50,5 +49,5 @@ export const onSyncComplete = internalMutation({
     ),
   },
   returns: v.null(),
-  handler: async (ctx, { context, workId }) => handOff(ctx, context.userId, workId),
+  handler: async (ctx, { context, workId }) => handOffLocationSync(ctx, context.userId, workId),
 });

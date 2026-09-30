@@ -24,7 +24,6 @@ export function deriveCorpStructureItemView(
 }
 
 export type CorpCardView = {
-  hint: string;
   sharingBlurb: string;
   isEmpty: boolean;
 };
@@ -32,10 +31,7 @@ export type CorpCardView = {
 export function deriveCorpCardView(corp: CorpStructurePageView): CorpCardView {
   const on = corp.sharing === 'on';
   return {
-    hint: on ? 'sharing on' : 'sharing off',
-    sharingBlurb: on
-      ? 'Sharing on'
-      : 'Sharing off',
+    sharingBlurb: on ? 'Sharing on' : 'Sharing off',
     isEmpty: corp.structures.length === 0,
   };
 }
