@@ -77,26 +77,24 @@ function finish(
 }
 
 describe('characterLocationAccess.writeAccessLeases', () => {
-  it('upserts tracked characters and skips untracked ones in one batch', async () => {
-    const t = convexTest(schema, modules);
-    await seedTracking(t);
-    await putLease(t, 'tok-old');
-    await t.run((ctx) => writeAccessLeases(ctx, USER, [
+  it('upserts tracked characters, skips untracked ones, and does not resurrect a lease after teardown', async () => {
+    const tracked = convexTest(schema, modules);
+    await seedTracking(tracked);
+    await putLease(tracked, 'tok-old');
+    await tracked.run((ctx) => writeAccessLeases(ctx, USER, [
       { characterId: CHAR_A, accessToken: 'tok-a', expiresAt: GEN + 1_200_000 },
       { characterId: CHAR_B, accessToken: 'tok-b', expiresAt: GEN + 1_200_000 },
     ], GEN + 1));
-    expect(await readLeases(t)).toEqual([
+    expect(await readLeases(tracked)).toEqual([
       { characterId: CHAR_A, accessToken: 'tok-a', expiresAt: GEN + 1_200_000 },
     ]);
-    const rows = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
+    const rows = await tracked.run((ctx) => ctx.db.query('characterLocationAccess').collect());
     expect(rows).toHaveLength(1);
     expect(rows[0]?.updatedAt).toBe(GEN + 1);
-  });
 
-  it('does not resurrect a lease after tracking teardown', async () => {
-    const t = convexTest(schema, modules);
-    await putLease(t, 'tok-late');
-    expect(await readLeases(t)).toEqual([]);
+    const tornDown = convexTest(schema, modules);
+    await putLease(tornDown, 'tok-late');
+    expect(await readLeases(tornDown)).toEqual([]);
   });
 });
 
