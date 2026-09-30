@@ -99,7 +99,6 @@ async function purgeExpiredChainTombstonesAt(
   };
 }
 
-/** Daily cron; a full batch continues immediately so a backlog drains in one pass. */
 export const purgeExpiredChainTombstones = internalMutation({
   args: {},
   handler: async (ctx) => {

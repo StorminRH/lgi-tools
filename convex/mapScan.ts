@@ -329,7 +329,6 @@ export const watchMapGlanceGroups = query({
   },
 });
 
-/** Daily cron; a full batch continues immediately so a backlog drains in one pass. */
 export const purgeExpiredSignatureTombstones = internalMutation({
   args: {},
   handler: async (ctx) => {
