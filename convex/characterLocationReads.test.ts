@@ -67,6 +67,23 @@ describe('characterLocationReads.syncInputs', () => {
     });
   });
 
+  it('syncs distinct pilots when valid memberships across maps exceed 1024', async () => {
+    const t = convexTest(schema, modules);
+    const characterIds = Array.from({ length: 32 }, (_, index) => CHAR_A + index);
+    await t.run(async (ctx) => {
+      for (let map = 0; map < 33; map += 1) {
+        for (const characterId of characterIds) {
+          await ctx.db.insert('mapTracking', { mapId: `map-${map}`, userId: USER, characterId });
+        }
+      }
+      await ctx.db.insert('mapTracking', { mapId: 'other-map', userId: OTHER, characterId: CHAR_B });
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+    const inputs = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
+    expect(inputs.trackedIds).toEqual(characterIds);
+    expect(inputs.locations).toEqual([expect.objectContaining({ characterId: CHAR_A })]);
+  });
+
   it('returns empty arrays for an untracked user even when held rows remain', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
