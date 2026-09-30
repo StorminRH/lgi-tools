@@ -37,6 +37,9 @@ const MANUAL_CRON_REDELIVERY =
 const DAILY_BATCH_STEP_REDELIVERY =
   'A step of the daily-batch Vercel cron, plus a manual CRON_SECRET GET of its own route; Vercel does not automatically retry a failed run.';
 
+const DAILY_BATCH_ONLY_REDELIVERY =
+  'A step of the daily-batch Vercel cron with no route of its own; Vercel does not automatically retry a failed run.';
+
 const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   {
     id: 'cron/drain-esi-refresh-jobs',
@@ -55,7 +58,16 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: VERCEL_CRON_REDELIVERY,
     verdict: 'coordinated-elsewhere',
     evidence:
-      'Runs the purge-maps, prices, industry-indices, and wh-statics declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+      'Runs the housekeeping, purge-maps, prices, industry-indices, and wh-statics declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+  },
+  {
+    id: 'cron/housekeeping',
+    workKind: 'vercel-cron',
+    module: 'src/app/api/cron/housekeeping/declaration.ts',
+    redeliverySource: DAILY_BATCH_ONLY_REDELIVERY,
+    verdict: 'inherently-idempotent',
+    evidence:
+      'Declares lock mode none: every retention delete removes only rows already past their cutoff, a retried deletion resumes from the account or user row it keeps until done, and a tracking-merge delivery locks its own rows and is deduplicated by its Convex receipt.',
   },
   {
     id: 'cron/purge-maps',

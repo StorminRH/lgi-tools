@@ -3,6 +3,7 @@ import {
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  HOUSEKEEPING_HEALTHY_OUTCOMES,
   PRICES_HEALTHY_OUTCOMES,
   SDE_HEALTHY_OUTCOMES,
   SDE_NEUTRAL_OUTCOMES,
@@ -25,6 +26,7 @@ export interface CronSignals {
   priceOutcomes: CronOutcomeCount[];
   sdeOutcomes: CronOutcomeCount[];
   gscOutcomes: CronOutcomeCount[];
+  housekeepingOutcomes: CronOutcomeCount[];
   gscConfigured: boolean;
   gscLastSyncedAt: Date | null;
 }
@@ -74,6 +76,7 @@ export interface CronStatuses {
   price: SubsystemStatus;
   sde: SubsystemStatus;
   gsc: SubsystemStatus;
+  housekeeping: SubsystemStatus;
 }
 
 export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses {
@@ -100,6 +103,13 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
       lastRun: lastFor('cron_gsc'),
       outcomes: crons.gscOutcomes,
       lastSyncedAt: crons.gscLastSyncedAt,
+      now,
+    }),
+    housekeeping: deriveCronStatus({
+      lastRun: lastFor('cron_housekeeping'),
+      outcomes: crons.housekeepingOutcomes,
+      healthy: HOUSEKEEPING_HEALTHY_OUTCOMES,
+      expectedEveryHours: 24,
       now,
     }),
   };
@@ -312,6 +322,7 @@ function cronLines(signals: AdminSignals): StatusLine[] {
     ['cron-prices', 'Price cron', 'price'],
     ['cron-sde', 'SDE cron', 'sde'],
     ['cron-gsc', 'GSC sync', 'gsc'],
+    ['cron-housekeeping', 'Housekeeping', 'housekeeping'],
   ] as const;
   if (signals.crons === SECTION_LOAD_FAILED) return rows.map(([id, label]) => unavailableLine(id, label));
   const crons = deriveCronStatuses(signals.crons, signals.now);

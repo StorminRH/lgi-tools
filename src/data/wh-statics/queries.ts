@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { WH_STATICS_TAG } from './constants';
@@ -361,32 +362,29 @@ export function rejectSnapshot(
   });
 }
 
-export async function pruneWhStaticsSnapshots(
+export function pruneWhStaticsSnapshots(
   database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
-): Promise<number> {
-  const cutoff = new Date(
-    now.getTime() - retentionDays * 24 * 60 * 60 * 1000,
-  );
-  const deleted = await database
-    .delete(whStaticsSnapshots)
-    .where(
-      and(
-        inArray(whStaticsSnapshots.status, [
-          'promoted',
-          'rejected',
-          'superseded',
-        ]),
-        lt(whStaticsSnapshots.createdAt, cutoff),
-        notInArray(
-          whStaticsSnapshots.id,
-          database
-            .selectDistinct({ id: whSystemStatics.sourceSnapshotId })
-            .from(whSystemStatics),
-        ),
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  return deleteInBatches(
+    database,
+    whStaticsSnapshots,
+    and(
+      inArray(whStaticsSnapshots.status, [
+        'promoted',
+        'rejected',
+        'superseded',
+      ]),
+      lt(whStaticsSnapshots.createdAt, retentionCutoff(retentionDays, now)),
+      notInArray(
+        whStaticsSnapshots.id,
+        database
+          .selectDistinct({ id: whSystemStatics.sourceSnapshotId })
+          .from(whSystemStatics),
       ),
-    )
-    .returning({ id: whStaticsSnapshots.id });
-  return deleted.length;
+    ),
+    deadline,
+  );
 }

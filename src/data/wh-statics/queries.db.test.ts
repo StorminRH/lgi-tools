@@ -409,7 +409,7 @@ describe.skipIf(!harness.reachable)(
 
       await expect(
         pruneWhStaticsSnapshots(harness.db, 90, now),
-      ).resolves.toBe(3);
+      ).resolves.toEqual({ deleted: 3, finished: true });
       const remaining = await harness.db
         .select({ id: whStaticsSnapshots.id })
         .from(whStaticsSnapshots)
