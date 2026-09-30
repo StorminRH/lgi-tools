@@ -8,8 +8,10 @@ import type { CharacterProof, ProofOutcome } from '@/platform/auth/auth';
 import { accountMatch } from '@/platform/auth/eve-account-shared';
 import { readOwnerHashClaim } from '@/platform/auth/owner-hash-claim';
 import { classifyProof, type ProofDecision } from '@/platform/auth/owner-reconcile';
+import { deleteCharacterLink } from '@/platform/auth/purge';
 import { decryptToken } from '@/platform/auth/token-crypto';
 import { account } from '@/db/auth-schema';
+import { finishPendingDeletion } from './account-purge';
 import { mergeUsers, settleConvexAfterMerge } from './account-merge';
 
 const NONE: ProofOutcome = { kind: 'none' };
@@ -68,6 +70,7 @@ async function mergeProvenCharacter(
 }
 
 export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcome> {
+  await finishPendingDeletion(proof.characterId);
   const jwtOwnerHash = proof.ownerHash;
   if (!jwtOwnerHash) return NONE;
   const [row] = await db
@@ -112,6 +115,7 @@ export async function purgeTransferredCharacter(
   const mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({ userId: priorUserId, characterId });
   try {
     await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
+    await deleteCharacterLink(priorUserId, characterId);
   } catch (error) {
     await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
     throw error;

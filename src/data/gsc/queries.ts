@@ -1,5 +1,6 @@
 import { and, between, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { deleteInBatches, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
@@ -20,24 +21,32 @@ function retentionCutoff(retentionDays: number, now: Date): string {
   return toDateStr(new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000));
 }
 
-export async function pruneGscSearchAnalytics(
+export function pruneGscSearchAnalytics(
   database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
-): Promise<void> {
-  await database
-    .delete(gscSearchAnalytics)
-    .where(lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)));
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  return deleteInBatches(
+    database,
+    gscSearchAnalytics,
+    lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)),
+    deadline,
+  );
 }
 
-export async function pruneGscUrlInspections(
+export function pruneGscUrlInspections(
   database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
-): Promise<void> {
-  await database
-    .delete(gscUrlInspection)
-    .where(lt(gscUrlInspection.inspectionDate, retentionCutoff(retentionDays, now)));
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  return deleteInBatches(
+    database,
+    gscUrlInspection,
+    lt(gscUrlInspection.inspectionDate, retentionCutoff(retentionDays, now)),
+    deadline,
+  );
 }
 
 function inRange(range: GscRange) {

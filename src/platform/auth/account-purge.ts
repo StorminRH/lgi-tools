@@ -4,6 +4,7 @@ import { eveAccountsForUser } from './eve-account-shared';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { repointActiveToOldest } from './linked-characters';
 import { account, user } from '@/db/auth-schema';
+import { markUserDeletionRequested } from './purge';
 import { syntheticEmail } from './synthetic-email';
 
 export async function reconcileAfterCharacterRemoval(
@@ -19,6 +20,8 @@ export async function reconcileAfterCharacterRemoval(
 
   const [firstRemaining] = remaining;
   if (firstRemaining === undefined) {
+    // A user left with no characters is deleted; if teardown fails, the daily run retries it.
+    await markUserDeletionRequested(userId);
     await runners.runBeforeUserDelete(userId);
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };

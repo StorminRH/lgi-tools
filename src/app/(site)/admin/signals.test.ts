@@ -21,10 +21,12 @@ const healthyCrons: CronSignals = {
   lastRuns: [
     { action: 'cron_prices', timestamp: hoursAgo(3), outcome: 'refreshed' },
     { action: 'cron_sde', timestamp: hoursAgo(5), outcome: 'up-to-date' },
+    { action: 'cron_housekeeping', timestamp: hoursAgo(4), outcome: 'cleaned' },
   ],
   priceOutcomes: [{ outcome: 'refreshed', count: 30, avgDurationMs: 900 }],
   sdeOutcomes: [{ outcome: 'up-to-date', count: 30, avgDurationMs: 400 }],
   gscOutcomes: [],
+  housekeepingOutcomes: [{ outcome: 'cleaned', count: 30, avgDurationMs: 2000 }],
   gscConfigured: false,
   gscLastSyncedAt: null,
 };
@@ -132,6 +134,15 @@ describe('deriveCronStatuses', () => {
     expect(statuses.price.level).toBe('green');
     expect(statuses.sde.level).toBe('green');
     expect(statuses.gsc.level).toBe('neutral');
+    expect(statuses.housekeeping.level).toBe('green');
+  });
+
+  it('marks housekeeping red when its latest run was partial', () => {
+    const crons: CronSignals = {
+      ...healthyCrons,
+      lastRuns: [{ action: 'cron_housekeeping', timestamp: hoursAgo(2), outcome: 'partial' }],
+    };
+    expect(deriveCronStatuses(crons, NOW).housekeeping.level).toBe('red');
   });
 
   it('marks a cron that never ran as red', () => {
@@ -143,16 +154,16 @@ describe('deriveStatusGroups', () => {
   it('reports a healthy budget and an empty queue', () => {
     const groups = deriveStatusGroups(signals());
     expect(groups[1]!.lines[0]).toMatchObject({ label: 'Error budget', value: '87 left', level: 'green' });
-    expect(groups[2]!.lines[3]).toMatchObject({ value: '0 active · 0 dead', level: 'green' });
+    expect(groups[2]!.lines[4]).toMatchObject({ value: '0 active · 0 dead', level: 'green' });
   });
 
   it('shows the queue age in minutes, hours, and days, amber once stale', () => {
     const hours = deriveStatusGroups(signals({ queue: [stat('queued', 2, 30)] }));
-    expect(hours[2]!.lines[3]).toMatchObject({ level: 'amber', note: 'oldest job 30h' });
+    expect(hours[2]!.lines[4]).toMatchObject({ level: 'amber', note: 'oldest job 30h' });
     const minutes = deriveStatusGroups(signals({ queue: [stat('queued', 1, 0.5)] }));
-    expect(minutes[2]!.lines[3]!.note).toBe('oldest job 30m');
+    expect(minutes[2]!.lines[4]!.note).toBe('oldest job 30m');
     const days = deriveStatusGroups(signals({ queue: [stat('queued', 1, 72)] }));
-    expect(days[2]!.lines[3]!.note).toBe('oldest job 3d');
+    expect(days[2]!.lines[4]!.note).toBe('oldest job 3d');
   });
 });
 
@@ -195,7 +206,7 @@ describe('deriveAttention', () => {
         budgetExhaustions: 2,
         fallback: { esi: 90, fallback: 10, perDay: [] },
         sli: { readSuccess: 0.97, mutationSuccess: 1, latencyP95: 420, esiSuccess: 0.99 },
-        crons: { ...healthyCrons, lastRuns: [healthyCrons.lastRuns[1]!] },
+        crons: { ...healthyCrons, lastRuns: healthyCrons.lastRuns.slice(1) },
       }),
     );
     expect(items.map((i) => [i.id, i.level, i.action.href])).toEqual([
@@ -266,7 +277,7 @@ describe('a source that failed to load', () => {
   const byId = new Map(deriveStatusGroups(failed).flatMap((group) => group.lines.map((l) => [l.id, l])));
 
   it('marks only its own lines unavailable', () => {
-    for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'queue', 'held-for-budget']) {
+    for (const id of ['cron-prices', 'cron-sde', 'cron-gsc', 'cron-housekeeping', 'queue', 'held-for-budget']) {
       expect(byId.get(id)).toMatchObject({ value: 'unavailable', note: '', level: 'neutral' });
     }
     expect(byId.get('readSuccess')).toMatchObject({ value: '99.9%', level: 'green' });

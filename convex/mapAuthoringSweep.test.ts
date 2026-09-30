@@ -325,7 +325,7 @@ describe('map authoring', () => {
       expect(tombstoneDeletedAt(await readConnection(t, stubId))).toBe(NOW);
     });
 
-    it('isolates a failing map and still sweeps the rest of the batch', async () => {
+    it('falls back to removing just the connection when a map cannot collapse, and sweeps the rest', async () => {
       const t = convexTest(schema, modules);
       await seedEmpty(t);
       const { poisonedA, poisonedB, otherStub } = await t.run(async (ctx) => {
@@ -391,11 +391,24 @@ describe('map authoring', () => {
         return { poisonedA: a, poisonedB: b, otherStub: stub };
       });
 
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 2, hasMore: false });
-      expect(tombstoneDeletedAt(await readConnection(t, poisonedA))).toBe(null);
-      expect(tombstoneDeletedAt(await readConnection(t, poisonedB))).toBe(null);
+      expect(tombstoneDeletedAt(await readConnection(t, poisonedA))).toBe(NOW);
+      expect(tombstoneDeletedAt(await readConnection(t, poisonedB))).toBe(NOW);
       expect(tombstoneDeletedAt(await readConnection(t, otherStub))).toBe(NOW);
+      // The systems stay on the map; only the first failure attempts a collapse and logs it.
+      const systems = await t.run(async (ctx) => await ctx.db.query('mapSystems').collect());
+      expect(systems.every((system) => system.deletedAt === null)).toBe(true);
+      expect(errorSpy).toHaveBeenCalledOnce();
+      expect(JSON.parse(errorSpy.mock.calls[0]![0] as string)).toMatchObject({
+        scope: 'map:ceiling-collapse',
+        outcome: 'fallback',
+        mapId: MAP_A,
+        error: 'MAP_TOO_LARGE',
+      });
+      const events = await t.run(async (ctx) => await ctx.db.query('mapEvents').collect());
+      expect(events.filter((event) => event.kind === 'connection_severed_retained')).toHaveLength(2);
     });
 
     it('continues a full batch until every due stub is removed', async () => {
@@ -434,7 +447,7 @@ describe('map authoring', () => {
       }
     });
 
-    it('does not continue a full batch that made no progress', async () => {
+    it('never lets failing rows clog the line ahead of healthy ones', async () => {
       const t = convexTest(schema, modules);
       await seedEmpty(t);
       await t.run(async (ctx) => {
@@ -477,12 +490,34 @@ describe('map authoring', () => {
         }
       });
 
-      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
-        .toMatchObject({ collapsed: 0, removedStubs: 0, hasMore: true });
-      const scheduled = await t.run(async (ctx) =>
-        await ctx.db.system.query('_scheduled_functions').collect(),
+      const healthyStub = await t.run(async (ctx) =>
+        await ctx.db.insert('mapConnections', connectionInsert({
+          mapId: 'map-elsewhere',
+          fromSystemId: AMARR,
+          toSystemId: null,
+          fromSignatureId: 'WHL-012',
+          wormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          deathEarliestAt: EXPIRED - 60_000,
+          deathLatestAt: EXPIRED + CEILING_SWEEP_SCAN + 1,
+          deletedAt: null,
+          purgeAfter: null,
+        })),
       );
-      expect(scheduled).toEqual([]);
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
+        .toMatchObject({ collapsed: 0, removedStubs: 0, failed: CEILING_SWEEP_BATCH, hasMore: true });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      expect(tombstoneDeletedAt(await readConnection(t, healthyStub))).toBe(NOW);
+      const stillDue = await t.run(async (ctx) =>
+        (await ctx.db.query('mapConnections').collect()).filter(
+          (row) => row.toSystemId !== null && row.tombstone.kind === 'live',
+        ),
+      );
+      expect(stillDue).toEqual([]);
     });
 
     it('keeps one collapse-decision owner and registers the sweep cron', () => {

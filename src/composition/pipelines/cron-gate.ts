@@ -32,6 +32,8 @@ export type CronRunOutcome<Body> = {
   workDone: boolean;
   telemetry?: Record<string, unknown>;
   body: Body;
+  /** The run finished but part of it failed: it records once and answers 500. */
+  failed?: boolean;
 };
 
 export type CronRouteDeclaration<Body, Pre = void> = {
@@ -116,11 +118,17 @@ async function emitRun(
   }
 }
 
+const PARTIAL_FAILURE: CapabilityResult = { outcome: 'unexpected', code: 'partial_failure' };
+
 async function finishRun<Body, Pre>(
   declaration: CronRouteDeclaration<Body, Pre>,
   outcome: CronRunOutcome<Body>,
   durationMs: number,
 ): Promise<Response> {
+  if (outcome.failed === true) {
+    await emitRun(declaration, outcome, durationMs, PARTIAL_FAILURE, true);
+    return Response.json(outcome.body, { status: 500 });
+  }
   await emitRun(declaration, outcome, durationMs);
   return Response.json(outcome.body);
 }

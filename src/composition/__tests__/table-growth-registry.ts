@@ -9,6 +9,7 @@ import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
+  SESSION_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
 } from '@/platform/auth/constants';
 import * as schema from '../drizzle-schema';
@@ -65,14 +66,14 @@ export const TABLE_GROWTH_STORIES = [
     table: schema.domainEvents,
     retentionDays: DOMAIN_EVENT_RETENTION_DAYS,
     retentionConstant: 'DOMAIN_EVENT_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
   },
   {
     kind: 'pruned',
     table: schema.usageLogs,
     retentionDays: USAGE_LOG_RETENTION_DAYS,
     retentionConstant: 'USAGE_LOG_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
     alsoPurgeManagedBy: 'telemetry',
   },
   {
@@ -88,42 +89,43 @@ export const TABLE_GROWTH_STORIES = [
     table: schema.marketHistory,
     retentionDays: HISTORY_RETENTION_DAYS,
     retentionConstant: 'HISTORY_RETENTION_DAYS',
-    prunedBy: 'each successful market-history refresh',
+    prunedBy:
+      'each successful market-history refresh, plus daily /api/cron/daily-batch housekeeping for types that no longer refresh',
   },
   {
     kind: 'pruned',
     table: schema.corpAccessAudit,
     retentionDays: CORP_ACCESS_AUDIT_RETENTION_DAYS,
     retentionConstant: 'CORP_ACCESS_AUDIT_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
   },
   {
     kind: 'pruned',
     table: schema.gscSearchAnalytics,
     retentionDays: GSC_RETENTION_DAYS,
     retentionConstant: 'GSC_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
   },
   {
     kind: 'pruned',
     table: schema.gscUrlInspection,
     retentionDays: GSC_RETENTION_DAYS,
     retentionConstant: 'GSC_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping',
   },
   {
     kind: 'pruned',
     table: schema.verification,
     retentionDays: VERIFICATION_RETENTION_DAYS,
     retentionConstant: 'VERIFICATION_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping after expiry',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping after expiry',
   },
   {
     kind: 'pruned',
     table: schema.esiSnapshots,
     retentionDays: SNAPSHOT_RETENTION_DAYS,
     retentionConstant: 'SNAPSHOT_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping, preserving latest and referenced',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping, preserving latest and referenced',
     alsoPurgeManagedBy: 'esi-snapshots',
   },
   {
@@ -131,7 +133,8 @@ export const TABLE_GROWTH_STORIES = [
     table: schema.esiRefreshJobs,
     retentionDays: ESI_REFRESH_JOB_RETENTION_DAYS,
     retentionConstant: 'ESI_REFRESH_JOB_RETENTION_DAYS',
-    prunedBy: 'daily /api/cron/refresh-gsc housekeeping; dead letters retained',
+    prunedBy:
+      'daily /api/cron/daily-batch housekeeping; dead letters kept ESI_DEAD_LETTER_RETENTION_DAYS (30) for operator requeue',
     alsoPurgeManagedBy: 'esi-refresh-jobs',
   },
   {
@@ -140,7 +143,7 @@ export const TABLE_GROWTH_STORIES = [
     retentionDays: WH_STATICS_SNAPSHOT_RETENTION_DAYS,
     retentionConstant: 'WH_STATICS_SNAPSHOT_RETENTION_DAYS',
     prunedBy:
-      'daily /api/cron/refresh-gsc housekeeping, preserving pending and current promoted snapshots',
+      'daily /api/cron/daily-batch housekeeping, preserving pending and current promoted snapshots',
   },
 
   {
@@ -151,7 +154,14 @@ export const TABLE_GROWTH_STORIES = [
     authority: 'docs/VERSION_4_0_PLAN.md D16',
   },
 
-  { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },
+  {
+    kind: 'pruned',
+    table: schema.session,
+    retentionDays: SESSION_RETENTION_DAYS,
+    retentionConstant: 'SESSION_RETENTION_DAYS',
+    prunedBy: 'daily /api/cron/daily-batch housekeeping after expiry',
+    alsoPurgeManagedBy: 'auth',
+  },
   { kind: 'purge-managed', table: schema.pendingTrackingMerges, purgeContributor: 'location-tracking' },
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },

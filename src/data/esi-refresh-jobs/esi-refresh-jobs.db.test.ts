@@ -72,7 +72,7 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
     });
   });
 
-  it('prunes expired terminal rows while preserving the boundary and dead letters', async () => {
+  it('prunes expired terminal rows and month-old dead letters, preserving the boundaries', async () => {
     const database = harness.db;
     await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
@@ -80,9 +80,10 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
       terminalJob('boundary-success', 'succeeded', BOUNDARY),
       terminalJob('old-permanent', 'failed_permanent', OLD),
       terminalJob('old-dead-letter', 'dead_lettered', OLD),
+      terminalJob('expired-dead-letter', 'dead_lettered', new Date('2026-06-13T12:00:00Z')),
     ]);
 
-    await pruneEsiRefreshJobs(database, 7, NOW);
+    await expect(pruneEsiRefreshJobs(database, 7, NOW)).resolves.toEqual({ deleted: 3, finished: true });
 
     const remaining = await database
       .select({ key: esiRefreshJobs.idempotencyKey })

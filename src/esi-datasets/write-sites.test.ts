@@ -106,6 +106,19 @@ describe('findWrittenTables', () => {
     expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
   });
 
+  it('detects a batched delete through its table argument', () => {
+    const source = [
+      "import { ownedAssets } from './schema';",
+      'return deleteInBatches(',
+      '  database,',
+      '  ownedAssets,',
+      '  lt(ownedAssets.fetchedAt, cutoff),',
+      ');',
+    ].join('\n');
+
+    expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
+  });
+
   it('detects a multi-line chained write regardless of the receiver name', () => {
     const source = [
       "import { ownedAssets } from './schema';",

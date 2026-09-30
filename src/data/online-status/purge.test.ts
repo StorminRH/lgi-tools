@@ -48,7 +48,7 @@ describe('onlineStatusPurgeContributor', () => {
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
   });
 
-  it('swallows a Convex outage (fetch reject) without throwing — the Neon purge must complete', async () => {
+  it('propagates a Convex outage so the deletion stays requested for retry', async () => {
     fetchSpy.mockRejectedValue(new Error('convex down'));
     await expect(
       onlineStatusPurgeContributor.purgeCharacter?.({
@@ -56,7 +56,22 @@ describe('onlineStatusPurgeContributor', () => {
         userId: USER,
         characterId: CHAR,
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow('request failed');
+  });
+
+  it('propagates a non-2xx response instead of asserting done', async () => {
+    fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
+    await expect(
+      onlineStatusPurgeContributor.purgeUser?.({ kind: 'user', userId: USER }),
+    ).rejects.toThrow('/purge-online answered 401');
+  });
+
+  it('rejects a configured Convex URL with no service secret', async () => {
+    delete process.env.CONVEX_SERVICE_SECRET;
+    await expect(
+      onlineStatusPurgeContributor.purgeUser?.({ kind: 'user', userId: USER }),
+    ).rejects.toThrow('service secret');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('no-ops when Convex is not configured (no NEXT_PUBLIC_CONVEX_URL)', async () => {

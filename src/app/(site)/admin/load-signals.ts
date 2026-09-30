@@ -5,6 +5,7 @@ import {
   getCriticalLatencyP95,
   getEsiSuccessRate,
   getGscCronOutcomes,
+  getHousekeepingCronOutcomes,
   getLastCronRuns,
   getMutationSuccessRate,
   getPriceCronOutcomes,
@@ -27,14 +28,24 @@ export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminS
   const gscConfigured = isGscConfigured();
   const [crons, budget, fallback, budgetExhaustions, sli, queue, statics, releases] = await Promise.all([
     loadSection('admin-signals.crons', async () => {
-      const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, gscLastSyncedAt] = await Promise.all([
-        getLastCronRuns(),
-        getPriceCronOutcomes(range),
-        getSdeCronOutcomes(range),
-        getGscCronOutcomes(range),
-        gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
-      ]);
-      return { lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, gscConfigured, gscLastSyncedAt };
+      const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, housekeepingOutcomes, gscLastSyncedAt] =
+        await Promise.all([
+          getLastCronRuns(),
+          getPriceCronOutcomes(range),
+          getSdeCronOutcomes(range),
+          getGscCronOutcomes(range),
+          getHousekeepingCronOutcomes(range),
+          gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
+        ]);
+      return {
+        lastRuns,
+        priceOutcomes,
+        sdeOutcomes,
+        gscOutcomes,
+        housekeepingOutcomes,
+        gscConfigured,
+        gscLastSyncedAt,
+      };
     }),
     loadSection('admin-signals.budget', readEsiBudgetSnapshot),
     loadSection('admin-signals.fallback', () => getFallbackRateShared(range)),
