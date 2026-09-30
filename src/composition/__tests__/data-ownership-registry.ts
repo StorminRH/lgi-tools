@@ -136,7 +136,7 @@ const SYNC_STAMP = {
 
 const AUTH_ADAPTER = {
   kind: 'adapter-managed',
-  note: 'Better Auth owns the row lifecycle through its own Drizzle adapter, which this registry\'s scanner cannot see. The slice\'s own direct writes (admin merges, EVE token rotation, active-character moves) are single statements guarded by compare-and-swap predicates rather than transactions.',
+  note: 'Better Auth owns the row lifecycle through its own Drizzle adapter, which this registry\'s scanner cannot see. Direct token and active-character writes use single statements. Admin ownership changes and final empty-user deletion use short user-row-lock transactions; final deletion reads links after acquiring the lock so a concurrent account FK insert cannot be cascaded without cleanup.',
 } as const satisfies TransactionBoundary;
 
 const APP_SINGLE = {
@@ -469,7 +469,7 @@ export const DATA_OWNERSHIP = [
       {
         by: 'composition/account-lifecycle',
         reason:
-          'Owns the whole-account deletion that must run after every slice purge contributor; sequencing it inside the auth slice would invert the composition direction.',
+          'Login merge promotes the survivor role and deletes the source identity only after cross-slice rekeying and source-empty assertions; purge composition delegates final empty-user deletion to the auth-owned fence after every slice contributor completes.',
       },
     ],
     invariants: ['pk(id)', 'unique(email)'],
@@ -503,7 +503,7 @@ export const DATA_OWNERSHIP = [
       {
         by: 'composition/account-lifecycle',
         reason:
-          'Re-points an EVE character link to a different user during owner transfer, a decision that spans auth and the owning slices and therefore composes above them.',
+          'Login merge re-points EVE links between users; character deletion and owner transfer remove only the captured original link after the required cross-slice purge completes.',
       },
     ],
     invariants: ['fk(user_id→user.id)', 'pk(id)', 'unique(provider_id,account_id)'],

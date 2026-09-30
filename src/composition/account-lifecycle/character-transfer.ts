@@ -26,7 +26,7 @@ export async function finishCharacterTransfer(
   try {
     await identityProjectionRunners.runAfterCharacterUnlink({ userId: priorUserId, characterId, mapIds });
   } finally {
-    await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners, true);
+    await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
     await identityProjectionRunners.runAfterCharacterLinkChanged({
       userId: priorUserId,
       characterId,

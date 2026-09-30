@@ -25,6 +25,7 @@ interface ChainPurgeResult {
   readonly deletedConnections: number;
   readonly removedBranches: number;
   readonly heldConnections: number;
+  readonly retryConnections: number;
   readonly deletedEvents: number;
   readonly hasMore: boolean;
 }
@@ -112,7 +113,7 @@ async function trackedFor(
   return tracked;
 }
 
-type ConnectionFate = 'deleted' | 'branch_removed' | 'held' | 'deferred';
+type ConnectionFate = 'deleted' | 'branch_removed' | 'held' | 'retry' | 'deferred';
 
 async function settleExpiredConnection(
   ctx: MutationCtx,
@@ -151,6 +152,10 @@ async function settleExpiredConnection(
       connectionId: connection._id,
       error: errorCode(error),
     }));
+    await ctx.db.patch(connection._id, {
+      tombstone: { ...tombstone, purgeAfter: now + MAP_CHAIN_UNDO_WINDOW_MS },
+    });
+    return 'retry';
   }
   await ctx.db.delete(connection._id);
   return 'deleted';
@@ -168,11 +173,12 @@ async function purgeExpiredConnections(
   deletedConnections: number;
   removedBranches: number;
   heldConnections: number;
+  retryConnections: number;
   hasMore: boolean;
 }> {
   const expired = await takeExpiredByPurgeAfter(ctx, 'mapConnections', now, CHAIN_PURGE_BATCH + 1);
   const state: SettleState = { liveness: new Map(), tracked: new Map() };
-  const fates: Record<ConnectionFate, number> = { deleted: 0, branch_removed: 0, held: 0, deferred: 0 };
+  const fates: Record<ConnectionFate, number> = { deleted: 0, branch_removed: 0, held: 0, retry: 0, deferred: 0 };
   let settled = 0;
   for (const candidate of expired.slice(0, CHAIN_PURGE_BATCH)) {
     // An earlier settlement can give a sibling connection a fresh undo window.
@@ -200,6 +206,7 @@ async function purgeExpiredConnections(
     deletedConnections: fates.deleted,
     removedBranches: fates.branch_removed,
     heldConnections: fates.held,
+    retryConnections: fates.retry,
     hasMore: fates.deferred > 0 || expired.length > CHAIN_PURGE_BATCH,
   };
 }
@@ -232,6 +239,7 @@ async function purgeExpiredChainTombstonesAt(
     deletedConnections: connections.deletedConnections,
     removedBranches: connections.removedBranches,
     heldConnections: connections.heldConnections,
+    retryConnections: connections.retryConnections,
     deletedEvents: events.deletedEvents,
     hasMore: systems.hasMore || connections.hasMore || events.hasMore,
   };
@@ -243,12 +251,23 @@ function madeProgress(result: ChainPurgeResult): boolean {
     + result.deletedConnections
     + result.removedBranches
     + result.heldConnections
+    + result.retryConnections
     + result.deletedEvents > 0;
 }
 
 /** Daily cron. A full pass continues immediately while it makes progress. */
 export const purgeExpiredChainTombstones = internalMutation({
   args: {},
+  returns: v.object({
+    deletedSystems: v.number(),
+    deletedSystemChildren: v.number(),
+    deletedConnections: v.number(),
+    removedBranches: v.number(),
+    heldConnections: v.number(),
+    retryConnections: v.number(),
+    deletedEvents: v.number(),
+    hasMore: v.boolean(),
+  }),
   handler: async (ctx) => {
     const result = await purgeExpiredChainTombstonesAt(ctx, Date.now());
     if (result.hasMore && madeProgress(result)) {

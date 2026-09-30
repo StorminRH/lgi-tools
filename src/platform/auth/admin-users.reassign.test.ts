@@ -77,7 +77,7 @@ it('restores claims when admin unlink delete fails', async () => {
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-    state.results = [[{ id: 'moved' }], [], undefined];
+    state.results = [[{ id: 'moved' }], [], [], [], undefined];
     const out = await reassignCharacter({
       characterId: 100,
       fromUserId: 'eve-user-2',
@@ -102,7 +102,7 @@ describe('reassignCharacter', () => {
   it('keeps the source user when required collaborative purge fails', async () => {
     const failure = new Error('map purge unavailable');
     runners.runBeforeUserDelete.mockRejectedValueOnce(failure);
-    state.results = [[{ id: 'moved' }], []];
+    state.results = [[{ id: 'moved' }], [], []];
 
     await expect(
       reassignCharacter({
@@ -137,7 +137,7 @@ describe('reassignCharacter', () => {
   });
 
   it('restores claims when the compare-and-swap matches no account', async () => {
-    state.results = [[], [], undefined];
+    state.results = [[], [], [], [], undefined];
     await expect(reassignCharacter({
       characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
     })).resolves.toEqual({ sourceDeleted: true });

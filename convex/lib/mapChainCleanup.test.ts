@@ -108,6 +108,7 @@ describe('map chain cleanup', () => {
       deletedConnections: 2,
       removedBranches: 1,
       heldConnections: 0,
+      retryConnections: 0,
       deletedEvents: 1,
       hasMore: false,
     });
@@ -229,6 +230,80 @@ describe('map chain cleanup', () => {
     expect(await get(t, ids.island)).toMatchObject({ deletedAt: NOW + MAP_CHAIN_UNDO_WINDOW_MS + 1 });
   });
 
+  it('preserves a failed settlement for a later daily attempt instead of abandoning its live branch', async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', liveSystem(ROOT));
+      const island = await ctx.db.insert('mapSystems', liveSystem(LIVE_ISLAND));
+      const fillers = [];
+      for (let index = 0; index < 127; index += 1) {
+        fillers.push(await ctx.db.insert('mapSystems', liveSystem(31_100_000 + index)));
+      }
+      const cut = await ctx.db.insert('mapConnections', connection(ROOT, LIVE_ISLAND, EXPIRED));
+      return { island, cut, fillers };
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await expect(purge(t)).resolves.toMatchObject({
+        deletedConnections: 0, removedBranches: 0, heldConnections: 0, retryConnections: 1, hasMore: false,
+      });
+      expect(error).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('MAP_TOO_LARGE'));
+      expect(await get(t, ids.cut)).toMatchObject({
+        tombstone: { kind: 'removed', deletedAt: EXPIRED.deletedAt, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
+      });
+      expect(await get(t, ids.island)).toMatchObject({ deletedAt: null, purgeAfter: null });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(error).toHaveBeenCalledOnce();
+
+      await t.run(async (ctx) => {
+        for (const id of ids.fillers) await ctx.db.delete(id);
+      });
+      vi.setSystemTime(NOW + MAP_CHAIN_UNDO_WINDOW_MS + 1);
+      await expect(purge(t)).resolves.toMatchObject({ removedBranches: 1, hasMore: false });
+      expect(await get(t, ids.island)).toMatchObject({ deletedAt: NOW + MAP_CHAIN_UNDO_WINDOW_MS + 1 });
+      expect(await get(t, ids.cut)).toMatchObject({
+        tombstone: { kind: 'removed', purgeAfter: NOW + 2 * MAP_CHAIN_UNDO_WINDOW_MS + 1 },
+      });
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('continues past sixteen failed oldest settlements to settle a healthy map in the same daily run', async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', liveSystem(ROOT));
+      await ctx.db.insert('mapSystems', liveSystem(LIVE_ISLAND));
+      for (let index = 0; index < 127; index += 1) {
+        await ctx.db.insert('mapSystems', liveSystem(31_100_000 + index));
+      }
+      const failedCuts = [];
+      for (let index = 0; index < 16; index += 1) {
+        failedCuts.push(await ctx.db.insert('mapConnections', connection(ROOT, LIVE_ISLAND, EXPIRED)));
+      }
+      const healthyMap = 'healthy-map';
+      await ctx.db.insert('mapSystems', { ...liveSystem(ROOT), mapId: healthyMap });
+      const island = await ctx.db.insert('mapSystems', { ...liveSystem(LIVE_ISLAND), mapId: healthyMap });
+      const cut = await ctx.db.insert('mapConnections', { ...connection(ROOT, LIVE_ISLAND, EXPIRED), mapId: healthyMap });
+      return { failedCuts, island, cut };
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await expect(purge(t)).resolves.toMatchObject({ deletedConnections: 0, removedBranches: 0, retryConnections: 16, hasMore: true });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(error).toHaveBeenCalledTimes(16);
+      expect(await get(t, ids.cut)).toMatchObject({ tombstone: { purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS } });
+      expect(await get(t, ids.island)).toMatchObject({ deletedAt: NOW });
+      for (const id of ids.failedCuts) {
+        expect(await get(t, id)).toMatchObject({
+          tombstone: { kind: 'removed', deletedAt: EXPIRED.deletedAt, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
+        });
+      }
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('deletes a purged system\'s signatures and activity with it', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -278,6 +353,7 @@ describe('map chain cleanup', () => {
       deletedConnections: 1,
       removedBranches: 0,
       heldConnections: 0,
+      retryConnections: 0,
       deletedEvents: 1,
       hasMore: true,
     });

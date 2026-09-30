@@ -5,7 +5,7 @@ import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { runPurge } from '@/composition/purge/orchestrator';
 import { accountMatch, eveAccountsForUser, parseLinkedAccountId } from '@/platform/auth/eve-account-shared';
 import { revokeStoredCharacterToken } from '@/platform/auth/eve-token-service';
-import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
+import { deleteUserIfUnlinked, reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { readPendingDeletion, readRequestedDeletions, type PendingDeletion } from '@/platform/auth/purge';
 import {
   enqueueDeletion, enqueueTransfer, jobsForCharacter, readDeletionJobs,
@@ -26,15 +26,18 @@ async function purgeLink(link: Pick<typeof account.$inferSelect, 'id' | 'userId'
 async function finishUserDeletion(job: DeletionJob): Promise<void> {
   const [owner] = await db.select({ requestedAt: user.deletionRequestedAt }).from(user).where(eq(user.id, job.userId));
   if (owner === undefined || owner.requestedAt?.getTime() !== job.requestedAt.getTime()) return;
-  let linked = await db.select().from(account).where(eveAccountsForUser(job.userId));
-  while (linked.length > 0) {
-    for (const link of linked) await purgeLink(link);
-    linked = await db.select().from(account).where(eveAccountsForUser(job.userId));
-    // Malformed provider identifiers cannot be purged by character scope.
-    if (linked.some((link) => parseLinkedAccountId(link.accountId) === null)) break;
+  for (;;) {
+    const linked = await db.select().from(account).where(eveAccountsForUser(job.userId));
+    if (linked.length > 0) {
+      for (const link of linked) {
+        if (parseLinkedAccountId(link.accountId) === null) throw new Error('Cannot purge malformed EVE character identifier.');
+        await purgeLink(link);
+      }
+      continue;
+    }
+    await runPurge({ kind: 'user', userId: job.userId });
+    if (await deleteUserIfUnlinked(job.userId)) return;
   }
-  await runPurge({ kind: 'user', userId: job.userId });
-  await db.delete(user).where(eq(user.id, job.userId));
 }
 
 async function finishCharacterDeletion(job: DeletionJob): Promise<{ accountEmptied: boolean }> {
@@ -45,7 +48,7 @@ async function finishCharacterDeletion(job: DeletionJob): Promise<{ accountEmpti
     await purgeLink(link);
   }
   // The independent receipt survives unlink, so a retry resumes reconciliation only.
-  return reconcileAfterCharacterRemoval(job.userId, job.characterId, identityProjectionRunners, true);
+  return reconcileAfterCharacterRemoval(job.userId, job.characterId, identityProjectionRunners);
 }
 
 /** Lock only the independent receipt; global purge writes never touch this row. */

@@ -5,6 +5,7 @@ import { db, directClient, resolveLockConnectionUrl } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
 import { accountMatch, characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
+import { reconcileAfterCharacterRemoval } from './account-purge';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
@@ -267,9 +268,7 @@ export async function reassignCharacter({
       .limit(1);
 
     if (!remaining) {
-      await runners.runBeforeUserDelete(fromUserId);
-      await db.delete(user).where(eq(user.id, fromUserId));
-      sourceDeleted = true;
+      sourceDeleted = (await reconcileAfterCharacterRemoval(fromUserId, characterId, runners)).accountEmptied;
     } else if (await getStoredActiveCharacterId(fromUserId) === characterId) {
       await repointActiveToOldest(fromUserId);
     }

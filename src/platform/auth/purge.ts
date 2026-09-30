@@ -57,14 +57,6 @@ export const authPurgeContributor: PurgeContributor = {
   },
 };
 
-export async function markUserDeletionRequested(userId: string): Promise<void> {
-  const now = new Date();
-  await db
-    .update(user)
-    .set({ deletionRequestedAt: now, updatedAt: now })
-    .where(and(eq(user.id, userId), isNull(user.deletionRequestedAt)));
-}
-
 export type PendingDeletion =
   | { readonly scope: 'user'; readonly userId: string; readonly requestedAt: Date }
   | { readonly scope: 'character'; readonly userId: string; readonly characterId: number; readonly accountRowId: string; readonly requestedAt: Date };
