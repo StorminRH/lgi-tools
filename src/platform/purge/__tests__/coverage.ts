@@ -131,7 +131,7 @@ export const NON_NEON_HOMES: readonly NonNeonHome[] = [
   {
     home: 'convex:syncSubjects',
     coveredBy:
-      'engine sweep (convex/engineSweep) deletes cold subjects past the retention window; no identity door touches it',
+      'the daily retention cron (convex/engineSweep) deletes cold subjects past the retention window; no identity door touches it',
     explicitTeardown: 'convex/engineSweep.ts — retention GC',
     reason:
       'per-user scheduling state for the sync engine; rebuilt on the next heartbeat, so nothing durable is lost when a row disappears.',
@@ -140,7 +140,7 @@ export const NON_NEON_HOMES: readonly NonNeonHome[] = [
   {
     home: 'convex:syncPresence',
     coveredBy:
-      'engine sweep (convex/engineSweep) deletes cold presence past the retention window; /leave-sync retires a closing tab',
+      'the daily retention cron (convex/engineSweep) deletes cold presence past the retention window; /leave-sync retires a closing tab',
     explicitTeardown: 'convex/engineSweep.ts — retention GC',
     reason:
       'per-user tab liveness for the sync engine; rebuilt on the next heartbeat.',

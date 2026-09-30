@@ -1,9 +1,10 @@
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { purgeScopeArgs } from './lib/syncFields';
 
-export async function drainCharacterOnline(ctx: MutationCtx, limit: number): Promise<void> {
+export async function drainCharacterOnline(ctx: MutationCtx, limit: number): Promise<number> {
   const rows = await ctx.db.query('characterOnline').take(limit);
   for (const row of rows) await ctx.db.delete(row._id);
+  return rows.length;
 }
 
 export const purgeForUser = internalMutation({

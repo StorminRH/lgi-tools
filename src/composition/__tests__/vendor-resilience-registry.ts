@@ -102,7 +102,7 @@ const convexLive = policy({
   degradation:
     'A null client (NEXT_PUBLIC_CONVEX_URL unset) disables live reads and every consumer renders its non-live path; the rest of the site is unaffected.',
   telemetryFields:
-    "'cron_sync_sweeper' (the watchdog that detects a lagging Convex scan).",
+    'None; Convex function health is read from the Convex dashboard.',
 });
 const upstashRedis = policy({
   wrapper: { module: 'src/lib/upstash.ts', symbol: 'createUpstashClient' },

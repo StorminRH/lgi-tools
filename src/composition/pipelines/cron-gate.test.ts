@@ -175,8 +175,8 @@ describe('defineCronRoute', () => {
     withAdvisoryLockMock.mockResolvedValue({ busy: true });
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:test',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
+      action: 'cron_map_purge',
+      capability: 'cron.purge-maps' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: {
@@ -265,8 +265,8 @@ describe('defineCronRoute', () => {
     let workDone = false;
     const GET = defineCronRoute({
       name: 'cron:test',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
+      action: 'cron_map_purge',
+      capability: 'cron.purge-maps' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
@@ -284,7 +284,7 @@ describe('defineCronRoute', () => {
     workDone = true;
     await GET(authedRequest());
     expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_sync_sweeper',
+      action: 'cron_map_purge',
       metadata: {
         dispatched: 2,
         outcome: 'rearmed',
@@ -296,8 +296,8 @@ describe('defineCronRoute', () => {
   it('emits a boundary line on a durable-silent no-op', async () => {
     const GET = defineCronRoute({
       name: 'cron:test',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
+      action: 'cron_map_purge',
+      capability: 'cron.purge-maps' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
@@ -325,8 +325,8 @@ describe('defineCronRoute', () => {
     const error = new Error('work failed');
     const GET = defineCronRoute({
       name: 'cron:test',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
+      action: 'cron_map_purge',
+      capability: 'cron.purge-maps' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
@@ -337,7 +337,7 @@ describe('defineCronRoute', () => {
 
     await expect(GET(authedRequest())).rejects.toBe(error);
     expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_sync_sweeper',
+      action: 'cron_map_purge',
       metadata: {
         outcome: 'failed',
         durationMs: expect.any(Number),
@@ -427,8 +427,8 @@ describe('defineCronRoute capability recording', () => {
   it('records a thrown stage with its mapped failure category', async () => {
     const GET = defineCronRoute<unknown>({
       name: 'cron/sweeper',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
+      action: 'cron_map_purge',
+      capability: 'cron.purge-maps' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test' },
@@ -448,8 +448,8 @@ describe('defineCronRoute capability recording', () => {
     withAdvisoryLockMock.mockResolvedValue({ busy: true });
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron/sweeper',
-      action: 'cron_sync_sweeper',
-      capability: 'cron.sync-sweeper' as const,
+      action: 'cron_map_purge',
+      capability: 'cron.purge-maps' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { key: 42, busyBody: () => ({ status: 'busy' }) },

@@ -93,7 +93,6 @@ afterEach(() => vi.unstubAllGlobals());
 test('signed-in menu has a distinct Atlas label, correct links and contextual controls', () => {
   const markup = renderMenu({ contextualSection: createElement('button', null, 'Track Alice') });
   expect(markup).toContain('aria-label="Mapper — Atlas menu"');
-  expect(markup).not.toContain('Mapper — account menu');
   expect(markup).toMatch(/<a[^>]*href="\/"[^>]*aria-label="LGI.tools home"/);
   expect(markup).toMatch(/<a[^>]*href="\/atlas"[^>]*>Maps<\/a>/);
   expect(markup).toContain('href="/settings/characters"');

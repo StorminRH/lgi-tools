@@ -26,7 +26,6 @@ export type ServerUsageAction =
   | 'cron_industry_indices'
   | 'cron_sde'
   | 'cron_gsc'
-  | 'cron_sync_sweeper'
   | 'cron_esi_refresh_jobs'
   | 'cron_affiliations'
   | 'cron_wh_statics'

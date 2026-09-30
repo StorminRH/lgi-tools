@@ -60,7 +60,7 @@ export const CAPABILITIES = catalogueFromSpec({
   planner: { mutation: ['create-saved-plan', 'delete-saved-plan', 'rename-saved-plan', 'favorite-saved-plan'], read: ['resolve-entity-names', 'resolve-build-location', 'read-owned-assets', 'read-owned-blueprints', 'read-skill-levels'] },
   maps: { mutation: ['create-map', 'update-access', 'delete-map', 'restore-map', 'request-map-purge', 'eliminate-signatures', 'resolve-jump'], read: ['search-characters', 'resolve-type-names'] },
   admin: { mutation: ['unlink-character', 'revoke-user-sessions', 'reassign-character', 'requeue-esi-job', 'set-user-role', 'wh-statics-review'] },
-  cron: { cron: ['drain-esi-refresh-jobs', 'refresh-affiliations', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'sync-sweeper', 'purge-maps'] },
+  cron: { cron: ['drain-esi-refresh-jobs', 'refresh-affiliations', 'refresh-gsc', 'refresh-industry-indices', 'refresh-prices', 'refresh-sde', 'refresh-wh-statics', 'purge-maps'] },
   market: { mutation: ['refresh-market-prices', 'refresh-market-history'] },
   feedback: { mutation: ['submit-feedback'] },
   sync: { mutation: ['leave-location'], job: ['process-esi-refresh-job'] },
