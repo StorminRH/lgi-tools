@@ -15,8 +15,7 @@ export function NotFoundContent() {
             Nothing on D-Scan
           </h1>
           <p className="text-body text-text leading-relaxed">
-            The page you&apos;re looking for isn&apos;t in this system&apos;s overview. The
-            link may be stale, or you may have wandered off the star map.
+            This page doesn’t exist.
           </p>
         </div>
 

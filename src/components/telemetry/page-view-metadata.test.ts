@@ -31,6 +31,9 @@ describe('readUtmTags', () => {
 });
 
 describe('referrerHostFrom', () => {
+  it('does not count the EVE sign-in callback as acquisition', () => {
+    expect(referrerHostFrom('https://login.eveonline.com/oauth/authorize', 'lgi.tools')).toBeNull();
+  });
   it('returns the host for a cross-origin referrer', () => {
     expect(referrerHostFrom('https://google.com/search', 'lgi.tools')).toBe('google.com');
   });

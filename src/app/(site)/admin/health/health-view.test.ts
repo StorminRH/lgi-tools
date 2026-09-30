@@ -19,14 +19,14 @@ describe('deriveServiceLevels', () => {
       ['97.0%', '≥ 99%', 'amber', 'you'],
       ['no data', '≥ 99%', 'neutral', 'you'],
       ['3,200 ms', '≤ 1,500 ms', 'red', 'you'],
-      ['90.0%', '≥ 95%', 'amber', 'CCP'],
-      ['0 due · 0 dead', '0 dead', 'green', 'you'],
+      ['90.0%', '≥ 95%', 'amber', 'upstream'],
+      ['0 active · 0 dead', '0 dead', 'green', 'you'],
     ]);
   });
 
   it('turns the backlog red once jobs are dead-lettered, amber once it goes stale', () => {
     const dead = deriveServiceLevels(healthy, { due: 4, deadLettered: 2, oldestDueHours: 1 }).at(-1);
-    expect(dead).toMatchObject({ value: '4 due · 2 dead', level: 'red' });
+    expect(dead).toMatchObject({ value: '4 active · 2 dead', level: 'red' });
     const stale = deriveServiceLevels(healthy, { due: 4, deadLettered: 0, oldestDueHours: 30 }).at(-1);
     expect(stale).toMatchObject({ level: 'amber' });
   });

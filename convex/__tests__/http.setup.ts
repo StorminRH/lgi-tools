@@ -6,7 +6,6 @@ export const CONVEX_HTTP_SECRET = 'svc-secret';
 
 export const postConvexHttp = (
   path:
-    | '/sweep'
     | '/jump-evidence'
     | '/resolve-jump'
     | '/signature-elimination'
@@ -15,7 +14,10 @@ export const postConvexHttp = (
     | '/purge-location-tracking'
     | '/project-map-access'
     | '/purge-map-access'
-    | '/purge-map-chain',
+    | '/purge-map-chain'
+    | '/merge-user-state'
+    | '/snapshot-merge-tracking'
+    | '/restore-merge-tracking',
   body: BodyInit | null,
   authorized = true,
 ) =>

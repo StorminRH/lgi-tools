@@ -12,7 +12,7 @@ describe('deriveActionRows', () => {
       cta: 'Check feed',
       badge: null,
     });
-    expect(queue).toMatchObject({ status: '0 dead-lettered · 2 due', cta: 'Open', badge: null });
+    expect(queue).toMatchObject({ status: '0 dead-lettered · 2 active', cta: 'Open', badge: null });
     expect(access).toMatchObject({ href: '/settings/access', cta: 'Open' });
   });
 

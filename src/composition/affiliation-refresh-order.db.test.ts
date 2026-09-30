@@ -55,7 +55,7 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
       corporationId: OLD_CORPORATION,
       affiliationRefreshedAt: new Date(0),
     });
-    await seedEveAccount(harness.db, { id: 'member-character', characterId: CHARACTER_ID, userId: 'member' });
+    await seedEveAccount(harness.db, { id: 'member-character', characterId: CHARACTER_ID, userId: 'member' }, { refreshToken: 'valid-refresh' });
     await harness.db.insert(maps).values({ id: MAP_ID, userId: 'creator', name: 'Refresh ordering' });
     await harness.db.insert(mapAccess).values({
       mapId: MAP_ID, ownerType: 'corporation', ownerId: OLD_CORPORATION, role: 'viewer',
@@ -101,6 +101,7 @@ describe.skipIf(!harness.reachable)('affiliation refresh ordering (real Postgres
         });
       }
       expect(await getUserAffiliations('member')).toEqual([{
+        sharedAccessEligible: true,
         characterId: CHARACTER_ID,
         corporationId: NEW_CORPORATION,
         allianceId: null,

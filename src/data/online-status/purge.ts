@@ -1,15 +1,12 @@
-import { readEnv } from '@/lib/env';
+import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 import type { PurgeContributor } from '@/platform/purge/types';
 
 async function postPurgeOnline(userId: string, characterId: number | null): Promise<void> {
   try {
-    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!convexUrl) return;
-    const siteUrl = deriveConvexSiteUrl(convexUrl);
-    const secret = readEnv('CONVEX_SERVICE_SECRET');
-    if (siteUrl === null || !secret) return;
+    const door = resolveConvexServiceDoor();
+    if (!door.ok) return;
+    const { siteUrl, secret } = door;
     await fetchWithTimeout(`${siteUrl}/purge-online`, {
       method: 'POST',
       headers: {
@@ -26,6 +23,7 @@ export const onlineStatusPurgeContributor: PurgeContributor = {
   name: 'online-status',
   tier: 'cache',
   claims: [],
+  merge: [],
   purgeCharacter: ({ userId, characterId }) => postPurgeOnline(userId, characterId),
   purgeUser: ({ userId }) => postPurgeOnline(userId, null),
 };

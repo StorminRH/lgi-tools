@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cardSurface, surfaceGlowHover } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 
-const HINT = 'search for any blueprint or reaction to get started';
+const HINT = 'Find a blueprint or reaction';
 const STEP_MS = 26;
 
 function focusNavSearch() {

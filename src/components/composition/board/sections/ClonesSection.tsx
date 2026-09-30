@@ -3,19 +3,17 @@ import { EntityRow } from '@/components/ui/row';
 import { formatUtcDate } from '@/lib/format/time';
 import { placeName } from '../board-view-model';
 import { SystemName } from '../board-bits';
-import { SectionBody, SectionPanel, updatedLabel } from '../SectionBody';
+import { SectionBody, SectionPanel } from '../SectionBody';
 
 export function ClonesSection({
   section,
-  now,
   className,
 }: {
   section: BoardCharacter['clones'];
-  now: number;
   className?: string;
 }) {
   return (
-    <SectionPanel title="Clones" meta={updatedLabel(section, now)} className={className}>
+    <SectionPanel title="Clones" className={className}>
       <SectionBody section={section}>
         {(clones) => (
           <div className="pb-1">

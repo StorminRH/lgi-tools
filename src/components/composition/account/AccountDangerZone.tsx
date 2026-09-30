@@ -47,11 +47,11 @@ export function AccountDangerZone({
             triggerClassName="grid h-4 w-4 place-items-center rounded-full border border-border text-micro text-muted hover:text-text"
           >
             <PopoverHeading>Purge vs unlink</PopoverHeading>
-            <PopoverRow label="Purge">
+            <PopoverRow layout="description" label="Purge">
               clears what the site has stored for a character and stops LGI.tools from accessing its
               EVE data.
             </PopoverRow>
-            <PopoverRow label="Unlink">
+            <PopoverRow layout="description" label="Unlink">
               detaches the character from your account. Unlink characters on{' '}
               <Link href="/settings/characters" className="text-tone-blue hover:underline">
                 Settings → Characters
@@ -64,8 +64,7 @@ export function AccountDangerZone({
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         <div className="flex flex-col gap-2.5">
           <p className="text-ui leading-relaxed text-muted">
-            Purging a character clears what the site has stored for it and stops LGI.tools from
-            accessing that character’s EVE data.
+            Purge stored character data and revoke its EVE access.
           </p>
           {characters.length === 0 ? (
             <EmptyState>No characters to purge.</EmptyState>

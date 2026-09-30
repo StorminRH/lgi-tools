@@ -17,7 +17,7 @@ export async function QueueSummaryCard() {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Queue" />;
   return (
     <Card>
-      <SectionHeader size="md" label="Queue" hint="live" />
+      <SectionHeader size="md" label="Queue" />
       <MultiplesGrid columns={4}>
         {deriveQueueCells(fetched, new Date()).map((cell) => (
           <MultiplesCell key={cell.id} title={cell.title} value={cell.value} note={cell.note}>
@@ -40,11 +40,10 @@ export async function DeadLettersCard() {
     <Card id="dead-letters" className="scroll-mt-24">
       <SectionHeader
         size="md"
-        label={`Dead letters · ${rows.length}${rows.length === DEAD_LETTER_LIMIT ? '+' : ''}`}
-        hint="jobs that used every attempt · retry once the cause is fixed"
+        label={`Dead letters · ${rows.length}`}
       />
       {rows.length === 0 ? (
-        <EmptyState>No dead-lettered refresh jobs. Nothing to retry.</EmptyState>
+        <EmptyState>No dead-lettered jobs.</EmptyState>
       ) : (
         <ul>
           {rows.map((row) => (

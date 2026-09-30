@@ -21,7 +21,7 @@ export default async function WidgetReferencePage() {
         size="compact"
         crumb="preview / widgets"
         title="Feature widget reference"
-        subtitle="The sites card filling two host-owned window sizes"
+        subtitle="Live sample site in two window sizes"
       />
       <UniverseAssetsProof />
       <div className="flex flex-wrap items-start gap-8 pb-region">

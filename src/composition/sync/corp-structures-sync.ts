@@ -1,36 +1,32 @@
 import { after, connection } from 'next/server';
-import { resolveUserCorpAccess } from '@/composition/corp-access';
-import { authorizeCorpMutation, type UserCorpAccess } from '@/platform/auth/corp-access';
-import { selectCorpCredential } from '@/platform/owner-sync';
+import { type CorpViewer, resolveCorpViewer } from '@/composition/corp-viewer';
+import type { StructuresAccess } from '@/platform/auth/corp-visibility';
 import {
+  type CorpStructureCompletion,
   getCorpStructureRigs,
   getCorpStructures,
-  isCorpStructureSharingEnabled,
   listCorpStructureSyncStates,
-  readCorpStructureSharings,
   readCorpStructureSyncState,
   saveCorpStructures,
   stampCorpStructuresFresh,
 } from '@/features/owned-structures/queries';
-import { CORP_STRUCTURES_REQUIRED_ROLES } from '@/features/owned-structures/corp-sync-eligibility';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import type {
+  CorpStructurePageStructure,
   CorpStructurePageView,
   CorpStructureRow,
   CorpStructuresPort,
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
-import { forbiddenFailure, type AppFailure } from '@/lib/failure';
-import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor } from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 
 function makeCorpStructuresPort(): CorpStructuresPort {
   return {
     now: () => new Date(),
-    isSharingEnabled: isCorpStructureSharingEnabled,
     listMembers: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     readStructures: (corporationId, accessToken, heldEtags) =>
       readPagedEndpoint(`/corporations/${corporationId}/structures/`, accessToken, heldEtags),
     readSyncState: (corporationId) => readCorpStructureSyncState(corporationId),
@@ -53,35 +49,36 @@ function scheduleCorpStructuresRefresh(userId: string): void {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
 }
 
-async function loadUserCorpAccess(userId: string) {
+async function loadCorpViewer(userId: string): Promise<CorpViewer> {
   await connection();
-  return resolveUserCorpAccess(userId);
+  return resolveCorpViewer(userId);
 }
 
-function freshnessMapOf(
-  syncStates: { corporationId: number; lastRefreshedAt: Date }[],
-): Map<number, number> {
+async function loadFreshness(corporationIds: number[]): Promise<Map<number, number>> {
+  const syncStates = await listCorpStructureSyncStates(corporationIds);
   return new Map(syncStates.map((s) => [s.corporationId, s.lastRefreshedAt.getTime()]));
 }
 
+function visibleStructures(access: StructuresAccess, rows: CorpStructureRow[] | undefined): CorpStructureRow[] {
+  return access === 'none' ? [] : rows ?? [];
+}
+
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
-  const access = await loadUserCorpAccess(userId);
-  const corporationIds = [...access.corporationIds];
-  const [structuresByCorp, syncStates, sharings] = await Promise.all([
+  const { corporations } = await loadCorpViewer(userId);
+  const corporationIds = corporations.map((corp) => corp.corporationId);
+  const [structuresByCorp, freshnessByCorp] = await Promise.all([
     getCorpStructures(corporationIds),
-    listCorpStructureSyncStates(corporationIds),
-    readCorpStructureSharings(corporationIds),
+    loadFreshness(corporationIds),
   ]);
   scheduleCorpStructuresRefresh(userId);
 
-  const freshnessByCorp = freshnessMapOf(syncStates);
-  const corporations: ViewerCorpStructures[] = corporationIds.map((corporationId) => ({
-    corporationId,
-    structures: sharings.get(corporationId)?.enabled ? structuresByCorp.get(corporationId) ?? [] : [],
-    lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
-  }));
-
-  return { corporations };
+  return {
+    corporations: corporations.map(({ corporationId, grant }) => ({
+      corporationId,
+      structures: visibleStructures(grant.structures, structuresByCorp.get(corporationId)),
+      lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
+    })),
+  };
 }
 
 export interface AvailableCorpStructure {
@@ -115,90 +112,42 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
   return out;
 }
 
+function withCompletion(
+  structure: CorpStructureRow,
+  rigsByStructure: ReadonlyMap<number, CorpStructureCompletion>,
+): CorpStructurePageStructure {
+  const completion = rigsByStructure.get(structure.structureId);
+  return { ...structure, rigTypeIds: completion?.rigTypeIds ?? [], taxPct: completion?.taxPct ?? null };
+}
+
 /**
- * The structures page's corp section, server-resolved (the CorpStructurePageView
- * shape lives in the owned-structures slice so the client section shares it). Unlike
- * the planner read, this lists ALL member corps (a Station_Manager must see a disabled
- * corp to enable it). Refreshes affiliations + fires
- * the same stale-gated write-behind the planner does, then assembles per member corp:
- * the resolved name, the viewer's Station_Manager flag (one ESI roles read per corp —
- * acceptable for this low-traffic settings page; the mutation re-checks authoritatively),
- * the sharing state, and (when enabled) the shared structures joined with authored rigs.
+ * Every member corp for the structures page and the corporation settings
+ * page, each with the viewer's grant: the roster and rig editor need
+ * 'manage', the sharing switch needs a Director. Grants come from stored
+ * roles; the mutations re-check live.
  */
 export async function getCorpStructuresPageData(userId: string): Promise<CorpStructurePageView[]> {
-  const access = await loadUserCorpAccess(userId);
-  const corporationIds = [...access.corporationIds];
+  const { corporations } = await loadCorpViewer(userId);
+  const corporationIds = corporations.map((corp) => corp.corporationId);
   if (corporationIds.length === 0) return [];
 
-  const [structuresByCorp, syncStates, sharings, rigsByStructure, names] = await Promise.all([
+  const [structuresByCorp, freshnessByCorp, rigsByStructure, names] = await Promise.all([
     getCorpStructures(corporationIds),
-    listCorpStructureSyncStates(corporationIds),
-    readCorpStructureSharings(corporationIds),
+    loadFreshness(corporationIds),
     getCorpStructureRigs(corporationIds),
     resolveEntityNames(corporationIds),
   ]);
   scheduleCorpStructuresRefresh(userId);
 
-  const freshnessByCorp = freshnessMapOf(syncStates);
-  const smFlags = await Promise.all(
-    corporationIds.map(
-      async (corporationId) =>
-        [corporationId, await userHoldsCorpRole(access, corporationId, CORP_STRUCTURES_REQUIRED_ROLES)] as const,
+  return corporations.map(({ corporationId, sharing, grant }) => ({
+    corporationId,
+    corporationName: names[String(corporationId)] ?? `Corporation ${corporationId}`,
+    structureAccess: grant.structures,
+    canManageSharing: grant.manageSharing,
+    sharing,
+    structures: visibleStructures(grant.structures, structuresByCorp.get(corporationId)).map((s) =>
+      withCompletion(s, rigsByStructure),
     ),
-  );
-  const isStationManagerByCorp = new Map(smFlags);
-
-  return corporationIds.map((corporationId) => {
-    const sharingEnabled = sharings.get(corporationId)?.enabled ?? false;
-    const rows = sharingEnabled ? structuresByCorp.get(corporationId) ?? [] : [];
-    return {
-      corporationId,
-      corporationName: names[String(corporationId)] ?? `Corporation ${corporationId}`,
-      isStationManager: isStationManagerByCorp.get(corporationId) ?? false,
-      sharingEnabled,
-      structures: rows.map((s) => ({
-        ...s,
-        rigTypeIds: rigsByStructure.get(s.structureId)?.rigTypeIds ?? [],
-        taxPct: rigsByStructure.get(s.structureId)?.taxPct ?? null,
-      })),
-      lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
-    };
-  });
-}
-
-async function userHoldsCorpRole(
-  access: UserCorpAccess,
-  corporationId: number,
-  requiredRoles: readonly string[],
-): Promise<boolean> {
-  const selection = await selectCorpCredential(
-    access.characterIdsByCorporation[corporationId] ?? [],
-    requiredRoles,
-    { vendToken: vendTokenFor, readRoles: readRolesFor },
-  );
-  return selection.kind === 'sufficient';
-}
-
-export async function stationManagerGate(
-  userId: string,
-  corporationId: number,
-): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
-  const access = await resolveUserCorpAccess(userId);
-  const decision = await authorizeCorpMutation(access, corporationId);
-  if (!decision.allowed) {
-    return {
-      ok: false,
-      failure: forbiddenFailure('not_corp_member', 'Not a member of this corporation'),
-    };
-  }
-  if (!(await userHoldsCorpRole(access, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
-    return {
-      ok: false,
-      failure: forbiddenFailure(
-        'not_station_manager',
-        'Requires the Station Manager role',
-      ),
-    };
-  }
-  return { ok: true };
+    lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
+  }));
 }

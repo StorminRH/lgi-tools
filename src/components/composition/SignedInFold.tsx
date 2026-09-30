@@ -9,7 +9,14 @@ import { SIGNED_IN_HINT_KEY } from '@/platform/auth/signed-in-hint';
 // On a full load the inline script folds it before first paint when this
 // browser was signed in last time, so a returning pilot never sees it flash;
 // data-settled hands control back to the real session once it resolves.
-export function SignedInFold({ children }: { children: ReactNode }) {
+export function SignedInFold({
+  children,
+  pendingFallback,
+}: {
+  children: ReactNode;
+  // Reserve layout space only while a returning pilot's session is unresolved.
+  pendingFallback?: ReactNode;
+}) {
   const { session, loading } = useAuth();
   const id = useId();
   const folded = session !== null;
@@ -26,6 +33,7 @@ export function SignedInFold({ children }: { children: ReactNode }) {
       >
         <div className="min-h-0">{children}</div>
       </div>
+      {pendingFallback ? <div className="signed-in-fold-pending">{pendingFallback}</div> : null}
       {/* Runs while the server HTML parses. A client render (a soft
           navigation) never executes it, and React warns about script tags it
           creates, so the client copy is text/plain, per Next's "Preventing

@@ -22,3 +22,5 @@ export * from '../data/domain-events/schema';
 export * from '../data/maps/schema';
 export * from '../data/wh-statics/schema';
 export * from '../data/wh-observations/schema';
+export * from '../data/corp-holdings/schema';
+export * from '../data/location-tracking/schema';

@@ -77,7 +77,7 @@ function wave(
     ewRrep:  ew.rr    || null,
     dpsTotal,
     alphaTotal: 0,
-    ehpTotal: 0,
+    ehpTotal: npcs.reduce((total, npc) => total + (npc.ehp ?? 0) * npc.quantity, 0),
     npcs,
   };
 }

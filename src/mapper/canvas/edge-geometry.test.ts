@@ -1,10 +1,6 @@
 import { expect, test } from 'vitest';
 import { ICON_TRACK_CLEARANCE_PX } from './disc-chrome';
-import {
-  SYSTEM_DISC_SIZE,
-  SYSTEM_FRAME_HEIGHT,
-  SYSTEM_FRAME_WIDTH,
-} from './SystemNode';
+import { SYSTEM_DISC_SIZE, SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './disc-chrome';
 import {
   chainLinkSegment,
   chainLinkPath,

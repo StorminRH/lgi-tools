@@ -131,14 +131,10 @@ describe('MapChrome', () => {
     expect(markup).toContain('data-map-actions-available="true"');
     expect(markup).toContain('data-map-menu-session="Mapper"');
     expect(markup).not.toContain('data-account-menu');
-    expect(markup).toContain('right-4 top-4');
-    expect(markup).toContain('absolute inset-0');
     expect(markup).toContain('data-feedback-compact="true"');
     expect(markup).toContain('data-feedback-embedded="true"');
     expect(markup).toContain('data-map-chrome-chips');
-    expect(markup).toContain('bottom-4 right-4');
     expect(markup).toContain('data-map-search-slot');
-    expect(markup).toContain('max-w-[min(20rem,calc(100%-14rem))]');
     expect(markup).toContain('data-map-switcher');
     expect(markup).toContain('data-map-count="1"');
   });

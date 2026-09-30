@@ -1,34 +1,13 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
-import { api, internal } from './_generated/api';
+import { internal } from './_generated/api';
 import { drainCharacterOnline } from './onlineStatus';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 
 const USER = 'user_online_1';
-
-describe('onlineStatus.forViewer', () => {
-  it('returns null when signed out', async () => {
-    const t = convexTest(schema, modules);
-    expect(await t.query(api.onlineStatus.forViewer, {})).toBe(null);
-  });
-
-  it('returns the viewer per-character online flags when signed in', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterOnline', { userId: USER, characterId: 101, online: true, etag: 'a' });
-      await ctx.db.insert('characterOnline', { userId: USER, characterId: 202, online: false, etag: 'b' });
-    });
-
-    const view = await t.withIdentity({ subject: USER }).query(api.onlineStatus.forViewer, {});
-    expect(view?.characters).toEqual([
-      { characterId: 101, online: true },
-      { characterId: 202, online: false },
-    ]);
-  });
-});
 
 describe('onlineStatus.purgeForUser', () => {
   it('deletes all of a user\'s online docs when characterId is null (account-nuke)', async () => {

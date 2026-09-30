@@ -10,7 +10,7 @@ import { derivePreferenceGroups, type PreferenceGroupView } from './preferences-
 function PreferenceGroupCard({ group }: { group: PreferenceGroupView }) {
   return (
     <Card className="reveal reveal-1">
-      <SectionHeader size="md" label={group.title} hint={group.route} />
+      <SectionHeader size="md" label={group.title} />
       <div className="flex flex-col gap-3 px-3.5 py-3.5">
         {group.models.map((model) => (
           <SettingsControlRow key={model.key} model={model} />

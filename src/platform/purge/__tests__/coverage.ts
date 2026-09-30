@@ -1,4 +1,6 @@
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
+import { ruleTables, USER_KEY_COLUMN, userKeyColumn } from '../merge';
+import type { PurgeContributor, TableMergeRule } from '../types';
 
 const PURGE_DIRECT_IDENTITY_COLUMNS = ['user_id', 'character_id'] as const;
 
@@ -42,7 +44,17 @@ export function findUnclaimed(
   return flagged.filter((name) => !claimed.has(name) && !retained.has(name));
 }
 
-export const NON_NEON_HOMES = [
+export interface NonNeonHome {
+  readonly home: `convex:${string}`;
+  readonly coveredBy: string;
+  readonly explicitTeardown: string;
+  readonly reason: string;
+  readonly merge: string;
+}
+
+const MERGE_DOOR = 'durable tracking recovery (POST /purge-location-tracking then /restore-merge-tracking)';
+
+export const NON_NEON_HOMES: readonly NonNeonHome[] = [
   {
     home: 'convex:characterOnline',
     coveredBy:
@@ -50,6 +62,8 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'src/data/online-status/purge.ts — shipped ACCOUNT.2; table dropped at the wipe deploy',
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. The dataset is retired: nothing writes the table anymore, and both teardown paths live in its keeper module until the wipe removes home and table together.',
+    merge:
+      'retired dataset with no writer; source rows age out through the sweep drain GC and nothing is rebuilt for the survivor',
   },
   {
     home: 'convex:characterLocation',
@@ -58,6 +72,7 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'src/data/location-tracking/purge.ts — shipped 4.0.4.2.1',
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Apply no longer orphan-cleans against a Neon enum; identity teardown and account purge are the only deletes.',
+    merge: `source rows drained by ${MERGE_DOOR}; the survivor's sync rebuilds them`,
   },
   {
     home: 'convex:characterLocationCovered',
@@ -66,6 +81,7 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
     reason:
       'flip-only present+online rows the map pin reads. Written only when coverage changes, never on location or probe expiry. User/character-keyed like characterLocation and torn down through the identical purge cascade.',
+    merge: `source rows drained by ${MERGE_DOOR}; the survivor's sync rebuilds them`,
   },
   {
     home: 'convex:characterLocationOnline',
@@ -74,6 +90,7 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
     reason:
       'the location sync’s held online-probe state (is the pilot logged in, ETag, cache window) — its own unsubscribed table so per-probe expiry writes cannot invalidate mapTrackingLive.forMap. User/character-keyed like characterLocation and torn down through the identical purge cascade.',
+    merge: `source rows drained by ${MERGE_DOOR}; the survivor's sync rebuilds them`,
   },
   {
     home: 'convex:characterLocationAccess',
@@ -82,6 +99,7 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
     reason:
       'short-lived EVE access-token lease for the location sync. Unsubscribed — public queries never read it. Refresh tokens stay Neon-only. Torn down with the character so an unlink cannot leave a usable ESI token in Convex.',
+    merge: `source leases drained by ${MERGE_DOOR} (fallback: /purge-location-tracking) so a merged-away user never leaves a usable ESI token behind`,
   },
   {
     home: 'convex:mapTracking',
@@ -90,6 +108,7 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'src/data/location-tracking/purge.ts — shipped 4.0.4.2.1',
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Access revocation and map deletion cascade-delete mapTracking inside the projection apply; account/character purge hits the same HTTP door as characterLocation.',
+    merge: `user intent captured BEFORE reprojection in pending_tracking_merges, then restored by ${MERGE_DOOR} after checking current ownership and map access; global operation receipts prevent replay after opt-out; deduped on (map, character), excess past the per-map cap dropped`,
   },
   {
     home: 'convex:mapJumpBookkeeping',
@@ -98,5 +117,117 @@ export const NON_NEON_HOMES = [
     explicitTeardown: 'convex/mapJumpBookkeeping.ts — deleteForMapCharacter on untrack/teardown; purgeForMap on map drain',
     reason:
       'the table is (mapId, characterId)-keyed exactly-once state rather than account-owned payload: no userId column. Untrack and tracking teardown drop that stamp so a stale lastProcessedTransitionAt cannot suppress the next jump after retrack. Character identity still leaves with the account/character purge drain; the map teardown door still deletes leftovers with the collaborative map.',
+    merge: 'captured with pending tracking selections and restored atomically with tracking using max(current, captured) so recovery does not replay a consumed jump',
   },
-] as const;
+  {
+    home: 'convex:mapAccess',
+    coveredBy:
+      'full replace per map via POST /project-map-access (convex/mapAccessProjection.reconcileMapClaims); account purge sweeps the user rows via POST /purge-map-access',
+    explicitTeardown: 'src/composition/map-access-projection.ts — purgeUserMapAccessProjection',
+    reason:
+      'a one-way projection of Neon map ownership and grants; every row is regenerable from Neon, so identity changes only need to enqueue the affected maps.',
+    merge: `source rows deleted by ${MERGE_DOOR} and by the purge-map-access backstop; the survivor's claims are rebuilt by reprojecting the source-created and moved-character maps enqueued inside the merge transaction`,
+  },
+  {
+    home: 'convex:syncSubjects',
+    coveredBy:
+      'the daily retention cron (convex/engineSweep) deletes cold subjects past the retention window; no identity door touches it',
+    explicitTeardown: 'convex/engineSweep.ts — retention GC',
+    reason:
+      'per-user scheduling state for the sync engine; rebuilt on the next heartbeat, so nothing durable is lost when a row disappears.',
+    merge: 'rebuilt on the survivor heartbeat; source rows age out through the 7-day retention GC',
+  },
+  {
+    home: 'convex:syncPresence',
+    coveredBy:
+      'the daily retention cron (convex/engineSweep) deletes cold presence past the retention window; /leave-sync retires a closing tab',
+    explicitTeardown: 'convex/engineSweep.ts — retention GC',
+    reason:
+      'per-user tab liveness for the sync engine; rebuilt on the next heartbeat.',
+    merge: 'rebuilt on the survivor heartbeat; source rows age out through the 7-day retention GC',
+  },
+];
+
+function uniqueColumnSets(table: PgTable): string[][] {
+  const config = getTableConfig(table);
+  return [
+    ...config.columns.filter((column) => column.primary || column.isUnique).map((column) => [column.name]),
+    ...config.primaryKeys.map((key) => key.columns.map((column) => column.name)),
+    ...config.uniqueConstraints.map((unique) => unique.columns.map((column) => column.name)),
+    ...config.indexes
+      .filter((index) => index.config.unique)
+      .map((index) => index.config.columns.flatMap((column) => ('name' in column && typeof column.name === 'string' ? [column.name] : []))),
+  ];
+}
+
+const sameSet = (left: readonly string[], right: readonly string[]): boolean =>
+  left.length === right.length && left.every((name) => right.includes(name));
+
+function ruleFindings(rule: TableMergeRule): string[] {
+  if (rule.rule === 'custom') return [];
+  const name = getTableConfig(rule.table).name;
+  const userKey = userKeyColumn(rule.table);
+  if (rule.rule === 'follows-character') {
+    return userKey === null ? [] : [`${name}: 'follows-character' on a table with a ${USER_KEY_COLUMN} column`];
+  }
+  if (userKey === null) return [`${name}: '${rule.rule}' needs a ${USER_KEY_COLUMN} column`];
+  const uniques = uniqueColumnSets(rule.table);
+  if (rule.rule === 'rekey') {
+    const colliding = uniques.find((columns) => columns.includes(USER_KEY_COLUMN));
+    return colliding === undefined
+      ? []
+      : [`${name}: 'rekey' would collide on the unique key (${colliding.join(', ')})`];
+  }
+  if (rule.rule === 'survivor-wins') {
+    const key = [...rule.key.map((column) => column.name), USER_KEY_COLUMN];
+    return uniques.some((columns) => sameSet(columns, key))
+      ? []
+      : [`${name}: 'survivor-wins' key (${key.join(', ')}) is not a declared primary key or unique constraint`];
+  }
+  return [];
+}
+
+function expectedTableNames(
+  contributors: readonly Pick<PurgeContributor, 'claims' | 'retained'>[],
+): Set<string> {
+  return new Set(
+    contributors.flatMap((contributor) =>
+      [...contributor.claims, ...(contributor.retained ?? []).map((r) => r.table)].map(
+        (table) => getTableConfig(table).name,
+      ),
+    ),
+  );
+}
+
+function countDeclarations(
+  rules: readonly TableMergeRule[],
+  expected: ReadonlySet<string>,
+): { counts: Map<string, number>; findings: string[] } {
+  const counts = new Map<string, number>();
+  const findings: string[] = [];
+  for (const rule of rules) {
+    findings.push(...ruleFindings(rule));
+    for (const table of ruleTables(rule)) {
+      const name = getTableConfig(table).name;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+      if (!expected.has(name)) findings.push(`${name}: merge rule on a table no contributor claims or retains`);
+    }
+  }
+  return { counts, findings };
+}
+
+export function findMergeRuleGaps(
+  contributors: readonly Pick<PurgeContributor, 'claims' | 'retained' | 'merge'>[],
+): string[] {
+  const expected = expectedTableNames(contributors);
+  const { counts, findings } = countDeclarations(
+    contributors.flatMap((contributor) => contributor.merge),
+    expected,
+  );
+  for (const name of expected) {
+    const count = counts.get(name) ?? 0;
+    if (count === 0) findings.push(`${name}: no merge rule`);
+    if (count > 1) findings.push(`${name}: ${count} merge rules`);
+  }
+  return findings.sort();
+}

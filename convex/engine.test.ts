@@ -1,4 +1,5 @@
 // @vitest-environment edge-runtime
+import { readFileSync } from 'node:fs';
 import { RateLimiter } from '@convex-dev/rate-limiter';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1009,138 +1010,41 @@ describe('engine chain-on-success', () => {
   });
 });
 
-describe('engine.sweep', () => {
-  it('deletes, retires, and reaps without dispatching', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u1', nextDueAt: now - 1000 }));
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u2', nextDueAt: now - 1000 }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: 'u2',
-        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 5000,
-      });
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u3', nextDueAt: null }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: 'u3',
-        lastSeenAt: now - RETENTION_MS - 5000,
-      });
-      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u5', nextDueAt: null }));
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u5', lastSeenAt: now - 1000 });
-    });
-
-    const counts = await t.mutation(internal.engineSweep.sweep, {});
-    expect(counts).toEqual({ dispatched: 0, retired: 1, deleted: 2 });
-
-    const remaining = await t.run(async (ctx) =>
-      (await ctx.db.query('syncSubjects').collect()).map((s) => s.userId).sort(),
-    );
-    expect(remaining).toEqual(['u2', 'u5']);
-  });
-
-  it('does not count a rate-limited dispatch toward the watchdog signal', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert(
-        'syncSubjects',
-        subjectRow({ userId: 'u1', nextDueAt: now - 1000, syncedCharacterIds: [101] }),
-      );
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u1', lastSeenAt: now });
-    });
-    vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: false, retryAfter: 1000 });
-
-    const counts = await t.mutation(internal.engineSweep.sweep, {});
-
-    expect(counts.dispatched).toBe(0);
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.nextDueAt).toBeGreaterThanOrEqual(now + 1000);
-  });
-
-  it('caps Pass A and drains overdue deletions across runs', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const total = SCAN_DISPATCH_BATCH + 1;
-    await t.run(async (ctx) => {
-      for (let i = 0; i < total; i++) {
-        await ctx.db.insert('syncSubjects', subjectRow({ userId: `u${i}`, nextDueAt: now - total + i }));
-      }
-    });
-
-    const run1 = await t.mutation(internal.engineSweep.sweep, {});
-    expect(run1.deleted).toBe(SCAN_DISPATCH_BATCH);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]![0]).toContain('overdue_batch_capped');
-    const remaining1 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
-    expect(remaining1).toHaveLength(1);
-
-    const run2 = await t.mutation(internal.engineSweep.sweep, {});
-    expect(run2.deleted).toBe(1);
-    const remaining2 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
-    expect(remaining2).toHaveLength(0);
-    expect(warn).toHaveBeenCalledTimes(1);
-  });
-
-  it("caps Pass B's hot-set read and logs without dispatching", async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const total = SCAN_DISPATCH_BATCH + 1;
-    await t.run(async (ctx) => {
-      for (let i = 0; i < total; i++) {
-        await ctx.db.insert('syncSubjects', subjectRow({
-          userId: `u${i}`,
-          nextDueAt: null,
-          syncedCharacterIds: [],
-        }));
-        await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: `u${i}`, lastSeenAt: now - 1000 });
-      }
-    });
-
-    const counts = await t.mutation(internal.engineSweep.sweep, {});
-    expect(counts.dispatched).toBe(0);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]![0]).toContain('dropped_batch_capped');
-  });
-
-  it('Pass B re-arms only rows hot for their own dataset window', async () => {
+describe('engine.sweep (daily retention)', () => {
+  it('deletes only presence and subjects past retention, never dispatching overdue work', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    const lastSeenAt = now - 2 * 60_000;
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        userId: 'u-live', nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: now - 1000,
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-live', lastSeenAt });
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'onlineStatus', userId: 'u-retired', nextDueAt: null,
-        syncedCharacterIds: [101], minExpiresAt: now - 1000,
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u-retired', lastSeenAt });
+      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-overdue', nextDueAt: now - 1000, syncedCharacterIds: [101] }));
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-overdue', lastSeenAt: now - 1000 });
+      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-cold', nextDueAt: null }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: 'u-cold',
+        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 5000,
+      });
+      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-abandoned', nextDueAt: null }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: 'u-abandoned',
+        lastSeenAt: now - RETENTION_MS - 5000,
+      });
     });
 
     const counts = await t.mutation(internal.engineSweep.sweep, {});
+    expect(counts).toEqual({ deleted: 1, capped: false });
 
-    expect(counts.dispatched).toBe(1);
-    const byDataset = await t.run(async (ctx) => {
-      const rows = await ctx.db.query('syncSubjects').collect();
-      return Object.fromEntries(rows.map((row) => [row.dataset, row]));
-    });
-    expect(byDataset.characterLocation?.status).toBe('running');
-    expect(byDataset.onlineStatus).toBeUndefined();
+    const { subjects, presence } = await t.run(async (ctx) => ({
+      subjects: (await ctx.db.query('syncSubjects').collect()).map((row) => row.userId).sort(),
+      presence: (await ctx.db.query('syncPresence').collect()).map((row) => row.userId).sort(),
+    }));
+    expect(subjects).toEqual(['u-cold', 'u-overdue']);
+    expect(presence).toEqual(['u-cold', 'u-overdue']);
+    expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
 
-  it('Pass D drains retired-dataset leftovers and the characterOnline table', async () => {
+  it('drains retired-dataset leftovers and the characterOnline table', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     await t.run(async (ctx) => {
@@ -1165,5 +1069,35 @@ describe('engine.sweep', () => {
     expect(subjects.map((row) => row.dataset)).toEqual(['characterLocation']);
     expect(presence.map((row) => row.dataset)).toEqual(['characterLocation']);
     expect(online).toEqual([]);
+  });
+
+  it('schedules an immediate continuation when a batch fills', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const total = 513;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < total; i++) {
+        await ctx.db.insert('syncPresence', {
+          dataset: 'characterLocation',
+          userId: `u${i}`,
+          lastSeenAt: now - RETENTION_MS - 5000 - i,
+        });
+      }
+    });
+
+    const first = await t.mutation(internal.engineSweep.sweep, {});
+    expect(first.capped).toBe(true);
+    expect(await scheduledFunctionsNamed(t, 'engineSweep')).toHaveLength(1);
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const remaining = await t.run((ctx) => ctx.db.query('syncPresence').collect());
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('runs from a daily Convex cron with no Vercel watchdog door', () => {
+    const cronSource = readFileSync('convex/crons.ts', 'utf8');
+    const httpSource = readFileSync('convex/http.ts', 'utf8');
+    expect(cronSource).toContain("'sync engine retention', { hours: 24 }, internal.engineSweep.sweep");
+    expect(httpSource).not.toContain("'/sweep'");
   });
 });

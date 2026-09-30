@@ -86,7 +86,7 @@ const betterAuth = policy({
     'Session and account mutations are non-idempotent and never auto-retried.',
   degradation:
     'Errors surface as sign-in failures; one Better Auth user always represents one human, so no partial-identity fallback exists.',
-  telemetryFields: "'auth_login', 'auth_logout', 'auth_absorb', 'account_purge'.",
+  telemetryFields: "'auth_login', 'auth_logout', 'auth_merge', 'account_purge'.",
 });
 const convexLive = policy({
   wrapper: { module: 'src/data/convex/client.ts', symbol: 'convexClient' },
@@ -102,7 +102,7 @@ const convexLive = policy({
   degradation:
     'A null client (NEXT_PUBLIC_CONVEX_URL unset) disables live reads and every consumer renders its non-live path; the rest of the site is unaffected.',
   telemetryFields:
-    "'cron_sync_sweeper' (the watchdog that detects a lagging Convex scan).",
+    'None; Convex function health is read from the Convex dashboard.',
 });
 const upstashRedis = policy({
   wrapper: { module: 'src/lib/upstash.ts', symbol: 'createUpstashClient' },

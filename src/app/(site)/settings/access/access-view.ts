@@ -39,8 +39,8 @@ export function deriveAuditRowView(row: AuditRow): {
 } {
   return {
     timestamp: formatDateTime(row.timestamp),
-    actorLabel: row.actorName ?? `id ${row.actorCharacterId ?? '?'}`,
-    targetLabel: row.targetName ?? `id ${row.targetCharacterId ?? '?'}`,
+    actorLabel: row.actorName ?? (row.actorCharacterId == null ? 'Unknown actor' : `Character ${row.actorCharacterId}`),
+    targetLabel: row.targetName ?? (row.targetCharacterId == null ? 'Unknown target' : `Character ${row.targetCharacterId}`),
     fromTone: row.from === 'ADMIN' ? 'purple' : 'blue',
     fromLabel: row.from ?? '?',
     toTone: row.to === 'ADMIN' ? 'purple' : 'blue',

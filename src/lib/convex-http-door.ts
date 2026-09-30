@@ -1,7 +1,6 @@
 import type { z } from 'zod';
-import { readEnv } from '@/lib/env';
+import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 
 export type ConvexHttpDoorError = new (
   message: string,
@@ -25,12 +24,11 @@ export async function postConvexHttpDoor<T>({
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
 }): Promise<T> {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  const siteUrl = convexUrl ? deriveConvexSiteUrl(convexUrl) : null;
-  if (siteUrl === null || !secret) {
-    throw new DoorError(`${label}: Convex URL or service secret is unset`);
+  const door = resolveConvexServiceDoor();
+  if (!door.ok) {
+    throw new DoorError(`${label}: Convex URL or service secret is unset or unsafe`);
   }
+  const { siteUrl, secret } = door;
 
   const init = {
     method: 'POST',

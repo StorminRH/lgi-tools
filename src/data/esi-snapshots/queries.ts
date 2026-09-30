@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { esiSnapshots } from './schema';
 import type { InsertEsiSnapshotInput } from './types';
@@ -12,4 +12,17 @@ export async function insertEsiSnapshot(input: InsertEsiSnapshotInput): Promise<
 
 export async function deleteEsiSnapshot(id: number): Promise<void> {
   await db.delete(esiSnapshots).where(eq(esiSnapshots.id, id));
+}
+
+/** Immutable source bodies, scoped to their corporation and assets endpoint. */
+export async function readCorpAssetSnapshots(corporationId: number, ids: number[]) {
+  if (ids.length === 0) return [];
+  return db.select({ id: esiSnapshots.id, bodyCiphertext: esiSnapshots.bodyCiphertext })
+    .from(esiSnapshots)
+    .where(and(
+      inArray(esiSnapshots.id, ids),
+      eq(esiSnapshots.ownerType, 'corporation'),
+      eq(esiSnapshots.ownerId, corporationId),
+      eq(esiSnapshots.endpoint, `/corporations/${corporationId}/assets/`),
+    ));
 }

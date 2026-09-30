@@ -70,18 +70,17 @@ describe('sitemapToRecord', () => {
     expect(rec).toMatchObject({
       path: 'https://lgi.tools/sitemap.xml',
       submitted: 73,
-      indexed: 65,
       warnings: 1,
       errors: 0,
       isPending: false,
     });
+    expect(rec).not.toHaveProperty('indexed');
     expect(rec.lastDownloaded?.toISOString()).toBe('2026-06-02T05:00:00.000Z');
   });
 
   it('defaults missing fields', () => {
     expect(sitemapToRecord({ path: '/s.xml' }, SYNCED)).toMatchObject({
       submitted: 0,
-      indexed: 0,
       warnings: 0,
       errors: 0,
       isPending: false,

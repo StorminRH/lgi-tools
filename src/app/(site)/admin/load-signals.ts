@@ -17,7 +17,7 @@ import { getBudgetExhaustionCountShared, getFallbackRateShared } from './esi-sou
 import { getLastSyncedAtShared } from './last-synced';
 import { loadSection } from './load-section';
 import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
-import type { AdminSignals } from './signals';
+import type { AdminSignals, SliSignals } from './signals';
 import { getStaticsReviewShared } from './statics-review-shared';
 
 // One read per request feeds both the attention list and the status cards.
@@ -39,12 +39,12 @@ export const loadAdminSignals = cache(async (rangeKey: RangeKey): Promise<AdminS
     loadSection('admin-signals.budget', readEsiBudgetSnapshot),
     loadSection('admin-signals.fallback', () => getFallbackRateShared(range)),
     loadSection('admin-signals.budget-exhaustions', () => getBudgetExhaustionCountShared(range)),
-    loadSection('admin-signals.sli', async () => {
+    loadSection<SliSignals>('admin-signals.sli', async () => {
       const [readSuccess, mutationSuccess, latencyP95, esiSuccess] = await Promise.all([
-        getReadSuccessRate(range),
-        getMutationSuccessRate(range),
-        getCriticalLatencyP95(range),
-        getEsiSuccessRate(range),
+        loadSection('getReadSuccessRate', () => getReadSuccessRate(range)),
+        loadSection('getMutationSuccessRate', () => getMutationSuccessRate(range)),
+        loadSection('getCriticalLatencyP95', () => getCriticalLatencyP95(range)),
+        loadSection('getEsiSuccessRate', () => getEsiSuccessRate(range)),
       ]);
       return { readSuccess, mutationSuccess, latencyP95, esiSuccess };
     }),

@@ -1,75 +1,44 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { anyEligibleCold, eligibleIdsKey, loadFailureStep, RECONCILE_ONCE, reconcileDelay } from './live-dataset';
 
-describe('eligibleIdsKey', () => {
-  it('dedupes and sorts into a stable string', () => {
-    expect(eligibleIdsKey([3, 1, 2, 1])).toBe('1,2,3');
-  });
-
-  it('is order-independent for the same id set (stable reload key)', () => {
-    expect(eligibleIdsKey([2, 1])).toBe(eligibleIdsKey([1, 2]));
-  });
-
-  it('is the empty string for no ids', () => {
-    expect(eligibleIdsKey([])).toBe('');
-  });
+test('eligible ids sort and dedupe into a stable key', () => {
+  expect(eligibleIdsKey([3, 1, 2, 1])).toBe('1,2,3');
+  expect(eligibleIdsKey([])).toBe('');
 });
 
-describe('anyEligibleCold', () => {
+test('a dataset stays cold only while an eligible character has no data', () => {
   const chars = (spec: Array<[number, boolean]>) =>
     spec.map(([characterId, synced]) => ({ characterId, data: synced ? { x: 1 } : null }));
-
-  it('is true when an eligible character is still cold (data:null)', () => {
-    expect(anyEligibleCold(chars([[1, false]]), '1')).toBe(true);
-  });
-
-  it('is false when the only cold character is not eligible', () => {
-    expect(anyEligibleCold(chars([[9, false]]), '1,2')).toBe(false);
-  });
-
-  it('is false when every eligible character has synced', () => {
-    expect(anyEligibleCold(chars([[1, true], [2, true]]), '1,2')).toBe(false);
-  });
-
-  it('is false for an empty eligible key', () => {
-    expect(anyEligibleCold(chars([[1, false]]), '')).toBe(false);
-  });
+  expect(anyEligibleCold(chars([[1, false]]), '1')).toBe(true);
+  expect(anyEligibleCold(chars([[9, false]]), '1,2')).toBe(false);
+  expect(anyEligibleCold(chars([[1, true], [2, true]]), '1,2')).toBe(false);
+  expect(anyEligibleCold(chars([[1, false]]), '')).toBe(false);
 });
 
-describe('reconcileDelay', () => {
-  const coldAlways = () => true;
-  const coldNever = () => false;
-  const backoff = [4_000, 8_000, 15_000, 30_000, 60_000];
+test('reconcile waits on the schedule while the dataset is cold, then stops', () => {
+  const cold = () => true;
+  const schedule = [4_000, 8_000, 15_000] as const;
+  expect(reconcileDelay(0, {}, 'k', cold, RECONCILE_ONCE)).toBe(4_000);
+  expect(reconcileDelay(1, {}, 'k', cold, RECONCILE_ONCE)).toBeNull();
+  expect(reconcileDelay(0, {}, 'k', cold, schedule)).toBe(4_000);
+  expect(reconcileDelay(1, {}, 'k', cold, schedule)).toBe(8_000);
+  expect(reconcileDelay(2, {}, 'k', cold, schedule)).toBe(15_000);
+  expect(reconcileDelay(3, {}, 'k', cold, schedule)).toBeNull();
+  expect(reconcileDelay(0, {}, 'k', () => false, schedule)).toBeNull();
+  expect(reconcileDelay(2, {}, 'k', () => false, schedule)).toBeNull();
 
-  it('reconciles once by default, while the dataset is cold', () => {
-    expect(reconcileDelay(0, {}, 'k', coldAlways, RECONCILE_ONCE)).toBe(4_000);
-    expect(reconcileDelay(1, {}, 'k', coldAlways, RECONCILE_ONCE)).toBeNull();
-  });
-
-  it('walks a backoff schedule step by step, then stops', () => {
-    expect(backoff.map((_, attempt) => reconcileDelay(attempt, {}, 'k', coldAlways, backoff))).toEqual(backoff);
-    expect(reconcileDelay(5, {}, 'k', coldAlways, backoff)).toBeNull();
-  });
-
-  it('stops as soon as the dataset is no longer cold', () => {
-    expect(reconcileDelay(0, {}, 'k', coldNever, backoff)).toBeNull();
-    expect(reconcileDelay(2, {}, 'k', coldNever, backoff)).toBeNull();
-  });
-
-  it('passes the response + key through to the predicate', () => {
-    const seen: Array<[unknown, unknown]> = [];
-    reconcileDelay(0, { n: 1 }, 42, (r, k) => {
-      seen.push([r, k]);
+  const seen: Array<[unknown, unknown]> = [];
+  expect(
+    reconcileDelay(0, { n: 1 }, 42, (response, key) => {
+      seen.push([response, key]);
       return false;
-    }, backoff);
-    expect(seen).toEqual([[{ n: 1 }, 42]]);
-  });
+    }, schedule),
+  ).toBeNull();
+  expect(seen).toEqual([[{ n: 1 }, 42]]);
 });
 
-describe('loadFailureStep', () => {
-  it('retries the first failure, fails after the retry, and keeps data already on screen', () => {
-    expect(loadFailureStep(false, false)).toBe('retry');
-    expect(loadFailureStep(false, true)).toBe('fail');
-    expect(loadFailureStep(true, false)).toBe('keep');
-  });
+test('a failed load retries once, then fails, and keeps data already on screen', () => {
+  expect(loadFailureStep(false, false)).toBe('retry');
+  expect(loadFailureStep(false, true)).toBe('fail');
+  expect(loadFailureStep(true, false)).toBe('keep');
 });

@@ -91,3 +91,18 @@ test('disables last-character unlink and self or empty-session force-logout', ()
     }).forceLogoutDisabled,
   ).toBe(false);
 });
+
+
+test('shows the effective superadmin role even when the stored role is User', () => {
+  expect(view({
+    targetUser: adminUser(),
+    charactersCount: 9,
+    sessionCount: 2,
+    viewerUserId: 'u1',
+    userId: 'u1',
+    isSuperadmin: true,
+  }).identityChips).toEqual([
+    { tone: 'purple', label: 'Superadmin' },
+    { tone: 'green', label: 'You' },
+  ]);
+});

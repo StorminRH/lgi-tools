@@ -4,6 +4,7 @@ import { internal } from './_generated/api';
 const crons = cronJobs();
 
 crons.interval('sync engine scan', { seconds: 30 }, internal.engineScan.scan, {});
+crons.interval('sync engine retention', { hours: 24 }, internal.engineSweep.sweep, {});
 crons.interval(
   'map chain purge',
   { minutes: 15 },
@@ -22,5 +23,7 @@ crons.interval(
   internal.mapAuthoringSweep.collapseExpiredConnections,
   {},
 );
+
+crons.interval('character authorization', { minutes: 5 }, internal.characterAuthorization.verify, {});
 
 export default crons;

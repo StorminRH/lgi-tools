@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { CopyButton } from '@/components/ui/copy-button';
-import { Popover, PopoverRow } from '@/components/ui/popover';
+import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { computeMultibuyDemand } from '../build-batch';
 import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
@@ -85,17 +85,15 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       }
     >
       <div className="flex items-center justify-between">
-        <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
-          Multibuy export
-        </span>
+        <PopoverHeading>Multibuy export</PopoverHeading>
         <KpiHelp label="What the multibuy export copies">
-          <p className="text-body leading-snug text-muted">
+          <p className="text-ui leading-snug text-muted">
             Check the tiers you&rsquo;ll build yourself.
           </p>
-          <PopoverRow label="Total">
+          <PopoverRow layout="description" label="Total">
             the full shopping list, owned stock ignored
           </PopoverRow>
-          <PopoverRow label="Remaining">
+          <PopoverRow layout="description" label="Remaining">
             the same list minus what your linked characters already own
           </PopoverRow>
         </KpiHelp>

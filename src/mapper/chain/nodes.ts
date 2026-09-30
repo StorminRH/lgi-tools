@@ -1,9 +1,5 @@
-import {
-  CHAIN_NODE_TYPE,
-  SYSTEM_FRAME_HEIGHT,
-  SYSTEM_FRAME_WIDTH,
-  type ChainNode,
-} from '../canvas/SystemNode';
+import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import {
   chainTombstoneState,

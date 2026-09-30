@@ -67,7 +67,7 @@ test('deriveAuditRowView labels actor/target with id fallbacks and tones the rol
     to: 'ADMIN',
   } as Parameters<typeof deriveAuditRowView>[0]);
   expect(named.actorLabel).toBe('Actor');
-  expect(named.targetLabel).toBe('id 2');
+  expect(named.targetLabel).toBe('Character 2');
   expect(named.fromTone).toBe('blue');
   expect(named.toTone).toBe('purple');
   expect(named.toLabel).toBe('ADMIN');
@@ -81,7 +81,7 @@ test('deriveAuditRowView labels actor/target with id fallbacks and tones the rol
     from: null,
     to: null,
   } as Parameters<typeof deriveAuditRowView>[0]);
-  expect(missing.actorLabel).toBe('id ?');
+  expect(missing.actorLabel).toBe('Unknown actor');
   expect(missing.fromLabel).toBe('?');
 });
 

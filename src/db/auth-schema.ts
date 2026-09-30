@@ -76,6 +76,12 @@ export const account = pgTable(
       .default(0)
       .notNull(),
     refreshTokenInvalidGrantFirstAt: timestamp('refresh_token_invalid_grant_first_at'),
+    authorizationVerifiedAt: timestamp('authorization_verified_at'),
+    authorizationNextCheckAt: timestamp('authorization_next_check_at').defaultNow().notNull(),
+    authorizationFailureFirstAt: timestamp('authorization_failure_first_at'),
+    authorizationFailureCount: integer('authorization_failure_count').default(0).notNull(),
+    authorizationSuspended: boolean('authorization_suspended').default(false).notNull(),
+    authorizationAccessChangedAt: timestamp('authorization_access_changed_at'),
     scope: text('scope'),
     ownerHash: text('owner_hash'),
     password: text('password'),
@@ -115,6 +121,25 @@ export const jwks = pgTable('jwks', {
   privateKey: text('private_key').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   expiresAt: timestamp('expires_at'),
+});
+
+export const corpMemberRoles = pgTable('corp_member_roles', {
+  characterId: bigint('character_id', { mode: 'number' })
+    .primaryKey()
+    .references(() => characters.characterId, { onDelete: 'cascade' }),
+  corporationId: bigint('corporation_id', { mode: 'number' }),
+  roles: text('roles').array().notNull(),
+  rolesAtHq: text('roles_at_hq').array().notNull(),
+  rolesAtBase: text('roles_at_base').array().notNull(),
+  rolesAtOther: text('roles_at_other').array().notNull(),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+});
+
+export const corpDataSharing = pgTable('corp_structure_sharing', {
+  corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
+  enabled: boolean('enabled').default(false).notNull(),
+  setBy: bigint('set_by', { mode: 'number' }),
+  setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const corpAccessAudit = pgTable(

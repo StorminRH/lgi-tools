@@ -72,7 +72,7 @@ export const ESI_DATASET_ENTRIES = [
       ],
       verifiedCacheSeconds: 3600,
     },
-    mirrorTables: ['owned_assets', 'owned_asset_syncs'],
+    mirrorTables: ['owned_assets', 'owned_asset_syncs', 'corp_holding_nodes'],
   },
   {
     name: 'owned_blueprints',
@@ -108,6 +108,40 @@ export const ESI_DATASET_ENTRIES = [
       verifiedCacheSeconds: 3600,
     },
     mirrorTables: ['corp_structures', 'corp_structure_syncs'],
+  },
+  {
+    name: 'corp_context',
+    store: 'neon',
+    shape: 'personal-on-view',
+    freshnessModel: 'caller-ttl',
+    refreshOwner: { kind: 'deferred-queue', dataset: 'corp_context' },
+    upstream: {
+      kind: 'esi',
+      specPaths: [
+        '/corporations/{corporation_id}/',
+        '/corporations/{corporation_id}/divisions/',
+        '/corporations/{corporation_id}/membertracking/',
+        '/corporations/{corporation_id}/assets/names/',
+        '/universe/structures/{structure_id}/',
+      ],
+      verifiedCacheSeconds: 3600,
+    },
+    notes:
+      'The Director context pass behind role-mirrored corp sharing: HQ station, renamed divisions, linked members\' bases, and the names of containers and structures the holding index refers to.',
+    mirrorTables: ['corp_profiles', 'corp_member_bases'],
+  },
+  {
+    name: 'character_corp_roles',
+    store: 'neon',
+    shape: 'personal-on-view',
+    freshnessModel: 'caller-ttl',
+    refreshOwner: { kind: 'entry-point', name: 'resolveCorpViewer' },
+    upstream: {
+      kind: 'esi',
+      specPaths: ['/characters/{character_id}/roles/'],
+      verifiedCacheSeconds: 3600,
+    },
+    mirrorTables: ['corp_member_roles'],
   },
   {
     name: 'affiliations',

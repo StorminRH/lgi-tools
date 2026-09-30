@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveCorpCardView, deriveCorpStructureItemView } from './corp-structure-view';
+import { deriveCorpCardView, deriveCorpStructureItemView, managedCorps } from './corp-structure-view';
 import type { StructureRigOption, StructureTypeOption } from '@/data/eve-data/structures';
 import type { CorpStructurePageStructure, CorpStructurePageView } from './types';
 
@@ -21,29 +21,20 @@ function structure(overrides: Partial<CorpStructurePageStructure>): CorpStructur
 }
 
 describe('deriveCorpStructureItemView', () => {
-  it('resolves name/type/rig labels, keeps fitting rigs, and reports hasDetails', () => {
+  it('resolves the name and type and keeps only the rigs that fit', () => {
     const view = deriveCorpStructureItemView(structure({ rigTypeIds: [1], taxPct: 2 }), {
       structureTypes: [AZBEL],
       structureRigs: [L_RIG, M_RIG],
     });
-    expect(view.typeName).toBe('Azbel');
-    expect(view.displayName).toBe('Corp Azbel');
-    expect(view.validRigs).toEqual([L_RIG]);
-    expect(view.rigLabels).toEqual([{ key: 1, label: 'L Rig' }]);
-    expect(view.taxLabel).toBe('tax 2%');
-    expect(view.hasDetails).toBe(true);
+    expect(view).toEqual({ typeName: 'Azbel', displayName: 'Corp Azbel', validRigs: [L_RIG] });
   });
 
-  it('falls back to type id / structure display and reports no details when empty', () => {
+  it('falls back to the type id when the type and name are unknown', () => {
     const view = deriveCorpStructureItemView(
       structure({ typeId: 999, name: null, rigTypeIds: [], taxPct: null }),
       { structureTypes: [AZBEL], structureRigs: [L_RIG] },
     );
-    expect(view.typeName).toBe('Type 999');
-    expect(view.displayName).toBe('Type 999');
-    expect(view.validRigs).toEqual([]);
-    expect(view.taxLabel).toBeNull();
-    expect(view.hasDetails).toBe(false);
+    expect(view).toEqual({ typeName: 'Type 999', displayName: 'Type 999', validRigs: [] });
   });
 });
 
@@ -52,34 +43,32 @@ describe('deriveCorpCardView', () => {
     return {
       corporationId: 1,
       corporationName: 'Corp',
-      isStationManager: false,
-      sharingEnabled: false,
+      structureAccess: 'manage',
+      canManageSharing: false,
+      sharing: 'off',
       structures: [],
       lastRefreshedAt: null,
       ...overrides,
     };
   }
 
-  it('manager with sharing on: hint on, note shown with a period, structures visible', () => {
-    const view = deriveCorpCardView(corp({ isStationManager: true, sharingEnabled: true, structures: [structure({})] }));
-    expect(view.hint).toBe('sharing on');
-    expect(view.showManagerNote).toBe(true);
-    expect(view.managerBlurb).toBe('.');
-    expect(view.showStructures).toBe(true);
-    expect(view.isEmpty).toBe(false);
+  it('separates the sharing label from whether the corp has structures', () => {
+    expect(deriveCorpCardView(corp({ sharing: 'on' }))).toEqual({
+      sharingBlurb: 'Sharing on',
+      isEmpty: true,
+    });
+    expect(deriveCorpCardView(corp({ sharing: 'off', structures: [structure({})] }))).toEqual({
+      sharingBlurb: 'Sharing off',
+      isEmpty: false,
+    });
   });
 
-  it('manager with sharing off: enable prompt, structures hidden', () => {
-    const view = deriveCorpCardView(corp({ isStationManager: true, sharingEnabled: false }));
-    expect(view.hint).toBe('sharing off');
-    expect(view.managerBlurb).toContain('turn it on');
-    expect(view.showStructures).toBe(false);
-  });
-
-  it('non-manager member of a shared corp: "shared" hint, no manager note', () => {
-    const view = deriveCorpCardView(corp({ isStationManager: false, sharingEnabled: true }));
-    expect(view.hint).toBe('shared');
-    expect(view.showManagerNote).toBe(false);
-    expect(view.showStructures).toBe(true);
+  it('lists only the corps the viewer manages', () => {
+    const corps = [
+      corp({ corporationId: 1, structureAccess: 'manage' }),
+      corp({ corporationId: 2, structureAccess: 'use' }),
+      corp({ corporationId: 3, structureAccess: 'none' }),
+    ];
+    expect(managedCorps(corps).map((c) => c.corporationId)).toEqual([1]);
   });
 });

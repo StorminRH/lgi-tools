@@ -7,6 +7,14 @@ export const esiRefreshJobsPurgeContributor: PurgeContributor = {
   name: 'esi-refresh-jobs',
   tier: 'cache',
   claims: [esiRefreshJobs],
+  merge: [
+    {
+      table: esiRefreshJobs,
+      rule: 'discard',
+      reason:
+        'a regenerable retry queue whose live-status idempotency key embeds the user id; the survivor re-enqueues on its next budget miss',
+    },
+  ],
   async purgeCharacter({ userId, characterId }) {
     await db
       .delete(esiRefreshJobs)

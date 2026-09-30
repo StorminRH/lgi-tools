@@ -1,4 +1,4 @@
-import { bigint, boolean, doublePrecision, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, doublePrecision, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 
 export const securityClassEnum = pgEnum('security_class', SECURITY_CLASSES);
@@ -34,24 +34,6 @@ export const corpStructureSyncs = pgTable('corp_structure_syncs', {
   corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
   pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
-});
-
-/**
- * Per-corp sharing consent — APP-AUTHORED system-of-record (NOT regenerable cache
- * like the two tables above). A corp's structures are private until a Station_Manager
- * opts the corp in here. Default OFF: a corp with no row, or `enabled: false`, gates
- * the pull (the sync engine's precondition reads this before any staleness check or
- * token vend) AND fails the read closed — so a non-opted-in corp dispatches zero ESI,
- * stores zero rows, and shows nothing. Disabling wipes the corp's regenerable rows +
- * sync state + authored rigs (below); re-enabling re-pulls from scratch on next view.
- * Keyed by corporation_id alone (one shared setting per corp); `set_by` is the
- * character id that last flipped it (audit only, nullable).
- */
-export const corpStructureSharing = pgTable('corp_structure_sharing', {
-  corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
-  enabled: boolean('enabled').default(false).notNull(),
-  setBy: bigint('set_by', { mode: 'number' }),
-  setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 /**

@@ -25,8 +25,9 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_access_projection_pipeline',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_access_changes', 'pending_tracking_merges'],
   foreignKeys: [
+    { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
@@ -54,8 +55,12 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
       corporationId: 990,
       affiliationRefreshedAt: new Date(0),
     });
-    await seedEveAccount(harness.db, { id: 'member-account', characterId: 42, userId: 'member' });
-    await seedEveAccount(harness.db, { id: 'direct-account', characterId: 43, userId: 'direct' });
+    await seedEveAccount(harness.db, { id: 'member-account', characterId: 42, userId: 'member' }, {
+      refreshToken: 'member-refresh',
+    });
+    await seedEveAccount(harness.db, { id: 'direct-account', characterId: 43, userId: 'direct' }, {
+      refreshToken: 'direct-refresh',
+    });
     const mapId = '12345678-0000-4000-8000-123456789000';
     await harness.db.insert(maps).values({ id: mapId, userId: 'creator', name: 'Pipeline' });
     await harness.db.insert(mapAccess).values([

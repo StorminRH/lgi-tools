@@ -44,6 +44,8 @@ const TABLE_NAMES = [
   'character_sheets',
   'character_industry_jobs',
   'character_industry_job_syncs',
+  'corp_member_roles',
+  'corp_member_bases',
   'corp_industry_jobs',
   'corp_industry_job_syncs',
   'owned_assets',
@@ -57,12 +59,14 @@ const TABLE_NAMES = [
   'custom_structures',
   'saved_plans',
   'net_worth_days',
+  'pending_tracking_merges',
 ] as const;
 
 const harness = await createDbTestHarness({
   schema: SCHEMA,
   tables: TABLE_NAMES,
   foreignKeys: [
+    { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     {
       table: 'maps',
       column: 'user_id',
@@ -158,6 +162,14 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     await harness.sql`
       INSERT INTO character_sheets (character_id, sections, last_refreshed_at)
       VALUES (${characterId}, '{}'::jsonb, now())
+    `;
+    await harness.sql`
+      INSERT INTO corp_member_roles (character_id, corporation_id, roles, roles_at_hq, roles_at_base, roles_at_other, fetched_at)
+      VALUES (${characterId}, 98000001, '{Director}', '{}', '{}', '{}', now())
+    `;
+    await harness.sql`
+      INSERT INTO corp_member_bases (character_id, corporation_id, base_id)
+      VALUES (${characterId}, 98000001, 60003760)
     `;
     await harness.db.insert(usageLogs).values({
       characterId,
@@ -274,6 +286,8 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
       0,
     );
     expect(await countClonedRows('character_sheets', `character_id = ${FIRST_CHAR}`)).toBe(0);
+    expect(await countClonedRows('corp_member_roles', `character_id = ${FIRST_CHAR}`)).toBe(0);
+    expect(await countClonedRows('corp_member_bases', `character_id = ${FIRST_CHAR}`)).toBe(0);
     expect(
       await harness.db.select().from(usageLogs).where(eq(usageLogs.characterId, FIRST_CHAR)),
     ).toHaveLength(0);
@@ -352,6 +366,8 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await countClonedRows('character_skills')).toBe(0);
     expect(await countClonedRows('character_industry_jobs')).toBe(0);
     expect(await countClonedRows('character_sheets')).toBe(0);
+    expect(await countClonedRows('corp_member_roles')).toBe(0);
+    expect(await countClonedRows('corp_member_bases')).toBe(0);
     expect(await harness.db.select().from(usageLogs)).toHaveLength(0);
     expect(await countClonedRows('corp_industry_jobs')).toBe(0);
     expect(await harness.db.select().from(userPreferences)).toHaveLength(0);

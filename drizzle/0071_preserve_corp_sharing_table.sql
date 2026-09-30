@@ -1,0 +1,1 @@
+ALTER TABLE "corp_data_sharing" RENAME TO "corp_structure_sharing";

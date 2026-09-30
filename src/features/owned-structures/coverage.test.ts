@@ -51,8 +51,7 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { MAX_CORP_STRUCTURE_RIGS, corpStructuresEndpoint, setCorpStructureSharingRequestSchema } from '@/features/owned-structures/api-contract';
-import { CorpSharingSettings } from '@/features/owned-structures/components/CorpSharingSettings';
+import { MAX_CORP_STRUCTURE_RIGS, corpStructuresEndpoint } from '@/features/owned-structures/api-contract';
 import { CorpStructureSection } from '@/features/owned-structures/components/CorpStructureSection';
 
 describe('coverage-gaps', () => {
@@ -60,8 +59,6 @@ describe('coverage-gaps', () => {
     const pinned = [
       MAX_CORP_STRUCTURE_RIGS,
       corpStructuresEndpoint,
-      setCorpStructureSharingRequestSchema,
-      CorpSharingSettings,
       CorpStructureSection,
     ];
     expect(pinned.length).toBeGreaterThan(0);

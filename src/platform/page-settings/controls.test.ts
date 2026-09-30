@@ -85,7 +85,7 @@ describe('resolveMenuControls', () => {
 
     const featureAtSection = {
       kind: 'feature',
-      id: 'corp-structure-sharing',
+      id: 'corp-data-sharing',
       placement: 'section',
     } as unknown as SettingsControlRef;
     expect(
@@ -112,18 +112,18 @@ describe('resolvePageControls', () => {
 
     expect(
       resolvePageControls(
-        spec([{ kind: 'feature', id: 'corp-structure-sharing', placement: 'inline' }]),
+        spec([{ kind: 'feature', id: 'corp-data-sharing', placement: 'inline' }]),
       ),
-    ).toEqual([{ kind: 'feature', id: 'corp-structure-sharing' }]);
+    ).toEqual([{ kind: 'feature', id: 'corp-data-sharing' }]);
 
     expect(
       resolvePageControls(
         spec([
           { key: 'sites.view', placement: 'section' },
-          { kind: 'feature', id: 'corp-structure-sharing', placement: 'inline' },
+          { kind: 'feature', id: 'corp-data-sharing', placement: 'inline' },
         ]),
       ),
-    ).toEqual([{ kind: 'feature', id: 'corp-structure-sharing' }]);
+    ).toEqual([{ kind: 'feature', id: 'corp-data-sharing' }]);
 
     expect(
       resolvePageControls(
@@ -143,12 +143,12 @@ describe('resolvePageControls', () => {
           { key: 'sites.view', placement: 'inline' },
           {
             kind: 'feature',
-            id: 'corp-structure-sharing',
+            id: 'corp-data-sharing',
             placement: 'inline',
             order: 1,
           },
         ]),
       ).map((m) => (m.kind === 'feature' ? m.id : m.key)),
-    ).toEqual(['corp-structure-sharing', 'sites.view']);
+    ).toEqual(['corp-data-sharing', 'sites.view']);
   });
 });

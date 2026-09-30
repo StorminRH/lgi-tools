@@ -1,95 +1,134 @@
 import { describe, expect, it } from 'vitest';
+import type { CorpHoldingContext, Placement } from '@/data/corp-holdings/placement';
 import type { OwnedBlueprintMap, OwnedBlueprintSummary } from './blueprint-map';
-import { buildOwnedDetail, collectDetailNameIds, isPlayerStructure } from './detail';
+import { buildOwnedDetail, collectDetailNameIds } from './detail';
 
-const summary = (over: Partial<OwnedBlueprintSummary> = {}): OwnedBlueprintSummary => ({
+const CORP = 98000001;
+const STATION = 60003760;
+const STRUCTURE = 1_036_000_000_001;
+const CAN = 3001;
+const CAN_TYPE = 17366;
+
+type CharacterSummary = Extract<OwnedBlueprintSummary, { ownerType: 'character' }>;
+
+const summary = (over: Partial<CharacterSummary> = {}): OwnedBlueprintSummary => ({
   me: 0,
   te: 0,
   runs: -1,
   owned: 1,
   ownerType: 'character',
   ownerId: 1,
-  locationId: 60003760,
+  locationId: STATION,
   locationFlag: 'Hangar',
   ...over,
 });
 
-const fmt = (name: string) => `F:${name}`;
-
-describe('isPlayerStructure', () => {
-  it('treats ids at or above the 1e12 floor as structures and NPC stations below it as not', () => {
-    expect(isPlayerStructure(60003760)).toBe(false);
-    expect(isPlayerStructure(64_000_000)).toBe(false);
-    expect(isPlayerStructure(999_999_999_999)).toBe(false);
-    expect(isPlayerStructure(1_000_000_000_000)).toBe(true);
-    expect(isPlayerStructure(1_036_000_000_001)).toBe(true);
-  });
+const corpSummary = (placement: Placement, over: Partial<Pick<OwnedBlueprintSummary, 'me' | 'te'>> = {}): OwnedBlueprintSummary => ({
+  me: 0,
+  te: 0,
+  runs: -1,
+  owned: 1,
+  ownerType: 'corporation',
+  ownerId: CORP,
+  placement,
+  ...over,
 });
 
-describe('collectDetailNameIds', () => {
-  it('collects owners + NPC-station locations, dedupes, excludes structures and unowned/un-requested types', () => {
-    const map: OwnedBlueprintMap = new Map([
-      [100, summary({ ownerId: 5, locationId: 60003760 })],
-      [200, summary({ ownerType: 'corporation', ownerId: 99, locationId: 1_036_000_000_001 })],
-      [300, summary({ ownerId: 5, locationId: 60003760 })],
-    ]);
-    const ids = collectDetailNameIds(map, [100, 200, 300, 999]);
-    expect([...ids].sort((a, b) => a - b)).toEqual([5, 99, 60003760]);
-    expect(ids).not.toContain(1_036_000_000_001);
-  });
+const context: CorpHoldingContext = {
+  corporationId: CORP,
+  index: { interiors: new Map() },
+  hq: { kind: 'known', value: STATION },
+  divisionNames: { 1: 'Blueprints' },
+  containerNames: new Map([[CAN, 'BPO Can']]),
+  structureNames: new Map([[STRUCTURE, 'Jita Fort']]),
+};
+const contexts = new Map([[CORP, context]]);
+const noContexts = new Map<number, CorpHoldingContext>();
 
-  it('is empty when none of the requested types are owned', () => {
-    const map: OwnedBlueprintMap = new Map([[100, summary()]]);
-    expect(collectDetailNameIds(map, [555, 777])).toEqual([]);
+const fmt = (name: string) => `F:${name}`;
+
+describe('collectDetailNameIds', () => {
+  it('collects owners and the names a requested copy still has to resolve', () => {
+    const map: OwnedBlueprintMap = new Map([
+      [100, summary({ ownerId: 5, locationId: STATION })],
+      [200, corpSummary({ kind: 'hangar', rootId: STRUCTURE, division: 1, containers: [] })],
+      [300, summary({ ownerId: 5, locationId: STATION })],
+      [400, corpSummary({ kind: 'hangar', rootId: STATION, division: 2, containers: [{ itemId: 3999, typeId: CAN_TYPE }] })],
+    ]);
+    expect([...collectDetailNameIds(map, [100, 200, 300, 400, 999], contexts)].sort((a, b) => a - b)).toEqual([
+      5,
+      CAN_TYPE,
+      STATION,
+      CORP,
+    ]);
+    expect(collectDetailNameIds(new Map([[100, summary()]]), [555, 777], noContexts)).toEqual([]);
   });
 });
 
 describe('buildOwnedDetail', () => {
-  it('resolves owner + NPC-station names and applies the station formatter', () => {
-    const map: OwnedBlueprintMap = new Map([
-      [100, summary({ me: 10, te: 20, ownerId: 5, locationId: 60003760, locationFlag: 'Hangar' })],
+  it('labels requested copies and skips types the character does not own', () => {
+    const stationName = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant';
+    const character: OwnedBlueprintMap = new Map([
+      [100, summary({ me: 10, te: 20, ownerId: 5, locationId: STATION, locationFlag: 'Hangar' })],
     ]);
-    const names = { '5': 'Alice', '60003760': 'Jita IV - Moon 4 - Caldari Navy Assembly Plant' };
-    expect(buildOwnedDetail(map, [100], names, fmt)).toEqual([
+    expect(buildOwnedDetail(character, [100], { '5': 'Alice', [STATION]: stationName }, fmt, noContexts)).toEqual([
       {
         blueprintTypeId: 100,
         me: 10,
         te: 20,
         ownerType: 'character',
         ownerName: 'Alice',
-        locationName: 'F:Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+        locationName: `F:${stationName}`,
         locationFlag: 'Hangar',
+        containerName: null,
       },
     ]);
-  });
 
-  it('degrades a player structure to a generic label without calling the formatter', () => {
-    const map: OwnedBlueprintMap = new Map([
-      [200, summary({ ownerType: 'corporation', ownerId: 99, locationId: 1_036_000_000_001, locationFlag: 'CorpSAG1' })],
+    const corp: OwnedBlueprintMap = new Map([
+      [
+        200,
+        corpSummary(
+          { kind: 'hangar', rootId: STRUCTURE, division: 1, containers: [{ itemId: CAN, typeId: CAN_TYPE }] },
+          { me: 10, te: 20 },
+        ),
+      ],
     ]);
-    const entry = buildOwnedDetail(map, [200], { '99': 'Test Corp' }, fmt)[0]!;
-    expect(entry.ownerName).toBe('Test Corp');
-    expect(entry.locationName).toBe('Upwell structure');
-    expect(entry.locationFlag).toBe('CorpSAG1');
-  });
-
-  it('degrades unresolved owners and NPC stations to honest fallbacks', () => {
-    const map: OwnedBlueprintMap = new Map([
-      [300, summary({ ownerType: 'character', ownerId: 7, locationId: 60000999 })],
-      [400, summary({ ownerType: 'corporation', ownerId: 88, locationId: 60000999 })],
+    expect(buildOwnedDetail(corp, [200], { [CORP]: 'Test Corp' }, fmt, contexts)).toEqual([
+      {
+        blueprintTypeId: 200,
+        me: 10,
+        te: 20,
+        ownerType: 'corporation',
+        ownerName: 'Test Corp',
+        locationName: 'Jita Fort',
+        locationFlag: 'Blueprints',
+        containerName: 'BPO Can',
+      },
     ]);
-    const [char, corp] = buildOwnedDetail(map, [300, 400], {}, fmt);
-    expect(char!.ownerName).toBe('Character 7');
-    expect(char!.locationName).toBe('Unknown location');
-    expect(corp!.ownerName).toBe('Corporation 88');
-  });
 
-  it('emits entries only for owned requested types, in the requested order', () => {
-    const map: OwnedBlueprintMap = new Map([
+    const structure: OwnedBlueprintMap = new Map([
+      [200, summary({ ownerId: 9, locationId: STRUCTURE, locationFlag: 'Hangar' })],
+    ]);
+    expect(buildOwnedDetail(structure, [200], {}, fmt, noContexts)[0]).toMatchObject({
+      locationName: 'Upwell structure',
+      locationFlag: 'Hangar',
+    });
+
+    const unresolved: OwnedBlueprintMap = new Map([
+      [300, summary({ ownerId: 7, locationId: 60000999 })],
+      [400, corpSummary({ kind: 'unplaced', rootId: null })],
+    ]);
+    const [char, corpEntry] = buildOwnedDetail(unresolved, [300, 400], {}, fmt, contexts);
+    expect(char).toMatchObject({ ownerName: 'Character 7', locationName: 'Unknown location' });
+    expect(corpEntry).toMatchObject({ ownerName: `Corporation ${CORP}`, locationName: 'Unknown location', locationFlag: '' });
+
+    const ordered: OwnedBlueprintMap = new Map([
       [100, summary({ ownerId: 5 })],
       [200, summary({ ownerId: 6 })],
     ]);
-    const entries = buildOwnedDetail(map, [200, 999, 100], {}, fmt);
-    expect(entries.map((e) => e.blueprintTypeId)).toEqual([200, 100]);
+    expect(buildOwnedDetail(ordered, [200, 999, 100], {}, fmt, noContexts).map((entry) => entry.blueprintTypeId)).toEqual([
+      200,
+      100,
+    ]);
   });
 });

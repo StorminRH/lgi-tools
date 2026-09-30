@@ -1,10 +1,11 @@
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
-import { resolveUserCorpAccess } from '@/composition/corp-access';
+import { fetchAffiliations } from '@/platform/auth/affiliation-source';
+import { parseCharacterRolesBody } from '@/platform/auth/corp-roles';
+import { readRoleCorporationId, type StoredCorpRoles, upsertCorpRoles } from '@/platform/auth/corp-roles-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
-import { readEsiAuthed, readEsiPagedAuthed } from '@/platform/esi/authed-read';
-import type { OwnerKey } from '@/platform/owner-sync';
+import { readEsiAuthed, readEsiAuthedPost, readEsiPagedAuthed } from '@/platform/esi/authed-read';
 import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
 
 export interface LinkedCharacterHealth {
@@ -27,34 +28,59 @@ export async function listCharactersWithHealth(userId: string): Promise<LinkedCh
   }));
 }
 
-export async function resolveOwnedOwnersForUser(userId: string): Promise<OwnerKey[]> {
-  const access = await resolveUserCorpAccess(userId);
-  return [
-    ...access.allCharacterIds.map((ownerId): OwnerKey => ({ ownerType: 'character', ownerId })),
-    ...access.corporationIds.map((ownerId): OwnerKey => ({ ownerType: 'corporation', ownerId })),
-  ];
-}
-
 export async function vendTokenFor(characterId: number): Promise<string | null> {
   const result = await getFreshAccessTokenForCharacter(characterId);
   return result.kind === 'ok' ? result.accessToken : null;
 }
 
-function extractRoles(body: unknown): string[] {
-  if (typeof body !== 'object' || body === null) return [];
-  const roles = (body as { roles?: unknown }).roles;
-  return Array.isArray(roles) ? roles.filter((r): r is string => typeof r === 'string') : [];
+function softEsiFailure(error: unknown): null {
+  if (error instanceof EsiBudgetExhaustedError) throw error;
+  if (error instanceof EsiServerError) return null;
+  throw error;
 }
 
-export async function readRolesFor(characterId: number, accessToken: string): Promise<string[] | null> {
+async function hasMatchingLiveCorporation(characterId: number, corporationId: number): Promise<boolean> {
+  const result = await fetchAffiliations([characterId]);
+  return !result.transientFailure
+    && result.rows.some((row) => row.characterId === characterId && row.corporationId === corporationId);
+}
+
+async function probeAndStoreRolesRecord(
+  characterId: number,
+  accessToken: string,
+  expectedCorporationId?: number,
+): Promise<StoredCorpRoles | null> {
   try {
+    const corporationId = await readRoleCorporationId(characterId);
+    if (corporationId === null || (expectedCorporationId !== undefined && corporationId !== expectedCorporationId)) return null;
+    if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
-    return read.kind === 'fresh' ? extractRoles(read.body) : null;
+    if (read.kind !== 'fresh') return null;
+    const record = parseCharacterRolesBody(read.body);
+    if (record === null) return null;
+    // Roles do not identify their corporation. Reject a transfer during the read,
+    // even when the stored affiliation has not caught up yet.
+    if (!await hasMatchingLiveCorporation(characterId, corporationId)) return null;
+    const fetchedAt = new Date();
+    const stored = await upsertCorpRoles(characterId, record, fetchedAt, corporationId);
+    return stored ? { ...record, characterId, corporationId, fetchedAt } : null;
   } catch (error) {
-    if (error instanceof EsiBudgetExhaustedError) throw error;
-    if (error instanceof EsiServerError) return null;
-    throw error;
+    return softEsiFailure(error);
   }
+}
+
+export async function probeAndStoreRoles(
+  characterId: number,
+  accessToken: string,
+  expectedCorporationId?: number,
+): Promise<string[] | null> {
+  const record = await probeAndStoreRolesRecord(characterId, accessToken, expectedCorporationId);
+  return record === null ? null : [...record.roles];
+}
+
+export async function fetchAndStoreCorpRoles(characterId: number): Promise<StoredCorpRoles | null> {
+  const accessToken = await vendTokenFor(characterId);
+  return accessToken === null ? null : probeAndStoreRolesRecord(characterId, accessToken);
 }
 
 export type AuthedSingleRead =
@@ -68,9 +94,8 @@ export type AuthedPagedRead =
   | { kind: 'error'; code: string };
 
 function esiThrowToError(error: unknown): { kind: 'error'; code: string } {
-  if (error instanceof EsiBudgetExhaustedError) throw error;
-  if (error instanceof EsiServerError) return { kind: 'error', code: 'esi_server_error' };
-  throw error;
+  softEsiFailure(error);
+  return { kind: 'error', code: 'esi_server_error' };
 }
 
 export async function readSingleEndpoint(
@@ -80,6 +105,17 @@ export async function readSingleEndpoint(
 ): Promise<AuthedSingleRead> {
   try {
     const read = await readEsiAuthed(path, accessToken, heldEtag);
+    if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
+    if (read.kind === 'unchanged') return { kind: 'unchanged' };
+    return { kind: 'error', code: read.code };
+  } catch (error) {
+    return esiThrowToError(error);
+  }
+}
+
+export async function postSingleEndpoint(path: string, accessToken: string, body: unknown): Promise<AuthedSingleRead> {
+  try {
+    const read = await readEsiAuthedPost(path, accessToken, body);
     if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
     if (read.kind === 'unchanged') return { kind: 'unchanged' };
     return { kind: 'error', code: read.code };

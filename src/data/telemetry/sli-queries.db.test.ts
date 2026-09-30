@@ -44,8 +44,8 @@ function capabilityRow(metadata: Record<string, unknown>) {
 describe.skipIf(!harness.reachable)('service indicator queries', () => {
   beforeAll(async () => {
     await harness.db.insert(usageLogs).values([
-      capabilityRow({ operation: 'read-owned-assets', outcome: 'succeeded', durationMs: 100 }),
-      capabilityRow({ operation: 'read-owned-assets', outcome: 'succeeded', durationMs: 200 }),
+      capabilityRow({ operation: 'read-owned-assets', outcome: 'succeeded', durationMs: 100.25 }),
+      capabilityRow({ operation: 'read-owned-assets', outcome: 'succeeded', durationMs: 200.875 }),
       capabilityRow({ operation: 'read-skill-levels', outcome: 'succeeded', durationMs: 300 }),
       capabilityRow({
         operation: 'read-owned-blueprints',

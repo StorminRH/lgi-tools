@@ -16,6 +16,7 @@ export function mapOwnedBlueprints(blueprints: OwnedBlueprintMeEntry[]): OwnedBl
       ownerName: blueprint.ownerName,
       locationName: blueprint.locationName,
       locationFlag: blueprint.locationFlag,
+      containerName: blueprint.containerName,
     });
   }
   return { ownedMe, ownedDetail };

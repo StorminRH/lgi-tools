@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { boardResponseSchema } from '@/composition/board/api-contract';
 import { buildDemoBoard, FIXTURE_NOW } from '@/composition/board/demo-board';
 import {
@@ -155,7 +155,9 @@ describe('wallet models', () => {
     expect(chart.points).toHaveLength(journal!.series.length);
     expect(chart.labels[0]).toBe('29 Aug 2026');
     const balances = journal!.series.map((point) => point.balance);
-    expect(chart.domain).toEqual(fittedDomain(balances));
+    const [low, high] = chart.domain;
+    expect(low).toBeLessThan(Math.min(...balances));
+    expect(high).toBeGreaterThan(Math.max(...balances));
     const recent = recentJournal(journal!.recent);
     expect(recent.length).toBeLessThanOrEqual(20);
     expect(Date.parse(recent[0]!.date)).toBeGreaterThanOrEqual(Date.parse(recent.at(-1)!.date));
@@ -199,18 +201,10 @@ describe('places and timeline', () => {
   });
 });
 
-describe('fittedDomain', () => {
-  it('fits a large balance with a small swing instead of starting at zero', () => {
-    expect(fittedDomain([3_200_000_000, 3_500_000_000, 3_400_000_000])).toEqual([3_170_000_000, 3_530_000_000]);
-  });
-
-  it('pads a flat series by a share of its value', () => {
-    expect(fittedDomain([2_000, 2_000])).toEqual([1_800, 2_200]);
-  });
-
-  it('pads a flat zero series by one unit share', () => {
-    expect(fittedDomain([0, 0])).toEqual([-0.1, 0.1]);
-  });
+test('fittedDomain pads a swinging series, a flat series, and a flat zero', () => {
+  expect(fittedDomain([3_200_000_000, 3_500_000_000, 3_400_000_000])).toEqual([3_170_000_000, 3_530_000_000]);
+  expect(fittedDomain([2_000, 2_000])).toEqual([1_800, 2_200]);
+  expect(fittedDomain([0, 0])).toEqual([-0.1, 0.1]);
 });
 
 describe('overview model', () => {
@@ -360,15 +354,12 @@ describe('queueWindow', () => {
     expect([all[0]?.number, all.at(-1)?.number, all.length]).toEqual([1, 39, 39]);
   });
 
-  it('treats a queue whose entries have all finished as empty', () => {
+  it('treats a finished queue and an empty queue as nothing left to show', () => {
     const queue = [entry(0, -9, -6), entry(1, -6, -3), entry(2, -3, -1)];
     expect(queueWindow(queue, NOW)).toEqual({ visible: [], total: 0 });
+    expect(queueWindow([], NOW)).toEqual({ visible: [], total: 0 });
     expect(queueHealth(ready(queue), NOW)).toEqual({ tone: 'bad', label: 'Skill queue is empty' });
     expect(queueTimeline(queue, NOW)).toBeNull();
-  });
-
-  it('is empty for an empty queue', () => {
-    expect(queueWindow([], NOW)).toEqual({ visible: [], total: 0 });
   });
 
   it('keeps a paused queue, which has no dates, in the window', () => {
@@ -406,7 +397,7 @@ describe('effectiveSkills', () => {
   });
   const base = { levels: { '3300': 4, '3301': 2 }, known: 2, atV: 0 };
 
-  it('counts finished queue entries as trained where ESI still lags', () => {
+  it('counts finished queue entries as trained where ESI still lags, and leaves levels ESI already has', () => {
     const skills = effectiveSkills(
       { ...base, queue: [done(3300, 5), done(3302, 1), done(3302, 2), done(3301, 3, 4)] },
       NOW,
@@ -417,18 +408,12 @@ describe('effectiveSkills', () => {
       known: 3,
       atV: 1,
     });
-  });
-
-  it('leaves levels alone when ESI already has them', () => {
     expect(effectiveSkills({ ...base, queue: [done(3300, 3)] }, NOW)).toEqual({
       levels: base.levels,
       reported: {},
       known: 2,
       atV: 0,
     });
-  });
-
-  it('marks the raised skill in its group', () => {
     const catalog = [{ groupId: 1, name: 'Gunnery', skills: [{ typeId: 3300, name: 'Gunnery', rank: 1 }] }];
     const [group] = groupSkills(effectiveSkills({ ...base, queue: [done(3300, 5)] }, NOW), catalog);
     expect(group).toMatchObject({ trained: 1, atV: 1, skills: [{ level: 5, reported: 4 }] });

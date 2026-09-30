@@ -86,7 +86,7 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
       <PopoverHeading>Input cost</PopoverHeading>
       <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
       <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
-      <p className="max-w-[240px] text-body leading-snug text-muted">
+      <p className="max-w-[240px] text-ui leading-snug text-muted">
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.
       </p>
@@ -126,7 +126,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
       trigger={<Pill tone="green">−{callout.pct}%</Pill>}
     >
       <PopoverHeading>Regional discount</PopoverHeading>
-      <p className="max-w-[240px] text-body leading-snug text-muted">
+      <p className="max-w-[240px] text-ui leading-snug text-muted">
         Available at <span className="text-text">{systemName}</span> for {article}{' '}
         <span className="text-isk">{callout.pct}%</span> discount —{' '}
         {callout.units.toLocaleString('en-US')} units.
@@ -215,7 +215,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
           </span>
         </div>
       </div>
-      <p className="text-micro leading-snug tracking-copy text-faint">
+      <p className="text-ui leading-snug text-muted">
         Sequential — one job at a time. TE applied per blueprint; structure and build-character
         skills applied when selected; parallel slots not counted.
       </p>

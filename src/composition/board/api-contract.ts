@@ -22,7 +22,7 @@ export type BoardSection<T> =
   | { state: 'pending' }
   | { state: 'reconnect' };
 
-const sectionOf = <T extends z.ZodTypeAny>(data: T) =>
+const boardSectionSchema = <T extends z.ZodTypeAny>(data: T) =>
   z.discriminatedUnion('state', [
     z.object({ state: z.literal('ready'), refreshedAt: z.number(), data }),
     z.object({ state: z.literal('pending') }),
@@ -138,16 +138,16 @@ export const boardCharacterSchema = z.object({
   corporation: entityRefSchema.nullable(),
   alliance: entityRefSchema.nullable(),
   gaps: z.array(z.enum(BOARD_GAPS)),
-  skills: sectionOf(skillsDataSchema),
-  profile: sectionOf(profileDataSchema),
-  status: sectionOf(statusDataSchema),
-  attributes: sectionOf(attributesDataSchema),
-  implants: sectionOf(implantsDataSchema),
-  clones: sectionOf(clonesDataSchema),
-  wallet: sectionOf(walletDataSchema),
-  journal: sectionOf(journalDataSchema),
-  industry: sectionOf(industryDataSchema),
-  netWorth: sectionOf(netWorthDataSchema),
+  skills: boardSectionSchema(skillsDataSchema),
+  profile: boardSectionSchema(profileDataSchema),
+  status: boardSectionSchema(statusDataSchema),
+  attributes: boardSectionSchema(attributesDataSchema),
+  implants: boardSectionSchema(implantsDataSchema),
+  clones: boardSectionSchema(clonesDataSchema),
+  wallet: boardSectionSchema(walletDataSchema),
+  journal: boardSectionSchema(journalDataSchema),
+  industry: boardSectionSchema(industryDataSchema),
+  netWorth: boardSectionSchema(netWorthDataSchema),
 });
 export type BoardCharacter = z.infer<typeof boardCharacterSchema>;
 

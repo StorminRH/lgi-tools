@@ -1,4 +1,4 @@
-export const CLIENT_USAGE_ACTIONS = ['page_view', 'terminal_search'] as const;
+export const CLIENT_USAGE_ACTIONS = ['page_view'] as const;
 
 export type ServerUsageAction =
   | 'auth_login'
@@ -26,7 +26,6 @@ export type ServerUsageAction =
   | 'cron_industry_indices'
   | 'cron_sde'
   | 'cron_gsc'
-  | 'cron_sync_sweeper'
   | 'cron_esi_refresh_jobs'
   | 'cron_affiliations'
   | 'cron_wh_statics'
@@ -38,7 +37,7 @@ export type ServerUsageAction =
   | 'eve_token_refresh_unexpected'
   | 'eve_token_refresh_race'
   | 'account_purge'
-  | 'auth_absorb'
+  | 'auth_merge'
   | 'capability_outcome';
 export type UsageAction = (typeof CLIENT_USAGE_ACTIONS)[number] | ServerUsageAction;
 
@@ -56,11 +55,6 @@ export interface DailyCount {
 
 export interface PathCount {
   path: string;
-  count: number;
-}
-
-export interface SearchCount {
-  query: string;
   count: number;
 }
 

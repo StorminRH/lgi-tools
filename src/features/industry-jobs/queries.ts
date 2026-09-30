@@ -19,6 +19,10 @@ async function getCharacterJobs(characterId: number): Promise<CharacterJobsData 
   'use cache';
   cacheLife('minutes');
   cacheTag(industryJobsTag(characterId));
+  return readCharacterJobs(characterId);
+}
+
+export async function readCharacterJobs(characterId: number): Promise<CharacterJobsData | null> {
   const rows = await db
     .select({ jobs: characterIndustryJobs.jobs })
     .from(characterIndustryJobs)

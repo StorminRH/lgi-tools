@@ -7,6 +7,10 @@ export const ownedAssetsPurgeContributor: PurgeContributor = {
   name: 'owned-assets',
   tier: 'cache',
   claims: [ownedAssets, ownedAssetSyncs],
+  merge: [
+    { table: ownedAssets, rule: 'follows-character' },
+    { table: ownedAssetSyncs, rule: 'follows-character' },
+  ],
   async purgeCharacter({ characterId }) {
     await db
       .delete(ownedAssets)

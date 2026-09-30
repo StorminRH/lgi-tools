@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { usePageSettings } from '@/components/composition/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
-import { menuControlRow, menuSection, menuSectionLabel } from '@/components/ui/menu';
+import { MenuGroup, menuControlRow } from '@/components/ui/menu';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -70,14 +70,11 @@ export function PageMenuSection({ children }: { children?: ReactNode }) {
 
   const title = spec?.title ?? 'Page settings';
   return (
-    <div data-page-menu-section className={menuSection} role="group" aria-label={title}>
-      <div className={menuSectionLabel} aria-hidden="true">
-        {title}
-      </div>
+    <MenuGroup data-page-menu-section label={title}>
       {models.map((model) => (
         <ControlRow key={model.key} model={model} />
       ))}
       {children}
-    </div>
+    </MenuGroup>
   );
 }

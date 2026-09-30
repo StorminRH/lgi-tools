@@ -85,7 +85,7 @@ export function DialogHeader({
 }: {
   titleId: string;
   title: ReactNode;
-  description: ReactNode;
+  description?: ReactNode;
   closeLabel: string;
 }) {
   return (
@@ -97,9 +97,11 @@ export function DialogHeader({
         >
           {title}
         </DialogTitle>
-        <DialogDescription className="font-ui text-ui text-muted">
-          {description}
-        </DialogDescription>
+        {description ? (
+          <DialogDescription className="font-ui text-ui text-muted">
+            {description}
+          </DialogDescription>
+        ) : null}
       </div>
       <DialogClose render={<Button variant="ghost" size="sm" />} aria-label={closeLabel}>
         ×

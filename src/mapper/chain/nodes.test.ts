@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SYSTEM_FRAME_HEIGHT,
-  SYSTEM_FRAME_WIDTH,
-} from '../canvas/SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
 import {

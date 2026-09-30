@@ -3,7 +3,6 @@ import { cardSurface } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { SectionHeader } from '@/components/ui/section-header';
 import type { BoardSection } from '@/composition/board/api-contract';
-import { formatRelativeTime } from '@/lib/format/time';
 
 /** The glass the sheet's readouts sit on; everything else floats on the backdrop. */
 export const readoutSurface = cn(cardSurface, 'min-w-0 overflow-hidden');
@@ -25,10 +24,6 @@ export function SectionPanel({
       {children}
     </section>
   );
-}
-
-export function updatedLabel(section: BoardSection<unknown>, now: number): string | null {
-  return section.state === 'ready' ? `updated ${formatRelativeTime(new Date(section.refreshedAt), now)}` : null;
 }
 
 export function SectionBody<T>({

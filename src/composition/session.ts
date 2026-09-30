@@ -1,13 +1,17 @@
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { cache } from 'react';
 import { readEnv } from '@/lib/env';
 import { auth } from '@/composition/auth';
+import { checkUserCharacterAuthorizations } from '@/composition/character-authorization';
 import type { Session } from '@/platform/auth/types';
 
 // Share auth enrichment within a Server Component render, never across requests.
-export const getFullSession = cache(async () =>
-  auth.api.getSession({ headers: await headers() }),
-);
+export const getFullSession = cache(async () => {
+  const result = await auth.api.getSession({ headers: await headers() });
+  if (result) after(() => checkUserCharacterAuthorizations(result.user.id));
+  return result;
+});
 
 export async function getSession(): Promise<Session | null> {
   const result = await getFullSession();
@@ -21,12 +25,12 @@ export async function getSession(): Promise<Session | null> {
 }
 
 export async function getSessionCharacterId(): Promise<number | null> {
-  const result = await auth.api.getSession({ headers: await headers() });
+  const result = await getFullSession();
   return result?.characterId ?? null;
 }
 
 export async function getCurrentUserId(): Promise<string | null> {
-  const result = await auth.api.getSession({ headers: await headers() });
+  const result = await getFullSession();
   return result?.user?.id ?? null;
 }
 

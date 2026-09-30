@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { isUniqueViolation } from '@/db/pg-errors';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -184,7 +184,7 @@ export async function claimDueEsiRefreshJobs(
   return claimed;
 }
 
-export async function getEsiRefreshQueueStats(): Promise<EsiRefreshQueueStat[]> {
+export async function getEsiRefreshQueueStats(now = new Date()): Promise<EsiRefreshQueueStat[]> {
   const oldestCreatedAt = sql`min(${esiRefreshJobs.createdAt})`.mapWith(
     esiRefreshJobs.createdAt,
   );
@@ -195,6 +195,10 @@ export async function getEsiRefreshQueueStats(): Promise<EsiRefreshQueueStat[]> 
       oldestCreatedAt,
     })
     .from(esiRefreshJobs)
+    .where(or(
+      inArray(esiRefreshJobs.status, [...LIVE_ESI_REFRESH_JOB_STATUSES, 'dead_lettered']),
+      gte(esiRefreshJobs.finishedAt, new Date(now.getTime() - ESI_REFRESH_JOB_RETENTION_DAYS * 86_400_000)),
+    ))
     .groupBy(esiRefreshJobs.status)
     .orderBy(asc(esiRefreshJobs.status));
   return rows.map((row) => ({

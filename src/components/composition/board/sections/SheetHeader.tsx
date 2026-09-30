@@ -10,6 +10,7 @@ import { characterAge, characterSecurityClass, effectiveSkills, placeName } from
 import { pilotTransitionName } from '../board-motion';
 import { KpiTile, SystemName } from '../board-bits';
 import { EntityLogo } from './EntityLogo';
+import { IndustrySection } from './IndustrySection';
 
 /** The identity column: portrait, affiliation and whereabouts float; only the stat readouts sit on glass. */
 export function SheetHeader({
@@ -126,26 +127,28 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 function Kpis({ character, now }: { character: BoardCharacter; now: number }) {
   const wallet = character.wallet.state === 'ready' ? character.wallet.data : null;
   const skills = character.skills.state === 'ready' ? character.skills.data : null;
-  if (wallet === null && skills === null) return null;
   const counts = skills === null ? null : effectiveSkills(skills, now);
   const free = skills?.unallocatedSp ?? 0;
   return (
-    <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
+    <div className="flex flex-col gap-2">
       {wallet !== null && (
-        <KpiTile label="Wallet" tone="text-isk">
-          {formatIsk(wallet.balance)} <span className="text-micro text-muted sm:text-ui">ISK</span>
-        </KpiTile>
+        <dl>
+          <KpiTile label="Wallet" tone="text-isk">
+            {formatIsk(wallet.balance)} <span className="text-micro text-muted sm:text-ui">ISK</span>
+          </KpiTile>
+        </dl>
       )}
+      <IndustrySection section={character.industry} />
       {skills !== null && (
-        <>
+        <dl className="grid grid-cols-2 gap-2 xl:grid-cols-1">
           <KpiTile label="Skill points" note={free > 0 ? `+${formatCompactQuantity(free)} free` : undefined}>
             {formatCompactQuantity(skills.totalSp)}
           </KpiTile>
           <KpiTile label="Skills" note={`${formatQuantity(counts?.atV ?? 0)} at V`} noteTone="text-muted">
             {formatQuantity(counts?.known ?? 0)}
           </KpiTile>
-        </>
+        </dl>
       )}
-    </dl>
+    </div>
   );
 }

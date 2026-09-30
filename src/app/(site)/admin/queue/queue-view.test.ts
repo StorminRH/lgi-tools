@@ -17,10 +17,10 @@ const stats: EsiRefreshQueueStat[] = [
 describe('deriveQueueCells', () => {
   it('groups live statuses and reports the oldest job in each', () => {
     expect(deriveQueueCells(stats, NOW)).toEqual([
-      { id: 'waiting', title: 'Queued & running', value: '4', note: 'oldest 20m' },
-      { id: 'deferred', title: 'Held for budget', value: '2', note: 'oldest 3h' },
-      { id: 'retrying', title: 'Retrying', value: '0', note: 'none' },
-      { id: 'dead', title: 'Dead-lettered', value: '1,200', note: 'oldest 3d' },
+      { id: 'waiting', title: 'Queued & running', value: '4', note: 'oldest job 20m' },
+      { id: 'deferred', title: 'Held for budget', value: '2', note: 'oldest job 3h' },
+      { id: 'retrying', title: 'Awaiting retry', value: '0', note: 'none' },
+      { id: 'dead', title: 'Dead-lettered', value: '1,200', note: 'oldest job 3d' },
     ]);
   });
 

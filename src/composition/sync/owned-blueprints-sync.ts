@@ -1,4 +1,6 @@
 import { after } from 'next/server';
+import { getCorpAssetEvidence } from '@/features/owned-assets/queries';
+import { resolveCorpViewer } from '@/composition/corp-viewer';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { formatStationName } from '@/features/industry-planner/format-station-name';
 import {
@@ -6,17 +8,12 @@ import {
   collectDetailNameIds,
   type OwnedBlueprintDetailEntry,
 } from '@/features/owned-blueprints/detail';
-import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
+import { getOwnedBlueprintMap, readBlueprintSyncState, saveOwnedBlueprints, stampBlueprintFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
+import { contextsByCorp } from '@/platform/auth/corp-visibility';
 import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
-import {
-  listCharactersWithHealth,
-  readPagedEndpoint,
-  readRolesFor,
-  resolveOwnedOwnersForUser,
-  vendTokenFor,
-} from './owner-sync-port';
+import { listCharactersWithHealth, readPagedEndpoint, probeAndStoreRoles, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
@@ -24,11 +21,11 @@ function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
     now: () => new Date(),
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
-    readRoles: readRolesFor,
+    readRoles: probeAndStoreRoles,
     read: readPagedEndpoint,
-    readSyncState: (owner) => readOwnerSyncState(owner),
+    readSyncState: (owner) => readBlueprintSyncState(owner),
     save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
-    stampFresh: (owner) => stampOwnerFresh(owner),
+    stampFresh: (owner) => stampBlueprintFresh(owner),
   };
 }
 
@@ -36,8 +33,12 @@ export async function getOwnedBlueprintDetailOnView(
   userId: string,
   requestedTypeIds: number[],
 ): Promise<OwnedBlueprintDetailEntry[]> {
-  const owners = await resolveOwnedOwnersForUser(userId);
-  const map = await getOwnedBlueprintMap(owners);
+  const viewer = await resolveCorpViewer(userId);
+  const evidence = new Map(await Promise.all(viewer.scope.corps.map(async (grant) =>
+    [grant.corporationId, grant.blueprints.kind === 'by-location'
+      ? await getCorpAssetEvidence(grant.corporationId) : null] as const,
+  )));
+  const map = await getOwnedBlueprintMap(viewer.scope, evidence);
   after(() =>
     refreshOwnedBlueprintsForUser(
       makeOwnedBlueprintsPort(),
@@ -45,8 +46,9 @@ export async function getOwnedBlueprintDetailOnView(
       enqueueBudgetDeferral('owned_blueprints', userId),
     ),
   );
-  const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds));
-  return buildOwnedDetail(map, requestedTypeIds, names, formatStationName);
+  const contexts = contextsByCorp(viewer.scope);
+  const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds, contexts));
+  return buildOwnedDetail(map, requestedTypeIds, names, formatStationName, contexts);
 }
 
 export async function runOwnedBlueprintsRefreshJob(

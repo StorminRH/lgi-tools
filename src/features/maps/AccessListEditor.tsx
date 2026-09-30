@@ -99,7 +99,7 @@ export function AccessListEditor({
             Corporations
           </h3>
           <p className="font-ui text-label text-faint">
-            Select from your current corporations, then choose access explicitly.
+            Choose corporations and roles.
           </p>
         </div>
         {corporations.length > 0 ? (

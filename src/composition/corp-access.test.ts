@@ -27,7 +27,7 @@ import { resolveUserCorpAccess } from '@/composition/corp-access';
 const NOW = new Date('2026-09-15T12:00:00Z');
 const STALE = new Date(NOW.getTime() - freshnessGate('affiliations').ttlMs - 1);
 function row(characterId: number, corporationId: number | null, refreshedAt: Date | null = NOW): CachedAffiliation {
-  return { characterId, corporationId, allianceId: null, factionId: null, refreshedAt };
+  return { sharedAccessEligible: true, characterId, corporationId, allianceId: null, factionId: null, refreshedAt };
 }
 
 beforeEach(() => {

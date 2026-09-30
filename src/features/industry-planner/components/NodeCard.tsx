@@ -43,7 +43,7 @@ function LedgerCells({ cell }: { cell: LedgerCell | null }) {
 function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | null; ownedQty?: number }) {
   const view = assetLedgerView(qty, value, ownedQty);
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-data text-ui tabular-nums">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 text-ui tabular-nums">
       <span className="text-muted">Total Needed</span>
       <span className="text-right text-name">{view.neededQty}</span>
       <span className="text-right text-isk">{view.neededIsk}</span>
@@ -57,12 +57,13 @@ function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | nu
 
 function HoldingLine({ holding }: { holding: AssetHolding }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 font-data text-ui">
+    <div className="flex items-baseline justify-between gap-3 text-ui">
       <span className="min-w-0">
         <span className="text-name">{holding.ownerName}</span>
-        <span className="block text-micro tracking-copy text-muted">
+        <span className="block text-ui leading-snug text-muted">
           {holding.locationName}
           {holding.locationFlag ? ` · ${holding.locationFlag}` : ''}
+          {holding.containerName ? ` › ${holding.containerName}` : ''}
         </span>
       </span>
       <span className="shrink-0 tabular-nums text-faint">{formatQuantity(holding.quantity)}</span>

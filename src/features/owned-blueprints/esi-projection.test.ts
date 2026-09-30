@@ -24,6 +24,7 @@ const bpc = {
 };
 
 const projectedBpo = {
+  item_id: bpo.item_id,
   type_id: 1000,
   material_efficiency: 10,
   time_efficiency: 20,
@@ -34,10 +35,10 @@ const projectedBpo = {
 };
 
 describe('parseBlueprintsBody', () => {
-  it('projects a realistic body down to the stored fields, dropping item_id', () => {
+  it('retains item identity with the stored blueprint fields', () => {
     const out = parseBlueprintsBody([bpo]);
     expect(out).toEqual([projectedBpo]);
-    expect(out?.[0]).not.toHaveProperty('item_id');
+    expect(out?.[0]?.item_id).toBe(bpo.item_id);
   });
 
   it('keeps the BPO (-1) vs BPC (runs/-2) distinction verbatim', () => {
@@ -64,6 +65,8 @@ describe('parseBlueprintsBody', () => {
     expect(parseBlueprintsBody({ blueprints: [] })).toBeNull();
     const { type_id: _dropped, ...withoutType } = bpo;
     expect(parseBlueprintsBody([withoutType])).toBeNull();
+    const { item_id: _identity, ...withoutIdentity } = bpo;
+    expect(parseBlueprintsBody([withoutIdentity])).toBeNull();
   });
 
   it('parses an empty hangar', () => {

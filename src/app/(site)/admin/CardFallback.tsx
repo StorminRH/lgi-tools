@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function CardFallback({ label, rows = 3 }: { label: string; rows?: number }) {
   return (
     <Card>
-      <SectionHeader size="md" label={label} hint="loading" />
+      <SectionHeader size="md" label={label} />
       {Array.from({ length: rows }, (_, row) => (
         <div
           key={row}

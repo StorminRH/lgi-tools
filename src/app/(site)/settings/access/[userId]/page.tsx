@@ -1,3 +1,4 @@
+import { ACCESS_HREF } from '../../settings-sections';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { EveImage } from '@/components/eve-image';
@@ -14,6 +15,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from '@/components/composition/account/AdminReassignCharacterForm';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
+import { LinkedCharactersCard } from '@/components/composition/account/LinkedCharactersCard';
 import { requireAdminPage } from '@/composition/route-guards';
 import {
   getStoredActiveCharacterId,
@@ -22,6 +24,7 @@ import {
 } from '@/platform/auth/linked-characters';
 import { getActiveSessionCount, getUserById } from '@/platform/auth/admin-users';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
+import { readEnv } from '@/lib/env';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { SectionHead } from '@/components/ui/section-head';
 import { deriveUserDetailView } from './user-detail-view';
@@ -32,7 +35,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   unlink_failed: 'Could not unlink that character. Please try again.',
 };
 
-const ACCESS_HREF = '/settings/access';
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -88,7 +90,7 @@ function CharacterAdminRow({
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {character.characterId}</Pill>
           <Pill tone="neutral">linked {formatDate(character.linkedAt)}</Pill>
-          {isActive ? <Chip tone="green">Active</Chip> : null}
+          {isActive ? <Chip tone="green">Selected</Chip> : null}
           {health.needsReconnect ? (
             <Chip tone="orange" className="normal-case">
               {character.hasRefreshToken ? 'Missing scopes' : 'Disconnected'}
@@ -153,6 +155,7 @@ async function UserDetailContent({
   const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'That action could not be completed.');
   const view = deriveUserDetailView({
     targetUser,
+    isSuperadmin: characters.some((character) => character.characterId === Number(readEnv('SUPERADMIN_CHARACTER_ID'))),
     charactersCount: characters.length,
     sessionCount,
     viewerUserId,
@@ -178,7 +181,7 @@ async function UserDetailContent({
         }
         chips={
           <>
-            <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
+            <Pill tone="neutral">Character ID {view.characterIdLabel}</Pill>
             {view.identityChips.map((chip) => (
               <Chip key={chip.label} tone={chip.tone}>
                 {chip.label}
@@ -191,29 +194,26 @@ async function UserDetailContent({
 
       {error ? <Callout label="Heads up">{error}</Callout> : null}
 
-      <Card className="reveal reveal-1">
-        <SectionHeader size="md" label="Linked characters" hint={`${characters.length} linked`} />
-        {characters.length === 0 ? (
-          <EmptyState>No characters linked to this account.</EmptyState>
-        ) : (
-          characters.map((character) => (
-            <CharacterAdminRow
-              key={character.characterId}
-              character={character}
-              userId={userId}
-              isActive={character.characterId === activeId}
-              isViewerSelf={view.isViewerSelf}
-              isOnlyCharacter={view.isOnlyCharacter}
-            />
-          ))
-        )}
-      </Card>
+      <LinkedCharactersCard
+        label="Linked characters"
+        count={characters.length}
+        rows={characters.map((character) => (
+          <CharacterAdminRow
+            key={character.characterId}
+            character={character}
+            userId={userId}
+            isActive={character.characterId === activeId}
+            isViewerSelf={view.isViewerSelf}
+            isOnlyCharacter={view.isOnlyCharacter}
+          />
+        ))}
+      />
 
       <Card className="reveal reveal-2">
-        <SectionHeader size="md" label="Sessions" hint={`${sessionCount} active`} />
+        <SectionHeader size="md" label="Sessions" />
         <div className="flex items-center justify-between gap-3 border-t border-border-soft px-3.5 py-3">
           <span className="text-ui text-muted">
-            Revoke all sign-ins for this account. May take a few minutes to fully apply.
+            {sessionCount} unexpired sessions · logout may take a few minutes.
           </span>
           <AdminForceLogoutForm
             userId={userId}

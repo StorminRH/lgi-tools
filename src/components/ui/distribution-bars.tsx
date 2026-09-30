@@ -14,8 +14,9 @@ export interface DistributionBar extends DistributionInput {
 export function distributionBars(
   rows: DistributionInput[],
   sort: 'desc' | 'none' = 'desc',
+  denominator?: number,
 ): DistributionBar[] {
-  const total = rows.reduce((sum, r) => sum + r.count, 0);
+  const total = denominator ?? rows.reduce((sum, r) => sum + r.count, 0);
   const max = rows.reduce((m, r) => Math.max(m, r.count), 0);
   const ordered = sort === 'desc' ? [...rows].sort((a, b) => b.count - a.count) : rows;
   return ordered.map((r) => ({
@@ -34,13 +35,15 @@ export function DistributionBars({
   formatCount = (n) => n.toLocaleString(),
   sort = 'desc',
   ariaLabel,
+  total,
 }: {
   rows: DistributionInput[];
   formatCount?: (n: number) => string;
   sort?: 'desc' | 'none';
   ariaLabel?: string;
+  total?: number;
 }) {
-  const bars = distributionBars(rows, sort);
+  const bars = distributionBars(rows, sort, total);
   return (
     <ul aria-label={ariaLabel}>
       {bars.map((bar) => (

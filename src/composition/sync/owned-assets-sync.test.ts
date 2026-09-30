@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     ): Promise<'saved' | 'superseded'> => 'saved',
   ),
   emitDomainEventMock: vi.fn(),
+  saveCorpOwnedAssetsMock: vi.fn(async (..._args: unknown[]): Promise<'saved' | 'superseded'> => 'saved'),
 }));
 
 vi.mock('@/data/domain-events/queries', () => ({
@@ -30,6 +31,7 @@ vi.mock('@/data/esi-snapshots/queries', () => ({
 
 vi.mock('@/features/owned-assets/queries', () => ({
   getOwnedAssetMap: vi.fn(),
+  saveCorpOwnedAssets: (...args: unknown[]) => mocks.saveCorpOwnedAssetsMock(...args),
   readOwnerSyncState: vi.fn(),
   saveOwnedAssets: (owner: unknown, rows: unknown, etags: unknown, snapshotId?: unknown) =>
     snapshotId === undefined
@@ -49,7 +51,10 @@ const rows = [
 ];
 const source = {
   endpoint: '/corporations/5000/assets/',
-  items: [{ item_id: 101 }],
+  items: [
+    { item_id: 101, type_id: 27, quantity: 1, location_id: 60003760, location_type: 'station', location_flag: 'OfficeFolder' },
+    { item_id: 102, type_id: 34, quantity: 12, location_id: 101, location_type: 'item', location_flag: 'CorpSAG1' },
+  ],
   responseHeaders: [
     {
       page: 1,
@@ -74,7 +79,9 @@ describe('saveOwnedAssetsFromSource', () => {
     mocks.deleteEsiSnapshotMock.mockClear();
     mocks.saveOwnedAssetsMock.mockReset();
     mocks.emitDomainEventMock.mockReset();
+    mocks.saveCorpOwnedAssetsMock.mockReset();
     mocks.saveOwnedAssetsMock.mockResolvedValue('saved');
+    mocks.saveCorpOwnedAssetsMock.mockResolvedValue('saved');
   });
 
   it('keeps character saves on the existing path with no snapshot', async () => {
@@ -83,12 +90,53 @@ describe('saveOwnedAssetsFromSource', () => {
     await save({ ownerType: 'character', ownerId: 7 }, rows, ['"etag"'], source);
 
     expect(mocks.insertEsiSnapshotMock).not.toHaveBeenCalled();
+    expect(mocks.saveCorpOwnedAssetsMock).not.toHaveBeenCalled();
     expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
     expect(mocks.saveOwnedAssetsMock).toHaveBeenCalledWith(
       { ownerType: 'character', ownerId: 7 },
       rows,
       ['"etag"'],
     );
+  });
+
+  it('publishes the holding index and corp rows together', async () => {
+    const save = await loadSave();
+
+    await save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source);
+
+    expect(mocks.saveCorpOwnedAssetsMock).toHaveBeenCalledTimes(1);
+    const [corporationId, index] = mocks.saveCorpOwnedAssetsMock.mock.calls[0]!;
+    expect(corporationId).toBe(5000);
+    expect([...(index as { interiors: Map<number, unknown> }).interiors]).toEqual([
+      [60003760, { kind: 'root', rootId: 60003760 }],
+      [101, { kind: 'office', rootId: 60003760 }],
+    ]);
+    expect(mocks.saveCorpOwnedAssetsMock).toHaveBeenCalledWith(5000, index, rows, [], 44);
+    expect(mocks.saveOwnedAssetsMock).not.toHaveBeenCalled();
+  });
+
+  it('saves neither the index nor the rows when the payload is not a corp asset list', async () => {
+    const save = await loadSave();
+
+    await save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], { ...source, items: [{ item_id: 101 }] });
+
+    expect(mocks.insertEsiSnapshotMock).not.toHaveBeenCalled();
+    expect(mocks.saveCorpOwnedAssetsMock).not.toHaveBeenCalled();
+    expect(mocks.saveOwnedAssetsMock).not.toHaveBeenCalled();
+    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
+  });
+
+  it('discards the snapshot when publication is superseded', async () => {
+    const save = await loadSave();
+    mocks.saveCorpOwnedAssetsMock.mockResolvedValueOnce('superseded');
+
+    await expect(
+      save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source),
+    ).resolves.toBeUndefined();
+
+    expect(mocks.saveOwnedAssetsMock).not.toHaveBeenCalled();
+    expect(mocks.deleteEsiSnapshotMock).toHaveBeenCalledWith(44);
+    expect(mocks.emitDomainEventMock).not.toHaveBeenCalled();
   });
 
   it('writes one encrypted corp snapshot and gives its id to every derived row save', async () => {
@@ -108,8 +156,9 @@ describe('saveOwnedAssetsFromSource', () => {
         bodyCiphertext: 'v1:iv:tag:ciphertext',
       }),
     );
-    expect(mocks.saveOwnedAssetsMock).toHaveBeenCalledWith(
-      { ownerType: 'corporation', ownerId: 5000 },
+    expect(mocks.saveCorpOwnedAssetsMock).toHaveBeenCalledWith(
+      5000,
+      expect.anything(),
       rows,
       ['"fallback"'],
       44,
@@ -121,14 +170,14 @@ describe('saveOwnedAssetsFromSource', () => {
         dataset: 'owned_assets',
         ownerType: 'corporation',
         ownerId: 5000,
-        itemCount: 1,
+        itemCount: 2,
       },
     });
   });
 
   it('removes an orphan snapshot when the existing derived save fails', async () => {
     const save = await loadSave();
-    mocks.saveOwnedAssetsMock.mockRejectedValueOnce(new Error('derived save failed'));
+    mocks.saveCorpOwnedAssetsMock.mockRejectedValueOnce(new Error('derived save failed'));
 
     await expect(
       save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source),
@@ -140,7 +189,7 @@ describe('saveOwnedAssetsFromSource', () => {
 
   it('discards the snapshot and emits nothing when a concurrent refresh supersedes the save', async () => {
     const save = await loadSave();
-    mocks.saveOwnedAssetsMock.mockResolvedValueOnce('superseded');
+    mocks.saveCorpOwnedAssetsMock.mockResolvedValueOnce('superseded');
 
     await expect(
       save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source),
@@ -152,7 +201,7 @@ describe('saveOwnedAssetsFromSource', () => {
 
   it('does not fail the save when discarding a superseded snapshot fails', async () => {
     const save = await loadSave();
-    mocks.saveOwnedAssetsMock.mockResolvedValueOnce('superseded');
+    mocks.saveCorpOwnedAssetsMock.mockResolvedValueOnce('superseded');
     mocks.deleteEsiSnapshotMock.mockRejectedValueOnce(new Error('cleanup failed'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 

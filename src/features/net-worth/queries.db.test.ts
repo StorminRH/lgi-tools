@@ -1,15 +1,16 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createDbTestHarness, seedUser } from '@/db/__tests__/support/db-test-harness';
+import { createDbTestHarness, seedEveAccount, seedUser } from '@/db/__tests__/support/db-test-harness';
 import { user } from '@/db/auth-schema';
 import { NET_WORTH_HISTORY_DAYS } from './constants';
 import { getNetWorthHistory, upsertNetWorthDay, utcDay } from './queries';
 import type { NetWorthDay } from './types';
 import { netWorthDays } from './schema';
+import { netWorthPurgeContributor } from './purge';
 
 const harness = await createDbTestHarness({
   schema: 'test_net_worth_days',
-  tables: ['user', 'net_worth_days'],
+  tables: ['user', 'account', 'net_worth_days'],
   foreignKeys: [
     { table: 'net_worth_days', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
   ],
@@ -41,6 +42,9 @@ describe.skipIf(!harness.reachable)('net_worth_days queries execute against Post
   beforeEach(async () => {
     await seedUser(harness.db, USER);
     await seedUser(harness.db, OTHER);
+    for (const characterId of [9900000001, 9900000002, 9900000003]) {
+      await seedEveAccount(harness.db, { id: `account-${characterId}`, characterId, userId: USER });
+    }
   });
 
   it('inserts today once and lets the last write of the day win', async () => {
@@ -119,6 +123,58 @@ describe.skipIf(!harness.reachable)('net_worth_days queries execute against Post
     await harness.db.delete(user).where(eq(user.id, USER));
 
     expect(await rowsFor(USER)).toEqual([]);
+  });
+
+  it.each(['unlink', 'transfer'] as const)('does not recreate erased history when an in-flight snapshot waits behind %s', async (operation) => {
+    const captured = snapshot('2026-09-27', 900);
+    await upsertNetWorthDay(USER, captured, RECORDED);
+    const blocker = await harness.sql.reserve();
+    let writer: Promise<void> | undefined;
+    try {
+      await blocker`BEGIN`;
+      await blocker`SET LOCAL idle_in_transaction_session_timeout = '10s'`;
+      if (operation === 'unlink') {
+        await blocker`DELETE FROM account WHERE account_id = '9900000001'`;
+      } else {
+        await blocker`UPDATE account SET user_id = ${OTHER} WHERE account_id = '9900000001'`;
+      }
+      const [holder] = await blocker<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+      writer = upsertNetWorthDay(USER, captured, RECORDED);
+      // Prove the writer reached its ownership fence before committing the removal.
+      await expect.poll(async () => {
+        const [row] = await harness.sql<{ count: number }[]>`
+          SELECT count(*)::integer AS count FROM pg_stat_activity
+          WHERE ${holder!.pid} = ANY(pg_blocking_pids(pid))
+        `;
+        return row?.count;
+      }, { timeout: 3_000, interval: 20 }).toBe(1);
+      await blocker`COMMIT`;
+      await netWorthPurgeContributor.purgeCharacter!({ kind: 'character', userId: USER, characterId: 9900000001 });
+      await writer;
+      expect(await rowsFor(USER)).toEqual([]);
+      // A snapshot already captured before the unlink also stays rejected later.
+      await upsertNetWorthDay(USER, captured, RECORDED);
+      expect(await rowsFor(USER)).toEqual([]);
+    } finally {
+      await blocker`ROLLBACK`;
+      blocker.release();
+      await writer;
+    }
+  });
+
+  it('erases every day containing an unlinked pilot while preserving other days and accounts', async () => {
+    await upsertNetWorthDay(USER, snapshot('2026-09-25', 10), RECORDED);
+    await upsertNetWorthDay(USER, snapshot('2026-09-26', 20), RECORDED);
+    const unrelated = { ...snapshot('2026-09-27', 30), pilots: { '9900000003': { netWorth: 30, liquidIsk: 100 } } };
+    await upsertNetWorthDay(USER, unrelated, RECORDED);
+    await harness.db.insert(netWorthDays).values({ userId: OTHER, ...snapshot('2026-09-25', 40), recordedAt: RECORDED });
+
+    await netWorthPurgeContributor.purgeCharacter!({ kind: 'character', userId: USER, characterId: 9900000001 });
+
+    expect(await getNetWorthHistory(USER)).toEqual([unrelated]);
+    expect(await getNetWorthHistory(OTHER)).toEqual([snapshot('2026-09-25', 40)]);
+    await netWorthPurgeContributor.purgeCharacter!({ kind: 'character', userId: USER, characterId: 9900000001 });
+    expect(await getNetWorthHistory(USER)).toEqual([unrelated]);
   });
 });
 

@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { cn } from './cn';
+import { NavRailGroup, navRailLink } from './nav-rail';
 import { usePathname } from 'next/navigation';
 import type { ContentNavItem, ContentNavModel } from './content-browser-view';
 import { contentBrowserHref, deriveActiveContentSlug } from './content-browser-view';
@@ -29,7 +31,7 @@ function ContentItemLink({
       href={contentBrowserHref(basePath, item.slug, landingSlug)}
       aria-current={active ? 'page' : undefined}
       data-content-browser-nav-item
-      className="relative block rounded-r-ctl py-1.5 pl-3 pr-2 font-ui text-ui tracking-optical text-muted no-underline transition-colors before:absolute before:-left-px before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-transparent before:content-[''] hover:bg-row-hover hover:text-text aria-[current=page]:bg-row-hover aria-[current=page]:text-isk aria-[current=page]:before:bg-isk motion-reduce:transition-none"
+      className={cn(navRailLink, 'block')}
     >
       {item.title}
     </Link>
@@ -45,7 +47,7 @@ export function ContentBrowserNavTree({
 }: ContentBrowserNavProps & { activeSlug: string | null }) {
   return (
     <nav className="font-ui" aria-label={navigationLabel}>
-      <ul className="mb-3.5 list-none border-l border-nav-guide">
+      <NavRailGroup className="mb-3.5 last:mb-3.5">
         {model.items.map((item) => (
           <li key={item.slug}>
             <ContentItemLink
@@ -56,7 +58,7 @@ export function ContentBrowserNavTree({
             />
           </li>
         ))}
-      </ul>
+      </NavRailGroup>
     </nav>
   );
 }

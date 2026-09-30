@@ -1,26 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { journalRefLabel } from './ref-types';
 
-describe('journalRefLabel', () => {
-  it.each([
-    ['bounty_prizes', 'Bounties'],
-    ['market_transaction', 'Market'],
-    ['brokers_fee', 'Broker fee'],
-    ['transaction_tax', 'Sales tax'],
-    ['player_trading', 'Trade'],
-    ['ess_escrow_transfer', 'ESS payout'],
-    ['planetary_export_tax', 'PI export tax'],
-  ])('labels the common ref type %s as %s', (refType, label) => {
-    expect(journalRefLabel(refType)).toBe(label);
-  });
-
-  it('falls back to Title Case for an unlisted snake_case ref type', () => {
-    expect(journalRefLabel('some_new_ccp_thing')).toBe('Some New Ccp Thing');
-    expect(journalRefLabel('inheritance')).toBe('Inheritance');
-  });
-
-  it('survives odd input without throwing', () => {
-    expect(journalRefLabel('')).toBe('');
-    expect(journalRefLabel('__double__')).toBe('Double');
-  });
+test('labels known journal ref types and title-cases an unlisted one', () => {
+  expect(journalRefLabel('bounty_prizes')).toBe('Bounties');
+  expect(journalRefLabel('market_transaction')).toBe('Market');
+  expect(journalRefLabel('brokers_fee')).toBe('Broker fee');
+  expect(journalRefLabel('transaction_tax')).toBe('Sales tax');
+  expect(journalRefLabel('player_trading')).toBe('Trade');
+  expect(journalRefLabel('ess_escrow_transfer')).toBe('ESS payout');
+  expect(journalRefLabel('planetary_export_tax')).toBe('PI export tax');
+  expect(journalRefLabel('some_new_ccp_thing')).toBe('Some New Ccp Thing');
+  expect(journalRefLabel('inheritance')).toBe('Inheritance');
+  expect(journalRefLabel('')).toBe('');
+  expect(journalRefLabel('__double__')).toBe('Double');
 });
