@@ -69,7 +69,7 @@ import { POST as AppApiAdminEsiJobsRetryRoutePOST } from '@/app/api/admin/esi-jo
 import { POST as AppApiAdminWhStaticsRoutePOST } from '@/app/api/admin/wh-statics/route';
 import { GET as AppApiAuthAllRouteGET } from '@/app/api/auth/[...all]/route';
 import { maxDuration } from '@/app/api/cron/purge-maps/route';
-import { GET as AppApiCronRefreshAffiliationsRouteGET, maxDuration as AppApiCronRefreshAffiliationsRouteMaxDuration } from '@/app/api/cron/refresh-affiliations/route';
+import { GET as AppApiCronDailyBatchRouteGET, maxDuration as AppApiCronDailyBatchRouteMaxDuration } from '@/app/api/cron/daily-batch/route';
 import { GET as AppApiCronRefreshGscRouteGET } from '@/app/api/cron/refresh-gsc/route';
 import { GET as AppApiCronRefreshIndustryIndicesRouteGET, maxDuration as AppApiCronRefreshIndustryIndicesRouteMaxDuration } from '@/app/api/cron/refresh-industry-indices/route';
 import { GET as AppApiCronRefreshPricesRouteGET, maxDuration as AppApiCronRefreshPricesRouteMaxDuration } from '@/app/api/cron/refresh-prices/route';
@@ -111,8 +111,8 @@ describe('coverage-gaps', () => {
       AppApiAdminWhStaticsRoutePOST,
       AppApiAuthAllRouteGET,
       maxDuration,
-      AppApiCronRefreshAffiliationsRouteGET,
-      AppApiCronRefreshAffiliationsRouteMaxDuration,
+      AppApiCronDailyBatchRouteGET,
+      AppApiCronDailyBatchRouteMaxDuration,
       AppApiCronRefreshGscRouteGET,
       AppApiCronRefreshIndustryIndicesRouteGET,
       AppApiCronRefreshIndustryIndicesRouteMaxDuration,

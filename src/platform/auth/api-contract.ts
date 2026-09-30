@@ -62,9 +62,6 @@ export const eveCharactersEndpoint = defineEndpoint({
   },
 });
 
-export type CronRefreshAffiliationsResponse =
-  { status: 'refreshed'; stale: number; refreshed: number };
-
 export const switchCharacterFormSchema = z.object({
   characterId: z.coerce.number().int().positive(),
 });
