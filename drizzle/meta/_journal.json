@@ -498,6 +498,13 @@
       "when": 1790643176568,
       "tag": "0070_tracking_merge_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790726872836,
+      "tag": "0071_preserve_corp_sharing_table",
+      "breakpoints": true
     }
   ]
 }
