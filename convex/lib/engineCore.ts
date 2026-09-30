@@ -28,7 +28,7 @@ const SYNC_REFS = {
 
 export const SCAN_DISPATCH_BATCH = 1024;
 
-export function logBatchCapped(scope: string, note: string, processed: number): void {
+function logBatchCapped(scope: string, note: string, processed: number): void {
   console.warn(JSON.stringify({ scope, note, processed }));
 }
 

@@ -45,15 +45,6 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
       'defineCronRoute serializes the run under the ADVISORY_LOCK_ESI_REFRESH_QUEUE session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
   },
   {
-    id: 'cron/sync-sweeper',
-    workKind: 'http-route',
-    module: 'src/app/api/cron/sync-sweeper/declaration.ts',
-    redeliverySource: MANUAL_CRON_REDELIVERY,
-    verdict: 'inherently-idempotent',
-    evidence:
-      'The watchdog declares lock mode none and calls Convex only; dispatching an already-due subject twice is absorbed by the engine’s own generation guard, and a healthy no-op touches zero Neon.',
-  },
-  {
     id: 'cron/refresh-affiliations',
     workKind: 'vercel-cron',
     cronPath: '/api/cron/refresh-affiliations',
@@ -172,7 +163,7 @@ const convexSyncEngineScan = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 30-second Convex interval cron. The Vercel /api/cron/sync-sweeper watchdog is unscheduled on Hobby and only runs when an operator GETs it with CRON_SECRET.',
+    'The 30-second Convex interval cron.',
   evidence:
     'internal.engineScan.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
 });
@@ -184,13 +175,22 @@ const convexEngineScan = convexEntry({
   evidence:
     'Declared internalMutation, so a retry re-runs the whole transaction atomically and cannot half-apply.',
 });
+const convexSyncEngineRetention = convexEntry({
+  id: 'convex/crons:sync engine retention',
+  workKind: 'convex-cron',
+  module: 'convex/crons.ts',
+  redeliverySource:
+    'The daily Convex interval cron, plus the immediate continuation a full batch schedules.',
+  evidence:
+    'internal.engineSweep.sweep only deletes rows past the retention window or rows of retired datasets; a repeat or overlapping run finds those rows already gone.',
+});
 const convexEngineSweep = convexEntry({
   id: 'convex/engineSweep:sweep',
   workKind: 'convex-mutation',
   module: 'convex/engineSweep.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
-    'Declared internalMutation reclaiming stranded in-flight subjects; reclaiming an already-reclaimed subject is a no-op within the same transaction.',
+    'Declared internalMutation that only deletes retention-expired and retired-dataset rows; a retry re-runs the whole transaction atomically, and deleting an already-deleted row set is a no-op.',
 });
 const convexEngineOnSyncComplete = convexEntry({
   id: 'convex/engineComplete:onSyncComplete',
@@ -223,6 +223,7 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
   convexMapChainPurge,
   convexMapCeilingCollapse,
   convexSyncEngineScan,
+  convexSyncEngineRetention,
   convexEngineScan,
   convexEngineSweep,
   convexEngineOnSyncComplete,

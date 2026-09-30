@@ -1,15 +1,6 @@
 import { z } from 'zod';
 import { defineEndpoint, emptyBody, problem } from '@/transport/endpoint';
 
-export interface CronSyncSweeperResponse {
-  status: 'swept' | 'skipped' | 'failed';
-  reason?: string;
-  dispatched: number | null;
-  retired: number | null;
-  deleted: number | null;
-  durationMs: number;
-}
-
 const leaveSyncDatasetSchema = z.literal('characterLocation');
 
 export const leaveSyncRequestSchema = z.strictObject({

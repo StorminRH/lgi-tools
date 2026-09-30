@@ -6,7 +6,6 @@ export const CONVEX_HTTP_SECRET = 'svc-secret';
 
 export const postConvexHttp = (
   path:
-    | '/sweep'
     | '/jump-evidence'
     | '/resolve-jump'
     | '/signature-elimination'
