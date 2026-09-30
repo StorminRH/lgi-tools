@@ -24,7 +24,6 @@ import crons from '../crons';
 import { currentUser, heartbeat, expirePresence } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
-import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
 import { mergeUserState as httpMergeUserState, snapshotMergeTracking as httpSnapshotMergeTracking, restoreMergeTracking as httpRestoreMergeTracking } from '../httpAccountMerge';
@@ -179,7 +178,6 @@ describe('convex runtime exports', () => {
       currentUser,
       leave,
       onSyncComplete,
-      verify,
       sweep,
       requireSyncEnv,
       MAP_CONNECTION_SIGNATURE_SCAN_LIMIT,

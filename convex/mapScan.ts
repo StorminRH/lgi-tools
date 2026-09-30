@@ -11,6 +11,7 @@ import { ConvexError, v } from 'convex/values';
 import schema from './schema';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { findMissingSignatures } from '@/data/maps/signature-lifecycle';
+import { internal } from './_generated/api';
 import type { DataModel, Doc } from './_generated/dataModel';
 import {
   internalMutation,
@@ -330,7 +331,13 @@ export const watchMapGlanceGroups = query({
 
 export const purgeExpiredSignatureTombstones = internalMutation({
   args: {},
-  handler: async (ctx) => await purgeExpiredSignatures(ctx, Date.now()),
+  handler: async (ctx) => {
+    const result = await purgeExpiredSignatures(ctx, Date.now());
+    if (result.hasMore) {
+      await ctx.scheduler.runAfter(0, internal.mapScan.purgeExpiredSignatureTombstones, {});
+    }
+    return result;
+  },
 });
 
 export { SIGNATURE_PURGE_BATCH };

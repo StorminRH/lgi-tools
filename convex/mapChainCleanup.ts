@@ -1,3 +1,4 @@
+import { internal } from './_generated/api';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { takeExpiredByPurgeAfter } from './lib/indexedQuery';
@@ -100,5 +101,11 @@ async function purgeExpiredChainTombstonesAt(
 
 export const purgeExpiredChainTombstones = internalMutation({
   args: {},
-  handler: async (ctx) => await purgeExpiredChainTombstonesAt(ctx, Date.now()),
+  handler: async (ctx) => {
+    const result = await purgeExpiredChainTombstonesAt(ctx, Date.now());
+    if (result.hasMore) {
+      await ctx.scheduler.runAfter(0, internal.mapChainCleanup.purgeExpiredChainTombstones, {});
+    }
+    return result;
+  },
 });

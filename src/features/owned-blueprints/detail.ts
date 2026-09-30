@@ -17,7 +17,7 @@ export interface OwnedBlueprintDetailEntry {
 
 const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
 
-export function isPlayerStructure(locationId: number): boolean {
+function isPlayerStructure(locationId: number): boolean {
   return locationId >= STRUCTURE_ID_FLOOR;
 }
 

@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
   reconcileTrackingMerges: vi.fn().mockResolvedValue({ processed: 0, failed: 0 }),
@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   getFreshAccessTokenForCharacter: vi.fn(),
   enqueueAffectedMapAccessChanges: vi.fn(),
   readPendingMapAccessChanges: vi.fn(),
+  acknowledgeMapAccessChanges: vi.fn(),
+  projectMapAccess: vi.fn(),
+  refreshAffiliationsWithOutcome: vi.fn(),
 }));
 vi.mock('@/platform/auth/authorization-store', () => ({
   hasAuthorizationWork: mocks.hasAuthorizationWork,
@@ -32,8 +35,15 @@ vi.mock('@/data/maps/queries', () => ({
 vi.mock('@/platform/auth/affiliation-store', () => ({
   MAX_PENDING_BATCH: 100,
   readPendingMapAccessChanges: mocks.readPendingMapAccessChanges,
+  acknowledgeMapAccessChanges: mocks.acknowledgeMapAccessChanges,
 }));
-vi.mock('@/platform/auth/affiliation', () => ({}));
+vi.mock('@/platform/auth/affiliation', () => ({
+  refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
+}));
+vi.mock('./map-access-projection', async (importOriginal) => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  projectMapAccess: mocks.projectMapAccess,
+}));
 
 import { checkCharacterAuthorizations } from './character-authorization';
 
@@ -46,7 +56,10 @@ beforeEach(() => {
   mocks.listDueAuthorizations.mockResolvedValue([]);
   mocks.readPendingMapAccessChanges.mockResolvedValue([]);
   mocks.claimAuthorization.mockResolvedValue(true);
+  mocks.projectMapAccess.mockResolvedValue({ outcome: 'applied' });
 });
+
+afterEach(() => { vi.restoreAllMocks(); });
 
 it('persists access changes before acknowledging them, then drains the map outbox', async () => {
   mocks.listAuthorizationAccessChanges.mockResolvedValueOnce([change]);
@@ -85,13 +98,34 @@ it('publishes newly confirmed invalid authorization in the same worker run', asy
   );
 });
 
-it('skips work for healthy visits but lets cron drain previously queued map changes', async () => {
+it('checks queued access changes on a healthy visit without refreshing authorization', async () => {
   mocks.hasAuthorizationWork.mockResolvedValue(false);
   await checkCharacterAuthorizations('alice');
-  expect(mocks.readPendingMapAccessChanges).not.toHaveBeenCalled();
+  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
+  expect(mocks.projectMapAccess).not.toHaveBeenCalled();
   expect(mocks.suspendOverdueAuthorizations).not.toHaveBeenCalled();
   expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
-  await checkCharacterAuthorizations();
-  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
   expect(mocks.getFreshAccessTokenForCharacter).not.toHaveBeenCalled();
+});
+
+it('delivers a failed queued revocation on a later healthy visit', async () => {
+  const pending = [{ mapId: 'revoked-map', version: 'revocation-version' }];
+  mocks.hasAuthorizationWork.mockResolvedValue(false);
+  mocks.readPendingMapAccessChanges.mockResolvedValue(pending);
+  mocks.projectMapAccess.mockRejectedValueOnce(new Error('Convex unavailable'));
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  await checkCharacterAuthorizations('alice');
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenLastCalledWith([], pending);
+
+  await checkCharacterAuthorizations('alice');
+  expect(mocks.projectMapAccess).toHaveBeenCalledTimes(2);
+  expect(mocks.projectMapAccess).toHaveBeenLastCalledWith('revoked-map', { timeoutMs: 4_000 });
+  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenLastCalledWith(pending, []);
+  expect(mocks.listAuthorizationAccessChanges).not.toHaveBeenCalled();
+  expect(mocks.acknowledgeAuthorizationAccessChange).not.toHaveBeenCalled();
+  expect(mocks.suspendOverdueAuthorizations).not.toHaveBeenCalled();
+  expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
+  expect(mocks.getFreshAccessTokenForCharacter).not.toHaveBeenCalled();
+  expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
 });

@@ -15,7 +15,7 @@ const VALID_INPUT_CLASSES = new Set(['none', 'query', 'path']);
 
 const CRON_ROUTES = new Set([
   'cron/drain-esi-refresh-jobs/route.ts',
-  'cron/refresh-affiliations/route.ts',
+  'cron/daily-batch/route.ts',
   'cron/refresh-gsc/route.ts',
   'cron/refresh-industry-indices/route.ts',
   'cron/refresh-prices/route.ts',
