@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { directClient, getDeletionClient } from '@/db';
 import {
   createDbTestHarness,
   seedEveAccount as insertEveAccount,
@@ -21,6 +22,8 @@ import {
   searchUsersByLinkedCharacterName,
   setUserRole,
 } from './admin-users';
+import { pendingDeletions } from './deletion-schema';
+import { PendingDeletionError } from './deletion-jobs';
 import { account, session, user } from '@/db/auth-schema';
 
 const runners = {
@@ -33,7 +36,7 @@ const runners = {
 
 const harness = await createDbTestHarness({
   schema: 'test_auth_admin_users',
-  tables: ['user', 'account', 'session', 'characters'],
+  tables: ['user', 'account', 'session', 'characters', 'pending_deletions'],
   foreignKeys: [
     {
       table: 'account',
@@ -61,10 +64,18 @@ const SURVIVOR_CHAR = 90000022;
 
 describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => {
   beforeEach(async () => {
+    runners.runAfterFailedCharacterUnlink.mockReset().mockResolvedValue(undefined);
     runners.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
     runners.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
     await seedUser(SOURCE_ID, { name: 'Source Pilot' });
     await seedUser(TARGET_ID, { name: 'Target Pilot' });
+  });
+
+  it('steers direct identity and deletion transactions into the disposable schema', async () => {
+    for (const client of [directClient, getDeletionClient()]) {
+      const [row] = await client.unsafe('select current_schema() as schema');
+      expect(row?.schema).toBe('test_auth_admin_users');
+    }
   });
 
   async function seedUser(
@@ -307,4 +318,25 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(0);
     await expect(getUserByCharacterId(MOVED_CHAR)).resolves.toMatchObject({ userId: TARGET_ID });
   });
+
+  it('refuses admin reassignment and unlink while an independent deletion receipt owns the link', async () => {
+    await insertEveAccount(harness.db, { id: 'pending-link', characterId: MOVED_CHAR, userId: SOURCE_ID });
+    await harness.db.insert(pendingDeletions).values({
+      userId: SOURCE_ID, scope: 'character', accountRowId: 'pending-link',
+      characterId: MOVED_CHAR, characterIds: [MOVED_CHAR], requestedAt: new Date(),
+    });
+    await expect(reassignCharacter({ characterId: MOVED_CHAR, fromUserId: SOURCE_ID, toUserId: TARGET_ID, runners })).rejects.toBeInstanceOf(PendingDeletionError);
+    await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR, runners)).rejects.toBeInstanceOf(PendingDeletionError);
+    expect((await harness.db.select().from(account))[0]?.userId).toBe(SOURCE_ID);
+    expect(runners.runAfterFailedCharacterUnlink).toHaveBeenCalledWith(MOVED_CHAR);
+    expect(await harness.db.select().from(pendingDeletions)).toHaveLength(1);
+  });
+
+  it('refuses admin movement in the incoming request-marker window before its receipt is enqueued', async () => {
+    await insertEveAccount(harness.db, { id: 'pending-link', characterId: MOVED_CHAR, userId: SOURCE_ID }, { deletionRequestedAt: new Date() });
+    await expect(reassignCharacter({ characterId: MOVED_CHAR, fromUserId: SOURCE_ID, toUserId: TARGET_ID, runners })).rejects.toBeInstanceOf(PendingDeletionError);
+    expect((await harness.db.select().from(account))[0]?.userId).toBe(SOURCE_ID);
+    expect(runners.runAfterFailedCharacterUnlink).toHaveBeenCalledWith(MOVED_CHAR);
+  });
+
 });

@@ -1,33 +1,8 @@
 import { getSitemapEntries } from '@/composition/sitemap';
-import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
-import { pruneDomainEvents } from '@/data/domain-events/queries';
-import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
-import { pruneEsiRefreshJobs } from '@/data/esi-refresh-jobs/queries';
-import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
-import {
-  ADVISORY_LOCK_GSC_SYNC,
-  GSC_RETENTION_DAYS,
-} from '@/data/gsc/constants';
+import { ADVISORY_LOCK_GSC_SYNC } from '@/data/gsc/constants';
 import { syncGsc } from '@/data/gsc/ingest';
-import {
-  pruneGscSearchAnalytics,
-  pruneGscUrlInspections,
-} from '@/data/gsc/queries';
-import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
-import { pruneUsageLogs } from '@/data/telemetry/queries';
-import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
-import { pruneWhStaticsSnapshots } from '@/data/wh-statics/queries';
-import { db } from '@/db';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
-import { pruneEsiSnapshots } from '@/composition/pipelines/esi-snapshot-retention';
-import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
-import {
-  CORP_ACCESS_AUDIT_RETENTION_DAYS,
-  VERIFICATION_RETENTION_DAYS,
-} from '@/platform/auth/constants';
-import { pruneExpiredVerifications } from '@/platform/auth/verification-retention';
-import { swallow } from '@/transport/cron';
 
 export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse> = {
   name: 'cron:gsc',
@@ -51,43 +26,6 @@ export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse>
     }),
   },
   work: async ({ client }) => {
-    await swallow(
-      '[cron:gsc] domain_events prune failed',
-      pruneDomainEvents(db, DOMAIN_EVENT_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] usage_logs prune failed',
-      pruneUsageLogs(USAGE_LOG_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] search analytics prune failed',
-      pruneGscSearchAnalytics(db, GSC_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] URL inspection prune failed',
-      pruneGscUrlInspections(db, GSC_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] corp access audit prune failed',
-      pruneCorpAccessAudit(db, CORP_ACCESS_AUDIT_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] expired verification prune failed',
-      pruneExpiredVerifications(db, VERIFICATION_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] ESI snapshot prune failed',
-      pruneEsiSnapshots(db, SNAPSHOT_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] ESI refresh job prune failed',
-      pruneEsiRefreshJobs(db, ESI_REFRESH_JOB_RETENTION_DAYS),
-    );
-    await swallow(
-      '[cron:gsc] wormhole statics snapshot prune failed',
-      pruneWhStaticsSnapshots(db, WH_STATICS_SNAPSHOT_RETENTION_DAYS),
-    );
-
     const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
     const summary = await syncGsc(client, sitemapUrls);
 

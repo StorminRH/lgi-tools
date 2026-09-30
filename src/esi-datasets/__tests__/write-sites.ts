@@ -94,6 +94,10 @@ export function buildSymbolTable(
 const WRITE_CALL_PATTERN =
   /\.\s*(?:insert|update|delete)\s*\(\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\)/g;
 
+// deleteInBatches(database, table, ...) deletes from its second argument.
+const BATCHED_DELETE_PATTERN =
+  /\bdeleteInBatches\s*\(\s*[^,()]+,\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*[,)]/g;
+
 // Matches uncommented write targets only; keep raw UPDATE/DELETE with no block comment between keyword and table.
 const RAW_WRITE_TARGET =
   /(?:^|[\n;(])\s*(?:insert\s+into|update|delete\s+from|truncate(?:\s+table)?)\s+\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\}/gi;
@@ -109,7 +113,7 @@ function rawSqlTemplates(source: string): string[] {
 }
 
 function tablesWrittenByCalls(source: string, symbols: ReadonlyMap<string, string>): string[] {
-  return [...source.matchAll(WRITE_CALL_PATTERN)]
+  return [...source.matchAll(WRITE_CALL_PATTERN), ...source.matchAll(BATCHED_DELETE_PATTERN)]
     .map((match) => (match[1] === undefined ? undefined : symbols.get(match[1])))
     .filter((table): table is string => table !== undefined);
 }

@@ -1,12 +1,24 @@
 import { lt } from 'drizzle-orm';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
-import { verification } from '@/db/auth-schema';
+import { session, verification } from '@/db/auth-schema';
 
-export async function pruneExpiredVerifications(
+export function pruneExpiredVerifications(
   database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
-  await database.delete(verification).where(lt(verification.expiresAt, cutoff));
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  const cutoff = retentionCutoff(retentionDays, now);
+  return deleteInBatches(database, verification, lt(verification.expiresAt, cutoff), deadline);
+}
+
+export function pruneExpiredSessions(
+  database: AnyPgDb,
+  retentionDays: number,
+  now: Date = new Date(),
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  const cutoff = retentionCutoff(retentionDays, now);
+  return deleteInBatches(database, session, lt(session.expiresAt, cutoff), deadline);
 }

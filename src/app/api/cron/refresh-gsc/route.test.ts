@@ -1,58 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 
 const syncGscMock = vi.fn();
-const pruneDomainEventsMock = vi.fn();
-const pruneSearchMock = vi.fn();
-const pruneInspectionsMock = vi.fn();
-const pruneUsageMock = vi.fn();
-const pruneAuditMock = vi.fn();
-const pruneVerificationMock = vi.fn();
-const pruneSnapshotsMock = vi.fn();
-const pruneRefreshJobsMock = vi.fn();
-const pruneWhStaticsMock = vi.fn();
-const logUsageEventMock = vi.fn();
 const getSitemapEntriesMock = vi.fn();
 
 vi.mock('@/data/gsc/ingest', () => ({
   syncGsc: (...args: unknown[]) => syncGscMock(...args),
 }));
-
-vi.mock('@/data/domain-events/queries', () => ({
-  pruneDomainEvents: (...args: unknown[]) => pruneDomainEventsMock(...args),
-}));
-
-vi.mock('@/data/gsc/queries', () => ({
-  pruneGscSearchAnalytics: (...args: unknown[]) => pruneSearchMock(...args),
-  pruneGscUrlInspections: (...args: unknown[]) => pruneInspectionsMock(...args),
-}));
-
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (...args: unknown[]) => logUsageEventMock(...args),
-  pruneUsageLogs: (...args: unknown[]) => pruneUsageMock(...args),
-}));
-
-vi.mock('@/platform/auth/affiliation-store', () => ({
-  pruneCorpAccessAudit: (...args: unknown[]) => pruneAuditMock(...args),
-}));
-
-vi.mock('@/platform/auth/verification-retention', () => ({
-  pruneExpiredVerifications: (...args: unknown[]) => pruneVerificationMock(...args),
-}));
-
-vi.mock('@/composition/pipelines/esi-snapshot-retention', () => ({
-  pruneEsiSnapshots: (...args: unknown[]) => pruneSnapshotsMock(...args),
-}));
-
-vi.mock('@/data/esi-refresh-jobs/queries', () => ({
-  pruneEsiRefreshJobs: (...args: unknown[]) => pruneRefreshJobsMock(...args),
-}));
-
-vi.mock('@/data/wh-statics/queries', () => ({
-  pruneWhStaticsSnapshots: (...args: unknown[]) => pruneWhStaticsMock(...args),
-}));
-
-vi.mock('@/db', () => ({ db: {}, directClient: {} }));
 
 vi.mock('@/composition/pipelines/cron-gate', () => ({
   defineCronRoute:
@@ -82,22 +35,10 @@ async function importRoute() {
   return await import('./route');
 }
 
-describe('GET /api/cron/refresh-gsc housekeeping', () => {
+describe('GET /api/cron/refresh-gsc', () => {
   beforeEach(() => {
     vi.resetModules();
-    syncGscMock.mockReset();
-    pruneDomainEventsMock.mockReset();
-    pruneSearchMock.mockReset();
-    pruneInspectionsMock.mockReset();
-    pruneUsageMock.mockReset();
-    pruneAuditMock.mockReset();
-    pruneVerificationMock.mockReset();
-    pruneSnapshotsMock.mockReset();
-    pruneRefreshJobsMock.mockReset();
-    pruneWhStaticsMock.mockReset();
-    logUsageEventMock.mockReset();
-    getSitemapEntriesMock.mockReset();
-    syncGscMock.mockResolvedValue({
+    syncGscMock.mockReset().mockResolvedValue({
       status: 'skipped',
       reason: 'not_configured',
       searchRows: 0,
@@ -106,67 +47,30 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
       errors: [],
       durationMs: 1,
     });
-    pruneUsageMock.mockResolvedValue(undefined);
-    pruneDomainEventsMock.mockResolvedValue(undefined);
-    pruneSearchMock.mockResolvedValue(undefined);
-    pruneInspectionsMock.mockResolvedValue(undefined);
-    pruneAuditMock.mockResolvedValue(undefined);
-    pruneVerificationMock.mockResolvedValue(undefined);
-    pruneSnapshotsMock.mockResolvedValue(undefined);
-    pruneRefreshJobsMock.mockResolvedValue(undefined);
-    pruneWhStaticsMock.mockResolvedValue(undefined);
-    logUsageEventMock.mockResolvedValue(undefined);
-    getSitemapEntriesMock.mockResolvedValue([{ url: 'https://lgi.tools/' }]);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    getSitemapEntriesMock.mockReset().mockResolvedValue([{ url: 'https://lgi.tools/' }]);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('runs every prune on a skipped sync and isolates a prune failure', async () => {
-    pruneSearchMock.mockRejectedValue(new Error('search prune failed'));
+  it('syncs the sitemap URLs and returns the sync summary', async () => {
     const { GET } = await importRoute();
 
     const response = await GET(new Request('http://localhost:3000/api/cron/refresh-gsc'));
 
     expect(response.status).toBe(200);
     expect((await response.json()).status).toBe('skipped');
-    expect(pruneUsageMock).toHaveBeenCalledOnce();
-    expect(pruneDomainEventsMock).toHaveBeenCalledOnce();
-    expect(pruneSearchMock).toHaveBeenCalledOnce();
-    expect(pruneInspectionsMock).toHaveBeenCalledOnce();
-    expect(pruneAuditMock).toHaveBeenCalledOnce();
-    expect(pruneVerificationMock).toHaveBeenCalledOnce();
-    expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
-    expect(pruneRefreshJobsMock).toHaveBeenCalledOnce();
-    expect(pruneWhStaticsMock).toHaveBeenCalledWith(
-      {},
-      WH_STATICS_SNAPSHOT_RETENTION_DAYS,
-    );
+    expect(syncGscMock).toHaveBeenCalledWith({}, ['https://lgi.tools/']);
   });
 
-  it('runs every prune before an upstream sitemap failure escapes', async () => {
+  it('lets an upstream sitemap failure escape before syncing', async () => {
     getSitemapEntriesMock.mockRejectedValue(new Error('sitemap failed'));
     const { GET } = await importRoute();
 
     await expect(
       GET(new Request('http://localhost:3000/api/cron/refresh-gsc')),
     ).rejects.toThrow('sitemap failed');
-
-    expect(pruneUsageMock).toHaveBeenCalledOnce();
-    expect(pruneDomainEventsMock).toHaveBeenCalledOnce();
-    expect(pruneSearchMock).toHaveBeenCalledOnce();
-    expect(pruneInspectionsMock).toHaveBeenCalledOnce();
-    expect(pruneAuditMock).toHaveBeenCalledOnce();
-    expect(pruneVerificationMock).toHaveBeenCalledOnce();
-    expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
-    expect(pruneRefreshJobsMock).toHaveBeenCalledOnce();
-    expect(pruneWhStaticsMock).toHaveBeenCalledWith(
-      {},
-      WH_STATICS_SNAPSHOT_RETENTION_DAYS,
-    );
     expect(syncGscMock).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LocationTrackingMergeError, restoreMergeTracking, snapshotMergeTracking } from './merge';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { deleteExpiredTrackingReceipts, listExpiredTrackingReceipts, LocationTrackingMergeError, restoreMergeTracking, snapshotMergeTracking } from './merge';
 
-let fetchSpy: ReturnType<typeof vi.spyOn>;
+let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
@@ -51,4 +51,32 @@ it('captures only tracking selections before the SQL merge', async () => {
   fetchSpy.mockResolvedValue(new Response(JSON.stringify({ selections })));
   await expect(snapshotMergeTracking('src')).resolves.toEqual(selections);
   expect(JSON.parse(fetchSpy.mock.calls[0]![1]!.body as string)).toEqual({ sourceUserId: 'src' });
+});
+
+describe('tracking receipt retention service client', () => {
+  it('reads candidates and deletes exact receipt-operation pairs through authorized doors', async () => {
+    const receipts = [{ receiptId: 'receipt-id', operationId: 'operation' }];
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ receipts, cursor: 'next-page', done: false })));
+    await expect(listExpiredTrackingReceipts(123, null))
+      .resolves.toEqual({ receipts, cursor: 'next-page', done: false });
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ deleted: 1 })));
+    await expect(deleteExpiredTrackingReceipts(123, receipts)).resolves.toEqual({ deleted: 1 });
+    expect(fetchSpy.mock.calls.map(([url]) => url)).toEqual([
+      'https://example.convex.site/list-expired-tracking-receipts',
+      'https://example.convex.site/delete-expired-tracking-receipts',
+    ]);
+    expect(fetchSpy.mock.calls.map(([, init]) => JSON.parse(init?.body as string))).toEqual([
+      { cutoff: 123, cursor: null }, { cutoff: 123, receipts },
+    ]);
+    expect(new Headers(fetchSpy.mock.calls[1]![1]?.headers).get('authorization')).toBe('Bearer svc-secret');
+  });
+
+  it('rejects malformed candidates or deletion results and reports service failures', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ receipts: [], cursor: null, done: true })));
+    await expect(listExpiredTrackingReceipts(123, null)).rejects.toThrow('invalid contract');
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ deleted: -1 })));
+    await expect(deleteExpiredTrackingReceipts(123, [])).rejects.toThrow('invalid contract');
+    fetchSpy.mockResolvedValueOnce(new Response('Unavailable', { status: 503 }));
+    await expect(listExpiredTrackingReceipts(123, null)).rejects.toBeInstanceOf(LocationTrackingMergeError);
+  });
 });

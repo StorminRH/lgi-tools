@@ -63,6 +63,7 @@ describe('purge registry gate', () => {
         'owned_blueprint_syncs',
         'owned_blueprints',
         'pending_tracking_merges',
+        'pending_deletions',
         'saved_plans',
         'session',
         'usage_logs',

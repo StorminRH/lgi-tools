@@ -301,6 +301,10 @@ export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]
   return getCronOutcomes(range, 'cron_gsc');
 }
 
+export function getHousekeepingCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
+  return getCronOutcomes(range, 'cron_housekeeping');
+}
+
 export async function getLastCronRuns(): Promise<CronLastRun[]> {
   const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
   const rows = await db
@@ -310,7 +314,7 @@ export async function getLastCronRuns(): Promise<CronLastRun[]> {
       outcome,
     })
     .from(usageLogs)
-    .where(inArray(usageLogs.action, ['cron_prices', 'cron_sde', 'cron_gsc']))
+    .where(inArray(usageLogs.action, ['cron_prices', 'cron_sde', 'cron_gsc', 'cron_housekeeping']))
     .orderBy(usageLogs.action, desc(usageLogs.timestamp));
 
   return rows.map((r) => ({

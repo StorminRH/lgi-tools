@@ -29,6 +29,7 @@ export type ServerUsageAction =
   | 'cron_esi_refresh_jobs'
   | 'cron_wh_statics'
   | 'cron_map_purge'
+  | 'cron_housekeeping'
   | 'eve_token_refresh_invalid_grant'
   | 'eve_token_refresh_timeout'
   | 'eve_token_refresh_connection'

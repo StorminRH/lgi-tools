@@ -19,6 +19,7 @@ const h = vi.hoisted(() => {
   return { order, workByName, declaration, logUsageEvent: vi.fn() };
 });
 
+vi.mock('../housekeeping/declaration', () => ({ housekeepingDeclaration: h.declaration('cron:housekeeping') }));
 vi.mock('../purge-maps/declaration', () => ({ purgeMapsDeclaration: h.declaration('cron:purge-maps') }));
 vi.mock('../refresh-prices/declaration', () => ({ refreshPricesDeclaration: h.declaration('cron:prices') }));
 vi.mock('../refresh-industry-indices/declaration', () => ({
@@ -59,15 +60,15 @@ describe('GET /api/cron/daily-batch', () => {
     vi.restoreAllMocks();
   });
 
-  it('runs the wormhole statics step last, and only on Mondays', async () => {
+  it('runs wormhole statics only on Mondays and housekeeping last', async () => {
     vi.setSystemTime(new Date('2026-09-28T12:20:00Z'));
     expect((await GET(authedRequest())).status).toBe(200);
-    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics']);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics', 'cron:housekeeping']);
 
     h.order.length = 0;
     vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
     const response = await GET(authedRequest());
-    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices']);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:housekeeping']);
     await expect(response.json()).resolves.toMatchObject({
       steps: expect.arrayContaining([{ name: 'cron:wh-statics', status: 'skipped' }]),
     });
@@ -102,12 +103,13 @@ describe('GET /api/cron/daily-batch', () => {
     expect(response.status).toBe(200);
     expect(tombstoned).toEqual(['map-0', 'map-1', 'map-2', 'map-3', 'map-4']);
     expect(pricesStartedAt).toBe(started + 60_000);
-    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics']);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics', 'cron:housekeeping']);
     await expect(response.json()).resolves.toEqual({ steps: [
       { name: 'cron:purge-maps', status: 'ok' },
       { name: 'cron:prices', status: 'ok' },
       { name: 'cron:industry-indices', status: 'ok' },
       { name: 'cron:wh-statics', status: 'ok' },
+      { name: 'cron:housekeeping', status: 'ok' },
     ] });
   });
 });

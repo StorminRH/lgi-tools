@@ -37,6 +37,9 @@ const MANUAL_CRON_REDELIVERY =
 const DAILY_BATCH_STEP_REDELIVERY =
   'A step of the daily-batch Vercel cron, plus a manual CRON_SECRET GET of its own route; Vercel does not automatically retry a failed run.';
 
+const DAILY_BATCH_ONLY_REDELIVERY =
+  'A step of the daily-batch Vercel cron with no route of its own; Vercel does not automatically retry a failed run.';
+
 const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   {
     id: 'cron/drain-esi-refresh-jobs',
@@ -55,7 +58,16 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: VERCEL_CRON_REDELIVERY,
     verdict: 'coordinated-elsewhere',
     evidence:
-      'Runs the purge-maps, prices, industry-indices, and wh-statics declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+      'Runs the purge-maps, prices, industry-indices, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+  },
+  {
+    id: 'cron/housekeeping',
+    workKind: 'vercel-cron',
+    module: 'src/app/api/cron/housekeeping/declaration.ts',
+    redeliverySource: DAILY_BATCH_ONLY_REDELIVERY,
+    verdict: 'inherently-idempotent',
+    evidence:
+      'Declares lock mode none: retention deletes remove only rows past their cutoff; deletion jobs lock the original request and survive unlink through reconciliation; tracking delivery locks its own row and is deduplicated by its Convex receipt. Receipt cleanup protects pending Neon operations, deletes exact expired completed candidates, and advances its fixed-cutoff checkpoint by compare-and-set after each successful page.',
   },
   {
     id: 'cron/purge-maps',
@@ -146,7 +158,7 @@ const convexMapChainPurge = convexEntry({
   redeliverySource:
     'The daily Convex interval, plus the immediate continuation a full batch schedules, may run again after an earlier batch partially drained the expiry ranges.',
   evidence:
-    'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
+    'The internal mutation atomically deletes only currently expired rows (a purged system with its signature and activity rows), and settles each expired removed connection between live systems once: deleted when still linked, its cut-off branch stamped removed, or pushed a day ahead while a tracked pilot holds it. Every outcome moves the row out of the expired range, so a repeat observes only what is left and cannot repeat a completed write.',
 });
 const convexMapCeilingCollapse = convexEntry({
   id: 'convex/crons:map ceiling collapse',
@@ -155,7 +167,7 @@ const convexMapCeilingCollapse = convexEntry({
   redeliverySource:
     'The hourly Convex interval, plus the immediate continuation a full batch that made progress schedules, may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
   evidence:
-    'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
+    'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, and a row whose collapse fails is severed keeping its systems, so it too leaves the range; every collapse routes through the shared-stamp core, and a repeat observes only rows every previous batch left live.',
 });
 const convexSyncEngineRetention = convexEntry({
   id: 'convex/crons:sync engine retention',

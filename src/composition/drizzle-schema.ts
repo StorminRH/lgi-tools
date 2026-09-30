@@ -4,6 +4,7 @@ export * from '../data/market-prices/schema';
 export * from '../data/market-history/schema';
 export * from '../data/industry-indices/schema';
 export * from '../db/auth-schema';
+export * from '../platform/auth/deletion-schema';
 export * from '../features/owned-blueprints/schema';
 export * from '../features/owned-assets/schema';
 export * from '../features/owned-structures/schema';

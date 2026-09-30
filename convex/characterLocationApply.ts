@@ -11,6 +11,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { clearAccessLeases, leaseWriteValidator, writeAccessLeases } from './characterLocationAccess';
 import { characterSyncResultFields } from './lib/characterSync';
+import { dropUnsyncedCharacterCaches } from './lib/locationCaches';
 import { applyCoverageSet, clearCoverageForUser } from './lib/locationCoverage';
 import {
   getLocationSync,
@@ -51,7 +52,7 @@ export const syncOutcomeValidator = v.union(
 
 type SyncOutcome = Infer<typeof syncOutcomeValidator>;
 
-type Freshness = Pick<LocationSyncState, 'lastFinishedAt' | 'coveredCharacterIds'>;
+type Freshness = Pick<LocationSyncState, 'lastFinishedAt' | 'coveredCharacterIds' | 'syncedCharacterIds'>;
 
 /**
  * The one write a location run makes when it ends, success or failure. It
@@ -113,6 +114,7 @@ async function applySuccess(
     now,
   );
   await applyCoverageSet(ctx, userId, outcome.trackedCharacterIds, coveredCharacterIds);
+  await dropUnsyncedCharacterCaches(ctx, userId, state.syncedCharacterIds, outcome.trackedCharacterIds);
   if (outcome.runError !== null) {
     console.warn(
       JSON.stringify({

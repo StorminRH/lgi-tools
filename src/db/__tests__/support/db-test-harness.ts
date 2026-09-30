@@ -1,7 +1,7 @@
 import { drizzle as drizzlePg, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
-import { db as requestDb, type Sql } from '@/db';
+import { db as requestDb, directClient, getDeletionClient, type Sql } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
@@ -195,7 +195,10 @@ function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string)
   }
   if (options.steerDbProxy) {
     vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, options.schema));
+    const url = schemaUrl(baseUrl, options.schema);
+    for (const name of ['DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'LGI_DATABASE_URL', 'LGI_DATABASE_URL_UNPOOLED']) {
+      vi.stubEnv(name, url);
+    }
   }
 }
 
@@ -261,7 +264,9 @@ async function resetTables(sql: Sql, options: DbTestHarnessOptions): Promise<voi
 
 async function closeRequestDbProxy(): Promise<void> {
   const proxyClient = (requestDb as unknown as { $client: Sql }).$client;
-  await proxyClient.end({ timeout: 5 }).catch(() => {});
+  await Promise.all([proxyClient, directClient, getDeletionClient()].map(
+    (client) => client.end({ timeout: 5 }).catch(() => {}),
+  ));
 }
 
 async function dropDisposableSchema(sql: Sql, schema: string): Promise<void> {

@@ -28,6 +28,8 @@ export const LIVE_ESI_REFRESH_JOB_STATUSES = [
 ] as const;
 
 export const ESI_REFRESH_JOB_RETENTION_DAYS = 7;
+/** Dead letters stay long enough for an operator to requeue them, then go. */
+export const ESI_DEAD_LETTER_RETENTION_DAYS = 30;
 export const ESI_REFRESH_JOB_BATCH_SIZE = 5;
 export const ESI_REFRESH_JOB_MAX_ATTEMPTS = 5;
 export const ESI_REFRESH_STALE_RUNNING_MS = 10 * 60 * 1000;

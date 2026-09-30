@@ -9,7 +9,10 @@ export const leaseWriteValidator = v.object({
 
 export type LeaseWrite = Infer<typeof leaseWriteValidator>;
 
-/** Upserts leases for still-tracked characters; a lease never outlives its tracking row. */
+/**
+ * Upserts leases for still-tracked characters. A lease left by a character that
+ * stopped being tracked is deleted by the next location run.
+ */
 export async function writeAccessLeases(
   ctx: MutationCtx,
   userId: string,

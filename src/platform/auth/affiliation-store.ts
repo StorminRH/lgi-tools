@@ -6,6 +6,7 @@ import {
   type PendingMapAccessChange,
 } from '@/data/maps/authorization-sql';
 import { mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
 import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
 import { AFFILIATION_FRESHNESS } from './affiliation-policy';
@@ -236,11 +237,12 @@ export async function recordCorpAccessDecision(entry: {
   await db.insert(corpAccessAudit).values(entry);
 }
 
-export async function pruneCorpAccessAudit(
+export function pruneCorpAccessAudit(
   database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
-  await database.delete(corpAccessAudit).where(lt(corpAccessAudit.decidedAt, cutoff));
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  const cutoff = retentionCutoff(retentionDays, now);
+  return deleteInBatches(database, corpAccessAudit, lt(corpAccessAudit.decidedAt, cutoff), deadline);
 }

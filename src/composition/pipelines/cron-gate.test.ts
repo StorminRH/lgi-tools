@@ -449,6 +449,34 @@ describe('defineCronRoute capability recording', () => {
     expect(rows[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'unexpected' });
   });
 
+  it('records a partly failed run once with its telemetry and answers 500', async () => {
+    const GET = defineCronRoute<{ status: string }>({
+      name: 'cron:housekeeping',
+      action: 'cron_housekeeping',
+      capability: 'cron.housekeeping' as const,
+      wakeClass: 'batch',
+      record: { policy: 'noteworthy' },
+      lock: { mode: 'none', justification: 'test' },
+      work: async () => ({
+        outcome: 'partial',
+        workDone: false,
+        failed: true,
+        telemetry: { failedTasks: 1 },
+        body: { status: 'partial' },
+      }),
+    });
+
+    const response = await GET(authedRequest());
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ status: 'partial' });
+    expect(capabilityRows()[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'partial_failure' });
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cron_housekeeping',
+      metadata: expect.objectContaining({ outcome: 'partial', failedTasks: 1 }),
+    });
+  });
+
   it('writes zero rows for a busy (lock-contended) run', async () => {
     withAdvisoryLockMock.mockResolvedValue({ busy: true });
     const GET = defineCronRoute<{ status: string }>({

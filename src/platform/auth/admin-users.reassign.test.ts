@@ -11,6 +11,7 @@ const { chain, state } = vi.hoisted(() => {
   for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy', 'returning']) {
     chain[method] = () => chain;
   }
+  chain.for = () => Promise.resolve([]);
   chain.update = () => {
     state.calls.update += 1;
     return chain;
@@ -22,7 +23,14 @@ const { chain, state } = vi.hoisted(() => {
   return { chain, state };
 });
 
-vi.mock('@/db', () => ({ db: chain }));
+vi.mock('@/db', () => ({ db: chain, directClient: chain, resolveLockConnectionUrl: () => undefined }));
+vi.mock('drizzle-orm/postgres-js', () => ({ drizzle: () => ({
+  transaction: (work: (tx: unknown) => unknown) => work(chain),
+}) }));
+vi.mock('./deletion-jobs', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./deletion-jobs')>(),
+  usersHavePendingDeletion: vi.fn().mockResolvedValue(false),
+}));
 
 const runners = {
   runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
@@ -69,7 +77,7 @@ it('restores claims when admin unlink delete fails', async () => {
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-    state.results = [[{ id: 'moved' }], [], undefined];
+    state.results = [[{ id: 'moved' }], [], [], [], undefined];
     const out = await reassignCharacter({
       characterId: 100,
       fromUserId: 'eve-user-2',
@@ -94,7 +102,7 @@ describe('reassignCharacter', () => {
   it('keeps the source user when required collaborative purge fails', async () => {
     const failure = new Error('map purge unavailable');
     runners.runBeforeUserDelete.mockRejectedValueOnce(failure);
-    state.results = [[{ id: 'moved' }], []];
+    state.results = [[{ id: 'moved' }], [], []];
 
     await expect(
       reassignCharacter({
@@ -129,7 +137,7 @@ describe('reassignCharacter', () => {
   });
 
   it('restores claims when the compare-and-swap matches no account', async () => {
-    state.results = [[], [], undefined];
+    state.results = [[], [], [], [], undefined];
     await expect(reassignCharacter({
       characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
     })).resolves.toEqual({ sourceDeleted: true });

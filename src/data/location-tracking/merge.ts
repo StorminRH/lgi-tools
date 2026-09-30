@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
+import { MERGE_RECEIPT_BATCH_SIZE } from './constants';
 import type { TrackingSelection } from './schema';
 
 export class LocationTrackingMergeError extends Error {
@@ -39,6 +40,45 @@ export function restoreMergeTracking(
     }),
     error: LocationTrackingMergeError,
     label: 'Location tracking restore unavailable',
+    timeoutMs: 4000,
+  });
+}
+
+const receiptCandidateSchema = z.strictObject({
+  receiptId: z.string().min(1),
+  operationId: z.string().min(1),
+});
+
+export interface TrackingReceiptCandidate {
+  readonly receiptId: string;
+  readonly operationId: string;
+}
+
+export function listExpiredTrackingReceipts(cutoff: number, cursor: string | null) {
+  return postConvexHttpDoor({
+    path: '/list-expired-tracking-receipts',
+    body: { cutoff, cursor },
+    schema: z.strictObject({
+      receipts: z.array(receiptCandidateSchema).max(MERGE_RECEIPT_BATCH_SIZE),
+      cursor: z.string(),
+      done: z.boolean(),
+    }),
+    error: LocationTrackingMergeError,
+    label: 'Tracking receipt candidates unavailable',
+    timeoutMs: 4000,
+  });
+}
+
+export function deleteExpiredTrackingReceipts(
+  cutoff: number,
+  receipts: readonly TrackingReceiptCandidate[],
+) {
+  return postConvexHttpDoor({
+    path: '/delete-expired-tracking-receipts',
+    body: { cutoff, receipts },
+    schema: z.strictObject({ deleted: z.number().int().nonnegative() }),
+    error: LocationTrackingMergeError,
+    label: 'Tracking receipt deletion unavailable',
     timeoutMs: 4000,
   });
 }

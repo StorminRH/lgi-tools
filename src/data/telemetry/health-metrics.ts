@@ -7,6 +7,7 @@ import type {
 export const PRICES_HEALTHY_OUTCOMES = ['refreshed', 'skipped'] as const;
 export const SDE_HEALTHY_OUTCOMES = ['up-to-date', 'reingested'] as const;
 export const SDE_NEUTRAL_OUTCOMES = ['busy'] as const;
+export const HOUSEKEEPING_HEALTHY_OUTCOMES = ['cleaned'] as const;
 
 export interface LoginFrequencyBucket {
   label: string;

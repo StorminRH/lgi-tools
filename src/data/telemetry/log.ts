@@ -1,5 +1,6 @@
 import { and, eq, lt } from 'drizzle-orm';
 import { db } from '@/db';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import { usageLogs } from './schema';
 import type { UsageAction } from './types';
 
@@ -39,7 +40,11 @@ export async function completePublicEsiBudgetAlertClaim(id: number): Promise<voi
   if (!row) throw new Error('Failed to complete public ESI budget alert claim');
 }
 
-export async function pruneUsageLogs(retentionDays: number, now: Date = new Date()): Promise<void> {
-  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
-  await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
+export function pruneUsageLogs(
+  retentionDays: number,
+  now: Date = new Date(),
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  const cutoff = retentionCutoff(retentionDays, now);
+  return deleteInBatches(db, usageLogs, lt(usageLogs.timestamp, cutoff), deadline);
 }

@@ -31,14 +31,11 @@ describe('resolveNeonBranchPolicy', () => {
     );
   });
 
-  it('gives preview/development a three-day TTL', () => {
+  it('leaves every other branch untouched', () => {
+    expect(resolveNeonBranchPolicy({ name: 'scratch', isDefault: false, exists: true })).toEqual({});
     expect(
       resolveNeonBranchPolicy({ name: 'preview/development', isDefault: false, exists: false }),
-    ).toMatchObject({ ttl: '3d' });
-  });
-
-  it('leaves other existing branches untouched', () => {
-    expect(resolveNeonBranchPolicy({ name: 'scratch', isDefault: false, exists: true })).toEqual({});
+    ).toEqual({});
   });
 });
 
