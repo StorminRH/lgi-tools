@@ -1,7 +1,16 @@
 'use client';
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import { cn } from '@/components/ui/cn';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
@@ -279,17 +288,68 @@ function KnownSpaceCaption({
   );
 }
 
-function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: NodeProps<ChainNode>) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const viewportMoveListeners = useContext(ChainViewportContext);
-  const [hovered, setHovered] = useState(false);
-  const { stub, staticStub, derived, fogged, exiting, chromeClass } = nodePresentation(data);
+type NodePresentation = ReturnType<typeof nodePresentation>;
+
+function NodeHeader({
+  id,
+  data,
+  chromeClass,
+}: {
+  readonly id: string;
+  readonly data: ChainNodeData;
+  readonly chromeClass: string | null;
+}) {
   const header = nodeHeader(data);
-  const classification = nodeClassification(data, stub);
-  const body = usePaintedBody(data, stub);
-  const showKspaceCaption = nodeCaptionKind(data) === 'kspace';
-  const paused = dragging === true || fogged || stub || exiting;
-  const active = hovered || selected === true;
+  if (nodeCaptionKind(data) === 'kspace') {
+    return (
+      <KnownSpaceCaption
+        systemId={Number(id)}
+        text={header.text}
+        toneClass={header.toneClass}
+        chromeClass={chromeClass}
+      />
+    );
+  }
+  return (
+    <span
+      data-chain-node-name
+      className={cn(
+        'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
+        header.toneClass,
+        chromeClass,
+      )}
+    >
+      {header.text}
+    </span>
+  );
+}
+
+function nodeMarkers(presentation: NodePresentation, selected: boolean | undefined) {
+  return {
+    'data-chain-node-selected': selected === true || undefined,
+    'aria-hidden': presentation.fogged || undefined,
+    'data-chain-node-derived': presentation.derived || undefined,
+    'data-chain-node-fogged': presentation.fogged || undefined,
+    'data-chain-node-stub': presentation.stub || undefined,
+    'data-chain-node-static-stub': presentation.staticStub || undefined,
+  } as const;
+}
+
+function nodeRootClass(presentation: NodePresentation, motion: NodeMotion | undefined): string {
+  return cn(
+    'relative h-full w-full',
+    presentation.derived && (presentation.fogged ? 'opacity-0' : 'opacity-75'),
+    nodeMotionClass(motion),
+  );
+}
+
+/** Drops a stale hover once the viewport moves the node out from under the pointer. */
+function useViewportHoverRelease(
+  hovered: boolean,
+  viewportMoveListeners: Set<() => void> | null,
+  rootRef: RefObject<HTMLDivElement | null>,
+  setHovered: (hovered: boolean) => void,
+): void {
   useEffect(() => {
     if (!hovered || viewportMoveListeners === null) return;
     const release = () => {
@@ -300,47 +360,33 @@ function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: No
     return () => {
       viewportMoveListeners.delete(release);
     };
-  }, [hovered, viewportMoveListeners]);
+  }, [hovered, viewportMoveListeners, rootRef, setHovered]);
+}
+
+function SystemNodeComponent({ id, data, isConnectable, selected, dragging }: NodeProps<ChainNode>) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const viewportMoveListeners = useContext(ChainViewportContext);
+  const [hovered, setHovered] = useState(false);
+  const presentation = nodePresentation(data);
+  const { stub, derived, fogged, exiting, chromeClass } = presentation;
+  const classification = nodeClassification(data, stub);
+  const body = usePaintedBody(data, stub);
+  const paused = dragging === true || fogged || stub || exiting;
+  const active = hovered || selected === true;
+  useViewportHoverRelease(hovered, viewportMoveListeners, rootRef, setHovered);
   return (
     <div
       ref={rootRef}
       data-chain-node
-      data-chain-node-selected={selected === true || undefined}
-      aria-hidden={fogged || undefined}
-      data-chain-node-derived={derived || undefined}
-      data-chain-node-fogged={fogged || undefined}
-      data-chain-node-stub={stub || undefined}
-      data-chain-node-static-stub={staticStub || undefined}
+      {...nodeMarkers(presentation, selected)}
       onPointerEnter={(event) => {
         if (event.pointerType !== 'touch') setHovered(true);
       }}
       onPointerLeave={() => setHovered(false)}
       onPointerCancel={() => setHovered(false)}
-      className={cn(
-        'relative h-full w-full',
-        derived && (fogged ? 'opacity-0' : 'opacity-75'),
-        nodeMotionClass(data.motion),
-      )}
+      className={nodeRootClass(presentation, data.motion)}
     >
-      {showKspaceCaption ? (
-        <KnownSpaceCaption
-          systemId={Number(id)}
-          text={header.text}
-          toneClass={header.toneClass}
-          chromeClass={chromeClass}
-        />
-      ) : (
-        <span
-          data-chain-node-name
-          className={cn(
-            'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
-            header.toneClass,
-            chromeClass,
-          )}
-        >
-          {header.text}
-        </span>
-      )}
+      <NodeHeader id={id} data={data} chromeClass={chromeClass} />
       <NodeDisc
         derived={derived}
         chromeClass={chromeClass}

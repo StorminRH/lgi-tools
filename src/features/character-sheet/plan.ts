@@ -149,37 +149,63 @@ export function unresolvedStructureIds(sheet: SheetSections | null): number[] {
   return referencedStructureIds(sheet).filter((id) => !(String(id) in known));
 }
 
+interface StructureResolution {
+  readonly name: StructureName | undefined;
+  readonly changed: boolean;
+  readonly retryCode: string | null;
+}
+
+/** One referenced structure's name after its read; null when the body breaks the contract. */
+function resolveStructure(
+  read: SheetEsiRead | undefined,
+  carried: StructureName | undefined,
+): StructureResolution | null {
+  if (read === undefined) return { name: carried, changed: false, retryCode: null };
+  if (read.kind === 'fresh') {
+    const parsed = parseStructureBody(read.body);
+    return parsed === null ? null : { name: parsed, changed: true, retryCode: null };
+  }
+  if (read.kind !== 'error') return { name: undefined, changed: false, retryCode: null };
+  if (STRUCTURE_HIDDEN_CODES.has(read.code)) {
+    return { name: { kind: 'hidden' }, changed: true, retryCode: null };
+  }
+  return { name: carried, changed: false, retryCode: read.code };
+}
+
+interface StructureNames {
+  readonly names: Record<string, StructureName>;
+  readonly changed: boolean;
+  readonly retryCode: string | null;
+}
+
+function collectStructureNames(
+  referenced: number[],
+  previous: SheetSectionData['structures'] | null,
+  reads: Map<number, SheetEsiRead>,
+): StructureNames | null {
+  const names: Record<string, StructureName> = {};
+  let changed = false;
+  let retryCode: string | null = null;
+  for (const id of referenced) {
+    const key = String(id);
+    const resolved = resolveStructure(reads.get(id), previous?.names[key]);
+    if (resolved === null) return null;
+    if (resolved.name !== undefined) names[key] = resolved.name;
+    changed ||= resolved.changed;
+    retryCode = resolved.retryCode ?? retryCode;
+  }
+  return { names, changed, retryCode };
+}
+
 export function planStructures(
   referenced: number[],
   previous: SheetSectionData['structures'] | null,
   reads: Map<number, SheetEsiRead>,
   now: Date,
 ): SectionPlan<'structures'> {
-  const names: Record<string, StructureName> = {};
-  let changed = false;
-  let retryCode: string | null = null;
-  for (const id of referenced) {
-    const key = String(id);
-    const read = reads.get(id);
-    if (read === undefined) {
-      const carried = previous?.names[key];
-      if (carried !== undefined) names[key] = carried;
-      continue;
-    }
-    if (read.kind === 'fresh') {
-      const parsed = parseStructureBody(read.body);
-      if (parsed === null) return { kind: 'skip', code: 'contract_error' };
-      names[key] = parsed;
-      changed = true;
-    } else if (read.kind === 'error' && STRUCTURE_HIDDEN_CODES.has(read.code)) {
-      names[key] = { kind: 'hidden' };
-      changed = true;
-    } else if (read.kind === 'error') {
-      retryCode = read.code;
-      const carried = previous?.names[key];
-      if (carried !== undefined) names[key] = carried;
-    }
-  }
+  const collected = collectStructureNames(referenced, previous, reads);
+  if (collected === null) return { kind: 'skip', code: 'contract_error' };
+  const { names, changed, retryCode } = collected;
   const pruned = Object.keys(previous?.names ?? {}).some((key) => !(key in names));
   if (!changed && retryCode !== null) return { kind: 'skip', code: retryCode };
   const rowExists = previous !== null;

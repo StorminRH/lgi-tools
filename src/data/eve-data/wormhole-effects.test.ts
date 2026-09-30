@@ -96,6 +96,14 @@ describe('buildWormholeEffects', () => {
     expect(entry?.modifiers).toEqual([{ attributeId: 1, label, percent }]);
   });
 
+  it('ignores unknown attributes and non-numeric or non-finite values', () => {
+    const [entry] = buildWormholeEffects(
+      [{ id: 1, name: 'Pulsar Effect Beacon Class 1', attributes: { 1: 'x', 2: Number.NaN, 99: 1.2, 3: 1.2 } }],
+      attributes,
+    );
+    expect(entry?.modifiers.map((modifier) => modifier.attributeId)).toEqual([3]);
+  });
+
   it('falls back to the display name without its dogma suffix', () => {
     expect(effectModifierLabel('Warp speed multiplier', 'warpSpeedMultiplier')).toBe('Warp speed');
     expect(effectModifierLabel(null, 'droneTrackingBonus')).toBe('Drone Tracking');

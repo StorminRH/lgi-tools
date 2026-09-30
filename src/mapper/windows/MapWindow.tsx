@@ -206,6 +206,54 @@ function windowBodyClass(
   );
 }
 
+/** The root ref callback: keeps the stacking style applied and forwards the node. */
+function useWindowRootRef(
+  forwardedRef: ForwardedRef<HTMLDivElement>,
+  stackIndex: number,
+): (node: HTMLDivElement | null) => void {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = rootRef.current;
+    if (element === null) return;
+    applyWindowStyles(element, stackIndex);
+  }, [stackIndex]);
+
+  return useCallback((node: HTMLDivElement | null) => {
+    rootRef.current = node;
+    if (node !== null) applyWindowStyles(node, stackIndex);
+    assignForwardedRef(forwardedRef, node);
+  }, [forwardedRef, stackIndex]);
+}
+
+function windowKeyDownHandler(
+  placement: WindowPlacement,
+  onClose: () => void,
+): (event: KeyboardEvent<HTMLDivElement>) => void {
+  const surfaceKind = surfaceKindOf(placement);
+  return (event) => {
+    const action = keydownAction({
+      key: event.key,
+      surfaceKind,
+      popupOpen: isAdoptedPopupOpen(),
+      defaultPrevented: event.defaultPrevented,
+    });
+    if (action === 'dismiss-card') onClose();
+    event.stopPropagation();
+  };
+}
+
+/** Overlays are click-through chrome, so only panels take keys and activation. */
+function windowInputHandlers(
+  overlay: boolean,
+  placement: WindowPlacement,
+  onClose: () => void,
+  onActivate: () => void,
+) {
+  if (overlay) return { onKeyDown: undefined, onPointerDown: undefined };
+  return { onKeyDown: windowKeyDownHandler(placement, onClose), onPointerDown: onActivate };
+}
+
 export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
   function MapWindow(
     {
@@ -225,32 +273,8 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
     },
     forwardedRef,
   ) {
-    const surfaceKind = surfaceKindOf(placement);
-    const rootRef = useRef<HTMLDivElement | null>(null);
+    const setRootRef = useWindowRootRef(forwardedRef, stackIndex);
     const overlay = appearance === 'overlay';
-
-    useEffect(() => {
-      const element = rootRef.current;
-      if (element === null) return;
-      applyWindowStyles(element, stackIndex);
-    }, [stackIndex]);
-
-    const setRootRef = useCallback((node: HTMLDivElement | null) => {
-      rootRef.current = node;
-      if (node !== null) applyWindowStyles(node, stackIndex);
-      assignForwardedRef(forwardedRef, node);
-    }, [forwardedRef, stackIndex]);
-
-    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-      const action = keydownAction({
-        key: event.key,
-        surfaceKind,
-        popupOpen: isAdoptedPopupOpen(),
-        defaultPrevented: event.defaultPrevented,
-      });
-      if (action === 'dismiss-card') onClose();
-      event.stopPropagation();
-    };
 
     return (
       <section
@@ -260,8 +284,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         data-map-window-appearance={appearance}
         data-closing={closing ? '' : undefined}
         className={cn(windowChromeClass(placement, overlay), closing && 'pointer-events-none')}
-        onKeyDown={overlay ? undefined : handleKeyDown}
-        onPointerDown={overlay ? undefined : onActivate}
+        {...windowInputHandlers(overlay, placement, onClose, onActivate)}
       >
         {showHeader ? (
           <WindowHeader

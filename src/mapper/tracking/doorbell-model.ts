@@ -143,21 +143,30 @@ function parseDoorbellLease(input: unknown): DoorbellMemoryEntry['lease'] {
   if (typeof input !== 'object' || input === null) return undefined;
   if (!('id' in input) || typeof input.id !== 'string' || input.id === '') return undefined;
   if (!('expiresAt' in input) || typeof input.expiresAt !== 'number'
-    || !Number.isSafeInteger(input.expiresAt) || input.expiresAt <= 0) return undefined;
+    || !isPositiveSafeInteger(input.expiresAt)) return undefined;
   return { id: input.id, expiresAt: input.expiresAt };
+}
+
+function isPositiveSafeInteger(value: number): boolean {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function hasDoorbellEntryFields(input: object): input is {
+  readonly transitionObservedAt: number;
+  readonly attempts: number;
+  readonly settled: boolean;
+  readonly inFlight: boolean;
+} {
+  return 'transitionObservedAt' in input && typeof input.transitionObservedAt === 'number'
+    && 'attempts' in input && typeof input.attempts === 'number'
+    && 'settled' in input && typeof input.settled === 'boolean'
+    && 'inFlight' in input && typeof input.inFlight === 'boolean';
 }
 
 function parseDoorbellMemoryEntry(input: unknown): DoorbellMemoryEntry | null {
   if (typeof input !== 'object' || input === null) return null;
-  if (!('transitionObservedAt' in input) || typeof input.transitionObservedAt !== 'number') {
-    return null;
-  }
-  if (!('attempts' in input) || typeof input.attempts !== 'number') return null;
-  if (!('settled' in input) || typeof input.settled !== 'boolean') return null;
-  if (!('inFlight' in input) || typeof input.inFlight !== 'boolean') return null;
-  if (!Number.isSafeInteger(input.transitionObservedAt) || input.transitionObservedAt <= 0) {
-    return null;
-  }
+  if (!hasDoorbellEntryFields(input)) return null;
+  if (!isPositiveSafeInteger(input.transitionObservedAt)) return null;
   if (!Number.isSafeInteger(input.attempts) || input.attempts < 0) return null;
   const lease = parseDoorbellLease(
     'lease' in input ? input.lease : undefined,
@@ -180,7 +189,7 @@ function parseDoorbellMemorySnapshot(
   const memory = new Map<number, DoorbellMemoryEntry>();
   for (const [key, value] of Object.entries(input)) {
     const characterId = Number(key);
-    if (!Number.isSafeInteger(characterId) || characterId <= 0) continue;
+    if (!isPositiveSafeInteger(characterId)) continue;
     const entry = parseDoorbellMemoryEntry(value);
     if (entry === null) continue;
     memory.set(characterId, entry);
@@ -254,33 +263,53 @@ function parseDoorbellMemoryMessage(input: unknown): DoorbellMemoryMessage | nul
   };
 }
 
+function newerDoorbellEntry(
+  current: DoorbellMemoryEntry,
+  incoming: DoorbellMemoryEntry,
+): DoorbellMemoryEntry {
+  if (incoming.attempts !== current.attempts) {
+    return incoming.attempts > current.attempts ? incoming : current;
+  }
+  return (incoming.lease?.expiresAt ?? 0) > (current.lease?.expiresAt ?? 0)
+    ? incoming : current;
+}
+
+function mergeSameTransition(
+  current: DoorbellMemoryEntry,
+  incoming: DoorbellMemoryEntry,
+): DoorbellMemoryEntry {
+  const newer = newerDoorbellEntry(current, incoming);
+  const sameLease = incoming.lease?.id === current.lease?.id;
+  const settled = current.settled || incoming.settled;
+  return {
+    ...newer,
+    settled,
+    inFlight: !settled && (sameLease
+      ? current.inFlight && incoming.inFlight
+      : newer.inFlight),
+  };
+}
+
+function mergeDoorbellEntry(
+  current: DoorbellMemoryEntry | undefined,
+  incoming: DoorbellMemoryEntry,
+): DoorbellMemoryEntry {
+  if (current === undefined
+    || incoming.transitionObservedAt > current.transitionObservedAt) {
+    return incoming;
+  }
+  if (incoming.transitionObservedAt !== current.transitionObservedAt) return current;
+  return mergeSameTransition(current, incoming);
+}
+
 function mergeDoorbellMemory(
   memory: Map<number, DoorbellMemoryEntry>,
   incoming: Readonly<Record<string, DoorbellMemoryEntry>>,
 ): void {
   for (const [key, incomingEntry] of Object.entries(incoming)) {
     const characterId = Number(key);
-    if (!Number.isSafeInteger(characterId) || characterId <= 0) continue;
-    const current = memory.get(characterId);
-    if (current === undefined
-      || incomingEntry.transitionObservedAt > current.transitionObservedAt) {
-      memory.set(characterId, incomingEntry);
-      continue;
-    }
-    if (incomingEntry.transitionObservedAt !== current.transitionObservedAt) continue;
-    const newer = incomingEntry.attempts > current.attempts
-      || (incomingEntry.attempts === current.attempts
-        && (incomingEntry.lease?.expiresAt ?? 0) > (current.lease?.expiresAt ?? 0))
-      ? incomingEntry : current;
-    const sameLease = incomingEntry.lease?.id === current.lease?.id;
-    const settled = current.settled || incomingEntry.settled;
-    memory.set(characterId, {
-      ...newer,
-      settled,
-      inFlight: !settled && (sameLease
-        ? current.inFlight && incomingEntry.inFlight
-        : newer.inFlight),
-    });
+    if (!isPositiveSafeInteger(characterId)) continue;
+    memory.set(characterId, mergeDoorbellEntry(memory.get(characterId), incomingEntry));
   }
 }
 
