@@ -7,10 +7,12 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 import {
+  accessLease,
   CHAR_A,
   CHAR_B,
   GEN,
   locationDoc,
+  OTHER,
   readDoc,
   USER,
 } from './__tests__/characterLocation.setup';
@@ -548,6 +550,67 @@ describe('characterLocationApply.finishSync (apply)', () => {
     const patched = await readRow();
     expect(patched?._id).toBe(inserted?._id);
     expect(patched).toMatchObject({ online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 });
+  });
+
+  it('drops the cached rows of a character that left the tracked set since the last run', async () => {
+    const t = convexTest(schema, modules);
+    await seedSyncState(t, { syncedCharacterIds: [CHAR_A, CHAR_B] });
+    await t.run(async (ctx) => {
+      for (const userId of [USER, OTHER]) {
+        for (const characterId of [CHAR_A, CHAR_B]) {
+          await ctx.db.insert('characterLocation', locationDoc(userId, characterId));
+          await ctx.db.insert('characterLocationAccess', accessLease(userId, characterId));
+          await ctx.db.insert('characterLocationOnline', {
+            userId,
+            characterId,
+            online: true,
+            etagOnline: null,
+            onlineExpiresAt: WINDOW,
+          });
+        }
+      }
+    });
+
+    await apply(t, { trackedCharacterIds: [CHAR_A], results: [] });
+
+    const held = await t.run(async (ctx) => ({
+      location: await ctx.db.query('characterLocation').collect(),
+      online: await ctx.db.query('characterLocationOnline').collect(),
+      access: await ctx.db.query('characterLocationAccess').collect(),
+    }));
+    const keys = (rows: { userId: string; characterId: number }[]) =>
+      rows.map((row) => `${row.userId}:${row.characterId}`).sort();
+    const expected = [`${OTHER}:${CHAR_A}`, `${OTHER}:${CHAR_B}`, `${USER}:${CHAR_A}`].sort();
+    expect(keys(held.location)).toEqual(expected);
+    expect(keys(held.online)).toEqual(expected);
+    expect(keys(held.access)).toEqual(expected);
+    expect((await readSyncState(t))?.syncedCharacterIds).toEqual([CHAR_A]);
+  });
+
+  it('removes rows an in-flight run wrote back after a purge on the next run', async () => {
+    const t = convexTest(schema, modules);
+    await seedSyncState(t, { syncedCharacterIds: [CHAR_A, CHAR_B] });
+    const located = (characterId: number): ApplyResult => ({
+      characterId,
+      solarSystemId: 30_000_142,
+      stationId: null,
+      structureId: null,
+      shipTypeId: 670,
+      systemChanged: true,
+      etagLocation: 'n',
+      etagShip: 's',
+      expiresAt: WINDOW,
+      error: null,
+    });
+
+    // A run that read its tracked list before the purge finishes afterwards.
+    await t.mutation(internal.characterLocationPurge.purgeForUser, { userId: USER, characterId: CHAR_B });
+    await apply(t, { trackedCharacterIds: [CHAR_A, CHAR_B], results: [located(CHAR_A), located(CHAR_B)] });
+    expect(await readDoc(t, CHAR_B)).not.toBeNull();
+
+    await apply(t, { trackedCharacterIds: [CHAR_A], results: [located(CHAR_A)] });
+    expect(await readDoc(t, CHAR_B)).toBeNull();
+    expect(await readDoc(t, CHAR_A)).not.toBeNull();
   });
 
   it('keeps held online-probe rows for a character missing from this run\'s tracked set', async () => {

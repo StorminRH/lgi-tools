@@ -16,13 +16,17 @@ import { drainCharacterOnline } from './onlineStatus';
 
 const SWEEP_DELETE_BATCH = 128;
 const RETIRED_GC_BATCH = 128;
+// A receipt only guards a delivery Neon may still resend. Neon retries pending
+// deliveries daily and drops its row on the first success, so 90 days is far
+// past any realistic retry.
+export const MERGE_RECEIPT_RETENTION_MS = 90 * 24 * 60 * 60_000;
 
 /**
  * Daily retention GC. Deletes presence (and its location sync state)
- * untouched for the retention window, and drains rows the location scheduler
- * no longer reads: every syncSubjects row, retired-dataset presence, and the
- * characterOnline table. A full batch schedules an immediate continuation so
- * a backlog drains in one pass.
+ * untouched for the retention window, drains rows the location scheduler no
+ * longer reads (every syncSubjects row, retired-dataset presence, and the
+ * characterOnline table), and deletes expired account-merge receipts. A full
+ * batch schedules an immediate continuation so a backlog drains in one pass.
  */
 export const sweep = internalMutation({
   args: {},
@@ -31,8 +35,9 @@ export const sweep = internalMutation({
     const now = Date.now();
     const abandoned = await sweepAbandoned(ctx, now);
     const retired = await sweepRetiredRows(ctx);
-    const deleted = abandoned.deleted + retired.deleted;
-    const capped = abandoned.capped || retired.capped;
+    const receipts = await sweepExpiredMergeReceipts(ctx, now);
+    const deleted = abandoned.deleted + retired.deleted + receipts.deleted;
+    const capped = abandoned.capped || retired.capped || receipts.capped;
     if (capped) {
       await ctx.scheduler.runAfter(0, internal.engineSweep.sweep, {});
     }
@@ -77,6 +82,20 @@ async function sweepRetiredRows(
       || presenceCount === RETIRED_GC_BATCH
       || online === RETIRED_GC_BATCH,
   };
+}
+
+async function sweepExpiredMergeReceipts(
+  ctx: MutationCtx,
+  now: number,
+): Promise<{ deleted: number; capped: boolean }> {
+  const expired = await ctx.db
+    .query('accountMergeTrackingReceipts')
+    .withIndex('by_creation_time', (q) => q.lt('_creationTime', now - MERGE_RECEIPT_RETENTION_MS))
+    .take(SWEEP_DELETE_BATCH);
+  for (const receipt of expired) {
+    await ctx.db.delete('accountMergeTrackingReceipts', receipt._id);
+  }
+  return { deleted: expired.length, capped: expired.length === SWEEP_DELETE_BATCH };
 }
 
 async function sweepAbandoned(
