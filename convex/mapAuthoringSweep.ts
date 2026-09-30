@@ -1,4 +1,5 @@
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { writeMapEvent } from './mapAuthoringEvents';
@@ -135,7 +136,18 @@ async function sweepExpiredCeilings(
   };
 }
 
+/**
+ * Hourly cron. A full batch continues immediately, but only when it made
+ * progress: rows that keep failing stay due and would otherwise re-run it in
+ * a tight loop.
+ */
 export const collapseExpiredConnections = internalMutation({
   args: {},
-  handler: async (ctx) => await sweepExpiredCeilings(ctx, Date.now()),
+  handler: async (ctx) => {
+    const result = await sweepExpiredCeilings(ctx, Date.now());
+    if (result.hasMore && result.collapsed + result.removedStubs > 0) {
+      await ctx.scheduler.runAfter(0, internal.mapAuthoringSweep.collapseExpiredConnections, {});
+    }
+    return result;
+  },
 });

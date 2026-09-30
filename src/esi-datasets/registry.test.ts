@@ -10,7 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/composition/drizzle-schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
-import { refreshAffiliations } from '@/platform/auth/affiliation';
+import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import { refreshCharacterSheetForUser } from '@/features/character-sheet/refresh';
 import { resolveCorpViewer } from '@/composition/corp-viewer';
@@ -50,7 +50,7 @@ const liveContext = {
   cronRoutes: new Set(vercelConfig.crons.map((cron) => cron.path)),
   deferredDatasets: new Set<string>(ESI_REFRESH_DATASETS),
   personalEntryPoints: new Set([
-    refreshAffiliations.name,
+    refreshAffiliationsWithOutcome.name,
     refreshCorpStructuresForUser.name,
     refreshCharacterSheetForUser.name,
     resolveCorpViewer.name,
@@ -216,7 +216,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       store: 'neon',
       shape: 'global-cron',
       freshnessModel: 'row-stale-after',
-      refreshOwner: { kind: 'cron', route: '/api/cron/refresh-prices' },
+      refreshOwner: { kind: 'cron', route: '/api/cron/daily-batch' },
       upstream: staticEsi(300),
       ttlOverride: {
         milliseconds: 60_000,

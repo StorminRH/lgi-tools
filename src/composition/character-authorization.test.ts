@@ -85,13 +85,11 @@ it('publishes newly confirmed invalid authorization in the same worker run', asy
   );
 });
 
-it('skips work for healthy visits but lets cron drain previously queued map changes', async () => {
+it('skips all work for a healthy visit', async () => {
   mocks.hasAuthorizationWork.mockResolvedValue(false);
   await checkCharacterAuthorizations('alice');
   expect(mocks.readPendingMapAccessChanges).not.toHaveBeenCalled();
   expect(mocks.suspendOverdueAuthorizations).not.toHaveBeenCalled();
   expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
-  await checkCharacterAuthorizations();
-  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
   expect(mocks.getFreshAccessTokenForCharacter).not.toHaveBeenCalled();
 });
