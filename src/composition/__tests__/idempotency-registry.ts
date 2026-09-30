@@ -136,7 +136,7 @@ const convexMapSignaturePurge = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 15-minute Convex interval may run again after an earlier bounded batch partially drained expired signature tombstones.',
+    'The daily Convex interval, plus the immediate continuation a full batch schedules, may run again after an earlier bounded batch partially drained expired signature tombstones.',
   evidence:
     'The internal mutation ranges only purgeAfter values that are currently expired, deletes each matching document atomically, and reports exact continuation truth; a repeat sees only the remaining indexed range.',
 });
@@ -145,7 +145,7 @@ const convexMapChainPurge = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 15-minute Convex interval may run again after an earlier batch partially drained the expiry ranges.',
+    'The daily Convex interval, plus the immediate continuation a full batch schedules, may run again after an earlier batch partially drained the expiry ranges.',
   evidence:
     'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
 });
@@ -154,7 +154,7 @@ const convexMapCeilingCollapse = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 15-minute Convex interval may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
+    'The hourly Convex interval, plus the immediate continuation a full batch that made progress schedules, may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
   evidence:
     'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
 });

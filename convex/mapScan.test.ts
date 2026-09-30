@@ -8,6 +8,7 @@ import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { applyLinkDeduction } from './lib/mapScanElimination';
+import { SIGNATURE_PURGE_BATCH } from './lib/mapSignatureCleanup';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
 import schema from './schema';
 
@@ -2234,5 +2235,30 @@ describe('mapScan paste application and lifecycle', () => {
     const cronSource = readFileSync('convex/crons.ts', 'utf8');
     expect(cronSource).toContain("'map signature purge'");
     expect(cronSource).toContain('internal.mapScan.purgeExpiredSignatureTombstones');
+  });
+
+  it('continues a full signature purge batch until the backlog drains', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= SIGNATURE_PURGE_BATCH; index += 1) {
+        await ctx.db.insert('mapSignatures', {
+          mapId: MAP,
+          systemId: JITA,
+          signatureId: `EXP-${index}`,
+          group: null,
+          typeName: null,
+          wormholeTypeCode: null,
+          deletedAt: NOW - 2,
+          purgeAfter: NOW - 1,
+        });
+      }
+    });
+
+    expect(await t.mutation(internal.mapScan.purgeExpiredSignatureTombstones, {})).toEqual({
+      deletedCount: SIGNATURE_PURGE_BATCH,
+      hasMore: true,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.run(async (ctx) => await ctx.db.query('mapSignatures').collect())).toEqual([]);
   });
 });
