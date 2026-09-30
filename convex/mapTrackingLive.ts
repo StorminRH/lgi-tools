@@ -6,7 +6,7 @@ import { tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 
-const TRACKING_MAP_SCAN_CAP = 256;
+import { readMapTracking, TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
 function trackedLocationPayload(location: Doc<'characterLocation'>) {
   return {
@@ -51,10 +51,7 @@ export const forMap = query({
       return { tracked: [] as const, ownTrackedCharacterIds: [] as number[] };
     }
 
-    const rows = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId))
-      .take(TRACKING_MAP_SCAN_CAP);
+    const rows = await readMapTracking(ctx, mapId);
 
     const tracked = await readTrackedLocations(ctx, rows);
     return {
@@ -113,10 +110,10 @@ export const coverage = query({
         }[],
       };
     }
-    if (identities.length > TRACKING_MAP_SCAN_CAP) {
+    if (identities.length > TRACKED_CHARACTERS_PER_MAP_CAP) {
       throw new ConvexError({
         code: 'TRACKING_SCAN_LIMIT',
-        detail: `Coverage identities exceed the ${TRACKING_MAP_SCAN_CAP}-row tracked-presence bound.`,
+        detail: `Coverage identities exceed the ${TRACKED_CHARACTERS_PER_MAP_CAP}-row tracked-presence bound.`,
       });
     }
 
@@ -145,16 +142,7 @@ export async function readTrackedPilotSystemIds(
   ctx: QueryCtx,
   mapId: string,
 ): Promise<ReadonlySet<number>> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(TRACKING_MAP_SCAN_CAP + 1);
-  if (rows.length > TRACKING_MAP_SCAN_CAP) {
-    throw new ConvexError({
-      code: 'TRACKING_SCAN_LIMIT',
-      detail: `Map ${mapId} exceeds the ${TRACKING_MAP_SCAN_CAP}-row tracked-presence bound.`,
-    });
-  }
+  const rows = await readMapTracking(ctx, mapId);
   const locations = await Promise.all(
     rows.map((row) => findCharacterLocation(ctx, row.userId, row.characterId)),
   );

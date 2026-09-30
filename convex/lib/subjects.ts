@@ -1,53 +1,11 @@
-import type { WithoutSystemFields } from 'convex/server';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader } from '../_generated/server';
-import { uniqueByUserDataset } from './indexedQuery';
-
-export type StoredDataset = Doc<'syncSubjects'>['dataset'];
-
-export function newIdleSubject(
-  dataset: StoredDataset,
-  userId: string,
-): WithoutSystemFields<Doc<'syncSubjects'>> {
-  return {
-    dataset,
-    userId,
-    status: 'idle' as const,
-    lastRequestedAt: 0,
-    workId: null,
-    nextDueAt: null,
-    minExpiresAt: null,
-    syncedCharacterIds: [] as number[],
-    lastFinishedAt: null as number | null,
-    lastError: null,
-    rlGroup: null,
-    rlLimit: null,
-    rlRemaining: null,
-    rlUsed: null,
-  };
-}
-
-export function getSyncSubject(
-  db: DatabaseReader,
-  dataset: StoredDataset,
-  userId: string,
-): Promise<Doc<'syncSubjects'> | null> {
-  return uniqueByUserDataset(db, 'syncSubjects', dataset, userId);
-}
-
-export async function getSyncSubjectForGeneration(
-  db: DatabaseReader,
-  dataset: StoredDataset,
-  args: { userId: string; generation: number },
-): Promise<Doc<'syncSubjects'> | null> {
-  const subject = await getSyncSubject(db, dataset, args.userId);
-  return subject?.lastRequestedAt === args.generation ? subject : null;
-}
+import { type StoredDataset, uniqueByUserDataset } from './indexedQuery';
 
 export function getPresence(
   db: DatabaseReader,
   dataset: StoredDataset,
   userId: string,
 ): Promise<Doc<'syncPresence'> | null> {
-  return uniqueByUserDataset(db, 'syncPresence', dataset, userId);
+  return uniqueByUserDataset(db, dataset, userId);
 }

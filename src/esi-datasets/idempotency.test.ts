@@ -191,7 +191,7 @@ describe('idempotency registry verdicts', () => {
       (entry) => entry.id === 'convex/characterLocationSync:syncUser',
     );
     expect(locationAction?.evidence).toMatch(/generation.?guard/i);
-    expect(locationAction?.evidence).toMatch(/workId/i);
+    expect(locationAction?.evidence).toMatch(/runId/i);
     expect(locationAction?.redeliverySource).toMatch(/scheduled Convex action/i);
     expect(locationAction?.redeliverySource).toMatch(/at most once/i);
     expect(readFileSync(path.join(ROOT, 'convex/convex.config.ts'), 'utf8')).not.toMatch(
