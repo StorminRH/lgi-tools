@@ -19,6 +19,7 @@ import {
 import type { Session } from '@/platform/auth/types';
 import { AtlasCanvasFrame } from './AtlasCanvasFrame';
 import { AtlasGuestLanding } from './AtlasGuestLanding';
+import { AtlasReturnRefresh } from './AtlasReturnRefresh';
 
 const EMPTY_MAP_CHROME: MapChromeData = {
   maps: [],
@@ -104,6 +105,7 @@ export async function AtlasBound({
         grantsByMapId={chromeData.grantsByMapId}
         listingAvailable={chromeSnapshot.listingAvailable}
       >
+        {gate?.ok === true ? <AtlasReturnRefresh /> : null}
         {showCanvas ? <AtlasCanvasFrame session={session} /> : <MapCatalogue />}
       </MapCatalogueDataProvider>
     </SiteCatalogueProvider>
