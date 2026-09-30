@@ -9,6 +9,8 @@ import {
 } from '@/data/maps/lifecycle';
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 
+const MAP_PURGE_WORK_BUDGET_MS = 60_000;
+
 const mapPurgeResponseSchema = z.strictObject({
   deleted: z.number().int().nonnegative(),
   remaining: z.literal(false),
@@ -48,6 +50,7 @@ export async function purgeEligibleMaps(
   readonly deletedDocuments: number;
   readonly projectionPending: number;
 }> {
+  const deadline = Date.now() + MAP_PURGE_WORK_BUDGET_MS;
   const claimMaps = dependencies.claimMaps ?? claimPurgeableMaps;
   const purgeChain = dependencies.purgeChain ?? purgeMapChain;
   const tombstoneMap = dependencies.tombstoneMap ?? tombstonePurgedMap;
@@ -58,6 +61,7 @@ export async function purgeEligibleMaps(
   const projectionPending = 0;
 
   for (const map of due) {
+    if (Date.now() >= deadline) break;
     const purge = await purgeChain(map.id);
     if (purge.remaining) {
       throw new MapPurgeUnavailableError(

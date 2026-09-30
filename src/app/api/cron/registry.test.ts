@@ -2,13 +2,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { CronWakeClass } from '@/composition/pipelines/cron-gate';
-import { refreshAffiliationsDeclaration } from './refresh-affiliations/declaration';
 import { refreshGscDeclaration } from './refresh-gsc/declaration';
-import { refreshIndustryIndicesDeclaration } from './refresh-industry-indices/declaration';
 import { refreshPricesDeclaration } from './refresh-prices/declaration';
 import { refreshSdeDeclaration } from './refresh-sde/declaration';
-import { refreshWhStaticsDeclaration } from './refresh-wh-statics/declaration';
-import { purgeMapsDeclaration } from './purge-maps/declaration';
 
 type CronSpec = {
   path: string;
@@ -20,19 +16,12 @@ type CronRegistryEntry =
   | { justification: string };
 
 const cronRegistry = {
-  '/api/cron/refresh-affiliations': {
-    declaration: refreshAffiliationsDeclaration,
+  '/api/cron/daily-batch': {
+    justification:
+      'Runs the purge-maps, prices, industry-indices, and Monday wh-statics batch declarations in order.',
   },
   '/api/cron/refresh-gsc': { declaration: refreshGscDeclaration },
-  '/api/cron/refresh-industry-indices': {
-    declaration: refreshIndustryIndicesDeclaration,
-  },
-  '/api/cron/refresh-prices': { declaration: refreshPricesDeclaration },
   '/api/cron/refresh-sde': { declaration: refreshSdeDeclaration },
-  '/api/cron/refresh-wh-statics': {
-    declaration: refreshWhStaticsDeclaration,
-  },
-  '/api/cron/purge-maps': { declaration: purgeMapsDeclaration },
 } satisfies Record<string, CronRegistryEntry>;
 
 const vercelConfig = JSON.parse(
@@ -100,7 +89,7 @@ describe('cron schedule registry', () => {
       scheduleFindings(
         [{ path, schedule: '0 */2 * * *' }],
         {
-          [path]: { declaration: refreshAffiliationsDeclaration },
+          [path]: { declaration: refreshPricesDeclaration },
         },
       ),
     ).toEqual([
@@ -114,7 +103,7 @@ describe('cron schedule registry', () => {
       scheduleFindings(
         [{ path, schedule: '*/15 11 * * *' }],
         {
-          [path]: { declaration: refreshAffiliationsDeclaration },
+          [path]: { declaration: refreshPricesDeclaration },
         },
       ),
     ).toEqual([

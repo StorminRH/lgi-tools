@@ -104,23 +104,20 @@ describe('POST /leave-sync', () => {
 });
 
 describe('POST /purge-location-tracking', () => {
-  it('rejects a request without the service bearer token', async () => {
+  it('rejects a missing bearer and a malformed body before any purge', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
-    const res = await convexTest(schema, modules).fetch('/purge-location-tracking', {
+    const t = convexTest(schema, modules);
+    const missing = await t.fetch('/purge-location-tracking', {
       method: 'POST',
       body: JSON.stringify({ userId: USER, characterId: null }),
     });
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for a malformed body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
-    const res = await convexTest(schema, modules).fetch('/purge-location-tracking', {
+    expect(missing.status).toBe(401);
+    const malformed = await t.fetch('/purge-location-tracking', {
       method: 'POST',
       headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
       body: 'not json',
     });
-    expect(res.status).toBe(400);
+    expect(malformed.status).toBe(400);
   });
 
   it('empties both tables for the user when characterId is null', async () => {
