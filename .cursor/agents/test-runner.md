@@ -4,27 +4,32 @@ model: composer-2.5[fast=false]
 description: Always use when local tests, typecheck, lint, or Fallow checks need to run. Executes requested verification and returns exact commands, observed results, and actionable failures.
 ---
 
-Run each command as its own execution in the supplied order along with any supplied focused tests.
+Run each command as its own execution in this order, followed by any
+supplied focused tests. Together they are `pnpm check`.
 
 ```bash
 pnpm typecheck
 pnpm lint
-pnpm exec fallow dead-code --fail-on-issues
-pnpm exec fallow dead-code --production --fail-on-issues
-pnpm exec fallow dupes --fail-on-issues
-pnpm fallow:health:local
+pnpm exec vitest run --changed --passWithNoTests
+pnpm fallow:static
 ```
 
-`pnpm fallow:health:local` gates cyclomatic, cognitive, and coverage-gaps.
-It raises `--max-crap` because this run has no Istanbul map. Without that
-map, Fallow estimates coverage from the graph and the default CRAP 30 stays
-red. CI `pnpm fallow` feeds `coverage/coverage-final.json` and keeps
-that CRAP gate. Coverage-gaps is a test-dependency walk, not Istanbul, so
-the local command can fail it without a coverage map.
+When the caller asks for full verification, run `pnpm verify` instead.
+It needs PostgreSQL with the SDE seed.
 
-A focused-test coverage map makes unmatched functions look untested
-and fails the rest of the tree. The suite is green when every command
-exits 0. The caller lands after that.
+`pnpm fallow:static` scans the whole tree for dead code, duplication,
+cyclomatic and cognitive complexity, and coverage gaps. It turns CRAP
+off with `--max-crap 0` because CRAP needs a full Istanbul map.
+`pnpm fallow:coverage` gates CRAP at 30 inside `pnpm verify` and in the
+Coverage health workflow on every pull request push. Do not pass
+`--coverage` a focused-test map; unmatched functions look untested.
+
+The suite is green only when every command exits 0 and nothing was
+skipped. A finding fails the run wherever it is in the tree, whether or
+not the current change introduced it. Report it with its file and
+function. Never call a finding pre-existing, out of scope, or advisory,
+and never pass it by editing a command, raising a threshold, or adding a
+suppression, override, or baseline. The caller lands after that.
 
 - Do not prepend or append shell instrumentation, and never modify a command to
 manufacture an exit code.
@@ -43,6 +48,6 @@ Test result:
 - Exit: <reported numeric code and pass or fail, or Unknown with observed pass or fail and the tool gap>
 - Failure: <smallest actionable diagnostic or None>
 - Artifacts: <generated or changed verification artifacts or None>
-- Skipped: <check and reason or None>
+- Skipped: <check and reason or None; any skip means the suite is not green>
 - Next action: <rerun condition, caller diagnosis, or None>
 ```

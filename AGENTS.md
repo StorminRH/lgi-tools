@@ -14,6 +14,21 @@ the repository, isolate those tasks to a sub-agent.
 Production builds run in CI and on Vercel; do not run them locally.
 Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
 
+## Verification
+
+Before every commit, run `pnpm check` through the test-runner agent:
+typecheck, lint, tests related to the change, and static Fallow over
+the whole tree. `pnpm verify` is the full gate, with the full suite
+under coverage and CRAP. The Coverage health workflow runs its coverage
+half on every pull request push. Run `pnpm verify` before promote or
+release and whenever Coverage health fails.
+
+Fix every Fallow finding when it appears, whoever introduced it. Do not
+land past a red check by calling findings pre-existing or out of scope.
+Do not raise thresholds or add overrides, baselines, or suppressions.
+If a fix is too large for the current change, stop and report it as a
+blocker.
+
 ## Architecture
 
 [.fallowrc.json](.fallowrc.json) defines the production-layer
