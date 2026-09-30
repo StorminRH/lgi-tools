@@ -58,7 +58,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: VERCEL_CRON_REDELIVERY,
     verdict: 'coordinated-elsewhere',
     evidence:
-      'Runs the housekeeping, purge-maps, prices, industry-indices, and wh-statics declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+      'Runs the purge-maps, prices, industry-indices, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
   },
   {
     id: 'cron/housekeeping',

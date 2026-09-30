@@ -12,8 +12,9 @@ import { refreshWhStaticsDeclaration } from '../refresh-wh-statics/declaration';
 /**
  * The daily Vercel cron. Hobby fires it anywhere in the 12:00 UTC hour, after
  * CCP's 11:00 downtime; running the steps in one invocation keeps their order
- * fixed. Housekeeping goes first under its own time budget. The SDE refresh
- * keeps its own later window and invocation.
+ * fixed. Housekeeping runs last under its own time budget, so a backlog never
+ * delays the refreshes. The SDE refresh keeps its own later window and
+ * invocation.
  */
 export const maxDuration = 300;
 
@@ -22,9 +23,9 @@ const isMonday = (now: Date): boolean => now.getUTCDay() === 1;
 // authz: cron
 // input: none
 export const GET = defineCronBatchRoute<CronBatchResponse>([
-  cronBatchStep(housekeepingDeclaration),
   cronBatchStep(purgeMapsDeclaration),
   cronBatchStep(refreshPricesDeclaration),
   cronBatchStep(refreshIndustryIndicesDeclaration),
   cronBatchStep(refreshWhStaticsDeclaration, isMonday),
+  cronBatchStep(housekeepingDeclaration),
 ]);
