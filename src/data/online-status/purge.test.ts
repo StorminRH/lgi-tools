@@ -56,14 +56,14 @@ describe('onlineStatusPurgeContributor', () => {
         userId: USER,
         characterId: CHAR,
       }),
-    ).rejects.toThrow('convex down');
+    ).rejects.toThrow('request failed');
   });
 
   it('propagates a non-2xx response instead of asserting done', async () => {
     fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
     await expect(
       onlineStatusPurgeContributor.purgeUser?.({ kind: 'user', userId: USER }),
-    ).rejects.toThrow('purge-online 401');
+    ).rejects.toThrow('/purge-online answered 401');
   });
 
   it('rejects a configured Convex URL with no service secret', async () => {

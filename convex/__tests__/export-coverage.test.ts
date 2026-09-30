@@ -71,7 +71,7 @@ import {
   tombstoneConnection,
   tombstoneSystem,
 } from '../mapAuthoringTombstone';
-import { purgeExpiredChainTombstones } from '../mapChainCleanup';
+import { backfillChainRetention, purgeExpiredChainTombstones } from '../mapChainCleanup';
 import { watchMapAccess } from '../mapChainAccess';
 import {
   watchMapConnections,
@@ -195,6 +195,7 @@ describe('convex runtime exports', () => {
       addSystemFromNode,
       collapseExpiredConnections,
       purgeExpiredChainTombstones,
+      backfillChainRetention,
       restoreConnection,
       restoreSeveredBranch,
       restoreSystem,

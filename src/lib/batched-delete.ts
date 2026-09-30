@@ -2,7 +2,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import type { AnyPgDb } from '@/lib/db-types';
 
-export const DELETE_BATCH_SIZE = 5000;
+const DELETE_BATCH_SIZE = 5000;
 
 export interface BatchedDeleteResult {
   readonly deleted: number;

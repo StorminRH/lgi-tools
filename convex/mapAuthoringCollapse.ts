@@ -312,8 +312,6 @@ export async function runCollapse(
   return await writeRemovedSever(writeContext, decision);
 }
 
-type SettleOutcome = 'still_linked' | 'held' | 'branch_removed';
-
 /**
  * Settles a removed connection whose undo window has ended while both of its
  * systems are still on the map, by asking the sever question again with it
@@ -326,7 +324,7 @@ export async function settleRemovedConnection(
   removed: Doc<'mapConnections'> & { readonly toSystemId: number },
   trackedInSystemIds: ReadonlySet<number>,
   actor: string,
-): Promise<SettleOutcome> {
+): Promise<'still_linked' | 'held' | 'branch_removed'> {
   const topology = await readBoundedMapTopology(ctx, removed.mapId);
   const live = { ...removed, tombstone: { kind: 'live' as const } };
   const withCut: BoundedMapTopology = {

@@ -1,26 +1,17 @@
-import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { z } from 'zod';
+import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import type { PurgeContributor } from '@/platform/purge/types';
 
 async function postPurgeOnline(userId: string, characterId: number | null): Promise<void> {
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) return;
-  const door = resolveConvexServiceDoor();
-  if (!door.ok) {
-    throw new Error('Online status purge requires a valid Convex URL and service secret');
-  }
-  const { siteUrl, secret } = door;
   // A failure throws so the deletion stays requested and the daily run retries it.
-  const response = await fetchWithTimeout(`${siteUrl}/purge-online`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${secret}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ userId, characterId }),
+  await postConvexHttpDoor({
+    path: '/purge-online',
+    body: { userId, characterId },
+    schema: z.unknown(),
+    error: Error,
+    label: 'Online status purge',
   });
-  if (!response.ok) {
-    throw new Error(`purge-online ${response.status}`);
-  }
 }
 
 export const onlineStatusPurgeContributor: PurgeContributor = {
