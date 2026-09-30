@@ -205,7 +205,7 @@ export function defineCronRoute<Body, Pre = void>(
   };
 }
 
-type CronBatchStep = {
+export type CronBatchStep = {
   name: string;
   due: (now: Date) => boolean;
   run: () => Promise<Response>;
