@@ -158,7 +158,7 @@ const convexMapChainPurge = convexEntry({
   redeliverySource:
     'The daily Convex interval, plus the immediate continuation a full batch schedules, may run again after an earlier batch partially drained the expiry ranges.',
   evidence:
-    'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
+    'The internal mutation atomically deletes only currently expired rows (a purged system with its signature and activity rows), and settles each expired removed connection between live systems once: deleted when still linked, its cut-off branch stamped removed, or pushed a day ahead while a tracked pilot holds it. Every outcome moves the row out of the expired range, so a repeat observes only what is left and cannot repeat a completed write.',
 });
 const convexMapCeilingCollapse = convexEntry({
   id: 'convex/crons:map ceiling collapse',
@@ -167,7 +167,7 @@ const convexMapCeilingCollapse = convexEntry({
   redeliverySource:
     'The hourly Convex interval, plus the immediate continuation a full batch that made progress schedules, may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
   evidence:
-    'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
+    'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, and a row whose collapse fails is severed keeping its systems, so it too leaves the range; every collapse routes through the shared-stamp core, and a repeat observes only rows every previous batch left live.',
 });
 const convexSyncEngineRetention = convexEntry({
   id: 'convex/crons:sync engine retention',
@@ -176,7 +176,7 @@ const convexSyncEngineRetention = convexEntry({
   redeliverySource:
     'The daily Convex interval cron, plus the immediate continuation a full batch schedules.',
   evidence:
-    'internal.engineSweep.sweep only deletes rows past the retention window or rows of retired datasets; a repeat or overlapping run finds those rows already gone.',
+    'internal.engineSweep.sweep only deletes rows past the retention window, rows of retired datasets, or account-merge receipts older than 90 days; a repeat or overlapping run finds those rows already gone.',
 });
 const convexEngineSweep = convexEntry({
   id: 'convex/engineSweep:sweep',

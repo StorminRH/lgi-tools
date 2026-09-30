@@ -198,18 +198,28 @@ export async function retainRemovedConnection(
   await respawnAfterTombstone(ctx, connection._id);
 }
 
-async function writeRetainedSever(
-  input: SeverWriteContext,
+/** Removes just the connection and keeps the systems on both sides. */
+export async function severKeepingSystems(
+  ctx: MutationCtx,
+  cut: Doc<'mapConnections'>,
+  actor: string,
+  deletedAt: number,
 ): Promise<{ outcome: 'retained' }> {
-  await retainRemovedConnection(input.ctx, input.cut, input.deletedAt);
-  await writeMapEvent(input.ctx, {
-    mapId: input.mapId,
-    at: input.deletedAt,
+  await retainRemovedConnection(ctx, cut, deletedAt);
+  await writeMapEvent(ctx, {
+    mapId: cut.mapId,
+    at: deletedAt,
     kind: 'connection_severed_retained',
-    actor: input.actor,
-    payload: { connectionId: String(input.cut._id) },
+    actor,
+    payload: { connectionId: String(cut._id) },
   });
   return { outcome: 'retained' };
+}
+
+function writeRetainedSever(
+  input: SeverWriteContext,
+): Promise<{ outcome: 'retained' }> {
+  return severKeepingSystems(input.ctx, input.cut, input.actor, input.deletedAt);
 }
 
 async function stampRemovedRows(
@@ -300,6 +310,46 @@ export async function runCollapse(
     return await writeRetainedSever(writeContext);
   }
   return await writeRemovedSever(writeContext, decision);
+}
+
+type SettleOutcome = 'still_linked' | 'held' | 'branch_removed';
+
+/**
+ * Settles a removed connection whose undo window has ended while both of its
+ * systems are still on the map, by asking the sever question again with it
+ * cut. Still linked another way (a loop or a re-jump): nothing to keep.
+ * Cut off with a tracked pilot inside: held for now. Otherwise the cut-off
+ * branch is removed exactly as a sever removes it, with its own undo window.
+ */
+export async function settleRemovedConnection(
+  ctx: MutationCtx,
+  removed: Doc<'mapConnections'> & { readonly toSystemId: number },
+  trackedInSystemIds: ReadonlySet<number>,
+  actor: string,
+): Promise<SettleOutcome> {
+  const topology = await readBoundedMapTopology(ctx, removed.mapId);
+  const live = { ...removed, tombstone: { kind: 'live' as const } };
+  const withCut: BoundedMapTopology = {
+    systems: topology.systems,
+    connections: [...topology.connections.filter((row) => row._id !== removed._id), live],
+  };
+  const decision = collapseDecision(withCut, live, 'absent');
+  if (decision.kind === 'retain') return 'still_linked';
+  if (decision.systemIds.some((systemId) => trackedInSystemIds.has(systemId))) return 'held';
+  const deletedAt = uniqueTombstoneStamp(topology, Date.now());
+  await writeRemovedSever(
+    {
+      ctx,
+      mapId: removed.mapId,
+      topology,
+      cut: removed,
+      actor,
+      deletedAt,
+      stamps: chainTombstoneStamps(deletedAt),
+    },
+    decision,
+  );
+  return 'branch_removed';
 }
 
 async function requireRestorableEndpoints(
