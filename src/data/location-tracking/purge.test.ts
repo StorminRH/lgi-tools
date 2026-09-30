@@ -57,34 +57,22 @@ describe('locationTrackingPurgeContributor', () => {
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
   });
 
-  it('swallows a Convex outage (fetch reject) without throwing — the Neon purge must complete', async () => {
+  it('propagates a Convex outage so the deletion stays requested for retry', async () => {
     fetchSpy.mockRejectedValue(new Error('convex down'));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await expect(
       locationTrackingPurgeContributor.purgeCharacter?.({
         kind: 'character',
         userId: USER,
         characterId: CHAR,
       }),
-    ).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[location-tracking/purge] convex-teardown failed'),
-      expect.anything(),
-    );
-    errorSpy.mockRestore();
+    ).rejects.toThrow('convex down');
   });
 
-  it('logs a non-2xx response as a missed delete instead of asserting done', async () => {
+  it('propagates a non-2xx response instead of asserting done', async () => {
     fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await expect(
       locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER }),
-    ).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[location-tracking/purge] convex-teardown failed'),
-      expect.anything(),
-    );
-    errorSpy.mockRestore();
+    ).rejects.toThrow('purge-location-tracking 401');
   });
 
   it('no-ops when Convex is not configured (no NEXT_PUBLIC_CONVEX_URL)', async () => {

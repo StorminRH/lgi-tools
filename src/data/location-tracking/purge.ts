@@ -1,4 +1,3 @@
-import { bestEffort } from '@/lib/best-effort';
 import { resolveConvexServiceDoor } from '@/lib/convex-service-door';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { cancelPendingTracking } from './merge-store';
@@ -33,10 +32,8 @@ export async function teardownLocationTracking(
 ): Promise<void> {
   await cancelPendingTracking(userId, characterId);
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) return;
-  const subject = characterId === null ? userId : `${userId}:${characterId}`;
-  await bestEffort('location-tracking/purge', 'convex-teardown', subject, () =>
-    purgeLocationTracking(userId, characterId),
-  );
+  // A failure throws so the deletion stays requested and the daily run retries it.
+  await purgeLocationTracking(userId, characterId);
 }
 
 export const locationTrackingPurgeContributor: PurgeContributor = {
