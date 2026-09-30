@@ -590,38 +590,36 @@ const corpAccessBoundary = {
   create(context) {
     const RAW_READERS = ["getUserAffiliations", "getUsersAffiliations"];
     const isAffiliationStoreSource = (source) => /platform\/auth\/affiliation-store$/.test(source);
-    const reportIfBoundarySource = (node) => {
+    const isBoundarySource = (node) => {
       const source = node.source?.value;
-      if (typeof source !== "string") return;
-      if (isAffiliationStoreSource(source)) {
+      return typeof source === "string" && isAffiliationStoreSource(source);
+    };
+    const reportIfBoundarySource = (node) => {
+      if (isBoundarySource(node)) {
         context.report({ node, messageId: "raw" });
+      }
+    };
+    const isRawImportSpecifier = (specifier) =>
+      specifier.type === "ImportNamespaceSpecifier" ||
+      (specifier.type === "ImportSpecifier" && RAW_READERS.includes(specifier.imported.name));
+    const isRawExportSpecifier = (specifier) =>
+      specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name);
+    const reportRawSpecifiers = (node, isRawSpecifier) => {
+      if (!isBoundarySource(node)) return;
+      for (const specifier of node.specifiers.filter(isRawSpecifier)) {
+        context.report({ node: specifier, messageId: "raw" });
       }
     };
     return {
       ImportDeclaration(node) {
-        const source = node.source.value;
-        if (!isAffiliationStoreSource(source)) return;
-        for (const specifier of node.specifiers) {
-          if (specifier.type === "ImportNamespaceSpecifier" ||
-              (specifier.type === "ImportSpecifier" &&
-               RAW_READERS.includes(specifier.imported.name))) {
-            context.report({ node: specifier, messageId: "raw" });
-          }
-        }
+        reportRawSpecifiers(node, isRawImportSpecifier);
       },
       // Dynamic import() and export * cannot narrow to named readers; prefer static named imports for allowed persistence APIs.
       ImportExpression(node) {
         reportIfBoundarySource(node);
       },
       ExportNamedDeclaration(node) {
-        const source = node.source?.value;
-        if (typeof source !== "string") return;
-        if (!isAffiliationStoreSource(source)) return;
-        for (const specifier of node.specifiers) {
-          if (specifier.type === "ExportSpecifier" && RAW_READERS.includes(specifier.local.name)) {
-            context.report({ node: specifier, messageId: "raw" });
-          }
-        }
+        reportRawSpecifiers(node, isRawExportSpecifier);
       },
       ExportAllDeclaration(node) {
         reportIfBoundarySource(node);

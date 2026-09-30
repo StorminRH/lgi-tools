@@ -52,34 +52,43 @@ function isExported(node: ts.Node): boolean {
     ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
 }
 
+function exportedFunctionDeclaration(statement: ts.Statement, file: string): ExportedFunction[] {
+  if (!ts.isFunctionDeclaration(statement) || !statement.name || !isExported(statement)) return [];
+  return [
+    { key: `${file}:${statement.name.text}`, name: statement.name.text, declaration: statement },
+  ];
+}
+
+function isFunctionInitializer(
+  initializer: ts.Expression | undefined,
+): initializer is ts.ArrowFunction | ts.FunctionExpression {
+  return (
+    initializer !== undefined &&
+    (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer))
+  );
+}
+
+function exportedFunctionVariables(statement: ts.Statement, file: string): ExportedFunction[] {
+  if (!ts.isVariableStatement(statement) || !isExported(statement)) return [];
+  return statement.declarationList.declarations.flatMap((declaration) =>
+    ts.isIdentifier(declaration.name) && isFunctionInitializer(declaration.initializer)
+      ? [
+          {
+            key: `${file}:${declaration.name.text}`,
+            name: declaration.name.text,
+            declaration: declaration.initializer,
+          },
+        ]
+      : [],
+  );
+}
+
 function exportedFunctions(sourceFile: ts.SourceFile): ExportedFunction[] {
   const file = relative(REPO_ROOT, sourceFile.fileName);
-  const functions: ExportedFunction[] = [];
-  for (const statement of sourceFile.statements) {
-    if (ts.isFunctionDeclaration(statement) && statement.name && isExported(statement)) {
-      functions.push({
-        key: `${file}:${statement.name.text}`,
-        name: statement.name.text,
-        declaration: statement,
-      });
-    }
-    if (!ts.isVariableStatement(statement) || !isExported(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (
-        ts.isIdentifier(declaration.name) &&
-        declaration.initializer &&
-        (ts.isArrowFunction(declaration.initializer) ||
-          ts.isFunctionExpression(declaration.initializer))
-      ) {
-        functions.push({
-          key: `${file}:${declaration.name.text}`,
-          name: declaration.name.text,
-          declaration: declaration.initializer,
-        });
-      }
-    }
-  }
-  return functions;
+  return sourceFile.statements.flatMap((statement) => [
+    ...exportedFunctionDeclaration(statement, file),
+    ...exportedFunctionVariables(statement, file),
+  ]);
 }
 
 function typeContainsResponse(

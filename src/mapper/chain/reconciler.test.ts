@@ -9,22 +9,20 @@ function positionOfSlot(slot: number): ChainPosition {
   return { x: (slot % 6) * 220, y: Math.floor(slot / 6) * 160 };
 }
 
+function slotOfPosition(position: ChainPosition): number | null {
+  const column = position.x / 220;
+  const row = position.y / 160;
+  const onGrid =
+    Number.isInteger(column) && Number.isInteger(row) && column >= 0 && column < 6 && row >= 0;
+  return onGrid ? row * 6 + column : null;
+}
+
 const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
   const proposals = new Map<number, ChainPosition>();
   const occupied = new Set<number>();
   for (const candidate of systems) {
-    if (candidate.position === null) continue;
-    const column = candidate.position.x / 220;
-    const row = candidate.position.y / 160;
-    if (
-      Number.isInteger(column) &&
-      Number.isInteger(row) &&
-      column >= 0 &&
-      column < 6 &&
-      row >= 0
-    ) {
-      occupied.add(row * 6 + column);
-    }
+    const slot = candidate.position === null ? null : slotOfPosition(candidate.position);
+    if (slot !== null) occupied.add(slot);
   }
   let nextSlot = 0;
   for (const candidate of systems) {

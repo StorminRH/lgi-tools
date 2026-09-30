@@ -71,57 +71,65 @@ it('parks one titled scanner-anchored window', () => {
   expect(markup).not.toContain('--map-window-transform');
 });
 
+function drawnLeader(
+  input: Parameters<typeof editorLeader>[0],
+): NonNullable<ReturnType<typeof editorLeader>> {
+  const leader = editorLeader(input);
+  if (leader === null) throw new Error('expected editorLeader to draw a leader');
+  return leader;
+}
+
 it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when boxes exist', () => {
   const origin = { left: 0, top: 0 };
   const panel = { left: 200, right: 480, top: 40, bottom: 400 };
 
-  const leader = editorLeader({
+  const leader = drawnLeader({
     row: { left: 10, right: 180, top: 100, bottom: 128 },
     panel,
     origin,
   });
   expect(leader).not.toBeNull();
-  expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
+  expect(leader.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
   // Too little room to turn: a straight run at the row's height.
-  expect(leader?.path).toBe('M 183 114 L 200 114');
-  expect(leader?.end).toEqual({ x: 200, y: 114 });
-  const narrowLow = editorLeader({
+  expect(leader.path).toBe('M 183 114 L 200 114');
+  expect(leader.end).toEqual({ x: 200, y: 114 });
+  const narrowLow = drawnLeader({
     row: { left: 10, right: 180, top: 900, bottom: 928 },
     panel,
     origin,
   });
-  expect(narrowLow?.end).toEqual({ x: 200, y: 382 });
+  expect(narrowLow.end).toEqual({ x: 200, y: 382 });
 
   const wide = { left: 280, right: 560, top: 40, bottom: 400 };
-  const callout = editorLeader({
+  const callout = drawnLeader({
     row: { left: 10, right: 180, top: 100, bottom: 128 },
     panel: wide,
     origin,
   });
-  expect(callout?.end).toEqual({ x: 280, y: 74 });
-  expect(callout?.path.startsWith('M 183 114 L ')).toBe(true);
-  expect(callout?.path).toContain(' Q ');
+  expect(callout.end).toEqual({ x: 280, y: 74 });
+  expect(callout.path.startsWith('M 183 114 L ')).toBe(true);
+  expect(callout.path).toContain(' Q ');
 
-  const high = editorLeader({
+  const high = drawnLeader({
     row: { left: 10, right: 180, top: 0, bottom: 8 },
     panel: wide,
     origin,
   });
-  expect(high?.end.y).toBe(58);
-  const low = editorLeader({
+  expect(high.end.y).toBe(58);
+  const low = drawnLeader({
     row: { left: 10, right: 180, top: 900, bottom: 928 },
     panel: wide,
     origin,
   });
-  expect(low?.end.y).toBe(382);
+  expect(low.end.y).toBe(382);
 
-  const offset = editorLeader({
+  const offset = drawnLeader({
     row: { left: 10, right: 180, top: 100, bottom: 128 },
     panel,
     origin: { left: 20, top: 30 },
   });
-  expect(offset?.bracket).toEqual({ x: 163, top: 70, bottom: 98 });
-  expect(offset?.end.x).toBe(180);
+  expect(offset.bracket).toEqual({ x: 163, top: 70, bottom: 98 });
+  expect(offset.end.x).toBe(180);
 
   expect(
     editorLeader({
@@ -145,21 +153,21 @@ it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when
     }),
   ).toBeNull();
 
-  const squeezed = editorLeader({
+  const squeezed = drawnLeader({
     row: { left: 10, right: 180, top: 100, bottom: 102 },
     panel,
     origin,
   });
-  expect(squeezed?.bracket.bottom).toBe(110);
+  expect(squeezed.bracket.bottom).toBe(110);
 
   const clip = { left: 0, right: 200, top: 80, bottom: 200 };
-  const clipped = editorLeader({
+  const clipped = drawnLeader({
     row: { left: 10, right: 180, top: 60, bottom: 120 },
     panel,
     origin,
     clip,
   });
-  expect(clipped?.bracket).toEqual({ x: 183, top: 80, bottom: 120 });
+  expect(clipped.bracket).toEqual({ x: 183, top: 80, bottom: 120 });
   expect(
     editorLeader({
       row: { left: 10, right: 180, top: 0, bottom: 40 },
