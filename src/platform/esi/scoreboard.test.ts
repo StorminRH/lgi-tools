@@ -38,39 +38,47 @@ const h = vi.hoisted(() => {
     });
   }
 
+  function incrVal(key: string): number {
+    const entry = store.get(key);
+    const live = isLive(entry);
+    const next = live ? Number(entry.value) + 1 : 1;
+    store.set(key, {
+      value: String(next),
+      expiresAt: live ? entry.expiresAt : null,
+    });
+    return next;
+  }
+
+  function expireVal(key: string, seconds: number): number {
+    const entry = store.get(key);
+    if (!isLive(entry)) return 0;
+    entry.expiresAt = Date.now() + seconds * 1000;
+    return 1;
+  }
+
+  function evalLowerOrSet(keys: string[], args: string[]): number {
+    const current = getVal(keys[0]!);
+    if (current === null || Number(current) > Number(args[0])) {
+      setVal(keys[0]!, args[0]!, Number(args[1]));
+    }
+    return 1;
+  }
+
   function run(cmd: Cmd): unknown {
     switch (cmd[0]) {
       case 'get':
         return getVal(cmd[1]);
       case 'set': {
-        const opts = cmd[3];
-        setVal(cmd[1], cmd[2], typeof opts?.ex === 'number' ? opts.ex : null);
+        const ex = cmd[3]?.ex;
+        setVal(cmd[1], cmd[2], typeof ex === 'number' ? ex : null);
         return 'OK';
       }
-      case 'incr': {
-        const entry = store.get(cmd[1]);
-        const live = isLive(entry);
-        const next = live ? Number(entry.value) + 1 : 1;
-        store.set(cmd[1], {
-          value: String(next),
-          expiresAt: live ? entry.expiresAt : null,
-        });
-        return next;
-      }
-      case 'expire': {
-        const entry = store.get(cmd[1]);
-        if (!isLive(entry)) return 0;
-        entry.expiresAt = Date.now() + cmd[2] * 1000;
-        return 1;
-      }
-      case 'eval': {
-        const [, , keys, args] = cmd;
-        const current = getVal(keys[0]!);
-        if (current === null || Number(current) > Number(args[0])) {
-          setVal(keys[0]!, args[0]!, Number(args[1]));
-        }
-        return 1;
-      }
+      case 'incr':
+        return incrVal(cmd[1]);
+      case 'expire':
+        return expireVal(cmd[1], cmd[2]);
+      case 'eval':
+        return evalLowerOrSet(cmd[2], cmd[3]);
     }
   }
 

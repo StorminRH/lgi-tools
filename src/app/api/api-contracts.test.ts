@@ -63,22 +63,25 @@ function sourceFile(source: string): ts.SourceFile {
   return ts.createSourceFile('route.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
+function namedImportSpecifiers(
+  statement: ts.Statement,
+  moduleMatches: (moduleName: string) => boolean,
+): readonly ts.ImportSpecifier[] {
+  if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+    return [];
+  }
+  if (!moduleMatches(statement.moduleSpecifier.text)) return [];
+  const bindings = statement.importClause?.namedBindings;
+  return bindings && ts.isNamedImports(bindings) ? bindings.elements : [];
+}
+
 function namedImports(
   file: ts.SourceFile,
   moduleMatches: (moduleName: string) => boolean,
 ): Map<string, string> {
   const imports = new Map<string, string>();
   for (const statement of file.statements) {
-    if (
-      !ts.isImportDeclaration(statement) ||
-      !ts.isStringLiteral(statement.moduleSpecifier) ||
-      !moduleMatches(statement.moduleSpecifier.text)
-    ) {
-      continue;
-    }
-    const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
-    for (const specifier of bindings.elements) {
+    for (const specifier of namedImportSpecifiers(statement, moduleMatches)) {
       imports.set(specifier.name.text, specifier.propertyName?.text ?? specifier.name.text);
     }
   }
@@ -190,19 +193,16 @@ function boundEndpointCalls(
   marketNames: ReadonlySet<string>,
 ): number {
   const callee = calledIdentifier(node);
-  if (callee !== null && apiResponseNames.has(callee)) {
-    const endpoint = firstArgIdentifier(node);
-    return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
-  }
-  if (callee !== null && lifecycleNames.has(callee)) {
-    const endpoint = lifecycleEndpointName(node);
-    return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
-  }
-  if (callee !== null && marketNames.has(callee)) {
-    const endpoint = secondArgIdentifier(node);
-    return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
-  }
-  return 0;
+  if (callee === null) return 0;
+  // First matching binder wins, in the order apiResponse, lifecycle, market.
+  const binders: readonly [ReadonlySet<string>, (call: ts.CallExpression) => string | null][] = [
+    [apiResponseNames, firstArgIdentifier],
+    [lifecycleNames, lifecycleEndpointName],
+    [marketNames, secondArgIdentifier],
+  ];
+  const extractEndpoint = binders.find(([names]) => names.has(callee))?.[1];
+  const endpoint = extractEndpoint?.(node) ?? null;
+  return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
 }
 
 function classifyV2Route(source: string): V2Classification {
@@ -277,6 +277,38 @@ function stringProperty(literal: ts.ObjectLiteralExpression, key: string): strin
   return undefined;
 }
 
+function isDefineEndpointCall(
+  expression: ts.Expression | undefined,
+): expression is ts.CallExpression {
+  return (
+    expression !== undefined &&
+    ts.isCallExpression(expression) &&
+    ts.isIdentifier(expression.expression) &&
+    expression.expression.text === 'defineEndpoint'
+  );
+}
+
+function defineEndpointArgument(
+  node: ts.Node,
+): { name: string; argument: ts.ObjectLiteralExpression } | null {
+  if (!ts.isVariableDeclaration(node) || !ts.isIdentifier(node.name)) return null;
+  if (!isDefineEndpointCall(node.initializer)) return null;
+  const [argument] = node.initializer.arguments;
+  return argument !== undefined && ts.isObjectLiteralExpression(argument)
+    ? { name: node.name.text, argument }
+    : null;
+}
+
+function declaredEndpoint(node: ts.Node, contract: string): DeclaredEndpoint | null {
+  const match = defineEndpointArgument(node);
+  if (match === null) return null;
+  const method = stringProperty(match.argument, 'method');
+  const path = stringProperty(match.argument, 'path');
+  return method !== undefined && path !== undefined
+    ? { name: match.name, method, path, contract }
+    : null;
+}
+
 function collectDeclaredEndpoints(): DeclaredEndpoint[] {
   const declared: DeclaredEndpoint[] = [];
   for (const file of findFiles(SRC_DIR, (name) => name === 'api-contract.ts')) {
@@ -287,24 +319,10 @@ function collectDeclaredEndpoints(): DeclaredEndpoint[] {
       true,
       ts.ScriptKind.TS,
     );
+    const contract = relative(REPO_ROOT, file);
     const visit = (node: ts.Node): void => {
-      if (
-        ts.isVariableDeclaration(node) &&
-        ts.isIdentifier(node.name) &&
-        node.initializer !== undefined &&
-        ts.isCallExpression(node.initializer) &&
-        ts.isIdentifier(node.initializer.expression) &&
-        node.initializer.expression.text === 'defineEndpoint'
-      ) {
-        const [argument] = node.initializer.arguments;
-        if (argument !== undefined && ts.isObjectLiteralExpression(argument)) {
-          const method = stringProperty(argument, 'method');
-          const path = stringProperty(argument, 'path');
-          if (method !== undefined && path !== undefined) {
-            declared.push({ name: node.name.text, method, path, contract: relative(REPO_ROOT, file) });
-          }
-        }
-      }
+      const endpoint = declaredEndpoint(node, contract);
+      if (endpoint !== null) declared.push(endpoint);
       ts.forEachChild(node, visit);
     };
     visit(source);
@@ -316,23 +334,25 @@ function routeFileForPath(path: string): string {
   return join(API_DIR, path.replace(/^\/api\/?/, ''), 'route.ts');
 }
 
+function isExported(statement: ts.Statement): boolean {
+  const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined;
+  return modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+}
+
+function declaresName(statement: ts.Statement, name: string): boolean {
+  if (ts.isFunctionDeclaration(statement)) return statement.name?.text === name;
+  return (
+    ts.isVariableStatement(statement) &&
+    statement.declarationList.declarations.some(
+      (declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === name,
+    )
+  );
+}
+
 function exportsMethod(source: string, method: string): boolean {
-  const file = sourceFile(source);
-  for (const statement of file.statements) {
-    const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined;
-    const exported = modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
-    if (!exported) continue;
-    if (ts.isFunctionDeclaration(statement) && statement.name?.text === method) return true;
-    if (
-      ts.isVariableStatement(statement) &&
-      statement.declarationList.declarations.some(
-        (declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === method,
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return sourceFile(source).statements.some(
+    (statement) => isExported(statement) && declaresName(statement, method),
+  );
 }
 
 const DECLARED_ENDPOINTS = collectDeclaredEndpoints();

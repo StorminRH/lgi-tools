@@ -99,7 +99,7 @@ function formatEffectPercent(percent: number): string {
   return `${sign}${Math.abs(percent)}%`;
 }
 
-function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number | null }) {
+function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number }) {
   const { codex, failed } = useWormholeCodexStatus();
   if (codex === null) {
     return (
@@ -108,7 +108,7 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
       </p>
     );
   }
-  const entry = whClassId === null ? null : codex.effect(effect, whClassId);
+  const entry = codex.effect(effect, whClassId);
   if (entry === null || entry.modifiers.length === 0) {
     return <p className="ml-6 py-1 font-data text-micro text-muted">No effect data for this class.</p>;
   }
@@ -124,7 +124,7 @@ function EffectModifiers({ effect, whClassId }: { readonly effect: WormholeEffec
   );
 }
 
-function EffectDisclosure({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number | null }) {
+function EffectDisclosure({ effect, whClassId }: { readonly effect: WormholeEffect; readonly whClassId: number }) {
   return (
     <DisclosureToggle
       role="group"
@@ -146,7 +146,7 @@ function EffectDisclosure({ effect, whClassId }: { readonly effect: WormholeEffe
 function WormholeLocation({ systemId, effect, whClassId }: {
   readonly systemId: number;
   readonly effect: WormholeEffect | null;
-  readonly whClassId: number | null;
+  readonly whClassId: number;
 }) {
   const slots = useSystemStaticSlots(systemId);
   return (
@@ -189,9 +189,11 @@ function KnownSpaceLocation({ systemId }: { readonly systemId: number }) {
 
 function LocationSection({ systemId }: { readonly systemId: number }) {
   const label = useSystemLabel(systemId);
-  const kind = intelLocationKind({ security: label?.security ?? null, whClassId: label?.whClassId ?? null });
-  if (kind === 'wormhole') {
-    return <WormholeLocation systemId={systemId} effect={label?.effect ?? null} whClassId={label?.whClassId ?? null} />;
+  const whClassId = label?.whClassId ?? null;
+  const kind = intelLocationKind({ security: label?.security ?? null, whClassId });
+  // A wormhole always has a class; the null check only narrows the type.
+  if (kind === 'wormhole' && whClassId !== null) {
+    return <WormholeLocation systemId={systemId} effect={label?.effect ?? null} whClassId={whClassId} />;
   }
   if (kind === 'k-space') return <KnownSpaceLocation systemId={systemId} />;
   return null;

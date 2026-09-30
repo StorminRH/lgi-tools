@@ -54,9 +54,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "fallow": "fallow dead-code --fail-on-issues && fallow dead-code --production --fail-on-issues && fallow dupes --fail-on-issues && fallow health --fail-on-issues --coverage-gaps --coverage coverage/coverage-final.json",
-    "fallow:health": "fallow health --coverage-gaps --coverage coverage/coverage-final.json",
-    "fallow:health:local": "fallow health --fail-on-issues --coverage-gaps --max-crap 10000",
+    "fallow": "pnpm fallow:static && pnpm fallow:coverage",
+    "fallow:static": "fallow dead-code --fail-on-issues && fallow dupes --fail-on-issues && fallow health --fail-on-issues --complexity --coverage-gaps --max-crap 0",
+    "fallow:coverage": "fallow dead-code --production --fail-on-issues && fallow health --fail-on-issues --complexity --coverage-gaps --coverage coverage/coverage-final.json",
+    "check": "pnpm typecheck && pnpm lint && vitest run --changed --passWithNoTests && pnpm fallow:static",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow"
   },
   "dependencies": {

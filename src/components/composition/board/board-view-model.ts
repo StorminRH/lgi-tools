@@ -219,21 +219,32 @@ export function effectiveSkills(
   skills: Pick<BoardSkillsData, 'levels' | 'queue' | 'known' | 'atV'>,
   now: number,
 ): EffectiveSkills {
-  const levels: Record<string, number> = { ...skills.levels };
-  const reported: Record<string, number> = {};
-  let known = skills.known;
-  let atV = skills.atV;
+  const effective: EffectiveSkills = {
+    levels: { ...skills.levels },
+    reported: {},
+    known: skills.known,
+    atV: skills.atV,
+  };
   for (const entry of skills.queue) {
     if (entry.finish_date === undefined || Date.parse(entry.finish_date) > now) continue;
-    const key = String(entry.skill_id);
-    const before = levels[key];
-    if (before !== undefined && before >= entry.finished_level) continue;
-    if (!(key in reported)) reported[key] = skills.levels[key] ?? 0;
-    if (skills.levels[key] === undefined && before === undefined) known += 1;
-    if (entry.finished_level === 5 && (before ?? 0) < 5) atV += 1;
-    levels[key] = entry.finished_level;
+    applyFinishedEntry(effective, skills.levels, entry);
   }
-  return { levels, reported, known, atV };
+  return effective;
+}
+
+/** Raises one skill to a finished entry's level, counting a new skill or a new V. */
+function applyFinishedEntry(
+  effective: EffectiveSkills,
+  esiLevels: Readonly<Record<string, number>>,
+  entry: Pick<SkillQueueEntry, 'skill_id' | 'finished_level'>,
+): void {
+  const key = String(entry.skill_id);
+  const before = effective.levels[key];
+  if (before !== undefined && before >= entry.finished_level) return;
+  if (!(key in effective.reported)) effective.reported[key] = esiLevels[key] ?? 0;
+  if (esiLevels[key] === undefined && before === undefined) effective.known += 1;
+  if (entry.finished_level === 5 && (before ?? 0) < 5) effective.atV += 1;
+  effective.levels[key] = entry.finished_level;
 }
 
 export interface SkillGroupSkill {

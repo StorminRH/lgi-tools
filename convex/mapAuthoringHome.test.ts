@@ -47,48 +47,42 @@ const PUBLIC_MUTATIONS = [
   { name: 'restoreConnection', fn: api.mapAuthoringTombstone.restoreConnection },
 ] as const;
 
+type MutationName = (typeof PUBLIC_MUTATIONS)[number]['name'];
+type ConnectionMutationName = Exclude<
+  MutationName,
+  'setHomeSystem' | 'addSystemFromNode'
+>;
+
+// Extra args each connection-scoped mutation needs beyond mapId/connectionId.
+const CONNECTION_EXTRA_ARGS: Record<
+  ConnectionMutationName,
+  Record<string, unknown>
+> = {
+  setConnectionWormholeType: { value: 'C247' },
+  setConnectionDestinationHint: { side: 'from', value: 'dangerous' },
+  setConnectionDestination: { side: 'from', value: DODIXIE },
+  setConnectionShipSize: { value: 'M' },
+  setConnectionMassState: { value: 'stable' },
+  setConnectionLifeStage: { value: 'under_1_day' },
+  severConnection: {},
+  restoreSeveredBranch: {},
+  restoreConnection: {},
+};
+
 async function argsFor(
   t: Chain,
-  name: (typeof PUBLIC_MUTATIONS)[number]['name'],
+  name: MutationName,
 ): Promise<Record<string, unknown>> {
-  switch (name) {
-    case 'setHomeSystem':
-      await seedEmpty(t);
-      return { mapId: MAP_A, systemId: JITA };
-    case 'addSystemFromNode':
-      await seedHome(t);
-      return { mapId: MAP_A, fromSystemId: JITA, toSystemId: AMARR };
-    case 'setConnectionWormholeType':
-    case 'setConnectionDestinationHint':
-    case 'setConnectionDestination':
-    case 'setConnectionShipSize':
-    case 'setConnectionMassState':
-    case 'setConnectionLifeStage':
-    case 'severConnection':
-    case 'restoreSeveredBranch':
-    case 'restoreConnection': {
-      const { connectionId } = await seedJump(t);
-      if (name === 'setConnectionWormholeType') {
-        return { mapId: MAP_A, connectionId, value: 'C247' };
-      }
-      if (name === 'setConnectionDestinationHint') {
-        return { mapId: MAP_A, connectionId, side: 'from', value: 'dangerous' };
-      }
-      if (name === 'setConnectionDestination') {
-        return { mapId: MAP_A, connectionId, side: 'from', value: DODIXIE };
-      }
-      if (name === 'setConnectionShipSize') {
-        return { mapId: MAP_A, connectionId, value: 'M' };
-      }
-      if (name === 'setConnectionMassState') {
-        return { mapId: MAP_A, connectionId, value: 'stable' };
-      }
-      if (name === 'setConnectionLifeStage') {
-        return { mapId: MAP_A, connectionId, value: 'under_1_day' };
-      }
-      return { mapId: MAP_A, connectionId };
-    }
+  if (name === 'setHomeSystem') {
+    await seedEmpty(t);
+    return { mapId: MAP_A, systemId: JITA };
   }
+  if (name === 'addSystemFromNode') {
+    await seedHome(t);
+    return { mapId: MAP_A, fromSystemId: JITA, toSystemId: AMARR };
+  }
+  const { connectionId } = await seedJump(t);
+  return { mapId: MAP_A, connectionId, ...CONNECTION_EXTRA_ARGS[name] };
 }
 
 describe('map authoring', () => {

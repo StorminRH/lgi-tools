@@ -102,6 +102,14 @@ async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) 
   });
 }
 
+async function readVisiblePresence(t: T) {
+  const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+  if (presence === null || typeof presence.lastVisibleAt !== 'number') {
+    throw new Error('presence did not stamp visibility');
+  }
+  return { ...presence, lastVisibleAt: presence.lastVisibleAt };
+}
+
 // Warm, but past the 45s presence-refresh window, so an interval beat is not skipped.
 function warmPresence() {
   const at = Date.now() - 50_000;
@@ -564,34 +572,31 @@ describe('engine.heartbeat', () => {
   it('stamps the beating tab, skips a fresh interval, and moves visibility only on a visible beat', async () => {
     const t = convexTest(schema, modules);
     await heartbeat(t, { characterIdsHint: [], reason: 'mount', visible: false, tabId: 'tab-one' });
-    const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    const visibleAt = mounted?.lastVisibleAt;
-    expect(mounted?.tabId).toBe('tab-one');
+    const mounted = await readVisiblePresence(t);
+    const visibleAt = mounted.lastVisibleAt;
+    expect(mounted.tabId).toBe('tab-one');
     expect(typeof visibleAt).toBe('number');
-    if (mounted === null || typeof visibleAt !== 'number') {
-      throw new Error('mount did not stamp visibility');
-    }
 
     vi.advanceTimersByTime(20_000);
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-one' });
-    const fresh = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    const fresh = await readVisiblePresence(t);
     expect(fresh).toEqual(mounted);
 
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-two' });
-    const otherTab = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(otherTab?.tabId).toBe('tab-two');
-    expect(otherTab?.lastSeenAt).toBeGreaterThan(mounted.lastSeenAt);
-    expect(otherTab?.lastVisibleAt).toBe(visibleAt);
+    const otherTab = await readVisiblePresence(t);
+    expect(otherTab.tabId).toBe('tab-two');
+    expect(otherTab.lastSeenAt).toBeGreaterThan(mounted.lastSeenAt);
+    expect(otherTab.lastVisibleAt).toBe(visibleAt);
 
     vi.advanceTimersByTime(60_000);
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-two' });
-    const hiddenRefresh = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(hiddenRefresh?.lastSeenAt).toBeGreaterThan(otherTab!.lastSeenAt);
-    expect(hiddenRefresh?.lastVisibleAt).toBe(visibleAt);
+    const hiddenRefresh = await readVisiblePresence(t);
+    expect(hiddenRefresh.lastSeenAt).toBeGreaterThan(otherTab.lastSeenAt);
+    expect(hiddenRefresh.lastVisibleAt).toBe(visibleAt);
 
     await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: true, tabId: 'tab-two' });
-    const afterVisible = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(afterVisible?.lastVisibleAt).toBeGreaterThan(visibleAt);
+    const afterVisible = await readVisiblePresence(t);
+    expect(afterVisible.lastVisibleAt).toBeGreaterThan(visibleAt);
   });
 });
 
