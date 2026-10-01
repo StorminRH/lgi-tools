@@ -5,7 +5,7 @@ import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-tabl
 
 /** Floating row: each row is its own rounded glass strip with no rules between. */
 export const floatingRow =
-  'rounded-card bg-row-sites-on transition-colors duration-fast hover:bg-row-on';
+  'rounded-card bg-bg-deep/60 transition-colors duration-fast hover:bg-bg-deep/35';
 
 const headerText = 'inline-flex items-center gap-1 font-ui text-ui font-medium';
 

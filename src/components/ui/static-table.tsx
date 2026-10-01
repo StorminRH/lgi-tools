@@ -16,8 +16,8 @@ function cellClass(
   className?: string,
 ): string {
   return cn(
-    'bg-row-sites-on px-3.5 py-2.5 font-ui text-ui tabular-nums transition-colors duration-fast ' +
-      'first:rounded-l-card last:rounded-r-card group-hover:bg-row-on',
+    'bg-bg-deep/60 px-3.5 py-2.5 font-ui text-ui tabular-nums transition-colors duration-fast ' +
+      'first:rounded-l-card last:rounded-r-card group-hover:bg-bg-deep/35',
     align === 'right' ? 'text-right' : 'text-left',
     className,
   );
