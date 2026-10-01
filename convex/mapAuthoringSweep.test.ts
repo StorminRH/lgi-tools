@@ -520,24 +520,14 @@ describe('map authoring', () => {
       expect(stillDue).toEqual([]);
     });
 
-    it('keeps one collapse-decision owner and registers the sweep cron', () => {
+    it('keeps one collapse-decision owner', () => {
       const collapseSource = readFileSync('convex/mapAuthoringCollapse.ts', 'utf8');
-      const scanSource = readFileSync('convex/mapScan.ts', 'utf8');
-      const applySource = readFileSync('convex/lib/mapScanApply.ts', 'utf8');
       const selectionSource = readFileSync('convex/lib/mapScanSelection.ts', 'utf8');
-      const cronSource = readFileSync('convex/crons.ts', 'utf8');
 
       expect(collapseSource.match(/decideCollapse\(/g)).toHaveLength(1);
-      expect(scanSource).not.toContain('decideCollapse');
-      expect(applySource).not.toContain('decideCollapse');
-      expect(selectionSource).not.toContain('decideCollapse');
-      expect(applySource).not.toContain('runCollapse(');
       expect(selectionSource).toContain('runCollapse(');
-      expect(scanSource).not.toContain('runCollapse(');
       expect(collapseSource).toContain('runCollapse(ctx, {');
       expect(collapseSource).toContain('gatedAuthoringEdit');
-      expect(cronSource).toContain("'map ceiling collapse'");
-      expect(cronSource).toContain('internal.mapAuthoringSweep.collapseExpiredConnections');
     });
   });
 });

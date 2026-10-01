@@ -31,6 +31,9 @@ function findCharacterLocation(
 
 type TrackedLocation = ReturnType<typeof trackedLocationPayload>;
 
+// Older clients group by userId; a constant keeps them working without identifying an account.
+const LEGACY_TRACKER_KEY = '';
+
 function movedAt(location: TrackedLocation): number {
   return location.transitionObservedAt ?? location.observedAt;
 }
@@ -44,7 +47,7 @@ function fresher(held: TrackedLocation | null, next: TrackedLocation | null): Tr
 async function readTrackedLocations(
   ctx: QueryCtx,
   rows: readonly Doc<'mapTracking'>[],
-): Promise<{ characterId: number; location: TrackedLocation | null }[]> {
+): Promise<{ userId: string; characterId: number; location: TrackedLocation | null }[]> {
   const byCharacter = new Map<number, TrackedLocation | null>();
   for (const row of rows) {
     const location = await findCharacterLocation(ctx, row.userId, row.characterId);
@@ -53,7 +56,7 @@ async function readTrackedLocations(
   }
   return [...byCharacter]
     .sort(([left], [right]) => left - right)
-    .map(([characterId, location]) => ({ characterId, location }));
+    .map(([characterId, location]) => ({ userId: LEGACY_TRACKER_KEY, characterId, location }));
 }
 
 export const forMap = query({
@@ -92,9 +95,18 @@ async function characterCovered(ctx: QueryCtx, mapId: string, characterId: numbe
 export const coverage = query({
   args: {
     mapId: v.string(),
-    characterIds: v.array(v.number()),
+    characterIds: v.optional(v.array(v.number())),
+    identities: v.optional(v.array(v.object({ userId: v.optional(v.string()), characterId: v.number() }))),
   },
-  handler: async (ctx, { mapId, characterIds }) => {
+  handler: async (ctx, args) => {
+    const { mapId } = args;
+    const characterIds = args.characterIds ?? args.identities?.map(({ characterId }) => characterId);
+    if (characterIds === undefined || (args.characterIds !== undefined && args.identities !== undefined)) {
+      throw new ConvexError({
+        code: 'INVALID_COVERAGE_ARGS',
+        detail: 'Provide exactly one of characterIds or identities.',
+      });
+    }
     const principal = await tryMapAccess(ctx, mapId, 'view');
     if (principal === null) {
       return { coverage: [] as { characterId: number; covered: boolean }[] };
@@ -111,7 +123,11 @@ export const coverage = query({
       characterId,
       covered: await characterCovered(ctx, mapId, characterId),
     })));
-    return { coverage: coverageRows };
+    return {
+      coverage: args.characterIds !== undefined
+        ? coverageRows
+        : coverageRows.map((row) => ({ userId: LEGACY_TRACKER_KEY, ...row })),
+    };
   },
 });
 

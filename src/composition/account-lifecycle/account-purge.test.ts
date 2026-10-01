@@ -34,7 +34,10 @@ beforeEach(() => {
 
 describe('deletion recovery boundaries', () => {
   it('leaves ordinary sign-in alone when there is no pending cleanup', async () => {
-    await expect(finishPendingDeletion(90000001)).resolves.toBeUndefined();
+    await finishPendingDeletion(90000001);
+    expect(recovery.jobsForCharacter).toHaveBeenCalledWith(90000001);
+    expect(recovery.readPendingDeletion).toHaveBeenCalledWith(90000001);
+    expect(recovery.rotateDeletionJob).not.toHaveBeenCalled();
   });
 
   it('does not discover or enqueue work after the cron deadline', async () => {

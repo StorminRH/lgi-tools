@@ -106,7 +106,7 @@ export async function countCapabilityOutcome(
 }
 
 function dependencyAverage(kind: DependencyKind) {
-  return sql<number | null>`avg(nullif(${usageLogs.metadata} -> 'dependencies' -> ${kind} ->> 'ms', 'null')::double precision)`.mapWith(
+  return sql<number | null>`avg(coalesce(nullif(${usageLogs.metadata} -> 'dependencies' -> ${kind} ->> 'ms', 'null')::double precision, 0))`.mapWith(
     Number,
   );
 }

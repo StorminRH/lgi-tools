@@ -13,7 +13,8 @@ import {
   sql,
   type SQL,
 } from 'drizzle-orm';
-import { db } from '@/db';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { db, directClient } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
@@ -512,7 +513,8 @@ export async function applyAuthorizedMapGrantChange(
   }
   // Revokes on one map run one at a time, so the last-own-character guard
   // reads the grants the previous revoke left behind.
-  return database.transaction(async (transaction) => {
+  const writer = database === db ? drizzle(directClient) : database;
+  return writer.transaction(async (transaction) => {
     await transaction.execute(sql`SELECT ${maps.id} FROM ${maps} WHERE ${maps.id} = ${mapId} FOR UPDATE`);
     return writeAuthorizedGrantChange(userId, principals, mapId, change, transaction);
   });

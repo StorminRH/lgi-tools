@@ -18,11 +18,11 @@ describe('deriveServiceLevels', () => {
 
   it('formats values against their targets and names the owner', () => {
     const rows = deriveServiceLevels(
-      { readSuccess: 0.97, mutationSuccess: null, latencyP95: 3200, esiSuccess: 0.9 },
+      { readSuccess: 0.9876, mutationSuccess: null, latencyP95: 3200.4, esiSuccess: 0.9 },
       idleQueue,
     );
     expect(rows.map((row) => [row.value, row.target, row.level, row.owner])).toEqual([
-      ['97.0%', '≥ 99%', 'amber', 'you'],
+      ['98.8%', '≥ 99%', 'amber', 'you'],
       ['no data', '≥ 99%', 'neutral', 'you'],
       ['3,200 ms', '≤ 1,500 ms', 'red', 'you'],
       ['90.0%', '≥ 95%', 'amber', 'upstream'],
@@ -60,6 +60,6 @@ describe('service level detail labels', () => {
   it('says how often a slow operation ran and where its time went', () => {
     const slow = { feature: 'planner', operation: 'read-owned-assets', p95Ms: 2000, count: 1, slowestDependency: null };
     expect(slowOperationNote(slow)).toBe('1 run');
-    expect(slowOperationNote({ ...slow, count: 1200, slowestDependency: 'esi' })).toBe('1,200 runs · mostly esi');
+    expect(slowOperationNote({ ...slow, count: 1200, slowestDependency: 'esi' })).toBe('1,200 runs · mostly esi on average');
   });
 });

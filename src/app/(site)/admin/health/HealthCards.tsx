@@ -63,7 +63,7 @@ async function loadFailureDetail(
     listDailyCapabilityFailures(range, kind, excluded),
     excluded.includes('validation') ? countCapabilityOutcome(range, kind, 'validation') : undefined,
   ]);
-  return { groups, daily, validationRejected };
+  return { range, groups, daily, validationRejected };
 }
 
 async function loadServiceLevelDetails(range: DateRange): Promise<Omit<ServiceLevelDetails, 'queue'>> {
