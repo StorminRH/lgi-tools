@@ -94,6 +94,7 @@ describe('MapSwitcher', () => {
         maps: MAPS,
         corporations: [],
         grantsByMapId: {},
+        blocksByMapId: {},
       }),
     );
     expect(absent).toBe('');
@@ -105,6 +106,7 @@ describe('MapSwitcher', () => {
         maps: MAPS,
         corporations: [],
         grantsByMapId: { 'map-a': [] },
+        blocksByMapId: { 'map-a': [] },
       }),
     );
 

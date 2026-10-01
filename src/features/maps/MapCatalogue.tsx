@@ -26,6 +26,7 @@ import {
   connectedDialogFocus,
   currentAdminMap,
   dropLostAdminEdit,
+  editingMapRows,
   mapDialogAuthorityKey,
   reconcileAuthorityScopedMapDialogs,
 } from './map-dialog-state';
@@ -378,6 +379,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
     deletedMaps,
     corporations,
     grantsByMapId,
+    blocksByMapId,
     listingAvailable,
   } = data;
   const router = useRouter();
@@ -461,11 +463,8 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
           }}
           finalFocus={() => finalFocus(editOpenerRef.current)}
           corporations={corporations}
-          initialGrants={
-            currentEditingMap === null
-              ? []
-              : grantsByMapId[currentEditingMap.id] ?? []
-          }
+          initialGrants={editingMapRows(grantsByMapId, currentEditingMap)}
+          initialBlocks={editingMapRows(blocksByMapId, currentEditingMap)}
         />
       ) : null}
       <ConfirmDialog

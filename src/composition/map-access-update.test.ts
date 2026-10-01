@@ -176,4 +176,33 @@ describe('applyMapAccessUpdate', () => {
       }),
     ).rejects.toBe(failure);
   });
+
+  it('projects a block or unblock and acknowledges it, and projects nothing for a refused block', async () => {
+    const pending = { mapId: 'map-1', version: 'captured' };
+    const projectAccess = vi.fn().mockResolvedValue({
+      inserted: 0, updated: 0, deleted: 1, unchanged: 0, outcome: 'applied',
+    });
+    const acknowledgeAccess = vi.fn();
+    const deps = {
+      resolvePrincipals: vi.fn().mockResolvedValue({ characterIds: [7], corporationIds: [] }),
+      blockCharacter: vi.fn().mockResolvedValue({ creatorUserId: 'creator', holderUserId: 'spy', pending }),
+      unblockCharacter: vi.fn().mockResolvedValue(pending),
+      applyGrantChange: vi.fn(),
+      projectAccess,
+      acknowledgeAccess,
+    };
+    await expect(applyMapAccessUpdate('admin', { operation: 'block', mapId: 'map-1', characterId: 42 }, deps))
+      .resolves.toEqual({ ok: true });
+    await expect(applyMapAccessUpdate('admin', { operation: 'unblock', mapId: 'map-1', characterId: 42 }, deps))
+      .resolves.toEqual({ ok: true });
+    expect(projectAccess).toHaveBeenCalledTimes(2);
+    expect(acknowledgeAccess).toHaveBeenCalledWith([pending]);
+    expect(deps.applyGrantChange).not.toHaveBeenCalled();
+
+    projectAccess.mockClear();
+    deps.blockCharacter.mockResolvedValue({ creatorUserId: 'creator', holderUserId: 'creator', pending: null });
+    await expect(applyMapAccessUpdate('admin', { operation: 'block', mapId: 'map-1', characterId: 43 }, deps))
+      .resolves.toEqual({ ok: false, reason: 'block-owner' });
+    expect(projectAccess).not.toHaveBeenCalled();
+  });
 });

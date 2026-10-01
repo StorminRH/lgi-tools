@@ -6,6 +6,7 @@ import {
   type MapPrincipals,
 } from '@/data/maps/access';
 import type { MapRole } from '@/data/maps/access-contract';
+import { getBlockedMapUserIds } from '@/data/maps/blocks';
 import {
   getCharacterNames,
   getMapAccessSubject,
@@ -130,6 +131,16 @@ async function nameCharacters(
   }));
 }
 
+/** Blocked accounts get no claim; the creator is never blocked. */
+export function unblockedCandidates(
+  candidateUserIds: readonly string[],
+  blockedUserIds: readonly string[],
+  creatorUserId: string,
+): string[] {
+  const blocked = new Set(blockedUserIds);
+  return candidateUserIds.filter((userId) => userId !== creatorUserId && !blocked.has(userId));
+}
+
 async function computeMapAccessClaimsForState(
   mapId: string,
   allowArchived: boolean,
@@ -140,10 +151,14 @@ async function computeMapAccessClaimsForState(
   const scoped = map.characterScopedAt !== null;
 
   const grants = await getMapGrants(mapId);
-  const candidateUserIds = (await getMapAccessCandidateUserIds(
-    grantOwnerIds(grants, 'character'),
-    grantOwnerIds(grants, 'corporation'),
-  )).filter((userId) => userId !== map.userId);
+  const candidateUserIds = unblockedCandidates(
+    await getMapAccessCandidateUserIds(
+      grantOwnerIds(grants, 'character'),
+      grantOwnerIds(grants, 'corporation'),
+    ),
+    await getBlockedMapUserIds(mapId),
+    map.userId,
+  );
   const byUser = groupByUser(await getUsersAffiliations(
     scoped ? [...candidateUserIds, map.userId] : candidateUserIds,
   ));

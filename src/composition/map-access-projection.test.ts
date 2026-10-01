@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   reserveMapAccessProjectionRevision: vi.fn(),
   getMapAccessCandidateUserIds: vi.fn(),
   getCharacterNames: vi.fn(),
+  getBlockedMapUserIds: vi.fn(),
   getUsersAffiliations: vi.fn(),
   refreshAffiliationsWithOutcome: vi.fn(),
   fetchWithTimeout: vi.fn(),
@@ -20,6 +21,9 @@ vi.mock('@/data/maps/queries', () => ({
   reserveMapAccessProjectionRevision: mocks.reserveMapAccessProjectionRevision,
   getMapAccessCandidateUserIds: mocks.getMapAccessCandidateUserIds,
   getCharacterNames: mocks.getCharacterNames,
+}));
+vi.mock('@/data/maps/blocks', () => ({
+  getBlockedMapUserIds: mocks.getBlockedMapUserIds,
 }));
 vi.mock('@/platform/auth/affiliation-store', () => ({
   getUsersAffiliations: mocks.getUsersAffiliations,
@@ -47,6 +51,7 @@ import {
   purgeUserMapAccessProjection,
   revokeUserMapClaims,
   teardownMapAccessProjection,
+  unblockedCandidates,
 } from './map-access-projection';
 
 function affiliation(userId: string, characterId: number, corporationId: number | null, fresh = true) {
@@ -65,6 +70,7 @@ function resetProjectionMocks() {
   mocks.reserveMapAccessProjectionRevision.mockResolvedValue(41);
   mocks.getMapAccessCandidateUserIds.mockResolvedValue([]);
   mocks.getCharacterNames.mockResolvedValue(new Map());
+  mocks.getBlockedMapUserIds.mockResolvedValue([]);
   mocks.deriveConvexSiteUrl.mockReturnValue('http://127.0.0.1:3211');
   mocks.readEnv.mockImplementation((name: string) =>
     name === 'CONVEX_SERVICE_SECRET' ? 'svc-secret' : undefined,
@@ -498,4 +504,24 @@ test('a character-scoped projection counts only once Convex confirms the charact
   await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'applied' });
   respond({ ...counts, outcome: 'unscoped-refused' });
   await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+});
+
+test('drops every blocked account, whichever character matched, and never the creator', async () => {
+  resetProjectionMocks();
+  mocks.getMapGrants.mockResolvedValue([
+    { ownerType: 'corporation', ownerId: 990, role: 'editor', grantedAt: new Date(0) },
+    { ownerType: 'character', ownerId: 55, role: 'admin', grantedAt: new Date(0) },
+  ]);
+  mocks.getMapAccessCandidateUserIds.mockResolvedValue(['spy', 'member']);
+  mocks.getUsersAffiliations.mockResolvedValue([
+    affiliation('spy', 44, 990), affiliation('spy', 55, null), affiliation('member', 43, 990),
+  ]);
+  mocks.getBlockedMapUserIds.mockResolvedValue(['spy', 'creator']);
+
+  await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
+    { userId: 'creator', roles: ['admin'] },
+    { userId: 'member', roles: ['editor'] },
+  ]);
+  expect(mocks.getBlockedMapUserIds).toHaveBeenCalledWith('map-1');
+  expect(unblockedCandidates(['creator', 'a', 'b'], ['b'], 'creator')).toEqual(['a']);
 });

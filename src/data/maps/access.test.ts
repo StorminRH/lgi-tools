@@ -7,6 +7,7 @@ import {
   type MapRole,
 } from './access-contract';
 import {
+  mapBlockRefusal,
   resolveMapRole,
   resolveMatchedMapRoles,
   type MapGrant,
@@ -150,6 +151,23 @@ describe('resolveMatchedMapRoles', () => {
     expect(
       resolveMatchedMapRoles({ isCreator, grants: [], principals: EMPTY_PRINCIPALS }),
     ).toEqual(expected);
+  });
+});
+
+describe('mapBlockRefusal', () => {
+  it.each([
+    { label: 'a character nobody holds', holderUserId: null, expected: null },
+    { label: 'another account', holderUserId: 'pilot', expected: null },
+    { label: 'the caller', holderUserId: 'admin', expected: 'self' },
+    { label: 'the creator', holderUserId: 'creator', expected: 'owner' },
+  ] as const)('answers $expected for $label', ({ holderUserId, expected }) => {
+    expect(mapBlockRefusal({ callerUserId: 'admin', creatorUserId: 'creator', holderUserId }))
+      .toBe(expected);
+  });
+
+  it('calls the creator blocking their own character a self block', () => {
+    expect(mapBlockRefusal({ callerUserId: 'creator', creatorUserId: 'creator', holderUserId: 'creator' }))
+      .toBe('self');
   });
 });
 

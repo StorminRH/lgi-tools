@@ -187,7 +187,20 @@ export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
     mapId: mapIdSchema,
     principal: mapAccessPrincipalSchema,
   }),
+  z.strictObject({
+    operation: z.literal('block'),
+    mapId: mapIdSchema,
+    characterId: characterIdSchema,
+  }),
+  z.strictObject({
+    operation: z.literal('unblock'),
+    mapId: mapIdSchema,
+    characterId: characterIdSchema,
+  }),
 ]);
+
+export type MapBlockRequest = Extract<UpdateMapAccessRequest, { operation: 'block' | 'unblock' }>;
+export type MapGrantRequest = Exclude<UpdateMapAccessRequest, MapBlockRequest>;
 
 export type UpdateMapAccessRequest = z.infer<typeof updateMapAccessRequestSchema>;
 
@@ -200,7 +213,7 @@ export const updateMapAccessEndpoint = defineEndpoint({
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
     403: problem('cross_origin', 'map_admin_required'),
-    409: problem('map_creator_character_required'),
+    409: problem('map_creator_character_required', 'map_block_owner', 'map_block_self'),
     503: problem('map_projection_unavailable'),
   },
 });

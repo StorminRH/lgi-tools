@@ -22,7 +22,7 @@ const PROJECTION_RESULT = {
 
 const harness = await createDbTestHarness({
   schema: 'test_map_creation',
-  tables: ['user', 'maps', 'map_access'],
+  tables: ['user', 'account', 'maps', 'map_access', 'map_blocks', 'map_block_accounts'],
   foreignKeys: [
     {
       table: 'maps',
@@ -35,6 +35,20 @@ const harness = await createDbTestHarness({
       table: 'map_access',
       column: 'map_id',
       refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_blocks',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_block_accounts',
+      column: 'block_id',
+      refTable: 'map_blocks',
       refColumn: 'id',
       onDelete: 'cascade',
     },

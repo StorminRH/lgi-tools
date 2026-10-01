@@ -3,7 +3,9 @@ import { reconcileAffiliationAccess } from './map-affiliation-access';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
+  MapBlockOption,
 } from '@/data/maps/access-contract';
+import { getAuthorizedMapBlocksForMaps, type MapBlockRow } from '@/data/maps/blocks';
 import {
   getAuthorizedMapGrantsForMaps,
   listAuthorizedMapsForPrincipals,
@@ -20,11 +22,26 @@ export interface MapChromeData {
   readonly deletedMaps: readonly DeletedRestorableMapRow[];
   readonly corporations: readonly CorporationAccessOption[];
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
+  readonly blocksByMapId: Readonly<Record<string, readonly MapBlockOption[]>>;
 }
 
 export async function resolveMapPrincipals(userId: string): Promise<MapPrincipals> {
   const access = await resolveUserCorpAccess(userId);
   return { characterIds: access.authorizedCharacterIds, corporationIds: access.corporationIds };
+}
+
+function groupBlocksByMap(
+  adminMapIds: readonly string[],
+  blocks: readonly MapBlockRow[],
+  names: Readonly<Record<string, string>>,
+): Record<string, MapBlockOption[]> {
+  const byMap: Record<string, MapBlockOption[]> = Object.fromEntries(
+    adminMapIds.map((mapId) => [mapId, []]),
+  );
+  for (const { mapId, characterId } of blocks) {
+    byMap[mapId]?.push({ characterId, name: names[String(characterId)] ?? `Character ${characterId}` });
+  }
+  return byMap;
 }
 
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {
@@ -37,14 +54,14 @@ export async function listMapChromeData(userId: string): Promise<MapChromeData> 
   const adminMapIds = maps
     .filter((map) => map.role === 'admin')
     .map((map) => map.id);
-  const grants = await getAuthorizedMapGrantsForMaps(
-    userId,
-    principals,
-    adminMapIds,
-  );
+  const [grants, blocks] = await Promise.all([
+    getAuthorizedMapGrantsForMaps(userId, principals, adminMapIds),
+    getAuthorizedMapBlocksForMaps(userId, principals, adminMapIds),
+  ]);
   const names = await resolveEntityNames([
     ...principals.corporationIds,
     ...grants.map((grant) => grant.ownerId),
+    ...blocks.map((block) => block.characterId),
   ]);
   const corporations = principals.corporationIds.map((corporationId) => ({
     corporationId,
@@ -61,5 +78,6 @@ export async function listMapChromeData(userId: string): Promise<MapChromeData> 
         `${grant.ownerType === 'character' ? 'Character' : 'Corporation'} ${grant.ownerId}`,
     });
   }
-  return { maps, deletedMaps, corporations, grantsByMapId };
+  const blocksByMapId = groupBlocksByMap(adminMapIds, blocks, names);
+  return { maps, deletedMaps, corporations, grantsByMapId, blocksByMapId };
 }

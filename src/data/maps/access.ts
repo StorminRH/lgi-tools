@@ -105,3 +105,16 @@ export function orderEligibleCharacters(
   ranked.sort((left, right) => left.at - right.at || left.characterId - right.characterId);
   return ranked.map((entry) => entry.characterId);
 }
+
+export type MapBlockRefusal = 'self' | 'owner';
+
+/** Nobody blocks their own character, and the map creator's characters are never blocked. */
+export function mapBlockRefusal(input: {
+  readonly callerUserId: string;
+  readonly creatorUserId: string;
+  readonly holderUserId: string | null;
+}): MapBlockRefusal | null {
+  if (input.holderUserId === null) return null;
+  if (input.holderUserId === input.callerUserId) return 'self';
+  return input.holderUserId === input.creatorUserId ? 'owner' : null;
+}

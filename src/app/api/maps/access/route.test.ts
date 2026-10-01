@@ -104,4 +104,32 @@ describe('POST /api/maps/access', () => {
       code: 'map_projection_unavailable',
     });
   });
+
+  it('answers block refusals with their codes and messages, and a successful block with 204', async () => {
+    const block = { operation: 'block', mapId: 'map-1', characterId: 42 };
+    expect((await POST(request(block))).status).toBe(204);
+    expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', block);
+    expect((await POST(request({ ...block, operation: 'unblock' }))).status).toBe(204);
+
+    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'block-owner' });
+    let response = await POST(request(block));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'map_block_owner',
+      detail: 'This character belongs to the map owner.',
+    });
+
+    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'block-self' });
+    response = await POST(request(block));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'map_block_self',
+      detail: "You can't block your own character.",
+    });
+
+    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'forbidden' });
+    expect((await POST(request(block))).status).toBe(403);
+    expect((await POST(request({ ...block, characterId: 0 }))).status).toBe(400);
+  });
 });
+

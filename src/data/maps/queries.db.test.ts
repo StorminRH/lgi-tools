@@ -30,7 +30,7 @@ const NO_PRINCIPALS = { characterIds: [], corporationIds: [] };
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_queries',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'account',
@@ -50,6 +50,20 @@ const harness = await createDbTestHarness({
       table: 'map_access',
       column: 'map_id',
       refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_blocks',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_block_accounts',
+      column: 'block_id',
+      refTable: 'map_blocks',
       refColumn: 'id',
       onDelete: 'cascade',
     },

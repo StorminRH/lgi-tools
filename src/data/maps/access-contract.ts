@@ -57,3 +57,8 @@ export function rolesAllow(
 ): boolean {
   return roles.some((role) => roleAllows(role, capability));
 }
+
+export interface MapBlockOption {
+  readonly characterId: number;
+  readonly name: string;
+}

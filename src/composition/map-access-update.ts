@@ -4,12 +4,15 @@ import {
   ProjectionUnavailableError,
   requireCurrentProjection,
 } from '@/composition/map-access-projection';
-import type { UpdateMapAccessRequest } from '@/data/maps/api-contract';
+import type { MapPrincipals } from '@/data/maps/access';
+import type { MapGrantRequest, UpdateMapAccessRequest } from '@/data/maps/api-contract';
+import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import {
   applyAuthorizedMapGrantChange,
   isCreatorsLastCharacterGrant,
 } from '@/data/maps/queries';
 import { acknowledgeMapAccessChanges } from '@/platform/auth/affiliation-store';
+import { writeMapBlock, type MapBlockWriters } from './map-block-update';
 
 export type ResolvePrincipals = typeof resolveMapPrincipals;
 export type ApplyGrantChange = typeof applyAuthorizedMapGrantChange;
@@ -17,7 +20,7 @@ export type ProjectAccess = typeof projectMapAccess;
 export type AcknowledgeAccess = typeof acknowledgeMapAccessChanges;
 export type IsCreatorsLastCharacter = typeof isCreatorsLastCharacterGrant;
 
-export interface MapAccessUpdateDependencies {
+export interface MapAccessUpdateDependencies extends MapBlockWriters {
   readonly resolvePrincipals?: ResolvePrincipals;
   readonly applyGrantChange?: ApplyGrantChange;
   readonly projectAccess?: ProjectAccess;
@@ -27,28 +30,30 @@ export interface MapAccessUpdateDependencies {
 
 export type MapAccessUpdateResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'forbidden' }
-  | { readonly ok: false; readonly reason: 'creator-character-required' }
+  | {
+      readonly ok: false;
+      readonly reason: 'forbidden' | 'creator-character-required' | 'block-self' | 'block-owner';
+    }
   | {
       readonly ok: false;
       readonly reason: 'projection-unavailable';
       readonly cause: ProjectionUnavailableError;
     };
 
-export async function applyMapAccessUpdate(
+type WriteResult =
+  | { readonly ok: true; readonly pending: PendingMapAccessChange }
+  | Exclude<MapAccessUpdateResult, { readonly ok: true } | { readonly reason: 'projection-unavailable' }>;
+
+async function writeGrantChange(
   userId: string,
-  input: UpdateMapAccessRequest,
-  dependencies: MapAccessUpdateDependencies = {},
-): Promise<MapAccessUpdateResult> {
-  const resolvePrincipals = dependencies.resolvePrincipals ?? resolveMapPrincipals;
+  principals: MapPrincipals,
+  input: MapGrantRequest,
+  dependencies: MapAccessUpdateDependencies,
+): Promise<WriteResult> {
   const applyGrantChange =
     dependencies.applyGrantChange ?? applyAuthorizedMapGrantChange;
-  const projectAccess = dependencies.projectAccess ?? projectMapAccess;
-  const acknowledgeAccess = dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges;
   const isCreatorsLastCharacter =
     dependencies.isCreatorsLastCharacter ?? isCreatorsLastCharacterGrant;
-  const principals = await resolvePrincipals(userId);
-
   if (input.operation === 'revoke' && input.principal.ownerType === 'character'
     && await isCreatorsLastCharacter(userId, principals, input.mapId, input.principal.ownerId)) {
     return { ok: false, reason: 'creator-character-required' };
@@ -57,10 +62,26 @@ export async function applyMapAccessUpdate(
     ? { operation: input.operation, grant: input.grant }
     : { operation: input.operation, principal: input.principal };
   const pending = await applyGrantChange(userId, principals, input.mapId, change);
-  if (!pending) return { ok: false, reason: 'forbidden' };
+  return pending ? { ok: true, pending } : { ok: false, reason: 'forbidden' };
+}
+
+export async function applyMapAccessUpdate(
+  userId: string,
+  input: UpdateMapAccessRequest,
+  dependencies: MapAccessUpdateDependencies = {},
+): Promise<MapAccessUpdateResult> {
+  const resolvePrincipals = dependencies.resolvePrincipals ?? resolveMapPrincipals;
+  const projectAccess = dependencies.projectAccess ?? projectMapAccess;
+  const acknowledgeAccess = dependencies.acknowledgeAccess ?? acknowledgeMapAccessChanges;
+  const principals = await resolvePrincipals(userId);
+
+  const written = input.operation === 'block' || input.operation === 'unblock'
+    ? await writeMapBlock(userId, principals, input, dependencies)
+    : await writeGrantChange(userId, principals, input, dependencies);
+  if (!written.ok) return written;
   try {
     requireCurrentProjection(await projectAccess(input.mapId));
-    await acknowledgeAccess([pending]);
+    await acknowledgeAccess([written.pending]);
     return { ok: true };
   } catch (cause) {
     if (cause instanceof ProjectionUnavailableError) {

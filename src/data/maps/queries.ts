@@ -8,11 +8,13 @@ import {
   inArray,
   isNotNull,
   isNull,
+  not,
   or,
   sql,
   type SQL,
 } from 'drizzle-orm';
-import { db } from '@/db';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { db, directClient } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
@@ -26,12 +28,16 @@ import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
+  mapBlockAccounts,
+  mapBlocks,
   maps,
 } from './schema';
 import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  recordBlockedCharacterHolders,
+  userBlockedFromMap,
   type PendingMapAccessChange,
 } from './authorization-sql';
 
@@ -159,7 +165,10 @@ async function readAuthorizedMapRows(
     .where(
       and(
         lifecycleCondition,
-        or(eq(maps.userId, userId), isNotNull(mapAccess.mapId)),
+        or(
+          eq(maps.userId, userId),
+          and(isNotNull(mapAccess.mapId), not(userBlockedFromMap(userId, maps.id))),
+        ),
       ),
     )
     .orderBy(desc(maps.createdAt), asc(maps.id));
@@ -504,7 +513,8 @@ export async function applyAuthorizedMapGrantChange(
   }
   // Revokes on one map run one at a time, so the last-own-character guard
   // reads the grants the previous revoke left behind.
-  return database.transaction(async (transaction) => {
+  const writer = database === db ? drizzle(directClient) : database;
+  return writer.transaction(async (transaction) => {
     await transaction.execute(sql`SELECT ${maps.id} FROM ${maps} WHERE ${maps.id} = ${mapId} FOR UPDATE`);
     return writeAuthorizedGrantChange(userId, principals, mapId, change, transaction);
   });
@@ -632,7 +642,8 @@ export function characterGrantCondition(characterId: number): SQL {
   `;
 }
 
-export function affectedMapIdsSelection(characterId: number): SQL {
+/** Maps whose grants name the character or its corporation. */
+function grantedMapIdsSelection(characterId: number): SQL {
   return sql`
     SELECT DISTINCT ${mapAccess.mapId} AS id
     FROM ${mapAccess}
@@ -647,12 +658,32 @@ export function affectedMapIdsSelection(characterId: number): SQL {
   `;
 }
 
+export function affectedMapIdsSelection(characterId: number): SQL {
+  return sql`
+    ${grantedMapIdsSelection(characterId)}
+    UNION
+    SELECT ${mapBlocks.mapId} AS id
+    FROM ${mapBlocks}
+    WHERE ${mapBlocks.characterId} = ${characterId}
+  `;
+}
+
+export async function getGrantedMapIdsForCharacter(
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<string[]> {
+  const rows = await mapAuthorizationRows<{ id: string }>(database, grantedMapIdsSelection(characterId));
+  return rows.map((row) => row.id);
+}
+
 export async function enqueueAffectedMapAccessChanges(
   characterId: number,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange[]> {
   return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
-    WITH affected AS (
+    WITH recorded AS (
+      ${recordBlockedCharacterHolders(characterId)}
+    ), affected AS (
       ${affectedMapIdsSelection(characterId)}
     )
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
@@ -665,6 +696,12 @@ export async function enqueueMergeReprojection(
 ): Promise<PendingMapAccessChange[]> {
   const selections = [
     sql`SELECT ${maps.id} AS id FROM ${maps} WHERE ${maps.userId} = ${args.sourceUserId}`,
+    sql`
+      SELECT ${mapBlocks.mapId} AS id
+      FROM ${mapBlocks}
+      INNER JOIN ${mapBlockAccounts} ON ${mapBlockAccounts.blockId} = ${mapBlocks.id}
+      WHERE ${mapBlockAccounts.userId} = ${args.sourceUserId}
+    `,
     ...args.movedCharacterIds.map((characterId) => affectedMapIdsSelection(characterId)),
   ];
   return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
