@@ -166,7 +166,7 @@ describe('deriveAttention', () => {
       expect.objectContaining({
         id: 'statics',
         level: 'amber',
-        action: { href: '/admin/statics' },
+        action: expect.objectContaining({ href: '/admin/statics' }),
       }),
     ]);
     expect(items[0]!.detail).toContain('1,234');

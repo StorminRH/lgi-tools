@@ -17,8 +17,8 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_CONVEX_URL = 'https://example.convex.cloud';
   process.env.CONVEX_SERVICE_SECRET = 'svc-secret';
   fetchSpy = vi.spyOn(globalThis, 'fetch');
-  fetchSpy.mockResolvedValue(
-    new Response(JSON.stringify({ deletedLocations: 1, deletedTracking: 1 }), { status: 200 }),
+  fetchSpy.mockImplementation(
+    () => Promise.resolve(new Response(JSON.stringify({ deletedLocations: 1, deletedTracking: 1 }), { status: 200 })),
   );
 });
 
