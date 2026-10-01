@@ -410,7 +410,7 @@ describe('gate returns projected roles', () => {
     const principal = await t.run((ctx) =>
       tryMapAccessForUser(ctx, MAP_A, OWNER, 'edit'),
     );
-    expect(principal).toEqual({ userId: OWNER, roles: ['admin'] });
+    expect(principal).toEqual({ userId: OWNER, roles: ['admin'], characters: null });
   });
 });
 

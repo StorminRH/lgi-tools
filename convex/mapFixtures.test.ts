@@ -151,7 +151,7 @@ describe('map chain fixtures', () => {
       const byName = new Map(exported.tables.map((table) => [table.tableName, table]));
 
       const expectedFields: Record<string, string[]> = {
-        mapAccess: ['mapId', 'roles', 'userId'],
+        mapAccess: ['characters', 'mapId', 'roles', 'userId'],
         mapSystems: ['deletedAt', 'mapId', 'purgeAfter', 'systemId'],
         mapConnections: [
           'firstSeenAt',

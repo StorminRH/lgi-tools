@@ -432,7 +432,7 @@ async function gatedAuthoringEdit<T>(
   run: (actor: string) => Promise<T>,
 ): Promise<T> {
   await requireMapAccess(ctx, mapId, 'edit');
-  return run(await eventActor(ctx));
+  return run(await eventActor(ctx, mapId));
 }
 
 export const severConnection = mutation({

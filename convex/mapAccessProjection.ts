@@ -8,11 +8,14 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import {
   currentMapRoleValidator,
   currentRolesFromStored,
+  mapClaimCharactersValidator,
+  type MapClaimCharacter,
   type StoredMapRole,
 } from './lib/mapEntityContracts';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
+  deleteTrackingOutsideCharacters,
   purgeTrackingForUserBatch,
 } from './mapTrackingTeardown';
 
@@ -41,16 +44,37 @@ function rolesEqual(
   return left.length === right.length && left.every((role, index) => role === right[index]);
 }
 
+interface DesiredClaim {
+  readonly roles: MapRole[];
+  readonly characters: MapClaimCharacter[] | undefined;
+}
+
 function toDesiredClaims(
-  claims: ReadonlyArray<{ readonly userId: string; readonly roles: readonly MapRole[] }>,
-): Map<string, MapRole[]> {
-  const desired = new Map<string, MapRole[]>();
+  claims: ReadonlyArray<{
+    readonly userId: string;
+    readonly roles: readonly MapRole[];
+    readonly characters?: readonly MapClaimCharacter[];
+  }>,
+): Map<string, DesiredClaim> {
+  const desired = new Map<string, DesiredClaim>();
   for (const claim of claims) {
     const roles = canonicalizeMapRoles(claim.roles);
     if (roles.length === 0) continue;
-    desired.set(claim.userId, roles);
+    desired.set(claim.userId, {
+      roles,
+      characters: claim.characters === undefined ? undefined : [...claim.characters],
+    });
   }
   return desired;
+}
+
+function charactersEqual(
+  left: readonly MapClaimCharacter[] | undefined,
+  right: readonly MapClaimCharacter[] | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.length === right.length && left.every((character, index) =>
+    character.characterId === right[index]?.characterId && character.name === right[index]?.name);
 }
 
 function indexClaimsByUser(
@@ -69,12 +93,13 @@ async function applyDesiredUserClaim(
   ctx: MutationCtx,
   mapId: string,
   userId: string,
-  roles: MapRole[],
+  claim: DesiredClaim,
   rows: Doc<'mapAccess'>[],
 ): Promise<Pick<ReconcileCounts, 'inserted' | 'updated' | 'deleted' | 'unchanged'>> {
+  const { roles, characters } = claim;
   const [keeper, ...duplicates] = rows;
   if (keeper === undefined) {
-    await ctx.db.insert('mapAccess', { mapId, userId, roles });
+    await ctx.db.insert('mapAccess', { mapId, userId, roles, characters });
     return { inserted: 1, updated: 0, deleted: 0, unchanged: 0 };
   }
 
@@ -84,11 +109,11 @@ async function applyDesiredUserClaim(
     deleted += 1;
   }
 
-  if (rolesEqual(keeper.roles, roles)) {
+  if (rolesEqual(keeper.roles, roles) && charactersEqual(keeper.characters, characters)) {
     return { inserted: 0, updated: 0, deleted, unchanged: 1 };
   }
 
-  await ctx.db.patch(keeper._id, { roles });
+  await ctx.db.replace(keeper._id, { mapId, userId, roles, characters });
   return { inserted: 0, updated: 1, deleted, unchanged: 0 };
 }
 
@@ -114,6 +139,7 @@ export const reconcileMapClaims = internalMutation({
       v.object({
         userId: v.string(),
         roles: v.array(currentMapRoleValidator),
+        characters: v.optional(mapClaimCharactersValidator),
       }),
     ),
   },
@@ -164,14 +190,17 @@ export const reconcileMapClaims = internalMutation({
     let deleted = 0;
     let unchanged = 0;
 
-    for (const [userId, roles] of desired) {
+    for (const [userId, claim] of desired) {
       const rows = byUser.get(userId) ?? [];
       byUser.delete(userId);
-      const delta = await applyDesiredUserClaim(ctx, mapId, userId, roles, rows);
+      const delta = await applyDesiredUserClaim(ctx, mapId, userId, claim, rows);
       inserted += delta.inserted;
       updated += delta.updated;
       deleted += delta.deleted;
       unchanged += delta.unchanged;
+      if (claim.characters !== undefined) {
+        await deleteTrackingOutsideCharacters(ctx, mapId, userId, claim.characters);
+      }
     }
 
     const revokedUserIds = [...byUser.keys()];

@@ -16,6 +16,9 @@ const projectMapAccessBodySchema = z
       z.object({
         userId: z.string(),
         roles: z.array(mapRoleSchema).min(1),
+        characters: z
+          .array(z.object({ characterId: z.number().int().positive(), name: z.string() }))
+          .optional(),
       }),
     ),
   })

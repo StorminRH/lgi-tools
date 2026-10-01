@@ -1,5 +1,6 @@
 import type { Doc } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
+import type { MapClaimCharacter } from './lib/mapEntityContracts';
 import { deleteForMapCharacter } from './mapJumpBookkeeping';
 
 export async function deleteTrackingRow(
@@ -35,6 +36,23 @@ export async function deleteTrackingForUser(
     .collect();
   for (const row of rows) {
     await deleteTrackingRow(ctx, row);
+  }
+}
+
+/** A character that stopped matching a grant loses its tracking while the account keeps its claim. */
+export async function deleteTrackingOutsideCharacters(
+  ctx: MutationCtx,
+  mapId: string,
+  userId: string,
+  characters: readonly MapClaimCharacter[],
+): Promise<void> {
+  const eligible = new Set(characters.map((character) => character.characterId));
+  const rows = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
+    .collect();
+  for (const row of rows) {
+    if (!eligible.has(row.characterId)) await deleteTrackingRow(ctx, row);
   }
 }
 

@@ -5,11 +5,18 @@ import {
   type MapRole,
 } from '@/data/maps/access-contract';
 import type { QueryCtx } from '../_generated/server';
-import { currentRolesFromStored } from './mapEntityContracts';
+import { currentRolesFromStored, type MapClaimCharacter } from './mapEntityContracts';
 
 export interface MapPrincipal {
   readonly userId: string;
   readonly roles: readonly MapRole[];
+  /** Null on a legacy claim, where any character may be tracked. */
+  readonly characters: readonly MapClaimCharacter[] | null;
+}
+
+export function characterTrackable(principal: MapPrincipal, characterId: number): boolean {
+  return principal.characters === null
+    || principal.characters.some((character) => character.characterId === characterId);
 }
 
 /**
@@ -125,5 +132,5 @@ async function resolveMapPrincipal(
   const roles = currentRolesFromStored(claim.roles);
   if (!rolesAllow(roles, requiredCapability)) return null;
 
-  return { userId, roles };
+  return { userId, roles, characters: claim.characters ?? null };
 }
