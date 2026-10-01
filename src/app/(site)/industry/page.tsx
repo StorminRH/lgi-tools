@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -88,19 +87,16 @@ function DashboardSkeleton() {
 export default function IndustryDashboardPage() {
   return (
     <PageShell mode="workspace">
-      <PageHead
-        size="hero"
-        crumb="industry"
-        title="Industry"
-        meta={
-          <Suspense fallback={null}>
-            <SlotMeta />
-          </Suspense>
-        }
-      />
-
+      <h1 className="sr-only">Industry</h1>
       <div className="pb-16 flex flex-col gap-9">
-        <IndustryTypedHint />
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <IndustryTypedHint />
+          <div className="flex flex-wrap items-baseline gap-x-[18px] gap-y-1">
+            <Suspense fallback={null}>
+              <SlotMeta />
+            </Suspense>
+          </div>
+        </div>
 
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardSections />

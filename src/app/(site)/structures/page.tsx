@@ -2,7 +2,6 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -56,10 +55,7 @@ export default function StructuresPage() {
   return (
     <PageShell mode="reading">
       <div className="flex flex-col items-center gap-0 pb-20">
-        <PageHead
-          crumb="structures"
-          title="Structures"
-        />
+        <h1 className="sr-only">Structures</h1>
         <Suspense fallback={<StructuresLoading />}>
           <StructuresContent />
         </Suspense>

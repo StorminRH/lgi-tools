@@ -1,7 +1,7 @@
 import { Suspense, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead } from '@/components/ui/section-head';
 import { AdminGate } from './AdminGate';
 import { CardFallback } from './CardFallback';
 import { RangeControl } from './RangeControl';
@@ -22,7 +22,7 @@ export function AdminPageFrame({
   return (
     <Suspense fallback={<LoadingLabel />}>
       <AdminGate>
-        <SectionHead
+        <QuietSectionHead
           title={title}
           meta={
             actions || rangeBasePath ? (

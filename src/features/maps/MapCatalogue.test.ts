@@ -185,8 +185,7 @@ describe('MapCatalogue', () => {
     expect(markup).not.toContain('data-map-catalogue-delete="map-corporation"');
     expect(markup).not.toContain('data-map-catalogue-edit="map-direct"');
     expect(markup).toContain('data-page-shell');
-    expect(markup).toContain('>atlas</span></div>');
-    expect(markup).toContain('>Atlas</h1>');
+    expect(markup).toContain('<h1 class="sr-only">Atlas</h1>');
     expect(markup).not.toContain('Map catalogue');
     expect(markup).toContain('data-map-catalogue-create');
     expect(markup).not.toContain('data-map-catalogue-create-card');
@@ -210,7 +209,7 @@ describe('MapCatalogue', () => {
     );
   });
 
-  it('keeps the empty-catalogue hint and header create control when no maps are authorized', () => {
+  it('keeps the empty-catalogue hint and the create control when no maps are authorized', () => {
     const markup = renderCatalogue([]);
     expect(markup).toContain('data-map-catalogue-create');
     expect(markup).toContain('Create new map');

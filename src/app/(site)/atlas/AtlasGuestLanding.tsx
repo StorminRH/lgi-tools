@@ -1,7 +1,6 @@
 import { EveSignInButton } from '@/components/composition/account/LoginButton';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Card } from '@/components/ui/card';
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -32,20 +31,14 @@ export function AtlasGuestLanding({
   return (
     <div data-atlas-guest-landing>
       <PageShell mode="workspace">
-        <PageHead
-          size="hero"
-          crumb="atlas"
-          title="Atlas"
-          subtitle={ATLAS_TAGLINE}
-          reveal={false}
-        />
+        <h1 className="sr-only">Atlas</h1>
         <div className="flex max-w-2xl flex-col gap-6 pb-16">
           <AccessGate
             blocked
             tone="green"
             className="reveal reveal-1 glass-surface glass-lit border-hairline-accent shadow-card-edge"
             title="Sign in required"
-            reason="Sign in to access maps and tracking."
+            reason={`${ATLAS_TAGLINE} Sign in to access maps and tracking.`}
             action={<EveSignInButton callbackURL={returnHref} />}
           >
             {null}

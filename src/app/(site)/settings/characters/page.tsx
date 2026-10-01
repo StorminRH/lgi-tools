@@ -17,7 +17,7 @@ import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkChar
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { resolveErrorMessage } from '@/lib/error-copy';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead } from '@/components/ui/section-head';
 import { deriveCharacterRowView } from './characters-view';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -192,7 +192,7 @@ export default function CharactersSettingsPage({
 }) {
   return (
     <>
-      <SectionHead title="Characters" />
+      <QuietSectionHead title="Characters" />
       <Suspense fallback={<CharacterPanelSkeleton label="Loading linked characters" />}>
         <CharactersContent searchParams={searchParams} />
       </Suspense>

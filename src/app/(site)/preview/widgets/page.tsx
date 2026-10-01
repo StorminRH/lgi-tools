@@ -19,7 +19,6 @@ export default async function WidgetReferencePage() {
     <PageShell mode="workspace">
       <PageHead
         size="compact"
-        crumb="preview / widgets"
         title="Feature widget reference"
         subtitle="Live sample site in two window sizes"
       />

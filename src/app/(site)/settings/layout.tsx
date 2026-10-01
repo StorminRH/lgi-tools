@@ -8,7 +8,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
     <PageShell mode="workspace">
       <div className="flex flex-col gap-0 pb-20">
-        <PageHead crumb="settings" title="Settings" />
+        <PageHead title="Settings" />
         <div
           data-settings-layout
           className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,var(--container-reading))] lg:gap-10"

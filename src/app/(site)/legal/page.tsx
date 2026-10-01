@@ -57,7 +57,6 @@ export default function LegalPage() {
   return (
     <PageShell mode="reading">
       <PageHead
-        crumb="privacy"
         title="Privacy"
         meta={
           <span className={eyebrow()}>

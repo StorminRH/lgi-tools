@@ -23,7 +23,6 @@ export default function PrimitiveReferencePage() {
     <PageShell mode="workspace">
       <PageHead
         size="compact"
-        crumb="admin / primitive reference"
         title="UI primitives"
         subtitle="Inset Instrument · rendered system reference"
       />

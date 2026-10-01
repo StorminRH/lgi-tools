@@ -15,9 +15,7 @@ import { Card } from '@/components/ui/card';
 import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
 import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHead } from '@/components/ui/page-head';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { eyebrow } from '@/components/ui/type-roles';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
@@ -68,10 +66,12 @@ function useSitesFilter(): SitesFilterState {
 export function SitesFilterLayout({
   sites,
   total,
+  tools,
   children,
 }: PropsWithChildren<{
   sites: SiteFilterMeta[];
   total: number;
+  tools: ReactNode;
 }>) {
   const [cls, setCls] = useState<WormholeClass[]>([]);
   const [types, setTypes] = useState<SiteType[]>([]);
@@ -88,87 +88,104 @@ export function SitesFilterLayout({
 
   return (
     <SitesFilterContext.Provider value={{ cls, types, reset }}>
-      <PageHead
-        crumb="sites"
-        title="Wormhole Sites"
-        meta={
-          <>
-            <span className={eyebrow()} aria-live="polite">
-              <b className="text-name font-semibold">{filteredCount}</b> of {total} sites
-            </span>
-            <span className={eyebrow()}>
-              jita <b className="text-isk font-semibold">live</b>
-            </span>
-          </>
-        }
-      />
+      <h1 className="sr-only">Wormhole sites</h1>
+      <span className="sr-only" aria-live="polite">
+        {filteredCount} of {total} sites
+      </span>
 
       <div className="pb-16">
         <div className="grid items-start gap-[22px] split:grid-cols-[224px_1fr]">
-          <Card className="reveal reveal-1 p-4 split:sticky split:top-24">
-            <div className="flex flex-col gap-5">
-              <div>
-                <span className="text-label uppercase tracking-wide text-muted">Class</span>
-                <ChipToggleGroup
-                  label="Filter by class"
-                  value={cls}
-                  onValueChange={(next) => setCls(next as WormholeClass[])}
-                  className="mt-2 grid grid-cols-3 gap-2"
-                >
-                  {CLASS_CHIPS.map((c) => (
-                    <ChipToggle
-                      key={c}
-                      value={c}
-                      tone={CLASS_CHIP_TONE[c]}
-                      appearance="filter"
-                      className="w-full justify-center px-2 py-1.5 text-ui"
-                    >
-                      {c}
-                    </ChipToggle>
-                  ))}
-                </ChipToggleGroup>
-              </div>
+          <div className="flex flex-col gap-4 split:sticky split:top-24">
+            <Card className="reveal reveal-1 p-4">
+              <div className="flex flex-col gap-5">
+                <div>
+                  <span className="text-label uppercase tracking-wide text-muted">Class</span>
+                  <ChipToggleGroup
+                    label="Filter by class"
+                    value={cls}
+                    onValueChange={(next) => setCls(next as WormholeClass[])}
+                    className="mt-2 grid grid-cols-3 gap-2"
+                  >
+                    {CLASS_CHIPS.map((c) => (
+                      <ChipToggle
+                        key={c}
+                        value={c}
+                        tone={CLASS_CHIP_TONE[c]}
+                        appearance="filter"
+                        className="w-full justify-center px-2 py-1.5 text-ui"
+                      >
+                        {c}
+                      </ChipToggle>
+                    ))}
+                  </ChipToggleGroup>
+                </div>
 
-              <div>
-                <span className="text-label uppercase tracking-wide text-muted">Type</span>
-                <ChipToggleGroup
-                  label="Filter by site type"
-                  value={types}
-                  onValueChange={(next) => setTypes(next as SiteType[])}
-                  className="mt-2 flex-col items-stretch"
-                >
-                  {TYPE_ROWS.map((t) => (
-                    <ChipToggle
-                      key={t}
-                      value={t}
-                      tone={SITE_TYPE_CHIP_TONE[t]}
-                      appearance="row"
-                      className="w-full gap-2"
-                    >
-                      <Dot
-                        tone={SITE_TYPE_DOT_TONE[t]}
-                        size="md"
-                        className={`shadow-none transition-opacity ${
-                          types.includes(t) ? 'opacity-100' : 'opacity-[0.45]'
-                        }`}
-                      />
-                      <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
-                      <span className="text-faint">{typeCount(t)}</span>
-                    </ChipToggle>
-                  ))}
-                </ChipToggleGroup>
-              </div>
+                <div>
+                  <span className="text-label uppercase tracking-wide text-muted">Type</span>
+                  <ChipToggleGroup
+                    label="Filter by site type"
+                    value={types}
+                    onValueChange={(next) => setTypes(next as SiteType[])}
+                    className="mt-2 flex-col items-stretch"
+                  >
+                    {TYPE_ROWS.map((t) => (
+                      <ChipToggle
+                        key={t}
+                        value={t}
+                        tone={SITE_TYPE_CHIP_TONE[t]}
+                        appearance="row"
+                        className="w-full gap-2"
+                      >
+                        <Dot
+                          tone={SITE_TYPE_DOT_TONE[t]}
+                          size="md"
+                          className={`shadow-none transition-opacity ${
+                            types.includes(t) ? 'opacity-100' : 'opacity-[0.45]'
+                          }`}
+                        />
+                        <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
+                        <span className="text-faint">{typeCount(t)}</span>
+                      </ChipToggle>
+                    ))}
+                  </ChipToggleGroup>
+                </div>
 
-              <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
-                reset filters
-              </Button>
-            </div>
-          </Card>
+                <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
+                  reset filters
+                </Button>
+              </div>
+            </Card>
+            {tools}
+          </div>
 
           <div className="reveal reveal-3 min-w-0">{children}</div>
         </div>
       </div>
     </SitesFilterContext.Provider>
+  );
+}
+
+/** Cards/Table and Lightbox/Expand, set under the filter rail. */
+export function SitesViewTools({ initialView }: { initialView: 'cards' | 'table' }) {
+  const [view, setView] = usePreference(sitesView, { serverValue: initialView });
+  const [detailMode, setDetailMode] = usePreference(sitesDetailMode);
+  return (
+    <div className="reveal reveal-2 flex flex-wrap items-center gap-2">
+      <SegmentedControl
+        label="Sites view"
+        value={view}
+        onChange={(next) => setView(next as typeof view)}
+        options={VIEW_OPTIONS}
+      />
+      {view === 'cards' && (
+        <SegmentedControl
+          label="Site detail behavior"
+          value={detailMode}
+          onChange={(next) => setDetailMode(next as typeof detailMode)}
+          options={DETAIL_OPTIONS}
+        />
+      )}
+    </div>
   );
 }
 
@@ -182,8 +199,7 @@ export function SitesResults({
   initialView: 'cards' | 'table';
 }) {
   const { cls, types, reset } = useSitesFilter();
-  const [view, setView] = usePreference(sitesView, { serverValue: initialView });
-  const [detailMode, setDetailMode] = usePreference(sitesDetailMode);
+  const [view] = usePreference(sitesView, { serverValue: initialView });
   const tableRef = useRef<HTMLDivElement>(null);
   const matches = (meta: SiteFilterMeta) => matchesFilter(meta, { cls, types });
   const filteredCount = cards.filter((card) => matches(card.meta)).length;
@@ -204,23 +220,6 @@ export function SitesResults({
 
   return (
     <>
-      <div className="reveal reveal-2 flex justify-end items-center gap-3 mb-4">
-        {view === 'cards' && (
-          <SegmentedControl
-            label="Site detail behavior"
-            value={detailMode}
-            onChange={(next) => setDetailMode(next as typeof detailMode)}
-            options={DETAIL_OPTIONS}
-          />
-        )}
-        <SegmentedControl
-          label="Sites view"
-          value={view}
-          onChange={(next) => setView(next as typeof view)}
-          options={VIEW_OPTIONS}
-        />
-      </div>
-
       {filteredCount === 0 ? (
         <EmptyState>
           No sites match —{' '}

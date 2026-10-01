@@ -8,6 +8,7 @@ import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
   SitesFilterLayout,
   SitesResults,
+  SitesViewTools,
   type SiteCardItem,
 } from '@/features/wormhole-sites/components/SitesFilterLayout';
 import {
@@ -48,6 +49,10 @@ function DevSampleBanner({
   );
 }
 
+async function readSitesView() {
+  return readPreferenceCookieValue((await cookies()).get(cookieNameFor(sitesView))?.value, sitesView);
+}
+
 async function SitesResultsFromCookie({
   cards,
   table,
@@ -55,11 +60,11 @@ async function SitesResultsFromCookie({
   cards: SiteCardItem[];
   table: React.ReactNode;
 }) {
-  const initialView = readPreferenceCookieValue(
-    (await cookies()).get(cookieNameFor(sitesView))?.value,
-    sitesView,
-  );
-  return <SitesResults cards={cards} table={table} initialView={initialView} />;
+  return <SitesResults cards={cards} table={table} initialView={await readSitesView()} />;
+}
+
+async function SitesViewToolsFromCookie() {
+  return <SitesViewTools initialView={await readSitesView()} />;
 }
 
 async function SitesCatalogue({
@@ -95,18 +100,18 @@ async function SitesCatalogue({
     </Suspense>
   );
   const fallback = (
-    <div className="pt-[34px]">
-      <Skeleton
-        label="Loading saved sites view"
-        className="h-[720px] w-full rounded-card"
-      />
-    </div>
+    <Skeleton label="Loading saved sites view" className="h-[720px] w-full rounded-card" />
+  );
+  const tools = (
+    <Suspense fallback={<Skeleton aria-hidden="true" className="h-9 w-36" />}>
+      <SitesViewToolsFromCookie />
+    </Suspense>
   );
 
   return (
     <>
       <DevSampleBanner sampled={sampled} shown={sites.length} total={fullCount} />
-      <SitesFilterLayout sites={cards.map((card) => card.meta)} total={sites.length}>
+      <SitesFilterLayout sites={cards.map((card) => card.meta)} total={sites.length} tools={tools}>
         <Suspense fallback={fallback}>
           <SitesResultsFromCookie cards={cards} table={table} />
         </Suspense>

@@ -38,3 +38,20 @@ export function SectionHead({
     </header>
   );
 }
+
+/**
+ * A section head for pages whose rail already names the section: the title
+ * stays for screen readers only, and any meta (range selector, actions) sits
+ * in a right-aligned tools row. Without meta it takes no space at all.
+ */
+export function QuietSectionHead({ title, meta }: { title: string; meta?: ReactNode }) {
+  return (
+    <header
+      data-section-head
+      className={meta == null ? 'contents' : 'flex flex-wrap items-center justify-end gap-3'}
+    >
+      <h2 className="sr-only">{title}</h2>
+      {meta}
+    </header>
+  );
+}

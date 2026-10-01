@@ -12,7 +12,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={<LoadingLabel />}>
         <AdminGate>
           <div className="flex flex-col gap-0 pb-20">
-            <PageHead crumb="admin" title="Admin" />
+            <PageHead title="Admin" />
             <div
               data-admin-layout
               className="grid items-start gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8"

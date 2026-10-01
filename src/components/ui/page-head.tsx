@@ -1,5 +1,5 @@
 import { cva } from 'class-variance-authority';
-import { Fragment, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 export type PageTitleSize = 'hero' | 'page' | 'compact';
@@ -29,22 +29,6 @@ const pageSubtitle = cva('mt-2 text-muted', {
   defaultVariants: { size: 'page' },
 });
 
-export function Breadcrumb({ crumb }: { crumb: string }) {
-  const parts = crumb.split('/').map((part) => part.trim()).filter(Boolean);
-  const current = parts.pop();
-  return (
-    <div className="mb-2 flex flex-wrap items-center gap-1.5 font-ui text-ui capitalize text-muted">
-      {parts.map((part, index) => (
-        <Fragment key={`${index}-${part}`}>
-          <span>{part}</span>
-          <span aria-hidden className="text-faint">/</span>
-        </Fragment>
-      ))}
-      {current ? <span className="rounded-full bg-border px-2.5 py-0.5 text-name">{current}</span> : null}
-    </div>
-  );
-}
-
 export function PageTitle({
   size = 'page',
   className,
@@ -58,14 +42,12 @@ export function PageTitle({
 }
 
 export function PageHead({
-  crumb,
   title,
   subtitle,
   meta,
   size = 'page',
   reveal = true,
 }: {
-  crumb: string;
   title: string;
   subtitle?: ReactNode;
   meta?: ReactNode;
@@ -78,11 +60,10 @@ export function PageHead({
     <header
       className={cn(
         reveal && 'reveal',
-        'w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap',
+        'w-full pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap',
       )}
     >
       <div>
-        <Breadcrumb crumb={crumb} />
         <PageTitle size={size}>{title}</PageTitle>
         {subtitle != null && (
           <p className={pageSubtitle({ size })}>{subtitle}</p>

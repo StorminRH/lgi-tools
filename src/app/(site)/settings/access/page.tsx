@@ -25,7 +25,7 @@ import {
 } from '@/platform/auth/admin-users';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead } from '@/components/ui/section-head';
 import {
   adminRoleBadge,
   deriveAccessView,
@@ -250,7 +250,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
 
   return (
     <>
-      <SectionHead
+      <QuietSectionHead
         title="Users & roles"
         meta={
           <Link
