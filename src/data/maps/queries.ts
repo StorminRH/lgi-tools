@@ -38,7 +38,7 @@ import {
 export interface CreateMapGrant {
   readonly ownerType: MapAccessOwnerType;
   readonly ownerId: number;
-  readonly role: Extract<MapRole, 'viewer' | 'editor'>;
+  readonly role: MapRole;
 }
 
 export async function reserveMapAccessProjectionRevision(
@@ -512,6 +512,7 @@ export async function applyAuthorizedMapGrantChange(
     WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
       AND ${mapAccess.ownerType} = ${change.principal.ownerType}
       AND ${mapAccess.ownerId} = ${change.principal.ownerId}
+      AND ${keepsCreatorsLastCharacter(mapId)}
   `;
   const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
@@ -520,6 +521,54 @@ export async function applyAuthorizedMapGrantChange(
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM authorized_map`)}
   `);
   return row ?? null;
+}
+
+/** The map's character grants that name one of the creator's own linked characters. */
+function creatorCharacterGrantIds(mapId: string) {
+  return sql`
+    SELECT creator_grant.owner_id
+    FROM ${mapAccess} AS creator_grant
+    INNER JOIN ${maps} AS creator_map ON creator_map.id = creator_grant.map_id
+    INNER JOIN ${account} AS creator_account
+      ON creator_account.user_id = creator_map.user_id
+      AND creator_account.provider_id = ${EVE_PROVIDER_ID}
+      AND creator_account.account_id = creator_grant.owner_id::text
+    WHERE creator_grant.map_id = ${mapId}
+      AND creator_grant.owner_type = 'character'::"public"."map_access_owner_type"
+  `;
+}
+
+/** Holds back a revoke that would strip the creator of their last own-character grant. */
+function keepsCreatorsLastCharacter(mapId: string) {
+  return sql`
+    NOT (
+      ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
+      AND ${mapAccess.ownerId} IN (${creatorCharacterGrantIds(mapId)})
+      AND (SELECT count(*) FROM (${creatorCharacterGrantIds(mapId)}) AS held) = 1
+    )
+  `;
+}
+
+/**
+ * True when the caller administers the map and revoking this character grant
+ * would leave the creator with none of their own characters on it.
+ */
+export async function isCreatorsLastCharacterGrant(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  const rows = await mapAuthorizationRows<{ ownerId: number | string }>(database, sql`
+    WITH authorized_map AS (
+      ${activeMapAdminSelection(userId, principals, mapId)}
+    )
+    SELECT held.owner_id AS "ownerId"
+    FROM (${creatorCharacterGrantIds(mapId)}) AS held
+    WHERE EXISTS (SELECT 1 FROM authorized_map)
+  `);
+  return rows.length === 1 && Number(rows[0]?.ownerId) === characterId;
 }
 
 export async function getMapAccessCandidateUserIds(

@@ -51,9 +51,11 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
       'creator',
       {
         name: 'Projected chain',
+        creatorCharacterIds: [7],
         grants: [{ ownerType: 'character', ownerId: 42, role: 'editor' }],
       },
       {
+        listLinkedCharacterIds: async () => [7],
         createMap: (userId, name, grants) =>
           createMapAtomic(userId, name, grants, harness.db),
         compensate: (mapId) => compensateFailedMapCreation(mapId, harness.db),
@@ -73,8 +75,13 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
       purgeRequestedAt: null,
       tombstonedAt: null,
       lifecycleStatus: 'active',
+      characterScopedAt: expect.any(Date),
     });
-    await expect(harness.db.select().from(mapAccess)).resolves.toHaveLength(1);
+    const grants = await harness.db.select().from(mapAccess);
+    expect(grants.map(({ ownerType, ownerId, role }) => ({ ownerType, ownerId, role }))).toEqual([
+      { ownerType: 'character', ownerId: 7, role: 'admin' },
+      { ownerType: 'character', ownerId: 42, role: 'editor' },
+    ]);
   });
 
   it('leaves no map or grant after creation exhausts projection attempts', async () => {
@@ -87,9 +94,11 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
         'creator',
         {
           name: 'Compensated chain',
+          creatorCharacterIds: [7],
           grants: [{ ownerType: 'character', ownerId: 42, role: 'editor' }],
         },
         {
+          listLinkedCharacterIds: async () => [7],
           createMap: (userId, name, grants) =>
             createMapAtomic(userId, name, grants, harness.db),
           compensate: (mapId) => compensateFailedMapCreation(mapId, harness.db),
@@ -113,8 +122,9 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
 
     const result = await createProjectedMap(
       'creator',
-      { name: 'Queued recovery', grants: [] },
+      { name: 'Queued recovery', creatorCharacterIds: [7], grants: [] },
       {
+        listLinkedCharacterIds: async () => [7],
         createMap: (userId, name, grants) =>
           createMapAtomic(userId, name, grants, harness.db),
         compensate: vi.fn().mockRejectedValue(new Error('database unavailable')),

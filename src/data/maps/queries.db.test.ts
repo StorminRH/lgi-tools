@@ -14,6 +14,8 @@ import {
   getAuthorizedMapGrantsForMaps,
   getMapAccessCandidateUserIds,
   enqueueAffectedMapAccessChanges,
+  isCreatorsLastCharacterGrant,
+  publishCreatedMap,
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
 } from './queries';
@@ -23,6 +25,8 @@ import {
   tombstonedMapLifecycle,
 } from './lifecycle-contract';
 import { mapAccess, maps, pendingMapAccessChanges } from './schema';
+
+const NO_PRINCIPALS = { characterIds: [], corporationIds: [] };
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_queries',
@@ -143,6 +147,43 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await expect(
       harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, privateMapId)),
     ).resolves.toEqual([]);
+  });
+
+  it('stamps new maps character-scoped and keeps the creator\'s last own-character grant', async () => {
+    await seedUser(harness.db, 'creator');
+    await seedUser(harness.db, 'friend');
+    await seedEveAccount(harness.db, { id: 'acc-7', characterId: 7, userId: 'creator' });
+    await seedEveAccount(harness.db, { id: 'acc-8', characterId: 8, userId: 'creator' });
+    await seedEveAccount(harness.db, { id: 'acc-42', characterId: 42, userId: 'friend' });
+    const mapId = await createMapAtomic('creator', 'Scoped chain', [
+      { ownerType: 'character', ownerId: 7, role: 'admin' },
+      { ownerType: 'character', ownerId: 8, role: 'admin' },
+      { ownerType: 'character', ownerId: 42, role: 'viewer' },
+    ], harness.db);
+    await publishCreatedMap(mapId, harness.db);
+    const lastCheck = (userId: string, characterId: number) =>
+      isCreatorsLastCharacterGrant(userId, NO_PRINCIPALS, mapId, characterId, harness.db);
+    const revoke = (ownerId: number) => applyAuthorizedMapGrantChange(
+      'creator', NO_PRINCIPALS, mapId,
+      { operation: 'revoke', principal: { ownerType: 'character', ownerId } }, harness.db,
+    );
+    const grantedIds = async () => (await harness.db.select({ id: mapAccess.ownerId }).from(mapAccess)
+      .where(eq(mapAccess.mapId, mapId))).map((row) => row.id).sort((a, b) => a - b);
+
+    const [stored] = await harness.db.select({ at: maps.characterScopedAt }).from(maps);
+    expect(stored?.at).toBeInstanceOf(Date);
+    expect(await lastCheck('creator', 7)).toBe(false);
+    expect(await lastCheck('creator', 42)).toBe(false);
+
+    await revoke(8);
+    expect(await lastCheck('creator', 7)).toBe(true);
+    expect(await lastCheck('friend', 7)).toBe(false);
+    expect(await lastCheck('creator', 42)).toBe(false);
+    expect(await lastCheck('creator', 8)).toBe(false);
+
+    await revoke(7);
+    await revoke(42);
+    expect(await grantedIds()).toEqual([7]);
   });
 
   it('leaves no durable row when grant insertion fails inside the create statement', async () => {

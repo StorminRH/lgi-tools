@@ -1,10 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createProjectedMap } from './map-creation';
+import { createProjectedMap, creationGrants } from './map-creation';
 
 const INPUT = {
   name: 'Home chain',
+  creatorCharacterIds: [7],
   grants: [{ ownerType: 'character' as const, ownerId: 42, role: 'editor' as const }],
 };
+const CREATION_GRANTS = [
+  { ownerType: 'character', ownerId: 7, role: 'admin' },
+  ...INPUT.grants,
+];
+const linked = () => vi.fn().mockResolvedValue([7, 8]);
 const PROJECTION_RESULT = {
   inserted: 0,
   updated: 0,
@@ -25,9 +31,11 @@ describe('createProjectedMap', () => {
     const publish = vi.fn().mockResolvedValue(undefined);
 
     await expect(
-      createProjectedMap('user-1', INPUT, { createMap, project, compensate, publish }),
+      createProjectedMap('user-1', INPUT, {
+        createMap, project, compensate, publish, listLinkedCharacterIds: linked(),
+      }),
     ).resolves.toEqual({ ok: true, mapId: 'map-1' });
-    expect(createMap).toHaveBeenCalledWith('user-1', 'Home chain', INPUT.grants);
+    expect(createMap).toHaveBeenCalledWith('user-1', 'Home chain', CREATION_GRANTS);
     expect(project).toHaveBeenCalledWith(
       'map-1',
       expect.objectContaining({
@@ -52,6 +60,7 @@ describe('createProjectedMap', () => {
     const teardown = vi.fn().mockResolvedValue(PROJECTION_RESULT);
 
     const resultPromise = createProjectedMap('user-1', INPUT, {
+      listLinkedCharacterIds: linked(),
       createMap: vi.fn().mockResolvedValue('map-1'),
       project,
       compensate,
@@ -75,6 +84,7 @@ describe('createProjectedMap', () => {
   it('retries compensation and reports the durable staged recovery when deletes fail', async () => {
     const cleanupFailure = new Error('cleanup failed');
     const result = await createProjectedMap('user-1', INPUT, {
+      listLinkedCharacterIds: linked(),
       createMap: vi.fn().mockResolvedValue('map-1'),
       project: vi.fn().mockRejectedValue(new Error('projection unavailable')),
       publish: vi.fn(),
@@ -85,13 +95,14 @@ describe('createProjectedMap', () => {
     });
 
     expect(result).toMatchObject({ ok: false, cleanup: 'queued' });
-    if (result.ok) expect.unreachable('expected failed creation');
+    if (result.ok || !('cause' in result)) expect.unreachable('expected failed creation');
     expect(result.cause).toBeInstanceOf(AggregateError);
   });
 
   it('tears down a confirmed projection before deleting after publish failure', async () => {
     const order: string[] = [];
     const result = await createProjectedMap('user-1', INPUT, {
+      listLinkedCharacterIds: linked(),
       createMap: vi.fn().mockResolvedValue('map-1'),
       project: vi.fn().mockResolvedValue(PROJECTION_RESULT),
       publish: vi.fn().mockRejectedValue(new Error('publish lost race')),
@@ -113,6 +124,7 @@ describe('createProjectedMap', () => {
     const compensateAfterTeardownFailure = vi.fn();
     await expect(
       createProjectedMap('user-1', INPUT, {
+        listLinkedCharacterIds: linked(),
         createMap: vi.fn().mockResolvedValue('map-1'),
         project: vi.fn().mockRejectedValue(new Error('projection response lost')),
         publish: vi.fn(),
@@ -126,6 +138,7 @@ describe('createProjectedMap', () => {
 
     await expect(
       createProjectedMap('user-1', INPUT, {
+        listLinkedCharacterIds: linked(),
         createMap: vi.fn().mockResolvedValue('map-3'),
         project: vi.fn().mockRejectedValue(new Error('projection unavailable')),
         publish: vi.fn(),
@@ -145,6 +158,7 @@ describe('createProjectedMap', () => {
 
     await expect(
       createProjectedMap('user-1', INPUT, {
+        listLinkedCharacterIds: linked(),
         createMap: vi.fn().mockResolvedValue('map-2'),
         project: vi.fn().mockRejectedValue(new Error('projection unavailable')),
         publish: vi.fn(),
@@ -170,6 +184,7 @@ describe('createProjectedMap', () => {
     );
 
     const resultPromise = createProjectedMap('user-1', INPUT, {
+      listLinkedCharacterIds: linked(),
       createMap: vi.fn().mockResolvedValue('map-1'),
       project,
       publish: vi.fn(),
@@ -183,5 +198,25 @@ describe('createProjectedMap', () => {
     for (const [, options] of project.mock.calls) {
       expect(options?.signal?.aborted).toBe(true);
     }
+  });
+});
+
+describe('creator characters', () => {
+  it('refuses a character the creator has not linked before any durable write', async () => {
+    const createMap = vi.fn();
+    await expect(
+      createProjectedMap('user-1', { ...INPUT, creatorCharacterIds: [7, 9] }, {
+        createMap, listLinkedCharacterIds: linked(),
+      }),
+    ).resolves.toEqual({ ok: false, reason: 'unlinked-creator-character' });
+    expect(createMap).not.toHaveBeenCalled();
+  });
+
+  it('writes every pick as an admin character grant ahead of the delegated grants', () => {
+    expect(creationGrants({ ...INPUT, creatorCharacterIds: [8, 7] })).toEqual([
+      { ownerType: 'character', ownerId: 8, role: 'admin' },
+      { ownerType: 'character', ownerId: 7, role: 'admin' },
+      ...INPUT.grants,
+    ]);
   });
 });

@@ -155,6 +155,7 @@ export function MapSwitcher({
             }
           }}
           corporations={corporations}
+          ownRole={currentEditingMap?.role ?? 'admin'}
           initialGrants={
             currentEditingMap === null
               ? []

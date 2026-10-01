@@ -461,6 +461,7 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
           }}
           finalFocus={() => finalFocus(editOpenerRef.current)}
           corporations={corporations}
+          ownRole={currentEditingMap?.role ?? 'admin'}
           initialGrants={
             currentEditingMap === null
               ? []

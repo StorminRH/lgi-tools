@@ -7,6 +7,8 @@ import {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import type { PortraitToggleChange } from '@/components/character-portrait-picker';
+import { useAccountCharacters } from '@/components/use-account-characters';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,9 +25,11 @@ import type {
 } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
 import { CharacterSearchControl } from './CharacterSearchControl';
+import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
   accessPrincipalKey,
   addAccessPrincipal,
+  grantedCharacterIds,
   removeAccessPrincipal,
   setAccessDraftRole,
   type AccessGrantDraft,
@@ -41,6 +45,8 @@ export interface MapAccessDialogProps {
   readonly finalFocus: DialogFocusTarget;
   readonly corporations: readonly CorporationAccessOption[];
   readonly initialGrants: readonly MapAccessGrantOption[];
+  /** The role the caller's own characters are granted with when added here. */
+  readonly ownRole: MapRole;
 }
 
 function initialDrafts(grants: readonly MapAccessGrantOption[]): AccessGrantDraft[] {
@@ -100,7 +106,8 @@ function useAccessGrantEditor(
     });
     setBusyKey(null);
     if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
-    setGrants((current) => setAccessDraftRole('manage', current, principal, role));
+    setGrants((current) =>
+      setAccessDraftRole('manage', addAccessPrincipal(current, principal), principal, role));
     router.refresh();
   }
 
@@ -135,11 +142,20 @@ export function MapAccessDialog({
   finalFocus,
   corporations,
   initialGrants,
+  ownRole,
 }: MapAccessDialogProps) {
   const titleId = useId();
   const access = useAccessGrantEditor(mapId, initialGrants);
+  const ownCharacters = useAccountCharacters();
   const disabled = access.busyKey !== null;
   const error = access.error;
+
+  function toggleOwnCharacter({ characterId, selected }: PortraitToggleChange) {
+    const character = ownCharacters?.find((own) => own.characterId === characterId);
+    if (character === undefined) return;
+    const principal = { ownerType: 'character' as const, ownerId: characterId, name: character.name };
+    void (selected ? access.commitRole(principal, ownRole) : access.revoke(principal));
+  }
 
   return (
     <Dialog
@@ -160,7 +176,7 @@ export function MapAccessDialog({
             Manage {mapName}
           </DialogTitle>
           <DialogDescription className="font-ui text-ui text-muted">
-            Grant, change, or revoke delegated access. The map creator is not a grant row.
+            Grant, change, or revoke access. Only characters on this list can be tracked here.
           </DialogDescription>
         </div>
         <DialogClose
@@ -173,6 +189,13 @@ export function MapAccessDialog({
       </header>
 
       <div className="flex flex-col gap-4 px-4 py-4">
+        <OwnCharacterPicker
+          characters={ownCharacters}
+          selectedIds={grantedCharacterIds(access.grants)}
+          onToggle={toggleOwnCharacter}
+          disabled={disabled}
+          hint="Your chosen characters can be tracked on this map."
+        />
         <AccessListEditor
           mode="manage"
           currentGrants={access.grants}

@@ -38,6 +38,10 @@ vi.mock('@/components/ui/dialog', () => ({
     ),
 }));
 
+vi.mock('@/components/use-account-characters', () => ({
+  useAccountCharacters: () => [{ characterId: 7, name: 'Creator Main', portraitUrl: 'https://images.evetech.net/characters/7/portrait' }],
+}));
+
 vi.mock('./CharacterSearchControl', () => ({
   CharacterSearchControl: () => createElement('div', { 'data-character-search': '' }),
 }));
@@ -63,5 +67,9 @@ describe('MapCreationDialog', () => {
     expect(markup).toContain(`id="${labelledBy}"`);
     expect(markup).toContain('Create map');
     expect(markup).not.toContain('data-map-creation-interstitial');
+    expect(markup.indexOf('data-own-character-picker')).toBeLessThan(markup.indexOf('data-access-editor'));
+    expect(markup).toContain('aria-label="Creator Main"');
+    expect(markup).toContain('Choose at least one of your characters.');
+    expect(markup).toMatch(/<button[^>]*type="submit"[^>]*disabled/);
   });
 });

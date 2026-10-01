@@ -81,6 +81,16 @@ describe('POST /api/maps/access', () => {
     await expect(response.json()).resolves.toMatchObject({ code: 'map_admin_required' });
   });
 
+  it('refuses to strip the creator of their last own character', async () => {
+    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'creator-character-required' });
+
+    const response = await POST(request({
+      operation: 'revoke', mapId: 'map-1', principal: { ownerType: 'character', ownerId: 7 },
+    }));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: 'map_creator_character_required' });
+  });
+
   it('surfaces post-commit projection unavailability for an idempotent retry', async () => {
     h.applyMapAccessUpdate.mockResolvedValueOnce({
       ok: false,
