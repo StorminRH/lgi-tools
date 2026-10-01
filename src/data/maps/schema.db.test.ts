@@ -121,6 +121,12 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
         data_type: 'timestamp with time zone',
         is_nullable: 'NO',
       },
+      {
+        table_name: 'maps',
+        column_name: 'character_scoped_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+      },
     ]);
 
     const constraints = await harness.sql<{
@@ -188,14 +194,17 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
       { mapId, ownerType: 'corporation', ownerId: 99, role: 'editor' },
     ]);
 
-    await expect(getMapAccessSubject(mapId, harness.db)).resolves.toMatchObject({
+    await expect(getMapAccessSubject(mapId, harness.db)).resolves.toEqual({
       userId: 'map-owner',
       archivedAt: null,
+      characterScopedAt: null,
     });
-    await expect(getMapGrants(mapId, harness.db)).resolves.toEqual([
+    const grants = await getMapGrants(mapId, harness.db);
+    expect(grants.map(({ grantedAt: _grantedAt, ...grant }) => grant)).toEqual([
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
       { ownerType: 'corporation', ownerId: 99, role: 'editor' },
     ]);
+    expect(grants.every((grant) => grant.grantedAt instanceof Date)).toBe(true);
   });
 
   it('omits a tombstoned map from the access subject even when archived_at is null', async () => {

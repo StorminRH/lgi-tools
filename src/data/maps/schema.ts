@@ -55,6 +55,8 @@ export const maps = pgTable(
     lifecycleEnteredAt: timestamp('lifecycle_entered_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
+    // Null while the map still grants tracking per account; see map-character-scoping.
+    characterScopedAt: timestamp('character_scoped_at', { withTimezone: true }),
   },
   (table) => [index('maps_user_id_idx').on(table.userId)],
 );

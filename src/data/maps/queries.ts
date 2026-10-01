@@ -97,6 +97,10 @@ export interface MapGrantRow extends MapGrant {
   readonly mapId: string;
 }
 
+export interface MapGrantWithProvenance extends MapGrant {
+  readonly grantedAt: Date;
+}
+
 interface RawAuthorizedMapRow {
   readonly id: string;
   readonly userId: string;
@@ -283,11 +287,11 @@ export async function createMapAtomic(
     WITH created_map AS (
       INSERT INTO ${maps} (
         id, user_id, name, archived_at, purge_requested_at,
-        lifecycle_status, lifecycle_entered_at
+        lifecycle_status, lifecycle_entered_at, character_scoped_at
       )
       VALUES (
         ${mapId}, ${userId}, ${name}, now(), now(),
-        'purge_queued'::"public"."map_lifecycle_status", now()
+        'purge_queued'::"public"."map_lifecycle_status", now(), now()
       )
       RETURNING id
     )
@@ -392,6 +396,7 @@ export async function listDeletedRestorableMapsForPrincipals(
 export interface MapAccessSubject {
   readonly userId: string;
   readonly archivedAt: Date | null;
+  readonly characterScopedAt: Date | null;
 }
 
 export async function getMapAccessSubject(
@@ -399,7 +404,11 @@ export async function getMapAccessSubject(
   database: AnyPgDb = db,
 ): Promise<MapAccessSubject | null> {
   const [row] = await database
-    .select({ userId: maps.userId, archivedAt: maps.archivedAt })
+    .select({
+      userId: maps.userId,
+      archivedAt: maps.archivedAt,
+      characterScopedAt: maps.characterScopedAt,
+    })
     .from(maps)
     .where(and(eq(maps.id, mapId), isNull(maps.tombstonedAt)))
     .limit(1);
@@ -409,15 +418,28 @@ export async function getMapAccessSubject(
 export async function getMapGrants(
   mapId: string,
   database: AnyPgDb = db,
-): Promise<MapGrant[]> {
+): Promise<MapGrantWithProvenance[]> {
   return database
     .select({
       ownerType: mapAccess.ownerType,
       ownerId: mapAccess.ownerId,
       role: mapAccess.role,
+      grantedAt: mapAccess.grantedAt,
     })
     .from(mapAccess)
     .where(eq(mapAccess.mapId, mapId));
+}
+
+export async function getCharacterNames(
+  characterIds: readonly number[],
+  database: AnyPgDb = db,
+): Promise<ReadonlyMap<number, string>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await database
+    .select({ characterId: characters.characterId, name: characters.name })
+    .from(characters)
+    .where(inArray(characters.characterId, [...characterIds]));
+  return new Map(rows.map((row) => [row.characterId, row.name]));
 }
 
 export async function getAuthorizedMapGrantsForMaps(
