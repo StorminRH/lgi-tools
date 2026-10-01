@@ -1,6 +1,30 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type { PortraitToggleChange } from '@/components/character-portrait-picker';
+import type * as MapAccessClient from './map-access-client';
+import type * as OwnPickerModule from './OwnCharacterPicker';
+
+const actions = vi.hoisted(() => ({
+  toggleOwnCharacter: undefined as ((change: PortraitToggleChange) => void) | undefined,
+  updateMapAccess: vi.fn(),
+}));
+
+vi.mock('./map-access-client', async (importOriginal) => ({
+  ...await importOriginal<typeof MapAccessClient>(),
+  updateMapAccess: actions.updateMapAccess,
+}));
+
+vi.mock('./OwnCharacterPicker', async (importOriginal) => {
+  const actual = await importOriginal<typeof OwnPickerModule>();
+  return {
+    ...actual,
+    OwnCharacterPicker: (props: Parameters<typeof actual.OwnCharacterPicker>[0]) => {
+      actions.toggleOwnCharacter = props.onToggle;
+      return createElement(actual.OwnCharacterPicker, props);
+    },
+  };
+});
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
@@ -68,6 +92,21 @@ import {
 } from './MapAccessDialog';
 
 describe('MapAccessDialog', () => {
+  it('selects an own tracking character with viewer access', async () => {
+    actions.updateMapAccess.mockReset().mockResolvedValue({ ok: true });
+    renderToStaticMarkup(createElement(MapAccessDialog, {
+      mapId: 'map-a', mapName: 'Alpha', open: true,
+      onOpenChange: vi.fn(), finalFocus: { current: null },
+      corporations: [], initialGrants: [], initialBlocks: [],
+    }));
+    expect(actions.toggleOwnCharacter).toBeDefined();
+    actions.toggleOwnCharacter?.({ characterId: 43, selected: true });
+    expect(actions.updateMapAccess).toHaveBeenCalledExactlyOnceWith({
+      operation: 'upsert', mapId: 'map-a',
+      grant: { ownerType: 'character', ownerId: 43, role: 'viewer' },
+    });
+  });
+
   it('seeds the shared manage editor with presentation-ready delegated grants', () => {
     const markup = renderToStaticMarkup(
       createElement(MapAccessDialog, {

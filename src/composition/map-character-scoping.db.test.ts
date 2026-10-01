@@ -76,9 +76,17 @@ describe.skipIf(!harness.reachable)('scopeLegacyMap (real Postgres)', () => {
       ownerType: mapAccess.ownerType, ownerId: mapAccess.ownerId, role: mapAccess.role,
     }).from(mapAccess);
     expect(grants.sort((left, right) => left.ownerId - right.ownerId)).toEqual([
-      { ownerType: 'character', ownerId: 41, role: 'admin' },
+      { ownerType: 'character', ownerId: 41, role: 'viewer' },
       { ownerType: 'character', ownerId: 44, role: 'editor' },
       { ownerType: 'corporation', ownerId: 990, role: 'editor' },
+    ]);
+    await seedUser(harness.db, 'buyer');
+    await harness.db.delete(account).where(eq(account.id, 'acc-41'));
+    await seedEveAccount(harness.db, { id: 'buyer-41', characterId: 41, userId: 'buyer' }, { refreshToken: 'valid' });
+    await expect(computeMapAccessClaims(MAP_ID)).resolves.toMatchObject([
+      { userId: 'buyer', roles: ['viewer'], characters: [{ characterId: 41 }] },
+      { userId: 'creator', roles: ['admin'], characters: [] },
+      { userId: 'member', roles: ['editor'] },
     ]);
   });
   async function seedTransferSource() {

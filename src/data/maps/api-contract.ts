@@ -19,7 +19,7 @@ const createMapGrantSchema = z.strictObject({
   role: z.enum(['viewer', 'editor']),
 });
 
-/** The creator's own characters become admin character grants; they may not repeat in `grants`. */
+/** Creator picks receive viewer grants; creator Admin belongs to the user. Picks may not repeat in `grants`. */
 export const createMapRequestSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(MAX_MAP_NAME_LENGTH),

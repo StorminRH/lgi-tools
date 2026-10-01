@@ -7,7 +7,7 @@ const INPUT = {
   grants: [{ ownerType: 'character' as const, ownerId: 42, role: 'editor' as const }],
 };
 const CREATION_GRANTS = [
-  { ownerType: 'character', ownerId: 7, role: 'admin' },
+  { ownerType: 'character', ownerId: 7, role: 'viewer' },
   ...INPUT.grants,
 ];
 const linked = () => vi.fn().mockResolvedValue([7, 8]);
@@ -212,10 +212,10 @@ describe('creator characters', () => {
     expect(createMap).not.toHaveBeenCalled();
   });
 
-  it('writes every pick as an admin character grant ahead of the delegated grants', () => {
+  it('writes every tracking pick as viewer ahead of the delegated grants', () => {
     expect(creationGrants({ ...INPUT, creatorCharacterIds: [8, 7] })).toEqual([
-      { ownerType: 'character', ownerId: 8, role: 'admin' },
-      { ownerType: 'character', ownerId: 7, role: 'admin' },
+      { ownerType: 'character', ownerId: 8, role: 'viewer' },
+      { ownerType: 'character', ownerId: 7, role: 'viewer' },
       ...INPUT.grants,
     ]);
   });

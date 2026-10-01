@@ -48,7 +48,8 @@ const ROLE_RANK: Record<MapRole, number> = { viewer: 1, editor: 2, admin: 3 };
 /**
  * Rechecks ownership and current access in the grant write. Snapshot roles
  * cap the resulting grant; a revoke, downgrade, block or sale cannot turn a
- * stale candidate into more access. Existing grants remain authoritative.
+ * stale candidate into more access. Creator tracking picks receive viewer
+ * grants because Admin belongs to the creator user. Existing grants remain authoritative.
  */
 export async function insertGrandfatherGrants(
   mapId: string,
@@ -77,7 +78,7 @@ async function writeGrandfatherGrants(
   await database.execute(sql`
     WITH candidates AS (${candidates}), permitted AS (
       SELECT candidate.character_id,
-        LEAST(candidate.role_rank, CASE WHEN managed.user_id = candidate.user_id THEN 3
+        LEAST(candidate.role_rank, CASE WHEN managed.user_id = candidate.user_id THEN 1
           ELSE COALESCE(authority.role_rank, 0) END) AS role_rank
       FROM candidates AS candidate
       INNER JOIN ${maps} AS managed ON managed.id = ${mapId}

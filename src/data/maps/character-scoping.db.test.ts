@@ -73,7 +73,7 @@ describe.skipIf(!harness.reachable)('character scoping backfill (real Postgres)'
     await insertGrandfatherGrants(LEGACY, [], CUTOFF, harness.db);
     expect(await legacyGrants()).toEqual([
       { ownerId: 7, role: 'viewer' },
-      { ownerId: 8, role: 'editor' },
+      { ownerId: 8, role: 'viewer' },
       { ownerId: 9, role: 'viewer' },
     ]);
     await expect(listUnscopedMapIds(10, harness.db)).resolves.toEqual([LEGACY]);
@@ -165,7 +165,7 @@ describe.skipIf(!harness.reachable)('character scoping backfill (real Postgres)'
     vi.stubEnv('LOCAL_DB_DRIVER', '');
     try {
       await insertGrandfatherGrants(LEGACY, [{ userId: 'creator', characterId: 8, role: 'editor' }], CUTOFF);
-      expect(await legacyGrants()).toContainEqual({ ownerId: 8, role: 'editor' });
+      expect(await legacyGrants()).toContainEqual({ ownerId: 8, role: 'viewer' });
     } finally {
       vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
     }

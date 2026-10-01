@@ -50,8 +50,7 @@ export interface MapAccessDialogProps {
   readonly initialBlocks: readonly MapBlockOption[];
 }
 
-/** Only admins manage access, so an admin's own characters join the list as admin. */
-const OWN_CHARACTER_ROLE: MapRole = 'admin';
+const OWN_CHARACTER_ROLE: MapRole = 'viewer';
 
 function initialDrafts(grants: readonly MapAccessGrantOption[]): AccessGrantDraft[] {
   return grants.map((grant) => ({ ...grant }));

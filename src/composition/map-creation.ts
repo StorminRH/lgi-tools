@@ -48,13 +48,13 @@ async function listLinkedCharacterIds(userId: string): Promise<number[]> {
   return (await listLinkedCharacters(userId)).map((character) => character.characterId);
 }
 
-/** The creator's picks become admin character grants ahead of the delegated ones. */
+/** The creator's tracking picks receive viewer grants; the creator retains user-level Admin. */
 export function creationGrants(input: CreateMapRequest): CreateMapGrant[] {
   return [
     ...input.creatorCharacterIds.map((ownerId) => ({
       ownerType: 'character' as const,
       ownerId,
-      role: 'admin' as const,
+      role: 'viewer' as const,
     })),
     ...input.grants,
   ];
