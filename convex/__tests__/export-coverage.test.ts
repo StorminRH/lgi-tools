@@ -46,7 +46,7 @@ import {
   purgeUserMapClaims,
   reconcileMapClaims,
   remapLegacyOwnerRoles,
-  trackedCharactersForMap,
+  freezeMapTrackingForScoping,
 } from '../mapAccessProjection';
 import {
   restoreSeveredBranch,
@@ -196,7 +196,7 @@ describe('convex runtime exports', () => {
       purgeUserMapClaims,
       reconcileMapClaims,
       remapLegacyOwnerRoles,
-      trackedCharactersForMap,
+      freezeMapTrackingForScoping,
       CEILING_SWEEP_BATCH,
       CEILING_SWEEP_SCAN,
       addSystemFromNode,

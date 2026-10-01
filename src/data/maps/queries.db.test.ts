@@ -195,7 +195,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     expect(await lastCheck('creator', 42)).toBe(false);
     expect(await lastCheck('creator', 8)).toBe(false);
 
-    await revoke(7);
+    await expect(revoke(7)).resolves.toEqual({ reason: 'creator-character-required' });
     await revoke(42);
     expect(await grantedIds()).toEqual([7]);
   });
@@ -228,6 +228,33 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await Promise.all([revoke(7), revoke(7)]);
     await expect(harness.db.select({ id: mapAccess.ownerId }).from(mapAccess)
       .where(eq(mapAccess.mapId, mapId))).resolves.toEqual([{ id: 7 }]);
+  });
+
+  it('returns one pending change and one refusal for concurrent creator-character revokes', async () => {
+    await seedUser(harness.db, 'creator');
+    await seedEveAccount(harness.db, { id: 'acc-7', characterId: 7, userId: 'creator' });
+    await seedEveAccount(harness.db, { id: 'acc-8', characterId: 8, userId: 'creator' });
+    const mapId = await createMapAtomic('creator', 'Concurrent revokes', [
+      { ownerType: 'character', ownerId: 7, role: 'admin' },
+      { ownerType: 'character', ownerId: 8, role: 'admin' },
+    ], harness.db);
+    await publishCreatedMap(mapId, harness.db);
+
+    const results = await Promise.all([7, 8].map((ownerId) => applyAuthorizedMapGrantChange(
+      'creator', NO_PRINCIPALS, mapId,
+      { operation: 'revoke', principal: { ownerType: 'character', ownerId } }, harness.db,
+    )));
+    expect(results).toEqual(expect.arrayContaining([
+      { mapId, version: expect.any(String) },
+      { reason: 'creator-character-required' },
+    ]));
+    const remaining = await harness.db.select({ id: mapAccess.ownerId }).from(mapAccess)
+      .where(eq(mapAccess.mapId, mapId));
+    expect(remaining).toHaveLength(1);
+    expect([7, 8]).toContain(remaining[0]?.id);
+    const pending = results.find((result) => result !== null && 'version' in result);
+    await expect(harness.db.select({ mapId: pendingMapAccessChanges.mapId, version: pendingMapAccessChanges.version })
+      .from(pendingMapAccessChanges)).resolves.toEqual([pending]);
   });
 
   it('does not guard the creator\'s characters on a legacy map', async () => {

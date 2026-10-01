@@ -142,3 +142,61 @@ describe('eventActor', () => {
     expect(await actorFor(t, OWNER, 'Creator')).toBe('Creator');
   });
 });
+
+describe('legacy character-scoping barrier', () => {
+  const freeze = (t: Chain) => t.mutation(internal.mapAccessProjection.freezeMapTrackingForScoping, { mapId: MAP });
+  const pending = (t: Chain) => t.run(async (ctx) =>
+    (await ctx.db.query('mapAccessProjectionWatermarks')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP)).unique())?.scopingPending === true);
+
+  it('freezes late opt-ins while preserving existing tracking and opt-out until scoped delivery', async () => {
+    const t = convexTest(schema, modules);
+    await reconcile(t, [{ userId: MEMBER, roles: ['viewer'] }]);
+    await track(t, MEMBER, MAIN);
+    await expect(freeze(t)).resolves.toEqual([{ userId: MEMBER, characterId: MAIN }]);
+    await expect(track(t, MEMBER, ALT)).rejects.toThrow('TRACKING_SCOPING_PENDING');
+    await expect(track(t, MEMBER, MAIN)).resolves.toEqual({ tracked: true });
+    await asUser(t, MEMBER).mutation(api.mapTrackingOptIn.setTracking, {
+      mapId: MAP, characterId: MAIN, tracked: false,
+    });
+    await reconcile(t, [{ userId: MEMBER, roles: ['viewer'] }]);
+    expect(await pending(t)).toBe(true);
+    await expect(track(t, MEMBER, MAIN)).rejects.toThrow('TRACKING_SCOPING_PENDING');
+    await reconcile(t, [scopedMember]);
+    expect(await pending(t)).toBe(false);
+    expect(await trackedIds(t, MEMBER)).toEqual([]);
+    await expect(track(t, MEMBER, ALT)).resolves.toEqual({ tracked: true });
+  });
+
+  it('retains the pause after failed or stale delivery and releases it on a successful queued retry', async () => {
+    const t = convexTest(schema, modules);
+    await reconcile(t, [{ userId: MEMBER, roles: ['viewer'] }]);
+    await freeze(t);
+    await expect(t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: MAP, revision: nextRevision++,
+      claims: [{ userId: MEMBER, roles: ['owner'], characters: [] }],
+    } as never)).rejects.toThrow();
+    expect(await pending(t)).toBe(true);
+    await expect(t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: MAP, revision: 0, claims: [scopedMember],
+    })).resolves.toMatchObject({ outcome: 'stale' });
+    expect(await pending(t)).toBe(true);
+    await reconcile(t, [scopedMember]);
+    expect(await pending(t)).toBe(false);
+  });
+
+  it('keeps concurrent workers frozen and does not pause a map already scoped by another worker', async () => {
+    const t = convexTest(schema, modules);
+    await reconcile(t, [{ userId: MEMBER, roles: ['viewer'] }]);
+    await track(t, MEMBER, MAIN);
+    const snapshots = await Promise.all([freeze(t), freeze(t)]);
+    expect(snapshots).toEqual([
+      [{ userId: MEMBER, characterId: MAIN }], [{ userId: MEMBER, characterId: MAIN }],
+    ]);
+    await expect(track(t, MEMBER, ALT)).rejects.toThrow('TRACKING_SCOPING_PENDING');
+    await reconcile(t, [scopedMember]);
+    await freeze(t);
+    expect(await pending(t)).toBe(false);
+    await expect(track(t, MEMBER, ALT)).resolves.toEqual({ tracked: true });
+  });
+});

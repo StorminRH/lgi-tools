@@ -3,7 +3,7 @@ import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/loc
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
-import { characterTrackable, tryMapAccessForUser } from './lib/mapAccess';
+import { characterTrackable, requireMapTrackingOpen, tryMapAccessForUser } from './lib/mapAccess';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
@@ -202,6 +202,7 @@ async function restoreMapSelections(
   survivorUserId: string,
   selections: readonly TrackingSelection[],
 ): Promise<RestoreCounts> {
+  await requireMapTrackingOpen(ctx, mapId);
   const principal = await tryMapAccessForUser(ctx, mapId, survivorUserId, 'view');
   if (principal === null) {
     return { restored: 0, skipped: selections.length };

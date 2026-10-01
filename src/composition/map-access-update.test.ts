@@ -73,10 +73,8 @@ describe('applyMapAccessUpdate', () => {
       mapId: 'map-1',
       principal: { ownerType: 'corporation' as const, ownerId: 99 },
     };
-    const isCreatorsLastCharacter = vi.fn().mockResolvedValue(true);
     await expect(
       applyMapAccessUpdate('admin', revoke, {
-        isCreatorsLastCharacter,
         resolvePrincipals: vi.fn().mockResolvedValue({
           characterIds: [],
           corporationIds: [99],
@@ -92,7 +90,6 @@ describe('applyMapAccessUpdate', () => {
         }),
       }),
     ).resolves.toEqual({ ok: true });
-    expect(isCreatorsLastCharacter).not.toHaveBeenCalled();
 
     const refusedProject = vi.fn();
     const refusedAcknowledge = vi.fn();
@@ -111,17 +108,14 @@ describe('applyMapAccessUpdate', () => {
     expect(refusedAcknowledge).not.toHaveBeenCalled();
   });
 
-  it('refuses to revoke the creator\'s last own character before touching Neon', async () => {
-    const applyGrantChange = vi.fn();
+  it('surfaces the locked creator-character refusal without projecting or acknowledging it', async () => {
+    const applyGrantChange = vi.fn().mockResolvedValue({ reason: 'creator-character-required' });
     const revoke = {
       operation: 'revoke' as const,
       mapId: 'map-1',
       principal: { ownerType: 'character' as const, ownerId: 7 },
     };
-    const isCreatorsLastCharacter = vi.fn(async (_userId: string, _principals: unknown, mapId: string, characterId: number) =>
-      mapId === 'map-1' && characterId === 7);
     const deps = {
-      isCreatorsLastCharacter,
       resolvePrincipals: vi.fn().mockResolvedValue({ characterIds: [7], corporationIds: [] }),
       applyGrantChange,
       acknowledgeAccess: vi.fn(),
@@ -129,7 +123,8 @@ describe('applyMapAccessUpdate', () => {
     };
     await expect(applyMapAccessUpdate('admin', revoke, deps))
       .resolves.toEqual({ ok: false, reason: 'creator-character-required' });
-    expect(applyGrantChange).not.toHaveBeenCalled();
+    expect(deps.projectAccess).not.toHaveBeenCalled();
+    expect(deps.acknowledgeAccess).not.toHaveBeenCalled();
 
     applyGrantChange.mockResolvedValue({ mapId: 'map-1', version: 'captured' });
     deps.projectAccess.mockResolvedValue({

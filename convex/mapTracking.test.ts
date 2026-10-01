@@ -453,6 +453,81 @@ describe('mapTrackingLive.forMap', () => {
     expect('covered' in anyRow).toBe(false);
   });
 
+  it('finds coverage held only by the thirty-third account tracking a shared character', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 33; index += 1) {
+        const userId = `tracker-${index}`;
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId, characterId: CHAR });
+        if (index === 32) {
+          await ctx.db.insert('characterLocationCovered', { userId, characterId: CHAR });
+        }
+      }
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: CHAR + 2 });
+      await ctx.db.insert('characterLocationCovered', { userId: OWNER, characterId: CHAR + 2 });
+    });
+
+    expect(await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A, characterIds: [CHAR_B, CHAR],
+    })).toEqual({ coverage: [
+      { characterId: CHAR, covered: true },
+      { characterId: CHAR_B, covered: false },
+    ] });
+    expect(await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A, identities: [{ userId: 'ignored', characterId: CHAR }],
+    })).toEqual({ coverage: [{ userId: '', characterId: CHAR, covered: true }] });
+  });
+
+  it('reduces parallel locations by movement time and preserves the first location on ties', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      for (const [index, transitionObservedAt, observedAt] of [
+        [0, 100, 500], [1, 200, 300], [2, 200, 900],
+      ] as const) {
+        const userId = `tracker-${index}`;
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId, characterId: CHAR });
+        await ctx.db.insert('characterLocation', {
+          userId, characterId: CHAR, solarSystemId: 30_000_140 + index,
+          stationId: null, structureId: null, shipTypeId: 670,
+          prevSolarSystemId: null, prevFresh: false,
+          transitionObservedAt, observedAt, etagLocation: null, etagShip: null,
+        });
+      }
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: 'without-location', characterId: CHAR });
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: 'without-location', characterId: CHAR_B });
+    });
+
+    expect(await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A })).toEqual({
+      ownTrackedCharacterIds: [],
+      tracked: [
+        { userId: '', characterId: CHAR, location: {
+          solarSystemId: 30_000_141, stationId: null, structureId: null, shipTypeId: 670,
+          prevSolarSystemId: null, prevFresh: false, transitionObservedAt: 200, observedAt: 300,
+        } },
+        { userId: '', characterId: CHAR_B, location: null },
+      ],
+    });
+  });
+
+  it('rejects map-wide coverage overflow for both client formats while disclosing nothing without access', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= TRACKED_CHARACTERS_PER_MAP_CAP; index += 1) {
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: `tracker-${index}`, characterId: CHAR });
+      }
+    });
+    for (const args of [
+      { mapId: MAP_A, characterIds: [CHAR] },
+      { mapId: MAP_A, identities: [{ userId: OWNER, characterId: CHAR }] },
+    ]) {
+      await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('TRACKING_SCAN_LIMIT');
+      expect(await asUser(t, EDITOR).query(tracking.coverage, args)).toEqual({ coverage: [] });
+    }
+  });
+
   it('accepts older client identities while ignoring account identifiers and deduplicating characters', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);

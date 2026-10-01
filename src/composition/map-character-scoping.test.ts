@@ -47,9 +47,9 @@ describe('grandfatherGrants', () => {
         affiliation('gone', 5, 991),
       ],
     })).toEqual([
-      { characterId: 1, role: 'admin' },
-      { characterId: 3, role: 'editor' },
-      { characterId: 4, role: 'editor' },
+      { userId: 'creator', characterId: 1, role: 'admin' },
+      { userId: 'member', characterId: 3, role: 'editor' },
+      { userId: 'member', characterId: 4, role: 'editor' },
     ]);
   });
 });
@@ -58,7 +58,8 @@ function deps(overrides: Partial<Required<MapScopingDependencies>> = {}) {
   return {
     computeClaims: vi.fn().mockResolvedValue(CLAIMS),
     readGrants: vi.fn().mockResolvedValue(GRANTS),
-    readTracked: vi.fn().mockResolvedValue([{ userId: 'member', characterId: 3 }]),
+    freezeTracking: vi.fn().mockResolvedValue([{ userId: 'member', characterId: 3 }]),
+    readTransfers: vi.fn().mockResolvedValue([]),
     readAffiliations: vi.fn().mockResolvedValue([affiliation('member', 3, 991)]),
     grandfather: vi.fn().mockResolvedValue(undefined),
     stamp: vi.fn().mockResolvedValue({ mapId: 'map-1', version: 'v1' }),
@@ -70,31 +71,30 @@ function deps(overrides: Partial<Required<MapScopingDependencies>> = {}) {
 describe('scopeLegacyMap', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('grants in two passes, then stamps, then reprojects the stamped change', async () => {
+  it('freezes and snapshots once, then grants, stamps, and reprojects', async () => {
     const order: string[] = [];
     const record = <T,>(step: string, value: T) => vi.fn(async () => {
       order.push(step);
       return value;
     });
     const d = deps({
+      freezeTracking: record('freeze', [{ userId: 'member', characterId: 3 }]),
       grandfather: record('grant', undefined),
       stamp: record('stamp', { mapId: 'map-1', version: 'v1' }),
       deliver: record('deliver', { processed: 1, failed: 0 }),
     });
     await expect(scopeLegacyMap('map-1', d)).resolves.toBe(true);
-    expect(order).toEqual(['grant', 'grant', 'stamp', 'deliver']);
-    expect(d.grandfather).toHaveBeenCalledWith('map-1', [{ characterId: 3, role: 'editor' }]);
+    expect(order).toEqual(['freeze', 'grant', 'stamp', 'deliver']);
+    expect(d.grandfather).toHaveBeenCalledWith('map-1', [{ userId: 'member', characterId: 3, role: 'editor' }], expect.any(Date));
     expect(d.deliver).toHaveBeenCalledExactlyOnceWith([{ mapId: 'map-1', version: 'v1' }]);
     expect(d.readAffiliations).toHaveBeenCalledWith(['member']);
   });
 
-  it('leaves the map unscoped when the second pass fails', async () => {
+  it('leaves the map unscoped for retry when the frozen grandfather write fails', async () => {
     const d = deps({
-      readTracked: vi.fn()
-        .mockResolvedValueOnce([{ userId: 'member', characterId: 3 }])
-        .mockRejectedValueOnce(new Error('door down')),
+      grandfather: vi.fn().mockRejectedValueOnce(new Error('SQL down')),
     });
-    await expect(scopeLegacyMap('map-1', d)).rejects.toThrow('door down');
+    await expect(scopeLegacyMap('map-1', d)).rejects.toThrow('SQL down');
     expect(d.grandfather).toHaveBeenCalledOnce();
     expect(d.stamp).not.toHaveBeenCalled();
     expect(d.deliver).not.toHaveBeenCalled();
@@ -102,12 +102,71 @@ describe('scopeLegacyMap', () => {
 
   it('reads tracked pairs through the service door by default', async () => {
     door.post.mockResolvedValue({ tracked: [{ userId: 'member', characterId: 3 }] });
-    const { readTracked: _readTracked, ...rest } = deps();
+    const { freezeTracking: _freezeTracking, ...rest } = deps();
     await expect(scopeLegacyMap('map-1', rest)).resolves.toBe(true);
     expect(door.post).toHaveBeenCalledWith(expect.objectContaining({
       path: '/map-tracking-snapshot', body: { mapId: 'map-1' },
     }));
-    expect(rest.grandfather).toHaveBeenCalledWith('map-1', [{ characterId: 3, role: 'editor' }]);
+    expect(rest.grandfather).toHaveBeenCalledWith('map-1', [{ userId: 'member', characterId: 3, role: 'editor' }], expect.any(Date));
+  });
+
+  it('uses durable transfer intent after the source tracking and account are gone', async () => {
+    const d = deps({
+      freezeTracking: vi.fn().mockResolvedValue([]),
+      readTransfers: vi.fn().mockResolvedValue([{ userId: 'member', characterId: 3 }]),
+    });
+    await expect(scopeLegacyMap('map-1', d)).resolves.toBe(true);
+    expect(d.grandfather).toHaveBeenCalledWith('map-1', [
+      { userId: 'member', characterId: 3, role: 'editor' },
+    ], expect.any(Date));
+    expect(d.freezeTracking).toHaveBeenCalledOnce();
+  });
+
+  it('recomputes fresh claims when a new transfer commits during the grandfather write', async () => {
+    const transferred = { userId: 'survivor', characterId: 3 };
+    const d = deps({
+      readTransfers: vi.fn().mockResolvedValueOnce([]).mockResolvedValue([transferred]),
+      computeClaims: vi.fn().mockResolvedValueOnce(CLAIMS).mockResolvedValue([
+        { userId: 'creator', roles: ['admin'] }, { userId: 'survivor', roles: ['viewer'] },
+      ]),
+      readAffiliations: vi.fn().mockResolvedValueOnce([affiliation('member', 3, 991)])
+        .mockResolvedValue([affiliation('survivor', 3, 991)]),
+    });
+    await expect(scopeLegacyMap('map-1', d)).resolves.toBe(true);
+    expect(d.grandfather).toHaveBeenLastCalledWith('map-1', [
+      { userId: 'survivor', characterId: 3, role: 'viewer' },
+    ], expect.any(Date));
+    expect(d.grandfather).toHaveBeenCalledTimes(2);
+    expect(d.freezeTracking).toHaveBeenCalledOnce();
+  });
+
+  it('follows a pending job retargeted by a chained merge without stamping through continuing churn', async () => {
+    const d = deps({
+      freezeTracking: vi.fn().mockResolvedValue([]),
+      readTransfers: vi.fn()
+        .mockResolvedValueOnce([{ userId: 'middle', characterId: 3 }])
+        .mockResolvedValue([{ userId: 'final', characterId: 3 }]),
+      computeClaims: vi.fn().mockResolvedValueOnce([{ userId: 'middle', roles: ['editor'] }])
+        .mockResolvedValue([{ userId: 'final', roles: ['viewer'] }]),
+      readAffiliations: vi.fn().mockResolvedValueOnce([affiliation('middle', 3, 991)])
+        .mockResolvedValue([affiliation('final', 3, 991)]),
+    });
+    await expect(scopeLegacyMap('map-1', d)).resolves.toBe(true);
+    expect(d.grandfather).toHaveBeenLastCalledWith('map-1', [
+      { userId: 'final', characterId: 3, role: 'viewer' },
+    ], expect.any(Date));
+    expect(d.stamp).toHaveBeenCalledOnce();
+
+    const churning = deps({ readTransfers: vi.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ userId: 'member', characterId: 4 }])
+      .mockResolvedValueOnce([{ userId: 'member', characterId: 5 }])
+      .mockResolvedValueOnce([{ userId: 'member', characterId: 6 }]),
+    });
+    await expect(scopeLegacyMap('map-1', churning)).rejects.toThrow('retained for retry');
+    expect(churning.stamp).not.toHaveBeenCalled();
+    expect(churning.deliver).not.toHaveBeenCalled();
+    expect(churning.freezeTracking).toHaveBeenCalledOnce();
   });
 
   it('skips a map that vanished and reports a reprojection kept for retry', async () => {
@@ -125,7 +184,7 @@ describe('scopeLegacyMaps', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const listMapIds = vi.fn().mockResolvedValue(['a', 'b', 'c']);
     const d = deps({
-      readTracked: vi.fn(async (mapId: string) => {
+      freezeTracking: vi.fn(async (mapId: string) => {
         if (mapId === 'b') throw new Error('door down');
         return [];
       }),

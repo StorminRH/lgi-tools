@@ -93,6 +93,7 @@ export default defineSchema({
     revision: v.number(),
     // Set once a claim set carried characters; later sets without them are refused.
     characterScoped: v.optional(v.boolean()),
+    scopingPending: v.optional(v.boolean()),
   }).index('by_map', ['mapId']),
 
   mapSystems: defineTable({

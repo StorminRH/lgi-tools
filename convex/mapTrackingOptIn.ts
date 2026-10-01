@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
-import { characterTrackable, requireMapAccess } from './lib/mapAccess';
+import { characterTrackable, requireMapAccess, requireMapTrackingOpen } from './lib/mapAccess';
 import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
@@ -54,6 +54,7 @@ export const setTracking = mutation({
     const match = existing.find((row) => row.characterId === characterId);
 
     if (tracked) {
+      if (match === undefined) await requireMapTrackingOpen(ctx, mapId);
       if (!characterTrackable(principal, characterId)) {
         throw new ConvexError({
           code: 'CHARACTER_NOT_ELIGIBLE',

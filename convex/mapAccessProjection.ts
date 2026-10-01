@@ -4,7 +4,7 @@ import {
   type MapRole,
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
-import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
+import { internalMutation, type MutationCtx } from './_generated/server';
 import {
   currentMapRoleValidator,
   currentRolesFromStored,
@@ -244,7 +244,10 @@ export const reconcileMapClaims = internalMutation({
     if (watermark === null) {
       await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision, characterScoped });
     } else {
-      await ctx.db.patch(watermark._id, { revision, characterScoped });
+      await ctx.db.patch(watermark._id, {
+        revision, characterScoped,
+        ...(carried ? { scopingPending: undefined } : {}),
+      });
     }
     return { ...counts, outcome: 'applied', ...scopedMarker(carried) };
   },
@@ -336,10 +339,18 @@ export const remapLegacyOwnerRoles = internalMutation({
   },
 });
 
-/** Every tracked (account, character) pair on a map, read by the character-scoping backfill. */
-export const trackedCharactersForMap = internalQuery({
+export const freezeMapTrackingForScoping = internalMutation({
   args: { mapId: v.string() },
   returns: v.array(v.object({ userId: v.string(), characterId: v.number() })),
-  handler: async (ctx, { mapId }) =>
-    (await readMapTracking(ctx, mapId)).map(({ userId, characterId }) => ({ userId, characterId })),
+  handler: async (ctx, { mapId }) => {
+    const watermark = await ctx.db.query('mapAccessProjectionWatermarks')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId)).unique();
+    if (watermark === null) {
+      await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision: 0, scopingPending: true });
+    } else if (watermark.characterScoped !== true) {
+      await ctx.db.patch(watermark._id, { scopingPending: true });
+    }
+    return (await readMapTracking(ctx, mapId))
+      .map(({ userId, characterId }) => ({ userId, characterId }));
+  },
 });

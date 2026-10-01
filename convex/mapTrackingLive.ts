@@ -4,7 +4,6 @@ import type { Doc } from './_generated/dataModel';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 
 import { readMapTracking, TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
@@ -48,11 +47,16 @@ async function readTrackedLocations(
   ctx: QueryCtx,
   rows: readonly Doc<'mapTracking'>[],
 ): Promise<{ userId: string; characterId: number; location: TrackedLocation | null }[]> {
-  const byCharacter = new Map<number, TrackedLocation | null>();
-  for (const row of rows) {
+  const locations = await Promise.all(rows.map(async (row) => {
     const location = await findCharacterLocation(ctx, row.userId, row.characterId);
-    const payload = location === null ? null : trackedLocationPayload(location);
-    byCharacter.set(row.characterId, fresher(byCharacter.get(row.characterId) ?? null, payload));
+    return {
+      characterId: row.characterId,
+      location: location === null ? null : trackedLocationPayload(location),
+    };
+  }));
+  const byCharacter = new Map<number, TrackedLocation | null>();
+  for (const { characterId, location } of locations) {
+    byCharacter.set(characterId, fresher(byCharacter.get(characterId) ?? null, location));
   }
   return [...byCharacter]
     .sort(([left], [right]) => left - right)
@@ -81,13 +85,9 @@ export const forMap = query({
 });
 
 /** Covered when any account tracking the character on this map holds coverage for it. */
-async function characterCovered(ctx: QueryCtx, mapId: string, characterId: number): Promise<boolean> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_character', (q) => q.eq('mapId', mapId).eq('characterId', characterId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
+async function characterCovered(ctx: QueryCtx, rows: readonly Doc<'mapTracking'>[]): Promise<boolean> {
   for (const row of rows) {
-    if (await findCoverage(ctx, row.userId, characterId) !== null) return true;
+    if (await findCoverage(ctx, row.userId, row.characterId) !== null) return true;
   }
   return false;
 }
@@ -119,9 +119,17 @@ export const coverage = query({
     }
 
     const unique = [...new Set(characterIds)].sort((left, right) => left - right);
+    const requested = new Set(unique);
+    const trackedByCharacter = new Map<number, Doc<'mapTracking'>[]>();
+    for (const row of await readMapTracking(ctx, mapId)) {
+      if (!requested.has(row.characterId)) continue;
+      const held = trackedByCharacter.get(row.characterId) ?? [];
+      held.push(row);
+      trackedByCharacter.set(row.characterId, held);
+    }
     const coverageRows = await Promise.all(unique.map(async (characterId) => ({
       characterId,
-      covered: await characterCovered(ctx, mapId, characterId),
+      covered: await characterCovered(ctx, trackedByCharacter.get(characterId) ?? []),
     })));
     return {
       coverage: args.characterIds !== undefined

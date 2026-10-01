@@ -19,6 +19,17 @@ export function characterTrackable(principal: MapPrincipal, characterId: number)
     || principal.characters.some((character) => character.characterId === characterId);
 }
 
+export async function requireMapTrackingOpen(ctx: QueryCtx, mapId: string): Promise<void> {
+  const watermark = await ctx.db.query('mapAccessProjectionWatermarks')
+    .withIndex('by_map', (q) => q.eq('mapId', mapId)).unique();
+  if (watermark?.scopingPending === true) {
+    throw new ConvexError({
+      code: 'TRACKING_SCOPING_PENDING',
+      detail: 'New tracking is paused while this map updates its character access. Try again shortly.',
+    });
+  }
+}
+
 /**
  * Authenticates the caller, then authorizes them for one map and one required capability.
  *

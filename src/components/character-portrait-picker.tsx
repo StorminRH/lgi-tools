@@ -62,15 +62,16 @@ export function CharacterPortraitPicker({
   readonly label: string;
   readonly disabled?: boolean;
 }) {
+  const visibleSelectedIds = new Set(characters
+    .filter((character) => selectedIds.has(character.characterId))
+    .map((character) => character.characterId));
   return (
     <PortraitToggleGroup
       label={label}
       disabled={disabled}
-      value={characters
-        .filter((character) => selectedIds.has(character.characterId))
-        .map((character) => String(character.characterId))}
+      value={[...visibleSelectedIds].map(String)}
       onValueChange={(next) => {
-        const change = portraitToggleChange(selectedIds, next);
+        const change = portraitToggleChange(visibleSelectedIds, next);
         if (change !== null) onToggle(change);
       }}
     >

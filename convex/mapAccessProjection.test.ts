@@ -525,14 +525,14 @@ describe('read-set cost', () => {
   });
 });
 
-describe('trackedCharactersForMap', () => {
+describe('freezeMapTrackingForScoping', () => {
   it('lists only the requested map\'s tracked pairs', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 11 });
       await ctx.db.insert('mapTracking', { mapId: 'other-map', userId: OWNER, characterId: 12 });
     });
-    await expect(t.query(internal.mapAccessProjection.trackedCharactersForMap, { mapId: MAP_A }))
+    await expect(t.mutation(internal.mapAccessProjection.freezeMapTrackingForScoping, { mapId: MAP_A }))
       .resolves.toEqual([{ userId: OWNER, characterId: 11 }]);
   });
 });

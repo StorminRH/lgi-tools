@@ -26,3 +26,17 @@ test('CharacterPortraitPicker presses the chosen portraits', () => {
   expect(markup).toMatch(/aria-pressed="false"[^>]*aria-label="Main"/);
   expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Alt"/);
 });
+
+test('CharacterPortraitPicker deselects an own character when external grants are selected', () => {
+  const onToggle = vi.fn();
+  const group = CharacterPortraitPicker({
+    label: 'Your characters',
+    characters: [{ characterId: 1, name: 'Main' }, { characterId: 2, name: 'Alt' }],
+    selectedIds: new Set([99, 1, 2]),
+    onToggle,
+  });
+
+  expect(group.props.value).toEqual(['1', '2']);
+  group.props.onValueChange(['1']);
+  expect(onToggle).toHaveBeenCalledWith({ characterId: 2, selected: false });
+});

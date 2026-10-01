@@ -108,10 +108,10 @@ export const purgeMapChain: PublicHttpAction = authorizedJsonAction(purgeMapChai
   return new Response('Purge batch limit exceeded', { status: 503 });
 });
 
-/** Service-only read of a map's tracked characters for the character-scoping backfill. */
+/** Service-only freeze and snapshot for the character-scoping backfill. */
 export const mapTrackingSnapshot: PublicHttpAction = authorizedJsonAction(
   mapTrackingSnapshotBodySchema,
   async (ctx, body) => Response.json({
-    tracked: await ctx.runQuery(internal.mapAccessProjection.trackedCharactersForMap, body),
+    tracked: await ctx.runMutation(internal.mapAccessProjection.freezeMapTrackingForScoping, body),
   }),
 );

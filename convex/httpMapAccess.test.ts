@@ -303,7 +303,7 @@ describe('POST /purge-map-chain', () => {
 });
 
 describe('POST /map-tracking-snapshot', () => {
-  it('lists a map\'s tracked pairs to the service secret only', async () => {
+  it('freezes and lists a map\'s tracked pairs to the service secret only', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
     expect((await postConvexHttp('/map-tracking-snapshot', JSON.stringify({ mapId: 'm' }), false)).status)
       .toBe(401);
@@ -315,6 +315,11 @@ describe('POST /map-tracking-snapshot', () => {
       await ctx.db.insert('mapTracking', { mapId: 'map-1', userId: 'u2', characterId: 22 });
       await ctx.db.insert('mapTracking', { mapId: 'map-2', userId: 'u1', characterId: 33 });
     });
+    expect((await t.fetch('/map-tracking-snapshot', {
+      method: 'POST', body: JSON.stringify({ mapId: 'map-1' }),
+    })).status).toBe(401);
+    await expect(t.run((ctx) => ctx.db.query('mapAccessProjectionWatermarks').collect()))
+      .resolves.toEqual([]);
     const response = await t.fetch('/map-tracking-snapshot', {
       method: 'POST',
       headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
@@ -324,5 +329,7 @@ describe('POST /map-tracking-snapshot', () => {
     await expect(response.json()).resolves.toEqual({
       tracked: [{ userId: 'u1', characterId: 11 }, { userId: 'u2', characterId: 22 }],
     });
+    await expect(t.run((ctx) => ctx.db.query('mapAccessProjectionWatermarks').collect()))
+      .resolves.toMatchObject([{ mapId: 'map-1', scopingPending: true }]);
   });
 });

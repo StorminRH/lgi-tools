@@ -501,13 +501,18 @@ function activeMapAdminSelection(
   return activeMapsAdminSelection(userId, principals, [mapId]);
 }
 
+export type MapGrantChangeResult =
+  | PendingMapAccessChange
+  | { readonly reason: 'creator-character-required' }
+  | null;
+
 export async function applyAuthorizedMapGrantChange(
   userId: string,
   principals: MapPrincipals,
   mapId: string,
   change: MapGrantChange,
   database: AnyPgDb = db,
-): Promise<PendingMapAccessChange | null> {
+): Promise<MapGrantChangeResult> {
   if (change.operation === 'upsert') {
     return writeAuthorizedGrantChange(userId, principals, mapId, change, database);
   }
@@ -516,6 +521,10 @@ export async function applyAuthorizedMapGrantChange(
   const writer = database === db ? drizzle(directClient) : database;
   return writer.transaction(async (transaction) => {
     await transaction.execute(sql`SELECT ${maps.id} FROM ${maps} WHERE ${maps.id} = ${mapId} FOR UPDATE`);
+    if (change.principal.ownerType === 'character'
+      && await isCreatorsLastCharacterGrant(userId, principals, mapId, change.principal.ownerId, transaction)) {
+      return { reason: 'creator-character-required' };
+    }
     return writeAuthorizedGrantChange(userId, principals, mapId, change, transaction);
   });
 }

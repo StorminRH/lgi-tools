@@ -7,10 +7,7 @@ import {
 import type { MapPrincipals } from '@/data/maps/access';
 import type { MapGrantRequest, UpdateMapAccessRequest } from '@/data/maps/api-contract';
 import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
-import {
-  applyAuthorizedMapGrantChange,
-  isCreatorsLastCharacterGrant,
-} from '@/data/maps/queries';
+import { applyAuthorizedMapGrantChange } from '@/data/maps/queries';
 import { acknowledgeMapAccessChanges } from '@/platform/auth/affiliation-store';
 import { writeMapBlock, type MapBlockWriters } from './map-block-update';
 
@@ -18,14 +15,12 @@ export type ResolvePrincipals = typeof resolveMapPrincipals;
 export type ApplyGrantChange = typeof applyAuthorizedMapGrantChange;
 export type ProjectAccess = typeof projectMapAccess;
 export type AcknowledgeAccess = typeof acknowledgeMapAccessChanges;
-export type IsCreatorsLastCharacter = typeof isCreatorsLastCharacterGrant;
 
 export interface MapAccessUpdateDependencies extends MapBlockWriters {
   readonly resolvePrincipals?: ResolvePrincipals;
   readonly applyGrantChange?: ApplyGrantChange;
   readonly projectAccess?: ProjectAccess;
   readonly acknowledgeAccess?: AcknowledgeAccess;
-  readonly isCreatorsLastCharacter?: IsCreatorsLastCharacter;
 }
 
 export type MapAccessUpdateResult =
@@ -52,17 +47,12 @@ async function writeGrantChange(
 ): Promise<WriteResult> {
   const applyGrantChange =
     dependencies.applyGrantChange ?? applyAuthorizedMapGrantChange;
-  const isCreatorsLastCharacter =
-    dependencies.isCreatorsLastCharacter ?? isCreatorsLastCharacterGrant;
-  if (input.operation === 'revoke' && input.principal.ownerType === 'character'
-    && await isCreatorsLastCharacter(userId, principals, input.mapId, input.principal.ownerId)) {
-    return { ok: false, reason: 'creator-character-required' };
-  }
   const change = input.operation === 'upsert'
     ? { operation: input.operation, grant: input.grant }
     : { operation: input.operation, principal: input.principal };
   const pending = await applyGrantChange(userId, principals, input.mapId, change);
-  return pending ? { ok: true, pending } : { ok: false, reason: 'forbidden' };
+  if (pending === null) return { ok: false, reason: 'forbidden' };
+  return 'reason' in pending ? { ok: false, reason: pending.reason } : { ok: true, pending };
 }
 
 export async function applyMapAccessUpdate(
