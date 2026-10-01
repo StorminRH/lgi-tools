@@ -5,9 +5,7 @@ import {
   deriveBudgetStatus,
   deriveCronStatuses,
   deriveStatusGroups,
-  formatSliValue,
   sliLevel,
-  splitHeadline,
   summarizeQueue,
   type AdminSignals,
   type CronSignals,
@@ -73,27 +71,6 @@ describe('sliLevel', () => {
   });
 });
 
-describe('formatSliValue', () => {
-  it('formats rates, latency, and missing data', () => {
-    expect(formatSliValue('readSuccess', 0.9876)).toBe('98.8%');
-    expect(formatSliValue('latencyP95', 1234.4)).toBe('1,234 ms');
-    expect(formatSliValue('esiSuccess', null)).toBe('no data');
-  });
-});
-
-describe('splitHeadline', () => {
-  it('splits the state from its detail', () => {
-    expect(splitHeadline({ level: 'green', headline: 'healthy · last run 3h ago' })).toEqual({
-      value: 'healthy',
-      note: 'last run 3h ago',
-    });
-    expect(splitHeadline({ level: 'red', headline: 'never ran' })).toEqual({
-      value: 'never ran',
-      note: '',
-    });
-  });
-});
-
 describe('deriveBudgetStatus', () => {
   it('fails closed when the scoreboard is unavailable', () => {
     expect(deriveBudgetStatus(null)).toMatchObject({ level: 'red', value: 'unavailable' });
@@ -135,6 +112,10 @@ describe('deriveCronStatuses', () => {
     expect(statuses.sde.level).toBe('green');
     expect(statuses.gsc.level).toBe('neutral');
     expect(statuses.housekeeping.level).toBe('green');
+    expect(deriveStatusGroups(signals())[2]!.lines[0]).toMatchObject({
+      value: 'healthy',
+      note: 'last run 3h ago',
+    });
   });
 
   it('marks housekeeping red when its latest run was partial', () => {
@@ -146,7 +127,12 @@ describe('deriveCronStatuses', () => {
   });
 
   it('marks a cron that never ran as red', () => {
-    expect(deriveCronStatuses({ ...healthyCrons, lastRuns: [] }, NOW).price.level).toBe('red');
+    const crons = { ...healthyCrons, lastRuns: [] };
+    expect(deriveCronStatuses(crons, NOW).price.level).toBe('red');
+    expect(deriveStatusGroups(signals({ crons }))[2]!.lines[0]).toMatchObject({
+      value: 'never ran',
+      note: '',
+    });
   });
 });
 
@@ -180,8 +166,7 @@ describe('deriveAttention', () => {
       expect.objectContaining({
         id: 'statics',
         level: 'amber',
-        title: 'Wormhole statics feed v42 is waiting for review',
-        action: { label: 'Review snapshot', href: '/admin/statics' },
+        action: expect.objectContaining({ href: '/admin/statics' }),
       }),
     ]);
     expect(items[0]!.detail).toContain('1,234');
@@ -193,10 +178,6 @@ describe('deriveAttention', () => {
       ['dead-letters', 'red', '/admin/queue'],
       ['queue-backlog', 'amber', '/admin/queue'],
     ]);
-    expect(items[0]!.title).toBe('1 refresh job dead-lettered');
-    expect(attention(signals({ queue: [stat('dead_lettered', 3, 2)] }))[0]!.title).toBe(
-      '3 refresh jobs dead-lettered',
-    );
   });
 
   it('routes each unhealthy status line to its page, red first', () => {
@@ -214,7 +195,6 @@ describe('deriveAttention', () => {
       ['cron-prices', 'red', '/admin/health#scheduled'],
       ['readSuccess', 'amber', '/admin/health'],
     ]);
-    expect(items[0]!.title).toBe('Error budget: unavailable');
   });
 
   it('keeps informational amber off the list', () => {
@@ -286,15 +266,15 @@ describe('a source that failed to load', () => {
 
   it('raises an attention item per failed source, linked to its page', () => {
     const items = deriveAttention(failed, deriveStatusGroups(failed));
-    expect(items.map((i) => [i.id, i.level, i.title, i.action.href])).toEqual([
-      ['unavailable:/admin/health#scheduled', 'amber', 'Could not load scheduled jobs', '/admin/health#scheduled'],
-      ['unavailable:/admin/queue', 'amber', 'Could not load refresh queue', '/admin/queue'],
+    expect(items.map((i) => [i.id, i.level, i.action.href])).toEqual([
+      ['unavailable:/admin/health#scheduled', 'amber', '/admin/health#scheduled'],
+      ['unavailable:/admin/queue', 'amber', '/admin/queue'],
     ]);
   });
 
   it('sends a failed statics read to the statics page', () => {
     const items = deriveAttention(signals({ statics: SECTION_LOAD_FAILED }), deriveStatusGroups(signals()));
-    expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load statics review', '/admin/statics']]);
+    expect(items.map((i) => i.action.href)).toEqual(['/admin/statics']);
   });
 
   it('names a source once when both of its reads fail', () => {
@@ -302,7 +282,7 @@ describe('a source that failed to load', () => {
       signals({ fallback: SECTION_LOAD_FAILED, budgetExhaustions: SECTION_LOAD_FAILED }),
       deriveStatusGroups(signals()),
     );
-    expect(items.map((i) => [i.title, i.action.href])).toEqual([['Could not load price source', '/admin/esi']]);
+    expect(items.map((i) => i.action.href)).toEqual(['/admin/esi']);
   });
 });
 

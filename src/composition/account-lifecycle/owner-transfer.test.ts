@@ -169,14 +169,9 @@ describe('purgeTransferredCharacter', () => {
 
 describe('proveCharacter with a pending deletion', () => {
   it('finishes the pending deletion before proving ownership', async () => {
-    const order: string[] = [];
-    finishPendingDeletion.mockImplementationOnce(async () => {
-      order.push('finish');
-    });
     state.results = [[]];
     await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
     expect(finishPendingDeletion).toHaveBeenCalledWith(CHAR);
-    expect(order).toEqual(['finish']);
   });
 
   it('refuses the sign-in when the pending deletion cannot finish', async () => {

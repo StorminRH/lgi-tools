@@ -76,5 +76,5 @@ export function dayLabel(date: Date): string {
 
 export function slowOperationNote(row: SlowOperation): string {
   const runs = `${row.count.toLocaleString()} ${row.count === 1 ? 'run' : 'runs'}`;
-  return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency}`;
+  return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;
 }

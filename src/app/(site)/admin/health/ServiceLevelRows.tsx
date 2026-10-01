@@ -5,7 +5,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { DeadLetterRow, EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import type { DailyFailures, FailureGroup, SlowOperation } from '@/data/telemetry/sli-breakdown';
+import type { DateRange } from '@/data/telemetry/types';
 import { trendSeries } from '@/composition/admin-period';
+import { zeroFillDaily } from '../aggregate';
 import { CardLink } from '../CardLink';
 import { AdminTrendChart } from '../charts';
 import { SECTION_LOAD_FAILED } from '../load-section';
@@ -23,6 +25,7 @@ import {
 } from './health-view';
 
 export interface FailureDetail {
+  range: DateRange;
   groups: FailureGroup[];
   daily: DailyFailures[];
   validationRejected?: number;
@@ -108,13 +111,15 @@ function FailureTable({ groups, label }: { groups: FailureGroup[]; label: string
 
 function FailureDetailBody({ detail }: { detail: Loaded<FailureDetail> }) {
   if (detail === SECTION_LOAD_FAILED) return <Unavailable />;
-  const trend = trendSeries(
-    detail.daily.map((point) => point.day),
-    detail.daily.map((point) => point.failures),
+  const series = zeroFillDaily(
+    detail.daily.map((point) => ({ day: point.day, value: point.failures })),
+    dayLabel(detail.range.from),
+    dayLabel(new Date(detail.range.to.getTime() - 1)),
   );
+  const trend = trendSeries(series.days, series.values);
   return (
     <>
-      <FailureTable groups={detail.groups} label="Failures" />
+      <FailureTable groups={detail.groups} label="Top failure groups" />
       {detail.daily.some((point) => point.failures > 0) && (
         <ChartBlock label="Failures by day">
           <AdminTrendChart
@@ -152,7 +157,7 @@ function SlowestBody({ slowest }: { slowest: Loaded<SlowOperation[]> }) {
 
 function EsiBody({ esi }: { esi: Loaded<FailureGroup[]> }) {
   if (esi === SECTION_LOAD_FAILED) return <Unavailable />;
-  return <FailureTable groups={esi} label="Rate limited or failed by ESI" />;
+  return <FailureTable groups={esi} label="Top ESI failure groups" />;
 }
 
 function BacklogBody({ details }: { details: ServiceLevelDetails }) {

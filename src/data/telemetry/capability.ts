@@ -158,7 +158,7 @@ const MAX_CAUSE_DEPTH = 5;
  * A short, message-free label for an unexpected error, so the admin dashboard
  * can name a cause without storing text that may carry user data: the first
  * error code in the cause chain (a Postgres SQLSTATE such as 23502, or a system
- * code such as ECONNRESET), else the innermost error's name.
+ * code such as ECONNRESET), else the innermost inspected error's name.
  */
 export function errorClassOf(error: unknown): string {
   let current = error;
