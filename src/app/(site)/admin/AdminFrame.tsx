@@ -6,11 +6,6 @@ import { AdminGate } from './AdminGate';
 import { CardFallback } from './CardFallback';
 import { RangeControl } from './RangeControl';
 
-// From lg up the page's tools (range selector, actions) sit on the "Admin"
-// title line, so the first card lines up with the top of the rail. The layout
-// is the positioning context; the title box is one line of --text-title.
-const ADMIN_TOOLS_ON_TITLE_LINE = 'lg:absolute lg:top-0 lg:right-0 lg:h-[length:var(--text-title)]';
-
 export function AdminPageFrame({
   title,
   rangeBasePath,
@@ -29,7 +24,7 @@ export function AdminPageFrame({
       <AdminGate>
         <QuietSectionHead
           title={title}
-          className={ADMIN_TOOLS_ON_TITLE_LINE}
+          onTitleLine
           meta={
             actions || rangeBasePath ? (
               <>

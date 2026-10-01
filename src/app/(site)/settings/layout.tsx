@@ -7,7 +7,7 @@ import { SettingsNav, SettingsNavFallback } from './settings-nav';
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
     <PageShell mode="workspace">
-      <div className="flex flex-col gap-0 pb-20">
+      <div className="relative flex flex-col gap-0 pb-20 lg:max-w-[calc(220px+2.5rem+var(--container-reading))]">
         <PageHead title="Settings" />
         <div
           data-settings-layout

@@ -43,20 +43,31 @@ export function SectionHead({
  * A section head for pages whose rail already names the section: the title
  * stays for screen readers only, and any meta (range selector, actions) sits
  * in a right-aligned tools row. Without meta it takes no space at all.
+ *
+ * `onTitleLine` lifts that row onto the page title's line from lg up, so the
+ * first card starts level with the rail. The layout around the PageHead must
+ * be `relative`; the row spans one line of --text-title.
  */
 export function QuietSectionHead({
   title,
   meta,
-  className,
+  onTitleLine = false,
 }: {
   title: string;
   meta?: ReactNode;
-  className?: string;
+  onTitleLine?: boolean;
 }) {
   return (
     <header
       data-section-head
-      className={meta == null ? 'contents' : cn('flex flex-wrap items-center justify-end gap-3', className)}
+      className={
+        meta == null
+          ? 'contents'
+          : cn(
+              'flex flex-wrap items-center justify-end gap-3',
+              onTitleLine && 'lg:absolute lg:top-0 lg:right-0 lg:h-[length:var(--text-title)]',
+            )
+      }
     >
       <h2 className="sr-only">{title}</h2>
       {meta}

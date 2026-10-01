@@ -252,6 +252,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
     <>
       <QuietSectionHead
         title="Users & roles"
+        onTitleLine
         meta={
           <Link
             href="/admin"
