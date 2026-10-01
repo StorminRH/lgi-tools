@@ -1,9 +1,11 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
+import type { BoardCharacter } from '@/composition/board/api-contract';
+import type { ViewerJobs } from '@/features/industry-jobs/live-derive';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
-import { setResponsibility, setRuleFacility } from '@/features/industry-planner/profiles/responsibilities';
+import { setResponsibility } from '@/features/industry-planner/profiles/responsibilities';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 
 const live = vi.hoisted(() => ({
@@ -16,6 +18,8 @@ const live = vi.hoisted(() => ({
   structures: null as AvailableStructure[] | null,
   remembered: null as string | null,
   params: new URLSearchParams(),
+  boardCharacters: null as BoardCharacter[] | null,
+  now: Date.parse('2026-10-01T12:00:00Z'),
 }));
 
 // Next serves the app its canary React, which has <ViewTransition>; the stable
@@ -46,11 +50,14 @@ vi.mock('@/components/use-account-characters', () => ({ useAccountCharacters: ()
 vi.mock('@/components/PreferencesProvider', () => ({
   usePreference: () => [live.remembered, vi.fn()],
 }));
-vi.mock('@/components/use-system-search', () => ({
-  useSystemSearch: () => ({ systems: [{ id: 30004759, name: '1DQ1-A', security: -0.4 }] }),
-}));
 vi.mock('@/features/industry-jobs/use-slots-live', () => ({
   useSlotsLive: () => ({ characters: live.slots, loading: false }),
+}));
+vi.mock('../board/use-board-live', () => ({
+  useBoardLive: () => ({
+    response: live.boardCharacters === null ? null : { characters: live.boardCharacters },
+    now: live.now,
+  }),
 }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
   useAvailableStructures: () => live.structures,
@@ -86,10 +93,34 @@ const TATARA: AvailableStructure = {
   taxPct: 0.5,
 };
 
-function render(): string {
-  const jobs = { jobsByCharacter: new Map(), loading: false, failed: false };
+function render(jobsByCharacter: Map<number, ViewerJobs> = new Map()): string {
+  const jobs = { jobsByCharacter, loading: false, failed: false };
   const corp = { corporations: [], loading: false, failed: false };
   return renderToStaticMarkup(createElement(ProfileWorkspace, { jobs, corp, corpEligible: false }));
+}
+
+function capacityReadout(html: string): string {
+  const capacity = html.match(/<dl aria-label="Production capacity"[^>]*>([\s\S]*?)<\/dl>/);
+  expect(capacity).not.toBeNull();
+  return capacity?.[1] ?? '';
+}
+
+function jobsFor(characterId: number, activities: readonly number[]): ViewerJobs {
+  return {
+    characterId,
+    lastRefreshedAt: 1,
+    data: {
+      jobs: activities.map((activity_id, index) => ({
+        job_id: characterId * 10 + index,
+        activity_id,
+        blueprint_type_id: 1,
+        runs: 1,
+        status: 'active',
+        start_date: '2026-09-29T00:00:00Z',
+        end_date: '2026-09-30T00:00:00Z',
+      })),
+    },
+  };
 }
 
 function teamProfile(): IndustryProfileRow {
@@ -101,7 +132,6 @@ function teamProfile(): IndustryProfileRow {
   doc = setResponsibility(doc, BUILDER.characterId, 'components', true);
   doc = setResponsibility(doc, BUILDER.characterId, 'final-assembly', true);
   doc = setResponsibility(doc, REACTOR.characterId, 'reactions', true);
-  doc = setRuleFacility(doc, REACTOR.characterId, 'reactions', { id: TATARA.id, name: TATARA.name });
   return { id: 'caps', name: 'Capital line', revision: 4, document: doc, updatedAt: '2026-09-29T00:00:00.000Z' };
 }
 
@@ -135,16 +165,18 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.params = new URLSearchParams('profile=caps');
   const team = render();
   expect(team).toContain('Capital line');
-  expect(team).toContain('3/3');
   expect(team).toContain(`data-member-id="${BUILDER.characterId}"`);
   expect(team).toContain(`${BUILDER.name}: Components · Final assembly`);
   // An unlinked member stays on the team as unresolved.
   expect(team).toContain('Old Alt: No responsibilities, not linked');
-  expect(team).toContain('1 not linked');
+  expect(team).toContain('Not linked');
   expect(team).toContain('Production skills by member');
   expect(team).toContain('Default facilities');
-  // Unknown jobs stay unknown rather than reading as free slots.
-  expect(team).toContain('In use unknown');
+  expect(team).toContain('Production Capacity');
+  expect(capacityReadout(team)).toContain('?/8+');
+  expect(team).toContain('1 unlinked character is excluded.');
+  // Skills that have not synced stay unknown rather than showing a zero bonus.
+  expect(team).toContain('Syncing');
   expect(team).not.toContain('All members');
   expect(team).not.toContain('The profile in this link no longer exists');
 
@@ -156,7 +188,18 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(reactor).not.toContain('data-member-id');
   // Skills that have not synced are said to be syncing, not shown as zero.
   expect(reactor).toContain('Skills are still syncing from EVE.');
-  expect(reactor).toContain('Reaction material bonuses from rigs are not modelled yet.');
+  expect(capacityReadout(reactor)).toContain('?/?');
+  expect(reactor).not.toContain('Reaction material bonuses from rigs are not modelled yet.');
+  expect(reactor).not.toContain('Manage structures');
+  expect(reactor).not.toContain('Reactions facility');
+  expect(reactor).not.toContain('Job slots');
+  expect(reactor).toContain('Responsibilities</legend>');
+  const responsibilities = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
+  expect(responsibilities).toHaveLength(3);
+  expect(responsibilities.find((checkbox) => checkbox.includes('aria-label="Reactions"')))
+    .toContain('aria-checked="true"');
+  expect(responsibilities.find((checkbox) => checkbox.includes('aria-label="Components"')))
+    .toContain('aria-checked="false"');
   expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
 
   // A member that is not on the profile shows the whole profile instead.
@@ -167,4 +210,95 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   const deadLink = render();
   expect(deadLink).toContain('The profile in this link no longer exists. Showing Capital line.');
   expect(deadLink).toContain(`data-member-id="${BUILDER.characterId}"`);
+
+  // The capacity card scopes both usage and totals to linked profile members,
+  // even when another linked character has skills and jobs available.
+  const spare = { characterId: 9004, name: 'Other builder', portraitUrl: 'p/9004' };
+  live.roster = [BUILDER, REACTOR, spare];
+  live.slots = [
+    { characterId: BUILDER.characterId, levels: { 3387: 4, 24625: 3 } },
+    { characterId: REACTOR.characterId, levels: { 3387: 2, 3406: 3, 45748: 5 } },
+    { characterId: spare.characterId, levels: { 3387: 5, 24625: 5, 3406: 5, 45748: 5 } },
+  ];
+  live.params = new URLSearchParams('profile=caps');
+  expect(capacityReadout(render())).toContain('?/11');
+  const jobsByCharacter = new Map([
+    [BUILDER.characterId, jobsFor(BUILDER.characterId, [1, 1, 3])],
+    [REACTOR.characterId, jobsFor(REACTOR.characterId, [1, 11, 11, 3])],
+    [spare.characterId, jobsFor(spare.characterId, [1, 1, 1, 11])],
+  ]);
+  const teamCapacity = capacityReadout(render(jobsByCharacter));
+  expect(teamCapacity).toContain('3/11');
+  expect(teamCapacity).toContain('2/7');
+  expect(teamCapacity).toContain('2/5');
+  expect(teamCapacity).not.toContain('?');
+
+  live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
+  const reactorCapacity = capacityReadout(render(jobsByCharacter));
+  expect(reactorCapacity).toContain('1/3');
+  expect(reactorCapacity).toContain('2/6');
+  expect(reactorCapacity).toContain('1/4');
+
+  live.params = new URLSearchParams('profile=caps&character=9003');
+  const unlinked = render(jobsByCharacter);
+  expect(unlinked).toContain('Link a character in this selection to see its production capacity.');
+  expect(unlinked).not.toContain('aria-label="Production capacity"');
+
+  // The selected linked member gets its own live identity, while an unlinked
+  // profile member never reuses stale account-board details.
+  const identity: BoardCharacter = {
+    ...REACTOR,
+    corporation: { id: 77, name: 'Reactor corporation' },
+    alliance: { id: 88, name: 'Production alliance' },
+    gaps: [],
+    profile: { state: 'ready', refreshedAt: live.now, data: { birthday: '2020-10-01T00:00:00Z', securityStatus: 4.6 } },
+    status: {
+      state: 'ready',
+      refreshedAt: live.now,
+      data: {
+        online: true,
+        lastLogin: null,
+        system: { id: 30000142, name: 'Jita', security: 0.9, secClass: 'high' },
+        dock: null,
+        ship: { typeId: 587, typeName: 'Rifter', name: 'Rifter' },
+      },
+    },
+    skills: { state: 'pending' },
+    attributes: { state: 'pending' },
+    implants: { state: 'pending' },
+    clones: { state: 'pending' },
+    wallet: { state: 'pending' },
+    journal: { state: 'pending' },
+    industry: { state: 'pending' },
+    netWorth: { state: 'pending' },
+  };
+  live.boardCharacters = [
+    { ...identity, ...BUILDER, corporation: { id: 99, name: 'Other corporation' } },
+    identity,
+    { ...identity, characterId: 9003, name: 'Stale board name' },
+  ];
+  live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
+  const liveIdentity = render(jobsByCharacter);
+  expect(liveIdentity).toContain('Reactor corporation');
+  expect(liveIdentity).toContain('Production alliance');
+  expect(liveIdentity).toContain('>4.6<');
+  expect(liveIdentity).toContain('6y old');
+  expect(liveIdentity).toContain('Online');
+  expect(liveIdentity).not.toContain('Other corporation');
+
+  live.params = new URLSearchParams('profile=caps&character=9003');
+  const unlinkedIdentity = render(jobsByCharacter);
+  expect(unlinkedIdentity).toContain('Old Alt');
+  expect(unlinkedIdentity).not.toContain('Stale board name');
+  expect(unlinkedIdentity).not.toContain('Reactor corporation');
+  expect(unlinkedIdentity).not.toContain('6y old');
+  expect(unlinkedIdentity).not.toContain('Online');
+
+  live.boardCharacters = null;
+  live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
+  const pendingIdentity = render(jobsByCharacter);
+  expect(pendingIdentity).toContain(REACTOR.name);
+  expect(pendingIdentity).not.toContain('Reactor corporation');
+  expect(pendingIdentity).not.toContain('6y old');
+  expect(pendingIdentity).not.toContain('Online');
 });

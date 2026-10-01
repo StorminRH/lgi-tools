@@ -1,19 +1,28 @@
 'use client';
 
-import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Skeleton } from '@/components/ui/skeleton';
+import { type TabOption, Tabs } from '@/components/ui/tabs';
 import { EveSignInButton } from '../account/LoginButton';
 import { readoutSurface } from '../board/SectionBody';
 
-const SECTIONS: readonly { label: string; href: string | null }[] = [
-  { label: 'Profiles', href: '/industry' },
-  { label: 'Plans & templates', href: '/industry/templates' },
-  { label: 'Active jobs', href: '/jobs' },
-  { label: 'Research', href: null },
-  { label: 'Tracked builds', href: null },
+const SECTIONS: readonly TabOption[] = [
+  { value: '/industry', label: 'Profiles', href: '/industry' },
+  { value: '/industry/templates', label: 'Plans & templates', href: '/industry/templates' },
+  { value: '/jobs', label: 'Active jobs', href: '/jobs' },
+  ...['Research', 'Tracked builds'].map((label) => ({
+    value: label,
+    label: (
+      <span className="inline-flex items-center gap-1.5">
+        {label}
+        <span className="font-data text-label uppercase tracking-label">planned</span>
+      </span>
+    ),
+    disabled: true,
+  })),
 ];
 
 /**
@@ -21,42 +30,25 @@ const SECTIONS: readonly { label: string; href: string | null }[] = [
  * planned, not as links that lead nowhere.
  */
 export function WorkspaceNav() {
+  const pathname = usePathname();
   return (
-    <nav aria-label="Industry workspace">
-      <ul className="flex flex-wrap items-center gap-1.5">
-        {SECTIONS.map((section) => (
-          <li key={section.label}>
-            {section.href === null ? (
-              <span className="inline-flex items-center gap-1.5 rounded-ctl px-2.5 py-[5px] font-ui text-nav text-faint">
-                {section.label}
-                <span className="font-data text-label uppercase tracking-label">planned</span>
-              </span>
-            ) : (
-              <Link
-                href={section.href}
-                aria-current={section.href === '/industry' ? 'page' : undefined}
-                className={cn(
-                  'inline-flex items-center rounded-ctl px-2.5 py-[5px] font-ui text-nav no-underline transition-colors',
-                  section.href === '/industry'
-                    ? 'bg-row-on text-name shadow-btn-bezel'
-                    : 'text-muted hover:text-isk',
-                )}
-              >
-                {section.label}
-              </Link>
-            )}
-          </li>
-        ))}
-      </ul>
+    <nav aria-label="Industry workspace" className="min-w-0 max-w-full">
+      <Tabs
+        tabs={SECTIONS}
+        label="Industry workspace sections"
+        value={pathname}
+        listClassName="overflow-x-auto"
+        tabClassName="shrink-0 whitespace-nowrap no-underline"
+      />
     </nav>
   );
 }
 
 export function WorkspaceSkeleton() {
   return (
-    <div className="flex flex-col gap-6" aria-busy>
-      <Skeleton label="Loading production profiles" className="h-10 w-64 rounded-full" />
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-10" aria-busy>
+      <div className="flex min-w-0 flex-col gap-6">
+        <Skeleton label="Loading production profiles" className="h-10 w-64 rounded-full" />
         <div className="flex gap-4 lg:flex-col lg:gap-5">
           {Array.from({ length: 3 }, (_, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -68,17 +60,11 @@ export function WorkspaceSkeleton() {
             </div>
           ))}
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className={cn(readoutSurface, 'flex flex-col gap-2 px-3.5 py-3')}>
-                <Skeleton className="h-2.5 w-1/2" />
-                <Skeleton className="h-5 w-1/3" />
-              </div>
-            ))}
-          </div>
-          <Skeleton className="h-48 w-full rounded-card" />
-        </div>
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">
+        <Skeleton className="h-24 w-full rounded-card" />
+        <Skeleton className="h-48 w-full rounded-card" />
+        <Skeleton className="h-28 w-full rounded-card" />
       </div>
     </div>
   );

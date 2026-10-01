@@ -1,13 +1,15 @@
 'use client';
 
 import { Tabs as Base } from '@base-ui/react/tabs';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 export interface TabOption {
   value: string;
-  label: string;
-  content: ReactNode;
+  label: ReactNode;
+  content?: ReactNode;
+  href?: string;
   disabled?: boolean;
 }
 
@@ -51,8 +53,11 @@ export function Tabs({
             key={tab.value}
             value={tab.value}
             disabled={tab.disabled}
+            nativeButton={tab.href === undefined}
+            render={tab.href === undefined ? undefined : <Link href={tab.href} />}
+            aria-current={tab.href !== undefined && tab.value === value ? 'page' : undefined}
             className={cn(
-              'relative px-3.5 py-2 font-ui text-nav text-muted outline-none hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub data-[active]:text-name disabled:opacity-40',
+              'relative px-3.5 py-2 font-ui text-nav text-muted outline-none hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub data-[active]:text-name data-[disabled]:opacity-40',
               tabClassName,
             )}
           >
@@ -61,7 +66,7 @@ export function Tabs({
         ))}
         <Base.Indicator className="absolute -bottom-px left-0 h-0.5 w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)] bg-isk transition-[width,translate] duration-fast motion-reduce:transition-none" />
       </Base.List>
-      {tabs.map((tab) => (
+      {tabs.filter((tab) => tab.content !== undefined).map((tab) => (
         <Base.Panel
           key={tab.value}
           value={tab.value}

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { WorkspaceNav } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
 import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
@@ -22,7 +23,8 @@ export default function BuildTemplatesPage() {
   return (
     <PageShell mode="reading">
       <h1 className="sr-only">Build templates</h1>
-      <div className="reveal reveal-1 pb-16">
+      <div className="reveal reveal-1 flex flex-col gap-5 pb-16">
+        <WorkspaceNav />
         <SavedPlansManager />
       </div>
     </PageShell>

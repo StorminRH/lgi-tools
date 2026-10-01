@@ -17,8 +17,6 @@ export const SLOT_SKILLS: Readonly<Record<JobCategory, readonly { id: number; na
   ],
 };
 
-const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
-
 export interface SlotCapacity {
   manufacturing: number;
   science: number;
@@ -62,48 +60,4 @@ export function countUsedSlots(
     if (category !== null) used[category] += 1;
   }
   return used;
-}
-
-export interface SlotUsage {
-  used: number;
-  total: number;
-}
-
-export type SlotMetaModel = Record<JobCategory, SlotUsage>;
-
-export function slotMetaTotals(args: {
-  loading: boolean;
-  failed: boolean;
-  eligibleCharacterIds: readonly number[];
-  characters: ReadonlyArray<{ characterId: number; slots: SlotCapacity }>;
-  personalJobsByCharacter: ReadonlyMap<number, { data: { jobs: IndustryJob[] } | null }>;
-  corpJobs: readonly IndustryJob[];
-}): SlotMetaModel | null {
-  const eligible = new Set(args.eligibleCharacterIds);
-  const corpInstallers = new Set<number>();
-  for (const job of args.corpJobs) {
-    if (job.installer_id !== undefined && jobOccupiesSlot(job.status)) {
-      corpInstallers.add(job.installer_id);
-    }
-  }
-  const characters = args.characters.filter(
-    (character) =>
-      eligible.has(character.characterId) || corpInstallers.has(character.characterId),
-  );
-  if (args.loading || args.failed || characters.length === 0) return null;
-  const model: SlotMetaModel = {
-    manufacturing: { used: 0, total: 0 },
-    science: { used: 0, total: 0 },
-    reactions: { used: 0, total: 0 },
-  };
-  for (const character of characters) {
-    const personal =
-      args.personalJobsByCharacter.get(character.characterId)?.data?.jobs ?? [];
-    const used = countUsedSlots(character.characterId, personal, args.corpJobs);
-    for (const category of SLOT_CATEGORIES) {
-      model[category].used += used[category];
-      model[category].total += character.slots[category];
-    }
-  }
-  return model;
 }

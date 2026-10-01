@@ -10,14 +10,14 @@ import type { FacilityRef, ProfileDocument } from '@/features/industry-planner/p
 import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { SectionPanel } from '../board/SectionBody';
-import { DefaultFacilitiesPanel, poolFigure, SummaryTiles } from './ProfileSummary';
+import { DefaultFacilitiesPanel, poolFigure } from './ProfileSummary';
+import { ProductionCapacity } from './ProductionCapacity';
 import {
   type MemberCapacity,
   memberSkills,
   type MemberSkills,
   type PoolSummary,
   poolSummaries,
-  type ProfileSummary,
   type RailMember,
   SLOT_POOLS,
 } from './workspace-model';
@@ -107,32 +107,25 @@ function TeamSkillsPanel({
           No one is on this profile yet. Add a linked character to give them responsibilities.
         </p>
       ) : (
-        <>
-          <div className="overflow-x-auto px-1.5">
-            <StaticTable
-              columns={COLUMNS}
-              rows={rows}
-              getRowKey={(row) => row.member.characterId}
-              ariaLabel="Production skills by member"
-              className="min-w-[38rem]"
-            />
-          </div>
-          <p className="border-t border-border-soft px-3.5 py-2.5 text-micro text-faint">
-            Science and racial engineering skills cut time for particular blueprints. They show in the planner
-            once a product is chosen.
-          </p>
-        </>
+        <div className="overflow-x-auto px-1.5">
+          <StaticTable
+            columns={COLUMNS}
+            rows={rows}
+            getRowKey={(row) => row.member.characterId}
+            ariaLabel="Production skills by member"
+            className="min-w-[38rem]"
+          />
+        </div>
       )}
     </SectionPanel>
   );
 }
 
 /**
- * The whole profile with no member open: its totals, every member's skills
+ * The whole profile with no member open: every member's skills
  * and slots, and the profile-wide default facilities.
  */
 export function ProfileOverview({
-  summary,
   members,
   levels,
   capacities,
@@ -140,7 +133,6 @@ export function ProfileOverview({
   structures,
   onDefault,
 }: {
-  summary: ProfileSummary;
   members: readonly RailMember[];
   levels: ReadonlyMap<number, Record<string, number> | null>;
   capacities: ReadonlyMap<number, MemberCapacity>;
@@ -150,7 +142,7 @@ export function ProfileOverview({
 }) {
   return (
     <div role="region" aria-label="Profile overview" className="flex min-w-0 flex-col gap-4">
-      <SummaryTiles summary={summary} />
+      <ProductionCapacity members={members} capacities={capacities} />
       <TeamSkillsPanel members={members} levels={levels} capacities={capacities} />
       <DefaultFacilitiesPanel doc={doc} structures={structures} onDefault={onDefault} />
     </div>

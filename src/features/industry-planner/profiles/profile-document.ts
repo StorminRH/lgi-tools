@@ -32,7 +32,6 @@ const ruleSchema = z.object({
   responsibility: z.enum(RESPONSIBILITIES),
   facility: facilityRefSchema.nullable(),
 });
-export type ResponsibilityRule = z.infer<typeof ruleSchema>;
 
 const defaultsSchema = z.object({
   manufacturingFacility: facilityRefSchema.nullable(),

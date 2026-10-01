@@ -1,31 +1,15 @@
-import type { SecurityClass } from '@/data/eve-data/security';
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
-import { countUsedSlots, SLOT_SKILLS, type SlotCapacity, slotCapacity } from '@/features/industry-jobs/slots';
+import { countUsedSlots, type SlotCapacity, slotCapacity } from '@/features/industry-jobs/slots';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import {
   type FacilityRef,
   type ProfileDocument,
-  type ProfileMember,
   RESPONSIBILITIES,
   type Responsibility,
 } from '@/features/industry-planner/profiles/profile-document';
-import {
-  type MissingFacility,
-  profileReferenceIssues,
-  RESPONSIBILITY_LABELS,
-  resolveResponsibility,
-  type ResponsibilityResolution,
-} from '@/features/industry-planner/profiles/responsibilities';
+import { RESPONSIBILITY_LABELS } from '@/features/industry-planner/profiles/responsibilities';
 import { type AppliedTimeSkill, skillTimeBreakdown } from '@/features/industry-planner/skill-time';
-import {
-  computeStructureBonus,
-  type IndustryActivityId,
-  MANUFACTURING_ACTIVITY,
-  REACTION_ACTIVITY,
-  type StructureBonus,
-} from '@/features/industry-planner/structure-bonus';
-import { hostsReactions } from '@/features/industry-planner/structure-factors';
 import { parseFacilityValue } from '@/features/industry-planner/facility-value';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { type BoardView, OVERVIEW } from '../board/board-view-model';
@@ -156,12 +140,6 @@ export interface PoolSummary {
   unknownUsed: number;
 }
 
-/** Free slots, or null when any character's capacity or usage is unknown. */
-export function freeSlots(pool: PoolSummary): number | null {
-  if (pool.unknownCapacity > 0 || pool.unknownUsed > 0) return null;
-  return Math.max(0, pool.capacity - pool.used);
-}
-
 export function poolSummaries(
   characterIds: Iterable<number>,
   capacities: ReadonlyMap<number, MemberCapacity>,
@@ -183,52 +161,6 @@ export function poolSummaries(
 }
 
 // ---------------------------------------------------------------------------
-// Profile summary: members, responsibility coverage, facilities and slots for
-// the selected profile. A character in two profiles is the same slots seen
-// twice, never two pools to add up.
-
-export interface ProfileSummary {
-  memberCount: number;
-  unlinkedMembers: ProfileMember[];
-  coverage: { responsibility: Responsibility; resolution: ResponsibilityResolution }[];
-  facilityCount: number;
-  missingFacilities: MissingFacility[];
-  pools: Record<JobCategory, PoolSummary>;
-}
-
-function distinctFacilities(doc: ProfileDocument): number {
-  const refs: (FacilityRef | null)[] = [
-    ...doc.rules.map((rule) => rule.facility),
-    doc.defaults.manufacturingFacility,
-    doc.defaults.reactionFacility,
-  ];
-  return new Set(refs.filter((ref) => ref !== null).map((ref) => ref.id)).size;
-}
-
-export function profileSummary(args: {
-  doc: ProfileDocument;
-  linkedIds: ReadonlySet<number>;
-  capacities: ReadonlyMap<number, MemberCapacity>;
-  availableFacilityIds: ReadonlySet<string> | null;
-}): ProfileSummary {
-  const { doc, linkedIds, capacities } = args;
-  const isLinked = (id: number) => linkedIds.has(id);
-  const issues = profileReferenceIssues(doc, isLinked, args.availableFacilityIds);
-  const members = doc.members.map((m) => m.characterId).filter(isLinked);
-  return {
-    memberCount: doc.members.length,
-    unlinkedMembers: issues.unlinkedMembers,
-    coverage: RESPONSIBILITIES.map((responsibility) => ({
-      responsibility,
-      resolution: resolveResponsibility(doc, responsibility, isLinked),
-    })),
-    facilityCount: distinctFacilities(doc),
-    missingFacilities: issues.missingFacilities,
-    pools: poolSummaries(members, capacities),
-  };
-}
-
-// ---------------------------------------------------------------------------
 // A character's own production skills: general job-time skills and the
 // skills behind each slot pool. Product-specific skills are not shown here
 // because which ones apply depends on the product.
@@ -236,38 +168,18 @@ export function profileSummary(args: {
 export interface MemberSkills {
   manufacturing: { skills: AppliedTimeSkill[]; totalPct: number };
   reactions: { skills: AppliedTimeSkill[]; totalPct: number };
-  slots: Record<JobCategory, { capacity: number; skills: { name: string; level: number }[] }>;
 }
 
 export function memberSkills(levels: Record<string, number> | null): MemberSkills | null {
   if (levels === null) return null;
   const breakdown = skillTimeBreakdown({ levels, nodeTimeSkills: {} });
-  const capacity = slotCapacity(levels);
-  const slots = Object.fromEntries(
-    SLOT_POOLS.map((pool) => [
-      pool,
-      {
-        capacity: capacity[pool],
-        skills: SLOT_SKILLS[pool].map((skill) => ({
-          name: skill.name,
-          level: levels[String(skill.id)] ?? 0,
-        })),
-      },
-    ]),
-  ) as MemberSkills['slots'];
-  return { manufacturing: breakdown.manufacturing, reactions: breakdown.reaction, slots };
+  return { manufacturing: breakdown.manufacturing, reactions: breakdown.reaction };
 }
 
 // ---------------------------------------------------------------------------
-// Facility effects, kept apart from the character: the hull's own bonus, what
-// the rigs add at the structure's security, and the owner's tax. Rig effects
-// scale with security, so without a known security they are not guessed.
+// Facilities used by the profile defaults.
 
 export type ResponsibilityActivity = 'manufacturing' | 'reactions';
-
-export function activityOf(responsibility: Responsibility): ResponsibilityActivity {
-  return responsibility === 'reactions' ? 'reactions' : 'manufacturing';
-}
 
 /**
  * The facility a picker value names: null to clear it, undefined to leave it
@@ -283,50 +195,4 @@ export function facilityForValue(
   if (selection.id === current?.id) return undefined;
   const structure = structures?.find((s) => s.id === selection.id);
   return structure === undefined ? undefined : { id: structure.id, name: structure.name };
-}
-
-export type RigEffect =
-  | { kind: 'none' }
-  | { kind: 'needs-security' }
-  | { kind: 'known'; bonus: StructureBonus };
-
-export interface FacilityEffects {
-  hull: StructureBonus;
-  rigs: RigEffect;
-  security: SecurityClass | null;
-  taxPct: number | null;
-  /** False when a reaction responsibility points at a structure that cannot run reactions. */
-  suitsActivity: boolean;
-}
-
-/** The part of a combined reduction the rigs add on top of the hull. */
-function rigShare(total: number, hull: number): number {
-  return hull >= 100 ? 0 : (1 - (1 - total / 100) / (1 - hull / 100)) * 100;
-}
-
-export function facilityEffects(
-  structure: AvailableStructure,
-  activity: ResponsibilityActivity,
-  pinnedSecurity: SecurityClass | null,
-): FacilityEffects {
-  const activityId: IndustryActivityId = activity === 'reactions' ? REACTION_ACTIVITY : MANUFACTURING_ACTIVITY;
-  const security = structure.securityClass ?? pinnedSecurity;
-  const input = { structureAttrs: structure.structureAttrs, activityId };
-  const hull = computeStructureBonus({ ...input, rigAttrs: [], securityClass: security ?? 'high' });
-  const suitsActivity = activity === 'manufacturing' || hostsReactions(structure.groupId);
-  const base = { hull, security, taxPct: structure.taxPct, suitsActivity };
-  if (structure.rigAttrs.length === 0) return { ...base, rigs: { kind: 'none' } };
-  if (security === null) return { ...base, rigs: { kind: 'needs-security' } };
-  const total = computeStructureBonus({ ...input, rigAttrs: structure.rigAttrs, securityClass: security });
-  return {
-    ...base,
-    rigs: {
-      kind: 'known',
-      bonus: {
-        me: rigShare(total.me, hull.me),
-        te: rigShare(total.te, hull.te),
-        costBonus: rigShare(total.costBonus, hull.costBonus),
-      },
-    },
-  };
 }

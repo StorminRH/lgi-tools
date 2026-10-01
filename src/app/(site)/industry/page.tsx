@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
-import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
 import { WorkspaceNav, WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { IndustryLanding } from './IndustryLanding';
@@ -26,11 +25,6 @@ function jobCharacterIds() {
   return Promise.all([activeJobCharacterIds(), corpJobCharacterIds()]);
 }
 
-async function SlotMeta() {
-  const [characterIds, corpIds] = await jobCharacterIds();
-  return <IndustrySlotMeta characterIds={characterIds} corpEligibleCharacterIds={corpIds} />;
-}
-
 async function Workspace() {
   const [characterIds, corpIds] = await jobCharacterIds();
   return <IndustryLanding characterIds={characterIds} corpEligibleCharacterIds={corpIds} />;
@@ -41,12 +35,7 @@ export default function IndustryDashboardPage() {
     <PageShell mode="workspace">
       <h1 className="sr-only">Industry</h1>
       <div className="pb-16 flex flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <WorkspaceNav />
-          <Suspense fallback={null}>
-            <SlotMeta />
-          </Suspense>
-        </div>
+        <WorkspaceNav />
 
         <Suspense fallback={<WorkspaceSkeleton />}>
           <Workspace />

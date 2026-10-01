@@ -2,18 +2,15 @@ import { expect, test } from 'vitest';
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
-import { setResponsibility, setRuleFacility } from '@/features/industry-planner/profiles/responsibilities';
+import { setResponsibility } from '@/features/industry-planner/profiles/responsibilities';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import {
   type CapacitySources,
-  facilityEffects,
   facilityForValue,
-  freeSlots,
   memberCapacity,
   memberView,
   poolSummaries,
   profileHref,
-  profileSummary,
   railMembers,
   resolveSelection,
   roleLine,
@@ -40,14 +37,11 @@ function job(job_id: number, activity_id: number, status: IndustryJob['status'],
   };
 }
 
-const SOTIYO = { id: 'custom-sotiyo', name: 'Sotiyo' };
-const TATARA = { id: 'corp:1', name: 'Tatara' };
-
 function capacitiesFor(sources: CapacitySources, ids: number[]) {
   return new Map(ids.map((id) => [id, memberCapacity(id, sources)]));
 }
 
-test('profile totals count each character once per slot pool, dedupe jobs, and never add two profiles together', () => {
+test('slot pools count each character once, dedupe jobs, and never add two teams together', () => {
   const sources: CapacitySources = {
     levelsByCharacter: new Map<number, Record<string, number> | null>([
       [BUILDER, { 3387: 4, 24625: 3, 3406: 1 }],
@@ -82,41 +76,15 @@ test('profile totals count each character once per slot pool, dedupe jobs, and n
   const linkedIds = new Set([BUILDER, REACTOR, SPARE]);
   const capacities = capacitiesFor(sources, [...linkedIds]);
 
-  // The builder holds two responsibilities; its slots still count once.
-  let team = emptyProfileDocument([
-    { characterId: BUILDER, name: 'Builder' },
-    { characterId: REACTOR, name: 'Reactor' },
-    { characterId: GONE, name: 'Gone' },
-  ]);
-  team = setResponsibility(team, BUILDER, 'components', true);
-  team = setResponsibility(team, BUILDER, 'final-assembly', true);
-  team = setRuleFacility(team, BUILDER, 'final-assembly', SOTIYO);
-  team = setResponsibility(team, REACTOR, 'reactions', true);
-  team = setRuleFacility(team, REACTOR, 'reactions', TATARA);
-
-  const summary = profileSummary({ doc: team, linkedIds, capacities, availableFacilityIds: new Set([SOTIYO.id]) });
-  expect(summary.memberCount).toBe(3);
-  expect(summary.unlinkedMembers.map((m) => m.characterId)).toEqual([GONE]);
-  expect(summary.coverage.map((c) => c.resolution.status)).toEqual(['assigned', 'assigned', 'assigned']);
-  expect(summary.facilityCount).toBe(2);
-  expect(summary.missingFacilities.map((m) => m.facility)).toEqual([TATARA]);
+  const pools = poolSummaries([BUILDER, REACTOR], capacities);
   // Builder 8 + reactor 1 manufacturing slots; jobs 1, 2 and 20 occupy them.
-  expect(summary.pools.manufacturing).toEqual({ capacity: 9, used: 3, unknownCapacity: 0, unknownUsed: 0 });
-  expect(freeSlots(summary.pools.manufacturing)).toBe(6);
-  expect(summary.pools.reactions).toEqual({ capacity: 11, used: 2, unknownCapacity: 0, unknownUsed: 0 });
-  expect(summary.pools.science).toEqual({ capacity: 3, used: 1, unknownCapacity: 0, unknownUsed: 0 });
+  expect(pools.manufacturing).toEqual({ capacity: 9, used: 3, unknownCapacity: 0, unknownUsed: 0 });
+  expect(pools.reactions).toEqual({ capacity: 11, used: 2, unknownCapacity: 0, unknownUsed: 0 });
+  expect(pools.science).toEqual({ capacity: 3, used: 1, unknownCapacity: 0, unknownUsed: 0 });
 
   // A second profile sharing the builder sees the same slots, not extra ones.
-  const other = profileSummary({
-    doc: emptyProfileDocument([
-      { characterId: BUILDER, name: 'Builder' },
-      { characterId: SPARE, name: 'Spare' },
-    ]),
-    linkedIds,
-    capacities,
-    availableFacilityIds: null,
-  });
-  expect(other.pools.manufacturing).toEqual({ capacity: 10, used: 3, unknownCapacity: 0, unknownUsed: 0 });
+  const other = poolSummaries([BUILDER, SPARE], capacities);
+  expect(other.manufacturing).toEqual({ capacity: 10, used: 3, unknownCapacity: 0, unknownUsed: 0 });
   // One member's own pools, as the member sheet shows them.
   expect(poolSummaries([BUILDER, BUILDER], capacities).manufacturing).toEqual({
     capacity: 8,
@@ -127,25 +95,13 @@ test('profile totals count each character once per slot pool, dedupe jobs, and n
 });
 
 test('unknown skills or jobs stay unknown instead of reading as free slots', () => {
-  const doc = emptyProfileDocument([
-    { characterId: BUILDER, name: 'Builder' },
-    { characterId: SPARE, name: 'Spare' },
-  ]);
-  const linkedIds = new Set([BUILDER, SPARE]);
   const noJobs: CapacitySources = {
     levelsByCharacter: new Map([[BUILDER, { 3387: 2 }]]),
     personalJobs: null,
     corpJobs: [],
   };
-  const summary = profileSummary({
-    doc,
-    linkedIds,
-    capacities: capacitiesFor(noJobs, [BUILDER, SPARE]),
-    availableFacilityIds: null,
-  });
-  expect(summary.pools.manufacturing).toEqual({ capacity: 3, used: 0, unknownCapacity: 1, unknownUsed: 2 });
-  expect(freeSlots(summary.pools.manufacturing)).toBeNull();
-  expect(summary.coverage.map((c) => c.resolution.status)).toEqual(['unassigned', 'unassigned', 'unassigned']);
+  const pools = poolSummaries([BUILDER, SPARE], capacitiesFor(noJobs, [BUILDER, SPARE]));
+  expect(pools.manufacturing).toEqual({ capacity: 3, used: 0, unknownCapacity: 1, unknownUsed: 2 });
 });
 
 const row = (id: string, members: number[]): IndustryProfileRow => ({
@@ -205,28 +161,6 @@ const structure = (overrides: Partial<AvailableStructure>): AvailableStructure =
   securityClass: null,
   taxPct: 1.5,
   ...overrides,
-});
-
-test('facility effects keep hull, rigs at a known security, and tax apart', () => {
-  const nullSec = facilityEffects(structure({}), 'manufacturing', 'null');
-  expect(nullSec.hull.me).toBeCloseTo(1);
-  expect(nullSec.hull.te).toBeCloseTo(15);
-  expect(nullSec.hull.costBonus).toBeCloseTo(3);
-  expect(nullSec.rigs.kind).toBe('known');
-  if (nullSec.rigs.kind === 'known') {
-    expect(nullSec.rigs.bonus.me).toBeCloseTo(4.2);
-    expect(nullSec.rigs.bonus.te).toBeCloseTo(42);
-  }
-  expect(nullSec).toMatchObject({ security: 'null', taxPct: 1.5, suitsActivity: true });
-
-  // A custom structure with no pinned system: the rig effect is not guessed.
-  expect(facilityEffects(structure({}), 'manufacturing', null).rigs).toEqual({ kind: 'needs-security' });
-  // A corporation structure carries its own security.
-  expect(facilityEffects(structure({ securityClass: 'high' }), 'manufacturing', null).rigs.kind).toBe('known');
-  expect(facilityEffects(structure({ rigAttrs: [] }), 'manufacturing', null).rigs).toEqual({ kind: 'none' });
-  // An engineering complex cannot run reactions; a refinery can.
-  expect(facilityEffects(structure({}), 'reactions', 'null').suitsActivity).toBe(false);
-  expect(facilityEffects(structure({ groupId: 1406 }), 'reactions', 'null').suitsActivity).toBe(true);
 });
 
 test('a picked facility becomes a named reference, and gone or unchanged picks change nothing', () => {

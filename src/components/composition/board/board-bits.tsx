@@ -57,7 +57,7 @@ export function KpiTile({
 }
 
 /** A small labelled figure inside a readout: a jobs count, a slot tally. */
-export function StatFigure({ label, value, tone = 'text-name' }: { label: string; value: number | string; tone?: string }) {
+export function StatFigure({ label, value, tone = 'text-name' }: { label: string; value: ReactNode; tone?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className={eyebrow({ size: 'micro' })}>{label}</dt>

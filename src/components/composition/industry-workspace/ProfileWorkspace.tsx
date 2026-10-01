@@ -1,13 +1,13 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
-import { type Ref, useCallback, useEffect, useMemo, useState, ViewTransition } from 'react';
+import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useState, ViewTransition } from 'react';
+import type { BoardCharacter } from '@/composition/board/api-contract';
+import { useBoardLive } from '../board/use-board-live';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import { useSystemSearch } from '@/components/use-system-search';
-import { type SecurityClass, systemSecurityClass } from '@/data/eve-data/security';
 import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
@@ -17,18 +17,18 @@ import {
   addMember,
   setDefaultFacility,
   setResponsibility,
-  setRuleFacility,
 } from '@/features/industry-planner/profiles/responsibilities';
 import {
   type IndustryProfilesState,
   useIndustryProfiles,
 } from '@/features/industry-planner/profiles/use-industry-profiles';
+import type { AvailableStructure } from '@/features/industry-planner/types';
 import { useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { OVERVIEW_MOTION } from '../board/board-motion';
 import { useFocusView } from '../board/use-focus-view';
-import { type FacilityContext, MemberSheet } from './MemberDetail';
+import { MemberSheet } from './MemberDetail';
 import { MemberRail } from './MemberRail';
 import { ProfileBar, type ProfileAction } from './ProfileBar';
 import { ProfileOverview } from './ProfileOverview';
@@ -41,7 +41,6 @@ import {
   memberCapacity,
   memberView,
   profileHref,
-  profileSummary,
   type RailMember,
   railMembers,
   resolveSelection,
@@ -86,18 +85,6 @@ function useCapacities(
     );
     return { capacities, levels };
   }, [slots.characters, roster, jobs, corp, corpEligible]);
-}
-
-function useSecurityOf(): (systemId: number | null) => SecurityClass | null {
-  const { systems } = useSystemSearch();
-  return useCallback(
-    (systemId: number | null) => {
-      if (systemId === null) return null;
-      const system = systems.find((s) => s.id === systemId);
-      return system === undefined ? null : systemSecurityClass(system.security, null);
-    },
-    [systems],
-  );
 }
 
 function LoadFailed({ onRetry }: { onRetry: () => void }) {
@@ -149,11 +136,12 @@ function characterNamer(
 }
 
 interface BoardData {
+  characters: readonly BoardCharacter[];
+  now: number;
   roster: readonly RosterCharacter[];
-  linkedIds: ReadonlySet<number>;
   capacities: ReadonlyMap<number, MemberCapacity>;
   levels: ReadonlyMap<number, Record<string, number> | null>;
-  context: FacilityContext;
+  structures: readonly AvailableStructure[] | null;
 }
 
 /**
@@ -163,11 +151,13 @@ interface BoardData {
  */
 function ProfileBoard({
   profile,
+  controls,
   data,
   onEdit,
   onRemove,
 }: {
   profile: IndustryProfileRow;
+  controls: ReactNode;
   data: BoardData;
   onEdit: (next: ProfileDocument) => void;
   onRemove: (characterId: number) => void;
@@ -175,7 +165,7 @@ function ProfileBoard({
   const doc = profile.document;
   const resolve = useCallback((param: string | null) => memberView(param, doc), [doc]);
   const { view, open, toOverview, rootRef, backRef } = useFocusView(resolve, 'data-member-id');
-  const { roster, linkedIds, capacities, levels, context } = data;
+  const { roster, capacities, levels, structures } = data;
   const members = railMembers(doc, roster);
   const member = view.view === 'character' ? members.find((m) => m.characterId === view.characterId) : undefined;
 
@@ -184,11 +174,13 @@ function ProfileBoard({
       <div ref={rootRef} role="article" aria-label={`${member.name} in ${profile.name}`} className={SHEET_GRID}>
         <OpenMember
           key={`${profile.id}:${member.characterId}`}
+          controls={controls}
           doc={doc}
           member={member}
+          character={data.characters.find((character) => character.characterId === member.characterId) ?? null}
+          now={data.now}
           levels={levels}
           capacities={capacities}
-          context={context}
           onBack={toOverview}
           backRef={backRef}
           onEdit={onEdit}
@@ -197,25 +189,25 @@ function ProfileBoard({
       </div>
     );
   }
-  const structures = context.structures;
-  const availableFacilityIds = structures === null ? null : new Set(structures.map((s) => s.id));
   return (
     <div ref={rootRef} className={OVERVIEW_GRID}>
       <ViewTransition {...OVERVIEW_MOTION} default="none">
-        <MemberRail
-          members={members}
-          addable={addableCharacters(doc, roster)}
-          onSelect={open}
-          onAdd={(character) => {
-            onEdit(addMember(doc, { characterId: character.characterId, name: character.name }));
-            open(character.characterId);
-          }}
-        />
+        <div className="flex min-w-0 flex-col gap-6">
+          {controls}
+          <MemberRail
+            members={members}
+            addable={addableCharacters(doc, roster)}
+            onSelect={open}
+            onAdd={(character) => {
+              onEdit(addMember(doc, { characterId: character.characterId, name: character.name }));
+              open(character.characterId);
+            }}
+          />
+        </div>
       </ViewTransition>
       <ViewTransition {...OVERVIEW_MOTION} default="none">
         <ProfileOverview
           key={profile.id}
-          summary={profileSummary({ doc, linkedIds, capacities, availableFacilityIds })}
           members={members}
           levels={levels}
           capacities={capacities}
@@ -243,10 +235,9 @@ function ProfileWorkspaceBody({
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const structures = useAvailableStructures();
-  const securityOf = useSecurityOf();
+  const board = useBoardLive();
   const { capacities, levels } = useCapacities(roster, jobs, corp, corpEligible);
   const { selection, selectProfile } = useProfileNavigation(state.profiles);
-  const linkedIds = useMemo(() => new Set(roster.map((c) => c.characterId)), [roster]);
   const profile = selection.profile;
 
   const dialogs = (
@@ -279,16 +270,18 @@ function ProfileWorkspaceBody({
           The profile in this link no longer exists. Showing {profile.name}.
         </Banner>
       ) : null}
-      <ProfileBar
-        profiles={state.profiles}
-        selected={profile}
-        busy={state.busy}
-        onSelect={selectProfile}
-        onAction={(action: ProfileAction) => setDialog({ kind: action })}
-      />
       <ProfileBoard
         profile={profile}
-        data={{ roster, linkedIds, capacities, levels, context: { structures, securityOf } }}
+        controls={
+          <ProfileBar
+            profiles={state.profiles}
+            selected={profile}
+            busy={state.busy}
+            onSelect={selectProfile}
+            onAction={(action: ProfileAction) => setDialog({ kind: action })}
+          />
+        }
+        data={{ roster, capacities, levels, structures, characters: board.response?.characters ?? [], now: board.now }}
         onEdit={(next) => state.save(profile.id, { name: profile.name, document: next })}
         onRemove={(characterId) => setDialog({ kind: 'remove-member', characterId })}
       />
@@ -298,21 +291,25 @@ function ProfileWorkspaceBody({
 }
 
 function OpenMember({
+  character,
+  now,
+  controls,
   doc,
   member,
   levels,
   capacities,
-  context,
   onBack,
   backRef,
   onEdit,
   onRemove,
 }: {
+  controls: ReactNode;
   doc: ProfileDocument;
+  character: BoardCharacter | null;
+  now: number;
   member: RailMember;
   levels: ReadonlyMap<number, Record<string, number> | null>;
   capacities: ReadonlyMap<number, MemberCapacity>;
-  context: FacilityContext;
   onBack: () => void;
   backRef: Ref<HTMLButtonElement>;
   onEdit: (next: ProfileDocument) => void;
@@ -321,11 +318,12 @@ function OpenMember({
   const { characterId } = member;
   return (
     <MemberSheet
-      doc={doc}
+      controls={controls}
       member={member}
+      character={character}
+      now={now}
       levels={levels.get(characterId) ?? null}
       capacities={capacities}
-      context={context}
       onBack={onBack}
       backRef={backRef}
       onRoles={(roles) =>
@@ -336,9 +334,6 @@ function OpenMember({
           ),
         )
       }
-      onFacility={(responsibility, facility) =>
-        onEdit(setRuleFacility(doc, characterId, responsibility, facility))
-      }
       onRemove={() => onRemove(characterId)}
     />
   );
@@ -346,7 +341,7 @@ function OpenMember({
 
 /**
  * The industry landing: production profiles laid out like the home board.
- * Members sit on the left beside the whole profile's totals and skills;
+ * The profile selector and members sit on the left beside the profile's skills;
  * opening one swaps both for that member's sheet. Jobs come in from the page
  * so they are read once.
  */

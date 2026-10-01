@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
+import { WorkspaceNav } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/composition/auth';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
@@ -76,6 +77,9 @@ export default function JobsPage() {
     <PageShell mode="reading">
       <div className="flex w-full flex-col items-center pb-20">
         <h1 className="sr-only">Industry jobs</h1>
+        <div className="w-full pb-5">
+          <WorkspaceNav />
+        </div>
         <Suspense fallback={<JobsLoading />}>
           <JobsContent />
         </Suspense>
