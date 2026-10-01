@@ -499,6 +499,24 @@ export async function applyAuthorizedMapGrantChange(
   change: MapGrantChange,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
+  if (change.operation === 'upsert') {
+    return writeAuthorizedGrantChange(userId, principals, mapId, change, database);
+  }
+  // Revokes on one map run one at a time, so the last-own-character guard
+  // reads the grants the previous revoke left behind.
+  return database.transaction(async (transaction) => {
+    await transaction.execute(sql`SELECT ${maps.id} FROM ${maps} WHERE ${maps.id} = ${mapId} FOR UPDATE`);
+    return writeAuthorizedGrantChange(userId, principals, mapId, change, transaction);
+  });
+}
+
+async function writeAuthorizedGrantChange(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  change: MapGrantChange,
+  database: AnyPgDb,
+): Promise<PendingMapAccessChange | null> {
   const mutation = change.operation === 'upsert' ? sql`
     INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
     SELECT authorized_map.id,
@@ -523,7 +541,7 @@ export async function applyAuthorizedMapGrantChange(
   return row ?? null;
 }
 
-/** The map's character grants that name one of the creator's own linked characters. */
+/** On a character-scoped map, the grants that name one of the creator's own linked characters. */
 function creatorCharacterGrantIds(mapId: string) {
   return sql`
     SELECT creator_grant.owner_id
@@ -534,6 +552,7 @@ function creatorCharacterGrantIds(mapId: string) {
       AND creator_account.provider_id = ${EVE_PROVIDER_ID}
       AND creator_account.account_id = creator_grant.owner_id::text
     WHERE creator_grant.map_id = ${mapId}
+      AND creator_map.character_scoped_at IS NOT NULL
       AND creator_grant.owner_type = 'character'::"public"."map_access_owner_type"
   `;
 }
