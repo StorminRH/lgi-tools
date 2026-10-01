@@ -1,4 +1,5 @@
 import type { StatusLevel } from '@/data/telemetry/health-metrics';
+import type { FailureGroup, SlowOperation } from '@/data/telemetry/sli-breakdown';
 import { SLI_DEFINITIONS, type SliId, type SliOwner } from '@/data/telemetry/sli';
 import {
   formatSliValue,
@@ -55,4 +56,25 @@ export function deriveServiceLevels(sli: SliSignals, queue: QueueSummary): Servi
     responseAction: definition.responseAction,
     ...measure(definition.id, sli, queue),
   }));
+}
+
+export function operationLabel(row: { feature: string; operation: string }): string {
+  return `${row.feature} · ${row.operation}`;
+}
+
+/** The result, then its code and error class where they add something. */
+export function failureResultLabel(row: FailureGroup): string {
+  const parts = [row.outcome];
+  if (row.code !== row.outcome) parts.push(row.code);
+  if (row.errorClass !== null) parts.push(row.errorClass);
+  return parts.join(' · ');
+}
+
+export function dayLabel(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function slowOperationNote(row: SlowOperation): string {
+  const runs = `${row.count.toLocaleString()} ${row.count === 1 ? 'run' : 'runs'}`;
+  return row.slowestDependency === null ? runs : `${runs} · mostly ${row.slowestDependency} on average`;
 }

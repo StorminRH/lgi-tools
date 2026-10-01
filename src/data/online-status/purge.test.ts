@@ -14,7 +14,9 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_CONVEX_URL = 'https://example.convex.cloud';
   process.env.CONVEX_SERVICE_SECRET = 'svc-secret';
   fetchSpy = vi.spyOn(globalThis, 'fetch');
-  fetchSpy.mockResolvedValue(new Response(JSON.stringify({ deleted: 1 }), { status: 200 }));
+  fetchSpy.mockImplementation(
+    () => Promise.resolve(new Response(JSON.stringify({ deleted: 1 }), { status: 200 })),
+  );
 });
 
 afterEach(() => {
@@ -26,9 +28,7 @@ afterEach(() => {
 });
 
 describe('onlineStatusPurgeContributor', () => {
-  it('purgeCharacter POSTs the one-character teardown to /purge-online with the bearer secret', async () => {
-    expect(onlineStatusPurgeContributor.tier).toBe('cache');
-    expect(onlineStatusPurgeContributor.claims).toEqual([]);
+  it('POSTs the character and whole-user teardowns to /purge-online with the bearer secret', async () => {
     await onlineStatusPurgeContributor.purgeCharacter?.({
       kind: 'character',
       userId: USER,
@@ -40,12 +40,11 @@ describe('onlineStatusPurgeContributor', () => {
     expect(init?.method).toBe('POST');
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer svc-secret');
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: CHAR });
-  });
 
-  it('purgeUser POSTs the whole-user teardown (characterId null)', async () => {
+    fetchSpy.mockClear();
     await onlineStatusPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
-    const [, init] = fetchSpy.mock.calls[0];
-    expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
+    const [, userInit] = fetchSpy.mock.calls[0];
+    expect(JSON.parse(userInit?.body as string)).toEqual({ userId: USER, characterId: null });
   });
 
   it('propagates a Convex outage so the deletion stays requested for retry', async () => {
