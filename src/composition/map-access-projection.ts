@@ -1,7 +1,13 @@
 import { z } from 'zod';
-import { type MapPrincipals, resolveMatchedMapRoles } from '@/data/maps/access';
+import {
+  orderEligibleCharacters,
+  resolveMatchedMapRoles,
+  type DatedMapGrant,
+  type MapPrincipals,
+} from '@/data/maps/access';
 import type { MapRole } from '@/data/maps/access-contract';
 import {
+  getCharacterNames,
   getMapAccessSubject,
   getMapGrants,
   getMapAccessCandidateUserIds,
@@ -10,9 +16,16 @@ import {
 import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { getUsersAffiliations, type CachedAffiliation } from '@/platform/auth/affiliation-store';
 
+export interface MapClaimCharacter {
+  readonly characterId: number;
+  readonly name: string;
+}
+
+/** `characters` is sent only for character-scoped maps; its absence keeps Convex on account-level tracking. */
 export interface MapAccessClaim {
   readonly userId: string;
   readonly roles: readonly MapRole[];
+  readonly characters?: readonly MapClaimCharacter[];
 }
 
 export interface ProjectionCounts {
@@ -58,12 +71,53 @@ export class ProjectionUnavailableError extends Error {
   }
 }
 
+function sharedAccessRows(rows: readonly CachedAffiliation[]): CachedAffiliation[] {
+  return rows.filter((row) => row.sharedAccessEligible);
+}
+
 function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrincipals {
-  const eligible = rows.filter((row) => row.sharedAccessEligible);
+  const eligible = sharedAccessRows(rows);
   return {
     characterIds: eligible.map((row) => row.characterId),
     corporationIds: [...new Set(eligible.flatMap((row) => row.corporationId ?? []))],
   };
+}
+
+/** The ids each user's eligible characters are chosen from, in actor-name order. */
+export function eligibleCharacterIds(
+  grants: readonly DatedMapGrant[],
+  rows: readonly CachedAffiliation[],
+): number[] {
+  return orderEligibleCharacters(grants, sharedAccessRows(rows));
+}
+
+function groupByUser(
+  rows: readonly (CachedAffiliation & { userId: string })[],
+): Map<string, CachedAffiliation[]> {
+  const byUser = new Map<string, CachedAffiliation[]>();
+  for (const row of rows) {
+    const held = byUser.get(row.userId) ?? [];
+    held.push(row);
+    byUser.set(row.userId, held);
+  }
+  return byUser;
+}
+
+function grantOwnerIds(grants: readonly DatedMapGrant[], ownerType: DatedMapGrant['ownerType']) {
+  return [...new Set(grants.filter((grant) => grant.ownerType === ownerType).map((g) => g.ownerId))];
+}
+
+async function nameCharacters(
+  claims: readonly { userId: string; roles: readonly MapRole[]; characterIds: number[] }[],
+): Promise<MapAccessClaim[]> {
+  const names = await getCharacterNames(claims.flatMap((claim) => claim.characterIds));
+  return claims.map(({ characterIds, ...claim }) => ({
+    ...claim,
+    characters: characterIds.map((characterId) => ({
+      characterId,
+      name: names.get(characterId) ?? `Character ${characterId}`,
+    })),
+  }));
 }
 
 async function computeMapAccessClaimsForState(
@@ -73,34 +127,18 @@ async function computeMapAccessClaimsForState(
   const map = await getMapAccessSubject(mapId);
   if (map === null) return [];
   if (map.archivedAt !== null && !allowArchived) return [];
+  const scoped = map.characterScopedAt !== null;
 
   const grants = await getMapGrants(mapId);
-  const characterIds = [
-    ...new Set(
-      grants
-        .filter((grant) => grant.ownerType === 'character')
-        .map((grant) => grant.ownerId),
-    ),
-  ];
-  const corporationIds = [
-    ...new Set(
-      grants
-        .filter((grant) => grant.ownerType === 'corporation')
-        .map((grant) => grant.ownerId),
-    ),
-  ];
+  const candidateUserIds = (await getMapAccessCandidateUserIds(
+    grantOwnerIds(grants, 'character'),
+    grantOwnerIds(grants, 'corporation'),
+  )).filter((userId) => userId !== map.userId);
+  const byUser = groupByUser(await getUsersAffiliations(
+    scoped ? [...candidateUserIds, map.userId] : candidateUserIds,
+  ));
 
-  const candidateUserIds = (await getMapAccessCandidateUserIds(characterIds, corporationIds))
-    .filter((userId) => userId !== map.userId);
-  const affiliations = await getUsersAffiliations(candidateUserIds);
-  const byUser = new Map<string, CachedAffiliation[]>();
-  for (const row of affiliations) {
-    const rows = byUser.get(row.userId) ?? [];
-    rows.push(row);
-    byUser.set(row.userId, rows);
-  }
-
-  const claims: MapAccessClaim[] = [{ userId: map.userId, roles: ['admin'] }];
+  const claims = [{ userId: map.userId, roles: ['admin'] as MapRole[], characterIds: [] as number[] }];
   for (const userId of candidateUserIds) {
     const roles = resolveMatchedMapRoles({
       isCreator: false,
@@ -108,11 +146,15 @@ async function computeMapAccessClaimsForState(
       principals: principalsIgnoringStampAge(byUser.get(userId) ?? []),
     });
     if (roles.length === 0) continue;
-    claims.push({ userId, roles });
+    claims.push({ userId, roles: [...roles], characterIds: [] });
   }
-
   claims.sort((left, right) => left.userId.localeCompare(right.userId));
-  return claims;
+  if (!scoped) return claims.map(({ userId, roles }) => ({ userId, roles }));
+
+  for (const claim of claims) {
+    claim.characterIds = eligibleCharacterIds(grants, byUser.get(claim.userId) ?? []);
+  }
+  return nameCharacters(claims);
 }
 
 export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
