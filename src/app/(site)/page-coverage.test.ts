@@ -110,6 +110,8 @@ import AppSitePage, { metadata as AppSitePageMetadata } from '@/app/(site)/page'
 import AppSitePreviewCardsPage, { metadata as AppSitePreviewCardsPageMetadata } from '@/app/(site)/preview/cards/page';
 import { PrimitivesDemo } from '@/app/(site)/preview/primitives/PrimitivesDemo';
 import AppSitePreviewPrimitivesPage, { metadata as AppSitePreviewPrimitivesPageMetadata } from '@/app/(site)/preview/primitives/page';
+import { PrototypesGallery } from '@/app/(site)/preview/prototypes/PrototypesGallery';
+import AppSitePreviewPrototypesPage, { metadata as AppSitePreviewPrototypesPageMetadata } from '@/app/(site)/preview/prototypes/page';
 import AppSitePreviewWidgetsPage, { metadata as AppSitePreviewWidgetsPageMetadata } from '@/app/(site)/preview/widgets/page';
 import { UniverseAssetsProof } from '@/app/(site)/preview/widgets/universe-assets-proof';
 import AppSiteSettingsAccessUserIdPage from '@/app/(site)/settings/access/[userId]/page';
@@ -219,6 +221,9 @@ describe('coverage-gaps', () => {
       PrimitivesDemo,
       AppSitePreviewPrimitivesPageMetadata,
       AppSitePreviewPrimitivesPage,
+      PrototypesGallery,
+      AppSitePreviewPrototypesPageMetadata,
+      AppSitePreviewPrototypesPage,
       AppSitePreviewWidgetsPageMetadata,
       AppSitePreviewWidgetsPage,
       UniverseAssetsProof,

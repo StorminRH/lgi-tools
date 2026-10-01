@@ -36,6 +36,7 @@
 @import "../mapper/signatures/scanner-window-frame.css";
 @import "./(site)/atlas/AtlasCanvasFrame.css";
 @import "./(site)/legal/page.css";
+@import "./(site)/preview/prototypes/PrototypesGallery.css";
 .page-backdrop {
   position: fixed;
   inset: 0;

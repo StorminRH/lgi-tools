@@ -1321,6 +1321,28 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Prototype gallery (prototype branch only): candidate primitives are hand-built
+  // here before one is chosen and ported into src/components/ui, so the
+  // element-ownership rails are lifted. The CSP, color, and network rails stay.
+  {
+    files: ["src/app/(site)/preview/prototypes/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
+        ...cspSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...legacyTypeRoleSelectors,
+        ...selectElementSelectors,
+        ...datasetTtlSelectors,
+        ...imageVariantSelectors,
+      ],
+    },
+  },
   {
     files: ["src/app/**/opengraph-image.{ts,tsx}"],
     rules: {
