@@ -44,11 +44,19 @@ export function SectionHead({
  * stays for screen readers only, and any meta (range selector, actions) sits
  * in a right-aligned tools row. Without meta it takes no space at all.
  */
-export function QuietSectionHead({ title, meta }: { title: string; meta?: ReactNode }) {
+export function QuietSectionHead({
+  title,
+  meta,
+  className,
+}: {
+  title: string;
+  meta?: ReactNode;
+  className?: string;
+}) {
   return (
     <header
       data-section-head
-      className={meta == null ? 'contents' : 'flex flex-wrap items-center justify-end gap-3'}
+      className={meta == null ? 'contents' : cn('flex flex-wrap items-center justify-end gap-3', className)}
     >
       <h2 className="sr-only">{title}</h2>
       {meta}

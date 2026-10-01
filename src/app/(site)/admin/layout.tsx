@@ -11,7 +11,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <PageShell mode="workspace">
       <Suspense fallback={<LoadingLabel />}>
         <AdminGate>
-          <div className="flex flex-col gap-0 pb-20">
+          <div className="relative flex flex-col gap-0 pb-20">
             <PageHead title="Admin" />
             <div
               data-admin-layout
