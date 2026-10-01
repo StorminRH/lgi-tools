@@ -536,3 +536,40 @@ describe('trackedCharactersForMap', () => {
       .resolves.toEqual([{ userId: OWNER, characterId: 11 }]);
   });
 });
+
+describe('character-scoped claim sets', () => {
+  const scopedClaims = [{
+    userId: OWNER, roles: ['admin' as const], characters: [{ characterId: 11, name: 'Main' }],
+  }];
+  const reconcile = (t: Chain, claims: unknown, revision: number) =>
+    t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: MAP_A, revision, claims: claims as typeof scopedClaims,
+    });
+
+  it('keeps the legacy response shape for claims without characters', async () => {
+    const t = convexTest(schema, modules);
+    const result = await reconcile(t, [{ userId: OWNER, roles: ['admin'] }], 1);
+    expect(result).toEqual({ inserted: 1, updated: 0, deleted: 0, unchanged: 0, outcome: 'applied' });
+    await expect(reconcile(t, [{ userId: OWNER, roles: ['admin'] }], 2))
+      .resolves.toMatchObject({ outcome: 'applied' });
+  });
+
+  it('confirms scoped delivery and refuses later account-level claims for that map', async () => {
+    const t = convexTest(schema, modules);
+    await expect(reconcile(t, scopedClaims, 1))
+      .resolves.toMatchObject({ outcome: 'applied', characterScoped: true });
+    await expect(reconcile(t, scopedClaims, 1))
+      .resolves.toMatchObject({ outcome: 'duplicate', characterScoped: true });
+
+    await expect(reconcile(t, [{ userId: OWNER, roles: ['viewer'] }], 2))
+      .resolves.toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'unscoped-refused' });
+    await expect(t.run((ctx) => ctx.db.query('mapAccess').collect()))
+      .resolves.toMatchObject([{ roles: ['admin'], characters: [{ characterId: 11 }] }]);
+
+    await expect(reconcile(t, [], 3)).resolves.toMatchObject({ outcome: 'applied' });
+    await expect(reconcile(t, [{ userId: OWNER, roles: ['admin'] }], 4))
+      .resolves.toMatchObject({ outcome: 'unscoped-refused' });
+    await expect(reconcile(t, scopedClaims, 5))
+      .resolves.toMatchObject({ outcome: 'applied', characterScoped: true });
+  });
+});

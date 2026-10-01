@@ -37,6 +37,7 @@ export interface ProjectionCounts {
 
 export type ProjectionResult = ProjectionCounts & {
   readonly outcome: 'applied' | 'duplicate' | 'stale';
+  readonly characterScoped?: true;
 };
 
 const projectionCountFields = {
@@ -45,10 +46,12 @@ const projectionCountFields = {
   deleted: z.number().int().nonnegative(),
   unchanged: z.number().int().nonnegative(),
 };
+const characterScopedField = { characterScoped: z.literal(true).optional() };
 const projectionResultSchema = z.discriminatedUnion('outcome', [
-  z.strictObject({ ...projectionCountFields, outcome: z.literal('applied') }),
-  z.strictObject({ ...projectionCountFields, outcome: z.literal('duplicate') }),
+  z.strictObject({ ...projectionCountFields, ...characterScopedField, outcome: z.literal('applied') }),
+  z.strictObject({ ...projectionCountFields, ...characterScopedField, outcome: z.literal('duplicate') }),
   z.strictObject({ ...projectionCountFields, outcome: z.literal('stale') }),
+  z.strictObject({ ...projectionCountFields, outcome: z.literal('unscoped-refused') }),
 ]);
 
 const userPurgeResultSchema = z.strictObject({
@@ -176,7 +179,7 @@ export interface ProjectMapAccessOptions {
 function postMapAccessProjection(
   body: unknown,
   options: ProjectMapAccessOptions = {},
-): Promise<ProjectionResult> {
+): Promise<z.infer<typeof projectionResultSchema>> {
   return postConvexHttpDoor({
     path: '/project-map-access',
     body,
@@ -186,6 +189,31 @@ function postMapAccessProjection(
     timeoutMs: options.timeoutMs,
     signal: options.signal,
   });
+}
+
+function claimsCarryCharacters(claims: readonly MapAccessClaim[]): boolean {
+  return claims.length > 0 && claims.every((claim) => claim.characters !== undefined);
+}
+
+/**
+ * A character-scoped claim set only counts once Convex confirms it kept the
+ * characters; an older Convex drops them silently, so the change stays queued.
+ */
+function requireScopedDelivery(
+  claims: readonly MapAccessClaim[],
+  result: z.infer<typeof projectionResultSchema>,
+): ProjectionResult {
+  if (result.outcome === 'unscoped-refused') {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: Convex refused account-level claims for a character-scoped map',
+    );
+  }
+  if (claimsCarryCharacters(claims) && result.outcome !== 'stale' && result.characterScoped !== true) {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: Convex did not confirm character-scoped claims',
+    );
+  }
+  return result;
 }
 
 async function projectMapAccessState(
@@ -201,7 +229,10 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
-  return postMapAccessProjection({ mapId, revision, claims }, options);
+  return requireScopedDelivery(
+    claims,
+    await postMapAccessProjection({ mapId, revision, claims }, options),
+  );
 }
 
 export function projectMapAccess(
@@ -220,13 +251,11 @@ export function projectStagedMapAccess(
 
 export async function teardownMapAccessProjection(mapId: string): Promise<ProjectionResult> {
   const revision = await reserveMapAccessProjectionRevision();
-  return requireCurrentProjection(
-    await postMapAccessProjection({
-      mapId,
-      revision,
-      claims: [],
-    }),
-  );
+  return requireCurrentProjection(requireScopedDelivery([], await postMapAccessProjection({
+    mapId,
+    revision,
+    claims: [],
+  })));
 }
 
 export async function purgeUserMapAccessProjection(

@@ -473,3 +473,29 @@ test('orders eligible characters by the earliest matching grant, then by id', ()
   expect(eligibleCharacterIds(grants, rows)).toEqual([9, 2, 3]);
   expect(eligibleCharacterIds([], rows)).toEqual([]);
 });
+
+test('a character-scoped projection counts only once Convex confirms the characters', async () => {
+  resetProjectionMocks();
+  mocks.getMapAccessSubject.mockResolvedValue({
+    userId: 'creator', archivedAt: null, characterScopedAt: new Date(),
+  });
+  const counts = { inserted: 0, updated: 0, deleted: 0, unchanged: 1 };
+  const respond = (body: object) => mocks.fetchWithTimeout.mockResolvedValueOnce(Response.json(body));
+
+  respond({ ...counts, outcome: 'applied' });
+  await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  respond({ ...counts, outcome: 'unscoped-refused' });
+  await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  respond({ ...counts, outcome: 'applied', characterScoped: true });
+  await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'applied' });
+  respond({ ...counts, outcome: 'duplicate', characterScoped: true });
+  await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'duplicate' });
+  respond({ ...counts, outcome: 'stale' });
+  await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'stale' });
+
+  mocks.getMapAccessSubject.mockResolvedValue({ userId: 'creator', archivedAt: null, characterScopedAt: null });
+  respond({ ...counts, outcome: 'applied' });
+  await expect(projectMapAccess('map-1')).resolves.toMatchObject({ outcome: 'applied' });
+  respond({ ...counts, outcome: 'unscoped-refused' });
+  await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+});

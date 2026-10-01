@@ -96,13 +96,14 @@ describe('character-scoped tracking', () => {
     expect(await trackedIds(t, MEMBER)).toEqual([MAIN]);
   });
 
-  it('leaves tracking alone when a claim goes back to legacy shape', async () => {
+  it('refuses to put a scoped map back on account-level claims', async () => {
     const t = convexTest(schema, modules);
     await reconcile(t, [scopedMember]);
     await track(t, MEMBER, ALT);
-    await reconcile(t, [{ userId: MEMBER, roles: ['viewer'] }]);
+    await expect(reconcile(t, [{ userId: MEMBER, roles: ['viewer'] }]))
+      .resolves.toMatchObject({ outcome: 'unscoped-refused' });
     expect(await trackedIds(t, MEMBER)).toEqual([ALT]);
-    await expect(track(t, MEMBER, OUTSIDER)).resolves.toEqual({ tracked: true });
+    await expect(track(t, MEMBER, OUTSIDER)).rejects.toThrow(/CHARACTER_NOT_ELIGIBLE/);
   });
 });
 
