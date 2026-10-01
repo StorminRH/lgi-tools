@@ -85,10 +85,14 @@ describe('MapAccessDialog', () => {
             role: 'editor',
           },
         ],
+        initialBlocks: [{ characterId: 77, name: 'Spy' }],
       }),
     );
 
     expect(markup).toContain('Manage Alpha');
+    expect(markup).toContain('Blocked pilots');
+    expect(markup).toContain('data-map-blocked-character="77"');
+    expect(markup).toContain('Unblock');
     expect(markup).toContain('break-words');
     expect(markup).toContain('min-w-0');
     expect(markup).toContain('data-access-editor-mode="manage"');

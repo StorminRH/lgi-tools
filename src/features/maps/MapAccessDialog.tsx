@@ -21,10 +21,12 @@ import {
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
+  MapBlockOption,
   MapRole,
 } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
 import { CharacterSearchControl } from './CharacterSearchControl';
+import { MapBlockList, useMapBlockEditor } from './MapBlockList';
 import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
   accessPrincipalKey,
@@ -45,6 +47,7 @@ export interface MapAccessDialogProps {
   readonly finalFocus: DialogFocusTarget;
   readonly corporations: readonly CorporationAccessOption[];
   readonly initialGrants: readonly MapAccessGrantOption[];
+  readonly initialBlocks: readonly MapBlockOption[];
 }
 
 /** Only admins manage access, so an admin's own characters join the list as admin. */
@@ -143,11 +146,13 @@ export function MapAccessDialog({
   finalFocus,
   corporations,
   initialGrants,
+  initialBlocks,
 }: MapAccessDialogProps) {
   const titleId = useId();
   const access = useAccessGrantEditor(mapId, initialGrants);
+  const blocks = useMapBlockEditor(mapId, initialBlocks);
   const ownCharacters = useAccountCharacters();
-  const disabled = access.busyKey !== null;
+  const disabled = access.busyKey !== null || blocks.busy;
   const error = access.error;
 
   function toggleOwnCharacter({ characterId, selected }: PortraitToggleChange) {
@@ -206,13 +211,14 @@ export function MapAccessDialog({
           onPrincipalRemove={(principal) => void access.revoke(principal)}
           characterSearch={
             <CharacterSearchControl
-              disabled={access.busyKey !== null}
+              disabled={disabled}
               selectedPrincipals={access.grants}
               onSelect={access.addPrincipal}
             />
           }
         />
         {error !== null ? <Banner tone="warn">{error}</Banner> : null}
+        <MapBlockList editor={blocks} disabled={disabled} />
       </div>
 
       <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
