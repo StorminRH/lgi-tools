@@ -16,6 +16,11 @@ const rows = deriveServiceLevels(
   { due: 4, deadLettered: 1, oldestDueHours: 1 },
 );
 
+const range = {
+  from: new Date('2026-09-19T00:00:00Z'),
+  to: new Date('2026-09-21T00:00:00Z'),
+};
+
 function failure(operation: string): FailureGroup {
   return {
     feature: 'account',
@@ -30,8 +35,8 @@ function failure(operation: string): FailureGroup {
 
 function emptyDetails(): ServiceLevelDetails {
   return {
-    read: { groups: [], daily: [] },
-    mutation: { groups: [], daily: [] },
+    read: { range, groups: [], daily: [] },
+    mutation: { range, groups: [], daily: [] },
     slowest: [],
     esi: [],
     queue: [],
@@ -54,10 +59,11 @@ describe('service level details', () => {
     ['mutation_success_rate', 'mutation'],
   ] as const)('shows the failures and daily trend for %s', (id, detailKey) => {
     const details = emptyDetails();
-    details.read = { groups: [failure('read-preferences')], daily: [] };
-    details.mutation = { groups: [failure('save-preferences')], daily: [] };
+    details.read = { range, groups: [failure('read-preferences')], daily: [] };
+    details.mutation = { range, groups: [failure('save-preferences')], daily: [] };
     const operation = detailKey === 'read' ? 'read-preferences' : 'save-preferences';
     details[detailKey] = {
+      range,
       groups: [failure(operation)],
       daily: [{ day: '2026-09-19', failures: 0 }, { day: '2026-09-20', failures: 4 }],
       validationRejected: 1500,
@@ -68,6 +74,7 @@ describe('service level details', () => {
     expect(html).toContain(`account · ${operation}`);
     expect(html).not.toContain(detailKey === 'read' ? 'save-preferences' : 'read-preferences');
     expect(html).toContain('unexpected · save_failed · 23502');
+    expect(html).toContain('aria-label="Top failure groups"');
     expect(html).toContain('1,200');
     expect(html).toContain('2026-09-20');
     expect(html).toContain('1,500 rejected as invalid input, not counted.');
@@ -83,6 +90,7 @@ describe('service level details', () => {
   it.each([undefined, 0])('omits the trend and invalid-input note when counts are absent or zero (%s)', (validationRejected) => {
     const details = emptyDetails();
     details.mutation = {
+      range,
       groups: [],
       daily: [{ day: '2026-09-20', failures: 0 }],
       validationRejected,
@@ -94,6 +102,24 @@ describe('service level details', () => {
     expect(html).not.toContain('Failures by day');
     expect(html).not.toContain('rejected as invalid input');
     expect(AdminTrendChart).not.toHaveBeenCalled();
+  });
+
+  it('keeps quiet days between failures and at the selected range boundaries', () => {
+    const details = emptyDetails();
+    details.mutation = {
+      range: {
+        from: new Date('2026-09-19T00:00:00Z'),
+        to: new Date('2026-09-24T00:00:00Z'),
+      },
+      groups: [failure('save-preferences')],
+      daily: [{ day: '2026-09-20', failures: 1 }, { day: '2026-09-22', failures: 3 }],
+    };
+
+    expect(render('mutation_success_rate', details)).toContain('Failures by day');
+    expect(AdminTrendChart).toHaveBeenCalledWith(expect.objectContaining({
+      points: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }, { x: 3, y: 3 }, { x: 4, y: 0 }],
+      labels: ['2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23'],
+    }), undefined);
   });
 
   it.each(rows.map((row) => [row.id] as const))('keeps %s available when its detail query fails', (id) => {
@@ -124,7 +150,7 @@ describe('service level details', () => {
     expect(html).toContain('aria-label="Slowest operations"');
     expect(html).toContain('planner · read-owned-assets');
     expect(html).toContain('2,400 ms');
-    expect(html).toContain('1,200 runs · mostly esi');
+    expect(html).toContain('1,200 runs · mostly esi on average');
   });
 
   it('shows ESI failures under the ESI-specific table label', () => {
@@ -133,7 +159,7 @@ describe('service level details', () => {
 
     const html = render('esi_success_rate', details);
 
-    expect(html).toContain('aria-label="Rate limited or failed by ESI"');
+    expect(html).toContain('aria-label="Top ESI failure groups"');
     expect(html).toContain('account · refresh-assets');
     expect(html).not.toContain('Failures by day');
   });

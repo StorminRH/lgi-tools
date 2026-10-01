@@ -60,6 +60,6 @@ describe('service level detail labels', () => {
   it('says how often a slow operation ran and where its time went', () => {
     const slow = { feature: 'planner', operation: 'read-owned-assets', p95Ms: 2000, count: 1, slowestDependency: null };
     expect(slowOperationNote(slow)).toBe('1 run');
-    expect(slowOperationNote({ ...slow, count: 1200, slowestDependency: 'esi' })).toBe('1,200 runs · mostly esi');
+    expect(slowOperationNote({ ...slow, count: 1200, slowestDependency: 'esi' })).toBe('1,200 runs · mostly esi on average');
   });
 });
