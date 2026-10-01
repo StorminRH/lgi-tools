@@ -1,32 +1,5 @@
-import type { Metadata } from 'next';
-import { WorkspaceNav } from '@/components/composition/industry-workspace/WorkspaceStates';
-import { PageShell } from '@/components/ui/page-shell';
-import { SITE_URL } from '@/config/site-url';
-import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
+import { WorkspaceRedirect, type WorkspaceSearchParams } from '../WorkspaceRedirect';
 
-export const metadata: Metadata = {
-  title: 'Build Templates',
-  description:
-    'All your saved Eve Online build templates — load one into the industry planner, or rename, favorite, and prune the list.',
-  alternates: { canonical: '/industry/templates' },
-  openGraph: {
-    title: 'Build Templates — LGI.tools',
-    description:
-      'All your saved Eve Online build templates — load one into the industry planner, or rename, favorite, and prune the list.',
-    url: `${SITE_URL}/industry/templates`,
-    type: 'website',
-    images: ['/logo.png'],
-  },
-};
-
-export default function BuildTemplatesPage() {
-  return (
-    <PageShell mode="reading">
-      <h1 className="sr-only">Build templates</h1>
-      <div className="reveal reveal-1 flex flex-col gap-5 pb-16">
-        <WorkspaceNav />
-        <SavedPlansManager />
-      </div>
-    </PageShell>
-  );
+export default function BuildTemplatesPage({ searchParams }: { searchParams: WorkspaceSearchParams }) {
+  return <WorkspaceRedirect searchParams={searchParams} tab="plans" />;
 }

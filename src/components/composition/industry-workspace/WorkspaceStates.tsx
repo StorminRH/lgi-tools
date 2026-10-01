@@ -1,48 +1,11 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type TabOption, Tabs } from '@/components/ui/tabs';
 import { EveSignInButton } from '../account/LoginButton';
 import { readoutSurface } from '../board/SectionBody';
-
-const SECTIONS: readonly TabOption[] = [
-  { value: '/industry', label: 'Profiles', href: '/industry' },
-  { value: '/industry/templates', label: 'Plans & templates', href: '/industry/templates' },
-  { value: '/jobs', label: 'Active jobs', href: '/jobs' },
-  ...['Research', 'Tracked builds'].map((label) => ({
-    value: label,
-    label: (
-      <span className="inline-flex items-center gap-1.5">
-        {label}
-        <span className="font-data text-label uppercase tracking-label">planned</span>
-      </span>
-    ),
-    disabled: true,
-  })),
-];
-
-/**
- * The industry workspace's areas. Areas that are not built yet are shown as
- * planned, not as links that lead nowhere.
- */
-export function WorkspaceNav() {
-  const pathname = usePathname();
-  return (
-    <nav aria-label="Industry workspace" className="min-w-0 max-w-full">
-      <Tabs
-        tabs={SECTIONS}
-        label="Industry workspace sections"
-        value={pathname}
-        listClassName="overflow-x-auto"
-        tabClassName="shrink-0 whitespace-nowrap no-underline"
-      />
-    </nav>
-  );
-}
 
 export function WorkspaceSkeleton() {
   return (

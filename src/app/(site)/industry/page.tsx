@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { IndustryWorkspaceTabs } from '@/components/composition/industry-workspace/IndustryWorkspaceTabs';
+import { WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
+import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
-import { WorkspaceNav, WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { IndustryLanding } from './IndustryLanding';
+import { JobsContent, JobsLoading } from './JobsContent';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
@@ -35,10 +38,20 @@ export default function IndustryDashboardPage() {
     <PageShell mode="workspace">
       <h1 className="sr-only">Industry</h1>
       <div className="pb-16 flex flex-col gap-5">
-        <WorkspaceNav />
-
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <Workspace />
+          <IndustryWorkspaceTabs
+            profiles={
+              <Suspense fallback={<WorkspaceSkeleton />}>
+                <Workspace />
+              </Suspense>
+            }
+            plans={<SavedPlansManager />}
+            jobs={
+              <Suspense fallback={<JobsLoading />}>
+                <JobsContent />
+              </Suspense>
+            }
+          />
         </Suspense>
       </div>
     </PageShell>

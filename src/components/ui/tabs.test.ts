@@ -3,20 +3,21 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { Tabs } from './tabs';
 
-test('route tabs keep native links and the current page without rendering empty panels', () => {
+test('tabs use buttons and omit panels for options without content', () => {
   const html = renderToStaticMarkup(createElement(Tabs, {
     label: 'Industry sections',
-    value: '/industry/templates',
+    value: 'plans',
     tabs: [
-      { value: '/industry', label: 'Profiles', href: '/industry' },
-      { value: '/industry/templates', label: 'Plans', href: '/industry/templates' },
+      { value: 'profiles', label: 'Profiles' },
+      { value: 'plans', label: 'Plans' },
       { value: 'research', label: 'Research planned', disabled: true },
     ],
   }));
-  expect(html).toMatch(/<a[^>]*href="\/industry"[^>]*>Profiles<\/a>/);
-  expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/industry\/templates"[^>]*>Plans<\/a>/);
+  expect(html).toMatch(/<button[^>]*role="tab"[^>]*>Profiles<\/button>/);
+  expect(html).toMatch(/<button[^>]*aria-selected="true"[^>]*>Plans<\/button>/);
   expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*>Research planned<\/button>/);
   expect(html).not.toContain('role="tabpanel"');
+  expect(html).not.toContain('<a ');
 });
 
 test('content tabs still render the selected panel', () => {
@@ -31,4 +32,20 @@ test('content tabs still render the selected panel', () => {
   expect(html).toContain('role="tabpanel"');
   expect(html).toContain('Build plan contents');
   expect(html).not.toContain('Material demand');
+});
+
+test('keepMounted preserves inactive panel contents', () => {
+  const html = renderToStaticMarkup(createElement(Tabs, {
+    label: 'Build details',
+    value: 'materials',
+    keepMounted: true,
+    tabs: [
+      { value: 'plan', label: 'Plan', content: 'Build plan contents' },
+      { value: 'materials', label: 'Materials', content: 'Material demand' },
+    ],
+  }));
+  expect(html.match(/role="tabpanel"/g)).toHaveLength(2);
+  expect(html).toContain('Build plan contents');
+  expect(html).toContain('Material demand');
+  expect(html).toMatch(/<div(?=[^>]*role="tabpanel")(?=[^>]* hidden="")(?=[^>]* inert="")[^>]*>Build plan contents<\/div>/);
 });

@@ -76,7 +76,6 @@ vi.mock('@/features/industry-planner/profiles/use-industry-profiles', () => ({
 }));
 
 import { ProfileWorkspace } from './ProfileWorkspace';
-import { WorkspaceNav } from './WorkspaceStates';
 
 const BUILDER = { characterId: 9001, name: 'Aurel Vantesse', portraitUrl: 'p/9001' };
 const REACTOR = { characterId: 9002, name: 'Kessa Draymoor', portraitUrl: 'p/9002' };
@@ -136,8 +135,6 @@ function teamProfile(): IndustryProfileRow {
 }
 
 test('the workspace walks from signed out, to a first profile, to a team and one member', () => {
-  expect(renderToStaticMarkup(createElement(WorkspaceNav))).toContain('aria-current="page"');
-
   live.session = null;
   const signedOut = render();
   expect(signedOut).toContain('Log in with EVE Online');

@@ -1,7 +1,6 @@
 'use client';
 
 import { Tabs as Base } from '@base-ui/react/tabs';
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
@@ -9,7 +8,6 @@ export interface TabOption {
   value: string;
   label: ReactNode;
   content?: ReactNode;
-  href?: string;
   disabled?: boolean;
 }
 
@@ -23,6 +21,7 @@ export function Tabs({
   listClassName,
   tabClassName,
   panelClassName,
+  keepMounted = false,
 }: {
   tabs: readonly TabOption[];
   label: string;
@@ -33,6 +32,7 @@ export function Tabs({
   listClassName?: string;
   tabClassName?: string;
   panelClassName?: string;
+  keepMounted?: boolean;
 }) {
   return (
     <Base.Root
@@ -53,9 +53,6 @@ export function Tabs({
             key={tab.value}
             value={tab.value}
             disabled={tab.disabled}
-            nativeButton={tab.href === undefined}
-            render={tab.href === undefined ? undefined : <Link href={tab.href} />}
-            aria-current={tab.href !== undefined && tab.value === value ? 'page' : undefined}
             className={cn(
               'relative px-3.5 py-2 font-ui text-nav text-muted outline-none hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub data-[active]:text-name data-[disabled]:opacity-40',
               tabClassName,
@@ -70,6 +67,7 @@ export function Tabs({
         <Base.Panel
           key={tab.value}
           value={tab.value}
+          keepMounted={keepMounted}
           className={cn(
             'px-0.5 py-3.5 font-ui text-ui text-text outline-none',
             panelClassName,
