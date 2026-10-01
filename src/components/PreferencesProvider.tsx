@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { toast } from '@/components/ui/toast';
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
 import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
 import { createClientStore, useClientStore } from '@/lib/client-store';
@@ -102,7 +103,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     writeLocalPreference(def, value);
     writePreferenceCookie(def, value);
     if (userIdRef.current) {
-      void apiFetch(putPreferenceEndpoint, { body: { key: def.key, value } });
+      void apiFetch(putPreferenceEndpoint, { body: { key: def.key, value } }).then((result) => {
+        if (!result.ok) toast.error('Save failed');
+      });
     }
   }, []);
 

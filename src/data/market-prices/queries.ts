@@ -1,5 +1,6 @@
-import { inArray, lt, sql } from 'drizzle-orm';
+import { inArray, lt } from 'drizzle-orm';
 import { db as defaultDb } from '@/db';
+import { BATCH_REFRESH_LEAD_MS } from './constants';
 import { marketPrices } from './schema';
 import type { MarketPrice, PriceSource } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -37,7 +38,7 @@ export async function listStaleTypeIds(db: AnyPgDb): Promise<number[]> {
   const rows = await db
     .select({ typeId: marketPrices.typeId })
     .from(marketPrices)
-    .where(lt(marketPrices.staleAfter, sql`NOW()`));
+    .where(lt(marketPrices.staleAfter, new Date(Date.now() + BATCH_REFRESH_LEAD_MS)));
   return rows.map((r) => r.typeId);
 }
 

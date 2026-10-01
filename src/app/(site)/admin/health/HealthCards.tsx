@@ -1,56 +1,32 @@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { SectionHeader } from '@/components/ui/section-header';
-import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { listRecentDomainEvents } from '@/data/domain-events/queries';
+import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import {
   getCriticalLatencyP95,
   getEsiSuccessRate,
   getMutationSuccessRate,
   getReadSuccessRate,
+  MUTATION_EXCLUDED_OUTCOMES,
 } from '@/data/telemetry/queries';
+import {
+  countCapabilityOutcome,
+  listCapabilityFailures,
+  listDailyCapabilityFailures,
+  listEsiFailures,
+  listSlowestOperations,
+} from '@/data/telemetry/sli-breakdown';
 import type { DateRange } from '@/data/telemetry/types';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { summarizeDomainEvent } from '../ops-view';
 import { getEsiRefreshQueueStatsShared } from '../queue-stats-shared';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { summarizeQueue } from '../signals';
-import { LEVEL_DOT_TONE, LEVEL_VALUE_CLASS } from '../status-tone';
-import { deriveServiceLevels, type ServiceLevelRow } from './health-view';
-
-const SERVICE_LEVEL_COLUMNS = [
-  {
-    key: 'indicator',
-    label: 'Indicator',
-    rowHeader: true,
-    render: (row) => (
-      <span className="flex items-start gap-3">
-        <Dot tone={LEVEL_DOT_TONE[row.level]} size="lg" className="mt-1.5" />
-        <span className="min-w-0">
-          <span className="block text-text">{row.title}</span>
-        </span>
-      </span>
-    ),
-  },
-  {
-    key: 'value',
-    label: 'Value',
-    align: 'right',
-    render: (row) => <span className={LEVEL_VALUE_CLASS[row.level]}>{row.value}</span>,
-    className: 'whitespace-nowrap tabular-nums',
-  },
-  {
-    key: 'target',
-    label: 'Target',
-    align: 'right',
-    render: (row) => row.target,
-    className: 'hidden whitespace-nowrap text-muted md:table-cell',
-    headerClassName: 'hidden md:table-cell',
-  },
-] satisfies readonly StaticTableColumn<ServiceLevelRow>[];
+import { deriveServiceLevels } from './health-view';
+import { DEAD_LETTER_PREVIEW, ServiceLevelRows, type FailureDetail, type ServiceLevelDetails } from './ServiceLevelRows';
 
 export async function ServiceLevelsCard({ range }: { range: DateRange }) {
   const fetched = await loadSection('service-levels', () =>
@@ -60,10 +36,11 @@ export async function ServiceLevelsCard({ range }: { range: DateRange }) {
       loadSection('getCriticalLatencyP95', () => getCriticalLatencyP95(range)),
       loadSection('getEsiSuccessRate', () => getEsiSuccessRate(range)),
       getEsiRefreshQueueStatsShared(),
+      loadServiceLevelDetails(range),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Service levels" />;
-  const [readSuccess, mutationSuccess, latencyP95, esiSuccess, queueStats] = fetched;
+  const [readSuccess, mutationSuccess, latencyP95, esiSuccess, queueStats, details] = fetched;
   const rows = deriveServiceLevels(
     { readSuccess, mutationSuccess, latencyP95, esiSuccess },
     summarizeQueue(queueStats, range.to),
@@ -71,14 +48,33 @@ export async function ServiceLevelsCard({ range }: { range: DateRange }) {
   return (
     <Card>
       <SectionHeader size="md" label="Service levels" />
-      <StaticTable
-        ariaLabel="Service levels"
-        columns={SERVICE_LEVEL_COLUMNS}
-        rows={rows}
-        getRowKey={(row) => row.id}
-      />
+      <ServiceLevelRows rows={rows} details={{ ...details, queue: queueStats }} />
     </Card>
   );
+}
+
+async function loadFailureDetail(
+  range: DateRange,
+  kind: 'read' | 'mutation',
+  excluded: readonly string[],
+): Promise<FailureDetail> {
+  const [groups, daily, validationRejected] = await Promise.all([
+    listCapabilityFailures(range, kind, excluded),
+    listDailyCapabilityFailures(range, kind, excluded),
+    excluded.includes('validation') ? countCapabilityOutcome(range, kind, 'validation') : undefined,
+  ]);
+  return { groups, daily, validationRejected };
+}
+
+async function loadServiceLevelDetails(range: DateRange): Promise<Omit<ServiceLevelDetails, 'queue'>> {
+  const [read, mutation, slowest, esi, deadLetters] = await Promise.all([
+    loadSection('sli-details.read', () => loadFailureDetail(range, 'read', [])),
+    loadSection('sli-details.mutation', () => loadFailureDetail(range, 'mutation', MUTATION_EXCLUDED_OUTCOMES)),
+    loadSection('sli-details.slowest', () => listSlowestOperations(range)),
+    loadSection('sli-details.esi', () => listEsiFailures(range)),
+    loadSection('sli-details.dead-letters', () => listDeadLetteredJobs(DEAD_LETTER_PREVIEW)),
+  ]);
+  return { read, mutation, slowest, esi, deadLetters };
 }
 
 export async function EventLogCard() {

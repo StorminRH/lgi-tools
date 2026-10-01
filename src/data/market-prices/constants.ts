@@ -22,3 +22,9 @@ export const DEPTH_BANDS_PCT = [0.5, 1, 2, 5, 10] as const;
 export const BEST_DUST_VOLUME_DIVISOR = BigInt(1000);
 
 export const BUY_SPREAD_FLOOR_RATIO = 0.35;
+
+/**
+ * The daily batch refreshes prices that expire within this lead, so a run that
+ * starts slightly earlier than yesterday's still refreshes every price.
+ */
+export const BATCH_REFRESH_LEAD_MS = 3 * 60 * 60 * 1000;
