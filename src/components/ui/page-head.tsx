@@ -1,5 +1,5 @@
 import { cva } from 'class-variance-authority';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { cn } from './cn';
 
 export type PageTitleSize = 'hero' | 'page' | 'compact';
@@ -30,10 +30,17 @@ const pageSubtitle = cva('mt-2 text-muted', {
 });
 
 export function Breadcrumb({ crumb }: { crumb: string }) {
+  const parts = crumb.split('/').map((part) => part.trim()).filter(Boolean);
+  const current = parts.pop();
   return (
-    <div className="mb-2 font-data text-label tracking-label text-muted">
-      <span className="text-isk">lgi://</span>
-      {crumb}
+    <div className="mb-2 flex flex-wrap items-center gap-1.5 font-ui text-ui capitalize text-muted">
+      {parts.map((part, index) => (
+        <Fragment key={`${index}-${part}`}>
+          <span>{part}</span>
+          <span aria-hidden className="text-faint">/</span>
+        </Fragment>
+      ))}
+      {current ? <span className="rounded-full bg-border px-2.5 py-0.5 text-name">{current}</span> : null}
     </div>
   );
 }

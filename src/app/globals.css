@@ -10,10 +10,14 @@
 @source "../";
 
 @import "../components/ui/chart/chart-canvas.css";
+@import "../components/ui/banner.css";
+@import "../components/ui/checkbox.css";
 @import "../components/ui/collapsible.css";
+@import "../components/ui/copy-button.css";
 @import "../components/ui/input.css";
 @import "../components/ui/kbd.css";
 @import "../components/ui/live-price.css";
+@import "../components/ui/pill.css";
 @import "../components/ui/price-confidence.css";
 @import "../components/ui/progress-bar.css";
 @import "../components/ui/prose.css";

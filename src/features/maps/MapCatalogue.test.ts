@@ -185,7 +185,7 @@ describe('MapCatalogue', () => {
     expect(markup).not.toContain('data-map-catalogue-delete="map-corporation"');
     expect(markup).not.toContain('data-map-catalogue-edit="map-direct"');
     expect(markup).toContain('data-page-shell');
-    expect(markup).toContain('lgi://</span>atlas');
+    expect(markup).toContain('>atlas</span></div>');
     expect(markup).toContain('>Atlas</h1>');
     expect(markup).not.toContain('Map catalogue');
     expect(markup).toContain('data-map-catalogue-create');

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import { eyebrow } from './type-roles';
 
 export function SectionLabel({
   children,
@@ -18,13 +17,12 @@ export function SectionLabel({
       className={cn('flex items-baseline gap-2', meta != null && 'justify-between', className)}
     >
       <span
-        className={eyebrow({
-          weight: 'semibold',
-          emphasis: 'strong',
-          className: 'inline-flex items-baseline gap-2',
-        })}
+        className={cn(
+          'inline-flex items-center gap-2 font-ui text-ui font-semibold text-text',
+          prefix &&
+            "before:h-0.5 before:w-3.5 before:shrink-0 before:rounded-full before:bg-brand-gradient before:content-['']",
+        )}
       >
-        {prefix && <span className="text-isk tracking-normal">{'//'}</span>}
         {children}
       </span>
       {meta}

@@ -1,0 +1,97 @@
+@layer components {
+  /* Soft tint for Checkbox, Switch (switch.tsx), and RadioGroup (radio-group.tsx):
+   * checked controls take a translucent tone tint. */
+  .check-soft {
+    border-radius: 7px;
+    border: 1.5px solid var(--color-border-active);
+    background-color: color-mix(in oklab, white 3%, transparent);
+    transition:
+      background-color 240ms var(--ease-out-expo),
+      border-color 240ms,
+      scale 300ms var(--ease-spring);
+  }
+  .check-soft:active:not([data-disabled]) {
+    scale: 0.88;
+  }
+  .check-soft[data-checked] {
+    border-color: color-mix(in oklab, var(--check-tone) 45%, transparent);
+    background-color: color-mix(in oklab, var(--check-tone) 20%, transparent);
+  }
+  .check-soft-mark {
+    display: inline-flex;
+    color: var(--check-ink);
+  }
+  .check-soft-mark path {
+    stroke: currentColor;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    animation: check-soft-draw 360ms var(--ease-out-expo);
+  }
+  @keyframes check-soft-draw {
+    from { stroke-dashoffset: 20; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Soft tint: the checked track takes a translucent tone tint; the thumb springs across. */
+  .switch-soft {
+    border: 1px solid var(--color-border-active);
+    background-color: color-mix(in oklab, white 6%, transparent);
+    transition:
+      background-color 300ms var(--ease-out-expo),
+      border-color 300ms;
+  }
+  .switch-soft[data-checked] {
+    border-color: color-mix(in oklab, var(--switch-tone) 45%, transparent);
+    background-color: color-mix(in oklab, var(--switch-tone) 22%, transparent);
+  }
+  .switch-soft-thumb {
+    background-color: var(--color-muted);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    transition:
+      translate 420ms var(--ease-spring),
+      background-color 200ms;
+  }
+  .switch-soft-thumb[data-checked] {
+    translate: 16px 0;
+    background-color: var(--switch-ink);
+  }
+
+  /* Soft tint: the checked ring takes a translucent green tint; the dot springs in. */
+  .radio-soft {
+    border: 1.5px solid var(--color-border-active);
+    background-color: color-mix(in oklab, white 3%, transparent);
+    transition:
+      border-color 240ms,
+      background-color 240ms,
+      scale 300ms var(--ease-spring);
+  }
+  .radio-soft:active:not([data-disabled]) {
+    scale: 0.88;
+  }
+  .radio-soft[data-checked] {
+    border-color: color-mix(in oklab, var(--color-isk) 45%, transparent);
+    background-color: color-mix(in oklab, var(--color-isk) 16%, transparent);
+  }
+  .radio-soft-dot {
+    background-color: var(--color-isk-bright);
+    animation: radio-soft-in 360ms var(--ease-spring);
+  }
+  @keyframes radio-soft-in {
+    from { scale: 0; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-soft,
+  .switch-soft,
+  .switch-soft-thumb,
+  .radio-soft {
+    transition: none;
+  }
+  .check-soft-mark path,
+  .radio-soft-dot {
+    animation: none;
+  }
+}

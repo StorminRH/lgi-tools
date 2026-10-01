@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { SearchIcon } from './icons';
 import { Input, Textarea } from './input';
 
 function kids(el: { props: { children?: unknown } }): Array<{ type?: unknown; props?: Record<string, unknown> }> {
@@ -17,9 +18,9 @@ describe('Input', () => {
     expect(input?.props?.value).toBe('x');
   });
 
-  it('shows the prompt glyph only when asked', () => {
-    expect(kids(Input({ prompt: true })).some((c) => c?.props?.children === '>')).toBe(true);
-    expect(kids(Input({})).some((c) => c?.props?.children === '>')).toBe(false);
+  it('shows the search prompt icon only when asked', () => {
+    expect(kids(Input({ prompt: true })).some((c) => c?.type === SearchIcon)).toBe(true);
+    expect(kids(Input({})).some((c) => c?.type === SearchIcon)).toBe(false);
   });
 });
 

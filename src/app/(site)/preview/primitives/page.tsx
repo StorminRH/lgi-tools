@@ -27,7 +27,7 @@ export default function PrimitiveReferencePage() {
         title="UI primitives"
         subtitle="Inset Instrument · rendered system reference"
       />
-      <Suspense fallback={<Skeleton className="h-64 w-full" label="Loading primitive reference" />}>
+      <Suspense fallback={<Skeleton className="h-64 w-full rounded-card" label="Loading primitive reference" />}>
         <AdminPrimitiveReference />
       </Suspense>
     </PageShell>

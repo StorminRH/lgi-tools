@@ -54,12 +54,10 @@ export function ChipToggle({
           appearance === 'row'
             ? 'inline-flex items-center rounded-ctl px-2.5 py-1.5 font-ui text-ui text-muted'
             : chipVariants({ tone }),
-          'cursor-pointer transition-colors motion-reduce:transition-none',
-          appearance === 'filter' &&
+          'chip-toggle cursor-pointer',
+          appearance !== 'row' &&
             !state.pressed &&
-            'bg-surface-sunk text-muted border-border-idle hover:border-border-active hover:text-name',
-          appearance === 'filter' && state.pressed && chipVariants({ tone }),
-          appearance === 'tone' && state.pressed && 'bg-chip-pressed-bg text-isk border-isk-dim',
+            '[--pill-tone:var(--color-faint)] text-muted hover:text-name',
           appearance === 'row' && 'hover:bg-row-sites-hover hover:text-text',
           appearance === 'row' && state.pressed && 'bg-row-sites-on text-name',
           className,

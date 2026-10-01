@@ -12,7 +12,7 @@ it('keeps Atlas streaming through the same PageHead shell for page and loading',
     renderToStaticMarkup(createElement(AtlasLoading)),
   ]) {
     expect(markup).toContain('data-page-shell');
-    expect(markup).toContain('lgi://</span>atlas');
+    expect(markup).toContain('>atlas</span></div>');
     expect(markup).toContain('>Atlas</h1>');
     expect(markup).not.toContain('Mapping the unknown');
   }

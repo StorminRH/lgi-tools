@@ -1,49 +1,73 @@
+/* Soft bloom: pending breathes the value dim and bright; the confirm is a
+ * soft green halo that blooms behind the number and fades. */
 .price-live {
+  position: relative;
   display: inline-block;
+  isolation: isolate;
+}
+.price-live::before {
+  content: '';
+  position: absolute;
+  inset: -10px -18px;
+  z-index: -1;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--color-isk) 32%, transparent), transparent);
+  opacity: 0;
+  scale: 0.6;
+  pointer-events: none;
 }
 .price-pending {
-  animation: price-pending var(--transition-duration-price-pending) ease-in-out infinite;
+  animation: price-pending 1.3s ease-in-out infinite;
 }
 .price-flash {
-  animation: price-flash var(--transition-duration-price-confirm) ease-out;
+  animation: price-flash 1.4s var(--ease-out-expo);
+}
+.price-flash::before {
+  animation: price-halo 1.4s var(--ease-out-expo);
 }
 @keyframes price-pending {
   0%,
   100% {
-    filter: brightness(0.72);
-    opacity: 0.58;
-    text-shadow: 0 0 0 transparent;
-    transform: translateY(0);
+    opacity: 0.45;
   }
   50% {
-    filter: brightness(1.7);
     opacity: 1;
-    text-shadow: 0 0 10px var(--color-tool-ring);
-    transform: translateY(-1px);
   }
 }
 @keyframes price-flash {
   0% {
-    filter: brightness(2.2);
-    text-shadow: 0 0 12px var(--color-tool-ring), 0 0 4px var(--color-isk);
-    transform: scale(1.05);
+    text-shadow: 0 0 16px color-mix(in oklab, var(--color-isk) 90%, transparent);
+    filter: brightness(1.35);
   }
   100% {
-    filter: brightness(1);
     text-shadow: 0 0 0 transparent;
-    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+@keyframes price-halo {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  25% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.15;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .price-pending {
     animation: none;
-    filter: brightness(1.25);
     opacity: 0.72;
     text-decoration: underline;
     text-decoration-color: var(--color-isk);
     text-underline-offset: 0.18em;
   }
-  .price-flash {
+  .price-flash,
+  .price-flash::before {
     animation: none;
   }
 }

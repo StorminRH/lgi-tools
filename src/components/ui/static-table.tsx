@@ -1,6 +1,5 @@
 import type { Key, ReactNode } from 'react';
 import { cn } from './cn';
-import { eyebrow } from './type-roles';
 
 export interface StaticTableColumn<Row> {
   key: string;
@@ -17,7 +16,8 @@ function cellClass(
   className?: string,
 ): string {
   return cn(
-    'px-3.5 py-2 font-data text-ui',
+    'bg-row-sites-on px-3.5 py-2.5 font-ui text-ui tabular-nums transition-colors duration-fast ' +
+      'first:rounded-l-card last:rounded-r-card group-hover:bg-row-on',
     align === 'right' ? 'text-right' : 'text-left',
     className,
   );
@@ -28,10 +28,7 @@ function headerClass(
   className?: string,
 ): string {
   return cn(
-    eyebrow({
-      emphasis: 'strong',
-      className: 'px-3.5 py-2 font-data',
-    }),
+    'px-3.5 pt-2 pb-0.5 font-ui text-ui font-medium text-muted',
     align === 'right' ? 'text-right' : 'text-left',
     className,
   );
@@ -53,9 +50,9 @@ export function StaticTable<Row>({
   theadClassName?: string;
 }) {
   return (
-    <table aria-label={ariaLabel} className={cn('w-full border-collapse font-data text-ui', className)}>
+    <table aria-label={ariaLabel} className={cn('w-full border-separate border-spacing-y-1.5 font-ui text-ui', className)}>
       <thead className={theadClassName}>
-        <tr className="border-b border-border-soft">
+        <tr>
           {columns.map((column) => (
             <th
               key={column.key}
@@ -69,7 +66,7 @@ export function StaticTable<Row>({
       </thead>
       <tbody>
         {rows.map((row, index) => (
-          <tr key={getRowKey(row, index)} className="border-b border-border-soft last:border-b-0">
+          <tr key={getRowKey(row, index)} className="group">
             {columns.map((column) => {
               const Cell = column.rowHeader ? 'th' : 'td';
               return (

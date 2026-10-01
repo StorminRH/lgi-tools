@@ -51,9 +51,9 @@ export function RadioGroup({
           <Radio.Root
             value={option.value}
             disabled={option.disabled}
-            className="mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border-idle bg-bg-deep shadow-field-inset outline-none focus-visible:border-border-active focus-visible:ring-1 focus-visible:ring-isk-sub data-[checked]:border-isk"
+            className="radio-soft inline-flex size-5 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-isk-sub"
           >
-            <Radio.Indicator className="h-2 w-2 rounded-full bg-isk" />
+            <Radio.Indicator className="radio-soft-dot size-2.5 rounded-full" />
           </Radio.Root>
           <span className="flex flex-col gap-0.5">
             <span>{option.label}</span>
