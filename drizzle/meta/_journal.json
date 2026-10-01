@@ -505,6 +505,20 @@
       "when": 1790726872836,
       "tag": "0071_preserve_corp_sharing_table",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1790794389996,
+      "tag": "0072_deletion_requested",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1790808379416,
+      "tag": "0073_deletion_recovery",
+      "breakpoints": true
     }
   ]
 }

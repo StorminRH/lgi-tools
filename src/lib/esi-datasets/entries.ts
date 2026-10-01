@@ -148,8 +148,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'personal-on-view',
     freshnessModel: 'caller-ttl',
-    refreshOwner: { kind: 'entry-point', name: 'refreshAffiliations' },
-    cronBackstopRoute: '/api/cron/refresh-affiliations',
+    refreshOwner: { kind: 'entry-point', name: 'refreshAffiliationsWithOutcome' },
     upstream: {
       kind: 'esi',
       specPaths: ['/characters/affiliation/'],
@@ -162,7 +161,7 @@ export const ESI_DATASET_ENTRIES = [
     store: 'neon',
     shape: 'global-cron',
     freshnessModel: 'row-stale-after',
-    refreshOwner: { kind: 'cron', route: '/api/cron/refresh-prices' },
+    refreshOwner: { kind: 'cron', route: '/api/cron/daily-batch' },
     upstream: {
       kind: 'esi',
       specPaths: ['/markets/{region_id}/orders/'],
@@ -202,7 +201,7 @@ export const ESI_DATASET_ENTRIES = [
     freshnessModel: 'cron-cadence',
     refreshOwner: {
       kind: 'cron',
-      route: '/api/cron/refresh-industry-indices',
+      route: '/api/cron/daily-batch',
     },
     upstream: {
       kind: 'esi',
@@ -276,7 +275,7 @@ export const ESI_DATASET_ENTRIES = [
     freshnessModel: 'cron-cadence',
     refreshOwner: {
       kind: 'cron',
-      route: '/api/cron/refresh-wh-statics',
+      route: '/api/cron/daily-batch',
     },
     upstream: { kind: 'anoik-statics' },
     mirrorTables: ['wh_statics_snapshots', 'wh_system_statics'],

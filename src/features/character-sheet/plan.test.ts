@@ -376,6 +376,15 @@ describe('planStructures', () => {
     });
   });
 
+  it('drops a name whose read came back bodyless', () => {
+    const previous: SheetSectionData['structures'] = { names: { '1099000000001': { kind: 'named', name: 'Kept' } } };
+    const reads = new Map<number, SheetEsiRead>([[1099000000001, { kind: 'unchanged' }]]);
+    expect(planStructures([1099000000001], previous, reads, NOW)).toMatchObject({
+      kind: 'save',
+      envelope: { data: { names: {} } },
+    });
+  });
+
   it('skips a contract error', () => {
     const plan = planStructures([1099000000001], null, new Map([[1099000000001, fresh({ owner_id: 1 })]]), NOW);
     expect(plan).toEqual({ kind: 'skip', code: 'contract_error' });

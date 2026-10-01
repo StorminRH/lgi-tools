@@ -13,7 +13,7 @@ vi.mock('convex/server', async (importOriginal) => {
   };
 });
 
-import { mergeUserState, snapshotMergeTracking, restoreMergeTracking } from '../accountMerge';
+import { mergeUserState, snapshotMergeTracking, restoreMergeTracking, listExpiredTrackingReceipts, deleteExpiredTrackingReceipts } from '../accountMerge';
 import authConfig from '../auth.config';
 import { finishSync, JUMP_CONTINUITY_MS } from '../characterLocationApply';
 import { purgeForUser as purgeLocationForUser } from '../characterLocationPurge';
@@ -24,10 +24,9 @@ import crons from '../crons';
 import { currentUser, heartbeat, expirePresence } from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
-import { verify } from '../characterAuthorization';
 import { sweep } from '../engineSweep';
 import http from '../http';
-import { mergeUserState as httpMergeUserState, snapshotMergeTracking as httpSnapshotMergeTracking, restoreMergeTracking as httpRestoreMergeTracking } from '../httpAccountMerge';
+import { mergeUserState as httpMergeUserState, snapshotMergeTracking as httpSnapshotMergeTracking, restoreMergeTracking as httpRestoreMergeTracking, listExpiredTrackingReceipts as httpListExpiredTrackingReceipts, deleteExpiredTrackingReceipts as httpDeleteExpiredTrackingReceipts } from '../httpAccountMerge';
 import { purgeOnline } from '../httpEngine';
 import { jumpEvidence as httpJumpEvidence, resolveJump, signatureElimination } from '../httpJump';
 import { leaveSync, purgeLocationTracking } from '../httpLocation';
@@ -72,7 +71,7 @@ import {
   tombstoneConnection,
   tombstoneSystem,
 } from '../mapAuthoringTombstone';
-import { purgeExpiredChainTombstones } from '../mapChainCleanup';
+import { backfillChainRetention, purgeExpiredChainTombstones } from '../mapChainCleanup';
 import { watchMapAccess } from '../mapChainAccess';
 import {
   watchMapConnections,
@@ -163,9 +162,13 @@ describe('convex runtime exports', () => {
       httpMergeUserState,
       httpSnapshotMergeTracking,
       httpRestoreMergeTracking,
+      httpListExpiredTrackingReceipts,
+      httpDeleteExpiredTrackingReceipts,
       mergeUserState,
       snapshotMergeTracking,
       restoreMergeTracking,
+      listExpiredTrackingReceipts,
+      deleteExpiredTrackingReceipts,
       authorizedAction,
       authorizedJsonAction,
       JUMP_CONTINUITY_MS,
@@ -179,7 +182,6 @@ describe('convex runtime exports', () => {
       currentUser,
       leave,
       onSyncComplete,
-      verify,
       sweep,
       requireSyncEnv,
       MAP_CONNECTION_SIGNATURE_SCAN_LIMIT,
@@ -197,6 +199,7 @@ describe('convex runtime exports', () => {
       addSystemFromNode,
       collapseExpiredConnections,
       purgeExpiredChainTombstones,
+      backfillChainRetention,
       restoreConnection,
       restoreSeveredBranch,
       restoreSystem,

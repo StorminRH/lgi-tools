@@ -91,10 +91,18 @@ const ROW_ALIGN_QUERY = '(min-width: 1024px)';
  * clearance at the bottom. Below lg the card stacks above the dock and keeps
  * its CSS spot.
  */
-function alignCardToRow(
-  layer: HTMLElement,
-  panel: HTMLElement,
-  row: Element | null,
+export type AlignedLayer = MeasuredBox & { readonly clientHeight: number };
+
+export type AlignedPanel = {
+  readonly offsetHeight: number;
+  readonly dataset: DOMStringMap;
+  readonly style: Pick<CSSStyleDeclaration, 'getPropertyValue' | 'setProperty'>;
+};
+
+export function alignCardToRow(
+  layer: AlignedLayer,
+  panel: AlignedPanel,
+  row: MeasuredRow | null,
 ): void {
   const wide =
     typeof window !== 'undefined' && window.matchMedia?.(ROW_ALIGN_QUERY).matches;
@@ -133,8 +141,9 @@ function useEditorLeader(
     const layer = layerRef.current;
     const panel = panelRef.current;
     const row = rowElement(signatureId);
-    if (layer !== null && panel !== null) alignCardToRow(layer, panel, row);
-    setLeader(measureEditorLeader(layer, panel, row as MeasuredRow | null));
+    const measuredRow = row as MeasuredRow | null;
+    if (layer !== null && panel !== null) alignCardToRow(layer, panel, measuredRow);
+    setLeader(measureEditorLeader(layer, panel, measuredRow));
   }, [layerRef, panelRef, signatureId]);
 
   useLayoutEffect(() => {

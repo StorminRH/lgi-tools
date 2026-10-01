@@ -317,6 +317,14 @@ async function seedDatasets() {
   `;
 }
 
+type Board = Awaited<ReturnType<typeof getBoardForUserOnView>>;
+
+function pilotAt(board: Board, index: number): Board['characters'][number] {
+  const pilot = board.characters[index];
+  if (pilot === undefined) throw new Error(`expected a pilot at index ${index}`);
+  return pilot;
+}
+
 describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board from Neon', () => {
   beforeAll(async () => {
     mocks.resolveEntityNames.mockImplementation(async (ids: number[]) =>
@@ -338,7 +346,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
   });
 
   it('names every section of a fully synced character from the SDE, the sheet and the names resolver', async () => {
-    const [aurel] = (await getBoardForUserOnView(USER_ID)).characters;
+    const aurel = pilotAt(await getBoardForUserOnView(USER_ID), 0);
     const jita = { id: JITA, name: 'Jita', security: 0.945913, secClass: 'high' };
     const amarr = { id: AMARR, name: 'Amarr', security: 0.949, secClass: 'high' };
 
@@ -349,10 +357,10 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       alliance: { id: ALLIANCE, name: 'Halcyon Drift' },
       gaps: [],
     });
-    expect(aurel?.profile).toEqual({
+    expect(aurel.profile).toEqual({
       state: 'ready', refreshedAt: STAMP_MS, data: { birthday: '2014-03-11T09:42:00Z', securityStatus: 2.31 },
     });
-    expect(aurel?.status).toEqual({
+    expect(aurel.status).toEqual({
       state: 'ready',
       refreshedAt: STAMP_MS,
       data: {
@@ -363,7 +371,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         ship: { typeId: TENGU, typeName: 'Tengu', name: 'Quiet Ledger' },
       },
     });
-    expect(aurel?.attributes).toMatchObject({
+    expect(aurel.attributes).toMatchObject({
       data: {
         values: [
           { key: 'intelligence', base: 27, implant: 0 },
@@ -375,12 +383,12 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         nextRemapDate: '2027-03-11T00:00:00Z',
       },
     });
-    expect(aurel?.implants).toEqual({
+    expect(aurel.implants).toEqual({
       state: 'ready',
       refreshedAt: STAMP_MS,
       data: { implants: [{ typeId: OCULAR_IMPROVED, name: 'Ocular Filter - Improved', slot: 1 }] },
     });
-    expect(aurel?.clones).toEqual({
+    expect(aurel.clones).toEqual({
       state: 'ready',
       refreshedAt: STAMP_MS,
       data: {
@@ -396,11 +404,11 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         ],
       },
     });
-    expect(aurel?.wallet).toEqual({ state: 'ready', refreshedAt: STAMP_MS, data: { balance: WALLET } });
-    expect(aurel?.journal).toMatchObject({
+    expect(aurel.wallet).toEqual({ state: 'ready', refreshedAt: STAMP_MS, data: { balance: WALLET } });
+    expect(aurel.journal).toMatchObject({
       data: { recent: [{ id: 9, refLabel: 'Bounties', amount: 100, description: 'b' }] },
     });
-    expect(aurel?.skills).toEqual({
+    expect(aurel.skills).toEqual({
       state: 'ready',
       refreshedAt: STAMP_MS,
       data: {
@@ -412,7 +420,7 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
         atV: 2,
       },
     });
-    expect(aurel?.industry).toEqual({
+    expect(aurel.industry).toEqual({
       state: 'ready',
       refreshedAt: STAMP_MS,
       data: { active: 1, ready: 1, slots: { used: 2, max: 7 } },
@@ -432,24 +440,27 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
       },
     ]);
 
-    const [, bram, ilyana] = board.characters;
-    expect(bram?.gaps).toEqual([...BOARD_GAPS]);
-    expect(bram?.corporation).toBeNull();
-    expect(bram?.skills).toEqual({ state: 'reconnect' });
-    expect(bram?.wallet).toEqual({ state: 'reconnect' });
+    const bram = pilotAt(board, 1);
+    const ilyana = pilotAt(board, 2);
+    expect(bram.gaps).toEqual([...BOARD_GAPS]);
+    expect(bram.corporation).toBeNull();
+    expect(bram.skills).toEqual({ state: 'reconnect' });
+    expect(bram.wallet).toEqual({ state: 'reconnect' });
 
-    expect(ilyana?.gaps).toEqual(expect.arrayContaining(['skills', 'location', 'industry']));
-    expect(ilyana?.corporation).toEqual({ id: 1000086, name: null });
-    expect(ilyana?.profile).toEqual({ state: 'pending' });
-    expect(ilyana?.skills).toEqual({ state: 'reconnect' });
-    expect(ilyana?.status).toEqual({ state: 'reconnect' });
+    expect(ilyana.gaps).toEqual(expect.arrayContaining(['skills', 'location', 'industry']));
+    expect(ilyana.corporation).toEqual({ id: 1000086, name: null });
+    expect(ilyana.profile).toEqual({ state: 'pending' });
+    expect(ilyana.skills).toEqual({ state: 'reconnect' });
+    expect(ilyana.status).toEqual({ state: 'reconnect' });
   });
 
   it('values the synced pilot from stored prices only, flooring junk bids and excluding blueprints, SKINs and skillbooks', async () => {
     const board = await getBoardForUserOnView(USER_ID);
-    const [aurel, bram, ilyana] = board.characters;
+    const aurel = pilotAt(board, 0);
+    const bram = pilotAt(board, 1);
+    const ilyana = pilotAt(board, 2);
 
-    expect(aurel?.netWorth).toEqual({
+    expect(aurel.netWorth).toEqual({
       state: 'ready',
       refreshedAt: STAMP_MS,
       data: {
@@ -463,8 +474,8 @@ describe.skipIf(!harness.reachable)('getBoardForUserOnView assembles the board f
     });
     expect(ASSET_VALUE).toBe(424_545_641.51);
     expect(NET_WORTH).toBe(4_256_663_273.66);
-    expect(bram?.netWorth).toEqual({ state: 'reconnect' });
-    expect(ilyana?.netWorth).toEqual({ state: 'reconnect' });
+    expect(bram.netWorth).toEqual({ state: 'reconnect' });
+    expect(ilyana.netWorth).toEqual({ state: 'reconnect' });
     expect(board.history).toEqual([
       { day: '2026-09-20', netWorth: 90, liquidIsk: 40, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 90, liquidIsk: 40 } } },
       { day: '2026-09-25', netWorth: 100, liquidIsk: 50, included: 1, total: 3, pilots: { [AUREL]: { netWorth: 100, liquidIsk: 50 } } },

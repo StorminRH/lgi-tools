@@ -34,6 +34,12 @@ const VERCEL_CRON_REDELIVERY =
 const MANUAL_CRON_REDELIVERY =
   'Manual CRON_SECRET GET only — these routes are not in vercel.json after the Hobby downgrade dropped sub-daily schedules.';
 
+const DAILY_BATCH_STEP_REDELIVERY =
+  'A step of the daily-batch Vercel cron, plus a manual CRON_SECRET GET of its own route; Vercel does not automatically retry a failed run.';
+
+const DAILY_BATCH_ONLY_REDELIVERY =
+  'A step of the daily-batch Vercel cron with no route of its own; Vercel does not automatically retry a failed run.';
+
 const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   {
     id: 'cron/drain-esi-refresh-jobs',
@@ -45,41 +51,47 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
       'defineCronRoute serializes the run under the ADVISORY_LOCK_ESI_REFRESH_QUEUE session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
   },
   {
-    id: 'cron/refresh-affiliations',
+    id: 'cron/daily-batch',
     workKind: 'vercel-cron',
-    cronPath: '/api/cron/refresh-affiliations',
-    module: 'src/app/api/cron/refresh-affiliations/declaration.ts',
+    cronPath: '/api/cron/daily-batch',
+    module: 'src/app/api/cron/daily-batch/route.ts',
     redeliverySource: VERCEL_CRON_REDELIVERY,
+    verdict: 'coordinated-elsewhere',
+    evidence:
+      'Runs the purge-maps, prices, industry-indices, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+  },
+  {
+    id: 'cron/housekeeping',
+    workKind: 'vercel-cron',
+    module: 'src/app/api/cron/housekeeping/declaration.ts',
+    redeliverySource: DAILY_BATCH_ONLY_REDELIVERY,
     verdict: 'inherently-idempotent',
     evidence:
-      'Bulk affiliation writes and pending generations are atomic; Convex revisions reject stale deliveries, and version-matched acknowledgement preserves newer work. The daily run retries pending revocations even when affiliations are fresh.',
+      'Declares lock mode none: retention deletes remove only rows past their cutoff; deletion jobs lock the original request and survive unlink through reconciliation; tracking delivery locks its own row and is deduplicated by its Convex receipt. Receipt cleanup protects pending Neon operations, deletes exact expired completed candidates, and advances its fixed-cutoff checkpoint by compare-and-set after each successful page.',
   },
   {
     id: 'cron/purge-maps',
-    workKind: 'vercel-cron',
-    cronPath: '/api/cron/purge-maps',
+    workKind: 'http-route',
     module: 'src/app/api/cron/purge-maps/declaration.ts',
-    redeliverySource: VERCEL_CRON_REDELIVERY,
+    redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     evidence:
       'defineCronRoute serializes the daily sweep under ADVISORY_LOCK_MAP_PURGE. Neon claims each due row before the first Convex delete, which blocks publish and restore; each Convex batch deletes only remaining indexed rows, and Neon tombstones only after a clean terminal response.',
   },
   {
     id: 'cron/refresh-prices',
-    workKind: 'vercel-cron',
-    cronPath: '/api/cron/refresh-prices',
+    workKind: 'http-route',
     module: 'src/app/api/cron/refresh-prices/declaration.ts',
-    redeliverySource: VERCEL_CRON_REDELIVERY,
+    redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'inherently-idempotent',
     evidence:
       'Declares lock mode none with the written justification that it is the sole bulk writer and races safely with last-write-wins on-demand refreshes; a second run rewrites the same rows with the same source data.',
   },
   {
     id: 'cron/refresh-industry-indices',
-    workKind: 'vercel-cron',
-    cronPath: '/api/cron/refresh-industry-indices',
+    workKind: 'http-route',
     module: 'src/app/api/cron/refresh-industry-indices/declaration.ts',
-    redeliverySource: VERCEL_CRON_REDELIVERY,
+    redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     evidence:
       'Guarded by the ADVISORY_LOCK_INDUSTRY_INDICES session advisory lock; the index upserts are replace-shaped besides.',
@@ -96,10 +108,9 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   },
   {
     id: 'cron/refresh-wh-statics',
-    workKind: 'vercel-cron',
-    cronPath: '/api/cron/refresh-wh-statics',
+    workKind: 'http-route',
     module: 'src/app/api/cron/refresh-wh-statics/declaration.ts',
-    redeliverySource: VERCEL_CRON_REDELIVERY,
+    redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     vendor: 'anoik-statics',
     evidence:
@@ -136,7 +147,7 @@ const convexMapSignaturePurge = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 15-minute Convex interval may run again after an earlier bounded batch partially drained expired signature tombstones.',
+    'The daily Convex interval, plus the immediate continuation a full batch schedules, may run again after an earlier bounded batch partially drained expired signature tombstones.',
   evidence:
     'The internal mutation ranges only purgeAfter values that are currently expired, deletes each matching document atomically, and reports exact continuation truth; a repeat sees only the remaining indexed range.',
 });
@@ -145,18 +156,18 @@ const convexMapChainPurge = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 15-minute Convex interval may run again after an earlier batch partially drained the expiry ranges.',
+    'The daily Convex interval, plus the immediate continuation a full batch schedules, may run again after an earlier batch partially drained the expiry ranges.',
   evidence:
-    'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
+    'The internal mutation atomically deletes only currently expired rows (a purged system with its signature and activity rows), and settles each expired removed connection between live systems once: deleted when still linked, its cut-off branch stamped removed, or pushed a day ahead while a tracked pilot holds it. Every outcome moves the row out of the expired range, so a repeat observes only what is left and cannot repeat a completed write.',
 });
 const convexMapCeilingCollapse = convexEntry({
   id: 'convex/crons:map ceiling collapse',
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 15-minute Convex interval may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
+    'The hourly Convex interval, plus the immediate continuation a full batch that made progress schedules, may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
   evidence:
-    'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
+    'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, and a row whose collapse fails is severed keeping its systems, so it too leaves the range; every collapse routes through the shared-stamp core, and a repeat observes only rows every previous batch left live.',
 });
 const convexSyncEngineRetention = convexEntry({
   id: 'convex/crons:sync engine retention',
@@ -203,14 +214,6 @@ const convexLocationSyncUser = convexEntry({
 });
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
-  {
-    id: 'convex/crons:character authorization',
-    workKind: 'convex-cron',
-    module: 'convex/crons.ts',
-    redeliverySource: 'The five-minute scheduler may overlap with a returning user or retry a failed request.',
-    verdict: 'key-protected',
-    evidence: 'The authenticated service endpoint claims due accounts with a persisted lease; token writes compare stored ciphertext and map-access delivery uses the existing durable outbox.',
-  },
   convexMapSignaturePurge,
   convexMapChainPurge,
   convexMapCeilingCollapse,
@@ -608,11 +611,6 @@ const syncLeaveRoute = mutationRoute({
 });
 
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
-  mutationRoute({
-    route: 'src/app/api/internal/verify-character-authorization/route.ts',
-    verdict: 'key-protected',
-    evidence: 'Per-account leases deduplicate verification. Access changes are enqueued before version-matched acknowledgement, so retry after a crash safely replays projection.',
-  }),
   mapsSearchCharactersRoute,
   eveNamesRoute,
   eveTypeNamesRoute,

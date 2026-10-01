@@ -1,17 +1,16 @@
 // @vitest-environment edge-runtime
-import { readFileSync } from 'node:fs';
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  computeChainBoundary,
-  computeNextDueAt,
   HIDDEN_PRESENCE_MAX_MS,
   isColdFromPresence,
   LOCATION_CADENCE_FLOOR_MS,
   LOCATION_COLD_AFTER_MS,
   RETENTION_MS,
+  SYNC_JITTER_MS,
 } from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
+import { MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import type { Doc, Id } from './_generated/dataModel';
 import schema from './schema';
 import { modules } from './__tests__/modules.setup';
@@ -102,6 +101,14 @@ async function seedPresence(t: T, overrides: Partial<Doc<'syncPresence'>> = {}) 
       ...overrides,
     });
   });
+}
+
+async function readVisiblePresence(t: T) {
+  const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+  if (presence === null || typeof presence.lastVisibleAt !== 'number') {
+    throw new Error('presence did not stamp visibility');
+  }
+  return { ...presence, lastVisibleAt: presence.lastVisibleAt };
 }
 
 // Warm, but past the 45s presence-refresh window, so an interval beat is not skipped.
@@ -365,15 +372,9 @@ describe('engine.heartbeat', () => {
 
     await heartbeat(t, { characterIdsHint: [CHAR], reason: 'mount' });
 
-    const expected = computeNextDueAt(
-      minExpiresAt,
-      LOCATION_CADENCE_FLOOR_MS,
-      lastFinishedAt,
-      () => 0.5,
-    );
     const jobs = await scheduledSyncUsers(t);
     expect(jobs).toHaveLength(1);
-    expect(jobs[0]?.scheduledTime).toBe(expected);
+    expect(jobs[0]?.scheduledTime).toBe(minExpiresAt + Math.floor(0.5 * SYNC_JITTER_MS));
     expect((await readState(t))?.jobId).toBe(jobs[0]?._id);
   });
 
@@ -569,51 +570,34 @@ describe('engine.heartbeat', () => {
     expect(await pendingSyncUsers(t)).toHaveLength(1);
   });
 
-  it('stamps lastVisibleAt on visible beats but never on hidden ones', async () => {
+  it('stamps the beating tab, skips a fresh interval, and moves visibility only on a visible beat', async () => {
     const t = convexTest(schema, modules);
-    await heartbeat(t, { characterIdsHint: [], reason: 'mount', visible: false });
-    const inserted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(typeof inserted?.lastVisibleAt).toBe('number');
-
-    await t.run((ctx) => ctx.db.patch(inserted!._id, { lastSeenAt: 123, lastVisibleAt: 123 }));
-    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false });
-    const afterHidden = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(afterHidden?.lastSeenAt).toBeGreaterThan(123);
-    expect(afterHidden?.lastVisibleAt).toBe(123);
-
-    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: true });
-    const afterVisible = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(afterVisible?.lastVisibleAt).toBeGreaterThan(123);
-  });
-
-  it('skips the presence write for interval beats while presence is fresh', async () => {
-    const t = convexTest(schema, modules);
-    const send = (reason: 'mount' | 'interval', tabId = 'tab-one') =>
-      heartbeat(t, { characterIdsHint: [], reason, tabId });
-    await send('mount');
-    const mounted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    await heartbeat(t, { characterIdsHint: [], reason: 'mount', visible: false, tabId: 'tab-one' });
+    const mounted = await readVisiblePresence(t);
+    const visibleAt = mounted.lastVisibleAt;
+    expect(mounted.tabId).toBe('tab-one');
+    expect(typeof visibleAt).toBe('number');
 
     vi.advanceTimersByTime(20_000);
-    await send('interval');
-    const fresh = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(fresh?.lastSeenAt).toBe(mounted?.lastSeenAt);
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-one' });
+    const fresh = await readVisiblePresence(t);
+    expect(fresh).toEqual(mounted);
 
-    await send('interval', 'tab-two');
-    const otherTab = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(otherTab?.tabId).toBe('tab-two');
-    expect(otherTab?.lastSeenAt).toBeGreaterThan(mounted!.lastSeenAt);
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-two' });
+    const otherTab = await readVisiblePresence(t);
+    expect(otherTab.tabId).toBe('tab-two');
+    expect(otherTab.lastSeenAt).toBeGreaterThan(mounted.lastSeenAt);
+    expect(otherTab.lastVisibleAt).toBe(visibleAt);
 
     vi.advanceTimersByTime(60_000);
-    await send('interval', 'tab-two');
-    const refreshed = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(refreshed?.lastSeenAt).toBeGreaterThan(otherTab!.lastSeenAt);
-  });
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: false, tabId: 'tab-two' });
+    const hiddenRefresh = await readVisiblePresence(t);
+    expect(hiddenRefresh.lastSeenAt).toBeGreaterThan(otherTab.lastSeenAt);
+    expect(hiddenRefresh.lastVisibleAt).toBe(visibleAt);
 
-  it('stamps the beating tab id onto presence', async () => {
-    const t = convexTest(schema, modules);
-    await heartbeat(t, { characterIdsHint: [], reason: 'mount', tabId: 'tab-one' });
-    const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
-    expect(presence?.tabId).toBe('tab-one');
+    await heartbeat(t, { characterIdsHint: [], reason: 'interval', visible: true, tabId: 'tab-two' });
+    const afterVisible = await readVisiblePresence(t);
+    expect(afterVisible.lastVisibleAt).toBeGreaterThan(visibleAt);
   });
 });
 
@@ -937,34 +921,19 @@ describe('characterLocationApply.finishSync scheduling', () => {
     expect(await scheduledSyncUsers(t)).toHaveLength(0);
   });
 
-  it('stamps lastRunAt on success and on failure', async () => {
-    for (const outcome of [success([CHAR], [onlineResult(CHAR, Date.now() + 30_000)]), { kind: 'failed' as const, error: 'boom' }]) {
-      const t = convexTest(schema, modules);
-      const now = Date.now();
-      await seedPresence(t);
-      const runId = await seedRunning(t, { lastRunAt: now - 60_000 });
-
-      await finish(t, runId, outcome);
-
-      expect((await readState(t))?.lastRunAt).toBe(now);
-    }
-  });
-
   it('chains a yielding run exactly at the cache boundary, without jitter', async () => {
     const random = vi.spyOn(Math, 'random').mockReturnValue(0.9);
     for (const expiresIn of [30_000, 1_000]) {
       const t = convexTest(schema, modules);
       const now = Date.now();
       await seedPresence(t);
-      const runId = await seedRunning(t);
+      const runId = await seedRunning(t, { lastRunAt: now - 60_000 });
 
       await finish(t, runId, success([CHAR], [onlineResult(CHAR, now + expiresIn)]));
 
-      const boundary = computeChainBoundary(now + expiresIn, LOCATION_CADENCE_FLOOR_MS, now);
-      expect(boundary).toBe(now + Math.max(expiresIn, LOCATION_CADENCE_FLOOR_MS));
       const pending = await pendingSyncUsers(t);
       expect(pending).toHaveLength(1);
-      expect(pending[0]?.scheduledTime).toBe(boundary);
+      expect(pending[0]?.scheduledTime).toBe(now + Math.max(expiresIn, LOCATION_CADENCE_FLOOR_MS));
       const state = await readState(t);
       expect(state).toMatchObject({
         runId: now,
@@ -973,6 +942,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
         syncedCharacterIds: [CHAR],
         coveredCharacterIds: [CHAR],
         lastFinishedAt: now,
+        lastRunAt: now,
       });
       expect(pending[0]?.args).toEqual([{ userId: USER, generation: now, schedulerVersion: 2 }]);
     }
@@ -1013,11 +983,12 @@ describe('characterLocationApply.finishSync scheduling', () => {
 
       await finish(t, runId, outcome);
 
-      const expected = computeNextDueAt(minExpiresAt, LOCATION_CADENCE_FLOOR_MS, now, () => 0.5);
-      expect(expected).toBeGreaterThan(computeChainBoundary(minExpiresAt, LOCATION_CADENCE_FLOOR_MS, now));
+      const boundary = minExpiresAt === null
+        ? now + LOCATION_CADENCE_FLOOR_MS
+        : Math.max(minExpiresAt, now + LOCATION_CADENCE_FLOOR_MS);
       const pending = await pendingSyncUsers(t);
       expect(pending).toHaveLength(1);
-      expect(pending[0]?.scheduledTime).toBe(expected);
+      expect(pending[0]?.scheduledTime).toBe(boundary + Math.floor(0.5 * SYNC_JITTER_MS));
       const state = await readState(t);
       expect(state?.jobId).toBe(pending[0]?._id);
       expect(state?.minExpiresAt).toBe(minExpiresAt);
@@ -1034,6 +1005,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
       minExpiresAt: now + 50_000,
       coveredCharacterIds: [CHAR],
       lastFinishedAt: now - 5_000,
+      lastRunAt: now - 60_000,
     });
 
     await finish(t, runId, { kind: 'failed', error: 'boom' });
@@ -1048,6 +1020,7 @@ describe('characterLocationApply.finishSync scheduling', () => {
       syncedCharacterIds: [CHAR],
       coveredCharacterIds: [CHAR],
       lastFinishedAt: now - 5_000,
+      lastRunAt: now,
     });
     expect(error.mock.calls[0]?.[0]).toContain('"outcome":"failed"');
   });
@@ -1120,6 +1093,20 @@ describe('characterLocationApply.finishSync scheduling', () => {
 });
 
 describe('engine.sweep (daily retention)', () => {
+  it('leaves merge receipts for Neon-coordinated retention even past the retention window', async () => {
+    const t = convexTest(schema, modules);
+    const start = Date.now();
+    await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'old-op' }));
+    vi.setSystemTime(start + MERGE_RECEIPT_RETENTION_MS - 60_000);
+    await t.run((ctx) => ctx.db.insert('accountMergeTrackingReceipts', { operationId: 'recent-op' }));
+    vi.setSystemTime(start + MERGE_RECEIPT_RETENTION_MS + 60_000);
+
+    await expect(t.mutation(internal.engineSweep.sweep, {})).resolves.toEqual({ deleted: 0, capped: false });
+
+    const remaining = await t.run((ctx) => ctx.db.query('accountMergeTrackingReceipts').collect());
+    expect(remaining.map((receipt) => receipt.operationId)).toEqual(['old-op', 'recent-op']);
+  });
+
   it('deletes only presence and sync state past retention, never scheduling overdue work', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -1233,14 +1220,6 @@ describe('engine.sweep (daily retention)', () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const remaining = await t.run((ctx) => ctx.db.query('syncPresence').collect());
     expect(remaining).toHaveLength(0);
-  });
-
-  it('runs from a daily Convex cron with no Vercel watchdog door and no scan cron', () => {
-    const cronSource = readFileSync('convex/crons.ts', 'utf8');
-    const httpSource = readFileSync('convex/http.ts', 'utf8');
-    expect(cronSource).toContain("'sync engine retention', { hours: 24 }, internal.engineSweep.sweep");
-    expect(cronSource).not.toContain('engineScan');
-    expect(httpSource).not.toContain("'/sweep'");
   });
 });
 

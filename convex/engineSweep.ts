@@ -16,12 +16,11 @@ import { drainCharacterOnline } from './onlineStatus';
 
 const SWEEP_DELETE_BATCH = 128;
 const RETIRED_GC_BATCH = 128;
-
 /**
  * Daily retention GC. Deletes presence (and its location sync state)
- * untouched for the retention window, and drains rows the location scheduler
- * no longer reads: every syncSubjects row, retired-dataset presence, and the
- * characterOnline table. A full batch schedules an immediate continuation so
+ * untouched for the retention window, drains rows the location scheduler no
+ * longer reads (every syncSubjects row, retired-dataset presence, and the
+ * characterOnline table). A full batch schedules an immediate continuation so
  * a backlog drains in one pass.
  */
 export const sweep = internalMutation({

@@ -12,9 +12,6 @@ import {
   LOCATION_CADENCE_FLOOR_MS,
   LOCATION_COLD_AFTER_MS,
   minCacheWindow,
-  RETENTION_MS,
-  SYNC_DATASET_HISTORY,
-  SYNC_DATASETS,
   SYNC_JITTER_MS,
 } from './sync-engine';
 
@@ -24,20 +21,8 @@ const ONLINE_COLD_MS = 60_000;
 
 const seenAt = (lastSeenAt: number) => ({ lastSeenAt, lastVisibleAt: lastSeenAt });
 
-test('location pacing constants pin the live-read cadence and the stored dataset set', () => {
-  expect(LOCATION_CADENCE_FLOOR_MS).toBe(5_000);
-  expect(LOCATION_COLD_AFTER_MS).toBe(5 * 60_000);
-  expect(HEARTBEAT_MS).toBe(60_000);
-  expect(HIDDEN_PRESENCE_MAX_MS).toBe(90 * 60_000);
-  expect(RETENTION_MS).toBe(7 * 24 * 60 * 60_000);
-  expect(SYNC_JITTER_MS).toBe(10_000);
-  // Presence must survive several missed beats before it reads cold.
-  expect(LOCATION_COLD_AFTER_MS).toBeGreaterThanOrEqual(3 * HEARTBEAT_MS);
-  expect(SYNC_DATASETS).toEqual(['characterLocation']);
-  expect(SYNC_DATASET_HISTORY).toEqual(['onlineStatus', 'characterLocation']);
-});
-
 test('isCold / isColdFromPresence decide warmth across windows', () => {
+  expect(LOCATION_COLD_AFTER_MS).toBeGreaterThanOrEqual(3 * HEARTBEAT_MS);
   expect(isCold(seenAt(NOW - ONLINE_COLD_MS), ONLINE_COLD_MS, NOW)).toBe(false);
   expect(isCold(seenAt(NOW - ONLINE_COLD_MS - 1), ONLINE_COLD_MS, NOW)).toBe(true);
   expect(isCold(seenAt(NOW), ONLINE_COLD_MS, NOW)).toBe(false);

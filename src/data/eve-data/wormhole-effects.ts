@@ -175,6 +175,25 @@ function roundPercent(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+function percentConverter(attribute: EffectAttributeRow): ((value: number) => number) | undefined {
+  return PERCENT_BY_ATTRIBUTE.get(attribute.name)
+    ?? (attribute.unitId === null ? undefined : PERCENT_BY_UNIT.get(attribute.unitId));
+}
+
+/** One attribute's signed percent change, or null when it has no percent form or rounds to 0. */
+function attributeModifier(attribute: EffectAttributeRow, value: number): WormholeEffectModifier | null {
+  const toPercent = percentConverter(attribute);
+  if (toPercent === undefined) return null;
+  const raw = roundPercent(toPercent(value));
+  if (raw === 0) return null;
+  const resonance = RESONANCE.test(attribute.name) || RESONANCE.test(attribute.displayName ?? '');
+  return {
+    attributeId: attribute.id,
+    label: effectModifierLabel(attribute.displayName, attribute.name),
+    percent: resonance ? -raw : raw,
+  };
+}
+
 function beaconModifiers(
   attributes: unknown,
   attributeById: ReadonlyMap<number, EffectAttributeRow>,
@@ -184,17 +203,8 @@ function beaconModifiers(
   for (const [key, value] of Object.entries(attributes as Record<string, unknown>)) {
     const attribute = attributeById.get(Number(key));
     if (attribute === undefined || typeof value !== 'number' || !Number.isFinite(value)) continue;
-    const toPercent = PERCENT_BY_ATTRIBUTE.get(attribute.name)
-      ?? (attribute.unitId === null ? undefined : PERCENT_BY_UNIT.get(attribute.unitId));
-    if (toPercent === undefined) continue;
-    const raw = roundPercent(toPercent(value));
-    if (raw === 0) continue;
-    const resonance = RESONANCE.test(attribute.name) || RESONANCE.test(attribute.displayName ?? '');
-    modifiers.push({
-      attributeId: attribute.id,
-      label: effectModifierLabel(attribute.displayName, attribute.name),
-      percent: resonance ? -raw : raw,
-    });
+    const modifier = attributeModifier(attribute, value);
+    if (modifier !== null) modifiers.push(modifier);
   }
   return foldResistances(modifiers).sort((left, right) => left.label.localeCompare(right.label));
 }

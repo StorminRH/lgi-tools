@@ -177,7 +177,7 @@ async function recordRetryableFailure(
 }
 
 /**
- * Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Reads the stored
+ * Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Uses the captured
  * refresh-token ciphertext, decrypts it, and revokes it at EVE's SSO endpoint so
  * the renewal path is closed upstream — not just dropped from local custody. NEVER
  * throws: a purge that calls this must finish its Neon teardown even if the revoke
@@ -186,14 +186,12 @@ async function recordRetryableFailure(
  *
  * Ordering: a purge calls this BEFORE its credential tier deletes the account row
  * (which carries the encrypted token) — the plaintext is needed to revoke. The
- * vend path's CAS race does not apply here: we revoke whatever ciphertext is stored
- * at read time; a concurrent rotation at worst revokes a now-stale token, which CCP
+ * vend path's CAS race does not apply here: we revoke only the captured original grant; a concurrent rotation at worst revokes a now-stale token, which CCP
  * treats as a harmless no-op (200 either way).
  */
-export async function revokeCharacterToken(characterId: number): Promise<void> {
+export async function revokeStoredCharacterToken(ciphertext: string | null): Promise<void> {
   try {
-    const row = await loadAccountRow(characterId);
-    const refreshToken = row?.refreshToken ? decryptToken(row.refreshToken) : null;
+    const refreshToken = ciphertext ? decryptToken(ciphertext) : null;
     if (refreshToken === null) return;
     await revokeEveRefreshToken({
       refreshToken,

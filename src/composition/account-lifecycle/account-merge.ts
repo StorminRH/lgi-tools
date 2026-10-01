@@ -16,6 +16,7 @@ import { bestEffort } from '@/lib/best-effort';
 import type { PostgresJsDb } from '@/lib/db-types';
 import { accountMatch, eveAccountsForUser } from '@/platform/auth/eve-account-shared';
 import { pickSurvivor, type MergeCandidate } from '@/platform/auth/owner-reconcile';
+import { PendingDeletionError, usersHavePendingDeletion } from '@/platform/auth/deletion-jobs';
 import { assertSourceEmpty, executeMergeRules } from '@/platform/purge/merge';
 import type { MergeTx, PurgeContributor } from '@/platform/purge/types';
 import { reconcileTrackingMerges } from './tracking-merge-retry';
@@ -102,6 +103,9 @@ export async function mergeUsers(request: MergeRequest, deps: MergeDeps = {}): P
       .where(inArray(user.id, [request.linkingUserId, request.otherUserId]))
       .orderBy(asc(user.id))
       .for('update');
+    if (await usersHavePendingDeletion(tx, [request.linkingUserId, request.otherUserId])) {
+      throw new PendingDeletionError();
+    }
     const [provenAccount] = await tx
       .select({ userId: account.userId, ownerHash: account.ownerHash })
       .from(account)

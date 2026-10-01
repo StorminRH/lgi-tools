@@ -1,10 +1,13 @@
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { errorCode } from './lib/errorCode';
 import { writeMapEvent } from './mapAuthoringEvents';
 import {
   retainRemovedConnection,
   runCollapse,
+  severKeepingSystems,
 } from './mapAuthoringCollapse';
 import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
@@ -53,7 +56,14 @@ async function collapseDueRow(
       pilotsPresent: { trackedInSystemIds: tracked },
     });
     return true;
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({
+      scope: 'map:ceiling-collapse',
+      outcome: 'fallback',
+      mapId: row.mapId,
+      connectionId: row._id,
+      error: errorCode(error),
+    }));
     return false;
   }
 }
@@ -85,6 +95,9 @@ async function sweepExpiredCeilings(
   failed: number;
   hasMore: boolean;
 }> {
+  // A dead wormhole always leaves the line: a collapse that cannot run falls
+  // back to removing just the connection, and the daily chain purge settles
+  // the systems behind it once the undo window ends.
   const { due, overflow } = await readDueCeilings(ctx, now - CEILING_COLLAPSE_GRACE_MS);
   const trackedByMap = new Map<string, ReadonlySet<number>>();
   const failedMapIds = new Set<string>();
@@ -95,12 +108,8 @@ async function sweepExpiredCeilings(
   let failed = 0;
   let processed = 0;
   for (const row of due) {
-    if (collapsed + removedStubs >= CEILING_SWEEP_BATCH) break;
+    if (collapsed + removedStubs + failed >= CEILING_SWEEP_BATCH) break;
     processed += 1;
-    if (failedMapIds.has(row.mapId)) {
-      failed += 1;
-      continue;
-    }
     const fresh = await ctx.db.get(row._id);
     if (fresh === null || isTombstoned(fresh)) {
       skipped += 1;
@@ -110,10 +119,13 @@ async function sweepExpiredCeilings(
       await retainRemovedConnection(ctx, fresh, now);
       recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;
-    } else if (await collapseDueRow(ctx, fresh, trackedByMap)) {
+    } else if (!failedMapIds.has(fresh.mapId) && await collapseDueRow(ctx, fresh, trackedByMap)) {
       collapsed += 1;
     } else {
+      // A failed collapse falls back to removing just the connection; the map's
+      // later due rows this run skip straight to that fallback.
       failedMapIds.add(fresh.mapId);
+      await severKeepingSystems(ctx, fresh, CEILING_SWEEP_ACTOR, now);
       failed += 1;
     }
   }
@@ -135,7 +147,18 @@ async function sweepExpiredCeilings(
   };
 }
 
+/**
+ * Hourly cron. A full batch continues immediately. Every processed row leaves
+ * the due range (collapsed, removed as a stub, or severed keeping its systems),
+ * so a continuation always makes progress.
+ */
 export const collapseExpiredConnections = internalMutation({
   args: {},
-  handler: async (ctx) => await sweepExpiredCeilings(ctx, Date.now()),
+  handler: async (ctx) => {
+    const result = await sweepExpiredCeilings(ctx, Date.now());
+    if (result.hasMore && result.collapsed + result.removedStubs + result.failed > 0) {
+      await ctx.scheduler.runAfter(0, internal.mapAuthoringSweep.collapseExpiredConnections, {});
+    }
+    return result;
+  },
 });

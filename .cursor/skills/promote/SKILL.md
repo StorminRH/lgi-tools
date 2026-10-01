@@ -2,7 +2,7 @@
 name: promote
 description: >-
   Carry an LGI Tools promote or release pull request through two review
-  rounds, one fix commit per round, and a green GitHub Verify run, then
+  rounds, one fix commit per round, and green GitHub Verify and Coverage health runs, then
   stop for the user. Use when the user says promote, release, development
   to staging, or staging to main. Promote requests CodeRabbit, Bugbot, and
   Greptile after round 1. Release does not request those bots.
@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 # Promote
 
-Carry `development` onto `staging`, or `staging` onto `main`. Stop when the Verify workflow is green. Do not merge.
+Carry `development` onto `staging`, or `staging` onto `main`. Stop when Verify and Coverage health are green. Do not merge.
 
 ## Plugin skills
 
@@ -29,7 +29,7 @@ Copy this checklist and keep it current.
 - [ ] Round 1 reviewed, fixed, verified, pushed, and commented
 - [ ] Bots requested, or skipped because the mode is release
 - [ ] Round 2 reviewed, fixed, verified, pushed, and commented
-- [ ] Verify green on the pull request head
+- [ ] Verify and Coverage health green on the pull request head
 - [ ] Stopped for the user
 ```
 
@@ -140,12 +140,22 @@ gh workflow run Verify --ref <head>
 
 Watch that run. Its head SHA must equal the pull request head. If the run started on an older SHA, dispatch Verify again.
 
-If Verify fails, fix that failure as one commit. Use the Verify subject above. Run `pnpm verify`, push once, comment once, and dispatch Verify once more.
+Also check Coverage health for the pull request head. It starts automatically on pull request pushes that match the paths in `.github/workflows/coverage-health.yml`.
+
+If no run exists for the current pull request head because the paths skipped it, dispatch Coverage health:
+
+```
+gh workflow run coverage-health.yml --ref <head>
+```
+
+Wait for a completed Coverage health run whose head SHA equals the current pull request head.
+
+If Verify or Coverage health fails, fix that failure as one commit. Use the Verify subject above. Run `pnpm verify`, push once, comment once, and dispatch Verify once more.
 
 If the second Verify run fails, stop and report the run URL. Do not start another review round.
 
 ## Hold
 
-When Verify is green, stop. Reply with the pull request URL, the head SHA, and the Verify run URL.
+When Verify and Coverage health are green, stop. Reply with the pull request URL, the head SHA, and both run URLs.
 
 Do not merge. Do not turn on auto-merge. Do not add reviewers.

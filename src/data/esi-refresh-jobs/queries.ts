@@ -1,8 +1,10 @@
 import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { isUniqueViolation } from '@/db/pg-errors';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
+  ESI_DEAD_LETTER_RETENTION_DAYS,
   ESI_REFRESH_JOB_RETENTION_DAYS,
   ESI_REFRESH_JOB_MAX_ATTEMPTS,
   LIVE_ESI_REFRESH_JOB_STATUSES,
@@ -360,18 +362,26 @@ export function markEsiRefreshJobDeadLettered(
   );
 }
 
-export async function pruneEsiRefreshJobs(
+export function pruneEsiRefreshJobs(
   database: AnyPgDb,
   retentionDays = ESI_REFRESH_JOB_RETENTION_DAYS,
   now = new Date(),
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
-  await database
-    .delete(esiRefreshJobs)
-    .where(
+  deadline?: number,
+  deadLetterRetentionDays = ESI_DEAD_LETTER_RETENTION_DAYS,
+): Promise<BatchedDeleteResult> {
+  return deleteInBatches(
+    database,
+    esiRefreshJobs,
+    or(
       and(
         inArray(esiRefreshJobs.status, ['succeeded', 'failed_permanent']),
-        lt(esiRefreshJobs.finishedAt, cutoff),
+        lt(esiRefreshJobs.finishedAt, retentionCutoff(retentionDays, now)),
       ),
-    );
+      and(
+        eq(esiRefreshJobs.status, 'dead_lettered'),
+        lt(esiRefreshJobs.finishedAt, retentionCutoff(deadLetterRetentionDays, now)),
+      ),
+    ),
+    deadline,
+  );
 }

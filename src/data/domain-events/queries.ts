@@ -1,6 +1,7 @@
 import { after } from 'next/server';
 import { desc, lt } from 'drizzle-orm';
 import { db } from '@/db';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
 import { DOMAIN_EVENT_RETENTION_DAYS } from './constants';
 import { domainEvents } from './schema';
@@ -34,11 +35,12 @@ export async function listRecentDomainEvents(limit: number): Promise<DomainEvent
   return rows as DomainEventRow[];
 }
 
-export async function pruneDomainEvents(
+export function pruneDomainEvents(
   database: AnyPgDb,
   retentionDays = DOMAIN_EVENT_RETENTION_DAYS,
   now = new Date(),
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
-  await database.delete(domainEvents).where(lt(domainEvents.occurredAt, cutoff));
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  const cutoff = retentionCutoff(retentionDays, now);
+  return deleteInBatches(database, domainEvents, lt(domainEvents.occurredAt, cutoff), deadline);
 }

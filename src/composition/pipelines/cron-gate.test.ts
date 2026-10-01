@@ -24,7 +24,12 @@ vi.mock('next/server', () => ({
   after: (fn: () => unknown) => fn(),
 }));
 
-import { defineCronRoute } from './cron-gate';
+import {
+  cronBatchStep,
+  defineCronBatchRoute,
+  defineCronRoute,
+  type CronRouteDeclaration,
+} from './cron-gate';
 
 function authedRequest(): Request {
   return new Request('http://localhost/api/cron/example', {
@@ -444,6 +449,34 @@ describe('defineCronRoute capability recording', () => {
     expect(rows[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'unexpected' });
   });
 
+  it('records a partly failed run once with its telemetry and answers 500', async () => {
+    const GET = defineCronRoute<{ status: string }>({
+      name: 'cron:housekeeping',
+      action: 'cron_housekeeping',
+      capability: 'cron.housekeeping' as const,
+      wakeClass: 'batch',
+      record: { policy: 'noteworthy' },
+      lock: { mode: 'none', justification: 'test' },
+      work: async () => ({
+        outcome: 'partial',
+        workDone: false,
+        failed: true,
+        telemetry: { failedTasks: 1 },
+        body: { status: 'partial' },
+      }),
+    });
+
+    const response = await GET(authedRequest());
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ status: 'partial' });
+    expect(capabilityRows()[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'partial_failure' });
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cron_housekeeping',
+      metadata: expect.objectContaining({ outcome: 'partial', failedTasks: 1 }),
+    });
+  });
+
   it('writes zero rows for a busy (lock-contended) run', async () => {
     withAdvisoryLockMock.mockResolvedValue({ busy: true });
     const GET = defineCronRoute<{ status: string }>({
@@ -459,5 +492,93 @@ describe('defineCronRoute capability recording', () => {
     await GET(authedRequest());
 
     expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('defineCronBatchRoute', () => {
+  beforeEach(() => {
+    withAdvisoryLockMock.mockReset();
+    logUsageEventMock.mockReset().mockResolvedValue(undefined);
+    connectionMock.mockReset().mockResolvedValue(undefined);
+    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  function step(
+    name: string,
+    work: () => Promise<void>,
+  ): CronRouteDeclaration<{ status: string }> {
+    return {
+      name,
+      action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
+      wakeClass: 'batch',
+      record: { policy: 'always', justification: 'test batch records every run' },
+      lock: { mode: 'none', justification: 'test step is lock-free' },
+      work: async () => {
+        await work();
+        return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
+      },
+    };
+  }
+
+  it('rejects an unauthenticated request before any step', async () => {
+    const work = vi.fn(async () => {});
+    const GET = defineCronBatchRoute([cronBatchStep(step('cron:a', work))]);
+
+    const response = await GET(new Request('http://localhost/api/cron/example'));
+
+    expect(response.status).toBe(401);
+    expect(work).not.toHaveBeenCalled();
+  });
+
+  it('runs steps in order and keeps going past a failed step', async () => {
+    const order: string[] = [];
+    const GET = defineCronBatchRoute([
+      cronBatchStep(step('cron:a', async () => { order.push('a'); })),
+      cronBatchStep(step('cron:b', async () => {
+        order.push('b');
+        throw new Error('step exploded');
+      })),
+      cronBatchStep(step('cron:c', async () => { order.push('c'); })),
+    ]);
+
+    const response = await GET(authedRequest());
+
+    expect(order).toEqual(['a', 'b', 'c']);
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      steps: [
+        { name: 'cron:a', status: 'ok' },
+        { name: 'cron:b', status: 'failed' },
+        { name: 'cron:c', status: 'ok' },
+      ],
+    });
+    const recorded = logUsageEventMock.mock.calls
+      .map(([input]) => input as { action: string; metadata: { outcome?: string } })
+      .filter((input) => input.action === 'cron_prices')
+      .map((input) => input.metadata.outcome);
+    expect(recorded).toEqual(['refreshed', 'failed', 'refreshed']);
+  });
+
+  it('skips a step that is not due', async () => {
+    const work = vi.fn(async () => {});
+    const GET = defineCronBatchRoute([
+      cronBatchStep(step('cron:a', work), () => false),
+    ]);
+
+    const response = await GET(authedRequest());
+
+    expect(response.status).toBe(200);
+    expect(work).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      steps: [{ name: 'cron:a', status: 'skipped' }],
+    });
   });
 });

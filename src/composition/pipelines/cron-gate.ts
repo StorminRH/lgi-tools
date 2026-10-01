@@ -1,4 +1,5 @@
 import type { Sql } from '@/db';
+import type { CronBatchResponse, CronBatchStepStatus } from './api-contract';
 import {
   capabilityResultForError,
   recordCapabilityOutcome,
@@ -31,6 +32,8 @@ export type CronRunOutcome<Body> = {
   workDone: boolean;
   telemetry?: Record<string, unknown>;
   body: Body;
+  /** The run finished but part of it failed: it records once and answers 500. */
+  failed?: boolean;
 };
 
 export type CronRouteDeclaration<Body, Pre = void> = {
@@ -115,11 +118,17 @@ async function emitRun(
   }
 }
 
+const PARTIAL_FAILURE: CapabilityResult = { outcome: 'unexpected', code: 'partial_failure' };
+
 async function finishRun<Body, Pre>(
   declaration: CronRouteDeclaration<Body, Pre>,
   outcome: CronRunOutcome<Body>,
   durationMs: number,
 ): Promise<Response> {
+  if (outcome.failed === true) {
+    await emitRun(declaration, outcome, durationMs, PARTIAL_FAILURE, true);
+    return Response.json(outcome.body, { status: 500 });
+  }
   await emitRun(declaration, outcome, durationMs);
   return Response.json(outcome.body);
 }
@@ -201,5 +210,57 @@ export function defineCronRoute<Body, Pre = void>(
     const denied = await requireCronAuth(req);
     if (denied) return denied;
     return withCorrelationScope(() => runDeclaredCron(declaration));
+  };
+}
+
+export type CronBatchStep = {
+  name: string;
+  due: (now: Date) => boolean;
+  run: () => Promise<Response>;
+};
+
+
+export function cronBatchStep<Body, Pre>(
+  declaration: CronRouteDeclaration<Body, Pre>,
+  due: (now: Date) => boolean = () => true,
+): CronBatchStep {
+  return {
+    name: declaration.name,
+    due,
+    run: () => runDeclaredCron(declaration),
+  };
+}
+
+async function runBatchStep(step: CronBatchStep): Promise<CronBatchStepStatus> {
+  try {
+    const response = await withCorrelationScope(() => step.run());
+    return response.ok ? 'ok' : 'failed';
+  } catch (err) {
+    console.error(`[${step.name}] batch step failed`, err);
+    return 'failed';
+  }
+}
+
+/**
+ * Runs declared crons one after another in a single invocation, so their
+ * order holds however late the platform fires the schedule. Each step records
+ * its own telemetry, and a failed step never stops the steps after it. Body
+ * names the route's contract type, as it does for defineCronRoute.
+ */
+export function defineCronBatchRoute<Body extends CronBatchResponse>(
+  steps: readonly CronBatchStep[],
+): (req: Request) => Promise<Response & { json(): Promise<Body> }> {
+  return async (req) => {
+    const denied = await requireCronAuth(req);
+    if (denied) return denied;
+    const now = new Date();
+    const results: CronBatchResponse['steps'] = [];
+    for (const step of steps) {
+      const status = step.due(now) ? await runBatchStep(step) : 'skipped';
+      results.push({ name: step.name, status });
+    }
+    const failed = results.some((result) => result.status === 'failed');
+    const body: CronBatchResponse = { steps: results };
+    return Response.json(body, { status: failed ? 500 : 200 });
   };
 }

@@ -1,6 +1,5 @@
 export const modules = import.meta.glob([
   '../accountMerge.ts',
-  '../characterAuthorization.ts',
   '../auth.config.ts',
   '../characterLocationAccess.ts',
   '../characterLocationApply.ts',
@@ -55,8 +54,10 @@ export const modules = import.meta.glob([
   '../schema.ts',
   '../lib/bearerAuth.ts',
   '../lib/characterSync.ts',
+  '../lib/errorCode.ts',
   '../lib/httpAuth.ts',
   '../lib/indexedQuery.ts',
+  '../lib/locationCaches.ts',
   '../lib/locationCoverage.ts',
   '../lib/locationSchedule.ts',
   '../lib/mapAccess.ts',

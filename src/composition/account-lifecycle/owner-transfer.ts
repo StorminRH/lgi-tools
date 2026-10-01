@@ -1,15 +1,14 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { after } from 'next/server';
 import { db } from '@/db';
-import { identityProjectionRunners } from '@/composition/map-access-identity';
-import { runPurge } from '@/composition/purge/orchestrator';
-import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import type { CharacterProof, ProofOutcome } from '@/platform/auth/auth';
 import { accountMatch } from '@/platform/auth/eve-account-shared';
 import { readOwnerHashClaim } from '@/platform/auth/owner-hash-claim';
 import { classifyProof, type ProofDecision } from '@/platform/auth/owner-reconcile';
 import { decryptToken } from '@/platform/auth/token-crypto';
 import { account } from '@/db/auth-schema';
+import { finishPendingDeletion, transferCharacter } from './account-purge';
+import { PendingDeletionError } from '@/platform/auth/deletion-jobs';
 import { mergeUsers, settleConvexAfterMerge } from './account-merge';
 
 const NONE: ProofOutcome = { kind: 'none' };
@@ -62,12 +61,14 @@ async function mergeProvenCharacter(
     after(() => settleConvexAfterMerge(result));
     return { kind: 'merged', survivorUserId: result.survivorUserId, sourceUserId: result.sourceUserId };
   } catch (error) {
+    if (error instanceof PendingDeletionError) throw error;
     console.error('[auth] account merge failed before commit; standard link flow continues', error);
     return NONE;
   }
 }
 
 export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcome> {
+  await finishPendingDeletion(proof.characterId);
   const jwtOwnerHash = proof.ownerHash;
   if (!jwtOwnerHash) return NONE;
   const [row] = await db
@@ -98,7 +99,7 @@ export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcom
       await backfillOwnerHash(row, jwtOwnerHash);
       return NONE;
     case 'transfer':
-      await purgeTransferredCharacter(row.userId, proof.characterId);
+      await purgeTransferredCharacter(row.userId, proof.characterId, row.id);
       return NONE;
     case 'merge':
       return mergeProvenCharacter({ ...proof, ownerHash: jwtOwnerHash }, decision, row);
@@ -108,21 +109,7 @@ export async function proveCharacter(proof: CharacterProof): Promise<ProofOutcom
 export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
+  accountRowId?: string,
 ): Promise<void> {
-  const mapIds = await identityProjectionRunners.runBeforeCharacterUnlink({ userId: priorUserId, characterId });
-  try {
-    await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
-  } catch (error) {
-    await identityProjectionRunners.runAfterFailedCharacterUnlink(characterId);
-    throw error;
-  }
-  try {
-    await identityProjectionRunners.runAfterCharacterUnlink({ userId: priorUserId, characterId, mapIds });
-  } finally {
-    await reconcileAfterCharacterRemoval(priorUserId, characterId, identityProjectionRunners);
-    await identityProjectionRunners.runAfterCharacterLinkChanged({
-      userId: priorUserId,
-      characterId,
-    });
-  }
+  await transferCharacter(priorUserId, characterId, accountRowId);
 }

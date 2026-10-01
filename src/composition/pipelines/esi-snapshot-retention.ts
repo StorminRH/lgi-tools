@@ -2,17 +2,21 @@ import { and, eq, exists, gt, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
 import { ownedAssets } from '@/features/owned-assets/schema';
+import { deleteInBatches, retentionCutoff, type BatchedDeleteResult } from '@/lib/batched-delete';
 import type { AnyPgDb } from '@/lib/db-types';
 
-export async function pruneEsiSnapshots(
+export function pruneEsiSnapshots(
   database: AnyPgDb,
   retentionDays: number,
   now: Date = new Date(),
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  deadline?: number,
+): Promise<BatchedDeleteResult> {
+  const cutoff = retentionCutoff(retentionDays, now);
   const newer = alias(esiSnapshots, 'newer_esi_snapshot');
 
-  await database.delete(esiSnapshots).where(
+  return deleteInBatches(
+    database,
+    esiSnapshots,
     and(
       lt(esiSnapshots.fetchedAt, cutoff),
       exists(
@@ -38,5 +42,6 @@ export async function pruneEsiSnapshots(
           .where(eq(ownedAssets.snapshotId, esiSnapshots.id)),
       ),
     ),
+    deadline,
   );
 }

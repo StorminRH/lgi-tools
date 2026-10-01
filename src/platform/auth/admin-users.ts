@@ -1,7 +1,11 @@
-import { and, asc, count, countDistinct, eq, exists, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, eq, exists, gt, ilike, inArray, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { db } from '@/db';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import type { AnyPgDb } from '@/lib/db-types';
+import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
 import { accountMatch, characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
+import { reconcileAfterCharacterRemoval } from './account-purge';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
@@ -159,6 +163,19 @@ export async function setUserRole(
   return getUserById(userId);
 }
 
+async function changeCharacterOwnership<T>(
+  userIds: string[],
+  change: (database: AnyPgDb) => Promise<T>,
+): Promise<T> {
+  resolveLockConnectionUrl();
+  return drizzle(directClient).transaction(async (tx) => {
+    await tx.select({ id: user.id }).from(user).where(inArray(user.id, userIds))
+      .orderBy(asc(user.id)).for('update');
+    if (await usersHavePendingDeletion(tx, userIds)) throw new PendingDeletionError();
+    return change(tx);
+  });
+}
+
 export async function deleteLinkedCharacter(
   userId: string,
   characterId: number,
@@ -167,10 +184,10 @@ export async function deleteLinkedCharacter(
   const mapIds = await runners.runBeforeCharacterUnlink({ userId, characterId });
   let deleted: Array<{ id: string }>;
   try {
-    deleted = await db
+    deleted = await changeCharacterOwnership([userId], (database) => database
       .delete(account)
       .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
-      .returning({ id: account.id });
+      .returning({ id: account.id }));
   } catch (error) {
     await runners.runAfterFailedCharacterUnlink(characterId);
     throw error;
@@ -220,7 +237,7 @@ export async function reassignCharacter({
   const mapIds = await runners.runBeforeCharacterUnlink({ userId: fromUserId, characterId });
   let moved: Array<{ id: string }>;
   try {
-    moved = await db
+    moved = await changeCharacterOwnership([fromUserId, toUserId], (database) => database
       .update(account)
       .set({ userId: toUserId, updatedAt: new Date() })
       .where(
@@ -230,7 +247,7 @@ export async function reassignCharacter({
           eq(account.userId, fromUserId),
         ),
       )
-      .returning({ id: account.id });
+      .returning({ id: account.id }));
   } catch (error) {
     await runners.runAfterFailedCharacterUnlink(characterId);
     throw error;
@@ -251,9 +268,7 @@ export async function reassignCharacter({
       .limit(1);
 
     if (!remaining) {
-      await runners.runBeforeUserDelete(fromUserId);
-      await db.delete(user).where(eq(user.id, fromUserId));
-      sourceDeleted = true;
+      sourceDeleted = (await reconcileAfterCharacterRemoval(fromUserId, characterId, runners)).accountEmptied;
     } else if (await getStoredActiveCharacterId(fromUserId) === characterId) {
       await repointActiveToOldest(fromUserId);
     }

@@ -49,6 +49,7 @@ const harness = await createDbTestHarness({
     'esi_refresh_jobs',
     'usage_logs',
     'pending_tracking_merges',
+    'pending_deletions',
   ],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -90,8 +91,18 @@ function request(over: Partial<MergeRequest> = {}): MergeRequest {
   };
 }
 
-const merge = (req: MergeRequest, contributors?: readonly PurgeContributor[]) =>
-  mergeUsers(req, { database: harness.db, contributors });
+async function merge(req: MergeRequest, contributors?: readonly PurgeContributor[]) {
+  const before = await harness.db.select().from(usageLogs).where(eq(usageLogs.action, 'auth_merge'));
+  const outcome = await mergeUsers(req, { database: harness.db, contributors });
+  // Settle the post-commit audit write before the next fixture truncates its tables.
+  if (outcome.kind === 'merged') {
+    await vi.waitFor(async () => {
+      const after = await harness.db.select().from(usageLogs).where(eq(usageLogs.action, 'auth_merge'));
+      expect(after).toHaveLength(before.length + 1);
+    });
+  }
+  return outcome;
+}
 
 async function seedPair(
   overrides: { oldCreatedAt?: Date; newCreatedAt?: Date; oldRole?: 'USER' | 'ADMIN'; newRole?: 'USER' | 'ADMIN' } = {},

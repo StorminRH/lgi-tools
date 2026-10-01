@@ -1,7 +1,9 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { pendingTrackingMerges, type TrackingSelection } from './schema';
+import { MERGE_RECEIPT_BATCH_SIZE } from './constants';
 
 export async function enqueueTrackingMerge(
   database: AnyPgDb,
@@ -22,6 +24,24 @@ export async function readPendingTrackingMerges(userId?: string) {
     .from(pendingTrackingMerges)
     .where(userId === undefined ? undefined : eq(pendingTrackingMerges.userId, userId))
     .orderBy(asc(pendingTrackingMerges.queuedAt), asc(pendingTrackingMerges.id)).limit(10);
+}
+
+const operationIdSchema = z.guid();
+
+export async function readPendingTrackingOperationIds(
+  operationIds: readonly string[],
+  database: AnyPgDb = db,
+): Promise<ReadonlySet<string>> {
+  if (operationIds.length > MERGE_RECEIPT_BATCH_SIZE) {
+    throw new Error('Too many tracking operations to check in one batch');
+  }
+  const ids = operationIds.filter((id) => operationIdSchema.safeParse(id).success);
+  if (ids.length === 0) return new Set();
+  const pending = await database.select({ id: pendingTrackingMerges.id })
+    .from(pendingTrackingMerges)
+    .where(inArray(pendingTrackingMerges.id, ids))
+    .limit(MERGE_RECEIPT_BATCH_SIZE);
+  return new Set(pending.map(({ id }) => id));
 }
 
 export async function cancelPendingTracking(userId: string, characterId: number | null): Promise<void> {

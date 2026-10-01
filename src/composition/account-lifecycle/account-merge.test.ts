@@ -1,3 +1,7 @@
+vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/platform/auth/deletion-jobs')>(),
+  usersHavePendingDeletion: vi.fn().mockResolvedValue(false),
+}));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const doors = vi.hoisted(() => ({
@@ -143,7 +147,7 @@ describe('mergeUsers', () => {
       movedCharacterIds: [200],
       captured: [],
     });
-    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 13 });
+    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 14 });
     expect(doors.logUsageEvent).toHaveBeenCalledWith({
       action: 'auth_merge',
       characterId: 100,

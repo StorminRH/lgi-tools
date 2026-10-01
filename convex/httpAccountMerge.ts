@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { MERGE_RECEIPT_BATCH_SIZE } from '@/data/location-tracking/constants';
 import type { PublicHttpAction } from 'convex/server';
 import { internal } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import { authorizedJsonAction } from './lib/httpAuth';
 
 const mergeUserStateBodySchema = z
@@ -37,4 +39,28 @@ export const restoreMergeTracking: PublicHttpAction = authorizedJsonAction(
   }),
   async (ctx, body) =>
     Response.json(await ctx.runMutation(internal.accountMerge.restoreMergeTracking, body)),
+);
+
+export const listExpiredTrackingReceipts: PublicHttpAction = authorizedJsonAction(
+  z.object({ cutoff: z.number().finite(), cursor: z.string().nullable() }),
+  async (ctx, body) =>
+    Response.json(await ctx.runQuery(internal.accountMerge.listExpiredTrackingReceipts, body)),
+);
+
+export const deleteExpiredTrackingReceipts: PublicHttpAction = authorizedJsonAction(
+  z.object({
+    cutoff: z.number().finite(),
+    receipts: z.array(z.object({
+      receiptId: z.string().min(1),
+      operationId: z.string().min(1),
+    })).max(MERGE_RECEIPT_BATCH_SIZE),
+  }),
+  async (ctx, body) =>
+    Response.json(await ctx.runMutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
+      cutoff: body.cutoff,
+      receipts: body.receipts.map(({ receiptId, operationId }) => ({
+        receiptId: receiptId as Id<'accountMergeTrackingReceipts'>,
+        operationId,
+      })),
+    })),
 );

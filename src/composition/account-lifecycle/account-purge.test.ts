@@ -1,76 +1,52 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { chain, state } = vi.hoisted(() => {
-  const state = { results: [] as unknown[], calls: { delete: 0, update: 0 } };
-  const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
-  };
-  for (const m of ['set', 'where', 'select', 'from', 'limit', 'orderBy', 'returning', 'values']) {
-    chain[m] = () => chain;
-  }
-  chain.update = () => {
-    state.calls.update += 1;
-    return chain;
-  };
-  chain.delete = () => {
-    state.calls.delete += 1;
-    return chain;
-  };
-  return { chain, state };
-});
-vi.mock('@/db', () => ({ db: chain }));
-
-const runPurgeMock = vi.fn();
-vi.mock('@/composition/purge/orchestrator', () => ({
-  runPurge: (...args: unknown[]) => runPurgeMock(...args),
+const recovery = vi.hoisted(() => ({
+  jobsForCharacter: vi.fn(),
+  readRequestedDeletions: vi.fn(),
+  readPendingDeletion: vi.fn(),
+  readDeletionJobs: vi.fn(),
+  rotateDeletionJob: vi.fn(),
 }));
-
-const revokeMock = vi.fn();
-vi.mock('@/platform/auth/eve-token-service', () => ({
-  revokeCharacterToken: (id: number) => revokeMock(id),
+vi.mock('@/platform/auth/deletion-jobs', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/platform/auth/deletion-jobs')>(),
+  jobsForCharacter: recovery.jobsForCharacter,
+  readDeletionJobs: recovery.readDeletionJobs,
+  rotateDeletionJob: recovery.rotateDeletionJob,
 }));
-
-import { nukeAccount } from './account-purge';
-
-const USER = 'eve-user-1';
-const CHAR = 90000001;
-const OTHER = 90000002;
+vi.mock('@/platform/auth/purge', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/platform/auth/purge')>(),
+  readPendingDeletion: recovery.readPendingDeletion,
+  readRequestedDeletions: recovery.readRequestedDeletions,
+}));
+vi.mock('@/db/deletion-client', () => ({ deletionDatabase: () => ({
+  transaction: async () => { throw new Error('direct database unavailable'); },
+}) }));
+import { finishPendingDeletion, retryRequestedDeletions } from './account-purge';
 
 beforeEach(() => {
-  state.results = [];
-  state.calls.delete = 0;
-  state.calls.update = 0;
-  runPurgeMock.mockReset();
-  runPurgeMock.mockResolvedValue(undefined);
-  revokeMock.mockReset();
-  revokeMock.mockResolvedValue(undefined);
+  vi.clearAllMocks();
+  recovery.jobsForCharacter.mockResolvedValue([]);
+  recovery.readPendingDeletion.mockResolvedValue(null);
+  recovery.readRequestedDeletions.mockResolvedValue([]);
+  recovery.readDeletionJobs.mockResolvedValue([]);
+  recovery.rotateDeletionJob.mockResolvedValue(undefined);
 });
 
-describe('nukeAccount', () => {
-  it('re-enumerates until empty, catching a character linked mid-nuke (no cascade orphan)', async () => {
-    state.results = [
-      [{ accountId: String(CHAR) }],
-      [{ accountId: String(OTHER) }],
-      [],
-      undefined,
-    ];
-    await nukeAccount(USER);
-
-    expect(revokeMock.mock.calls).toEqual([[CHAR], [OTHER]]);
-    expect(runPurgeMock).toHaveBeenCalledTimes(3);
-    expect(state.calls.delete).toBe(1);
+describe('deletion recovery boundaries', () => {
+  it('leaves ordinary sign-in alone when there is no pending cleanup', async () => {
+    await expect(finishPendingDeletion(90000001)).resolves.toBeUndefined();
   });
 
-  it('skips a malformed EVE account id instead of revoking NaN or repeating the loop', async () => {
-    state.results = [
-      [{ accountId: 'not-a-character-id' }],
-      undefined,
-    ];
-    await nukeAccount(USER);
+  it('does not discover or enqueue work after the cron deadline', async () => {
+    expect(await retryRequestedDeletions(Date.now() - 1)).toEqual({ retried: 0, failed: 0 });
+    expect(recovery.readRequestedDeletions).not.toHaveBeenCalled();
+  });
 
-    expect(revokeMock).not.toHaveBeenCalled();
-    expect(runPurgeMock).toHaveBeenCalledOnce();
-    expect(runPurgeMock).toHaveBeenCalledWith({ kind: 'user', userId: USER });
-    expect(state.calls.delete).toBe(1);
+  it('retains a failed job and moves its retry behind other waiting work', async () => {
+    recovery.readDeletionJobs.mockResolvedValue([{ id: 'job', userId: 'owner', scope: 'character' }]);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(await retryRequestedDeletions(Date.now() + 60000)).toEqual({ retried: 0, failed: 1 });
+    expect(recovery.rotateDeletionJob).toHaveBeenCalledWith('job');
+    error.mockRestore();
   });
 });

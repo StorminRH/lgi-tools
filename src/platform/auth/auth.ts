@@ -97,6 +97,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
         authorizationFailureCount: { type: 'number', required: false, defaultValue: 0, input: false, returned: false },
         authorizationAccessChangedAt: { type: 'date', required: false, input: false, returned: false },
         ownerHash: { type: 'string', required: false, input: false, returned: false },
+        deletionRequestedAt: { type: 'date', required: false, input: false, returned: false },
       },
       accountLinking: { allowDifferentEmails: true },
     },
@@ -104,6 +105,7 @@ export function createAuth({ runners, proveCharacter, refreshCharacterAffiliatio
       additionalFields: {
         role: { type: 'string', required: false, defaultValue: 'USER', input: false },
         activeCharacterId: { type: 'number', bigint: true, required: false, input: false },
+        deletionRequestedAt: { type: 'date', required: false, input: false, returned: false },
       },
     },
     session: {

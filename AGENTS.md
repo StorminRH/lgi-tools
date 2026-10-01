@@ -5,7 +5,9 @@ An EVE Online multi-tool focused on simplifying complex tasks.
 ## Work Flow
 
 Work targets `development`. Promote is `development` → `staging`;
-release is `staging` → `main`.
+release is `staging` → `main`. There are no per-PR preview
+deployments: test with local dev servers, and `staging` is the
+long-lived test environment.
 
 Sub-agent usage is encouraged, especially for context isolation.
 For noisy work such as testing, documentation lookup, and exploring
@@ -13,6 +15,21 @@ the repository, isolate those tasks to a sub-agent.
 
 Production builds run in CI and on Vercel; do not run them locally.
 Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
+
+## Verification
+
+Before every commit, run `pnpm check` through the test-runner agent:
+typecheck, lint, tests related to the change, and static Fallow over
+the whole tree. `pnpm verify` is the full gate, with the full suite
+under coverage and CRAP. The Coverage health workflow runs its coverage
+half on every pull request push. Run `pnpm verify` before promote or
+release and whenever Coverage health fails.
+
+Fix every Fallow finding when it appears, whoever introduced it. Do not
+land past a red check by calling findings pre-existing or out of scope.
+Do not raise thresholds or add overrides, baselines, or suppressions.
+If a fix is too large for the current change, stop and report it as a
+blocker.
 
 ## Architecture
 

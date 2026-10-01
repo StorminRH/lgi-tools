@@ -6,6 +6,7 @@ import { isGscConfigured } from '@/data/gsc/constants';
 import { refreshVolumeSummary } from '@/data/telemetry/health-metrics';
 import {
   getGscCronOutcomes,
+  getHousekeepingCronOutcomes,
   getLastCronRuns,
   getPriceCronOutcomes,
   getRefreshVolume,
@@ -101,10 +102,16 @@ function PriceCronDetail({
   );
 }
 
-function SdeCronDetail({ sdeOutcomes }: { sdeOutcomes: CronOutcomeCount[] }) {
+function CronOutcomeDetail({
+  outcomes,
+  ariaLabel,
+}: {
+  outcomes: CronOutcomeCount[];
+  ariaLabel: string;
+}) {
   return (
     <DetailBody>
-      {sdeOutcomes.length === 0 ? (
+      {outcomes.length === 0 ? (
         <DetailCaption>
           No runs in this period.
         </DetailCaption>
@@ -112,11 +119,11 @@ function SdeCronDetail({ sdeOutcomes }: { sdeOutcomes: CronOutcomeCount[] }) {
         <>
           <ChartBlock label="Runs by outcome">
             <AdminBarChart
-              data={sdeOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-              ariaLabel="SDE-cron runs by outcome"
+              data={outcomes.map((o) => ({ label: o.outcome, value: o.count }))}
+              ariaLabel={ariaLabel}
             />
           </ChartBlock>
-          <DurationTable rows={sdeOutcomes} />
+          <DurationTable rows={outcomes} />
         </>
       )}
     </DetailBody>
@@ -168,15 +175,25 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
       getPriceCronOutcomes(range),
       getSdeCronOutcomes(range),
       getGscCronOutcomes(range),
+      getHousekeepingCronOutcomes(range),
       getRefreshVolume(range),
       gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Scheduled tasks" />;
 
-  const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, refreshVolume, lastSyncedAt] = fetched;
+  const [lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, housekeepingOutcomes, refreshVolume, lastSyncedAt] =
+    fetched;
   const statuses = deriveCronStatuses(
-    { lastRuns, priceOutcomes, sdeOutcomes, gscOutcomes, gscConfigured, gscLastSyncedAt: lastSyncedAt },
+    {
+      lastRuns,
+      priceOutcomes,
+      sdeOutcomes,
+      gscOutcomes,
+      housekeepingOutcomes,
+      gscConfigured,
+      gscLastSyncedAt: lastSyncedAt,
+    },
     range.to,
   );
   const volumeTrend = trendSeries(
@@ -197,7 +214,7 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
       </StatusRow>
 
       <StatusRow name="SDE cron" status={statuses.sde}>
-        <SdeCronDetail sdeOutcomes={sdeOutcomes} />
+        <CronOutcomeDetail outcomes={sdeOutcomes} ariaLabel="SDE-cron runs by outcome" />
       </StatusRow>
 
       <StatusRow name="GSC sync" status={statuses.gsc}>
@@ -206,6 +223,10 @@ export async function ScheduledTasks({ range }: { range: DateRange }) {
           lastSyncedAt={lastSyncedAt}
           gscOutcomes={gscOutcomes}
         />
+      </StatusRow>
+
+      <StatusRow name="Housekeeping" status={statuses.housekeeping}>
+        <CronOutcomeDetail outcomes={housekeepingOutcomes} ariaLabel="Housekeeping runs by outcome" />
       </StatusRow>
     </Card>
   );

@@ -1,4 +1,5 @@
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, v, type Infer } from 'convex/values';
+import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
@@ -113,46 +114,12 @@ export const restoreMergeTracking = internalMutation({
 
     // SQL has already checked current character ownership. Re-check map access
     // here so a concurrent claim revocation conflicts with this transaction.
-    const byMap = new Map<string, typeof selections>();
-    for (const selection of selections) {
-      const rows = byMap.get(selection.mapId) ?? [];
-      rows.push(selection);
-      byMap.set(selection.mapId, rows);
-    }
     let restored = 0;
     let skipped = 0;
-    for (const [mapId, characterIds] of byMap) {
-      if (await tryMapAccessForUser(ctx, mapId, survivorUserId, 'view') === null) {
-        skipped += characterIds.length;
-        continue;
-      }
-      const existing = await ctx.db.query('mapTracking')
-        .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', survivorUserId))
-        .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
-      const tracked = new Set(existing.map((row) => row.characterId));
-      let count = existing.length;
-      let mapCount: number | undefined;
-      for (const { characterId, lastProcessedTransitionAt } of characterIds) {
-        if (tracked.has(characterId)) {
-          skipped += 1;
-        } else {
-          if (count >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
-            skipped += 1;
-            continue;
-          }
-          // Check capacity only for inserts; fail atomically so recovery can retry.
-          mapCount ??= (await readMapTracking(ctx, mapId)).length;
-          requireMapTrackingSpace(mapCount);
-          await ctx.db.insert('mapTracking', { mapId, userId: survivorUserId, characterId });
-          mapCount += 1;
-          tracked.add(characterId);
-          count += 1;
-          restored += 1;
-        }
-        if (lastProcessedTransitionAt !== undefined) {
-          await restoreTransitionStamp(ctx, mapId, characterId, lastProcessedTransitionAt);
-        }
-      }
+    for (const [mapId, mapSelections] of groupSelectionsByMap(selections)) {
+      const counts = await restoreMapSelections(ctx, mapId, survivorUserId, mapSelections);
+      restored += counts.restored;
+      skipped += counts.skipped;
     }
     // Keep this receipt independently of source/destination teardown. A lost
     // response must never make a later retry undo the user's subsequent opt-out.
@@ -160,6 +127,126 @@ export const restoreMergeTracking = internalMutation({
     return { restored, skipped, alreadyApplied: false };
   },
 });
+
+const receiptCandidateValidator = v.object({
+  receiptId: v.id('accountMergeTrackingReceipts'),
+  operationId: v.string(),
+});
+
+export const listExpiredTrackingReceipts = internalQuery({
+  args: { cutoff: v.number(), cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    receipts: v.array(receiptCandidateValidator),
+    cursor: v.string(),
+    done: v.boolean(),
+  }),
+  handler: async (ctx, { cutoff, cursor }) => {
+    const page = await ctx.db.query('accountMergeTrackingReceipts')
+      .withIndex('by_creation_time', (q) => q.lt('_creationTime', cutoff))
+      .paginate({ cursor, numItems: MERGE_RECEIPT_BATCH_SIZE });
+    return {
+      receipts: page.page.map((row) => ({ receiptId: row._id, operationId: row.operationId })),
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
+  },
+});
+
+export const deleteExpiredTrackingReceipts = internalMutation({
+  args: { cutoff: v.number(), receipts: v.array(receiptCandidateValidator) },
+  returns: v.object({ deleted: v.number() }),
+  handler: async (ctx, { cutoff, receipts }) => {
+    if (receipts.length > MERGE_RECEIPT_BATCH_SIZE) {
+      throw new ConvexError('Too many tracking receipts to delete in one batch');
+    }
+    const expiredBefore = Math.min(cutoff, Date.now() - MERGE_RECEIPT_RETENTION_MS);
+    let deleted = 0;
+    for (const { receiptId, operationId } of receipts) {
+      const receipt = await ctx.db.get('accountMergeTrackingReceipts', receiptId);
+      if (receipt === null || receipt.operationId !== operationId || receipt._creationTime >= expiredBefore) continue;
+      await ctx.db.delete('accountMergeTrackingReceipts', receiptId);
+      deleted += 1;
+    }
+    return { deleted };
+  },
+});
+
+type TrackingSelection = Infer<typeof trackingSelectionValidator>;
+
+interface RestoreCounts {
+  restored: number;
+  skipped: number;
+}
+
+interface SurvivorTrackingSlots {
+  readonly tracked: Set<number>;
+  count: number;
+  mapCount: number | undefined;
+}
+
+function groupSelectionsByMap(
+  selections: readonly TrackingSelection[],
+): Map<string, TrackingSelection[]> {
+  const byMap = new Map<string, TrackingSelection[]>();
+  for (const selection of selections) {
+    const rows = byMap.get(selection.mapId) ?? [];
+    rows.push(selection);
+    byMap.set(selection.mapId, rows);
+  }
+  return byMap;
+}
+
+async function restoreMapSelections(
+  ctx: MutationCtx,
+  mapId: string,
+  survivorUserId: string,
+  selections: readonly TrackingSelection[],
+): Promise<RestoreCounts> {
+  if (await tryMapAccessForUser(ctx, mapId, survivorUserId, 'view') === null) {
+    return { restored: 0, skipped: selections.length };
+  }
+  const existing = await ctx.db.query('mapTracking')
+    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', survivorUserId))
+    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
+  const slots: SurvivorTrackingSlots = {
+    tracked: new Set(existing.map((row) => row.characterId)),
+    count: existing.length,
+    mapCount: undefined,
+  };
+  const counts: RestoreCounts = { restored: 0, skipped: 0 };
+  for (const { characterId, lastProcessedTransitionAt } of selections) {
+    const outcome = await restoreTrackingRow(ctx, mapId, survivorUserId, characterId, slots);
+    if (outcome === 'full') {
+      counts.skipped += 1;
+      continue;
+    }
+    if (outcome === 'inserted') counts.restored += 1;
+    else counts.skipped += 1;
+    if (lastProcessedTransitionAt !== undefined) {
+      await restoreTransitionStamp(ctx, mapId, characterId, lastProcessedTransitionAt);
+    }
+  }
+  return counts;
+}
+
+async function restoreTrackingRow(
+  ctx: MutationCtx,
+  mapId: string,
+  survivorUserId: string,
+  characterId: number,
+  slots: SurvivorTrackingSlots,
+): Promise<'present' | 'full' | 'inserted'> {
+  if (slots.tracked.has(characterId)) return 'present';
+  if (slots.count >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) return 'full';
+  // Fail atomically without recording a receipt so recovery can retry.
+  slots.mapCount ??= (await readMapTracking(ctx, mapId)).length;
+  requireMapTrackingSpace(slots.mapCount);
+  await ctx.db.insert('mapTracking', { mapId, userId: survivorUserId, characterId });
+  slots.mapCount += 1;
+  slots.tracked.add(characterId);
+  slots.count += 1;
+  return 'inserted';
+}
 
 async function restoreTransitionStamp(
   ctx: MutationCtx, mapId: string, characterId: number, lastProcessedTransitionAt: number,
