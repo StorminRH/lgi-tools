@@ -18,6 +18,12 @@ const live = vi.hoisted(() => ({
   params: new URLSearchParams(),
 }));
 
+// Next serves the app its canary React, which has <ViewTransition>; the stable
+// React that vitest resolves does not, so stand in a pass-through.
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  ViewTransition: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock('next/link', () => ({
   default: ({ href, children, ...props }: { href: string; children: ReactNode }) =>
     createElement('a', { ...props, href: String(href) }, children),
@@ -99,7 +105,7 @@ function teamProfile(): IndustryProfileRow {
   return { id: 'caps', name: 'Capital line', revision: 4, document: doc, updatedAt: '2026-09-29T00:00:00.000Z' };
 }
 
-test('the workspace walks from signed out, to a first profile, to a team with a selected member', () => {
+test('the workspace walks from signed out, to a first profile, to a team and one member', () => {
   expect(renderToStaticMarkup(createElement(WorkspaceNav))).toContain('aria-current="page"');
 
   live.session = null;
@@ -125,21 +131,37 @@ test('the workspace walks from signed out, to a first profile, to a team with a 
     { characterId: REACTOR.characterId, levels: null },
   ];
   live.structures = [TATARA];
-  live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
+  // With no member open, the rail sits beside the whole profile.
+  live.params = new URLSearchParams('profile=caps');
   const team = render();
   expect(team).toContain('Capital line');
   expect(team).toContain('3/3');
-  // The selected member is announced as current; the other is not.
-  expect(team).toMatch(new RegExp(`aria-current="true"[^>]*data-member-id="${REACTOR.characterId}"`));
-  expect(team).not.toMatch(new RegExp(`aria-current="true"[^>]*data-member-id="${BUILDER.characterId}"`));
+  expect(team).toContain(`data-member-id="${BUILDER.characterId}"`);
   expect(team).toContain(`${BUILDER.name}: Components · Final assembly`);
-  // An unlinked member stays on the team as unresolved, with a way to act on it.
-  expect(team).toContain('Old Alt is no longer linked to your account.');
-  // Skills that have not synced are said to be syncing, not shown as zero.
-  expect(team).toContain('Skills are still syncing from EVE.');
-  expect(team).toContain('Reaction material bonuses from rigs are not modelled yet.');
+  // An unlinked member stays on the team as unresolved.
+  expect(team).toContain('Old Alt: No responsibilities, not linked');
+  expect(team).toContain('1 not linked');
+  expect(team).toContain('Production skills by member');
+  expect(team).toContain('Default facilities');
+  // Unknown jobs stay unknown rather than reading as free slots.
   expect(team).toContain('In use unknown');
+  expect(team).not.toContain('All members');
   expect(team).not.toContain('The profile in this link no longer exists');
+
+  // A member in the link opens on its own sheet in place of the rail.
+  live.params = new URLSearchParams(`profile=caps&character=${REACTOR.characterId}`);
+  const reactor = render();
+  expect(reactor).toContain(`aria-label="${REACTOR.name} in Capital line"`);
+  expect(reactor).toContain('All members');
+  expect(reactor).not.toContain('data-member-id');
+  // Skills that have not synced are said to be syncing, not shown as zero.
+  expect(reactor).toContain('Skills are still syncing from EVE.');
+  expect(reactor).toContain('Reaction material bonuses from rigs are not modelled yet.');
+  expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
+
+  // A member that is not on the profile shows the whole profile instead.
+  live.params = new URLSearchParams('profile=caps&character=12345');
+  expect(render()).toContain('Production skills by member');
 
   live.params = new URLSearchParams('profile=deleted');
   const deadLink = render();

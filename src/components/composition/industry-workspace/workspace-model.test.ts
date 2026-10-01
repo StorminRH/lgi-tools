@@ -10,9 +10,13 @@ import {
   facilityForValue,
   freeSlots,
   memberCapacity,
+  memberView,
+  poolSummaries,
+  profileHref,
   profileSummary,
+  railMembers,
   resolveSelection,
-  workspaceHref,
+  roleLine,
 } from './workspace-model';
 
 const BUILDER = 101;
@@ -62,11 +66,10 @@ test('profile totals count each character once per slot pool, dedupe jobs, and n
               job(4, RESEARCH, 'paused'),
             ],
           },
-          lastRefreshedAt: 2_000,
         },
       ],
-      [REACTOR, { data: { jobs: [job(10, REACTION, 'active')] }, lastRefreshedAt: 1_000 }],
-      [SPARE, { data: { jobs: [] }, lastRefreshedAt: 3_000 }],
+      [REACTOR, { data: { jobs: [job(10, REACTION, 'active')] } }],
+      [SPARE, { data: { jobs: [] } }],
     ]),
     corpJobs: [
       // The same job seen in the personal and the corporation feed.
@@ -102,7 +105,6 @@ test('profile totals count each character once per slot pool, dedupe jobs, and n
   expect(freeSlots(summary.pools.manufacturing)).toBe(6);
   expect(summary.pools.reactions).toEqual({ capacity: 11, used: 2, unknownCapacity: 0, unknownUsed: 0 });
   expect(summary.pools.science).toEqual({ capacity: 3, used: 1, unknownCapacity: 0, unknownUsed: 0 });
-  expect(summary.jobsAsOf).toBe(1_000);
 
   // A second profile sharing the builder sees the same slots, not extra ones.
   const other = profileSummary({
@@ -115,8 +117,13 @@ test('profile totals count each character once per slot pool, dedupe jobs, and n
     availableFacilityIds: null,
   });
   expect(other.pools.manufacturing).toEqual({ capacity: 10, used: 3, unknownCapacity: 0, unknownUsed: 0 });
-  expect(other.account.manufacturing).toEqual({ capacity: 11, used: 3, unknownCapacity: 0, unknownUsed: 0 });
-  expect(summary.account).toEqual(other.account);
+  // One member's own pools, as the member sheet shows them.
+  expect(poolSummaries([BUILDER, BUILDER], capacities).manufacturing).toEqual({
+    capacity: 8,
+    used: 3,
+    unknownCapacity: 0,
+    unknownUsed: 0,
+  });
 });
 
 test('unknown skills or jobs stay unknown instead of reading as free slots', () => {
@@ -138,9 +145,6 @@ test('unknown skills or jobs stay unknown instead of reading as free slots', () 
   });
   expect(summary.pools.manufacturing).toEqual({ capacity: 3, used: 0, unknownCapacity: 1, unknownUsed: 2 });
   expect(freeSlots(summary.pools.manufacturing)).toBeNull();
-  expect(summary.skillsPending).toEqual([SPARE]);
-  expect(summary.jobsPending).toEqual([BUILDER, SPARE]);
-  expect(summary.jobsAsOf).toBeNull();
   expect(summary.coverage.map((c) => c.resolution.status)).toEqual(['unassigned', 'unassigned', 'unassigned']);
 });
 
@@ -152,31 +156,39 @@ const row = (id: string, members: number[]): IndustryProfileRow => ({
   updatedAt: '2026-09-29T00:00:00.000Z',
 });
 
-test('the link picks the profile and member, the remembered profile fills in, and a dead link says so', () => {
+test('the link picks the profile, the remembered profile fills in, and a dead link says so', () => {
   const profiles = [row('caps', [BUILDER, REACTOR]), row('rx', [REACTOR])];
-  expect(resolveSelection(profiles, { profile: 'rx', character: String(REACTOR) }, 'caps')).toEqual({
-    profile: profiles[1],
-    missingProfileId: null,
-    characterId: REACTOR,
-  });
-  // A character that is not on the profile falls back to its first member.
-  expect(resolveSelection(profiles, { profile: 'rx', character: String(BUILDER) }, null).characterId).toBe(REACTOR);
-  expect(resolveSelection(profiles, { profile: null, character: null }, 'rx').profile?.id).toBe('rx');
-  expect(resolveSelection(profiles, { profile: null, character: null }, 'deleted').profile?.id).toBe('caps');
-  expect(resolveSelection(profiles, { profile: 'deleted', character: null }, 'rx')).toMatchObject({
-    profile: { id: 'rx' },
-    missingProfileId: 'deleted',
-  });
-  expect(resolveSelection([], { profile: 'caps', character: null }, null)).toEqual({
-    profile: null,
-    missingProfileId: 'caps',
-    characterId: null,
-  });
+  expect(resolveSelection(profiles, 'rx', 'caps')).toEqual({ profile: profiles[1], missingProfileId: null });
+  expect(resolveSelection(profiles, null, 'rx').profile?.id).toBe('rx');
+  expect(resolveSelection(profiles, null, 'deleted').profile?.id).toBe('caps');
+  expect(resolveSelection(profiles, 'deleted', 'rx')).toEqual({ profile: profiles[1], missingProfileId: 'deleted' });
+  expect(resolveSelection([], 'caps', null)).toEqual({ profile: null, missingProfileId: 'caps' });
 
-  expect(workspaceHref('/industry', '?profile=rx&character=102&from=nav', { profile: 'caps', character: null })).toBe(
-    '/industry?profile=caps&from=nav',
-  );
-  expect(workspaceHref('/industry', '?profile=rx', { profile: null, character: null })).toBe('/industry');
+  expect(profileHref('/industry', '?profile=rx&character=102&from=nav', 'caps')).toBe('/industry?profile=caps&from=nav');
+  expect(profileHref('/industry', '?profile=rx', null)).toBe('/industry');
+});
+
+test('a member on the profile opens on its own; anything else shows the whole profile', () => {
+  const caps = row('caps', [BUILDER, REACTOR]).document;
+  expect(memberView(String(REACTOR), caps)).toEqual({ view: 'character', characterId: REACTOR });
+  expect(memberView(String(SPARE), caps)).toEqual({ view: 'overview' });
+  expect(memberView('102abc', caps)).toEqual({ view: 'overview' });
+  expect(memberView(null, caps)).toEqual({ view: 'overview' });
+  expect(memberView(String(REACTOR), null)).toEqual({ view: 'overview' });
+});
+
+test('the rail names each member, linked or not, with what it is responsible for', () => {
+  let doc = emptyProfileDocument([
+    { characterId: BUILDER, name: 'Builder (saved)' },
+    { characterId: GONE, name: 'Gone' },
+  ]);
+  doc = setResponsibility(doc, BUILDER, 'final-assembly', true);
+  doc = setResponsibility(doc, BUILDER, 'components', true);
+  const [builder, gone] = railMembers(doc, [{ characterId: BUILDER, name: 'Builder', portraitUrl: 'p/101' }]);
+  expect(builder).toMatchObject({ name: 'Builder', portraitUrl: 'p/101', linked: true });
+  expect(roleLine(builder!)).toBe('Components · Final assembly');
+  expect(gone).toMatchObject({ name: 'Gone', portraitUrl: null, linked: false });
+  expect(roleLine(gone!)).toBe('No responsibilities');
 });
 
 const structure = (overrides: Partial<AvailableStructure>): AvailableStructure => ({

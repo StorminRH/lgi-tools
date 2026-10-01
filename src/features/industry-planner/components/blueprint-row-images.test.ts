@@ -2,16 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SavedPlanRow } from '../api-contract';
-import type { RecentBlueprint } from '../recent-blueprints';
-import { RecentBlueprintRows } from './RecentBlueprintRows';
-import { SavedBuildTiles } from './SavedBuildTiles';
 import { SavedPlanRowItem } from './SavedPlanRowItem';
-
-const recent: RecentBlueprint = {
-  typeId: 691,
-  productTypeId: 587,
-  name: 'Rifter',
-};
 
 const saved: SavedPlanRow = {
   id: 'plan-1',
@@ -30,13 +21,7 @@ function expectBlueprintImage(markup: string): void {
 }
 
 describe('blueprint-list row images', () => {
-  it('renders the blueprint scroll across recents, saved-build tiles, and saved-plan rows', () => {
-    expectBlueprintImage(
-      renderToStaticMarkup(createElement(RecentBlueprintRows, { recent: [recent] })),
-    );
-    expectBlueprintImage(
-      renderToStaticMarkup(createElement(SavedBuildTiles, { plans: [saved] })),
-    );
+  it('renders the blueprint scroll on saved-plan rows', () => {
     expectBlueprintImage(
       renderToStaticMarkup(
         createElement(SavedPlanRowItem, {

@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { type Ref, ViewTransition } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { Button } from '@/components/ui/button';
 import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
 import { Pill } from '@/components/ui/pill';
-import { eyebrow } from '@/components/ui/type-roles';
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import {
@@ -20,15 +20,19 @@ import {
 } from '@/features/industry-planner/profiles/responsibilities';
 import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
 import type { AvailableStructure } from '@/features/industry-planner/types';
+import { PANELS_MOTION, pilotTransitionName, SHEET_MOTION } from '../board/board-motion';
 import { SectionPanel } from '../board/SectionBody';
 import { FacilityEffectsReadout, FacilityPicker, ManageStructuresLink } from './FacilityPicker';
+import { PoolTiles } from './ProfileSummary';
 import {
   activityOf,
   facilityEffects,
   type MemberCapacity,
   memberSkills,
   type MemberSkills,
+  poolSummaries,
   type RailMember,
+  roleLine,
   SLOT_POOLS,
 } from './workspace-model';
 
@@ -196,42 +200,24 @@ function SkillsPanel({ skills }: { skills: MemberSkills | null }) {
   );
 }
 
-function SlotRow({
-  pool,
-  skills,
-  capacity,
-}: {
-  pool: JobCategory;
-  skills: MemberSkills | null;
-  capacity: MemberCapacity | undefined;
-}) {
-  const total = capacity?.capacity?.[pool] ?? null;
-  const used = capacity?.used?.[pool] ?? null;
-  const skillLine = skills?.slots[pool].skills.map((s) => `${s.name} ${level(s.level)}`).join(' · ');
+function SlotRow({ pool, skills }: { pool: JobCategory; skills: MemberSkills }) {
+  const { capacity, skills: slotSkills } = skills.slots[pool];
   return (
     <div className="grid gap-x-4 gap-y-0.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline">
       <dt className="flex min-w-0 flex-col">
         <span className="text-ui text-name">{POOL_LABELS[pool]}</span>
-        {skillLine !== undefined ? <span className="font-data text-micro text-faint">{skillLine}</span> : null}
+        <span className="font-data text-micro text-faint">
+          {slotSkills.map((s) => `${s.name} ${level(s.level)}`).join(' · ')}
+        </span>
       </dt>
       <dd className="font-data text-ui tabular-nums text-name">
-        {used === null ? (
-          <span className="text-faint">
-            {total === null ? '? slots' : `${total} ${total === 1 ? 'slot' : 'slots'}`} · in use unknown
-          </span>
-        ) : (
-          <>
-            {used}
-            <span className="text-faint"> / {total ?? '?'} in use</span>
-          </>
-        )}
+        {capacity} {capacity === 1 ? 'slot' : 'slots'}
       </dd>
     </div>
   );
 }
 
-function SlotsPanel({ skills, capacity }: { skills: MemberSkills | null; capacity: MemberCapacity | undefined }) {
-  const usageUnknown = capacity?.used == null;
+function SlotsPanel({ skills }: { skills: MemberSkills | null }) {
   return (
     <SectionPanel
       title="Job slots"
@@ -241,31 +227,84 @@ function SlotsPanel({ skills, capacity }: { skills: MemberSkills | null; capacit
         </Link>
       }
     >
-      <dl className="flex flex-col gap-2.5 px-3.5 py-3">
-        {SLOT_POOLS.map((pool) => (
-          <SlotRow key={pool} pool={pool} skills={skills} capacity={capacity} />
-        ))}
-      </dl>
-      {usageUnknown ? (
-        <p className="border-t border-border-soft px-3.5 py-2.5 text-micro text-faint">
-          This character&apos;s jobs are not synced yet, so slots in use are unknown, not free.
-        </p>
-      ) : null}
+      {skills === null ? (
+        <p className="px-3.5 py-3 text-ui text-faint">Skills are still syncing from EVE.</p>
+      ) : (
+        <dl className="flex flex-col gap-2.5 px-3.5 py-3">
+          {SLOT_POOLS.map((pool) => (
+            <SlotRow key={pool} pool={pool} skills={skills} />
+          ))}
+        </dl>
+      )}
     </SectionPanel>
   );
 }
 
+function MemberHeader({
+  member,
+  capacities,
+  onRemove,
+}: {
+  member: RailMember;
+  capacities: ReadonlyMap<number, MemberCapacity>;
+  onRemove: () => void;
+}) {
+  return (
+    <header className="flex flex-col gap-5">
+      <div className="flex items-center gap-4 xl:flex-col xl:items-start">
+        <ViewTransition name={pilotTransitionName(member.characterId)} share="morph" default="none">
+          <CharacterPortrait
+            characterId={member.characterId}
+            name={member.name}
+            size={160}
+            src={member.portraitUrl ?? undefined}
+            className={member.linked ? 'shadow-cta-glow max-xl:size-24' : 'opacity-50 grayscale max-xl:size-24'}
+          />
+        </ViewTransition>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <h2 className="font-display text-h2 font-bold leading-tight text-name">{member.name}</h2>
+          <span className="font-data text-micro text-muted">{roleLine(member)}</span>
+        </div>
+      </div>
+      {member.linked ? (
+        <dl aria-label={`${member.name}'s job slots`} className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-1">
+          <PoolTiles pools={poolSummaries([member.characterId], capacities)} />
+        </dl>
+      ) : (
+        <p className="flex flex-col items-start gap-2 text-micro text-muted">
+          <Pill tone="orange">Not linked</Pill>
+          Link this character again to use its skills and jobs, or remove it from the profile.
+        </p>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onRemove}
+        aria-label={`Remove ${member.name} from this profile`}
+        className="self-start"
+      >
+        Remove from profile
+      </Button>
+    </header>
+  );
+}
+
 /**
- * The selected member: what they are responsible for and where, what their
- * own skills do, and their slots. Character, facility and blueprint effects
- * stay separate; nothing here adds up into one team bonus.
+ * One member opened from the rail: who they are and their slots on the left,
+ * what they are responsible for and where, and their own skills, on the
+ * right. Character, facility and blueprint effects stay separate; nothing
+ * here adds up into one team bonus. Each part is a direct child of the
+ * caller's persistent container: React runs enter and exit only on a
+ * <ViewTransition> with no new DOM node above it.
  */
-export function MemberDetail({
+export function MemberSheet({
   doc,
   member,
   levels,
-  capacity,
+  capacities,
   context,
+  onBack,
+  backRef,
   onRoles,
   onFacility,
   onRemove,
@@ -273,56 +312,47 @@ export function MemberDetail({
   doc: ProfileDocument;
   member: RailMember;
   levels: Record<string, number> | null;
-  capacity: MemberCapacity | undefined;
+  capacities: ReadonlyMap<number, MemberCapacity>;
   context: FacilityContext;
+  onBack: () => void;
+  backRef: Ref<HTMLButtonElement>;
   onRoles: (roles: Responsibility[]) => void;
   onFacility: (responsibility: Responsibility, next: FacilityRef | null) => void;
   onRemove: () => void;
 }) {
-  const skills = memberSkills(levels);
+  const skills = member.linked ? memberSkills(levels) : null;
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <header className="flex items-center gap-4">
-        <CharacterPortrait
-          characterId={member.characterId}
-          name={member.name}
-          size={112}
-          src={member.portraitUrl ?? undefined}
-          className="max-sm:size-16"
-        />
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className={eyebrow({ size: 'micro' })}>Selected member</span>
-          <h2 className="truncate font-display text-h2 font-bold leading-tight text-name">{member.name}</h2>
-          {member.linked ? null : (
-            <span className="flex flex-wrap items-center gap-2 text-micro text-muted">
-              <Pill tone="orange">Not linked</Pill>
-              Link this character again to use its skills and jobs, or remove it from the profile.
-            </span>
-          )}
+    <>
+      <ViewTransition {...SHEET_MOTION} default="none">
+        <div className="xl:col-span-2">
+          <Button
+            ref={backRef}
+            variant="bare"
+            onClick={onBack}
+            className="gap-2 rounded-ctl py-1 font-data text-ui text-muted hover:text-isk"
+          >
+            <span aria-hidden>←</span> All members
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRemove}
-          aria-label={`Remove ${member.name} from this profile`}
-          className="shrink-0"
-        >
-          Remove
-        </Button>
-      </header>
-      <div className="flex min-w-0 flex-col gap-4 xl:grid xl:grid-cols-2 xl:items-start">
-        <ResponsibilitiesPanel
-          doc={doc}
-          member={member}
-          context={context}
-          onRoles={onRoles}
-          onFacility={onFacility}
-        />
-        <div className="flex min-w-0 flex-col gap-4">
-          <SkillsPanel skills={skills} />
-          <SlotsPanel skills={skills} capacity={capacity} />
+      </ViewTransition>
+      <ViewTransition {...SHEET_MOTION} default="none">
+        <MemberHeader member={member} capacities={capacities} onRemove={onRemove} />
+      </ViewTransition>
+      <ViewTransition {...PANELS_MOTION} default="none">
+        <div className="flex min-w-0 flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
+          <ResponsibilitiesPanel
+            doc={doc}
+            member={member}
+            context={context}
+            onRoles={onRoles}
+            onFacility={onFacility}
+          />
+          <div className="flex min-w-0 flex-col gap-4">
+            <SkillsPanel skills={skills} />
+            <SlotsPanel skills={skills} />
+          </div>
         </div>
-      </div>
-    </div>
+      </ViewTransition>
+    </>
   );
 }

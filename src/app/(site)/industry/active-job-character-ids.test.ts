@@ -14,7 +14,7 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
+import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
 
 const CORP_SCOPES =
   'esi-characters.read_corporation_roles.v1 esi-industry.read_corporation_jobs.v1';
@@ -73,7 +73,7 @@ describe('activeJobCharacterIds', () => {
   });
 });
 
-describe('corpJobsAccess', () => {
+describe('corpJobCharacterIds', () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -87,12 +87,9 @@ describe('corpJobsAccess', () => {
     vi.unstubAllEnvs();
   });
 
-  it('reports no linked characters for a signed-out viewer', async () => {
+  it('returns none for a signed-out viewer', async () => {
     getSessionMock.mockResolvedValue(null);
-    expect(await corpJobsAccess()).toEqual({
-      eligibleCharacterIds: [],
-      hasLinkedCharacters: false,
-    });
+    expect(await corpJobCharacterIds()).toEqual([]);
   });
 
   it('returns only the corp-scoped, token-holding character ids', async () => {
@@ -102,20 +99,14 @@ describe('corpJobsAccess', () => {
       { characterId: 200, scope: CORP_SCOPES, hasRefreshToken: false },
       { characterId: 300, scope: 'esi-industry.read_character_jobs.v1', hasRefreshToken: true },
     ]);
-    expect(await corpJobsAccess()).toEqual({
-      eligibleCharacterIds: [100],
-      hasLinkedCharacters: true,
-    });
+    expect(await corpJobCharacterIds()).toEqual([100]);
   });
 
-  it('flags scope-missing: linked characters exist but none are corp-eligible', async () => {
+  it('returns none when linked characters exist but none are corp-eligible', async () => {
     getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
     listLinkedCharactersMock.mockResolvedValue([
       { characterId: 300, scope: 'esi-industry.read_character_jobs.v1', hasRefreshToken: true },
     ]);
-    expect(await corpJobsAccess()).toEqual({
-      eligibleCharacterIds: [],
-      hasLinkedCharacters: true,
-    });
+    expect(await corpJobCharacterIds()).toEqual([]);
   });
 });

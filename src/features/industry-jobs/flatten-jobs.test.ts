@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { IndustryJob } from './esi-projection';
-import { flattenJobs, jobCounts } from './flatten-jobs';
+import { flattenJobs } from './flatten-jobs';
 
 function job(
   overrides: Partial<IndustryJob> & { job_id: number; end_date: string },
@@ -41,17 +41,5 @@ describe('flattenJobs', () => {
 
   it('returns an empty list from empty or null boards', () => {
     expect(flattenJobs([{ data: null }, { data: { jobs: [] } }])).toEqual([]);
-  });
-});
-
-describe('jobCounts', () => {
-  it('counts ready as complete and active as in progress; others neither', () => {
-    const jobs = [
-      job({ job_id: 1, end_date: '2026-07-02T00:00:00Z', status: 'ready' }),
-      job({ job_id: 2, end_date: '2026-07-02T00:00:00Z', status: 'ready' }),
-      job({ job_id: 3, end_date: '2026-07-02T00:00:00Z', status: 'active' }),
-      job({ job_id: 4, end_date: '2026-07-02T00:00:00Z', status: 'paused' }),
-    ];
-    expect(jobCounts(jobs)).toEqual({ complete: 2, inProgress: 1 });
   });
 });

@@ -11,16 +11,3 @@ export function flattenJobs(
     (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
   );
 }
-
-export function jobCounts(jobs: readonly IndustryJob[]): {
-  complete: number;
-  inProgress: number;
-} {
-  let complete = 0;
-  let inProgress = 0;
-  for (const job of jobs) {
-    if (job.status === 'ready') complete += 1;
-    if (job.status === 'active') inProgress += 1;
-  }
-  return { complete, inProgress };
-}

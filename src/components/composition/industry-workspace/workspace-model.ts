@@ -13,6 +13,7 @@ import {
 import {
   type MissingFacility,
   profileReferenceIssues,
+  RESPONSIBILITY_LABELS,
   resolveResponsibility,
   type ResponsibilityResolution,
 } from '@/features/industry-planner/profiles/responsibilities';
@@ -27,52 +28,44 @@ import {
 import { hostsReactions } from '@/features/industry-planner/structure-factors';
 import { parseFacilityValue } from '@/features/industry-planner/facility-value';
 import type { AvailableStructure } from '@/features/industry-planner/types';
+import { type BoardView, OVERVIEW } from '../board/board-view-model';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
 
 // ---------------------------------------------------------------------------
-// Selection: the URL names the profile and character; the remembered profile
+// Selection: the URL names the profile and the member; the remembered profile
 // fills in when the URL does not. A profile id that no longer exists is
 // reported so the page can say so instead of quietly showing another one.
+// Without a member, or with one that is not on the profile, the workspace
+// shows the whole profile.
 
 export interface WorkspaceSelection {
   profile: IndustryProfileRow | null;
   missingProfileId: string | null;
-  characterId: number | null;
-}
-
-function characterIn(doc: ProfileDocument, raw: string | null): number | null {
-  const wanted = raw !== null && /^\d+$/.test(raw) ? Number(raw) : null;
-  const member = doc.members.find((m) => m.characterId === wanted) ?? doc.members[0];
-  return member?.characterId ?? null;
 }
 
 export function resolveSelection(
   profiles: readonly IndustryProfileRow[],
-  params: { profile: string | null; character: string | null },
+  requested: string | null,
   remembered: string | null,
 ): WorkspaceSelection {
   const byId = (id: string | null) => profiles.find((p) => p.id === id) ?? null;
-  const profile = byId(params.profile) ?? byId(remembered) ?? profiles[0] ?? null;
-  const missingProfileId =
-    params.profile !== null && byId(params.profile) === null ? params.profile : null;
-  return {
-    profile,
-    missingProfileId,
-    characterId: profile === null ? null : characterIn(profile.document, params.character),
-  };
+  const profile = byId(requested) ?? byId(remembered) ?? profiles[0] ?? null;
+  return { profile, missingProfileId: requested !== null && byId(requested) === null ? requested : null };
 }
 
-export function workspaceHref(
-  pathname: string,
-  search: string,
-  next: { profile: string | null; character: number | null },
-): string {
+export function memberView(param: string | null, doc: ProfileDocument | null): BoardView {
+  if (doc === null || param === null || !/^\d+$/.test(param)) return OVERVIEW;
+  const characterId = Number(param);
+  return doc.members.some((m) => m.characterId === characterId) ? { view: 'character', characterId } : OVERVIEW;
+}
+
+/** The address with another profile open and no member focused. */
+export function profileHref(pathname: string, search: string, profileId: string | null): string {
   const params = new URLSearchParams(search);
-  if (next.profile === null) params.delete('profile');
-  else params.set('profile', next.profile);
-  if (next.character === null) params.delete('character');
-  else params.set('character', String(next.character));
+  if (profileId === null) params.delete('profile');
+  else params.set('profile', profileId);
+  params.delete('character');
   const query = params.toString();
   return query === '' ? pathname : `${pathname}?${query}`;
 }
@@ -111,6 +104,13 @@ export function railMembers(doc: ProfileDocument, roster: readonly RosterCharact
   });
 }
 
+/** What a member is responsible for, in one line. */
+export function roleLine(member: RailMember): string {
+  return member.roles.length === 0
+    ? 'No responsibilities'
+    : member.roles.map((role) => RESPONSIBILITY_LABELS[role]).join(' · ');
+}
+
 export function addableCharacters(
   doc: ProfileDocument,
   roster: readonly RosterCharacter[],
@@ -128,28 +128,22 @@ export interface MemberCapacity {
   characterId: number;
   capacity: SlotCapacity | null;
   used: Record<JobCategory, number> | null;
-  jobsAsOf: number | null;
 }
 
 export interface CapacitySources {
   levelsByCharacter: ReadonlyMap<number, Record<string, number> | null>;
   /** Null while personal jobs load or after they fail. */
-  personalJobs: ReadonlyMap<
-    number,
-    { data: { jobs: IndustryJob[] } | null; lastRefreshedAt: number | null }
-  > | null;
+  personalJobs: ReadonlyMap<number, { data: { jobs: IndustryJob[] } | null }> | null;
   corpJobs: readonly IndustryJob[];
 }
 
 export function memberCapacity(characterId: number, sources: CapacitySources): MemberCapacity {
   const levels = sources.levelsByCharacter.get(characterId) ?? null;
-  const personal = sources.personalJobs?.get(characterId);
-  const board = personal?.data ?? null;
+  const board = sources.personalJobs?.get(characterId)?.data ?? null;
   return {
     characterId,
     capacity: levels === null ? null : slotCapacity(levels),
     used: board === null ? null : countUsedSlots(characterId, board.jobs, sources.corpJobs),
-    jobsAsOf: board === null ? null : (personal?.lastRefreshedAt ?? null),
   };
 }
 
@@ -168,7 +162,7 @@ export function freeSlots(pool: PoolSummary): number | null {
   return Math.max(0, pool.capacity - pool.used);
 }
 
-function poolSummaries(
+export function poolSummaries(
   characterIds: Iterable<number>,
   capacities: ReadonlyMap<number, MemberCapacity>,
 ): Record<JobCategory, PoolSummary> {
@@ -190,8 +184,8 @@ function poolSummaries(
 
 // ---------------------------------------------------------------------------
 // Profile summary: members, responsibility coverage, facilities and slots for
-// the selected profile, next to the whole account. A character in two
-// profiles is the same slots seen twice, never two pools to add up.
+// the selected profile. A character in two profiles is the same slots seen
+// twice, never two pools to add up.
 
 export interface ProfileSummary {
   memberCount: number;
@@ -200,10 +194,6 @@ export interface ProfileSummary {
   facilityCount: number;
   missingFacilities: MissingFacility[];
   pools: Record<JobCategory, PoolSummary>;
-  account: Record<JobCategory, PoolSummary>;
-  skillsPending: number[];
-  jobsPending: number[];
-  jobsAsOf: number | null;
 }
 
 function distinctFacilities(doc: ProfileDocument): number {
@@ -213,11 +203,6 @@ function distinctFacilities(doc: ProfileDocument): number {
     doc.defaults.reactionFacility,
   ];
   return new Set(refs.filter((ref) => ref !== null).map((ref) => ref.id)).size;
-}
-
-function oldest(values: (number | null)[]): number | null {
-  const known = values.filter((v): v is number => v !== null);
-  return known.length === 0 ? null : Math.min(...known);
 }
 
 export function profileSummary(args: {
@@ -230,7 +215,6 @@ export function profileSummary(args: {
   const isLinked = (id: number) => linkedIds.has(id);
   const issues = profileReferenceIssues(doc, isLinked, args.availableFacilityIds);
   const members = doc.members.map((m) => m.characterId).filter(isLinked);
-  const memberCapacities = members.map((id) => capacities.get(id));
   return {
     memberCount: doc.members.length,
     unlinkedMembers: issues.unlinkedMembers,
@@ -241,10 +225,6 @@ export function profileSummary(args: {
     facilityCount: distinctFacilities(doc),
     missingFacilities: issues.missingFacilities,
     pools: poolSummaries(members, capacities),
-    account: poolSummaries(linkedIds, capacities),
-    skillsPending: members.filter((id) => !capacities.get(id)?.capacity),
-    jobsPending: members.filter((id) => !capacities.get(id)?.used),
-    jobsAsOf: oldest(memberCapacities.map((c) => c?.jobsAsOf ?? null)),
   };
 }
 
