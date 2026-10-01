@@ -171,7 +171,7 @@ export interface StatusGroup {
 
 // deriveCronStatus headlines read "<state> · <detail>"; the overview shows
 // the state as the value and the detail beneath it.
-export function splitHeadline(status: SubsystemStatus): { value: string; note: string } {
+function splitHeadline(status: SubsystemStatus): { value: string; note: string } {
   const [value = '', ...rest] = status.headline.split(' · ');
   return { value, note: rest.join(' · ') };
 }

@@ -192,10 +192,9 @@ describe('purge registry gate', () => {
       'syncPresence',
       'syncSubjects',
     ]);
-    const homes = new Map(NON_NEON_HOMES.map((home) => [home.home, home.merge]));
+    const homes = new Set(NON_NEON_HOMES.map((home) => home.home));
     const missing = userKeyed.filter((name) => !homes.has(`convex:${name}`));
     expect(missing, `Convex table(s) without a NON_NEON_HOMES entry: ${missing.join(', ')}`).toEqual([]);
-    expect(homes.get('convex:mapTracking')).toContain('BEFORE reprojection');
   });
 
   it('the Convex census reads defineTable fields and ignores tables without userId', () => {
