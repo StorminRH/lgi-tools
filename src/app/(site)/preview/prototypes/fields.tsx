@@ -219,9 +219,9 @@ export function FieldsGroup() {
     <PrototypeGroup
       id="fields"
       title="Fields + text"
-      today="Today: an engraved dark well, JetBrains Mono values, and uppercase tracked labels."
+      today="Every card shows the same Field + Input + Textarea content. Only the look changes."
     >
-      <VariantCard letter="Now" name="Engraved well" pitch="The shipping Field + Input + Textarea.">
+      <VariantCard letter="Now" name="Engraved well" pitch="The shipping Field + Input + Textarea: an engraved dark well, JetBrains Mono values, and uppercase tracked labels.">
         <CurrentFields />
       </VariantCard>
       <VariantCard letter="A" name="Frosted well" pitch="The same layout on frosted glass: Geist text, sentence-case labels, a 12px radius, and a soft aurora focus halo.">

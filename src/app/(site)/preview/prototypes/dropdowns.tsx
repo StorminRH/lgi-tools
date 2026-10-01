@@ -1,275 +1,140 @@
-'use client';
+import { cn } from '@/components/ui/cn';
+import { dropdownGroupLabel, dropdownItem, dropdownPanel } from '@/components/ui/dropdown-panel';
+import { fieldText, fieldVariants } from '@/components/ui/input';
+import { Kbd } from '@/components/ui/kbd';
+import { CheckIcon, ChevronDownIcon, SearchIcon } from './icons';
+import { PrototypeGroup, StateCell, StateGrid, VariantCard } from './gallery';
 
-import { useState } from 'react';
-import { Select, type SelectItems } from '@/components/ui/select';
-import { CheckIcon, ChevronDownIcon, CloseIcon, SearchIcon } from './icons';
-import { PrototypeGroup, StateLabel, VariantCard } from './gallery';
+/*
+ * Every card renders the same two open states, so the only difference between
+ * cards is the look:
+ *   Select   — the trade-hub picker, open, grouped, with a selected, a
+ *              highlighted, and a disabled option.
+ *   Combobox — the system search with "J1" typed and three suggestions.
+ */
 
-type Hub = { value: string; label: string; detail: string; meta: string; group: 'Main hubs' | 'Secondary hubs' };
+type Option = { label: string; state?: 'selected' | 'highlighted' | 'disabled' };
 
-const HUBS: readonly Hub[] = [
-  { value: 'jita', label: 'Jita IV - Moon 4', detail: 'Caldari Navy Assembly Plant', meta: '1.0', group: 'Main hubs' },
-  { value: 'amarr', label: 'Amarr VIII (Oris)', detail: 'Emperor Family Academy', meta: '1.0', group: 'Main hubs' },
-  { value: 'dodixie', label: 'Dodixie IX - Moon 20', detail: 'Federation Navy Assembly Plant', meta: '0.9', group: 'Secondary hubs' },
-  { value: 'rens', label: 'Rens VI - Moon 8', detail: 'Brutor Tribe Treasury', meta: '0.9', group: 'Secondary hubs' },
+const HUB_GROUPS: readonly { group: string | null; options: readonly Option[] }[] = [
+  { group: null, options: [{ label: 'Jita IV - Moon 4', state: 'selected' }, { label: 'Amarr VIII (Oris)', state: 'highlighted' }] },
+  {
+    group: 'Secondary hubs',
+    options: [{ label: 'Dodixie IX - Moon 20' }, { label: 'Rens VI - Moon 8' }, { label: 'Hek VIII - Moon 12', state: 'disabled' }],
+  },
 ];
 
-const SELECT_ITEMS: SelectItems = [
-  { value: 'jita', label: 'Jita IV - Moon 4' },
-  { value: 'amarr', label: 'Amarr VIII (Oris)' },
-  { group: 'Secondary hubs', options: [{ value: 'dodixie', label: 'Dodixie IX - Moon 20' }, { value: 'rens', label: 'Rens VI - Moon 8' }] },
+const SUGGESTIONS: readonly Option[] = [
+  { label: 'J115405', state: 'highlighted' },
+  { label: 'J104809' },
+  { label: 'J160941' },
 ];
 
-const SYSTEMS = [
-  { name: 'J115405', meta: 'C3 · Pulsar', tone: 'purple' },
-  { name: 'J104809', meta: 'C2 · Wolf-Rayet', tone: 'teal' },
-  { name: 'Jita', meta: 'The Forge · 1.0', tone: 'green' },
-  { name: 'Jan', meta: 'Placid · 0.4', tone: 'orange' },
-] as const;
+/** Class recipe for one look; "Now" uses the shipping primitive classes. */
+type Look = {
+  trigger: string;
+  value: string;
+  caret: 'glyph' | 'chevron';
+  panel: string;
+  group: string;
+  option: string;
+  check: 'glyph' | 'icon';
+  combo: string;
+  prompt: 'terminal' | 'icon';
+};
 
-const SITE_TYPES = [
-  { value: 'gas', label: 'Gas', tone: 'orange' },
-  { value: 'ore', label: 'Ore', tone: 'blue' },
-  { value: 'relic', label: 'Relic', tone: 'green' },
-  { value: 'data', label: 'Data', tone: 'teal' },
-  { value: 'combat', label: 'Combat', tone: 'red' },
-] as const;
+const NOW: Look = {
+  trigger: cn(fieldVariants(), 'flex w-full items-center gap-1.5 border-isk-sub shadow-field-focus'),
+  value: cn(fieldText, 'flex-1 truncate'),
+  caret: 'glyph',
+  panel: cn(dropdownPanel, 'mt-1'),
+  group: dropdownGroupLabel,
+  option: dropdownItem,
+  check: 'glyph',
+  combo: cn(fieldVariants(), 'flex items-center gap-1.5 border-hairline-accent shadow-field-focus'),
+  prompt: 'terminal',
+};
 
-function hubLabel(value: string) {
-  return HUBS.find((hub) => hub.value === value)?.label ?? value;
+function lookFor(variant: string): Look {
+  return {
+    trigger: `pt-dd-trigger pt-dd-${variant}-trigger`,
+    value: 'flex-1 truncate',
+    caret: 'chevron',
+    panel: `pt-dd-panel pt-glass-dense pt-dd-${variant}-panel`,
+    group: 'pt-group-label',
+    option: `pt-option pt-dd-${variant}-option`,
+    check: 'icon',
+    combo: `pt-dd-trigger pt-dd-${variant}-trigger pt-dd-combo`,
+    prompt: 'icon',
+  };
 }
 
-function Highlight({ text, query }: { text: string; query: string }) {
-  const at = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
-  if (at < 0) return <>{text}</>;
+function OptionRow({ option, look }: { option: Option; look: Look }) {
+  const selected = option.state === 'selected';
   return (
-    <>
-      {text.slice(0, at)}
-      <mark>{text.slice(at, at + query.length)}</mark>
-      {text.slice(at + query.length)}
-    </>
-  );
-}
-
-function CapsuleSelect() {
-  const [open, setOpen] = useState(true);
-  const [value, setValue] = useState('jita');
-  return (
-    <div className="pt-dd-a relative">
-      <button type="button" className="pt-dd-a-trigger pt-glass" data-open={open || undefined} onClick={() => setOpen((current) => !current)}>
-        <span className="flex-1 text-left">{hubLabel(value)}</span>
-        <ChevronDownIcon className="pt-chevron" />
-      </button>
-      {open ? (
-        <div className="pt-panel pt-glass-dense" role="listbox" aria-label="Trade hub">
-          {(['Main hubs', 'Secondary hubs'] as const).map((group) => (
-            <div key={group}>
-              <div className="pt-group-label">{group}</div>
-              {HUBS.filter((hub) => hub.group === group).map((hub) => (
-                <button
-                  key={hub.value}
-                  type="button"
-                  role="option"
-                  aria-selected={hub.value === value}
-                  className="pt-option"
-                  onClick={() => {
-                    setValue(hub.value);
-                    setOpen(false);
-                  }}
-                >
-                  {hub.label}
-                  <span className="pt-opt-check ml-auto">{hub.value === value ? <CheckIcon size={15} /> : null}</span>
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : null}
+    <div
+      role="option"
+      aria-selected={selected}
+      aria-disabled={option.state === 'disabled' || undefined}
+      data-selected={selected || undefined}
+      data-highlighted={option.state === 'highlighted' || undefined}
+      data-disabled={option.state === 'disabled' || undefined}
+      className={cn(look.option, option.state === 'disabled' && 'opacity-40')}
+    >
+      <span className="truncate">{option.label}</span>
+      {selected ? (look.check === 'glyph' ? <span className="shrink-0 text-isk">✓</span> : <CheckIcon size={15} className="pt-opt-check ml-auto" />) : null}
     </div>
   );
 }
 
-function SpotlightCombobox() {
-  const [query, setQuery] = useState('j1');
-  const [active, setActive] = useState(0);
-  const matches = SYSTEMS.filter((system) => system.name.toLowerCase().includes(query.toLowerCase()));
+function SelectOpen({ look }: { look: Look }) {
   return (
-    <div className="pt-dd-b">
-      <div className="pt-dd-b-panel pt-glass-dense">
-        <div className="pt-dd-b-search">
-          <SearchIcon />
-          <input
-            className="pt-input"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setActive(0);
-            }}
-            placeholder="Search systems, sites, items…"
-            aria-label="Search systems"
-          />
-        </div>
-        <div className="pt-dd-b-list" role="listbox" aria-label="Systems">
-          <div className="pt-group-label">Systems</div>
-          {matches.map((system, index) => (
-            <div
-              key={system.name}
-              role="option"
-              aria-selected={index === active}
-              tabIndex={-1}
-              data-highlighted={index === active || undefined}
-              data-tone={system.tone}
-              className="pt-option"
-              onMouseEnter={() => setActive(index)}
-            >
-              <span className="pt-option-icon">{system.name.slice(0, 2)}</span>
-              <span className="flex flex-col">
-                <span className="text-name"><Highlight text={system.name} query={query} /></span>
-                <span className="text-label text-muted">{system.meta}</span>
-              </span>
-              <span className="pt-option-meta">↵</span>
-            </div>
-          ))}
-          {matches.length === 0 ? <div className="px-3 py-4 font-ui text-ui text-muted">No systems match “{query}”.</div> : null}
-        </div>
-        <div className="pt-dd-b-foot">
-          <span>↑↓ to move</span>
-          <span>↵ to open</span>
-          <span className="ml-auto">esc to close</span>
-        </div>
+    <div>
+      <div className={look.trigger} data-open>
+        <span className={look.value}>Jita IV - Moon 4</span>
+        {look.caret === 'glyph' ? <span className="shrink-0 text-muted">▾</span> : <ChevronDownIcon className="pt-chevron" />}
       </div>
-    </div>
-  );
-}
-
-function SheetSelect() {
-  const [open, setOpen] = useState(true);
-  const [value, setValue] = useState('amarr');
-  return (
-    <div className="pt-dd-c relative">
-      <button type="button" className="pt-dd-c-trigger pt-glass" data-open={open || undefined} onClick={() => setOpen((current) => !current)}>
-        <span className="min-w-0 flex-1">
-          <small>Trade hub</small>
-          <strong>{hubLabel(value)}</strong>
-        </span>
-        <ChevronDownIcon className="pt-chevron" />
-      </button>
-      {open ? (
-        <div className="pt-panel pt-glass-dense flex flex-col gap-1" role="listbox" aria-label="Trade hub">
-          {HUBS.slice(0, 3).map((hub) => (
-            <button
-              key={hub.value}
-              type="button"
-              role="option"
-              aria-selected={hub.value === value}
-              className="pt-option"
-              onClick={() => {
-                setValue(hub.value);
-                setOpen(false);
-              }}
-            >
-              <span className="pt-radio-dot" />
-              <span className="flex flex-col">
-                <span className="text-name">{hub.label}</span>
-                <span className="text-label text-muted">{hub.detail}</span>
-              </span>
-              <span className="pt-option-meta">{hub.meta}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ChipMultiSelect() {
-  const [open, setOpen] = useState(true);
-  const [picked, setPicked] = useState<string[]>(['gas', 'relic']);
-  const toggle = (value: string) =>
-    setPicked((current) => (current.includes(value) ? current.filter((item) => item !== value) : [...current, value]));
-  return (
-    <div className="relative">
-      <div className="pt-dd-d-field pt-glass" data-open={open || undefined}>
-        {SITE_TYPES.filter((type) => picked.includes(type.value)).map((type) => (
-          <span key={type.value} className="pt-token" data-tone={type.tone}>
-            {type.label}
-            <button type="button" className="pt-token-x" aria-label={`Remove ${type.label}`} onClick={() => toggle(type.value)}>
-              <CloseIcon size={11} />
-            </button>
-          </span>
-        ))}
-        <button type="button" className="ml-auto flex items-center gap-1 px-1 font-ui text-ui text-muted" onClick={() => setOpen((current) => !current)}>
-          {picked.length === 0 ? 'Any site type' : null}
-          <ChevronDownIcon className="pt-chevron" />
-        </button>
-      </div>
-      {open ? (
-        <div className="pt-panel pt-glass-dense" role="listbox" aria-multiselectable aria-label="Site types">
-          {SITE_TYPES.map((type) => (
-            <button
-              key={type.value}
-              type="button"
-              role="option"
-              aria-selected={picked.includes(type.value)}
-              className="pt-option"
-              onClick={() => toggle(type.value)}
-            >
-              <span className="pt-checkmark"><CheckIcon size={12} /></span>
-              <span className="pt-pill-dot" data-tone={type.tone} />
-              {type.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function InlineExpand() {
-  const [open, setOpen] = useState(true);
-  const [value, setValue] = useState('dodixie');
-  return (
-    <div className="pt-dd-e pt-glass" data-open={open || undefined}>
-      <button type="button" className="pt-dd-e-head" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
-        <span className="flex-1">
-          <span className="block font-ui text-label text-muted">Trade hub</span>
-          {hubLabel(value)}
-        </span>
-        <ChevronDownIcon className="pt-chevron" />
-      </button>
-      <div className="pt-dd-e-body">
-        <div>
-          <div className="pt-dd-e-list" role="listbox" aria-label="Trade hub">
-            {HUBS.map((hub) => (
-              <button
-                key={hub.value}
-                type="button"
-                role="option"
-                aria-selected={hub.value === value}
-                className="pt-option"
-                onClick={() => {
-                  setValue(hub.value);
-                  setOpen(false);
-                }}
-              >
-                {hub.label}
-                {hub.value === value ? <CheckIcon size={15} className="ml-auto" /> : null}
-              </button>
-            ))}
+      <div className={look.panel} role="listbox" aria-label="Trade hub">
+        {HUB_GROUPS.map((group) => (
+          <div key={group.group ?? 'top'}>
+            {group.group ? <div className={look.group}>{group.group}</div> : null}
+            {group.options.map((option) => <OptionRow key={option.label} option={option} look={look} />)}
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function CurrentSelect() {
-  const [value, setValue] = useState('jita');
+function ComboboxOpen({ look }: { look: Look }) {
   return (
-    <div className="flex flex-col gap-2">
-      <StateLabel>closed · open it to compare the panel</StateLabel>
-      <Select ariaLabel="Trade hub (current)" value={value} onValueChange={setValue} items={SELECT_ITEMS} />
+    <div>
+      <div className={look.combo} data-open>
+        {look.prompt === 'terminal' ? (
+          <span className="shrink-0 font-data text-ui font-bold text-isk">&gt;</span>
+        ) : (
+          <SearchIcon className="pt-combo-icon" />
+        )}
+        <span className={cn(look.value, look.prompt === 'terminal' && fieldText)}>J1</span>
+        <Kbd>esc</Kbd>
+      </div>
+      <div className={look.panel} role="listbox" aria-label="Systems">
+        <div className={look.group}>Wormholes</div>
+        {SUGGESTIONS.map((option) => <OptionRow key={option.label} option={option} look={look} />)}
+      </div>
     </div>
+  );
+}
+
+function Pair({ look }: { look: Look }) {
+  return (
+    <StateGrid>
+      <StateCell label="select · open">
+        <SelectOpen look={look} />
+      </StateCell>
+      <StateCell label="combobox · typing">
+        <ComboboxOpen look={look} />
+      </StateCell>
+    </StateGrid>
   );
 }
 
@@ -278,25 +143,25 @@ export function DropdownsGroup() {
     <PrototypeGroup
       id="dropdowns"
       title="Dropdowns + comboboxes"
-      today="Today: a field-styled trigger with a ▾ glyph, monospace options, and a solid green selected row."
+      today="Every card shows the same Select (open) and Combobox (typing). Only the look changes."
     >
-      <VariantCard letter="Now" name="Field trigger" pitch="The shipping Select. The panel is already glass; the trigger and rows are the dated parts.">
-        <CurrentSelect />
+      <VariantCard letter="Now" name="Field trigger" pitch="The shipping Select and Combobox: an engraved field, a ▾ glyph, monospace rows, and a solid green selected row.">
+        <Pair look={NOW} />
       </VariantCard>
-      <VariantCard letter="A" name="Glass capsule" pitch="A pill trigger with a spring chevron, rounded rows, and a soft aurora tint plus check for the selected row.">
-        <div className="min-h-[290px]"><CapsuleSelect /></div>
+      <VariantCard letter="A" name="Glass capsule" pitch="Pill-shaped trigger and field, rounded glass list, a soft aurora tint plus check for the selected row.">
+        <Pair look={lookFor('a')} />
       </VariantCard>
-      <VariantCard letter="B" name="Spotlight combobox" pitch="Command-palette search: icon tiles, highlighted matches, a glowing active rail, and keyboard hints.">
-        <SpotlightCombobox />
+      <VariantCard letter="B" name="Glow rail" pitch="Rounded frosted trigger; the highlighted row gets a gradient wash and a glowing rail on its left edge.">
+        <Pair look={lookFor('b')} />
       </VariantCard>
-      <VariantCard letter="C" name="Two-line sheet" pitch="The trigger shows its label and value; options carry a description and a raised selected bezel with a radio light.">
-        <div className="min-h-[300px]"><SheetSelect /></div>
+      <VariantCard letter="C" name="Raised bezel" pitch="The selected row lifts out of the list as a small glass bezel, echoing the segmented control.">
+        <Pair look={lookFor('c')} />
       </VariantCard>
-      <VariantCard letter="D" name="Chip multi-select" pitch="For filters: chosen values become removable tone chips inside the field, with checkbox rows below.">
-        <div className="min-h-[300px]"><ChipMultiSelect /></div>
+      <VariantCard letter="D" name="Hairline" pitch="Lightest touch: transparent trigger with a hairline, no fills in the list, a hairline ring on the highlighted row.">
+        <Pair look={lookFor('d')} />
       </VariantCard>
-      <VariantCard letter="E" name="Inline expand" pitch="No floating layer: the field opens in place with a smooth height spring. Best inside drawers and on phones.">
-        <InlineExpand />
+      <VariantCard letter="E" name="Accent edge" pitch="Dense frosted panel with a brand-gradient top edge; the selected row carries a green bar.">
+        <Pair look={lookFor('e')} />
       </VariantCard>
     </PrototypeGroup>
   );

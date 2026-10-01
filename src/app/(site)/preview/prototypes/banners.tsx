@@ -2,113 +2,69 @@
 
 import { useState, type ReactNode } from 'react';
 import { Banner } from '@/components/ui/banner';
-import { AlertIcon, CheckIcon, CloseIcon, InfoIcon, SparkIcon } from './icons';
+import { AlertIcon, CloseIcon, InfoIcon } from './icons';
 import { PrototypeGroup, VariantCard } from './gallery';
 
-type Notice = {
-  tone: 'teal' | 'orange' | 'red' | 'green';
-  title: string;
-  body: string;
-  action: string;
-  time: string;
-  icon: ReactNode;
-};
+/*
+ * Every card renders the Banner primitive's two tones with the same copy:
+ * a dismissible info notice and a warn notice. Only the look changes.
+ */
 
-const ESI_NOTICE: Notice = { tone: 'orange', title: 'ESI degraded', body: 'Prices may be up to 3 hours stale while CCP recovers.', action: 'Status page', time: '14m ago', icon: <AlertIcon size={16} /> };
+const NOTICES = [
+  { tone: 'info', hue: 'teal', title: 'v4.1 deployed', body: 'the UI system is ready.', dismissible: true },
+  { tone: 'warn', hue: 'orange', title: 'ESI degraded', body: 'prices may be stale up to 3h.', dismissible: false },
+] as const;
 
-const NOTICES: readonly Notice[] = [
-  { tone: 'teal', title: 'v4.1 deployed', body: 'The UI system is ready, with glass primitives across every tool.', action: 'What’s new', time: '2m ago', icon: <InfoIcon size={16} /> },
-  ESI_NOTICE,
-  { tone: 'red', title: 'Sign-in failing', body: 'EVE SSO is returning errors. Existing sessions keep working.', action: 'Retry', time: 'just now', icon: <AlertIcon size={16} /> },
-];
+type Notice = (typeof NOTICES)[number];
 
 function Dismiss() {
   return (
-    <button type="button" className="pt-dismiss" aria-label="Dismiss">
+    <button type="button" className="pt-dismiss" aria-label="Dismiss notice">
       <CloseIcon size={14} />
     </button>
   );
 }
 
-function GlassBar({ notice }: { notice: Notice }) {
+function Icon({ notice }: { notice: Notice }) {
+  return notice.tone === 'info' ? <InfoIcon size={16} /> : <AlertIcon size={16} />;
+}
+
+function Copy({ notice }: { notice: Notice }) {
   return (
-    <div className="pt-banner-a pt-glass" data-tone={notice.tone} role="status">
-      <span className="pt-banner-icon">{notice.icon}</span>
-      <p className="min-w-0 flex-1 pt-banner-body">
-        <span className="pt-banner-title">{notice.title}</span> — {notice.body}
-      </p>
-      <a href="#banners" className="pt-banner-action">{notice.action}</a>
-      <Dismiss />
+    <p className="min-w-0 flex-1 pt-banner-body">
+      <span className="pt-banner-title">{notice.title}</span> — {notice.body}
+    </p>
+  );
+}
+
+/** One banner in a variant's look: `lead` is the dot or icon treatment the variant uses. */
+function GlassBanner({ notice, className, lead }: { notice: Notice; className: string; lead: 'icon' | 'dot' | 'none' }) {
+  return (
+    <div className={className} data-tone={notice.hue} role="status">
+      {lead === 'icon' ? <span className="pt-banner-icon"><Icon notice={notice} /></span> : null}
+      {lead === 'dot' ? <span className="pt-pill-dot" /> : null}
+      <Copy notice={notice} />
+      {notice.dismissible ? <Dismiss /> : null}
     </div>
   );
 }
 
-function Capsule({ notice }: { notice: Notice }) {
-  return (
-    <div className="flex justify-center">
-      <div className="pt-banner-b pt-glass" data-tone={notice.tone} role="status">
-        <span className="pt-pill-dot" />
-        <span className="truncate pt-banner-body">
-          <span className="pt-banner-title">{notice.title}</span> · {notice.body}
-        </span>
-        <a href="#banners" className="pt-banner-b-cta">{notice.action}</a>
-      </div>
-    </div>
-  );
+function Stack({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-2.5">{children}</div>;
 }
 
-function AccentRail({ notice }: { notice: Notice }) {
+function Variant({ className, lead }: { className: string; lead: 'icon' | 'dot' | 'none' }) {
   return (
-    <div className="pt-banner-c pt-glass" data-tone={notice.tone} role="status">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="pt-banner-title">{notice.title}</span>
-          <span className="pt-banner-time">{notice.time}</span>
-        </div>
-        <p className="pt-banner-body">{notice.body}</p>
-        <a href="#banners" className="pt-banner-action mt-1 self-start">{notice.action} →</a>
-      </div>
-      <Dismiss />
-    </div>
-  );
-}
-
-function ReleaseHero() {
-  return (
-    <div className="pt-banner-d pt-glass" data-tone="teal" role="status">
-      <span className="pt-banner-icon size-11"><SparkIcon size={20} /></span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="font-ui text-label font-medium text-aurora">New release</span>
-        <span className="font-ui text-h3 font-semibold text-name">v4.1 is live — glass everywhere</span>
-        <span className="pt-banner-body">Fields, menus, and pills now share the frosted look. Your saved plans are untouched.</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <button type="button" className="pt-ghost-btn">Later</button>
-        <button type="button" className="pt-cta">See what’s new</button>
-      </div>
-    </div>
-  );
-}
-
-function RecoveryCard({ notice, progress }: { notice: Notice; progress: string }) {
-  return (
-    <div className="pt-banner-e pt-glass-dense" data-tone={notice.tone} role="status">
-      <span className="pt-banner-icon">{notice.tone === 'green' ? <CheckIcon size={16} /> : notice.icon}</span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="pt-banner-title">{notice.title}</span>
-        <span className="pt-banner-body">{notice.body}</span>
-        <span className="pt-banner-time mt-1">{progress}</span>
-      </div>
-      <Dismiss />
-      <span className="pt-banner-e-progress" aria-hidden />
-    </div>
+    <Stack>
+      {NOTICES.map((notice) => <GlassBanner key={notice.tone} notice={notice} className={className} lead={lead} />)}
+    </Stack>
   );
 }
 
 function CurrentBanners() {
   const [visible, setVisible] = useState(true);
   return (
-    <div className="flex flex-col gap-2.5">
+    <Stack>
       {visible ? (
         <Banner tone="info" onDismiss={() => setVisible(false)}>
           <strong className="font-medium text-name">v4.1 deployed</strong> — the UI system is ready.
@@ -117,12 +73,8 @@ function CurrentBanners() {
       <Banner tone="warn">
         <strong className="font-medium text-name">ESI degraded</strong> — prices may be stale up to 3h.
       </Banner>
-    </div>
+    </Stack>
   );
-}
-
-function Stack({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-3">{children}</div>;
 }
 
 export function BannersGroup() {
@@ -130,32 +82,26 @@ export function BannersGroup() {
     <PrototypeGroup
       id="banners"
       title="System banners"
-      today="Today: a dim solid tone slab with a status dot and a text × dismiss. Info and warn only."
+      today="Every card shows the same two Banner notices: a dismissible info and a warn. Only the look changes."
       layout="stack"
     >
-      <VariantCard letter="Now" name="Tone slab" pitch="The shipping Banner.">
+      <VariantCard letter="Now" name="Tone slab" pitch="The shipping Banner: a dim solid tone slab, a status dot, and a text × dismiss.">
         <CurrentBanners />
       </VariantCard>
-      <VariantCard letter="A" name="Glass bar" pitch="A frosted bar lit from the left edge in the tone colour, an icon disc, an inline action, and a round dismiss that spins.">
-        <Stack>{NOTICES.map((notice) => <GlassBar key={notice.title} notice={notice} />)}</Stack>
+      <VariantCard letter="A" name="Glass bar" pitch="A frosted bar lit from the left edge in the tone colour, an icon disc, and a round dismiss that spins on hover.">
+        <Variant className="pt-banner-a pt-glass" lead="icon" />
       </VariantCard>
-      <VariantCard letter="B" name="Floating capsule" pitch="A centred one-line capsule that echoes the header, with a live ping and a pill action. For global notices.">
-        <Stack>{NOTICES.map((notice) => <Capsule key={notice.title} notice={notice} />)}</Stack>
+      <VariantCard letter="B" name="Floating capsule" pitch="A fully rounded floating capsule that echoes the header, with a live ping on the status dot.">
+        <Variant className="pt-banner-b pt-glass" lead="dot" />
       </VariantCard>
-      <VariantCard letter="C" name="Accent rail" pitch="A glass card with a glowing rounded rail, title, timestamp, and body. Room for longer incident text.">
-        <div className="grid gap-3 md:grid-cols-3">{NOTICES.map((notice) => <AccentRail key={notice.title} notice={notice} />)}</div>
+      <VariantCard letter="C" name="Accent rail" pitch="A glass card with a glowing rounded tone rail down the left side instead of a tinted fill.">
+        <Variant className="pt-banner-c pt-glass" lead="none" />
       </VariantCard>
-      <VariantCard letter="D" name="Release hero" pitch="For announcements: a light orbits the border, with a primary gradient CTA. Use sparingly.">
-        <ReleaseHero />
+      <VariantCard letter="D" name="Orbiting edge" pitch="Neutral glass with a tone light slowly orbiting the border. Draws the eye without a coloured slab.">
+        <Variant className="pt-banner-d pt-glass" lead="icon" />
       </VariantCard>
-      <VariantCard letter="E" name="Recovery card" pitch="For incidents in progress: a dense glass card whose bottom bar tracks recovery, then turns green.">
-        <div className="grid gap-3 md:grid-cols-2">
-          <RecoveryCard notice={ESI_NOTICE} progress="Recovering · 6 of 9 hubs synced" />
-          <RecoveryCard
-            notice={{ tone: 'green', title: 'Prices recovered', body: 'All hubs synced 2 minutes ago.', action: '', time: '', icon: null }}
-            progress="Dismisses in 8s"
-          />
-        </div>
+      <VariantCard letter="E" name="Tinted frost" pitch="The current tone slab rebuilt as frosted glass: translucent tone fill, lit top edge, and an icon in place of the dot.">
+        <Variant className="pt-banner-e pt-glass" lead="icon" />
       </VariantCard>
     </PrototypeGroup>
   );

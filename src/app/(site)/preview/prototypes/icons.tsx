@@ -50,9 +50,6 @@ export const AlertIcon = icon(
     <path d="M12 10v4M12 17h.01" />
   </>,
 );
-export const SparkIcon = icon(<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" />);
-export const ArrowUpIcon = icon(<path d="M12 19V5M6 11l6-6 6 6" />);
-export const ArrowDownIcon = icon(<path d="M12 5v14M6 13l6 6 6-6" />);
 export const StructureIcon = icon(
   <>
     <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
@@ -65,12 +62,5 @@ export const InboxIcon = icon(
   <>
     <path d="M4 13l2.5-7h11L20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
     <path d="M4 13h5l1 2h4l1-2h5" />
-  </>,
-);
-export const SortIcon = icon(<path d="M8 15l4 4 4-4" />);
-export const LinkIcon = icon(
-  <>
-    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
-    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
   </>,
 );

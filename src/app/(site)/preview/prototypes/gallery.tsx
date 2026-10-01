@@ -77,7 +77,7 @@ export function VariantCard({
 }
 
 /** A small caption over a state in a variant (focus, error, pending…). */
-export function StateLabel({ children }: { children: ReactNode }) {
+function StateLabel({ children }: { children: ReactNode }) {
   return <span className="font-ui text-micro uppercase tracking-wide text-faint">{children}</span>;
 }
 

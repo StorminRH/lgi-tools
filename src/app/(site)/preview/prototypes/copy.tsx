@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { CopyButton } from '@/components/ui/copy-button';
-import { CheckIcon, CopyIcon, LinkIcon } from './icons';
+import { CheckIcon, CopyIcon } from './icons';
 import { PrototypeGroup, StateCell, StateGrid, VariantCard } from './gallery';
 
 /** Clipboard write with a timed "copied" flag; `forced` pins it on for the static comparison state. */
@@ -67,8 +67,8 @@ function AttachedField({ value, forced }: CopyProps) {
     <span className="pt-copy-d pt-glass" data-copied={copied || undefined}>
       <span className="pt-value">{value}</span>
       <button type="button" onClick={copy}>
-        {copied ? <CheckIcon size={14} /> : <LinkIcon size={14} />}
-        {copied ? 'Copied' : 'Copy link'}
+        {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+        {copied ? 'Copied' : 'Copy'}
       </button>
     </span>
   );
@@ -98,7 +98,6 @@ function CheckDraw({ value, forced }: CopyProps) {
 
 const ISK = '312,400,000 ISK';
 const SYSTEM = 'J115405';
-const LINK = 'https://lgi.tools/industry/praxis?plan=8f2c1a7e-41d2-4b8f';
 
 function Pair({ render }: { render: (props: CopyProps) => ReactNode }) {
   return (
@@ -114,7 +113,7 @@ export function CopyGroup() {
     <PrototypeGroup
       id="copy"
       title="Copy buttons"
-      today="Today: a mono value in an inset well with an uppercase COPY key that turns solid green."
+      today="Every card copies the same two values (idle and copied states). Only the look and feedback motion change."
     >
       <VariantCard letter="Now" name="Inset well + COPY key" pitch="The shipping CopyButton.">
         <div className="flex flex-wrap gap-3">
@@ -128,18 +127,11 @@ export function CopyGroup() {
       <VariantCard letter="B" name="Pill sweep" pitch="A rounded pill split into value and action. Copying sweeps the brand gradient across the pill.">
         <Pair render={(props) => <PillSweep {...props} />} />
       </VariantCard>
-      <VariantCard letter="C" name="Inline ghost" pitch="For tables and dense rows: no box, a ghost icon on hover (always on touch), and a soft green flash on copy.">
+      <VariantCard letter="C" name="Inline ghost" pitch="No box around the value: a ghost copy icon appears on hover (always on touch), and the value flashes green on copy.">
         <Pair render={(props) => <InlineGhost {...props} />} />
       </VariantCard>
-      <VariantCard letter="D" name="Attached field" pitch="For long values (links, keys): a read-only glass field with a fade-out mask and an attached action.">
-        <StateGrid columns={1}>
-          <StateCell label="idle">
-            <AttachedField value={LINK} />
-          </StateCell>
-          <StateCell label="copied">
-            <AttachedField value={LINK} forced />
-          </StateCell>
-        </StateGrid>
+      <VariantCard letter="D" name="Attached action" pitch="A read-only glass field with an attached action segment and a fade-out mask, so long values truncate gracefully.">
+        <Pair render={(props) => <AttachedField {...props} />} />
       </VariantCard>
       <VariantCard letter="E" name="Check-draw confirm" pitch="A round icon button; a small confirmation capsule slides out and draws its check.">
         <Pair render={(props) => <CheckDraw {...props} />} />
