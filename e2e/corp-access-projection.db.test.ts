@@ -79,8 +79,8 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
     await projectMapAccess(mapId);
     const gate = (userId: string) => t.withIdentity({ subject: userId })
       .query(api.mapChainAccess.watchMapAccess, { mapId });
-    expect(await gate('member')).toEqual({ granted: true, canEdit: false });
-    expect(await gate('direct')).toEqual({ granted: true, canEdit: true });
+    expect(await gate('member')).toEqual({ granted: true, canEdit: false, trackableCharacterIds: null });
+    expect(await gate('direct')).toEqual({ granted: true, canEdit: true, trackableCharacterIds: null });
 
     expect(await updateAffiliations([
       { characterId: 42, corporationId: 991, allianceId: null, factionId: null },
@@ -94,8 +94,8 @@ describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Con
     vi.stubGlobal('fetch', vi.fn(deliver));
     expect(await reconcileAffiliationAccess()).toEqual({ processed: 1, failed: 0 });
     expect(await readPendingMapAccessChanges()).toEqual([]);
-    expect(await gate('member')).toEqual({ granted: false, canEdit: false });
-    expect(await gate('direct')).toEqual({ granted: true, canEdit: true });
-    expect(await gate('creator')).toEqual({ granted: true, canEdit: true });
+    expect(await gate('member')).toEqual({ granted: false, canEdit: false, trackableCharacterIds: null });
+    expect(await gate('direct')).toEqual({ granted: true, canEdit: true, trackableCharacterIds: null });
+    expect(await gate('creator')).toEqual({ granted: true, canEdit: true, trackableCharacterIds: null });
   });
 });

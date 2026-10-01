@@ -16,12 +16,12 @@ const mocks = vi.hoisted(() => ({
   mutate: vi.fn(async () => ({ tracked: true })),
   queryResult: {
     tracked: [
-      { userId: 'viewer', characterId: 101, location: null },
-      { userId: 'other', characterId: 999, location: null },
+      { characterId: 101, location: null },
+      { characterId: 999, location: null },
     ],
     ownTrackedCharacterIds: [101],
   },
-  accessResult: { granted: true, canEdit: true },
+  accessResult: { granted: true, canEdit: true, trackableCharacterIds: null as number[] | null },
   afk: { paused: false, promptOpen: false, dismiss: vi.fn() },
   characters: [
     {
@@ -134,6 +134,23 @@ describe('TrackingControls', () => {
     mocks.characters[1]!.needsReconnect = true;
     mocks.characters[1]!.needsLocationReconnect = false;
     mocks.queryResult.ownTrackedCharacterIds = [101];
+    mocks.accessResult.trackableCharacterIds = null;
+  });
+
+  it('offers only the characters this map lets the caller track', () => {
+    mocks.accessResult.trackableCharacterIds = [202];
+    const markup = renderToStaticMarkup(
+      TrackingControls({ mapId: 'map-a', reconnectAction }) as ReactElement,
+    );
+    expect(markup).toContain('data-tracking-portrait="Track Bob Own"');
+    expect(markup).not.toContain('data-tracking-portrait="Stop tracking Alice Own"');
+
+    mocks.accessResult.trackableCharacterIds = [];
+    const empty = renderToStaticMarkup(
+      TrackingControls({ mapId: 'map-a', reconnectAction }) as ReactElement,
+    );
+    expect(empty).toContain('None of your characters are on this map&#x27;s access list');
+    expect(empty).not.toContain('data-tracking-portrait');
   });
 
   it('renders owned portraits as tracking toggles and keeps the heartbeat mounted independently', async () => {

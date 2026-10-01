@@ -73,8 +73,10 @@ describe('applyMapAccessUpdate', () => {
       mapId: 'map-1',
       principal: { ownerType: 'corporation' as const, ownerId: 99 },
     };
+    const isCreatorsLastCharacter = vi.fn().mockResolvedValue(true);
     await expect(
       applyMapAccessUpdate('admin', revoke, {
+        isCreatorsLastCharacter,
         resolvePrincipals: vi.fn().mockResolvedValue({
           characterIds: [],
           corporationIds: [99],
@@ -90,6 +92,7 @@ describe('applyMapAccessUpdate', () => {
         }),
       }),
     ).resolves.toEqual({ ok: true });
+    expect(isCreatorsLastCharacter).not.toHaveBeenCalled();
 
     const refusedProject = vi.fn();
     const refusedAcknowledge = vi.fn();
@@ -106,6 +109,35 @@ describe('applyMapAccessUpdate', () => {
     ).resolves.toEqual({ ok: false, reason: 'forbidden' });
     expect(refusedProject).not.toHaveBeenCalled();
     expect(refusedAcknowledge).not.toHaveBeenCalled();
+  });
+
+  it('refuses to revoke the creator\'s last own character before touching Neon', async () => {
+    const applyGrantChange = vi.fn();
+    const revoke = {
+      operation: 'revoke' as const,
+      mapId: 'map-1',
+      principal: { ownerType: 'character' as const, ownerId: 7 },
+    };
+    const isCreatorsLastCharacter = vi.fn(async (_userId: string, _principals: unknown, mapId: string, characterId: number) =>
+      mapId === 'map-1' && characterId === 7);
+    const deps = {
+      isCreatorsLastCharacter,
+      resolvePrincipals: vi.fn().mockResolvedValue({ characterIds: [7], corporationIds: [] }),
+      applyGrantChange,
+      acknowledgeAccess: vi.fn(),
+      projectAccess: vi.fn(),
+    };
+    await expect(applyMapAccessUpdate('admin', revoke, deps))
+      .resolves.toEqual({ ok: false, reason: 'creator-character-required' });
+    expect(applyGrantChange).not.toHaveBeenCalled();
+
+    applyGrantChange.mockResolvedValue({ mapId: 'map-1', version: 'captured' });
+    deps.projectAccess.mockResolvedValue({
+      inserted: 0, updated: 0, deleted: 1, unchanged: 0, outcome: 'applied',
+    });
+    await expect(applyMapAccessUpdate('admin', {
+      ...revoke, principal: { ownerType: 'character', ownerId: 8 },
+    }, deps)).resolves.toEqual({ ok: true });
   });
 
   it('surfaces typed projection unavailability after the durable write and rethrows unexpected failures', async () => {

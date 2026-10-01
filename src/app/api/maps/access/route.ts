@@ -4,7 +4,7 @@ import {
   updateMapAccessEndpoint,
   updateMapAccessRequestSchema,
 } from '@/data/maps/api-contract';
-import { dependencyUnavailableFailure, forbiddenFailure } from '@/lib/failure';
+import { conflictFailure, dependencyUnavailableFailure, forbiddenFailure } from '@/lib/failure';
 import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
@@ -22,6 +22,16 @@ export async function POST(request: Request): Promise<Response> {
           updateMapAccessEndpoint,
           403,
           forbiddenFailure('map_admin_required', 'Map admin access is required'),
+        );
+      }
+      if (!result.ok && result.reason === 'creator-character-required') {
+        return apiResponse(
+          updateMapAccessEndpoint,
+          409,
+          conflictFailure(
+            'map_creator_character_required',
+            'The map creator must keep at least one of their own characters on the access list',
+          ),
         );
       }
       if (!result.ok) {

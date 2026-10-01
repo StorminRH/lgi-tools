@@ -28,6 +28,13 @@ vi.mock('@/components/ui/dialog', () => ({
     createElement('h2', props, children),
 }));
 
+vi.mock('@/components/use-account-characters', () => ({
+  useAccountCharacters: () => [
+    { characterId: 42, name: 'Scout', portraitUrl: 'https://images.evetech.net/characters/42/portrait' },
+    { characterId: 43, name: 'Hauler', portraitUrl: 'https://images.evetech.net/characters/43/portrait' },
+  ],
+}));
+
 vi.mock('./CharacterSearchControl', () => ({
   CharacterSearchControl: () => createElement('div', { 'data-character-search': '' }),
 }));
@@ -90,6 +97,9 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('data-has-final-focus="true"');
     expect(markup).toContain('Done');
     expect(markup).not.toContain('Delete map');
+    expect(markup).toContain('data-own-character-picker');
+    expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Scout"|aria-label="Scout"[^>]*aria-pressed="true"/);
+    expect(markup).toMatch(/aria-pressed="false"[^>]*aria-label="Hauler"|aria-label="Hauler"[^>]*aria-pressed="false"/);
   });
 
   it('reconciles a refreshed grant snapshot after a concurrent revocation', () => {

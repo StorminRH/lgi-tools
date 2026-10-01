@@ -15,6 +15,9 @@ export function mapAccessFailureMessage(
   if (outcome.kind === 'api' && outcome.status === 403) {
     return 'Map admin access is required to change this access list.';
   }
+  if (outcome.kind === 'api' && outcome.status === 409) {
+    return 'The map creator must keep at least one of their own characters on the access list.';
+  }
   if (outcome.kind === 'api' && outcome.status === 503) {
     return 'The durable change was saved, but live access has not caught up. Retry the same change.';
   }

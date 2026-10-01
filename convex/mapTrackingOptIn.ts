@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
-import { requireMapAccess } from './lib/mapAccess';
+import { characterTrackable, requireMapAccess } from './lib/mapAccess';
 import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
@@ -33,8 +33,9 @@ async function enableTracking(
 
 /**
  * Opt a character into or out of tracking on one map. Requires a view claim;
- * the row's userId is always the caller's JWT subject. tracked=true upserts;
- * tracked=false deletes. Idempotent either way.
+ * the row's userId is always the caller's JWT subject. On a character-scoped
+ * map only the claim's own eligible characters may be tracked. tracked=true
+ * upserts; tracked=false deletes. Idempotent either way.
  */
 export const setTracking = mutation({
   args: {
@@ -53,6 +54,12 @@ export const setTracking = mutation({
     const match = existing.find((row) => row.characterId === characterId);
 
     if (tracked) {
+      if (!characterTrackable(principal, characterId)) {
+        throw new ConvexError({
+          code: 'CHARACTER_NOT_ELIGIBLE',
+          detail: 'This character is not on the map\'s access list.',
+        });
+      }
       await enableTracking(
         ctx,
         {

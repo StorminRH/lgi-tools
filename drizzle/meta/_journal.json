@@ -519,6 +519,13 @@
       "when": 1790808379416,
       "tag": "0073_deletion_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790822879008,
+      "tag": "0074_character_scoped_at",
+      "breakpoints": true
     }
   ]
 }

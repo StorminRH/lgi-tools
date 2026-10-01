@@ -1,0 +1,1 @@
+ALTER TABLE "maps" ADD COLUMN "character_scoped_at" timestamp with time zone;

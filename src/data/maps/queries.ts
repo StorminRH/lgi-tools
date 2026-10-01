@@ -38,7 +38,7 @@ import {
 export interface CreateMapGrant {
   readonly ownerType: MapAccessOwnerType;
   readonly ownerId: number;
-  readonly role: Extract<MapRole, 'viewer' | 'editor'>;
+  readonly role: MapRole;
 }
 
 export async function reserveMapAccessProjectionRevision(
@@ -95,6 +95,10 @@ export interface DeletedRestorableMapRow extends AuthorizedMapRow {
 
 export interface MapGrantRow extends MapGrant {
   readonly mapId: string;
+}
+
+export interface MapGrantWithProvenance extends MapGrant {
+  readonly grantedAt: Date;
 }
 
 interface RawAuthorizedMapRow {
@@ -283,11 +287,11 @@ export async function createMapAtomic(
     WITH created_map AS (
       INSERT INTO ${maps} (
         id, user_id, name, archived_at, purge_requested_at,
-        lifecycle_status, lifecycle_entered_at
+        lifecycle_status, lifecycle_entered_at, character_scoped_at
       )
       VALUES (
         ${mapId}, ${userId}, ${name}, now(), now(),
-        'purge_queued'::"public"."map_lifecycle_status", now()
+        'purge_queued'::"public"."map_lifecycle_status", now(), now()
       )
       RETURNING id
     )
@@ -392,6 +396,7 @@ export async function listDeletedRestorableMapsForPrincipals(
 export interface MapAccessSubject {
   readonly userId: string;
   readonly archivedAt: Date | null;
+  readonly characterScopedAt: Date | null;
 }
 
 export async function getMapAccessSubject(
@@ -399,7 +404,11 @@ export async function getMapAccessSubject(
   database: AnyPgDb = db,
 ): Promise<MapAccessSubject | null> {
   const [row] = await database
-    .select({ userId: maps.userId, archivedAt: maps.archivedAt })
+    .select({
+      userId: maps.userId,
+      archivedAt: maps.archivedAt,
+      characterScopedAt: maps.characterScopedAt,
+    })
     .from(maps)
     .where(and(eq(maps.id, mapId), isNull(maps.tombstonedAt)))
     .limit(1);
@@ -409,15 +418,28 @@ export async function getMapAccessSubject(
 export async function getMapGrants(
   mapId: string,
   database: AnyPgDb = db,
-): Promise<MapGrant[]> {
+): Promise<MapGrantWithProvenance[]> {
   return database
     .select({
       ownerType: mapAccess.ownerType,
       ownerId: mapAccess.ownerId,
       role: mapAccess.role,
+      grantedAt: mapAccess.grantedAt,
     })
     .from(mapAccess)
     .where(eq(mapAccess.mapId, mapId));
+}
+
+export async function getCharacterNames(
+  characterIds: readonly number[],
+  database: AnyPgDb = db,
+): Promise<ReadonlyMap<number, string>> {
+  if (characterIds.length === 0) return new Map();
+  const rows = await database
+    .select({ characterId: characters.characterId, name: characters.name })
+    .from(characters)
+    .where(inArray(characters.characterId, [...characterIds]));
+  return new Map(rows.map((row) => [row.characterId, row.name]));
 }
 
 export async function getAuthorizedMapGrantsForMaps(
@@ -477,6 +499,24 @@ export async function applyAuthorizedMapGrantChange(
   change: MapGrantChange,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
+  if (change.operation === 'upsert') {
+    return writeAuthorizedGrantChange(userId, principals, mapId, change, database);
+  }
+  // Revokes on one map run one at a time, so the last-own-character guard
+  // reads the grants the previous revoke left behind.
+  return database.transaction(async (transaction) => {
+    await transaction.execute(sql`SELECT ${maps.id} FROM ${maps} WHERE ${maps.id} = ${mapId} FOR UPDATE`);
+    return writeAuthorizedGrantChange(userId, principals, mapId, change, transaction);
+  });
+}
+
+async function writeAuthorizedGrantChange(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  change: MapGrantChange,
+  database: AnyPgDb,
+): Promise<PendingMapAccessChange | null> {
   const mutation = change.operation === 'upsert' ? sql`
     INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
     SELECT authorized_map.id,
@@ -490,6 +530,7 @@ export async function applyAuthorizedMapGrantChange(
     WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
       AND ${mapAccess.ownerType} = ${change.principal.ownerType}
       AND ${mapAccess.ownerId} = ${change.principal.ownerId}
+      AND ${keepsCreatorsLastCharacter(mapId)}
   `;
   const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH authorized_map AS (
@@ -498,6 +539,55 @@ export async function applyAuthorizedMapGrantChange(
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM authorized_map`)}
   `);
   return row ?? null;
+}
+
+/** On a character-scoped map, the grants that name one of the creator's own linked characters. */
+function creatorCharacterGrantIds(mapId: string) {
+  return sql`
+    SELECT creator_grant.owner_id
+    FROM ${mapAccess} AS creator_grant
+    INNER JOIN ${maps} AS creator_map ON creator_map.id = creator_grant.map_id
+    INNER JOIN ${account} AS creator_account
+      ON creator_account.user_id = creator_map.user_id
+      AND creator_account.provider_id = ${EVE_PROVIDER_ID}
+      AND creator_account.account_id = creator_grant.owner_id::text
+    WHERE creator_grant.map_id = ${mapId}
+      AND creator_map.character_scoped_at IS NOT NULL
+      AND creator_grant.owner_type = 'character'::"public"."map_access_owner_type"
+  `;
+}
+
+/** Holds back a revoke that would strip the creator of their last own-character grant. */
+function keepsCreatorsLastCharacter(mapId: string) {
+  return sql`
+    NOT (
+      ${mapAccess.ownerType} = 'character'::"public"."map_access_owner_type"
+      AND ${mapAccess.ownerId} IN (${creatorCharacterGrantIds(mapId)})
+      AND (SELECT count(*) FROM (${creatorCharacterGrantIds(mapId)}) AS held) = 1
+    )
+  `;
+}
+
+/**
+ * True when the caller administers the map and revoking this character grant
+ * would leave the creator with none of their own characters on it.
+ */
+export async function isCreatorsLastCharacterGrant(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  const rows = await mapAuthorizationRows<{ ownerId: number | string }>(database, sql`
+    WITH authorized_map AS (
+      ${activeMapAdminSelection(userId, principals, mapId)}
+    )
+    SELECT held.owner_id AS "ownerId"
+    FROM (${creatorCharacterGrantIds(mapId)}) AS held
+    WHERE EXISTS (SELECT 1 FROM authorized_map)
+  `);
+  return rows.length === 1 && Number(rows[0]?.ownerId) === characterId;
 }
 
 export async function getMapAccessCandidateUserIds(

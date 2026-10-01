@@ -392,6 +392,7 @@ const baseUiWrapperFiles = [
   "src/components/ui/navigation-menu.tsx",
   "src/components/ui/pointer-menu.tsx",
   "src/components/ui/popover.tsx",
+  "src/components/ui/portrait-toggle.tsx",
   "src/components/ui/radio-group.tsx",
   "src/components/ui/segmented.tsx",
   "src/components/ui/chip-toggle.tsx",

@@ -86,6 +86,41 @@ describe('POST /project-map-access', () => {
     });
   });
 
+  it('stores per-claim characters when the body carries them', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    const t = convexTest(schema, modules);
+    const res = await t.fetch('/project-map-access', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify({
+        mapId: 'map-1',
+        revision: 1,
+        claims: [
+          { userId: 'u1', roles: ['admin'], characters: [{ characterId: 7, name: 'Seven' }] },
+          { userId: 'u2', roles: ['viewer'] },
+        ],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const claims = await t.run(async (ctx) => (await ctx.db.query('mapAccess').collect())
+      .map(({ userId, characters }) => ({ userId, characters }))
+      .sort((left, right) => left.userId.localeCompare(right.userId)));
+    expect(claims).toEqual([
+      { userId: 'u1', characters: [{ characterId: 7, name: 'Seven' }] },
+      { userId: 'u2', characters: undefined },
+    ]);
+    const bad = await t.fetch('/project-map-access', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify({
+        mapId: 'map-1',
+        revision: 2,
+        claims: [{ userId: 'u1', roles: ['admin'], characters: [{ characterId: 0, name: '' }] }],
+      }),
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it('drains a multi-batch bookkeeping teardown without touching another map', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
     const t = convexTest(schema, modules);
@@ -263,6 +298,31 @@ describe('POST /purge-map-chain', () => {
       access: [],
       notes: [],
       other: [expect.objectContaining({ mapId: 'map-other', body: 'keep' })],
+    });
+  });
+});
+
+describe('POST /map-tracking-snapshot', () => {
+  it('lists a map\'s tracked pairs to the service secret only', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    expect((await postConvexHttp('/map-tracking-snapshot', JSON.stringify({ mapId: 'm' }), false)).status)
+      .toBe(401);
+    expect((await postConvexHttp('/map-tracking-snapshot', JSON.stringify({}))).status).toBe(400);
+
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: 'map-1', userId: 'u1', characterId: 11 });
+      await ctx.db.insert('mapTracking', { mapId: 'map-1', userId: 'u2', characterId: 22 });
+      await ctx.db.insert('mapTracking', { mapId: 'map-2', userId: 'u1', characterId: 33 });
+    });
+    const response = await t.fetch('/map-tracking-snapshot', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify({ mapId: 'map-1' }),
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      tracked: [{ userId: 'u1', characterId: 11 }, { userId: 'u2', characterId: 22 }],
     });
   });
 });

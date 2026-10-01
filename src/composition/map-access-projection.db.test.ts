@@ -125,6 +125,40 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([]);
   });
 
+  it('names eligible characters per user on a character-scoped map and drops a departed alt', async () => {
+    await seedUser(harness.db, 'creator');
+    await seedUser(harness.db, 'corp-member');
+    await seedCharacter(harness.db, 41, { name: 'Creator Main', corporationId: 100 });
+    await seedCharacter(harness.db, 43, { name: 'Member Main', corporationId: 990 });
+    await seedCharacter(harness.db, 44, { name: 'Member Alt', corporationId: 990 });
+    await seedCharacter(harness.db, 45, { name: 'Outside Alt', corporationId: 991 });
+    for (const [id, userId] of [[41, 'creator'], [43, 'corp-member'], [44, 'corp-member'], [45, 'corp-member']] as const) {
+      await seedEveAccount(harness.db, { id: `acc-${id}`, characterId: id, userId }, { refreshToken: 'valid' });
+    }
+
+    const mapId = '33333333-3333-4333-8333-333333333333';
+    await harness.db.insert(maps).values({
+      id: mapId, userId: 'creator', name: 'Scoped', characterScopedAt: new Date(),
+    });
+    await harness.db.insert(mapAccess).values([
+      { mapId, ownerType: 'character', ownerId: 41, role: 'admin', grantedAt: new Date('2026-09-01T00:00:00Z') },
+      { mapId, ownerType: 'corporation', ownerId: 990, role: 'viewer', grantedAt: new Date('2026-09-02T00:00:00Z') },
+    ]);
+
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
+      { userId: 'corp-member', roles: ['viewer'], characters: [
+        { characterId: 43, name: 'Member Main' }, { characterId: 44, name: 'Member Alt' },
+      ] },
+      { userId: 'creator', roles: ['admin'], characters: [{ characterId: 41, name: 'Creator Main' }] },
+    ]);
+
+    await harness.db.update(characters).set({ corporationId: 991 }).where(eq(characters.characterId, 44));
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
+      { userId: 'corp-member', roles: ['viewer'], characters: [{ characterId: 43, name: 'Member Main' }] },
+      { userId: 'creator', roles: ['admin'], characters: [{ characterId: 41, name: 'Creator Main' }] },
+    ]);
+  });
+
   it('emits no claims for a tombstoned map whose archived_at is null', async () => {
     await seedUser(harness.db, 'creator');
     await seedUser(harness.db, 'char-owner');

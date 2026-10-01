@@ -18,6 +18,15 @@ export interface MapGrant {
   readonly role: MapRole;
 }
 
+export interface DatedMapGrant extends MapGrant {
+  readonly grantedAt: Date;
+}
+
+export interface CharacterAffiliation {
+  readonly characterId: number;
+  readonly corporationId: number | null;
+}
+
 export interface MapAccess extends MapRoleCapabilities {
   readonly role: MapRole | null;
 }
@@ -58,4 +67,41 @@ export function resolveMapRole(input: MapRoleInput): MapAccess {
     canView: rolesAllow(roles, 'view'),
     canEdit: rolesAllow(roles, 'edit'),
   };
+}
+
+function grantMatchesCharacter(grant: MapGrant, character: CharacterAffiliation): boolean {
+  return grant.ownerType === 'character'
+    ? grant.ownerId === character.characterId
+    : grant.ownerId === character.corporationId;
+}
+
+function earliestMatchingGrantAt(
+  grants: readonly DatedMapGrant[],
+  character: CharacterAffiliation,
+): number | null {
+  let earliest: number | null = null;
+  for (const grant of grants) {
+    if (!grantMatchesCharacter(grant, character)) continue;
+    const at = grant.grantedAt.getTime();
+    if (earliest === null || at < earliest) earliest = at;
+  }
+  return earliest;
+}
+
+/**
+ * Characters that match a grant themselves, ordered by the earliest matching
+ * grant and then by id. The first entry names the user on map edits when
+ * nothing of theirs is tracked yet.
+ */
+export function orderEligibleCharacters(
+  grants: readonly DatedMapGrant[],
+  characters: readonly CharacterAffiliation[],
+): number[] {
+  const ranked: Array<{ characterId: number; at: number }> = [];
+  for (const character of characters) {
+    const at = earliestMatchingGrantAt(grants, character);
+    if (at !== null) ranked.push({ characterId: character.characterId, at });
+  }
+  ranked.sort((left, right) => left.at - right.at || left.characterId - right.characterId);
+  return ranked.map((entry) => entry.characterId);
 }
