@@ -56,15 +56,13 @@ describe('revokeStoredCharacterToken', () => {
     });
   });
 
-  it('skips the revoke when there is no account row (nothing to revoke)', async () => {
+  it('skips the revoke when there is no plaintext refresh token', async () => {
     await revokeStoredCharacterToken(null);
     expect(revokeEveRefreshTokenMock).not.toHaveBeenCalled();
-  });
 
-  it('skips the revoke when the stored token decrypts to null (legacy/tampered)', async () => {
-    state.results = [[{ id: 'acc-1', refreshToken: 'cipher' }]];
     decryptTokenMock.mockReturnValue(null);
     await revokeStoredCharacterToken('cipher');
+    expect(decryptTokenMock).toHaveBeenCalledWith('cipher');
     expect(revokeEveRefreshTokenMock).not.toHaveBeenCalled();
   });
 

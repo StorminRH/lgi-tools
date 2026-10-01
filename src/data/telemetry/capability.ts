@@ -98,11 +98,13 @@ export interface CapabilityOutcomeRecord {
   retry: CapabilityRetry | null;
   correlationId: string;
   appVersion: string;
+  /** Present on unexpected failures only: a database or system error code, or the error's name. */
+  errorClass?: string;
 }
 
 export type CapabilityOutcomeInput = Pick<
   CapabilityOutcomeRecord,
-  'outcome' | 'code' | 'durationMs' | 'retry'
+  'outcome' | 'code' | 'durationMs' | 'retry' | 'errorClass'
 >;
 
 function buildCapabilityRecord(
@@ -120,6 +122,7 @@ function buildCapabilityRecord(
     retry: outcome.retry,
     correlationId: currentCorrelationId(),
     appVersion: APP_VERSION,
+    ...(outcome.errorClass === undefined ? {} : { errorClass: outcome.errorClass }),
   };
 }
 
@@ -130,7 +133,7 @@ export function recordCapabilityOutcome(
   emitCostMetric('capability_outcome', { ...buildCapabilityRecord(id, outcome) });
 }
 
-export type CapabilityResult = Pick<CapabilityOutcomeRecord, 'outcome' | 'code'>;
+export type CapabilityResult = Pick<CapabilityOutcomeRecord, 'outcome' | 'code' | 'errorClass'>;
 
 function categoryForStatus(status: number): FailureCategory {
   const matched = FAILURE_CATEGORIES.find(
@@ -148,7 +151,32 @@ export function capabilityResultForResponse(response: Response): CapabilityResul
   return { outcome: category, code: category };
 }
 
+const ERROR_CODE = /^[A-Z0-9_]{2,40}$/;
+const MAX_CAUSE_DEPTH = 5;
+
+/**
+ * A short, message-free label for an unexpected error, so the admin dashboard
+ * can name a cause without storing text that may carry user data: the first
+ * error code in the cause chain (a Postgres SQLSTATE such as 23502, or a system
+ * code such as ECONNRESET), else the innermost inspected error's name.
+ */
+export function errorClassOf(error: unknown): string {
+  let current = error;
+  let name = error instanceof Error ? error.name : typeof error;
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH && current instanceof Error; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === 'string' && ERROR_CODE.test(code)) return code;
+    name = current.name;
+    current = current.cause;
+  }
+  return name;
+}
+
 export function capabilityResultForError(error: unknown): CapabilityResult {
-  if (isAppFailure(error)) return { outcome: error.category, code: error.code };
-  return { outcome: 'unexpected', code: 'unexpected' };
+  if (isAppFailure(error)) {
+    return error.category === 'unexpected' && error.cause !== undefined
+      ? { outcome: error.category, code: error.code, errorClass: errorClassOf(error.cause) }
+      : { outcome: error.category, code: error.code };
+  }
+  return { outcome: 'unexpected', code: 'unexpected', errorClass: errorClassOf(error) };
 }

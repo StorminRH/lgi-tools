@@ -2,7 +2,6 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { internal } from './_generated/api';
-import { JUMP_CONTINUITY_MS } from './characterLocationApply';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -179,8 +178,6 @@ describe('characterLocationApply.finishSync (apply)', () => {
 
     const after = await readDoc(t);
     expect(after).toEqual(before);
-    expect(after?._id).toBe(before?._id);
-    expect(after?._creationTime).toBe(before?._creationTime);
     expect(after).toMatchObject({
       solarSystemId: 30_000_142,
       shipTypeId: 670,
@@ -223,7 +220,6 @@ describe('characterLocationApply.finishSync (apply)', () => {
 
   it.each(['current', 'legacy'] as const)('preserves jump continuity from a recent %s run', async (source) => {
     const t = convexTest(schema, modules);
-    expect(JUMP_CONTINUITY_MS).toBeGreaterThan(17_000);
     const freshness = {
       lastFinishedAt: Date.now() - 17_000,
       syncedCharacterIds: [CHAR_A],
