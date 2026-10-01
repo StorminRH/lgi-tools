@@ -5,7 +5,6 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
-import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
@@ -88,15 +87,10 @@ export default function IndustryDashboardPage() {
   return (
     <PageShell mode="workspace">
       <h1 className="sr-only">Industry</h1>
-      <div className="pb-16 flex flex-col gap-9">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <IndustryTypedHint />
-          <div className="flex flex-wrap items-baseline gap-x-[18px] gap-y-1">
-            <Suspense fallback={null}>
-              <SlotMeta />
-            </Suspense>
-          </div>
-        </div>
+      <div className="pb-16 flex flex-col gap-5">
+        <Suspense fallback={null}>
+          <SlotMeta />
+        </Suspense>
 
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardSections />

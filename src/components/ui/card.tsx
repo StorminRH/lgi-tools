@@ -11,10 +11,6 @@ export const floatSurface = 'border border-border glass-surface glass-lit shadow
 // A row or tile set into a surface: list items inside cards and dialogs.
 export const insetSurface = 'rounded-ctl border border-border-soft bg-bg-deep/60';
 
-// Hover for clickable glass that should not move, where Card's `lift` would.
-export const surfaceGlowHover =
-  'transition-[border-color,box-shadow] hover:border-border-active hover:shadow-card-hover';
-
 export function Card({
   hover,
   font = 'ui',

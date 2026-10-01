@@ -95,68 +95,69 @@ export function SitesFilterLayout({
 
       <div className="pb-16">
         <div className="grid items-start gap-[22px] split:grid-cols-[224px_1fr]">
-          <div className="flex flex-col gap-4 split:sticky split:top-24">
-            <Card className="reveal reveal-1 p-4">
-              <div className="flex flex-col gap-5">
-                <div>
-                  <span className="text-label uppercase tracking-wide text-muted">Class</span>
-                  <ChipToggleGroup
-                    label="Filter by class"
-                    value={cls}
-                    onValueChange={(next) => setCls(next as WormholeClass[])}
-                    className="mt-2 grid grid-cols-3 gap-2"
-                  >
-                    {CLASS_CHIPS.map((c) => (
-                      <ChipToggle
-                        key={c}
-                        value={c}
-                        tone={CLASS_CHIP_TONE[c]}
-                        appearance="filter"
-                        className="w-full justify-center px-2 py-1.5 text-ui"
-                      >
-                        {c}
-                      </ChipToggle>
-                    ))}
-                  </ChipToggleGroup>
-                </div>
-
-                <div>
-                  <span className="text-label uppercase tracking-wide text-muted">Type</span>
-                  <ChipToggleGroup
-                    label="Filter by site type"
-                    value={types}
-                    onValueChange={(next) => setTypes(next as SiteType[])}
-                    className="mt-2 flex-col items-stretch"
-                  >
-                    {TYPE_ROWS.map((t) => (
-                      <ChipToggle
-                        key={t}
-                        value={t}
-                        tone={SITE_TYPE_CHIP_TONE[t]}
-                        appearance="row"
-                        className="w-full gap-2"
-                      >
-                        <Dot
-                          tone={SITE_TYPE_DOT_TONE[t]}
-                          size="md"
-                          className={`shadow-none transition-opacity ${
-                            types.includes(t) ? 'opacity-100' : 'opacity-[0.45]'
-                          }`}
-                        />
-                        <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
-                        <span className="text-faint">{typeCount(t)}</span>
-                      </ChipToggle>
-                    ))}
-                  </ChipToggleGroup>
-                </div>
-
-                <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
-                  reset filters
-                </Button>
+          <Card className="reveal reveal-1 p-4 split:sticky split:top-24">
+            <div className="flex flex-col gap-5">
+              <div>
+                <span className="text-label uppercase tracking-wide text-muted">Display</span>
+                <div className="mt-2">{tools}</div>
               </div>
-            </Card>
-            {tools}
-          </div>
+              <div>
+                <span className="text-label uppercase tracking-wide text-muted">Class</span>
+                <ChipToggleGroup
+                  label="Filter by class"
+                  value={cls}
+                  onValueChange={(next) => setCls(next as WormholeClass[])}
+                  className="mt-2 grid grid-cols-3 gap-2"
+                >
+                  {CLASS_CHIPS.map((c) => (
+                    <ChipToggle
+                      key={c}
+                      value={c}
+                      tone={CLASS_CHIP_TONE[c]}
+                      appearance="filter"
+                      className="w-full justify-center px-2 py-1.5 text-ui"
+                    >
+                      {c}
+                    </ChipToggle>
+                  ))}
+                </ChipToggleGroup>
+              </div>
+
+              <div>
+                <span className="text-label uppercase tracking-wide text-muted">Type</span>
+                <ChipToggleGroup
+                  label="Filter by site type"
+                  value={types}
+                  onValueChange={(next) => setTypes(next as SiteType[])}
+                  className="mt-2 flex-col items-stretch"
+                >
+                  {TYPE_ROWS.map((t) => (
+                    <ChipToggle
+                      key={t}
+                      value={t}
+                      tone={SITE_TYPE_CHIP_TONE[t]}
+                      appearance="row"
+                      className="w-full gap-2"
+                    >
+                      <Dot
+                        tone={SITE_TYPE_DOT_TONE[t]}
+                        size="md"
+                        className={`shadow-none transition-opacity ${
+                          types.includes(t) ? 'opacity-100' : 'opacity-[0.45]'
+                        }`}
+                      />
+                      <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
+                      <span className="text-faint">{typeCount(t)}</span>
+                    </ChipToggle>
+                  ))}
+                </ChipToggleGroup>
+              </div>
+
+              <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
+                reset filters
+              </Button>
+            </div>
+          </Card>
 
           <div className="reveal reveal-3 min-w-0">{children}</div>
         </div>
@@ -165,12 +166,12 @@ export function SitesFilterLayout({
   );
 }
 
-/** Cards/Table and Lightbox/Expand, set under the filter rail. */
+/** Cards/Table and Lightbox/Expand, at the top of the filter rail. */
 export function SitesViewTools({ initialView }: { initialView: 'cards' | 'table' }) {
   const [view, setView] = usePreference(sitesView, { serverValue: initialView });
   const [detailMode, setDetailMode] = usePreference(sitesDetailMode);
   return (
-    <div className="reveal reveal-2 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <SegmentedControl
         label="Sites view"
         value={view}
