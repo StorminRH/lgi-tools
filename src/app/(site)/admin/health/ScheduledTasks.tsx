@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
@@ -19,29 +18,11 @@ import { getLastSyncedAtShared } from '../last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from '../load-section';
 import { SectionUnavailable } from '../SectionUnavailable';
 import { deriveCronStatuses } from '../signals';
+import { ChartBlock, DetailBody, DetailCaption } from './DetailBlocks';
 import { StatusRow } from './StatusRow';
 
 type Trend = ReturnType<typeof trendSeries>;
 type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
-
-function DetailBody({ children }: { children: ReactNode }) {
-  return (
-    <div className="border-t border-border-soft px-3.5 py-3 flex flex-col gap-4">{children}</div>
-  );
-}
-
-function DetailCaption({ children }: { children: ReactNode }) {
-  return <div className="font-data text-ui text-muted">{children}</div>;
-}
-
-function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <SectionHeader variant="sub" label={label} className="mb-2" />
-      {children}
-    </div>
-  );
-}
 
 function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
   if (rows.length === 0) return null;

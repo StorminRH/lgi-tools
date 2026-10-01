@@ -18,7 +18,16 @@ import { db } from '@/db';
 import { account, user } from '@/db/auth-schema';
 import { operationsOfKind, USER_FACING_CAPABILITY_KINDS } from './capability';
 import { usageLogs } from './schema';
-import { inRange, jsonInt, jsonNumber } from './sql';
+import {
+  CAPABILITY_ACTION,
+  capabilityOutcome,
+  capabilityRows,
+  ESI_FAILURE_OUTCOMES,
+  esiDependent,
+  inRange,
+  jsonInt,
+  jsonNumber,
+} from './sql';
 import type {
   CronLastRun,
   CronOutcomeCount,
@@ -400,19 +409,6 @@ export function lastNDaysRange(days: number, now: Date = new Date()): DateRange 
   return { from, to };
 }
 
-const CAPABILITY_ACTION = 'capability_outcome';
-
-const capabilityOperation = sql<string>`${usageLogs.metadata} ->> 'operation'`;
-const capabilityOutcome = sql<string>`${usageLogs.metadata} ->> 'outcome'`;
-
-function capabilityRows(range: DateRange, operations: readonly string[]) {
-  return and(
-    inRange(range),
-    eq(usageLogs.action, CAPABILITY_ACTION),
-    inArray(capabilityOperation, [...operations]),
-  );
-}
-
 async function successRatio(
   range: DateRange,
   operations: readonly string[],
@@ -441,8 +437,11 @@ export function getReadSuccessRate(range: DateRange): Promise<number | null> {
   return successRatio(range, operationsOfKind('read'));
 }
 
+/** A rejected bad request is the system working, so it is left out of save/action success. */
+export const MUTATION_EXCLUDED_OUTCOMES = ['validation'] as const;
+
 export function getMutationSuccessRate(range: DateRange): Promise<number | null> {
-  return successRatio(range, operationsOfKind('mutation'), ['validation']);
+  return successRatio(range, operationsOfKind('mutation'), MUTATION_EXCLUDED_OUTCOMES);
 }
 
 export async function getCriticalLatencyP95(range: DateRange): Promise<number | null> {
@@ -466,7 +465,7 @@ export async function getEsiAvailability(range: DateRange) {
       total: count(),
       healthy: sql<number>`
         count(*) filter (
-          where ${capabilityOutcome} not in ('rate_limited', 'dependency_unavailable')
+          where not ${inArray(capabilityOutcome, [...ESI_FAILURE_OUTCOMES])}
         )
       `.mapWith(Number),
     })
@@ -475,7 +474,7 @@ export async function getEsiAvailability(range: DateRange) {
       and(
         inRange(range),
         eq(usageLogs.action, CAPABILITY_ACTION),
-        sql`${usageLogs.metadata} -> 'dependencies' ? 'esi'`,
+        esiDependent,
       ),
     );
 

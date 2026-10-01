@@ -3,7 +3,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { APP_VERSION } from '@/config/app-version';
 import { addDependencyTiming } from '@/lib/dependency-timing';
-import { FAILURE_CATEGORIES } from '@/lib/failure';
+import { FAILURE_CATEGORIES, notFoundFailure, unexpectedFailure } from '@/lib/failure';
 import { withCorrelationScope, currentCorrelationId } from '@/transport/correlation';
 
 const logUsageEventMock = vi.hoisted(() => vi.fn(async () => {}));
@@ -12,6 +12,8 @@ vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }));
 
 import {
   CAPABILITIES,
+  capabilityResultForError,
+  errorClassOf,
   recordCapabilityOutcome,
   type CapabilityId,
   type CapabilityOutcomeInput,
@@ -193,5 +195,54 @@ describe('metric label cardinality', () => {
       'operation',
       'kind',
     ]);
+  });
+});
+
+describe('capabilityResultForError', () => {
+  it('labels an unexpected error by the first code in its cause chain, never its message', () => {
+    const pg = Object.assign(new Error('null value in column "value" violates not-null constraint'), {
+      name: 'PostgresError',
+      code: '23502',
+    });
+    const wrapped = new Error('Failed query: insert into "user_preferences"', { cause: pg });
+
+    expect(capabilityResultForError(wrapped)).toEqual({
+      outcome: 'unexpected',
+      code: 'unexpected',
+      errorClass: '23502',
+    });
+    expect(errorClassOf(Object.assign(new Error('reset'), { code: 'ECONNRESET' }))).toBe('ECONNRESET');
+  });
+
+  it('falls back to the innermost error name when no code is present', () => {
+    const inner = new TypeError('cannot read properties of undefined');
+    expect(errorClassOf(new Error('outer', { cause: inner }))).toBe('TypeError');
+    expect(errorClassOf('thrown string')).toBe('string');
+  });
+
+  it('labels only unexpected application failures that carry a cause', () => {
+    expect(capabilityResultForError(unexpectedFailure('boom', new RangeError('x')))).toEqual({
+      outcome: 'unexpected',
+      code: 'boom',
+      errorClass: 'RangeError',
+    });
+    expect(capabilityResultForError(unexpectedFailure('boom'))).toEqual({ outcome: 'unexpected', code: 'boom' });
+    expect(capabilityResultForError(notFoundFailure('missing'))).toEqual({ outcome: 'not_found', code: 'missing' });
+  });
+
+  it('records the class only when one is given', () => {
+    expect(recordedMetadata('account.save-preferences', {
+      outcome: 'unexpected',
+      code: 'unexpected',
+      durationMs: 4,
+      retry: null,
+      errorClass: '23502',
+    }).errorClass).toBe('23502');
+    expect('errorClass' in recordedMetadata('account.save-preferences', {
+      outcome: 'succeeded',
+      code: 'ok',
+      durationMs: 4,
+      retry: null,
+    })).toBe(false);
   });
 });
