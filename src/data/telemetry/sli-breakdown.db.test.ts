@@ -108,6 +108,28 @@ describe.skipIf(!harness.reachable)('service level breakdown queries', () => {
     expect(slowest.find((row) => row.operation === 'save-preferences')?.slowestDependency).toBeNull();
   });
 
+  it('compares dependency time across all runs, including runs without that dependency', async () => {
+    const timestamp = new Date('2030-03-02T12:00:00Z');
+    const range = {
+      from: new Date('2030-03-01T00:00:00Z'),
+      to: new Date('2030-03-08T00:00:00Z'),
+    };
+    await harness.db.insert(usageLogs).values([
+      capabilityRow(timestamp, {
+        feature: 'planner', operation: 'read-owned-assets', outcome: 'succeeded', durationMs: 300,
+        dependencies: { neon: { ms: 100, calls: 1 }, esi: { ms: 150, calls: 1 } },
+      }),
+      capabilityRow(timestamp, {
+        feature: 'planner', operation: 'read-owned-assets', outcome: 'succeeded', durationMs: 300,
+        dependencies: { neon: { ms: 100, calls: 1 } },
+      }),
+    ]);
+
+    await expect(listSlowestOperations(range)).resolves.toEqual([
+      { feature: 'planner', operation: 'read-owned-assets', p95Ms: 300, count: 2, slowestDependency: 'neon' },
+    ]);
+  });
+
   it('lists ESI-dependent operations CCP limited or failed', async () => {
     await expect(listEsiFailures(RANGE)).resolves.toEqual([
       {
