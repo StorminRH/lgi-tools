@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import type { DatedMapGrant } from '@/data/maps/access';
 import { canonicalizeMapRoles } from '@/data/maps/access-contract';
-import type { PendingMapAccessChange } from '@/data/maps/authorization-sql';
 import {
-  grandfatherCharacterGrants,
+  insertGrandfatherGrants,
   listUnscopedMapIds,
+  stampCharacterScoped,
   type GrandfatherGrant,
 } from '@/data/maps/character-scoping';
 import { getMapGrants } from '@/data/maps/queries';
@@ -84,21 +84,22 @@ export interface MapScopingDependencies {
   readonly readGrants?: typeof getMapGrants;
   readonly readTracked?: typeof readMapTrackingSnapshot;
   readonly readAffiliations?: typeof readAccountAffiliations;
-  readonly grandfather?: typeof grandfatherCharacterGrants;
+  readonly grandfather?: typeof insertGrandfatherGrants;
+  readonly stamp?: typeof stampCharacterScoped;
   readonly deliver?: typeof deliverCapturedMapAccessChanges;
 }
 
 async function grandfatherPass(
   mapId: string,
   deps: Required<MapScopingDependencies>,
-): Promise<PendingMapAccessChange | null> {
+): Promise<void> {
   const [claims, grants, tracked] = await Promise.all([
     deps.computeClaims(mapId),
     deps.readGrants(mapId),
     deps.readTracked(mapId),
   ]);
   const affiliations = await deps.readAffiliations([...new Set(tracked.map((pair) => pair.userId))]);
-  return deps.grandfather(mapId, grandfatherGrants({ claims, grants, tracked, affiliations }));
+  await deps.grandfather(mapId, grandfatherGrants({ claims, grants, tracked, affiliations }));
 }
 
 function withDefaults(deps: MapScopingDependencies): Required<MapScopingDependencies> {
@@ -107,26 +108,29 @@ function withDefaults(deps: MapScopingDependencies): Required<MapScopingDependen
     readGrants: deps.readGrants ?? getMapGrants,
     readTracked: deps.readTracked ?? readMapTrackingSnapshot,
     readAffiliations: deps.readAffiliations ?? readAccountAffiliations,
-    grandfather: deps.grandfather ?? grandfatherCharacterGrants,
+    grandfather: deps.grandfather ?? insertGrandfatherGrants,
+    stamp: deps.stamp ?? stampCharacterScoped,
     deliver: deps.deliver ?? deliverCapturedMapAccessChanges,
   };
 }
 
 /**
  * Moves one legacy map to per-character tracking without dropping a tracked
- * character: grants and the scoping stamp land together before anything is
- * reprojected. A second pass catches characters tracked while the first ran,
- * since the live claims stay account-level until the reprojection. Returns
- * whether the reprojection was delivered; a failed one stays queued for retry.
+ * character. Grants land in two passes while the map is still account-level
+ * (the second catches characters tracked during the first); only then is the
+ * map stamped and reprojected. A map that fails midway stays unscoped and is
+ * retried next run. Returns whether the reprojection was delivered; a failed
+ * one stays queued for retry.
  */
 export async function scopeLegacyMap(
   mapId: string,
   dependencies: MapScopingDependencies = {},
 ): Promise<boolean> {
   const deps = withDefaults(dependencies);
-  const first = await grandfatherPass(mapId, deps);
-  if (first === null) return true;
-  const pending = await grandfatherPass(mapId, deps) ?? first;
+  await grandfatherPass(mapId, deps);
+  await grandfatherPass(mapId, deps);
+  const pending = await deps.stamp(mapId);
+  if (pending === null) return true;
   const delivered = await deps.deliver([pending]);
   return delivered.failed === 0;
 }

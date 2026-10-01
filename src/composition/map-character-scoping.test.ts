@@ -60,7 +60,8 @@ function deps(overrides: Partial<Required<MapScopingDependencies>> = {}) {
     readGrants: vi.fn().mockResolvedValue(GRANTS),
     readTracked: vi.fn().mockResolvedValue([{ userId: 'member', characterId: 3 }]),
     readAffiliations: vi.fn().mockResolvedValue([affiliation('member', 3, 991)]),
-    grandfather: vi.fn().mockResolvedValue({ mapId: 'map-1', version: 'v1' }),
+    grandfather: vi.fn().mockResolvedValue(undefined),
+    stamp: vi.fn().mockResolvedValue({ mapId: 'map-1', version: 'v1' }),
     deliver: vi.fn().mockResolvedValue({ processed: 1, failed: 0 }),
     ...overrides,
   };
@@ -69,23 +70,34 @@ function deps(overrides: Partial<Required<MapScopingDependencies>> = {}) {
 describe('scopeLegacyMap', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('stamps with grants twice before one reprojection of the latest queued change', async () => {
+  it('grants in two passes, then stamps, then reprojects the stamped change', async () => {
     const order: string[] = [];
+    const record = <T,>(step: string, value: T) => vi.fn(async () => {
+      order.push(step);
+      return value;
+    });
     const d = deps({
-      grandfather: vi.fn(async () => {
-        order.push('grandfather');
-        return { mapId: 'map-1', version: `v${order.length}` };
-      }),
-      deliver: vi.fn(async () => {
-        order.push('deliver');
-        return { processed: 1, failed: 0 };
-      }),
+      grandfather: record('grant', undefined),
+      stamp: record('stamp', { mapId: 'map-1', version: 'v1' }),
+      deliver: record('deliver', { processed: 1, failed: 0 }),
     });
     await expect(scopeLegacyMap('map-1', d)).resolves.toBe(true);
-    expect(order).toEqual(['grandfather', 'grandfather', 'deliver']);
+    expect(order).toEqual(['grant', 'grant', 'stamp', 'deliver']);
     expect(d.grandfather).toHaveBeenCalledWith('map-1', [{ characterId: 3, role: 'editor' }]);
-    expect(d.deliver).toHaveBeenCalledExactlyOnceWith([{ mapId: 'map-1', version: 'v2' }]);
+    expect(d.deliver).toHaveBeenCalledExactlyOnceWith([{ mapId: 'map-1', version: 'v1' }]);
     expect(d.readAffiliations).toHaveBeenCalledWith(['member']);
+  });
+
+  it('leaves the map unscoped when the second pass fails', async () => {
+    const d = deps({
+      readTracked: vi.fn()
+        .mockResolvedValueOnce([{ userId: 'member', characterId: 3 }])
+        .mockRejectedValueOnce(new Error('door down')),
+    });
+    await expect(scopeLegacyMap('map-1', d)).rejects.toThrow('door down');
+    expect(d.grandfather).toHaveBeenCalledOnce();
+    expect(d.stamp).not.toHaveBeenCalled();
+    expect(d.deliver).not.toHaveBeenCalled();
   });
 
   it('reads tracked pairs through the service door by default', async () => {
@@ -99,7 +111,7 @@ describe('scopeLegacyMap', () => {
   });
 
   it('skips a map that vanished and reports a reprojection kept for retry', async () => {
-    const gone = deps({ grandfather: vi.fn().mockResolvedValue(null) });
+    const gone = deps({ stamp: vi.fn().mockResolvedValue(null) });
     await expect(scopeLegacyMap('map-1', gone)).resolves.toBe(true);
     expect(gone.deliver).not.toHaveBeenCalled();
 

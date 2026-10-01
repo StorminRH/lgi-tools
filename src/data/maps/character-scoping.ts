@@ -14,41 +14,52 @@ export interface GrandfatherGrant {
   readonly role: MapRole;
 }
 
-/** Live maps that still grant tracking per account, oldest id first so a batch resumes in order. */
+/**
+ * Active maps that still grant tracking per account, oldest id first so a
+ * batch resumes in order. Archived maps wait: archiving tears their tracking
+ * down, so they are scoped by the first batch after a restore, once their
+ * pilots track again.
+ */
 export async function listUnscopedMapIds(limit: number, database: AnyPgDb = db): Promise<string[]> {
   const rows = await database
     .select({ id: maps.id })
     .from(maps)
-    .where(and(isNull(maps.characterScopedAt), isNull(maps.tombstonedAt)))
+    .where(and(isNull(maps.characterScopedAt), isNull(maps.archivedAt), isNull(maps.tombstonedAt)))
     .orderBy(asc(maps.id))
     .limit(limit);
   return rows.map((row) => row.id);
 }
 
-/**
- * In one statement: add each grandfathered character grant (an existing grant
- * for the character wins), stamp the map character-scoped, and queue its
- * reprojection. Repeating it adds only grants that are still missing.
- */
-export async function grandfatherCharacterGrants(
+/** Adds each grandfathered character grant; an existing grant for the character wins. */
+export async function insertGrandfatherGrants(
   mapId: string,
   grants: readonly GrandfatherGrant[],
+  database: AnyPgDb = db,
+): Promise<void> {
+  if (grants.length === 0) return;
+  await database
+    .insert(mapAccess)
+    .values(grants.map((grant) => ({
+      mapId,
+      ownerType: 'character' as const,
+      ownerId: grant.characterId,
+      role: grant.role,
+    })))
+    .onConflictDoNothing({ target: [mapAccess.mapId, mapAccess.ownerType, mapAccess.ownerId] });
+}
+
+/**
+ * The backfill's last step: stamp a live map character-scoped and queue its
+ * reprojection in one statement. Null when the map is gone.
+ */
+export async function stampCharacterScoped(
+  mapId: string,
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange | null> {
   const [row] = await mapAuthorizationRows<PendingMapAccessChange>(database, sql`
     WITH target AS (
       SELECT ${maps.id} AS id FROM ${maps}
       WHERE ${maps.id} = ${mapId} AND ${maps.tombstonedAt} IS NULL
-    ), inserted AS (
-      INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
-      SELECT target.id, 'character'::"public"."map_access_owner_type",
-        grandfathered.character_id, grandfathered.role::"public"."map_role"
-      FROM target
-      CROSS JOIN jsonb_to_recordset(${JSON.stringify(grants.map((grant) => ({
-        character_id: grant.characterId,
-        role: grant.role,
-      })))}::jsonb) AS grandfathered(character_id bigint, role text)
-      ON CONFLICT (map_id, owner_type, owner_id) DO NOTHING
     ), stamped AS (
       UPDATE ${maps} SET character_scoped_at = now()
       WHERE ${maps.id} IN (SELECT id FROM target) AND ${maps.characterScopedAt} IS NULL
