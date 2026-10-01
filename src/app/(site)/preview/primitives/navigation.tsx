@@ -9,7 +9,7 @@ import {
   NavigationMenuLink,
   navigationMenuLink,
 } from '@/components/ui/navigation-menu';
-import { Breadcrumb, PageHead, PageTitle } from '@/components/ui/page-head';
+import { PageHead, PageTitle } from '@/components/ui/page-head';
 import { Pagination } from '@/components/ui/pagination';
 import { Tabs } from '@/components/ui/tabs';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
@@ -88,15 +88,12 @@ export function NavigationGroup() {
       <Specimen
         name="PageHead"
         source="page-head"
-        note="Breadcrumb, display title, subtitle, and meta in three sizes. Breadcrumb and PageTitle also stand alone."
+        note="Display title, subtitle, and meta in three sizes, for pages the nav does not already name. PageTitle also stands alone."
       >
         <div className="flex flex-col gap-4">
-          <PageHead size="compact" crumb="industry / planner" title="Compact head" subtitle="size=compact" reveal={false} />
-          <Variant label="breadcrumb + title">
-            <div>
-              <Breadcrumb crumb="sites / gas" />
-              <PageTitle size="compact">Standalone title</PageTitle>
-            </div>
+          <PageHead size="compact" title="Compact head" subtitle="size=compact" reveal={false} />
+          <Variant label="standalone title">
+            <PageTitle size="compact">Standalone title</PageTitle>
           </Variant>
         </div>
       </Specimen>
