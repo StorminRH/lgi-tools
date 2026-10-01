@@ -8,6 +8,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  not,
   or,
   sql,
   type SQL,
@@ -26,12 +27,14 @@ import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
+  mapBlocks,
   maps,
 } from './schema';
 import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  userBlockedFromMap,
   type PendingMapAccessChange,
 } from './authorization-sql';
 
@@ -159,7 +162,10 @@ async function readAuthorizedMapRows(
     .where(
       and(
         lifecycleCondition,
-        or(eq(maps.userId, userId), isNotNull(mapAccess.mapId)),
+        or(
+          eq(maps.userId, userId),
+          and(isNotNull(mapAccess.mapId), not(userBlockedFromMap(userId, maps.id))),
+        ),
       ),
     )
     .orderBy(desc(maps.createdAt), asc(maps.id));
@@ -644,6 +650,10 @@ export function affectedMapIdsSelection(characterId: number): SQL {
         WHERE ${characters.characterId} = ${characterId}
       )
     )
+    UNION
+    SELECT ${mapBlocks.mapId} AS id
+    FROM ${mapBlocks}
+    WHERE ${mapBlocks.characterId} = ${characterId}
   `;
 }
 
@@ -665,6 +675,7 @@ export async function enqueueMergeReprojection(
 ): Promise<PendingMapAccessChange[]> {
   const selections = [
     sql`SELECT ${maps.id} AS id FROM ${maps} WHERE ${maps.userId} = ${args.sourceUserId}`,
+    sql`SELECT ${mapBlocks.mapId} AS id FROM ${mapBlocks} WHERE ${mapBlocks.userId} = ${args.sourceUserId}`,
     ...args.movedCharacterIds.map((characterId) => affectedMapIdsSelection(characterId)),
   ];
   return mapAuthorizationRows<PendingMapAccessChange>(database, sql`

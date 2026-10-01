@@ -10,12 +10,13 @@ const schema = 'test_e2e_auth_seed';
 const { baseUrl } = await probeHarnessDatabase();
 const harness = await createDbTestHarness({
   schema,
-  tables: ['user', 'account', 'session', 'characters', 'maps', 'map_access'],
+  tables: ['user', 'account', 'session', 'characters', 'maps', 'map_access', 'map_blocks'],
   foreignKeys: [
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'session', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
   ],
 });
 const execFileAsync = promisify(execFile);

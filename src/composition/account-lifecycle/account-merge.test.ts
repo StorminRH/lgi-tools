@@ -147,7 +147,7 @@ describe('mergeUsers', () => {
       movedCharacterIds: [200],
       captured: [],
     });
-    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 14 });
+    expect(state.calls).toEqual({ update: 0, delete: 1, execute: 15 });
     expect(doors.logUsageEvent).toHaveBeenCalledWith({
       action: 'auth_merge',
       characterId: 100,

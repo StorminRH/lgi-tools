@@ -8,7 +8,7 @@ import {
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
 import { archivedMapLifecycle } from '@/data/maps/lifecycle-contract';
-import { mapAccess, maps } from '@/data/maps/schema';
+import { mapAccess, mapBlocks, maps } from '@/data/maps/schema';
 import { computeMapAccessClaims } from './map-access-projection';
 
 vi.mock('@/platform/auth/affiliation', () => ({
@@ -17,7 +17,7 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_map_access_projection',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks'],
   foreignKeys: [
     {
       table: 'account',
@@ -35,6 +35,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_blocks',
       column: 'map_id',
       refTable: 'maps',
       refColumn: 'id',
@@ -111,6 +118,14 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     ]);
     await harness.db.update(account).set({ authorizationFailureFirstAt: null }).where(eq(account.id, 'acc-43'));
     expect(await computeMapAccessClaims(mapId)).toContainEqual({ userId: 'corp-member', roles: ['viewer'] });
+
+    // A block on either character drops that whole account; unblocking gives it back.
+    await harness.db.insert(mapBlocks).values({ mapId, characterId: 42, userId: 'char-owner' });
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
+      { userId: 'corp-member', roles: ['viewer'] },
+      { userId: 'creator', roles: ['admin'] },
+    ]);
+    await harness.db.delete(mapBlocks);
 
     await harness.db.update(characters).set({ corporationId: 991 }).where(eq(characters.characterId, 43));
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([

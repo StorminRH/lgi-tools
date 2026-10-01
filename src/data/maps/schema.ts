@@ -82,6 +82,29 @@ export const mapAccess = pgTable(
   ],
 );
 
+/**
+ * Characters barred from a map. `user_id` is the account that held the
+ * character when it was blocked; that account and whichever account holds the
+ * character now are both kept off the map.
+ */
+export const mapBlocks = pgTable(
+  'map_blocks',
+  {
+    mapId: uuid('map_id')
+      .notNull()
+      .references(() => maps.id, { onDelete: 'cascade' }),
+    characterId: bigint('character_id', { mode: 'number' }).notNull(),
+    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+    blockedByUserId: text('blocked_by_user_id'),
+    blockedAt: timestamp('blocked_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('map_blocks_map_character_unique').on(table.mapId, table.characterId),
+    index('map_blocks_character_idx').on(table.characterId),
+    index('map_blocks_user_idx').on(table.userId),
+  ],
+);
+
 export const pendingMapAccessChanges = pgTable('map_access_changes', {
   mapId: uuid('map_id').primaryKey().references(() => maps.id, { onDelete: 'cascade' }),
   version: uuid('version').defaultRandom().notNull(),

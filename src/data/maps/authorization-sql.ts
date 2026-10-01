@@ -1,7 +1,9 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { sql, type SQL, type SQLWrapper } from 'drizzle-orm';
+import { account } from '@/db/auth-schema';
 import type { AnyPgDb } from '@/lib/db-types';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
-import { mapAccess, maps, pendingMapAccessChanges } from './schema';
+import { mapAccess, mapBlocks, maps, pendingMapAccessChanges } from './schema';
 
 export type PendingMapAccessChange = {
   readonly mapId: string;
@@ -14,6 +16,27 @@ export async function mapAuthorizationRows<T extends Record<string, unknown>>(
 ): Promise<T[]> {
   const result = await database.execute<T>(query);
   return Array.isArray(result) ? result : result.rows;
+}
+
+/** True when a block names this account: as the holder at block time, or through a character it holds now. */
+export function userBlockedFromMap(userId: string, mapId: SQLWrapper): SQL {
+  return sql`
+    EXISTS (
+      SELECT 1
+      FROM ${mapBlocks} AS block
+      WHERE block.map_id = ${mapId}
+        AND (
+          block.user_id = ${userId}
+          OR EXISTS (
+            SELECT 1
+            FROM ${account} AS linked
+            WHERE linked.user_id = ${userId}
+              AND linked.provider_id = ${EVE_PROVIDER_ID}
+              AND linked.account_id = block.character_id::text
+          )
+        )
+    )
+  `;
 }
 
 export function authorizedAdminMapsSelection(
@@ -35,27 +58,30 @@ export function authorizedAdminMapsSelection(
       AND ${lifecycleCondition}
       AND (
         ${maps.userId} = ${userId}
-        OR EXISTS (
-          SELECT 1
-          FROM ${mapAccess} AS authority
-          WHERE authority.map_id = ${maps.id}
-            AND authority.role = 'admin'::"public"."map_role"
-            AND (
-              (
-                authority.owner_type = 'character'::"public"."map_access_owner_type"
-                AND authority.owner_id IN (
-                  SELECT value::bigint
-                  FROM jsonb_array_elements_text(${characterIds}::jsonb)
+        OR (
+          NOT ${userBlockedFromMap(userId, maps.id)}
+          AND EXISTS (
+            SELECT 1
+            FROM ${mapAccess} AS authority
+            WHERE authority.map_id = ${maps.id}
+              AND authority.role = 'admin'::"public"."map_role"
+              AND (
+                (
+                  authority.owner_type = 'character'::"public"."map_access_owner_type"
+                  AND authority.owner_id IN (
+                    SELECT value::bigint
+                    FROM jsonb_array_elements_text(${characterIds}::jsonb)
+                  )
+                )
+                OR (
+                  authority.owner_type = 'corporation'::"public"."map_access_owner_type"
+                  AND authority.owner_id IN (
+                    SELECT value::bigint
+                    FROM jsonb_array_elements_text(${corporationIds}::jsonb)
+                  )
                 )
               )
-              OR (
-                authority.owner_type = 'corporation'::"public"."map_access_owner_type"
-                AND authority.owner_id IN (
-                  SELECT value::bigint
-                  FROM jsonb_array_elements_text(${corporationIds}::jsonb)
-                )
-              )
-            )
+          )
         )
       )
   `;

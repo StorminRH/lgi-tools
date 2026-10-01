@@ -48,6 +48,7 @@ const TABLE_NAMES = [
   'user',
   'maps',
   'map_access',
+  'map_blocks',
   'map_access_changes',
   'account',
   'characters',
@@ -93,6 +94,13 @@ const harness = await createDbTestHarness({
     },
     {
       table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_blocks',
       column: 'map_id',
       refTable: 'maps',
       refColumn: 'id',

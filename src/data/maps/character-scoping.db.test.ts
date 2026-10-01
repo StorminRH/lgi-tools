@@ -9,10 +9,11 @@ import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_character_scoping',
-  tables: ['user', 'maps', 'map_access', 'map_access_changes'],
+  tables: ['user', 'maps', 'map_access', 'map_blocks', 'map_access_changes'],
   foreignKeys: [
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,

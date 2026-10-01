@@ -30,7 +30,7 @@ export interface DbForeignKey {
   column: string;
   refTable: string;
   refColumn: string;
-  onDelete: 'cascade';
+  onDelete: 'cascade' | 'set null';
 }
 
 export interface DbTestHarness {

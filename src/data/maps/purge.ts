@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { bestEffort } from '@/lib/best-effort';
 import type { AnyPgDb } from '@/lib/db-types';
-import type { PurgeContributor } from '@/platform/purge/types';
+import type { MergeSubject, MergeTx, PurgeContributor } from '@/platform/purge/types';
 import {
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
@@ -13,7 +13,7 @@ import {
   characterGrantCondition,
   getOwnedMapIds,
 } from './queries';
-import { mapAccess, maps } from './schema';
+import { mapAccess, mapBlocks, maps } from './schema';
 
 export interface MapAccessProjectionPurgeHooks {
   readonly deliverCaptured: (
@@ -38,6 +38,27 @@ async function purgeOwnedMapChainsThenDeleteMaps(
   await deleteOwnedMaps(userId);
 }
 
+/** The survivor inherits the source's blocks, both as the blocked account and as the blocker. */
+export async function mergeMapBlocks(tx: MergeTx, subject: MergeSubject): Promise<void> {
+  await tx.update(mapBlocks)
+    .set({ userId: subject.survivorUserId })
+    .where(eq(mapBlocks.userId, subject.sourceUserId));
+  await tx.update(mapBlocks)
+    .set({ blockedByUserId: subject.survivorUserId })
+    .where(eq(mapBlocks.blockedByUserId, subject.sourceUserId));
+}
+
+/** A deleted account leaves its blocks in place; only the account columns are cleared. */
+export async function forgetMapBlockAccounts(
+  userId: string,
+  database: AnyPgDb = db,
+): Promise<void> {
+  await database.update(mapBlocks).set({ userId: null }).where(eq(mapBlocks.userId, userId));
+  await database.update(mapBlocks)
+    .set({ blockedByUserId: null })
+    .where(eq(mapBlocks.blockedByUserId, userId));
+}
+
 async function purgeCharacterMapGrants(
   characterId: number,
   database: AnyPgDb = db,
@@ -59,10 +80,16 @@ export function createMapsPurgeContributor(
   return {
     name: 'maps',
     tier: 'credential',
-    claims: [maps, mapAccess],
+    claims: [maps, mapAccess, mapBlocks],
     merge: [
       { table: maps, rule: 'rekey' },
       { table: mapAccess, rule: 'follows-character' },
+      {
+        tables: [mapBlocks],
+        rule: 'custom',
+        reason: 'A block keeps both the blocked account and the blocker, and the unique key is per map and character, so both account columns move to the survivor without collision.',
+        merge: mergeMapBlocks,
+      },
     ],
     async purgeCharacter({ characterId }) {
       const pending = await purgeCharacterMapGrants(characterId);
@@ -75,6 +102,7 @@ export function createMapsPurgeContributor(
     },
     async purgeUser({ userId }) {
       await purgeOwnedMapChainsThenDeleteMaps(userId, hooks.purgeMapChain);
+      await forgetMapBlockAccounts(userId);
       await bestEffort('maps/purge', 'user claim purge', userId, () =>
         hooks.purgeUserClaims(userId),
       );
