@@ -524,3 +524,15 @@ describe('read-set cost', () => {
     expect(await drain('notes')).toEqual({ rows: 10, pages: 1, maxPage: 10 });
   });
 });
+
+describe('trackedCharactersForMap', () => {
+  it('lists only the requested map\'s tracked pairs', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 11 });
+      await ctx.db.insert('mapTracking', { mapId: 'other-map', userId: OWNER, characterId: 12 });
+    });
+    await expect(t.query(internal.mapAccessProjection.trackedCharactersForMap, { mapId: MAP_A }))
+      .resolves.toEqual([{ userId: OWNER, characterId: 11 }]);
+  });
+});

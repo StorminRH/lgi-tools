@@ -301,3 +301,28 @@ describe('POST /purge-map-chain', () => {
     });
   });
 });
+
+describe('POST /map-tracking-snapshot', () => {
+  it('lists a map\'s tracked pairs to the service secret only', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', CONVEX_HTTP_SECRET);
+    expect((await postConvexHttp('/map-tracking-snapshot', JSON.stringify({ mapId: 'm' }), false)).status)
+      .toBe(401);
+    expect((await postConvexHttp('/map-tracking-snapshot', JSON.stringify({}))).status).toBe(400);
+
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: 'map-1', userId: 'u1', characterId: 11 });
+      await ctx.db.insert('mapTracking', { mapId: 'map-1', userId: 'u2', characterId: 22 });
+      await ctx.db.insert('mapTracking', { mapId: 'map-2', userId: 'u1', characterId: 33 });
+    });
+    const response = await t.fetch('/map-tracking-snapshot', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CONVEX_HTTP_SECRET}` },
+      body: JSON.stringify({ mapId: 'map-1' }),
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      tracked: [{ userId: 'u1', characterId: 11 }, { userId: 'u2', characterId: 22 }],
+    });
+  });
+});

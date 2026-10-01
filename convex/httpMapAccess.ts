@@ -50,6 +50,10 @@ const purgeMapChainBodySchema = z.object({
   mapId: z.string().min(1),
 });
 
+const mapTrackingSnapshotBodySchema = z.object({
+  mapId: z.string().min(1),
+});
+
 export const projectMapAccess: PublicHttpAction = authorizedJsonAction(
   projectMapAccessBodySchema,
   async (ctx, body) => {
@@ -103,3 +107,11 @@ export const purgeMapChain: PublicHttpAction = authorizedJsonAction(purgeMapChai
   }
   return new Response('Purge batch limit exceeded', { status: 503 });
 });
+
+/** Service-only read of a map's tracked characters for the character-scoping backfill. */
+export const mapTrackingSnapshot: PublicHttpAction = authorizedJsonAction(
+  mapTrackingSnapshotBodySchema,
+  async (ctx, body) => Response.json({
+    tracked: await ctx.runQuery(internal.mapAccessProjection.trackedCharactersForMap, body),
+  }),
+);

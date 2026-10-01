@@ -83,6 +83,13 @@ function principalsIgnoringStampAge(rows: readonly CachedAffiliation[]): MapPrin
   };
 }
 
+export type AccountAffiliation = CachedAffiliation & { readonly userId: string };
+
+/** Every linked character of these accounts, read as the projection reads them. */
+export function readAccountAffiliations(userIds: readonly string[]): Promise<AccountAffiliation[]> {
+  return getUsersAffiliations(userIds);
+}
+
 /** The ids each user's eligible characters are chosen from, in actor-name order. */
 export function eligibleCharacterIds(
   grants: readonly DatedMapGrant[],

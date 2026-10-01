@@ -4,7 +4,7 @@ import {
   type MapRole,
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
-import { internalMutation, type MutationCtx } from './_generated/server';
+import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
 import {
   currentMapRoleValidator,
   currentRolesFromStored,
@@ -12,6 +12,7 @@ import {
   type MapClaimCharacter,
   type StoredMapRole,
 } from './lib/mapEntityContracts';
+import { readMapTracking } from './lib/mapTrackingCapacity';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
@@ -311,4 +312,12 @@ export const remapLegacyOwnerRoles = internalMutation({
       isDone: page.isDone,
     };
   },
+});
+
+/** Every tracked (account, character) pair on a map, read by the character-scoping backfill. */
+export const trackedCharactersForMap = internalQuery({
+  args: { mapId: v.string() },
+  returns: v.array(v.object({ userId: v.string(), characterId: v.number() })),
+  handler: async (ctx, { mapId }) =>
+    (await readMapTracking(ctx, mapId)).map(({ userId, characterId }) => ({ userId, characterId })),
 });

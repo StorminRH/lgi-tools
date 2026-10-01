@@ -30,7 +30,7 @@ import { mergeUserState as httpMergeUserState, snapshotMergeTracking as httpSnap
 import { purgeOnline } from '../httpEngine';
 import { jumpEvidence as httpJumpEvidence, resolveJump, signatureElimination } from '../httpJump';
 import { leaveSync, purgeLocationTracking } from '../httpLocation';
-import { projectMapAccess, purgeMapAccess, purgeMapChain } from '../httpMapAccess';
+import { mapTrackingSnapshot, projectMapAccess, purgeMapAccess, purgeMapChain } from '../httpMapAccess';
 import { authorizedAction, authorizedJsonAction } from '../lib/httpAuth';
 import { requireSyncEnv } from '../lib/characterSync';
 import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from '../lib/mapConnectionLookup';
@@ -46,6 +46,7 @@ import {
   purgeUserMapClaims,
   reconcileMapClaims,
   remapLegacyOwnerRoles,
+  trackedCharactersForMap,
 } from '../mapAccessProjection';
 import {
   restoreSeveredBranch,
@@ -159,6 +160,7 @@ describe('convex runtime exports', () => {
       projectMapAccess,
       purgeMapAccess,
       purgeMapChain,
+      mapTrackingSnapshot,
       httpMergeUserState,
       httpSnapshotMergeTracking,
       httpRestoreMergeTracking,
@@ -194,6 +196,7 @@ describe('convex runtime exports', () => {
       purgeUserMapClaims,
       reconcileMapClaims,
       remapLegacyOwnerRoles,
+      trackedCharactersForMap,
       CEILING_SWEEP_BATCH,
       CEILING_SWEEP_SCAN,
       addSystemFromNode,
