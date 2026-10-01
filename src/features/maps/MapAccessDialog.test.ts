@@ -77,7 +77,6 @@ describe('MapAccessDialog', () => {
         onOpenChange: vi.fn(),
         finalFocus: { current: null },
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
-        ownRole: 'admin',
         initialGrants: [
           {
             ownerType: 'character',

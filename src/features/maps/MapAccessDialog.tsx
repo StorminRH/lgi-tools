@@ -45,9 +45,10 @@ export interface MapAccessDialogProps {
   readonly finalFocus: DialogFocusTarget;
   readonly corporations: readonly CorporationAccessOption[];
   readonly initialGrants: readonly MapAccessGrantOption[];
-  /** The role the caller's own characters are granted with when added here. */
-  readonly ownRole: MapRole;
 }
+
+/** Only admins manage access, so an admin's own characters join the list as admin. */
+const OWN_CHARACTER_ROLE: MapRole = 'admin';
 
 function initialDrafts(grants: readonly MapAccessGrantOption[]): AccessGrantDraft[] {
   return grants.map((grant) => ({ ...grant }));
@@ -142,7 +143,6 @@ export function MapAccessDialog({
   finalFocus,
   corporations,
   initialGrants,
-  ownRole,
 }: MapAccessDialogProps) {
   const titleId = useId();
   const access = useAccessGrantEditor(mapId, initialGrants);
@@ -154,7 +154,7 @@ export function MapAccessDialog({
     const character = ownCharacters?.find((own) => own.characterId === characterId);
     if (character === undefined) return;
     const principal = { ownerType: 'character' as const, ownerId: characterId, name: character.name };
-    void (selected ? access.commitRole(principal, ownRole) : access.revoke(principal));
+    void (selected ? access.commitRole(principal, OWN_CHARACTER_ROLE) : access.revoke(principal));
   }
 
   return (
