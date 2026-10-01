@@ -24,7 +24,7 @@ export default function PrimitiveReferencePage() {
       <PageHead
         size="compact"
         title="UI primitives"
-        subtitle="Inset Instrument · rendered system reference"
+        subtitle="Every shared component in src/components/ui, rendered live"
       />
       <Suspense fallback={<Skeleton className="h-64 w-full rounded-card" label="Loading primitive reference" />}>
         <AdminPrimitiveReference />
