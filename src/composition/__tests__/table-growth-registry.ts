@@ -168,6 +168,7 @@ export const TABLE_GROWTH_STORIES = [
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },
   { kind: 'purge-managed', table: schema.mapBlocks, purgeContributor: 'maps' },
+  { kind: 'purge-managed', table: schema.mapBlockAccounts, purgeContributor: 'maps' },
   { kind: 'bounded', table: schema.pendingMapAccessChanges, reason: 'at most one pending generation per map; successful delivery deletes it and map deletion cascades it' },
   {
     kind: 'purge-managed',

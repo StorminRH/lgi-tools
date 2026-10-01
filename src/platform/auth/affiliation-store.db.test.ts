@@ -26,7 +26,7 @@ import { maps, mapAccess, pendingMapAccessChanges } from '@/data/maps/schema';
 const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
 const harness = await createDbTestHarness({
   schema: 'test_auth_affiliation_store',
-  tables: ['user', 'account', 'characters', 'corp_access_audit', 'maps', 'map_access', 'map_blocks', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'corp_access_audit', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [{ table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' }],
   steerDbProxy: true,
   resetBetweenTests: 'delete',

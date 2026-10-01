@@ -25,13 +25,14 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_corp_access_projection_pipeline',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_access_changes', 'pending_tracking_merges'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes', 'pending_tracking_merges'],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,

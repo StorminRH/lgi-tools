@@ -25,7 +25,7 @@ import { mapAccess, maps, pendingMapAccessChanges } from './schema';
 
 const harness = await createDbTestHarness({
   schema: 'test_map_lifecycle',
-  tables: ['user', 'account', 'maps', 'map_access', 'map_blocks', 'map_access_changes'],
+  tables: ['user', 'account', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'maps',
@@ -45,6 +45,13 @@ const harness = await createDbTestHarness({
       table: 'map_blocks',
       column: 'map_id',
       refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_block_accounts',
+      column: 'block_id',
+      refTable: 'map_blocks',
       refColumn: 'id',
       onDelete: 'cascade',
     },

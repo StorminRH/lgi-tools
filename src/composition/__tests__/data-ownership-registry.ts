@@ -607,12 +607,27 @@ export const DATA_OWNERSHIP = [
     reads: [],
     invariants: [
       'fk(map_id→maps.id)',
-      'fk(user_id→user.id)',
+      'pk(id)',
       'unique(map_id,character_id)',
     ],
     boundary: {
       kind: 'single-statement',
-      note: 'Block and unblock each require admin authority on an active map and enqueue the map in the same statement; a block also refuses a character held by the caller or the map creator in that statement. Projection then drops every blocked account. Map deletion cascades blocks; account deletion clears both account columns and keeps the blocked character; a merge moves both account columns to the survivor.',
+      note: 'Block and unblock each require admin authority on an active map and enqueue the map in the same statement; a block also refuses a character held by the caller or the map creator, and records its current holder, in that statement. Projection then drops every blocked account. Map deletion cascades blocks and their holder rows; account deletion clears the blocker of record and keeps the block; a merge moves the blocker of record to the survivor.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.mapBlockAccounts,
+    owner: 'data/maps',
+    reads: [],
+    invariants: [
+      'fk(block_id→map_blocks.id)',
+      'fk(user_id→user.id)',
+      'pk(block_id,user_id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Each account that holds a blocked character while the block stands is recorded once, never the map creator: at block time inside the block statement, and on every character link change inside the statement that enqueues the affected maps. Unblock and map deletion cascade the rows; account deletion deletes that account\'s rows; a merge moves them to the survivor without duplicates.',
     },
     dataClass: 'personal',
   },

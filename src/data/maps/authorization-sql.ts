@@ -3,7 +3,7 @@ import { account } from '@/db/auth-schema';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapPrincipals } from './access';
-import { mapAccess, mapBlocks, maps, pendingMapAccessChanges } from './schema';
+import { mapAccess, mapBlockAccounts, mapBlocks, maps, pendingMapAccessChanges } from './schema';
 
 export type PendingMapAccessChange = {
   readonly mapId: string;
@@ -18,7 +18,7 @@ export async function mapAuthorizationRows<T extends Record<string, unknown>>(
   return Array.isArray(result) ? result : result.rows;
 }
 
-/** True when a block names this account: as the holder at block time, or through a character it holds now. */
+/** True when a block names this account: as a past holder of the character, or as its holder now. */
 export function userBlockedFromMap(userId: string, mapId: SQLWrapper): SQL {
   return sql`
     EXISTS (
@@ -26,7 +26,12 @@ export function userBlockedFromMap(userId: string, mapId: SQLWrapper): SQL {
       FROM ${mapBlocks} AS block
       WHERE block.map_id = ${mapId}
         AND (
-          block.user_id = ${userId}
+          EXISTS (
+            SELECT 1
+            FROM ${mapBlockAccounts} AS holder
+            WHERE holder.block_id = block.id
+              AND holder.user_id = ${userId}
+          )
           OR EXISTS (
             SELECT 1
             FROM ${account} AS linked
@@ -84,6 +89,22 @@ export function authorizedAdminMapsSelection(
           )
         )
       )
+  `;
+}
+
+/** Records the current holder of a blocked character on each map that blocks it, unless they created that map. */
+export function recordBlockedCharacterHolders(characterId: number): SQL {
+  return sql`
+    INSERT INTO ${mapBlockAccounts} (block_id, user_id)
+    SELECT block.id, linked.user_id
+    FROM ${mapBlocks} AS block
+    INNER JOIN ${maps} AS blocked_map ON blocked_map.id = block.map_id
+    INNER JOIN ${account} AS linked
+      ON linked.provider_id = ${EVE_PROVIDER_ID}
+      AND linked.account_id = block.character_id::text
+    WHERE block.character_id = ${characterId}
+      AND linked.user_id <> blocked_map.user_id
+    ON CONFLICT DO NOTHING
   `;
 }
 

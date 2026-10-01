@@ -17,7 +17,7 @@ vi.mock('@/platform/auth/affiliation', () => ({
 
 const harness = await createDbTestHarness({
   schema: 'test_map_access_projection',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts'],
   foreignKeys: [
     {
       table: 'account',
@@ -44,6 +44,13 @@ const harness = await createDbTestHarness({
       table: 'map_blocks',
       column: 'map_id',
       refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_block_accounts',
+      column: 'block_id',
+      refTable: 'map_blocks',
       refColumn: 'id',
       onDelete: 'cascade',
     },
@@ -120,7 +127,7 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     expect(await computeMapAccessClaims(mapId)).toContainEqual({ userId: 'corp-member', roles: ['viewer'] });
 
     // A block on either character drops that whole account; unblocking gives it back.
-    await harness.db.insert(mapBlocks).values({ mapId, characterId: 42, userId: 'char-owner' });
+    await harness.db.insert(mapBlocks).values({ mapId, characterId: 42 });
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
       { userId: 'corp-member', roles: ['viewer'] },
       { userId: 'creator', roles: ['admin'] },

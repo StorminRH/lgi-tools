@@ -4,6 +4,7 @@ import {
   pgEnum,
   pgSequence,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -82,26 +83,42 @@ export const mapAccess = pgTable(
   ],
 );
 
-/**
- * Characters barred from a map. `user_id` is the account that held the
- * character when it was blocked; that account and whichever account holds the
- * character now are both kept off the map.
- */
+/** Characters barred from a map; see mapBlockAccounts for the accounts they keep off it. */
 export const mapBlocks = pgTable(
   'map_blocks',
   {
+    id: uuid('id').defaultRandom().primaryKey(),
     mapId: uuid('map_id')
       .notNull()
       .references(() => maps.id, { onDelete: 'cascade' }),
     characterId: bigint('character_id', { mode: 'number' }).notNull(),
-    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     blockedByUserId: text('blocked_by_user_id'),
     blockedAt: timestamp('blocked_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('map_blocks_map_character_unique').on(table.mapId, table.characterId),
     index('map_blocks_character_idx').on(table.characterId),
-    index('map_blocks_user_idx').on(table.userId),
+    index('map_blocks_blocked_by_idx').on(table.blockedByUserId),
+  ],
+);
+
+/**
+ * Every account that has held a blocked character while the block stood,
+ * except the map creator. Each stays off the map alongside the current holder.
+ */
+export const mapBlockAccounts = pgTable(
+  'map_block_accounts',
+  {
+    blockId: uuid('block_id')
+      .notNull()
+      .references(() => mapBlocks.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.blockId, table.userId] }),
+    index('map_block_accounts_user_idx').on(table.userId),
   ],
 );
 

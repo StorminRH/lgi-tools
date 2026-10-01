@@ -17,12 +17,13 @@ vi.mock('@/platform/auth/affiliation-source', () => ({ fetchAffiliations: mocks.
 
 const harness = await createDbTestHarness({
   schema: 'test_affiliation_refresh_order',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,

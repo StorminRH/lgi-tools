@@ -10,7 +10,7 @@ import {
   mapAuthorizationRows,
   type PendingMapAccessChange,
 } from './authorization-sql';
-import { mapBlocks, maps } from './schema';
+import { mapBlockAccounts, mapBlocks, maps } from './schema';
 
 export interface MapBlockRow {
   readonly mapId: string;
@@ -71,10 +71,17 @@ export async function blockAuthorizedMapCharacter(
       WHERE holder_user_id IS DISTINCT FROM creator_user_id
         AND holder_user_id IS DISTINCT FROM ${userId}
     ), inserted AS (
-      INSERT INTO ${mapBlocks} (map_id, character_id, user_id, blocked_by_user_id)
-      SELECT id, ${characterId}, holder_user_id, ${userId}
+      INSERT INTO ${mapBlocks} (map_id, character_id, blocked_by_user_id)
+      SELECT id, ${characterId}, ${userId}
       FROM allowed
-      ON CONFLICT (map_id, character_id) DO NOTHING
+      ON CONFLICT (map_id, character_id) DO UPDATE SET blocked_at = ${mapBlocks.blockedAt}
+      RETURNING id
+    ), recorded AS (
+      INSERT INTO ${mapBlockAccounts} (block_id, user_id)
+      SELECT inserted.id, allowed.holder_user_id
+      FROM inserted CROSS JOIN allowed
+      WHERE allowed.holder_user_id IS NOT NULL
+      ON CONFLICT DO NOTHING
     ), pending AS (
       ${enqueuePendingMapAccessSelection(sql`SELECT id FROM allowed`)}
     )
@@ -133,15 +140,16 @@ export async function getAuthorizedMapBlocksForMaps(
   return rows.map((row) => ({ mapId: row.mapId, characterId: Number(row.characterId) }));
 }
 
-/** Accounts kept off a map: each block's holder at block time and the current holder of each blocked character. */
+/** Accounts kept off a map: every recorded holder of a blocked character and its holder now. */
 export async function getBlockedMapUserIds(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<string[]> {
   const rows = await mapAuthorizationRows<{ userId: string }>(database, sql`
-    SELECT block.user_id AS "userId"
+    SELECT holder.user_id AS "userId"
     FROM ${mapBlocks} AS block
-    WHERE block.map_id = ${mapId} AND block.user_id IS NOT NULL
+    INNER JOIN ${mapBlockAccounts} AS holder ON holder.block_id = block.id
+    WHERE block.map_id = ${mapId}
     UNION
     SELECT linked.user_id AS "userId"
     FROM ${mapBlocks} AS block

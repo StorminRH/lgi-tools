@@ -27,6 +27,7 @@ import { activeMapLifecycle, MAP_DELETE_GRACE_MS } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
+  mapBlockAccounts,
   mapBlocks,
   maps,
 } from './schema';
@@ -34,6 +35,7 @@ import {
   authorizedAdminMapsSelection,
   enqueuePendingMapAccessSelection,
   mapAuthorizationRows,
+  recordBlockedCharacterHolders,
   userBlockedFromMap,
   type PendingMapAccessChange,
 } from './authorization-sql';
@@ -638,7 +640,8 @@ export function characterGrantCondition(characterId: number): SQL {
   `;
 }
 
-export function affectedMapIdsSelection(characterId: number): SQL {
+/** Maps whose grants name the character or its corporation. */
+function grantedMapIdsSelection(characterId: number): SQL {
   return sql`
     SELECT DISTINCT ${mapAccess.mapId} AS id
     FROM ${mapAccess}
@@ -650,6 +653,12 @@ export function affectedMapIdsSelection(characterId: number): SQL {
         WHERE ${characters.characterId} = ${characterId}
       )
     )
+  `;
+}
+
+export function affectedMapIdsSelection(characterId: number): SQL {
+  return sql`
+    ${grantedMapIdsSelection(characterId)}
     UNION
     SELECT ${mapBlocks.mapId} AS id
     FROM ${mapBlocks}
@@ -662,7 +671,9 @@ export async function enqueueAffectedMapAccessChanges(
   database: AnyPgDb = db,
 ): Promise<PendingMapAccessChange[]> {
   return mapAuthorizationRows<PendingMapAccessChange>(database, sql`
-    WITH affected AS (
+    WITH recorded AS (
+      ${recordBlockedCharacterHolders(characterId)}
+    ), affected AS (
       ${affectedMapIdsSelection(characterId)}
     )
     ${enqueuePendingMapAccessSelection(sql`SELECT id FROM affected`)}
@@ -675,7 +686,12 @@ export async function enqueueMergeReprojection(
 ): Promise<PendingMapAccessChange[]> {
   const selections = [
     sql`SELECT ${maps.id} AS id FROM ${maps} WHERE ${maps.userId} = ${args.sourceUserId}`,
-    sql`SELECT ${mapBlocks.mapId} AS id FROM ${mapBlocks} WHERE ${mapBlocks.userId} = ${args.sourceUserId}`,
+    sql`
+      SELECT ${mapBlocks.mapId} AS id
+      FROM ${mapBlocks}
+      INNER JOIN ${mapBlockAccounts} ON ${mapBlockAccounts.blockId} = ${mapBlocks.id}
+      WHERE ${mapBlockAccounts.userId} = ${args.sourceUserId}
+    `,
     ...args.movedCharacterIds.map((characterId) => affectedMapIdsSelection(characterId)),
   ];
   return mapAuthorizationRows<PendingMapAccessChange>(database, sql`

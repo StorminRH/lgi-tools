@@ -23,7 +23,7 @@ import {
   listDeletedRestorableMapsForPrincipals,
 } from './queries';
 import { archiveAuthorizedMap } from './lifecycle';
-import { mapAccess, mapBlocks, maps, pendingMapAccessChanges } from './schema';
+import { mapAccess, mapBlockAccounts, mapBlocks, maps, pendingMapAccessChanges } from './schema';
 
 const MAP = '11111111-1111-4111-8111-111111111111';
 const CORP = 990;
@@ -33,13 +33,14 @@ const MEMBER: MapPrincipals = { characterIds: [30], corporationIds: [CORP] };
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_blocks',
-  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_access_changes'],
+  tables: ['user', 'account', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     { table: 'account', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
-    { table: 'map_blocks', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'set null' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access_changes', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
   ],
   steerDbProxy: true,
@@ -84,16 +85,34 @@ async function listedMapIds(userId: string, principals: MapPrincipals): Promise<
   return (await listAuthorizedMapsForPrincipals(userId, principals)).map((map) => map.id);
 }
 
-function storedBlocks() {
-  return harness.db
-    .select({
-      characterId: mapBlocks.characterId,
-      userId: mapBlocks.userId,
-      blockedByUserId: mapBlocks.blockedByUserId,
+/** Each block as `character:blocker:holder,holder`, sorted. */
+async function storedBlocks(): Promise<string[]> {
+  const blocks = await harness.db.select().from(mapBlocks);
+  const holders = await harness.db.select().from(mapBlockAccounts);
+  return blocks
+    .map((block) => {
+      const held = holders
+        .filter((holder) => holder.blockId === block.id)
+        .map((holder) => holder.userId)
+        .sort();
+      return `${block.characterId}:${block.blockedByUserId ?? '-'}:${held.join(',')}`;
     })
-    .from(mapBlocks)
-    .orderBy(mapBlocks.characterId);
+    .sort();
 }
+
+/** What the link-change path runs after a character is linked or moved. */
+async function linkThroughHook(userId: string, characterId: number): Promise<void> {
+  await link(userId, characterId);
+  await enqueueAffectedMapAccessChanges(characterId);
+}
+
+async function unlink(userId: string, characterId: number): Promise<void> {
+  await enqueueAffectedMapAccessChanges(characterId);
+  await harness.db.delete(account)
+    .where(and(eq(account.userId, userId), eq(account.accountId, String(characterId))));
+}
+
+const NOBODY: MapPrincipals = { characterIds: [], corporationIds: [CORP] };
 
 describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
   it('keeps every character of the blocked account off the map, including a character-granted alt', async () => {
@@ -104,15 +123,16 @@ describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
     expect(attempt).toMatchObject({ creatorUserId: 'creator', holderUserId: 'spy' });
     expect(attempt?.pending?.mapId).toBe(MAP);
 
-    await expect(storedBlocks()).resolves.toEqual([
-      { characterId: 20, userId: 'spy', blockedByUserId: 'admin' },
-    ]);
+    await expect(storedBlocks()).resolves.toEqual(['20:admin:spy']);
     await expect(getBlockedMapUserIds(MAP)).resolves.toEqual(['spy']);
     await expect(listedMapIds('spy', SPY)).resolves.toEqual([]);
     await expect(listedMapIds('spy', { characterIds: [21], corporationIds: [] })).resolves.toEqual([]);
     await expect(listedMapIds('member', MEMBER)).resolves.toEqual([MAP]);
     await expect(getAuthorizedMapBlocksForMaps('admin', ADMIN, [MAP]))
       .resolves.toEqual([{ mapId: MAP, characterId: 20 }]);
+
+    await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 20);
+    await expect(storedBlocks()).resolves.toEqual(['20:admin:spy']);
   });
 
   it('refuses the creator\'s and the caller\'s own characters without writing or queueing', async () => {
@@ -136,38 +156,58 @@ describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
     expect(unknown?.pending).not.toBeNull();
     expect(known?.pending).not.toBeNull();
     expect(unknown?.creatorUserId).toBe(known?.creatorUserId);
-    await expect(storedBlocks()).resolves.toEqual([
-      { characterId: 30, userId: 'member', blockedByUserId: 'admin' },
-      { characterId: 999, userId: null, blockedByUserId: 'admin' },
-    ]);
+    await expect(storedBlocks()).resolves.toEqual(['30:admin:member', '999:admin:']);
 
     await link('buyer', 999);
     await expect(getBlockedMapUserIds(MAP).then((ids) => ids.sort())).resolves.toEqual(['buyer', 'member']);
   });
 
-  it('keeps the account that held the character blocked after an unlink, and blocks whoever links it next', async () => {
+  it('keeps an account blocked after it links and unlinks a character blocked while nobody held it', async () => {
+    await seedMap();
+    await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 999);
+
+    await linkThroughHook('buyer', 999);
+    await unlink('buyer', 999);
+    await expect(storedBlocks()).resolves.toEqual(['999:admin:buyer']);
+    await expect(getBlockedMapUserIds(MAP)).resolves.toEqual(['buyer']);
+    await expect(listedMapIds('buyer', NOBODY)).resolves.toEqual([]);
+  });
+
+  it('keeps every account along a sale chain blocked', async () => {
     await seedMap();
     await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 20);
-    await harness.db.delete(pendingMapAccessChanges);
 
-    await harness.db.delete(account).where(and(eq(account.userId, 'spy'), eq(account.accountId, '20')));
-    await expect(getBlockedMapUserIds(MAP)).resolves.toEqual(['spy']);
-    await expect(listedMapIds('spy', { characterIds: [21], corporationIds: [] })).resolves.toEqual([]);
+    await unlink('spy', 20);
+    await linkThroughHook('buyer', 20);
+    await unlink('buyer', 20);
+    await linkThroughHook('main', 20);
 
-    await link('buyer', 20);
-    await expect(getBlockedMapUserIds(MAP).then((ids) => ids.sort())).resolves.toEqual(['buyer', 'spy']);
-    await expect(listedMapIds('buyer', { characterIds: [20], corporationIds: [CORP] })).resolves.toEqual([]);
+    await expect(storedBlocks()).resolves.toEqual(['20:admin:buyer,main,spy']);
+    for (const holder of ['spy', 'buyer', 'main']) {
+      await expect(listedMapIds(holder, NOBODY)).resolves.toEqual([]);
+    }
     const affected = await enqueueAffectedMapAccessChanges(20);
     expect(affected.map((change) => change.mapId)).toContain(MAP);
   });
 
-  it('gives access back on unblock', async () => {
+  it('never records the map creator, who keeps the map', async () => {
+    await seedMap();
+    await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 999);
+
+    await linkThroughHook('creator', 999);
+    await unlink('creator', 999);
+    await expect(storedBlocks()).resolves.toEqual(['999:admin:']);
+    await expect(listedMapIds('creator', { characterIds: [1], corporationIds: [] })).resolves.toEqual([MAP]);
+  });
+
+  it('gives access back on unblock and removes its recorded holders', async () => {
     await seedMap();
     await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 20);
 
     const pending = await unblockAuthorizedMapCharacter('admin', ADMIN, MAP, 20);
     expect(pending?.mapId).toBe(MAP);
     await expect(storedBlocks()).resolves.toEqual([]);
+    await expect(harness.db.select().from(mapBlockAccounts)).resolves.toEqual([]);
     await expect(listedMapIds('spy', SPY)).resolves.toEqual([MAP]);
   });
 
@@ -179,9 +219,7 @@ describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
     await expect(blockAuthorizedMapCharacter('member', MEMBER, MAP, 21)).resolves.toBeNull();
     await expect(unblockAuthorizedMapCharacter('member', MEMBER, MAP, 20)).resolves.toBeNull();
     await expect(getAuthorizedMapBlocksForMaps('member', MEMBER, [MAP])).resolves.toEqual([]);
-    await expect(storedBlocks()).resolves.toEqual([
-      { characterId: 20, userId: 'spy', blockedByUserId: 'admin' },
-    ]);
+    await expect(storedBlocks()).resolves.toEqual(['20:admin:spy']);
   });
 
   it('strips a blocked admin of admin authority but never the creator', async () => {
@@ -194,8 +232,8 @@ describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
     await expect(blockAuthorizedMapCharacter('admin2', admin2, MAP, 20)).resolves.toBeNull();
     await expect(archiveAuthorizedMap('admin2', admin2, MAP)).resolves.toBeNull();
 
-    // A creator who later links a blocked character keeps the map.
-    await harness.db.insert(mapBlocks).values({ mapId: MAP, characterId: 1, userId: null });
+    // A creator who holds a blocked character keeps the map.
+    await harness.db.insert(mapBlocks).values({ mapId: MAP, characterId: 1 });
     await expect(listedMapIds('creator', { characterIds: [1], corporationIds: [] })).resolves.toEqual([MAP]);
     await expect(getAuthorizedMapBlocksForMaps('creator', { characterIds: [1], corporationIds: [] }, [MAP]))
       .resolves.toHaveLength(2);
@@ -203,27 +241,38 @@ describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
     await expect(listDeletedRestorableMapsForPrincipals('admin2', admin2)).resolves.toEqual([]);
   });
 
-  it('moves both account columns to the merge survivor and reprojects the maps blocking the source', async () => {
+  it('moves holder rows to the merge survivor once, drops them where the survivor created the map, and reprojects', async () => {
     await seedMap();
+    const own = '22222222-2222-4222-8222-222222222222';
+    await harness.db.insert(maps).values({ id: own, userId: 'main', name: 'Main map' });
     await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 20);
-    await harness.db.insert(mapBlocks).values({
-      mapId: MAP, characterId: 30, userId: 'member', blockedByUserId: 'spy',
-    });
+    await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 30);
+    const [ownBlock] = await harness.db.insert(mapBlocks)
+      .values({ mapId: own, characterId: 21, blockedByUserId: 'spy' })
+      .returning({ id: mapBlocks.id });
+    const [memberBlock] = await harness.db.select({ id: mapBlocks.id }).from(mapBlocks)
+      .where(eq(mapBlocks.characterId, 30));
+    await harness.db.insert(mapBlockAccounts).values([
+      { blockId: ownBlock!.id, userId: 'spy' },
+      { blockId: memberBlock!.id, userId: 'spy' },
+      { blockId: memberBlock!.id, userId: 'main' },
+    ]);
     await harness.db.delete(pendingMapAccessChanges);
 
     await harness.db.delete(account).where(eq(account.userId, 'spy'));
     const captured = await enqueueMergeReprojection(harness.db, { sourceUserId: 'spy', movedCharacterIds: [] });
-    expect(captured.map((change) => change.mapId)).toEqual([MAP]);
+    expect(captured.map((change) => change.mapId).sort()).toEqual([MAP, own].sort());
 
     await mergeMapBlocks(harness.db, { sourceUserId: 'spy', survivorUserId: 'main' });
     await expect(storedBlocks()).resolves.toEqual([
-      { characterId: 20, userId: 'main', blockedByUserId: 'admin' },
-      { characterId: 30, userId: 'member', blockedByUserId: 'main' },
+      '20:admin:main',
+      '21:main:',
+      '30:admin:main,member',
     ]);
-    await expect(listedMapIds('main', { characterIds: [], corporationIds: [CORP] })).resolves.toEqual([]);
+    await expect(listedMapIds('main', NOBODY)).resolves.toEqual([own]);
   });
 
-  it('clears a deleted account from its blocks and keeps the character blocked', async () => {
+  it('removes a deleted account from its blocks and keeps the characters blocked', async () => {
     await seedMap();
     await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 20);
     await blockAuthorizedMapCharacter('admin', ADMIN, MAP, 30);
@@ -231,16 +280,10 @@ describe.skipIf(!harness.reachable)('map blocks (real Postgres)', () => {
     await forgetMapBlockAccounts('admin');
     await harness.db.delete(account).where(eq(account.userId, 'spy'));
     await harness.db.delete(user).where(eq(user.id, 'spy'));
-    await expect(storedBlocks()).resolves.toEqual([
-      { characterId: 20, userId: null, blockedByUserId: null },
-      { characterId: 30, userId: 'member', blockedByUserId: null },
-    ]);
+    await expect(storedBlocks()).resolves.toEqual(['20:-:', '30:-:member']);
 
     await forgetMapBlockAccounts('member');
-    await expect(storedBlocks()).resolves.toEqual([
-      { characterId: 20, userId: null, blockedByUserId: null },
-      { characterId: 30, userId: null, blockedByUserId: null },
-    ]);
+    await expect(storedBlocks()).resolves.toEqual(['20:-:', '30:-:']);
     await expect(listedMapIds('member', MEMBER)).resolves.toEqual([]);
   });
 });
