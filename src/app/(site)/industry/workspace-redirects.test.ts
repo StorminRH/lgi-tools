@@ -9,6 +9,7 @@ const navigation = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ redirect: navigation.redirect }));
 
 import JobsPage from '@/app/(site)/jobs/page';
+import StructuresPage from '@/app/(site)/structures/page';
 import BuildTemplatesPage from './templates/page';
 import { WorkspaceRedirect } from './WorkspaceRedirect';
 
@@ -51,4 +52,23 @@ test.each([
   expect(destination.searchParams.has('omitted')).toBe(false);
 
   await expect(resolveRedirect(page, {})).rejects.toThrow(`NEXT_REDIRECT /industry?tab=${tab}`);
+});
+
+test('the legacy structures route opens the workspace panel without changing the selected tab or other query values', async () => {
+  navigation.redirect.mockClear();
+  await expect(resolveRedirect(StructuresPage, {
+    tab: 'jobs', panel: 'obsolete', profile: 'caps', character: '9001',
+    filter: ['ready', 'active'], search: 'Rifter & parts', omitted: undefined,
+  })).rejects.toThrow('NEXT_REDIRECT /industry?');
+  const destination = new URL(navigation.redirect.mock.lastCall?.[0] ?? '', 'https://example.test');
+  expect(destination.pathname).toBe('/industry');
+  expect(destination.searchParams.getAll('panel')).toEqual(['structures']);
+  expect(destination.searchParams.get('tab')).toBe('jobs');
+  expect(destination.searchParams.get('profile')).toBe('caps');
+  expect(destination.searchParams.get('character')).toBe('9001');
+  expect(destination.searchParams.getAll('filter')).toEqual(['ready', 'active']);
+  expect(destination.searchParams.get('search')).toBe('Rifter & parts');
+  expect(destination.searchParams.has('omitted')).toBe(false);
+
+  await expect(resolveRedirect(StructuresPage, {})).rejects.toThrow('NEXT_REDIRECT /industry?panel=structures');
 });

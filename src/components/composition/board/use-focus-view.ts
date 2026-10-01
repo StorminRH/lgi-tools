@@ -98,7 +98,7 @@ export function useFocusView(resolve: (param: string | null) => BoardView, tileA
     const onKey = (event: KeyboardEvent) => {
       // An open drawer or dialog owns Escape: it closes first, the sheet stays.
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (document.querySelector('[data-drawer-popup], [role="dialog"]') !== null) return;
+      if (document.querySelector('[data-drawer-popup]:not([hidden]), [role="dialog"]:not([hidden])') !== null) return;
       toOverview();
     };
     window.addEventListener('keydown', onKey);

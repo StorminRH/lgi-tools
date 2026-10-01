@@ -1,9 +1,11 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import type { FacilityRef, ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { SectionPanel } from '../board/SectionBody';
 import { FacilityPicker } from './FacilityPicker';
+import { setStructuresPanelOpen } from './structures-panel';
 import type { PoolSummary } from './workspace-model';
 
 /**
@@ -27,7 +29,20 @@ export function DefaultFacilitiesPanel({
   onDefault: (activity: 'manufacturing' | 'reactions', next: FacilityRef | null) => void;
 }) {
   return (
-    <SectionPanel title="Default facilities">
+    <SectionPanel
+      title="Default facilities"
+      meta={
+        <Button
+          variant="bare"
+          data-structures-trigger
+          aria-haspopup="dialog"
+          className="whitespace-nowrap font-ui text-micro font-normal uppercase tracking-eyebrow text-isk no-underline transition-colors hover:text-name"
+          onClick={() => setStructuresPanelOpen(true)}
+        >
+          Structures →
+        </Button>
+      }
+    >
       <div className="flex flex-col gap-2 px-3.5 py-3">
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-1">

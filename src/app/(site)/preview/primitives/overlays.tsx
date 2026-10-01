@@ -29,9 +29,25 @@ import { pointerAnchor } from '@/components/ui/overlay-positioning';
 import { PointerMenu, type MenuAnchor } from '@/components/ui/pointer-menu';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { Tooltip } from '@/components/ui/tooltip';
+import { SidePanel } from '@/components/ui/side-panel';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const secondaryTrigger = buttonVariants({ variant: 'secondary', size: 'sm' });
+
+function SidePanelSample() {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <Button ref={trigger} variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        Open side panel
+      </Button>
+      <SidePanel open={open} onOpenChange={setOpen} title="Structures" finalFocus={trigger}>
+        <p className="text-ui text-muted">Manage structures while keeping the planner in view.</p>
+      </SidePanel>
+    </>
+  );
+}
 
 function ReferenceMenu({ surface }: { surface: 'solid' | 'frosted' }) {
   const [sort, setSort] = useState('margin');
@@ -279,6 +295,13 @@ export function OverlaysGroup() {
             <DrawerClose render={<Button variant="secondary" size="sm" className="self-start" />}>Close</DrawerClose>
           </div>
         </Drawer>
+      </Specimen>
+      <Specimen
+        name="SidePanel"
+        source="side-panel"
+        note="A full-height right panel with a blurred backdrop, retained contents, and modal keyboard focus."
+      >
+        <SidePanelSample />
       </Specimen>
     </ReferenceGroup>
   );

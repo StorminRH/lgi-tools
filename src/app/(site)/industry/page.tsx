@@ -3,10 +3,12 @@ import { Suspense } from 'react';
 import { IndustryWorkspaceTabs } from '@/components/composition/industry-workspace/IndustryWorkspaceTabs';
 import { WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
 import { PageShell } from '@/components/ui/page-shell';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
 import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
 import { IndustryLanding } from './IndustryLanding';
+import { CustomStructuresContent } from './CustomStructuresContent';
 import { JobsContent, JobsLoading } from './JobsContent';
 
 export const metadata: Metadata = {
@@ -40,6 +42,11 @@ export default function IndustryDashboardPage() {
       <div className="pb-16 flex flex-col gap-5">
         <Suspense fallback={<WorkspaceSkeleton />}>
           <IndustryWorkspaceTabs
+            customStructures={
+              <Suspense fallback={<Skeleton label="Loading custom structures" className="h-56 w-full rounded-card" />}>
+                <CustomStructuresContent />
+              </Suspense>
+            }
             profiles={
               <Suspense fallback={<WorkspaceSkeleton />}>
                 <Workspace />
