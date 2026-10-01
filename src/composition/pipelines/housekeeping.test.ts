@@ -11,6 +11,7 @@ const h = vi.hoisted(() => {
       }),
     retryRequestedDeletions: vi.fn(),
     reconcileTrackingMerges: vi.fn(),
+    scopeLegacyMaps: vi.fn(),
     pruneTrackingMergeReceipts: vi.fn(),
   };
 });
@@ -51,6 +52,9 @@ vi.mock('@/composition/account-lifecycle/account-purge', () => ({
 vi.mock('@/composition/account-lifecycle/tracking-merge-retry', () => ({
   reconcileTrackingMerges: h.reconcileTrackingMerges,
 }));
+vi.mock('@/composition/map-character-scoping', () => ({
+  scopeLegacyMaps: h.scopeLegacyMaps,
+}));
 vi.mock('@/composition/account-lifecycle/tracking-receipt-retention', () => ({
   pruneTrackingMergeReceipts: h.pruneTrackingMergeReceipts,
 }));
@@ -63,6 +67,7 @@ beforeEach(() => {
   h.order.length = 0;
   h.retryRequestedDeletions.mockReset().mockResolvedValue({ retried: 0, failed: 0 });
   h.reconcileTrackingMerges.mockReset().mockResolvedValue({ processed: 0, failed: 0 });
+  h.scopeLegacyMaps.mockReset().mockResolvedValue({ succeeded: 0, failed: 0 });
   h.pruneTrackingMergeReceipts.mockReset().mockImplementation(async () => {
     h.order.push('account_merge_tracking_receipts');
     return { deleted: 0, finished: true };
@@ -98,7 +103,18 @@ describe('runHousekeeping', () => {
     expect(summary.retries).toEqual([
       { task: 'requested_deletions', succeeded: 1, failed: 0, error: null },
       { task: 'tracking_merges', succeeded: 0, failed: 0, error: null },
+      { task: 'character_scoping', succeeded: 0, failed: 0, error: null },
     ]);
+  });
+
+  it('runs one bounded legacy-map scoping batch and marks a kept map partial', async () => {
+    h.scopeLegacyMaps.mockResolvedValueOnce({ succeeded: 2, failed: 1 });
+    const summary = await runHousekeeping(NOW);
+    expect(h.scopeLegacyMaps).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(summary.retries).toContainEqual({
+      task: 'character_scoping', succeeded: 2, failed: 1, error: null,
+    });
+    expect(summary.status).toBe('partial');
   });
 
   it('cleans merge receipts after tracking retries and records failures through housekeeping', async () => {

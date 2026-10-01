@@ -6,6 +6,7 @@ import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
 import { ensureLocationSync } from './lib/locationSchedule';
+import { characterTrackable, tryMapAccessForUser } from './lib/mapAccess';
 
 function requireTrackedFixtureIdentity(
   userId: string,
@@ -77,6 +78,22 @@ async function loadTrackedPair(
   return { location, tracking };
 }
 
+/** Seeding may run without a claim; a claim that lists characters must include this one. */
+async function requireFixtureCharacterTrackable(
+  ctx: MutationCtx,
+  mapId: string,
+  userId: string,
+  characterId: number,
+): Promise<void> {
+  const principal = await tryMapAccessForUser(ctx, mapId, userId, 'view');
+  if (principal !== null && !characterTrackable(principal, characterId)) {
+    throw new ConvexError({
+      code: 'CHARACTER_NOT_ELIGIBLE',
+      detail: 'This character is not on the map\'s access list.',
+    });
+  }
+}
+
 export const clearTrackedCoverage = internalMutation({
   args: {
     userId: v.string(),
@@ -139,6 +156,7 @@ export const seedTrackedLocationFixture = internalMutation({
       args.characterId,
     );
     if (tracking === null) {
+      await requireFixtureCharacterTrackable(ctx, args.mapId, args.userId, args.characterId);
       requireMapTrackingSpace((await readMapTracking(ctx, args.mapId)).length);
     }
     const trackingId = tracking?._id ?? await ctx.db.insert('mapTracking', {

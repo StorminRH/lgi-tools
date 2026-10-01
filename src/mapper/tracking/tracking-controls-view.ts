@@ -23,3 +23,13 @@ export function scannerSelectValue(
     ? String(scannerCharacterId)
     : SCANNER_ASK_VALUE;
 }
+
+/** The roster entries this map lets the caller track; null ids mean the map still tracks per account. */
+export function trackableCharacters<T extends { readonly characterId: number }>(
+  characters: readonly T[],
+  trackableCharacterIds: readonly number[] | null,
+): T[] {
+  if (trackableCharacterIds === null) return [...characters];
+  const trackable = new Set(trackableCharacterIds);
+  return characters.filter((character) => trackable.has(character.characterId));
+}

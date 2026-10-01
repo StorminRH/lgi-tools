@@ -7,6 +7,7 @@ import {
 import {
   dependencyUnavailableFailure,
   rateLimitedFailure,
+  validationFailure,
 } from '@/lib/failure';
 import { rateLimit } from '@/lib/rate-limit';
 import {
@@ -47,6 +48,13 @@ export async function POST(request: Request): Promise<Response> {
     parse: (incoming) => readJsonBody(incoming, createMapRequestSchema),
     handle: async ({ userId }, body) => {
       const result = await createProjectedMap(userId, body);
+      if (!result.ok && 'reason' in result) {
+        return apiResponse(
+          createMapEndpoint,
+          400,
+          validationFailure('invalid_body', 'Choose at least one of your own linked characters'),
+        );
+      }
       if (!result.ok) {
         console.error('[map] create projection failed', result.cause);
         return apiResponse(
