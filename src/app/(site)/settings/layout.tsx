@@ -7,14 +7,12 @@ import { SettingsNav, SettingsNavFallback } from './settings-nav';
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
     <PageShell mode="workspace">
-      <div className="relative flex flex-col gap-0 pb-20 lg:max-w-[calc(220px+2.5rem+var(--container-reading))]">
+      <div className="flex flex-col gap-0 pb-20">
         <PageHead title="Settings" />
         <div
           data-settings-layout
           className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,var(--container-reading))] lg:gap-10"
         >
-          {/* Only /settings/access/[userId] suspends here: usePathname cannot
-              resolve an unknown param while prerendering. */}
           <Suspense fallback={<SettingsNavFallback />}>
             <SettingsNav />
           </Suspense>

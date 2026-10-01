@@ -9,8 +9,8 @@ import {
 describe('shouldSkip', () => {
   it('skips admin and api paths (exact or prefixed)', () => {
     expect(shouldSkip('/admin')).toBe(true);
-    expect(shouldSkip('/settings/access')).toBe(true);
-    expect(shouldSkip('/settings/access/user-1')).toBe(true);
+    expect(shouldSkip('/admin/users')).toBe(true);
+    expect(shouldSkip('/admin/users/user-1')).toBe(true);
     expect(shouldSkip('/settings/characters')).toBe(false);
     expect(shouldSkip('/api/sites')).toBe(true);
     expect(shouldSkip('/sites')).toBe(false);

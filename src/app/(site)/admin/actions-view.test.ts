@@ -13,7 +13,7 @@ describe('deriveActionRows', () => {
       badge: null,
     });
     expect(queue).toMatchObject({ status: '0 dead-lettered · 2 active', cta: 'Open', badge: null });
-    expect(access).toMatchObject({ href: '/settings/access', cta: 'Open' });
+    expect(access).toMatchObject({ href: '/admin/users', cta: 'Open' });
   });
 
   it('calls out a pending review and dead letters', () => {

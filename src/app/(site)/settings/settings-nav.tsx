@@ -4,10 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NavRailFrame, NavRailTree, navRailLink } from '@/components/ui/nav-rail';
 import { cn } from '@/components/ui/cn';
-import { useAuth } from '@/platform/auth/components/AuthProvider';
 import {
   deriveActiveSettingsSection,
-  visibleSettingsGroups,
+  SETTINGS_GROUPS,
   type SettingsGroup,
   type SettingsSection,
 } from './settings-sections';
@@ -64,14 +63,17 @@ function SettingsNavFrame({
   );
 }
 
-// The rail reads the client session rather than awaiting one on the server, so
-// it prerenders into the static shell; only the admin group waits on sign-in.
+// Every settings section is personal; admin tools live in the admin console.
 export function SettingsNav() {
   const pathname = usePathname();
-  const groups = visibleSettingsGroups(useAuth().isAdmin);
-  return <SettingsNavFrame groups={groups} active={deriveActiveSettingsSection(pathname, groups)} />;
+  return (
+    <SettingsNavFrame
+      groups={SETTINGS_GROUPS}
+      active={deriveActiveSettingsSection(pathname, SETTINGS_GROUPS)}
+    />
+  );
 }
 
 export function SettingsNavFallback() {
-  return <SettingsNavFrame groups={visibleSettingsGroups(false)} active={null} />;
+  return <SettingsNavFrame groups={SETTINGS_GROUPS} active={null} />;
 }

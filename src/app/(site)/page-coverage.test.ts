@@ -112,8 +112,8 @@ import { PrimitivesDemo } from '@/app/(site)/preview/primitives/PrimitivesDemo';
 import AppSitePreviewPrimitivesPage, { metadata as AppSitePreviewPrimitivesPageMetadata } from '@/app/(site)/preview/primitives/page';
 import AppSitePreviewWidgetsPage, { metadata as AppSitePreviewWidgetsPageMetadata } from '@/app/(site)/preview/widgets/page';
 import { UniverseAssetsProof } from '@/app/(site)/preview/widgets/universe-assets-proof';
-import AppSiteSettingsAccessUserIdPage from '@/app/(site)/settings/access/[userId]/page';
-import AppSiteSettingsAccessPage from '@/app/(site)/settings/access/page';
+import AppSiteAdminUsersUserIdPage from '@/app/(site)/admin/users/[userId]/page';
+import AppSiteAdminUsersPage from '@/app/(site)/admin/users/page';
 import AppSiteSettingsAccountPage from '@/app/(site)/settings/account/page';
 import AppSiteSettingsCharactersPage from '@/app/(site)/settings/characters/page';
 import AppSiteSettingsCorporationsPage from '@/app/(site)/settings/corporations/page';
@@ -222,8 +222,8 @@ describe('coverage-gaps', () => {
       AppSitePreviewWidgetsPageMetadata,
       AppSitePreviewWidgetsPage,
       UniverseAssetsProof,
-      AppSiteSettingsAccessUserIdPage,
-      AppSiteSettingsAccessPage,
+      AppSiteAdminUsersUserIdPage,
+      AppSiteAdminUsersPage,
       AppSiteSettingsAccountPage,
       AppSiteSettingsCharactersPage,
       AppSiteSettingsCorporationsPage,

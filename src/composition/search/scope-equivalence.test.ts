@@ -344,7 +344,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
             {
               "disabled": false,
               "hasOnSelect": false,
-              "href": "/settings/access",
+              "href": "/admin/users",
               "id": "cmd:open-access",
               "label": "Open admin users & roles",
             },
