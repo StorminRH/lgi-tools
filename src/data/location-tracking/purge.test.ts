@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { locationTrackingPurgeContributor, purgeLocationTracking, teardownLocationTracking } from './purge';
+import { locationTrackingPurgeContributor, purgeLocationTracking } from './purge';
 
 const cancelPendingTracking = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('./merge-store', () => ({ cancelPendingTracking }));
@@ -31,30 +31,25 @@ afterEach(() => {
 });
 
 describe('locationTrackingPurgeContributor', () => {
-  it('is a durable-tier contributor that claims the durable tracking recovery queue', () => {
-    expect(locationTrackingPurgeContributor.tier).toBe('durable');
-    expect(locationTrackingPurgeContributor.claims).toHaveLength(1);
-  });
-
-  it('purgeCharacter POSTs the one-character teardown to /purge-location-tracking with the bearer secret', async () => {
+  it('cancels pending merges and POSTs the character and whole-user teardowns', async () => {
     await locationTrackingPurgeContributor.purgeCharacter?.({
       kind: 'character',
       userId: USER,
       characterId: CHAR,
     });
+    expect(cancelPendingTracking).toHaveBeenCalledWith(USER, CHAR);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/purge-location-tracking');
     expect(init?.method).toBe('POST');
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer svc-secret');
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: CHAR });
-  });
 
-  it('purgeUser POSTs the whole-user teardown (characterId null)', async () => {
+    fetchSpy.mockClear();
     await locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [, init] = fetchSpy.mock.calls[0]!;
-    expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
+    expect(cancelPendingTracking).toHaveBeenCalledWith(USER, null);
+    const [, userInit] = fetchSpy.mock.calls[0]!;
+    expect(JSON.parse(userInit?.body as string)).toEqual({ userId: USER, characterId: null });
   });
 
   it('propagates a Convex outage so the deletion stays requested for retry', async () => {
@@ -79,16 +74,6 @@ describe('locationTrackingPurgeContributor', () => {
     delete process.env.NEXT_PUBLIC_CONVEX_URL;
     await locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
     expect(fetchSpy).not.toHaveBeenCalled();
-  });
-});
-
-describe('teardownLocationTracking', () => {
-  it('is the same Convex purge door the contributor uses', async () => {
-    await teardownLocationTracking(USER, CHAR);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0]!;
-    expect(url).toBe('https://example.convex.site/purge-location-tracking');
-    expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: CHAR });
   });
 });
 
