@@ -4,7 +4,11 @@ import {
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
 import { teardownLocationTracking } from '@/data/location-tracking/purge';
-import { enqueueAffectedMapAccessChanges, getOwnedMapIds } from '@/data/maps/queries';
+import {
+  enqueueAffectedMapAccessChanges,
+  getGrantedMapIdsForCharacter,
+  getOwnedMapIds,
+} from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
 import { eraseNetWorthHistoryForCharacter } from '@/features/net-worth/purge';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
@@ -16,9 +20,15 @@ export async function reprojectMapsForCharacter(characterId: number): Promise<vo
   await deliverCapturedMapAccessChanges(pending);
 }
 
+/**
+ * Revokes the user's claims on the maps whose grants the character matched.
+ * Maps that only block the character are queued but kept: losing the
+ * character can only restore access there, and the reprojection covers them.
+ */
 export async function revokeCharacterMapClaims(userId: string, characterId: number): Promise<string[]> {
   const pending = await enqueueAffectedMapAccessChanges(characterId);
-  const mapIds = pending.map((change) => change.mapId);
+  const granted = new Set(await getGrantedMapIdsForCharacter(characterId));
+  const mapIds = pending.map((change) => change.mapId).filter((mapId) => granted.has(mapId));
   await revokeUserMapClaims(userId, mapIds);
   return mapIds;
 }
