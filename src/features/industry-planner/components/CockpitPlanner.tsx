@@ -4,6 +4,7 @@ import { addTransitionType, startTransition, useState, ViewTransition } from 're
 import type { BlueprintStructure } from '../types';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitRawLedger } from './CockpitRawLedger';
+import { ComponentDrawer } from './ComponentDrawer';
 import { useMarketData } from './planner-contexts';
 import { PlannerRail } from './PlannerRail';
 
@@ -20,6 +21,8 @@ function RawLedgerView({ structure }: { structure: BlueprintStructure }) {
 /** The blueprint and its numbers on a rail; beside it the build, or its raw ledger. */
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
   const [view, setView] = useState<BodyView>('build');
+  // The component jobs opened in the drawer, the shown one last.
+  const [drawer, setDrawer] = useState<number[]>([]);
   const toggleLedger = () =>
     startTransition(() => {
       addTransitionType('planner-view');
@@ -38,11 +41,12 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
         ) : (
           <ViewTransition key="build" enter={VIEW_MOTION} exit={VIEW_MOTION} default="none">
             <div>
-              <CockpitBuildPlan structure={structure} />
+              <CockpitBuildPlan structure={structure} onOpen={(typeId) => setDrawer([typeId])} />
             </div>
           </ViewTransition>
         )}
       </div>
+      <ComponentDrawer structure={structure} stack={drawer} onStackChange={setDrawer} />
     </div>
   );
 }

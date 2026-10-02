@@ -244,33 +244,33 @@ export function computeMultibuyDemand(
   return buy;
 }
 
-export function chainActualsFrom(
+/** One built item's job in this build: its runs, and what those runs draw at their ME and structure. */
+export interface ComponentJob {
+  blueprintTypeId: number;
+  runs: number;
+  /** Units one run makes. */
+  batch: number;
+  /** Units the build needs of it. */
+  required: number;
+  me: number;
+  inputs: { typeId: number; quantity: number }[];
+}
+
+export function componentJob(
   tree: TreeNode[],
-  focusTypeId: number,
+  typeId: number,
   ledger: BatchLedger,
-): Map<number, Map<number, number>> {
-  const recipes = flattenRecipes(tree);
-  const actuals = new Map<number, Map<number, number>>();
-  const rootRuns = ledger.builds.get(focusTypeId)?.runs ?? 0;
-
-  const walk = (typeId: number, runs: number, relativeDepth: number) => {
-    const recipe = recipes.get(typeId);
-    if (!recipe) return;
-    const factor = meFactor(ledger.builds.get(typeId)?.me ?? 0);
-    const depth = relativeDepth + 1;
-    let level = actuals.get(depth);
-    if (!level) {
-      level = new Map();
-      actuals.set(depth, level);
-    }
-    for (const input of recipe.inputs) {
-      const demand = runs * input.qty * factor;
-      level.set(input.typeId, (level.get(input.typeId) ?? 0) + demand);
-      const childRecipe = recipes.get(input.typeId);
-      if (childRecipe && childRecipe.batch > 0) walk(input.typeId, demand / childRecipe.batch, depth);
-    }
+  structureMeFactorOf: (blueprintTypeId: number) => number = () => 1,
+): ComponentJob | null {
+  const recipe = flattenRecipes(tree).get(typeId);
+  const build = ledger.builds.get(typeId);
+  if (!recipe || !build) return null;
+  const structureMult = structureMeFactorOf(recipe.blueprintTypeId);
+  return {
+    ...build,
+    inputs: recipe.inputs.map((input) => ({
+      typeId: input.typeId,
+      quantity: meAdjust(input.qty, build.runs, build.me, structureMult),
+    })),
   };
-  walk(focusTypeId, rootRuns, 0);
-
-  return actuals;
 }

@@ -3,7 +3,7 @@ import flatMaterialsFixture from '@/data/eve-data/__fixtures__/blueprint-flat-ma
 import treesFixture from '@/data/eve-data/__fixtures__/blueprint-trees.json';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import {
-  chainActualsFrom,
+  componentJob,
   collectBlueprintTypeIds,
   collectRawTypeIds,
   computeBatchLedger,
@@ -107,41 +107,7 @@ describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
   });
 });
 
-describe('chainActualsFrom — focused build consumes marginal, not batched', () => {
-  const tree: TreeNode[] = [
-    {
-      typeId: 10,
-      quantity: 1,
-      producedBy: { blueprintTypeId: 110, quantityPerRun: 1, runsNeeded: 1 },
-      inputs: [
-        {
-          typeId: 20,
-          quantity: 50,
-          producedBy: { blueprintTypeId: 120, quantityPerRun: 40, runsNeeded: 1.25 },
-          inputs: [{ typeId: 30, quantity: 1, inputs: [] }],
-        },
-      ],
-    },
-  ];
-  const ledger = computeBatchLedger(tree, 1);
-
-  it('the project cost basis rounds fuel blocks up to whole runs', () => {
-    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0, blueprintTypeId: 120, required: 50 });
-    expect(ledger.raws.get(30)).toBe(2);
-  });
-
-  it('focusing the reaction shows the ACTUAL fuel blocks it burns (50, not 80)', () => {
-    const actuals = chainActualsFrom(tree, 10, ledger);
-    expect(actuals.get(1)?.get(20)).toBe(50);
-    expect(actuals.get(2)?.get(30)).toBeCloseTo(1.25, 9);
-  });
-
-  it('omits the focused item itself (relative depth 0)', () => {
-    expect(chainActualsFrom(tree, 10, ledger).has(0)).toBe(false);
-  });
-});
-
-describe('chainActualsFrom — ME-aware marginal cascade', () => {
+describe('componentJob — one item\'s job in the build', () => {
   const tree: TreeNode[] = [
     {
       typeId: 10,
@@ -150,25 +116,41 @@ describe('chainActualsFrom — ME-aware marginal cascade', () => {
       inputs: [
         {
           typeId: 20,
-          quantity: 100,
+          quantity: 50,
           producedBy: { blueprintTypeId: 120, quantityPerRun: 40, runsNeeded: 2.5 },
-          inputs: [{ typeId: 30, quantity: 1, inputs: [] }],
+          inputs: [{ typeId: 30, quantity: 3, inputs: [] }],
         },
       ],
     },
   ];
-  const me10 = { meOf: (bp: number) => (bp === 110 ? 10 : undefined), topBlueprintTypeId: 9000 };
 
-  it("reduces the focused build's marginal draw by its own ME, cascading fractionally", () => {
-    const actuals = chainActualsFrom(tree, 10, computeBatchLedger(tree, 1, me10));
-    expect(actuals.get(1)?.get(20)).toBeCloseTo(180, 9);
-    expect(actuals.get(2)?.get(30)).toBeCloseTo(4.5, 9);
+  it('runs whole batches and draws each input for those runs', () => {
+    const ledger = computeBatchLedger(tree, 1);
+    // 2 × 50 = 100 fuel blocks needed, 40 a run → 3 runs making 120, burning 3 × 3 = 9.
+    expect(componentJob(tree, 20, ledger)).toEqual({
+      blueprintTypeId: 120,
+      runs: 3,
+      batch: 40,
+      required: 100,
+      me: 0,
+      inputs: [{ typeId: 30, quantity: 9 }],
+    });
+    expect(componentJob(tree, 10, ledger)?.inputs).toEqual([{ typeId: 20, quantity: 100 }]);
   });
 
-  it('unowned ME opts match the default ledger', () => {
-    const actuals = chainActualsFrom(tree, 10, computeBatchLedger(tree, 1));
-    expect(actuals.get(1)?.get(20)).toBe(200);
-    expect(actuals.get(2)?.get(30)).toBe(5);
+  it('takes its own ME and structure bonus, as the ledger does', () => {
+    const me10 = { meOf: (bp: number) => (bp === 110 ? 10 : undefined), topBlueprintTypeId: 9000 };
+    const ledger = computeBatchLedger(tree, 1, me10);
+    const job = componentJob(tree, 10, ledger, (bp) => (bp === 110 ? 0.99 : 1));
+    // 50 × 2 runs × 0.9 × 0.99 = 89.1 → 90.
+    expect(job).toMatchObject({ me: 10, runs: 2, inputs: [{ typeId: 20, quantity: 90 }] });
+    expect(ledger.builds.get(20)?.required).toBe(90);
+  });
+
+  it('is null for a raw material or an item outside the build', () => {
+    const ledger = computeBatchLedger(tree, 1);
+    expect(componentJob(tree, 30, ledger)).toBeNull();
+    expect(componentJob(tree, 999, ledger)).toBeNull();
   });
 });
 
