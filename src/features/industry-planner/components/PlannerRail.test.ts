@@ -67,16 +67,16 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('Manufacturing');
   expect(html).toContain('>Multibuy<');
   expect(html).toMatch(/aria-expanded="false"[^>]*>.*Raw ledger/);
-  expect(html).toContain('>ME');
-  expect(html).toContain('>TE');
+  expect(html).toContain('aria-label="main blueprint material efficiency"');
+  expect(html).toContain('aria-label="main blueprint time efficiency"');
   expect(html).toContain('aria-label="Runs"');
   expect(html).toContain('kpis');
 });
 
 test('a reaction has no blueprint research to set, only runs', () => {
   const html = render(REACTION_ACTIVITY);
-  expect(html).not.toContain('>ME');
-  expect(html).not.toContain('>TE');
+  expect(html).not.toContain('material efficiency');
+  expect(html).not.toContain('time efficiency');
   expect(html).toContain('aria-label="Runs"');
 });
 

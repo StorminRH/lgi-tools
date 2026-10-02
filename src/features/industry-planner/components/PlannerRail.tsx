@@ -17,7 +17,7 @@ import { formatQuantity } from '@/lib/format/number';
 import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { batchedCostOfRows } from '../cost-basis-view';
-import { activityLabel, EFFICIENCY_TONE_CLASSES, PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
+import { activityLabel, PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
@@ -111,16 +111,22 @@ function ProfileSwitch() {
   );
 }
 
-function StepperRow({ label, icon, tone, children }: { label: string; icon?: ReactNode; tone?: string; children: ReactNode }) {
+/** Two arrows chasing each other: the job repeated, run after run. */
+function RunsIcon() {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={cn('inline-flex items-center gap-1.5 text-label uppercase tracking-wide text-muted', tone)}>
-        {label}
-        {icon && (
-          <span aria-hidden className="inline-flex size-3 shrink-0">
-            {icon}
-          </span>
-        )}
+    <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full fill-none stroke-muted" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 11a7 7 0 0 1 12.5-4.3M20 13a7 7 0 0 1-12.5 4.3" />
+      <path d="M17 3v4h-4M7 21v-4h4" />
+    </svg>
+  );
+}
+
+/** A stepper marked by its icon alone; the stepper carries the name for assistive tech. */
+function StepperRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span aria-hidden className="inline-flex size-3.5 shrink-0">
+        {icon}
       </span>
       {children}
     </div>
@@ -135,9 +141,9 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
   const teState = nodeTeState(plan.ownedTe?.get(id), plan.teOverrides.get(id));
   const manufacturing = structure.activityId === MANUFACTURING_ACTIVITY;
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5">
       {manufacturing && (
-        <StepperRow label="ME" icon={<GemIcon state={meState} />} tone={EFFICIENCY_TONE_CLASSES[meState].text}>
+        <StepperRow icon={<GemIcon state={meState} />}>
           <MeField
             blueprintTypeId={id}
             name="main blueprint"
@@ -150,7 +156,7 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
         </StepperRow>
       )}
       {manufacturing && (
-        <StepperRow label="TE" icon={<HourglassIcon state={teState} />} tone={EFFICIENCY_TONE_CLASSES[teState].text}>
+        <StepperRow icon={<HourglassIcon state={teState} />}>
           <TeField
             blueprintTypeId={id}
             name="main blueprint"
@@ -162,7 +168,7 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
           />
         </StepperRow>
       )}
-      <StepperRow label="Runs">
+      <StepperRow icon={<RunsIcon />}>
         <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" reserveTrailing />
       </StepperRow>
     </div>
@@ -225,7 +231,10 @@ export function PlannerRail({
       aria-label="Blueprint"
       className={cn(
         scrollArea,
-        'reveal flex min-w-0 flex-col gap-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
+        'reveal flex min-w-0 flex-col gap-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto',
+        // Room inside the scroll box for the blueprint's glow, taken back
+        // outside so the rail's edges stay where the column puts them.
+        'lg:-mx-4 lg:-mt-4 lg:px-4 lg:pt-4 lg:pb-4',
       )}
     >
       <BlueprintIdentity structure={structure} />
