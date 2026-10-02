@@ -13,8 +13,10 @@ import {
 
 const mergeDatabase = vi.hoisted(() => ({ current: null as PostgresJsDatabase | null }));
 const after = vi.hoisted(() => vi.fn());
+const revalueAfterRosterChange = vi.hoisted(() => vi.fn());
 
 vi.mock('next/server', () => ({ after }));
+vi.mock('@/composition/board/net-worth-link', () => ({ revalueAfterRosterChange }));
 vi.mock('./account-merge', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./account-merge')>();
   return {
@@ -99,6 +101,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
   beforeEach(async () => {
     mergeDatabase.current = harness.db;
     after.mockReset();
+    revalueAfterRosterChange.mockReset();
     await seedUser(SOURCE_ID, MOVED_CHAR, new Date('2026-02-01T00:00:00Z'));
     await seedUser(TARGET_ID, null, new Date('2026-01-01T00:00:00Z'));
   });
@@ -344,6 +347,7 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     expect(await readAccount(MOVED_CHAR)).toBeUndefined();
     expect(await userIds()).toEqual([TARGET_ID]);
     expect(after).not.toHaveBeenCalled();
+    expect(revalueAfterRosterChange).toHaveBeenCalledWith(SOURCE_ID);
   });
 
   it('neither merges nor purges a cross-user link when the row has no owner evidence', async () => {
