@@ -17,9 +17,9 @@ import { corpEntityIds, corpGroupState, corpJobsEmptyLine, jobRowFrameData, runn
 import { useCorpJobsLive } from '../use-corp-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
-export type CorpEntry = CorpJobsResponse['corporations'][number];
+type CorpEntry = CorpJobsResponse['corporations'][number];
 
-export const CORP_ACCESS_REASON =
+const CORP_ACCESS_REASON =
   "Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here.";
 
 export function CorpJobsBoard({
@@ -63,7 +63,7 @@ function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[]
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
-export function CorpJobsList({
+function CorpJobsList({
   corporations,
   names,
   now,

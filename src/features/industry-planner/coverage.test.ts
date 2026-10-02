@@ -63,7 +63,6 @@ import { MarketScorePanel } from '@/features/industry-planner/components/MarketS
 import { GemIcon, HourglassIcon, MeField, NodeAdjusters, TeField } from '@/features/industry-planner/components/MeAdjuster';
 import { MultibuyPanel } from '@/features/industry-planner/components/MultibuyPanel';
 import { ReactionStructureSelect } from '@/features/industry-planner/components/ReactionStructureSelect';
-import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import { SavedPlanRows } from '@/features/industry-planner/components/SavedPlanRows';
 import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { SelectedSystemBox } from '@/features/industry-planner/components/SelectedSystemBox';
@@ -74,12 +73,10 @@ import { useTemplatePlanner } from '@/features/industry-planner/components/plann
 import { StructureBonusReadout } from '@/features/industry-planner/components/structure-bonus-readout';
 import { HERO_LOCATION_CONTROL_WELL_CLASS, HERO_LOCATION_GROUP_CLASS, HERO_LOCATION_ROW_CLASS, PLANNER_DISCLOSURE_TRIGGER_CLASS, activityLabel, marginToneClass } from '@/features/industry-planner/industry-styles';
 import { getBlueprintPricing, getBlueprintSearchIndex, getBuildLocation } from '@/features/industry-planner/queries';
-import { readRecentBlueprints, recordRecentBlueprint } from '@/features/industry-planner/recent-blueprints';
 import { renameSavedPlan, setSavedPlanFavorite } from '@/features/industry-planner/saved-plans-queries';
 import { TEMPLATE_APPLY_GATE_MS } from '@/features/industry-planner/template-load';
 import { useBuildCharacterSkillLevels } from '@/features/industry-planner/use-build-character-skills';
 import { useManagedRowMenu } from '@/features/industry-planner/use-managed-row-menu';
-import { useRecentBlueprints } from '@/features/industry-planner/use-recent-blueprints';
 import { useSavedPlans } from '@/features/industry-planner/use-saved-plans';
 
 describe('coverage-gaps', () => {
@@ -109,7 +106,6 @@ describe('coverage-gaps', () => {
       TeField,
       MultibuyPanel,
       ReactionStructureSelect,
-      RecordRecentBlueprint,
       SavedPlanRows,
       SavedPlansManager,
       SelectedSystemBox,
@@ -131,14 +127,11 @@ describe('coverage-gaps', () => {
       getBlueprintPricing,
       getBlueprintSearchIndex,
       getBuildLocation,
-      readRecentBlueprints,
-      recordRecentBlueprint,
       renameSavedPlan,
       setSavedPlanFavorite,
       TEMPLATE_APPLY_GATE_MS,
       useBuildCharacterSkillLevels,
       useManagedRowMenu,
-      useRecentBlueprints,
       useSavedPlans,
     ];
     expect(pinned.length).toBeGreaterThan(0);

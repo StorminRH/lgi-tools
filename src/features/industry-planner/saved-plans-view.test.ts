@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SavedPlanRow } from './api-contract';
 import {
   echoOutcome,
-  SAVED_TILES_MAX,
-  savedEmptyLine,
   savedPlanRowLabels,
   savedPlansViewState,
-  savedTiles,
   saveErrorCopy,
   templatesEmptyLine,
 } from './saved-plans-view';
@@ -23,20 +20,6 @@ function plan(id: string, favorite = false): SavedPlanRow {
     updatedAt: '2026-07-01T00:00:00Z',
   };
 }
-
-describe('savedTiles', () => {
-  it('passes a short list through in the server order, no overflow', () => {
-    const plans = [plan('b', true), plan('a')];
-    expect(savedTiles(plans)).toEqual({ tiles: plans, overflow: 0 });
-  });
-
-  it('cuts to the first 8 preserving the server order byte-for-byte', () => {
-    const plans = Array.from({ length: 11 }, (_, i) => plan(String(i)));
-    const { tiles, overflow } = savedTiles(plans);
-    expect(tiles).toEqual(plans.slice(0, SAVED_TILES_MAX));
-    expect(overflow).toBe(3);
-  });
-});
 
 describe('echoOutcome', () => {
   it('returns the echoed list on success', () => {
@@ -61,24 +44,6 @@ describe('echoOutcome', () => {
   });
 });
 
-describe('savedEmptyLine', () => {
-  it('prioritizes the failed-read line', () => {
-    expect(savedEmptyLine({ listFailed: true, signedOut: true })).toBe(
-      "Couldn't load your saved templates",
-    );
-  });
-  it('prompts sign-in for the settled anonymous viewer', () => {
-    expect(savedEmptyLine({ listFailed: false, signedOut: true })).toBe(
-      'Sign in to save build templates',
-    );
-  });
-  it('hints where saving lives for a signed-in empty list', () => {
-    expect(savedEmptyLine({ listFailed: false, signedOut: false })).toBe(
-      'No saved templates yet — save one from the planner',
-    );
-  });
-});
-
 describe('savedPlansViewState', () => {
   it('is blank while the first list read is still in flight', () => {
     expect(savedPlansViewState(null, null, false)).toEqual({ kind: 'blank' });
@@ -86,12 +51,19 @@ describe('savedPlansViewState', () => {
   });
 
   it('is empty (with a cause line) for failed / signed-out / settled-empty lists', () => {
-    expect(savedPlansViewState([], [], true).kind).toBe('empty');
+    // A failed read wins over a signed-out viewer.
+    expect(savedPlansViewState([], [], true)).toEqual({
+      kind: 'empty',
+      line: "Couldn't load your saved templates",
+    });
     expect(savedPlansViewState([], [], false)).toEqual({
       kind: 'empty',
       line: 'Sign in to save build templates',
     });
-    expect(savedPlansViewState([], [{ id: 'c' }], false).kind).toBe('empty');
+    expect(savedPlansViewState([], [{ id: 'c' }], false)).toEqual({
+      kind: 'empty',
+      line: 'No saved templates yet — save one from the planner',
+    });
   });
 
   it('is a list when there are plans', () => {

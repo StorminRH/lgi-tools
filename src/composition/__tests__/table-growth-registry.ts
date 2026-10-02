@@ -180,6 +180,11 @@ export const TABLE_GROWTH_STORIES = [
     table: schema.savedPlans,
     purgeContributor: 'saved-plans',
   },
+  {
+    kind: 'purge-managed',
+    table: schema.industryProfiles,
+    purgeContributor: 'industry-profiles',
+  },
 
   { kind: 'bounded', table: schema.sites, reason: 'replaced from the finite sites catalogue' },
   { kind: 'bounded', table: schema.waves, reason: 'children of the replaced sites catalogue' },

@@ -29,6 +29,7 @@
 @import "../components/composition/HomeHero.css";
 @import "../components/composition/SignedInFold.css";
 @import "../components/composition/board/HomeBoardView.css";
+@import "../components/composition/industry-workspace/IndustryWorkspaceTabs.css";
 @import "../components/type-icon.css";
 @import "../features/wormhole-sites/components/LazySiteDetails.css";
 @import "../features/wormhole-sites/components/SiteCardLightbox.css";
@@ -280,7 +281,6 @@
   --color-card-glow-shadow: rgba(61,214,140,0.4);
   /* ISK-green row/selection tints (AUDIT-004) — alpha variants of --color-isk,
    * routed off raw rgba() at the call sites. Exact prior values. */
-  --color-isk-hover:        rgba(61,214,140,0.05); /* IndustryRow row hover */
   --color-isk-hover-strong: rgba(61,214,140,0.06); /* CockpitPlanner stepper hover */
   --color-isk-selected:     rgba(61,214,140,0.08); /* CockpitBuildPlan selected row */
   --color-confidence-high-bg: rgba(61,214,140,0.18);
@@ -686,4 +686,3 @@ a:hover {
   --glass-blur: 16px;
   --glass-saturate: 1.3;
 }
-

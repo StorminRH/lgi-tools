@@ -74,6 +74,7 @@ const TABLE_NAMES = [
   'user_preferences',
   'custom_structures',
   'saved_plans',
+  'industry_profiles',
   'net_worth_days',
   'pending_tracking_merges',
   'pending_deletions',

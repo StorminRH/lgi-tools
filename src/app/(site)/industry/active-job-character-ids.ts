@@ -48,22 +48,14 @@ export async function activeJobCharacterIds(): Promise<number[]> {
     .map((character) => character.characterId);
 }
 
-export interface CorpJobsAccess {
-  eligibleCharacterIds: number[];
-  hasLinkedCharacters: boolean;
-}
-
-export async function corpJobsAccess(): Promise<CorpJobsAccess> {
+export async function corpJobCharacterIds(): Promise<number[]> {
   const characters = await linkedJobCharacters();
-  return {
-    eligibleCharacterIds: characters
-      .filter((character) =>
-        canSyncCorpIndustryJobs({
-          hasRefreshToken: character.hasRefreshToken,
-          missingScopes: missingScopesOf(character),
-        }),
-      )
-      .map((character) => character.characterId),
-    hasLinkedCharacters: characters.length > 0,
-  };
+  return characters
+    .filter((character) =>
+      canSyncCorpIndustryJobs({
+        hasRefreshToken: character.hasRefreshToken,
+        missingScopes: missingScopesOf(character),
+      }),
+    )
+    .map((character) => character.characterId);
 }

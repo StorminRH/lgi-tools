@@ -2,7 +2,10 @@ import { purgeUserMapAccessProjection } from '@/composition/map-access-projectio
 import { deliverCapturedMapAccessChanges } from '@/composition/map-affiliation-access';
 import { purgeMapChain } from '@/composition/map-purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
-import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
+import {
+  industryProfilesPurgeContributor,
+  savedPlansPurgeContributor,
+} from '@/features/industry-planner/purge';
 import { authPurgeContributor } from '@/platform/auth/purge';
 import { corpRolesPurgeContributor } from '@/platform/auth/corp-roles-purge';
 import { corpHoldingsPurgeContributor } from '@/data/corp-holdings/purge';
@@ -45,5 +48,6 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   preferencesPurgeContributor,
   customStructuresPurgeContributor,
   savedPlansPurgeContributor,
+  industryProfilesPurgeContributor,
   netWorthPurgeContributor,
 ];

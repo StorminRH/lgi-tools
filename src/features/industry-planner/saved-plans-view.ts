@@ -5,16 +5,7 @@ export type SavedPlansEchoResult =
   | { ok: false; status: number }
   | { ok: false; kind: 'network'; aborted: boolean; cause: unknown };
 
-export const SAVED_TILES_MAX = 8;
-
-export function savedTiles(
-  plans: readonly SavedPlanRow[],
-  max: number = SAVED_TILES_MAX,
-): { tiles: SavedPlanRow[]; overflow: number } {
-  return { tiles: plans.slice(0, max), overflow: Math.max(0, plans.length - max) };
-}
-
-export function savedEmptyLine(args: { listFailed: boolean; signedOut: boolean }): string {
+function savedEmptyLine(args: { listFailed: boolean; signedOut: boolean }): string {
   if (args.listFailed) return "Couldn't load your saved templates";
   if (args.signedOut) return 'Sign in to save build templates';
   return 'No saved templates yet — save one from the planner';

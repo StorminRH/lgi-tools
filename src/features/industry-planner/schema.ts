@@ -1,6 +1,7 @@
 import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
 import { ownedRowIdentityColumns } from '@/lib/db-columns';
+import type { ProfileDocument } from './profiles/profile-document';
 import type { PlanSnapshotWire } from './template-snapshot';
 
 export const savedPlans = pgTable('saved_plans', {
@@ -11,4 +12,18 @@ export const savedPlans = pgTable('saved_plans', {
   productName: text('product_name').notNull(),
   snapshot: jsonb('snapshot').$type<PlanSnapshotWire>().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Production profiles. `revision` bumps on every edit so a template can tell
+ * its profile changed and a tracked build can keep the revision it started
+ * from. Deleting a profile stamps `deleted_at` and keeps the row, so a later
+ * reference still resolves to a named, deleted profile instead of nothing.
+ */
+export const industryProfiles = pgTable('industry_profiles', {
+  ...ownedRowIdentityColumns(() => user.id),
+  revision: integer('revision').notNull().default(1),
+  document: jsonb('document').$type<ProfileDocument>().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });

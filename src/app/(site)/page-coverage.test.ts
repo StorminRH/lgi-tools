@@ -100,10 +100,10 @@ import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
 import AppSiteError from '@/app/(site)/error';
-import { IndustryDashboardGrid } from '@/app/(site)/industry/IndustryDashboardGrid';
+import { IndustryLanding } from '@/app/(site)/industry/IndustryLanding';
 import AppSiteIndustryIdPage, { generateMetadata as AppSiteIndustryIdPageGenerateMetadata } from '@/app/(site)/industry/[id]/page';
 import AppSiteIndustryPage, { metadata as AppSiteIndustryPageMetadata } from '@/app/(site)/industry/page';
-import AppSiteIndustryTemplatesPage, { metadata as AppSiteIndustryTemplatesPageMetadata } from '@/app/(site)/industry/templates/page';
+import AppSiteIndustryTemplatesPage from '@/app/(site)/industry/templates/page';
 import AppSiteJobsPage from '@/app/(site)/jobs/page';
 import AppSiteLegalPage, { metadata as AppSiteLegalPageMetadata } from '@/app/(site)/legal/page';
 import AppSitePage, { metadata as AppSitePageMetadata } from '@/app/(site)/page';
@@ -202,12 +202,11 @@ describe('coverage-gaps', () => {
       AppSiteContactPageMetadata,
       AppSiteContactPage,
       AppSiteError,
-      IndustryDashboardGrid,
+      IndustryLanding,
       AppSiteIndustryIdPageGenerateMetadata,
       AppSiteIndustryIdPage,
       AppSiteIndustryPageMetadata,
       AppSiteIndustryPage,
-      AppSiteIndustryTemplatesPageMetadata,
       AppSiteIndustryTemplatesPage,
       AppSiteJobsPage,
       AppSiteLegalPageMetadata,
