@@ -35,7 +35,7 @@ describe('adminSectionHref', () => {
     expect(adminSectionHref(sectionById('traffic'), null)).toBe('/admin/traffic');
     expect(adminSectionHref(sectionById('search'), 'bogus')).toBe('/admin/search');
     expect(adminSectionHref(sectionById('statics'), '7d')).toBe('/admin/statics');
-    expect(adminSectionHref(sectionById('access'), '7d')).toBe('/settings/access');
+    expect(adminSectionHref(sectionById('users'), '7d')).toBe('/admin/users');
   });
 });
 

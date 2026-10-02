@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 import AtlasLoading from './loading';
 import AtlasPage from './page';
 
-it('keeps Atlas streaming through the same PageHead shell for page and loading', () => {
+it('keeps Atlas streaming through the same headless shell for page and loading', () => {
   for (const markup of [
     renderToStaticMarkup(
       createElement(AtlasPage, { searchParams: Promise.resolve({}) }),
@@ -12,8 +12,7 @@ it('keeps Atlas streaming through the same PageHead shell for page and loading',
     renderToStaticMarkup(createElement(AtlasLoading)),
   ]) {
     expect(markup).toContain('data-page-shell');
-    expect(markup).toContain('lgi://</span>atlas');
-    expect(markup).toContain('>Atlas</h1>');
+    expect(markup).toContain('<h1 class="sr-only">Atlas</h1>');
     expect(markup).not.toContain('Mapping the unknown');
   }
 

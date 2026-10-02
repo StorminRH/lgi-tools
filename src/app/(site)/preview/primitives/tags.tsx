@@ -63,7 +63,7 @@ export function TagsGroup() {
       <Specimen
         name="Chip"
         source="chip"
-        note="Saturated uppercase chips for EWAR and combat status."
+        note="Soft tinted chips for EWAR and combat status."
       >
         <div className="flex flex-wrap gap-2">
           {CHIP_TONES.map((tone) => (

@@ -2,7 +2,6 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/composition/auth';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
@@ -76,10 +75,7 @@ export default function JobsPage() {
   return (
     <PageShell mode="reading">
       <div className="flex w-full flex-col items-center pb-20">
-        <PageHead
-          crumb="jobs"
-          title="Industry Jobs"
-        />
+        <h1 className="sr-only">Industry jobs</h1>
         <Suspense fallback={<JobsLoading />}>
           <JobsContent />
         </Suspense>

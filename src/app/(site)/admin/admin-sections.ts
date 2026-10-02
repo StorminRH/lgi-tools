@@ -9,10 +9,13 @@ export type AdminSectionId =
   | 'search'
   | 'queue'
   | 'statics'
-  | 'access'
+  | 'users'
   | 'primitives'
   | 'cards'
   | 'widgets';
+
+/** Users & roles: admin search, role grants, the role audit, and per-user detail. */
+export const USERS_HREF = '/admin/users';
 
 export type AdminSection = {
   id: AdminSectionId;
@@ -25,7 +28,7 @@ export type AdminSection = {
 };
 
 export type AdminNavGroup = {
-  id: 'console' | 'monitor' | 'actions' | 'reference';
+  id: 'console' | 'monitor' | 'accounts' | 'actions' | 'reference';
   label: string | null;
   sections: readonly AdminSection[];
 };
@@ -66,12 +69,16 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     ],
   },
   {
+    id: 'accounts',
+    label: 'Accounts',
+    sections: [section('users', USERS_HREF, 'Users & roles')],
+  },
+  {
     id: 'actions',
     label: 'Actions',
     sections: [
       section('queue', '/admin/queue', 'Refresh queue'),
       section('statics', '/admin/statics', 'Wormhole statics'),
-      section('access', '/settings/access', 'Users & roles', { leavesConsole: true }),
     ],
   },
   {

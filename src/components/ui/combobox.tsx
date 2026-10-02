@@ -3,8 +3,8 @@
 import { Autocomplete } from '@base-ui/react/autocomplete';
 import { forwardRef, type ComponentProps, type ReactNode } from 'react';
 import { cn } from './cn';
-import { dropdownGroupLabel, dropdownPanel } from './dropdown-panel';
-import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
+import { dropdownGroupLabel, dropdownOption, dropdownPanel } from './dropdown-panel';
+import { fieldText, fieldVariants, triggerShape, type FieldSize } from './input';
 import { useOverlayPortalContainer } from './overlay-portal-container';
 
 export const Root = Autocomplete.Root;
@@ -19,7 +19,7 @@ export const Field = forwardRef<
 >(function Field({ prompt, trailing, size, className, ...inputProps }, ref) {
   return (
     <Autocomplete.InputGroup
-      className={cn(fieldVariants({ size }), focusWell, 'flex items-center gap-1.5', className)}
+      className={cn(fieldVariants({ size }), triggerShape, 'flex items-center gap-2.5', className)}
     >
       {prompt}
       <Autocomplete.Input
@@ -34,7 +34,7 @@ export const Field = forwardRef<
 
 export function Panel({
   className,
-  sideOffset = 6,
+  sideOffset = 8,
   align = 'start',
   children,
 }: {
@@ -72,11 +72,7 @@ export function GroupLabel({ className, ...props }: ComponentProps<typeof Autoco
 export function Item({ className, ...props }: ComponentProps<typeof Autocomplete.Item>) {
   return (
     <Autocomplete.Item
-      className={cn(
-        'cursor-default select-none rounded-ctl outline-none',
-        'data-[highlighted]:bg-row-on data-[highlighted]:text-name',
-        className,
-      )}
+      className={cn(dropdownOption, className)}
       {...props}
     />
   );

@@ -1,26 +1,26 @@
+/* Breathing glow: a soft halo that swells and fades around live lights. */
 .status-led {
+  --led: var(--color-muted);
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--led);
 }
 .status-led.online {
-  background: var(--color-isk);
-  box-shadow: 0 0 8px var(--color-card-glow-shadow);
-  animation: status-led-pulse 2.4s infinite;
+  --led: var(--color-isk);
+  animation: status-led-breathe 2.6s ease-in-out infinite;
 }
 .status-led.vip {
-  background: var(--color-tone-orange);
+  --led: var(--color-tone-orange);
+  animation: status-led-breathe 2.6s ease-in-out infinite;
 }
-.status-led.offline {
-  background: var(--color-muted);
-}
-@keyframes status-led-pulse {
-  0%, 40%  { opacity: 1;   animation-timing-function: steps(6); }
-  50%, 90% { opacity: 0.4; animation-timing-function: steps(6); }
-  100%     { opacity: 1; }
+@keyframes status-led-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--led) 0%, transparent); }
+  50% { box-shadow: 0 0 10px 2px color-mix(in oklab, var(--led) 55%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .status-led.online { animation: none; }
+  .status-led.online,
+  .status-led.vip { animation: none; }
 }

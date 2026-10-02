@@ -1,14 +1,12 @@
-import { ACCESS_HREF } from '../settings-sections';
+import { USERS_HREF } from '../admin-sections';
+import { AdminPageFrame } from '../AdminFrame';
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
-import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -25,7 +23,6 @@ import {
 } from '@/platform/auth/admin-users';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
-import { SectionHead } from '@/components/ui/section-head';
 import {
   adminRoleBadge,
   deriveAccessView,
@@ -80,7 +77,7 @@ function AdminUserRow({
       }
       name={
         <Link
-          href={`${ACCESS_HREF}/${user.userId}`}
+          href={`${USERS_HREF}/${user.userId}`}
           className="transition-colors hover:text-text hover:underline underline-offset-2"
         >
           {user.name}
@@ -150,7 +147,7 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
 
 function AccessSearchForm({ query }: { query: string | undefined }) {
   return (
-    <form method="GET" action={ACCESS_HREF} className="flex items-center gap-2">
+    <form method="GET" action={USERS_HREF} className="flex items-center gap-2">
       <Input
         type="text"
         name="q"
@@ -163,7 +160,7 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
         Search
       </Button>
       {query ? (
-        <Link href={ACCESS_HREF} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
+        <Link href={USERS_HREF} className="px-2 py-1 text-ui uppercase tracking-wide text-muted">
           Clear
         </Link>
       ) : null}
@@ -250,18 +247,6 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
 
   return (
     <>
-      <SectionHead
-        title="Users & roles"
-        meta={
-          <Link
-            href="/admin"
-            className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text')}
-          >
-            Dashboard →
-          </Link>
-        }
-      />
-
       <div className="reveal reveal-1 flex flex-col gap-6">
         <AccessSearchForm query={query} />
 
@@ -281,14 +266,14 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
   );
 }
 
-export default function AccessSettingsPage({
+export default function AdminUsersPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
   return (
-    <Suspense fallback={<LoadingLabel />}>
+    <AdminPageFrame title="Users & roles" fallbackLabel="Admins">
       <AccessContent searchParams={searchParams} />
-    </Suspense>
+    </AdminPageFrame>
   );
 }

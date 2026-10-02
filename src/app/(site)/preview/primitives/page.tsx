@@ -23,11 +23,10 @@ export default function PrimitiveReferencePage() {
     <PageShell mode="workspace">
       <PageHead
         size="compact"
-        crumb="admin / primitive reference"
         title="UI primitives"
         subtitle="Every shared component in src/components/ui, rendered live"
       />
-      <Suspense fallback={<Skeleton className="h-64 w-full" label="Loading primitive reference" />}>
+      <Suspense fallback={<Skeleton className="h-64 w-full rounded-card" label="Loading primitive reference" />}>
         <AdminPrimitiveReference />
       </Suspense>
     </PageShell>

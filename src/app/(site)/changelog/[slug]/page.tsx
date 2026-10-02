@@ -58,7 +58,7 @@ function ChangelogMasterFallback() {
       <Skeleton label="Loading changelog" className="h-8 w-40" />
       <Skeleton aria-hidden="true" className="h-4 w-full" />
       <Skeleton aria-hidden="true" className="h-4 w-5/6" />
-      <Skeleton aria-hidden="true" className="h-48 w-full" />
+      <Skeleton aria-hidden="true" className="h-48 w-full rounded-card" />
     </div>
   );
 }

@@ -59,7 +59,6 @@ import { CockpitKpis } from '@/features/industry-planner/components/CockpitKpis'
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { CockpitRawLedger } from '@/features/industry-planner/components/CockpitRawLedger';
 import { HeroCard } from '@/features/industry-planner/components/HeroCard';
-import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { MarketScorePanel } from '@/features/industry-planner/components/MarketScorePanel';
 import { GemIcon, HourglassIcon, MeField, NodeAdjusters, TeField } from '@/features/industry-planner/components/MeAdjuster';
 import { MultibuyPanel } from '@/features/industry-planner/components/MultibuyPanel';
@@ -102,7 +101,6 @@ describe('coverage-gaps', () => {
       CockpitPlanner,
       CockpitRawLedger,
       HeroCard,
-      IndustryTypedHint,
       MarketScorePanel,
       GemIcon,
       HourglassIcon,

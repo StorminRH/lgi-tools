@@ -8,7 +8,7 @@ import { PageFooter } from '@/components/ui/page-footer';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow, LabeledChipRow, ResourceRow, Stat } from '@/components/ui/row';
 import { SectionFooter } from '@/components/ui/section-footer';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead, SectionHead } from '@/components/ui/section-head';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SectionLabel } from '@/components/ui/section-label';
 import { UrlSync } from '@/components/ui/url-sync';
@@ -44,9 +44,17 @@ export function StructureGroup() {
       </Specimen>
 
       <Specimen
+        name="QuietSectionHead"
+        source="section-head"
+        note="For pages whose rail already names the section: the title is for screen readers only and any tools sit in a right-aligned row. onTitleLine lifts that row onto the page title's line from lg up."
+      >
+        <QuietSectionHead title="Health" meta={<Pill tone="neutral">7d · 30d · 90d</Pill>} />
+      </Specimen>
+
+      <Specimen
         name="SectionHeader + SectionLabel + SectionFooter"
         source="section-header · section-label · section-footer"
-        note="Uppercase card chrome: a header bar or sub-label, the prefixed section label, and a totals footer."
+        note="Card chrome: a header bar or sub-label, the // section label, and a totals footer."
       >
         <div className="flex flex-col gap-4">
           <Card className="overflow-hidden">

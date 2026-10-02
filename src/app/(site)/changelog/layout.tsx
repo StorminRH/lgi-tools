@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import { ContentBrowser, landingContentSlug } from '@/components/ui/content-browser';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
-import { eyebrow } from '@/components/ui/type-roles';
-import { APP_VERSION } from '@/config/app-version';
 import { toChangelogDocuments, toChangelogNavModel } from '@/features/changelog/browser';
 import { loadChangelog } from '@/features/changelog/load';
 
@@ -11,16 +9,7 @@ export default async function ChangelogLayout({ children }: { children: ReactNod
   const model = toChangelogNavModel(toChangelogDocuments(await loadChangelog()));
   return (
     <PageShell mode="workspace">
-      <PageHead
-        size="hero"
-        crumb="changelog"
-        title="Changelog"
-        meta={
-          <span className={eyebrow()}>
-            Current <b className="text-isk font-semibold">v{APP_VERSION}</b>
-          </span>
-        }
-      />
+      <PageHead size="hero" title="Changelog" />
       <ContentBrowser
         basePath="/changelog"
         railLabel="Versions"

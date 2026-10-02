@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFullSession } from '@/composition/session';
 import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/specs';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead } from '@/components/ui/section-head';
 import { PreferenceGroups } from './preference-groups';
 
 async function PreferencesContent() {
@@ -25,7 +25,7 @@ async function PreferencesContent() {
 export default function PreferencesSettingsPage() {
   return (
     <>
-      <SectionHead title="Preferences" />
+      <QuietSectionHead title="Preferences" />
       <Suspense
         fallback={<Skeleton label="Loading preferences" className="h-40 w-full rounded-card" />}
       >

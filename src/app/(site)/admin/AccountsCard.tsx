@@ -14,7 +14,7 @@ export async function AccountsCard() {
       <SectionHeader
         size="md"
         label="Registered users"
-        hint={<CardLink href="/settings/access">Users &amp; roles</CardLink>}
+        hint={<CardLink href="/admin/users">Users &amp; roles</CardLink>}
       />
       <MultiplesGrid columns={2}>
         <MultiplesCell title="User accounts" value={totals.users.toLocaleString()}>

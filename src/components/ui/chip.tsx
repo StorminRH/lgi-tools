@@ -2,22 +2,20 @@ import type { ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
 import { cn } from './cn';
 import type { ChipTone } from './tones';
-import { eyebrow } from './type-roles';
 
 export type { ChipTone };
 
 export const chipVariants = cva(
-  `inline-flex items-center px-[7px] py-px rounded-full border leading-[1.5] shrink-0 ${eyebrow({
-    weight: 'semibold',
-  })}`,
+  'pill-soft inline-flex items-center gap-1.5 px-[9px] py-px rounded-full border border-transparent leading-[1.5] shrink-0 ' +
+    'font-ui text-ui font-semibold',
   {
     variants: {
       tone: {
-        blue:   'bg-chip-blue-bg text-chip-blue border-chip-blue-border',
-        red:    'bg-chip-red-bg text-chip-red border-chip-red-border',
-        purple: 'bg-chip-purple-bg text-chip-purple border-chip-purple-border',
-        green:  'bg-chip-green-bg text-chip-green border-chip-green-border',
-        orange: 'bg-chip-orange-bg text-dps-mid border-chip-orange-border',
+        blue:   '[--pill-tone:var(--color-chip-blue)] text-chip-blue',
+        red:    '[--pill-tone:var(--color-chip-red)] text-chip-red',
+        purple: '[--pill-tone:var(--color-chip-purple)] text-chip-purple',
+        green:  '[--pill-tone:var(--color-chip-green)] text-chip-green',
+        orange: '[--pill-tone:var(--color-dps-mid)] text-dps-mid',
       } satisfies Record<ChipTone, string>,
     },
   },

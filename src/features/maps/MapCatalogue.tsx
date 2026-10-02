@@ -7,7 +7,6 @@ import { EveImage } from '@/components/eve-image';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
@@ -253,7 +252,7 @@ function MapCatalogueSurface({
         className="outline-none"
       >
         <PageShell mode="workspace">
-          <PageHead size="hero" crumb="atlas" title="Atlas" reveal={false} />
+          <h1 className="sr-only">Atlas</h1>
           <Card className="flex max-w-lg flex-col items-center gap-4 p-6 text-center">
             <div className="flex flex-col gap-1.5">
               <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
@@ -275,43 +274,35 @@ function MapCatalogueSurface({
   return (
     <div ref={catalogueRef} tabIndex={-1} data-map-catalogue className="outline-none">
       <PageShell mode="workspace">
-        <PageHead
-          size="hero"
-          crumb="atlas"
-          title="Atlas"
-          reveal={false}
-          meta={
-            <div className="flex items-center gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                data-map-catalogue-create
-                className="gap-2"
-                onClick={(event) => onCreate(event.currentTarget)}
-              >
-                <PlusGlyph />
-                Create new map
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                data-map-catalogue-trash
-                className="gap-2"
-                onClick={(event) => onTrash(event.currentTarget)}
-              >
-                <TrashGlyph />
-                Trash{deletedCount > 0 ? ` (${deletedCount})` : ''}
-              </Button>
-            </div>
-          }
-        />
-        <div className="flex flex-col gap-9 pb-16">
+        <h1 className="sr-only">Atlas</h1>
+        <div className="mb-5 flex flex-wrap items-center gap-2">
           {maps.length === 0 ? (
             <p data-map-catalogue-empty-hint className="font-ui text-ui text-muted">
               Create a map to begin charting a chain.
             </p>
           ) : null}
-
+          <Button
+            variant="primary"
+            size="sm"
+            data-map-catalogue-create
+            className="ml-auto gap-2"
+            onClick={(event) => onCreate(event.currentTarget)}
+          >
+            <PlusGlyph />
+            Create new map
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            data-map-catalogue-trash
+            className="gap-2"
+            onClick={(event) => onTrash(event.currentTarget)}
+          >
+            <TrashGlyph />
+            Trash{deletedCount > 0 ? ` (${deletedCount})` : ''}
+          </Button>
+        </div>
+        <div className="flex flex-col gap-9 pb-16">
           {sections.map((section) => (
             <CatalogueSection
               key={section.id}

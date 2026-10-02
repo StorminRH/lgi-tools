@@ -2,10 +2,31 @@
 
 import { Button } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/copy-button';
+import {
+  AlertIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  CopyIcon,
+  InboxIcon,
+  InfoIcon,
+  SearchIcon,
+} from '@/components/ui/icons';
 import { Kbd } from '@/components/ui/kbd';
 import { ReferenceGroup, Specimen, Variant } from './specimen';
 
 const BUTTON_VARIANTS = ['primary', 'secondary', 'ghost', 'danger'] as const;
+
+const ICONS = [
+  { name: 'Search', Icon: SearchIcon },
+  { name: 'Copy', Icon: CopyIcon },
+  { name: 'Check', Icon: CheckIcon },
+  { name: 'Chevron', Icon: ChevronDownIcon },
+  { name: 'Close', Icon: CloseIcon },
+  { name: 'Info', Icon: InfoIcon },
+  { name: 'Alert', Icon: AlertIcon },
+  { name: 'Inbox', Icon: InboxIcon },
+] as const;
 
 export function ActionsGroup() {
   return (
@@ -60,6 +81,19 @@ export function ActionsGroup() {
         <p className="font-ui text-ui text-muted">
           Focus search <Kbd>⌘</Kbd> <Kbd>K</Kbd> · close <Kbd>esc</Kbd> · next result <Kbd>↓</Kbd>
         </p>
+      </Specimen>
+      <Specimen
+        name="Icons"
+        source="icons"
+        note="The rounded 24px stroke set the primitives draw with: the field and search prompts, copy feedback, dropdown chevrons, banners, and empty states."
+      >
+        <div className="flex flex-wrap gap-4 text-muted">
+          {ICONS.map(({ name, Icon }) => (
+            <Variant key={name} label={name}>
+              <Icon size={20} />
+            </Variant>
+          ))}
+        </div>
       </Specimen>
     </ReferenceGroup>
   );

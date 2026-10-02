@@ -1,12 +1,8 @@
-import { ACCESS_HREF } from '../../settings-sections';
-import Link from 'next/link';
 import { Suspense } from 'react';
 import { EveImage } from '@/components/eve-image';
-import { buttonVariants } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
-import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { Pill } from '@/components/ui/pill';
@@ -38,17 +34,6 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-function BackToAccess({ className }: { className?: string }) {
-  return (
-    <Link
-      href={ACCESS_HREF}
-      className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text', className)}
-    >
-      ← Users &amp; roles
-    </Link>
-  );
 }
 
 function CharacterAdminRow({
@@ -121,7 +106,7 @@ function CharacterAdminRow({
 function NotFound() {
   return (
     <>
-      <SectionHead title="User not found" meta={<BackToAccess />} />
+      <SectionHead title="User not found" />
       <Card>
         <EmptyState>No account matches that id.</EmptyState>
       </Card>
@@ -189,7 +174,6 @@ async function UserDetailContent({
             ))}
           </>
         }
-        meta={<BackToAccess />}
       />
 
       {error ? <Callout label="Heads up">{error}</Callout> : null}
@@ -226,7 +210,7 @@ async function UserDetailContent({
   );
 }
 
-export default function UserDetailSettingsPage({
+export default function AdminUserDetailPage({
   params,
   searchParams,
 }: {

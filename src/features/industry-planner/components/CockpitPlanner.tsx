@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
 import { formatQuantity } from '@/lib/format/number';
 import { activityLabel } from '../industry-styles';
@@ -25,14 +24,8 @@ function PlannerHead({
   blueprintTypeId: number;
 }) {
   return (
-    <header className="reveal grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
+    <header className="reveal grid grid-cols-1 items-end gap-x-6 gap-y-2 pb-1 sm:grid-cols-[1fr_auto_1fr]">
       <div className="inline-flex items-baseline gap-5 justify-self-start text-label tracking-label text-muted">
-        <span className="font-data">
-          <span className="text-isk">lgi://</span>
-          <Link href="/industry" className="hover:text-isk">
-            industry
-          </Link>
-        </span>
         <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
       </div>
       <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-optical text-name">

@@ -9,7 +9,7 @@ export function Skeleton({
   return (
     <span role="status"
       aria-label={label}
-      className={cn('skeleton-shimmer block rounded-ctl', className)}
+      className={cn('skeleton-shimmer block', className)}
       {...props}
     />
   );

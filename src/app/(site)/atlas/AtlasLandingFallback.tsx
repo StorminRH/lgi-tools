@@ -1,12 +1,11 @@
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 
-// The resolved guest and catalogue heads take this head's place without an
-// entrance of their own (reveal={false}), so the title never blinks.
+// Atlas has no visible page head: the nav names the page. The fallback keeps
+// the shell and the hidden heading so the resolved views slot in without a jump.
 export function AtlasLandingFallback() {
   return (
     <PageShell mode="workspace">
-      <PageHead size="hero" crumb="atlas" title="Atlas" />
+      <h1 className="sr-only">Atlas</h1>
     </PageShell>
   );
 }

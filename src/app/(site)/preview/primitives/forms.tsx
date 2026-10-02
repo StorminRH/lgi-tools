@@ -46,7 +46,7 @@ export function FormsGroup() {
     <ReferenceGroup
       id="forms"
       title="Forms"
-      intro="Text entry, pickers, and numeric controls share one engraved field well."
+      intro="Text entry, pickers, and numeric controls share one frosted glass field."
     >
       <Specimen
         name="Field + Input + Textarea"

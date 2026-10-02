@@ -1,19 +1,18 @@
 import type { ComponentProps, ComponentPropsWithRef, ReactNode } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
+import { SearchIcon } from './icons';
 
-export const fieldVariants = cva(
-  'bg-bg-deep/60 border border-border shadow-field-inset rounded-ctl field-own-focus transition-[border-color,box-shadow]',
-  {
-    variants: {
-      size: { md: 'px-2.5 py-1.5', sm: 'px-2 py-0.5' },
-    },
-    defaultVariants: { size: 'md' },
+export const fieldVariants = cva('field-glass field-own-focus', {
+  variants: {
+    size: { md: 'px-3.5 py-2', sm: 'px-3 py-1' },
   },
-);
+  defaultVariants: { size: 'md' },
+});
 
-export const fieldText = 'text-ui font-data text-text placeholder:text-muted';
-export const focusWell = 'focus-within:border-hairline-accent focus-within:shadow-field-focus';
+export const fieldText = 'font-ui text-nav text-name placeholder:text-faint';
+/** Select and Combobox triggers: the rounded frosted box with an aurora glow. */
+export const triggerShape = 'field-trigger';
 const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
 export type FieldSize = VariantProps<typeof fieldVariants>;
@@ -26,12 +25,8 @@ export function Input({
   ...props
 }: FieldSize & { prompt?: boolean; trailing?: ReactNode } & Omit<ComponentProps<'input'>, 'size'>) {
   return (
-    <div className={cn(fieldVariants({ size }), focusWell, 'flex items-center gap-1.5', className)}>
-      {prompt ? (
-        <span aria-hidden className="select-none font-data text-ui text-isk">
-          {'>'}
-        </span>
-      ) : null}
+    <div className={cn(fieldVariants({ size }), 'field-pill flex items-center gap-2.5 pl-4 pr-2.5', className)}>
+      {prompt ? <SearchIcon size={15} /> : null}
       <input className={cn(fieldText, innerControl)} {...props} />
       {trailing}
     </div>
@@ -47,8 +42,9 @@ export function Textarea({
     <textarea
       className={cn(
         fieldVariants({ size }),
+        'field-pill',
         fieldText,
-        'block w-full resize-y focus:border-hairline-accent focus:shadow-field-focus',
+        'block w-full resize-y px-4 py-3 leading-relaxed',
         className,
       )}
       {...props}

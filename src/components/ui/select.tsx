@@ -4,7 +4,8 @@ import { Select as Base } from '@base-ui/react/select';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { dropdownGroupLabel, dropdownItem, dropdownPanel } from './dropdown-panel';
-import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
+import { CheckIcon, ChevronDownIcon } from './icons';
+import { fieldText, fieldVariants, triggerShape, type FieldSize } from './input';
 import { useOverlayPortalContainer } from './overlay-portal-container';
 import { scrollArea } from './scroll-area';
 
@@ -59,11 +60,11 @@ function Option({
       </Base.ItemText>
       <Base.ItemIndicator
         className={cn(
-          'shrink-0 text-isk',
+          'inline-flex shrink-0 text-aurora',
           centered && 'pointer-events-none absolute end-2.5',
         )}
       >
-        ✓
+        <CheckIcon size={15} />
       </Base.ItemIndicator>
     </Base.Item>
   );
@@ -109,12 +110,11 @@ export function Select({
         aria-label={ariaLabel}
         className={cn(
           fieldVariants({ size }),
-          focusWell,
-          'flex w-full cursor-pointer items-center gap-1.5',
+          triggerShape,
+          'flex w-full cursor-pointer items-center gap-2.5',
           centered
             ? 'relative justify-center text-center'
             : 'text-left',
-          'data-[popup-open]:border-isk-sub data-[popup-open]:shadow-field-focus',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className,
         )}
@@ -129,17 +129,17 @@ export function Select({
         {caret ? (
           <Base.Icon
             className={cn(
-              'shrink-0 text-muted',
+              'field-chevron inline-flex shrink-0',
               centered &&
                 'pointer-events-none absolute end-2 top-1/2 -translate-y-1/2',
             )}
           >
-            ▾
+            <ChevronDownIcon />
           </Base.Icon>
         ) : null}
       </Base.Trigger>
       <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
-        <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-dropdown">
+        <Base.Positioner side="bottom" sideOffset={8} alignItemWithTrigger={false} className="z-dropdown">
           <Base.Popup
             aria-label={ariaLabel}
             className={cn(

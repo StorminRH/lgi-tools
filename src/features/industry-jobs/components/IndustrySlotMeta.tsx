@@ -45,7 +45,7 @@ export function IndustrySlotMeta({
   if (model === null) return null;
 
   return (
-    <>
+    <div className="flex flex-wrap items-baseline justify-end gap-x-[18px] gap-y-1">
       <span className={eyebrow()}>
         manufacturing{' '}
         <b className="text-evb-bright font-semibold">
@@ -64,6 +64,6 @@ export function IndustrySlotMeta({
           {model.reactions.used}/{model.reactions.total}
         </b>
       </span>
-    </>
+    </div>
   );
 }

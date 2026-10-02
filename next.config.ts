@@ -48,7 +48,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/admin/access/:path*",
-        destination: "/settings/access/:path*",
+        destination: "/admin/users/:path*",
+        permanent: false,
+      },
+      {
+        source: "/settings/access/:path*",
+        destination: "/admin/users/:path*",
         permanent: false,
       },
       {

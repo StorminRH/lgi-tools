@@ -1,5 +1,4 @@
 import { cn } from './cn';
-import { eyebrow } from './type-roles';
 
 export function LoadingLabel({
   label = 'Loading…',
@@ -9,7 +8,7 @@ export function LoadingLabel({
   className?: string;
 }) {
   return (
-    <span className={cn(eyebrow(), className)}>
+    <span className={cn('inline-flex items-center font-ui text-ui text-muted', className)}>
       {label}
     </span>
   );

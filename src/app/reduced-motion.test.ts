@@ -21,7 +21,6 @@ const LOOPING_CLASSES = [
   'reveal',
   'home-orbit',
   'hero-bracket',
-  'industry-cur',
   'status-led',
   'price-pending',
   'price-flash',

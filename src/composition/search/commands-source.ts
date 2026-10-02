@@ -50,7 +50,7 @@ const COMMANDS: CommandEntry[] = [
     id: 'cmd:open-access',
     label: 'Open admin users & roles',
     sub: 'Manage admins · role change audit',
-    href: '/settings/access',
+    href: '/admin/users',
     iconText: '→',
     visible: (ctx) => ctx.isAdmin,
   },
