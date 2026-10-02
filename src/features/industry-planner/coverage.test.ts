@@ -60,7 +60,7 @@ import { MarketScorePanel } from '@/features/industry-planner/components/MarketS
 import { GemIcon, HourglassIcon, MeField, NodeAdjusters, TeField } from '@/features/industry-planner/components/MeAdjuster';
 import { MultibuyPanel } from '@/features/industry-planner/components/MultibuyPanel';
 import { KPI_FIG, KpiHead, KpiHelp, KpiTile, SimpleTile } from '@/features/industry-planner/components/kpi-tile';
-import { PLANNER_DISCLOSURE_TRIGGER_CLASS, activityLabel, marginToneClass } from '@/features/industry-planner/industry-styles';
+import { PLANNER_TOOL_TRIGGER_CLASS, activityLabel, marginToneClass } from '@/features/industry-planner/industry-styles';
 import { getBlueprintPricing, getBlueprintSearchIndex, getBuildLocation } from '@/features/industry-planner/queries';
 import { renameSavedPlan, setSavedPlanFavorite } from '@/features/industry-planner/saved-plans-queries';
 
@@ -92,7 +92,7 @@ describe('coverage-gaps', () => {
       KpiHelp,
       KpiTile,
       SimpleTile,
-      PLANNER_DISCLOSURE_TRIGGER_CLASS,
+      PLANNER_TOOL_TRIGGER_CLASS,
       activityLabel,
       marginToneClass,
       getBlueprintPricing,

@@ -98,8 +98,8 @@ function InputCostTile() {
         label="Input cost"
         right={
           <span className="flex items-center gap-2">
-            <InputCostHelp bases={view.bases} />
             <RawItemToggle basis={costBasis} setBasis={setCostBasis} />
+            <InputCostHelp bases={view.bases} />
           </span>
         }
       />
@@ -258,8 +258,8 @@ function NetMarginTile({
         label={view.marginLabel}
         right={
           <span className="flex items-center gap-2">
-            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
             <GrossNetToggle showNet={view.showNet} netAvailable={view.netAvailable} setMode={setMarginMode} />
+            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
           </span>
         }
       />

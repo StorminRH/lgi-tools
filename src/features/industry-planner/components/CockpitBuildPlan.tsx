@@ -25,7 +25,6 @@ import {
 } from '../build-consolidate';
 import { nodeFrameState } from '../node-frame-state';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
-import { CockpitRawLedger } from './CockpitRawLedger';
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
@@ -199,7 +198,7 @@ function TraceMeta({ focus, onClear }: { focus: Focus; onClear: () => void }) {
   );
 }
 
-export function CockpitBuildPlan({ structure, ledgerOpen }: { structure: BlueprintStructure; ledgerOpen: boolean }) {
+export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
   const { pricing, refreshing } = useMarketData();
   const {
     ownedMe,
@@ -283,16 +282,6 @@ export function CockpitBuildPlan({ structure, ledgerOpen }: { structure: Bluepri
       {focus && (
         <div className="mb-3.5">
           <TraceMeta focus={focus} onClear={() => setFocus(null)} />
-        </div>
-      )}
-
-      {ledgerOpen && (
-        <div className="mb-5">
-          <CockpitRawLedger
-            pricing={pricing}
-            structure={structure}
-            refreshing={refreshing}
-          />
         </div>
       )}
 

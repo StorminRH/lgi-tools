@@ -51,7 +51,7 @@ const row = (id: string, name: string): IndustryProfileRow => ({
 });
 
 const render = (activityId = MANUFACTURING_ACTIVITY) =>
-  renderToStaticMarkup(createElement(PlannerRail, { structure: structure(activityId), ledgerOpen: false, onToggleLedger: vi.fn() }));
+  renderToStaticMarkup(createElement(PlannerRail, { structure: structure(activityId), ledgerShown: false, onToggleLedger: vi.fn() }));
 
 beforeEach(() => {
   h.auth = { session: null, loading: false };
@@ -66,7 +66,8 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('1 per run');
   expect(html).toContain('Manufacturing');
   expect(html).toContain('>Multibuy<');
-  expect(html).toMatch(/aria-expanded="false"[^>]*>.*Raw ledger/);
+  expect(html).toMatch(/aria-pressed="false"[^>]*><span>Raw ledger/);
+  expect(html).toContain('>Profiles<');
   expect(html).toContain('aria-label="main blueprint material efficiency"');
   expect(html).toContain('aria-label="main blueprint time efficiency"');
   expect(html).toContain('aria-label="Runs"');
