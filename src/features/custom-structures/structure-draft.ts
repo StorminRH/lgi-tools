@@ -1,6 +1,6 @@
 import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import { parseFacilityTaxDraft, taxDraftFromStored } from '@/data/industry-math/fees';
-import { MAX_CUSTOM_STRUCTURE_RIGS } from './api-contract';
+import { MAX_CUSTOM_STRUCTURE_NAME_LEN, MAX_CUSTOM_STRUCTURE_RIGS } from './api-contract';
 import type { CustomStructureRow } from './types';
 
 export type BonusField = 'me' | 'te' | 'cost' | 'rxnMe' | 'rxnTe';
@@ -46,6 +46,24 @@ export function emptyStructureDraft(): StructureDraft {
     mode: 'values',
     rigSlots: emptySlots(),
     bonus: bonusDraftFrom(null),
+  };
+}
+
+/**
+ * What a pasted fit fills in: its hull and rigs, switching to rigs, and its
+ * name (or the hull's) unless the structure is already named.
+ */
+export function draftFromFit(
+  draft: Pick<StructureDraft, 'name'>,
+  fit: { structureTypeId: number; rigTypeIds: number[]; name: string | null },
+  types: readonly { typeId: number; name: string }[],
+): Partial<StructureDraft> {
+  const hull = types.find((t) => t.typeId === fit.structureTypeId)?.name ?? '';
+  return {
+    structureTypeId: fit.structureTypeId,
+    rigSlots: slotsFromRigs(fit.rigTypeIds),
+    mode: 'rigs',
+    name: draft.name.trim() ? draft.name : (fit.name ?? hull).slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
   };
 }
 
