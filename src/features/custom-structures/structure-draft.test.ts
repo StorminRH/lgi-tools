@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftFromRow, emptyStructureDraft, payloadFromDraft, slotsFromRigs, type StructureDraft } from './structure-draft';
+import { draftFromFit, draftFromRow, emptyStructureDraft, payloadFromDraft, slotsFromRigs, type StructureDraft } from './structure-draft';
 import type { CustomStructureRow } from './types';
 
 const ROW: CustomStructureRow = {
@@ -79,5 +79,30 @@ describe('draftFromRow', () => {
 describe('slotsFromRigs', () => {
   it('fills three slots in order', () => {
     expect(slotsFromRigs([1, 2])).toEqual([1, 2, null]);
+  });
+});
+
+describe('draftFromFit', () => {
+  const TYPES = [{ typeId: 35825, name: 'Raitaru' }];
+  const RIGGED = { structureTypeId: 35825, rigTypeIds: [43920, 37180], name: 'Amamake Raitaru' };
+
+  it('fills in the hull and rigs, switches to rigs, and names an unnamed structure from the fit', () => {
+    const next = draftFromFit({ name: '  ' }, RIGGED, TYPES);
+    expect(next).toEqual({
+      structureTypeId: 35825,
+      rigSlots: slotsFromRigs([43920, 37180]),
+      mode: 'rigs',
+      name: 'Amamake Raitaru',
+    });
+  });
+
+  it('keeps a name already typed, and falls back to the hull when the fit has none', () => {
+    expect(draftFromFit({ name: 'My factory' }, RIGGED, TYPES).name).toBe('My factory');
+    expect(draftFromFit({ name: '' }, { ...RIGGED, name: null }, TYPES).name).toBe('Raitaru');
+    expect(draftFromFit({ name: '' }, { ...RIGGED, name: null, structureTypeId: 1 }, TYPES).name).toBe('');
+  });
+
+  it('caps a long fit name at the structure name limit', () => {
+    expect(draftFromFit({ name: '' }, { ...RIGGED, name: 'x'.repeat(200) }, TYPES).name?.length).toBeLessThan(200);
   });
 });
