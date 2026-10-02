@@ -25,9 +25,22 @@ export function KpiTile({
   );
 }
 
-export function KpiHelp({ label, children }: { label: string; children: ReactNode }) {
+export function KpiHelp({
+  label,
+  keepSide,
+  className,
+  children,
+}: {
+  label: string;
+  /** The help's content grows while open. */
+  keepSide?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <Popover
+      keepSide={keepSide}
+      className={className}
       label={label}
       trigger="?"
       triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg-deep/60 text-micro font-bold text-muted hover:border-isk-dim hover:text-isk"

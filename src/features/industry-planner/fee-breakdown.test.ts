@@ -86,7 +86,6 @@ describe('buildFeeBreakdown', () => {
     ]);
     expect(b.finalJobTotal).toBe(659);
     expect(b.components).toBeNull();
-    expect(b.installTotal).toBe(659);
     expect(b.sell).toEqual([
       { label: 'Sales tax', value: 750 },
       { label: 'Broker fee', value: 300 },
@@ -105,10 +104,10 @@ describe('buildFeeBreakdown', () => {
       nameOf,
     );
     expect(b.install[0]).toEqual({ label: 'System cost', value: null });
-    expect(b.installTotal).toBeNull();
+    expect(b.finalJobTotal).toBeNull();
   });
 
-  it('lists the jobs that make the inputs, dearest first, and adds them to the install total', () => {
+  it('lists the jobs that make the inputs, dearest first, with their total', () => {
     const b = buildFeeBreakdown(
       net({ componentJobs: { jobs: [job(20, 40), job(10, 120.5), job(30, 7)], total: 167.5 } }),
       nameOf,
@@ -122,18 +121,16 @@ describe('buildFeeBreakdown', () => {
       total: 167.5,
     });
     expect(b.finalJobTotal).toBe(659);
-    expect(b.installTotal).toBe(826.5);
   });
 
-  it('a component job with no index sinks to the bottom and leaves the install total open', () => {
+  it('a component job with no index sinks to the bottom and leaves their total open', () => {
     const b = buildFeeBreakdown(net({ componentJobs: { jobs: [job(30, null), job(10, 5)], total: null } }), nameOf);
     expect(b.components!.jobs.map((l) => l.label)).toEqual(['Capital Armor Plates', 'Tungsten Carbide']);
-    expect(b.installTotal).toBeNull();
+    expect(b.components!.total).toBeNull();
   });
 
   it('a build with nothing below the product lists no component jobs', () => {
     const b = buildFeeBreakdown(net({ componentJobs: { jobs: [], total: 0 } }), nameOf);
     expect(b.components).toBeNull();
-    expect(b.installTotal).toBe(659);
   });
 });

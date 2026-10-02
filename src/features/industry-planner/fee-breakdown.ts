@@ -11,8 +11,6 @@ export interface FeeBreakdown {
   finalJobTotal: number | null;
   /** The jobs that make the inputs, dearest first; null where none is charged. */
   components: { jobs: FeeLine[]; total: number | null } | null;
-  /** Every job's install fee. */
-  installTotal: number | null;
   sell: FeeLine[];
   sellTotal: number | null;
 }
@@ -25,8 +23,6 @@ function systemCostLabel(systemCostIndex: number | null): string {
 function facilityTaxLabel(rate: number, assumed: boolean): string {
   return `Facility tax (${(rate * 100).toFixed(2)}%${assumed ? ' assumed' : ''})`;
 }
-
-const plus = (a: number | null, b: number | null) => (a === null || b === null ? null : a + b);
 
 /** Unpriced last, so the dearest jobs lead. */
 const byFee = (a: FeeLine, b: FeeLine) => (b.value ?? -Infinity) - (a.value ?? -Infinity);
@@ -58,7 +54,6 @@ export function buildFeeBreakdown(net: NetMarginView, nameOf: (typeId: number) =
     install,
     finalJobTotal: jobFee.total,
     components,
-    installTotal: components ? plus(jobFee.total, components.total) : jobFee.total,
     sell,
     sellTotal: sellSide.total,
   };

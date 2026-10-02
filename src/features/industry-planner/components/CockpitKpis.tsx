@@ -20,10 +20,10 @@ import {
 } from '../cockpit-kpis-view';
 import { type MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
-import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { timeLeverRows } from '../time-lever-rows';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
+import { FeeBreakdownPanel } from './FeeBreakdownPanel';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
@@ -160,46 +160,10 @@ function FeeHover({
   systemName: string | undefined;
   nameOf: (typeId: number) => string;
 }) {
-  const fees = buildFeeBreakdown(net, nameOf);
-  const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
-  const row = (line: FeeLine, key: string | number = line.label) => (
-    <div key={key} className="flex items-center justify-between gap-4">
-      <span className="truncate text-muted">{line.label}</span>
-      <span className="shrink-0 tabular-nums text-text">{isk(line.value)}</span>
-    </div>
-  );
-  const subtotal = (label: string, value: number | null) => (
-    <div className="mt-0.5 flex items-center justify-between gap-4 border-t border-border-soft pt-0.5">
-      <span className="text-text">{label}</span>
-      <span className="tabular-nums text-name">{isk(value)}</span>
-    </div>
-  );
+  // Wide enough that an indented line such as an assumed facility tax reads in full.
   return (
-    <KpiHelp label="Fee breakdown">
-      <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
-      <div className="flex flex-col gap-1 text-ui leading-snug">
-        <div className="text-label uppercase tracking-wide text-faint">Install</div>
-        {fees.install.map((line) => row(line))}
-        {fees.components ? subtotal('Final job', fees.finalJobTotal) : subtotal('Install fee', fees.installTotal)}
-      </div>
-      {fees.components && (
-        <div className="flex flex-col gap-1 text-ui leading-snug">
-          <div className="text-label uppercase tracking-wide text-faint">
-            Component jobs <span className="text-muted">· {fees.components.jobs.length}</span>
-          </div>
-          {/* The scrollbar hangs into the popover's padding, so the list's figures line up with the totals. */}
-          <div className={cn(scrollArea, '-mr-3.5 flex max-h-[180px] flex-col gap-1 overflow-y-auto pr-1')}>
-            {fees.components.jobs.map((line, i) => row(line, i))}
-          </div>
-          {subtotal('Component jobs', fees.components.total)}
-          {subtotal('Install fees', fees.installTotal)}
-        </div>
-      )}
-      <div className="flex flex-col gap-1 text-ui leading-snug">
-        <div className="text-label uppercase tracking-wide text-faint">Sell</div>
-        {fees.sell.map((line) => row(line))}
-        {subtotal('Sell fees', fees.sellTotal)}
-      </div>
+    <KpiHelp label="Fee breakdown" keepSide className="w-[296px]">
+      <FeeBreakdownPanel net={net} systemName={systemName} nameOf={nameOf} />
     </KpiHelp>
   );
 }
