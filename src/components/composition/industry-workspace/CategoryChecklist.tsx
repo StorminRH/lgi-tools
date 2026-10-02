@@ -38,7 +38,7 @@ function Option({ id, text, props }: { id: CategoryKey; text: string; props: Che
     <label
       className={cn(
         'flex min-w-0 items-center gap-2.5 py-0.5 text-ui',
-        off ? 'text-faint' : parent !== null ? 'text-muted' : 'cursor-pointer text-name',
+        off ? 'cursor-not-allowed text-faint opacity-50' : parent !== null ? 'text-muted' : 'cursor-pointer text-name',
       )}
     >
       <Checkbox

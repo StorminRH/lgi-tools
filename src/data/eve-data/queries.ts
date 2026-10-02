@@ -1,8 +1,9 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import {
   blueprintTrees,
+  dgmAttributeTypes,
   eveCategories,
   eveGroups,
   eveNpcStations,
@@ -17,11 +18,13 @@ import {
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   BLUEPRINT_STRUCTURE_TAG,
+  SDE_CAPITAL_SHIPYARD_TYPE_ID,
   SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
   SDE_STRUCTURE_MODULE_CATEGORY_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
 import {
+  moduleFitsHull,
   PRODUCTION_ACTIVITIES,
   shapeStructureRigs,
   type ProductionModifier,
@@ -368,6 +371,31 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   });
+}
+
+async function attributeIdsNamed(prefix: string): Promise<number[]> {
+  const rows = await db
+    .select({ id: dgmAttributeTypes.id })
+    .from(dgmAttributeTypes)
+    .where(like(dgmAttributeTypes.name, `${prefix}%`));
+  return rows.map((r) => r.id);
+}
+
+/** The industry structure hulls that can fit a capital shipyard, and so build capital ships. */
+export async function getCapitalShipyardHullIds(): Promise<number[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  const [hulls, types, groups, shipyard] = await withColdStartRetry(() =>
+    Promise.all([
+      getStructureTypes(),
+      attributeIdsNamed('canFitShipType'),
+      attributeIdsNamed('canFitShipGroup'),
+      db.select({ attributes: typeDogma.attributes }).from(typeDogma).where(eq(typeDogma.typeId, SDE_CAPITAL_SHIPYARD_TYPE_ID)),
+    ]),
+  );
+  const attrs = (shipyard[0]?.attributes ?? {}) as AttrMap;
+  return hulls.filter((hull) => moduleFitsHull(attrs, { types, groups }, hull)).map((hull) => hull.typeId);
 }
 
 function productionModifierSources() {

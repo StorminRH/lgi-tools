@@ -21,6 +21,7 @@ const make = (over: Partial<AvailableStructure>): AvailableStructure => ({
   name: 'Structure',
   structureTypeId: 0,
   groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID,
+  hostsCapitals: false,
   systemId: null,
   modifiers: [],
   enteredBonuses: null,

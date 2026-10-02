@@ -1,4 +1,4 @@
-import { getProductionModifiers, getStructureTypes } from '@/data/eve-data/queries';
+import { getCapitalShipyardHullIds, getProductionModifiers, getStructureTypes } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
@@ -15,16 +15,18 @@ export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
 
-  const [custom, corp, structureTypes] = await Promise.all([
+  const [custom, corp, structureTypes, capitalHulls] = await Promise.all([
     listCustomStructures(userId),
     getAvailableCorpStructuresForUser(userId),
     getStructureTypes(),
+    getCapitalShipyardHullIds(),
   ]);
   if (custom.length === 0 && corp.length === 0) {
     return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
   }
 
   const modifiers = await getProductionModifiers(collectModifierSourceTypeIds(custom, corp));
-  const structures = buildAvailableStructures(custom, corp, structureTypes, modifiers);
+  const hulls = structureTypes.map((t) => ({ ...t, hostsCapitals: capitalHulls.includes(t.typeId) }));
+  const structures = buildAvailableStructures(custom, corp, hulls, modifiers);
   return apiResponse(availableStructuresEndpoint, 200, { structures });
 }

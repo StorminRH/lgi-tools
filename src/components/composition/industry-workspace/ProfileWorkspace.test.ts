@@ -85,6 +85,7 @@ const TATARA: AvailableStructure = {
   name: 'Moon Tatara',
   structureTypeId: 35836,
   groupId: 1406,
+  hostsCapitals: false,
   systemId: 30004759,
   modifiers: [{ activity: 'reaction', kind: 'time', filterId: null, factor: { high: 0.75, low: 0.75, null: 0.75 } }],
   enteredBonuses: null,

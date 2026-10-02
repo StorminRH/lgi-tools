@@ -25,12 +25,18 @@ const flat = (activity: StructureModifier['activity'], kind: StructureModifier['
   factor: { high: factor, low: factor, null: factor },
 });
 
-const structure = (id: string, groupId: number, modifiers: StructureModifier[]): AvailableStructure => ({
+const structure = (
+  id: string,
+  groupId: number,
+  modifiers: StructureModifier[],
+  hostsCapitals = false,
+): AvailableStructure => ({
   id,
   source: 'custom',
   name: id,
   structureTypeId: 35825,
   groupId,
+  hostsCapitals,
   systemId: 30002813,
   modifiers,
   securityClass: null,
@@ -150,6 +156,37 @@ test('each job takes the covering member with the fastest skills, or anyone when
   expect(open.skillTimeFactors.skillTimeFactorOf(MODULE_BP)).toBeCloseTo(0.8 * 0.85 * 0.95, 9);
   // With no facility at all, nothing is bonused and the readouts stay empty.
   expect(open.structureFactors).toMatchObject({ structureCostBonusPct: 0, manufacturingBonus: null, active: false });
+});
+
+test('a capital ship goes only to a facility with a capital shipyard, never to a station', () => {
+  const CAPITAL = 11;
+  const SOTIYO = structure('sotiyo', 1404, [flat('manufacturing', 'material', 0.99)], true);
+  const route = (facilities: PlanFacility[]) =>
+    profilePlan({
+      facilities,
+      members: [],
+      nodeActivityByBlueprint: { [SHIP_BP]: MANUFACTURING_ACTIVITY },
+      nodeFilterIds: { [SHIP_BP]: [SHIPS, CAPITAL] },
+      nodeTimeSkills: {},
+      topBlueprintTypeId: SHIP_BP,
+    }).routeOf(SHIP_BP).facility?.key ?? null;
+
+  const raitaru = facility('structure:raitaru', ['ships'], RAITARU);
+  const station = facility('station:60003760', ['manufacturing'], null, 0.95);
+  // The Raitaru covers all ships, but cannot build a capital, so the station would have to; it cannot either.
+  expect(route([raitaru, station])).toBeNull();
+  // With a Sotiyo on the profile, the dreadnought goes there, even from a less specific category.
+  expect(route([raitaru, station, facility('structure:sotiyo', ['manufacturing'], SOTIYO)])).toBe('structure:sotiyo');
+  // Sub-capital ships still go to the Raitaru.
+  const frigate = profilePlan({
+    facilities: [raitaru, facility('structure:sotiyo', ['manufacturing'], SOTIYO)],
+    members: [],
+    nodeActivityByBlueprint: { [SHIP_BP]: MANUFACTURING_ACTIVITY },
+    nodeFilterIds: { [SHIP_BP]: [SHIPS, SMALL_T1] },
+    nodeTimeSkills: {},
+    topBlueprintTypeId: SHIP_BP,
+  });
+  expect(frigate.routeOf(SHIP_BP).facility?.key).toBe('structure:raitaru');
 });
 
 test('the summary counts each facility and member’s jobs, and the jobs no facility covers', () => {

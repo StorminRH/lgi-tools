@@ -17,6 +17,7 @@ const structure = (over: Partial<AvailableStructure>): AvailableStructure => ({
   name: 'X',
   structureTypeId: 35825,
   groupId: 1404,
+  hostsCapitals: false,
   systemId: null,
   modifiers: [],
   enteredBonuses: null,

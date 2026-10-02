@@ -9,6 +9,7 @@ import {
   rigBonuses,
   stationFacility,
   structureFacility,
+  unavailableCategories,
 } from './facilities-model';
 
 const EQUIPMENT = 2;
@@ -20,6 +21,7 @@ const structure = (overrides: Partial<AvailableStructure>): AvailableStructure =
   name: 'Sotiyo',
   structureTypeId: 35827,
   groupId: 1404,
+  hostsCapitals: true,
   systemId: null,
   modifiers: [
     // Hull: −1% material, −3% job cost, −15% time, on every manufacturing job.
@@ -42,6 +44,7 @@ const TATARA = structure({
   name: 'Tatara',
   structureTypeId: 35836,
   groupId: 1406,
+  hostsCapitals: false,
   modifiers: [
     { activity: 'reaction', kind: 'time', filterId: null, factor: { high: 0.75, low: 0.75, null: 0.75 } },
     { activity: 'reaction', kind: 'material', filterId: COMPOSITE, factor: { high: 1, low: 0.976, null: 0.9736 } },
@@ -118,12 +121,24 @@ test('a new facility takes the top-level work nobody covers yet, and only a refi
   doc = addFacility(doc, jita);
 
   const views = facilityViews(doc, [structure({})]);
-  expect(views.map((v) => [v.key, v.missing, v.hostsReactions])).toEqual([
-    ['structure:s1', false, false],
+  expect(views.map((v) => [v.key, v.missing, v.hostsReactions, v.hostsCapitals])).toEqual([
+    ['structure:s1', false, false, true],
     // The Tatara is no longer shared with this account.
-    ['structure:corp:7', true, false],
-    ['station:60003760', false, false],
+    ['structure:corp:7', true, false, false],
+    ['station:60003760', false, false, false],
   ]);
   // Before the account's structures load, nothing reads as gone.
   expect(facilityViews(doc, null).some((v) => v.missing)).toBe(false);
+});
+
+test('a facility greys out what it cannot build: reactions off a refinery, capitals without a shipyard', () => {
+  const off = (hostsReactions: boolean, hostsCapitals: boolean) =>
+    [...unavailableCategories({ hostsReactions, hostsCapitals })].sort();
+  const REACTIONS = ['biochemical-reactions', 'composite-reactions', 'hybrid-reactions', 'reactions'];
+  // An NPC station or a citadel without a shipyard.
+  expect(off(false, false)).toEqual(['capital-ships', ...REACTIONS].sort());
+  // A Sotiyo.
+  expect(off(false, true)).toEqual(REACTIONS);
+  // A Tatara.
+  expect(off(true, false)).toEqual(['capital-ships']);
 });

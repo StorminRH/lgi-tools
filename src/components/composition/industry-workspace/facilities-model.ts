@@ -28,6 +28,7 @@ export interface FacilityView {
   structure: AvailableStructure | null;
   missing: boolean;
   hostsReactions: boolean;
+  hostsCapitals: boolean;
 }
 
 export function facilityViews(
@@ -42,13 +43,25 @@ export function facilityViews(
       structure,
       missing: facility.kind === 'structure' && structures !== null && structure === null,
       hostsReactions: structure !== null && hostsReactions(structure.groupId),
+      hostsCapitals: structure?.hostsCapitals === true,
     };
   });
 }
 
-export const REACTION_KEYS: ReadonlySet<CategoryKey> = new Set(
-  CATEGORY_GROUPS.filter((g) => g.activity === REACTION_ACTIVITY).flatMap((g) => [g.key, ...g.leaves.map((l) => l.key)]),
+const REACTION_KEYS: readonly CategoryKey[] = CATEGORY_GROUPS.filter((g) => g.activity === REACTION_ACTIVITY).flatMap(
+  (g) => [g.key, ...g.leaves.map((l) => l.key)],
 );
+
+/**
+ * What a facility cannot take: reactions anywhere but a refinery, and capital
+ * ships anywhere without a capital shipyard. An NPC station takes neither.
+ */
+export function unavailableCategories(view: Pick<FacilityView, 'hostsReactions' | 'hostsCapitals'>): ReadonlySet<CategoryKey> {
+  return new Set<CategoryKey>([
+    ...(view.hostsReactions ? [] : REACTION_KEYS),
+    ...(view.hostsCapitals ? [] : (['capital-ships'] as const)),
+  ]);
+}
 
 /** A new facility covers whatever no other facility covers at the top level yet. */
 function startingCategories(doc: ProfileDocument, reactions: boolean): CategoryKey[] {

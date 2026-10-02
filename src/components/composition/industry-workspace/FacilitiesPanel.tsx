@@ -14,7 +14,6 @@ import {
   removeFacility,
   setFacilityCategories,
 } from '@/features/industry-planner/profiles/assignments';
-import type { CategoryKey } from '@/features/industry-planner/profiles/production-categories';
 import { facilityKey, type ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { SectionPanel } from '../board/SectionBody';
@@ -24,10 +23,10 @@ import {
   type FacilityPick,
   type FacilityView,
   facilityViews,
-  REACTION_KEYS,
   rigBonuses,
   stationFacility,
   structureFacility,
+  unavailableCategories,
 } from './facilities-model';
 import { setStructuresPanelOpen } from './structures-panel';
 import { roleLine } from './workspace-model';
@@ -37,7 +36,6 @@ export interface HullName {
   name: string;
 }
 
-const NOTHING_OFF: ReadonlySet<CategoryKey> = new Set();
 
 function FacilityTile({ view, hulls }: { view: FacilityView; hulls: readonly HullName[] }) {
   if (view.facility.kind === 'station') {
@@ -84,6 +82,8 @@ function FacilityHeader({
   hulls: readonly HullName[];
   system: SystemSearchEntry | null;
 }) {
+  const off = unavailableCategories(view);
+  const builds = roleLine({ categories: view.facility.categories.filter((c) => !off.has(c)) });
   return (
     <span className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-1">
       <span className={cn(view.missing && 'opacity-50 grayscale')}>
@@ -92,11 +92,11 @@ function FacilityHeader({
       <span className="flex min-w-0 flex-col gap-1">
         <span className="truncate font-ui text-nav font-medium text-name">{view.facility.name}</span>
         <FacilitySubline kind={facilityKind(view, hulls)} system={system} />
-        <span className="truncate font-data text-micro text-isk sm:hidden">{roleLine(view.facility)}</span>
+        <span className="truncate font-data text-micro text-isk sm:hidden">{builds}</span>
       </span>
       <span className="flex items-center gap-3">
         <span className="hidden max-w-[22rem] truncate font-data text-micro text-isk sm:block">
-          {roleLine(view.facility)}
+          {builds}
         </span>
         <ChevronDownIcon size={14} className="shrink-0 text-muted transition-transform group-open:rotate-180" />
       </span>
@@ -135,7 +135,7 @@ function FacilityRow({
           <CategoryChecklist
             label={`Categories built at ${facility.name}`}
             categories={facility.categories}
-            unavailable={view.hostsReactions ? NOTHING_OFF : REACTION_KEYS}
+            unavailable={unavailableCategories(view)}
             bonuses={bonuses}
             onChange={(next) => onEdit(setFacilityCategories(doc, view.key, next))}
           />

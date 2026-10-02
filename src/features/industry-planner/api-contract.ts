@@ -182,6 +182,7 @@ export const availableStructureSchema = z.object({
   name: z.string(),
   structureTypeId: z.number(),
   groupId: z.number(),
+  hostsCapitals: z.boolean(),
   systemId: z.number().nullable(),
   modifiers: z.array(structureModifierSchema),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),

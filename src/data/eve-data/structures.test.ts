@@ -5,7 +5,7 @@ import {
   SDE_REFINERY_GROUP_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
-import { matchingFilterIds, rigFitsStructure, shapeStructureRigs, type TargetFilter } from './structures';
+import { matchingFilterIds, moduleFitsHull, rigFitsStructure, shapeStructureRigs, type TargetFilter } from './structures';
 import type { AttrMap } from './types';
 
 describe('matchingFilterIds', () => {
@@ -127,5 +127,22 @@ describe('shapeStructureRigs', () => {
     expect(shapeStructureRigs([{ id: 1, name: 'x', attributes: null }])).toEqual([
       { typeId: 1, name: 'x', canFitGroups: [], rigSize: null },
     ]);
+  });
+});
+
+describe('moduleFitsHull', () => {
+  const FIT = { types: [1302, 1303], groups: [1298] };
+
+  it('fits a hull its type attributes name, or whose group its group attributes name', () => {
+    const shipyard: AttrMap = { 50: 600, 1302: 35827, 1303: 35826 };
+    expect(moduleFitsHull(shipyard, FIT, { typeId: 35827, groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID })).toBe(true);
+    expect(moduleFitsHull(shipyard, FIT, { typeId: 35825, groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID })).toBe(false);
+    const byGroup: AttrMap = { 1298: SDE_REFINERY_GROUP_ID };
+    expect(moduleFitsHull(byGroup, FIT, { typeId: 35836, groupId: SDE_REFINERY_GROUP_ID })).toBe(true);
+    expect(moduleFitsHull(byGroup, FIT, { typeId: 35832, groupId: SDE_CITADEL_GROUP_ID })).toBe(false);
+  });
+
+  it('fits nothing when the module carries no fitting attributes', () => {
+    expect(moduleFitsHull({}, FIT, { typeId: 35827, groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID })).toBe(false);
   });
 });

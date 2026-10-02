@@ -81,3 +81,17 @@ export function shapeStructureRigs(
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/**
+ * Whether a module fits a hull, by CCP's fitting rule: the hull's type is one
+ * of the module's canFitShipType values, or its group one of its
+ * canFitShipGroup values.
+ */
+export function moduleFitsHull(
+  moduleAttrs: AttrMap,
+  fitAttrIds: { types: readonly number[]; groups: readonly number[] },
+  hull: { typeId: number; groupId: number },
+): boolean {
+  const values = (ids: readonly number[]) => ids.flatMap((id) => moduleAttrs[id] ?? []);
+  return values(fitAttrIds.types).includes(hull.typeId) || values(fitAttrIds.groups).includes(hull.groupId);
+}

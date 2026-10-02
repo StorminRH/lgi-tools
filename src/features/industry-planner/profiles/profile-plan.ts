@@ -7,7 +7,7 @@ import {
 } from '../structure-bonus';
 import { bestOf, hostsReactions, structureCategoryBonus, type StructureFactors } from '../structure-factors';
 import type { AvailableStructure } from '../types';
-import { type CategoryKey, coveringOwners } from './production-categories';
+import { CAPITAL_SHIPS_FILTER_ID, type CategoryKey, coveringOwners } from './production-categories';
 import { facilityKey, type ProfileDocument } from './profile-document';
 
 /**
@@ -57,9 +57,11 @@ function productionActivity(activity: number | undefined): IndustryActivityId | 
   return activity === MANUFACTURING_ACTIVITY || activity === REACTION_ACTIVITY ? activity : null;
 }
 
-function canHost(facility: PlanFacility, activity: IndustryActivityId): boolean {
-  if (activity === MANUFACTURING_ACTIVITY) return true;
-  return facility.structure !== null && hostsReactions(facility.structure.groupId);
+/** Reactions need a refinery and capital ships a capital shipyard; NPC stations offer neither. */
+function canHost(facility: PlanFacility, activity: IndustryActivityId, filterIds: readonly number[]): boolean {
+  const { structure } = facility;
+  if (activity === REACTION_ACTIVITY) return structure !== null && hostsReactions(structure.groupId);
+  return !filterIds.includes(CAPITAL_SHIPS_FILTER_ID) || structure?.hostsCapitals === true;
 }
 
 function facilityBonus(facility: PlanFacility, activity: IndustryActivityId, filterIds: readonly number[]): StructureBonus {
@@ -77,7 +79,7 @@ function bestFacility(
   filterIds: readonly number[],
 ): { facility: PlanFacility | null; bonus: StructureBonus | null } {
   const covering = coveringOwners(
-    facilities.filter((f) => canHost(f, activity)),
+    facilities.filter((f) => canHost(f, activity, filterIds)),
     activity,
     filterIds,
   );
