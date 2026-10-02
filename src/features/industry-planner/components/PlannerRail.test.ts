@@ -15,8 +15,10 @@ const h = vi.hoisted(() => ({
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => h.auth }));
 vi.mock('@/platform/auth/auth-client', () => ({ authClient: { signIn: { oauth2: vi.fn() } } }));
 vi.mock('./CockpitKpis', () => ({ CockpitKpis: () => createElement('div', null, 'kpis') }));
+vi.mock('./MultibuyPanel', () => ({ MultibuyPanel: () => createElement('button', null, 'Multibuy') }));
 vi.mock('./planner-contexts', () => ({
   useBuildSetup: () => h.setup,
+  useMarketData: () => ({ pricing: null, refreshing: false }),
   usePlannerConfig: (): Partial<PlannerConfigValue> => ({ runs: 3, setRuns: vi.fn(), marginMode: 'net', setMarginMode: vi.fn() }),
   useBuildPlan: (): Partial<BuildPlanValue> => ({
     ownedMe: null,
@@ -49,7 +51,7 @@ const row = (id: string, name: string): IndustryProfileRow => ({
 });
 
 const render = (activityId = MANUFACTURING_ACTIVITY) =>
-  renderToStaticMarkup(createElement(PlannerRail, { structure: structure(activityId) }));
+  renderToStaticMarkup(createElement(PlannerRail, { structure: structure(activityId), ledgerOpen: false, onToggleLedger: vi.fn() }));
 
 beforeEach(() => {
   h.auth = { session: null, loading: false };
@@ -62,6 +64,9 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('Damage Control II');
   expect(html).toContain('Damage Control<');
   expect(html).toContain('1 per run');
+  expect(html).toContain('Manufacturing');
+  expect(html).toContain('>Multibuy<');
+  expect(html).toMatch(/aria-expanded="false"[^>]*>.*Raw ledger/);
   expect(html).toContain('>ME');
   expect(html).toContain('>TE');
   expect(html).toContain('aria-label="Runs"');

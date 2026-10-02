@@ -4,47 +4,62 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
-import { Pill } from '@/components/ui/pill';
+import { LivePrice } from '@/components/ui/live-price';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/ui/stepper';
 import { blueprintImage } from '@/data/eve-data/type-images';
+import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
-import { activityLabel, EFFICIENCY_TONE_CLASSES } from '../industry-styles';
+import { batchedCostOfRows } from '../cost-basis-view';
+import { activityLabel, EFFICIENCY_TONE_CLASSES, PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitKpis } from './CockpitKpis';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
-import { useBuildPlan, useBuildSetup, usePlannerConfig } from './planner-contexts';
+import { MultibuyPanel } from './MultibuyPanel';
+import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 
 const PROFILES_HREF = '/industry';
 
-function BlueprintCard({ structure }: { structure: BlueprintStructure }) {
+/**
+ * The blueprint floats on the backdrop like a pilot's portrait, its research
+ * and runs beside it and its name and kind beneath, with no card around it.
+ */
+function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
-      <div className="grid size-[120px] place-items-center rounded-panel border border-border bg-bg-deep/60 p-2">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-5">
         <TypeIcon
           {...blueprintImage(structure.blueprintTypeId)}
-          size={104}
+          size={112}
           alt={structure.product.name}
           mono={structure.product.name.slice(0, 2)}
+          className="rounded-card shadow-cta-glow"
         />
+        <BuildSteppers structure={structure} />
       </div>
-      <h2 className="font-display text-h2 font-bold uppercase leading-tight tracking-optical text-name">
-        {structure.product.name}
-      </h2>
-      <div className="flex flex-wrap items-center justify-center gap-2 text-label uppercase tracking-label text-muted">
-        {group && <span>{group}</span>}
-        <Pill tone="blue">{activityLabel(structure.activityId)}</Pill>
-        <Pill tone="neutral">{formatQuantity(structure.product.quantityPerRun)} per run</Pill>
+      <div className="flex flex-col gap-1.5">
+        <h2 className="font-display text-h2 font-bold leading-tight text-name">{structure.product.name}</h2>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
+          {group && (
+            <>
+              <span>{group}</span>
+              <span aria-hidden className="text-faint">·</span>
+            </>
+          )}
+          <span className="text-tone-blue">{activityLabel(structure.activityId)}</span>
+          <span aria-hidden className="text-faint">·</span>
+          <span>{formatQuantity(structure.product.quantityPerRun)} per run</span>
+        </p>
       </div>
     </div>
   );
@@ -98,7 +113,7 @@ function ProfileSwitch() {
 
 function StepperRow({ label, icon, tone, children }: { label: string; icon?: ReactNode; tone?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-3">
       <span className={cn('inline-flex items-center gap-1.5 text-label uppercase tracking-wide text-muted', tone)}>
         {label}
         {icon && (
@@ -120,7 +135,7 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
   const teState = nodeTeState(plan.ownedTe?.get(id), plan.teOverrides.get(id));
   const manufacturing = structure.activityId === MANUFACTURING_ACTIVITY;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-1 flex-col gap-2.5">
       {manufacturing && (
         <StepperRow label="ME" icon={<GemIcon state={meState} />} tone={EFFICIENCY_TONE_CLASSES[meState].text}>
           <MeField
@@ -154,22 +169,68 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
   );
 }
 
-/** The blueprint, the profile it builds under, its inputs and its numbers, kept in view beside the build. */
-export function PlannerRail({ structure }: { structure: BlueprintStructure }) {
+/** The build's shopping list and raw ledger, opened from the rail; the ledger opens over the build. */
+function BuildTools({
+  structure,
+  ledgerOpen,
+  onToggleLedger,
+}: {
+  structure: BlueprintStructure;
+  ledgerOpen: boolean;
+  onToggleLedger: () => void;
+}) {
+  const { pricing, refreshing } = useMarketData();
+  const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <MultibuyPanel structure={structure} />
+      <Button
+        variant="bare"
+        type="button"
+        onClick={onToggleLedger}
+        aria-expanded={ledgerOpen}
+        className={cn(
+          chipVariants({ tone: 'green' }),
+          PLANNER_DISCLOSURE_TRIGGER_CLASS,
+          'group cursor-pointer gap-2 py-1 transition-colors',
+        )}
+      >
+        <span>Raw ledger</span>
+        <LivePrice
+          value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
+          pending={refreshing}
+          className="text-ui font-semibold text-isk"
+        />
+        <span className={cn('inline-block text-micro text-muted transition-transform', ledgerOpen && 'rotate-180')}>
+          ▾
+        </span>
+      </Button>
+    </div>
+  );
+}
+
+/** The blueprint, the profile it builds under, its tools and its numbers, kept in view beside the build. */
+export function PlannerRail({
+  structure,
+  ledgerOpen,
+  onToggleLedger,
+}: {
+  structure: BlueprintStructure;
+  ledgerOpen: boolean;
+  onToggleLedger: () => void;
+}) {
   const { marginMode, setMarginMode } = usePlannerConfig();
   return (
     <aside
       aria-label="Blueprint"
       className={cn(
         scrollArea,
-        'reveal flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
+        'reveal flex min-w-0 flex-col gap-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
       )}
     >
-      <Card className="flex flex-col gap-4 rounded-panel px-4 py-5">
-        <BlueprintCard structure={structure} />
-        <ProfileSwitch />
-        <BuildSteppers structure={structure} />
-      </Card>
+      <BlueprintIdentity structure={structure} />
+      <ProfileSwitch />
+      <BuildTools structure={structure} ledgerOpen={ledgerOpen} onToggleLedger={onToggleLedger} />
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
     </aside>
   );

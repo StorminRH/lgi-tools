@@ -3,11 +3,9 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { LivePrice } from '@/components/ui/live-price';
-import { SectionLabel } from '@/components/ui/section-label';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { chainActualsFrom } from '../build-batch';
@@ -18,8 +16,6 @@ import {
   unitPriceMap,
   type TierRowView,
 } from '../build-plan-view';
-import { batchedCostOfRows } from '../cost-basis-view';
-import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
 import {
   chainLevelsFrom,
   consolidateBuild,
@@ -31,7 +27,6 @@ import { nodeFrameState } from '../node-frame-state';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
 import { NodeAdjusters } from './MeAdjuster';
-import { MultibuyPanel } from './MultibuyPanel';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
 
@@ -186,8 +181,7 @@ function TierColumn({
   );
 }
 
-function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => void }) {
-  if (!focus) return null;
+function TraceMeta({ focus, onClear }: { focus: Focus; onClear: () => void }) {
   return (
     <span className="inline-flex items-center gap-2 text-ui text-muted">
       <Button
@@ -205,43 +199,7 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
   );
 }
 
-function RawLedgerToggle({
-  grandTotal,
-  open,
-  refreshing,
-  onToggle,
-}: {
-  grandTotal: number | null;
-  open: boolean;
-  refreshing: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Button
-      variant="bare"
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={cn(
-        chipVariants({ tone: 'green' }),
-        PLANNER_DISCLOSURE_TRIGGER_CLASS,
-        'group cursor-pointer gap-2 py-1 transition-colors',
-      )}
-    >
-      <span>Raw ledger</span>
-      <LivePrice
-        value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
-        pending={refreshing}
-        className="text-ui font-semibold text-isk"
-      />
-      <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>
-        ▾
-      </span>
-    </Button>
-  );
-}
-
-export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
+export function CockpitBuildPlan({ structure, ledgerOpen }: { structure: BlueprintStructure; ledgerOpen: boolean }) {
   const { pricing, refreshing } = useMarketData();
   const {
     ownedMe,
@@ -258,7 +216,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   } = useBuildPlan();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
   const iconFor = (typeId: number) => nodeImage(blueprintOf(typeId), typeId);
   const efficiencyFor = (typeId: number, name: string): NodeEfficiency | undefined => {
@@ -312,7 +269,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   if (tiers.length === 0) {
     return (
       <div className="reveal reveal-3">
-        <SectionLabel className="mb-cluster">Build plan</SectionLabel>
         <Card>
           <p className="px-3.5 py-3 text-ui text-muted">
             No build breakdown — this blueprint has no resolved inputs yet.
@@ -322,25 +278,13 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     );
   }
 
-  const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
-
   return (
     <div className="reveal reveal-3">
-      <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
-        <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-          <SectionLabel>Build plan</SectionLabel>
+      {focus && (
+        <div className="mb-3.5">
           <TraceMeta focus={focus} onClear={() => setFocus(null)} />
         </div>
-        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
-          <MultibuyPanel structure={structure} />
-          <RawLedgerToggle
-            grandTotal={grandTotal}
-            open={ledgerOpen}
-            refreshing={refreshing}
-            onToggle={() => setLedgerOpen((o) => !o)}
-          />
-        </div>
-      </div>
+      )}
 
       {ledgerOpen && (
         <div className="mb-5">
