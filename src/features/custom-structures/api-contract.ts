@@ -102,7 +102,7 @@ export const parseStructureFitRequestSchema = z.object({
 });
 const parseStructureFitResponseSchema = z.object({
   parsed: z
-    .object({ structureTypeId: z.number(), rigTypeIds: z.array(z.number()) })
+    .object({ structureTypeId: z.number(), name: z.string().nullable(), rigTypeIds: z.array(z.number()) })
     .nullable(),
 });
 export const parseStructureFitEndpoint = defineEndpoint({

@@ -186,7 +186,7 @@ describe('buildSkillsView', () => {
     expect(view!.showRxn).toBe(false);
     expect(view!.characterName).toBe('Ryan');
 
-    expect(view!.mfgHeadline).toBe('−20%');
+    expect(view!.mfgHeadline).toBe('−20.0%');
   });
 
   it('reads an "up to" headline from the strongest per-item skill when no activity-wide skill applies', () => {

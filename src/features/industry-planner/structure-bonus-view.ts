@@ -1,7 +1,8 @@
 import type { StructureReadout } from './structure-factors';
 
+/** One decimal at every size, as the game's industry tooltips show bonuses; the math keeps full precision. */
 export function formatBonusPct(n: number): string {
-  return `${n < 10 ? n.toFixed(1) : Math.round(n)}%`;
+  return `${n.toFixed(1)}%`;
 }
 
 export type StructureBonusRow =

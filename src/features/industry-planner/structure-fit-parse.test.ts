@@ -29,6 +29,7 @@ describe('parseStructureFit', () => {
   it('extracts the structure and only the rig from a full fit', () => {
     expect(parseStructureFit(AZBEL_FIT, resolve)).toEqual({
       structureTypeId: 35826,
+      name: 'Cap Production',
       rigTypeIds: [43720],
     });
   });
@@ -39,17 +40,26 @@ Standup L-Set Structure Manufacturing Efficiency I
 Standup L-Set Equipment Manufacturing Efficiency I`;
     expect(parseStructureFit(fit, resolve)).toEqual({
       structureTypeId: 35827,
+      name: 'Cap Yard',
       rigTypeIds: [43720, 43721],
     });
   });
 
   it('tolerates missing whitespace after the header comma', () => {
-    expect(parseStructureFit('[Azbel,Cap Production]', resolve)?.structureTypeId).toBe(35826);
+    expect(parseStructureFit('[Azbel,Cap Production]', resolve)).toMatchObject({
+      structureTypeId: 35826,
+      name: 'Cap Production',
+    });
+  });
+
+  it('keeps commas inside the fit name and reads a blank name as null', () => {
+    expect(parseStructureFit('[Azbel, 1DQ1-A - Caps, Supers]', resolve)?.name).toBe('1DQ1-A - Caps, Supers');
+    expect(parseStructureFit('[Azbel, ]', resolve)?.name).toBeNull();
   });
 
   it('parses CRLF line endings', () => {
     const fit = '[Azbel, X]\r\nStandup L-Set Structure Manufacturing Efficiency I\r\n';
-    expect(parseStructureFit(fit, resolve)).toEqual({ structureTypeId: 35826, rigTypeIds: [43720] });
+    expect(parseStructureFit(fit, resolve)).toEqual({ structureTypeId: 35826, name: 'X', rigTypeIds: [43720] });
   });
 
   it('skips [Empty rig slot] placeholders without depending on them', () => {
@@ -70,12 +80,13 @@ Standup L-Set Structure Manufacturing Efficiency I/offline`;
     const fit = `[Azbel, X]
 Standup XL-Set Phantom Efficiency II
 Standup L-Set Structure Manufacturing Efficiency I`;
-    expect(parseStructureFit(fit, resolve)).toEqual({ structureTypeId: 35826, rigTypeIds: [43720] });
+    expect(parseStructureFit(fit, resolve)).toEqual({ structureTypeId: 35826, name: 'X', rigTypeIds: [43720] });
   });
 
   it('returns a structure with no rigs when none are fitted', () => {
     expect(parseStructureFit('[Azbel, Empty]', resolve)).toEqual({
       structureTypeId: 35826,
+      name: 'Empty',
       rigTypeIds: [],
     });
   });

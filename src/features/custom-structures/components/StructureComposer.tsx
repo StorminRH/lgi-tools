@@ -324,7 +324,7 @@ export function StructureComposer({
       structureTypeId: parsed.structureTypeId,
       rigSlots: slotsFromRigs(parsed.rigTypeIds),
       mode: 'rigs',
-      name: draft.name.trim() ? draft.name : hull,
+      name: draft.name.trim() ? draft.name : (parsed.name ?? hull).slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
     });
   }
 

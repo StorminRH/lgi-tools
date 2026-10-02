@@ -109,7 +109,7 @@ export function StructureBonusColumns({
   const lines = structureBonusColumns(readout, taxPct);
   if (lines.length === 0) return null;
   return (
-    <span className="grid grid-cols-[var(--bonus-label-col,auto)_repeat(2,calc(1rem+5ch))_repeat(2,10ch)] items-center gap-x-3 gap-y-1.5 font-data text-micro">
+    <span className="grid grid-cols-[var(--bonus-label-col,auto)_repeat(2,calc(1rem+6ch))_repeat(2,10ch)] items-center gap-x-3 gap-y-1.5 font-data text-micro">
       {lines.map((line) => (
         <Fragment key={line.reactions ? 'rxn' : 'mfg'}>
           <span className="justify-self-end">{line.reactions ? <RxnMarker /> : null}</span>

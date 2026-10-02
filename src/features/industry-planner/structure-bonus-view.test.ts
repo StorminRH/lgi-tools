@@ -11,14 +11,12 @@ const bonus = (over: Partial<StructureBonus>): StructureBonus => ({
 });
 
 describe('formatBonusPct', () => {
-  it('keeps one decimal below 10', () => {
+  it('shows one decimal at every size, as the game does', () => {
     expect(formatBonusPct(2.4)).toBe('2.4%');
+    expect(formatBonusPct(3.38)).toBe('3.4%');
     expect(formatBonusPct(9.99)).toBe('10.0%');
-  });
-
-  it('rounds to whole at 10 and above', () => {
-    expect(formatBonusPct(10)).toBe('10%');
-    expect(formatBonusPct(24.6)).toBe('25%');
+    expect(formatBonusPct(21.5)).toBe('21.5%');
+    expect(formatBonusPct(24)).toBe('24.0%');
   });
 });
 
@@ -52,7 +50,7 @@ describe('structureBonusRows', () => {
     const readout: StructureReadout = { mfg: bonus({}), rxn: bonus({ me: 2.64, te: 44.8 }) };
     expect(structureBonusRows(readout)).toEqual([
       { kind: 'rxn-me', pct: '2.6%', withMarker: true },
-      { kind: 'rxn-te', pct: '45%', withMarker: false },
+      { kind: 'rxn-te', pct: '44.8%', withMarker: false },
     ]);
   });
 
@@ -90,7 +88,7 @@ describe('structureBonusColumns', () => {
         reactions: true,
         cells: [
           { kind: 'rxn-me', pct: '2.6%', withMarker: true },
-          { kind: 'rxn-te', pct: '45%', withMarker: false },
+          { kind: 'rxn-te', pct: '44.8%', withMarker: false },
           null,
           null,
         ],
@@ -101,7 +99,7 @@ describe('structureBonusColumns', () => {
   it('moves tax onto the reaction line when there is no manufacturing bonus', () => {
     const readout: StructureReadout = { mfg: bonus({}), rxn: bonus({ te: 44.8 }) };
     expect(structureBonusColumns(readout, 0)).toEqual([
-      { reactions: true, cells: [null, { kind: 'rxn-te', pct: '45%', withMarker: true }, null, { kind: 'tax', taxPct: 0 }] },
+      { reactions: true, cells: [null, { kind: 'rxn-te', pct: '44.8%', withMarker: true }, null, { kind: 'tax', taxPct: 0 }] },
     ]);
   });
 

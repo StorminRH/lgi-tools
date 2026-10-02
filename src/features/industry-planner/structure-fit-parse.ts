@@ -1,13 +1,17 @@
 export interface ParsedStructureFit {
   structureTypeId: number;
+  /** The fit's own name from its header; null when blank. */
+  name: string | null;
   rigTypeIds: number[];
 }
 
 export type ResolveTypeId = (name: string) => number | undefined;
 
-function parseHeaderName(line: string): string | null {
-  const match = /^\[\s*([^,\]]+?)\s*,/.exec(line);
-  return match?.[1] ?? null;
+/** `[Hull, Fit name]`: the hull before the first comma, the name up to the closing bracket. */
+function parseHeader(line: string): { hull: string; name: string | null } | null {
+  const match = /^\[\s*([^,\]]+?)\s*,\s*(.*?)\s*\]?\s*$/.exec(line);
+  if (!match) return null;
+  return { hull: match[1]!, name: match[2] || null };
 }
 
 function isRigLine(text: string): boolean {
@@ -29,9 +33,9 @@ export function parseStructureFit(
 
   const firstIdx = lines.findIndex((l) => l.trim().length > 0);
   if (firstIdx === -1) return null;
-  const structureName = parseHeaderName(lines[firstIdx]!.trim());
-  if (structureName === null) return null;
-  const structureTypeId = resolveTypeId(structureName);
+  const header = parseHeader(lines[firstIdx]!.trim());
+  if (header === null) return null;
+  const structureTypeId = resolveTypeId(header.hull);
   if (structureTypeId === undefined) return null;
 
   const rigTypeIds: number[] = [];
@@ -42,5 +46,5 @@ export function parseStructureFit(
     if (id !== undefined) rigTypeIds.push(id);
   }
 
-  return { structureTypeId, rigTypeIds };
+  return { structureTypeId, name: header.name, rigTypeIds };
 }
