@@ -13,7 +13,7 @@ import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } f
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { StructureComposer } from '@/features/custom-structures/components/StructureComposer';
 import type { CustomStructureRow } from '@/features/custom-structures/types';
-import { StructureBonusReadout } from '@/features/industry-planner/components/structure-bonus-readout';
+import { StructureBonusColumns } from '@/features/industry-planner/components/structure-bonus-readout';
 import { structureBonusesAt, type StructureReadout } from '@/features/industry-planner/structure-factors';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
@@ -26,6 +26,13 @@ type Composer = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'corp';
 const rowAction =
   'font-ui text-label uppercase tracking-wide text-muted transition-opacity hover:text-text focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100';
 const NO_READOUT: StructureReadout = { mfg: null, rxn: null };
+/**
+ * Readout across the row under the name on a phone, its label column as wide as
+ * the hull tile so the values start under the name; beside the name, over the
+ * action, from sm up.
+ */
+const rowGrid =
+  "grid grid-cols-[auto_minmax(0,1fr)_auto] [grid-template-areas:'tile_name_action'_'readout_readout_readout'] sm:[grid-template-areas:'tile_name_readout'_'tile_name_action']";
 
 interface Lookups {
   types: StructureTypeOption[];
@@ -60,9 +67,11 @@ function StructureRow({
   const hull = lookups.types.find((t) => t.typeId === typeId) ?? null;
   const system = lookups.systems.find((s) => s.id === systemId) ?? null;
   return (
-    <li className="group flex items-center gap-3 px-2 py-2.5">
-      <StructureHullTile hullName={hull?.name ?? null} groupId={hull?.groupId ?? null} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+    <li className={cn(rowGrid, 'group items-center gap-x-3 gap-y-2 px-2 py-2.5 sm:gap-y-1.5')}>
+      <span className="[grid-area:tile]">
+        <StructureHullTile hullName={hull?.name ?? null} groupId={hull?.groupId ?? null} />
+      </span>
+      <div className="flex min-w-0 flex-col gap-1 [grid-area:name]">
         <span className="truncate font-ui text-nav font-medium text-name">{name}</span>
         <span className="truncate font-data text-micro text-muted">
           {hull?.name ?? 'Structure'}
@@ -74,10 +83,10 @@ function StructureRow({
           ) : null}
         </span>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <StructureBonusReadout readout={readout} taxPct={taxPct} />
-        {action}
-      </div>
+      <span className="[--bonus-label-col:2.5rem] [grid-area:readout] sm:self-end sm:justify-self-end sm:[--bonus-label-col:auto]">
+        <StructureBonusColumns readout={readout} taxPct={taxPct} />
+      </span>
+      <span className="flex justify-self-end [grid-area:action] sm:self-start">{action}</span>
     </li>
   );
 }

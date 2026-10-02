@@ -158,23 +158,31 @@ function NameField({
   );
 }
 
+/** On a phone the row label takes its own line over the three inputs. */
+const rowLabel = 'col-span-3 font-ui text-ui text-name max-sm:pt-1 sm:col-span-1';
+
 function BonusGrid({ bonus, reactions, onChange }: { bonus: BonusDraft; reactions: boolean; onChange: (field: BonusField, value: string) => void }) {
   const cell = (field: BonusField, aria: string) => (
     <PercentInput value={bonus[field]} onChange={(v) => onChange(field, v)} ariaLabel={aria} />
   );
   return (
-    <div className={cn(insetSurface, 'grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_5.5rem] items-center gap-2 px-3 py-3')}>
-      <span />
+    <div
+      className={cn(
+        insetSurface,
+        'grid grid-cols-3 items-center gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_5.5rem]',
+      )}
+    >
+      <span className="max-sm:hidden" />
       {['Material', 'Time', 'Job cost'].map((h) => (
         <span key={h} className="text-center font-ui text-micro text-muted">{h}</span>
       ))}
-      <span className="font-ui text-ui text-name">Manufacturing</span>
+      <span className={rowLabel}>Manufacturing</span>
       {cell('me', 'Manufacturing material bonus')}
       {cell('te', 'Manufacturing time bonus')}
       {cell('cost', 'Manufacturing job cost bonus')}
       {reactions ? (
         <>
-          <span className="font-ui text-ui text-name">Reactions</span>
+          <span className={rowLabel}>Reactions</span>
           {cell('rxnMe', 'Reaction material bonus')}
           {cell('rxnTe', 'Reaction time bonus')}
           <span />
@@ -353,7 +361,7 @@ export function StructureComposer({
           onName={(name) => update({ name: name.slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN) })}
           onPick={pickStructure}
         />
-        <div className="grid grid-cols-[minmax(0,1fr)_11rem] gap-3">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
           <SystemField sys={sys} onType={typeSystem} onPick={(s) => { sys.setQuery(''); update({ systemId: s.id }); }} />
           <LabeledField text="Hull">
             <Select
