@@ -216,7 +216,7 @@ export const applyScan = mutation({
       missingRows.map((row) => row.signatureId),
       mapId,
       systemId,
-      await eventActor(ctx),
+      await eventActor(ctx, mapId),
       now,
     );
     return {

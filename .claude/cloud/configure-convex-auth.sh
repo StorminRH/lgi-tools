@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 # shellcheck source=lib.sh
-source "$REPO_ROOT/.cursor/lib.sh"
+source "$REPO_ROOT/.claude/cloud/lib.sh"
 
 auth_ok=0
 trap 'if [ "$auth_ok" != 1 ]; then
@@ -50,7 +50,7 @@ fi
 printf '%s' "$jwks_uri" > /tmp/lgi-auth-jwks-uri
 chmod 600 /tmp/lgi-auth-jwks-uri
 
-# Injected Cloud Agent Secrets override `.env.local` at runtime. Prefer the
+# Cloud environment variables override `.env.local` at runtime. Prefer the
 # effective environment so Convex gets the same secret Next is using.
 secret="${CONVEX_SERVICE_SECRET:-$(env_val CONVEX_SERVICE_SECRET)}"
 if [ -z "$secret" ]; then

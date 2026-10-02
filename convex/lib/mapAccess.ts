@@ -5,11 +5,29 @@ import {
   type MapRole,
 } from '@/data/maps/access-contract';
 import type { QueryCtx } from '../_generated/server';
-import { currentRolesFromStored } from './mapEntityContracts';
+import { currentRolesFromStored, type MapClaimCharacter } from './mapEntityContracts';
 
 export interface MapPrincipal {
   readonly userId: string;
   readonly roles: readonly MapRole[];
+  /** Null on a legacy claim, where any character may be tracked. */
+  readonly characters: readonly MapClaimCharacter[] | null;
+}
+
+export function characterTrackable(principal: MapPrincipal, characterId: number): boolean {
+  return principal.characters === null
+    || principal.characters.some((character) => character.characterId === characterId);
+}
+
+export async function requireMapTrackingOpen(ctx: QueryCtx, mapId: string): Promise<void> {
+  const watermark = await ctx.db.query('mapAccessProjectionWatermarks')
+    .withIndex('by_map', (q) => q.eq('mapId', mapId)).unique();
+  if (watermark?.scopingPending === true) {
+    throw new ConvexError({
+      code: 'TRACKING_SCOPING_PENDING',
+      detail: 'New tracking is paused while this map updates its character access. Try again shortly.',
+    });
+  }
 }
 
 /**
@@ -125,5 +143,5 @@ async function resolveMapPrincipal(
   const roles = currentRolesFromStored(claim.roles);
   if (!rolesAllow(roles, requiredCapability)) return null;
 
-  return { userId, roles };
+  return { userId, roles, characters: claim.characters ?? null };
 }

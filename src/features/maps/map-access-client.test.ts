@@ -37,4 +37,18 @@ describe('map access client', () => {
       }),
     ).toContain('Retry the same change');
   });
+
+  it('names each refusal by its code', () => {
+    const conflict = (code: 'map_block_owner' | 'map_block_self' | 'map_creator_character_required') =>
+      mapAccessFailureMessage({
+        ok: false,
+        kind: 'api',
+        status: 409,
+        error: { type: 'about:blank', title: 'Conflict', status: 409, code, correlationId: 'c' },
+      });
+    expect(conflict('map_block_owner')).toBe('This character belongs to the map owner.');
+    expect(conflict('map_block_self')).toBe("You can't block your own character.");
+    expect(conflict('map_creator_character_required')).toContain('at least one of their own characters');
+  });
 });
+

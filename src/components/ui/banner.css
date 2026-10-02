@@ -1,5 +1,4 @@
 @layer components {
-  /* Glass bar lit from the left edge in the tone colour. */
   .banner-glass {
     --banner-tone: var(--color-aurora);
     --banner-ink: color-mix(in oklab, var(--banner-tone) 72%, white);

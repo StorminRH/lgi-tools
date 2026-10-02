@@ -200,6 +200,17 @@ export const mapRoleValidator = v.union(
   legacyMapOwnerRoleValidator,
 );
 
+/**
+ * The caller's characters that may be tracked on a map, in actor-name order.
+ * Absent on a claim projected before the map became character-scoped: any
+ * character is trackable and edits are signed with the account name.
+ */
+export const mapClaimCharactersValidator = v.array(
+  v.object({ characterId: v.number(), name: v.string() }),
+);
+
+export type MapClaimCharacter = Infer<typeof mapClaimCharactersValidator>[number];
+
 export const mapEventKindValidator = v.union(
   ...MAP_EVENT_KINDS.map((kind) => v.literal(kind)),
 );

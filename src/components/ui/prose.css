@@ -1,5 +1,3 @@
-/* Compact: 14px Geist with tighter leading for dense help and policy text;
- * links stay plain green until hovered. */
 .prose-copy {
   max-width: 760px;
   margin-inline: auto;
