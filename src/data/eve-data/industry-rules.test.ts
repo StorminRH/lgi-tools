@@ -1,12 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   parseAssemblyLine,
+  parseIndustryRules,
   parseInstallationType,
   parseTargetFilter,
   resolveModifiers,
   type EffectModifier,
   type SourceDogma,
 } from './industry-rules';
+import type { SdeJsonlPaths } from './source';
 
 const POST_PERCENT = 6;
 const POST_MULTIPLY = 4;
@@ -141,5 +146,83 @@ describe('industry rule parsers', () => {
       assemblyLineIds: [175, 176],
     });
     expect(parseInstallationType({})).toBeNull();
+  });
+});
+
+describe('parseIndustryRules', () => {
+  let dir: string;
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  async function parseFiles(files: Partial<Record<keyof SdeJsonlPaths, unknown[]>>) {
+    dir = await mkdtemp(join(tmpdir(), 'lgi-industry-rules-'));
+    const paths = Object.fromEntries(
+      (['industryTargetFilters', 'industryModifierSources', 'dogmaEffects', 'industryAssemblyLines', 'industryInstallationTypes', 'typeDogma'] as const).map(
+        (name) => [name, join(dir, `${name}.jsonl`)],
+      ),
+    ) as SdeJsonlPaths;
+    await Promise.all(
+      Object.entries(paths).map(([name, path]) =>
+        writeFile(path, (files[name as keyof SdeJsonlPaths] ?? []).map((row) => JSON.stringify(row)).join('\n')),
+      ),
+    );
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    return parseIndustryRules(paths);
+  }
+
+  it('reads hull and rig dogma straight from the SDE files', async () => {
+    const rules = await parseFiles({
+      industryTargetFilters: [{ _key: 2, name: 'Equipment', categoryIDs: [7] }, { _key: 3 }],
+      industryModifierSources: [
+        { _key: RAITARU, manufacturing: { material: [{ dogmaAttributeID: 2600 }] } },
+        { _key: L_EQUIPMENT_T2, manufacturing: { material: [{ dogmaAttributeID: 2538, filterID: 2 }] } },
+      ],
+      dogmaEffects: [
+        { _key: 6805, modifierInfo: [{ modifiedAttributeID: 2538, modifyingAttributeID: 2594, operation: POST_PERCENT }] },
+        {
+          _key: 6842,
+          modifierInfo: [
+            { modifiedAttributeID: 2594, modifyingAttributeID: SECURITY_MODIFIER, operation: POST_MULTIPLY },
+            { modifiedAttributeID: 2593 },
+          ],
+        },
+        { _key: 6999 },
+      ],
+      typeDogma: [
+        { _key: RAITARU, dogmaAttributes: [{ attributeID: 2600, value: 0.99 }, { attributeID: 2601 }] },
+        {
+          _key: L_EQUIPMENT_T2,
+          dogmaAttributes: [
+            { attributeID: 2355, value: 1 },
+            { attributeID: 2356, value: 1.9 },
+            { attributeID: 2357, value: 2.1 },
+            { attributeID: 2594, value: -2.4 },
+          ],
+          dogmaEffects: [{ effectID: 6805 }, { effectID: 6842 }, { effectID: 6999 }],
+        },
+        { _key: 1, dogmaAttributes: 'not a list' },
+      ],
+      industryAssemblyLines: [{ _key: 175, activityID: 1, name: 'Standup Manufacturing Plant', detailsPerCategory: [{ categoryID: 7 }] }],
+      industryInstallationTypes: [{ _key: 35878, assemblyLines: [{ assemblyLineID: 175 }] }],
+    });
+
+    expect(rules.filters).toEqual([{ id: 2, name: 'Equipment', categoryIds: [7], groupIds: [] }]);
+    expect(rules.assemblyLines.map((l) => l.id)).toEqual([175]);
+    expect(rules.installationTypes).toEqual([{ typeId: 35878, assemblyLineIds: [175] }]);
+    expect(rules.modifiers.map((m) => [m.sourceTypeId, m.filterId, Number(m.factorHigh.toFixed(4))])).toEqual([
+      [RAITARU, null, 0.99],
+      [L_EQUIPMENT_T2, 2, 0.976],
+    ]);
+    expect(rules.modifiers[1]!.factorNull).toBeCloseTo(1 - 0.024 * 2.1);
+  });
+
+  it('leaves a source with no dogma of its own unresolved', async () => {
+    const rules = await parseFiles({
+      industryModifierSources: [{ _key: RAITARU, manufacturing: { material: [{ dogmaAttributeID: 2600 }] } }],
+      typeDogma: [{ _key: RAITARU }],
+    });
+    expect(rules.modifiers).toEqual([]);
   });
 });

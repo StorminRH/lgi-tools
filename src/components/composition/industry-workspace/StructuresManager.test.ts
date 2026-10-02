@@ -27,6 +27,7 @@ const TYPES: StructureTypeOption[] = [
 ];
 const RIGS: StructureRigOption[] = [];
 
+const flat = (f: number) => ({ high: f, low: f, null: f });
 const available = (id: string, structureTypeId: number, groupId: number): AvailableStructure => ({
   id,
   source: id.startsWith('corp:') ? 'corp' : 'custom',
@@ -34,8 +35,10 @@ const available = (id: string, structureTypeId: number, groupId: number): Availa
   structureTypeId,
   groupId,
   systemId: 30002537,
-  structureAttrs: { 2600: 0.99, 2601: 0.97, 2602: 0.85 },
-  rigAttrs: [],
+  modifiers: [
+    { activity: 'manufacturing', kind: 'material', filterId: null, factor: flat(0.99) },
+    { activity: 'manufacturing', kind: 'time', filterId: null, factor: flat(0.85) },
+  ],
   securityClass: null,
   taxPct: 1,
   enteredBonuses: null,
