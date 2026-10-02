@@ -1,66 +1,65 @@
 #!/usr/bin/env bash
+# One-time provisioning for the Claude Code cloud environment. The
+# environment's setup script runs this; the snapshot taken afterwards keeps
+# everything outside the checkout (Postgres cluster with SDE, Convex local
+# backend, CLIs, Playwright Chromium, generated .env.local). Idempotent: the
+# SessionStart hook reruns it when a session starts without that state.
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 # shellcheck source=lib.sh
-source "$REPO_ROOT/.cursor/lib.sh"
+source "$REPO_ROOT/.claude/cloud/lib.sh"
+# shellcheck source=clis.sh
+source "$REPO_ROOT/.claude/cloud/clis.sh"
 
 lgi_ensure_pg16
 PGBIN="$(lgi_pg16_bin)"
-PGDATA="$HOME/.local/share/lgi-pgdata"
+PGDATA="$LGI_PGDATA"
 export PGDATA
 lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
-lgi_install_pstack_models "$REPO_ROOT/.cursor/rules/pstack-models.mdc"
 
 started_pg=0
 trap 'lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"' EXIT
 
 pnpm install --frozen-lockfile
 
-# Playwright Chromium for `pnpm test:e2e` on this VM. Chrome is
-# already present for computer-use screenshots; this is the Playwright cache
-# the test runner actually launches. Idempotent: skips downloads when current.
-pnpm exec playwright install --with-deps chromium
+# The image ships an older Playwright Chromium and skips browser downloads by
+# default; install the revision this repo's Playwright pins.
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 pnpm exec playwright install chromium
 
-LGI_CLI_REFRESH=1
-# shellcheck source=clis.sh
-source "$REPO_ROOT/.cursor/clis.sh"
-export CODEGRAPH_TELEMETRY=0
-if [ -d .codegraph ]; then
-  codegraph sync
-else
-  codegraph init
-fi
-
+lgi_install_clis
 
 mkdir -p "$PGDATA"
+[ "$(id -u)" != 0 ] || chown postgres:postgres "$PGDATA"
+chmod 700 "$PGDATA"
 if [ ! -f "$PGDATA/PG_VERSION" ]; then
-  "$PGBIN/initdb" -D "$PGDATA" -U lgi --auth=trust --encoding=UTF8 >/tmp/lgi-initdb.log 2>&1
+  lgi_pg_server "$PGBIN/initdb" -D "$PGDATA" -U lgi --auth=trust --encoding=UTF8 >/tmp/lgi-initdb.log 2>&1
 fi
 if [ -f "$PGDATA/PG_VERSION" ] && [ "$(cat "$PGDATA/PG_VERSION")" != 16 ]; then
   echo "ERROR: Postgres data dir is version $(cat "$PGDATA/PG_VERSION"); this environment pins 16" >&2
   exit 1
 fi
-cat > "$PGDATA/postgresql.auto.conf" <<'EOF'
+lgi_pg_server tee "$PGDATA/postgresql.auto.conf" >/dev/null <<'EOF'
 port = 5433
 listen_addresses = 'localhost'
 unix_socket_directories = '/tmp'
 EOF
-cat > "$PGDATA/pg_hba.conf" <<'EOF'
+lgi_pg_server tee "$PGDATA/pg_hba.conf" >/dev/null <<'EOF'
 local   all   all                trust
 host    all   all   127.0.0.1/32 trust
 host    all   all   ::1/128      trust
 EOF
-if ! "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
-  "$PGBIN/pg_ctl" -D "$PGDATA" -l /tmp/lgi-pg.log -w start
+if ! lgi_pg_server "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
+  lgi_pg_server "$PGBIN/pg_ctl" -D "$PGDATA" -l "$LGI_PG_LOG" -w start
   started_pg=1
 fi
 "$PGBIN/psql" -h localhost -p 5433 -U lgi -d postgres -tAc \
   "SELECT 1 FROM pg_database WHERE datname='lgi_tools'" | grep -q 1 \
   || "$PGBIN/createdb" -h localhost -p 5433 -U lgi lgi_tools
 
+lgi_restore_env_local .env.local
 [ -f .env.local ] || cp .env.example .env.local
 lgi_strip_empty_env_local_key .env.local CONVEX_DEPLOYMENT
 lgi_strip_empty_env_local_key .env.local NEXT_PUBLIC_CONVEX_URL
@@ -105,8 +104,6 @@ if ! lgi_sde_ready "$LGI_LOCAL_DB_URL"; then
 fi
 
 # The first `--once` creates the deployment and may fail until AUTH_* exist on it.
-export CONVEX_AGENT_MODE=anonymous
-unset CONVEX_DEPLOY_KEY || true
 export AUTH_ISSUER_URL=http://localhost:3000
 export SITE_URL=http://localhost:3000
 export AUTH_JWKS="$LGI_PLACEHOLDER_JWKS"
@@ -119,7 +116,11 @@ printf '%s' "$AUTH_JWKS" | pnpm exec convex env set AUTH_JWKS
 printf '%s' "$CONVEX_SERVICE_SECRET" | pnpm exec convex env set CONVEX_SERVICE_SECRET
 pnpm exec convex dev --once
 
-echo "install.sh complete: postgres 16 :5433 provisioned; SDE census ready."
+lgi_require_anonymous_convex_file .env.local
+lgi_save_env_local .env.local
+touch "$LGI_PROVISIONED_MARKER"
+
+echo "setup.sh complete: postgres 16 :5433 provisioned; SDE census ready."
 lgi_sde_report "$LGI_LOCAL_DB_URL"
 if [ "$started_pg" = 1 ]; then
   lgi_stop_owned_postgres "$PGBIN" "$PGDATA" 1

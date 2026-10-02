@@ -45,7 +45,6 @@ yarn-error.log*
 .claude/settings.local.json
 .claude/launch.json
 .claude/worktrees/
-/.cursor/agents/local-only/
 /.codex/agents/local-only/
 /.codex/skills/local-only/
 .local/agent/

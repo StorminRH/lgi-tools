@@ -1,5 +1,17 @@
+# Shared helpers for the Claude Code cloud environment. Sourced, not run.
 LGI_LOCAL_DB_URL="postgres://lgi:lgi@localhost:5433/lgi_tools"
 LGI_PG16_BIN="/usr/lib/postgresql/16/bin"
+# Machine state outside the checkout, so the setup-script snapshot keeps it
+# while every session starts from a fresh clone.
+LGI_STATE_DIR="${LGI_STATE_DIR:-$HOME/.local/share/lgi}"
+# Postgres refuses to run as root, which cloud sessions are, so the cluster
+# belongs to the image's postgres user.
+LGI_PGDATA="${LGI_PGDATA:-/var/lib/lgi-pgdata}"
+LGI_PG_LOG="$LGI_PGDATA/server.log"
+LGI_ENV_LOCAL_STATE="$LGI_STATE_DIR/env.local"
+LGI_PROVISIONED_MARKER="$LGI_STATE_DIR/provisioned"
+LGI_LOG_DIR="${LGI_LOG_DIR:-/tmp/lgi}"
+LGI_STACK_STATUS="${LGI_STACK_STATUS:-$LGI_LOG_DIR/stack.status}"
 LGI_PLACEHOLDER_JWKS='data:text/plain;charset=utf-8;base64,e30='
 LGI_AUTH_STATUS="${LGI_AUTH_STATUS:-/tmp/lgi-convex-auth.status}"
 LGI_ANONYMOUS_DEPLOYMENT="anonymous:anonymous-agent"
@@ -266,10 +278,19 @@ lgi_require_auth_ready() {
   fi
 }
 
+# Run a server-side Postgres binary as the cluster owner.
+lgi_pg_server() {
+  if [ "$(id -u)" = 0 ]; then
+    runuser -u postgres -- "$@"
+  else
+    "$@"
+  fi
+}
+
 lgi_stop_owned_postgres() {
   local bin="$1" data="$2" owned="$3"
   if [ "$owned" = 1 ]; then
-    "$bin/pg_ctl" -D "$data" -w stop >/dev/null 2>&1 || true
+    lgi_pg_server "$bin/pg_ctl" -D "$data" -w stop >/dev/null 2>&1 || true
   fi
 }
 
@@ -281,13 +302,34 @@ lgi_eve_runtime_secret_presence() {
   fi
 }
 
-lgi_install_pstack_models() {
-  local src="${1:-}"
-  local dest="${2:-${HOME}/.cursor/rules/pstack-models.mdc}"
-  if [ -z "$src" ] || [ ! -f "$src" ]; then
-    echo "ERROR: missing pstack model rule at ${src:-<empty>}" >&2
-    return 1
+lgi_wait_for_postgres() {
+  local bin
+  bin="$(lgi_pg16_bin)"
+  for _ in $(seq 1 60); do
+    if "$bin/pg_isready" -h localhost -p 5433 -U lgi -d lgi_tools >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "ERROR: postgres did not become ready on :5433" >&2
+  return 1
+}
+
+# Generated secrets must outlive the fresh clone each session starts from;
+# rotating EVE_TOKEN_ENCRYPTION_KEY would orphan every stored token.
+lgi_restore_env_local() {
+  local file="${1:-.env.local}"
+  if [ ! -f "$file" ] && [ -f "$LGI_ENV_LOCAL_STATE" ]; then
+    cp "$LGI_ENV_LOCAL_STATE" "$file"
   fi
-  mkdir -p "$(dirname "$dest")"
-  cp "$src" "$dest"
+}
+
+lgi_save_env_local() {
+  local file="${1:-.env.local}"
+  mkdir -p "$LGI_STATE_DIR"
+  install -m 600 "$file" "$LGI_ENV_LOCAL_STATE"
+}
+
+lgi_port_open() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
 }
