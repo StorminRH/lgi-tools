@@ -2,28 +2,20 @@ import type { IndustryProfileRow } from './api-contract';
 import { overlayPending, type PendingEdit, saveFailureMessage } from './profile-view';
 
 export type ProfilesResult =
-  | { ok: true; profiles: IndustryProfileRow[] }
-  | { ok: false; status: number };
+  | { ok: true; data: { profiles: IndustryProfileRow[] } }
+  | { ok: false; status?: number };
 
 export interface ProfileSyncState {
-  /** Server rows with queued edits laid over them; null until the first read. */
   profiles: IndustryProfileRow[] | null;
   listFailed: boolean;
 }
 
 export interface ProfileSync {
   refresh: () => Promise<void>;
-  accept: (rows: IndustryProfileRow[]) => void;
+  request: <T extends ProfilesResult>(call: () => Promise<T>) => Promise<T>;
   save: (id: string, edit: PendingEdit) => void;
-  forget: (id: string) => void;
 }
 
-/**
- * Keeps one profile list in step with the server. Edits show at once and are
- * written one at a time per profile, each against the revision the previous
- * write returned, so quick successive edits never conflict with each other.
- * A write the server refuses drops the queued edit and reloads the list.
- */
 export function createProfileSync(deps: {
   list: () => Promise<ProfilesResult>;
   update: (body: { id: string; expectedRevision: number } & PendingEdit) => Promise<ProfilesResult>;
@@ -31,59 +23,63 @@ export function createProfileSync(deps: {
   notify: (message: string) => void;
 }): ProfileSync {
   let rows: IndustryProfileRow[] | null = null;
-  let pending = new Map<string, PendingEdit>();
+  const pending = new Map<string, PendingEdit & { expectedRevision: number }>();
   let listFailed = false;
-  const inflight = new Set<string>();
+  let tail: Promise<void> = Promise.resolve();
 
   const emit = () =>
     deps.publish({ profiles: rows === null ? null : overlayPending(rows, pending), listFailed });
 
-  const setPending = (id: string, edit: PendingEdit | null) => {
-    pending = new Map(pending);
-    if (edit === null) pending.delete(id);
-    else pending.set(id, edit);
+  const enqueue = <T>(call: () => Promise<T>): Promise<T> => {
+    const result = tail.then(call);
+    tail = result.then(() => undefined, () => undefined);
+    return result;
   };
 
-  const refresh = async () => {
+  const accept = (next: IndustryProfileRow[]) => {
+    rows = next;
+    for (const id of pending.keys()) {
+      if (!next.some((row) => row.id === id)) pending.delete(id);
+    }
+    emit();
+  };
+
+  const read = async () => {
     const res = await deps.list();
     listFailed = !res.ok;
-    if (res.ok) rows = res.profiles;
-    emit();
-  };
-
-  const flush = async (id: string): Promise<void> => {
-    const edit = pending.get(id);
-    const row = rows?.find((r) => r.id === id);
-    if (inflight.has(id) || edit === undefined || row === undefined) return;
-    inflight.add(id);
-    const res = await deps.update({ id, expectedRevision: row.revision, ...edit });
-    inflight.delete(id);
-    if (!res.ok) {
-      setPending(id, null);
-      deps.notify(saveFailureMessage(res.status));
-      await refresh();
-      return;
-    }
-    if (pending.get(id) === edit) setPending(id, null);
-    rows = res.profiles;
-    emit();
-    await flush(id);
+    if (res.ok) accept(res.data.profiles);
+    else emit();
   };
 
   return {
-    refresh,
-    accept: (next) => {
-      rows = next;
-      emit();
-    },
+    refresh: () => enqueue(read),
+    request: (call) => enqueue(async () => {
+      const res = await call();
+      if (res.ok) accept(res.data.profiles);
+      return res;
+    }),
     save: (id, edit) => {
-      setPending(id, edit);
+      const row = rows?.find((r) => r.id === id);
+      if (row === undefined) return;
+      pending.set(id, { ...edit, expectedRevision: pending.get(id)?.expectedRevision ?? row.revision });
       emit();
-      void flush(id);
-    },
-    forget: (id) => {
-      setPending(id, null);
-      emit();
+      void enqueue(async () => {
+        const next = pending.get(id);
+        if (next === undefined) return;
+        const res = await deps.update({ id, ...next });
+        if (!res.ok) {
+          pending.delete(id);
+          deps.notify(saveFailureMessage(res.status ?? 0));
+          await read();
+          return;
+        }
+        if (pending.get(id) === next) pending.delete(id);
+        else {
+          const queued = pending.get(id);
+          if (queued?.expectedRevision === next.expectedRevision) queued.expectedRevision += 1;
+        }
+        accept(res.data.profiles);
+      });
     },
   };
 }
