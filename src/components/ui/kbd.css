@@ -1,3 +1,10 @@
 kbd {
-  font-family: var(--font-data);
+  font-family: var(--font-ui);
+}
+
+@layer components {
+  .kbd-flat {
+    border-radius: 7px;
+    background-color: color-mix(in oklab, white 10%, transparent);
+  }
 }

@@ -3,6 +3,8 @@ export type Tool = {
   abbr: string;
   href: string | null;
   matchPrefix?: string;
+  /** Other route prefixes this nav item owns, so it stays lit on their pages. */
+  alsoMatches?: readonly string[];
   description?: string;
   navDisabled?: boolean;
   navHidden?: boolean;
@@ -21,6 +23,7 @@ export const TOOLS: Tool[] = [
     abbr: 'IP',
     href: '/industry',
     matchPrefix: '/industry',
+    alsoMatches: ['/jobs', '/structures'],
     description: 'Live · /industry',
   },
   {
@@ -53,7 +56,8 @@ export function visibleNavTools(): Tool[] {
 }
 
 export function isToolActive(tool: Tool, pathname: string | null): boolean {
-  return pathname != null && !!tool.matchPrefix && pathname.startsWith(tool.matchPrefix);
+  if (pathname == null || !tool.matchPrefix) return false;
+  return [tool.matchPrefix, ...(tool.alsoMatches ?? [])].some((prefix) => pathname.startsWith(prefix));
 }
 
 export type NavToolItem =

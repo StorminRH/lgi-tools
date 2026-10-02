@@ -26,7 +26,6 @@ export default function ContactPage() {
     <PageShell mode="reading">
       <PageHead
         size="hero"
-        crumb="contact"
         title="Contact"
         meta={
           <span className={eyebrow()}>

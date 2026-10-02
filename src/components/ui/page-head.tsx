@@ -29,15 +29,6 @@ const pageSubtitle = cva('mt-2 text-muted', {
   defaultVariants: { size: 'page' },
 });
 
-export function Breadcrumb({ crumb }: { crumb: string }) {
-  return (
-    <div className="mb-2 font-data text-label tracking-label text-muted">
-      <span className="text-isk">lgi://</span>
-      {crumb}
-    </div>
-  );
-}
-
 export function PageTitle({
   size = 'page',
   className,
@@ -51,14 +42,12 @@ export function PageTitle({
 }
 
 export function PageHead({
-  crumb,
   title,
   subtitle,
   meta,
   size = 'page',
   reveal = true,
 }: {
-  crumb: string;
   title: string;
   subtitle?: ReactNode;
   meta?: ReactNode;
@@ -71,11 +60,10 @@ export function PageHead({
     <header
       className={cn(
         reveal && 'reveal',
-        'w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap',
+        'w-full pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap',
       )}
     >
       <div>
-        <Breadcrumb crumb={crumb} />
         <PageTitle size={size}>{title}</PageTitle>
         {subtitle != null && (
           <p className={pageSubtitle({ size })}>{subtitle}</p>

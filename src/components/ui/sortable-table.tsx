@@ -2,7 +2,11 @@ import Link from 'next/link';
 import { Fragment, type ReactNode } from 'react';
 import { cn } from './cn';
 import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-table-view';
-import { eyebrow } from './type-roles';
+
+export const floatingRow =
+  'rounded-card bg-bg-deep/60 transition-colors duration-fast hover:bg-bg-deep/35';
+
+const headerText = 'inline-flex items-center gap-1 font-ui text-ui font-medium';
 
 export interface SortableColumn<Row> {
   key: string;
@@ -38,12 +42,7 @@ export interface Props<Row> {
 function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
   if (cell.href === null) {
     return (
-      <span
-        className={cn(
-          eyebrow({ className: 'inline-flex items-center gap-1 font-data' }),
-          cell.alignClass,
-        )}
-      >
+      <span className={cn(headerText, 'text-muted', cell.alignClass)}>
         {cell.label}
       </span>
     );
@@ -54,16 +53,14 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       href={cell.href}
       scroll={false}
       className={cn(
-        eyebrow({
-          tone: 'inherit',
-          className: 'inline-flex items-center gap-1 font-data transition-colors',
-        }),
+        headerText,
+        'transition-colors',
         cell.alignClass,
         cell.isActive ? 'text-name' : 'text-muted hover:text-text',
       )}
     >
       <span>{cell.label}</span>
-      {cell.indicator && <span className="text-isk">{cell.indicator}</span>}
+      {cell.indicator && <span className="text-aurora">{cell.indicator}</span>}
     </Link>
   );
 }
@@ -97,7 +94,7 @@ export function SortableTable<Row>({
   const renderHeader = () => (
     <div
       className={cn(
-        'sortable-table-header grid items-center gap-4 px-3 py-2 border-b border-border',
+        'sortable-table-header grid items-center gap-4 px-3 pt-2 pb-0.5',
         gridColsClass,
       )}
     >
@@ -113,7 +110,7 @@ export function SortableTable<Row>({
         <div
           key={col.key}
           className={cn(
-            'font-data text-ui text-text min-w-0',
+            'font-ui text-ui tabular-nums text-text min-w-0',
             col.align === 'right' ? 'text-right' : 'text-left',
           )}
         >
@@ -125,10 +122,10 @@ export function SortableTable<Row>({
 
   return (
     <div className="overflow-x-auto">
-      <div className="sortable-table border border-border bg-section min-w-[640px]">
+      <div className="sortable-table flex min-w-[640px] flex-col gap-1.5 p-1.5">
         {renderHeader()}
         {rows.length === 0 ? (
-          <div className="px-3 py-6 text-center text-muted text-ui">{emptyState ?? 'No rows.'}</div>
+          <div className={cn(floatingRow, 'px-3 py-6 text-center text-muted text-ui')}>{emptyState ?? 'No rows.'}</div>
         ) : (
           rows.map((row) => {
             const key = getRowKey(row);
@@ -140,7 +137,8 @@ export function SortableTable<Row>({
               <div
                 key={key}
                 className={cn(
-                  'sortable-table-row grid items-center gap-4 px-3 py-2 border-b border-border-soft last:border-b-0',
+                  'sortable-table-row grid items-center gap-4 px-3 py-2.5',
+                  floatingRow,
                   gridColsClass,
                 )}
               >

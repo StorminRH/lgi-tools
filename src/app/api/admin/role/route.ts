@@ -19,7 +19,7 @@ function sanitiseQuery(raw: string | undefined): string | undefined {
 }
 
 function buildRedirect(request: NextRequest, query: string | undefined): URL {
-  const url = new URL('/settings/access', request.url);
+  const url = new URL('/admin/users', request.url);
   if (query) url.searchParams.set('q', query);
   return url;
 }

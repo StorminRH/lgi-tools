@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
-import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
+import { floatingRow, SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
 import { formatIskShort } from '@/lib/format/isk';
 import { formatClassRange, gasClassRange } from '../gas-classes';
@@ -14,11 +14,6 @@ import { LazySiteDetails } from './LazySiteDetails';
 import { SiteLiveProvider } from './SiteResourcesLive';
 import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
 
-// SortableTable paints a square solid slab; inside the glass Card the slab
-// goes clear and the header becomes a sunk well.
-const GLASS_TABLE =
-  'overflow-hidden [&_.sortable-table]:border-0 [&_.sortable-table]:bg-transparent ' +
-  '[&_.sortable-table-header]:border-border-soft [&_.sortable-table-header]:bg-bg-deep/60';
 
 const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
@@ -96,7 +91,7 @@ export function SitesTable({
   const sorted = sortSitesForTable(sites, sortKey, sortDir);
 
   return (
-    <Card className={GLASS_TABLE}>
+    <Card className="overflow-hidden">
       <SortableTable<SiteDetail>
         columns={COLUMNS}
         rows={sorted}
@@ -113,7 +108,7 @@ export function SitesTable({
             key={key}
             basePath="/sites"
             entityId={row.id}
-            className="border-b border-border-soft last:border-b-0"
+            className={cn(floatingRow, 'overflow-hidden')}
           >
             <details
               data-sites-row
@@ -123,7 +118,7 @@ export function SitesTable({
             >
               <summary
                 className={cn(
-                  'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-row-sites-hover',
+                  'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2.5 transition-colors hover:bg-row-sites-hover',
                   gridColsClass,
                 )}
               >

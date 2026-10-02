@@ -3,7 +3,7 @@
 import { Field as Base } from '@base-ui/react/field';
 import { cloneElement, useId, type ReactElement, type ReactNode } from 'react';
 import { cn } from './cn';
-import { eyebrow } from './type-roles';
+import { InfoIcon } from './icons';
 
 export type FieldControlElement = ReactElement<{
   id?: string;
@@ -11,6 +11,8 @@ export type FieldControlElement = ReactElement<{
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
 }>;
+
+export const fieldLabel = 'font-ui text-ui font-medium text-text';
 
 function controlIdFor(element: FieldControlElement, generatedId: string) {
   return element.props.id ?? `${generatedId}-control`;
@@ -31,7 +33,7 @@ function describedId(content: ReactNode, id: string) {
 function FieldDescription({ id, children }: { id: string; children?: ReactNode }) {
   if (!children) return null;
   return (
-    <Base.Description id={id} className="font-ui text-label text-faint">
+    <Base.Description id={id} className="font-ui text-label text-muted">
       {children}
     </Base.Description>
   );
@@ -40,7 +42,12 @@ function FieldDescription({ id, children }: { id: string; children?: ReactNode }
 function FieldError({ id, children }: { id: string; children?: ReactNode }) {
   if (!children) return null;
   return (
-    <Base.Error id={id} match className="font-ui text-label text-pill-red-text">
+    <Base.Error
+      id={id}
+      match
+      className="inline-flex items-center gap-1.5 font-ui text-label text-chip-red"
+    >
+      <InfoIcon size={13} />
       {children}
     </Base.Error>
   );
@@ -82,7 +89,7 @@ export function Field({
       disabled={disabled}
       className={cn('flex min-w-0 flex-col gap-1.5', className)}
     >
-      <Base.Label htmlFor={controlId} className={eyebrow()}>
+      <Base.Label htmlFor={controlId} className={fieldLabel}>
         {label}
       </Base.Label>
       {cloneElement(children, {

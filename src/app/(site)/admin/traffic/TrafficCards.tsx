@@ -122,7 +122,7 @@ export async function PilotsCard({ range }: { range: DateRange }) {
       <SectionHeader
         size="md"
         label="Visitors & users"
-        hint={<CardLink href="/settings/access">Users &amp; roles</CardLink>}
+        hint={<CardLink href="/admin/users">Users &amp; roles</CardLink>}
       />
       <div className="grid grid-cols-1 divide-y divide-border-soft md:grid-cols-2 md:divide-x md:divide-y-0">
         <div className="flex flex-col gap-4 px-3.5 py-3">

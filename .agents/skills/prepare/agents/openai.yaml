@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare"
+  short_description: "Fix and merge requested PRs into development"
+  default_prompt: "Use $prepare to get the specified PRs safely merged into development."

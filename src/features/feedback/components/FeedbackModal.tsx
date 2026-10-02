@@ -6,7 +6,7 @@ import { useId, useRef, useState, type ChangeEvent, type RefObject } from 'react
 import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
 import { Dialog } from '@/components/ui/dialog';
-import { Field } from '@/components/ui/field';
+import { Field, fieldLabel } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { Session } from '@/platform/auth/types';
@@ -83,8 +83,8 @@ function FeedbackCategoryField({
   onCategoryChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-label uppercase tracking-wide text-muted">Category</span>
+    <div className="flex flex-col gap-1.5">
+      <span className={fieldLabel}>Category</span>
       <Select
         value={category}
         onValueChange={onCategoryChange}

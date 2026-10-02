@@ -8,31 +8,13 @@ import type { Tone } from './tones';
 export type SwitchTone = Extract<Tone, 'green' | 'neutral'>;
 
 const track = cva(
-  'relative inline-flex h-[18px] w-[32px] shrink-0 cursor-pointer items-center rounded-full ' +
-    'border px-[2px] outline-none transition-colors duration-fast ' +
-    'focus-visible:border-border-active disabled:cursor-not-allowed disabled:opacity-50 ' +
-    'motion-reduce:transition-none',
+  'switch-soft relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full px-[3px] ' +
+    'outline-none focus-visible:ring-2 focus-visible:ring-isk-sub disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       tone: {
-        green:
-          'bg-surface-sunk border-border-idle data-[checked]:bg-pill-green-bg data-[checked]:border-isk-dim',
-        neutral:
-          'bg-surface-sunk border-border-idle data-[checked]:bg-surface-raised data-[checked]:border-border-active',
-      } satisfies Record<SwitchTone, string>,
-    },
-    defaultVariants: { tone: 'green' },
-  },
-);
-
-const thumb = cva(
-  'block h-[12px] w-[12px] rounded-full translate-x-0 data-[checked]:translate-x-[14px] ' +
-    'transition-[translate,background-color] duration-fast motion-reduce:transition-none',
-  {
-    variants: {
-      tone: {
-        green: 'bg-muted data-[checked]:bg-isk',
-        neutral: 'bg-muted data-[checked]:bg-text',
+        green: '[--switch-tone:var(--color-isk)] [--switch-ink:var(--color-isk-bright)]',
+        neutral: '[--switch-tone:var(--color-text)] [--switch-ink:var(--color-name)]',
       } satisfies Record<SwitchTone, string>,
     },
     defaultVariants: { tone: 'green' },
@@ -65,7 +47,7 @@ export function Switch({
       aria-label={label}
       className={cn(track({ tone }), className)}
     >
-      <Base.Thumb className={thumb({ tone })} />
+      <Base.Thumb className="switch-soft-thumb block size-4 rounded-full" />
     </Base.Root>
   );
 }

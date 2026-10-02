@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
-import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
-import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
@@ -88,19 +86,11 @@ function DashboardSkeleton() {
 export default function IndustryDashboardPage() {
   return (
     <PageShell mode="workspace">
-      <PageHead
-        size="hero"
-        crumb="industry"
-        title="Industry"
-        meta={
-          <Suspense fallback={null}>
-            <SlotMeta />
-          </Suspense>
-        }
-      />
-
-      <div className="pb-16 flex flex-col gap-9">
-        <IndustryTypedHint />
+      <h1 className="sr-only">Industry</h1>
+      <div className="pb-16 flex flex-col gap-5">
+        <Suspense fallback={null}>
+          <SlotMeta />
+        </Suspense>
 
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardSections />

@@ -12,7 +12,7 @@ import { getFullSession } from '@/composition/session';
 import { formatIsoDay } from '@/lib/format/time';
 import { getActiveSessionCount } from '@/platform/auth/admin-users';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead } from '@/components/ui/section-head';
 
 function OverviewRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -73,7 +73,7 @@ async function AccountContent() {
 export default function AccountSettingsPage() {
   return (
     <>
-      <SectionHead title="Account" />
+      <QuietSectionHead title="Account" />
       <Suspense fallback={<Skeleton label="Loading account" className="h-40 w-full rounded-card" />}>
         <AccountContent />
       </Suspense>

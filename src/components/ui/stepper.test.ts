@@ -1,14 +1,17 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { ChevronDownIcon } from './icons';
 import { Stepper } from './stepper';
 
 describe('Stepper', () => {
-  it('preserves the bordered default control', () => {
+  it('renders the default control as two round chevron buttons', () => {
     const root = Stepper({ value: 1, onChange: vi.fn(), ariaLabel: 'Runs' });
     const [group] = root.props.children;
-    expect(group.props.className).toContain('border-border');
-    expect(group.props.children[0].props.children).toBe('–');
+    expect(group.props.className).toContain('gap-1');
+    expect(group.props.children[0].props.className).toContain('rounded-full');
+    expect(group.props.children[0].props.children.type).toBe(ChevronDownIcon);
+    expect(group.props.children[2].props.children.props.className).toBe('rotate-180');
   });
 
   it('renders the compact inline controls and trailing slot', () => {
@@ -21,14 +24,14 @@ describe('Stepper', () => {
       trailing,
     });
     const [group, slot] = root.props.children;
-    expect(group.props.className).not.toContain('border-border');
-    expect(group.props.children[0].props.children).toBe('▼');
+    expect(group.props.className).not.toContain('gap-1');
+    expect(group.props.children[0].props.children.type).toBe(ChevronDownIcon);
     expect(group.props.children[0].props.className).toContain('after:-inset-1');
-    expect(group.props.children[2].props.children).toBe('▲');
+    expect(group.props.children[2].props.children.props.className).toBe('rotate-180');
     expect(slot.props.children).toBe(trailing);
   });
 
-  it('reserves an external trailing slot without widening the bordered group', () => {
+  it('reserves an external trailing slot without widening the button group', () => {
     const root = Stepper({
       value: 1,
       onChange: vi.fn(),
@@ -36,7 +39,7 @@ describe('Stepper', () => {
       reserveTrailing: true,
     });
     const [group, slot] = root.props.children;
-    expect(group.props.className).toContain('border-border');
+    expect(group.props.className).toContain('gap-1');
     expect(group.props.children).toHaveLength(3);
     expect(slot.props.className).toContain('w-3.5');
   });

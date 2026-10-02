@@ -7,7 +7,7 @@ import { RigSupply } from '@/components/RigSupply';
 import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Field } from '@/components/ui/field';
+import { Field, fieldLabel } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Pill } from '@/components/ui/pill';
@@ -284,8 +284,8 @@ function StructureTypeSelect({
   onChange: (id: number | null) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-label uppercase tracking-wide text-muted">Structure type</span>
+    <div className="flex flex-col gap-1.5">
+      <span className={fieldLabel}>Structure type</span>
       <Select
         value={value == null ? '' : String(value)}
         onValueChange={(v) => onChange(v === '' ? null : Number(v))}
@@ -588,8 +588,8 @@ export function CustomStructureBuilder({
           />
         )}
 
-        <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-wide text-muted">Name</span>
+        <div className="flex flex-col gap-1.5">
+          <span className={fieldLabel}>Name</span>
           <Input
             type="text"
             value={draft.name}
@@ -601,8 +601,8 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-wide text-muted">Pin to system (optional)</span>
+        <div className="flex flex-col gap-1.5">
+          <span className={fieldLabel}>Pin to system (optional)</span>
           <PinField
             pin={draft.pin}
             parse={draft.parse}
@@ -612,10 +612,8 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-wide text-muted">
-            Facility tax % (optional)
-          </span>
+        <div className="flex flex-col gap-1.5">
+          <span className={fieldLabel}>Facility tax % (optional)</span>
           <Input
             type="number"
             min={0}

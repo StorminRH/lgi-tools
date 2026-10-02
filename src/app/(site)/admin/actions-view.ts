@@ -2,7 +2,7 @@ import type { PillTone } from '@/components/ui/pill';
 import type { QueueSummary } from './signals';
 
 export interface AdminActionRow {
-  id: 'statics' | 'queue' | 'access';
+  id: 'statics' | 'queue' | 'users';
   title: string;
   status: string;
   href: string;
@@ -37,10 +37,10 @@ export function deriveActionRows(input: {
           : null,
     },
     {
-      id: 'access',
+      id: 'users',
       title: 'Users & roles',
       status: '',
-      href: '/settings/access',
+      href: '/admin/users',
       cta: 'Open',
       badge: null,
     },

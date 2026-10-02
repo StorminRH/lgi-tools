@@ -8,36 +8,19 @@ import type { Tone } from './tones';
 export type CheckboxTone = Extract<Tone, 'green' | 'neutral' | 'red'>;
 
 const box = cva(
-  'inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center ' +
-    'rounded-sm border outline-none transition-colors duration-fast ' +
-    'focus-visible:border-border-active focus-visible:ring-1 focus-visible:ring-isk-sub ' +
-    'disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
+  'check-soft inline-flex size-5 shrink-0 cursor-pointer items-center justify-center outline-none ' +
+    'focus-visible:ring-2 focus-visible:ring-isk-sub disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       tone: {
-        green:
-          'bg-surface-sunk border-border-idle data-[checked]:bg-pill-green-bg data-[checked]:border-isk-dim',
-        neutral:
-          'bg-surface-sunk border-border-idle data-[checked]:bg-surface-raised data-[checked]:border-border-active',
-        red:
-          'bg-surface-sunk border-border-idle data-[checked]:bg-pill-red-bg data-[checked]:border-hostile',
+        green: '[--check-tone:var(--color-isk)] [--check-ink:var(--color-isk-bright)]',
+        neutral: '[--check-tone:var(--color-text)] [--check-ink:var(--color-name)]',
+        red: '[--check-tone:var(--color-alert-red)] [--check-ink:var(--color-chip-red)]',
       } satisfies Record<CheckboxTone, string>,
     },
     defaultVariants: { tone: 'green' },
   },
 );
-
-// eslint-disable-next-line no-restricted-syntax -- inner checkbox-fill indicator, sub-4px by design
-const fill = cva('block h-[8px] w-[8px] rounded-[1px]', {
-  variants: {
-    tone: {
-      green: 'bg-isk',
-      neutral: 'bg-text',
-      red: 'bg-hostile',
-    } satisfies Record<CheckboxTone, string>,
-  },
-  defaultVariants: { tone: 'green' },
-});
 
 export function Checkbox({
   checked,
@@ -62,7 +45,11 @@ export function Checkbox({
       disabled={disabled}
       className={cn(box({ tone }), className)}
     >
-      <Base.Indicator className={fill({ tone })} />
+      <Base.Indicator className="check-soft-mark">
+        <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      </Base.Indicator>
     </Base.Root>
   );
 }

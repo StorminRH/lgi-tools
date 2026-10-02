@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
@@ -624,6 +626,120 @@ const corpAccessBoundary = {
       },
       ExportAllDeclaration(node) {
         reportIfBoundarySource(node);
+      },
+    };
+  },
+};
+
+const UI_ROOT = "src/components/ui";
+const UI_REFERENCE_DIR = "src/app/(site)/preview/primitives";
+const ROOT_LAYOUT = "src/app/layout.tsx";
+const UI_STATIC_IMPORT =
+  /import\s+(type\s+)?(?:\{([^}]*)\}|\*\s+as\s+(\w+))\s+from\s+["'][^"']*components\/ui\/([\w-]+)["']/g;
+const UI_DYNAMIC_IMPORT =
+  /import\(\s*["'][^"']*components\/ui\/([\w-]+)["']\s*\)\s*\.then\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\2\.([A-Z]\w*)/g;
+
+function sourceFilesUnder(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.includes(".test."))
+    .map((entry) => path.join(entry.parentPath, entry.name));
+}
+
+function namedSpecifiers(list) {
+  return list
+    .split(",")
+    .map((specifier) => specifier.trim())
+    .filter((specifier) => !specifier.startsWith("type "))
+    .map((specifier) => specifier.split(/\s+as\s+/)[0])
+    .filter((name) => /^[A-Z]/.test(name));
+}
+
+function namespaceMembers(text, namespace) {
+  return [...text.matchAll(new RegExp(`\\b${namespace}\\.([A-Z]\\w*)`, "g"))].map((match) => match[1]);
+}
+
+function addImports(index, moduleName, names) {
+  const known = index.get(moduleName) ?? new Set();
+  for (const name of names) known.add(name);
+  index.set(moduleName, known);
+}
+
+function staticImportNames(text, [, typeOnly, named, namespace]) {
+  if (typeOnly) return [];
+  return named ? namedSpecifiers(named) : namespaceMembers(text, namespace);
+}
+
+function indexFileImports(index, text) {
+  for (const match of text.matchAll(UI_STATIC_IMPORT)) {
+    addImports(index, match[4], staticImportNames(text, match));
+  }
+  for (const [, moduleName, , name] of text.matchAll(UI_DYNAMIC_IMPORT)) {
+    addImports(index, moduleName, [name]);
+  }
+}
+
+function indexUiImports(files) {
+  const index = new Map();
+  for (const file of files) indexFileImports(index, readFileSync(file, "utf8"));
+  return index;
+}
+
+function isAppConsumer(relativeFile) {
+  return (
+    !relativeFile.startsWith(`${UI_ROOT}/`) &&
+    !relativeFile.startsWith(`${UI_REFERENCE_DIR}/`) &&
+    relativeFile !== ROOT_LAYOUT
+  );
+}
+
+const uiReferenceIndexes = new Map();
+
+function uiReferenceIndex(cwd) {
+  const cached = uiReferenceIndexes.get(cwd);
+  if (cached) return cached;
+  const relative = (file) => path.relative(cwd, file).split(path.sep).join("/");
+  const consumers = sourceFilesUnder(path.join(cwd, "src")).filter((file) => isAppConsumer(relative(file)));
+  const index = {
+    consumed: indexUiImports(consumers),
+    listed: indexUiImports(sourceFilesUnder(path.join(cwd, UI_REFERENCE_DIR))),
+  };
+  uiReferenceIndexes.set(cwd, index);
+  return index;
+}
+
+function declaredIds(declaration) {
+  if (declaration.type !== "VariableDeclaration") return [declaration.id];
+  return declaration.declarations.map((declarator) => declarator.id).filter((id) => id.type === "Identifier");
+}
+
+function exportedValueIds(node) {
+  if (node.source || node.exportKind === "type") return [];
+  if (node.declaration) return declaredIds(node.declaration);
+  return node.specifiers.filter((specifier) => specifier.exportKind !== "type").map((specifier) => specifier.exported);
+}
+
+const uiReferenceListed = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      missing:
+        "`{{name}}` is used by the app but has no specimen on the primitive reference. Render it in src/app/(site)/preview/primitives.",
+    },
+  },
+  create(context) {
+    const moduleName = path.basename(context.filename, ".tsx");
+    const index = uiReferenceIndex(context.cwd);
+    const consumed = index.consumed.get(moduleName) ?? new Set();
+    const listed = index.listed.get(moduleName) ?? new Set();
+    return {
+      ExportNamedDeclaration(node) {
+        for (const id of exportedValueIds(node)) {
+          if (consumed.has(id.name) && !listed.has(id.name)) {
+            context.report({ node: id, messageId: "missing", data: { name: id.name } });
+          }
+        }
       },
     };
   },
@@ -1554,6 +1670,13 @@ const eslintConfig = defineConfig([
     ],
     plugins: { "corp-access": { rules: { "boundary": corpAccessBoundary } } },
     rules: { "corp-access/boundary": "error" },
+  },
+
+  {
+    files: ["src/components/ui/*.tsx"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    plugins: { "ui-reference": { rules: { listed: uiReferenceListed } } },
+    rules: { "ui-reference/listed": "error" },
   },
 
   globalIgnores([

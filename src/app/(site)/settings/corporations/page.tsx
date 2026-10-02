@@ -12,7 +12,7 @@ import { getFullSession } from '@/composition/session';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { accountPageSettings } from '@/platform/page-settings/account';
 import { resolvePageControls } from '@/platform/page-settings/controls';
-import { SectionHead } from '@/components/ui/section-head';
+import { QuietSectionHead } from '@/components/ui/section-head';
 import { CorpSharingCard } from './corp-sharing-card';
 import {
   type CorporationMembershipView,
@@ -97,7 +97,7 @@ async function CorporationsContent() {
 export default function CorporationsSettingsPage() {
   return (
     <>
-      <SectionHead title="Corporations" />
+      <QuietSectionHead title="Corporations" />
       <Suspense
         fallback={<Skeleton label="Loading corporations" className="h-40 w-full rounded-card" />}
       >
