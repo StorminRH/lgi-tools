@@ -314,7 +314,7 @@ describe('mapTracking.setTracking', () => {
     expect(result.ownTrackedCharacterIds).toEqual([CHAR]);
     const coverage = await caller.query(tracking.coverage, {
       mapId: MAP_A,
-      identities: result.tracked.map(({ userId, characterId }) => ({ userId, characterId })),
+      characterIds: result.tracked.map(({ characterId }) => characterId),
     });
     expect(coverage.coverage).toHaveLength(TRACKED_CHARACTERS_PER_MAP_CAP);
     await expect(caller.mutation(tracking.setTracking, {
@@ -346,7 +346,7 @@ describe('mapTracking.setTracking', () => {
 });
 
 describe('mapTrackingLive.forMap', () => {
-  it('joins tracking rows to location by (userId, characterId) and discloses nothing for a forged row', async () => {
+  it('keys tracked rows by character, never naming the tracking account, and discloses nothing for a forged row', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
       { userId: OWNER, roles: ['admin'] },
@@ -365,6 +365,11 @@ describe('mapTrackingLive.forMap', () => {
         userId: EDITOR,
         characterId: CHAR,
       });
+      await ctx.db.insert('mapTracking', {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: CHAR_B,
+      });
       await ctx.db.insert('characterLocation', {
         userId: OWNER,
         characterId: CHAR,
@@ -382,15 +387,27 @@ describe('mapTrackingLive.forMap', () => {
     });
 
     const result = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
-    const byUser = new Map(result.tracked.map((row) => [row.userId, row]));
 
     expect(result.ownTrackedCharacterIds).toEqual([CHAR]);
-    expect(byUser.get(OWNER)?.location?.solarSystemId).toBe(30_000_142);
-    expect(byUser.get(EDITOR)?.characterId).toBe(CHAR);
-    expect(byUser.get(EDITOR)?.location).toBeNull();
+    expect(result.tracked).toEqual([{
+      userId: '',
+      characterId: CHAR,
+      location: {
+        solarSystemId: 30_000_142,
+        stationId: null,
+        structureId: null,
+        shipTypeId: 670,
+        prevSolarSystemId: null,
+        prevFresh: false,
+        transitionObservedAt: 1_699_999_999_000,
+        observedAt: 1_700_000_000_000,
+      },
+    }, { userId: '', characterId: CHAR_B, location: null }]);
+    expect(JSON.stringify(result)).not.toContain(OWNER);
+    expect(JSON.stringify(result)).not.toContain(EDITOR);
   });
 
-  it('answers owner-scoped coverage: only flip-only rows count as covered', async () => {
+  it('answers coverage per character: covered when any tracking account holds flip-only coverage', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
       { userId: OWNER, roles: ['admin'] },
@@ -420,44 +437,160 @@ describe('mapTrackingLive.forMap', () => {
     });
 
     const overlay = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
-    const result = await asUser(t, OWNER).query(tracking.coverage, {
+    expect(overlay.tracked.map((row) => row.characterId)).toEqual([CHAR, CHAR_B]);
+    const result = await asUser(t, EDITOR).query(tracking.coverage, {
       mapId: MAP_A,
-      identities: overlay.tracked.map((row) => ({
-        userId: row.userId,
-        characterId: row.characterId,
-      })),
+      characterIds: overlay.tracked.map((row) => row.characterId),
     });
-    const byOwnerCharacter = new Map(
-      result.coverage.map((entry) => [
-        `${entry.userId}/${entry.characterId}`,
-        entry.covered,
-      ]),
-    );
-    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(true);
-    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBe(false);
-    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBe(false);
-    expect(result.coverage.map(({ userId, characterId }) => [userId, characterId])).toEqual([
-      [EDITOR, CHAR],
-      [OWNER, CHAR],
-      [OWNER, CHAR_B],
+    expect(result.coverage).toEqual([
+      { characterId: CHAR, covered: true },
+      { characterId: CHAR_B, covered: false },
     ]);
+    expect(JSON.stringify(result)).not.toContain(OWNER);
     const anyRow = overlay.tracked[0];
     expect(anyRow).toBeDefined();
     if (anyRow === undefined) throw new Error('expected a tracked overlay row');
     expect('covered' in anyRow).toBe(false);
   });
 
-  it('answers coverage as an empty list without access (subscription doctrine)', async () => {
+  it('finds coverage held only by the thirty-third account tracking a shared character', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    const result = await asUser(t, EDITOR).query(tracking.coverage, {
-      mapId: MAP_A,
-      identities: [{ userId: OWNER, characterId: CHAR }],
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 33; index += 1) {
+        const userId = `tracker-${index}`;
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId, characterId: CHAR });
+        if (index === 32) {
+          await ctx.db.insert('characterLocationCovered', { userId, characterId: CHAR });
+        }
+      }
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: CHAR + 2 });
+      await ctx.db.insert('characterLocationCovered', { userId: OWNER, characterId: CHAR + 2 });
     });
+
+    expect(await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A, characterIds: [CHAR_B, CHAR],
+    })).toEqual({ coverage: [
+      { characterId: CHAR, covered: true },
+      { characterId: CHAR_B, covered: false },
+    ] });
+    expect(await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A, identities: [{ userId: 'ignored', characterId: CHAR }],
+    })).toEqual({ coverage: [{ userId: '', characterId: CHAR, covered: true }] });
+  });
+
+  it('reduces parallel locations by movement time and preserves the first location on ties', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      for (const [index, transitionObservedAt, observedAt] of [
+        [0, 100, 500], [1, 200, 300], [2, 200, 900],
+      ] as const) {
+        const userId = `tracker-${index}`;
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId, characterId: CHAR });
+        await ctx.db.insert('characterLocation', {
+          userId, characterId: CHAR, solarSystemId: 30_000_140 + index,
+          stationId: null, structureId: null, shipTypeId: 670,
+          prevSolarSystemId: null, prevFresh: false,
+          transitionObservedAt, observedAt, etagLocation: null, etagShip: null,
+        });
+      }
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: 'without-location', characterId: CHAR });
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: 'without-location', characterId: CHAR_B });
+    });
+
+    expect(await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A })).toEqual({
+      ownTrackedCharacterIds: [],
+      tracked: [
+        { userId: '', characterId: CHAR, location: {
+          solarSystemId: 30_000_141, stationId: null, structureId: null, shipTypeId: 670,
+          prevSolarSystemId: null, prevFresh: false, transitionObservedAt: 200, observedAt: 300,
+        } },
+        { userId: '', characterId: CHAR_B, location: null },
+      ],
+    });
+  });
+
+  it('rejects map-wide coverage overflow for both client formats while disclosing nothing without access', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= TRACKED_CHARACTERS_PER_MAP_CAP; index += 1) {
+        await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: `tracker-${index}`, characterId: CHAR });
+      }
+    });
+    for (const args of [
+      { mapId: MAP_A, characterIds: [CHAR] },
+      { mapId: MAP_A, identities: [{ userId: OWNER, characterId: CHAR }] },
+    ]) {
+      await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('TRACKING_SCAN_LIMIT');
+      expect(await asUser(t, EDITOR).query(tracking.coverage, args)).toEqual({ coverage: [] });
+    }
+  });
+
+  it('accepts older client identities while ignoring account identifiers and deduplicating characters', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: CHAR });
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: CHAR_B });
+      await ctx.db.insert('characterLocationCovered', { userId: OWNER, characterId: CHAR });
+      await ctx.db.insert('characterLocationCovered', { userId: 'untracked-account', characterId: CHAR_B });
+    });
+    const caller = asUser(t, OWNER);
+    const overlay = await caller.query(tracking.forMap, { mapId: MAP_A });
+    const identities = overlay.tracked
+      .map(({ userId, characterId }) => ({ userId, characterId }))
+      .sort((left, right) => left.userId.localeCompare(right.userId) || left.characterId - right.characterId);
+    const fromOldClient = await caller.query(tracking.coverage, { mapId: MAP_A, identities });
+    expect(fromOldClient.coverage).toEqual([
+      { userId: '', characterId: CHAR, covered: true },
+      { userId: '', characterId: CHAR_B, covered: false },
+    ]);
+    const forged = await caller.query(tracking.coverage, {
+      mapId: MAP_A,
+      identities: [
+        { userId: 'untracked-account', characterId: CHAR_B },
+        { userId: 'unknown-account', characterId: CHAR },
+        { characterId: CHAR },
+      ],
+    });
+    expect(forged).toEqual(fromOldClient);
+    expect(JSON.stringify({ overlay, forged })).not.toMatch(/user-owner|user-editor|untracked-account|unknown-account/);
+    expect(await caller.query(tracking.coverage, { mapId: MAP_A, identities: [] }))
+      .toEqual({ coverage: [] });
+  });
+
+  it.each(['characterIds', 'identities'] as const)('answers %s coverage as an empty list without access (subscription doctrine)', async (input) => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const args = input === 'characterIds'
+      ? { mapId: MAP_A, characterIds: [CHAR] }
+      : { mapId: MAP_A, identities: [{ userId: OWNER, characterId: CHAR }] };
+    const result = await asUser(t, EDITOR).query(tracking.coverage, args);
     expect(result.coverage).toEqual([]);
   });
 
-  it('answers coverage only for identities tracked on the map', async () => {
+  it.each(['characterIds', 'identities'] as const)('rejects oversized %s coverage requests before deduplication', async (input) => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const characterIds = Array.from({ length: TRACKED_CHARACTERS_PER_MAP_CAP + 1 }, () => CHAR);
+    const args = input === 'characterIds'
+      ? { mapId: MAP_A, characterIds }
+      : { mapId: MAP_A, identities: characterIds.map((characterId) => ({ userId: OWNER, characterId })) };
+    await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('TRACKING_SCAN_LIMIT');
+  });
+
+  it.each([
+    { mapId: MAP_A },
+    { mapId: MAP_A, characterIds: [], identities: [] },
+  ])('rejects coverage requests without exactly one input shape (%j)', async (args) => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await expect(asUser(t, OWNER).query(tracking.coverage, args)).rejects.toThrow('INVALID_COVERAGE_ARGS');
+  });
+
+  it('answers coverage only for characters tracked on the map', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
@@ -467,17 +600,14 @@ describe('mapTrackingLive.forMap', () => {
       });
     });
 
-    const identities = [
-      { userId: OWNER, characterId: CHAR },
-      { userId: OWNER, characterId: CHAR_B },
-    ];
+    const characterIds = [CHAR_B, CHAR];
     const untracked = await asUser(t, OWNER).query(tracking.coverage, {
       mapId: MAP_A,
-      identities,
+      characterIds,
     });
     expect(untracked.coverage).toEqual([
-      { userId: OWNER, characterId: CHAR, covered: false },
-      { userId: OWNER, characterId: CHAR_B, covered: false },
+      { characterId: CHAR, covered: false },
+      { characterId: CHAR_B, covered: false },
     ]);
 
     await asUser(t, OWNER).mutation(tracking.setTracking, {
@@ -487,11 +617,11 @@ describe('mapTrackingLive.forMap', () => {
     });
     const tracked = await asUser(t, OWNER).query(tracking.coverage, {
       mapId: MAP_A,
-      identities,
+      characterIds,
     });
     expect(tracked.coverage).toEqual([
-      { userId: OWNER, characterId: CHAR, covered: true },
-      { userId: OWNER, characterId: CHAR_B, covered: false },
+      { characterId: CHAR, covered: true },
+      { characterId: CHAR_B, covered: false },
     ]);
   });
 

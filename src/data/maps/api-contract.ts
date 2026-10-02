@@ -7,22 +7,38 @@ const connectionIdSchema = z.string().trim().min(1).max(200);
 
 export const MAX_MAP_NAME_LENGTH = 120;
 export const MAX_MAP_CREATE_GRANTS = 100;
+const MAX_MAP_CREATOR_CHARACTERS = 32;
 export const MIN_CHARACTER_SEARCH_LENGTH = 3;
 export const MAX_CHARACTER_SEARCH_LENGTH = 100;
 
+const characterIdSchema = z.number().int().positive().safe();
+
 const createMapGrantSchema = z.strictObject({
   ownerType: z.enum(MAP_ACCESS_OWNER_TYPES),
-  ownerId: z.number().int().positive().safe(),
+  ownerId: characterIdSchema,
   role: z.enum(['viewer', 'editor']),
 });
 
+/** Creator picks receive viewer grants; creator Admin belongs to the user. Picks may not repeat in `grants`. */
 export const createMapRequestSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(MAX_MAP_NAME_LENGTH),
+    creatorCharacterIds: z.array(characterIdSchema).min(1).max(MAX_MAP_CREATOR_CHARACTERS),
     grants: z.array(createMapGrantSchema).max(MAX_MAP_CREATE_GRANTS),
   })
   .superRefine((body, ctx) => {
     const seen = new Set<string>();
+    for (const [index, characterId] of body.creatorCharacterIds.entries()) {
+      const key = `character:${characterId}`;
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['creatorCharacterIds', index],
+          message: 'duplicate creator character',
+        });
+      }
+      seen.add(key);
+    }
     for (const [index, grant] of body.grants.entries()) {
       const key = `${grant.ownerType}:${grant.ownerId}`;
       if (seen.has(key)) {
@@ -171,7 +187,20 @@ export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
     mapId: mapIdSchema,
     principal: mapAccessPrincipalSchema,
   }),
+  z.strictObject({
+    operation: z.literal('block'),
+    mapId: mapIdSchema,
+    characterId: characterIdSchema,
+  }),
+  z.strictObject({
+    operation: z.literal('unblock'),
+    mapId: mapIdSchema,
+    characterId: characterIdSchema,
+  }),
 ]);
+
+export type MapBlockRequest = Extract<UpdateMapAccessRequest, { operation: 'block' | 'unblock' }>;
+export type MapGrantRequest = Exclude<UpdateMapAccessRequest, MapBlockRequest>;
 
 export type UpdateMapAccessRequest = z.infer<typeof updateMapAccessRequestSchema>;
 
@@ -184,6 +213,7 @@ export const updateMapAccessEndpoint = defineEndpoint({
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
     403: problem('cross_origin', 'map_admin_required'),
+    409: problem('map_creator_character_required', 'map_block_owner', 'map_block_self'),
     503: problem('map_projection_unavailable'),
   },
 });

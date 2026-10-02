@@ -269,7 +269,7 @@ export async function changeSignatureSelection(
     mode,
     deletedAt: stamps.deletedAt,
     purgeAfter: stamps.purgeAfter,
-    actor: await eventActor(ctx),
+    actor: await eventActor(ctx, mapId),
     at: now,
   });
 }

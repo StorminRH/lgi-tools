@@ -10,7 +10,7 @@ import { Measured } from '@/components/ui/measured';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { SplitAxisChart } from '@/components/ui/split-axis-chart';
 import { StackedAreaChart } from '@/components/ui/stacked-area-chart';
-import { StackedShareBar } from '@/components/ui/stacked-share-bar';
+import { SlimShareBar, StackedShareBar } from '@/components/ui/stacked-share-bar';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { TrendChart } from '@/components/ui/trend-chart';
 import {
@@ -155,6 +155,21 @@ export function DataGroup() {
             />
           )}
         </Measured>
+      </Specimen>
+
+      <Specimen
+        name="SlimShareBar"
+        source="stacked-share-bar"
+        note="A label-free share split on the thin progress track."
+        wide
+      >
+        <SlimShareBar
+          ariaLabel="Sync runs: 23 synced, 6 partial"
+          segments={[
+            { label: 'synced', value: 23, tone: 'green' },
+            { label: 'partial', value: 6, tone: 'orange' },
+          ]}
+        />
       </Specimen>
 
       <Specimen name="BarChart" source="bar-chart" note="Categorical bars with a value axis and hover tooltip.">

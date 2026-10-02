@@ -12,10 +12,12 @@ import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
 const harness = await createDbTestHarness({
   schema: 'test_synthetic_pilot_store',
-  tables: ['user', 'account', 'session', 'characters', 'maps', 'map_access'],
+  tables: ['user', 'account', 'session', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts'],
   foreignKeys: [
     { table: 'maps', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
     { table: 'map_access', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_blocks', column: 'map_id', refTable: 'maps', refColumn: 'id', onDelete: 'cascade' },
+    { table: 'map_block_accounts', column: 'block_id', refTable: 'map_blocks', refColumn: 'id', onDelete: 'cascade' },
     {
       table: 'account',
       column: 'user_id',

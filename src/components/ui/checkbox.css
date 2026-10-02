@@ -1,6 +1,4 @@
 @layer components {
-  /* Soft tint for Checkbox, Switch (switch.tsx), and RadioGroup (radio-group.tsx):
-   * checked controls take a translucent tone tint. */
   .check-soft {
     border-radius: 7px;
     border: 1.5px solid var(--color-border-active);
@@ -34,7 +32,6 @@
     to { stroke-dashoffset: 0; }
   }
 
-  /* Soft tint: the checked track takes a translucent tone tint; the thumb springs across. */
   .switch-soft {
     border: 1px solid var(--color-border-active);
     background-color: color-mix(in oklab, white 6%, transparent);
@@ -58,7 +55,6 @@
     background-color: var(--switch-ink);
   }
 
-  /* Soft tint: the checked ring takes a translucent green tint; the dot springs in. */
   .radio-soft {
     border: 1.5px solid var(--color-border-active);
     background-color: color-mix(in oklab, white 3%, transparent);

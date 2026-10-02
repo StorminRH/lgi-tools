@@ -81,6 +81,7 @@ describe('MapChrome', () => {
           deletedMaps,
           maps,
           grantsByMapId: {},
+          blocksByMapId: {},
           listingAvailable,
         },
         createElement(MapChrome, { session, contextualSection }),

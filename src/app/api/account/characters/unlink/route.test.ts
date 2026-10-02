@@ -47,6 +47,7 @@ vi.mock('@/data/maps/queries', () => ({
   getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
   enqueueAffectedMapAccessChanges: (characterId: number) =>
     enqueueAffectedMapAccessChangesMock(characterId),
+  getGrantedMapIdsForCharacter: async () => ['map-1'],
 }));
 
 vi.mock('@/composition/map-access-projection', () => ({

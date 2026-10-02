@@ -137,6 +137,25 @@ describe('durable merge tracking recovery', () => {
       .toEqual([{ mapId: 'map-a', userId: SURVIVOR, characterId: CHAR_A }]);
   });
 
+  it('restores only the survivor\'s eligible characters on a character-scoped map', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', { mapId: 'scoped', userId: SOURCE, characterId: CHAR_A });
+      await ctx.db.insert('mapTracking', { mapId: 'scoped', userId: SOURCE, characterId: CHAR_B });
+      await ctx.db.insert('mapAccess', {
+        mapId: 'scoped', userId: SURVIVOR, roles: ['viewer'],
+        characters: [{ characterId: CHAR_B, name: 'Kept' }],
+      });
+    });
+    const snapshot = await t.query(internal.accountMerge.snapshotMergeTracking, { sourceUserId: SOURCE });
+    await t.mutation(internal.mapAccessProjection.purgeUserClaims, { userId: SOURCE });
+    const result = await t.mutation(internal.accountMerge.restoreMergeTracking, {
+      operationId: 'scoped-recovery', survivorUserId: SURVIVOR, selections: snapshot.selections,
+    });
+    expect(result).toEqual({ restored: 1, skipped: 1, alreadyApplied: false });
+    expect(await readTracking(t)).toEqual([{ mapId: 'scoped', userId: SURVIVOR, characterId: CHAR_B }]);
+  });
+
   it('does not undo an opt-out when a lost-response retry arrives, even after retargeting', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -318,5 +337,44 @@ describe('merge tracking receipt retention', () => {
     await expect(t.mutation(internal.accountMerge.deleteExpiredTrackingReceipts, {
       cutoff, receipts: Array.from({ length: MERGE_RECEIPT_BATCH_SIZE + 1 }, () => args.receipts[0]!),
     })).rejects.toThrow('Too many tracking receipts');
+  });
+});
+
+describe('merge restoration during character scoping', () => {
+  it('retains the merge for retry without a receipt or jump-stamp loss, and preserves later opt-out', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapAccess', { mapId: 'cutover', userId: SURVIVOR, roles: ['viewer'] });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'cutover', characterId: CHAR_A, lastProcessedTransitionAt: 10,
+      });
+    });
+    await t.mutation(internal.mapAccessProjection.freezeMapTrackingForScoping, { mapId: 'cutover' });
+    const args = {
+      operationId: 'cutover-merge', survivorUserId: SURVIVOR,
+      selections: [{ mapId: 'cutover', characterId: CHAR_A, lastProcessedTransitionAt: 20 }],
+    };
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .rejects.toThrow('TRACKING_SCOPING_PENDING');
+    await expect(t.run(async (ctx) => ({
+      receipts: await ctx.db.query('accountMergeTrackingReceipts').collect(),
+      tracking: await ctx.db.query('mapTracking').collect(),
+      stamp: (await ctx.db.query('mapJumpBookkeeping').collect())[0]?.lastProcessedTransitionAt,
+    }))).resolves.toEqual({ receipts: [], tracking: [], stamp: 10 });
+    await t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: 'cutover', revision: 1,
+      claims: [{ userId: SURVIVOR, roles: ['viewer'], characters: [{ characterId: CHAR_A, name: 'Main' }] }],
+    });
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .resolves.toEqual({ restored: 1, skipped: 0, alreadyApplied: false });
+    await expect(t.run(async (ctx) =>
+      (await ctx.db.query('mapJumpBookkeeping').collect())[0]?.lastProcessedTransitionAt))
+      .resolves.toBe(20);
+    await t.withIdentity({ subject: SURVIVOR }).mutation(api.mapTrackingOptIn.setTracking, {
+      mapId: 'cutover', characterId: CHAR_A, tracked: false,
+    });
+    await expect(t.mutation(internal.accountMerge.restoreMergeTracking, args))
+      .resolves.toEqual({ restored: 0, skipped: 0, alreadyApplied: true });
+    expect(await readTracking(t)).toEqual([]);
   });
 });

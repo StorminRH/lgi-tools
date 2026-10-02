@@ -9,7 +9,13 @@ import {
 import { purgeOnline } from './httpEngine';
 import { jumpEvidence, resolveJump, signatureElimination } from './httpJump';
 import { leaveSync, purgeLocationTracking } from './httpLocation';
-import { projectMapAccess, purgeMapAccess, purgeMapChain, purgeUserMapClaims } from './httpMapAccess';
+import {
+  mapTrackingSnapshot,
+  projectMapAccess,
+  purgeMapAccess,
+  purgeMapChain,
+  purgeUserMapClaims,
+} from './httpMapAccess';
 
 const http = httpRouter();
 
@@ -65,6 +71,12 @@ http.route({
   path: '/purge-user-map-claims',
   method: 'POST',
   handler: purgeUserMapClaims,
+});
+
+http.route({
+  path: '/map-tracking-snapshot',
+  method: 'POST',
+  handler: mapTrackingSnapshot,
 });
 
 http.route({

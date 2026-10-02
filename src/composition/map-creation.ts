@@ -8,7 +8,9 @@ import {
   compensateFailedMapCreation,
   createMapAtomic,
   publishCreatedMap,
+  type CreateMapGrant,
 } from '@/data/maps/queries';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 
 const PROJECTION_ATTEMPT_OFFSETS_MS = [0, 2_000, 5_000, 10_000] as const;
 const CREATION_PROJECTION_ATTEMPT_TIMEOUT_MS = 2_000;
@@ -20,6 +22,7 @@ export type Compensate = typeof compensateFailedMapCreation;
 export type Project = typeof projectStagedMapAccess;
 export type Publish = typeof publishCreatedMap;
 export type Teardown = typeof teardownMapAccessProjection;
+export type ListLinkedCharacterIds = (userId: string) => Promise<number[]>;
 
 export interface MapCreationDependencies {
   readonly createMap?: CreateMap;
@@ -27,17 +30,35 @@ export interface MapCreationDependencies {
   readonly project?: Project;
   readonly publish?: Publish;
   readonly teardown?: Teardown;
+  readonly listLinkedCharacterIds?: ListLinkedCharacterIds;
   readonly now?: () => number;
   readonly pause?: (delayMs: number) => Promise<void>;
 }
 
 export type CreateProjectedMapResult =
   | { readonly ok: true; readonly mapId: string }
+  | { readonly ok: false; readonly reason: 'unlinked-creator-character' }
   | {
       readonly ok: false;
       readonly cause: unknown;
       readonly cleanup: 'deleted' | 'queued';
     };
+
+async function listLinkedCharacterIds(userId: string): Promise<number[]> {
+  return (await listLinkedCharacters(userId)).map((character) => character.characterId);
+}
+
+/** The creator's tracking picks receive viewer grants; the creator retains user-level Admin. */
+export function creationGrants(input: CreateMapRequest): CreateMapGrant[] {
+  return [
+    ...input.creatorCharacterIds.map((ownerId) => ({
+      ownerType: 'character' as const,
+      ownerId,
+      role: 'viewer' as const,
+    })),
+    ...input.grants,
+  ];
+}
 
 function delay(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -123,10 +144,15 @@ export async function createProjectedMap(
   const project = dependencies.project ?? projectStagedMapAccess;
   const publish = dependencies.publish ?? publishCreatedMap;
   const teardown = dependencies.teardown ?? teardownMapAccessProjection;
+  const linked = dependencies.listLinkedCharacterIds ?? listLinkedCharacterIds;
   const now = dependencies.now ?? Date.now;
   const pause = dependencies.pause ?? delay;
 
-  const mapId = await createMap(userId, input.name, input.grants);
+  const linkedIds = new Set(await linked(userId));
+  if (!input.creatorCharacterIds.every((characterId) => linkedIds.has(characterId))) {
+    return { ok: false, reason: 'unlinked-creator-character' };
+  }
+  const mapId = await createMap(userId, input.name, creationGrants(input));
   try {
     await projectOnCreationLadder(mapId, { project, now, pause });
     await publish(mapId);

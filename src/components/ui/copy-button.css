@@ -1,5 +1,4 @@
 @layer components {
-  /* Icon morph: a glass value chip whose copy glyph spins into a check. */
   .copy-chip {
     display: inline-flex;
     align-items: center;

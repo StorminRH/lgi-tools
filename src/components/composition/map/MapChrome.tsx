@@ -20,6 +20,7 @@ export function MapChrome({
     corporations,
     maps,
     grantsByMapId,
+    blocksByMapId,
     listingAvailable,
   } = useMapCatalogueData();
   const switcherFocusFallback = useRef<HTMLDivElement | null>(null);
@@ -46,6 +47,7 @@ export function MapChrome({
           maps={maps}
           corporations={corporations}
           grantsByMapId={grantsByMapId}
+          blocksByMapId={blocksByMapId}
           focusFallback={switcherFocusFallback}
         />
       </div>

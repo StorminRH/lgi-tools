@@ -394,6 +394,7 @@ const baseUiWrapperFiles = [
   "src/components/ui/navigation-menu.tsx",
   "src/components/ui/pointer-menu.tsx",
   "src/components/ui/popover.tsx",
+  "src/components/ui/portrait-toggle.tsx",
   "src/components/ui/radio-group.tsx",
   "src/components/ui/segmented.tsx",
   "src/components/ui/chip-toggle.tsx",
@@ -630,12 +631,6 @@ const corpAccessBoundary = {
   },
 };
 
-// Every primitive the app imports from src/components/ui needs a specimen on
-// the rendered reference (src/app/(site)/preview/primitives), so the page stays
-// a complete catalogue. Parts only other primitives import are covered by their
-// parent's specimen, and the root layout's one-off mounts (Toaster,
-// LoadingToastProvider) show through their output. The import index is built
-// once per lint process; an editor's ESLint server sees new imports on restart.
 const UI_ROOT = "src/components/ui";
 const UI_REFERENCE_DIR = "src/app/(site)/preview/primitives";
 const ROOT_LAYOUT = "src/app/layout.tsx";
@@ -718,7 +713,6 @@ function declaredIds(declaration) {
   return declaration.declarations.map((declarator) => declarator.id).filter((id) => id.type === "Identifier");
 }
 
-// Re-exports belong to their source module; type exports are not primitives.
 function exportedValueIds(node) {
   if (node.source || node.exportKind === "type") return [];
   if (node.declaration) return declaredIds(node.declaration);
