@@ -1,3 +1,4 @@
+import { cn } from './cn';
 import { type Tone, toneHex } from './tones';
 
 export interface ShareSegment {
@@ -83,5 +84,57 @@ export function StackedShareBar({
         </text>
       ))}
     </svg>
+  );
+}
+
+/**
+ * A label-free share bar on the same thin rounded track as ProgressBar, for
+ * places with room for a glance but not a legend. It stretches to its container.
+ */
+export function SlimShareBar({
+  segments,
+  ariaLabel,
+  className,
+}: {
+  segments: ShareSegment[];
+  ariaLabel: string;
+  className?: string;
+}) {
+  const parts = stackedShareLayout(segments, 100);
+  if (parts.length === 0) return null;
+  return (
+    <span className={cn('progress-soft block', className)}>
+      <svg
+        viewBox="0 0 100 1"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={ariaLabel}
+        className="block h-full w-full"
+      >
+        {parts.map((part) => (
+          <rect
+            key={part.label}
+            x={part.x}
+            y={0}
+            width={part.w}
+            height={1}
+            fill={toneHex[part.tone]}
+            fillOpacity={0.75}
+          />
+        ))}
+        {parts.slice(1).map((part) => (
+          <line
+            key={`gap-${part.label}`}
+            x1={part.x}
+            x2={part.x}
+            y1={0}
+            y2={1}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            className="stroke-bg"
+          />
+        ))}
+      </svg>
+    </span>
   );
 }

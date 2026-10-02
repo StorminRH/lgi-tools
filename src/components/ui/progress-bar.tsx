@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type { Tone } from './tones';
 
-export function ProgressBar({ pct, tone = 'default' }: { pct: number; tone?: 'default' | 'evb' }) {
+export type ProgressTone = 'default' | 'evb' | Extract<Tone, 'green' | 'blue' | 'orange' | 'red' | 'neutral'>;
+
+export function ProgressBar({ pct, tone = 'default' }: { pct: number; tone?: ProgressTone }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.style.setProperty('--pct', `${pct}%`);
