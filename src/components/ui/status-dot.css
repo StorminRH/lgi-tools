@@ -1,4 +1,3 @@
-/* Breathing glow: a soft halo that swells and fades around live lights. */
 .status-led {
   --led: var(--color-muted);
   display: inline-block;

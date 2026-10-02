@@ -23,10 +23,12 @@ export function UrlSync({
     if (!details) return;
 
     const onToggle = () => {
-      const search = window.location.search;
-      const url = details.open
-        ? `${basePath}/${entityId}${search}`
-        : `${basePath}${search}`;
+      const url = new URL(basePath, window.location.origin);
+      if (details.open) {
+        if (basePath.includes('#')) url.hash += `/${entityId}`;
+        else url.pathname += `/${entityId}`;
+      }
+      url.search = window.location.search;
       window.history.replaceState(null, '', url);
     };
 

@@ -1,4 +1,3 @@
-/* Soft solid: a 6px rounded track with a flat translucent tone fill. */
 .progress-soft {
   --bar: var(--color-isk);
   position: relative;
