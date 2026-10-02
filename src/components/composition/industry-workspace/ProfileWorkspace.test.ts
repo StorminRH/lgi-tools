@@ -88,6 +88,7 @@ const TATARA: AvailableStructure = {
   systemId: 30004759,
   structureAttrs: { 2721: 0.75 },
   rigAttrs: [],
+  enteredBonuses: null,
   securityClass: 'null',
   taxPct: 0.5,
 };

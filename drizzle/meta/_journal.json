@@ -526,6 +526,13 @@
       "when": 1790871688161,
       "tag": "0074_industry_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1790941965998,
+      "tag": "0075_custom_structure_entered_bonuses",
+      "breakpoints": true
     }
   ]
 }

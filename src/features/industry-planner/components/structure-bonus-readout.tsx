@@ -22,6 +22,17 @@ function Metric({ icon, title, value }: { icon: ReactNode; title: string; value:
   );
 }
 
+function ReactionMetric({ withMarker, children }: { withMarker: boolean; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {withMarker && (
+        <span className="font-data text-label uppercase leading-none tracking-label text-muted">rxn</span>
+      )}
+      {children}
+    </span>
+  );
+}
+
 const BONUS_ROW: {
   [K in StructureBonusRow['kind']]: (row: Extract<StructureBonusRow, { kind: K }>) => ReactNode;
 } = {
@@ -36,13 +47,15 @@ const BONUS_ROW: {
       </span>
     </Tooltip>
   ),
+  'rxn-me': (row) => (
+    <ReactionMetric withMarker={row.withMarker}>
+      <Metric icon={<GemIcon state="bonus" />} title={`Reaction ME −${row.pct}`} value={row.pct} />
+    </ReactionMetric>
+  ),
   'rxn-te': (row) => (
-    <span className="inline-flex items-center gap-1">
-      {row.withMarker && (
-        <span className="font-data text-label uppercase leading-none tracking-label text-muted">rxn</span>
-      )}
+    <ReactionMetric withMarker={row.withMarker}>
       <Metric icon={<HourglassIcon state="bonus" />} title={`Reaction TE −${row.pct}`} value={row.pct} />
-    </span>
+    </ReactionMetric>
   ),
   tax: (row) => (
     <Tooltip content={`Owner-set facility tax ${row.taxPct}%`}>

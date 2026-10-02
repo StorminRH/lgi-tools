@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import {
   defineEndpoint,
@@ -162,6 +163,7 @@ export const availableStructureSchema = z.object({
   rigAttrs: z.array(attrMapSchema),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),
   taxPct: z.number().nullable(),
+  enteredBonuses: enteredBonusesSchema.nullable(),
 });
 
 export const availableStructuresResponseSchema = z.object({

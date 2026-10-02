@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import {
   defineEndpoint,
@@ -25,18 +26,34 @@ const customStructureRowSchema = z.object({
   rigTypeIds: z.array(z.number()),
   systemId: z.number().nullable(),
   taxPct: z.number().nullable(),
+  bonuses: enteredBonusesSchema.nullable(),
 }) satisfies z.ZodType<CustomStructureRow>;
 
 const customStructuresResponseSchema = z.object({
   structures: z.array(customStructureRowSchema),
 });
-export const createCustomStructureRequestSchema = z.object({
+const customStructureFields = {
   name: z.string().trim().min(1).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
   structureTypeId: typeId,
   rigTypeIds: z.array(typeId).max(MAX_CUSTOM_STRUCTURE_RIGS),
   systemId: typeId.nullable().default(null),
   taxPct: facilityTaxPct.nullable().default(null),
-});
+  bonuses: enteredBonusesSchema.nullable().default(null),
+};
+
+/** Entered bonuses are the whole answer: a row with them carries no rigs. */
+function enteredBonusesExcludeRigs(
+  body: { rigTypeIds: number[]; bonuses: unknown },
+  ctx: z.RefinementCtx,
+): void {
+  if (body.bonuses !== null && body.rigTypeIds.length > 0) {
+    ctx.addIssue({ code: 'custom', path: ['rigTypeIds'], message: 'entered bonuses carry no rigs' });
+  }
+}
+
+export const createCustomStructureRequestSchema = z
+  .object(customStructureFields)
+  .superRefine(enteredBonusesExcludeRigs);
 export const createCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures',
@@ -65,33 +82,16 @@ export const deleteCustomStructureEndpoint = defineEndpoint({
   },
 });
 
-export const setCustomStructurePinRequestSchema = z.object({
-  id: z.string().min(1).max(100),
-  systemId: typeId.nullable(),
-});
-export const setCustomStructurePinEndpoint = defineEndpoint({
+export const updateCustomStructureRequestSchema = z
+  .object({ id: z.string().min(1).max(100), ...customStructureFields })
+  .superRefine(enteredBonusesExcludeRigs);
+export const updateCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
-  path: '/api/account/custom-structures/set-pin',
-  request: setCustomStructurePinRequestSchema,
+  path: '/api/account/custom-structures/update',
+  request: updateCustomStructureRequestSchema,
   responses: {
     200: jsonBody(customStructuresResponseSchema),
-    400: problem('invalid_json', 'invalid_body', 'unknown_system'),
-    401: problem('unauthenticated'),
-    403: problem('cross_origin'),
-  },
-});
-
-export const setCustomStructureTaxRequestSchema = z.object({
-  id: z.string().min(1).max(100),
-  taxPct: facilityTaxPct.nullable(),
-});
-export const setCustomStructureTaxEndpoint = defineEndpoint({
-  method: 'POST',
-  path: '/api/account/custom-structures/set-tax',
-  request: setCustomStructureTaxRequestSchema,
-  responses: {
-    200: jsonBody(customStructuresResponseSchema),
-    400: problem('invalid_json', 'invalid_body'),
+    400: problem('invalid_json', 'invalid_body', 'invalid_structure', 'unknown_system'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
   },
@@ -113,5 +113,36 @@ export const parseStructureFitEndpoint = defineEndpoint({
     200: jsonBody(parseStructureFitResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+  },
+});
+
+export const MIN_STRUCTURE_SEARCH_LENGTH = 3;
+
+export const searchStructuresRequestSchema = z.strictObject({
+  search: z.string().trim().min(MIN_STRUCTURE_SEARCH_LENGTH).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
+});
+
+const structureSearchResultSchema = z.strictObject({
+  structureId: z.number().int().positive().safe(),
+  name: z.string().min(1),
+  systemId: typeId,
+  structureTypeId: typeId.nullable(),
+});
+
+const searchStructuresResponseSchema = z.strictObject({
+  results: z.array(structureSearchResultSchema),
+});
+
+export type StructureSearchResult = z.infer<typeof structureSearchResultSchema>;
+
+export const searchStructuresEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/account/custom-structures/search',
+  request: searchStructuresRequestSchema,
+  responses: {
+    200: jsonBody(searchStructuresResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    503: problem('structure_search_unavailable'),
   },
 });

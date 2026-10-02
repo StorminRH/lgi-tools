@@ -20,6 +20,7 @@ const structure = (over: Partial<AvailableStructure>): AvailableStructure => ({
   systemId: null,
   structureAttrs: {},
   rigAttrs: [],
+  enteredBonuses: null,
   securityClass: null,
   taxPct: null,
   ...over,
