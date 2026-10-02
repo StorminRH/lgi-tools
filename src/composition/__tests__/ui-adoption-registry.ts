@@ -36,6 +36,7 @@ export const uiAdoptionRegistry = {
   ],
   temporaryCssFamilies: [],
   retainedCssFamilies: [
+    'industry-section',
     'nav-host',
     'nav-search',
     'prose-copy',
