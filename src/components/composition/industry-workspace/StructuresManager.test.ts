@@ -34,6 +34,7 @@ const available = (id: string, structureTypeId: number, groupId: number): Availa
   name: id,
   structureTypeId,
   groupId,
+  hostsCapitals: false,
   systemId: 30002537,
   modifiers: [
     { activity: 'manufacturing', kind: 'material', filterId: null, factor: flat(0.99) },
