@@ -3,9 +3,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import type { SidePanel } from '@/components/ui/side-panel';
 
-const location = vi.hoisted(() => ({ params: new URLSearchParams() }));
+const location = vi.hoisted(() => ({ params: new URLSearchParams(), pathname: '/industry' }));
 const structuresPanel = vi.hoisted(() => ({ props: null as ComponentProps<typeof SidePanel> | null }));
-vi.mock('next/navigation', () => ({ useSearchParams: () => location.params }));
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => location.params,
+  usePathname: () => location.pathname,
+}));
+vi.mock('next/link', () => ({
+  default: ({ href, children, transitionTypes: _types, ...props }: { href: string; children: ReactNode; transitionTypes?: string[] }) =>
+    createElement('a', { ...props, href }, children),
+}));
 vi.mock('@/components/ui/side-panel', () => ({
   SidePanel: (props: ComponentProps<typeof SidePanel>) => {
     structuresPanel.props = props;
@@ -18,48 +25,49 @@ vi.mock('react', async (importOriginal) => ({
   ViewTransition: ({ children }: { children: ReactNode }) => children,
 }));
 
-import { IndustryWorkspaceTabs } from './IndustryWorkspaceTabs';
+import { IndustryNav, IndustryNavFallback, StructuresDrawer } from './IndustryShell';
+
+const tabs = (html: string) =>
+  [...html.matchAll(/<a ([^>]*)>([^<]*)/g)].map(([, attrs, label]) => ({
+    label,
+    href: /href="([^"]*)"/.exec(attrs ?? '')?.[1],
+    current: (attrs ?? '').includes('aria-current="page"'),
+  }));
 
 test.each([
-  ['', 'Profiles', 'Profile workspace contents'],
-  ['tab=plans', 'Plans &amp; templates', 'Saved plans contents'],
-  ['tab=jobs&profile=caps&character=9001', 'Active jobs', 'Active jobs contents'],
-  ['tab=invalid', 'Profiles', 'Profile workspace contents'],
-])('industry tab query %s selects %s and mounts only its contents', (query, selected, contents) => {
-  location.params = new URLSearchParams(query);
-  const html = renderToStaticMarkup(createElement(IndustryWorkspaceTabs, {
-    profiles: 'Profile workspace contents',
-    plans: 'Saved plans contents',
-    jobs: 'Active jobs contents',
-    customStructures: 'Structures editor contents',
-  }));
-  const active = html.match(/<button[^>]*aria-selected="true"[^>]*>([\s\S]*?)<\/button>/);
-  expect(active?.[1]).toBe(selected);
-  expect(html.match(/role="tab"/g)).toHaveLength(3);
-  expect(html.match(/role="tabpanel"/g)).toHaveLength(3);
-  for (const panel of ['Profile workspace contents', 'Saved plans contents', 'Active jobs contents']) {
-    if (panel === contents) expect(html).toContain(panel);
-    else expect(html).not.toContain(panel);
-  }
-  expect(html).not.toContain('<a ');
-  expect(html).not.toContain('Structures editor contents');
+  ['/industry', 'Profiles'],
+  ['/industry/planner', 'Planner'],
+  ['/industry/2049', 'Planner'],
+  ['/industry/jobs', 'Active jobs'],
+])('the section tabs are links, and %s marks %s as the current one', (pathname, current) => {
+  location.pathname = pathname;
+  const links = tabs(renderToStaticMarkup(createElement(IndustryNav)));
+  expect(links.map((l) => [l.label, l.href])).toEqual([
+    ['Profiles', '/industry'],
+    // With no blueprint opened yet, the planner opens on its search.
+    ['Planner', '/industry/planner'],
+    ['Active jobs', '/industry/jobs'],
+  ]);
+  expect(links.filter((l) => l.current).map((l) => l.label)).toEqual([current]);
 });
 
-test('a structures panel deep link preserves the selected jobs tab and closes without losing filters or hash', () => {
-  location.params = new URLSearchParams('tab=jobs&panel=structures&profile=caps&character=9001&filter=ready&filter=active');
+test('the static shell carries the tabs before the route is known, none of them current', () => {
+  const links = tabs(renderToStaticMarkup(createElement(IndustryNavFallback)));
+  expect(links.map((l) => l.label)).toEqual(['Profiles', 'Planner', 'Active jobs']);
+  expect(links.some((l) => l.current)).toBe(false);
+});
+
+const drawer = () => renderToStaticMarkup(createElement(StructuresDrawer, null, 'Structures editor contents'));
+
+test('a structures panel deep link opens over any section and closes without losing filters or hash', () => {
+  location.params = new URLSearchParams('panel=structures&profile=caps&character=9001&filter=ready&filter=active');
   const pushState = vi.fn();
   vi.stubGlobal('window', {
-    location: { href: `https://example.test/industry?${location.params}#queue` },
+    location: { href: `https://example.test/industry/jobs?${location.params}#queue` },
     history: { pushState },
   });
   try {
-    const html = renderToStaticMarkup(createElement(IndustryWorkspaceTabs, {
-      profiles: 'Profile workspace contents',
-      plans: 'Saved plans contents',
-      jobs: 'Active jobs contents',
-      customStructures: 'Structures editor contents',
-    }));
-    expect(html).toContain('Active jobs contents');
+    const html = drawer();
     expect(html).toContain('Structures editor contents');
     expect(html).not.toContain('data-structures-trigger');
     expect(structuresPanel.props).toMatchObject({ open: true, title: 'Structures' });
@@ -67,7 +75,7 @@ test('a structures panel deep link preserves the selected jobs tab and closes wi
     structuresPanel.props?.onOpenChange(false);
     const closed = new URL(pushState.mock.lastCall?.[2] ?? '', 'https://example.test');
     expect(closed.searchParams.has('panel')).toBe(false);
-    expect(closed.searchParams.get('tab')).toBe('jobs');
+    expect(closed.pathname).toBe('/industry/jobs');
     expect(closed.searchParams.get('profile')).toBe('caps');
     expect(closed.searchParams.get('character')).toBe('9001');
     expect(closed.searchParams.getAll('filter')).toEqual(['ready', 'active']);
@@ -84,21 +92,14 @@ test('a structures panel deep link preserves the selected jobs tab and closes wi
 test('an unrecognized panel query does not mount the structures editor', () => {
   location.params = new URLSearchParams('panel=unknown');
   structuresPanel.props = null;
-  const html = renderToStaticMarkup(createElement(IndustryWorkspaceTabs, {
-    profiles: 'Profile workspace contents', plans: null, jobs: null,
-    customStructures: 'Structures editor contents',
-  }));
-  expect(html).toContain('Profile workspace contents');
-  expect(html).not.toContain('data-structures-trigger');
-  expect(html).not.toContain('Structures editor contents');
+  const html = drawer();
+  expect(html).toBe('');
   expect(structuresPanel.props).toBeNull();
 });
 
 test('closing structures restores its visible facilities trigger and otherwise uses modal focus restoration', () => {
   location.params = new URLSearchParams('panel=structures');
-  renderToStaticMarkup(createElement(IndustryWorkspaceTabs, {
-    profiles: null, plans: null, jobs: null, customStructures: 'Structures editor contents',
-  }));
+  drawer();
   const getClientRects = vi.fn(() => [{}]);
   const trigger = { getClientRects } as unknown as HTMLButtonElement;
   const querySelector = vi.fn((): HTMLButtonElement | null => trigger);

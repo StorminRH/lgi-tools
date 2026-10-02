@@ -37,6 +37,13 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        // Active jobs moved from a tab on /industry to its own section.
+        source: "/industry",
+        has: [{ type: "query", key: "tab", value: "jobs" }],
+        destination: "/industry/jobs",
+        permanent: false,
+      },
+      {
         source: "/settings",
         destination: "/settings/characters",
         permanent: false,

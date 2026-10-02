@@ -51,7 +51,7 @@ export function SignedOutWorkspace() {
         <h2 className="font-display text-h3 font-bold text-name">Production profiles</h2>
         <p className="text-ui text-muted">
           {INTRO} Sign in with EVE to build one from your characters&apos; real skills, slots and structures.
-          Blueprint planning below works without signing in.
+          The Planner works without signing in.
         </p>
       </div>
       <EveSignInButton callbackURL="/industry" />

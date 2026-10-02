@@ -21,7 +21,7 @@ export async function JobsContent() {
       <Card>
         <div className="flex flex-col items-start gap-4 px-5 py-5">
           <p className="text-ui text-muted">Sign in with EVE to see your active industry jobs.</p>
-          <EveSignInButton callbackURL="/industry?tab=jobs" />
+          <EveSignInButton callbackURL="/industry/jobs" />
         </div>
       </Card>
     );
@@ -60,7 +60,7 @@ export async function JobsContent() {
           <LinkCharacterButton
             label="Grant corp jobs access"
             emphasis="reconnect"
-            callbackURL="/industry?tab=jobs"
+            callbackURL="/industry/jobs"
           />
         }
       />

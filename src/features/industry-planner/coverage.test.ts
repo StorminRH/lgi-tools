@@ -64,7 +64,6 @@ import { GemIcon, HourglassIcon, MeField, NodeAdjusters, TeField } from '@/featu
 import { MultibuyPanel } from '@/features/industry-planner/components/MultibuyPanel';
 import { ReactionStructureSelect } from '@/features/industry-planner/components/ReactionStructureSelect';
 import { SavedPlanRows } from '@/features/industry-planner/components/SavedPlanRows';
-import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { SelectedSystemBox } from '@/features/industry-planner/components/SelectedSystemBox';
 import { TemplateLoader } from '@/features/industry-planner/components/TemplateLoader';
 import { TemplatesMenu } from '@/features/industry-planner/components/TemplatesMenu';
@@ -107,7 +106,6 @@ describe('coverage-gaps', () => {
       MultibuyPanel,
       ReactionStructureSelect,
       SavedPlanRows,
-      SavedPlansManager,
       SelectedSystemBox,
       TemplateLoader,
       TemplatesMenu,
