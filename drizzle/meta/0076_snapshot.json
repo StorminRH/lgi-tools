@@ -1,6 +1,6 @@
 {
-  "id": "60b5c080-4a27-4e7e-bce4-8d3a4f49ef5f",
-  "prevId": "88a105cd-8461-42c6-932b-a2ad8a658ddd",
+  "id": "12eb3542-9062-4a19-8e1b-efe1e7ec1baf",
+  "prevId": "52d6b6cf-66c2-4270-a22c-a7e1303d3dca",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1474,55 +1474,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.industry_assembly_lines": {
-      "name": "industry_assembly_lines",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "activity_id": {
-          "name": "activity_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_ids": {
-          "name": "category_ids",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "group_ids": {
-          "name": "group_ids",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type_list_ids": {
-          "name": "type_list_ids",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.industry_blueprints": {
       "name": "industry_blueprints",
       "schema": "",
@@ -1542,139 +1493,6 @@
         "activities": {
           "name": "activities",
           "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.industry_installation_types": {
-      "name": "industry_installation_types",
-      "schema": "",
-      "columns": {
-        "type_id": {
-          "name": "type_id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "assembly_line_ids": {
-          "name": "assembly_line_ids",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.industry_modifiers": {
-      "name": "industry_modifiers",
-      "schema": "",
-      "columns": {
-        "source_type_id": {
-          "name": "source_type_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "activity": {
-          "name": "activity",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attribute_id": {
-          "name": "attribute_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filter_id": {
-          "name": "filter_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "factor_high": {
-          "name": "factor_high",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "factor_low": {
-          "name": "factor_low",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "factor_null": {
-          "name": "factor_null",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "industry_modifiers_source_type_id_activity_kind_attribute_id_pk": {
-          "name": "industry_modifiers_source_type_id_activity_kind_attribute_id_pk",
-          "columns": [
-            "source_type_id",
-            "activity",
-            "kind",
-            "attribute_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.industry_target_filters": {
-      "name": "industry_target_filters",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_ids": {
-          "name": "category_ids",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "group_ids": {
-          "name": "group_ids",
-          "type": "integer[]",
           "primaryKey": false,
           "notNull": true
         }
@@ -3435,12 +3253,6 @@
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
-        },
-        "bonuses": {
-          "name": "bonuses",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -4995,6 +4807,193 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.map_block_accounts": {
+      "name": "map_block_accounts",
+      "schema": "",
+      "columns": {
+        "block_id": {
+          "name": "block_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "map_block_accounts_user_idx": {
+          "name": "map_block_accounts_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "map_block_accounts_block_id_map_blocks_id_fk": {
+          "name": "map_block_accounts_block_id_map_blocks_id_fk",
+          "tableFrom": "map_block_accounts",
+          "tableTo": "map_blocks",
+          "columnsFrom": [
+            "block_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "map_block_accounts_user_id_user_id_fk": {
+          "name": "map_block_accounts_user_id_user_id_fk",
+          "tableFrom": "map_block_accounts",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "map_block_accounts_block_id_user_id_pk": {
+          "name": "map_block_accounts_block_id_user_id_pk",
+          "columns": [
+            "block_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.map_blocks": {
+      "name": "map_blocks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "map_id": {
+          "name": "map_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocked_by_user_id": {
+          "name": "blocked_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "blocked_at": {
+          "name": "blocked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "map_blocks_map_character_unique": {
+          "name": "map_blocks_map_character_unique",
+          "columns": [
+            {
+              "expression": "map_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "map_blocks_character_idx": {
+          "name": "map_blocks_character_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "map_blocks_blocked_by_idx": {
+          "name": "map_blocks_blocked_by_idx",
+          "columns": [
+            {
+              "expression": "blocked_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "map_blocks_map_id_maps_id_fk": {
+          "name": "map_blocks_map_id_maps_id_fk",
+          "tableFrom": "map_blocks",
+          "tableTo": "maps",
+          "columnsFrom": [
+            "map_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.maps": {
       "name": "maps",
       "schema": "",
@@ -5070,6 +5069,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "character_scoped_at": {
+          "name": "character_scoped_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {

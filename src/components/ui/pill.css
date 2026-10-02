@@ -1,5 +1,4 @@
 @layer components {
-  /* Soft solid: no border, a stronger tone tint, and a lit top edge. */
   .pill-soft {
     background-color: color-mix(in oklab, var(--pill-tone, var(--color-muted)) 22%, transparent);
     background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 60%);

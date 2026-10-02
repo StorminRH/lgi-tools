@@ -6,6 +6,7 @@ import {
   connectionLifetimeValidator,
   connectionResolutionValidator,
   connectionTombstoneValidator,
+  mapClaimCharactersValidator,
   mapEventKindValidator,
   mapEventPayloadValidator,
   mapRoleValidator,
@@ -81,6 +82,7 @@ export default defineSchema({
     mapId: v.string(),
     userId: v.string(),
     roles: v.array(mapRoleValidator),
+    characters: v.optional(mapClaimCharactersValidator),
   })
     .index('by_map', ['mapId'])
     .index('by_map_user', ['mapId', 'userId'])
@@ -89,6 +91,9 @@ export default defineSchema({
   mapAccessProjectionWatermarks: defineTable({
     mapId: v.string(),
     revision: v.number(),
+    // Set once a claim set carried characters; later sets without them are refused.
+    characterScoped: v.optional(v.boolean()),
+    scopingPending: v.optional(v.boolean()),
   }).index('by_map', ['mapId']),
 
   mapSystems: defineTable({

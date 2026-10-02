@@ -16,7 +16,6 @@ export type ReferenceGroupId =
   | 'data'
   | 'prose';
 
-/** One family of primitives: an anchor target with its specimens in a grid. */
 export function ReferenceGroup({
   id,
   title,
@@ -36,7 +35,6 @@ export function ReferenceGroup({
   );
 }
 
-/** One primitive on a glass card: its name, the module it lives in, and a live render. */
 export function Specimen({
   name,
   source,
@@ -64,7 +62,6 @@ export function Specimen({
   );
 }
 
-/** A labelled cell inside a specimen, for showing variants side by side. */
 export function Variant({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-2">

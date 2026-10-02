@@ -50,9 +50,11 @@ export interface SubsystemStatus {
   headline: string;
 }
 
-const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
-const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
-const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
+export const GSC_OUTCOME_RULES = {
+  healthy: ['synced'],
+  neutral: ['skipped'],
+  degraded: ['partial'],
+} as const satisfies OutcomeRules;
 
 const STALE_AMBER_FACTOR = 1.25;
 const STALE_RED_FACTOR = 2;
@@ -67,21 +69,24 @@ export function formatAgo(then: Date, now: Date): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export interface CronStatusInput {
-  lastRun: { timestamp: Date; outcome: string | null } | null;
-  outcomes: CronOutcomeCount[];
+export interface OutcomeRules {
   healthy: readonly string[];
   neutral?: readonly string[];
   degraded?: readonly string[];
+}
+
+export interface CronStatusInput extends OutcomeRules {
+  lastRun: { timestamp: Date; outcome: string | null } | null;
+  outcomes: CronOutcomeCount[];
   expectedEveryHours: number;
   now: Date;
 }
 
-type OutcomeKind = 'healthy' | 'neutral' | 'degraded' | 'unhealthy';
+export type OutcomeKind = 'healthy' | 'neutral' | 'degraded' | 'unhealthy';
 
-function classifyOutcome(
+export function classifyOutcome(
   outcome: string | null,
-  { healthy, neutral = [], degraded = [] }: Pick<CronStatusInput, 'healthy' | 'neutral' | 'degraded'>,
+  { healthy, neutral = [], degraded = [] }: OutcomeRules,
 ): OutcomeKind {
   if (outcome === null) return 'unhealthy';
   if (healthy.includes(outcome)) return 'healthy';
@@ -138,9 +143,7 @@ export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
   const base = deriveCronStatus({
     lastRun: input.lastRun,
     outcomes: input.outcomes,
-    healthy: GSC_HEALTHY_OUTCOMES,
-    neutral: GSC_NEUTRAL_OUTCOMES,
-    degraded: GSC_DEGRADED_OUTCOMES,
+    ...GSC_OUTCOME_RULES,
     expectedEveryHours: 24,
     now: input.now,
   });

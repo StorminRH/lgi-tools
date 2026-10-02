@@ -8,7 +8,7 @@ import {
   runMapCreationSubmit,
 } from './map-creation-client';
 
-const INPUT = { name: 'Home chain', grants: [] };
+const INPUT = { name: 'Home chain', creatorCharacterIds: [7], grants: [] };
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {

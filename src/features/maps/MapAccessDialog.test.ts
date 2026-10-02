@@ -1,6 +1,30 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type { PortraitToggleChange } from '@/components/character-portrait-picker';
+import type * as MapAccessClient from './map-access-client';
+import type * as OwnPickerModule from './OwnCharacterPicker';
+
+const actions = vi.hoisted(() => ({
+  toggleOwnCharacter: undefined as ((change: PortraitToggleChange) => void) | undefined,
+  updateMapAccess: vi.fn(),
+}));
+
+vi.mock('./map-access-client', async (importOriginal) => ({
+  ...await importOriginal<typeof MapAccessClient>(),
+  updateMapAccess: actions.updateMapAccess,
+}));
+
+vi.mock('./OwnCharacterPicker', async (importOriginal) => {
+  const actual = await importOriginal<typeof OwnPickerModule>();
+  return {
+    ...actual,
+    OwnCharacterPicker: (props: Parameters<typeof actual.OwnCharacterPicker>[0]) => {
+      actions.toggleOwnCharacter = props.onToggle;
+      return createElement(actual.OwnCharacterPicker, props);
+    },
+  };
+});
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
@@ -26,6 +50,13 @@ vi.mock('@/components/ui/dialog', () => ({
     createElement('p', null, children),
   DialogTitle: ({ children, ...props }: { children: React.ReactNode }) =>
     createElement('h2', props, children),
+}));
+
+vi.mock('@/components/use-account-characters', () => ({
+  useAccountCharacters: () => [
+    { characterId: 42, name: 'Scout', portraitUrl: 'https://images.evetech.net/characters/42/portrait' },
+    { characterId: 43, name: 'Hauler', portraitUrl: 'https://images.evetech.net/characters/43/portrait' },
+  ],
 }));
 
 vi.mock('./CharacterSearchControl', () => ({
@@ -61,6 +92,21 @@ import {
 } from './MapAccessDialog';
 
 describe('MapAccessDialog', () => {
+  it('selects an own tracking character with viewer access', async () => {
+    actions.updateMapAccess.mockReset().mockResolvedValue({ ok: true });
+    renderToStaticMarkup(createElement(MapAccessDialog, {
+      mapId: 'map-a', mapName: 'Alpha', open: true,
+      onOpenChange: vi.fn(), finalFocus: { current: null },
+      corporations: [], initialGrants: [], initialBlocks: [],
+    }));
+    expect(actions.toggleOwnCharacter).toBeDefined();
+    actions.toggleOwnCharacter?.({ characterId: 43, selected: true });
+    expect(actions.updateMapAccess).toHaveBeenCalledExactlyOnceWith({
+      operation: 'upsert', mapId: 'map-a',
+      grant: { ownerType: 'character', ownerId: 43, role: 'viewer' },
+    });
+  });
+
   it('seeds the shared manage editor with presentation-ready delegated grants', () => {
     const markup = renderToStaticMarkup(
       createElement(MapAccessDialog, {
@@ -78,10 +124,14 @@ describe('MapAccessDialog', () => {
             role: 'editor',
           },
         ],
+        initialBlocks: [{ characterId: 77, name: 'Spy' }],
       }),
     );
 
     expect(markup).toContain('Manage Alpha');
+    expect(markup).toContain('Blocked pilots');
+    expect(markup).toContain('data-map-blocked-character="77"');
+    expect(markup).toContain('Unblock');
     expect(markup).toContain('break-words');
     expect(markup).toContain('min-w-0');
     expect(markup).toContain('data-access-editor-mode="manage"');
@@ -90,6 +140,9 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('data-has-final-focus="true"');
     expect(markup).toContain('Done');
     expect(markup).not.toContain('Delete map');
+    expect(markup).toContain('data-own-character-picker');
+    expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Scout"|aria-label="Scout"[^>]*aria-pressed="true"/);
+    expect(markup).toMatch(/aria-pressed="false"[^>]*aria-label="Hauler"|aria-label="Hauler"[^>]*aria-pressed="false"/);
   });
 
   it('reconciles a refreshed grant snapshot after a concurrent revocation', () => {

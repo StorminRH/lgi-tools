@@ -1,5 +1,4 @@
 @layer components {
-  /* Soft glass shimmer: rounded-end bones with a wide, slow, eased sheen. */
   .skeleton-shimmer {
     border-radius: 9999px;
     background-color: color-mix(in oklab, white 6%, transparent);

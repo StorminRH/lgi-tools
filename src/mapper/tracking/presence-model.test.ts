@@ -13,7 +13,6 @@ import {
 const NOW = 1_700_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
-const OWNER = 'owner';
 
 const LOCATION_DEFAULTS: NonNullable<TrackedPresenceRow['location']> = {
   solarSystemId: JITA,
@@ -25,7 +24,6 @@ const LOCATION_DEFAULTS: NonNullable<TrackedPresenceRow['location']> = {
 };
 
 function row(overrides: {
-  userId?: string;
   characterId: number;
   solarSystemId?: number;
   stationId?: number | null;
@@ -35,11 +33,11 @@ function row(overrides: {
   observedAt?: number;
   location?: null;
 }): TrackedPresenceRow {
-  const { userId = OWNER, characterId, location, ...fields } = overrides;
+  const { characterId, location, ...fields } = overrides;
   if (location === null) {
-    return { userId, characterId, location: null };
+    return { characterId, location: null };
   }
-  return { userId, characterId, location: { ...LOCATION_DEFAULTS, ...fields } };
+  return { characterId, location: { ...LOCATION_DEFAULTS, ...fields } };
 }
 
 function derive(
@@ -48,13 +46,7 @@ function derive(
 ) {
   return derivePresence({
     tracked,
-    coverage: new Map([
-      [
-        OWNER,
-        options?.coverage
-          ?? new Map(tracked.map((entry) => [entry.characterId, true])),
-      ],
-    ]),
+    coverage: options?.coverage ?? new Map(tracked.map((entry) => [entry.characterId, true])),
   });
 }
 
@@ -87,7 +79,7 @@ test('presence honesty: docking is location, not a third presence state', () => 
   expect(station && presenceStatusWord(station)).toBe('Docked');
 });
 
-test('presence shape groups, dedupes, isolates owners, and labels friendlies', () => {
+test('presence shape groups, dedupes, hides uncovered, and labels friendlies', () => {
   const presence = derive([
     row({ characterId: 9, solarSystemId: JITA }),
     row({ characterId: 3, solarSystemId: JITA, shipTypeId: 28_606 }),
@@ -105,17 +97,11 @@ test('presence shape groups, dedupes, isolates owners, and labels friendlies', (
   expect(deduped.get(JITA)?.pilots).toHaveLength(1);
   expect(deduped.get(JITA)?.pilots[0]?.lastMovementAt).toBe(NOW - 30_000);
 
-  const isolated = derivePresence({
-    tracked: [
-      row({ userId: 'fresh-owner', characterId: 1, location: null }),
-      row({ userId: 'offline-owner', characterId: 1 }),
-    ],
-    coverage: new Map([
-      ['fresh-owner', new Map([[1, true]])],
-      ['offline-owner', new Map([[1, false]])],
-    ]),
+  const uncovered = derivePresence({
+    tracked: [row({ characterId: 1, location: null }), row({ characterId: 2 })],
+    coverage: new Map([[1, true], [2, false]]),
   });
-  expect(isolated.size).toBe(0);
+  expect(uncovered.size).toBe(0);
 
   const pilots =
     derive([row({ characterId: 7 }), row({ characterId: 8 })], {
@@ -145,49 +131,37 @@ test('payload path indexes coverage and hides while coverage is cold', () => {
 
   const threaded = derivePresenceFromPayload(
     { tracked: [row({ characterId: 7 })], ownTrackedCharacterIds: [7] },
-    { coverage: [{ userId: OWNER, characterId: 7, covered: true }] },
+    { coverage: [{ characterId: 7, covered: true }] },
   );
   expect(threaded.get(JITA)?.pilots[0]?.characterId).toBe(7);
 
   const index = coverageIndex({
     coverage: [
-      { userId: OWNER, characterId: 3, covered: true },
-      { userId: OWNER, characterId: 4, covered: false },
-      { userId: 'other', characterId: 3, covered: false },
+      { characterId: 3, covered: true },
+      { characterId: 4, covered: false },
     ],
   });
-  expect(index.get(OWNER)?.get(3)).toBe(true);
-  expect(index.get(OWNER)?.get(4)).toBe(false);
-  expect(index.get('other')?.get(3)).toBe(false);
+  expect(index.get(3)).toBe(true);
+  expect(index.get(4)).toBe(false);
+  expect(index.get(5)).toBeUndefined();
   expect(coverageIndex(undefined).size).toBe(0);
 });
 
 test('holdDefined keeps the last defined payload and stays cold when both are missing', () => {
-  const payload = { coverage: [{ userId: OWNER, characterId: 7, covered: true }] };
-  const later = { coverage: [{ userId: OWNER, characterId: 8, covered: false }] };
+  const payload = { coverage: [{ characterId: 7, covered: true }] };
+  const later = { coverage: [{ characterId: 8, covered: false }] };
   expect(holdDefined(undefined, undefined)).toBeUndefined();
   expect(holdDefined(undefined, payload)).toBe(payload);
   expect(holdDefined(payload, undefined)).toBe(payload);
   expect(holdDefined(payload, later)).toBe(later);
 });
 
-test('coverage query args skip until forMap names identities, then sort them', () => {
+test('coverage query args skip until forMap names characters, then sort and dedupe them', () => {
   expect(coverageQueryArgs('map-a', undefined)).toBe('skip');
   expect(
     coverageQueryArgs('map-a', {
       ownTrackedCharacterIds: [2],
-      tracked: [
-        row({ userId: 'zeta', characterId: 2 }),
-        row({ userId: OWNER, characterId: 9 }),
-        row({ userId: OWNER, characterId: 1 }),
-      ],
+      tracked: [row({ characterId: 2 }), row({ characterId: 9 }), row({ characterId: 1 }), row({ characterId: 9 })],
     }),
-  ).toEqual({
-    mapId: 'map-a',
-    identities: [
-      { userId: OWNER, characterId: 1 },
-      { userId: OWNER, characterId: 9 },
-      { userId: 'zeta', characterId: 2 },
-    ],
-  });
+  ).toEqual({ mapId: 'map-a', characterIds: [1, 2, 9] });
 });

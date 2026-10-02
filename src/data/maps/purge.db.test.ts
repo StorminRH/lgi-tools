@@ -6,7 +6,7 @@ import {
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
 import { createMapsPurgeContributor } from './purge';
-import { mapAccess, maps, pendingMapAccessChanges } from './schema';
+import { mapAccess, mapBlockAccounts, mapBlocks, maps, pendingMapAccessChanges } from './schema';
 
 const hooks = {
   deliverCaptured: vi.fn(),
@@ -18,7 +18,7 @@ const mapsPurgeContributor = createMapsPurgeContributor(hooks);
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_purge',
-  tables: ['user', 'characters', 'maps', 'map_access', 'map_access_changes'],
+  tables: ['user', 'characters', 'maps', 'map_access', 'map_blocks', 'map_block_accounts', 'map_access_changes'],
   foreignKeys: [
     {
       table: 'maps',
@@ -31,6 +31,20 @@ const harness = await createDbTestHarness({
       table: 'map_access',
       column: 'map_id',
       refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_blocks',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_block_accounts',
+      column: 'block_id',
+      refTable: 'map_blocks',
       refColumn: 'id',
       onDelete: 'cascade',
     },
@@ -166,8 +180,25 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
       },
     ]);
 
+    const [ownedBlock, otherBlock] = await harness.db.insert(mapBlocks).values([
+      { mapId: '11111111-1111-4111-8111-111111111111', characterId: 50 },
+      { mapId: '22222222-2222-4222-8222-222222222222', characterId: 51, blockedByUserId: 'owner' },
+    ]).returning({ id: mapBlocks.id });
+    await harness.db.insert(mapBlockAccounts).values([
+      { blockId: ownedBlock!.id, userId: 'other' },
+      { blockId: otherBlock!.id, userId: 'owner' },
+      { blockId: otherBlock!.id, userId: 'other' },
+    ]);
+
     await mapsPurgeContributor.purgeUser?.({ kind: 'user', userId: 'owner' });
 
+    expect(
+      await harness.db
+        .select({ characterId: mapBlocks.characterId, blockedByUserId: mapBlocks.blockedByUserId })
+        .from(mapBlocks),
+    ).toEqual([{ characterId: 51, blockedByUserId: null }]);
+    expect(await harness.db.select({ userId: mapBlockAccounts.userId }).from(mapBlockAccounts))
+      .toEqual([{ userId: 'other' }]);
     expect(await harness.db.select().from(maps).where(eq(maps.userId, 'owner'))).toHaveLength(0);
     expect(await harness.db.select().from(maps).where(eq(maps.userId, 'other'))).toHaveLength(1);
     expect(

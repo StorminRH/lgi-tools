@@ -5,9 +5,32 @@ import {
   type MapEventPayloadByKind,
 } from '@/data/maps/chain-events';
 
-export async function eventActor(ctx: MutationCtx): Promise<string> {
-  const identity = await ctx.auth.getUserIdentity();
+function accountName(identity: { name?: string } | null): string {
   return typeof identity?.name === 'string' ? identity.name : 'unknown';
+}
+
+/**
+ * Names the caller on a map edit. On a character-scoped map that is one of
+ * their characters eligible there: the earliest one still tracked on the map,
+ * else the first by eligibility. A legacy claim signs with the account name.
+ */
+export async function eventActor(ctx: MutationCtx, mapId: string): Promise<string> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) return accountName(identity);
+  const claim = await ctx.db
+    .query('mapAccess')
+    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', identity.subject))
+    .unique();
+  const characters = claim?.characters ?? [];
+  const [first] = characters;
+  if (first === undefined) return accountName(identity);
+  const eligible = new Map(characters.map((character) => [character.characterId, character.name]));
+  const tracked = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', identity.subject))
+    .collect();
+  return tracked.map((row) => eligible.get(row.characterId)).find((name) => name !== undefined)
+    ?? first.name;
 }
 
 export async function writeMapEvent<Kind extends MapEventKind>(

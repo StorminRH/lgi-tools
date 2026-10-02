@@ -17,7 +17,6 @@ const primitiveCode = [
 
 const fixtures = [];
 
-// Each fixture is its own lint root: the rule indexes imports once per cwd.
 function fixture(files) {
   const root = mkdtempSync(path.join(tmpdir(), 'ui-reference-'));
   fixtures.push(root);
