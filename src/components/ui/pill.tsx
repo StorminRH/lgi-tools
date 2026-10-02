@@ -5,7 +5,6 @@ import type { PillTone } from './tones';
 
 export type { PillTone };
 
-/** Soft solid: a tone tint with a lit top edge; `--pill-tone` drives the fill. */
 export const pillToneClasses = {
   neutral:      'pill-soft border-transparent [--pill-tone:var(--color-muted)] text-text',
   green:        'pill-soft border-transparent [--pill-tone:var(--color-isk)] text-isk',

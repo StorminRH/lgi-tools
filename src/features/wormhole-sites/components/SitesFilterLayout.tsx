@@ -166,7 +166,6 @@ export function SitesFilterLayout({
   );
 }
 
-/** Cards/Table and Lightbox/Expand, at the top of the filter rail. */
 export function SitesViewTools({ initialView }: { initialView: 'cards' | 'table' }) {
   const [view, setView] = usePreference(sitesView, { serverValue: initialView });
   const [detailMode, setDetailMode] = usePreference(sitesDetailMode);

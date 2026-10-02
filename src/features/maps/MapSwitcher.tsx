@@ -9,6 +9,7 @@ import { scrollArea } from '@/components/ui/scroll-area';
 import type {
   CorporationAccessOption,
   MapAccessGrantOption,
+  MapBlockOption,
 } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { MapAccessDialog } from './MapAccessDialog';
@@ -16,6 +17,7 @@ import {
   closedMapDialogs,
   connectedDialogFocus,
   currentAdminMap,
+  editingMapRows,
   mapDialogAuthorityKey,
   reconcileAuthorityScopedMapDialogs,
 } from './map-dialog-state';
@@ -41,11 +43,13 @@ export function MapSwitcher({
   maps,
   corporations,
   grantsByMapId,
+  blocksByMapId,
   focusFallback,
 }: {
   readonly maps: readonly AuthorizedMapRow[];
   readonly corporations: readonly CorporationAccessOption[];
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
+  readonly blocksByMapId: Readonly<Record<string, readonly MapBlockOption[]>>;
   readonly focusFallback?: React.RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
@@ -155,11 +159,8 @@ export function MapSwitcher({
             }
           }}
           corporations={corporations}
-          initialGrants={
-            currentEditingMap === null
-              ? []
-              : grantsByMapId[currentEditingMap.id] ?? []
-          }
+          initialGrants={editingMapRows(grantsByMapId, currentEditingMap)}
+          initialBlocks={editingMapRows(blocksByMapId, currentEditingMap)}
         />
       ) : null}
     </>

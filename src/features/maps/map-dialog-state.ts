@@ -16,6 +16,14 @@ export function currentAdminMap(
   return current?.role === 'admin' ? current : null;
 }
 
+/** The admin-only rows (grants, blocks) for the map being edited. */
+export function editingMapRows<T>(
+  byMapId: Readonly<Record<string, readonly T[]>>,
+  map: AuthorizedMapRow | null,
+): readonly T[] {
+  return map === null ? [] : byMapId[map.id] ?? [];
+}
+
 export function mapDialogAuthorityKey(
   listingAvailable: boolean,
   maps: readonly AuthorizedMapRow[],

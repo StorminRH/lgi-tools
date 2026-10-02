@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 
 type IconProps = { size?: number; className?: string };
 
-/** Builds a 24px rounded stroke icon that takes an optional size and className. */
 function strokeIcon(paths: ReactNode) {
   return function StrokeIcon({ size = 16, className }: IconProps) {
     return (

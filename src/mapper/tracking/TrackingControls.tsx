@@ -1,10 +1,10 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { CharacterPortrait } from '@/components/character-portrait';
+import { CharacterPortraitMenuItems } from '@/components/character-portrait-picker';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { usePreference } from '@/components/PreferencesProvider';
-import { MenuCheckboxItem, MenuGroup, menuControlRow } from '@/components/ui/menu';
+import { MenuGroup, menuControlRow } from '@/components/ui/menu';
 import { toast } from '@/components/ui/toast';
 import { Select } from '@/components/ui/select';
 import { api } from '@/data/convex/api';
@@ -17,12 +17,11 @@ import { useMapPresenceAfk } from './presence-context';
 import {
   SCANNER_ASK_VALUE,
   scannerSelectValue,
+  trackableCharacters,
   trackingToggleLabel,
 } from './tracking-controls-view';
 
 const trackingRowClass = 'flex flex-wrap items-center gap-2 px-3 pb-2';
-const trackingPortraitClass =
-  'box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-transparent p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none data-[tracking-reconnect]:border-tone-orange data-[checked]:data-[tracking-reconnect]:border-tone-orange';
 
 interface TrackingCharacter {
   readonly characterId: number;
@@ -33,6 +32,8 @@ interface TrackingCharacter {
 
 interface TrackingControlsViewProps {
   readonly characters: readonly TrackingCharacter[];
+  readonly scannerCharacters: readonly TrackingCharacter[];
+  readonly emptyLabel: string;
   readonly trackedIds: ReadonlySet<number>;
   readonly onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
   readonly reconnectAction: ReactNode;
@@ -70,7 +71,11 @@ export function TrackingControls({
 
   return (
     <TrackingControlsView
-      characters={characters}
+      characters={trackableCharacters(characters, access.trackableCharacterIds ?? null)}
+      scannerCharacters={characters}
+      emptyLabel={(access.trackableCharacterIds ?? null) === null
+        ? 'No linked characters'
+        : 'None of your characters are on this map\'s access list'}
       trackedIds={new Set(trackedIds)}
       onToggle={async (characterId, tracked) => {
         try {
@@ -91,6 +96,8 @@ export function TrackingControls({
 
 function TrackingControlsView({
   characters,
+  scannerCharacters,
+  emptyLabel,
   trackedIds,
   onToggle,
   reconnectAction,
@@ -100,46 +107,23 @@ function TrackingControlsView({
   return (
     <MenuGroup data-map-tracking label="Tracking">
       {characters.length === 0 ? (
-        <span className="px-3 pb-2 font-data text-micro text-muted">
-          No linked characters
-        </span>
+        <span className="px-3 pb-2 font-data text-micro text-muted">{emptyLabel}</span>
       ) : (
-        <div className={trackingRowClass}>
-          {characters.map((character) => {
-            const checked = trackedIds.has(character.characterId);
-            return (
-              <MenuCheckboxItem
-                key={character.characterId}
-                checked={checked}
-                onCheckedChange={(next) => {
-                  void onToggle(character.characterId, next);
-                }}
-                closeOnClick={false}
-                label={character.name}
-                aria-label={trackingToggleLabel({
-                  name: character.name,
-                  tracked: checked,
-                  needsLocationReconnect: character.needsLocationReconnect,
-                })}
-                data-tracking-character-id={character.characterId}
-                data-tracking-reconnect={
-                  character.needsLocationReconnect ? 'true' : undefined
-                }
-                className={trackingPortraitClass}
-              >
-                <CharacterPortrait
-                  characterId={character.characterId}
-                  name={character.name}
-                  size={32}
-                  src={character.portraitUrl}
-                  className="block"
-                />
-              </MenuCheckboxItem>
-            );
+        <CharacterPortraitMenuItems
+          className={trackingRowClass}
+          characters={characters}
+          checkedIds={trackedIds}
+          onToggle={({ characterId, selected }) => {
+            void onToggle(characterId, selected);
+          }}
+          itemLabel={(character, checked) => trackingToggleLabel({
+            name: character.name,
+            tracked: checked,
+            needsLocationReconnect: character.needsLocationReconnect === true,
           })}
-        </div>
+        />
       )}
-      {characters.length > 1 ? <DefaultScannerRow characters={characters} /> : null}
+      {scannerCharacters.length > 1 ? <DefaultScannerRow characters={scannerCharacters} /> : null}
       {showReconnect ? (
         <div className={trackingRowClass} data-tracking-reconnect-action>
           <span className="font-ui text-ui text-muted">Cannot sync location</span>

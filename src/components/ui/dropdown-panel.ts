@@ -6,7 +6,6 @@ export const menuPanelSurface = `${panelSurface} rounded-card overflow-hidden`;
 
 export const dropdownPanel = `${panelSurface} dropdown-panel-in rounded-card p-1.5 outline-none`;
 
-/** Option row: a gradient wash and a glowing rail mark the highlighted row. */
 export const dropdownOption = 'dropdown-option cursor-default select-none outline-none';
 
 export const dropdownItem =

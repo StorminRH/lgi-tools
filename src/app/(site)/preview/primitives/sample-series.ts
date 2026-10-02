@@ -1,5 +1,3 @@
-// Deterministic sample series for the chart specimens, so server and client
-// renders agree without random data.
 
 const DAYS = 21;
 const START = Date.UTC(2026, 8, 1);

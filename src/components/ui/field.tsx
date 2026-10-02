@@ -12,7 +12,6 @@ export type FieldControlElement = ReactElement<{
   'aria-invalid'?: boolean;
 }>;
 
-/** Form label type: also for labels beside controls Field cannot wrap (Select). */
 export const fieldLabel = 'font-ui text-ui font-medium text-text';
 
 function controlIdFor(element: FieldControlElement, generatedId: string) {

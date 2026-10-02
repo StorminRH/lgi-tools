@@ -3,7 +3,6 @@
 }
 
 @layer components {
-  /* Glass field: the frosted well every text control and trigger shares. */
   .field-glass {
     border: 1px solid var(--color-border);
     background-color: color-mix(in oklab, white 4%, transparent);
@@ -20,7 +19,6 @@
     transition: color var(--transition-duration-panel);
   }
 
-  /* Text fields: a capsule with a green focus halo. */
   .field-pill {
     border-radius: 9999px;
   }
@@ -43,7 +41,6 @@
     border-color: color-mix(in oklab, var(--color-alert-red) 55%, transparent);
   }
 
-  /* Select and Combobox triggers: a rounded frosted box lit from below. */
   .field-trigger {
     border-radius: 12px;
     border-color: var(--color-border-active);
@@ -72,8 +69,6 @@
     color: var(--color-name);
   }
 
-  /* Dropdown panel (dropdown-panel.ts): glass list that settles in from above;
-   * a gradient wash and a glowing rail mark the highlighted option. */
   .dropdown-panel-in {
     animation: dropdown-panel-in 320ms var(--ease-out-expo);
   }
