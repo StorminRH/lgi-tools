@@ -57,6 +57,8 @@ describe('purge registry gate', () => {
         'esi_snapshots',
         'industry_profiles',
         'map_access',
+        'map_block_accounts',
+        'map_blocks',
         'maps',
         'net_worth_days',
         'owned_asset_syncs',

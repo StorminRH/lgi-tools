@@ -63,7 +63,6 @@ function SettingsNavFrame({
   );
 }
 
-// Every settings section is personal; admin tools live in the admin console.
 export function SettingsNav() {
   const pathname = usePathname();
   return (

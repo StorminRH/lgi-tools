@@ -26,11 +26,6 @@ const CONTENTS: readonly { id: ReferenceGroupId; label: string }[] = [
   { id: 'prose', label: 'Prose' },
 ];
 
-/**
- * The rendered reference for every shared component in src/components/ui.
- * The `ui-reference/listed` lint rule fails when a primitive the app uses is
- * missing from this directory, so a new primitive lands with its specimen.
- */
 export function PrimitivesDemo() {
   return (
     <div className="grid items-start gap-5 pb-16 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10">

@@ -10,6 +10,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAccountCharacters } from '@/components/use-account-characters';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,8 +27,11 @@ import { MAX_MAP_NAME_LENGTH } from '@/data/maps/api-contract';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { AccessListEditor } from './AccessListEditor';
 import { CharacterSearchControl } from './CharacterSearchControl';
+import { OwnCharacterPicker } from './OwnCharacterPicker';
 import {
   addAccessPrincipal,
+  CREATOR_CHARACTER_REQUIRED_MESSAGE,
+  toggleCharacterId,
   initialCreationAccessDrafts,
   prepareMapCreation,
   removeAccessPrincipal,
@@ -124,6 +128,7 @@ function useMapCreationDialog({
   const router = useRouter();
   const submittingRef = useRef(false);
   const [name, setName] = useState('');
+  const [creatorCharacterIds, setCreatorCharacterIds] = useState<number[]>([]);
   const [grants, setGrants] = useState<AccessGrantDraft[]>(() =>
     initialCreationAccessDrafts(corporations),
   );
@@ -133,6 +138,7 @@ function useMapCreationDialog({
   function resetForm() {
     submittingRef.current = false;
     setName('');
+    setCreatorCharacterIds([]);
     setGrants(initialCreationAccessDrafts(corporations));
     setPhase({ kind: 'editing' });
     setFormError(null);
@@ -151,7 +157,7 @@ function useMapCreationDialog({
   async function submit() {
     await runMapCreationSubmit(
       submittingRef.current,
-      prepareMapCreation(name, grants, MAX_MAP_NAME_LENGTH),
+      prepareMapCreation(name, creatorCharacterIds, grants, MAX_MAP_NAME_LENGTH),
       createMapWithMinimumInterstitial,
       {
         onInvalid: setFormError,
@@ -177,13 +183,15 @@ function useMapCreationDialog({
   }
 
   return {
-    canSubmit: prepareMapCreation(name, grants, MAX_MAP_NAME_LENGTH).ok,
+    canSubmit: prepareMapCreation(name, creatorCharacterIds, grants, MAX_MAP_NAME_LENGTH).ok,
     clearFormError,
+    creatorCharacterIds,
     formError,
     grants,
     handleOpenChange,
     name,
     phase,
+    setCreatorCharacterIds,
     setGrants,
     setName,
     submit,
@@ -194,10 +202,12 @@ function CreationForm({
   canSubmit,
   clearFormError,
   corporations,
+  creatorCharacterIds,
   formError,
   grants,
   name,
   nameInputRef,
+  setCreatorCharacterIds,
   setGrants,
   setName,
   submit,
@@ -206,15 +216,19 @@ function CreationForm({
   readonly canSubmit: boolean;
   readonly clearFormError: () => void;
   readonly corporations: readonly CorporationAccessOption[];
+  readonly creatorCharacterIds: readonly number[];
   readonly formError: string | null;
   readonly grants: readonly AccessGrantDraft[];
   readonly name: string;
   readonly nameInputRef: RefObject<HTMLInputElement | null>;
+  readonly setCreatorCharacterIds: Dispatch<SetStateAction<number[]>>;
   readonly setGrants: Dispatch<SetStateAction<AccessGrantDraft[]>>;
   readonly setName: Dispatch<SetStateAction<string>>;
   readonly submit: () => Promise<void>;
   readonly titleId: string;
 }) {
+  const ownCharacters = useAccountCharacters();
+
   function addPrincipal(principal: AccessPrincipalOption) {
     setGrants((current) => addAccessPrincipal(current, principal));
     clearFormError();
@@ -249,6 +263,17 @@ function CreationForm({
             }}
           />
         </Field>
+        <OwnCharacterPicker
+          characters={ownCharacters}
+          selectedIds={new Set(creatorCharacterIds)}
+          onToggle={(change) => {
+            setCreatorCharacterIds((current) => toggleCharacterId(current, change));
+            clearFormError();
+          }}
+          hint={creatorCharacterIds.length === 0
+            ? CREATOR_CHARACTER_REQUIRED_MESSAGE
+            : 'Chosen characters can be tracked on this map. You stay the map admin.'}
+        />
         <AccessListEditor
           mode="create"
           currentGrants={grants}
@@ -321,10 +346,12 @@ export function MapCreationDialog({
           canSubmit={controller.canSubmit}
           clearFormError={controller.clearFormError}
           corporations={corporations}
+          creatorCharacterIds={controller.creatorCharacterIds}
           formError={controller.formError}
           grants={controller.grants}
           name={controller.name}
           nameInputRef={nameInputRef}
+          setCreatorCharacterIds={controller.setCreatorCharacterIds}
           setGrants={controller.setGrants}
           setName={controller.setName}
           submit={controller.submit}
