@@ -3,7 +3,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { GemIcon, HourglassIcon } from './MeAdjuster';
-import { structureBonusColumns, structureBonusRows, type StructureBonusRow } from '../structure-bonus-view';
+import { structureBonusColumns, type StructureBonusRow } from '../structure-bonus-view';
 import type { StructureReadout } from '../structure-factors';
 
 function Metric({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
@@ -71,24 +71,6 @@ const BONUS_ROW: {
 function BonusRowView({ row }: { row: StructureBonusRow }) {
   const render = BONUS_ROW[row.kind] as (r: StructureBonusRow) => ReactNode;
   return <>{render(row)}</>;
-}
-
-export function StructureBonusReadout({
-  readout,
-  taxPct,
-}: {
-  readout: StructureReadout;
-  taxPct?: number | null;
-}) {
-  const rows = structureBonusRows(readout, taxPct);
-  if (rows.length === 0) return null;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2.5">
-      {rows.map((row, i) => (
-        <BonusRowView key={i} row={row} />
-      ))}
-    </span>
-  );
 }
 
 const unmarked = (row: StructureBonusRow): StructureBonusRow =>

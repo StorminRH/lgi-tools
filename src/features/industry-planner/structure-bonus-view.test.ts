@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StructureBonus } from './structure-bonus';
-import { formatBonusPct, structureBonusColumns, structureBonusRows } from './structure-bonus-view';
+import { formatBonusPct, structureBonusColumns } from './structure-bonus-view';
 import type { StructureReadout } from './structure-factors';
 
 const bonus = (over: Partial<StructureBonus>): StructureBonus => ({
@@ -20,15 +20,19 @@ describe('formatBonusPct', () => {
   });
 });
 
-describe('structureBonusRows', () => {
+// Every metric the columns show, in reading order.
+const shown = (readout: StructureReadout, taxPct?: number | null) =>
+  structureBonusColumns(readout, taxPct).flatMap((line) => line.cells.filter((cell) => cell !== null));
+
+describe('structure bonus metrics', () => {
   it('is empty when there is no bonus and no tax', () => {
-    expect(structureBonusRows({ mfg: null, rxn: null })).toEqual([]);
-    expect(structureBonusRows({ mfg: bonus({}), rxn: null })).toEqual([]);
+    expect(shown({ mfg: null, rxn: null })).toEqual([]);
+    expect(shown({ mfg: bonus({}), rxn: null })).toEqual([]);
   });
 
   it('shows only the positive manufacturing metrics, in ME/TE/cost order', () => {
     const readout: StructureReadout = { mfg: bonus({ me: 2, te: 4.2, costBonus: 3 }), rxn: null };
-    expect(structureBonusRows(readout)).toEqual([
+    expect(shown(readout)).toEqual([
       { kind: 'me', pct: '2.0%' },
       { kind: 'te', pct: '4.2%' },
       { kind: 'cost', pct: '3.0%' },
@@ -37,31 +41,31 @@ describe('structureBonusRows', () => {
 
   it('adds the reaction TE with a marker only when manufacturing shares the line', () => {
     const withMfg: StructureReadout = { mfg: bonus({ me: 2 }), rxn: bonus({ te: 1 }) };
-    expect(structureBonusRows(withMfg)).toEqual([
+    expect(shown(withMfg)).toEqual([
       { kind: 'me', pct: '2.0%' },
       { kind: 'rxn-te', pct: '1.0%', withMarker: true },
     ]);
 
     const rxnOnly: StructureReadout = { mfg: null, rxn: bonus({ te: 1 }) };
-    expect(structureBonusRows(rxnOnly)).toEqual([{ kind: 'rxn-te', pct: '1.0%', withMarker: false }]);
+    expect(shown(rxnOnly)).toEqual([{ kind: 'rxn-te', pct: '1.0%', withMarker: false }]);
   });
 
   it('shows a typed-in reaction ME before the TE, with the marker on the first reaction row', () => {
     const readout: StructureReadout = { mfg: bonus({}), rxn: bonus({ me: 2.64, te: 44.8 }) };
-    expect(structureBonusRows(readout)).toEqual([
+    expect(shown(readout)).toEqual([
       { kind: 'rxn-me', pct: '2.6%', withMarker: true },
       { kind: 'rxn-te', pct: '44.8%', withMarker: false },
     ]);
   });
 
   it('ignores a non-positive reaction TE', () => {
-    expect(structureBonusRows({ mfg: null, rxn: bonus({ te: 0 }) })).toEqual([]);
+    expect(shown({ mfg: null, rxn: bonus({ te: 0 }) })).toEqual([]);
   });
 
-  it('appends the tax row whenever a tax is entered, including a real 0%', () => {
-    expect(structureBonusRows({ mfg: null, rxn: null }, 2.5)).toEqual([{ kind: 'tax', taxPct: 2.5 }]);
-    expect(structureBonusRows({ mfg: null, rxn: null }, 0)).toEqual([{ kind: 'tax', taxPct: 0 }]);
-    expect(structureBonusRows({ mfg: null, rxn: null }, null)).toEqual([]);
+  it('shows the tax whenever one is entered, including a real 0%', () => {
+    expect(shown({ mfg: null, rxn: null }, 2.5)).toEqual([{ kind: 'tax', taxPct: 2.5 }]);
+    expect(shown({ mfg: null, rxn: null }, 0)).toEqual([{ kind: 'tax', taxPct: 0 }]);
+    expect(shown({ mfg: null, rxn: null }, null)).toEqual([]);
   });
 });
 

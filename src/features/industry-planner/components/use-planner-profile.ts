@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { useSystemSearch } from '@/components/use-system-search';
-import { plannerProfile } from '@/lib/preferences';
+import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { apiFetch } from '@/transport/api-client';
 import { teamSkillLevelsEndpoint } from '../api-contract';
@@ -15,13 +15,13 @@ import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { StructureFactors } from '../structure-factors';
 import type { AvailableStructure, BlueprintStructure } from '../types';
 import { useResourceRead } from '../use-resource-read';
-import type { BuildSetupValue } from './planner-contexts';
+import type { SelectedLocation, SelectedReactionSystem } from './planner-contexts';
 
 export interface PlannerProfileState {
   profiles: IndustryProfileRow[] | null;
-  /** The profile the planner builds with, once the list confirms it still exists. */
+  /** The profile the planner builds with: the one last used, or the first. */
   profile: IndustryProfileRow | null;
-  setProfileId: (id: string | null) => void;
+  setProfileId: (id: string) => void;
   plan: ProfilePlan | null;
 }
 
@@ -44,8 +44,9 @@ function usePlannerProfile(
 ): PlannerProfileState {
   const { session } = useAuth();
   const { profiles } = useIndustryProfiles(session !== null);
-  const [profileId, setProfileId] = usePreference(plannerProfile);
-  const profile = profiles?.find((p) => p.id === profileId) ?? null;
+  // The planner and the Profiles tab share the profile last used.
+  const [profileId, setProfileId] = usePreference(industryProfile);
+  const profile = profiles?.find((p) => p.id === profileId) ?? profiles?.[0] ?? null;
   const [levels, setLevels] = useState<LevelsByCharacter>(NO_LEVELS);
   useResourceRead(readTeamSkillLevels, { enabled: profile !== null, onData: setLevels });
   const { systems } = useSystemSearch();
@@ -71,51 +72,61 @@ function usePlannerProfile(
   return { profiles, profile, setProfileId, plan };
 }
 
+/** The location state a profile drives so the product's own job prices where it runs. */
+export interface LocationWriters {
+  location: SelectedLocation | null;
+  setLocation: (location: SelectedLocation | null) => void;
+  applyBuildSystem: (
+    sys: { systemId: number; systemName: string; security: number | null },
+    opts: { persist: boolean },
+  ) => Promise<unknown>;
+  setSelectedStructure: (structure: AvailableStructure | null) => void;
+  setReactionSystem: (system: SelectedReactionSystem | null) => void;
+  setReactionStructure: (structure: AvailableStructure | null) => void;
+}
+
 /**
  * The product's own job sets where the build is priced: its facility's
  * system gives the job cost index, and its structure the facility tax. Jobs
- * deeper in the tree take their bonuses from their own facilities.
+ * deeper in the tree take their bonuses from their own facilities. With no
+ * facility to go by, the build prices at baseline.
  */
 function useProfileLocation(
   plan: ProfilePlan | null,
   activityId: number,
-  writers: Pick<
-    BuildSetupValue,
-    'location' | 'applyBuildSystem' | 'setSelectedStructure' | 'setStation' | 'setReactionSystem' | 'setReactionStructure'
-  >,
+  writers: LocationWriters,
 ): void {
   const { systems } = useSystemSearch();
   const facility = plan?.top.facility ?? null;
-  const system = systems.find((s) => s.id === facility?.systemId) ?? null;
-  const { location, applyBuildSystem, setSelectedStructure, setStation, setReactionSystem, setReactionStructure } =
+  const found = systems.find((s) => s.id === facility?.systemId);
+  const system = useMemo(
+    () => (found ? { systemId: found.id, systemName: found.name, security: found.security } : null),
+    [found],
+  );
+  const { location, setLocation, applyBuildSystem, setSelectedStructure, setReactionSystem, setReactionStructure } =
     writers;
   const current = location?.systemId ?? null;
   const structure = facility?.structure ?? null;
-  const stationId = facility?.kind === 'station' ? Number(facility.id) : null;
-  const stationName = facility?.name ?? null;
   useEffect(() => {
-    if (system === null) return;
-    const ref = { systemId: system.id, systemName: system.name, security: system.security };
     if (activityId === REACTION_ACTIVITY) {
-      setReactionSystem(ref);
+      setReactionSystem(system);
       setReactionStructure(structure);
       return;
     }
     setSelectedStructure(structure);
-    if (current === system.id) return;
-    void applyBuildSystem(ref, { persist: false }).then(() => {
-      if (stationId !== null) setStation(stationId, stationName);
-    });
+    if (system === null) {
+      if (current !== null) setLocation(null);
+      return;
+    }
+    if (current !== system.systemId) void applyBuildSystem(system, { persist: false });
   }, [
     system,
     structure,
-    stationId,
-    stationName,
     current,
     activityId,
     applyBuildSystem,
+    setLocation,
     setSelectedStructure,
-    setStation,
     setReactionSystem,
     setReactionStructure,
   ]);
@@ -123,22 +134,14 @@ function useProfileLocation(
 
 /**
  * The planner under its chosen profile: the profile, its per-job plan, and
- * the factors the build uses. Without a profile the picked structures and
- * the build character apply as before.
+ * the factors the build uses. Without a profile the build is baseline.
  */
 export function useProfileFactors(
   structure: BlueprintStructure,
-  location: Pick<
-    BuildSetupValue,
-    | 'location'
-    | 'availableStructures'
-    | 'applyBuildSystem'
-    | 'setSelectedStructure'
-    | 'setStation'
-    | 'setReactionSystem'
-    | 'setReactionStructure'
-    | 'structureFactors'
-  >,
+  location: LocationWriters & {
+    availableStructures: AvailableStructure[] | null;
+    structureFactors: StructureFactors;
+  },
 ): PlannerProfileState & { structureFactors: StructureFactors; skillTimeFactors: SkillTimeFactors | null } {
   const profile = usePlannerProfile(structure, location.availableStructures);
   useProfileLocation(profile.plan, structure.activityId, location);

@@ -77,11 +77,11 @@ const planAt = (top: PlanFacility | null): ProfilePlan => ({
 function writers(currentSystemId: number | null = null) {
   return {
     location: currentSystemId === null ? null : ({ systemId: currentSystemId } as never),
+    setLocation: vi.fn(),
     availableStructures: [SOTIYO],
     structureFactors: MANUAL,
     applyBuildSystem: vi.fn(async () => ({ ok: true }) as never),
     setSelectedStructure: vi.fn(),
-    setStation: vi.fn(),
     setReactionSystem: vi.fn(),
     setReactionStructure: vi.fn(),
   };
@@ -89,7 +89,6 @@ function writers(currentSystemId: number | null = null) {
 
 const built = (activityId: number) =>
   ({ blueprintTypeId: 100, activityId, nodeActivityByBlueprint: {} }) as unknown as BlueprintStructure;
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {
   h.profileId = null;
@@ -97,17 +96,31 @@ beforeEach(() => {
   h.plan = null;
 });
 
-test('without a profile the picked structures and build character apply', () => {
-  h.profiles = [CAPS];
-  const w = writers();
-  const state = useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
-  expect(state).toMatchObject({ profile: null, plan: null, structureFactors: MANUAL, skillTimeFactors: null });
-  expect(w.setSelectedStructure).not.toHaveBeenCalled();
-  expect(w.applyBuildSystem).not.toHaveBeenCalled();
+test('the planner builds with the profile last used, or else the first', () => {
+  const OTHER: IndustryProfileRow = { ...CAPS, id: 'other', name: 'Other line' };
+  h.profiles = [CAPS, OTHER];
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers()).profile).toBe(CAPS);
+  h.profileId = 'other';
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers()).profile).toBe(OTHER);
+  h.profileId = 'gone';
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers()).profile).toBe(CAPS);
 });
 
-test('a profile prices the product where its facility stands, moving the build there', async () => {
-  h.profileId = 'caps';
+test('with no profile the build is baseline, wherever it last priced', () => {
+  h.profiles = [];
+  const w = writers(30004759);
+  const state = useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
+  expect(state).toMatchObject({ profile: null, plan: null, structureFactors: MANUAL, skillTimeFactors: null });
+  expect(w.setSelectedStructure).toHaveBeenCalledWith(null);
+  expect(w.setLocation).toHaveBeenCalledWith(null);
+  expect(w.applyBuildSystem).not.toHaveBeenCalled();
+
+  const fresh = writers();
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), fresh);
+  expect(fresh.setLocation).not.toHaveBeenCalled();
+});
+
+test('a profile prices the product where its facility stands, moving the build there', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({ kind: 'station', id: '60003760', name: 'Jita IV - Moon 4', structure: null, systemId: 30002537 }));
   const w = writers(30004759);
@@ -118,28 +131,19 @@ test('a profile prices the product where its facility stands, moving the build t
     { systemId: 30002537, systemName: 'Amamake', security: 0.4 },
     { persist: false },
   );
-  await settle();
-  expect(w.setStation).toHaveBeenCalledWith(60003760, 'Jita IV - Moon 4');
 });
 
-test('a structure in the system already in use only swaps the structure', async () => {
-  h.profileId = 'caps';
+test('a structure in the system already in use only swaps the structure', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));
   const w = writers(30004759);
   useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
   expect(w.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
-
-  const moved = writers(30002537);
-  useProfileFactors(built(MANUFACTURING_ACTIVITY), moved);
-  await settle();
-  expect(moved.applyBuildSystem).toHaveBeenCalledTimes(1);
-  expect(moved.setStation).not.toHaveBeenCalled();
+  expect(w.setLocation).not.toHaveBeenCalled();
 });
 
 test('a reaction runs at the facility the profile gives reactions', () => {
-  h.profileId = 'caps';
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));
   const w = writers(30002537);
@@ -148,22 +152,25 @@ test('a reaction runs at the facility the profile gives reactions', () => {
   expect(w.setReactionStructure).toHaveBeenCalledWith(SOTIYO);
   expect(w.setSelectedStructure).not.toHaveBeenCalled();
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
+
+  h.plan = planAt(null);
+  const none = writers();
+  useProfileFactors(built(REACTION_ACTIVITY), none);
+  expect(none.setReactionSystem).toHaveBeenCalledWith(null);
+  expect(none.setReactionStructure).toHaveBeenCalledWith(null);
 });
 
-test('a facility with no known system leaves the location alone', () => {
-  h.profileId = 'caps';
+test('a facility with no known system keeps its structure but prices at baseline', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({ systemId: null }));
-  const w = writers();
+  const w = writers(30002537);
   useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
-  h.plan = planAt(null);
-  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
-  expect(w.setSelectedStructure).not.toHaveBeenCalled();
-  expect(w.setReactionSystem).not.toHaveBeenCalled();
+  expect(w.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
+  expect(w.setLocation).toHaveBeenCalledWith(null);
+  expect(w.applyBuildSystem).not.toHaveBeenCalled();
 });
 
 test('team skills load per character, and a failed read gives none', async () => {
-  h.profileId = 'caps';
   h.profiles = [CAPS];
   useProfileFactors(built(MANUFACTURING_ACTIVITY), writers());
   const signal = new AbortController().signal;

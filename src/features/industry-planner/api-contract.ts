@@ -206,7 +206,7 @@ export const availableStructuresEndpoint = defineEndpoint({
   },
 });
 
-export const MAX_SAVED_PLAN_NAME_LEN = 80;
+const MAX_SAVED_PLAN_NAME_LEN = 80;
 export const MAX_SAVED_PLANS_PER_USER = 50;
 const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
 

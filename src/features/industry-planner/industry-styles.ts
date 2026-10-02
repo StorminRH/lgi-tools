@@ -14,13 +14,6 @@ export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
 
 export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
 
-export const HERO_LOCATION_GROUP_CLASS =
-  'flex w-full min-w-0 max-w-[332px] sm:w-[332px] flex-col justify-center gap-1.5';
-
-export const HERO_LOCATION_ROW_CLASS = 'flex min-w-0 items-center gap-2';
-
-export const HERO_LOCATION_CONTROL_WELL_CLASS = 'min-w-0 flex-1 max-w-[260px]';
-
 export const EFFICIENCY_TONE_CLASSES: Record<
   EfficiencyToneState,
   { fill: string; glow: string; stroke: string; text: string; frame: string }

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { LivePrice } from '@/components/ui/live-price';
 import { SectionLabel } from '@/components/ui/section-label';
 import { nodeImage } from '@/data/eve-data/type-images';
@@ -35,17 +36,9 @@ import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
 
 const COLS_TABLET = ['', 'sm:grid-cols-1', 'sm:grid-cols-2'];
-const COLS_DESKTOP = [
-  '',
-  'cockpit:grid-cols-1',
-  'cockpit:grid-cols-2',
-  'cockpit:grid-cols-3',
-  'cockpit:grid-cols-4',
-  'cockpit:grid-cols-5',
-  'cockpit:grid-cols-6',
-  'cockpit:grid-cols-7',
-  'cockpit:grid-cols-8',
-];
+/** Tiers run left to right at a readable width, scrolling sideways when the tree is deeper than the page. */
+const TIER_STRIP =
+  'cockpit:grid-flow-col cockpit:grid-cols-none cockpit:auto-cols-[minmax(15rem,1fr)] cockpit:overflow-x-auto cockpit:snap-x cockpit:pb-2';
 
 interface Focus {
   depth: number;
@@ -164,7 +157,7 @@ function TierColumn({
 }) {
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 snap-start">
       <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
@@ -194,13 +187,7 @@ function TierColumn({
 }
 
 function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => void }) {
-  if (!focus) {
-    return (
-      <span className="text-ui text-muted">
-        Consolidated · by tier · click a ▸ component to trace its sub-tree
-      </span>
-    );
-  }
+  if (!focus) return null;
   return (
     <span className="inline-flex items-center gap-2 text-ui text-muted">
       <Button
@@ -324,7 +311,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
   if (tiers.length === 0) {
     return (
-      <div className="reveal reveal-3 mt-7">
+      <div className="reveal reveal-3">
         <SectionLabel className="mb-cluster">Build plan</SectionLabel>
         <Card>
           <p className="px-3.5 py-3 text-ui text-muted">
@@ -338,7 +325,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
 
   return (
-    <div className="reveal reveal-3 mt-7">
+    <div className="reveal reveal-3">
       <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
           <SectionLabel>Build plan</SectionLabel>
@@ -369,7 +356,8 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
         className={cn(
           'grid grid-cols-1 items-start gap-4',
           COLS_TABLET[Math.min(batchedTiers.length, 2)],
-          COLS_DESKTOP[Math.min(batchedTiers.length, 8)],
+          scrollArea,
+          TIER_STRIP,
         )}
       >
         {batchedTiers.map((tier) => (

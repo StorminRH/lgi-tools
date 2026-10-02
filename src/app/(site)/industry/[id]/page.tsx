@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
@@ -16,14 +15,8 @@ import {
 import { SITE_URL } from '@/config/site-url';
 import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
 import { buildBreadcrumbList } from '@/lib/structured-data';
-import {
-  cookieNameFor,
-  plannerBuildCharacter,
-  readPreferenceCookieValue,
-} from '@/lib/preferences';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
-import { TemplateLoader } from '@/features/industry-planner/components/TemplateLoader';
 import {
   getBlueprintPricing,
   getBlueprintStructure,
@@ -102,10 +95,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     historyTimer,
   );
 
-  const initialBuildCharacterId = readPreferenceCookieValue(
-    (await cookies()).get(cookieNameFor(plannerBuildCharacter))?.value,
-    plannerBuildCharacter,
-  );
   emitCostMetric('planner_open_timing', {
     stage: 'shell',
     blueprintId: id,
@@ -123,9 +112,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         structure={structure}
         pricingPromise={pricingPromise}
         historyPromise={historyPromise}
-        initialBuildCharacterId={initialBuildCharacterId}
       >
-        <TemplateLoader structure={structure} />
         <CockpitPlanner structure={structure} />
       </PricingProvider>
     </div>
@@ -134,18 +121,20 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
 function PlannerSkeleton() {
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="grid w-full grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8">
       <Skeleton label="Loading blueprint" className="sr-only" />
-      <div className="grid gap-4 split:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-        <Skeleton aria-hidden="true" className="h-44 w-full rounded-panel" />
-        <Skeleton aria-hidden="true" className="h-44 w-full rounded-panel" />
+      <div className="flex flex-col gap-3">
+        <Skeleton aria-hidden="true" className="h-[22rem] w-full rounded-panel" />
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <Skeleton key={index} aria-hidden="true" className={index < 4 ? 'col-span-2 h-24 rounded-card' : 'h-24 rounded-card'} />
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 split:grid-cols-6">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} aria-hidden="true" className="h-24 w-full rounded-card" />
-        ))}
+      <div className="flex flex-col gap-3">
+        <Skeleton aria-hidden="true" className="h-10 w-2/3 rounded-card" />
+        <Skeleton aria-hidden="true" className="h-[28rem] w-full rounded-card" />
       </div>
-      <Skeleton aria-hidden="true" className="h-64 w-full rounded-card" />
     </div>
   );
 }
