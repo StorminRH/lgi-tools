@@ -15,7 +15,8 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { BuildSkillsIndicator } from './BuildSkillsIndicator';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
-import { useBuildCharacter, useBuildPlan, usePlannerConfig } from './planner-contexts';
+import { useBuildCharacter, useBuildPlan, useBuildSetup, usePlannerConfig } from './planner-contexts';
+import { ProfilePanel } from './ProfilePanel';
 import { ReactionStructureSelect } from './ReactionStructureSelect';
 
 function RunAsSelector() {
@@ -133,6 +134,8 @@ function HeroSteppers({
 
 export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY;
+  // A profile picks each job's character and facility, in place of the planner's own picks.
+  const underProfile = useBuildSetup().profile !== null;
 
   return (
     <Card
@@ -152,14 +155,21 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
 
       <HeroSteppers blueprintTypeId={structure.blueprintTypeId} isManufacturing={isManufacturing} />
 
-      <div className="relative flex shrink-0">
-        <RunAsSelector />
-        <BuildSkillsIndicator structure={structure} />
-      </div>
+      {underProfile ? null : (
+        <div className="relative flex shrink-0">
+          <RunAsSelector />
+          <BuildSkillsIndicator structure={structure} />
+        </div>
+      )}
 
       <div className="flex min-w-0 w-full flex-wrap gap-x-6 gap-y-3 sm:ml-auto sm:w-auto">
-        <BuildLocationSelector />
-        <ReactionStructureSelect />
+        <ProfilePanel structure={structure} />
+        {underProfile ? null : (
+          <>
+            <BuildLocationSelector />
+            <ReactionStructureSelect />
+          </>
+        )}
       </div>
     </Card>
   );

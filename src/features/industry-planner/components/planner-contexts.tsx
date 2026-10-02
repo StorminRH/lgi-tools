@@ -15,6 +15,8 @@ import type { ApplySystemOutcome, BuildSystemRef } from '../build-system-apply';
 import type { BuildTimes } from '../build-time';
 import type { MarginMode } from '../cockpit-margin';
 import type { NetMode } from '../multibuy';
+import type { IndustryProfileRow } from '../profiles/api-contract';
+import type { ProfilePlan } from '../profiles/profile-plan';
 import type { SkillTimeFactors } from '../skill-time';
 import type { StructureFactors, StructureReadout } from '../structure-factors';
 import type {
@@ -88,6 +90,11 @@ export interface BuildSetupValue {
   buildStructureReadout: StructureReadout;
   reactionStructureReadout: StructureReadout;
   reactionNetAvailable: boolean;
+  profiles: IndustryProfileRow[] | null;
+  /** The production profile the build runs under; null while the planner's own picks apply. */
+  profile: IndustryProfileRow | null;
+  setProfileId: (id: string | null) => void;
+  profilePlan: ProfilePlan | null;
 }
 
 export interface BuildCharacterValue {

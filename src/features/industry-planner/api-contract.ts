@@ -151,6 +151,23 @@ export const skillLevelsEndpoint = defineEndpoint({
   },
 });
 
+const teamSkillLevelsResponseSchema = z.object({
+  characters: z.array(
+    z.object({
+      characterId: z.number(),
+      levels: z.record(z.string(), z.number()).nullable(),
+    }),
+  ),
+});
+export const teamSkillLevelsEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/industry/team-skill-levels',
+  request: null,
+  responses: {
+    200: jsonBody(teamSkillLevelsResponseSchema),
+  },
+});
+
 const structureModifierSchema = z.object({
   activity: z.enum(PRODUCTION_ACTIVITIES),
   kind: z.enum(['material', 'time', 'cost']),

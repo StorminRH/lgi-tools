@@ -50,6 +50,13 @@ export const plannerBuildCharacter = define<number | null>(
   true,
 );
 
+/** The production profile the planner builds with; null builds with the planner's own picks. */
+export const plannerProfile = define<string | null>(
+  'planner.profileId',
+  z.string().min(1).max(100).nullable(),
+  null,
+);
+
 export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'sites.detailMode',
   z.enum(['lightbox', 'expand']),
@@ -121,6 +128,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   sitesView,
   plannerBuildLocation,
   plannerBuildCharacter,
+  plannerProfile,
   sitesDetailMode,
   industryCostBasis,
   industryProfile,

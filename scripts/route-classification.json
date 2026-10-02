@@ -134,6 +134,7 @@
     "/api/industry/blueprints": "static",
     "/api/industry/stations": "static",
     "/api/industry/systems": "static",
+    "/api/industry/team-skill-levels": "dynamic",
     "/api/maps/jump": "dynamic",
     "/api/maps/access": "dynamic",
     "/api/maps/delete": "dynamic",

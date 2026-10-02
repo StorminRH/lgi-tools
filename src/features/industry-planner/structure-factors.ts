@@ -73,7 +73,8 @@ function bonusFor(
     : computeStructureBonus({ ...input, filterIds: scope.filterIds });
 }
 
-function bestOf(bonuses: readonly StructureBonus[]): StructureBonus | null {
+/** The most any one of several jobs gets, metric by metric. */
+export function bestOf(bonuses: readonly StructureBonus[]): StructureBonus | null {
   if (bonuses.length === 0) return null;
   return {
     me: Math.max(...bonuses.map((b) => b.me)),

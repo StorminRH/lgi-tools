@@ -46,6 +46,7 @@ import {
   ownedBlueprintsEndpoint,
 } from '../api-contract';
 import { REACTION_ACTIVITY } from '../structure-bonus';
+import { useProfileFactors } from './use-planner-profile';
 import { skillTimeFactorsFor, type SkillTimeFactors } from '../skill-time';
 import { useBuildCharacterSkillLevels } from '../use-build-character-skills';
 import { readAvailableStructures } from '../use-available-structures';
@@ -549,6 +550,7 @@ function usePlannerLedger(
   ownedDetail: Map<number, OwnedComponentDetail> | null,
   structureFactors: StructureFactors,
   buildCharacterSkillLevels: ReturnType<typeof useBuildCharacterSkillLevels>,
+  profileSkillTimeFactors: SkillTimeFactors | null,
 ) {
   const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
   const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
@@ -572,12 +574,13 @@ function usePlannerLedger(
   );
   const skillTimeFactors = useMemo<SkillTimeFactors>(
     () =>
+      profileSkillTimeFactors ??
       skillTimeFactorsFor({
         levels: buildCharacterSkillLevels,
         nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
         nodeTimeSkills: structure.nodeTimeSkills,
       }),
-    [buildCharacterSkillLevels, structure],
+    [profileSkillTimeFactors, buildCharacterSkillLevels, structure],
   );
   const buildTimes = useMemo<BuildTimes>(
     () =>
@@ -636,14 +639,18 @@ export function PricingProvider({
     locationState.setFetchedReactionLocation,
     locationState.setAvailableStructures,
   );
+  // Under a profile each job takes its own facility's bonus; otherwise the picked structures apply.
+  const profile = useProfileFactors(structure, { ...locationState, applyBuildSystem });
+  const { structureFactors } = profile;
   const owned = usePlannerOwnedResources(structure);
   const ledger = usePlannerLedger(
     structure,
     prefs.runs,
     owned.ownedMe,
     owned.ownedDetail,
-    locationState.structureFactors,
+    structureFactors,
     prefs.buildCharacterSkillLevels,
+    profile.skillTimeFactors,
   );
   const clock = usePriceClock(structure, {
     costBasis: prefs.costBasis,
@@ -654,7 +661,7 @@ export function PricingProvider({
     reactionStructure: locationState.reactionStructure,
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
-    structureFactors: locationState.structureFactors,
+    structureFactors,
   });
   const market = useMarketRefresh(
     structure,
@@ -723,10 +730,14 @@ export function PricingProvider({
       setReactionStructure: locationState.setReactionStructure,
       reactionSystem: locationState.reactionSystem,
       setReactionSystem: locationState.setReactionSystem,
-      structureFactors: locationState.structureFactors,
+      structureFactors,
       buildStructureReadout: locationState.buildStructureReadout,
       reactionStructureReadout: locationState.reactionStructureReadout,
       reactionNetAvailable,
+      profiles: profile.profiles,
+      profile: profile.profile,
+      setProfileId: profile.setProfileId,
+      profilePlan: profile.plan,
     }),
     [
       locationState.location,
@@ -743,10 +754,14 @@ export function PricingProvider({
       locationState.setReactionStructure,
       locationState.reactionSystem,
       locationState.setReactionSystem,
-      locationState.structureFactors,
+      structureFactors,
       locationState.buildStructureReadout,
       locationState.reactionStructureReadout,
       reactionNetAvailable,
+      profile.profiles,
+      profile.profile,
+      profile.setProfileId,
+      profile.plan,
     ],
   );
   const buildCharacterValue = useMemo<BuildCharacterValue>(

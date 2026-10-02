@@ -44,6 +44,7 @@ describe('captureTemplate', () => {
       marginMode: 'net',
       multibuyMode: 'Remaining',
       multibuyUncheckedTiers: [],
+      profileId: null,
     });
   });
 });
@@ -105,6 +106,15 @@ describe('applyTemplate per-field fail-open degrades', () => {
     expect(target.state.reactionStructure).toBeNull();
     expect(target.state.reactionSystem?.systemId).toBe(30002187);
     expect(target.state.selectedStructure?.id).toBe('corp:1021');
+  });
+
+  it('a deleted profile clears to the planner’s own picks with a note', async () => {
+    const { notes, target } = await degradeCase((snap) => {
+      snap.profileId = 'deleted-profile';
+    });
+    expect(notes).toEqual(["Its production profile was deleted — using the planner's own picks"]);
+    expect(target.state.profileId).toBeNull();
+    expect(target.state.runs).toBe(3);
   });
 
   it('a character no longer on the roster falls open to the active mirror', async () => {

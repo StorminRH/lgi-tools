@@ -27,6 +27,7 @@ export const snapshotFieldSchemas = {
   marginMode: z.enum(['gross', 'net']),
   multibuyMode: z.enum(['Total', 'Remaining']),
   multibuyUncheckedTiers: z.array(z.number().int().min(1)),
+  profileId: z.string().min(1).max(100).nullable(),
 } as const;
 
 export const planSnapshotV1Schema = z.object({
