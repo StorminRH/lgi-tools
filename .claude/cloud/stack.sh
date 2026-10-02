@@ -48,6 +48,7 @@ start_postgres() {
 }
 
 start_convex() {
+  lgi_stop_orphan_convex_backend
   lgi_port_open "$LGI_CONVEX_PORT" && return 0
   local secret
   secret="${CONVEX_SERVICE_SECRET:-$(lgi_file_env_val .env.local CONVEX_SERVICE_SECRET)}"

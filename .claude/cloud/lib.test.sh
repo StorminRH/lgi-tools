@@ -108,6 +108,29 @@ lgi_forbidden_env_local_key CONVEX_DEPLOYMENT || fail "CONVEX_DEPLOYMENT must be
 lgi_forbidden_env_local_key DATABASE_URL && fail "DATABASE_URL must not be forbidden"
 pass "forbidden .env.local keys"
 
+# A fake backend on an unused port: one child of this shell, one orphan.
+prev_port="$LGI_CONVEX_PORT"
+LGI_CONVEX_PORT=39917
+bash -c 'exec -a "convex-local-backend --port 39917" sleep 30' &
+child_pid=$!
+orphan_pid="$(setsid bash -c 'bash -c '\''exec -a "convex-local-backend --port 39917" sleep 30'\'' >/dev/null 2>&1 & echo $!')"
+sleep 0.2
+orphan_ppid="$(ps -o ppid= -p "$orphan_pid" | tr -d ' ')"
+lgi_stop_orphan_convex_backend
+sleep 0.2
+kill -0 "$child_pid" 2>/dev/null || fail "backend with a live parent must survive"
+kill "$child_pid" 2>/dev/null || true
+if [ "$orphan_ppid" = 1 ]; then
+  # Init reaps on its own schedule; a zombie has already stopped.
+  orphan_state="$(ps -o stat= -p "$orphan_pid" 2>/dev/null || true)"
+  case "$orphan_state" in "" | Z*) ;; *) fail "orphaned backend must stop" ;; esac
+  pass "orphaned convex backend cleanup"
+else
+  kill "$orphan_pid" 2>/dev/null || true
+  echo "SKIP: orphaned convex backend cleanup (orphans reparent to a subreaper here)"
+fi
+LGI_CONVEX_PORT="$prev_port"
+
 if [ -x "${LGI_PG16_BIN}/psql" ] && "${LGI_PG16_BIN}/pg_isready" -h localhost -p 5433 -U lgi -d lgi_tools >/dev/null 2>&1; then
   lgi_sde_ready "$LGI_LOCAL_DB_URL" || fail "live cluster must satisfy full fixture census"
   report="$(lgi_sde_report "$LGI_LOCAL_DB_URL")"

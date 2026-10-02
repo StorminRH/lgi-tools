@@ -21,7 +21,7 @@ lgi_pin_local_db_env
 lgi_pin_anonymous_convex_env
 
 started_pg=0
-trap 'lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"' EXIT
+trap 'lgi_stop_owned_postgres "$PGBIN" "$PGDATA" "$started_pg"; lgi_stop_orphan_convex_backend' EXIT
 
 pnpm install --frozen-lockfile
 
@@ -109,7 +109,16 @@ export SITE_URL=http://localhost:3000
 export AUTH_JWKS="$LGI_PLACEHOLDER_JWKS"
 export CONVEX_SERVICE_SECRET
 CONVEX_SERVICE_SECRET="$(val CONVEX_SERVICE_SECRET)"
-pnpm exec convex dev --once || true
+# Through the egress proxy the CLI sometimes crashes on socket end after its
+# download, before it records the deployment; retry once it is cleaned up.
+for attempt in 1 2 3; do
+  lgi_stop_orphan_convex_backend
+  pnpm exec convex dev --once || true
+  [ -z "$(val CONVEX_DEPLOYMENT)" ] || break
+  echo "convex dev --once did not configure the deployment (attempt $attempt)" >&2
+done
+lgi_stop_orphan_convex_backend
+[ -n "$(val CONVEX_DEPLOYMENT)" ] || { echo "ERROR: convex dev --once never configured the deployment" >&2; exit 1; }
 pnpm exec convex env set AUTH_ISSUER_URL http://localhost:3000
 pnpm exec convex env set SITE_URL http://localhost:3000
 printf '%s' "$AUTH_JWKS" | pnpm exec convex env set AUTH_JWKS

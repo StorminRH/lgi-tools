@@ -330,6 +330,18 @@ lgi_save_env_local() {
   install -m 600 "$file" "$LGI_ENV_LOCAL_STATE"
 }
 
+# A crashed `convex dev` leaves its local backend reparented to init, still
+# holding :3210, and the next run refuses the occupied port. Only orphans are
+# stopped; a backend under a live `convex dev` keeps its parent.
+lgi_stop_orphan_convex_backend() {
+  local pid
+  for pid in $(pgrep -f -- "convex-local-backend --port $LGI_CONVEX_PORT" || true); do
+    if [ "$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')" = 1 ]; then
+      kill "$pid" 2>/dev/null || true
+    fi
+  done
+}
+
 lgi_port_open() {
   (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
 }
