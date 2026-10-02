@@ -14,7 +14,7 @@ For noisy work such as testing, documentation lookup, and exploring
 the repository, isolate those tasks to a sub-agent.
 
 Production builds run in CI and on Vercel; do not run them locally.
-Cursor Cloud agents read [the cloud guide](.cursor/cloud-agent.md).
+Cloud sessions read [the cloud guide](.claude/cloud/GUIDE.md).
 
 ## Verification
 

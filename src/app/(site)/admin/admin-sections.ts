@@ -14,7 +14,6 @@ export type AdminSectionId =
   | 'cards'
   | 'widgets';
 
-/** Users & roles: admin search, role grants, the role audit, and per-user detail. */
 export const USERS_HREF = '/admin/users';
 
 export type AdminSection = {

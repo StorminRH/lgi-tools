@@ -634,6 +634,36 @@ export const DATA_OWNERSHIP = [
     dataClass: 'personal',
   },
   {
+    table: schema.mapBlocks,
+    owner: 'data/maps',
+    reads: [],
+    invariants: [
+      'fk(map_id→maps.id)',
+      'pk(id)',
+      'unique(map_id,character_id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Block and unblock each require admin authority on an active map and enqueue the map in the same statement; a block also refuses a character held by the caller or the map creator, and records its current holder, in that statement. Projection then drops every blocked account. Map deletion cascades blocks and their holder rows; account deletion clears the blocker of record and keeps the block; a merge moves the blocker of record to the survivor.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.mapBlockAccounts,
+    owner: 'data/maps',
+    reads: [],
+    invariants: [
+      'fk(block_id→map_blocks.id)',
+      'fk(user_id→user.id)',
+      'pk(block_id,user_id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'Each account that holds a blocked character while the block stands is recorded once, never the map creator: at block time inside the block statement, and on every character link change inside the statement that enqueues the affected maps. Unblock and map deletion cascade the rows; account deletion deletes that account\'s rows; a merge moves them to the survivor without duplicates.',
+    },
+    dataClass: 'personal',
+  },
+  {
     table: schema.pendingDeletions,
     owner: 'platform/auth',
     reads: [{ by: 'composition/account-lifecycle', purpose: 'Resumes the immutable deletion or transfer request, including reconciliation after its original link is gone.' }],
@@ -679,7 +709,7 @@ export const DATA_OWNERSHIP = [
       },
       {
         by: 'data/maps',
-        reason: 'Authorized grant edits, lifecycle archive and restore, and character-grant purge enqueue the same pending generation in the same statement as the mutation.',
+        reason: 'Authorized grant and block edits, lifecycle archive and restore, and character-grant purge enqueue the same pending generation in the same statement as the mutation.',
       },
     ],
     invariants: ['fk(map_id→maps.id)', 'pk(map_id)'],

@@ -4,7 +4,6 @@ import type { Doc } from './_generated/dataModel';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 
 import { readMapTracking, TRACKED_CHARACTERS_PER_MAP_CAP } from './lib/mapTrackingCapacity';
 
@@ -29,18 +28,39 @@ function findCharacterLocation(
   return uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId);
 }
 
-function readTrackedLocations(
+type TrackedLocation = ReturnType<typeof trackedLocationPayload>;
+
+// Older clients group by userId; a constant keeps them working without identifying an account.
+const LEGACY_TRACKER_KEY = '';
+
+function movedAt(location: TrackedLocation): number {
+  return location.transitionObservedAt ?? location.observedAt;
+}
+
+function fresher(held: TrackedLocation | null, next: TrackedLocation | null): TrackedLocation | null {
+  if (held === null || next === null) return held ?? next;
+  return movedAt(next) > movedAt(held) ? next : held;
+}
+
+/** One entry per character: the freshest location among the accounts tracking it, never who tracks it. */
+async function readTrackedLocations(
   ctx: QueryCtx,
   rows: readonly Doc<'mapTracking'>[],
-) {
-  return Promise.all(rows.map(async (row) => {
+): Promise<{ userId: string; characterId: number; location: TrackedLocation | null }[]> {
+  const locations = await Promise.all(rows.map(async (row) => {
     const location = await findCharacterLocation(ctx, row.userId, row.characterId);
     return {
-      userId: row.userId,
       characterId: row.characterId,
       location: location === null ? null : trackedLocationPayload(location),
     };
   }));
+  const byCharacter = new Map<number, TrackedLocation | null>();
+  for (const { characterId, location } of locations) {
+    byCharacter.set(characterId, fresher(byCharacter.get(characterId) ?? null, location));
+  }
+  return [...byCharacter]
+    .sort(([left], [right]) => left - right)
+    .map(([characterId, location]) => ({ userId: LEGACY_TRACKER_KEY, characterId, location }));
 }
 
 export const forMap = query({
@@ -64,76 +84,57 @@ export const forMap = query({
   },
 });
 
-interface CoverageRow {
-  userId: string;
-  characterId: number;
-  covered: boolean;
-}
-
-function compareCoverageRows(left: CoverageRow, right: CoverageRow): number {
-  return (
-    left.userId.localeCompare(right.userId)
-    || left.characterId - right.characterId
-  );
-}
-
-async function trackedCharacterIdsOnMap(
-  ctx: QueryCtx,
-  mapId: string,
-  userId: string,
-): Promise<ReadonlySet<number>> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP + 1);
-  return new Set(rows.map((row) => row.characterId));
+/** Covered when any account tracking the character on this map holds coverage for it. */
+async function characterCovered(ctx: QueryCtx, rows: readonly Doc<'mapTracking'>[]): Promise<boolean> {
+  for (const row of rows) {
+    if (await findCoverage(ctx, row.userId, row.characterId) !== null) return true;
+  }
+  return false;
 }
 
 export const coverage = query({
   args: {
     mapId: v.string(),
-    identities: v.array(
-      v.object({
-        userId: v.string(),
-        characterId: v.number(),
-      }),
-    ),
+    characterIds: v.optional(v.array(v.number())),
+    identities: v.optional(v.array(v.object({ userId: v.optional(v.string()), characterId: v.number() }))),
   },
-  handler: async (ctx, { mapId, identities }) => {
+  handler: async (ctx, args) => {
+    const { mapId } = args;
+    const characterIds = args.characterIds ?? args.identities?.map(({ characterId }) => characterId);
+    if (characterIds === undefined || (args.characterIds !== undefined && args.identities !== undefined)) {
+      throw new ConvexError({
+        code: 'INVALID_COVERAGE_ARGS',
+        detail: 'Provide exactly one of characterIds or identities.',
+      });
+    }
     const principal = await tryMapAccess(ctx, mapId, 'view');
     if (principal === null) {
-      return {
-        coverage: [] as {
-          userId: string;
-          characterId: number;
-          covered: boolean;
-        }[],
-      };
+      return { coverage: [] as { characterId: number; covered: boolean }[] };
     }
-    if (identities.length > TRACKED_CHARACTERS_PER_MAP_CAP) {
+    if (characterIds.length > TRACKED_CHARACTERS_PER_MAP_CAP) {
       throw new ConvexError({
         code: 'TRACKING_SCAN_LIMIT',
-        detail: `Coverage identities exceed the ${TRACKED_CHARACTERS_PER_MAP_CAP}-row tracked-presence bound.`,
+        detail: `Coverage characters exceed the ${TRACKED_CHARACTERS_PER_MAP_CAP}-row tracked-presence bound.`,
       });
     }
 
-    const userIds = [...new Set(identities.map((identity) => identity.userId))];
-    const trackedByUser = new Map(await Promise.all(userIds.map(
-      async (userId) => [userId, await trackedCharacterIdsOnMap(ctx, mapId, userId)] as const,
-    )));
-    const coverageRows: CoverageRow[] = await Promise.all(identities.map(async (identity) => {
-      const held = trackedByUser.get(identity.userId)?.has(identity.characterId)
-        ? await findCoverage(ctx, identity.userId, identity.characterId)
-        : null;
-      return {
-        userId: identity.userId,
-        characterId: identity.characterId,
-        covered: held !== null,
-      };
-    }));
-
+    const unique = [...new Set(characterIds)].sort((left, right) => left - right);
+    const requested = new Set(unique);
+    const trackedByCharacter = new Map<number, Doc<'mapTracking'>[]>();
+    for (const row of await readMapTracking(ctx, mapId)) {
+      if (!requested.has(row.characterId)) continue;
+      const held = trackedByCharacter.get(row.characterId) ?? [];
+      held.push(row);
+      trackedByCharacter.set(row.characterId, held);
+    }
+    const coverageRows = await Promise.all(unique.map(async (characterId) => ({
+      characterId,
+      covered: await characterCovered(ctx, trackedByCharacter.get(characterId) ?? []),
+    })));
     return {
-      coverage: coverageRows.sort(compareCoverageRows),
+      coverage: args.characterIds !== undefined
+        ? coverageRows
+        : coverageRows.map((row) => ({ userId: LEGACY_TRACKER_KEY, ...row })),
     };
   },
 });

@@ -3,7 +3,6 @@ kbd {
 }
 
 @layer components {
-  /* Flat translucent keycap: quiet enough for dense toolbars. */
   .kbd-flat {
     border-radius: 7px;
     background-color: color-mix(in oklab, white 10%, transparent);

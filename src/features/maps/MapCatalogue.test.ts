@@ -130,6 +130,7 @@ function renderCatalogue(
         ],
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
         grantsByMapId: { 'map-created': [] },
+        blocksByMapId: { 'map-created': [] },
         listingAvailable,
       },
       createElement(MapCatalogue),

@@ -26,6 +26,7 @@ const EMPTY_MAP_CHROME: MapChromeData = {
   deletedMaps: [],
   corporations: [],
   grantsByMapId: {},
+  blocksByMapId: {},
 };
 
 async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
@@ -103,6 +104,7 @@ export async function AtlasBound({
         maps={chromeData.maps}
         deletedMaps={chromeData.deletedMaps}
         grantsByMapId={chromeData.grantsByMapId}
+        blocksByMapId={chromeData.blocksByMapId}
         listingAvailable={chromeSnapshot.listingAvailable}
       >
         {gate?.ok === true ? <AtlasReturnRefresh /> : null}

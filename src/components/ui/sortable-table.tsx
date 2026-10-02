@@ -3,7 +3,6 @@ import { Fragment, type ReactNode } from 'react';
 import { cn } from './cn';
 import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-table-view';
 
-/** Floating row: each row is its own rounded glass strip with no rules between. */
 export const floatingRow =
   'rounded-card bg-bg-deep/60 transition-colors duration-fast hover:bg-bg-deep/35';
 

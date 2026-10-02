@@ -29,7 +29,6 @@ export interface DockCharacterResolution {
 export function dockCharacters(input: {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {
-    readonly userId: string;
     readonly characterId: number;
     readonly location: {
       readonly solarSystemId: number;
@@ -37,7 +36,7 @@ export function dockCharacters(input: {
       readonly observedAt: number;
     } | null;
   }[];
-  readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
+  readonly coverage: ReadonlyMap<number, boolean>;
 }): readonly DockCharacter[] {
   const own = new Set(input.ownTrackedCharacterIds);
   const byId = new Map<number, DockCharacter>();
@@ -46,7 +45,7 @@ export function dockCharacters(input: {
   }
   for (const row of input.tracked) {
     if (!own.has(row.characterId) || row.location === null) continue;
-    if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
+    if (input.coverage.get(row.characterId) !== true) continue;
     byId.set(row.characterId, {
       characterId: row.characterId,
       systemId: row.location.solarSystemId,

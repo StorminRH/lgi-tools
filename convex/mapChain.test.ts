@@ -139,7 +139,7 @@ describe('map chain read path', () => {
         ? t.query(chain.watchMapAccess, { mapId: MAP_A })
         : asUser(t, subject).query(chain.watchMapAccess, { mapId: MAP_A }));
 
-      expect(result).toEqual({ granted: false, canEdit: false });
+      expect(result).toEqual({ granted: false, canEdit: false, trackableCharacterIds: null });
     });
 
     it.each([
@@ -172,10 +172,11 @@ describe('map chain read path', () => {
 
       expect(
         await asUser(t, VIEWER).query(chain.watchMapAccess, { mapId: MAP_A }),
-      ).toEqual({ granted: true, canEdit: false });
+      ).toEqual({ granted: true, canEdit: false, trackableCharacterIds: null });
       expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
         canEdit: true,
+        trackableCharacterIds: null,
       });
     });
 
@@ -257,6 +258,7 @@ describe('map chain read path', () => {
       expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
         canEdit: true,
+        trackableCharacterIds: null,
       });
 
       await revokeClaim(t, MAP_A, EDITOR);
@@ -264,6 +266,7 @@ describe('map chain read path', () => {
       expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: false,
         canEdit: false,
+        trackableCharacterIds: null,
       });
       expect(
         (await asUser(t).query(chain.watchMapSystems, {
@@ -277,6 +280,7 @@ describe('map chain read path', () => {
       expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
         canEdit: true,
+        trackableCharacterIds: null,
       });
       expect(
         (await asUser(t).query(chain.watchMapSystems, {

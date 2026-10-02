@@ -11,7 +11,6 @@ export const fieldVariants = cva('field-glass field-own-focus', {
 });
 
 export const fieldText = 'font-ui text-nav text-name placeholder:text-faint';
-/** Select and Combobox triggers: the rounded frosted box with an aurora glow. */
 export const triggerShape = 'field-trigger';
 const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
