@@ -43,6 +43,7 @@ import {
   ownedBlueprintsEndpoint,
 } from '../api-contract';
 import { REACTION_ACTIVITY } from '../structure-bonus';
+import { useComponentFeeSources, type ComponentFeeInputs } from './use-component-fee-sources';
 import { useProfileFactors } from './use-planner-profile';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
 import { readAvailableStructures } from '../use-available-structures';
@@ -347,6 +348,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 }
 
 interface PriceAssembleMirrors {
+  readonly components: ComponentFeeInputs | null;
   readonly costBasis: 'batched' | 'marginal';
   readonly ledger: BatchLedger;
   readonly ledgerMeOpts: MeOptions;
@@ -381,7 +383,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     setPricing(
       assemblePricing(structure, priceSnapshot.lookup, {
         runs: current.runs,
-        fee,
+        fee: fee && current.components ? { ...fee, components: current.components } : fee,
         meOf: current.ledgerMeOpts.meOf,
         structureMeFactorOf: current.ledgerMeOpts.structureMeFactorOf,
         basis: current.costBasis,
@@ -403,6 +405,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     return () => clearTimeout(t);
   }, [
     mirrors.runs,
+    mirrors.components,
     mirrors.location,
     mirrors.reactionLocation,
     mirrors.selectedStructure,
@@ -562,7 +565,10 @@ export function PricingProvider({
     structureFactors,
     profile.skillTimeFactors ?? NO_SKILL_FACTORS,
   );
+  // Every job below the product's is charged where the profile installs it.
+  const components = useComponentFeeSources(structure, profile.plan);
   const clock = usePriceClock(structure, {
+    components,
     costBasis: prefs.costBasis,
     ledger: ledger.ledger,
     ledgerMeOpts: ledger.ledgerMeOpts,

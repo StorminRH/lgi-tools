@@ -20,7 +20,11 @@ import {
 import { matchingFilterIds, type TargetFilter } from '@/data/eve-data/structures';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { isRenderableCategory } from '@/data/eve-data/type-images';
-import { getAdjustedPrices, getSystemCostIndices } from '@/data/industry-indices/queries';
+import {
+  getAdjustedPrices,
+  getSystemCostIndices,
+  getSystemCostIndicesBatch,
+} from '@/data/industry-indices/queries';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
@@ -39,6 +43,7 @@ import type {
   BlueprintPricing,
   BlueprintStructure,
   BuildLocationData,
+  SystemJobCostIndex,
 } from './types';
 
 function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
@@ -259,9 +264,8 @@ export async function getBuildLocation(
   blueprintId: number,
 ): Promise<BuildLocationData> {
   const structure = await getBlueprintStructure(blueprintId);
-  const baseTypeIds = dedupe(
-    structure?.buildTree[0]?.inputs.map((i) => i.typeId) ?? [],
-  );
+  // Every job in the tree is valued on its inputs' adjusted prices, not only the product's own.
+  const baseTypeIds = dedupe(collectTreeTypeIds(structure?.tree ?? []));
 
   const [stations, costIndices, adjustedMap] = await Promise.all([
     getIndustryStationsForSystem(systemId),
@@ -280,4 +284,15 @@ export async function getBuildLocation(
       adjustedPrice,
     })),
   };
+}
+
+/** Each system's manufacturing and reaction cost indices, in the order asked. */
+export async function getJobCostIndices(systemIds: number[]): Promise<SystemJobCostIndex[]> {
+  const ids = dedupe(systemIds);
+  const indices = await getSystemCostIndicesBatch(ids);
+  return ids.map((systemId) => ({
+    systemId,
+    manufacturing: indices.get(systemId)?.get('manufacturing') ?? null,
+    reaction: indices.get(systemId)?.get('reaction') ?? null,
+  }));
 }

@@ -152,11 +152,15 @@ export function computeBatchMaterials(
   return rawRows(computeBatchLedger(tree, requestedRuns, opts));
 }
 
-export function computeMarginalMaterials(
+/**
+ * What one build consumes: every job runs only the fraction of its runs the
+ * build draws, so no whole-run excess is counted.
+ */
+function marginalDemand(
   tree: TreeNode[],
-  requestedRuns = 1,
+  requestedRuns: number,
   opts?: MeOptions,
-): { typeId: number; quantity: number }[] {
+): { raws: Map<number, number>; runs: Map<number, number> } {
   const recipes = flattenRecipes(tree);
   const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
 
@@ -168,15 +172,57 @@ export function computeMarginalMaterials(
   const topFactor = opts ? factorFor(opts.topBlueprintTypeId) : 1;
   for (const node of tree) addDemand(node.typeId, node.quantity * requestedRuns * topFactor);
 
+  const runsOf = new Map<number, number>();
   for (const typeId of ordered) {
     const recipe = recipes.get(typeId)!;
     const required = demand.get(typeId) ?? 0;
     const runs = recipe.batch > 0 ? required / recipe.batch : 0;
+    runsOf.set(typeId, runs);
     const factor = factorFor(recipe.blueprintTypeId);
     for (const input of recipe.inputs) addDemand(input.typeId, input.qty * runs * factor);
   }
 
+  return { raws, runs: runsOf };
+}
+
+export function computeMarginalMaterials(
+  tree: TreeNode[],
+  requestedRuns = 1,
+  opts?: MeOptions,
+): { typeId: number; quantity: number }[] {
+  const { raws } = marginalDemand(tree, requestedRuns, opts);
   return [...raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
+}
+
+/** The runs each built item's job counts for one build, fractions included. */
+export function computeMarginalRuns(
+  tree: TreeNode[],
+  requestedRuns = 1,
+  opts?: MeOptions,
+): Map<number, number> {
+  return marginalDemand(tree, requestedRuns, opts).runs;
+}
+
+/** A built item's job as its install fee values it. */
+export interface FeeJob {
+  typeId: number;
+  blueprintTypeId: number;
+  runs: number;
+  /** What the runs take before any efficiency: the job's estimated item value is priced on these. */
+  baseMaterials: { typeId: number; quantity: number }[];
+}
+
+/** Every job below the product's own, at the runs given for it. */
+export function feeJobs(tree: TreeNode[], runsOf: ReadonlyMap<number, number>): FeeJob[] {
+  return [...flattenRecipes(tree)].map(([typeId, recipe]) => {
+    const runs = runsOf.get(typeId) ?? 0;
+    return {
+      typeId,
+      blueprintTypeId: recipe.blueprintTypeId,
+      runs,
+      baseMaterials: recipe.inputs.map((input) => ({ typeId: input.typeId, quantity: input.qty * runs })),
+    };
+  });
 }
 
 /** The type each blueprint in the tree produces, the top blueprint included. */

@@ -38,6 +38,7 @@ const h = vi.hoisted(() => ({
   profile: null as IndustryProfileRow | null,
   plan: null as ProfilePlan | null,
   owned: new Map<number, { ownedQty: number }>(),
+  net: null as { componentJobs: { jobs: { typeId: number; runs: number; systemId: number; fee: { total: number | null } }[] } } | null,
 }));
 
 vi.mock('@/components/ui/side-panel', () => ({
@@ -59,6 +60,7 @@ vi.mock('./planner-contexts', () => ({
         { typeId: 10, bestSell: 9_000, bestBuy: null },
         { typeId: 20, bestSell: 40, bestBuy: null },
       ],
+      net: h.net,
     },
   }),
   useBuildSetup: () => ({ profile: h.profile, profilePlan: h.plan }),
@@ -86,6 +88,7 @@ beforeEach(() => {
   h.profile = null;
   h.plan = null;
   h.owned = new Map();
+  h.net = null;
 });
 
 test('nothing shows until a job is opened', () => {
@@ -111,6 +114,18 @@ test('a component job: its runs, build against buy, and its inputs, built ones o
   expect(html).toContain('aria-label="Capital Armor Plates material efficiency"');
   expect(html).toContain('href="/industry/110"');
   expect(html).not.toContain('‹');
+});
+
+test('without a profile no install fee is charged or shown', () => {
+  expect(render([10])).not.toContain('Install fee');
+});
+
+test('under a profile the job’s install fee shows and is part of a built unit', () => {
+  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 930 } }] } };
+  const html = render([10]);
+  expect(html).toMatch(/Install fee<\/span><span[^>]*>930.00</);
+  // (4,070 + 930) / 4 = 1,250 built still beats 9,000 bought.
+  expect(html).toMatch(/Build · per unit<\/span><span[^>]*text-isk[^>]*><span[^>]*>1.3K</);
 });
 
 test('a deeper job leads back, names a reaction once, and takes no research', () => {

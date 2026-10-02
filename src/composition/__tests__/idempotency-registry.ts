@@ -370,6 +370,10 @@ const industryBuildLocationRoute = readRoute({
   route: 'src/app/api/industry/build-location/route.ts',
   evidence: 'Pure resolution over reference data; writes nothing.',
 });
+const industryCostIndicesRoute = readRoute({
+  route: 'src/app/api/industry/cost-indices/route.ts',
+  evidence: 'Read of public cost index reference data; writes nothing.',
+});
 const industryOwnedAssetsRoute = readRoute({
   route: 'src/app/api/industry/owned-assets/route.ts',
   evidence: 'Read of the caller’s own stored assets; writes nothing.',
@@ -637,6 +641,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   eveNamesRoute,
   eveTypeNamesRoute,
   industryBuildLocationRoute,
+  industryCostIndicesRoute,
   industryOwnedAssetsRoute,
   industryOwnedBlueprintsRoute,
   industrySkillLevelsRoute,

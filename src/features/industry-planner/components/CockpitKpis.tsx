@@ -151,13 +151,21 @@ function SellTile() {
   );
 }
 
-function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string | undefined }) {
-  const fees = buildFeeBreakdown(net);
+function FeeHover({
+  net,
+  systemName,
+  nameOf,
+}: {
+  net: NetMarginView;
+  systemName: string | undefined;
+  nameOf: (typeId: number) => string;
+}) {
+  const fees = buildFeeBreakdown(net, nameOf);
   const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
-  const row = (line: FeeLine) => (
-    <div key={line.label} className="flex items-center justify-between gap-4">
-      <span className="text-muted">{line.label}</span>
-      <span className="tabular-nums text-text">{isk(line.value)}</span>
+  const row = (line: FeeLine, key: string | number = line.label) => (
+    <div key={key} className="flex items-center justify-between gap-4">
+      <span className="truncate text-muted">{line.label}</span>
+      <span className="shrink-0 tabular-nums text-text">{isk(line.value)}</span>
     </div>
   );
   const subtotal = (label: string, value: number | null) => (
@@ -171,12 +179,25 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
       <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
       <div className="flex flex-col gap-1 text-ui leading-snug">
         <div className="text-label uppercase tracking-wide text-faint">Install</div>
-        {fees.install.map(row)}
-        {subtotal('Install fee', fees.installTotal)}
+        {fees.install.map((line) => row(line))}
+        {fees.components ? subtotal('Final job', fees.finalJobTotal) : subtotal('Install fee', fees.installTotal)}
       </div>
+      {fees.components && (
+        <div className="flex flex-col gap-1 text-ui leading-snug">
+          <div className="text-label uppercase tracking-wide text-faint">
+            Component jobs <span className="text-muted">· {fees.components.jobs.length}</span>
+          </div>
+          {/* The scrollbar hangs into the popover's padding, so the list's figures line up with the totals. */}
+          <div className={cn(scrollArea, '-mr-3.5 flex max-h-[180px] flex-col gap-1 overflow-y-auto pr-1')}>
+            {fees.components.jobs.map((line, i) => row(line, i))}
+          </div>
+          {subtotal('Component jobs', fees.components.total)}
+          {subtotal('Install fees', fees.installTotal)}
+        </div>
+      )}
       <div className="flex flex-col gap-1 text-ui leading-snug">
         <div className="text-label uppercase tracking-wide text-faint">Sell</div>
-        {fees.sell.map(row)}
+        {fees.sell.map((line) => row(line))}
         {subtotal('Sell fees', fees.sellTotal)}
       </div>
     </KpiHelp>
@@ -245,7 +266,9 @@ function NetMarginTile({
   seeded,
   refreshing,
   setMarginMode,
+  nameOf,
 }: {
+  nameOf: (typeId: number) => string;
   view: CockpitMarginView;
   pricing: BlueprintPricing | null;
   seeded: boolean;
@@ -259,7 +282,7 @@ function NetMarginTile({
         right={
           <span className="flex items-center gap-2">
             <GrossNetToggle showNet={view.showNet} netAvailable={view.netAvailable} setMode={setMarginMode} />
-            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
+            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} nameOf={nameOf} />}
           </span>
         }
       />
@@ -361,6 +384,7 @@ export function CockpitKpis({
           seeded={seeded}
           refreshing={refreshing}
           setMarginMode={setMarginMode}
+          nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
         />
       </div>
       <div className={WIDE}>
