@@ -179,6 +179,18 @@ export function computeMarginalMaterials(
   return [...raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
 }
 
+/** The type each blueprint in the tree produces, the top blueprint included. */
+export function productTypeByBlueprint(
+  tree: TreeNode[],
+  top: { blueprintTypeId: number; productTypeId: number },
+): Map<number, number> {
+  const out = new Map<number, number>([[top.blueprintTypeId, top.productTypeId]]);
+  for (const [typeId, recipe] of flattenRecipes(tree)) {
+    if (!out.has(recipe.blueprintTypeId)) out.set(recipe.blueprintTypeId, typeId);
+  }
+  return out;
+}
+
 export function collectBlueprintTypeIds(tree: TreeNode[], topBlueprintTypeId: number): number[] {
   const out = new Set<number>([topBlueprintTypeId]);
   for (const recipe of flattenRecipes(tree).values()) out.add(recipe.blueprintTypeId);

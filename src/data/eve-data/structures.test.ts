@@ -1,47 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import {
-  RIG_MFG_MATERIAL_ATTR,
-  RIG_REACTION_TIME_ATTR,
   SDE_CITADEL_GROUP_ID,
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
   SDE_REFINERY_GROUP_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
-import { isIndustryRig, rigFitsStructure, shapeStructureRigs } from './structures';
+import { matchingFilterIds, rigFitsStructure, shapeStructureRigs, type TargetFilter } from './structures';
 import type { AttrMap } from './types';
 
-const equipmentMfgEff: AttrMap = {
-  [STRUCTURE_RIG_SIZE_ATTR]: 3,
-  [RIG_MFG_MATERIAL_ATTR]: -2,
-  2593: -20,
-};
-const reactorEff: AttrMap = {
-  [STRUCTURE_RIG_SIZE_ATTR]: 3,
-  [RIG_REACTION_TIME_ATTR]: -20,
-  2714: -2,
-};
-const copyOptimization: AttrMap = {
-  [STRUCTURE_RIG_SIZE_ATTR]: 3,
-  [RIG_MFG_MATERIAL_ATTR]: 0,
-  2593: -20,
-  2595: -10,
-};
+describe('matchingFilterIds', () => {
+  // A slice of CCP's industry target filters, as the SDE ships them.
+  const FILTERS: TargetFilter[] = [
+    { id: 2, name: 'Equipment', categoryIds: [7, 20, 22], groupIds: [12, 340, 448, 649] },
+    { id: 3, name: 'Ships', categoryIds: [6, 32], groupIds: [] },
+    { id: 6, name: 'Small T2 Ships', categoryIds: [], groupIds: [324, 541, 830] },
+    { id: 14, name: 'Components', categoryIds: [], groupIds: [332, 334, 716, 964] },
+    { id: 18, name: 'Composite Reactions', categoryIds: [], groupIds: [428, 429, 4932] },
+  ];
 
-describe('isIndustryRig', () => {
-  it('accepts a manufacturing-efficiency rig (nonzero material reduction)', () => {
-    expect(isIndustryRig(equipmentMfgEff)).toBe(true);
+  it("matches a product by its group's category", () => {
+    expect(matchingFilterIds(FILTERS, { groupId: 55, categoryId: 7 })).toEqual([2]);
   });
 
-  it('accepts a reactor-efficiency rig (reactor-time attr present)', () => {
-    expect(isIndustryRig(reactorEff)).toBe(true);
+  it('matches a product by its own group', () => {
+    expect(matchingFilterIds(FILTERS, { groupId: 334, categoryId: 17 })).toEqual([14]);
+    expect(matchingFilterIds(FILTERS, { groupId: 429, categoryId: 4 })).toEqual([18]);
   });
 
-  it('rejects optimization rigs that carry time/cost but no material reduction', () => {
-    expect(isIndustryRig(copyOptimization)).toBe(false);
+  it('returns every filter a product falls in, by group and by category alike', () => {
+    expect(matchingFilterIds(FILTERS, { groupId: 324, categoryId: 6 })).toEqual([3, 6]);
   });
 
-  it('rejects a non-industry rig (no relevant attrs)', () => {
-    expect(isIndustryRig({ [STRUCTURE_RIG_SIZE_ATTR]: 2, 999: 5 })).toBe(false);
+  it('returns nothing for a product no filter targets', () => {
+    expect(matchingFilterIds(FILTERS, { groupId: 18, categoryId: 4 })).toEqual([]);
+    expect(matchingFilterIds([], { groupId: 334, categoryId: 17 })).toEqual([]);
   });
 });
 
@@ -97,32 +89,17 @@ describe('rigFitsStructure', () => {
 });
 
 describe('shapeStructureRigs', () => {
-  it('keeps only industry rigs, reading canFitGroups + rigSize, name-sorted', () => {
+  it('shapes every row it is given, reading canFitGroups + rigSize, name-sorted', () => {
     const rows = [
       {
         id: 43920,
         name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
-        attributes: {
-          [STRUCTURE_RIG_SIZE_ATTR]: 3,
-          [RIG_MFG_MATERIAL_ATTR]: -2,
-          1298: 1404,
-          1299: 1406,
-          1300: 1657,
-        } as AttrMap,
-      },
-      {
-        id: 99999,
-        name: 'Standup L-Set Copy Optimization',
-        attributes: { [STRUCTURE_RIG_SIZE_ATTR]: 3, [RIG_MFG_MATERIAL_ATTR]: 0 } as AttrMap,
+        attributes: { [STRUCTURE_RIG_SIZE_ATTR]: 3, 1298: 1404, 1299: 1406, 1300: 1657 } as AttrMap,
       },
       {
         id: 46640,
         name: 'Standup M-Set Reactor Efficiency I',
-        attributes: {
-          [STRUCTURE_RIG_SIZE_ATTR]: 2,
-          [RIG_REACTION_TIME_ATTR]: -20,
-          1298: 1406,
-        } as AttrMap,
+        attributes: { [STRUCTURE_RIG_SIZE_ATTR]: 2, 1298: 1406 } as AttrMap,
       },
     ];
     expect(shapeStructureRigs(rows)).toEqual([
@@ -142,17 +119,13 @@ describe('shapeStructureRigs', () => {
   });
 
   it('drops undefined canFitGroup attrs and defaults a missing rig size to null', () => {
-    const [rig] = shapeStructureRigs([
-      {
-        id: 1,
-        name: 'Rig',
-        attributes: { [RIG_MFG_MATERIAL_ATTR]: -1, 1298: 1406 } as AttrMap,
-      },
-    ]);
+    const [rig] = shapeStructureRigs([{ id: 1, name: 'Rig', attributes: { 1298: 1406 } as AttrMap }]);
     expect(rig).toEqual({ typeId: 1, name: 'Rig', canFitGroups: [1406], rigSize: null });
   });
 
-  it('returns an empty array when no row is an industry rig', () => {
-    expect(shapeStructureRigs([{ id: 1, name: 'x', attributes: {} }])).toEqual([]);
+  it('reads a row with no dogma as fitting nothing', () => {
+    expect(shapeStructureRigs([{ id: 1, name: 'x', attributes: null }])).toEqual([
+      { typeId: 1, name: 'x', canFitGroups: [], rigSize: null },
+    ]);
   });
 });

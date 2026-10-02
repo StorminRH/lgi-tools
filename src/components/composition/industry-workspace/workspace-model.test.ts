@@ -154,10 +154,15 @@ const structure = (overrides: Partial<AvailableStructure>): AvailableStructure =
   structureTypeId: 35827,
   groupId: 1404,
   systemId: null,
-  // Hull: −1% material, −3% job cost, −15% time.
-  structureAttrs: { 2600: 0.99, 2601: 0.97, 2602: 0.85 },
-  // One rig: −2% material and −20% time before the security multiplier (×2.1 in null-sec).
-  rigAttrs: [{ 2594: -2, 2593: -20, 2355: 1, 2356: 1.9, 2357: 2.1 }],
+  modifiers: [
+    // Hull: −1% material, −3% job cost, −15% time, on every manufacturing job.
+    { activity: 'manufacturing', kind: 'material', filterId: null, factor: { high: 0.99, low: 0.99, null: 0.99 } },
+    { activity: 'manufacturing', kind: 'cost', filterId: null, factor: { high: 0.97, low: 0.97, null: 0.97 } },
+    { activity: 'manufacturing', kind: 'time', filterId: null, factor: { high: 0.85, low: 0.85, null: 0.85 } },
+    // One equipment rig: −2% material and −20% time, scaled ×1 / ×1.9 / ×2.1 by security band.
+    { activity: 'manufacturing', kind: 'material', filterId: 2, factor: { high: 0.98, low: 0.962, null: 0.958 } },
+    { activity: 'manufacturing', kind: 'time', filterId: 2, factor: { high: 0.8, low: 0.62, null: 0.58 } },
+  ],
   enteredBonuses: null,
   securityClass: null,
   taxPct: 1.5,

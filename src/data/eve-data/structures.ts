@@ -1,9 +1,4 @@
-import {
-  RIG_CAN_FIT_GROUP_ATTRS,
-  RIG_MFG_MATERIAL_ATTR,
-  RIG_REACTION_TIME_ATTR,
-  STRUCTURE_RIG_SIZE_ATTR,
-} from './constants';
+import { RIG_CAN_FIT_GROUP_ATTRS, STRUCTURE_RIG_SIZE_ATTR } from './constants';
 import type { AttrMap } from './types';
 
 export type StructureTypeOption = {
@@ -20,9 +15,37 @@ export type StructureRigOption = {
   rigSize: number | null;
 };
 
-export function isIndustryRig(attrs: AttrMap): boolean {
-  if (attrs[RIG_REACTION_TIME_ATTR] !== undefined) return true;
-  return (attrs[RIG_MFG_MATERIAL_ATTR] ?? 0) !== 0;
+/** The activities a production structure bonus can apply to. */
+export const PRODUCTION_ACTIVITIES = ['manufacturing', 'reaction'] as const;
+
+/**
+ * One hull or rig bonus as the SDE resolves it: the factor it multiplies a
+ * job's material, time or cost by in each security band, for jobs in its
+ * target category (null = every job of that activity).
+ */
+export type ProductionModifier = {
+  activity: (typeof PRODUCTION_ACTIVITIES)[number];
+  kind: 'material' | 'time' | 'cost';
+  filterId: number | null;
+  factor: { high: number; low: number; null: number };
+};
+
+/** One of CCP's industry target filters: a product class hull and rig bonuses aim at. */
+export type TargetFilter = {
+  id: number;
+  name: string;
+  categoryIds: readonly number[];
+  groupIds: readonly number[];
+};
+
+/** The target filters a product belongs to, by its group or its group's category. */
+export function matchingFilterIds(
+  filters: readonly TargetFilter[],
+  product: { groupId: number; categoryId: number },
+): number[] {
+  return filters
+    .filter((f) => f.groupIds.includes(product.groupId) || f.categoryIds.includes(product.categoryId))
+    .map((f) => f.id);
 }
 
 /**
@@ -46,7 +69,6 @@ export function shapeStructureRigs(
   const out: StructureRigOption[] = [];
   for (const r of rows) {
     const attrs = (r.attributes ?? {}) as AttrMap;
-    if (!isIndustryRig(attrs)) continue;
     const canFitGroups = RIG_CAN_FIT_GROUP_ATTRS.map((a) => attrs[a]).filter(
       (g): g is number => g !== undefined,
     );

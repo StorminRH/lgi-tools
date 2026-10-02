@@ -61,6 +61,7 @@ const STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeFilterIds: {},
   nodeTimeSkills: {},
 };
 

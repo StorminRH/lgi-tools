@@ -53,6 +53,8 @@ export interface BlueprintStructure {
   topJobSeconds: number | null;
   nodeJobSeconds: Record<number, number>;
   nodeActivityByBlueprint: Record<number, number>;
+  /** CCP's industry target filters each blueprint's product belongs to: which hull and rig bonuses reach that job. */
+  nodeFilterIds: Record<number, number[]>;
   nodeTimeSkills: Record<
     number,
     { skillTypeId: number; skillName: string; timePctPerLevel: number }[]

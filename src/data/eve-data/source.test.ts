@@ -36,6 +36,11 @@ function extractPaths(): SdeJsonlPaths {
     npcStations: file('npcStations'),
     stationOperations: file('stationOperations'),
     stationServices: file('stationServices'),
+    dogmaEffects: file('dogmaEffects'),
+    industryTargetFilters: file('industryTargetFilters'),
+    industryModifierSources: file('industryModifierSources'),
+    industryAssemblyLines: file('industryAssemblyLines'),
+    industryInstallationTypes: file('industryInstallationTypes'),
   };
 }
 

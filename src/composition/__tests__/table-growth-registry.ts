@@ -203,6 +203,10 @@ export const TABLE_GROWTH_STORIES = [
   { kind: 'bounded', table: schema.dgmAttributeTypes, reason: 'replaced from the EVE SDE' },
   { kind: 'bounded', table: schema.typeDogma, reason: 'replaced from the EVE SDE' },
   { kind: 'bounded', table: schema.industryBlueprints, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryTargetFilters, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryModifiers, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryAssemblyLines, reason: 'replaced from the EVE SDE' },
+  { kind: 'bounded', table: schema.industryInstallationTypes, reason: 'replaced from the EVE SDE' },
   {
     kind: 'bounded',
     table: schema.blueprintTrees,

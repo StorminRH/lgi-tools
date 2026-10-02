@@ -25,6 +25,7 @@ const STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeFilterIds: {},
   nodeTimeSkills: {},
 };
 
@@ -410,6 +411,7 @@ const FERNITE_STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeFilterIds: {},
   nodeTimeSkills: {},
 };
 
