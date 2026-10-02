@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { scrollArea } from '@/components/ui/scroll-area';
 import { LivePrice } from '@/components/ui/live-price';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
@@ -30,9 +29,22 @@ import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { useBuildPlan, useMarketData } from './planner-contexts';
 
 const COLS_TABLET = ['', 'sm:grid-cols-1', 'sm:grid-cols-2'];
-/** Tiers run left to right at a readable width, scrolling sideways when the tree is deeper than the page. */
-const TIER_STRIP =
-  'cockpit:grid-flow-col cockpit:grid-cols-none cockpit:auto-cols-[minmax(15rem,1fr)] cockpit:overflow-x-auto cockpit:snap-x cockpit:pb-2';
+/**
+ * Every tier shares the page, as many columns as the tree is deep, down to
+ * the narrowest column a card still reads in; a tree deeper than that
+ * scrolls sideways instead of crushing its cards.
+ */
+const COLS_DESKTOP = [
+  '',
+  'cockpit:grid-cols-[repeat(1,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(2,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(3,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(4,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(5,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(6,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(7,minmax(8rem,1fr))]',
+  'cockpit:grid-cols-[repeat(8,minmax(8rem,1fr))]',
+];
 
 interface Focus {
   depth: number;
@@ -151,11 +163,14 @@ function TierColumn({
 }) {
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
-    <div className="min-w-0 snap-start">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
-        Tier {tier.depth}
-        <span className="text-faint">· {tier.items.length}</span>
-        <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
+    <div className="@container min-w-0">
+      {/* A narrow column stacks its subtotal under the tier name, so every column's cards start level. */}
+      <div className="mb-2 flex items-center gap-x-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted @max-[14rem]:flex-col @max-[14rem]:items-start">
+        <span className="flex items-center gap-2">
+          Tier {tier.depth}
+          <span className="text-faint">· {tier.items.length}</span>
+        </span>
+        <span className="h-0 flex-1 border-b border-dotted border-border-idle @max-[14rem]:hidden" />
         <LivePrice
           value={formatIsk(subtotal)}
           pending={refreshing}
@@ -287,10 +302,9 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
       <div
         className={cn(
-          'grid grid-cols-1 items-start gap-4',
+          'grid grid-cols-1 items-start gap-4 cockpit:gap-3 cockpit:overflow-x-auto',
           COLS_TABLET[Math.min(batchedTiers.length, 2)],
-          scrollArea,
-          TIER_STRIP,
+          COLS_DESKTOP[Math.min(batchedTiers.length, 8)],
         )}
       >
         {batchedTiers.map((tier) => (
