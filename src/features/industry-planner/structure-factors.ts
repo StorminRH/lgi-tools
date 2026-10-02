@@ -170,6 +170,16 @@ export function structureBonusesAt(
   };
 }
 
+/** What one structure gives a job in the given target categories, at the system's security. */
+export function structureCategoryBonus(
+  structure: AvailableStructure,
+  activityId: IndustryActivityId,
+  systemSecurity: number | null,
+  filterIds: readonly number[],
+): StructureBonus | null {
+  return bonusFor(structure, activityId, systemSecurity, { filterIds });
+}
+
 export function composeFeeInputs(args: {
   location: {
     adjustedPrices: Map<number, number>;

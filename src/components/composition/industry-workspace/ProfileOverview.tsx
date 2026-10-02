@@ -6,16 +6,17 @@ import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
-import type { FacilityRef, ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
+import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { SectionPanel } from '../board/SectionBody';
-import { DefaultFacilitiesPanel, poolFigure } from './ProfileSummary';
+import { FacilitiesPanel, type HullName } from './FacilitiesPanel';
 import { ProductionCapacity } from './ProductionCapacity';
 import {
   type MemberCapacity,
   memberSkills,
   type MemberSkills,
+  poolFigure,
   type PoolSummary,
   poolSummaries,
   type RailMember,
@@ -104,7 +105,7 @@ function TeamSkillsPanel({
     <SectionPanel title="Production skills">
       {rows.length === 0 ? (
         <p className="px-3.5 py-3 text-ui text-muted">
-          No one is on this profile yet. Add a linked character to give them responsibilities.
+          No one is on this profile yet. Add a linked character to assign what they build.
         </p>
       ) : (
         <div className="overflow-x-auto px-1.5">
@@ -122,8 +123,8 @@ function TeamSkillsPanel({
 }
 
 /**
- * The whole profile with no member open: every member's skills
- * and slots, and the profile-wide default facilities.
+ * The whole profile with no member open: every member's skills and slots,
+ * and the facilities the profile builds in.
  */
 export function ProfileOverview({
   members,
@@ -131,20 +132,22 @@ export function ProfileOverview({
   capacities,
   doc,
   structures,
-  onDefault,
+  hulls,
+  onEdit,
 }: {
   members: readonly RailMember[];
   levels: ReadonlyMap<number, Record<string, number> | null>;
   capacities: ReadonlyMap<number, MemberCapacity>;
   doc: ProfileDocument;
   structures: readonly AvailableStructure[] | null;
-  onDefault: (activity: 'manufacturing' | 'reactions', next: FacilityRef | null) => void;
+  hulls: readonly HullName[];
+  onEdit: (next: ProfileDocument) => void;
 }) {
   return (
     <div role="region" aria-label="Profile overview" className="flex min-w-0 flex-col gap-4">
       <ProductionCapacity members={members} capacities={capacities} />
       <TeamSkillsPanel members={members} levels={levels} capacities={capacities} />
-      <DefaultFacilitiesPanel doc={doc} structures={structures} onDefault={onDefault} />
+      <FacilitiesPanel doc={doc} structures={structures} hulls={hulls} onEdit={onEdit} />
     </div>
   );
 }

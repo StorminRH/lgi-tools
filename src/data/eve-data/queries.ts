@@ -39,6 +39,7 @@ import {
   type BlueprintSearchRow,
 } from './blueprint-shaping';
 export type { BlueprintOutput, BlueprintSearchRow };
+import type { StationSearchEntry } from './stations-search';
 import type { SystemSearchEntry } from './systems-search';
 import {
   pickBuildTimeSeconds,
@@ -266,6 +267,32 @@ export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
       .from(eveSolarSystems),
   );
   return systems.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Every NPC station that runs manufacturing, with its system's security, for
+ * picking one by name. Names come from ESI after each import.
+ */
+export async function getManufacturingStationIndex(): Promise<StationSearchEntry[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+
+  const rows = await withColdStartRetry(() =>
+    db
+      .select({
+        id: eveNpcStations.id,
+        name: eveNpcStations.name,
+        systemId: eveNpcStations.solarSystemId,
+        security: eveSolarSystems.securityStatus,
+      })
+      .from(eveNpcStations)
+      .innerJoin(eveSolarSystems, eq(eveSolarSystems.id, eveNpcStations.solarSystemId))
+      .where(and(eq(eveNpcStations.industryCapable, true), eq(eveNpcStations.manufacturingCapable, true))),
+  );
+  return rows
+    .flatMap((r) => (r.name === null ? [] : [{ ...r, name: r.name }]))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function solarSystemExists(systemId: number): Promise<boolean> {

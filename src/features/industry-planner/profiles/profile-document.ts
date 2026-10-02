@@ -1,71 +1,128 @@
 import { z } from 'zod';
+import { ALL_MANUFACTURING, CATEGORY_KEYS, type CategoryKey } from './production-categories';
 
 /**
- * A production profile: who is on the team, which responsibilities each
- * member holds, and which facility they prefer for it. Rules are routing
- * preferences, not proof a character can run a job; skills, structures and
- * slots stay with their authoritative owners and are resolved at read time.
+ * A production profile: who is on the team, the facilities they build in, and
+ * which production categories each member and each facility covers. These are
+ * routing preferences, not proof a character can run a job; skills, structures
+ * and slots stay with their authoritative owners and are resolved at read time.
  */
-
-export const RESPONSIBILITIES = ['reactions', 'components', 'final-assembly'] as const;
-export type Responsibility = (typeof RESPONSIBILITIES)[number];
 
 export const MAX_PROFILE_NAME_LEN = 60;
 export const MAX_PROFILES_PER_USER = 20;
 const MAX_PROFILE_MEMBERS = 60;
+const MAX_PROFILE_FACILITIES = 30;
 
-const facilityRefSchema = z.object({
-  id: z.string().min(1).max(100),
-  name: z.string().max(200),
-});
-export type FacilityRef = z.infer<typeof facilityRefSchema>;
+const categoriesSchema = z.array(z.enum(CATEGORY_KEYS)).max(CATEGORY_KEYS.length);
 
 const memberSchema = z.object({
   characterId: z.number().int().positive(),
   // The name when the member was added, so an unlinked member stays explainable.
   name: z.string().max(100),
+  categories: categoriesSchema,
 });
 export type ProfileMember = z.infer<typeof memberSchema>;
 
-const ruleSchema = z.object({
-  characterId: z.number().int().positive(),
-  responsibility: z.enum(RESPONSIBILITIES),
-  facility: facilityRefSchema.nullable(),
+/** A saved or shared structure (by its available-structure id) or an NPC station (by station id). */
+const facilitySchema = z.object({
+  kind: z.enum(['structure', 'station']),
+  id: z.string().min(1).max(100),
+  name: z.string().max(200),
+  systemId: z.number().int().positive().nullable(),
+  categories: categoriesSchema,
 });
-
-const defaultsSchema = z.object({
-  manufacturingFacility: facilityRefSchema.nullable(),
-  reactionFacility: facilityRefSchema.nullable(),
-});
+export type ProfileFacility = z.infer<typeof facilitySchema>;
 
 export const profileDocumentSchema = z
   .object({
-    v: z.literal(1),
+    v: z.literal(2),
     members: z.array(memberSchema).max(MAX_PROFILE_MEMBERS),
-    rules: z.array(ruleSchema).max(MAX_PROFILE_MEMBERS * RESPONSIBILITIES.length),
-    defaults: defaultsSchema,
+    facilities: z.array(facilitySchema).max(MAX_PROFILE_FACILITIES),
   })
   .superRefine((doc, ctx) => {
     for (const issue of documentIssues(doc)) ctx.addIssue({ code: 'custom', message: issue });
   });
 export type ProfileDocument = z.infer<typeof profileDocumentSchema>;
 
-function documentIssues(doc: Pick<ProfileDocument, 'members' | 'rules'>): string[] {
-  const memberIds = new Set(doc.members.map((m) => m.characterId));
+export function facilityKey(facility: Pick<ProfileFacility, 'kind' | 'id'>): string {
+  return `${facility.kind}:${facility.id}`;
+}
+
+function documentIssues(doc: Pick<ProfileDocument, 'members' | 'facilities'>): string[] {
   const issues: string[] = [];
-  if (memberIds.size !== doc.members.length) issues.push('duplicate member');
-  const ruleKeys = new Set(doc.rules.map((r) => `${r.characterId}:${r.responsibility}`));
-  if (ruleKeys.size !== doc.rules.length) issues.push('duplicate responsibility');
-  if (doc.rules.some((r) => !memberIds.has(r.characterId))) issues.push('rule for a non-member');
+  if (new Set(doc.members.map((m) => m.characterId)).size !== doc.members.length) issues.push('duplicate member');
+  if (new Set(doc.facilities.map(facilityKey)).size !== doc.facilities.length) issues.push('duplicate facility');
   return issues;
 }
 
-export function emptyProfileDocument(members: readonly ProfileMember[] = []): ProfileDocument {
+type V1Document = {
+  v: 1;
+  members?: { characterId: number; name: string }[];
+  rules?: { characterId: number; responsibility: string }[];
+  defaults?: Record<string, { id: string; name: string } | null>;
+};
+
+const V1_CATEGORY: Record<string, CategoryKey> = {
+  reactions: 'reactions',
+  components: 'components',
+  'final-assembly': ALL_MANUFACTURING,
+};
+
+/**
+ * The first document shape held per-member responsibilities and two default
+ * facilities. They become categories: reactions and components keep their
+ * names, final assembly and the manufacturing default become all manufacturing.
+ */
+function upgradeV1(doc: V1Document): z.input<typeof profileDocumentSchema> {
+  const categoriesOf = (characterId: number) => [
+    ...new Set(
+      (doc.rules ?? []).flatMap((r) => (r.characterId === characterId && V1_CATEGORY[r.responsibility]) || []),
+    ),
+  ];
+  const defaults: [string, CategoryKey][] = [
+    ['manufacturingFacility', ALL_MANUFACTURING],
+    ['reactionFacility', 'reactions'],
+  ];
+  const facilities = new Map<string, ProfileFacility>();
+  for (const [slot, category] of defaults) {
+    const ref = doc.defaults?.[slot];
+    if (!ref) continue;
+    const held = facilities.get(ref.id);
+    facilities.set(ref.id, {
+      kind: 'structure',
+      id: ref.id,
+      name: ref.name,
+      systemId: null,
+      categories: [...(held?.categories ?? []), category],
+    });
+  }
   return {
-    v: 1,
-    members: [...members],
-    rules: [],
-    defaults: { manufacturingFacility: null, reactionFacility: null },
+    v: 2,
+    members: (doc.members ?? []).map((m) => ({ ...m, categories: categoriesOf(m.characterId) })),
+    facilities: [...facilities.values()],
+  };
+}
+
+const storedProfileDocumentSchema = z.preprocess(
+  (raw) => (typeof raw === 'object' && raw !== null && (raw as { v?: unknown }).v === 1 ? upgradeV1(raw as V1Document) : raw),
+  profileDocumentSchema,
+);
+
+/**
+ * A stored document of any shape this app has written, read as the current
+ * one. Every write is validated, so one that no longer parses reads as empty
+ * rather than failing the whole list.
+ */
+export function readStoredDocument(raw: unknown): ProfileDocument {
+  const parsed = storedProfileDocumentSchema.safeParse(raw);
+  return parsed.success ? parsed.data : emptyProfileDocument();
+}
+
+export function emptyProfileDocument(members: readonly Omit<ProfileMember, 'categories'>[] = []): ProfileDocument {
+  return {
+    v: 2,
+    members: members.map((m) => ({ ...m, categories: [] })),
+    facilities: [],
   };
 }
 

@@ -4,8 +4,8 @@ import { expect, test, vi } from 'vitest';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { ViewerJobs } from '@/features/industry-jobs/live-derive';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
+import { addFacility, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
-import { setResponsibility } from '@/features/industry-planner/profiles/responsibilities';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 
 const live = vi.hoisted(() => ({
@@ -95,7 +95,8 @@ const TATARA: AvailableStructure = {
 function render(jobsByCharacter: Map<number, ViewerJobs> = new Map()): string {
   const jobs = { jobsByCharacter, loading: false, failed: false };
   const corp = { corporations: [], loading: false, failed: false };
-  return renderToStaticMarkup(createElement(ProfileWorkspace, { jobs, corp, corpEligible: false }));
+  const hulls = [{ typeId: 35836, name: 'Tatara' }];
+  return renderToStaticMarkup(createElement(ProfileWorkspace, { jobs, corp, corpEligible: false, hulls }));
 }
 
 function capacityReadout(html: string): string {
@@ -128,9 +129,16 @@ function teamProfile(): IndustryProfileRow {
     { characterId: REACTOR.characterId, name: REACTOR.name },
     { characterId: 9003, name: 'Old Alt' },
   ]);
-  doc = setResponsibility(doc, BUILDER.characterId, 'components', true);
-  doc = setResponsibility(doc, BUILDER.characterId, 'final-assembly', true);
-  doc = setResponsibility(doc, REACTOR.characterId, 'reactions', true);
+  doc = setMemberCategories(doc, BUILDER.characterId, ['capital-ships', 'components']);
+  doc = setMemberCategories(doc, REACTOR.characterId, ['reactions']);
+  doc = addFacility(doc, { kind: 'structure', id: TATARA.id, name: TATARA.name, systemId: TATARA.systemId, categories: ['reactions'] });
+  doc = addFacility(doc, {
+    kind: 'station',
+    id: '60003760',
+    name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+    systemId: 30000142,
+    categories: ['manufacturing'],
+  });
   return { id: 'caps', name: 'Capital line', revision: 4, document: doc, updatedAt: '2026-09-29T00:00:00.000Z' };
 }
 
@@ -163,12 +171,18 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   const team = render();
   expect(team).toContain('Capital line');
   expect(team).toContain(`data-member-id="${BUILDER.characterId}"`);
-  expect(team).toContain(`${BUILDER.name}: Components · Final assembly`);
+  expect(team).toContain(`${BUILDER.name}: Capital ships · All components`);
   // An unlinked member stays on the team as unresolved.
-  expect(team).toContain('Old Alt: No responsibilities, not linked');
+  expect(team).toContain('Old Alt: Nothing assigned, not linked');
   expect(team).toContain('Not linked');
   expect(team).toContain('Production skills by member');
-  expect(team).toContain('Default facilities');
+  expect(team).toContain('>Facilities<');
+  // Each facility names what it builds; the station reads as one.
+  expect(team).toContain('Moon Tatara');
+  expect(team).toContain('All reactions');
+  expect(team).toContain('NPC station');
+  expect(team).toContain('All manufacturing');
+  expect(team).toContain('aria-label="Add a facility"');
   expect(team).toContain('Production Capacity');
   expect(capacityReadout(team)).toContain('?/8+');
   expect(team).toContain('1 unlinked character is excluded.');
@@ -190,13 +204,15 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(reactor).not.toContain('Manage structures');
   expect(reactor).not.toContain('Reactions facility');
   expect(reactor).not.toContain('Job slots');
-  expect(reactor).toContain('Responsibilities</legend>');
-  const responsibilities = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
-  expect(responsibilities).toHaveLength(3);
-  expect(responsibilities.find((checkbox) => checkbox.includes('aria-label="Reactions"')))
-    .toContain('aria-checked="true"');
-  expect(responsibilities.find((checkbox) => checkbox.includes('aria-label="Components"')))
-    .toContain('aria-checked="false"');
+  expect(reactor).toContain(`What ${REACTOR.name} builds</legend>`);
+  const categories = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
+  expect(categories).toHaveLength(22);
+  const box = (label: string) => categories.find((checkbox) => checkbox.includes(`aria-label="${label}"`)) ?? '';
+  expect(box('All reactions')).toContain('aria-checked="true"');
+  // A ticked parent covers its classes, which read as ticked and stay put.
+  expect(box('Composite reactions')).toContain('aria-checked="true"');
+  expect(box('Composite reactions')).toContain('aria-disabled="true"');
+  expect(box('All components')).toContain('aria-checked="false"');
   expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
 
   // A member that is not on the profile shows the whole profile instead.
