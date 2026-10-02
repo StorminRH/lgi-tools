@@ -114,7 +114,8 @@ function NetWorthHelp() {
         fittings, implants, and items listed on the market.
       </p>
       <p className="text-ui leading-snug text-muted">
-        Prices follow recent Jita market prices, so this number moves with the market.
+        Prices follow recent Jita market prices, so this number moves with the market. It is
+        recalculated once a day after prices update, and when you add or remove a pilot.
       </p>
       <p className="text-ui leading-snug text-muted">Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.</p>
     </Popover>

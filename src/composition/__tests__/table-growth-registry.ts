@@ -81,7 +81,7 @@ export const TABLE_GROWTH_STORIES = [
     table: schema.netWorthDays,
     retentionDays: NET_WORTH_HISTORY_DAYS,
     retentionConstant: 'NET_WORTH_HISTORY_DAYS',
-    prunedBy: 'each board snapshot write, a row cap to the newest 365 recorded days per account',
+    prunedBy: 'each net worth snapshot write (nightly revalue or roster change), a row cap to the newest 365 recorded days per account',
     alsoPurgeManagedBy: 'net-worth',
   },
   {
