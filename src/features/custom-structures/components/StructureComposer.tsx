@@ -33,6 +33,7 @@ import {
   type StructureSearchResult,
 } from '../api-contract';
 import {
+  draftFromFit,
   draftFromRow,
   emptyStructureDraft,
   payloadFromDraft,
@@ -319,13 +320,7 @@ export function StructureComposer({
     setBusy(false);
     const parsed = res.ok ? res.data.parsed : null;
     if (!parsed) return setError('fit');
-    const hull = structureTypes.find((t) => t.typeId === parsed.structureTypeId)?.name ?? '';
-    update({
-      structureTypeId: parsed.structureTypeId,
-      rigSlots: slotsFromRigs(parsed.rigTypeIds),
-      mode: 'rigs',
-      name: draft.name.trim() ? draft.name : (parsed.name ?? hull).slice(0, MAX_CUSTOM_STRUCTURE_NAME_LEN),
-    });
+    update(draftFromFit(draft, parsed, structureTypes));
   }
 
   function save() {
