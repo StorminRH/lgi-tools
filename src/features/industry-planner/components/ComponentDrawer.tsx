@@ -217,6 +217,12 @@ function Sheet({
         </Stat>
       </div>
       <JobRoute blueprintTypeId={sheet.blueprintTypeId} />
+      {sheet.installFee && (
+        <div className="flex items-baseline justify-between px-2">
+          <span className={eyebrow({ size: 'micro', tone: 'muted' })}>Install fee</span>
+          <LivePrice value={formatIsk(sheet.installFee.value)} pending={refreshing} className="font-data text-ui text-isk" />
+        </div>
+      )}
       <section aria-label="Inputs" className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between px-2">
           <h3 className={eyebrow({ size: 'micro', tone: 'muted' })}>Inputs</h3>
@@ -263,7 +269,14 @@ export function ComponentDrawer({
   if (topId !== null && topId !== shownId) setShownId(topId);
   const unitPriceOf = useMemo(() => unitPriceMap(pricing), [pricing]);
   const id = topId ?? shownId;
-  const sheet = id === null ? null : componentSheet(structure, id, ledger, unitPriceOf, ledgerMeOpts.structureMeFactorOf);
+  const sheet =
+    id === null
+      ? null
+      : componentSheet(structure, id, ledger, {
+          unitPriceOf,
+          structureMeFactorOf: ledgerMeOpts.structureMeFactorOf,
+          jobFee: pricing?.net?.componentJobs?.jobs.find((job) => job.typeId === id),
+        });
   const previousId = stack.length > 1 ? stack[stack.length - 2]! : null;
   const previous =
     previousId === null

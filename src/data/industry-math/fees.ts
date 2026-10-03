@@ -117,6 +117,8 @@ export interface NetMarginInput extends MarginInput {
   systemCostIndex: number | null;
   rates?: FeeRates;
   structureCostBonusPct?: number;
+  /** Install fees of the jobs that make the inputs; null while one can't be priced. */
+  componentJobFees?: number | null;
 }
 
 export interface NetMargin {
@@ -143,7 +145,11 @@ export function computeNetMargin(input: NetMarginInput): NetMargin {
   );
   const sellSide = computeSellSideFees(gross.revenue, rates);
 
-  const netCost = jobFee.total === null ? null : input.buildCost + jobFee.total;
+  const componentJobFees = input.componentJobFees === undefined ? 0 : input.componentJobFees;
+  const netCost =
+    jobFee.total === null || componentJobFees === null
+      ? null
+      : input.buildCost + jobFee.total + componentJobFees;
   const netMargin =
     gross.revenue === null || sellSide.total === null || netCost === null
       ? null
@@ -155,6 +161,7 @@ export function computeNetMargin(input: NetMarginInput): NetMargin {
 
   const incomplete =
     jobFee.missingSystemCostIndex ||
+    componentJobFees === null ||
     jobFee.missingAdjustedPriceTypeIds.length > 0 ||
     gross.revenue === null;
 

@@ -40,7 +40,9 @@ import {
   ownedAssetsEndpoint,
   ownedBlueprintsEndpoint,
 } from '../api-contract';
+import { useComponentFeeSources, type ComponentFeeInputs } from './use-component-fee-sources';
 import { useProfileFactors } from './use-planner-profile';
+import type { ProfilePlan } from '../profiles/profile-plan';
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
 import { useResourceRead } from '../use-resource-read';
@@ -276,6 +278,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 }
 
 interface PriceAssembleMirrors {
+  readonly components: ComponentFeeInputs | null;
   readonly costBasis: 'batched' | 'marginal';
   readonly ledger: BatchLedger;
   readonly ledgerMeOpts: MeOptions;
@@ -287,7 +290,17 @@ interface PriceAssembleMirrors {
   readonly structureFactors: StructureFactors;
 }
 
-function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirrors) {
+function usePriceClock(
+  structure: BlueprintStructure,
+  inputs: Omit<PriceAssembleMirrors, 'components'>,
+  plan: ProfilePlan | null,
+  locationRead: { refreshKey: number; failed: boolean },
+) {
+  // Pricing owns the per-job fee sources for the profile installing the build.
+  const componentFees = useComponentFeeSources(
+    structure, plan, locationRead.refreshKey, !inputs.location && !inputs.reactionLocation,
+  );
+  const mirrors: PriceAssembleMirrors = { ...inputs, components: componentFees.sources };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -306,6 +319,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
       buildStructure: current.selectedStructure,
       reactionStructure: current.reactionStructure,
       structureCostBonusPct: sf.structureCostBonusPct,
+      components: current.components ?? undefined,
     });
     setPricing(
       assemblePricing(structure, priceSnapshot.lookup, {
@@ -332,6 +346,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     return () => clearTimeout(t);
   }, [
     mirrors.runs,
+    mirrors.components,
     mirrors.location,
     mirrors.reactionLocation,
     mirrors.selectedStructure,
@@ -343,7 +358,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     seeded,
     assemble,
   ]);
-  return { assemble, priceSnapshot, pricing, seed, seeded };
+  return { assemble, priceSnapshot, pricing, seed, seeded, locationFailed: locationRead.failed || componentFees.failed };
 }
 
 function useMarketRefresh(
@@ -478,6 +493,7 @@ export function PricingProvider({
     locationState.reactionSystem?.systemId ?? null,
     locationState.setFetchedReactionLocation,
     locationState.setAvailableStructures,
+    locationState.reactionLocation,
   );
   // Under a profile each job takes its own facility's bonus and character; with none, the build is baseline.
   const profile = useProfileFactors(structure, {
@@ -507,7 +523,7 @@ export function PricingProvider({
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
     structureFactors,
-  });
+  }, profile.plan, { refreshKey: locationWrites.retry, failed: locationFailed });
   const market = useMarketRefresh(
     structure,
     clock.seeded,
@@ -568,7 +584,7 @@ export function PricingProvider({
       profiles: profile.profiles,
       profilesFailed: profile.profilesFailed,
       refreshProfiles: profile.refreshProfiles,
-      locationFailed,
+      locationFailed: clock.locationFailed,
       retryLocation: locationWrites.retryLocation,
       profile: profile.profile,
       setProfileId: profile.setProfileId,
@@ -582,7 +598,7 @@ export function PricingProvider({
       profile.profiles,
       profile.profilesFailed,
       profile.refreshProfiles,
-      locationFailed,
+      clock.locationFailed,
       locationWrites.retryLocation,
       profile.profile,
       profile.setProfileId,

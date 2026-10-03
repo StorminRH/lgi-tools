@@ -20,10 +20,10 @@ import {
 } from '../cockpit-kpis-view';
 import { type MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
-import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { timeLeverRows } from '../time-lever-rows';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
+import { FeeBreakdownPanel } from './FeeBreakdownPanel';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
@@ -151,34 +151,19 @@ function SellTile() {
   );
 }
 
-function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string | undefined }) {
-  const fees = buildFeeBreakdown(net);
-  const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
-  const row = (line: FeeLine) => (
-    <div key={line.label} className="flex items-center justify-between gap-4">
-      <span className="text-muted">{line.label}</span>
-      <span className="tabular-nums text-text">{isk(line.value)}</span>
-    </div>
-  );
-  const subtotal = (label: string, value: number | null) => (
-    <div className="mt-0.5 flex items-center justify-between gap-4 border-t border-border-soft pt-0.5">
-      <span className="text-text">{label}</span>
-      <span className="tabular-nums text-name">{isk(value)}</span>
-    </div>
-  );
+function FeeHover({
+  net,
+  systemName,
+  nameOf,
+}: {
+  net: NetMarginView;
+  systemName: string | undefined;
+  nameOf: (typeId: number) => string;
+}) {
+  // Wide enough that an indented line such as an assumed facility tax reads in full.
   return (
-    <KpiHelp label="Fee breakdown">
-      <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
-      <div className="flex flex-col gap-1 text-ui leading-snug">
-        <div className="text-label uppercase tracking-wide text-faint">Install</div>
-        {fees.install.map(row)}
-        {subtotal('Install fee', fees.installTotal)}
-      </div>
-      <div className="flex flex-col gap-1 text-ui leading-snug">
-        <div className="text-label uppercase tracking-wide text-faint">Sell</div>
-        {fees.sell.map(row)}
-        {subtotal('Sell fees', fees.sellTotal)}
-      </div>
+    <KpiHelp label="Fee breakdown" keepSide className="w-[296px]">
+      <FeeBreakdownPanel net={net} systemName={systemName} nameOf={nameOf} />
     </KpiHelp>
   );
 }
@@ -245,7 +230,9 @@ function NetMarginTile({
   seeded,
   refreshing,
   setMarginMode,
+  nameOf,
 }: {
+  nameOf: (typeId: number) => string;
   view: CockpitMarginView;
   pricing: BlueprintPricing | null;
   seeded: boolean;
@@ -259,7 +246,7 @@ function NetMarginTile({
         right={
           <span className="flex items-center gap-2">
             <GrossNetToggle showNet={view.showNet} netAvailable={view.netAvailable} setMode={setMarginMode} />
-            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
+            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} nameOf={nameOf} />}
           </span>
         }
       />
@@ -361,6 +348,7 @@ export function CockpitKpis({
           seeded={seeded}
           refreshing={refreshing}
           setMarginMode={setMarginMode}
+          nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
         />
       </div>
       <div className={WIDE}>

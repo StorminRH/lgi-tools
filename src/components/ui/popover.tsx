@@ -5,10 +5,14 @@ import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
+import { scrollArea } from './scroll-area';
 import type { Tone } from './tones';
 import { eyebrow } from './type-roles';
 
 export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
+
+/** Stay on the chosen side, shifting along it to fit, rather than flipping across the trigger. */
+const KEEP_SIDE = { side: 'shift', align: 'shift', fallbackAxisSide: 'none' } as const;
 
 const popup = cva(
   'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] font-ui text-ui leading-snug normal-case tracking-normal outline-none ' +
@@ -34,6 +38,7 @@ export function Popover({
   side = 'bottom',
   align = 'center',
   openOnHover = true,
+  keepSide = false,
   onOpenChange,
   triggerClassName,
   className,
@@ -45,6 +50,11 @@ export function Popover({
   side?: 'top' | 'bottom' | 'left' | 'right';
   align?: 'start' | 'center' | 'end';
   openOnHover?: boolean;
+  /**
+   * For content that grows while open: the popup shifts to fit and scrolls
+   * past the viewport, so it never flips away from the pointer and closes.
+   */
+  keepSide?: boolean;
   onOpenChange?: (open: boolean) => void;
   triggerClassName?: string;
   className?: string;
@@ -62,8 +72,21 @@ export function Popover({
         {trigger}
       </Base.Trigger>
       <Base.Portal>
-        <Base.Positioner side={side} align={align} sideOffset={8} className="z-dropdown">
-          <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
+        <Base.Positioner
+          side={side}
+          align={align}
+          sideOffset={8}
+          collisionAvoidance={keepSide ? KEEP_SIDE : undefined}
+          className="z-dropdown"
+        >
+          <Base.Popup
+            aria-label={label}
+            className={cn(
+              popup({ tone }),
+              keepSide && [scrollArea, 'max-h-[calc(100dvh-1rem)] overflow-y-auto'],
+              className,
+            )}
+          >
             {children}
           </Base.Popup>
         </Base.Positioner>

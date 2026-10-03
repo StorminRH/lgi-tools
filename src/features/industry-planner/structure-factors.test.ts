@@ -483,6 +483,22 @@ describe('composeFeeInputs', () => {
     expect(compose({ reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID }) })).toBeUndefined();
   });
 
+  it('uses independent component prices without assigning the uncovered product a system or index', () => {
+    const components = {
+      adjustedPriceOf: (id: number) => id === 34 ? 9 : null,
+      siteOf: () => ({ systemId: 7, facilityTaxPct: 1, costBonusPct: 0 }),
+      costIndexOf: () => 0.04,
+    };
+    const fee = compose({ components })!;
+    expect(fee.systemCostIndex).toBeNull();
+    expect(fee.reaction).toBeUndefined();
+    expect(fee.adjustedPriceOf(34)).toBe(9);
+    expect(fee.components).toBe(components);
+    const located = compose({ components, location: location(0.04, null) })!;
+    expect(located.adjustedPriceOf(34)).toBe(5);
+    expect(located.adjustedPriceOf(99)).toBeNull();
+  });
+
   it('composes the mfg keys from the build location + the build slot structure tax', () => {
     const fee = compose({
       location: location(0.04, 0.01),

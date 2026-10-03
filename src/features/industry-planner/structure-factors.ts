@@ -190,6 +190,9 @@ export function composeFeeInputs(args: {
   buildStructure: AvailableStructure | null;
   reactionStructure: AvailableStructure | null;
   structureCostBonusPct: number;
+  components?: NonNullable<AssembleOptions['fee']>['components'] & {
+    adjustedPriceOf: (typeId: number) => number | null;
+  };
 }): AssembleOptions['fee'] {
   const { location, reactionLocation, buildStructure, reactionStructure } = args;
   const { reactionHost } = routeHosts(buildStructure, reactionStructure);
@@ -198,14 +201,19 @@ export function composeFeeInputs(args: {
     : buildStructure && hostsReactions(buildStructure.groupId) && location
       ? { systemCostIndex: location.costIndices.reaction ?? null, facilityTaxPct: buildStructure.taxPct }
       : undefined;
-  if (!location && !reaction) return undefined;
+  if (!location && !reaction && !args.components) return undefined;
   return {
-    adjustedPriceOf: (id: number) =>
-      location?.adjustedPrices.get(id) ?? reactionLocation?.adjustedPrices.get(id) ?? null,
+    adjustedPriceOf: (id: number) => {
+      if (location || reactionLocation) {
+        return location?.adjustedPrices.get(id) ?? reactionLocation?.adjustedPrices.get(id) ?? null;
+      }
+      return args.components?.adjustedPriceOf(id) ?? null;
+    },
     systemCostIndex: location?.costIndices.manufacturing ?? null,
     structureCostBonusPct: args.structureCostBonusPct,
     facilityTaxPct: buildStructure?.taxPct ?? null,
     reaction,
+    components: args.components,
   };
 }
 
