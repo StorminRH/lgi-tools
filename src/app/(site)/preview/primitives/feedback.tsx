@@ -60,6 +60,7 @@ function SyncToastTrigger() {
 
 export function FeedbackGroup() {
   const [bannerVisible, setBannerVisible] = useState(true);
+  const [retries, setRetries] = useState(0);
 
   return (
     <ReferenceGroup
@@ -70,7 +71,7 @@ export function FeedbackGroup() {
       <Specimen
         name="Banner"
         source="banner"
-        note="Page-level platform notices. Info announces politely; warn is an alert. Either can be dismissible."
+        note="Page-level platform notices. Info announces politely; warn is an alert. Either can be dismissible, or retry a failed load when clicked."
         wide
       >
         <div className="flex flex-col gap-2.5">
@@ -85,6 +86,12 @@ export function FeedbackGroup() {
           )}
           <Banner tone="warn">
             <strong className="font-medium text-name">ESI degraded</strong> — prices may be stale up to 3h.
+          </Banner>
+          <Banner tone="warn" onRetry={() => setRetries((n) => n + 1)} retryLabel="Retry system fees">
+            <span className="flex flex-col gap-0.5 leading-snug">
+              <strong className="font-medium text-name">System fees didn&apos;t load</strong>
+              <span className="text-muted">{retries === 0 ? 'Net margin is unavailable' : `Retried ${retries}×`}</span>
+            </span>
           </Banner>
         </div>
       </Specimen>

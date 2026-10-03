@@ -177,7 +177,7 @@ async function seedUserData() {
     id: 'profile-new',
     userId: NEW,
     name: 'Capital line',
-    document: { v: 1, members: [], rules: [], defaults: { manufacturingFacility: null, reactionFacility: null } },
+    document: { v: 2, members: [], facilities: [] },
   });
   await harness.db.insert(customStructures).values({
     id: 'structure-new',

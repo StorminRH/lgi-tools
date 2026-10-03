@@ -17,16 +17,19 @@ export function overlayPending(
   });
 }
 
-export function saveFailureMessage(status: number): string {
-  if (status === 409) return 'This profile changed somewhere else. Showing the latest version.';
-  if (status === 404) return 'This profile was deleted somewhere else.';
-  if (status === 400) return 'A character on this profile is no longer linked to your account.';
+const NOT_LINKED = 'A character on this profile is no longer linked to your account.';
+
+/** Why a save was refused, by the server's reason; any other refusal is a plain failure. */
+export function saveFailureMessage(reason: string | undefined): string {
+  if (reason === 'stale_revision') return 'This profile changed somewhere else. Showing the latest version.';
+  if (reason === 'profile_missing') return 'This profile was deleted somewhere else.';
+  if (reason === 'not_linked') return NOT_LINKED;
   return "Couldn't save the profile. Showing the last saved version.";
 }
 
-export function createFailureMessage(status: number): string {
-  if (status === 409) return 'You have reached the profile limit. Delete one to make room.';
-  if (status === 400) return 'A character on this profile is no longer linked to your account.';
+export function createFailureMessage(reason: string | undefined): string {
+  if (reason === 'profile_limit') return 'You have reached the profile limit. Delete one to make room.';
+  if (reason === 'not_linked') return NOT_LINKED;
   return "Couldn't create the profile.";
 }
 

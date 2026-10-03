@@ -60,13 +60,53 @@
     background-color: color-mix(in oklab, white 8%, transparent);
     rotate: 90deg;
   }
+  .banner-glass[data-retry] {
+    position: relative;
+    transition: border-color var(--transition-duration-fast);
+  }
+  .banner-glass[data-retry]:hover {
+    border-color: color-mix(in oklab, var(--banner-tone) 45%, var(--color-border));
+  }
+  .banner-retry-hit {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    cursor: pointer;
+  }
+  .banner-retry-hit:focus-visible {
+    outline: 1px solid var(--banner-ink);
+    outline-offset: -1px;
+  }
+  .banner-retry {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: var(--color-muted);
+    transition:
+      background-color var(--transition-duration-fast),
+      color var(--transition-duration-fast),
+      rotate 420ms var(--ease-spring);
+  }
+  .banner-glass[data-retry]:hover .banner-retry {
+    color: var(--banner-ink);
+    background-color: color-mix(in oklab, var(--banner-tone) 18%, transparent);
+    rotate: 180deg;
+  }
+  .banner-glass[data-retry] .banner-dismiss {
+    position: relative;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .banner-glass {
     animation: none;
   }
-  .banner-dismiss {
+  .banner-dismiss,
+  .banner-retry {
     transition: none;
   }
 }

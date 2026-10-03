@@ -14,7 +14,7 @@ import {
   removeFacility,
   setFacilityCategories,
 } from '@/features/industry-planner/profiles/assignments';
-import { facilityKey, type ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
+import { facilityKey, MAX_PROFILE_FACILITIES, type ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { SectionPanel } from '../board/SectionBody';
 import { AddFacility } from './AddFacility';
@@ -225,6 +225,7 @@ export function FacilitiesPanel({
           taken={new Set(views.map((v) => v.key))}
           describe={describe}
           onAdd={add}
+          full={doc.facilities.length >= MAX_PROFILE_FACILITIES}
         />
       </div>
     </SectionPanel>

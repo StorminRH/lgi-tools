@@ -20,10 +20,11 @@ vi.mock('@/platform/esi', () => ({
 import { searchUpwellStructures } from './structure-search';
 
 const BOTH_SCOPES = 'esi-search.search_structures.v1 esi-universe.read_structures.v1';
-const pilot = (characterId: number, scope: string) => ({
+const pilot = (characterId: number, scope: string, corporationId: number | null = null) => ({
   characterId,
   scope,
   hasRefreshToken: true,
+  corporationId,
 });
 
 function json(status: number, body: unknown): Response {
@@ -122,5 +123,74 @@ describe('searchUpwellStructures', () => {
     esiAnswers(ids, {});
     await searchUpwellStructures('user-1', 'any');
     expect(h.esiFetch).toHaveBeenCalledTimes(1 + 8);
+  });
+
+  describe('one search per corporation', () => {
+    const tokenOf = (init: { headers: { Authorization: string } }) => init.headers.Authorization.replace('Bearer ', '');
+    /** Each token's search sees `seen[token]`, or fails with `failing[token]`; every structure reads unless `refused`. */
+    function esiPerToken(seen: Record<string, number[]>, failing: Record<string, number> = {}, refused: string[] = []) {
+      h.esiFetch.mockImplementation(async (url: string, init: { headers: { Authorization: string } }) => {
+        const token = tokenOf(init);
+        if (url.includes('/search/')) {
+          return failing[token] ? json(failing[token]!, {}) : json(200, { structure: seen[token] ?? [] });
+        }
+        const id = Number(/structures\/(\d+)\//.exec(url)?.[1]);
+        if (refused.includes(`${token}:${id}`)) return json(403, {});
+        return json(200, { name: `S${id}`, solar_system_id: 30000142, type_id: 35825 });
+      });
+    }
+    const searchesBy = () =>
+      h.esiFetch.mock.calls
+        .filter(([url]) => (url as string).includes('/search/'))
+        .map(([url]) => Number(/characters\/(\d+)\//.exec(url as string)?.[1]));
+    const readsOf = (id: number) =>
+      h.esiFetch.mock.calls.filter(([url]) => (url as string).includes(`/structures/${id}/`)).length;
+
+    beforeEach(() => {
+      h.getFreshAccessTokenForCharacter.mockImplementation(async (id: number) => ({ kind: 'ok', accessToken: `tok-${id}` }));
+    });
+
+    it('corp-mates search once, with the first of them', async () => {
+      h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES, 500), pilot(2, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 500)]);
+      esiPerToken({ 'tok-1': [10, 20] });
+      expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([10, 20]);
+      expect(searchesBy()).toEqual([1]);
+    });
+
+    it('each corporation searches, and a structure both see is read once', async () => {
+      h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES, 500), pilot(2, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 600)]);
+      esiPerToken({ 'tok-1': [10, 30], 'tok-3': [30, 40] });
+      expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([10, 30, 40]);
+      expect(searchesBy().sort()).toEqual([1, 3]);
+      expect(readsOf(30)).toBe(1);
+    });
+
+    it("one corporation's failed search does not stop another's", async () => {
+      h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 600)]);
+      esiPerToken({ 'tok-3': [40] }, { 'tok-1': 502 });
+      expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([40]);
+    });
+
+    it('a corp-mate steps in when a search fails, two searches at most; one with no usable token is passed over free', async () => {
+      h.listLinkedCharacters.mockResolvedValue([
+        pilot(1, BOTH_SCOPES, 500), pilot(2, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 500), pilot(4, BOTH_SCOPES, 500),
+      ]);
+      h.getFreshAccessTokenForCharacter.mockImplementation(async (id: number) =>
+        id === 2 ? { kind: 'reauth_required' } : { kind: 'ok', accessToken: `tok-${id}` });
+      esiPerToken({}, { 'tok-1': 502, 'tok-3': 502 });
+      await expect(searchUpwellStructures('user-1', 'any')).rejects.toThrow('(502)');
+      expect(searchesBy()).toEqual([1, 3]);
+      esiPerToken({ 'tok-3': [10] }, { 'tok-1': 502 });
+      h.esiFetch.mockClear();
+      expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([10]);
+      expect(searchesBy()).toEqual([1, 3]);
+    });
+
+    it('a structure one token is refused is read with another that saw it', async () => {
+      h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES, 500), pilot(3, BOTH_SCOPES, 600)]);
+      esiPerToken({ 'tok-1': [30], 'tok-3': [30] }, {}, ['tok-1:30']);
+      expect((await searchUpwellStructures('user-1', 'any')).map((r) => r.structureId)).toEqual([30]);
+      expect(readsOf(30)).toBe(2);
+    });
   });
 });

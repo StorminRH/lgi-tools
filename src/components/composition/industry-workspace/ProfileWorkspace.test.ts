@@ -5,7 +5,7 @@ import type { BoardCharacter } from '@/composition/board/api-contract';
 import type { ViewerJobs } from '@/features/industry-jobs/live-derive';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { addFacility, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
-import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
+import { emptyProfileDocument, MAX_PROFILE_FACILITIES } from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 
 const live = vi.hoisted(() => ({
@@ -156,7 +156,9 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(render()).toContain('Loading production profiles');
 
   live.listFailed = true;
-  expect(render()).toContain('could not be loaded');
+  const failed = render();
+  expect(failed).toContain("Profiles didn&#x27;t load");
+  expect(failed).toContain('aria-label="Retry loading profiles"');
   live.listFailed = false;
 
   live.profiles = [];
@@ -320,4 +322,27 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(pendingIdentity).not.toContain('Reactor corporation');
   expect(pendingIdentity).not.toContain('6y old');
   expect(pendingIdentity).not.toContain('Online');
+});
+
+test('a profile at its facility limit cannot take another', () => {
+  live.session = { characterId: BUILDER.characterId };
+  live.roster = [BUILDER, REACTOR];
+  live.listFailed = false;
+  live.structures = [TATARA];
+  live.params = new URLSearchParams('profile=caps');
+  const team = teamProfile();
+  const stations = Array.from({ length: MAX_PROFILE_FACILITIES - team.document.facilities.length }, (_, i) => ({
+    kind: 'station' as const,
+    id: `${61000000 + i}`,
+    name: `Station ${i}`,
+    systemId: 30000142,
+    categories: [],
+  }));
+  const addField = () => /<input[^>]*aria-label="Add a facility"[^>]*>/.exec(render())![0];
+  live.profiles = [team];
+  expect(addField()).toContain('placeholder="Add facility"');
+  expect(addField()).not.toContain('disabled=""');
+  live.profiles = [{ ...team, document: { ...team.document, facilities: [...team.document.facilities, ...stations] } }];
+  expect(addField()).toContain('placeholder="Facility limit reached"');
+  expect(addField()).toContain('disabled=""');
 });

@@ -11,6 +11,7 @@ import {
   industryProfilesEndpoint,
   updateIndustryProfileEndpoint,
 } from './api-contract';
+import { readWithRetries } from '../read-with-retries';
 import type { ProfileDocument } from './profile-document';
 import { createProfileSync, type ProfileSync, type ProfileSyncState, type ProfilesResult } from './profile-sync';
 import { createFailureMessage, type PendingEdit } from './profile-view';
@@ -26,22 +27,21 @@ export interface IndustryProfilesState extends ProfileSyncState {
 
 type AddOutcome =
   | { ok: true; data: { profiles: IndustryProfileRow[]; id: string } }
-  | { ok: false; status?: number };
-
-function statusOf(res: { ok: false; status?: number } | null): number {
-  return res?.status ?? 0;
-}
+  | { ok: false; error?: { code: string } };
 
 async function listProfiles(): Promise<ProfilesResult> {
-  const res = await apiFetch(industryProfilesEndpoint, { cache: 'no-store' }).catch(() => null);
-  return res?.ok ? res : { ok: false, status: statusOf(res) };
+  const res = await readWithRetries(async () => {
+    const attempt = await apiFetch(industryProfilesEndpoint, { cache: 'no-store' });
+    return attempt.ok ? attempt : null;
+  });
+  return res ?? { ok: false };
 }
 
 async function updateProfile(
   body: { id: string; expectedRevision: number } & PendingEdit,
 ): Promise<ProfilesResult> {
   const res = await apiFetch(updateIndustryProfileEndpoint, { body }).catch(() => null);
-  return res?.ok ? res : { ok: false, status: statusOf(res) };
+  return res ?? { ok: false };
 }
 
 /** The signed-in account's production profiles, with create, edit and delete. */
@@ -67,7 +67,7 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
       const res = await sync.request(call).catch(() => null);
       setBusy(false);
       if (!res?.ok) {
-        toast.error(createFailureMessage(statusOf(res)));
+        toast.error(createFailureMessage(res?.error?.code));
         return null;
       }
       return res.data.id;

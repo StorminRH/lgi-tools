@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ALL_MANUFACTURING, CATEGORY_KEYS, type CategoryKey } from './production-categories';
+import { CATEGORY_KEYS } from './production-categories';
 
 /**
  * A production profile: who is on the team, the facilities they build in, and
@@ -11,8 +11,7 @@ import { ALL_MANUFACTURING, CATEGORY_KEYS, type CategoryKey } from './production
 export const MAX_PROFILE_NAME_LEN = 60;
 export const MAX_PROFILES_PER_USER = 20;
 const MAX_PROFILE_MEMBERS = 60;
-// A valid v1 profile can hold three facility overrides per member and two defaults.
-const MAX_PROFILE_FACILITIES = MAX_PROFILE_MEMBERS * 3 + 2;
+export const MAX_PROFILE_FACILITIES = 50;
 
 const categoriesSchema = z.array(z.enum(CATEGORY_KEYS)).max(CATEGORY_KEYS.length);
 
@@ -56,72 +55,12 @@ function documentIssues(doc: Pick<ProfileDocument, 'members' | 'facilities'>): s
   return issues;
 }
 
-type V1Document = {
-  v: 1;
-  members?: { characterId: number; name: string }[];
-  rules?: { characterId: number; responsibility: string; facility?: { id: string; name: string } | null }[];
-  defaults?: Record<string, { id: string; name: string } | null>;
-};
-
-const V1_CATEGORY: Record<string, CategoryKey> = {
-  reactions: 'reactions',
-  components: 'components',
-  'final-assembly': ALL_MANUFACTURING,
-};
-
 /**
- * The first document shape held per-member responsibilities and two default
- * facilities. They become categories: reactions and components keep their
- * names, final assembly and the manufacturing default become all manufacturing.
- */
-function upgradeV1(doc: V1Document): z.input<typeof profileDocumentSchema> {
-  const categoriesOf = (characterId: number) => [
-    ...new Set(
-      (doc.rules ?? []).flatMap((r) => (r.characterId === characterId && V1_CATEGORY[r.responsibility]) || []),
-    ),
-  ];
-  const defaults: [string, CategoryKey][] = [
-    ['manufacturingFacility', ALL_MANUFACTURING],
-    ['reactionFacility', 'reactions'],
-  ];
-  const facilities = new Map<string, ProfileFacility>();
-  const addFacility = (ref: { id: string; name: string }, category: CategoryKey) => {
-    const held = facilities.get(ref.id);
-    facilities.set(ref.id, {
-      kind: 'structure',
-      id: ref.id,
-      name: ref.name,
-      systemId: null,
-      categories: [...new Set([...(held?.categories ?? []), category])],
-    });
-  };
-  for (const [slot, category] of defaults) {
-    const ref = doc.defaults?.[slot];
-    if (ref) addFacility(ref, category);
-  }
-  for (const rule of doc.rules ?? []) {
-    const category = V1_CATEGORY[rule.responsibility];
-    if (rule.facility && category) addFacility(rule.facility, category);
-  }
-  return {
-    v: 2,
-    members: (doc.members ?? []).map((m) => ({ ...m, categories: categoriesOf(m.characterId) })),
-    facilities: [...facilities.values()],
-  };
-}
-
-const storedProfileDocumentSchema = z.preprocess(
-  (raw) => (typeof raw === 'object' && raw !== null && (raw as { v?: unknown }).v === 1 ? upgradeV1(raw as V1Document) : raw),
-  profileDocumentSchema,
-);
-
-/**
- * A stored document of any shape this app has written, read as the current
- * one. Every write is validated, so one that no longer parses reads as empty
- * rather than failing the whole list.
+ * A stored document. Every write is validated, so one that no longer parses
+ * reads as empty rather than failing the whole list.
  */
 export function readStoredDocument(raw: unknown): ProfileDocument {
-  const parsed = storedProfileDocumentSchema.safeParse(raw);
+  const parsed = profileDocumentSchema.safeParse(raw);
   return parsed.success ? parsed.data : emptyProfileDocument();
 }
 

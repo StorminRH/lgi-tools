@@ -103,7 +103,7 @@ describe('componentSheet', () => {
 
   it('folds the job’s install fee into what a built unit costs', () => {
     const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: charged(2, 130) });
-    expect(sheet!.installFee).toEqual({ value: 130, systemId: 30004759 });
+    expect(sheet!.installFee).toEqual({ value: 130, systemId: 30004759, unpriced: [] });
     expect(sheet!.buildCost).toBe(4_070);
     expect(sheet!.buildPerUnit).toBe((4_070 + 130) / 4);
   });
@@ -116,11 +116,11 @@ describe('componentSheet', () => {
 
   it('a fee its system cannot price leaves a built unit open', () => {
     const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: charged(2, null) });
-    expect(sheet!.installFee).toEqual({ value: null, systemId: 30004759 });
+    expect(sheet!.installFee).toEqual({ value: null, systemId: 30004759, unpriced: [] });
     expect(sheet!.buildPerUnit).toBeNull();
   });
 
-  it('a missing adjusted input leaves the fee and comparison open despite known market prices', () => {
+  it('an input with no adjusted price counts as nothing in the fee, keeping the comparison', () => {
     const fees = computeComponentJobFees([{
       typeId: 10, blueprintTypeId: 110, runs: 2,
       baseMaterials: [{ typeId: 20, quantity: 100 }, { typeId: 40, quantity: 14 }],
@@ -132,9 +132,11 @@ describe('componentSheet', () => {
     });
     const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: fees.jobs[0] });
     expect(fees.jobs[0]!.fee.estimatedItemValue).toBe(70);
+    expect(sheet!.installFee!.unpriced).toEqual(['Fernite Carbide']);
     expect(sheet!.buildCost).toBe(4_070);
-    expect(sheet!.installFee!.value).toBeNull();
-    expect(sheet!.buildPerUnit).toBeNull();
+    // 70 at 5%, plus the default 0.25% tax and 4% SCC.
+    expect(sheet!.installFee!.value).toBeCloseTo(3.5 + 0.175 + 2.8, 9);
+    expect(sheet!.buildPerUnit).toBeCloseTo((4_070 + 6.475) / 4, 9);
     expect(sheet!.buyPerUnit).toBe(9_000);
   });
 });

@@ -65,6 +65,8 @@ export interface BuildSetupValue {
   profilesFailed: boolean;
   refreshProfiles: () => void;
   locationFailed: boolean;
+  /** Fees for the current profile are still being read. */
+  feesPending: boolean;
   retryLocation: () => void;
   /** The production profile the build runs under; null builds at baseline. */
   profile: IndustryProfileRow | null;

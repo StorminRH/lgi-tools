@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
@@ -23,10 +24,13 @@ import type { CostBasis } from '../cost-basis-view';
 import { timeLeverRows } from '../time-lever-rows';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
+import { hasUnpricedInputs } from '../fee-breakdown';
 import { FeeBreakdownPanel } from './FeeBreakdownPanel';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
+import { LoadFailed } from './LoadFailed';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
+import { useSettledMargin } from './use-settled-margin';
 
 export type { MarginMode };
 
@@ -162,7 +166,7 @@ function FeeHover({
 }) {
   // Wide enough that an indented line such as an assumed facility tax reads in full.
   return (
-    <KpiHelp label="Fee breakdown" keepSide className="w-[296px]">
+    <KpiHelp label="Fee breakdown" keepSide attention={hasUnpricedInputs(net)} className="w-[296px]">
       <FeeBreakdownPanel net={net} systemName={systemName} nameOf={nameOf} />
     </KpiHelp>
   );
@@ -314,17 +318,24 @@ export function CockpitKpis({
   const { pricing, seeded, refreshing } = useMarketData();
   const { runs } = usePlannerConfig();
   const { buildTimes, skillTimeFactors } = useBuildPlan();
-  const { location, reactionSystem, reactionNetAvailable, structureFactors, profile, profilePlan } = useBuildSetup();
-  const builder = profile?.document.members.find((m) => m.characterId === profilePlan?.top.characterId);
-
-  const margin = cockpitMarginView(
-    pricing,
-    structure.activityId,
+  const {
     location,
     reactionSystem,
     reactionNetAvailable,
-    marginMode,
+    structureFactors,
+    profile,
+    profilePlan,
+    locationFailed,
+    feesPending,
+    retryLocation,
+  } = useBuildSetup();
+  const builder = profile?.document.members.find((m) => m.characterId === profilePlan?.top.characterId);
+
+  const liveMargin = useMemo(
+    () => cockpitMarginView(pricing, structure.activityId, location, reactionSystem, reactionNetAvailable, marginMode),
+    [pricing, structure.activityId, location, reactionSystem, reactionNetAvailable, marginMode],
   );
+  const margin = useSettledMargin(liveMargin, feesPending);
 
   const leverRows = timeLeverRows({
     topBlueprintTypeId: structure.blueprintTypeId,
@@ -341,12 +352,21 @@ export function CockpitKpis({
       <div className={WIDE}>
         <SellTile />
       </div>
+      {locationFailed && (
+        <LoadFailed
+          className="col-span-full"
+          title="System fees didn't load"
+          detail="Net margin is unavailable"
+          retryLabel="Retry system fees"
+          onRetry={retryLocation}
+        />
+      )}
       <div className={WIDE}>
         <NetMarginTile
-          view={margin}
+          view={margin.view}
           pricing={pricing}
           seeded={seeded}
-          refreshing={refreshing}
+          refreshing={refreshing || margin.held}
           setMarginMode={setMarginMode}
           nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
         />
