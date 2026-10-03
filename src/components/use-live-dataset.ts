@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { loadFailureStep, RECONCILE_ONCE, reconcileDelay } from '@/lib/live-dataset';
@@ -14,6 +14,8 @@ export interface LiveDatasetState {
   now: number;
   loading: boolean;
   failed: boolean;
+  /** Starts the read again after it failed. */
+  retry: () => void;
 }
 
 export function useLiveDataset<TResponse, TKey extends string | boolean>(
@@ -26,9 +28,11 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
   // a dataset whose first sync is slow can pass a longer, bounded backoff.
   // Pass a module-level array: it is an effect dependency.
   reconcileSchedule: readonly number[] = RECONCILE_ONCE,
-): { response: TResponse | null; now: number; loading: boolean; failed: boolean } {
+): { response: TResponse | null } & Omit<LiveDatasetState, 'names'> {
   const [response, setResponse] = useState<TResponse | null>(null);
   const [failed, setFailed] = useState(false);
+  // Bumped by retry so the load effect runs again from the start.
+  const [attempts, setAttempts] = useState(0);
   // Outlives effect re-runs, like `response`: once data is on screen, a later
   // run's failures keep it instead of replacing it with the failure line.
   const loaded = useRef(false);
@@ -77,7 +81,12 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [endpoint, coldKey, isCold, reconcileSchedule]);
+  }, [endpoint, coldKey, isCold, reconcileSchedule, attempts]);
+
+  const retry = useCallback(() => {
+    setFailed(false);
+    setAttempts((n) => n + 1);
+  }, []);
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -85,5 +94,5 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
     return () => clearInterval(timer);
   }, []);
 
-  return { response, now, loading: response === null && !failed, failed };
+  return { response, now, loading: response === null && !failed, failed, retry };
 }

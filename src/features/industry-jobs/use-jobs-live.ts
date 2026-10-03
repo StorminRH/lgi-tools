@@ -14,7 +14,7 @@ export function useJobsLive(eligibleCharacterIds: number[]): {
   jobsByCharacter: Map<number, ViewerJobs>;
 } & LiveDatasetState {
   const eligibleKey = useMemo(() => eligibleIdsKey(eligibleCharacterIds), [eligibleCharacterIds]);
-  const { response, now, loading, failed } = useLiveDataset(industryJobsEndpoint, eligibleKey, jobsIsCold);
+  const { response, now, loading, failed, retry } = useLiveDataset(industryJobsEndpoint, eligibleKey, jobsIsCold);
   const jobsByCharacter = useMemo(() => deriveJobsByCharacter(response, now), [response, now]);
-  return { jobsByCharacter, names: response?.names ?? {}, now, loading, failed };
+  return { jobsByCharacter, names: response?.names ?? {}, now, loading, failed, retry };
 }

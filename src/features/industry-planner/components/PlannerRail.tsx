@@ -25,7 +25,7 @@ import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitKpis } from './CockpitKpis';
-import { LoadFailed } from './LoadFailed';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { MultibuyPanel } from './MultibuyPanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';

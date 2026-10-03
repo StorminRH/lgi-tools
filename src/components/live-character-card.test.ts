@@ -24,7 +24,7 @@ function render(
         lastSyncedAt: SYNCED_AT,
         hasData: true,
         isEmpty: false,
-        syncing: false,
+        loading: false,
         sectionLabel: 'Wallet journal',
         scopePhrase: 'wallet access',
         noun: 'wallet',
@@ -54,12 +54,18 @@ test('shows synced rows with their timestamp, and a refresh failure over stale d
 });
 
 test('explains a character with no data yet by sync state and reconnect need', () => {
-  const failed = render({ hasData: false, lastSyncedAt: null, syncError: 'weird', syncing: true });
+  const failed = render({ hasData: false, lastSyncedAt: null, syncError: 'weird' });
   expect(failed).toContain('Sync failed (weird)');
   expect(failed).toContain('Couldn&#x27;t fetch this character&#x27;s wallet yet.');
-  expect(failed).toContain('Syncing…');
+  expect(failed).toContain('Awaiting first sync.');
   expect(failed).not.toContain('as of');
   expect(failed).not.toContain('data-rows');
+
+  // While the read is in flight, placeholder rows stand in for the jobs.
+  const loading = render({ hasData: false, lastSyncedAt: null, loading: true });
+  expect(loading).toContain('aria-label="Loading wallet"');
+  expect(loading).not.toContain('Awaiting first sync.');
+  expect(render({ hasData: false, loading: true, needsReconnect: true })).toContain('Nothing synced for this character.');
 
   // A character that needs a reconnect is told so once, not also as a sync error.
   const reconnect = render({ hasData: false, syncError: 'reauth_required', needsReconnect: true });

@@ -22,27 +22,29 @@ export function CharacterStripSection({
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
   loading: boolean;
-  failure?: string | null;
+  failure?: ReactNode;
   children: (visible: PanelCharacter[]) => ReactNode;
 }) {
   const binding = stripPreferenceBinding(strip, initialDimmed);
   const [dimmedIds, setDimmedIds] = usePreference(binding.def, {
     serverValue: binding.serverValue,
   });
-  const view = deriveStripView(strip, characters, dimmedIds, loading, failure);
+  const view = deriveStripView(strip, characters, dimmedIds, loading);
 
   return (
     <>
       {view.hasStrip && (
         <CharacterStrip characters={characters} dimmedIds={dimmedIds} onChange={setDimmedIds} />
       )}
-      <div className="flex items-center">
-        {loading ? (
-          <LoadingLabel label={view.syncCaption} />
-        ) : (
-          <span className="text-label tracking-wide uppercase text-muted">{view.syncCaption}</span>
-        )}
-      </div>
+      {failure ?? (
+        <div className="flex items-center">
+          {loading ? (
+            <LoadingLabel label={view.syncCaption} />
+          ) : (
+            <span className="text-label tracking-wide uppercase text-muted">{view.syncCaption}</span>
+          )}
+        </div>
+      )}
       {view.showEmptyNotice && (
         <Card>
           <EmptyState>

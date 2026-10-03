@@ -117,7 +117,6 @@ export function corpGroupState(corp: { syncError: string | null; data: Character
   return corp.data.jobs.length === 0 ? 'empty' : 'rows';
 }
 
-export const JOBS_LOAD_FAILED = 'Couldn’t load your industry jobs — reload to try again.';
 
 export function corpJobsEmptyLine(failed: boolean): string {
   return failed

@@ -1,6 +1,6 @@
 'use client';
 
-import { Banner } from '@/components/ui/banner';
+import { Banner } from './banner';
 
 /**
  * A read that failed every automatic retry: what did not load and what that

@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('react', () => ({
+  useCallback: <T>(callback: T) => callback,
   useEffect: (effect: () => void | (() => void)) => {
     const cleanup = effect();
     if (cleanup) h.cleanups.push(cleanup);
@@ -45,9 +46,10 @@ const neverCold = () => false;
 const ok = (data: unknown) => ({ ok: true, data });
 const serverError = { ok: false, kind: 'http', status: 500 };
 
-// useState call order inside the hook: response, failed, now.
+// useState call order inside the hook: response, failed, attempts, now.
 const setResponse = () => h.setters[0]!;
 const setFailed = () => h.setters[1]!;
+const setAttempts = () => h.setters[2]!;
 
 async function flush(): Promise<void> {
   await vi.advanceTimersByTimeAsync(0);
@@ -167,5 +169,14 @@ describe('useLiveDataset', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(1);
     expect(setFailed()).not.toHaveBeenCalled();
+  });
+
+  it('starts the read over when asked to retry', () => {
+    h.apiFetch.mockReturnValue(new Promise(() => {}));
+    const { retry } = useLiveDataset(endpoint, 'k', neverCold);
+    retry();
+    expect(setFailed()).toHaveBeenLastCalledWith(false);
+    const bump = setAttempts().mock.calls.at(-1)?.[0] as (n: number) => number;
+    expect(bump(2)).toBe(3);
   });
 });

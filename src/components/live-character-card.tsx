@@ -7,6 +7,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatUtcTime } from '@/lib/format/time';
 import { emptyDataText, syncErrorMeta } from './live-character-sync';
 
@@ -23,7 +24,7 @@ export function LiveCharacterCard({
   lastSyncedAt,
   hasData,
   isEmpty,
-  syncing,
+  loading,
   sectionLabel,
   scopePhrase,
   noun,
@@ -40,7 +41,7 @@ export function LiveCharacterCard({
   lastSyncedAt: number | null | undefined;
   hasData: boolean;
   isEmpty: boolean;
-  syncing: boolean;
+  loading: boolean;
   sectionLabel: string;
   scopePhrase: string;
   noun: string;
@@ -62,7 +63,7 @@ export function LiveCharacterCard({
       noun={noun}
       sectionLabel={sectionLabel}
       syncError={syncError}
-      syncing={syncing}
+      loading={loading}
     >
       {children}
     </LiveCharacterCardBody>
@@ -141,7 +142,7 @@ function LiveCharacterCardBody({
   noun,
   sectionLabel,
   syncError,
-  syncing,
+  loading,
 }: {
   character: PanelCharacter;
   children?: ReactNode;
@@ -152,7 +153,7 @@ function LiveCharacterCardBody({
   noun: string;
   sectionLabel: string;
   syncError: string | null | undefined;
-  syncing: boolean;
+  loading: boolean;
 }) {
   return (
     <>
@@ -173,14 +174,63 @@ function LiveCharacterCardBody({
         }
       />
 
-      {!hasData ? (
-        <EmptyState>{emptyDataText(character.needsReconnect, syncing)}</EmptyState>
-      ) : isEmpty ? (
-        <EmptyState>{emptyRowsText}</EmptyState>
-      ) : (
-        children
-      )}
+      <CardRows
+        needsReconnect={character.needsReconnect}
+        hasData={hasData}
+        isEmpty={isEmpty}
+        loading={loading}
+        noun={noun}
+        emptyRowsText={emptyRowsText}
+      >
+        {children}
+      </CardRows>
     </>
+  );
+}
+
+/** The rows, or what stands in for them before there are any to show. */
+function CardRows({
+  needsReconnect,
+  hasData,
+  isEmpty,
+  loading,
+  noun,
+  emptyRowsText,
+  children,
+}: {
+  needsReconnect: boolean;
+  hasData: boolean;
+  isEmpty: boolean;
+  loading: boolean;
+  noun: string;
+  emptyRowsText: string;
+  children?: ReactNode;
+}) {
+  if (hasData) return isEmpty ? <EmptyState>{emptyRowsText}</EmptyState> : children;
+  if (loading && !needsReconnect) return <RowsSkeleton label={`Loading ${noun}`} />;
+  return <EmptyState>{emptyDataText(needsReconnect)}</EmptyState>;
+}
+
+/** Two placeholder rows in the shape of a job row: icon, name, time, progress. */
+function RowsSkeleton({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col">
+      {[0, 1].map((row) => (
+        <div key={row} className="flex flex-col gap-2 border-t border-border-soft px-3.5 py-2.5 first:border-t-0">
+          <div className="flex items-center gap-2.5">
+            {/* The first placeholder announces the load; the rest are decoration. */}
+            <Skeleton
+              label={label}
+              aria-hidden={row === 0 ? undefined : true}
+              className="size-5.5 rounded-ctl"
+            />
+            <Skeleton aria-hidden className="h-3 w-48 max-w-[50%]" />
+            <Skeleton aria-hidden className="ml-auto h-3 w-24" />
+          </div>
+          <Skeleton aria-hidden className="h-1 w-full rounded-full" />
+        </div>
+      ))}
+    </div>
   );
 }
 

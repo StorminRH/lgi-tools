@@ -27,7 +27,7 @@ import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../typ
 import { hasUnpricedInputs } from '../fee-breakdown';
 import { FeeBreakdownPanel } from './FeeBreakdownPanel';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
-import { LoadFailed } from './LoadFailed';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 import { useSettledMargin } from './use-settled-margin';

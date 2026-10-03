@@ -8,6 +8,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LivePrice } from '@/components/ui/live-price';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -87,13 +88,21 @@ export function FeedbackGroup() {
           <Banner tone="warn">
             <strong className="font-medium text-name">ESI degraded</strong> — prices may be stale up to 3h.
           </Banner>
-          <Banner tone="warn" onRetry={() => setRetries((n) => n + 1)} retryLabel="Retry system fees">
-            <span className="flex flex-col gap-0.5 leading-snug">
-              <strong className="font-medium text-name">System fees didn&apos;t load</strong>
-              <span className="text-muted">{retries === 0 ? 'Net margin is unavailable' : `Retried ${retries}×`}</span>
-            </span>
-          </Banner>
         </div>
+      </Specimen>
+
+      <Specimen
+        name="LoadFailed"
+        source="load-failed"
+        note="A read that failed every automatic retry: what did not load and what that leaves. Clicking anywhere on it tries again."
+        wide
+      >
+        <LoadFailed
+          title="System fees didn't load"
+          detail={retries === 0 ? 'Net margin is unavailable' : `Retried ${retries}×`}
+          retryLabel="Retry system fees"
+          onRetry={() => setRetries((n) => n + 1)}
+        />
       </Specimen>
 
       <Specimen

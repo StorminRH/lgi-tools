@@ -36,7 +36,6 @@ test('dims healthy pilots on a strip, notices when none stay lit, and names a fa
   expect(deriveStripView(strip, [character(1)], [1], false).showEmptyNotice).toBe(true);
   expect(deriveStripView(undefined, [], [], false).showEmptyNotice).toBe(false);
 
-  expect(deriveStripView(strip, [], [], true, 'Couldn’t load.').syncCaption).toBe('Loading…');
-  expect(deriveStripView(strip, [], [], false, 'Couldn’t load.').syncCaption).toBe('Couldn’t load.');
-  expect(deriveStripView(strip, [], [], false, null).syncCaption).toBe('Synced from ESI on view');
+  expect(deriveStripView(strip, [], [], true).syncCaption).toBe('Loading…');
+  expect(deriveStripView(strip, [], [], false).syncCaption).toBe('Synced from ESI on view');
 });
