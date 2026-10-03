@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { StructureSearchResult } from '@/features/custom-structures/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { EVE_CHARACTER_SEARCH_SCOPE } from '@/platform/auth/eve-sso-constants';
-import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveScopeHealth } from '@/platform/auth/scope-health';
 import { esiFetch, esiUrl } from '@/platform/esi';
 import { fetchCharacterSearch } from './esi-character-search';
@@ -39,26 +39,73 @@ async function readStructure(
   };
 }
 
-async function searchWithToken(
-  characterId: number,
-  accessToken: string,
-  search: string,
-): Promise<StructureSearchResult[]> {
+/** The structures one character's search turns up, before any is read. */
+async function structureIdsSeenBy(characterId: number, accessToken: string, search: string): Promise<number[]> {
   const body = await fetchCharacterSearch(characterId, accessToken, 'structure', search);
   const parsed = esiStructureSearchSchema.safeParse(body);
   if (!parsed.success) throw new Error('ESI structure search returned an invalid body');
-
-  const ids = [...new Set(parsed.data.structure ?? [])].slice(0, MAX_STRUCTURE_RESULTS);
-  const resolved = await Promise.all(ids.map((id) => readStructure(id, accessToken)));
-  return resolved.filter((r): r is StructureSearchResult => r !== null);
+  return parsed.data.structure ?? [];
 }
 
 /**
- * Upwell structures any linked character can access whose name contains `search`.
- * Searches with every linked character holding both search scopes and a usable
- * token, since each sees only its own access lists, and merges the hits by
- * structure. With no scoped character there is nothing ESI will show us, so the
- * answer is empty; scoped characters without a usable token throw.
+ * Corp-mates dock at the same public, corporation and alliance structures,
+ * so one character searches for each corporation. A character with no
+ * known corporation searches for itself.
+ */
+function byCorporation(characters: readonly LinkedCharacter[]): LinkedCharacter[][] {
+  const groups = new Map<string, LinkedCharacter[]>();
+  for (const character of characters) {
+    const key = character.corporationId != null ? `corporation:${character.corporationId}` : `character:${character.characterId}`;
+    groups.set(key, [...(groups.get(key) ?? []), character]);
+  }
+  return [...groups.values()];
+}
+
+/** Searches a corporation tries before it gives up; a character without a usable token is passed over free. */
+const SEARCHES_PER_CORPORATION = 2;
+
+interface CorporationSearch {
+  accessToken: string;
+  structureIds: number[];
+}
+
+/** One corporation's search: its first character that can search, the next stepping in when one fails. */
+async function searchForCorporation(
+  members: readonly LinkedCharacter[],
+  search: string,
+): Promise<CorporationSearch | Error> {
+  let failure = new Error('No scoped linked character has a usable ESI access token');
+  let attempts = 0;
+  for (const { characterId } of members) {
+    if (attempts === SEARCHES_PER_CORPORATION) break;
+    const token = await getFreshAccessTokenForCharacter(characterId);
+    if (token.kind !== 'ok') continue;
+    attempts++;
+    try {
+      return { accessToken: token.accessToken, structureIds: await structureIdsSeenBy(characterId, token.accessToken, search) };
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  return failure;
+}
+
+/** A structure read with each token whose search saw it, until one is let in. */
+async function readWithAny(structureId: number, accessTokens: readonly string[]): Promise<StructureSearchResult | null> {
+  for (const accessToken of accessTokens) {
+    const structure = await readStructure(structureId, accessToken);
+    if (structure) return structure;
+  }
+  return null;
+}
+
+/**
+ * Upwell structures any linked character can dock at whose name contains
+ * `search`. One character searches per corporation, every corporation at
+ * once and each on its own, so one failing does not stop the rest; the
+ * search fails only when every corporation's does. Each structure found is
+ * read once. With no scoped character ESI shows us nothing, so the answer
+ * is empty.
  */
 export async function searchUpwellStructures(
   userId: string,
@@ -70,15 +117,16 @@ export async function searchUpwellStructures(
   );
   if (scoped.length === 0) return [];
 
-  const tokens = await Promise.all(
-    scoped.map(async ({ characterId }) => ({ characterId, token: await getFreshAccessTokenForCharacter(characterId) })),
-  );
-  const usable = tokens.flatMap(({ characterId, token }) =>
-    token.kind === 'ok' ? [{ characterId, accessToken: token.accessToken }] : [],
-  );
-  if (usable.length === 0) throw new Error('No scoped linked character has a usable ESI access token');
+  const outcomes = await Promise.all(byCorporation(scoped).map((members) => searchForCorporation(members, search)));
+  const searched = outcomes.filter((outcome): outcome is CorporationSearch => !(outcome instanceof Error));
+  if (searched.length === 0) throw outcomes[0]!;
 
-  const found = await Promise.all(usable.map((c) => searchWithToken(c.characterId, c.accessToken, search)));
-  const byId = new Map(found.flat().map((hit) => [hit.structureId, hit]));
-  return [...byId.values()].slice(0, MAX_STRUCTURE_RESULTS);
+  const seenBy = new Map<number, string[]>();
+  for (const { accessToken, structureIds } of searched) {
+    for (const id of structureIds) seenBy.set(id, [...(seenBy.get(id) ?? []), accessToken]);
+  }
+  const read = await Promise.all(
+    [...seenBy].slice(0, MAX_STRUCTURE_RESULTS).map(([id, accessTokens]) => readWithAny(id, accessTokens)),
+  );
+  return read.filter((structure): structure is StructureSearchResult => structure !== null);
 }
