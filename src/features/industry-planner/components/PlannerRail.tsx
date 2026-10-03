@@ -7,7 +7,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { StarIcon } from '@/components/ui/icons';
 import { LivePrice } from '@/components/ui/live-price';
-import { scrollArea } from '@/components/ui/scroll-area';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/ui/stepper';
@@ -245,7 +244,7 @@ function BuildTools({
   );
 }
 
-/** The blueprint, the profile it builds under, its tools and its numbers, kept in view beside the build. */
+/** The blueprint, the profile it builds under, its tools and its numbers, beside the build and open to the page. */
 export function PlannerRail({
   structure,
   ledgerShown,
@@ -257,17 +256,7 @@ export function PlannerRail({
 }) {
   const { marginMode, setMarginMode } = usePlannerConfig();
   return (
-    <aside
-      aria-label="Blueprint"
-      className={cn(
-        scrollArea,
-        'reveal flex min-w-0 flex-col gap-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto',
-        // Room inside the scroll box for the blueprint's glow, taken back
-        // outside so the rail's edges stay where the column puts them; the
-        // right side leaves space for the 10px scrollbar gutter.
-        'lg:-mx-4 lg:-mt-4 lg:pt-4 lg:pr-1.5 lg:pb-4 lg:pl-4',
-      )}
-    >
+    <aside aria-label="Blueprint" className="reveal flex min-w-0 flex-col gap-5">
       <BlueprintIdentity structure={structure} />
       <div className="flex flex-col gap-2">
         <h3 className={eyebrow({ size: 'micro', tone: 'muted' })}>Profiles</h3>
