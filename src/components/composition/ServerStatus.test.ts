@@ -29,3 +29,10 @@ test('ServerStatus reads as flat header text that names the server and its count
   expect(html).toContain('27,240');
   expect(html).not.toContain('data-tone');
 });
+
+test('an unknown status reads as unknown, not offline', () => {
+  const html = renderToStaticMarkup(createElement(ServerStatus, { status: { state: 'unknown' } }));
+  expect(html).toContain('aria-label="Tranquility status unknown"');
+  expect(html).toContain('unknown');
+  expect(html).not.toContain('offline<');
+});

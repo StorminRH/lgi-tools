@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { EsiContractError } from '@/platform/esi';
-import type { ServerStatus } from './types';
+import type { LiveServerStatus } from './types';
 
 const statusBodySchema = z.object({
   players: z.number(),
@@ -9,9 +9,7 @@ const statusBodySchema = z.object({
   start_time: z.string().optional(),
 });
 
-export function parseServerStatus(
-  body: unknown,
-): Extract<ServerStatus, { players: number }> {
+export function parseServerStatus(body: unknown): LiveServerStatus {
   const result = statusBodySchema.safeParse(body);
   if (!result.success) throw new EsiContractError();
   return {

@@ -34,6 +34,10 @@ test('serverStatusPresentation gives the header value and its spoken label', () 
     value: 'offline',
     ariaLabel: 'Tranquility server offline',
   });
+  expect(serverStatusPresentation({ state: 'unknown' })).toEqual({
+    value: 'unknown',
+    ariaLabel: 'Tranquility status unknown',
+  });
 });
 
 test('eveStatusSections reads Tranquility, ESI and the ingested SDE', () => {
@@ -58,8 +62,12 @@ test('eveStatusSections flags what needs attention and admits what it cannot rea
   });
 
   const unknown: EsiHealth = { availability: { state: 'unknown' }, budget: { state: 'unknown' } };
-  expect(values(eveStatusSections({ status: { state: 'offline' }, sde: null, esi: unknown }))).toEqual({
+  expect(values(eveStatusSections({ status: { state: 'offline' }, sde: SDE, esi: unknown }))).toMatchObject({
     Tranquility: ['Status: Offline (red)'],
+    'Static data': ['Build: 3569502 (green)', 'Ingested: 2 Oct 2026 (green)'],
+  });
+  expect(values(eveStatusSections({ status: { state: 'unknown' }, sde: null, esi: unknown }))).toEqual({
+    Tranquility: ['Status: Unknown (neutral)'],
     ESI: ['Success, last hour: Unknown (neutral)', 'Error budget: Unknown (neutral)'],
     'Static data': ['Build: Unknown (neutral)'],
   });

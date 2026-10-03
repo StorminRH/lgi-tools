@@ -15,7 +15,7 @@ const STATUS_TEXT_CLASS = cn(navigationMenuLink(), 'gap-2');
 function StatusText({ state, value }: { state: ServerStatusValue['state']; value: string }) {
   return (
     <>
-      <StatusDot state={state} />
+      <StatusDot state={state === 'unknown' ? 'offline' : state} />
       TQ
       <span className="tabular-nums text-text">{value}</span>
     </>
