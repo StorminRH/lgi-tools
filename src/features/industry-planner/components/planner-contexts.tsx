@@ -62,6 +62,8 @@ export interface BuildSetupValue {
   reactionNetAvailable: boolean;
   /** The account's production profiles; null when signed out or still loading. */
   profiles: IndustryProfileRow[] | null;
+  profilesFailed: boolean;
+  refreshProfiles: () => void;
   /** The production profile the build runs under; null builds at baseline. */
   profile: IndustryProfileRow | null;
   setProfileId: (id: string) => void;

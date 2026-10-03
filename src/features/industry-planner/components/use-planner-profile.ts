@@ -19,6 +19,8 @@ import type { SelectedLocation, SelectedReactionSystem } from './planner-context
 
 export interface PlannerProfileState {
   profiles: IndustryProfileRow[] | null;
+  profilesFailed: boolean;
+  refreshProfiles: () => void;
   /** The profile the planner builds with: the one last used, or the first. */
   profile: IndustryProfileRow | null;
   setProfileId: (id: string) => void;
@@ -43,7 +45,7 @@ function usePlannerProfile(
   availableStructures: AvailableStructure[] | null,
 ): PlannerProfileState {
   const { session } = useAuth();
-  const { profiles } = useIndustryProfiles(session !== null);
+  const { profiles, listFailed, refresh } = useIndustryProfiles(session !== null);
   // The planner and the Profiles tab share the profile last used.
   const [profileId, setProfileId] = usePreference(industryProfile);
   const profile = profiles?.find((p) => p.id === profileId) ?? profiles?.[0] ?? null;
@@ -69,7 +71,7 @@ function usePlannerProfile(
           }),
     [doc, availableStructures, securityOf, levels, structure],
   );
-  return { profiles, profile, setProfileId, plan };
+  return { profiles, profilesFailed: listFailed, refreshProfiles: refresh, profile, setProfileId, plan };
 }
 
 /** The location state a profile drives so the product's own job prices where it runs. */

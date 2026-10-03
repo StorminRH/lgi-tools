@@ -55,7 +55,7 @@ const render = (activityId = MANUFACTURING_ACTIVITY) =>
 
 beforeEach(() => {
   h.auth = { session: null, loading: false };
-  h.setup = { profiles: null, profile: null, setProfileId: vi.fn() };
+  h.setup = { profiles: null, profilesFailed: false, refreshProfiles: vi.fn(), profile: null, setProfileId: vi.fn() };
 });
 
 test('the rail shows the blueprint, its inputs and its numbers', () => {
@@ -100,6 +100,16 @@ test('signed in without a profile, the slot leads to the Profiles tab', () => {
   h.setup = { ...h.setup, profiles: [] };
   const html = render();
   expect(html).toMatch(/<a[^>]*href="\/industry"[^>]*>Create a profile<\/a>/);
+});
+
+test('a failed initial profile read shows Retry instead of indefinite loading or creating a profile', () => {
+  h.auth = { session: {}, loading: false };
+  h.setup.profilesFailed = true;
+  const html = render();
+  expect(html).toContain('Could not load profiles.');
+  expect(html).toContain('>Retry<');
+  expect(html).not.toContain('Loading profiles');
+  expect(html).not.toContain('Create a profile');
 });
 
 test('with profiles, the slot switches between them', () => {
