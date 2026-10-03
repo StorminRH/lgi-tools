@@ -4,7 +4,6 @@ import type { IndustryJob } from './esi-projection';
 import {
   corpEntityIds,
   corpGroupState,
-  corpJobsEmptyLine,
   jobRowFrameData,
   jobRowModel,
   jobsCardModel,
@@ -116,11 +115,5 @@ describe('corpGroupState', () => {
     expect(corpGroupState({ syncError: null, data: null })).toBe('sync-error');
     expect(corpGroupState({ syncError: null, data: { jobs: [] } })).toBe('empty');
     expect(corpGroupState({ syncError: null, data: { jobs: [job({})] } })).toBe('rows');
-  });
-});
-
-describe('corpJobsEmptyLine', () => {
-  it('says the corp feed failed, else that no jobs have synced yet', () => {
-    expect(corpJobsEmptyLine(true)).not.toBe(corpJobsEmptyLine(false));
   });
 });

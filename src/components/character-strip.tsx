@@ -4,7 +4,8 @@ import { cva } from 'class-variance-authority';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { CharacterPortrait } from '@/components/character-portrait';
-import type { PanelCharacter } from '@/components/live-character-card';
+import { eyebrow } from '@/components/ui/type-roles';
+import type { PanelCharacter } from '@/platform/auth/panel-character';
 import { startCharacterLink } from '@/platform/auth/link-character';
 import { type StripCharacterState, stripState, toggleDimmed } from './character-strip-model';
 
@@ -35,7 +36,7 @@ export function CharacterStrip({
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <span className="text-label tracking-wide uppercase text-muted">Tracking</span>
+      <span className={eyebrow()}>Tracking</span>
       <div className="flex items-center gap-1.5">
         {characters.map((character) => {
           const state = stripState(character, dimmedIds);
