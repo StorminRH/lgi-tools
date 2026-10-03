@@ -125,14 +125,6 @@ export function grantedCharacterIds(drafts: readonly AccessGrantDraft[]): Readon
     .map((draft) => draft.ownerId));
 }
 
-export function toggleCharacterId(
-  characterIds: readonly number[],
-  change: { readonly characterId: number; readonly selected: boolean },
-): number[] {
-  const rest = characterIds.filter((characterId) => characterId !== change.characterId);
-  return change.selected ? [...rest, change.characterId] : rest;
-}
-
 export const CREATOR_CHARACTER_REQUIRED_MESSAGE = 'Choose at least one of your characters.';
 
 export function prepareMapCreation(
