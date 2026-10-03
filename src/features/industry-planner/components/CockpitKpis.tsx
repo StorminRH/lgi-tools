@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
@@ -29,6 +30,7 @@ import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { LoadFailed } from './LoadFailed';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
+import { useSettledMargin } from './use-settled-margin';
 
 export type { MarginMode };
 
@@ -316,18 +318,24 @@ export function CockpitKpis({
   const { pricing, seeded, refreshing } = useMarketData();
   const { runs } = usePlannerConfig();
   const { buildTimes, skillTimeFactors } = useBuildPlan();
-  const { location, reactionSystem, reactionNetAvailable, structureFactors, profile, profilePlan, locationFailed, retryLocation } =
-    useBuildSetup();
-  const builder = profile?.document.members.find((m) => m.characterId === profilePlan?.top.characterId);
-
-  const margin = cockpitMarginView(
-    pricing,
-    structure.activityId,
+  const {
     location,
     reactionSystem,
     reactionNetAvailable,
-    marginMode,
+    structureFactors,
+    profile,
+    profilePlan,
+    locationFailed,
+    feesPending,
+    retryLocation,
+  } = useBuildSetup();
+  const builder = profile?.document.members.find((m) => m.characterId === profilePlan?.top.characterId);
+
+  const liveMargin = useMemo(
+    () => cockpitMarginView(pricing, structure.activityId, location, reactionSystem, reactionNetAvailable, marginMode),
+    [pricing, structure.activityId, location, reactionSystem, reactionNetAvailable, marginMode],
   );
+  const margin = useSettledMargin(liveMargin, feesPending);
 
   const leverRows = timeLeverRows({
     topBlueprintTypeId: structure.blueprintTypeId,
@@ -355,10 +363,10 @@ export function CockpitKpis({
       )}
       <div className={WIDE}>
         <NetMarginTile
-          view={margin}
+          view={margin.view}
           pricing={pricing}
           seeded={seeded}
-          refreshing={refreshing}
+          refreshing={refreshing || margin.held}
           setMarginMode={setMarginMode}
           nameOf={(typeId) => structure.buildNodeDisplay[typeId]?.name ?? structure.materialNames[typeId] ?? `Type ${typeId}`}
         />

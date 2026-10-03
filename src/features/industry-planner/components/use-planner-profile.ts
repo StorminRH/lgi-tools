@@ -78,6 +78,8 @@ function usePlannerProfile(
 /** The location state a profile drives so the product's own job prices where it runs. */
 export interface LocationWriters {
   locationRefreshKey: number;
+  /** The system whose read last failed, so it is not still waited on. */
+  failureSystemId: number | null;
   location: SelectedLocation | null;
   setLocation: (location: SelectedLocation | null) => void;
   applyBuildSystem: (
@@ -99,7 +101,7 @@ function useProfileLocation(
   plan: ProfilePlan | null,
   activityId: number,
   writers: LocationWriters,
-): void {
+): boolean {
   const { systems } = useSystemSearch();
   const facility = plan?.top.facility ?? null;
   const found = systems.find((s) => s.id === facility?.systemId);
@@ -138,6 +140,9 @@ function useProfileLocation(
     setReactionStructure,
     locationRefreshKey,
   ]);
+  // Whether the product's system is still being read.
+  return activityId !== REACTION_ACTIVITY && system !== null && current !== system.systemId &&
+    writers.failureSystemId !== system.systemId;
 }
 
 /**
@@ -150,11 +155,16 @@ export function useProfileFactors(
     availableStructures: AvailableStructure[] | null;
     structureFactors: StructureFactors;
   },
-): PlannerProfileState & { structureFactors: StructureFactors; skillTimeFactors: SkillTimeFactors | null } {
+): PlannerProfileState & {
+  structureFactors: StructureFactors;
+  skillTimeFactors: SkillTimeFactors | null;
+  locationPending: boolean;
+} {
   const profile = usePlannerProfile(structure, location.availableStructures);
-  useProfileLocation(profile.plan, structure.activityId, location);
+  const locationPending = useProfileLocation(profile.plan, structure.activityId, location);
   return {
     ...profile,
+    locationPending,
     structureFactors: profile.plan?.structureFactors ?? location.structureFactors,
     skillTimeFactors: profile.plan?.skillTimeFactors ?? null,
   };

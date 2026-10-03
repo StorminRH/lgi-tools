@@ -27,6 +27,17 @@ interface ReadPrices {
   prices: ReadonlyMap<number, number> | null;
 }
 
+/** Where a read stands for the current systems and retry: still coming, back empty, or read. */
+function readStatus(
+  read: { key: string; refreshKey: number } | null,
+  key: string,
+  refreshKey: number,
+  empty: boolean,
+): 'pending' | 'failed' | 'read' {
+  if (read?.key !== key || read.refreshKey !== refreshKey) return 'pending';
+  return empty ? 'failed' : 'read';
+}
+
 /**
  * Where a profile installs every job below the product's, and the cost
  * indices of those systems. Null without a profile: then only the
@@ -37,7 +48,7 @@ export function useComponentFeeSources(
   plan: ProfilePlan | null,
   refreshKey: number,
   needAdjustedPrices: boolean,
-): { sources: ComponentFeeInputs | null; failed: boolean } {
+): { sources: ComponentFeeInputs | null; failed: boolean; pending: boolean } {
   const siteOf = useMemo(() => (plan ? profileFeeSiteOf(plan) : null), [plan]);
   // The systems as a stable key, so a plan rebuilt with the same facilities reads nothing again.
   const key = useMemo(() => {
@@ -111,9 +122,11 @@ export function useComponentFeeSources(
       adjustedPriceOf: (typeId: number) => prices?.key === priceKey ? prices.prices?.get(typeId) ?? null : null,
     };
   }, [siteOf, indices, key, prices, priceKey]);
+  const indicesStatus = key === '' ? 'read' : readStatus(indices, key, refreshKey, indices?.bySystem === null);
+  const pricesStatus = readPricesEnabled ? readStatus(prices, priceKey, refreshKey, prices?.prices === null) : 'read';
   return {
     sources,
-    failed: (key !== '' && indices?.key === key && indices.refreshKey === refreshKey && indices.bySystem === null) ||
-      (readPricesEnabled && prices?.key === priceKey && prices.refreshKey === refreshKey && prices.prices === null),
+    failed: indicesStatus === 'failed' || pricesStatus === 'failed',
+    pending: indicesStatus === 'pending' || pricesStatus === 'pending',
   };
 }

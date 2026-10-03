@@ -55,10 +55,15 @@ export function usePlannerLocationWrites(
           }),
         onPersist: () => {},
       });
+      // The system priced until now stays while the next is read, so the
+      // planner does not ask twice; a failed read clears it rather than
+      // leaving another system's fees standing.
       return async (sys: BuildSystemRef, opts: ApplySystemOptions) => {
-        setLocation(null);
         const outcome = await apply(sys, opts);
-        if (outcome.status === 'failed') setFailureSystemId(sys.systemId);
+        if (outcome.status === 'failed') {
+          setLocation(null);
+          setFailureSystemId(sys.systemId);
+        }
         if (outcome.status === 'applied') setFailureSystemId(null);
         return outcome;
       };
@@ -92,11 +97,12 @@ export function usePlannerLocationWrites(
     },
     [reactionSystemId, structure.blueprintTypeId, setFetchedReactionLocation],
   );
+  const readsReaction = structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null && !(
+    reactionLocation?.systemId === reactionSystemId &&
+    reactionLocation.blueprintTypeId === structure.blueprintTypeId
+  );
   useResourceRead(readReactionLocation, {
-    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null && !(
-      reactionLocation?.systemId === reactionSystemId &&
-      reactionLocation.blueprintTypeId === structure.blueprintTypeId
-    ),
+    enabled: readsReaction,
     onData: setFetchedReactionLocation,
     refreshKey: retry,
   });
@@ -104,5 +110,11 @@ export function usePlannerLocationWrites(
     enabled: true,
     onData: setAvailableStructures,
   });
-  return { applyBuildSystem, failureSystemId, retryLocation, retry };
+  return {
+    applyBuildSystem,
+    failureSystemId,
+    retryLocation,
+    retry,
+    reactionPending: readsReaction && failureSystemId !== reactionSystemId,
+  };
 }

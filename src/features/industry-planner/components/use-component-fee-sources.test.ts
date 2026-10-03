@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 test('without a profile nothing is read, charged or marked failed', () => {
-  expect(useComponentFeeSources(structure, null, 0, false)).toEqual({ sources: null, failed: false });
+  expect(useComponentFeeSources(structure, null, 0, false)).toEqual({ sources: null, failed: false, pending: false });
   expect(h.reads[0]!.enabled).toBe(false);
 });
 
@@ -91,10 +91,12 @@ test.each(['response', 'network'])('%s failure shows after three attempts, clear
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
   let result = useComponentFeeSources(structure, plan, 0, false);
   expect(result.failed).toBe(true);
+  expect(result.pending).toBe(false);
   expect(result.sources!.costIndexOf(30000142, true)).toBeNull();
   result = useComponentFeeSources(structure, plan, 1, false);
   expect(h.reads[0]!.refreshKey).toBe(1);
   expect(result.failed).toBe(false);
+  expect(result.pending).toBe(true);
   h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { systems } });
   h.reads[0]!.onData(await h.reads[0]!.read(new AbortController().signal));
@@ -106,10 +108,12 @@ test.each(['response', 'network'])('%s failure shows after three attempts, clear
 test('until read, every job is missing its index; once read it uses its own activity', () => {
   const pending = useComponentFeeSources(structure, plan, 0, false);
   expect(pending.failed).toBe(false);
+  expect(pending.pending).toBe(true);
   expect(pending.sources!.siteOf(120).systemId).toBe(30000142);
   expect(pending.sources!.costIndexOf(30000142, true)).toBeNull();
   h.states[1] = successfulRead;
-  const { sources } = useComponentFeeSources(structure, plan, 0, false);
+  const { sources, pending: stillPending } = useComponentFeeSources(structure, plan, 0, false);
+  expect(stillPending).toBe(false);
   expect(sources!.costIndexOf(30000142, true)).toBe(0.02);
   expect(sources!.costIndexOf(30004759, false)).toBe(0.05);
   expect(sources!.costIndexOf(30004759, true)).toBeNull();
@@ -151,7 +155,7 @@ test.each([true, false])('a cancelled read cannot apply its late success=%s afte
 
 test.each(['response', 'network'])('component-only adjusted prices recover from %s failure through shared Retry', async (failure) => {
   const partial = { top: route(null), routeOf: (bp: number) => bp === 100 ? route(null) : ROUTES[bp]! } as unknown as ProfilePlan;
-  useComponentFeeSources(structure, partial, 0, true);
+  expect(useComponentFeeSources(structure, partial, 0, true).pending).toBe(true);
   expect(h.reads[1]!.enabled).toBe(true);
   if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
   else h.apiFetch.mockRejectedValue(new Error('offline'));
@@ -164,8 +168,13 @@ test.each(['response', 'network'])('component-only adjusted prices recover from 
   h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { adjustedPrices: [{ typeId: 34, adjustedPrice: 5 }] } });
   h.reads[1]!.onData(await h.reads[1]!.read(new AbortController().signal));
-  const result = useComponentFeeSources(structure, partial, 1, true);
+  let result = useComponentFeeSources(structure, partial, 1, true);
+  // The jobs' system indices are still unread.
+  expect(result.pending).toBe(true);
+  h.states[1] = { ...successfulRead, refreshKey: 1 };
+  result = useComponentFeeSources(structure, partial, 1, true);
   expect(result.failed).toBe(false);
+  expect(result.pending).toBe(false);
   expect(result.sources!.adjustedPriceOf(34)).toBe(5);
   expect(result.sources!.adjustedPriceOf(99)).toBeNull();
   expect(firstCall[1].body).toEqual({ systemId: 30004759, blueprintId: 100 });

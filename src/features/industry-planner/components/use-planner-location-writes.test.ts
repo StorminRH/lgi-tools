@@ -79,6 +79,17 @@ test('a manufacturing blip the next attempt clears applies fees without a failur
   expect(useWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
 });
 
+test('the system priced until now stays while the next is read, so it is asked for once', async () => {
+  let release!: (result: { ok: boolean; data: BuildLocationData }) => void;
+  h.apiFetch.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+  const pending = useWrites(MANUFACTURING_ACTIVITY).applyBuildSystem(SYSTEM, { persist: false });
+  expect(setLocation).not.toHaveBeenCalled();
+  release({ ok: true, data: DATA });
+  await expect(pending).resolves.toMatchObject({ status: 'applied' });
+  expect(setLocation.mock.calls).toEqual([[{ ...SYSTEM, ...DATA, adjustedPrices: new Map([[34, 10]]) }]]);
+  expect(h.apiFetch).toHaveBeenCalledTimes(1);
+});
+
 test.each(['response', 'network'])('manufacturing %s failure after three attempts clears old fees; Retry clears the notice until success applies current fees', async (failure) => {
   if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
   else h.apiFetch.mockRejectedValue(new Error('offline'));
@@ -107,15 +118,19 @@ test.each(['response', 'network'])('reaction %s failure after three attempts cle
   else h.apiFetch.mockRejectedValue(new Error('offline'));
   let state = useWrites(REACTION_ACTIVITY);
   expect(state.reaction.enabled).toBe(true);
+  expect(state.reactionPending).toBe(true);
   await expect(state.reaction.read(new AbortController().signal)).resolves.toBeNull();
   expect(h.apiFetch).toHaveBeenCalledTimes(3);
   expect(setReactionLocation).toHaveBeenCalledWith(null);
   resetRenderState();
   state = useWrites(REACTION_ACTIVITY);
   expect(state.failureSystemId).toBe(SYSTEM.systemId);
+  // A failed read is not still waited on.
+  expect(state.reactionPending).toBe(false);
   state.retryLocation();
   resetRenderState();
   state = useWrites(REACTION_ACTIVITY);
+  expect(state.reactionPending).toBe(true);
   expect(state.reaction.refreshKey).toBe(1);
   expect(state.failureSystemId).toBeNull();
   h.apiFetch.mockReset();
@@ -140,7 +155,7 @@ test.each([MANUFACTURING_ACTIVITY, REACTION_ACTIVITY])('cancelled activity %i re
   await pending;
   resetRenderState();
   expect(useWrites(activityId).failureSystemId).toBeNull();
-  expect(setLocation.mock.calls).toEqual(activityId === MANUFACTURING_ACTIVITY ? [[null]] : []);
+  expect(setLocation).not.toHaveBeenCalled();
   expect(setReactionLocation.mock.calls).toEqual(activityId === REACTION_ACTIVITY ? [[null]] : []);
 });
 
@@ -156,6 +171,7 @@ test('component Retry reuses a valid current reaction snapshot without clearing 
   const snapshot = { systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06, adjustedPrices: new Map([[34, 10]]) };
   let state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
   expect(state.reaction.enabled).toBe(false);
+  expect(state.reactionPending).toBe(false);
   state.retryLocation();
   resetRenderState();
   state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);

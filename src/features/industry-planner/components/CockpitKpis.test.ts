@@ -4,7 +4,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import type { BlueprintStructure } from '../types';
 
-const h = vi.hoisted(() => ({ locationFailed: false, retryLocation: vi.fn(), pricing: null as unknown }));
+const h = vi.hoisted(() => ({ locationFailed: false, feesPending: false, retryLocation: vi.fn(), pricing: null as unknown }));
 
 vi.mock('@/components/use-system-search', () => ({ useSystemName: () => undefined }));
 vi.mock('./MarketScorePanel', () => ({ MarketScorePanel: () => null }));
@@ -23,6 +23,7 @@ vi.mock('./planner-contexts', () => ({
     profile: null,
     profilePlan: null,
     locationFailed: h.locationFailed,
+    feesPending: h.feesPending,
     retryLocation: h.retryLocation,
   }),
 }));
@@ -35,6 +36,7 @@ const render = () =>
 
 beforeEach(() => {
   h.locationFailed = false;
+  h.feesPending = false;
   h.pricing = null;
 });
 
@@ -95,4 +97,14 @@ test('a fee that counts an unpriced input as nothing turns the fee mark amber; t
   expect(html).toContain('+300.00');
   h.pricing = priced([]);
   expect(feeMark(render())).not.toContain('text-dps-mid');
+});
+
+test('a net margin waiting on new fees is marked as updating', () => {
+  h.pricing = priced([]);
+  const figure = () => /<span[^>]*>\+300\.00<\/span>/.exec(render())?.[0] ?? '';
+  expect(figure()).toContain('price-live');
+  expect(figure()).not.toContain('price-pending');
+  h.feesPending = true;
+  expect(render()).toContain('>Net margin<');
+  expect(figure()).toContain('price-pending');
 });
