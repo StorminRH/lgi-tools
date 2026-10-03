@@ -4,7 +4,6 @@ import type { StructureTypeOption } from '@/data/eve-data/structures';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,
-  MAX_CUSTOM_STRUCTURE_NAME_LEN,
   parseStructureFitEndpoint,
   updateCustomStructureEndpoint,
 } from '../api-contract';
@@ -123,8 +122,8 @@ test('a new structure says what is missing before it saves', () => {
   const c = mount(null);
   c.button('Save');
   expect(c.error()).toBe('Name the structure.');
-  c.call(named, 'onName', 'x'.repeat(MAX_CUSTOM_STRUCTURE_NAME_LEN + 5));
-  expect(c.draft().name).toHaveLength(MAX_CUSTOM_STRUCTURE_NAME_LEN);
+  c.call(named, 'onName', 'x'.repeat(85));
+  expect(c.draft().name).toBe('x'.repeat(80));
   expect(c.error()).toBeNull();
   c.button('Save');
   expect(c.error()).toBe('Pick the hull.');
