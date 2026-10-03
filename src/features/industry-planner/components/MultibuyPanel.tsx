@@ -2,13 +2,12 @@
 
 import { useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { chipVariants } from '@/components/ui/chip';
-import { cn } from '@/components/ui/cn';
 import { CopyButton } from '@/components/ui/copy-button';
+import { ChevronDownIcon } from '@/components/ui/icons';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { computeMultibuyDemand } from '../build-batch';
-import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
+import { PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import {
   assignBuildTiers,
   buildMultibuyText,
@@ -71,16 +70,15 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
     <Popover
       label="Multibuy export"
       openOnHover={false}
-      className="w-[320px]"
-      triggerClassName={cn(
-        chipVariants({ tone: 'green' }),
-        PLANNER_DISCLOSURE_TRIGGER_CLASS,
-        'group cursor-pointer gap-1.5 py-1 transition-colors',
-      )}
+      align="start"
+      className="w-80"
+      triggerClassName={PLANNER_TOOL_TRIGGER_CLASS}
       trigger={
         <>
           Multibuy
-          <span className="inline-block text-micro text-muted">▾</span>
+          <span className="field-chevron inline-flex shrink-0">
+            <ChevronDownIcon />
+          </span>
         </>
       }
     >

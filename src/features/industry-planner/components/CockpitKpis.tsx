@@ -26,13 +26,7 @@ import { marginToneClass, type RegionalDiscountCallout } from '../industry-style
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
-import {
-  useBuildCharacter,
-  useBuildPlan,
-  useBuildSetup,
-  useMarketData,
-  usePlannerConfig,
-} from './planner-contexts';
+import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 
 export type { MarginMode };
 
@@ -104,8 +98,8 @@ function InputCostTile() {
         label="Input cost"
         right={
           <span className="flex items-center gap-2">
-            <InputCostHelp bases={view.bases} />
             <RawItemToggle basis={costBasis} setBasis={setCostBasis} />
+            <InputCostHelp bases={view.bases} />
           </span>
         }
       />
@@ -216,8 +210,8 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
         </div>
       </div>
       <p className="text-ui leading-snug text-muted">
-        Sequential — one job at a time. TE applied per blueprint; structure and build-character
-        skills applied when selected; parallel slots not counted.
+        Sequential — one job at a time. TE, structure and skills applied per job; parallel slots
+        not counted.
       </p>
     </KpiHelp>
   );
@@ -264,8 +258,8 @@ function NetMarginTile({
         label={view.marginLabel}
         right={
           <span className="flex items-center gap-2">
-            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
             <GrossNetToggle showNet={view.showNet} netAvailable={view.netAvailable} setMode={setMarginMode} />
+            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
           </span>
         }
       />
@@ -318,6 +312,9 @@ function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
   );
 }
 
+/** A tile that takes the rail's full width, and one column of three in between. */
+const WIDE = 'col-span-2 sm:col-span-1 lg:col-span-2 *:h-full';
+
 export function CockpitKpis({
   structure,
   marginMode,
@@ -329,14 +326,9 @@ export function CockpitKpis({
 }) {
   const { pricing, seeded, refreshing } = useMarketData();
   const { runs } = usePlannerConfig();
-  const { buildTimes } = useBuildPlan();
-  const { buildCharacter, skillTimeFactors } = useBuildCharacter();
-  const {
-    location,
-    reactionSystem,
-    reactionNetAvailable,
-    structureFactors,
-  } = useBuildSetup();
+  const { buildTimes, skillTimeFactors } = useBuildPlan();
+  const { location, reactionSystem, reactionNetAvailable, structureFactors, profile, profilePlan } = useBuildSetup();
+  const builder = profile?.document.members.find((m) => m.characterId === profilePlan?.top.characterId);
 
   const margin = cockpitMarginView(
     pricing,
@@ -349,23 +341,31 @@ export function CockpitKpis({
 
   const leverRows = timeLeverRows({
     topBlueprintTypeId: structure.blueprintTypeId,
-    buildCharacterName: buildCharacter?.name ?? null,
+    buildCharacterName: builder?.name ?? null,
     skillTimeFactors,
     structureTeFactorOf: structureFactors.structureTeFactorOf,
   });
 
   return (
-    <div className="reveal reveal-2 grid grid-cols-2 gap-3 md:grid-cols-3 cockpit:grid-cols-6">
-      <InputCostTile />
-      <SellTile />
-      <NetMarginTile
-        view={margin}
-        pricing={pricing}
-        seeded={seeded}
-        refreshing={refreshing}
-        setMarginMode={setMarginMode}
-      />
-      <MarketScorePanel structure={structure} />
+    <div className="reveal reveal-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2">
+      <div className={WIDE}>
+        <InputCostTile />
+      </div>
+      <div className={WIDE}>
+        <SellTile />
+      </div>
+      <div className={WIDE}>
+        <NetMarginTile
+          view={margin}
+          pricing={pricing}
+          seeded={seeded}
+          refreshing={refreshing}
+          setMarginMode={setMarginMode}
+        />
+      </div>
+      <div className={WIDE}>
+        <MarketScorePanel structure={structure} />
+      </div>
       <BuildTimeTile runs={runs} buildTimes={buildTimes} leverRows={leverRows} />
       <TotalJobTile buildTimes={buildTimes} />
     </div>

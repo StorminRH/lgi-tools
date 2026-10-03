@@ -20,11 +20,9 @@ import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-vi
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
-import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
-import { resolveBuildCharacter } from '@/components/run-as-state';
-import { useAccountCharacters } from '@/components/use-account-characters';
+import { usePreference } from '@/components/PreferencesProvider';
 import { apiFetch } from '@/transport/api-client';
-import { industryCostBasis, plannerBuildCharacter, plannerBuildLocation } from '@/lib/preferences';
+import { industryCostBasis } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
   collectRawTypeIds,
@@ -32,7 +30,6 @@ import {
   type BatchLedger,
   type MeOptions,
 } from '../build-batch';
-import { savedBuildLocationRestoreOf } from '../build-location-view';
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import type { MarginMode } from '../cockpit-margin';
@@ -47,8 +44,7 @@ import {
 } from '../api-contract';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import { useProfileFactors } from './use-planner-profile';
-import { skillTimeFactorsFor, type SkillTimeFactors } from '../skill-time';
-import { useBuildCharacterSkillLevels } from '../use-build-character-skills';
+import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
 import { readAvailableStructures } from '../use-available-structures';
 import { useResourceRead } from '../use-resource-read';
 import { toMarketScoreInputs } from '../market-score-inputs';
@@ -68,7 +64,6 @@ import {
 import {
   composeFeeInputs,
   structureFactorsFor,
-  structureReadouts,
   type StructureFactors,
 } from '../structure-factors';
 import type {
@@ -80,14 +75,12 @@ import type {
 } from '../types';
 import {
   PlannerContextProviders,
-  type BuildCharacterValue,
   type BuildPlanValue,
   type BuildSetupValue,
   type MarketDataValue,
   type PlannerConfigValue,
   type SelectedLocation,
   type SelectedReactionSystem,
-  type SelectedStation,
 } from './planner-contexts';
 
 function PricingSeeder({
@@ -139,14 +132,9 @@ function useOverrideSetters(
   return { set, reset };
 }
 
-function usePlannerPrefs(initialBuildCharacterId: number | null) {
+function usePlannerPrefs() {
   const [runs, setRunsState] = useState(1);
-  const [rawBuildCharacterId, setBuildCharacter] = usePreference(plannerBuildCharacter, {
-    serverValue: initialBuildCharacterId,
-  });
   const [costBasis, setCostBasis] = usePreference(industryCostBasis);
-  const [savedBuildLocation, setSavedBuildLocation] = usePreference(plannerBuildLocation);
-  const preferencesReady = usePreferencesReady();
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const [multibuyMode, setMultibuyMode] = useState<NetMode>('Remaining');
   const [multibuyUncheckedTiers, setMultibuyUncheckedTiersState] = useState<ReadonlySet<number>>(
@@ -155,42 +143,25 @@ function usePlannerPrefs(initialBuildCharacterId: number | null) {
   const setMultibuyUncheckedTiers = useCallback((tiers: ReadonlySet<number>) => {
     setMultibuyUncheckedTiersState(new Set(tiers));
   }, []);
-  const buildCharacters = useAccountCharacters();
-  const { character: buildCharacter, pending: buildCharacterPending } = resolveBuildCharacter(
-    rawBuildCharacterId,
-    buildCharacters,
-  );
-  const buildCharacterSkillLevels = useBuildCharacterSkillLevels(
-    buildCharacter?.characterId ?? null,
-  );
   const setRuns = useCallback((n: number) => {
     setRunsState(Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1);
   }, []);
   return {
-    buildCharacter,
-    buildCharacterPending,
-    buildCharacterSkillLevels,
-    buildCharacters,
     costBasis,
     marginMode,
     multibuyMode,
     multibuyUncheckedTiers,
-    preferencesReady,
     runs,
-    savedBuildLocation,
-    setBuildCharacter,
     setCostBasis,
     setMarginMode,
     setMultibuyMode,
     setMultibuyUncheckedTiers,
     setRuns,
-    setSavedBuildLocation,
   };
 }
 
 function usePlannerLocationState(structure: BlueprintStructure) {
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
-  const [station, setStationState] = useState<SelectedStation | null>(null);
   const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
   const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
@@ -235,58 +206,31 @@ function usePlannerLocationState(structure: BlueprintStructure) {
       structure.blueprintTypeId,
     ],
   );
-  const { build: buildStructureReadout, reaction: reactionStructureReadout } = useMemo(
-    () => structureReadouts({ selectedStructure, reactionStructure, factors: structureFactors }),
-    [selectedStructure, reactionStructure, structureFactors],
-  );
-  const setLocation = useCallback((loc: SelectedLocation | null) => {
-    setLocationState(loc);
-    setStationState(null);
-  }, []);
-  const setStation = useCallback(
-    (stationId: number | null, stationName: string | null) => {
-      setStationState(stationId === null ? null : { id: stationId, name: stationName ?? '' });
-    },
-    [],
-  );
   return {
     availableStructures,
-    buildStructureReadout,
     location,
     reactionLocation,
     reactionStructure,
-    reactionStructureReadout,
     reactionSystem,
     selectedStructure,
     setAvailableStructures,
     setFetchedReactionLocation,
-    setLocation,
+    setLocation: setLocationState,
     setReactionStructure,
     setReactionSystem,
     setSelectedStructure,
-    setStation,
-    station,
     structureFactors,
   };
 }
 
+/**
+ * Reads the build and reaction systems' cost indices and prices, and the
+ * account's structures. A profile picks the systems; with none, nothing is
+ * read and the build prices without fees.
+ */
 function usePlannerLocationWrites(
   structure: BlueprintStructure,
-  location: SelectedLocation | null,
   setLocation: (loc: SelectedLocation | null) => void,
-  savedBuildLocation: {
-    systemId: number;
-    systemName: string;
-    security: number | null;
-  } | null,
-  setSavedBuildLocation: (
-    value: {
-      systemId: number;
-      systemName: string;
-      security: number | null;
-    } | null,
-  ) => void,
-  preferencesReady: boolean,
   reactionSystemId: number | null,
   setFetchedReactionLocation: Dispatch<SetStateAction<ReactionLocationSnapshot | null>>,
   setAvailableStructures: Dispatch<SetStateAction<AvailableStructure[] | null>>,
@@ -311,26 +255,10 @@ function usePlannerLocationWrites(
             costIndices: data.costIndices,
             adjustedPrices: new Map(data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice])),
           }),
-        onPersist: (sys) => setSavedBuildLocation(sys),
+        onPersist: () => {},
       }),
-    [structure.blueprintTypeId, setLocation, setSavedBuildLocation],
+    [structure.blueprintTypeId, setLocation],
   );
-  const clearBuildLocation = useCallback(() => {
-    setLocation(null);
-    setSavedBuildLocation(null);
-  }, [setLocation, setSavedBuildLocation]);
-  const restoredRef = useRef(false);
-  useEffect(() => {
-    const savedLocationToRestore = savedBuildLocationRestoreOf({
-      preferencesReady,
-      alreadyRestored: restoredRef.current,
-      location,
-      savedBuildLocation,
-    });
-    if (!savedLocationToRestore) return;
-    restoredRef.current = true;
-    void applyBuildSystem(savedLocationToRestore, { persist: false });
-  }, [preferencesReady, savedBuildLocation, location, applyBuildSystem]);
   const readReactionLocation = useCallback(
     async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
       if (reactionSystemId === null) return null;
@@ -360,7 +288,7 @@ function usePlannerLocationWrites(
     enabled: true,
     onData: setAvailableStructures,
   });
-  return { applyBuildSystem, clearBuildLocation };
+  return applyBuildSystem;
 }
 
 function usePlannerOwnedResources(structure: BlueprintStructure) {
@@ -549,8 +477,7 @@ function usePlannerLedger(
   ownedMe: Map<number, number> | null,
   ownedDetail: Map<number, OwnedComponentDetail> | null,
   structureFactors: StructureFactors,
-  buildCharacterSkillLevels: ReturnType<typeof useBuildCharacterSkillLevels>,
-  profileSkillTimeFactors: SkillTimeFactors | null,
+  skillTimeFactors: SkillTimeFactors,
 ) {
   const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
   const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
@@ -571,16 +498,6 @@ function usePlannerLedger(
   const ledger = useMemo<BatchLedger>(
     () => computeBatchLedger(structure.tree, runs, ledgerMeOpts),
     [structure.tree, runs, ledgerMeOpts],
-  );
-  const skillTimeFactors = useMemo<SkillTimeFactors>(
-    () =>
-      profileSkillTimeFactors ??
-      skillTimeFactorsFor({
-        levels: buildCharacterSkillLevels,
-        nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
-        nodeTimeSkills: structure.nodeTimeSkills,
-      }),
-    [profileSkillTimeFactors, buildCharacterSkillLevels, structure],
   );
   const buildTimes = useMemo<BuildTimes>(
     () =>
@@ -617,29 +534,23 @@ export function PricingProvider({
   structure,
   pricingPromise,
   historyPromise,
-  initialBuildCharacterId,
   children,
 }: {
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
   historyPromise: Promise<MarketHistoryInputs[]>;
-  initialBuildCharacterId: number | null;
   children: ReactNode;
 }) {
-  const prefs = usePlannerPrefs(initialBuildCharacterId);
+  const prefs = usePlannerPrefs();
   const locationState = usePlannerLocationState(structure);
-  const { applyBuildSystem, clearBuildLocation } = usePlannerLocationWrites(
+  const applyBuildSystem = usePlannerLocationWrites(
     structure,
-    locationState.location,
     locationState.setLocation,
-    prefs.savedBuildLocation,
-    prefs.setSavedBuildLocation,
-    prefs.preferencesReady,
     locationState.reactionSystem?.systemId ?? null,
     locationState.setFetchedReactionLocation,
     locationState.setAvailableStructures,
   );
-  // Under a profile each job takes its own facility's bonus; otherwise the picked structures apply.
+  // Under a profile each job takes its own facility's bonus and character; with none, the build is baseline.
   const profile = useProfileFactors(structure, { ...locationState, applyBuildSystem });
   const { structureFactors } = profile;
   const owned = usePlannerOwnedResources(structure);
@@ -649,8 +560,7 @@ export function PricingProvider({
     owned.ownedMe,
     owned.ownedDetail,
     structureFactors,
-    prefs.buildCharacterSkillLevels,
-    profile.skillTimeFactors,
+    profile.skillTimeFactors ?? NO_SKILL_FACTORS,
   );
   const clock = usePriceClock(structure, {
     costBasis: prefs.costBasis,
@@ -717,22 +627,8 @@ export function PricingProvider({
   const buildSetupValue = useMemo<BuildSetupValue>(
     () => ({
       location: locationState.location,
-      setLocation: locationState.setLocation,
-      station: locationState.station,
-      setStation: locationState.setStation,
-      applyBuildSystem,
-      clearBuildLocation,
-      savedBuildLocation: prefs.savedBuildLocation,
-      availableStructures: locationState.availableStructures,
-      selectedStructure: locationState.selectedStructure,
-      setSelectedStructure: locationState.setSelectedStructure,
-      reactionStructure: locationState.reactionStructure,
-      setReactionStructure: locationState.setReactionStructure,
       reactionSystem: locationState.reactionSystem,
-      setReactionSystem: locationState.setReactionSystem,
       structureFactors,
-      buildStructureReadout: locationState.buildStructureReadout,
-      reactionStructureReadout: locationState.reactionStructureReadout,
       reactionNetAvailable,
       profiles: profile.profiles,
       profile: profile.profile,
@@ -741,45 +637,13 @@ export function PricingProvider({
     }),
     [
       locationState.location,
-      locationState.setLocation,
-      locationState.station,
-      locationState.setStation,
-      applyBuildSystem,
-      clearBuildLocation,
-      prefs.savedBuildLocation,
-      locationState.availableStructures,
-      locationState.selectedStructure,
-      locationState.setSelectedStructure,
-      locationState.reactionStructure,
-      locationState.setReactionStructure,
       locationState.reactionSystem,
-      locationState.setReactionSystem,
       structureFactors,
-      locationState.buildStructureReadout,
-      locationState.reactionStructureReadout,
       reactionNetAvailable,
       profile.profiles,
       profile.profile,
       profile.setProfileId,
       profile.plan,
-    ],
-  );
-  const buildCharacterValue = useMemo<BuildCharacterValue>(
-    () => ({
-      buildCharacter: prefs.buildCharacter,
-      buildCharacterPending: prefs.buildCharacterPending,
-      buildCharacters: prefs.buildCharacters,
-      setBuildCharacter: prefs.setBuildCharacter,
-      buildCharacterSkillLevels: prefs.buildCharacterSkillLevels,
-      skillTimeFactors: ledger.skillTimeFactors,
-    }),
-    [
-      prefs.buildCharacter,
-      prefs.buildCharacterPending,
-      prefs.buildCharacters,
-      prefs.setBuildCharacter,
-      prefs.buildCharacterSkillLevels,
-      ledger.skillTimeFactors,
     ],
   );
   const buildPlanValue = useMemo<BuildPlanValue>(
@@ -797,6 +661,7 @@ export function PricingProvider({
       ledger: ledger.ledger,
       ledgerMeOpts: ledger.ledgerMeOpts,
       buildTimes: ledger.buildTimes,
+      skillTimeFactors: ledger.skillTimeFactors,
     }),
     [
       owned.ownedMe,
@@ -812,6 +677,7 @@ export function PricingProvider({
       ledger.ledger,
       ledger.ledgerMeOpts,
       ledger.buildTimes,
+      ledger.skillTimeFactors,
     ],
   );
 
@@ -820,7 +686,6 @@ export function PricingProvider({
       marketData={marketDataValue}
       plannerConfig={plannerConfigValue}
       buildSetup={buildSetupValue}
-      buildCharacter={buildCharacterValue}
       buildPlan={buildPlanValue}
     >
       {children}

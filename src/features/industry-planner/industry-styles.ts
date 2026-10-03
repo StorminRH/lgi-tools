@@ -1,3 +1,5 @@
+import { cn } from '@/components/ui/cn';
+import { fieldVariants, triggerShape } from '@/components/ui/input';
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
@@ -9,17 +11,14 @@ const THIN_MARGIN_PCT = 5;
 
 export type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
 
-export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
-  'border-border-soft bg-bg-deep text-isk shadow-field-inset hover:border-border-idle hover:bg-row-active hover:text-isk data-[popup-open]:border-border-idle data-[popup-open]:bg-row-active';
+/** The rail's tool buttons wear the frosted trigger the profile picker wears. */
+export const PLANNER_TOOL_TRIGGER_CLASS = cn(
+  fieldVariants({ size: 'md' }),
+  triggerShape,
+  'flex cursor-pointer items-center justify-between gap-2 whitespace-nowrap font-ui text-nav text-name',
+);
 
 export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
-
-export const HERO_LOCATION_GROUP_CLASS =
-  'flex w-full min-w-0 max-w-[332px] sm:w-[332px] flex-col justify-center gap-1.5';
-
-export const HERO_LOCATION_ROW_CLASS = 'flex min-w-0 items-center gap-2';
-
-export const HERO_LOCATION_CONTROL_WELL_CLASS = 'min-w-0 flex-1 max-w-[260px]';
 
 export const EFFICIENCY_TONE_CLASSES: Record<
   EfficiencyToneState,

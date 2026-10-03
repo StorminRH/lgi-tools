@@ -32,6 +32,7 @@ export function Popover({
   label,
   tone = 'neutral',
   side = 'bottom',
+  align = 'center',
   openOnHover = true,
   onOpenChange,
   triggerClassName,
@@ -42,6 +43,7 @@ export function Popover({
   label: string;
   tone?: PopoverTone;
   side?: 'top' | 'bottom' | 'left' | 'right';
+  align?: 'start' | 'center' | 'end';
   openOnHover?: boolean;
   onOpenChange?: (open: boolean) => void;
   triggerClassName?: string;
@@ -60,7 +62,7 @@ export function Popover({
         {trigger}
       </Base.Trigger>
       <Base.Portal>
-        <Base.Positioner side={side} sideOffset={8} className="z-dropdown">
+        <Base.Positioner side={side} align={align} sideOffset={8} className="z-dropdown">
           <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
             {children}
           </Base.Popup>

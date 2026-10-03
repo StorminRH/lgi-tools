@@ -23,7 +23,7 @@ function reactionRows(readout: StructureReadout): StructureBonusRow[] {
   return rows;
 }
 
-export function structureBonusRows(
+function structureBonusRows(
   readout: StructureReadout,
   taxPct?: number | null,
 ): StructureBonusRow[] {
