@@ -162,7 +162,9 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   live.listFailed = false;
 
   live.profiles = [];
-  expect(render()).toContain('Create your first production profile');
+  const first = render();
+  expect(first).toContain('Create your first production profile');
+  expect(first).toMatch(/Add characters.*Add structures.*Simulate a build/);
 
   live.profiles = [teamProfile(), { ...teamProfile(), id: 'rx', name: 'Reactions only' }];
   live.slots = [
