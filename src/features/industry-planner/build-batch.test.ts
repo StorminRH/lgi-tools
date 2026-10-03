@@ -9,7 +9,9 @@ import {
   computeBatchLedger,
   computeBatchMaterials,
   computeMarginalMaterials,
+  computeMarginalRuns,
   computeMultibuyDemand,
+  feeJobs,
   productTypeByBlueprint,
 } from './build-batch';
 
@@ -363,6 +365,89 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
     expect(asMap(computeMarginalMaterials(tree, 1, { meOf: () => 0, topBlueprintTypeId: 9000 }))).toEqual(
       asMap(computeMarginalMaterials(tree, 1)),
     );
+  });
+});
+
+describe('computeMarginalRuns — the share of each job one build draws', () => {
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [
+        {
+          typeId: 150,
+          quantity: 3,
+          producedBy: { blueprintTypeId: 1150, quantityPerRun: 20, runsNeeded: 0.15 },
+          inputs: [{ typeId: 200, quantity: 4, inputs: [] }],
+        },
+      ],
+    },
+  ];
+
+  it('half a run of the plates draws 1.5 of 20 carbide, so 0.075 of its run', () => {
+    const runs = computeMarginalRuns(tree);
+    expect(runs.get(100)).toBe(0.5);
+    expect(runs.get(150)).toBeCloseTo(0.075, 12);
+  });
+
+  it('runs on the parent ME, and scale with the requested runs', () => {
+    const me10 = { meOf: (bp: number) => (bp === 1100 ? 10 : undefined), topBlueprintTypeId: 9000 };
+    expect(computeMarginalRuns(tree, 4, me10).get(150)).toBeCloseTo((2 * 3 * 0.9) / 20, 12);
+  });
+
+  it('agrees with the materials the same walk charges', () => {
+    const runs = computeMarginalRuns(tree, 3);
+    expect(asMap(computeMarginalMaterials(tree, 3))[200]).toBeCloseTo(runs.get(150)! * 4, 12);
+  });
+});
+
+describe('feeJobs — each job valued on its unresearched inputs', () => {
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [
+        {
+          typeId: 150,
+          quantity: 3,
+          producedBy: { blueprintTypeId: 1150, quantityPerRun: 20, runsNeeded: 0.15 },
+          inputs: [{ typeId: 200, quantity: 4, inputs: [] }],
+        },
+        { typeId: 210, quantity: 2, inputs: [] },
+      ],
+    },
+  ];
+
+  it('every built item once, at the runs given, its base inputs times those runs', () => {
+    expect(feeJobs(tree, new Map([[100, 2], [150, 0.5]]))).toEqual([
+      {
+        typeId: 100,
+        blueprintTypeId: 1100,
+        runs: 2,
+        baseMaterials: [
+          { typeId: 150, quantity: 6 },
+          { typeId: 210, quantity: 4 },
+        ],
+      },
+      { typeId: 150, blueprintTypeId: 1150, runs: 0.5, baseMaterials: [{ typeId: 200, quantity: 2 }] },
+    ]);
+  });
+
+  it('takes no ME: the batch ledger’s researched runs still value the full recipe', () => {
+    const me10 = { meOf: () => 10, topBlueprintTypeId: 9000 };
+    const ledger = computeBatchLedger(tree, 1, me10);
+    const runs = new Map([...ledger.builds].map(([typeId, b]) => [typeId, b.runs]));
+    const plates = feeJobs(tree, runs).find((j) => j.typeId === 100)!;
+    expect(plates.baseMaterials).toEqual([
+      { typeId: 150, quantity: 3 },
+      { typeId: 210, quantity: 2 },
+    ]);
+  });
+
+  it('a job given no runs takes nothing', () => {
+    expect(feeJobs(tree, new Map()).every((j) => j.runs === 0 && j.baseMaterials.every((m) => m.quantity === 0))).toBe(true);
   });
 });
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { computeBatchLedger } from './build-batch';
 import { componentSheet } from './component-sheet-view';
-import type { BlueprintStructure } from './types';
+import type { BlueprintStructure, ComponentJobFee } from './types';
 
 // A component (10) of two inputs: a reaction (20) of one raw (30), and a raw (40).
 const tree: TreeNode[] = [
@@ -42,7 +42,7 @@ describe('componentSheet', () => {
   const ledger = computeBatchLedger(tree, 1);
 
   it('shows the job: whole runs, what they make, and every input at market', () => {
-    const sheet = componentSheet(structure, 10, ledger, prices);
+    const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices });
     // 3 needed at 2 a run → 2 runs making 4; each run draws 50 + 7.
     expect(sheet).toMatchObject({
       name: 'Capital Armor Plates',
@@ -59,24 +59,63 @@ describe('componentSheet', () => {
       { typeId: 40, name: 'Tritanium', label: '', quantity: 14, unitPrice: 5, value: 70, buildable: false },
     ]);
     expect(sheet!.buildCost).toBe(4_070);
+    expect(sheet!.installFee).toBeNull();
     expect(sheet!.buildPerUnit).toBe(4_070 / 4);
     expect(sheet!.buyPerUnit).toBe(9_000);
   });
 
   it('opens a deeper job with its own runs and activity', () => {
     // 100 Fernite Carbide at 40 a run → 3 runs making 120, burning 15 Fernite.
-    const sheet = componentSheet(structure, 20, ledger, prices);
+    const sheet = componentSheet(structure, 20, ledger, { unitPriceOf: prices });
     expect(sheet).toMatchObject({ activityId: 11, runs: 3, makes: 120, required: 100, buildCost: 30, buildPerUnit: 0.25 });
   });
 
   it('leaves the build cost open while an input is unpriced', () => {
-    const sheet = componentSheet(structure, 10, ledger, new Map([[20, 40]]));
+    const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: new Map([[20, 40]]) });
     expect(sheet!.buildCost).toBeNull();
     expect(sheet!.buildPerUnit).toBeNull();
     expect(sheet!.buyPerUnit).toBeNull();
   });
 
   it('is null for something the plan does not build', () => {
-    expect(componentSheet(structure, 40, ledger, prices)).toBeNull();
+    expect(componentSheet(structure, 40, ledger, { unitPriceOf: prices })).toBeNull();
+  });
+
+  const charged = (runs: number, total: number | null): ComponentJobFee => ({
+    typeId: 10,
+    blueprintTypeId: 110,
+    reaction: false,
+    runs,
+    systemId: 30004759,
+    systemCostIndex: total === null ? null : 0.05,
+    facilityTaxRate: 0.0025,
+    fee: {
+      estimatedItemValue: 0,
+      jobGrossCost: total,
+      facilityTax: 0,
+      sccSurcharge: 0,
+      total,
+      missingSystemCostIndex: total === null,
+      missingAdjustedPriceTypeIds: [],
+    },
+  });
+
+  it('folds the job’s install fee into what a built unit costs', () => {
+    const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: charged(2, 130) });
+    expect(sheet!.installFee).toEqual({ value: 130, systemId: 30004759 });
+    expect(sheet!.buildCost).toBe(4_070);
+    expect(sheet!.buildPerUnit).toBe((4_070 + 130) / 4);
+  });
+
+  it('a fee charged on the share of a run one build draws scales to the job’s whole runs', () => {
+    // 1.5 runs charged 97.5; the job's 2 whole runs cost 130.
+    const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: charged(1.5, 97.5) });
+    expect(sheet!.installFee!.value).toBeCloseTo(130, 9);
+  });
+
+  it('a fee its system cannot price leaves a built unit open', () => {
+    const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: charged(2, null) });
+    expect(sheet!.installFee).toEqual({ value: null, systemId: 30004759 });
+    expect(sheet!.buildPerUnit).toBeNull();
   });
 });

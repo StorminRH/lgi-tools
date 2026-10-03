@@ -40,7 +40,9 @@ import {
   ownedAssetsEndpoint,
   ownedBlueprintsEndpoint,
 } from '../api-contract';
+import { useComponentFeeSources, type ComponentFeeInputs } from './use-component-fee-sources';
 import { useProfileFactors } from './use-planner-profile';
+import type { ProfilePlan } from '../profiles/profile-plan';
 import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
 import { useResourceRead } from '../use-resource-read';
@@ -276,6 +278,7 @@ function usePlannerOwnedResources(structure: BlueprintStructure) {
 }
 
 interface PriceAssembleMirrors {
+  readonly components: ComponentFeeInputs | null;
   readonly costBasis: 'batched' | 'marginal';
   readonly ledger: BatchLedger;
   readonly ledgerMeOpts: MeOptions;
@@ -287,7 +290,14 @@ interface PriceAssembleMirrors {
   readonly structureFactors: StructureFactors;
 }
 
-function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirrors) {
+function usePriceClock(
+  structure: BlueprintStructure,
+  inputs: Omit<PriceAssembleMirrors, 'components'>,
+  plan: ProfilePlan | null,
+) {
+  // Pricing owns the per-job fee sources for the profile installing the build.
+  const components = useComponentFeeSources(structure, plan);
+  const mirrors: PriceAssembleMirrors = { ...inputs, components };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -310,7 +320,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     setPricing(
       assemblePricing(structure, priceSnapshot.lookup, {
         runs: current.runs,
-        fee,
+        fee: fee && current.components ? { ...fee, components: current.components } : fee,
         meOf: current.ledgerMeOpts.meOf,
         structureMeFactorOf: current.ledgerMeOpts.structureMeFactorOf,
         basis: current.costBasis,
@@ -332,6 +342,7 @@ function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirr
     return () => clearTimeout(t);
   }, [
     mirrors.runs,
+    mirrors.components,
     mirrors.location,
     mirrors.reactionLocation,
     mirrors.selectedStructure,
@@ -507,7 +518,7 @@ export function PricingProvider({
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
     structureFactors,
-  });
+  }, profile.plan);
   const market = useMarketRefresh(
     structure,
     clock.seeded,

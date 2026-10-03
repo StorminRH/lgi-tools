@@ -80,6 +80,10 @@ const EXEMPT_MUTATIONS = {
     authz: 'public',
     reason: 'public stateless planner computation',
   },
+  'industry/cost-indices/route.ts': {
+    authz: 'public',
+    reason: 'public stateless reference read',
+  },
   'account/custom-structures/parse-fit/route.ts': {
     authz: 'auth',
     reason: 'authenticated stateless fit parsing',

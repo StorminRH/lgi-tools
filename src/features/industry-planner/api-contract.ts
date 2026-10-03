@@ -17,6 +17,7 @@ import type {
   OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
   OwnedBlueprintsResponse,
+  SystemJobCostIndex,
 } from './types';
 
 const PG_INT4_MAX = 2_147_483_647;
@@ -68,6 +69,32 @@ export const buildLocationEndpoint = defineEndpoint({
   request: buildLocationRequestSchema,
   responses: {
     200: jsonBody(buildLocationResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
+
+/** Enough for every facility a profile runs jobs in. */
+const MAX_COST_INDEX_SYSTEMS = 64;
+
+export const costIndicesRequestSchema = z.object({
+  systemIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_COST_INDEX_SYSTEMS),
+});
+
+const systemCostIndexSchema = z.object({
+  systemId: z.number(),
+  manufacturing: z.number().nullable(),
+  reaction: z.number().nullable(),
+}) satisfies z.ZodType<SystemJobCostIndex>;
+
+const costIndicesResponseSchema = z.object({
+  systems: z.array(systemCostIndexSchema),
+});
+export const costIndicesEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/industry/cost-indices',
+  request: costIndicesRequestSchema,
+  responses: {
+    200: jsonBody(costIndicesResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
   },
 });

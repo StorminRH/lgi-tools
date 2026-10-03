@@ -157,6 +157,7 @@
     "/api/universe/assets/[version]/wormholes": "dynamic",
     "/api/universe/statics/[systemId]": "dynamic",
     "/api/industry/build-location": "dynamic",
+    "/api/industry/cost-indices": "dynamic",
     "/api/industry/owned-assets": "dynamic",
     "/api/industry/owned-blueprints": "dynamic",
     "/api/industry/skill-levels": "dynamic",

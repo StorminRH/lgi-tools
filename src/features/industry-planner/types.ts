@@ -102,6 +102,32 @@ export interface BuildLocationData {
   adjustedPrices: { typeId: number; adjustedPrice: number }[];
 }
 
+/** One system's job cost indices; null where the system has none for the activity. */
+export interface SystemJobCostIndex {
+  systemId: number;
+  manufacturing: number | null;
+  reaction: number | null;
+}
+
+/** One job below the product's own, and its install fee where the profile runs it. */
+export interface ComponentJobFee {
+  typeId: number;
+  blueprintTypeId: number;
+  reaction: boolean;
+  runs: number;
+  systemId: number | null;
+  systemCostIndex: number | null;
+  facilityTaxRate: number;
+  fee: NetMarginView['jobFee'];
+}
+
+/** The install fees of every job that makes the product's inputs. */
+export interface ComponentJobFees {
+  jobs: ComponentJobFee[];
+  /** Null while any job's system has no cost index. */
+  total: number | null;
+}
+
 export interface NetMarginView {
   netMargin: number | null;
   netMarginPct: number | null;
@@ -119,6 +145,8 @@ export interface NetMarginView {
     missingAdjustedPriceTypeIds: number[];
   };
   sellSide: { salesTax: number | null; brokerFee: number | null; total: number | null };
+  /** The fees of the jobs below the product's; null where only the product's own job is priced. */
+  componentJobs: ComponentJobFees | null;
 }
 
 export interface BlueprintPricing {

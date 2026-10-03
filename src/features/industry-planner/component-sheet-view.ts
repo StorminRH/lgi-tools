@@ -1,5 +1,5 @@
 import { componentJob, type BatchLedger } from './build-batch';
-import type { BlueprintStructure } from './types';
+import type { BlueprintStructure, ComponentJobFee } from './types';
 
 export interface ComponentInputRow {
   typeId: number;
@@ -30,7 +30,9 @@ export interface ComponentSheet {
   inputs: ComponentInputRow[];
   /** The job's inputs at market; null until every input is priced. */
   buildCost: number | null;
-  /** One unit built: the job's inputs over the units its runs make. */
+  /** The job's install fee where the profile runs it; null where no fee is charged. */
+  installFee: { value: number | null; systemId: number | null } | null;
+  /** One unit built: the job's inputs and fee over the units its runs make. */
   buildPerUnit: number | null;
   /** One unit bought at market instead. */
   buyPerUnit: number | null;
@@ -39,14 +41,28 @@ export interface ComponentSheet {
 const sumOrNull = (values: (number | null)[]): number | null =>
   values.some((v) => v === null) ? null : values.reduce<number>((sum, v) => sum + (v ?? 0), 0);
 
+/**
+ * The fee for the job's whole runs. The planner may have charged a share of
+ * a run instead; a fee is linear in runs, so it scales exactly.
+ */
+function installFeeFor(fee: ComponentJobFee | undefined, runs: number): ComponentSheet['installFee'] {
+  if (!fee || fee.runs <= 0) return null;
+  return { value: fee.fee.total === null ? null : (fee.fee.total * runs) / fee.runs, systemId: fee.systemId };
+}
+
 export function componentSheet(
   structure: BlueprintStructure,
   typeId: number,
   ledger: BatchLedger,
-  unitPriceOf: ReadonlyMap<number, number | null>,
-  structureMeFactorOf?: (blueprintTypeId: number) => number,
+  opts: {
+    unitPriceOf: ReadonlyMap<number, number | null>;
+    structureMeFactorOf?: (blueprintTypeId: number) => number;
+    /** This job's install fee as the planner charged it. */
+    jobFee?: ComponentJobFee;
+  },
 ): ComponentSheet | null {
-  const job = componentJob(structure.tree, typeId, ledger, structureMeFactorOf);
+  const { unitPriceOf } = opts;
+  const job = componentJob(structure.tree, typeId, ledger, opts.structureMeFactorOf);
   if (!job) return null;
   const nameOf = (id: number) =>
     structure.buildNodeDisplay[id]?.name ?? structure.materialNames[id] ?? `Type ${id}`;
@@ -63,6 +79,8 @@ export function componentSheet(
     };
   });
   const buildCost = sumOrNull(inputs.map((input) => input.value));
+  const installFee = installFeeFor(opts.jobFee, job.runs);
+  const jobCost = installFee === null ? buildCost : sumOrNull([buildCost, installFee.value]);
   const makes = job.runs * job.batch;
   return {
     typeId,
@@ -76,7 +94,8 @@ export function componentSheet(
     makes,
     inputs,
     buildCost,
-    buildPerUnit: buildCost === null || makes === 0 ? null : buildCost / makes,
+    installFee,
+    buildPerUnit: jobCost === null || makes === 0 ? null : jobCost / makes,
     buyPerUnit: unitPriceOf.get(typeId) ?? null,
   };
 }
