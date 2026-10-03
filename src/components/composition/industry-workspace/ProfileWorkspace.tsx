@@ -6,11 +6,11 @@ import type { BoardCharacter } from '@/composition/board/api-contract';
 import { useBoardLive } from '../board/use-board-live';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Banner } from '@/components/ui/banner';
-import { Button } from '@/components/ui/button';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
+import { LoadFailed } from '@/features/industry-planner/components/LoadFailed';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { addMember, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
@@ -82,19 +82,6 @@ function useCapacities(
     );
     return { capacities, levels };
   }, [slots.characters, roster, jobs, corp, corpEligible]);
-}
-
-function LoadFailed({ onRetry }: { onRetry: () => void }) {
-  return (
-    <Banner tone="warn">
-      <span className="flex flex-wrap items-center gap-3">
-        Your production profiles could not be loaded.
-        <Button variant="ghost" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
-      </span>
-    </Banner>
-  );
 }
 
 /**
@@ -357,7 +344,11 @@ export function ProfileWorkspace({
   if (loading) return <WorkspaceSkeleton />;
   if (session === null) return <SignedOutWorkspace />;
   if (state.profiles === null) {
-    return state.listFailed ? <LoadFailed onRetry={state.refresh} /> : <WorkspaceSkeleton />;
+    return state.listFailed ? (
+      <LoadFailed title="Profiles didn't load" retryLabel="Retry loading profiles" onRetry={state.refresh} />
+    ) : (
+      <WorkspaceSkeleton />
+    );
   }
   if (roster === null) return <WorkspaceSkeleton />;
   return (

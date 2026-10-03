@@ -45,6 +45,11 @@ export function createProfileSync(deps: {
   };
 
   const read = async () => {
+    // A read in flight is not a failure yet: the slot loads again until it settles.
+    if (listFailed) {
+      listFailed = false;
+      emit();
+    }
     const res = await deps.list();
     listFailed = !res.ok;
     if (res.ok) accept(res.data.profiles);

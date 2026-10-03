@@ -4,7 +4,6 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Banner } from '@/components/ui/banner';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { scrollArea } from '@/components/ui/scroll-area';
@@ -24,6 +23,7 @@ import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitKpis } from './CockpitKpis';
+import { LoadFailed } from './LoadFailed';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { MultibuyPanel } from './MultibuyPanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
@@ -75,7 +75,7 @@ const ctaClass = 'w-full justify-center';
  */
 function ProfileSwitch() {
   const { session, loading } = useAuth();
-  const { profiles, profilesFailed, refreshProfiles, profile, setProfileId, locationFailed, retryLocation } = useBuildSetup();
+  const { profiles, profilesFailed, refreshProfiles, profile, setProfileId } = useBuildSetup();
   if (loading) {
     return <Skeleton label="Loading profiles" className="h-9 w-full rounded-ctl" />;
   }
@@ -92,10 +92,12 @@ function ProfileSwitch() {
   }
   if (profiles === null) {
     return profilesFailed ? (
-      <div className="flex items-center justify-between gap-2 text-ui text-muted">
-        <span>Could not load profiles.</span>
-        <Button type="button" variant="bare" onClick={refreshProfiles}>Retry</Button>
-      </div>
+      <LoadFailed
+        title="Profiles didn't load"
+        detail="Pricing without a profile"
+        retryLabel="Retry loading profiles"
+        onRetry={refreshProfiles}
+      />
     ) : <Skeleton label="Loading profiles" className="h-9 w-full rounded-ctl" />;
   }
   if (profile === null) {
@@ -110,21 +112,13 @@ function ProfileSwitch() {
     );
   }
   return (
-    <div className="flex flex-col gap-2">
-      <Select
-        value={profile.id}
-        onValueChange={setProfileId}
-        items={profiles.map((p) => ({ value: p.id, label: p.name }))}
-        ariaLabel="Production profile"
-        className="w-full"
-      />
-      {locationFailed && (
-        <Banner tone="warn">
-          <p>Could not load system fees. Estimates exclude these fees.</p>
-          <Button type="button" variant="bare" onClick={retryLocation}>Retry system fees</Button>
-        </Banner>
-      )}
-    </div>
+    <Select
+      value={profile.id}
+      onValueChange={setProfileId}
+      items={profiles.map((p) => ({ value: p.id, label: p.name }))}
+      ariaLabel="Production profile"
+      className="w-full"
+    />
   );
 }
 

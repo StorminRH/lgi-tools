@@ -25,6 +25,7 @@ import { marginToneClass, type RegionalDiscountCallout } from '../industry-style
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { FeeBreakdownPanel } from './FeeBreakdownPanel';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
+import { LoadFailed } from './LoadFailed';
 import { MarketScorePanel } from './MarketScorePanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 
@@ -314,7 +315,8 @@ export function CockpitKpis({
   const { pricing, seeded, refreshing } = useMarketData();
   const { runs } = usePlannerConfig();
   const { buildTimes, skillTimeFactors } = useBuildPlan();
-  const { location, reactionSystem, reactionNetAvailable, structureFactors, profile, profilePlan } = useBuildSetup();
+  const { location, reactionSystem, reactionNetAvailable, structureFactors, profile, profilePlan, locationFailed, retryLocation } =
+    useBuildSetup();
   const builder = profile?.document.members.find((m) => m.characterId === profilePlan?.top.characterId);
 
   const margin = cockpitMarginView(
@@ -341,6 +343,15 @@ export function CockpitKpis({
       <div className={WIDE}>
         <SellTile />
       </div>
+      {locationFailed && (
+        <LoadFailed
+          className="col-span-full"
+          title="System fees didn't load"
+          detail="Net margin is unavailable"
+          retryLabel="Retry system fees"
+          onRetry={retryLocation}
+        />
+      )}
       <div className={WIDE}>
         <NetMarginTile
           view={margin}

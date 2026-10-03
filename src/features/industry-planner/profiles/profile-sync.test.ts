@@ -325,3 +325,22 @@ test('an own save advances queued edits by one revision even when its list inclu
   expect(sent).toEqual([1, 2]);
   expect(states.at(-1)?.profiles).toEqual([serverRow]);
 });
+
+test('retrying a failed list loads again rather than showing the old failure', async () => {
+  const states: ProfileSyncState[] = [];
+  const reply = deferred<ProfilesResult>();
+  let calls = 0;
+  const sync = createProfileSync({
+    list: () => (++calls === 1 ? Promise.resolve({ ok: false }) : reply.promise),
+    update: async () => ({ ok: false }),
+    publish: (s) => states.push(s),
+    notify: () => undefined,
+  });
+  await sync.refresh();
+  expect(states.at(-1)).toEqual({ profiles: null, listFailed: true });
+  const retry = sync.refresh();
+  await vi.waitFor(() => expect(states.at(-1)).toEqual({ profiles: null, listFailed: false }));
+  reply.resolve({ ok: true, data: { profiles: [row(1)] } });
+  await retry;
+  expect(states.at(-1)).toEqual({ profiles: [row(1)], listFailed: false });
+});

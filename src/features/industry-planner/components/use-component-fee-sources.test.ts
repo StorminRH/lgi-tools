@@ -20,6 +20,11 @@ vi.mock('react', () => ({
   useCallback: <T>(fn: T) => fn,
 }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
+vi.mock('../read-with-retries', async (load) => {
+  const { readWithRetries } = await load<typeof import('../read-with-retries')>();
+  return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
+});
+
 vi.mock('../use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, opts: {
     enabled: boolean; onData: (data: unknown) => void; refreshKey: number;
@@ -44,7 +49,7 @@ const systems: SystemJobCostIndex[] = [
   { systemId: 30000142, manufacturing: 0.1, reaction: 0.02 },
   { systemId: 30004759, manufacturing: 0.05, reaction: null },
 ];
-const successfulRead = { key: '30000142,30004759', bySystem: new Map(systems.map((s) => [s.systemId, s])) };
+const successfulRead = { key: '30000142,30004759', refreshKey: 0, bySystem: new Map(systems.map((s) => [s.systemId, s])) };
 
 beforeEach(() => {
   h.states = [null, null];
@@ -68,17 +73,29 @@ test("reads each job's system once, with the product's fallback for unplaced job
   expect(h.reads[0]!.enabled).toBe(true);
 });
 
-test.each(['response', 'network'])('%s failure persists through retry until the current read succeeds', async (failure) => {
+test('a blip the next attempt clears never shows as a failure', async () => {
   useComponentFeeSources(structure, plan, 0, false);
-  if (failure === 'response') h.apiFetch.mockResolvedValueOnce({ ok: false });
-  else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  h.apiFetch.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ ok: true, data: { systems } });
   h.reads[0]!.onData(await h.reads[0]!.read(new AbortController().signal));
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  const result = useComponentFeeSources(structure, plan, 0, false);
+  expect(result.failed).toBe(false);
+  expect(result.sources!.costIndexOf(30000142, true)).toBe(0.02);
+});
+
+test.each(['response', 'network'])('%s failure shows after three attempts, clears on Retry, and the next read decides', async (failure) => {
+  useComponentFeeSources(structure, plan, 0, false);
+  if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
+  else h.apiFetch.mockRejectedValue(new Error('offline'));
+  h.reads[0]!.onData(await h.reads[0]!.read(new AbortController().signal));
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
   let result = useComponentFeeSources(structure, plan, 0, false);
   expect(result.failed).toBe(true);
   expect(result.sources!.costIndexOf(30000142, true)).toBeNull();
   result = useComponentFeeSources(structure, plan, 1, false);
   expect(h.reads[0]!.refreshKey).toBe(1);
-  expect(result.failed).toBe(true);
+  expect(result.failed).toBe(false);
+  h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { systems } });
   h.reads[0]!.onData(await h.reads[0]!.read(new AbortController().signal));
   result = useComponentFeeSources(structure, plan, 1, false);
@@ -136,19 +153,22 @@ test.each(['response', 'network'])('component-only adjusted prices recover from 
   const partial = { top: route(null), routeOf: (bp: number) => bp === 100 ? route(null) : ROUTES[bp]! } as unknown as ProfilePlan;
   useComponentFeeSources(structure, partial, 0, true);
   expect(h.reads[1]!.enabled).toBe(true);
-  if (failure === 'response') h.apiFetch.mockResolvedValueOnce({ ok: false });
-  else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
+  else h.apiFetch.mockRejectedValue(new Error('offline'));
   h.reads[1]!.onData(await h.reads[1]!.read(new AbortController().signal));
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
   expect(useComponentFeeSources(structure, partial, 0, true).failed).toBe(true);
-  expect(useComponentFeeSources(structure, partial, 1, true).failed).toBe(true);
+  expect(useComponentFeeSources(structure, partial, 1, true).failed).toBe(false);
   expect(h.reads[1]!.refreshKey).toBe(1);
+  const firstCall = h.apiFetch.mock.calls[0]!;
+  h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { adjustedPrices: [{ typeId: 34, adjustedPrice: 5 }] } });
   h.reads[1]!.onData(await h.reads[1]!.read(new AbortController().signal));
   const result = useComponentFeeSources(structure, partial, 1, true);
   expect(result.failed).toBe(false);
   expect(result.sources!.adjustedPriceOf(34)).toBe(5);
   expect(result.sources!.adjustedPriceOf(99)).toBeNull();
-  expect(h.apiFetch.mock.calls[0]![1].body).toEqual({ systemId: 30004759, blueprintId: 100 });
+  expect(firstCall[1].body).toEqual({ systemId: 30004759, blueprintId: 100 });
   expect(result.sources!.siteOf(100).systemId).toBeNull();
 });
 

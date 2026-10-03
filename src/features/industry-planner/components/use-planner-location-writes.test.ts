@@ -21,6 +21,11 @@ vi.mock('react', () => ({
   useCallback: <T>(callback: T) => callback,
 }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
+vi.mock('../read-with-retries', async (load) => {
+  const { readWithRetries } = await load<typeof import('../read-with-retries')>();
+  return { readWithRetries: (read: () => Promise<unknown>, signal?: AbortSignal) => readWithRetries(read, signal, [0, 0]) };
+});
+
 vi.mock('../use-available-structures', () => ({ readAvailableStructures: vi.fn() }));
 vi.mock('../use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, options: { enabled: boolean; refreshKey?: number }) => {
@@ -65,11 +70,21 @@ beforeEach(() => {
   setReactionLocation.mockClear();
 });
 
-test.each(['response', 'network'])('manufacturing %s failure clears old fees, retry retains failure, and success applies current fees', async (failure) => {
-  if (failure === 'response') h.apiFetch.mockResolvedValueOnce({ ok: false });
-  else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+test('a manufacturing blip the next attempt clears applies fees without a failure', async () => {
+  h.apiFetch.mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce({ ok: true, data: DATA });
+  const state = useWrites(MANUFACTURING_ACTIVITY);
+  await expect(state.applyBuildSystem(SYSTEM, { persist: false })).resolves.toMatchObject({ status: 'applied' });
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
+  resetRenderState();
+  expect(useWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
+});
+
+test.each(['response', 'network'])('manufacturing %s failure after three attempts clears old fees; Retry clears the notice until success applies current fees', async (failure) => {
+  if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
+  else h.apiFetch.mockRejectedValue(new Error('offline'));
   let state = useWrites(MANUFACTURING_ACTIVITY);
   await expect(state.applyBuildSystem(SYSTEM, { persist: false })).resolves.toEqual({ status: 'failed' });
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
   expect(setLocation).toHaveBeenCalledWith(null);
   resetRenderState();
   state = useWrites(MANUFACTURING_ACTIVITY);
@@ -78,7 +93,8 @@ test.each(['response', 'network'])('manufacturing %s failure clears old fees, re
   resetRenderState();
   state = useWrites(MANUFACTURING_ACTIVITY);
   expect(state.retry).toBe(1);
-  expect(state.failureSystemId).toBe(SYSTEM.systemId);
+  expect(state.failureSystemId).toBeNull();
+  h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: DATA });
   await state.applyBuildSystem(SYSTEM, { persist: false });
   expect(setLocation).toHaveBeenLastCalledWith({ ...SYSTEM, ...DATA, adjustedPrices: new Map([[34, 10]]) });
@@ -86,12 +102,13 @@ test.each(['response', 'network'])('manufacturing %s failure clears old fees, re
   expect(useWrites(MANUFACTURING_ACTIVITY).failureSystemId).toBeNull();
 });
 
-test.each(['response', 'network'])('reaction %s failure clears old fees and retry refreshes until successful', async (failure) => {
-  if (failure === 'response') h.apiFetch.mockResolvedValueOnce({ ok: false });
-  else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+test.each(['response', 'network'])('reaction %s failure after three attempts clears old fees; Retry clears the notice and refreshes until successful', async (failure) => {
+  if (failure === 'response') h.apiFetch.mockResolvedValue({ ok: false });
+  else h.apiFetch.mockRejectedValue(new Error('offline'));
   let state = useWrites(REACTION_ACTIVITY);
   expect(state.reaction.enabled).toBe(true);
   await expect(state.reaction.read(new AbortController().signal)).resolves.toBeNull();
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
   expect(setReactionLocation).toHaveBeenCalledWith(null);
   resetRenderState();
   state = useWrites(REACTION_ACTIVITY);
@@ -100,7 +117,8 @@ test.each(['response', 'network'])('reaction %s failure clears old fees and retr
   resetRenderState();
   state = useWrites(REACTION_ACTIVITY);
   expect(state.reaction.refreshKey).toBe(1);
-  expect(state.failureSystemId).toBe(SYSTEM.systemId);
+  expect(state.failureSystemId).toBeNull();
+  h.apiFetch.mockReset();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: DATA });
   await expect(state.reaction.read(new AbortController().signal)).resolves.toEqual({
     systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06, adjustedPrices: new Map([[34, 10]]),

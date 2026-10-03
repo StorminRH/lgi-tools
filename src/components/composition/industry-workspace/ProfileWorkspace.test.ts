@@ -156,7 +156,9 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(render()).toContain('Loading production profiles');
 
   live.listFailed = true;
-  expect(render()).toContain('could not be loaded');
+  const failed = render();
+  expect(failed).toContain("Profiles didn&#x27;t load");
+  expect(failed).toContain('aria-label="Retry loading profiles"');
   live.listFailed = false;
 
   live.profiles = [];

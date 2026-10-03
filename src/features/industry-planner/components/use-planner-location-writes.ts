@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } fr
 import { apiFetch } from '@/transport/api-client';
 import { buildLocationEndpoint } from '../api-contract';
 import { createBuildSystemApplier, type ApplySystemOptions, type BuildSystemRef } from '../build-system-apply';
+import { readWithRetries } from '../read-with-retries';
 import type { ReactionLocationSnapshot } from '../selection-policy';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import type { AvailableStructure, BlueprintStructure } from '../types';
@@ -26,18 +27,23 @@ export function usePlannerLocationWrites(
 ) {
   const [failureSystemId, setFailureSystemId] = useState<number | null>(null);
   const [retry, setRetry] = useState(0);
-  const retryLocation = useCallback(() => setRetry((attempt) => attempt + 1), []);
+  // A retry starts clean: the notice goes until the new attempts fail too.
+  const retryLocation = useCallback(() => {
+    setFailureSystemId(null);
+    setRetry((attempt) => attempt + 1);
+  }, []);
   const applyBuildSystem = useMemo(
     () => {
       const apply = createBuildSystemApplier({
-        fetchLocation: async (systemId, signal) => {
-          const res = await apiFetch(buildLocationEndpoint, {
-            body: { systemId, blueprintId: structure.blueprintTypeId },
-            cache: 'no-store',
-            signal,
-          });
-          return res.ok ? res.data : null;
-        },
+        fetchLocation: (systemId, signal) =>
+          readWithRetries(async () => {
+            const res = await apiFetch(buildLocationEndpoint, {
+              body: { systemId, blueprintId: structure.blueprintTypeId },
+              cache: 'no-store',
+              signal,
+            });
+            return res.ok ? res.data : null;
+          }, signal),
         onApplied: (sys, data) =>
           setLocation({
             systemId: sys.systemId,
@@ -63,20 +69,23 @@ export function usePlannerLocationWrites(
     async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
       if (reactionSystemId === null) return null;
       setFetchedReactionLocation(null);
-      const res = await apiFetch(buildLocationEndpoint, {
-        body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
-        cache: 'no-store',
-        signal,
-      }).catch(() => null);
+      const data = await readWithRetries(async () => {
+        const res = await apiFetch(buildLocationEndpoint, {
+          body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
+          cache: 'no-store',
+          signal,
+        });
+        return res.ok ? res.data : null;
+      }, signal);
       if (signal.aborted) return null;
-      setFailureSystemId(res?.ok ? null : reactionSystemId);
-      return res?.ok
+      setFailureSystemId(data ? null : reactionSystemId);
+      return data
         ? {
             systemId: reactionSystemId,
             blueprintTypeId: structure.blueprintTypeId,
-            costIndex: res.data.costIndices.reaction ?? null,
+            costIndex: data.costIndices.reaction ?? null,
             adjustedPrices: new Map(
-              res.data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
+              data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
             ),
           }
         : null;

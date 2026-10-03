@@ -5,6 +5,7 @@ import { apiFetch } from '@/transport/api-client';
 import { buildLocationEndpoint, costIndicesEndpoint } from '../api-contract';
 import type { AssembleOptions } from '../build-pricing';
 import { profileFeeSiteOf } from '../component-job-fees';
+import { readWithRetries } from '../read-with-retries';
 import type { ProfilePlan } from '../profiles/profile-plan';
 import type { BlueprintStructure, SystemJobCostIndex } from '../types';
 import { useResourceRead } from '../use-resource-read';
@@ -13,13 +14,16 @@ export type ComponentFeeInputs = NonNullable<NonNullable<AssembleOptions['fee']>
   adjustedPriceOf: (typeId: number) => number | null;
 };
 
+/** Each read remembers the retry it answered, so a fresh retry is not shown as failed before it ends. */
 interface ReadIndices {
   key: string;
+  refreshKey: number;
   bySystem: ReadonlyMap<number, SystemJobCostIndex> | null;
 }
 
 interface ReadPrices {
   key: string;
+  refreshKey: number;
   prices: ReadonlyMap<number, number> | null;
 }
 
@@ -59,33 +63,41 @@ export function useComponentFeeSources(
   const [indices, setIndices] = useState<ReadIndices | null>(null);
   const read = useCallback(
     async (signal: AbortSignal): Promise<ReadIndices | null> => {
-      const res = await apiFetch(costIndicesEndpoint, {
-        body: { systemIds: key.split(',').map(Number) },
-        cache: 'no-store',
-        signal,
-      }).catch(() => null);
+      const data = await readWithRetries(async () => {
+        const res = await apiFetch(costIndicesEndpoint, {
+          body: { systemIds: key.split(',').map(Number) },
+          cache: 'no-store',
+          signal,
+        });
+        return res.ok ? res.data : null;
+      }, signal);
       if (signal.aborted) return null;
       return {
         key,
-        bySystem: res?.ok ? new Map(res.data.systems.map((s) => [s.systemId, s])) : null,
+        refreshKey,
+        bySystem: data ? new Map(data.systems.map((s) => [s.systemId, s])) : null,
       };
     },
-    [key],
+    [key, refreshKey],
   );
   useResourceRead(read, { enabled: key !== '', onData: setIndices, refreshKey });
   const readPrices = useCallback(async (signal: AbortSignal): Promise<ReadPrices | null> => {
     if (priceSystemId === null) return null;
-    const res = await apiFetch(buildLocationEndpoint, {
-      body: { systemId: priceSystemId, blueprintId: structure.blueprintTypeId },
-      cache: 'no-store',
-      signal,
-    }).catch(() => null);
+    const data = await readWithRetries(async () => {
+      const res = await apiFetch(buildLocationEndpoint, {
+        body: { systemId: priceSystemId, blueprintId: structure.blueprintTypeId },
+        cache: 'no-store',
+        signal,
+      });
+      return res.ok ? res.data : null;
+    }, signal);
     if (signal.aborted) return null;
     return {
       key: priceKey,
-      prices: res?.ok ? new Map(res.data.adjustedPrices.map((p) => [p.typeId, p.adjustedPrice])) : null,
+      refreshKey,
+      prices: data ? new Map(data.adjustedPrices.map((p) => [p.typeId, p.adjustedPrice])) : null,
     };
-  }, [priceSystemId, priceKey, structure.blueprintTypeId]);
+  }, [priceSystemId, priceKey, structure.blueprintTypeId, refreshKey]);
   const readPricesEnabled = needAdjustedPrices && priceSystemId !== null;
   useResourceRead(readPrices, { enabled: readPricesEnabled, onData: setPrices, refreshKey });
   const sources = useMemo(() => {
@@ -101,7 +113,7 @@ export function useComponentFeeSources(
   }, [siteOf, indices, key, prices, priceKey]);
   return {
     sources,
-    failed: (key !== '' && indices?.key === key && indices.bySystem === null) ||
-      (readPricesEnabled && prices?.key === priceKey && prices.prices === null),
+    failed: (key !== '' && indices?.key === key && indices.refreshKey === refreshKey && indices.bySystem === null) ||
+      (readPricesEnabled && prices?.key === priceKey && prices.refreshKey === refreshKey && prices.prices === null),
   };
 }

@@ -74,17 +74,13 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('kpis');
 });
 
-test.each([MANUFACTURING_ACTIVITY, REACTION_ACTIVITY])('failed system fees stay visible beside the selected profile for activity %i', (activityId) => {
+test('failed system fees leave the profile picker alone; their notice sits with the margin', () => {
   const profile = row('p', 'Production');
   h.auth.session = {};
   h.setup = { ...h.setup, profiles: [profile], profile, locationFailed: true };
-  const html = render(activityId);
+  const html = render();
   expect(html).toContain('Production');
-  expect(html).toContain('role="alert"');
-  expect(html).toContain('Could not load system fees. Estimates exclude these fees.');
-  expect(html).toContain('Retry system fees');
-  h.setup.locationFailed = false;
-  expect(render(activityId)).not.toContain('Estimates exclude these fees.');
+  expect(html).not.toContain('role="alert"');
 });
 
 test('a reaction has no blueprint research to set, only runs', () => {
@@ -115,12 +111,14 @@ test('signed in without a profile, the slot leads to the Profiles tab', () => {
   expect(html).toMatch(/<a[^>]*href="\/industry"[^>]*>Create a profile<\/a>/);
 });
 
-test('a failed initial profile read shows Retry instead of indefinite loading or creating a profile', () => {
+test("profiles that never loaded take the picker's place with a notice that retries when clicked", () => {
   h.auth = { session: {}, loading: false };
   h.setup.profilesFailed = true;
   const html = render();
-  expect(html).toContain('Could not load profiles.');
-  expect(html).toContain('>Retry<');
+  expect(html).toContain('role="alert"');
+  expect(html).toContain("Profiles didn&#x27;t load");
+  expect(html).toContain('Pricing without a profile');
+  expect(html).toContain('aria-label="Retry loading profiles"');
   expect(html).not.toContain('Loading profiles');
   expect(html).not.toContain('Create a profile');
 });
