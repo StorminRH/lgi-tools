@@ -145,11 +145,11 @@ function TierColumn({
           className="text-ui font-semibold tracking-normal text-isk"
         />
       </div>
-      <Card>
+      <div className="flex flex-col gap-2">
         {rows.map((row) => (
           <TierRowSlot key={row.item.typeId} row={row} handlers={handlers} />
         ))}
-      </Card>
+      </div>
     </div>
   );
 }
