@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeBatchLedger } from './build-batch';
+import { deriveMarginFigures } from './industry-styles';
 import {
   assemblePricing,
   buildConfidenceInputs,
@@ -657,6 +658,20 @@ describe('assemblePricing component job fees', () => {
     expect(pricing.net!.componentJobs!.total).toBeNull();
     expect(pricing.net!.netCost).toBeNull();
     expect(pricing.net!.netMargin).toBeNull();
+    expect(deriveMarginFigures(pricing.summary, pricing.net).missingSystemCostIndex).toBe(true);
+  });
+
+  it('missing nested adjusted prices leave the net open even when the final job is fully priced', () => {
+    const net = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      fee: { adjustedPriceOf: (id) => id === 34 ? null : adjusted(id), systemCostIndex: 0.04, components },
+    }).net!;
+    expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([]);
+    expect(net.jobFee.total).toBeCloseTo(16.5, 9);
+    expect(net.componentJobs!.jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([34]);
+    expect(net.componentJobs!.total).toBeNull();
+    expect(net.netCost).toBeNull();
+    expect(net.netMargin).toBeNull();
+    expect(deriveMarginFigures(null, net).missingAdjustedPriceCount).toBe(1);
   });
 
   it('a precomputed ledger charges the same runs as walking the tree', () => {

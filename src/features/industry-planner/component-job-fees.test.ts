@@ -77,9 +77,13 @@ describe('computeComponentJobFees', () => {
   });
 
   it('an input with no adjusted price adds nothing to the value and is named', () => {
-    const { jobs } = computeComponentJobFees([PLATES], sources({ adjustedPriceOf: (id) => (id === 30 ? 100 : null) }));
+    const { jobs, total } = computeComponentJobFees([PLATES], sources({ adjustedPriceOf: (id) => (id === 30 ? 100 : null) }));
     expect(jobs[0]!.fee.estimatedItemValue).toBe(1_000);
     expect(jobs[0]!.fee.missingAdjustedPriceTypeIds).toEqual([40]);
+    expect(jobs[0]!.fee.facilityTax).toBe(10);
+    expect(jobs[0]!.fee.sccSurcharge).toBe(40);
+    expect(jobs[0]!.fee.total).toBeNull();
+    expect(total).toBeNull();
   });
 
   it('nothing built, nothing charged', () => {

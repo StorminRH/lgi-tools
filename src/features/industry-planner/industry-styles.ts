@@ -81,18 +81,22 @@ export function deriveMarginFigures(
     netMargin: number | null;
     netMarginPct: number | null;
     jobFee: { missingSystemCostIndex: boolean; missingAdjustedPriceTypeIds: readonly unknown[] };
+    componentJobs?: {
+      jobs: readonly { fee: { missingSystemCostIndex: boolean; missingAdjustedPriceTypeIds: readonly unknown[] } }[];
+    } | null;
   } | null,
 ): MarginFigures {
   const showNet = net !== null;
   const margin = net !== null ? net.netMargin : (summary?.margin ?? null);
   const marginPct = net !== null ? net.netMarginPct : (summary?.marginPct ?? null);
+  const fees = net ? [net.jobFee, ...(net.componentJobs?.jobs.map((job) => job.fee) ?? [])] : [];
   return {
     showNet,
     margin,
     marginPct,
     sign: margin !== null && margin > 0 ? '+' : '',
-    missingSystemCostIndex: net !== null ? net.jobFee.missingSystemCostIndex : false,
-    missingAdjustedPriceCount: net !== null ? net.jobFee.missingAdjustedPriceTypeIds.length : 0,
+    missingSystemCostIndex: fees.some((fee) => fee.missingSystemCostIndex),
+    missingAdjustedPriceCount: new Set(fees.flatMap((fee) => fee.missingAdjustedPriceTypeIds)).size,
   };
 }
 

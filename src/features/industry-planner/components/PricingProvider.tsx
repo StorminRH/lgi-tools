@@ -294,10 +294,11 @@ function usePriceClock(
   structure: BlueprintStructure,
   inputs: Omit<PriceAssembleMirrors, 'components'>,
   plan: ProfilePlan | null,
+  locationRead: { refreshKey: number; failed: boolean },
 ) {
   // Pricing owns the per-job fee sources for the profile installing the build.
-  const components = useComponentFeeSources(structure, plan);
-  const mirrors: PriceAssembleMirrors = { ...inputs, components };
+  const componentFees = useComponentFeeSources(structure, plan, locationRead.refreshKey);
+  const mirrors: PriceAssembleMirrors = { ...inputs, components: componentFees.sources };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -354,7 +355,7 @@ function usePriceClock(
     seeded,
     assemble,
   ]);
-  return { assemble, priceSnapshot, pricing, seed, seeded };
+  return { assemble, priceSnapshot, pricing, seed, seeded, locationFailed: locationRead.failed || componentFees.failed };
 }
 
 function useMarketRefresh(
@@ -518,7 +519,7 @@ export function PricingProvider({
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
     structureFactors,
-  }, profile.plan);
+  }, profile.plan, { refreshKey: locationWrites.retry, failed: locationFailed });
   const market = useMarketRefresh(
     structure,
     clock.seeded,
@@ -579,7 +580,7 @@ export function PricingProvider({
       profiles: profile.profiles,
       profilesFailed: profile.profilesFailed,
       refreshProfiles: profile.refreshProfiles,
-      locationFailed,
+      locationFailed: clock.locationFailed,
       retryLocation: locationWrites.retryLocation,
       profile: profile.profile,
       setProfileId: profile.setProfileId,
@@ -593,7 +594,7 @@ export function PricingProvider({
       profile.profiles,
       profile.profilesFailed,
       profile.refreshProfiles,
-      locationFailed,
+      clock.locationFailed,
       locationWrites.retryLocation,
       profile.profile,
       profile.setProfileId,

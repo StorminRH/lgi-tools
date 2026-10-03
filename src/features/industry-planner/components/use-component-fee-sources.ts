@@ -13,7 +13,7 @@ export type ComponentFeeInputs = NonNullable<NonNullable<AssembleOptions['fee']>
 
 interface ReadIndices {
   key: string;
-  bySystem: ReadonlyMap<number, SystemJobCostIndex>;
+  bySystem: ReadonlyMap<number, SystemJobCostIndex> | null;
 }
 
 /**
@@ -24,7 +24,8 @@ interface ReadIndices {
 export function useComponentFeeSources(
   structure: BlueprintStructure,
   plan: ProfilePlan | null,
-): ComponentFeeInputs | null {
+  refreshKey: number,
+): { sources: ComponentFeeInputs | null; failed: boolean } {
   const siteOf = useMemo(() => (plan ? profileFeeSiteOf(plan) : null), [plan]);
   // The systems as a stable key, so a plan rebuilt with the same facilities reads nothing again.
   const key = useMemo(() => {
@@ -43,13 +44,17 @@ export function useComponentFeeSources(
         body: { systemIds: key.split(',').map(Number) },
         cache: 'no-store',
         signal,
-      });
-      return res.ok ? { key, bySystem: new Map(res.data.systems.map((s) => [s.systemId, s])) } : null;
+      }).catch(() => null);
+      if (signal.aborted) return null;
+      return {
+        key,
+        bySystem: res?.ok ? new Map(res.data.systems.map((s) => [s.systemId, s])) : null,
+      };
     },
     [key],
   );
-  useResourceRead(read, { enabled: key !== '', onData: setIndices });
-  return useMemo(() => {
+  useResourceRead(read, { enabled: key !== '', onData: setIndices, refreshKey });
+  const sources = useMemo(() => {
     if (!siteOf) return null;
     // Until this plan's systems are read, no job has an index and the net stays open.
     const bySystem = indices?.key === key ? indices.bySystem : null;
@@ -59,4 +64,5 @@ export function useComponentFeeSources(
         bySystem?.get(systemId)?.[reaction ? 'reaction' : 'manufacturing'] ?? null,
     };
   }, [siteOf, indices, key]);
+  return { sources, failed: key !== '' && indices?.key === key && indices.bySystem === null };
 }

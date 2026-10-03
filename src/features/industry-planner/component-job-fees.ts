@@ -43,6 +43,8 @@ function componentJobFee(job: FeeJob, sources: ComponentFeeSources): ComponentJo
     },
     site.costBonusPct,
   );
+  // Retain the partial EIV diagnostics, but never quote that as a complete job fee.
+  if (fee.missingAdjustedPriceTypeIds.length > 0) fee.total = null;
   return {
     typeId: job.typeId,
     blueprintTypeId: job.blueprintTypeId,

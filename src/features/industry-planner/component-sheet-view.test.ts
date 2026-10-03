@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { computeBatchLedger } from './build-batch';
+import { computeComponentJobFees } from './component-job-fees';
 import { componentSheet } from './component-sheet-view';
 import type { BlueprintStructure, ComponentJobFee } from './types';
 
@@ -117,5 +118,23 @@ describe('componentSheet', () => {
     const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: charged(2, null) });
     expect(sheet!.installFee).toEqual({ value: null, systemId: 30004759 });
     expect(sheet!.buildPerUnit).toBeNull();
+  });
+
+  it('a missing adjusted input leaves the fee and comparison open despite known market prices', () => {
+    const fees = computeComponentJobFees([{
+      typeId: 10, blueprintTypeId: 110, runs: 2,
+      baseMaterials: [{ typeId: 20, quantity: 100 }, { typeId: 40, quantity: 14 }],
+    }], {
+      activityOf: () => 1,
+      siteOf: () => ({ systemId: 30004759, facilityTaxPct: null, costBonusPct: 0 }),
+      costIndexOf: () => 0.05,
+      adjustedPriceOf: (id) => id === 40 ? 5 : null,
+    });
+    const sheet = componentSheet(structure, 10, ledger, { unitPriceOf: prices, jobFee: fees.jobs[0] });
+    expect(fees.jobs[0]!.fee.estimatedItemValue).toBe(70);
+    expect(sheet!.buildCost).toBe(4_070);
+    expect(sheet!.installFee!.value).toBeNull();
+    expect(sheet!.buildPerUnit).toBeNull();
+    expect(sheet!.buyPerUnit).toBe(9_000);
   });
 });

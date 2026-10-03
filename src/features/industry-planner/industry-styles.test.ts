@@ -130,6 +130,21 @@ describe('aggregateConfidenceFromCounts', () => {
 });
 
 describe('deriveMarginFigures', () => {
+  it('includes component index failures and deduplicates missing adjusted inputs across jobs', () => {
+    const figures = deriveMarginFigures(null, {
+      netMargin: null,
+      netMarginPct: null,
+      jobFee: { missingSystemCostIndex: false, missingAdjustedPriceTypeIds: [1] },
+      componentJobs: { jobs: [
+        { fee: { missingSystemCostIndex: true, missingAdjustedPriceTypeIds: [1, 2] } },
+        { fee: { missingSystemCostIndex: false, missingAdjustedPriceTypeIds: [2] } },
+      ] },
+    });
+    expect(figures.missingSystemCostIndex).toBe(true);
+    expect(figures.missingAdjustedPriceCount).toBe(2);
+    expect(figures.showNet).toBe(true);
+    expect(figures.margin).toBeNull();
+  });
   it('prefers net when present, falls back to gross, and handles absent summary', () => {
     const summary = { margin: 100, marginPct: 0.1 };
     expect(deriveMarginFigures(summary, null)).toEqual({
