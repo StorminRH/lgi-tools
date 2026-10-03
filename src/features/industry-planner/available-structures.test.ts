@@ -31,6 +31,7 @@ function custom(overrides: Partial<CustomStructureInput> = {}): CustomStructureI
     rigTypeIds: [RIG_A],
     systemId: null,
     taxPct: 1.5,
+    bonuses: null,
     ...overrides,
   };
 }
@@ -79,8 +80,20 @@ describe('buildAvailableStructures', () => {
         rigAttrs: [{ '2593': -2 }],
         securityClass: null,
         taxPct: 1.5,
+        enteredBonuses: null,
       },
     ]);
+  });
+
+  it('carries typed-in bonuses on a custom row and never on a corp row', () => {
+    const bonuses = { manufacturing: { me: 3.38, te: 39.2, cost: 4 }, reactions: { me: 0, te: 0 } };
+    const rows = buildAvailableStructures(
+      [custom({ rigTypeIds: [], bonuses })],
+      [corp()],
+      STRUCTURE_TYPES,
+      DOGMA,
+    );
+    expect(rows.map((r) => r.enteredBonuses)).toEqual([bonuses, null]);
   });
 
   it('maps a corp structure with a namespaced id and its real system + security band', () => {

@@ -52,14 +52,14 @@ vi.mock('convex/react', () => ({
 }));
 
 import { MAX_CORP_STRUCTURE_RIGS, corpStructuresEndpoint } from '@/features/owned-structures/api-contract';
-import { CorpStructureSection } from '@/features/owned-structures/components/CorpStructureSection';
+import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
       MAX_CORP_STRUCTURE_RIGS,
       corpStructuresEndpoint,
-      CorpStructureSection,
+      CorpRigEditor,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

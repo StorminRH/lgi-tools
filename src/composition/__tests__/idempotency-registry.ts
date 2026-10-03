@@ -392,6 +392,10 @@ const customStructuresParseFitRoute = readRoute({
   route: 'src/app/api/account/custom-structures/parse-fit/route.ts',
   evidence: 'Parses a pasted fit against reference data; writes nothing.',
 });
+const customStructuresSearchRoute = readRoute({
+  route: 'src/app/api/account/custom-structures/search/route.ts',
+  evidence: 'Reads matching structures from ESI with the caller’s token; writes nothing.',
+});
 const accountActiveCharacterRoute = mutationRoute({
   route: 'src/app/api/account/active-character/route.ts',
   verdict: 'inherently-idempotent',
@@ -415,17 +419,11 @@ const corpStructuresRigsRoute = mutationRoute({
   evidence:
     'Replaces a structure’s rig set with the posted set; a repeat replaces it with the same set.',
 });
-const customStructuresSetPinRoute = mutationRoute({
-  route: 'src/app/api/account/custom-structures/set-pin/route.ts',
+const customStructuresUpdateRoute = mutationRoute({
+  route: 'src/app/api/account/custom-structures/update/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'Sets a structure’s system pin to a named id; a repeat sets the same pin.',
-});
-const customStructuresSetTaxRoute = mutationRoute({
-  route: 'src/app/api/account/custom-structures/set-tax/route.ts',
-  verdict: 'inherently-idempotent',
-  evidence:
-    'Sets a structure’s tax rate to a named value; a repeat sets the same rate.',
+    'Overwrites a named structure with the posted fields; a repeat writes the same fields.',
 });
 const savedPlansRenameRoute = mutationRoute({
   route: 'src/app/api/account/saved-plans/rename/route.ts',
@@ -649,12 +647,12 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   industryOwnedBlueprintsRoute,
   industrySkillLevelsRoute,
   customStructuresParseFitRoute,
+  customStructuresSearchRoute,
   accountActiveCharacterRoute,
   preferencesRoute,
   corpSharingRoute,
   corpStructuresRigsRoute,
-  customStructuresSetPinRoute,
-  customStructuresSetTaxRoute,
+  customStructuresUpdateRoute,
   savedPlansRenameRoute,
   savedPlansFavoriteRoute,
   adminRoleRoute,

@@ -14,8 +14,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-brand-gradient text-isk-ink font-semibold border border-transparent shadow-cta-glow ' +
-          'hover:brightness-110 hover:text-isk-ink',
+          'bg-isk/10 text-isk border border-isk/35 hover:bg-isk hover:border-isk hover:text-isk-ink',
         secondary:
           'border border-border-idle bg-row-on text-name shadow-btn-bezel ' +
           'hover:border-border-active hover:bg-row-related',

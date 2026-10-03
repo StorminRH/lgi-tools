@@ -51,24 +51,22 @@ vi.mock('convex/react', () => ({
   ConvexReactClient: class ConvexReactClient {},
 }));
 
-import { MAX_CUSTOM_STRUCTURE_NAME_LEN, MAX_CUSTOM_STRUCTURE_RIGS, deleteCustomStructureEndpoint, deleteCustomStructureRequestSchema, setCustomStructurePinEndpoint, setCustomStructurePinRequestSchema, setCustomStructureTaxEndpoint } from '@/features/custom-structures/api-contract';
-import { CustomStructureBuilder } from '@/features/custom-structures/components/CustomStructureBuilder';
-import { deleteCustomStructure, setCustomStructurePin, setCustomStructureTax } from '@/features/custom-structures/queries';
+import { MAX_CUSTOM_STRUCTURE_NAME_LEN, deleteCustomStructureEndpoint, deleteCustomStructureRequestSchema } from '@/features/custom-structures/api-contract';
+import { PickField } from '@/features/custom-structures/components/PickField';
+import { StructureComposer } from '@/features/custom-structures/components/StructureComposer';
+import { deleteCustomStructure } from '@/features/custom-structures/queries';
+import { useStructureSearch } from '@/features/custom-structures/use-structure-search';
 
 describe('coverage-gaps', () => {
   it('pins leftover runtime exports on the test graph', () => {
     const pinned = [
       MAX_CUSTOM_STRUCTURE_NAME_LEN,
-      MAX_CUSTOM_STRUCTURE_RIGS,
       deleteCustomStructureEndpoint,
       deleteCustomStructureRequestSchema,
-      setCustomStructurePinEndpoint,
-      setCustomStructurePinRequestSchema,
-      setCustomStructureTaxEndpoint,
-      CustomStructureBuilder,
+      PickField,
+      StructureComposer,
       deleteCustomStructure,
-      setCustomStructurePin,
-      setCustomStructureTax,
+      useStructureSearch,
     ];
     expect(pinned.length).toBeGreaterThan(0);
     for (const value of pinned) {

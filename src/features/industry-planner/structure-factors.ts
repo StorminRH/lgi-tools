@@ -41,12 +41,25 @@ function securityClassFor(
   return systemSecurityClass(systemSecurity, null);
 }
 
+/** Typed-in values are the game's own final numbers: applied as-is, never recomputed. */
+function enteredBonusFor(
+  entered: NonNullable<AvailableStructure['enteredBonuses']>,
+  activityId: IndustryActivityId,
+): StructureBonus {
+  if (activityId === REACTION_ACTIVITY) {
+    return { me: entered.reactions.me, te: entered.reactions.te, costBonus: 0 };
+  }
+  const { me, te, cost } = entered.manufacturing;
+  return { me, te, costBonus: cost };
+}
+
 function bonusFor(
   structure: AvailableStructure | null,
   activityId: IndustryActivityId,
   systemSecurity: number | null,
 ): StructureBonus | null {
   if (!structure) return null;
+  if (structure.enteredBonuses) return enteredBonusFor(structure.enteredBonuses, activityId);
   const securityClass = securityClassFor(structure, systemSecurity);
   if (securityClass === null) return null;
   return computeStructureBonus({
@@ -95,22 +108,33 @@ export function structureFactorsFor(args: {
   const reactionBonus = bonusFor(reactionHost, REACTION_ACTIVITY, reactionHostSecurity);
   if (!manufacturingBonus && !reactionBonus) return NO_STRUCTURE_FACTORS;
 
-  const activityOf = (bp: number) => nodeActivityByBlueprint[bp];
+  const bonusOf = (bp: number): StructureBonus | null => {
+    const activity = nodeActivityByBlueprint[bp];
+    if (activity === MANUFACTURING_ACTIVITY) return manufacturingBonus;
+    if (activity === REACTION_ACTIVITY) return reactionBonus;
+    return null;
+  };
   return {
-    structureMeFactorOf: (bp) =>
-      activityOf(bp) === MANUFACTURING_ACTIVITY && manufacturingBonus
-        ? 1 - manufacturingBonus.me / 100
-        : 1,
-    structureTeFactorOf: (bp) => {
-      const activity = activityOf(bp);
-      if (activity === MANUFACTURING_ACTIVITY && manufacturingBonus) return 1 - manufacturingBonus.te / 100;
-      if (activity === REACTION_ACTIVITY && reactionBonus) return 1 - reactionBonus.te / 100;
-      return 1;
-    },
+    structureMeFactorOf: (bp) => 1 - (bonusOf(bp)?.me ?? 0) / 100,
+    structureTeFactorOf: (bp) => 1 - (bonusOf(bp)?.te ?? 0) / 100,
     structureCostBonusPct: manufacturingBonus?.costBonus ?? 0,
     manufacturingBonus,
     reactionBonus,
     active: true,
+  };
+}
+
+/**
+ * What one structure gives on its own, as the planner would apply it: typed-in
+ * values as-is, otherwise hull and rigs at the given system's security.
+ */
+export function structureBonusesAt(
+  structure: AvailableStructure,
+  systemSecurity: number | null,
+): StructureReadout {
+  return {
+    mfg: bonusFor(structure, MANUFACTURING_ACTIVITY, systemSecurity),
+    rxn: hostsReactions(structure.groupId) ? bonusFor(structure, REACTION_ACTIVITY, systemSecurity) : null,
   };
 }
 

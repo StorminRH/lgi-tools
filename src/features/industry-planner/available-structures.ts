@@ -1,4 +1,5 @@
 import { SDE_ENGINEERING_COMPLEX_GROUP_ID } from '@/data/eve-data/constants';
+import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
 import type { AvailableStructure } from './api-contract';
 
 export interface CustomStructureInput {
@@ -8,6 +9,7 @@ export interface CustomStructureInput {
   rigTypeIds: number[];
   systemId: number | null;
   taxPct: number | null;
+  bonuses: EnteredBonuses | null;
 }
 
 export interface CorpStructureInput {
@@ -72,6 +74,7 @@ export function buildAvailableStructures(
       rigAttrs: c.rigTypeIds.map((r) => dogma.get(r) ?? {}),
       securityClass: null,
       taxPct: c.taxPct,
+      enteredBonuses: c.bonuses,
     });
   }
   for (const s of corp) {
@@ -87,6 +90,7 @@ export function buildAvailableStructures(
       rigAttrs: s.rigTypeIds.map((r) => dogma.get(r) ?? {}),
       securityClass: s.securityClass,
       taxPct: s.taxPct,
+      enteredBonuses: null,
     });
   }
   return structures;

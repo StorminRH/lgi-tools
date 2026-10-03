@@ -12,6 +12,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
       rigTypeIds: customStructures.rigTypeIds,
       systemId: customStructures.systemId,
       taxPct: customStructures.taxPct,
+      bonuses: customStructures.bonuses,
     })
     .from(customStructures)
     .where(eq(customStructures.userId, userId))
@@ -23,6 +24,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
     rigTypeIds: r.rigTypeIds ?? [],
     systemId: r.systemId,
     taxPct: r.taxPct,
+    bonuses: r.bonuses ?? null,
   }));
 }
 
@@ -34,26 +36,22 @@ export async function countCustomStructures(userId: string): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
-export async function createCustomStructure(
-  userId: string,
-  input: {
-    id: string;
-    name: string;
-    structureTypeId: number;
-    rigTypeIds: number[];
-    systemId: number | null;
-    taxPct: number | null;
-  },
-): Promise<void> {
-  await db.insert(customStructures).values({
-    id: input.id,
-    userId,
+function rowValues(input: Omit<CustomStructureRow, 'id'>) {
+  return {
     name: input.name,
     structureTypeId: input.structureTypeId,
     rigTypeIds: input.rigTypeIds,
     systemId: input.systemId,
     taxPct: input.taxPct,
-  });
+    bonuses: input.bonuses,
+  };
+}
+
+export async function createCustomStructure(
+  userId: string,
+  input: CustomStructureRow,
+): Promise<void> {
+  await db.insert(customStructures).values({ id: input.id, userId, ...rowValues(input) });
 }
 
 export async function deleteCustomStructure(userId: string, id: string): Promise<void> {
@@ -62,24 +60,13 @@ export async function deleteCustomStructure(userId: string, id: string): Promise
     .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
 }
 
-export async function setCustomStructurePin(
+export async function updateCustomStructure(
   userId: string,
   id: string,
-  systemId: number | null,
+  input: Omit<CustomStructureRow, 'id'>,
 ): Promise<void> {
   await db
     .update(customStructures)
-    .set({ systemId })
-    .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
-}
-
-export async function setCustomStructureTax(
-  userId: string,
-  id: string,
-  taxPct: number | null,
-): Promise<void> {
-  await db
-    .update(customStructures)
-    .set({ taxPct })
+    .set(rowValues(input))
     .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
 }
