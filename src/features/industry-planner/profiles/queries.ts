@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { withLockedUsers } from '@/db/locked-user';
 import { industryProfiles } from '../schema';
 import type { IndustryProfileRow } from './api-contract';
-import { MAX_PROFILES_PER_USER, type ProfileDocument } from './profile-document';
+import { MAX_PROFILES_PER_USER, type ProfileDocument, readStoredDocument } from './profile-document';
 
 const ownedLive = (userId: string) =>
   and(eq(industryProfiles.userId, userId), isNull(industryProfiles.deletedAt));
@@ -23,7 +23,7 @@ export async function listIndustryProfiles(userId: string): Promise<IndustryProf
     .from(industryProfiles)
     .where(ownedLive(userId))
     .orderBy(asc(industryProfiles.createdAt), asc(industryProfiles.id));
-  return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
+  return rows.map((r) => ({ ...r, document: readStoredDocument(r.document), updatedAt: r.updatedAt.toISOString() }));
 }
 
 export async function getIndustryProfileDocument(
@@ -35,7 +35,7 @@ export async function getIndustryProfileDocument(
     .from(industryProfiles)
     .where(ownedLiveProfile(userId, id))
     .limit(1);
-  return row?.document ?? null;
+  return row ? readStoredDocument(row.document) : null;
 }
 
 export async function createIndustryProfile(

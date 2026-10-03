@@ -26,6 +26,8 @@ export interface StructureTypeRow {
   typeId: number;
   name: string;
   groupId: number;
+  /** Whether the hull can fit a capital shipyard. */
+  hostsCapitals: boolean;
 }
 
 /** Each hull or rig type's resolved industry bonuses. */
@@ -65,6 +67,7 @@ export function buildAvailableStructures(
   const knownTypeIds = new Set(structureTypes.map((t) => t.typeId));
   const typeNameById = new Map(structureTypes.map((t) => [t.typeId, t.name]));
   const groupIdByType = new Map(structureTypes.map((t) => [t.typeId, t.groupId]));
+  const capitalHulls = new Set(structureTypes.flatMap((t) => (t.hostsCapitals ? [t.typeId] : [])));
 
   const structures: AvailableStructure[] = [];
   for (const c of custom) {
@@ -75,6 +78,7 @@ export function buildAvailableStructures(
       name: c.name,
       structureTypeId: c.structureTypeId,
       groupId: resolveGroupId(groupIdByType, c.structureTypeId),
+      hostsCapitals: capitalHulls.has(c.structureTypeId),
       systemId: c.systemId,
       targetFilterSets,
       modifiers: modifiersOf(modifiers, c.structureTypeId, c.rigTypeIds),
@@ -91,6 +95,7 @@ export function buildAvailableStructures(
       name: s.name ?? typeNameById.get(s.typeId) ?? `Structure ${s.structureId}`,
       structureTypeId: s.typeId,
       groupId: resolveGroupId(groupIdByType, s.typeId),
+      hostsCapitals: capitalHulls.has(s.typeId),
       systemId: s.systemId,
       targetFilterSets,
       modifiers: modifiersOf(modifiers, s.typeId, s.rigTypeIds),

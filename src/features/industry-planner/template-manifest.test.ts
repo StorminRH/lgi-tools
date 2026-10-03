@@ -44,6 +44,7 @@ describe('captureTemplate', () => {
       marginMode: 'net',
       multibuyMode: 'Remaining',
       multibuyUncheckedTiers: [],
+      profileId: null,
     });
   });
 });
@@ -105,6 +106,25 @@ describe('applyTemplate per-field fail-open degrades', () => {
     expect(target.state.reactionStructure).toBeNull();
     expect(target.state.reactionSystem?.systemId).toBe(30002187);
     expect(target.state.selectedStructure?.id).toBe('corp:1021');
+  });
+
+  it('a deleted profile clears to the planner’s own picks with a note', async () => {
+    const { notes, target } = await degradeCase((snap) => {
+      snap.profileId = 'deleted-profile';
+    });
+    expect(notes).toEqual(["Its production profile was deleted — using the planner's own picks"]);
+    expect(target.state.profileId).toBeNull();
+    expect(target.state.runs).toBe(3);
+  });
+
+  it('an unavailable profile list at the deadline clears the saved reference with an accurate note', async () => {
+    const target = makeMockPlanner();
+    const ctx = { ...target.ctx, profiles: null };
+    const snap = captureTemplate(target.ctx, 999);
+    snap.profileId = 'saved-profile';
+    const notes = await applyTemplate(makeApplyCtx(ctx), snap);
+    expect(notes).toEqual(["Production profiles couldn't load — using the planner's own picks"]);
+    expect(target.state.profileId).toBeNull();
   });
 
   it('a character no longer on the roster falls open to the active mirror', async () => {

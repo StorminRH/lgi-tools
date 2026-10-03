@@ -20,6 +20,7 @@ export interface MockState {
   marginMode: 'gross' | 'net';
   multibuyMode: 'Total' | 'Remaining';
   multibuyUncheckedTiers: ReadonlySet<number>;
+  profileId: string | null;
   persistedBuildLocation: MockState['location'];
 }
 
@@ -33,6 +34,7 @@ export function makeMockPlanner(opts?: {
   structures?: TestStructure[];
   buildSystemOutcome?: 'applied' | 'failed' | 'superseded';
   stations?: { id: number }[];
+  profiles?: { id: string }[];
 }) {
   const roster = opts?.roster ?? [{ characterId: 91 }];
   const structures = opts?.structures ?? [
@@ -41,6 +43,7 @@ export function makeMockPlanner(opts?: {
   ];
   const outcome = opts?.buildSystemOutcome ?? 'applied';
   const stations = opts?.stations ?? [{ id: 60000001 }];
+  const profiles = opts?.profiles ?? [{ id: 'caps' }];
   const state: MockState = {
     runs: 1,
     location: null,
@@ -55,6 +58,7 @@ export function makeMockPlanner(opts?: {
     marginMode: 'net',
     multibuyMode: 'Remaining',
     multibuyUncheckedTiers: new Set(),
+    profileId: null,
     persistedBuildLocation: null,
   };
   const ctx = {
@@ -157,6 +161,15 @@ export function makeMockPlanner(opts?: {
     setMultibuyUncheckedTiers(tiers: ReadonlySet<number>) {
       state.multibuyUncheckedTiers = new Set(tiers);
     },
+    get profiles() {
+      return profiles;
+    },
+    get profile() {
+      return profiles.find((p) => p.id === state.profileId) ?? null;
+    },
+    setProfileId(id: string | null) {
+      state.profileId = id;
+    },
     async applyBuildSystem(
       sys: NonNullable<MockState['location']>,
       o: { persist: boolean },
@@ -200,4 +213,5 @@ export function configureFull(state: MockState) {
   state.marginMode = 'gross';
   state.multibuyMode = 'Total';
   state.multibuyUncheckedTiers = new Set([3, 2]);
+  state.profileId = 'caps';
 }

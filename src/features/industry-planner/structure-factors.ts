@@ -73,7 +73,8 @@ function bonusFor(
     : computeStructureBonus({ ...input, filterIds: scope.filterIds });
 }
 
-function bestOf(bonuses: readonly StructureBonus[]): StructureBonus | null {
+/** The most any one of several jobs gets, metric by metric. */
+export function bestOf(bonuses: readonly StructureBonus[]): StructureBonus | null {
   if (bonuses.length === 0) return null;
   return {
     me: Math.max(...bonuses.map((b) => b.me)),
@@ -168,6 +169,16 @@ export function structureBonusesAt(
     mfg: bonusFor(structure, MANUFACTURING_ACTIVITY, systemSecurity, 'headline'),
     rxn: hostsReactions(structure.groupId) ? bonusFor(structure, REACTION_ACTIVITY, systemSecurity, 'headline') : null,
   };
+}
+
+/** What one structure gives a job in the given target categories, at the system's security. */
+export function structureCategoryBonus(
+  structure: AvailableStructure,
+  activityId: IndustryActivityId,
+  systemSecurity: number | null,
+  filterIds: readonly number[],
+): StructureBonus | null {
+  return bonusFor(structure, activityId, systemSecurity, { filterIds });
 }
 
 export function composeFeeInputs(args: {

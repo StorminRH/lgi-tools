@@ -15,13 +15,13 @@ const NAME_DIALOG_COPY: Record<NameDialogMode, { title: string; action: string; 
   create: {
     title: 'New profile',
     action: 'Create profile',
-    description: 'A profile is one way you run production: who is on the team and what each of them does.',
+    description: 'A profile is one way you run production: who is on the team, where they build, and what each of them builds.',
   },
   rename: { title: 'Rename profile', action: 'Rename', description: 'Only the name changes.' },
   duplicate: {
     title: 'Duplicate profile',
     action: 'Duplicate',
-    description: 'The copy starts with the same members, responsibilities and facilities, then changes on its own.',
+    description: 'The copy starts with the same members, facilities and categories, then changes on its own.',
   },
 };
 
@@ -129,12 +129,12 @@ export function DeleteProfileDialog({
 
 export function RemoveMemberDialog({
   name,
-  roleCount,
+  categoryCount,
   onConfirm,
   onClose,
 }: {
   name: string;
-  roleCount: number;
+  categoryCount: number;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -144,8 +144,8 @@ export function RemoveMemberDialog({
       onOpenChange={(open) => !open && onClose()}
       title={`Remove ${name} from this profile?`}
       consequence={
-        roleCount > 0
-          ? `Their ${roleCount === 1 ? 'responsibility' : `${roleCount} responsibilities`} on this profile go with them. Other profiles keep their own setup.`
+        categoryCount > 0
+          ? `Their ${categoryCount === 1 ? 'category' : `${categoryCount} categories`} on this profile go with them. Other profiles keep their own setup.`
           : 'Other profiles keep their own setup.'
       }
       busy={false}

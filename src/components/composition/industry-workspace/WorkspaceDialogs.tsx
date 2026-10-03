@@ -3,7 +3,7 @@
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { copyName, suggestProfileName } from '@/features/industry-planner/profiles/profile-view';
-import { removeMember } from '@/features/industry-planner/profiles/responsibilities';
+import { removeMember } from '@/features/industry-planner/profiles/assignments';
 import type { IndustryProfilesState } from '@/features/industry-planner/profiles/use-industry-profiles';
 import { DeleteProfileDialog, ProfileNameDialog, RemoveMemberDialog } from './ProfileDialogs';
 import type { RosterCharacter } from './workspace-model';
@@ -108,7 +108,7 @@ function RemoveDialog({
   return (
     <RemoveMemberDialog
       name={ctx.nameOf(characterId)}
-      roleCount={profile.document.rules.filter((r) => r.characterId === characterId).length}
+      categoryCount={profile.document.members.find((m) => m.characterId === characterId)?.categories.length ?? 0}
       onClose={ctx.onClose}
       onConfirm={() => {
         ctx.state.save(profile.id, { name: profile.name, document: removeMember(profile.document, characterId) });

@@ -1,8 +1,9 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import {
   blueprintTrees,
+  dgmAttributeTypes,
   eveCategories,
   eveGroups,
   eveNpcStations,
@@ -17,12 +18,14 @@ import {
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   BLUEPRINT_STRUCTURE_TAG,
+  SDE_CAPITAL_SHIPYARD_TYPE_ID,
   SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
   SDE_STRUCTURE_MODULE_CATEGORY_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
 import {
   attainableFilterSets,
+  moduleFitsHull,
   PRODUCTION_ACTIVITIES,
   shapeStructureRigs,
   type ProductionModifier,
@@ -40,6 +43,7 @@ import {
   type BlueprintSearchRow,
 } from './blueprint-shaping';
 export type { BlueprintOutput, BlueprintSearchRow };
+import type { StationSearchEntry } from './stations-search';
 import type { SystemSearchEntry } from './systems-search';
 import {
   pickBuildTimeSeconds,
@@ -269,6 +273,32 @@ export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
   return systems.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Every NPC station that runs manufacturing, with its system's security, for
+ * picking one by name. Names come from ESI after each import.
+ */
+export async function getManufacturingStationIndex(): Promise<StationSearchEntry[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+
+  const rows = await withColdStartRetry(() =>
+    db
+      .select({
+        id: eveNpcStations.id,
+        name: eveNpcStations.name,
+        systemId: eveNpcStations.solarSystemId,
+        security: eveSolarSystems.securityStatus,
+      })
+      .from(eveNpcStations)
+      .innerJoin(eveSolarSystems, eq(eveSolarSystems.id, eveNpcStations.solarSystemId))
+      .where(and(eq(eveNpcStations.industryCapable, true), eq(eveNpcStations.manufacturingCapable, true))),
+  );
+  return rows
+    .flatMap((r) => (r.name === null ? [] : [{ ...r, name: r.name }]))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function solarSystemExists(systemId: number): Promise<boolean> {
   const rows = await db
     .select({ id: eveSolarSystems.id })
@@ -342,6 +372,31 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   });
+}
+
+async function attributeIdsNamed(prefix: string): Promise<number[]> {
+  const rows = await db
+    .select({ id: dgmAttributeTypes.id })
+    .from(dgmAttributeTypes)
+    .where(like(dgmAttributeTypes.name, `${prefix}%`));
+  return rows.map((r) => r.id);
+}
+
+/** The industry structure hulls that can fit a capital shipyard, and so build capital ships. */
+export async function getCapitalShipyardHullIds(): Promise<number[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  const [hulls, types, groups, shipyard] = await withColdStartRetry(() =>
+    Promise.all([
+      getStructureTypes(),
+      attributeIdsNamed('canFitShipType'),
+      attributeIdsNamed('canFitShipGroup'),
+      db.select({ attributes: typeDogma.attributes }).from(typeDogma).where(eq(typeDogma.typeId, SDE_CAPITAL_SHIPYARD_TYPE_ID)),
+    ]),
+  );
+  const attrs = (shipyard[0]?.attributes ?? {}) as AttrMap;
+  return hulls.filter((hull) => moduleFitsHull(attrs, { types, groups }, hull)).map((hull) => hull.typeId);
 }
 
 function productionModifierSources() {

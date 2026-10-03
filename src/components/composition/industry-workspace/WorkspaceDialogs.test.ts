@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
-import { setResponsibility } from '@/features/industry-planner/profiles/responsibilities';
+import { setMemberCategories } from '@/features/industry-planner/profiles/assignments';
 
 // Show dialog contents inline; the real popups only mount in a browser.
 vi.mock('@/components/ui/dialog', () => ({
@@ -24,8 +24,7 @@ function profile(): IndustryProfileRow {
     { characterId: BUILDER.characterId, name: BUILDER.name },
     { characterId: REACTOR.characterId, name: REACTOR.name },
   ]);
-  doc = setResponsibility(doc, BUILDER.characterId, 'components', true);
-  doc = setResponsibility(doc, BUILDER.characterId, 'final-assembly', true);
+  doc = setMemberCategories(doc, BUILDER.characterId, ['components', 'capital-ships']);
   return { id: 'caps', name: 'Production', revision: 2, document: doc, updatedAt: '2026-09-29T00:00:00.000Z' };
 }
 
@@ -119,11 +118,10 @@ test('rename, duplicate, delete and remove each act on the open profile', async 
 
   const member = open({ kind: 'remove-member', characterId: BUILDER.characterId }, ctx, current);
   expect(member.type).toBe(RemoveMemberDialog);
-  expect(member.props).toMatchObject({ name: BUILDER.name, roleCount: 2 });
+  expect(member.props).toMatchObject({ name: BUILDER.name, categoryCount: 2 });
   (member.props.onConfirm as () => void)();
   const saved = ctx.state.save.mock.calls.at(-1) as unknown as [string, { document: IndustryProfileRow['document'] }];
-  expect(saved[1].document.members.map((m) => m.characterId)).toEqual([REACTOR.characterId]);
-  expect(saved[1].document.rules).toEqual([]);
+  expect(saved[1].document.members.map((m) => [m.characterId, m.categories])).toEqual([[REACTOR.characterId, []]]);
 
   // Nothing but create opens without a profile.
   expect(WorkspaceDialogs({ dialog: { kind: 'rename' }, profile: null, ctx })).toBeNull();

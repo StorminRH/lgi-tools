@@ -1,7 +1,6 @@
 import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
 import { ownedRowIdentityColumns } from '@/lib/db-columns';
-import type { ProfileDocument } from './profiles/profile-document';
 import type { PlanSnapshotWire } from './template-snapshot';
 
 export const savedPlans = pgTable('saved_plans', {
@@ -23,7 +22,8 @@ export const savedPlans = pgTable('saved_plans', {
 export const industryProfiles = pgTable('industry_profiles', {
   ...ownedRowIdentityColumns(() => user.id),
   revision: integer('revision').notNull().default(1),
-  document: jsonb('document').$type<ProfileDocument>().notNull(),
+  // Any document shape this app has written; read through readStoredDocument.
+  document: jsonb('document').$type<unknown>().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
