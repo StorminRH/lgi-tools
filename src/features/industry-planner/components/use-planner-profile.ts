@@ -102,10 +102,15 @@ function useProfileLocation(
       return;
     }
     setSelectedStructure(structure);
-    if (current === system.id) return;
-    void applyBuildSystem(ref, { persist: false }).then(() => {
-      if (stationId !== null) setStation(stationId, stationName);
+    if (current === system.id) {
+      setStation(stationId, stationName);
+      return;
+    }
+    let cancelled = false;
+    void applyBuildSystem(ref, { persist: false }).then((outcome) => {
+      if (!cancelled && outcome.status === 'applied') setStation(stationId, stationName);
     });
+    return () => { cancelled = true; };
   }, [
     system,
     structure,

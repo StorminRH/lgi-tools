@@ -208,9 +208,12 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
     fallback: null,
     capture: (ctx) => ctx.profile?.id ?? null,
     apply: (a, value) => {
-      const known = value === null || (a.ctx.profiles?.some((p) => p.id === value) ?? true);
+      const known = value === null || (a.ctx.profiles?.some((p) => p.id === value) ?? false);
       a.ctx.setProfileId(known ? value : null);
-      return known ? null : 'Its production profile was deleted — using the planner\'s own picks';
+      if (known) return null;
+      return a.ctx.profiles === null
+        ? 'Production profiles couldn\'t load — using the planner\'s own picks'
+        : 'Its production profile was deleted — using the planner\'s own picks';
     },
   },
   station: {

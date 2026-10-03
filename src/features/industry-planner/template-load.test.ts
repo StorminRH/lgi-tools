@@ -33,14 +33,16 @@ describe('templateGateOpen', () => {
     preferencesReady: true,
     structuresSettled: true,
     rosterSettled: true,
+    profilesSettled: true,
     timedOut: false,
   };
 
-  it('opens only when all three surfaces settled', () => {
+  it('opens only when all surfaces settled', () => {
     expect(templateGateOpen(settled)).toBe(true);
     expect(templateGateOpen({ ...settled, preferencesReady: false })).toBe(false);
     expect(templateGateOpen({ ...settled, structuresSettled: false })).toBe(false);
     expect(templateGateOpen({ ...settled, rosterSettled: false })).toBe(false);
+    expect(templateGateOpen({ ...settled, profilesSettled: false })).toBe(false);
   });
 
   it('the deadline overrides any unsettled surface (apply-what-settled)', () => {
@@ -49,6 +51,7 @@ describe('templateGateOpen', () => {
         preferencesReady: false,
         structuresSettled: false,
         rosterSettled: false,
+        profilesSettled: false,
         timedOut: true,
       }),
     ).toBe(true);
