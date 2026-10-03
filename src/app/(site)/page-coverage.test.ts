@@ -103,6 +103,9 @@ import AppSiteError from '@/app/(site)/error';
 import { IndustryLanding } from '@/app/(site)/industry/IndustryLanding';
 import AppSiteIndustryIdPage, { generateMetadata as AppSiteIndustryIdPageGenerateMetadata } from '@/app/(site)/industry/[id]/page';
 import AppSiteIndustryPage, { metadata as AppSiteIndustryPageMetadata } from '@/app/(site)/industry/page';
+import AppSiteIndustryJobsPage, { metadata as AppSiteIndustryJobsPageMetadata } from '@/app/(site)/industry/jobs/page';
+import AppSiteIndustryLayout from '@/app/(site)/industry/layout';
+import AppSiteIndustryPlannerPage, { metadata as AppSiteIndustryPlannerPageMetadata } from '@/app/(site)/industry/planner/page';
 import AppSiteIndustryTemplatesPage from '@/app/(site)/industry/templates/page';
 import AppSiteJobsPage from '@/app/(site)/jobs/page';
 import AppSiteLegalPage, { metadata as AppSiteLegalPageMetadata } from '@/app/(site)/legal/page';
@@ -207,6 +210,11 @@ describe('coverage-gaps', () => {
       AppSiteIndustryIdPage,
       AppSiteIndustryPageMetadata,
       AppSiteIndustryPage,
+      AppSiteIndustryJobsPageMetadata,
+      AppSiteIndustryJobsPage,
+      AppSiteIndustryLayout,
+      AppSiteIndustryPlannerPageMetadata,
+      AppSiteIndustryPlannerPage,
       AppSiteIndustryTemplatesPage,
       AppSiteJobsPage,
       AppSiteLegalPageMetadata,
