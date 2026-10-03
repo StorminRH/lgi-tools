@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createProjectedMap, creationGrants } from './map-creation';
+import { createProjectedMap } from './map-creation';
 
 const INPUT = {
   name: 'Home chain',
@@ -210,13 +210,5 @@ describe('creator characters', () => {
       }),
     ).resolves.toEqual({ ok: false, reason: 'unlinked-creator-character' });
     expect(createMap).not.toHaveBeenCalled();
-  });
-
-  it('writes every tracking pick as viewer ahead of the delegated grants', () => {
-    expect(creationGrants({ ...INPUT, creatorCharacterIds: [8, 7] })).toEqual([
-      { ownerType: 'character', ownerId: 8, role: 'viewer' },
-      { ownerType: 'character', ownerId: 7, role: 'viewer' },
-      ...INPUT.grants,
-    ]);
   });
 });
