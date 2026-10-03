@@ -5,7 +5,7 @@ export function UnpricedInputs({ names, className }: { names: readonly string[];
   if (names.length === 0) return null;
   return (
     <span className={cn('truncate text-label text-dps-mid', className)}>
-      Price unavailable · {names.join(', ')}
+      Price Unavailable · {names.join(', ')}
     </span>
   );
 }

@@ -80,7 +80,7 @@ test('a fee that counts an unpriced input as nothing is amber, and opening it na
   expect(sections[0]).not.toContain('text-dps-mid');
   expect(sections[1]).toMatch(/<summary[^>]*>.*text-dps-mid[^>]*>8\.1K<\/span><\/summary>/);
   expect(sections[1]).toMatch(/text-dps-mid[^>]*>315\.64</);
-  expect(sections[1]).toContain('Price unavailable · Type 34');
+  expect(sections[1]).toContain('Price Unavailable · Type 34');
 });
 
 test("the product's own unpriced inputs mark the final job", () => {
@@ -89,5 +89,5 @@ test("the product's own unpriced inputs mark the final job", () => {
   const html = render(view, 'Amamake');
   const finalJob = html.split('<details')[1]!;
   expect(finalJob).toMatch(/<summary[^>]*>.*text-dps-mid[^>]*>24\.8K<\/span><\/summary>/);
-  expect(finalJob).toContain('Price unavailable · Fernite Carbide');
+  expect(finalJob).toContain('Price Unavailable · Fernite Carbide');
 });

@@ -166,5 +166,5 @@ test('a fee that counts an unpriced input as nothing shows amber and names it', 
   h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 600, missingAdjustedPriceTypeIds: [40] } }] } };
   const html = render([10]);
   expect(html).toMatch(/Install fee<\/span><span[^>]*text-dps-mid[^>]*>600.00</);
-  expect(html).toContain('Price unavailable · Tritanium');
+  expect(html).toContain('Price Unavailable · Tritanium');
 });
