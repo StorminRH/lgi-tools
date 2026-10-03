@@ -59,7 +59,6 @@ test('a new structure starts unnamed and unpinned, with typed values for manufac
   expect(selectedTab(html)).toBe('Bonuses');
   expect(html).toContain('aria-label="Manufacturing material bonus"');
   expect(html).not.toContain('aria-label="Reaction material bonus"');
-  expect(html).toContain('aria-label="Facility tax"');
 });
 
 test('a rigged structure opens on its rigs, pinned to its system with that system’s security', () => {

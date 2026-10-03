@@ -217,6 +217,10 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(box('Composite reactions')).toContain('aria-checked="true"');
   expect(box('Composite reactions')).toContain('aria-disabled="true"');
   expect(box('All components')).toContain('aria-checked="false"');
+  expect(reactor).toContain('aria-label="All manufacturing"');
+  expect(reactor).toContain('aria-label="All ships"');
+  expect(reactor).toContain('aria-label="Small T1 ships"');
+  expect(reactor).toContain('aria-label="Hybrid reactions"');
   expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
 
   // A member that is not on the profile shows the whole profile instead.

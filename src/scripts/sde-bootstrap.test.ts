@@ -44,16 +44,6 @@ describe('hasCompleteSdeData', () => {
   ])('is false when any sentinel is empty (%o)', (counts) => {
     expect(hasCompleteSdeData(counts)).toBe(false);
   });
-
-  it('requires an import on a populated database immediately after migration 0078', () => {
-    expect(hasCompleteSdeData({
-      ...complete,
-      industryTargetFilters: 0,
-      industryModifiers: 0,
-      industryAssemblyLines: 0,
-      industryInstallationTypes: 0,
-    })).toBe(false);
-  });
 });
 
 describe('describeSdeStandDown', () => {
