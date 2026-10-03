@@ -20,7 +20,7 @@ export const tabTrack =
   'relative inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-border bg-bg-deep/60 p-1 shadow-field-inset';
 export const tabItem =
   'relative z-10 shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-ui text-nav text-muted outline-none transition-colors duration-panel hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-isk-sub';
-export const tabSpotlight = 'rounded-full border border-isk/30 bg-isk/[0.08] shadow-card-edge';
+export const tabSpotlight = 'rounded-full bg-isk/[0.08] shadow-card-edge';
 
 export function Tabs({
   tabs,
