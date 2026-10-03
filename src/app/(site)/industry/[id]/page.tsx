@@ -17,6 +17,7 @@ import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-i
 import { buildBreadcrumbList } from '@/lib/structured-data';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
+import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
   getBlueprintPricing,
   getBlueprintStructure,
@@ -106,6 +107,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
       <RememberPlanner blueprintTypeId={id} />
+      <RecordRecentBlueprint typeId={id} productTypeId={structure.product.typeId} name={structure.product.name} />
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
 
       <PricingProvider

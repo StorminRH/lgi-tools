@@ -116,6 +116,15 @@ describe('validatePreferenceValue', () => {
     expect(validatePreferenceValue('atlas.dockCharacterId', '2114872920')).toBe(false);
   });
 
+  it('keeps favorite blueprints as a bounded list of named blueprints', () => {
+    const favorite = (typeId: number) => ({ typeId, name: 'Damage Control II' });
+    expect(validatePreferenceValue('industry.favoriteBlueprints', [favorite(2049)])).toBe(true);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', Array.from({ length: 24 }, (_, i) => favorite(i + 1)))).toBe(true);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', Array.from({ length: 25 }, (_, i) => favorite(i + 1)))).toBe(false);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', [{ typeId: 2049, name: '' }])).toBe(false);
+    expect(validatePreferenceValue('industry.favoriteBlueprints', [2049])).toBe(false);
+  });
+
   it('rejects an unknown or retired key', () => {
     expect(validatePreferenceValue('planner.buildCharacterId', 2114872920)).toBe(false);
   });

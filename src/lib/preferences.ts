@@ -46,6 +46,17 @@ export const industryProfile = define<string | null>(
   null,
 );
 
+export const MAX_FAVORITE_BLUEPRINTS = 24;
+
+/** The blueprints starred in the planner, newest first, listed on its landing page. */
+export const industryFavoriteBlueprints = define<{ typeId: number; name: string }[]>(
+  'industry.favoriteBlueprints',
+  z
+    .array(z.object({ typeId: z.number().int().positive(), name: z.string().min(1).max(200) }))
+    .max(MAX_FAVORITE_BLUEPRINTS),
+  [],
+);
+
 export const atlasCameraFollow = define<boolean>(
   'atlas.cameraFollow',
   z.boolean(),
@@ -99,6 +110,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   sitesDetailMode,
   industryCostBasis,
   industryProfile,
+  industryFavoriteBlueprints,
   atlasCameraFollow,
   atlasClickFocus,
   atlasDockCharacter,
