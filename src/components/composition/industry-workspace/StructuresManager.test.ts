@@ -10,7 +10,11 @@ const SYSTEMS = [
   { id: 30002537, name: 'Amamake', security: 0.4 },
   { id: 30004759, name: '1DQ1-A', security: -0.4 },
 ];
-const live = vi.hoisted(() => ({ available: [] as AvailableStructure[] }));
+const live = vi.hoisted(() => ({ available: [] as AvailableStructure[], askedForProfile: false }));
+vi.mock('./structures-panel', () => ({
+  useNewStructureAsked: () => live.askedForProfile,
+  settleNewStructure: vi.fn(),
+}));
 vi.mock('@/components/use-system-search', () => ({
   useSystemSearch: () => ({ systems: SYSTEMS, suggest: async () => [] }),
 }));
@@ -19,7 +23,7 @@ vi.mock('@/features/industry-planner/use-available-structures', () => ({
   refreshAvailableStructures: vi.fn(),
 }));
 
-import { StructuresManager } from './StructuresManager';
+import { savedStructure, StructuresManager } from './StructuresManager';
 
 const TYPES: StructureTypeOption[] = [
   { typeId: 35825, name: 'Raitaru', groupId: 1404, rigSize: 2 },
@@ -115,4 +119,26 @@ test('with nothing saved or shared there is nothing to filter', () => {
   expect(html).toContain('No structures yet.');
   expect(html).toContain('+ Add structure');
   expect(html).not.toContain('Show structures');
+});
+
+test('a profile asking for a new structure opens straight on its form', () => {
+  live.available = [];
+  live.askedForProfile = true;
+  const html = render(CUSTOM, []);
+  live.askedForProfile = false;
+  expect(html).toContain('New structure');
+  expect(html).not.toContain('+ Add structure');
+});
+
+test('the structure a save added goes to the profile with its hull group', () => {
+  const added = { ...CUSTOM[0]!, id: 'cs-3', name: 'Tatara 1DQ', structureTypeId: 35836, systemId: 30004759 };
+  expect(savedStructure(CUSTOM, [...CUSTOM, added], TYPES)).toEqual({
+    id: 'cs-3',
+    name: 'Tatara 1DQ',
+    systemId: 30004759,
+    groupId: 1406,
+  });
+  // An edit adds nothing, and an unknown hull can't say what it runs.
+  expect(savedStructure(CUSTOM, CUSTOM, TYPES)).toBeNull();
+  expect(savedStructure(CUSTOM, [...CUSTOM, { ...added, structureTypeId: 1 }], TYPES)).toBeNull();
 });

@@ -14,10 +14,15 @@ import {
   removeFacility,
   setFacilityCategories,
 } from '@/features/industry-planner/profiles/assignments';
-import { facilityKey, MAX_PROFILE_FACILITIES, type ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
+import {
+  facilityKey,
+  MAX_PROFILE_FACILITIES,
+  type ProfileDocument,
+  type ProfileFacility,
+} from '@/features/industry-planner/profiles/profile-document';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { SectionPanel } from '../board/SectionBody';
-import { AddFacility } from './AddFacility';
+import { AddFacilityRow } from './AddFacilityRow';
 import { CategoryChecklist } from './CategoryChecklist';
 import {
   type FacilityPick,
@@ -28,7 +33,7 @@ import {
   structureFacility,
   unavailableCategories,
 } from './facilities-model';
-import { setStructuresPanelOpen } from './structures-panel';
+import { requestNewStructure } from './structures-panel';
 import { roleLine } from './workspace-model';
 
 export interface HullName {
@@ -183,26 +188,14 @@ export function FacilitiesPanel({
         system={systemOf(pick.structure.systemId)}
       />
     );
-  const add = (pick: FacilityPick) => {
-    const facility = pick.kind === 'structure' ? structureFacility(doc, pick.structure) : stationFacility(doc, pick.station);
+  const addAndOpen = (facility: ProfileFacility) => {
     onEdit(addFacility(doc, facility));
     setOpenKey(facilityKey(facility));
   };
+  const add = (pick: FacilityPick) =>
+    addAndOpen(pick.kind === 'structure' ? structureFacility(doc, pick.structure) : stationFacility(doc, pick.station));
   return (
-    <SectionPanel
-      title="Facilities"
-      meta={
-        <Button
-          variant="bare"
-          data-structures-trigger
-          aria-haspopup="dialog"
-          className="whitespace-nowrap font-ui text-micro font-normal uppercase tracking-eyebrow text-isk no-underline transition-colors hover:text-name"
-          onClick={() => setStructuresPanelOpen(true)}
-        >
-          Structures →
-        </Button>
-      }
-    >
+    <SectionPanel title="Facilities">
       {views.length > 0 ? (
         <ul className="flex flex-col">
           {views.map((view) => (
@@ -219,12 +212,13 @@ export function FacilitiesPanel({
           ))}
         </ul>
       ) : null}
-      <div className={cn('px-3.5 py-3', views.length > 0 && 'border-t border-border-soft')}>
-        <AddFacility
+      <div className={cn(views.length > 0 && 'border-t border-border-soft')}>
+        <AddFacilityRow
           structures={structures}
           taken={new Set(views.map((v) => v.key))}
           describe={describe}
           onAdd={add}
+          onNewStructure={() => requestNewStructure((saved) => addAndOpen(structureFacility(doc, saved)))}
           full={doc.facilities.length >= MAX_PROFILE_FACILITIES}
         />
       </div>
