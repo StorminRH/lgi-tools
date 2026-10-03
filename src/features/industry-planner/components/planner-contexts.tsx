@@ -64,6 +64,8 @@ export interface BuildSetupValue {
   profiles: IndustryProfileRow[] | null;
   profilesFailed: boolean;
   refreshProfiles: () => void;
+  locationFailed: boolean;
+  retryLocation: () => void;
   /** The production profile the build runs under; null builds at baseline. */
   profile: IndustryProfileRow | null;
   setProfileId: (id: string) => void;

@@ -55,7 +55,7 @@ const render = (activityId = MANUFACTURING_ACTIVITY) =>
 
 beforeEach(() => {
   h.auth = { session: null, loading: false };
-  h.setup = { profiles: null, profilesFailed: false, refreshProfiles: vi.fn(), profile: null, setProfileId: vi.fn() };
+  h.setup = { profiles: null, profilesFailed: false, refreshProfiles: vi.fn(), profile: null, setProfileId: vi.fn(), locationFailed: false, retryLocation: vi.fn() };
 });
 
 test('the rail shows the blueprint, its inputs and its numbers', () => {
@@ -72,6 +72,19 @@ test('the rail shows the blueprint, its inputs and its numbers', () => {
   expect(html).toContain('aria-label="main blueprint time efficiency"');
   expect(html).toContain('aria-label="Runs"');
   expect(html).toContain('kpis');
+});
+
+test.each([MANUFACTURING_ACTIVITY, REACTION_ACTIVITY])('failed system fees stay visible beside the selected profile for activity %i', (activityId) => {
+  const profile = row('p', 'Production');
+  h.auth.session = {};
+  h.setup = { ...h.setup, profiles: [profile], profile, locationFailed: true };
+  const html = render(activityId);
+  expect(html).toContain('Production');
+  expect(html).toContain('role="alert"');
+  expect(html).toContain('Could not load system fees. Estimates exclude these fees.');
+  expect(html).toContain('Retry system fees');
+  h.setup.locationFailed = false;
+  expect(render(activityId)).not.toContain('Estimates exclude these fees.');
 });
 
 test('a reaction has no blueprint research to set, only runs', () => {

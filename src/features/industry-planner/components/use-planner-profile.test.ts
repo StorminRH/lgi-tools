@@ -78,11 +78,12 @@ const planAt = (top: PlanFacility | null): ProfilePlan => ({
 
 function writers(currentSystemId: number | null = null) {
   return {
+    locationRefreshKey: 0,
     location: currentSystemId === null ? null : ({ systemId: currentSystemId } as never),
     setLocation: vi.fn(),
     availableStructures: [SOTIYO],
     structureFactors: MANUAL,
-    applyBuildSystem: vi.fn(async () => ({ ok: true }) as never),
+    applyBuildSystem: vi.fn(async () => ({ status: 'failed' as const })),
     setSelectedStructure: vi.fn(),
     setReactionSystem: vi.fn(),
     setReactionStructure: vi.fn(),
@@ -139,7 +140,7 @@ test('a profile prices the product where its facility stands, moving the build t
   expect(w.setSelectedStructure).toHaveBeenCalledWith(null);
   expect(w.applyBuildSystem).toHaveBeenCalledWith(
     { systemId: 30002537, systemName: 'Amamake', security: 0.4 },
-    { persist: false },
+    { persist: false, signal: expect.any(AbortSignal) },
   );
 });
 

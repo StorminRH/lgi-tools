@@ -16,6 +16,7 @@ import type { StructureFactors } from '../structure-factors';
 import type { AvailableStructure, BlueprintStructure } from '../types';
 import { useResourceRead } from '../use-resource-read';
 import type { SelectedLocation, SelectedReactionSystem } from './planner-contexts';
+import type { ApplySystemOptions, ApplySystemOutcome } from '../build-system-apply';
 
 export interface PlannerProfileState {
   profiles: IndustryProfileRow[] | null;
@@ -76,12 +77,13 @@ function usePlannerProfile(
 
 /** The location state a profile drives so the product's own job prices where it runs. */
 export interface LocationWriters {
+  locationRefreshKey: number;
   location: SelectedLocation | null;
   setLocation: (location: SelectedLocation | null) => void;
   applyBuildSystem: (
     sys: { systemId: number; systemName: string; security: number | null },
-    opts: { persist: boolean },
-  ) => Promise<unknown>;
+    opts: ApplySystemOptions,
+  ) => Promise<ApplySystemOutcome>;
   setSelectedStructure: (structure: AvailableStructure | null) => void;
   setReactionSystem: (system: SelectedReactionSystem | null) => void;
   setReactionStructure: (structure: AvailableStructure | null) => void;
@@ -105,7 +107,7 @@ function useProfileLocation(
     () => (found ? { systemId: found.id, systemName: found.name, security: found.security } : null),
     [found],
   );
-  const { location, setLocation, applyBuildSystem, setSelectedStructure, setReactionSystem, setReactionStructure } =
+  const { location, setLocation, applyBuildSystem, setSelectedStructure, setReactionSystem, setReactionStructure, locationRefreshKey } =
     writers;
   const current = location?.systemId ?? null;
   const structure = facility?.structure ?? null;
@@ -120,7 +122,10 @@ function useProfileLocation(
       if (current !== null) setLocation(null);
       return;
     }
-    if (current !== system.systemId) void applyBuildSystem(system, { persist: false });
+    if (current === system.systemId) return;
+    const controller = new AbortController();
+    void applyBuildSystem(system, { persist: false, signal: controller.signal });
+    return () => controller.abort();
   }, [
     system,
     structure,
@@ -131,6 +136,7 @@ function useProfileLocation(
     setSelectedStructure,
     setReactionSystem,
     setReactionStructure,
+    locationRefreshKey,
   ]);
 }
 
