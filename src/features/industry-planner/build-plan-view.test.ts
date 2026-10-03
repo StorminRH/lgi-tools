@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { ConsolidatedItem, ConsolidatedTier } from './build-consolidate';
 import {
   isEfficiencyEligible,
-  levelAt,
   tierColumnView,
   unitPriceMap,
 } from './build-plan-view';
@@ -27,42 +26,33 @@ describe('tierColumnView', () => {
     [3, null],
   ]);
 
-  it('shows whole-run batched quantities and a summed subtotal with no focus', () => {
+  it('shows whole-run batched quantities and a summed subtotal, nothing lit', () => {
     const view = tierColumnView(tier(1, [item({ typeId: 1, quantity: 10 }), item({ typeId: 2, quantity: 4 })]), {
-      focus: null,
-      inChain: null,
-      actualLevel: null,
       unitPriceOf: prices,
+      lit: null,
     });
     expect(view.rows.map((r) => r.qty)).toEqual([10, 4]);
-    expect(view.rows.every((r) => !r.selected && !r.related && !r.faded)).toBe(true);
-
+    expect(view.rows.every((r) => !r.lit && !r.dimmed)).toBe(true);
     expect(view.subtotal).toBe(1200);
   });
 
   it('nulls a row value (and drops it from the subtotal) when the type is unpriced', () => {
-    const view = tierColumnView(tier(1, [item({ typeId: 3, quantity: 5 })]), {
-      focus: null,
-      inChain: null,
-      actualLevel: null,
-      unitPriceOf: prices,
-    });
+    const view = tierColumnView(tier(1, [item({ typeId: 3, quantity: 5 })]), { unitPriceOf: prices, lit: null });
     expect(view.rows[0]!.value).toBeNull();
     expect(view.subtotal).toBe(0);
   });
 
-  it('lights the focused cell, relates its chain (at actual qty), and fades the rest', () => {
-    const view = tierColumnView(tier(2, [item({ typeId: 1 }), item({ typeId: 2, quantity: 10 }), item({ typeId: 9 })]), {
-      focus: { depth: 2, typeId: 1 },
-      inChain: new Set([2]),
-      actualLevel: new Map([[2, 3]]),
+  it('lights the hovered chain and dims the rest, leaving quantities alone', () => {
+    const view = tierColumnView(tier(2, [item({ typeId: 1 }), item({ typeId: 2 }), item({ typeId: 9 })]), {
       unitPriceOf: prices,
+      lit: new Set([1, 2]),
     });
-    const [a, b, c] = view.rows;
-    expect(a!.selected).toBe(true);
-    expect(b!.related).toBe(true);
-    expect(b!.qty).toBe(3);
-    expect(c!.faded).toBe(true);
+    expect(view.rows.map((r) => [r.lit, r.dimmed])).toEqual([
+      [true, false],
+      [true, false],
+      [false, true],
+    ]);
+    expect(view.rows.map((r) => r.qty)).toEqual([10, 10, 10]);
   });
 });
 
@@ -90,21 +80,6 @@ describe('isEfficiencyEligible', () => {
     expect(isEfficiencyEligible(46175, 'Component')).toBe(true);
     expect(isEfficiencyEligible(undefined, 'Component')).toBe(false);
     expect(isEfficiencyEligible(46175, REACTION_NODE_LABEL)).toBe(false);
-  });
-});
-
-describe('levelAt', () => {
-  const map = new Map<number, Set<number>>([[1, new Set([7])]]);
-
-  it('is null when nothing is focused or the map is absent', () => {
-    expect(levelAt(map, null, 3)).toBeNull();
-    expect(levelAt<Set<number>>(null, { depth: 2, typeId: 1 }, 3)).toBeNull();
-  });
-
-  it('reads the relative depth (tierDepth − focusDepth) slice, or null when absent', () => {
-
-    expect(levelAt(map, { depth: 2, typeId: 1 }, 3)).toEqual(new Set([7]));
-    expect(levelAt(map, { depth: 2, typeId: 1 }, 9)).toBeNull();
   });
 });
 

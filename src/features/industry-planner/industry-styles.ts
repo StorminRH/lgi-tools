@@ -18,8 +18,6 @@ export const PLANNER_TOOL_TRIGGER_CLASS = cn(
   'flex cursor-pointer items-center justify-between gap-2 whitespace-nowrap font-ui text-nav text-name',
 );
 
-export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
-
 export const EFFICIENCY_TONE_CLASSES: Record<
   EfficiencyToneState,
   { fill: string; glow: string; stroke: string; text: string; frame: string }
