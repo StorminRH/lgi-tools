@@ -1,20 +1,74 @@
 import { expect, test } from 'vitest';
-import { serverStatusPresentation } from './server-status-presentation';
+import type { EsiHealth } from '@/composition/esi-health';
+import { eveStatusSections, serverStatusPresentation } from './server-status-presentation';
 
-test('serverStatusPresentation maps online, VIP, and offline Tranquility states', () => {
-  expect(serverStatusPresentation({ state: 'online', players: 13459 })).toEqual({
-    label: 'TQ · 13,459',
+const ONLINE = {
+  state: 'online',
+  players: 13_459,
+  build: '3569502',
+  startedAt: '2026-10-03T11:03:02Z',
+} as const;
+
+const HEALTHY: EsiHealth = {
+  availability: { state: 'measured', rate: 0.9984, level: 'green' },
+  budget: { state: 'live', remaining: 84, ceiling: 100 },
+};
+
+const SDE = { build: '3569502', ingestedAt: new Date('2026-10-02T16:50:42Z') };
+
+const values = (sections: ReturnType<typeof eveStatusSections>) =>
+  Object.fromEntries(
+    sections.map((s) => [s.heading, s.rows.map((r) => `${r.label}: ${r.value} (${r.level})`)]),
+  );
+
+test('serverStatusPresentation gives the header value and its spoken label', () => {
+  expect(serverStatusPresentation(ONLINE)).toEqual({
+    value: '13,459',
     ariaLabel: 'Tranquility online — 13,459 players',
-    reachable: true,
   });
-  expect(serverStatusPresentation({ state: 'vip', players: 42 })).toEqual({
-    label: 'TQ · VIP',
+  expect(serverStatusPresentation({ ...ONLINE, state: 'vip' })).toEqual({
+    value: 'VIP',
     ariaLabel: 'Tranquility in VIP-only mode',
-    reachable: true,
   });
   expect(serverStatusPresentation({ state: 'offline' })).toEqual({
-    label: 'TQ · offline',
+    value: 'offline',
     ariaLabel: 'Tranquility server offline',
-    reachable: false,
+  });
+  expect(serverStatusPresentation({ state: 'unknown' })).toEqual({
+    value: 'unknown',
+    ariaLabel: 'Tranquility status unknown',
+  });
+});
+
+test('eveStatusSections reads Tranquility, ESI and the ingested SDE', () => {
+  expect(values(eveStatusSections({ status: ONLINE, sde: SDE, esi: HEALTHY }))).toEqual({
+    Tranquility: [
+      'Status: Online (green)',
+      'Players: 13,459 (green)',
+      'Up since: 11:03 UTC (green)',
+    ],
+    ESI: ['Success, last hour: 99.8% (green)', 'Error budget: 84 of 100 (green)'],
+    'Static data': ['Build: 3569502 (green)', 'Ingested: 2 Oct 2026 (green)'],
+  });
+});
+
+test('eveStatusSections flags what needs attention and admits what it cannot read', () => {
+  const newerServer = { ...ONLINE, state: 'vip', build: '3570100', startedAt: null } as const;
+  const quiet: EsiHealth = { availability: { state: 'idle' }, budget: { state: 'paused', remaining: 3, ceiling: 100 } };
+  expect(values(eveStatusSections({ status: newerServer, sde: SDE, esi: quiet }))).toEqual({
+    Tranquility: ['Status: VIP only (amber)', 'Players: 13,459 (green)'],
+    ESI: ['Success, last hour: No calls (neutral)', 'Error budget: Paused (red)'],
+    'Static data': ['Build: 3569502 · behind (amber)', 'Ingested: 2 Oct 2026 (green)'],
+  });
+
+  const unknown: EsiHealth = { availability: { state: 'unknown' }, budget: { state: 'unknown' } };
+  expect(values(eveStatusSections({ status: { state: 'offline' }, sde: SDE, esi: unknown }))).toMatchObject({
+    Tranquility: ['Status: Offline (red)'],
+    'Static data': ['Build: 3569502 (green)', 'Ingested: 2 Oct 2026 (green)'],
+  });
+  expect(values(eveStatusSections({ status: { state: 'unknown' }, sde: null, esi: unknown }))).toEqual({
+    Tranquility: ['Status: Unknown (neutral)'],
+    ESI: ['Success, last hour: Unknown (neutral)', 'Error budget: Unknown (neutral)'],
+    'Static data': ['Build: Unknown (neutral)'],
   });
 });
