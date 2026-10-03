@@ -35,11 +35,14 @@ export function AddFacility({
   taken,
   describe,
   onAdd,
+  full = false,
 }: {
   structures: readonly AvailableStructure[] | null;
   taken: ReadonlySet<string>;
   describe: (pick: FacilityPick) => ReactNode;
   onAdd: (pick: FacilityPick) => void;
+  /** The profile holds as many facilities as it can. */
+  full?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [opened, setOpened] = useState(false);
@@ -68,8 +71,8 @@ export function AddFacility({
     >
       <Combobox.Field
         aria-label="Add a facility"
-        placeholder="Add facility"
-        disabled={structures === null}
+        placeholder={full ? 'Facility limit reached' : 'Add facility'}
+        disabled={structures === null || full}
         type="text"
         spellCheck={false}
         autoCorrect="off"

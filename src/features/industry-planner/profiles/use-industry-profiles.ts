@@ -27,11 +27,7 @@ export interface IndustryProfilesState extends ProfileSyncState {
 
 type AddOutcome =
   | { ok: true; data: { profiles: IndustryProfileRow[]; id: string } }
-  | { ok: false; status?: number };
-
-function statusOf(res: { ok: false; status?: number } | null): number {
-  return res?.status ?? 0;
-}
+  | { ok: false; error?: { code: string } };
 
 async function listProfiles(): Promise<ProfilesResult> {
   const res = await readWithRetries(async () => {
@@ -45,7 +41,7 @@ async function updateProfile(
   body: { id: string; expectedRevision: number } & PendingEdit,
 ): Promise<ProfilesResult> {
   const res = await apiFetch(updateIndustryProfileEndpoint, { body }).catch(() => null);
-  return res?.ok ? res : { ok: false, status: statusOf(res) };
+  return res ?? { ok: false };
 }
 
 /** The signed-in account's production profiles, with create, edit and delete. */
@@ -71,7 +67,7 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
       const res = await sync.request(call).catch(() => null);
       setBusy(false);
       if (!res?.ok) {
-        toast.error(createFailureMessage(statusOf(res)));
+        toast.error(createFailureMessage(res?.error?.code));
         return null;
       }
       return res.data.id;

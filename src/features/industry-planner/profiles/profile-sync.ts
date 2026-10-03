@@ -3,7 +3,8 @@ import { overlayPending, type PendingEdit, saveFailureMessage } from './profile-
 
 export type ProfilesResult =
   | { ok: true; data: { profiles: IndustryProfileRow[] } }
-  | { ok: false; status?: number };
+  // The server's reason, when it refused the call rather than failing to answer.
+  | { ok: false; error?: { code: string } };
 
 export interface ProfileSyncState {
   profiles: IndustryProfileRow[] | null;
@@ -74,7 +75,7 @@ export function createProfileSync(deps: {
         const res = await deps.update({ id, ...next });
         if (!res.ok) {
           pending.delete(id);
-          deps.notify(saveFailureMessage(res.status ?? 0));
+          deps.notify(saveFailureMessage(res.error?.code));
           await read();
           return;
         }
