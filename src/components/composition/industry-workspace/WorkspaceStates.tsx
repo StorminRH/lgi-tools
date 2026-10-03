@@ -33,7 +33,8 @@ export function WorkspaceSkeleton() {
   );
 }
 
-function IntroCard({ children }: { children: ReactNode }) {
+/** The industry sections' intro: what the section is for, and the one thing to do next. */
+export function IntroCard({ children }: { children: ReactNode }) {
   return (
     <div className={cn(readoutSurface, 'flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between')}>
       {children}

@@ -3,7 +3,6 @@ import { JOB_STATUSES } from './esi-projection';
 import {
   JOB_STATUS_META,
   jobActivityLabel,
-  jobActivityPill,
   jobCategory,
 } from './industry-jobs-styles';
 
@@ -24,18 +23,6 @@ describe('jobActivityLabel', () => {
 
   it('falls back generically for an unknown activity id', () => {
     expect(jobActivityLabel(999)).toBe('Industry');
-  });
-});
-
-describe('jobActivityPill', () => {
-  it('maps the three in-game activity families, including live-ESI activity 9', () => {
-    expect(jobActivityPill(1)).toEqual({ label: 'MFG', tone: 'blue' });
-    expect(jobActivityPill(11)).toEqual({ label: 'RX', tone: 'green' });
-    expect(jobActivityPill(9)).toEqual({ label: 'RX', tone: 'green' });
-    for (const science of [3, 4, 5, 8]) {
-      expect(jobActivityPill(science)).toEqual({ label: 'SCI', tone: 'purple' });
-    }
-    expect(jobActivityPill(999)).toEqual({ label: 'IND', tone: 'neutral' });
   });
 });
 

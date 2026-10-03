@@ -1,21 +1,22 @@
 'use client';
 
 import { type ReactNode, useMemo } from 'react';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { EveImage } from '@/components/eve-image';
 import { useEntityNames } from '@/components/use-entity-names';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
+import { LoadFailed } from '@/components/ui/load-failed';
 import { SectionLabel } from '@/components/ui/section-label';
 import { ENTITY_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
-import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
+import { corporationLogoUrl } from '@/lib/eve-image';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
-import { corpEntityIds, corpGroupState, corpJobsEmptyLine, jobRowFrameData, runnerName } from '../job-view';
+import { corpEntityIds, type CorpGroupState, corpGroupState, runnerName } from '../job-view';
 import { useCorpJobsLive } from '../use-corp-jobs-live';
-import { JobRowFrame } from './JobRowFrame';
+import { JobsCard, JobsCardSkeleton } from './JobsCard';
 
 type CorpEntry = CorpJobsResponse['corporations'][number];
 
@@ -24,18 +25,14 @@ const CORP_ACCESS_REASON =
 
 export function CorpJobsBoard({
   eligibleCharacterIds,
-  hasLinkedCharacters,
   reconnectAction,
 }: {
   eligibleCharacterIds: number[];
-  hasLinkedCharacters: boolean;
   reconnectAction: ReactNode;
 }) {
-  if (!hasLinkedCharacters) return null;
-
   return (
-    <section className="reveal reveal-2">
-      <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
+    <section aria-label="Corporation jobs" className="flex flex-col gap-4">
+      <SectionLabel>Corporation jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
           {null}
@@ -48,18 +45,25 @@ export function CorpJobsBoard({
 }
 
 function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[] }) {
-  const { corporations, names, now, loading, failed } = useCorpJobsLive(eligibleCharacterIds);
+  const { corporations, names, now, loading, failed, retry } = useCorpJobsLive(eligibleCharacterIds);
 
-  if (loading) return <LoadingLabel label="Loading…" />;
-
-  if (failed || corporations.length === 0) {
+  if (loading) return <JobsCardSkeleton />;
+  if (failed) {
+    return (
+      <LoadFailed
+        title="Corporation jobs didn't load"
+        retryLabel="Retry loading corporation jobs"
+        onRetry={retry}
+      />
+    );
+  }
+  if (corporations.length === 0) {
     return (
       <Card>
-        <EmptyState>{corpJobsEmptyLine(failed)}</EmptyState>
+        <EmptyState>No corporation jobs yet — they’ll appear here once a sync completes.</EmptyState>
       </Card>
     );
   }
-
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
@@ -75,181 +79,58 @@ function CorpJobsList({
   const entityNames = useEntityNames(
     useMemo(() => corpEntityIds(corporations, ENTITY_NAMES_MAX_IDS), [corporations]),
   );
-  return (
-    <div className="flex flex-col gap-6">
-      {corporations.map((corp) => (
-        <CorpGroup
-          key={corp.corporationId}
-          corp={corp}
-          corpName={entityNames[String(corp.corporationId)]}
-          names={names}
-          entityNames={entityNames}
-          now={now}
+  return corporations.map((corp) => (
+    <JobsCard
+      key={corp.corporationId}
+      avatar={
+        <EveImage
+          source="eve"
+          family="corporation-logo"
+          src={corporationLogoUrl(corp.corporationId, 64)}
+          alt=""
+          width={36}
+          height={36}
+          className="size-9 shrink-0 rounded-ctl border border-border-soft"
         />
-      ))}
-    </div>
-  );
+      }
+      title={entityNames[String(corp.corporationId)] ?? `Corporation #${corp.corporationId}`}
+      notice={CORP_NOTICES[corpGroupState(corp)]}
+      data={corp.data}
+      lastSyncedAt={corp.lastRefreshedAt}
+      names={names}
+      now={now}
+      loading={false}
+      emptyRowsText="No corporation industry jobs running."
+      runnerFor={(job) => <JobRunner job={job} entityNames={entityNames} />}
+    />
+  ));
 }
 
-interface CorpGroupBodyProps {
-  corp: CorpEntry;
-  corpLabel: string;
-  names: Record<string, string>;
-  entityNames: Record<string, string>;
-  now: number;
-}
-
-function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
-  return (
-    <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-      <EveImage
-        source="eve"
-        family="corporation-logo"
-        src={corporationLogoUrl(corpId, 64)}
-        alt=""
-        width={28}
-        height={28}
-        className="w-7 h-7 rounded-ctl border border-border-soft shrink-0"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="font-display font-bold text-h3 text-name truncate">{label}</div>
-        <div className="text-label text-muted tracking-copy">Corporation industry jobs</div>
-      </div>
-    </div>
-  );
-}
-
-function CorpNotice({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="p-3.5">
-      <Callout label={label}>{children}</Callout>
-    </div>
-  );
-}
-
-const CORP_GROUP_BODY: Record<ReturnType<typeof corpGroupState>, (props: CorpGroupBodyProps) => ReactNode> = {
-  'needs-role': () => (
-    <CorpNotice label="Role needed">
+const CORP_NOTICES: Record<CorpGroupState, ReactNode> = {
+  'needs-role': (
+    <Callout className="mx-3.5 my-2" label="Role needed">
       No linked character holds the Factory Manager or Director role in this corporation, so its
       industry jobs can’t be read. Granting more access can’t fix this — an in-game role change is
       required.
-    </CorpNotice>
+    </Callout>
   ),
-  'sync-error': () => (
-    <CorpNotice label="Sync trouble">
+  'sync-error': (
+    <Callout className="mx-3.5 my-2" label="Sync trouble">
       Couldn’t read this corporation’s jobs on the last sync — the next one will retry.
-    </CorpNotice>
+    </Callout>
   ),
-  empty: () => <EmptyState>No corporation industry jobs running.</EmptyState>,
-  rows: ({ corp, corpLabel, names, entityNames, now }) =>
-    (corp.data?.jobs ?? []).map((job) => (
-      <CorpJobRow
-        key={job.job_id}
-        job={job}
-        corpId={corp.corporationId}
-        corpName={corpLabel}
-        names={names}
-        entityNames={entityNames}
-        now={now}
-      />
-    )),
+  empty: null,
+  rows: null,
 };
 
-function CorpGroupBody(props: CorpGroupBodyProps) {
-  return CORP_GROUP_BODY[corpGroupState(props.corp)](props);
-}
-
-function CorpGroup({
-  corp,
-  corpName,
-  names,
-  entityNames,
-  now,
-}: {
-  corp: CorpEntry;
-  corpName: string | undefined;
-  names: Record<string, string>;
-  entityNames: Record<string, string>;
-  now: number;
-}) {
-  const label = corpName ?? `Corporation #${corp.corporationId}`;
+/** Who installed a corporation job, on the job's own line. */
+function JobRunner({ job, entityNames }: { job: IndustryJob; entityNames: Record<string, string> }) {
+  if (job.installer_id === undefined) return null;
+  const name = runnerName(job.installer_id, entityNames);
   return (
-    <Card>
-      <CorpGroupHeader corpId={corp.corporationId} label={label} />
-      <CorpGroupBody corp={corp} corpLabel={label} names={names} entityNames={entityNames} now={now} />
-    </Card>
-  );
-}
-
-function CorpJobRow({
-  job,
-  corpId,
-  corpName,
-  names,
-  entityNames,
-  now,
-}: {
-  job: IndustryJob;
-  corpId: number;
-  corpName: string;
-  names: Record<string, string>;
-  entityNames: Record<string, string>;
-  now: number;
-}) {
-  const installerId = job.installer_id;
-  return (
-    <JobRowFrame
-      {...jobRowFrameData(job, names, now)}
-      barTone="evb"
-      footer={
-        <div className="mt-[5px]">
-          <JobRunner
-            portrait={installerId !== undefined ? characterPortraitUrl(installerId, 32) : undefined}
-            name={runnerName(installerId, entityNames)}
-            corp={{ logo: corporationLogoUrl(corpId, 32), name: corpName }}
-          />
-        </div>
-      }
-    />
-  );
-}
-
-function JobRunner({
-  portrait,
-  name,
-  corp,
-}: {
-  portrait: string | undefined;
-  name: string;
-  corp: { logo: string; name: string };
-}) {
-  return (
-    <span className="flex items-center gap-2 min-w-0">
-      <span className="relative shrink-0">
-        <EveImage
-          source="eve"
-          family={portrait === undefined ? 'corporation-logo' : 'character-portrait'}
-          src={portrait ?? corp.logo}
-          alt=""
-          width={24}
-          height={24}
-          className="w-6 h-6 rounded-full border border-border-soft"
-        />
-        {portrait !== undefined && (
-          <EveImage
-            source="eve"
-            family="corporation-logo"
-            src={corp.logo}
-            alt=""
-            width={14}
-            height={14}
-            className="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full border border-border-soft bg-section"
-          />
-        )}
-      </span>
-      <span className="min-w-0 truncate text-ui text-muted">
-        {name} <span className="text-muted">· {corp.name}</span>
-      </span>
+    <span className="flex min-w-0 max-w-[12rem] shrink items-center gap-1.5">
+      <CharacterPortrait characterId={job.installer_id} name={name} size={20} />
+      <span className="truncate text-ui text-muted">{name}</span>
     </span>
   );
 }

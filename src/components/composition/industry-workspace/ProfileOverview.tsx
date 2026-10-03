@@ -21,6 +21,7 @@ import {
   poolSummaries,
   type RailMember,
   SLOT_POOLS,
+  SLOT_POOL_LABELS,
 } from './workspace-model';
 
 interface TeamRow {
@@ -34,12 +35,6 @@ function timeCell(row: TeamRow, pct: number | undefined): ReactNode {
   if (pct === undefined) return <span className="text-faint">Syncing</span>;
   return pct > 0 ? <span className="text-isk">−{formatBonusPct(pct)}</span> : <span className="text-faint">—</span>;
 }
-
-const POOL_HEADS: Record<JobCategory, string> = {
-  manufacturing: 'Manufacturing',
-  reactions: 'Reactions',
-  science: 'Science',
-};
 
 const COLUMNS: readonly StaticTableColumn<TeamRow>[] = [
   {
@@ -75,7 +70,7 @@ const COLUMNS: readonly StaticTableColumn<TeamRow>[] = [
   ...SLOT_POOLS.map(
     (pool): StaticTableColumn<TeamRow> => ({
       key: pool,
-      label: POOL_HEADS[pool],
+      label: SLOT_POOL_LABELS[pool],
       align: 'right',
       className: 'font-data text-name',
       render: (row) => (row.member.linked ? poolFigure(row.pools[pool]) : <span className="text-faint">—</span>),

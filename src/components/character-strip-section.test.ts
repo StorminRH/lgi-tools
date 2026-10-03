@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
-import type { PanelCharacter } from './live-character-card';
+import type { PanelCharacter } from '@/platform/auth/panel-character';
 
 const h = vi.hoisted(() => ({
   dimmed: [] as number[],
@@ -32,8 +32,8 @@ const characters: PanelCharacter[] = [
 
 function render(props: Partial<Omit<Parameters<typeof CharacterStripSection>[0], 'children'>> = {}) {
   return renderToStaticMarkup(CharacterStripSection({
+    heading: 'Personal jobs',
     characters,
-    loading: false,
     ...props,
     children: (visible) => createElement('p', null, visible.map((c) => c.name).join(', ')),
   }));
@@ -44,19 +44,19 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-test('without a tracking strip, all pilots remain visible and a settled read shows its caption', () => {
+test('without a tracking strip, every pilot stays visible under the heading', () => {
   h.dimmed = [1];
   const html = render();
+  expect(html).toContain('aria-label="Personal jobs"');
+  expect(html).toContain('Personal jobs');
   expect(html).toContain('Pilot One, Pilot Two');
-  expect(html).toContain('Synced from ESI on view');
   expect(html).not.toContain('Every character is hidden');
   expect(h.strip).not.toHaveBeenCalled();
 });
 
-test('a loading strip filters pilots and forwards portrait changes to its preference', () => {
+test('the strip filters pilots and forwards portrait changes to its preference', () => {
   h.dimmed = [1];
-  const html = render({ strip: { surfaceId: 'jobs' }, loading: true });
-  expect(html).toContain('Loading…');
+  const html = render({ strip: { surfaceId: 'jobs' } });
   expect(html).toContain('<p>Pilot Two</p>');
   expect(html).not.toContain('Every character is hidden');
   expect(h.preference).toHaveBeenCalledWith(expect.objectContaining({ key: 'strip.jobs.dimmed' }));
@@ -66,16 +66,14 @@ test('a loading strip filters pilots and forwards portrait changes to its prefer
   expect(h.setDimmed).toHaveBeenCalledWith([2]);
 });
 
-test('hiding every pilot explains how to restore them; a failure replaces the sync caption', () => {
+test('hiding every pilot explains how to restore them; a failure shows above the cards', () => {
   h.dimmed = [1, 2];
   const hidden = render({ strip: { surfaceId: 'jobs' } });
   expect(hidden).toContain('Every character is hidden here');
   expect(hidden).toContain('<p></p>');
 
   h.dimmed = [];
-  const failed = render({ strip: { surfaceId: 'jobs' }, failure: createElement('button', null, 'Retry jobs'), loading: true });
+  const failed = render({ strip: { surfaceId: 'jobs' }, failure: createElement('button', null, 'Retry jobs') });
   expect(failed).toContain('Retry jobs');
-  expect(failed).not.toContain('Loading…');
-  expect(failed).not.toContain('Synced from ESI');
-  expect(failed).toContain('Pilot One, Pilot Two');
+  expect(failed.indexOf('Retry jobs')).toBeLessThan(failed.indexOf('Pilot One, Pilot Two'));
 });
