@@ -79,6 +79,16 @@ function* walk(node: unknown): Generator<Props> {
   yield* walk(props.children);
 }
 
+function* elements(node: unknown): Generator<ReactElement> {
+  if (Array.isArray(node)) {
+    for (const child of node) yield* elements(child);
+    return;
+  }
+  if (!isValidElement(node)) return;
+  yield node;
+  yield* elements((node.props as Props).children);
+}
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function mount(editing: CustomStructureRow | null) {
@@ -94,18 +104,30 @@ function mount(editing: CustomStructureRow | null) {
     for (const props of walk(render())) if (test(props)) return props;
     return null;
   };
+  const element = (test: (props: Props) => boolean) => {
+    for (const node of elements(render())) if (test(node.props as Props)) return node;
+    return null;
+  };
   const call = (test: (props: Props) => boolean, handler: string, ...args: unknown[]) =>
     (find(test)![handler] as Handler)(...(args as never[]));
   return {
     onSaved,
     onClose,
     find,
+    element,
     call,
     button: (text: string) => call((p) => p.children === text, 'onClick'),
     draft: () => h.states[0] as StructureDraft,
     busy: () => h.states[1] as boolean,
     error: () => find((p) => p.label === 'Check')?.children ?? null,
   };
+}
+
+/** The bonus section's tab bar, rendered from the section the composer last drew. */
+function bonusTabs(c: ReturnType<typeof mount>): Props {
+  const section = c.element(bonuses)!;
+  const drawn = (section.type as (props: Props) => unknown)(section.props as Props);
+  return [...walk(drawn)].find((p) => p.label === 'Structure bonuses')!;
 }
 
 const named = (p: Props) => 'onName' in p;
@@ -226,4 +248,27 @@ test('a pasted fit sets the hull and rigs, and one without a structure is refuse
   c.call(bonuses, 'onReadFit', 'junk');
   await settle();
   expect(c.error()).toBe('No structure in that fit.');
+});
+
+test('the bonus tabs switch between typed values, rigs and a pasted fit, and a read fit lands on rigs', async () => {
+  const c = mount(null);
+  const choose = (tab: string) => (bonusTabs(c).onValueChange as Handler)(...([tab] as never[]));
+  expect(bonusTabs(c).value).toBe('values');
+  choose('rigs');
+  expect(bonusTabs(c).value).toBe('rigs');
+  expect(c.draft().mode).toBe('rigs');
+  // Opening the fit keeps what would save until a fit is read.
+  choose('fit');
+  expect(bonusTabs(c).value).toBe('fit');
+  expect(c.draft().mode).toBe('rigs');
+  choose('values');
+  expect(bonusTabs(c).value).toBe('values');
+  expect(c.draft().mode).toBe('values');
+
+  choose('fit');
+  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { parsed: { structureTypeId: 35825, rigTypeIds: [43920], name: null } } });
+  c.call(bonuses, 'onReadFit', '[Raitaru, Line]');
+  await settle();
+  expect(bonusTabs(c).value).toBe('rigs');
+  expect(c.draft().rigSlots).toEqual([43920, null, null]);
 });

@@ -48,12 +48,15 @@ const render = (editing: CustomStructureRow | null) =>
     }),
   );
 
+const tabs = (html: string) => [...html.matchAll(/role="tab"[^>]*>([^<]+)</g)].map(([, name]) => name);
+const selectedTab = (html: string) => /role="tab" aria-selected="true"[^>]*>([^<]+)</.exec(html)?.[1];
+
 test('a new structure starts unnamed and unpinned, with typed values for manufacturing only', () => {
   const html = render(null);
   expect(html).toContain('aria-label="New structure"');
   expect(html).not.toContain('>Delete<');
-  expect(html).toContain('>Bonuses<');
-  expect(html).toContain('Paste fit');
+  expect(tabs(html)).toEqual(['Bonuses', 'Rigs', 'Paste fit']);
+  expect(selectedTab(html)).toBe('Bonuses');
   expect(html).toContain('aria-label="Manufacturing material bonus"');
   expect(html).not.toContain('aria-label="Reaction material bonus"');
   expect(html).toContain('aria-label="Facility tax"');
@@ -63,9 +66,9 @@ test('a rigged structure opens on its rigs, pinned to its system with that syste
   const html = render(row({}));
   expect(html).toContain('aria-label="Edit structure"');
   expect(html).toContain('>Delete<');
-  expect(html).toContain('>Rigs<');
-  expect(html).toContain('Enter values');
-  expect(html).not.toContain('Paste fit');
+  expect(selectedTab(html)).toBe('Rigs');
+  expect(html).toContain('aria-label="Rig slot 1"');
+  expect(html).not.toContain('aria-label="Manufacturing material bonus"');
   expect(html).toContain('value="Amamake"');
   expect(html).toContain('>0.4<');
 });
@@ -80,7 +83,7 @@ test('a refinery with typed values offers its reaction bonuses too', () => {
       bonuses: { manufacturing: { me: 0, te: 0, cost: 0 }, reactions: { me: 2.4, te: 25 } },
     }),
   );
-  expect(html).toContain('>Bonuses<');
+  expect(selectedTab(html)).toBe('Bonuses');
   expect(html).toContain('aria-label="Reaction material bonus"');
   expect(html).toContain('aria-label="Reaction time bonus"');
   expect(html).toContain('>-0.4<');
