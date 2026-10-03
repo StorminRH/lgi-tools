@@ -1,5 +1,6 @@
 'use client';
 
+import type { HullName } from '@/components/composition/industry-workspace/FacilitiesPanel';
 import { ProfileWorkspace } from '@/components/composition/industry-workspace/ProfileWorkspace';
 import { useCorpJobsLive } from '@/features/industry-jobs/use-corp-jobs-live';
 import { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
@@ -11,13 +12,20 @@ import { useJobsLive } from '@/features/industry-jobs/use-jobs-live';
 export function IndustryLanding({
   characterIds,
   corpEligibleCharacterIds,
+  hulls,
 }: {
   characterIds: number[];
   corpEligibleCharacterIds: number[];
+  hulls: HullName[];
 }) {
   const jobsLive = useJobsLive(characterIds);
   const corpLive = useCorpJobsLive(corpEligibleCharacterIds);
   return (
-    <ProfileWorkspace jobs={jobsLive} corp={corpLive} corpEligible={corpEligibleCharacterIds.length > 0} />
+    <ProfileWorkspace
+      jobs={jobsLive}
+      corp={corpLive}
+      corpEligible={corpEligibleCharacterIds.length > 0}
+      hulls={hulls}
+    />
   );
 }

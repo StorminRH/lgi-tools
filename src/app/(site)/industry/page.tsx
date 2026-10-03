@@ -5,6 +5,7 @@ import { WorkspaceSkeleton } from '@/components/composition/industry-workspace/W
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
+import { getStructureTypes } from '@/data/eve-data/queries';
 import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
 import { IndustryLanding } from './IndustryLanding';
@@ -14,7 +15,7 @@ import { JobsContent, JobsLoading } from './JobsContent';
 export const metadata: Metadata = {
   title: 'Industry Planner',
   description:
-    'Your Eve Online industry workspace — set up production profiles for your characters and structures: who runs reactions, components and final assembly, where, and with what skills and job slots.',
+    'Your Eve Online industry workspace — set up production profiles for your characters and structures: who builds what, where, and with what skills and job slots.',
   alternates: { canonical: '/industry' },
   openGraph: {
     title: 'Industry Planner — LGI.tools',
@@ -31,8 +32,9 @@ function jobCharacterIds() {
 }
 
 async function Workspace() {
-  const [characterIds, corpIds] = await jobCharacterIds();
-  return <IndustryLanding characterIds={characterIds} corpEligibleCharacterIds={corpIds} />;
+  const [[characterIds, corpIds], structureTypes] = await Promise.all([jobCharacterIds(), getStructureTypes()]);
+  const hulls = structureTypes.map((t) => ({ typeId: t.typeId, name: t.name }));
+  return <IndustryLanding characterIds={characterIds} corpEligibleCharacterIds={corpIds} hulls={hulls} />;
 }
 
 export default function IndustryDashboardPage() {

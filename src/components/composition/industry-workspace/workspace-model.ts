@@ -2,16 +2,9 @@ import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { JobCategory } from '@/features/industry-jobs/industry-jobs-styles';
 import { countUsedSlots, type SlotCapacity, slotCapacity } from '@/features/industry-jobs/slots';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
-import {
-  type FacilityRef,
-  type ProfileDocument,
-  RESPONSIBILITIES,
-  type Responsibility,
-} from '@/features/industry-planner/profiles/profile-document';
-import { RESPONSIBILITY_LABELS } from '@/features/industry-planner/profiles/responsibilities';
+import { type CategoryKey, categoryName } from '@/features/industry-planner/profiles/production-categories';
+import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import { type AppliedTimeSkill, skillTimeBreakdown } from '@/features/industry-planner/skill-time';
-import { parseFacilityValue } from '@/features/industry-planner/facility-value';
-import type { AvailableStructure } from '@/features/industry-planner/types';
 import { type BoardView, OVERVIEW } from '../board/board-view-model';
 
 export const SLOT_POOLS: readonly JobCategory[] = ['manufacturing', 'reactions', 'science'];
@@ -69,7 +62,7 @@ export interface RailMember {
   name: string;
   portraitUrl: string | null;
   linked: boolean;
-  roles: Responsibility[];
+  categories: CategoryKey[];
 }
 
 export function railMembers(doc: ProfileDocument, roster: readonly RosterCharacter[]): RailMember[] {
@@ -81,18 +74,14 @@ export function railMembers(doc: ProfileDocument, roster: readonly RosterCharact
       name: linked?.name ?? member.name,
       portraitUrl: linked?.portraitUrl ?? null,
       linked: linked !== undefined,
-      roles: RESPONSIBILITIES.filter((r) =>
-        doc.rules.some((rule) => rule.characterId === member.characterId && rule.responsibility === r),
-      ),
+      categories: member.categories,
     };
   });
 }
 
-/** What a member is responsible for, in one line. */
-export function roleLine(member: RailMember): string {
-  return member.roles.length === 0
-    ? 'No responsibilities'
-    : member.roles.map((role) => RESPONSIBILITY_LABELS[role]).join(' · ');
+/** What a member builds, in one line. */
+export function roleLine(member: Pick<RailMember, 'categories'>): string {
+  return member.categories.length === 0 ? 'Nothing assigned' : member.categories.map(categoryName).join(' · ');
 }
 
 export function addableCharacters(
@@ -104,8 +93,8 @@ export function addableCharacters(
 }
 
 // ---------------------------------------------------------------------------
-// Capacity: one character is one set of slots however many responsibilities
-// it holds. Unknown stays unknown: a character without synced skills has no
+// Capacity: one character is one set of slots however many categories it
+// covers. Unknown stays unknown: a character without synced skills has no
 // known capacity, and one without a readable job feed has no known usage.
 
 export interface MemberCapacity {
@@ -160,6 +149,16 @@ export function poolSummaries(
   return pools;
 }
 
+/**
+ * Used over capacity when usage is known; capacity alone otherwise. "+" marks
+ * capacity still syncing, and "?" a pool no one's skills have synced for yet.
+ */
+export function poolFigure(pool: PoolSummary): string {
+  const unknownAll = pool.unknownCapacity > 0 && pool.capacity === 0;
+  const capacity = unknownAll ? '?' : pool.unknownCapacity > 0 ? `${pool.capacity}+` : String(pool.capacity);
+  return pool.unknownUsed > 0 || unknownAll ? capacity : `${pool.used}/${capacity}`;
+}
+
 // ---------------------------------------------------------------------------
 // A character's own production skills: general job-time skills and the
 // skills behind each slot pool. Product-specific skills are not shown here
@@ -174,25 +173,4 @@ export function memberSkills(levels: Record<string, number> | null): MemberSkill
   if (levels === null) return null;
   const breakdown = skillTimeBreakdown({ levels, nodeTimeSkills: {} });
   return { manufacturing: breakdown.manufacturing, reactions: breakdown.reaction };
-}
-
-// ---------------------------------------------------------------------------
-// Facilities used by the profile defaults.
-
-export type ResponsibilityActivity = 'manufacturing' | 'reactions';
-
-/**
- * The facility a picker value names: null to clear it, undefined to leave it
- * alone (re-picking the current one, or a structure that has since gone).
- */
-export function facilityForValue(
-  raw: string,
-  current: FacilityRef | null,
-  structures: readonly AvailableStructure[] | null,
-): FacilityRef | null | undefined {
-  const selection = parseFacilityValue(raw);
-  if (selection.kind !== 'structure') return null;
-  if (selection.id === current?.id) return undefined;
-  const structure = structures?.find((s) => s.id === selection.id);
-  return structure === undefined ? undefined : { id: structure.id, name: structure.name };
 }

@@ -42,7 +42,7 @@ function IntroCard({ children }: { children: ReactNode }) {
 }
 
 const INTRO =
-  'A production profile describes how you actually build: which characters are on the team, who runs reactions, components and final assembly, and where.';
+  'A production profile describes how you actually build: which characters are on the team, where you build, and who builds what.';
 
 export function SignedOutWorkspace() {
   return (

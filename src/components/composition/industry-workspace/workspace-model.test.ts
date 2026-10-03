@@ -2,11 +2,9 @@ import { expect, test } from 'vitest';
 import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { emptyProfileDocument } from '@/features/industry-planner/profiles/profile-document';
-import { setResponsibility } from '@/features/industry-planner/profiles/responsibilities';
-import type { AvailableStructure } from '@/features/industry-planner/types';
+import { setMemberCategories } from '@/features/industry-planner/profiles/assignments';
 import {
   type CapacitySources,
-  facilityForValue,
   memberCapacity,
   memberView,
   poolSummaries,
@@ -133,48 +131,15 @@ test('a member on the profile opens on its own; anything else shows the whole pr
   expect(memberView(String(REACTOR), null)).toEqual({ view: 'overview' });
 });
 
-test('the rail names each member, linked or not, with what it is responsible for', () => {
+test('the rail names each member, linked or not, with what it builds', () => {
   let doc = emptyProfileDocument([
     { characterId: BUILDER, name: 'Builder (saved)' },
     { characterId: GONE, name: 'Gone' },
   ]);
-  doc = setResponsibility(doc, BUILDER, 'final-assembly', true);
-  doc = setResponsibility(doc, BUILDER, 'components', true);
+  doc = setMemberCategories(doc, BUILDER, ['capital-ships', 'advanced-components']);
   const [builder, gone] = railMembers(doc, [{ characterId: BUILDER, name: 'Builder', portraitUrl: 'p/101' }]);
   expect(builder).toMatchObject({ name: 'Builder', portraitUrl: 'p/101', linked: true });
-  expect(roleLine(builder!)).toBe('Components · Final assembly');
+  expect(roleLine(builder!)).toBe('Capital ships · Advanced components');
   expect(gone).toMatchObject({ name: 'Gone', portraitUrl: null, linked: false });
-  expect(roleLine(gone!)).toBe('No responsibilities');
-});
-
-const structure = (overrides: Partial<AvailableStructure>): AvailableStructure => ({
-  id: 's1',
-  source: 'custom',
-  name: 'Sotiyo',
-  structureTypeId: 35827,
-  groupId: 1404,
-  systemId: null,
-  targetFilterSets: [[2]],
-  modifiers: [
-    // Hull: −1% material, −3% job cost, −15% time, on every manufacturing job.
-    { activity: 'manufacturing', kind: 'material', filterId: null, factor: { high: 0.99, low: 0.99, null: 0.99 } },
-    { activity: 'manufacturing', kind: 'cost', filterId: null, factor: { high: 0.97, low: 0.97, null: 0.97 } },
-    { activity: 'manufacturing', kind: 'time', filterId: null, factor: { high: 0.85, low: 0.85, null: 0.85 } },
-    // One equipment rig: −2% material and −20% time, scaled ×1 / ×1.9 / ×2.1 by security band.
-    { activity: 'manufacturing', kind: 'material', filterId: 2, factor: { high: 0.98, low: 0.962, null: 0.958 } },
-    { activity: 'manufacturing', kind: 'time', filterId: 2, factor: { high: 0.8, low: 0.62, null: 0.58 } },
-  ],
-  enteredBonuses: null,
-  securityClass: null,
-  taxPct: 1.5,
-  ...overrides,
-});
-
-test('a picked facility becomes a named reference, and gone or unchanged picks change nothing', () => {
-  const list = [structure({ id: 'corp:5', name: 'Azbel' })];
-  expect(facilityForValue('structure:corp:5', null, list)).toEqual({ id: 'corp:5', name: 'Azbel' });
-  expect(facilityForValue('', { id: 'corp:5', name: 'Azbel' }, list)).toBeNull();
-  // Re-picking the unavailable entry that stands for the current facility keeps it.
-  expect(facilityForValue('structure:gone', { id: 'gone', name: 'Old Fort' }, list)).toBeUndefined();
-  expect(facilityForValue('structure:corp:9', null, list)).toBeUndefined();
+  expect(roleLine(gone!)).toBe('Nothing assigned');
 });

@@ -93,4 +93,11 @@ export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const;
 
 export const DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL = 1982;
 
+/**
+ * Standup Capital Shipyard I: the service module a structure must fit to build
+ * capital ships. Which hulls take it comes from the module's own
+ * canFitShipType / canFitShipGroup attributes, not from a list kept here.
+ */
+export const SDE_CAPITAL_SHIPYARD_TYPE_ID = 35881;
+
 export const BLUEPRINT_STRUCTURE_TAG = 'blueprint-structure';

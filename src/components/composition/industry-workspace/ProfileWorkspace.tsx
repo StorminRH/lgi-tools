@@ -12,12 +12,8 @@ import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
-import { type ProfileDocument, RESPONSIBILITIES } from '@/features/industry-planner/profiles/profile-document';
-import {
-  addMember,
-  setDefaultFacility,
-  setResponsibility,
-} from '@/features/industry-planner/profiles/responsibilities';
+import { addMember, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
+import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';
 import {
   type IndustryProfilesState,
   useIndustryProfiles,
@@ -28,6 +24,7 @@ import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { OVERVIEW_MOTION } from '../board/board-motion';
 import { useFocusView } from '../board/use-focus-view';
+import type { HullName } from './FacilitiesPanel';
 import { MemberSheet } from './MemberDetail';
 import { MemberRail } from './MemberRail';
 import { ProfileBar, type ProfileAction } from './ProfileBar';
@@ -142,6 +139,7 @@ interface BoardData {
   capacities: ReadonlyMap<number, MemberCapacity>;
   levels: ReadonlyMap<number, Record<string, number> | null>;
   structures: readonly AvailableStructure[] | null;
+  hulls: readonly HullName[];
 }
 
 /**
@@ -165,7 +163,7 @@ function ProfileBoard({
   const doc = profile.document;
   const resolve = useCallback((param: string | null) => memberView(param, doc), [doc]);
   const { view, open, toOverview, rootRef, backRef } = useFocusView(resolve, 'data-member-id');
-  const { roster, capacities, levels, structures } = data;
+  const { roster, capacities, levels, structures, hulls } = data;
   const members = railMembers(doc, roster);
   const member = view.view === 'character' ? members.find((m) => m.characterId === view.characterId) : undefined;
 
@@ -213,7 +211,8 @@ function ProfileBoard({
           capacities={capacities}
           doc={doc}
           structures={structures}
-          onDefault={(activity, next) => onEdit(setDefaultFacility(doc, activity, next))}
+          hulls={hulls}
+          onEdit={onEdit}
         />
       </ViewTransition>
     </div>
@@ -226,12 +225,14 @@ function ProfileWorkspaceBody({
   jobs,
   corp,
   corpEligible,
+  hulls,
 }: {
   state: IndustryProfilesState & { profiles: IndustryProfileRow[] };
   roster: RosterCharacter[];
   jobs: WorkspaceJobs;
   corp: WorkspaceCorpJobs;
   corpEligible: boolean;
+  hulls: readonly HullName[];
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const structures = useAvailableStructures();
@@ -281,7 +282,7 @@ function ProfileWorkspaceBody({
             onAction={(action: ProfileAction) => setDialog({ kind: action })}
           />
         }
-        data={{ roster, capacities, levels, structures, characters: board.response?.characters ?? [], now: board.now }}
+        data={{ roster, capacities, levels, structures, hulls, characters: board.response?.characters ?? [], now: board.now }}
         onEdit={(next) => state.save(profile.id, { name: profile.name, document: next })}
         onRemove={(characterId) => setDialog({ kind: 'remove-member', characterId })}
       />
@@ -326,14 +327,7 @@ function OpenMember({
       capacities={capacities}
       onBack={onBack}
       backRef={backRef}
-      onRoles={(roles) =>
-        onEdit(
-          RESPONSIBILITIES.reduce(
-            (next, r) => setResponsibility(next, characterId, r, roles.includes(r)),
-            doc,
-          ),
-        )
-      }
+      onCategories={(categories) => onEdit(setMemberCategories(doc, characterId, categories))}
       onRemove={() => onRemove(characterId)}
     />
   );
@@ -349,10 +343,12 @@ export function ProfileWorkspace({
   jobs,
   corp,
   corpEligible,
+  hulls,
 }: {
   jobs: WorkspaceJobs;
   corp: WorkspaceCorpJobs;
   corpEligible: boolean;
+  hulls: readonly HullName[];
 }) {
   const { session, loading } = useAuth();
   const state = useIndustryProfiles(session !== null);
@@ -371,6 +367,7 @@ export function ProfileWorkspace({
       jobs={jobs}
       corp={corp}
       corpEligible={corpEligible}
+      hulls={hulls}
     />
   );
 }

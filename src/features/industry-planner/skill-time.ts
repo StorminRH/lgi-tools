@@ -84,33 +84,34 @@ export function skillTimeBreakdown(args: {
   };
 }
 
+export type NodeTimeSkill = { skillTypeId: number; timePctPerLevel: number };
+
+/** One character's time factor on one job: the activity's general skills, then the product's own. */
+export function jobSkillTimeFactor(
+  levels: Record<string, number>,
+  activityId: number | undefined,
+  nodeSkills: readonly NodeTimeSkill[],
+): number {
+  const levelOf = (skillTypeId: number): number => levels[String(skillTypeId)] ?? 0;
+  if (activityId === REACTION_ACTIVITY) return term(REACTIONS_TIME_PCT_PER_LEVEL, levelOf(REACTIONS_SKILL_ID));
+  if (activityId !== MANUFACTURING_ACTIVITY) return 1;
+  let factor =
+    term(INDUSTRY_TIME_PCT_PER_LEVEL, levelOf(INDUSTRY_SKILL_ID)) *
+    term(ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL, levelOf(ADVANCED_INDUSTRY_SKILL_ID));
+  for (const skill of nodeSkills) factor *= term(skill.timePctPerLevel, levelOf(skill.skillTypeId));
+  return factor;
+}
+
 export function skillTimeFactorsFor(args: {
   levels: Record<string, number> | null;
   nodeActivityByBlueprint: Record<number, number>;
-  nodeTimeSkills: Record<number, { skillTypeId: number; timePctPerLevel: number }[]>;
+  nodeTimeSkills: Record<number, NodeTimeSkill[]>;
 }): SkillTimeFactors {
   const { levels, nodeActivityByBlueprint, nodeTimeSkills } = args;
   if (levels === null) return NO_SKILL_FACTORS;
-
-  const levelOf = (skillTypeId: number): number => levels[String(skillTypeId)] ?? 0;
-  const manufacturingFactor =
-    term(INDUSTRY_TIME_PCT_PER_LEVEL, levelOf(INDUSTRY_SKILL_ID)) *
-    term(ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL, levelOf(ADVANCED_INDUSTRY_SKILL_ID));
-  const reactionFactor = term(REACTIONS_TIME_PCT_PER_LEVEL, levelOf(REACTIONS_SKILL_ID));
-
   return {
-    skillTimeFactorOf: (blueprintTypeId) => {
-      const activity = nodeActivityByBlueprint[blueprintTypeId];
-      if (activity === MANUFACTURING_ACTIVITY) {
-        let factor = manufacturingFactor;
-        for (const skill of nodeTimeSkills[blueprintTypeId] ?? []) {
-          factor *= term(skill.timePctPerLevel, levelOf(skill.skillTypeId));
-        }
-        return factor;
-      }
-      if (activity === REACTION_ACTIVITY) return reactionFactor;
-      return 1;
-    },
+    skillTimeFactorOf: (blueprintTypeId) =>
+      jobSkillTimeFactor(levels, nodeActivityByBlueprint[blueprintTypeId], nodeTimeSkills[blueprintTypeId] ?? []),
     active: true,
   };
 }

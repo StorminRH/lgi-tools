@@ -203,6 +203,16 @@ const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } 
       return null;
     },
   },
+  profileId: {
+    schema: snapshotFieldSchemas.profileId,
+    fallback: null,
+    capture: (ctx) => ctx.profile?.id ?? null,
+    apply: (a, value) => {
+      const known = value === null || (a.ctx.profiles?.some((p) => p.id === value) ?? true);
+      a.ctx.setProfileId(known ? value : null);
+      return known ? null : 'Its production profile was deleted — using the planner\'s own picks';
+    },
+  },
   station: {
     schema: snapshotFieldSchemas.station,
     fallback: null,
@@ -249,12 +259,14 @@ export const SETTER_CLASSIFICATION = {
   setMarginMode: 'marginMode',
   setMultibuyMode: 'multibuyMode',
   setMultibuyUncheckedTiers: 'multibuyUncheckedTiers',
+  setProfileId: 'profileId',
 } as const satisfies Record<MutatorKeys, TemplateFieldKey | 'derived-or-account' | 'exempt'>;
 
 export const PREF_CLASSIFICATION: Readonly<Record<string, TemplateFieldKey | 'exempt'>> = {
   'planner.buildLocation': 'buildSystem',
   'planner.buildCharacterId': 'buildCharacterId',
   'industry.costBasis': 'costBasis',
+  'planner.profileId': 'profileId',
   // Which profile the workspace shows is navigation context; templates record
   // their own profile reference.
   'industry.profileId': 'exempt',

@@ -15,8 +15,8 @@ const RIG_A = 43704;
 const RIG_B = 43705;
 
 const STRUCTURE_TYPES: StructureTypeRow[] = [
-  { typeId: RAITARU, name: 'Raitaru', groupId: 1404 },
-  { typeId: ATHANOR, name: 'Athanor', groupId: 1406 },
+  { typeId: RAITARU, name: 'Raitaru', groupId: 1404, hostsCapitals: false },
+  { typeId: ATHANOR, name: 'Athanor', groupId: 1406, hostsCapitals: false },
 ];
 
 const flat = (f: number) => ({ high: f, low: f, null: f });
@@ -90,6 +90,7 @@ describe('buildAvailableStructures', () => {
         name: 'My Raitaru',
         structureTypeId: RAITARU,
         groupId: 1404,
+        hostsCapitals: false,
         systemId: 30002187,
         targetFilterSets: TARGET_FILTER_SETS,
         modifiers: [RAITARU_MATERIAL, RAITARU_TIME, RIG_A_MATERIAL],
@@ -121,6 +122,7 @@ describe('buildAvailableStructures', () => {
       name: 'Corp Athanor',
       structureTypeId: ATHANOR,
       groupId: 1406,
+      hostsCapitals: false,
       systemId: 30000142,
       securityClass: 'high',
       taxPct: 0.5,
@@ -161,6 +163,17 @@ describe('buildAvailableStructures', () => {
     expect(rows.map((r) => r.modifiers)).toEqual([
       [RAITARU_MATERIAL, RAITARU_TIME, RIG_A_MATERIAL],
       [RAITARU_MATERIAL, RAITARU_TIME],
+    ]);
+  });
+
+  it('carries whether each hull can fit a capital shipyard', () => {
+    const SOTIYO = 35827;
+    const types = [...STRUCTURE_TYPES, { typeId: SOTIYO, name: 'Sotiyo', groupId: 1404, hostsCapitals: true }];
+    const rows = buildAvailableStructures([custom(), custom({ id: 'uuid-2', structureTypeId: SOTIYO })], [corp({ typeId: SOTIYO })], types, MODIFIERS, TARGET_FILTER_SETS);
+    expect(rows.map((r) => [r.id, r.hostsCapitals])).toEqual([
+      ['uuid-1', false],
+      ['uuid-2', true],
+      ['corp:1035000000000', true],
     ]);
   });
 

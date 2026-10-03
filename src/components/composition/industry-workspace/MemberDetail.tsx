@@ -4,18 +4,13 @@ import { type ReactNode, type Ref, ViewTransition } from 'react';
 import type { BoardCharacter } from '@/composition/board/api-contract';
 import { CharacterIdentity } from '../board/sections/CharacterIdentity';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { eyebrow } from '@/components/ui/type-roles';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { Pill } from '@/components/ui/pill';
-import {
-  RESPONSIBILITIES,
-  type Responsibility,
-} from '@/features/industry-planner/profiles/profile-document';
-import { RESPONSIBILITY_LABELS } from '@/features/industry-planner/profiles/responsibilities';
+import type { CategoryKey } from '@/features/industry-planner/profiles/production-categories';
 import { formatBonusPct } from '@/features/industry-planner/structure-bonus-view';
 import { PANELS_MOTION, SHEET_MOTION } from '../board/board-motion';
 import { SectionPanel } from '../board/SectionBody';
+import { CategoryChecklist } from './CategoryChecklist';
 import { ProductionCapacity } from './ProductionCapacity';
 import {
   type MemberCapacity,
@@ -30,29 +25,19 @@ function level(n: number): string {
   return ROMAN[n] ?? String(n);
 }
 
-function ResponsibilitiesPicker({
+function MemberCategories({
   member,
-  onRoles,
+  onCategories,
 }: {
   member: RailMember;
-  onRoles: (roles: Responsibility[]) => void;
+  onCategories: (categories: CategoryKey[]) => void;
 }) {
   return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className={`${eyebrow()} mb-3`}>Responsibilities</legend>
-      {RESPONSIBILITIES.map((responsibility) => (
-        <label key={responsibility} className="flex cursor-pointer items-center gap-2.5 text-ui text-name">
-          <Checkbox
-            checked={member.roles.includes(responsibility)}
-            onCheckedChange={(checked) => onRoles(RESPONSIBILITIES.filter((role) =>
-              role === responsibility ? checked : member.roles.includes(role),
-            ))}
-            label={RESPONSIBILITY_LABELS[responsibility]}
-          />
-          {RESPONSIBILITY_LABELS[responsibility]}
-        </label>
-      ))}
-    </fieldset>
+    <SectionPanel title="Builds">
+      <div className="px-3.5 py-3">
+        <CategoryChecklist label={`What ${member.name} builds`} categories={member.categories} onChange={onCategories} />
+      </div>
+    </SectionPanel>
   );
 }
 
@@ -109,14 +94,12 @@ function MemberHeader({
   now,
   member,
   skills,
-  onRoles,
   onRemove,
 }: {
   character: BoardCharacter | null;
   now: number;
   member: RailMember;
   skills: MemberSkills | null;
-  onRoles: (roles: Responsibility[]) => void;
   onRemove: () => void;
 }) {
   return (
@@ -140,7 +123,6 @@ function MemberHeader({
           Link this character again to use its skills and jobs, or remove it from the profile.
         </p>
       )}
-      <ResponsibilitiesPicker member={member} onRoles={onRoles} />
       {member.linked ? <SkillsPanel skills={skills} /> : null}
       <Button
         variant="ghost"
@@ -156,8 +138,8 @@ function MemberHeader({
 }
 
 /**
- * One member opened from the rail: identity, responsibilities, and production skills on the
- * left, capacity on the right. Each part is a direct child of the
+ * One member opened from the rail: identity and production skills on the
+ * left, capacity and what they build on the right. Each part is a direct child of the
  * caller's persistent container: React runs enter and exit only on a
  * <ViewTransition> with no new DOM node above it.
  */
@@ -170,7 +152,7 @@ export function MemberSheet({
   capacities,
   onBack,
   backRef,
-  onRoles,
+  onCategories,
   onRemove,
 }: {
   controls: ReactNode;
@@ -181,7 +163,7 @@ export function MemberSheet({
   capacities: ReadonlyMap<number, MemberCapacity>;
   onBack: () => void;
   backRef: Ref<HTMLButtonElement>;
-  onRoles: (roles: Responsibility[]) => void;
+  onCategories: (categories: CategoryKey[]) => void;
   onRemove: () => void;
 }) {
   const skills = member.linked ? memberSkills(levels) : null;
@@ -198,12 +180,13 @@ export function MemberSheet({
           >
             <span aria-hidden>←</span> All members
           </Button>
-          <MemberHeader character={character} now={now} member={member} skills={skills} onRoles={onRoles} onRemove={onRemove} />
+          <MemberHeader character={character} now={now} member={member} skills={skills} onRemove={onRemove} />
         </div>
       </ViewTransition>
       <ViewTransition {...PANELS_MOTION} default="none">
         <div className="flex min-w-0 flex-col gap-4 self-start">
           <ProductionCapacity members={[member]} capacities={capacities} />
+          <MemberCategories member={member} onCategories={onCategories} />
         </div>
       </ViewTransition>
     </>
