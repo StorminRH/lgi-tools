@@ -16,12 +16,10 @@ describe('syncErrorMeta', () => {
 
 describe('emptyDataText', () => {
   it('tells a reconnect-needed character it will never sync', () => {
-    expect(emptyDataText(true, false)).toBe('Nothing synced for this character.');
-    expect(emptyDataText(true, true)).toBe('Nothing synced for this character.');
+    expect(emptyDataText(true)).toBe('Nothing synced for this character.');
   });
 
-  it('distinguishes an in-flight sync from a pre-first-sync wait', () => {
-    expect(emptyDataText(false, true)).toBe('Syncing…');
-    expect(emptyDataText(false, false)).toBe('Awaiting first sync.');
+  it('waits on a character that has not synced yet', () => {
+    expect(emptyDataText(false)).toBe('Awaiting first sync.');
   });
 });

@@ -11,7 +11,6 @@ export function syncErrorMeta(code: string): { label: string; tone: Tone } {
   return SYNC_ERROR_META[code] ?? { label: `Sync failed (${code})`, tone: 'orange' };
 }
 
-export function emptyDataText(needsReconnect: boolean, syncing: boolean): string {
-  if (needsReconnect) return 'Nothing synced for this character.';
-  return syncing ? 'Syncing…' : 'Awaiting first sync.';
+export function emptyDataText(needsReconnect: boolean): string {
+  return needsReconnect ? 'Nothing synced for this character.' : 'Awaiting first sync.';
 }

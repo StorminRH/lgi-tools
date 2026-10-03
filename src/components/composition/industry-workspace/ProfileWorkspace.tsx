@@ -10,7 +10,7 @@ import { useAccountCharacters } from '@/components/use-account-characters';
 import { flattenJobs } from '@/features/industry-jobs/flatten-jobs';
 import type { ViewerCorpJobs, ViewerJobs } from '@/features/industry-jobs/live-derive';
 import { useSlotsLive } from '@/features/industry-jobs/use-slots-live';
-import { LoadFailed } from '@/features/industry-planner/components/LoadFailed';
+import { LoadFailed } from '@/components/ui/load-failed';
 import type { IndustryProfileRow } from '@/features/industry-planner/profiles/api-contract';
 import { addMember, setMemberCategories } from '@/features/industry-planner/profiles/assignments';
 import type { ProfileDocument } from '@/features/industry-planner/profiles/profile-document';

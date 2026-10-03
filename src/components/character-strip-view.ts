@@ -30,7 +30,6 @@ export function deriveStripView(
   characters: PanelCharacter[],
   dimmedIds: readonly number[],
   loading: boolean,
-  failure: string | null = null,
 ): CharacterStripView {
   const hasStrip = strip !== undefined;
   const visible = hasStrip ? visibleCharacters(characters, dimmedIds) : characters;
@@ -38,11 +37,6 @@ export function deriveStripView(
     hasStrip,
     visible,
     showEmptyNotice: hasStrip && visible.length === 0,
-    syncCaption: stripCaption(loading, failure),
+    syncCaption: loading ? 'Loading…' : 'Synced from ESI on view',
   };
-}
-
-function stripCaption(loading: boolean, failure: string | null): string {
-  if (loading) return 'Loading…';
-  return failure ?? 'Synced from ESI on view';
 }

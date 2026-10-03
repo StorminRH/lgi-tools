@@ -9,10 +9,11 @@ import {
 } from '@/components/live-character-card';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadFailed } from '@/components/ui/load-failed';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
-import { JOBS_LOAD_FAILED, jobRowFrameData, jobsCardModel } from '../job-view';
+import { jobRowFrameData, jobsCardModel } from '../job-view';
 import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
@@ -52,7 +53,7 @@ function LiveJobs({
   initialDimmed?: number[];
 }) {
   const eligibleIds = syncEligibleIds(characters);
-  const { jobsByCharacter, names, now, loading, failed } = useJobsLive(eligibleIds);
+  const { jobsByCharacter, names, now, loading, failed, retry } = useJobsLive(eligibleIds);
 
   return (
     <div className="reveal reveal-1 w-full flex flex-col gap-6">
@@ -61,9 +62,15 @@ function LiveJobs({
         strip={strip}
         initialDimmed={initialDimmed}
         loading={loading}
-        failure={failed ? JOBS_LOAD_FAILED : null}
+        failure={
+          failed ? (
+            <LoadFailed title="Industry jobs didn't load" retryLabel="Retry loading industry jobs" onRetry={retry} />
+          ) : null
+        }
       >
         {(visible) =>
+          // A failed read has nothing to show per character; the notice says so.
+          !failed &&
           visible.map((character) => {
             const live = jobsByCharacter.get(character.characterId);
             const data = live?.data ?? null;
@@ -76,7 +83,7 @@ function LiveJobs({
                 lastSyncedAt={live?.lastRefreshedAt}
                 hasData={data !== null}
                 isEmpty={isEmpty}
-                syncing={false}
+                loading={loading}
                 sectionLabel="Industry jobs"
                 scopePhrase="the industry scope"
                 noun="jobs"
