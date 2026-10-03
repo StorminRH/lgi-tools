@@ -20,41 +20,31 @@ export const PLANNER_TOOL_TRIGGER_CLASS = cn(
 
 export const EFFICIENCY_TONE_CLASSES: Record<
   EfficiencyToneState,
-  { fill: string; glow: string; stroke: string; text: string; frame: string }
+  { glow: string; text: string; frame: string }
 > = {
   unowned: {
-    fill: 'fill-none',
     glow: '',
-    stroke: 'stroke-muted',
     text: 'text-muted',
     // An unowned blueprint's icon looks like any other until its research says something.
     frame: 'border-transparent',
   },
   owned: {
-    fill: 'fill-evb-bright',
     glow: 'drop-shadow-[0_0_4px_var(--color-evb-glow)]',
-    stroke: 'stroke-evb-bright',
     text: 'text-evb-bright',
     frame: 'border-isk',
   },
   manual: {
-    fill: 'fill-[var(--color-dps-mid)]',
     glow: 'drop-shadow-[0_0_4px_var(--color-dps-mid)]',
-    stroke: 'stroke-[var(--color-dps-mid)]',
     text: 'text-[var(--color-dps-mid)]',
     frame: 'border-[var(--color-dps-mid)]',
   },
   bonus: {
-    fill: 'fill-[var(--color-isk)]',
     glow: 'drop-shadow-[0_0_4px_var(--color-isk)]',
-    stroke: 'stroke-[var(--color-isk)]',
     text: 'text-isk',
     frame: 'border-isk',
   },
   reaction: {
-    fill: 'fill-[var(--color-reaction-purple)]',
     glow: 'drop-shadow-[0_0_4px_var(--color-reaction-purple)]',
-    stroke: 'stroke-[var(--color-reaction-purple)]',
     text: 'text-[var(--color-reaction-purple)]',
     frame: 'border-[var(--color-reaction-purple)]',
   },

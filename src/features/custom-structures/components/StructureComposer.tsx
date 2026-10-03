@@ -357,7 +357,7 @@ export function StructureComposer({
   return (
     <section className={cn(cardSurface, 'flex flex-col overflow-hidden')} aria-label={editing ? 'Edit structure' : 'New structure'}>
       <div className="flex items-center gap-3 border-b border-border-soft px-4 py-3">
-        <StructureHullTile hullName={structure?.name ?? null} groupId={structure?.groupId ?? null} />
+        <StructureHullTile typeId={structure?.typeId ?? null} hullName={structure?.name ?? null} />
         <h3 className="flex-1 font-display text-h3 font-bold text-name">{editing ? 'Edit structure' : 'New structure'}</h3>
         <Button variant="ghost" size="sm" aria-label="Close" onClick={onClose}>
           <CloseIcon size={14} />
