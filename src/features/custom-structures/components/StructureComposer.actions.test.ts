@@ -135,12 +135,17 @@ test('a new structure says what is missing before it saves', () => {
   expect(h.apiFetch).not.toHaveBeenCalled();
 });
 
-test('picking a found structure fills its name, system and a known hull', () => {
+test('picking a found structure fills its name, system and hull, clearing rigs when the hull changes', () => {
   const c = mount(null);
   c.call(named, 'onPick', { structureId: 1, name: 'Ashab Tatara', systemId: 30004759, structureTypeId: 35836 });
   expect(c.draft()).toMatchObject({ name: 'Ashab Tatara', systemId: 30004759, structureTypeId: 35836 });
+  h.states[0] = { ...c.draft(), rigSlots: [46486, null, null] };
+  c.call(named, 'onPick', { structureId: 3, name: 'Other Tatara', systemId: 30004759, structureTypeId: 35836 });
+  expect(c.draft().rigSlots).toEqual([46486, null, null]);
   c.call(named, 'onPick', { structureId: 2, name: 'Odd Keepstar', systemId: 30002537, structureTypeId: 35834 });
-  expect(c.draft()).toMatchObject({ name: 'Odd Keepstar', systemId: 30002537, structureTypeId: 35836 });
+  expect(c.draft()).toMatchObject({ name: 'Odd Keepstar', systemId: 30002537, structureTypeId: null });
+  expect(c.draft().rigSlots).toEqual([null, null, null]);
+  c.call(hull, 'onValueChange', '35825');
   c.call(hull, 'onValueChange', '');
   expect(c.draft().structureTypeId).toBeNull();
 });
@@ -185,7 +190,7 @@ test('an edited structure updates or deletes in place, and a failed save says so
   c.button('Save');
   await settle();
   expect(h.apiFetch).toHaveBeenCalledWith(updateCustomStructureEndpoint, {
-    body: expect.objectContaining({ id: 'cs-1', name: 'Amamake Raitaru' }),
+    body: expect.objectContaining({ id: 'cs-1', name: 'Amamake Raitaru', bonuses: null }),
     cache: 'no-store',
   });
   expect(c.error()).toBe('Could not save. Try again.');

@@ -23,6 +23,7 @@ const make = (over: Partial<AvailableStructure>): AvailableStructure => ({
   groupId: SDE_ENGINEERING_COMPLEX_GROUP_ID,
   hostsCapitals: false,
   systemId: null,
+  targetFilterSets: [[2], [14], [17], [18]],
   modifiers: [],
   enteredBonuses: null,
   securityClass: null,
@@ -575,6 +576,41 @@ describe('structureBonusesAt', () => {
     const fitted = ec({ modifiers: [hull('material', 0.99), ...ME_RIG] });
     expect(structureBonusesAt(fitted, -0.4).mfg?.me).toBeCloseTo((1 - 0.99 * (1 - 0.042)) * 100, 6);
     expect(structureBonusesAt(fitted, null)).toEqual({ mfg: null, rxn: null });
+  });
+
+  it('uses attainable overlapping filters for list and no-job readouts, preserving per-job factors', () => {
+    const azbel = ec({
+      structureTypeId: 35826,
+      modifiers: [
+        hull('material', 0.99),
+        hull('time', 0.8),
+        rig('material', -2.4, 7),
+        rig('time', -24, 7),
+        rig('material', -2.4, 8),
+        rig('time', -24, 8),
+      ],
+      targetFilterSets: [[3, 7], [3, 8], [3, 7, 8]],
+    });
+    const list = structureBonusesAt(azbel, 0).mfg;
+    expect(list?.me).toBeCloseTo(10.72772416, 8);
+    expect(list?.te).toBeCloseTo(80.31872, 8);
+    const emptyBuild = structureFactorsFor({
+      selectedStructure: azbel,
+      locationSecurity: 0,
+      nodeActivityByBlueprint: {},
+      nodeFilterIds: {},
+      topBlueprintTypeId: 89637,
+    });
+    expect(emptyBuild.manufacturingBonus).toEqual(list);
+    const odysseus = structureFactorsFor({
+      selectedStructure: azbel,
+      locationSecurity: 0,
+      nodeActivityByBlueprint: { 89637: MANUFACTURING_ACTIVITY },
+      nodeFilterIds: { 89637: [3, 7, 8] },
+      topBlueprintTypeId: 89637,
+    });
+    expect(odysseus.manufacturingBonus).toEqual(list);
+    expect(odysseus.structureMeFactorOf(89637)).toBeCloseTo(0.8927227584, 10);
   });
 
   it('takes a corp structure security band from the synced row', () => {

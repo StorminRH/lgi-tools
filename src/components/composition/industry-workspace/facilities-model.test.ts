@@ -23,6 +23,7 @@ const structure = (overrides: Partial<AvailableStructure>): AvailableStructure =
   groupId: 1404,
   hostsCapitals: true,
   systemId: null,
+  targetFilterSets: [[EQUIPMENT], [COMPOSITE]],
   modifiers: [
     // Hull: −1% material, −3% job cost, −15% time, on every manufacturing job.
     { activity: 'manufacturing', kind: 'material', filterId: null, factor: { high: 0.99, low: 0.99, null: 0.99 } },

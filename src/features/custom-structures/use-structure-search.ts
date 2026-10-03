@@ -1,24 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { searchOneSource } from '@/platform/search';
-import type { StructureSearchResult } from './api-contract';
-import { structureSearchHit } from './structure-search-source';
+import { MIN_STRUCTURE_SEARCH_LENGTH, type StructureSearchResult } from './api-contract';
+import { searchStructures } from './structure-search-client';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
-/** Structures matching `query` from the scoped `structures` search source. */
+/** Structures matching `query` that the pilot's characters can dock at. Calls ESI, so it waits for a pause in typing. */
 export function useStructureSearch(query: string): StructureSearchResult[] {
   const [hits, setHits] = useState<StructureSearchResult[]>([]);
   const ctrlRef = useRef<AbortController | null>(null);
 
   const run = useCallback(async (input: string) => {
     ctrlRef.current?.abort();
+    const search = input.trim();
+    if (search.length < MIN_STRUCTURE_SEARCH_LENGTH) return setHits([]);
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
-    const results = await searchOneSource(input, 'structures', ctrl.signal).catch(() => null);
-    if (results === null || ctrl.signal.aborted) return;
-    setHits(results.flatMap((r) => structureSearchHit(r.id) ?? []));
+    const found = await searchStructures(search, ctrl.signal);
+    if (!ctrl.signal.aborted) setHits(found);
   }, []);
 
   useEffect(() => {

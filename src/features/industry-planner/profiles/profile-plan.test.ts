@@ -38,6 +38,7 @@ const structure = (
   groupId,
   hostsCapitals,
   systemId: 30002813,
+  targetFilterSets: [[EQUIPMENT], [COMPOSITE]],
   modifiers,
   securityClass: null,
   taxPct: 1,
