@@ -22,6 +22,27 @@ function makeDeps(
 }
 
 describe('createBuildSystemApplier', () => {
+  it('cancelling the profile read prevents a late result from applying or persisting', async () => {
+    let release!: (data: BuildLocationData) => void;
+    const pending = new Promise<BuildLocationData>((resolve) => { release = resolve; });
+    const deps = makeDeps(() => pending);
+    const controller = new AbortController();
+    const result = createBuildSystemApplier(deps)(JITA, { persist: true, signal: controller.signal });
+    controller.abort();
+    release(DATA);
+    await expect(result).resolves.toEqual({ status: 'superseded' });
+    expect(deps.onApplied).not.toHaveBeenCalled();
+    expect(deps.onPersist).not.toHaveBeenCalled();
+  });
+
+  it('an already cancelled profile read cannot apply a successful response', async () => {
+    const deps = makeDeps(async () => DATA);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(createBuildSystemApplier(deps)(JITA, { persist: false, signal: controller.signal })).resolves.toEqual({ status: 'superseded' });
+    expect(deps.onApplied).not.toHaveBeenCalled();
+  });
+
   it('applies the fetched data and persists when asked', async () => {
     const deps = makeDeps(async () => DATA);
     const apply = createBuildSystemApplier(deps);

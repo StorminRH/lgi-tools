@@ -128,7 +128,3 @@ export function usePreference<T>(
   const setValue = useCallback((next: T) => set?.(def, next), [set, def]);
   return [value, setValue] as const;
 }
-
-export function usePreferencesReady(): boolean {
-  return useClientStore(preferencesStore).ready;
-}

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 
 // Page entrances play once per element. Next keeps recently visited routes
 // mounted but hidden (display: none), and CSS restarts an animation whenever
@@ -17,8 +17,9 @@ function recordFinished(event: AnimationEvent): void {
 }
 
 // Marks go on when the route changes, which is when Next hides the route that
-// is being left. Marking as each entrance ends could touch server HTML inside a
-// boundary that has not hydrated yet.
+// is being left. Marking as each entrance ends, or when Strict Mode replays the
+// effect on first mount, could touch server HTML inside a boundary that has not
+// hydrated yet.
 function markFinished(): void {
   for (const element of finished) {
     if (element.isConnected) element.setAttribute('data-entered', '');
@@ -28,7 +29,12 @@ function markFinished(): void {
 
 function MarkOnRouteChange() {
   const pathname = usePathname();
-  useEffect(() => markFinished, [pathname]);
+  const shown = useRef(pathname);
+  useEffect(() => {
+    if (shown.current === pathname) return;
+    shown.current = pathname;
+    markFinished();
+  }, [pathname]);
   return null;
 }
 

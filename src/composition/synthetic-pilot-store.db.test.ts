@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   createDbTestHarness,
   seedEveAccount,
@@ -44,6 +44,11 @@ const harness = await createDbTestHarness({
 });
 
 describe.skipIf(!harness.reachable)('becomeSyntheticPilot (real Postgres)', () => {
+  beforeAll(async () => {
+    await import('./auth');
+    await import('./synthetic-pilot-store');
+  });
+
   it('rolls back the SQL identity and grants when the replacement account insert fails', async () => {
     await seedUser(harness.db, SYNTHETIC_PILOT.userId, {
       name: 'Preserve Pilot', role: 'ADMIN', activeCharacterId: 42,

@@ -27,36 +27,6 @@ export const sitesView = define<'cards' | 'table'>(
   true,
 );
 
-export const plannerBuildLocation = define<{
-  systemId: number;
-  systemName: string;
-  security: number | null;
-} | null>(
-  'planner.buildLocation',
-  z
-    .object({
-      systemId: z.number().int().positive(),
-      systemName: z.string().min(1),
-      security: z.number().nullable(),
-    })
-    .nullable(),
-  null,
-);
-
-export const plannerBuildCharacter = define<number | null>(
-  'planner.buildCharacterId',
-  z.number().int().positive().nullable(),
-  null,
-  true,
-);
-
-/** The production profile the planner builds with; null builds with the planner's own picks. */
-export const plannerProfile = define<string | null>(
-  'planner.profileId',
-  z.string().min(1).max(100).nullable(),
-  null,
-);
-
 export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'sites.detailMode',
   z.enum(['lightbox', 'expand']),
@@ -126,9 +96,6 @@ export function stripDimmedDef(surfaceId?: StripSurfaceId): PreferenceDef<number
 
 export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   sitesView,
-  plannerBuildLocation,
-  plannerBuildCharacter,
-  plannerProfile,
   sitesDetailMode,
   industryCostBasis,
   industryProfile,
@@ -142,7 +109,13 @@ const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
 export const PREFERENCE_KEYS: readonly string[] = PREFERENCES.map((p) => p.key);
 
-export const RETIRED_PREFERENCE_KEYS = ['atlas.autoLayout', 'strip.skills.dimmed'] as const;
+export const RETIRED_PREFERENCE_KEYS = [
+  'atlas.autoLayout',
+  'strip.skills.dimmed',
+  // The planner builds where its production profile says.
+  'planner.buildLocation',
+  'planner.buildCharacterId',
+] as const;
 
 export function pruneRetiredPreferences(): void {
   const store = safeStorage();
