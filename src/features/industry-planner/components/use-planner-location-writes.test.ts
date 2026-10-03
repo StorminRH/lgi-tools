@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { BuildLocationData, BlueprintStructure } from '../types';
+import type { ReactionLocationSnapshot } from '../selection-policy';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from '../structure-bonus';
 
 const h = vi.hoisted(() => ({
@@ -42,13 +43,14 @@ function resetRenderState() {
   h.cursor = 0;
   h.reads = [];
 }
-function useWrites(activityId: number, reactionSystemId: number | null = SYSTEM.systemId) {
+function useWrites(activityId: number, reactionSystemId: number | null = SYSTEM.systemId, snapshot: ReactionLocationSnapshot | null = null) {
   const state = usePlannerLocationWrites(
     { blueprintTypeId: 100, activityId } as BlueprintStructure,
     setLocation,
     reactionSystemId,
     setReactionLocation,
     setStructures,
+    snapshot,
   );
   const reaction = h.reads[0];
   if (!reaction) throw new Error('reaction reader was not registered');
@@ -129,4 +131,26 @@ test('a profile with no reaction system disables the read and cannot fetch fees'
   expect(state.reaction.enabled).toBe(false);
   await expect(state.reaction.read(new AbortController().signal)).resolves.toBeNull();
   expect(h.apiFetch).not.toHaveBeenCalled();
+});
+
+
+test('component Retry reuses a valid current reaction snapshot without clearing root fees', () => {
+  const snapshot = { systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06, adjustedPrices: new Map([[34, 10]]) };
+  let state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
+  expect(state.reaction.enabled).toBe(false);
+  state.retryLocation();
+  resetRenderState();
+  state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
+  expect(state.retry).toBe(1);
+  expect(state.reaction.enabled).toBe(false);
+  expect(setReactionLocation).not.toHaveBeenCalled();
+  expect(h.apiFetch).not.toHaveBeenCalled();
+});
+
+test.each([
+  { systemId: 30000142, blueprintTypeId: 100 },
+  { systemId: SYSTEM.systemId, blueprintTypeId: 101 },
+])('a snapshot from another system or blueprint still reads the current reaction fees: %j', (key) => {
+  const state = useWrites(REACTION_ACTIVITY, SYSTEM.systemId, { ...key, costIndex: 0.06, adjustedPrices: new Map() });
+  expect(state.reaction.enabled).toBe(true);
 });

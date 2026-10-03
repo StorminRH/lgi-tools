@@ -4,16 +4,18 @@ import type { JobRoute, PlanFacility, ProfilePlan } from '../profiles/profile-pl
 import type { BlueprintStructure, SystemJobCostIndex } from '../types';
 
 const h = vi.hoisted(() => ({
-  state: null as unknown,
-  read: null as ((signal: AbortSignal) => Promise<unknown>) | null,
-  onData: null as ((data: unknown) => void) | null,
-  enabled: false,
-  refreshKey: 0,
+  states: [null, null] as unknown[],
+  cursor: 0,
+  readCursor: 0,
+  reads: [] as { read: (signal: AbortSignal) => Promise<unknown>; onData: (data: unknown) => void; enabled: boolean; refreshKey: number }[],
   apiFetch: vi.fn(),
 }));
 
 vi.mock('react', () => ({
-  useState: () => [h.state, (data: unknown) => { h.state = data; }],
+  useState: () => {
+    const index = h.cursor++ % 2;
+    return [h.states[index], (data: unknown) => { h.states[index] = data; }];
+  },
   useMemo: <T>(make: () => T) => make(),
   useCallback: <T>(fn: T) => fn,
 }));
@@ -22,16 +24,13 @@ vi.mock('../use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>, opts: {
     enabled: boolean; onData: (data: unknown) => void; refreshKey: number;
   }) => {
-    h.read = read;
-    h.onData = opts.onData;
-    h.enabled = opts.enabled;
-    h.refreshKey = opts.refreshKey;
+    h.reads[h.readCursor++ % 2] = { read, ...opts };
   },
 }));
 
 import { useComponentFeeSources } from './use-component-fee-sources';
 
-const structure = { nodeActivityByBlueprint: { 100: 1, 110: 1, 120: 11, 130: 1 } } as unknown as BlueprintStructure;
+const structure = { blueprintTypeId: 100, nodeActivityByBlueprint: { 100: 1, 110: 1, 120: 11, 130: 1 } } as unknown as BlueprintStructure;
 const at = (systemId: number | null): PlanFacility => ({
   key: `f${systemId}`, id: `f${systemId}`, name: 'Facility', kind: 'station', structure: null,
   systemId, security: null, categories: [],
@@ -48,87 +47,135 @@ const systems: SystemJobCostIndex[] = [
 const successfulRead = { key: '30000142,30004759', bySystem: new Map(systems.map((s) => [s.systemId, s])) };
 
 beforeEach(() => {
-  h.state = null;
-  h.read = null;
-  h.onData = null;
-  h.enabled = false;
-  h.refreshKey = 0;
+  h.states = [null, null];
+  h.cursor = 0;
+  h.readCursor = 0;
+  h.reads = [];
   h.apiFetch.mockReset();
 });
 
 test('without a profile nothing is read, charged or marked failed', () => {
-  expect(useComponentFeeSources(structure, null, 0)).toEqual({ sources: null, failed: false });
-  expect(h.enabled).toBe(false);
+  expect(useComponentFeeSources(structure, null, 0, false)).toEqual({ sources: null, failed: false });
+  expect(h.reads[0]!.enabled).toBe(false);
 });
 
 test("reads each job's system once, with the product's fallback for unplaced jobs", async () => {
-  useComponentFeeSources(structure, plan, 0);
+  useComponentFeeSources(structure, plan, 0, false);
   h.apiFetch.mockResolvedValue({ ok: true, data: { systems } });
   const signal = new AbortController().signal;
-  expect(await h.read!(signal)).toEqual(successfulRead);
+  expect(await h.reads[0]!.read(signal)).toEqual(successfulRead);
   expect(h.apiFetch.mock.calls[0]![1]).toMatchObject({ body: { systemIds: [30000142, 30004759] }, signal });
-  expect(h.enabled).toBe(true);
+  expect(h.reads[0]!.enabled).toBe(true);
 });
 
 test.each(['response', 'network'])('%s failure persists through retry until the current read succeeds', async (failure) => {
-  useComponentFeeSources(structure, plan, 0);
+  useComponentFeeSources(structure, plan, 0, false);
   if (failure === 'response') h.apiFetch.mockResolvedValueOnce({ ok: false });
   else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
-  h.onData!(await h.read!(new AbortController().signal));
-  let result = useComponentFeeSources(structure, plan, 0);
+  h.reads[0]!.onData(await h.reads[0]!.read(new AbortController().signal));
+  let result = useComponentFeeSources(structure, plan, 0, false);
   expect(result.failed).toBe(true);
   expect(result.sources!.costIndexOf(30000142, true)).toBeNull();
-  result = useComponentFeeSources(structure, plan, 1);
-  expect(h.refreshKey).toBe(1);
+  result = useComponentFeeSources(structure, plan, 1, false);
+  expect(h.reads[0]!.refreshKey).toBe(1);
   expect(result.failed).toBe(true);
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { systems } });
-  h.onData!(await h.read!(new AbortController().signal));
-  result = useComponentFeeSources(structure, plan, 1);
+  h.reads[0]!.onData(await h.reads[0]!.read(new AbortController().signal));
+  result = useComponentFeeSources(structure, plan, 1, false);
   expect(result.failed).toBe(false);
   expect(result.sources!.costIndexOf(30000142, true)).toBe(0.02);
 });
 
 test('until read, every job is missing its index; once read it uses its own activity', () => {
-  const pending = useComponentFeeSources(structure, plan, 0);
+  const pending = useComponentFeeSources(structure, plan, 0, false);
   expect(pending.failed).toBe(false);
   expect(pending.sources!.siteOf(120).systemId).toBe(30000142);
   expect(pending.sources!.costIndexOf(30000142, true)).toBeNull();
-  h.state = successfulRead;
-  const { sources } = useComponentFeeSources(structure, plan, 0);
+  h.states[1] = successfulRead;
+  const { sources } = useComponentFeeSources(structure, plan, 0, false);
   expect(sources!.costIndexOf(30000142, true)).toBe(0.02);
   expect(sources!.costIndexOf(30004759, false)).toBe(0.05);
   expect(sources!.costIndexOf(30004759, true)).toBeNull();
 });
 
 test('other-system data and failures are ignored for the current profile', () => {
-  h.state = { key: '30000142', bySystem: successfulRead.bySystem };
-  expect(useComponentFeeSources(structure, plan, 0).sources!.costIndexOf(30000142, true)).toBeNull();
-  h.state = { key: '30000142', bySystem: null };
-  expect(useComponentFeeSources(structure, plan, 0).failed).toBe(false);
+  h.states[1] = { key: '30000142', bySystem: successfulRead.bySystem };
+  expect(useComponentFeeSources(structure, plan, 0, false).sources!.costIndexOf(30000142, true)).toBeNull();
+  h.states[1] = { key: '30000142', bySystem: null };
+  expect(useComponentFeeSources(structure, plan, 0, false).failed).toBe(false);
 });
 
 test('a profile with no known systems reads nothing and does not show an old failure', () => {
-  h.state = { key: '30000142,30004759', bySystem: null };
+  h.states[1] = { key: '30000142,30004759', bySystem: null };
   const nowhere = { top: route(null), routeOf: () => route(null) } as unknown as ProfilePlan;
-  const result = useComponentFeeSources(structure, nowhere, 0);
+  const result = useComponentFeeSources(structure, nowhere, 0, false);
   expect(result.sources).not.toBeNull();
   expect(result.failed).toBe(false);
-  expect(h.enabled).toBe(false);
+  expect(h.reads[0]!.enabled).toBe(false);
 });
 
 test.each([true, false])('a cancelled read cannot apply its late success=%s after a profile change', async (ok) => {
-  useComponentFeeSources(structure, plan, 0);
+  useComponentFeeSources(structure, plan, 0, false);
   let finish!: (result: unknown) => void;
   h.apiFetch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
-  const onData = vi.fn(h.onData!);
-  const resource = createResourceRead({ read: h.read!, onData });
+  const onData = vi.fn(h.reads[0]!.onData);
+  const resource = createResourceRead({ read: h.reads[0]!.read, onData });
   const pending = resource.start();
   const signal = h.apiFetch.mock.calls[0]![1].signal as AbortSignal;
   resource.cancel();
-  useComponentFeeSources(structure, null, 0);
+  useComponentFeeSources(structure, null, 0, false);
   finish(ok ? { ok: true, data: { systems } } : { ok: false });
   await pending;
   expect(signal.aborted).toBe(true);
   expect(onData).not.toHaveBeenCalled();
-  expect(h.state).toBeNull();
+  expect(h.states[1]).toBeNull();
+});
+
+
+test.each(['response', 'network'])('component-only adjusted prices recover from %s failure through shared Retry', async (failure) => {
+  const partial = { top: route(null), routeOf: (bp: number) => bp === 100 ? route(null) : ROUTES[bp]! } as unknown as ProfilePlan;
+  useComponentFeeSources(structure, partial, 0, true);
+  expect(h.reads[1]!.enabled).toBe(true);
+  if (failure === 'response') h.apiFetch.mockResolvedValueOnce({ ok: false });
+  else h.apiFetch.mockRejectedValueOnce(new Error('offline'));
+  h.reads[1]!.onData(await h.reads[1]!.read(new AbortController().signal));
+  expect(useComponentFeeSources(structure, partial, 0, true).failed).toBe(true);
+  expect(useComponentFeeSources(structure, partial, 1, true).failed).toBe(true);
+  expect(h.reads[1]!.refreshKey).toBe(1);
+  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { adjustedPrices: [{ typeId: 34, adjustedPrice: 5 }] } });
+  h.reads[1]!.onData(await h.reads[1]!.read(new AbortController().signal));
+  const result = useComponentFeeSources(structure, partial, 1, true);
+  expect(result.failed).toBe(false);
+  expect(result.sources!.adjustedPriceOf(34)).toBe(5);
+  expect(result.sources!.adjustedPriceOf(99)).toBeNull();
+  expect(h.apiFetch.mock.calls[0]![1].body).toEqual({ systemId: 30004759, blueprintId: 100 });
+  expect(result.sources!.siteOf(100).systemId).toBeNull();
+});
+
+test('known root prices disable the independent read and its prior failure', () => {
+  h.states[0] = { key: '100:30004759', prices: null };
+  expect(useComponentFeeSources(structure, plan, 0, false).failed).toBe(false);
+  expect(h.reads[1]!.enabled).toBe(false);
+});
+
+test('component adjusted prices belong to the current blueprint and system', () => {
+  h.states[0] = { key: '99:30004759', prices: new Map([[34, 5]]) };
+  expect(useComponentFeeSources(structure, plan, 0, true).sources!.adjustedPriceOf(34)).toBeNull();
+  h.states[0] = { key: '100:30000142', prices: null };
+  expect(useComponentFeeSources(structure, plan, 0, true).failed).toBe(false);
+});
+
+test.each([true, false])('cancelled independent adjusted-price success=%s cannot replace the current source', async (ok) => {
+  useComponentFeeSources(structure, plan, 0, true);
+  let finish!: (result: unknown) => void;
+  h.apiFetch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  const onData = vi.fn(h.reads[1]!.onData);
+  const resource = createResourceRead({ read: h.reads[1]!.read, onData });
+  const pending = resource.start();
+  resource.cancel();
+  useComponentFeeSources(structure, null, 0, true);
+  finish(ok ? { ok: true, data: { adjustedPrices: [{ typeId: 34, adjustedPrice: 5 }] } } : { ok: false });
+  await pending;
+  expect(onData).not.toHaveBeenCalled();
+  expect(h.states[0]).toBeNull();
 });

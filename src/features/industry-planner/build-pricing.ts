@@ -183,9 +183,9 @@ function computeNet(
     enteredTaxPct = fee.facilityTaxPct ?? null;
     rates = { ...DEFAULT_FEE_RATES, facilityTax: effectiveFacilityTaxRate(enteredTaxPct) };
     structureCostBonusPct = fee.structureCostBonusPct ?? 0;
-  } else if (structure.activityId === REACTION_ACTIVITY && fee.reaction) {
-    systemCostIndex = fee.reaction.systemCostIndex;
-    enteredTaxPct = fee.reaction.facilityTaxPct ?? null;
+  } else if (structure.activityId === REACTION_ACTIVITY && (fee.reaction || fee.components)) {
+    systemCostIndex = fee.reaction?.systemCostIndex ?? null;
+    enteredTaxPct = fee.reaction?.facilityTaxPct ?? null;
     rates = {
       ...DEFAULT_FEE_RATES,
       facilityTax: effectiveFacilityTaxRate(enteredTaxPct),

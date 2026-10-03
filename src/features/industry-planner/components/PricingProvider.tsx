@@ -297,7 +297,9 @@ function usePriceClock(
   locationRead: { refreshKey: number; failed: boolean },
 ) {
   // Pricing owns the per-job fee sources for the profile installing the build.
-  const componentFees = useComponentFeeSources(structure, plan, locationRead.refreshKey);
+  const componentFees = useComponentFeeSources(
+    structure, plan, locationRead.refreshKey, !inputs.location && !inputs.reactionLocation,
+  );
   const mirrors: PriceAssembleMirrors = { ...inputs, components: componentFees.sources };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
@@ -317,11 +319,12 @@ function usePriceClock(
       buildStructure: current.selectedStructure,
       reactionStructure: current.reactionStructure,
       structureCostBonusPct: sf.structureCostBonusPct,
+      components: current.components ?? undefined,
     });
     setPricing(
       assemblePricing(structure, priceSnapshot.lookup, {
         runs: current.runs,
-        fee: fee && current.components ? { ...fee, components: current.components } : fee,
+        fee,
         meOf: current.ledgerMeOpts.meOf,
         structureMeFactorOf: current.ledgerMeOpts.structureMeFactorOf,
         basis: current.costBasis,
@@ -490,6 +493,7 @@ export function PricingProvider({
     locationState.reactionSystem?.systemId ?? null,
     locationState.setFetchedReactionLocation,
     locationState.setAvailableStructures,
+    locationState.reactionLocation,
   );
   // Under a profile each job takes its own facility's bonus and character; with none, the build is baseline.
   const profile = useProfileFactors(structure, {

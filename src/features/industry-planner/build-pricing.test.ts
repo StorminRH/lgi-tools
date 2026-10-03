@@ -1,3 +1,4 @@
+import { composeFeeInputs } from './structure-factors';
 import { describe, expect, it } from 'vitest';
 import { computeBatchLedger } from './build-batch';
 import { deriveMarginFigures } from './industry-styles';
@@ -645,6 +646,21 @@ describe('assemblePricing component job fees', () => {
     expect(net.componentJobs!.jobs[0]!.runs).toBe(0.5);
     expect(net.componentJobs!.total).toBeCloseTo(2.555, 9);
     expect(net.netCost).toBeCloseTo(17.5 + 16.5 + 2.555, 9);
+  });
+
+  it.each([1, 11])('a component-only profile charges known jobs while uncovered activity %i and net remain unknown', (activityId) => {
+    const fee = composeFeeInputs({
+      location: null, reactionLocation: null, buildStructure: null, reactionStructure: null,
+      structureCostBonusPct: 0, components: { ...components, adjustedPriceOf: adjusted },
+    });
+    const net = assemblePricing({ ...CHAIN, activityId }, (t) => NET_PRICES[t], { fee }).net!;
+    expect(net.componentJobs!.total).toBeCloseTo(5.11, 9);
+    expect(net.componentJobs!.jobs[0]!.systemId).toBe(7);
+    expect(net.systemCostIndex).toBeNull();
+    expect(net.jobFee.missingSystemCostIndex).toBe(true);
+    expect(net.jobFee.total).toBeNull();
+    expect(net.netCost).toBeNull();
+    expect(net.netMargin).toBeNull();
   });
 
   it('a component job in a system with no index leaves the net cost open', () => {

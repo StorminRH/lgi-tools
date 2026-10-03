@@ -22,6 +22,7 @@ export function usePlannerLocationWrites(
   reactionSystemId: number | null,
   setFetchedReactionLocation: Dispatch<SetStateAction<ReactionLocationSnapshot | null>>,
   setAvailableStructures: Dispatch<SetStateAction<AvailableStructure[] | null>>,
+  reactionLocation: ReactionLocationSnapshot | null,
 ) {
   const [failureSystemId, setFailureSystemId] = useState<number | null>(null);
   const [retry, setRetry] = useState(0);
@@ -83,7 +84,10 @@ export function usePlannerLocationWrites(
     [reactionSystemId, structure.blueprintTypeId, setFetchedReactionLocation],
   );
   useResourceRead(readReactionLocation, {
-    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null,
+    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null && !(
+      reactionLocation?.systemId === reactionSystemId &&
+      reactionLocation.blueprintTypeId === structure.blueprintTypeId
+    ),
     onData: setFetchedReactionLocation,
     refreshKey: retry,
   });
