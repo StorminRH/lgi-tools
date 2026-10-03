@@ -1,30 +1,21 @@
 import { z } from 'zod';
 
 const LS_PREFIX = 'lgi:pref:';
-const COOKIE_PREFIX = 'lgi_pref_';
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export interface PreferenceDef<T> {
   readonly key: string;
   readonly schema: z.ZodType<T>;
   readonly fallback: T;
-  readonly ssrReadable: boolean;
 }
 
-function define<T>(
-  key: string,
-  schema: z.ZodType<T>,
-  fallback: T,
-  ssrReadable = false,
-): PreferenceDef<T> {
-  return { key, schema, fallback, ssrReadable };
+function define<T>(key: string, schema: z.ZodType<T>, fallback: T): PreferenceDef<T> {
+  return { key, schema, fallback };
 }
 
 export const sitesView = define<'cards' | 'table'>(
   'sites.view',
   z.enum(['cards', 'table']),
   'cards',
-  true,
 );
 
 export const sitesDetailMode = define<'lightbox' | 'expand'>(
@@ -95,7 +86,7 @@ const stripDimmedSchema = z.array(z.number().int().positive());
 const STRIP_DIMMED_DEFS = Object.fromEntries(
   STRIP_SURFACE_IDS.map((id) => [
     id,
-    define<number[]>(stripDimmedKey(id), stripDimmedSchema, [], true),
+    define<number[]>(stripDimmedKey(id), stripDimmedSchema, []),
   ]),
 ) as Record<StripSurfaceId, PreferenceDef<number[]>>;
 
@@ -180,56 +171,20 @@ export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
   }
 }
 
-export function cookieNameFor(def: PreferenceDef<unknown>): string {
-  return COOKIE_PREFIX + def.key.replace(/\./g, '_');
-}
-
-function setPreferenceCookie(def: PreferenceDef<unknown>, encoded: string, maxAge: number): void {
-  const secure =
-    typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
-  document.cookie = `${cookieNameFor(def)}=${encoded}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
-}
-
-export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void {
-  if (typeof document === 'undefined' || !def.ssrReadable) return;
-  setPreferenceCookie(def, encodeURIComponent(JSON.stringify(value)), COOKIE_MAX_AGE_SECONDS);
-}
-
 /**
- * Mirror resolved values into the SSR cookies. A signed-in account value wins
- * over the device's, and without this write-back every server render kept
- * using the stale cookie, so the page swapped after load on each visit. Only
- * cookies are written: account values copied into localStorage would outlive
- * sign-out and be seeded into the next account on a shared browser. Sign-out
- * clears the cookies (`clearPreferenceCookies`) for the same reason.
+ * Preferences once mirrored into cookies for server renders. Nothing reads or
+ * writes them any more; sign-out still expires any a browser kept, since they
+ * may hold the account's values.
  */
-export function syncPreferenceCookies(values: ReadonlyMap<string, unknown>): void {
-  for (const def of PREFERENCES) {
-    if (values.has(def.key)) writePreferenceCookie(def, values.get(def.key));
-  }
-}
+const RETIRED_PREFERENCE_COOKIES = [
+  'lgi_pref_sites_view',
+  ...STRIP_SURFACE_IDS.map((id) => `lgi_pref_strip_${id}_dimmed`),
+];
 
-/**
- * Expire every SSR preference cookie. The next load rewrites the device's own
- * values from localStorage, so only account-resolved values are lost.
- */
-export function clearPreferenceCookies(): void {
+export function clearRetiredPreferenceCookies(): void {
   if (typeof document === 'undefined') return;
-  for (const def of PREFERENCES) {
-    if (def.ssrReadable) setPreferenceCookie(def, '', 0);
-  }
-}
-
-export function readPreferenceCookieValue<T>(
-  raw: string | undefined,
-  def: PreferenceDef<T>,
-): T {
-  if (raw == null) return def.fallback;
-  try {
-    const parsed = def.schema.safeParse(JSON.parse(decodeURIComponent(raw)));
-    return parsed.success ? parsed.data : def.fallback;
-  } catch {
-    return def.fallback;
+  for (const name of RETIRED_PREFERENCE_COOKIES) {
+    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
   }
 }
 

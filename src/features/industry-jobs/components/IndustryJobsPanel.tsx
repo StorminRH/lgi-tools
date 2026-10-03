@@ -21,11 +21,9 @@ import { JobRowFrame } from './JobRowFrame';
 export function IndustryJobsPanel({
   characters,
   strip,
-  initialDimmed,
 }: {
   characters: PanelCharacter[];
   strip?: CharacterStripSpec;
-  initialDimmed?: number[];
 }) {
   if (characters.length === 0) {
     return (
@@ -40,17 +38,15 @@ export function IndustryJobsPanel({
       </Card>
     );
   }
-  return <LiveJobs characters={characters} strip={strip} initialDimmed={initialDimmed} />;
+  return <LiveJobs characters={characters} strip={strip} />;
 }
 
 function LiveJobs({
   characters,
   strip,
-  initialDimmed,
 }: {
   characters: PanelCharacter[];
   strip?: CharacterStripSpec;
-  initialDimmed?: number[];
 }) {
   const eligibleIds = syncEligibleIds(characters);
   const { jobsByCharacter, names, now, loading, failed, retry } = useJobsLive(eligibleIds);
@@ -60,7 +56,6 @@ function LiveJobs({
       <CharacterStripSection
         characters={characters}
         strip={strip}
-        initialDimmed={initialDimmed}
         loading={loading}
         failure={
           failed ? (

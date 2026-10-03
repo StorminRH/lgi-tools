@@ -249,6 +249,8 @@ function Sheet({
       </section>
       <Link
         href={`/industry/${sheet.blueprintTypeId}`}
+        // Opening the drawer is the intent: carry the blueprint's cached plan ahead of the click.
+        prefetch
         transitionTypes={['industry-tab']}
         onClick={onLeave}
         className={cn(buttonVariants({ variant: 'primary' }), 'self-start')}

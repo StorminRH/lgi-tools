@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { IntentPrefetchLink } from '@/components/intent-prefetch-link';
 import { TypeIcon } from '@/components/type-icon';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -21,7 +21,7 @@ function Shelf({ label, empty, blueprints }: { label: string; empty: string; blu
         {blueprints === null && <Skeleton label={`Loading ${label.toLowerCase()}`} className="mx-3.5 my-[15px] h-4 w-3/5 rounded-ctl" />}
         {blueprints?.length === 0 && <EmptyState>{empty}</EmptyState>}
         {blueprints?.map((blueprint) => (
-          <Link
+          <IntentPrefetchLink
             key={blueprint.typeId}
             href={`/industry/${blueprint.typeId}`}
             transitionTypes={['industry-tab']}
@@ -33,7 +33,7 @@ function Shelf({ label, empty, blueprints }: { label: string; empty: string; blu
               leading={<TypeIcon {...blueprintImage(blueprint.typeId)} size={26} mono={blueprint.name.slice(0, 2)} />}
               name={<span className="font-semibold">{blueprint.name}</span>}
             />
-          </Link>
+          </IntentPrefetchLink>
         ))}
       </Card>
     </section>

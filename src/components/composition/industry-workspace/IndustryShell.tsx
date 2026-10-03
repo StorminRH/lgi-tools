@@ -30,10 +30,21 @@ function sectionOf(pathname: string): Section {
   return 'profiles';
 }
 
-function Tab({ href, active, children }: { href: string; active: boolean; children: ReactNode }) {
+function Tab({
+  href,
+  active,
+  prefetch,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  prefetch?: boolean;
+  children: ReactNode;
+}) {
   return (
     <Link
       href={href}
+      prefetch={prefetch}
       aria-current={active ? 'page' : undefined}
       transitionTypes={TAB_TRANSITION}
       className={cn(tabItem, 'isolate aria-[current=page]:text-isk')}
@@ -54,8 +65,13 @@ function NavFrame({ active, plannerHref }: { active: Section | null; plannerHref
       <Tab href="/industry" active={active === 'profiles'}>
         Profiles
       </Tab>
-      {/* From inside the planner, its tab goes back to the search. */}
-      <Tab href={active === 'planner' ? EMPTY_PLANNER : plannerHref} active={active === 'planner'}>
+      {/* From inside the planner, its tab goes back to the search. A blueprint
+          it returns to is prefetched whole, its cached plan included. */}
+      <Tab
+        href={active === 'planner' ? EMPTY_PLANNER : plannerHref}
+        active={active === 'planner'}
+        prefetch={active !== 'planner' && plannerHref !== EMPTY_PLANNER ? true : undefined}
+      >
         Planner
       </Tab>
       <Tab href="/industry/jobs" active={active === 'jobs'}>

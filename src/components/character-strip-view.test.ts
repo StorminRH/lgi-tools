@@ -1,7 +1,6 @@
 import { expect, test } from 'vitest';
-import { deriveStripView, stripPreferenceBinding } from './character-strip-view';
+import { deriveStripView } from './character-strip-view';
 import type { PanelCharacter } from './live-character-card';
-import { stripDimmedDef } from '@/lib/preferences';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 
 const character = (characterId: number, needsReconnect = false): PanelCharacter => ({
@@ -12,16 +11,6 @@ const character = (characterId: number, needsReconnect = false): PanelCharacter 
 });
 
 const strip: CharacterStripSpec = { surfaceId: 'jobs' };
-
-test('a declared strip binds the registered dimmed-set and an undeclared strip binds nothing', () => {
-  const binding = stripPreferenceBinding(strip, [7, 8]);
-  expect(binding.def).toBe(stripDimmedDef('jobs'));
-  expect(binding.serverValue).toEqual([7, 8]);
-
-  const absent = stripPreferenceBinding(undefined, [7, 8]);
-  expect(absent.def).toBe(stripDimmedDef(undefined));
-  expect(absent.serverValue).toBeUndefined();
-});
 
 test('dims healthy pilots on a strip, notices when none stay lit, and names a failed load', () => {
   const untouched = [character(1), character(2, true)];

@@ -6,12 +6,7 @@ import { IndustrySection, RememberPlanner } from '@/components/composition/indus
 import { Skeleton } from '@/components/ui/skeleton';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
-import {
-  elapsedCostTimer,
-  emitCostMetric,
-  observeCostPromise,
-  startCostTimer,
-} from '@/data/telemetry/cost-metrics';
+import { observeCostPromise, startCostTimer } from '@/data/telemetry/cost-metrics';
 import { SITE_URL } from '@/config/site-url';
 import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
 import { buildBreadcrumbList } from '@/lib/structured-data';
@@ -56,56 +51,49 @@ export async function generateMetadata({
   };
 }
 
-async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
-  // The open-timing metrics schedule after() work, which only exists at request
-  // time. The structure read is cached, so without this Next would prerender
-  // down to the first metric and fail on the timestamp after() takes.
+/**
+ * Times the reads that still stream after the planner draws. Timing and
+ * after() exist only at request time, so this runs in its own hole and the
+ * cached structure above it can prerender and prefetch.
+ */
+async function PlannerOpenMetrics({
+  id,
+  pricing,
+  history,
+}: {
+  id: number;
+  pricing: Promise<unknown>;
+  history: Promise<unknown>;
+}) {
   await connection();
-  const plannerTimer = startCostTimer();
+  const timer = startCostTimer();
+  observeCostPromise(pricing, 'planner_open_timing', { stage: 'pricing', blueprintId: id }, timer);
+  observeCostPromise(history, 'planner_open_timing', { stage: 'history', blueprintId: id }, timer);
+  return null;
+}
+
+async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
   const id = parseNumericRouteId(rawId);
   if (id === null) notFound();
 
-  const structureTimer = startCostTimer();
   const structure = await getBlueprintStructure(id);
   if (!structure) notFound();
-  emitCostMetric('planner_open_timing', {
-    stage: 'structure',
-    blueprintId: id,
-    outcome: 'succeeded',
-    durationMs: elapsedCostTimer(structureTimer),
-  });
 
-  const pricingTimer = startCostTimer();
-  const pricingPromise = observeCostPromise(
-    getBlueprintPricing(id),
-    'planner_open_timing',
-    { stage: 'pricing', blueprintId: id },
-    pricingTimer,
-  );
+  const pricingPromise = getBlueprintPricing(id);
+  const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
   const breadcrumbJsonLd = buildBreadcrumbList([
     { name: 'Home', url: `${SITE_URL}/` },
     { name: 'Industry Planner', url: `${SITE_URL}/industry` },
     { name: structure.product.name, url: `${SITE_URL}/industry/${id}` },
   ]);
-  const historyTimer = startCostTimer();
-  const historyPromise = observeCostPromise(
-    getMarketHistoryInputs([structure.product.typeId]),
-    'planner_open_timing',
-    { stage: 'history', blueprintId: id },
-    historyTimer,
-  );
-
-  emitCostMetric('planner_open_timing', {
-    stage: 'shell',
-    blueprintId: id,
-    outcome: 'succeeded',
-    durationMs: elapsedCostTimer(plannerTimer),
-  });
 
   return (
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
+      <Suspense fallback={null}>
+        <PlannerOpenMetrics id={id} pricing={pricingPromise} history={historyPromise} />
+      </Suspense>
       <RememberPlanner blueprintTypeId={id} />
       <RecordRecentBlueprint typeId={id} productTypeId={structure.product.typeId} name={structure.product.name} />
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
