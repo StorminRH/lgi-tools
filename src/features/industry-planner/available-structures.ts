@@ -60,6 +60,7 @@ export function buildAvailableStructures(
   corp: readonly CorpStructureInput[],
   structureTypes: readonly StructureTypeRow[],
   modifiers: ModifierMap,
+  targetFilterSets: number[][],
 ): AvailableStructure[] {
   const knownTypeIds = new Set(structureTypes.map((t) => t.typeId));
   const typeNameById = new Map(structureTypes.map((t) => [t.typeId, t.name]));
@@ -75,6 +76,7 @@ export function buildAvailableStructures(
       structureTypeId: c.structureTypeId,
       groupId: resolveGroupId(groupIdByType, c.structureTypeId),
       systemId: c.systemId,
+      targetFilterSets,
       modifiers: modifiersOf(modifiers, c.structureTypeId, c.rigTypeIds),
       securityClass: null,
       taxPct: c.taxPct,
@@ -90,6 +92,7 @@ export function buildAvailableStructures(
       structureTypeId: s.typeId,
       groupId: resolveGroupId(groupIdByType, s.typeId),
       systemId: s.systemId,
+      targetFilterSets,
       modifiers: modifiersOf(modifiers, s.typeId, s.rigTypeIds),
       securityClass: s.securityClass,
       taxPct: s.taxPct,

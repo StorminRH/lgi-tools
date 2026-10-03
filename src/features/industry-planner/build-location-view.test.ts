@@ -18,6 +18,7 @@ const structure = (over: Partial<AvailableStructure>): AvailableStructure => ({
   structureTypeId: 35825,
   groupId: 1404,
   systemId: null,
+  targetFilterSets: [[]],
   modifiers: [],
   enteredBonuses: null,
   securityClass: null,

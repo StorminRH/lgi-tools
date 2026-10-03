@@ -167,6 +167,7 @@ export const availableStructureSchema = z.object({
   groupId: z.number(),
   systemId: z.number().nullable(),
   modifiers: z.array(structureModifierSchema),
+  targetFilterSets: z.array(z.array(z.number())),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),
   taxPct: z.number().nullable(),
   enteredBonuses: enteredBonusesSchema.nullable(),

@@ -1,4 +1,4 @@
-import { getProductionModifiers, getStructureTypes } from '@/data/eve-data/queries';
+import { getIndustryTargetFilterSets, getProductionModifiers, getStructureTypes } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
@@ -24,7 +24,10 @@ export async function GET(): Promise<Response> {
     return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
   }
 
-  const modifiers = await getProductionModifiers(collectModifierSourceTypeIds(custom, corp));
-  const structures = buildAvailableStructures(custom, corp, structureTypes, modifiers);
+  const [modifiers, targetFilterSets] = await Promise.all([
+    getProductionModifiers(collectModifierSourceTypeIds(custom, corp)),
+    getIndustryTargetFilterSets(),
+  ]);
+  const structures = buildAvailableStructures(custom, corp, structureTypes, modifiers, targetFilterSets);
   return apiResponse(availableStructuresEndpoint, 200, { structures });
 }

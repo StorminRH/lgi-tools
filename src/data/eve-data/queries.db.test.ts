@@ -19,6 +19,7 @@ vi.mock('next/cache', () => ({
 import {
   getBlueprintActivities,
   getIndustryTargetFilters,
+  getIndustryTargetFilterSets,
   getProductionModifiers,
   getStructureRigs,
   readShipMassByType,
@@ -113,6 +114,12 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
   const COPY_RIG = 43891;
   const COMBAT_RIG = 47360;
   const RETIRED_RIG = 43921;
+  const UNSUPPORTED_RIG = 77777;
+  const SHIP_FILTERS = [
+    { id: 3, name: 'Ships', categoryIds: [6, 32], groupIds: [] },
+    { id: 7, name: 'Medium T1 Ships', categoryIds: [], groupIds: [26, 4902] },
+    { id: 8, name: 'Medium T2 Ships', categoryIds: [32], groupIds: [358, 4902] },
+  ];
   const RIG_GROUP = 1816;
 
   const group = (id: number, categoryId: number, name: string) => ({
@@ -137,9 +144,14 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
   beforeAll(async () => {
     await harness.db.insert(industryTargetFilters).values([
       { id: 2, name: 'Equipment', categoryIds: [7, 20, 22], groupIds: [12, 340, 448, 649] },
+      ...SHIP_FILTERS,
       { id: 18, name: 'Composite Reactions', categoryIds: [], groupIds: [428, 429, 4932] },
     ]);
     await harness.db.insert(eveGroups).values([
+      group(26, 6, 'Cruiser'),
+      group(358, 6, 'Heavy Assault Cruiser'),
+      group(954, 32, 'Defensive Subsystem'),
+      group(4902, 6, 'Expedition Command Ship'),
       group(1404, 65, 'Engineering Complex'),
       group(RIG_GROUP, 66, 'Structure Engineering Rig'),
     ]);
@@ -149,6 +161,7 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
       { id: REACTOR_RIG, groupId: RIG_GROUP, name: 'Standup M-Set Composite Reactor Material Efficiency I', published: true },
       { id: COPY_RIG, groupId: RIG_GROUP, name: 'Standup M-Set Blueprint Copy Accelerator I', published: true },
       { id: COMBAT_RIG, groupId: RIG_GROUP, name: 'Standup M-Set Missile Application I', published: true },
+      { id: UNSUPPORTED_RIG, groupId: RIG_GROUP, name: 'Unsupported Production Rig', published: true },
       { id: RETIRED_RIG, groupId: RIG_GROUP, name: 'Retired Equipment Rig', published: false },
     ]);
     const rigDogma = (typeId: number, canFit: number) => ({
@@ -162,6 +175,7 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
       rigDogma(COPY_RIG, 1404),
       rigDogma(COMBAT_RIG, 1657),
       rigDogma(RETIRED_RIG, 1404),
+      rigDogma(UNSUPPORTED_RIG, 1404),
     ]);
     await harness.db.insert(industryModifiers).values([
       modifier(RAITARU, 'copying', 'time', 2602, null, [0.85, 0.85, 0.85]),
@@ -173,6 +187,7 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
       modifier(EQUIPMENT_RIG, 'manufacturing', 'probability', 9999, 2, [1.1, 1.1, 1.1]),
       modifier(REACTOR_RIG, 'reaction', 'material', 2718, 18, [1, 0.98, 0.978]),
       modifier(COPY_RIG, 'copying', 'time', 2539, null, [0.8, 0.62, 0.58]),
+      modifier(UNSUPPORTED_RIG, 'manufacturing', 'probability', 9999, 2, [1.1, 1.1, 1.1]),
       modifier(RETIRED_RIG, 'manufacturing', 'material', 2538, 2, [0.98, 0.962, 0.958]),
     ]);
   });
@@ -180,8 +195,13 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
   it('reads every target filter with its category and group lists', async () => {
     await expect(getIndustryTargetFilters()).resolves.toEqual([
       { id: 2, name: 'Equipment', categoryIds: [7, 20, 22], groupIds: [12, 340, 448, 649] },
+      ...SHIP_FILTERS,
       { id: 18, name: 'Composite Reactions', categoryIds: [], groupIds: [428, 429, 4932] },
     ]);
+  });
+
+  it('returns only attainable filter sets, including Odysseus overlap and deduping shared group matches', async () => {
+    await expect(getIndustryTargetFilterSets()).resolves.toEqual([[3, 7], [3, 8], [], [3, 7, 8]]);
   });
 
   it('groups the manufacturing and reaction bonuses by source type, leaving other activities out', async () => {
@@ -206,7 +226,7 @@ describe.skipIf(!harness.reachable)('industry bonus sources execute against Post
     expect((await getProductionModifiers([])).size).toBe(0);
   });
 
-  it('lists only the published structure rigs that carry a production bonus', async () => {
+  it('lists only published structure rigs that carry a supported production bonus', async () => {
     await expect(getStructureRigs()).resolves.toEqual([
       { typeId: REACTOR_RIG, name: 'Standup M-Set Composite Reactor Material Efficiency I', canFitGroups: [1406], rigSize: 2 },
       { typeId: EQUIPMENT_RIG, name: 'Standup M-Set Equipment Manufacturing Material Efficiency I', canFitGroups: [1404], rigSize: 2 },

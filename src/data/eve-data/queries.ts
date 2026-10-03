@@ -22,6 +22,7 @@ import {
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
 import {
+  attainableFilterSets,
   PRODUCTION_ACTIVITIES,
   shapeStructureRigs,
   type ProductionModifier,
@@ -347,7 +348,12 @@ function productionModifierSources() {
   return db
     .selectDistinct({ id: industryModifiers.sourceTypeId })
     .from(industryModifiers)
-    .where(inArray(industryModifiers.activity, [...PRODUCTION_ACTIVITIES]));
+    .where(
+      and(
+        inArray(industryModifiers.activity, [...PRODUCTION_ACTIVITIES]),
+        inArray(industryModifiers.kind, [...MODIFIER_KINDS]),
+      ),
+    );
 }
 
 /** CCP's industry target filters: the product classes hull and rig bonuses aim at. */
@@ -356,6 +362,19 @@ export async function getIndustryTargetFilters(): Promise<TargetFilter[]> {
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
   return withColdStartRetry(() => db.select().from(industryTargetFilters).orderBy(industryTargetFilters.id));
+}
+
+export async function getIndustryTargetFilterSets(): Promise<number[][]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  const [filters, groups] = await Promise.all([
+    getIndustryTargetFilters(),
+    withColdStartRetry(() =>
+      db.select({ groupId: eveGroups.id, categoryId: eveGroups.categoryId }).from(eveGroups).orderBy(eveGroups.id),
+    ),
+  ]);
+  return attainableFilterSets(filters, groups);
 }
 
 const MODIFIER_KINDS: readonly string[] = ['material', 'time', 'cost'] satisfies ProductionModifier['kind'][];

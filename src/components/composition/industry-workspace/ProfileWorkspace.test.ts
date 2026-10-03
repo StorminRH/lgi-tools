@@ -86,6 +86,7 @@ const TATARA: AvailableStructure = {
   structureTypeId: 35836,
   groupId: 1406,
   systemId: 30004759,
+  targetFilterSets: [[]],
   modifiers: [{ activity: 'reaction', kind: 'time', filterId: null, factor: { high: 0.75, low: 0.75, null: 0.75 } }],
   enteredBonuses: null,
   securityClass: 'null',
