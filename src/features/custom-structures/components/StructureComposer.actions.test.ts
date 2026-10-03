@@ -164,6 +164,10 @@ test('picking a found structure fills its name, system and hull, clearing rigs w
   h.states[0] = { ...c.draft(), rigSlots: [46486, null, null] };
   c.call(named, 'onPick', { structureId: 3, name: 'Other Tatara', systemId: 30004759, structureTypeId: 35836 });
   expect(c.draft().rigSlots).toEqual([46486, null, null]);
+  // A found structure whose hull the search cannot tell keeps the hull and rigs already set.
+  c.call(named, 'onPick', { structureId: 4, name: 'Unknown hull', systemId: 30002537, structureTypeId: null });
+  expect(c.draft()).toMatchObject({ name: 'Unknown hull', systemId: 30002537, structureTypeId: 35836 });
+  expect(c.draft().rigSlots).toEqual([46486, null, null]);
   c.call(named, 'onPick', { structureId: 2, name: 'Odd Keepstar', systemId: 30002537, structureTypeId: 35834 });
   expect(c.draft()).toMatchObject({ name: 'Odd Keepstar', systemId: 30002537, structureTypeId: null });
   expect(c.draft().rigSlots).toEqual([null, null, null]);

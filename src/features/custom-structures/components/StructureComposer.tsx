@@ -305,8 +305,9 @@ export function StructureComposer({
   };
 
   function pickStructure(hit: StructureSearchResult) {
+    // When the search cannot tell the hull, the one already chosen (or read from a fit) stays.
     const known = structureTypes.some((t) => t.typeId === hit.structureTypeId);
-    const structureTypeId = known ? hit.structureTypeId : null;
+    const structureTypeId = hit.structureTypeId === null ? draft.structureTypeId : known ? hit.structureTypeId : null;
     update({
       name: hit.name,
       systemId: hit.systemId,
