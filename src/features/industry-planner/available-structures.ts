@@ -1,6 +1,6 @@
 import { SDE_ENGINEERING_COMPLEX_GROUP_ID } from '@/data/eve-data/constants';
 import type { EnteredBonuses } from '@/data/industry-math/entered-bonuses';
-import type { AvailableStructure } from './api-contract';
+import type { AvailableStructure, StructureModifier } from './api-contract';
 
 export interface CustomStructureInput {
   id: string;
@@ -28,9 +28,10 @@ export interface StructureTypeRow {
   groupId: number;
 }
 
-export type DogmaMap = ReadonlyMap<number, Record<string, number>>;
+/** Each hull or rig type's resolved industry bonuses. */
+export type ModifierMap = ReadonlyMap<number, readonly StructureModifier[]>;
 
-export function collectDogmaTypeIds(
+export function collectModifierSourceTypeIds(
   custom: readonly CustomStructureInput[],
   corp: readonly CorpStructureInput[],
 ): number[] {
@@ -46,6 +47,10 @@ export function collectDogmaTypeIds(
   return [...typeIds];
 }
 
+function modifiersOf(map: ModifierMap, hullTypeId: number, rigTypeIds: readonly number[]): StructureModifier[] {
+  return [hullTypeId, ...rigTypeIds].flatMap((typeId) => map.get(typeId) ?? []);
+}
+
 function resolveGroupId(groupIdByType: Map<number, number>, typeId: number): number {
   return groupIdByType.get(typeId) ?? SDE_ENGINEERING_COMPLEX_GROUP_ID;
 }
@@ -54,7 +59,8 @@ export function buildAvailableStructures(
   custom: readonly CustomStructureInput[],
   corp: readonly CorpStructureInput[],
   structureTypes: readonly StructureTypeRow[],
-  dogma: DogmaMap,
+  modifiers: ModifierMap,
+  targetFilterSets: number[][],
 ): AvailableStructure[] {
   const knownTypeIds = new Set(structureTypes.map((t) => t.typeId));
   const typeNameById = new Map(structureTypes.map((t) => [t.typeId, t.name]));
@@ -70,8 +76,8 @@ export function buildAvailableStructures(
       structureTypeId: c.structureTypeId,
       groupId: resolveGroupId(groupIdByType, c.structureTypeId),
       systemId: c.systemId,
-      structureAttrs: dogma.get(c.structureTypeId) ?? {},
-      rigAttrs: c.rigTypeIds.map((r) => dogma.get(r) ?? {}),
+      targetFilterSets,
+      modifiers: modifiersOf(modifiers, c.structureTypeId, c.rigTypeIds),
       securityClass: null,
       taxPct: c.taxPct,
       enteredBonuses: c.bonuses,
@@ -86,8 +92,8 @@ export function buildAvailableStructures(
       structureTypeId: s.typeId,
       groupId: resolveGroupId(groupIdByType, s.typeId),
       systemId: s.systemId,
-      structureAttrs: dogma.get(s.typeId) ?? {},
-      rigAttrs: s.rigTypeIds.map((r) => dogma.get(r) ?? {}),
+      targetFilterSets,
+      modifiers: modifiersOf(modifiers, s.typeId, s.rigTypeIds),
       securityClass: s.securityClass,
       taxPct: s.taxPct,
       enteredBonuses: null,

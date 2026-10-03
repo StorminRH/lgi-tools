@@ -10,6 +10,7 @@ import {
   computeBatchMaterials,
   computeMarginalMaterials,
   computeMultibuyDemand,
+  productTypeByBlueprint,
 } from './build-batch';
 
 const NO_OWNED = { meOf: () => undefined, topBlueprintTypeId: 0 };
@@ -635,6 +636,40 @@ describe('collectBlueprintTypeIds', () => {
       { typeId: 400, quantity: 2, inputs: [] },
     ];
     expect(collectBlueprintTypeIds(tree, 9000).sort((a, b) => a - b)).toEqual([1100, 1200, 9000]);
+  });
+});
+
+describe('productTypeByBlueprint', () => {
+  const component = (): TreeNode => ({
+    typeId: 200,
+    quantity: 7,
+    producedBy: { blueprintTypeId: 1200, quantityPerRun: 1, runsNeeded: 7 },
+    inputs: [{ typeId: 300, quantity: 1, inputs: [] }],
+  });
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [component()],
+    },
+    component(),
+    { typeId: 400, quantity: 2, inputs: [] },
+  ];
+
+  it('maps the top blueprint and every nested recipe blueprint to the type it makes, once each', () => {
+    expect(productTypeByBlueprint(tree, { blueprintTypeId: 9000, productTypeId: 9001 })).toEqual(
+      new Map([
+        [9000, 9001],
+        [1100, 100],
+        [1200, 200],
+      ]),
+    );
+  });
+
+  it('is the top blueprint alone for a tree of raw materials', () => {
+    const raws: TreeNode[] = [{ typeId: 34, quantity: 100, inputs: [] }];
+    expect(productTypeByBlueprint(raws, { blueprintTypeId: 9000, productTypeId: 9001 })).toEqual(new Map([[9000, 9001]]));
   });
 });
 

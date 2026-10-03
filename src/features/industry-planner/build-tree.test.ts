@@ -20,12 +20,12 @@ function fixture() {
     { typeId: 4, quantity: 7, inputs: [] },
   ];
   const labels = new Map<number, TypeLabel>([
-    [1, { name: 'Wolf', groupName: 'Assault Frigate', categoryName: 'Ship' }],
-    [2, { name: 'Component', groupName: 'Construction Components', categoryName: 'Material' }],
-    [3, { name: 'Reaction Output', groupName: 'Composite', categoryName: 'Material' }],
-    [4, { name: 'Direct Raw', groupName: 'Mineral', categoryName: 'Material' }],
-    [98, { name: 'Moon Goo', groupName: 'Moon Materials', categoryName: 'Material' }],
-    [99, { name: 'Tritanium', groupName: 'Mineral', categoryName: 'Material' }],
+    [1, { name: 'Wolf', groupId: 324, groupName: 'Assault Frigate', categoryId: 6, categoryName: 'Ship' }],
+    [2, { name: 'Component', groupId: 334, groupName: 'Construction Components', categoryId: 4, categoryName: 'Material' }],
+    [3, { name: 'Reaction Output', groupId: 429, groupName: 'Composite', categoryId: 4, categoryName: 'Material' }],
+    [4, { name: 'Direct Raw', groupId: 18, groupName: 'Mineral', categoryId: 4, categoryName: 'Material' }],
+    [98, { name: 'Moon Goo', groupId: 427, groupName: 'Moon Materials', categoryId: 4, categoryName: 'Material' }],
+    [99, { name: 'Tritanium', groupId: 18, groupName: 'Mineral', categoryId: 4, categoryName: 'Material' }],
   ]);
   const activityByBlueprint = new Map<number, number>([
     [1002, 1],

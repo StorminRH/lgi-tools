@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { SdeJsonlPaths } from './source';
+import type { IndustryRules } from './industry-rules';
 import type { UniverseDataset } from './universe';
 import {
   dgmAttributeTypes,
@@ -21,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   downloadSdeJsonl: vi.fn(),
   emitUniverseNeon: vi.fn(),
   parseUniverse: vi.fn(),
+  emitIndustryRules: vi.fn(),
+  parseIndustryRules: vi.fn(),
 }));
 
 vi.mock('./source', () => ({
@@ -31,6 +34,11 @@ vi.mock('./source', () => ({
 vi.mock('./universe', () => ({
   emitUniverseNeon: mocks.emitUniverseNeon,
   parseUniverse: mocks.parseUniverse,
+}));
+
+vi.mock('./industry-rules', () => ({
+  emitIndustryRules: mocks.emitIndustryRules,
+  parseIndustryRules: mocks.parseIndustryRules,
 }));
 
 import { runIngest } from './ingest';
@@ -68,6 +76,15 @@ const EMPTY_UNIVERSE_SUMMARY = {
   npcStationsWritten: 0,
 };
 
+const EMPTY_INDUSTRY_RULES: IndustryRules = { filters: [], modifiers: [], assemblyLines: [], installationTypes: [] };
+
+const EMPTY_INDUSTRY_SUMMARY = {
+  targetFiltersWritten: 0,
+  modifiersWritten: 0,
+  assemblyLinesWritten: 0,
+  installationTypesWritten: 0,
+};
+
 let fixtureDir: string;
 let fixturePaths: SdeJsonlPaths;
 
@@ -93,6 +110,11 @@ beforeAll(async () => {
     npcStations: fixturePath('unused-npcStations'),
     stationOperations: fixturePath('unused-stationOperations'),
     stationServices: fixturePath('unused-stationServices'),
+    dogmaEffects: fixturePath('unused-dogmaEffects'),
+    industryTargetFilters: fixturePath('unused-industryTargetFilters'),
+    industryModifierSources: fixturePath('unused-industryModifierSources'),
+    industryAssemblyLines: fixturePath('unused-industryAssemblyLines'),
+    industryInstallationTypes: fixturePath('unused-industryInstallationTypes'),
   };
 
   const categories = Array.from({ length: 501 }, (_, index) => ({
@@ -174,6 +196,8 @@ beforeEach(() => {
   mocks.downloadSdeJsonl.mockResolvedValue(fixturePaths);
   mocks.parseUniverse.mockResolvedValue(EMPTY_UNIVERSE);
   mocks.emitUniverseNeon.mockResolvedValue(EMPTY_UNIVERSE_SUMMARY);
+  mocks.parseIndustryRules.mockResolvedValue(EMPTY_INDUSTRY_RULES);
+  mocks.emitIndustryRules.mockResolvedValue(EMPTY_INDUSTRY_SUMMARY);
   mocks.cleanupSdeJsonl.mockResolvedValue(undefined);
 });
 
@@ -189,10 +213,16 @@ describe.skipIf(!harness.reachable)('runIngest executes against Postgres', () =>
       typeDogmaWritten: 1,
       blueprintsWritten: 2,
       ...EMPTY_UNIVERSE_SUMMARY,
+      targetFiltersWritten: 0,
+      industryModifiersWritten: 0,
+      assemblyLinesWritten: 0,
+      installationTypesWritten: 0,
       durationMs: expect.any(Number),
     });
     expect(mocks.parseUniverse).toHaveBeenCalledWith(fixturePaths);
     expect(mocks.emitUniverseNeon).toHaveBeenCalledWith(expect.anything(), EMPTY_UNIVERSE);
+    expect(mocks.parseIndustryRules).toHaveBeenCalledWith(fixturePaths);
+    expect(mocks.emitIndustryRules).toHaveBeenCalledWith(expect.anything(), EMPTY_INDUSTRY_RULES);
     expect(mocks.cleanupSdeJsonl).toHaveBeenCalledWith(fixturePaths);
 
     const categories = await harness.db

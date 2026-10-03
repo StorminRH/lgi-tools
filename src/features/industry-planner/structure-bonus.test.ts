@@ -1,102 +1,190 @@
 import { describe, expect, it } from 'vitest';
-import type { AttrMap } from '@/data/eve-data/types';
+import type { StructureModifier } from './api-contract';
 import {
   computeStructureBonus,
+  headlineStructureBonus,
   MANUFACTURING_ACTIVITY,
   REACTION_ACTIVITY,
   type SecurityClass,
 } from './structure-bonus';
 
-const RAITARU: AttrMap = { 2600: 0.99, 2602: 0.85, 2601: 0.97 };
-const AZBEL: AttrMap = { 2600: 0.99, 2602: 0.8, 2601: 0.96 };
-const SOTIYO: AttrMap = { 2600: 0.99, 2602: 0.7, 2601: 0.95 };
-const TATARA: AttrMap = { 2721: 0.75 };
-const ATHANOR: AttrMap = {};
+// CCP's industry target filters.
+const EQUIPMENT = 2;
+const CHARGES = 4;
+const COMPONENTS = 14;
+const ADV_CAP_COMPONENTS = 15;
+const BIOCHEMICAL = 17;
+const COMPOSITE = 18;
 
-const SEC = { 2355: 1.0, 2356: 1.9, 2357: 2.1 };
-const ME_RIG_T1: AttrMap = { 2594: -2, ...SEC };
-const ME_RIG_T2: AttrMap = { 2594: -2.4, ...SEC };
-const COMBINED_RIG: AttrMap = { 2593: -20, 2594: -2, ...SEC };
-const REACTOR_RIG: AttrMap = { 2713: -20, 2714: -2, 2356: 1.0, 2357: 1.1 };
+type Activity = StructureModifier['activity'];
+type Kind = StructureModifier['kind'];
 
-const mfg = (structureAttrs: AttrMap, rigAttrs: AttrMap[], securityClass: SecurityClass) =>
-  computeStructureBonus({ structureAttrs, rigAttrs, securityClass, activityId: MANUFACTURING_ACTIVITY });
-const reaction = (structureAttrs: AttrMap, rigAttrs: AttrMap[], securityClass: SecurityClass) =>
-  computeStructureBonus({ structureAttrs, rigAttrs, securityClass, activityId: REACTION_ACTIVITY });
+/** A hull bonus: the multiplier itself, the same in every band. */
+const hull = (kind: Kind, factor: number, activity: Activity = 'manufacturing'): StructureModifier => ({
+  activity,
+  kind,
+  filterId: null,
+  factor: { high: factor, low: factor, null: factor },
+});
 
-describe('computeStructureBonus — structure role only', () => {
-  it('reads the flat 1% material and tiered time/cost from each EC', () => {
-    const raitaru = mfg(RAITARU, [], 'null');
+const ENGINEERING_BANDS = { high: 1, low: 1.9, null: 2.1 };
+const THUKKER_BANDS = { high: 0.1, low: 1.9, null: 0.1 };
+const REACTOR_BANDS = { high: 0, low: 1, null: 1.1 };
+
+/** A rig bonus: its percentage scaled by each security band, aimed at one category. */
+const rig = (
+  kind: Kind,
+  pct: number,
+  filterId: number,
+  bands = ENGINEERING_BANDS,
+  activity: Activity = 'manufacturing',
+): StructureModifier => ({
+  activity,
+  kind,
+  filterId,
+  factor: { high: 1 + (pct * bands.high) / 100, low: 1 + (pct * bands.low) / 100, null: 1 + (pct * bands.null) / 100 },
+});
+
+const RAITARU = [hull('material', 0.99), hull('time', 0.85), hull('cost', 0.97)];
+const AZBEL = [hull('material', 0.99), hull('time', 0.8), hull('cost', 0.96)];
+const SOTIYO = [hull('material', 0.99), hull('time', 0.7), hull('cost', 0.95)];
+const TATARA = [hull('time', 0.75, 'reaction')];
+
+const mfg = (modifiers: StructureModifier[], securityClass: SecurityClass, filterIds: number[] = []) =>
+  computeStructureBonus({ modifiers, securityClass, activityId: MANUFACTURING_ACTIVITY, filterIds });
+const reaction = (modifiers: StructureModifier[], securityClass: SecurityClass, filterIds: number[]) =>
+  computeStructureBonus({ modifiers, securityClass, activityId: REACTION_ACTIVITY, filterIds });
+
+describe('computeStructureBonus — hull role bonus', () => {
+  it('reads the flat 1% material and tiered time/cost from each engineering complex', () => {
+    const raitaru = mfg(RAITARU, 'null');
     expect(raitaru.me).toBeCloseTo(1, 6);
     expect(raitaru.te).toBeCloseTo(15, 6);
     expect(raitaru.costBonus).toBeCloseTo(3, 6);
 
-    const sotiyo = mfg(SOTIYO, [], 'high');
+    const sotiyo = mfg(SOTIYO, 'high');
     expect(sotiyo.me).toBeCloseTo(1, 6);
     expect(sotiyo.te).toBeCloseTo(30, 6);
     expect(sotiyo.costBonus).toBeCloseTo(5, 6);
   });
 
-  it('returns no bonus for a structure with no role attributes (NPC-station-like)', () => {
-    expect(mfg({}, [], 'null')).toEqual({ me: 0, te: 0, costBonus: 0 });
+  it('gives nothing when the structure has no bonuses (a citadel, an NPC station)', () => {
+    expect(mfg([], 'null')).toEqual({ me: 0, te: 0, costBonus: 0 });
   });
 });
 
-describe('computeStructureBonus — structure role × rig composition', () => {
-  it('stacks an ME rig on the structure material bonus multiplicatively', () => {
-    const { me, te, costBonus } = mfg(AZBEL, [ME_RIG_T1], 'null');
-    expect(me).toBeCloseTo(5.158, 6);
-    expect(te).toBeCloseTo(20, 6);
-    expect(costBonus).toBeCloseTo(4, 6);
+describe('computeStructureBonus — rigs reach only their own category', () => {
+  const ammoRaitaru = [...RAITARU, rig('material', -2.4, CHARGES), rig('time', -24, CHARGES)];
+
+  it('applies a rig to a job in its target category', () => {
+    const { me, te } = mfg(ammoRaitaru, 'low', [CHARGES]);
+    expect(me).toBeCloseTo((1 - 0.99 * (1 - 0.024 * 1.9)) * 100, 6);
+    expect(te).toBeCloseTo((1 - 0.85 * (1 - 0.24 * 1.9)) * 100, 6);
+  });
+
+  it('leaves a job outside the rig category with the hull bonus alone', () => {
+    expect(mfg(ammoRaitaru, 'low', [EQUIPMENT])).toEqual(mfg(RAITARU, 'low', [EQUIPMENT]));
+    expect(mfg(ammoRaitaru, 'low', [])).toEqual(mfg(RAITARU, 'low', []));
   });
 
   it('matches the canonical Sotiyo + T2 ME rig (null) reduction', () => {
-    expect(mfg(SOTIYO, [ME_RIG_T2], 'null').me).toBeCloseTo(5.9896, 6);
+    expect(mfg([...SOTIYO, rig('material', -2.4, COMPONENTS)], 'null', [COMPONENTS]).me).toBeCloseTo(5.9896, 6);
   });
 
-  it('applies one combined rig to both material and time at once', () => {
-    const { me, te, costBonus } = mfg(AZBEL, [COMBINED_RIG], 'null');
-    expect(me).toBeCloseTo(5.158, 6);
-    expect(te).toBeCloseTo(53.6, 6);
-    expect(costBonus).toBeCloseTo(4, 6);
+  it('multiplies several rigs that reach the same job as independent factors', () => {
+    const twoRigs = [...AZBEL, rig('material', -2, EQUIPMENT), rig('material', -2, EQUIPMENT)];
+    expect(mfg(twoRigs, 'null', [EQUIPMENT]).me).toBeCloseTo(9.141364, 5);
   });
 
-  it('multiplies multiple material rigs as independent factors', () => {
-    expect(mfg(AZBEL, [ME_RIG_T1, COMBINED_RIG], 'null').me).toBeCloseTo(9.141364, 5);
+  it('reads the Thukker capital-component bonus apart from its general one', () => {
+    const thukker = [rig('material', -2, COMPONENTS, THUKKER_BANDS), rig('material', -3.7, ADV_CAP_COMPONENTS, THUKKER_BANDS)];
+    expect(mfg(thukker, 'low', [COMPONENTS]).me).toBeCloseTo(3.8, 6);
+    expect(mfg(thukker, 'low', [ADV_CAP_COMPONENTS]).me).toBeCloseTo(7.03, 6);
+    expect(mfg(thukker, 'null', [ADV_CAP_COMPONENTS]).me).toBeCloseTo(0.37, 6);
   });
 });
 
 describe('computeStructureBonus — security scaling (rig only)', () => {
-  it('scales the rig bonus by sec class while the structure role stays fixed', () => {
-    expect(mfg(AZBEL, [ME_RIG_T1], 'high').me).toBeCloseTo(2.98, 6);
-    expect(mfg(AZBEL, [ME_RIG_T1], 'low').me).toBeCloseTo(4.762, 6);
-    expect(mfg(AZBEL, [ME_RIG_T1], 'null').me).toBeCloseTo(5.158, 6);
+  const meRig = [...AZBEL, rig('material', -2, EQUIPMENT)];
+
+  it('scales the rig bonus by sec class while the hull bonus stays fixed', () => {
+    expect(mfg(meRig, 'high', [EQUIPMENT]).me).toBeCloseTo(2.98, 6);
+    expect(mfg(meRig, 'low', [EQUIPMENT]).me).toBeCloseTo(4.762, 6);
+    expect(mfg(meRig, 'null', [EQUIPMENT]).me).toBeCloseTo(5.158, 6);
   });
 
-  it('treats wormhole space with the null-sec multiplier', () => {
-    expect(mfg(AZBEL, [ME_RIG_T1], 'wormhole').me).toBeCloseTo(mfg(AZBEL, [ME_RIG_T1], 'null').me, 9);
+  it('treats wormhole space with the null-sec band', () => {
+    expect(mfg(meRig, 'wormhole', [EQUIPMENT]).me).toBeCloseTo(mfg(meRig, 'null', [EQUIPMENT]).me, 9);
   });
 });
 
 describe('computeStructureBonus — reactions', () => {
-  it('grants NO material efficiency even when the reaction rig carries a material attr', () => {
-    expect(reaction(TATARA, [REACTOR_RIG], 'null').me).toBe(0);
-  });
+  const reactorL = [
+    rig('material', -2.4, COMPOSITE, REACTOR_BANDS, 'reaction'),
+    rig('time', -24, COMPOSITE, REACTOR_BANDS, 'reaction'),
+    rig('material', -2.4, BIOCHEMICAL, REACTOR_BANDS, 'reaction'),
+    rig('time', -24, BIOCHEMICAL, REACTOR_BANDS, 'reaction'),
+  ];
 
-  it('applies the Tatara reaction-time role bonus stacked with the reactor rig', () => {
-    const { me, te, costBonus } = reaction(TATARA, [REACTOR_RIG], 'null');
-    expect(me).toBe(0);
-    expect(te).toBeCloseTo(41.5, 6);
+  it('stacks the Tatara reaction-time bonus with the reactor rig, and the rig cuts materials too', () => {
+    const { me, te, costBonus } = reaction([...TATARA, ...reactorL], 'null', [COMPOSITE]);
+    expect(me).toBeCloseTo(2.64, 6);
+    expect(te).toBeCloseTo((1 - 0.75 * (1 - 0.24 * 1.1)) * 100, 6);
     expect(costBonus).toBe(0);
   });
 
-  it('gives the Athanor no reaction-time role bonus (rig-only)', () => {
-    expect(reaction(ATHANOR, [], 'null')).toEqual({ me: 0, te: 0, costBonus: 0 });
-    expect(reaction(ATHANOR, [REACTOR_RIG], 'null').te).toBeCloseTo(22, 6);
+  it('never applies manufacturing bonuses to a reaction', () => {
+    expect(reaction([...RAITARU, ...TATARA], 'null', [COMPOSITE])).toEqual({ me: 0, te: 25, costBonus: 0 });
   });
 
-  it('makes a reaction rig a no-op in high-sec (no high-sec multiplier exists)', () => {
-    expect(reaction(TATARA, [REACTOR_RIG], 'high').te).toBeCloseTo(25, 6);
+  it('makes a reactor rig a no-op in high-sec, where it has no band', () => {
+    expect(reaction([...TATARA, ...reactorL], 'high', [COMPOSITE])).toEqual({ me: 0, te: 25, costBonus: 0 });
+  });
+});
+
+describe('headlineStructureBonus', () => {
+  it('is the best any one category gets, metric by metric', () => {
+    const split = [...RAITARU, rig('material', -2.4, EQUIPMENT), rig('time', -24, CHARGES)];
+    const headline = headlineStructureBonus({ filterSets: [[EQUIPMENT], [CHARGES]], modifiers: split, securityClass: 'high', activityId: MANUFACTURING_ACTIVITY });
+    expect(headline.me).toBeCloseTo(mfg(split, 'high', [EQUIPMENT]).me, 9);
+    expect(headline.te).toBeCloseTo(mfg(split, 'high', [CHARGES]).te, 9);
+    expect(headline.costBonus).toBeCloseTo(3, 6);
+  });
+
+  it('includes the overlapping basic and advanced medium ship filters for Odysseus on an Azbel', () => {
+    const modifiers = [
+      ...AZBEL,
+      rig('material', -2.4, 7),
+      rig('time', -24, 7),
+      rig('material', -2.4, 8),
+      rig('time', -24, 8),
+    ];
+    const headline = headlineStructureBonus({
+      modifiers,
+      securityClass: 'null',
+      activityId: MANUFACTURING_ACTIVITY,
+      filterSets: [[3, 7], [3, 8], [3, 7, 8]],
+    });
+    expect(headline.me).toBeCloseTo(10.72772416, 8);
+    expect(headline.te).toBeCloseTo(80.31872, 8);
+    expect(headline).toEqual(mfg(modifiers, 'null', [3, 7, 8]));
+  });
+
+  it('never stacks rigs whose targets no product matches together', () => {
+    const modifiers = [...AZBEL, rig('material', -2.4, EQUIPMENT), rig('material', -2.4, CHARGES)];
+    const headline = headlineStructureBonus({
+      modifiers,
+      securityClass: 'null',
+      activityId: MANUFACTURING_ACTIVITY,
+      filterSets: [[EQUIPMENT], [CHARGES]],
+    });
+    expect(headline.me).toBeCloseTo(5.9896, 8);
+  });
+
+  it('is the hull alone when no rig is fitted', () => {
+    expect(headlineStructureBonus({ filterSets: [], modifiers: RAITARU, securityClass: 'null', activityId: MANUFACTURING_ACTIVITY })).toEqual(
+      mfg(RAITARU, 'null'),
+    );
   });
 });
 
@@ -105,15 +193,16 @@ describe('computeStructureBonus — composes with blueprint ME (contract pin)', 
     const modifier = (1 - bpMe / 100) * (1 - structureMe / 100);
     return Math.max(runs, Math.ceil(Math.round(runs * baseQty * modifier * 100) / 100));
   };
+  const sotiyoT2 = [...SOTIYO, rig('material', -2.4, COMPONENTS)];
 
   it('stacks the structure ME on blueprint ME through the round-then-ceil', () => {
-    const { me } = mfg(SOTIYO, [ME_RIG_T2], 'null');
+    const { me } = mfg(sotiyoT2, 'null', [COMPONENTS]);
     expect(requiredQty(100, 1, 10, me)).toBe(85);
     expect(requiredQty(100, 1, 10, 0)).toBe(90);
   });
 
   it('honours the ≥1-per-run floor under a heavy structure reduction', () => {
-    const { me } = mfg(SOTIYO, [ME_RIG_T2, COMBINED_RIG], 'null');
+    const { me } = mfg([...sotiyoT2, rig('material', -2, COMPONENTS)], 'null', [COMPONENTS]);
     expect(requiredQty(1, 3, 10, me)).toBe(3);
   });
 });

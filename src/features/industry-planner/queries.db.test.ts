@@ -5,6 +5,7 @@ import {
   eveGroups,
   eveTypes,
   industryBlueprints,
+  industryTargetFilters,
   typeDogma,
 } from '@/data/eve-data/schema';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
@@ -26,6 +27,7 @@ const harness = await createDbTestHarness({
     'type_dogma',
     'industry_blueprints',
     'blueprint_trees',
+    'industry_target_filters',
   ],
   steerDbProxy: true,
 });
@@ -160,6 +162,13 @@ async function seedWidgetChain(): Promise<void> {
   await harness.db
     .insert(blueprintTrees)
     .values({ blueprintTypeId: 1000, treeJson: tree, computedAt: new Date() });
+  await harness.db.insert(industryTargetFilters).values([
+    { id: 3, name: 'Ships', categoryIds: [6, 32], groupIds: [] },
+    { id: 4, name: 'Charges', categoryIds: [8], groupIds: [] },
+    { id: 5, name: 'Small T1 Ships', categoryIds: [], groupIds: [25, 31, 420] },
+    { id: 14, name: 'Components', categoryIds: [], groupIds: [332, 334, 716, 964] },
+    { id: 18, name: 'Composite Reactions', categoryIds: [], groupIds: [428, 429, 4932] },
+  ]);
 }
 
 test.skipIf(!harness.reachable)(
@@ -199,6 +208,9 @@ test.skipIf(!harness.reachable)(
     expect(structure.topJobSeconds).toBe(600);
     expect(structure.nodeJobSeconds).toEqual({ 1000: 600, 1100: 300, 1200: 3600 });
     expect(structure.nodeActivityByBlueprint).toEqual({ 1000: 1, 1100: 1, 1200: 11 });
+    // Each job is tagged with the target filters its product falls in, by
+    // category (Ships) or by group (Small T1 Ships, Components, Composite Reactions).
+    expect(structure.nodeFilterIds).toEqual({ 1000: [3, 5], 1100: [14], 1200: [18] });
 
     // Only manufacturing skills with a non-zero time bonus become levers; the
     // reaction formula's skill does not.
@@ -224,6 +236,7 @@ test.skipIf(!harness.reachable)(
     expect(plate?.buildTree).toEqual([]);
     expect(plate?.materialCategories).toEqual([]);
     expect(plate?.nodeJobSeconds).toEqual({ 1100: 300 });
+    expect(plate?.nodeFilterIds).toEqual({ 1100: [14] });
     expect(plate?.nodeTimeSkills).toEqual({
       1100: [{ skillTypeId: 3396, skillName: 'Skill 3396', timePctPerLevel: -1 }],
     });

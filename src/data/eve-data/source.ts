@@ -34,7 +34,12 @@ export type SdeJsonlName =
   | 'mapSecondarySuns'
   | 'npcStations'
   | 'stationOperations'
-  | 'stationServices';
+  | 'stationServices'
+  | 'dogmaEffects'
+  | 'industryTargetFilters'
+  | 'industryModifierSources'
+  | 'industryAssemblyLines'
+  | 'industryInstallationTypes';
 
 const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'categories',
@@ -51,6 +56,11 @@ const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'npcStations',
   'stationOperations',
   'stationServices',
+  'dogmaEffects',
+  'industryTargetFilters',
+  'industryModifierSources',
+  'industryAssemblyLines',
+  'industryInstallationTypes',
 ] as const;
 
 export type SdeJsonlPaths = Record<SdeJsonlName, string>;

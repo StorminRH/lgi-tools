@@ -221,8 +221,18 @@ function usePlannerLocationState(structure: BlueprintStructure) {
         reactionStructure,
         reactionSecurity,
         nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
+        nodeFilterIds: structure.nodeFilterIds,
+        topBlueprintTypeId: structure.blueprintTypeId,
       }),
-    [selectedStructure, location?.security, reactionStructure, reactionSecurity, structure.nodeActivityByBlueprint],
+    [
+      selectedStructure,
+      location?.security,
+      reactionStructure,
+      reactionSecurity,
+      structure.nodeActivityByBlueprint,
+      structure.nodeFilterIds,
+      structure.blueprintTypeId,
+    ],
   );
   const { build: buildStructureReadout, reaction: reactionStructureReadout } = useMemo(
     () => structureReadouts({ selectedStructure, reactionStructure, factors: structureFactors }),

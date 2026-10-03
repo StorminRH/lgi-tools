@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { enteredBonusesSchema } from '@/data/industry-math/entered-bonuses';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
+import { PRODUCTION_ACTIVITIES, type ProductionModifier } from '@/data/eve-data/structures';
 import {
   defineEndpoint,
   jsonBody,
@@ -150,7 +151,13 @@ export const skillLevelsEndpoint = defineEndpoint({
   },
 });
 
-const attrMapSchema = z.record(z.string(), z.number());
+const structureModifierSchema = z.object({
+  activity: z.enum(PRODUCTION_ACTIVITIES),
+  kind: z.enum(['material', 'time', 'cost']),
+  filterId: z.number().nullable(),
+  factor: z.object({ high: z.number(), low: z.number(), null: z.number() }),
+}) satisfies z.ZodType<ProductionModifier>;
+export type StructureModifier = z.infer<typeof structureModifierSchema>;
 
 export const availableStructureSchema = z.object({
   id: z.string(),
@@ -159,8 +166,8 @@ export const availableStructureSchema = z.object({
   structureTypeId: z.number(),
   groupId: z.number(),
   systemId: z.number().nullable(),
-  structureAttrs: attrMapSchema,
-  rigAttrs: z.array(attrMapSchema),
+  modifiers: z.array(structureModifierSchema),
+  targetFilterSets: z.array(z.array(z.number())),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),
   taxPct: z.number().nullable(),
   enteredBonuses: enteredBonusesSchema.nullable(),
