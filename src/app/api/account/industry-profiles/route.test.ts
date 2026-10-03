@@ -5,7 +5,6 @@ const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
   listLinkedCharacters: vi.fn(),
   list: vi.fn(),
-  count: vi.fn(),
   create: vi.fn(),
   getDocument: vi.fn(),
   update: vi.fn(),
@@ -20,7 +19,6 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 }));
 vi.mock('@/features/industry-planner/profiles/queries', () => ({
   listIndustryProfiles: h.list,
-  countIndustryProfiles: h.count,
   createIndustryProfile: h.create,
   getIndustryProfileDocument: h.getDocument,
   updateIndustryProfile: h.update,
@@ -55,7 +53,7 @@ beforeEach(() => {
   h.checkUserId.mockResolvedValue({ ok: true, userId: 'user-1' });
   h.listLinkedCharacters.mockResolvedValue([{ characterId: LINKED.characterId }]);
   h.list.mockResolvedValue([]);
-  h.count.mockResolvedValue(0);
+  h.create.mockResolvedValue(true);
   h.logUsageEvent.mockResolvedValue(undefined);
 });
 
@@ -76,7 +74,7 @@ test('creating a profile only accepts linked members and respects the profile ca
   expect(await problemCode(refused)).toBe('not_linked');
   expect(h.create).not.toHaveBeenCalled();
 
-  h.count.mockResolvedValueOnce(20);
+  h.create.mockResolvedValueOnce(false);
   const full = await POST(post('', { name: 'Caps', document: emptyProfileDocument([LINKED]) }));
   expect(full.status).toBe(409);
   expect(await problemCode(full)).toBe('profile_limit');
@@ -99,6 +97,12 @@ test('duplicating copies the stored document under a new id, or says the source 
 
   // The copy keeps a member that has since been unlinked, so it stays explainable.
   const stored = emptyProfileDocument([LINKED, UNLINKED]);
+  h.getDocument.mockResolvedValueOnce(stored);
+  h.create.mockResolvedValueOnce(false);
+  const full = await DUPLICATE_POST(post('/duplicate', { id: 'p1', name: 'Caps copy' }));
+  expect(full.status).toBe(409);
+  expect(await problemCode(full)).toBe('profile_limit');
+
   h.getDocument.mockResolvedValueOnce(stored);
   const copied = await DUPLICATE_POST(post('/duplicate', { id: 'p1', name: 'Caps copy' }));
   expect(copied.status).toBe(201);

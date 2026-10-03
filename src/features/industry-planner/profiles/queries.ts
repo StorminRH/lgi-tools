@@ -1,8 +1,9 @@
 import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { withLockedUsers } from '@/db/locked-user';
 import { industryProfiles } from '../schema';
 import type { IndustryProfileRow } from './api-contract';
-import type { ProfileDocument } from './profile-document';
+import { MAX_PROFILES_PER_USER, type ProfileDocument } from './profile-document';
 
 const ownedLive = (userId: string) =>
   and(eq(industryProfiles.userId, userId), isNull(industryProfiles.deletedAt));
@@ -25,11 +26,6 @@ export async function listIndustryProfiles(userId: string): Promise<IndustryProf
   return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
 }
 
-export async function countIndustryProfiles(userId: string): Promise<number> {
-  const [row] = await db.select({ n: count() }).from(industryProfiles).where(ownedLive(userId));
-  return row?.n ?? 0;
-}
-
 export async function getIndustryProfileDocument(
   userId: string,
   id: string,
@@ -45,8 +41,13 @@ export async function getIndustryProfileDocument(
 export async function createIndustryProfile(
   userId: string,
   input: { id: string; name: string; document: ProfileDocument },
-): Promise<void> {
-  await db.insert(industryProfiles).values({ userId, ...input });
+): Promise<boolean> {
+  return withLockedUsers([userId], async (tx) => {
+    const [row] = await tx.select({ n: count() }).from(industryProfiles).where(ownedLive(userId));
+    if ((row?.n ?? 0) >= MAX_PROFILES_PER_USER) return false;
+    await tx.insert(industryProfiles).values({ userId, ...input });
+    return true;
+  });
 }
 
 /**

@@ -1,7 +1,7 @@
-import { and, asc, count, countDistinct, eq, exists, gt, ilike, inArray, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, eq, exists, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { db, directClient, resolveLockConnectionUrl } from '@/db';
+import { db } from '@/db';
+import { withLockedUsers } from '@/db/locked-user';
 import type { AnyPgDb } from '@/lib/db-types';
 import { PendingDeletionError, usersHavePendingDeletion } from './deletion-jobs';
 import { accountMatch, characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
@@ -167,10 +167,7 @@ async function changeCharacterOwnership<T>(
   userIds: string[],
   change: (database: AnyPgDb) => Promise<T>,
 ): Promise<T> {
-  resolveLockConnectionUrl();
-  return drizzle(directClient).transaction(async (tx) => {
-    await tx.select({ id: user.id }).from(user).where(inArray(user.id, userIds))
-      .orderBy(asc(user.id)).for('update');
+  return withLockedUsers(userIds, async (tx) => {
     if (await usersHavePendingDeletion(tx, userIds)) throw new PendingDeletionError();
     return change(tx);
   });

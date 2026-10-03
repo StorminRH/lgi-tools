@@ -1,6 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { db, directClient } from '@/db';
+import { db } from '@/db';
+import { withLockedUsers } from '@/db/locked-user';
 import { eveAccountsForUser } from './eve-account-shared';
 import type { IdentityProjectionRunners } from './identity-projection-runners';
 import { repointActiveToOldest } from './linked-characters';
@@ -8,9 +8,7 @@ import { account, user } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
 
 export async function deleteUserIfUnlinked(userId: string): Promise<boolean> {
-  return drizzle(directClient).transaction(async (tx) => {
-    // Account inserts take an FK key-share lock: lock first, then read a fresh snapshot.
-    await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for('update');
+  return withLockedUsers([userId], async (tx) => {
     const [linked] = await tx.select({ id: account.id }).from(account)
       .where(eveAccountsForUser(userId)).limit(1);
     if (linked !== undefined) return false;
