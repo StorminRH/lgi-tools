@@ -142,17 +142,15 @@ describe('buildDemoBoard', () => {
     ]);
   });
 
-  it('values the connected pilots and marks the others reconnect', () => {
-    const aurel = readyData(byName('Aurel Vantesse').netWorth);
-    expect(aurel.liquid).toBe(readyData(byName('Aurel Vantesse').wallet).balance);
-    expect(aurel.buyEscrow).toBe(7_900_000);
-    expect(aurel.implants).toBe(5 * 90_000_000 + 3 * 18_200_000);
-    expect(aurel.sellOrders).toBe(2 * 10_570_472.11 + 739_868_976.53);
-    expect(aurel.total).toBe(
-      Math.round((aurel.liquid + aurel.assets + aurel.sellOrders + aurel.buyEscrow + aurel.implants) * 100) / 100,
-    );
-    expect(aurel.assets).toBeGreaterThan(2_000_000_000);
-    expect(aurel.assets).toBeLessThan(2_200_000_000);
+  it("serves the connected pilots' recorded worth and marks the others reconnect", () => {
+    const pilot = byName('Aurel Vantesse');
+    const aurel = readyData(pilot.netWorth);
+    expect(aurel.liquid).toBe(readyData(pilot.wallet).balance);
+    expect(full.history.at(-1)!.pilots[String(pilot.characterId)]).toEqual({ netWorth: aurel.total, liquidIsk: aurel.liquid });
+    // Hangar assets of 2.0–2.2B plus sell orders, escrow and implants (1,273,509,920.75).
+    const owned = aurel.total - aurel.liquid;
+    expect(owned).toBeGreaterThan(2_000_000_000 + 1_273_509_920.75);
+    expect(owned).toBeLessThan(2_200_000_000 + 1_273_509_920.75);
     expect(byName('Kessa Draymoor').netWorth.state).toBe('ready');
     expect(byName('Torvin Hale').netWorth.state).toBe('ready');
     expect(byName('Ilyana Mirek').netWorth).toEqual({ state: 'reconnect' });

@@ -12,7 +12,7 @@ vi.mock('@/data/eve-data/queries', () => ({
   getStructureRigs: (...args: unknown[]) => h.getStructureRigsMock(...args),
 }));
 
-import { rejectInvalidCustomStructure } from './system-pin';
+import { rejectInvalidCustomStructure } from './save-boundary';
 
 const azbel = { typeId: 35826, name: 'Azbel', groupId: 1404, rigSize: 3 };
 const input = { structureTypeId: 35826, rigTypeIds: [], systemId: null };

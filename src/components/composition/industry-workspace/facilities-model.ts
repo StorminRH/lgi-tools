@@ -26,6 +26,7 @@ export interface FacilityView {
   key: string;
   facility: ProfileFacility;
   structure: AvailableStructure | null;
+  systemId: number | null;
   missing: boolean;
   hostsReactions: boolean;
   hostsCapitals: boolean;
@@ -41,6 +42,7 @@ export function facilityViews(
       key: facilityKey(facility),
       facility,
       structure,
+      systemId: structure === null ? facility.systemId : structure.systemId,
       missing: facility.kind === 'structure' && structures !== null && structure === null,
       hostsReactions: structure !== null && hostsReactions(structure.groupId),
       hostsCapitals: structure?.hostsCapitals === true,

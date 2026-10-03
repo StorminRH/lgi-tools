@@ -49,7 +49,7 @@ async function listLinkedCharacterIds(userId: string): Promise<number[]> {
 }
 
 /** The creator's tracking picks receive viewer grants; the creator retains user-level Admin. */
-export function creationGrants(input: CreateMapRequest): CreateMapGrant[] {
+function creationGrants(input: CreateMapRequest): CreateMapGrant[] {
   return [
     ...input.creatorCharacterIds.map((ownerId) => ({
       ownerType: 'character' as const,

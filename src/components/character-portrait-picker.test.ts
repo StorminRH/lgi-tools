@@ -6,14 +6,7 @@ vi.mock('./character-portrait', () => ({
   CharacterPortrait: ({ name }: { name: string }) => createElement('img', { alt: name }),
 }));
 
-import { CharacterPortraitPicker, portraitToggleChange } from './character-portrait-picker';
-
-test('portraitToggleChange names the one portrait a group change flipped', () => {
-  const selected = new Set([1, 2]);
-  expect(portraitToggleChange(selected, ['1', '2', '3'])).toEqual({ characterId: 3, selected: true });
-  expect(portraitToggleChange(selected, ['2'])).toEqual({ characterId: 1, selected: false });
-  expect(portraitToggleChange(selected, ['2', '1'])).toBeNull();
-});
+import { CharacterPortraitPicker } from './character-portrait-picker';
 
 test('CharacterPortraitPicker presses the chosen portraits', () => {
   const markup = renderToStaticMarkup(createElement(CharacterPortraitPicker, {
@@ -27,16 +20,30 @@ test('CharacterPortraitPicker presses the chosen portraits', () => {
   expect(markup).toMatch(/aria-pressed="true"[^>]*aria-label="Alt"/);
 });
 
-test('CharacterPortraitPicker deselects an own character when external grants are selected', () => {
+test('CharacterPortraitPicker reports the one portrait a group change flipped', () => {
   const onToggle = vi.fn();
-  const group = CharacterPortraitPicker({
+  const characters = [{ characterId: 1, name: 'Main' }, { characterId: 2, name: 'Alt' }];
+  const added = CharacterPortraitPicker({
     label: 'Your characters',
-    characters: [{ characterId: 1, name: 'Main' }, { characterId: 2, name: 'Alt' }],
-    selectedIds: new Set([99, 1, 2]),
+    characters,
+    selectedIds: new Set([99, 1]),
     onToggle,
   });
 
+  expect(added.props.value).toEqual(['1']);
+  added.props.onValueChange(['1', '2']);
+  expect(onToggle).toHaveBeenCalledWith({ characterId: 2, selected: true });
+
+  onToggle.mockClear();
+  const group = CharacterPortraitPicker({
+    label: 'Your characters',
+    characters,
+    selectedIds: new Set([99, 1, 2]),
+    onToggle,
+  });
   expect(group.props.value).toEqual(['1', '2']);
+  group.props.onValueChange(['2', '1']);
+  expect(onToggle).not.toHaveBeenCalled();
   group.props.onValueChange(['1']);
   expect(onToggle).toHaveBeenCalledWith({ characterId: 2, selected: false });
 });

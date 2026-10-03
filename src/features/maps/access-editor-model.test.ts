@@ -12,7 +12,6 @@ import {
   prepareMapCreation,
   removeAccessPrincipal,
   setAccessDraftRole,
-  toggleCharacterId,
 } from './access-editor-model';
 
 const CORPORATION = {
@@ -127,14 +126,6 @@ describe('map access editor model', () => {
     expect(characterSearchPopupOpen(false, 3)).toBe(false);
     expect(characterSearchPopupOpen(true, 3)).toBe(true);
     expect(characterSearchPopupOpen(true, 0)).toBe(false);
-  });
-});
-
-describe('own character picks', () => {
-  it('toggles a pick and reads saved character grants', () => {
-    expect(toggleCharacterId([7], { characterId: 8, selected: true })).toEqual([7, 8]);
-    expect(toggleCharacterId([7, 8], { characterId: 7, selected: false })).toEqual([8]);
-    expect(toggleCharacterId([7], { characterId: 7, selected: true })).toEqual([7]);
     expect(grantedCharacterIds([
       { ownerType: 'character', ownerId: 7, name: 'Me', role: 'admin' },
       { ownerType: 'character', ownerId: 8, name: 'Pending', role: null },

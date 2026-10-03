@@ -114,14 +114,18 @@ function NetWorthHelp() {
         fittings, implants, and items listed on the market.
       </p>
       <p className="text-ui leading-snug text-muted">
-        Prices follow recent Jita market prices, so this number moves with the market.
+        Prices follow recent Jita market prices, so this number moves with the market. It is
+        recalculated once a day after prices update, and when you add or remove a pilot.
       </p>
       <p className="text-ui leading-snug text-muted">Not counted: blueprints, SKINs, PLEX in your PLEX vault, and items without a price.</p>
     </Popover>
   );
 }
 
-/** A net-worth headline: the big figure, the (?), and ISK beside it. */
+/**
+ * A net-worth headline in the chart tooltip's terms: the big figure labelled Net worth with its (?), then
+ * ISK beside it. With no net worth yet the big figure is the ISK alone.
+ */
 export function WorthHeadline({
   worth,
   liquid,
@@ -134,12 +138,13 @@ export function WorthHeadline({
   return (
     <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <span className="font-data text-stat tabular-nums text-isk">
-        {formatIsk(worth ?? liquid)} <span className="text-ui text-muted">ISK</span>
+        {formatIsk(worth ?? liquid)}{' '}
+        <span className="text-ui text-muted">{worth === null ? 'ISK' : 'Net worth'}</span>
       </span>
       {worth !== null && <NetWorthHelp />}
       {worth !== null && liquid !== null && (
         <span className="font-data text-ui tabular-nums text-muted">
-          <span className="text-tone-blue">{formatIsk(liquid)}</span> liquid
+          <span className="text-tone-blue">{formatIsk(liquid)}</span> ISK
         </span>
       )}
       {note !== undefined && <span className="font-data text-micro text-faint">{note}</span>}

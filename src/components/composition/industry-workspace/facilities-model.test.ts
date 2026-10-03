@@ -23,6 +23,7 @@ const structure = (overrides: Partial<AvailableStructure>): AvailableStructure =
   groupId: 1404,
   hostsCapitals: true,
   systemId: null,
+  targetFilterSets: [[EQUIPMENT], [COMPOSITE]],
   modifiers: [
     // Hull: −1% material, −3% job cost, −15% time, on every manufacturing job.
     { activity: 'manufacturing', kind: 'material', filterId: null, factor: { high: 0.99, low: 0.99, null: 0.99 } },
@@ -141,4 +142,23 @@ test('a facility greys out what it cannot build: reactions off a refinery, capit
   expect(off(false, true)).toEqual(REACTIONS);
   // A Tatara.
   expect(off(true, false)).toEqual(['capital-ships']);
+});
+
+
+test('facility rows resolve current structure pins, including legacy null pins and later unpinning', () => {
+  const doc = {
+    ...emptyProfileDocument(),
+    facilities: [
+      { kind: 'structure' as const, id: 'legacy', name: 'Legacy', systemId: null, categories: [] },
+      { kind: 'structure' as const, id: 'moved', name: 'Moved', systemId: 30000142, categories: [] },
+      { kind: 'structure' as const, id: 'unpinned', name: 'Unpinned', systemId: 30000142, categories: [] },
+      { kind: 'station' as const, id: '60003760', name: 'Station', systemId: 30000142, categories: [] },
+    ],
+  };
+  const views = facilityViews(doc, [
+    structure({ id: 'legacy', systemId: 30002537 }),
+    structure({ id: 'moved', systemId: 30004759 }),
+    structure({ id: 'unpinned', systemId: null }),
+  ]);
+  expect(views.map((v) => v.systemId)).toEqual([30002537, 30004759, null, 30000142]);
 });

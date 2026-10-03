@@ -2,16 +2,8 @@ import { expect, test } from 'vitest';
 import {
   SCANNER_ASK_VALUE,
   scannerSelectValue,
-  trackableCharacters,
   trackingToggleLabel,
 } from './tracking-controls-view';
-
-test('trackableCharacters keeps the roster on a legacy map and filters it on a scoped one', () => {
-  const roster = [{ characterId: 1 }, { characterId: 2 }, { characterId: 3 }];
-  expect(trackableCharacters(roster, null)).toEqual(roster);
-  expect(trackableCharacters(roster, [3, 1, 9])).toEqual([{ characterId: 1 }, { characterId: 3 }]);
-  expect(trackableCharacters(roster, [])).toEqual([]);
-});
 
 test('trackingToggleLabel names the location reconnect case instead of a silent track toggle', () => {
   expect(

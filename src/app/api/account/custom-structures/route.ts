@@ -11,7 +11,7 @@ import {
   createCustomStructure,
   listCustomStructures,
 } from '@/features/custom-structures/queries';
-import { rejectInvalidCustomStructure } from '@/features/custom-structures/system-pin';
+import { rejectInvalidCustomStructure } from '@/features/custom-structures/save-boundary';
 import { conflictFailure } from '@/lib/failure';
 import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';

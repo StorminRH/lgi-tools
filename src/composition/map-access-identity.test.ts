@@ -16,10 +16,15 @@ const mocks = vi.hoisted(() => ({
   acknowledgeMapAccessChanges: vi.fn(),
   readPendingMapAccessChanges: vi.fn(),
   eraseNetWorthHistoryForCharacter: vi.fn(),
+  revalueAfterRosterChange: vi.fn(),
 }));
 
 vi.mock('@/features/net-worth/purge', () => ({
   eraseNetWorthHistoryForCharacter: mocks.eraseNetWorthHistoryForCharacter,
+}));
+
+vi.mock('@/composition/board/net-worth-link', () => ({
+  revalueAfterRosterChange: mocks.revalueAfterRosterChange,
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -120,6 +125,7 @@ describe('map-access-identity', () => {
     expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
     expect(mocks.enqueueAffectedMapAccessChanges).toHaveBeenCalledWith(42);
     expect(mocks.projectMapAccess).not.toHaveBeenCalled();
+    expect(mocks.revalueAfterRosterChange).toHaveBeenCalledWith('from-user');
 
     const ids = Array.from({ length: 101 }, (_, i) => `map-${i}`);
     mocks.enqueueAffectedMapAccessChanges.mockResolvedValue(pending(ids));

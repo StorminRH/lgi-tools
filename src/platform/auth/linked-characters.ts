@@ -1,7 +1,7 @@
 import { asc, and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
-import { portraitUrl } from './eve-sso';
+import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 import { AUTHORIZATION_MAX_FAILURE_AGE_MS } from './authorization-policy';
@@ -120,6 +120,16 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
     const characterId = parseLinkedAccountId(r.accountId);
     return characterId === null ? [] : [toLinkedCharacter(characterId, r)];
   });
+}
+
+/** Every account with at least one linked pilot, in a stable order. */
+export async function listUserIdsWithLinkedCharacters(): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ userId: account.userId })
+    .from(account)
+    .where(eq(account.providerId, EVE_PROVIDER_ID))
+    .orderBy(asc(account.userId));
+  return rows.map((row) => row.userId);
 }
 
 export interface ActiveCharacter {
