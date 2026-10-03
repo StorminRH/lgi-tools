@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useId, useRef, useState } from 'react';
+import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Menu, MenuGroup, MenuItem, menuRow, menuSeparator } from '@/components/ui/menu';
@@ -9,17 +10,17 @@ import { AddFacility, type FacilityScope } from './AddFacility';
 import type { FacilityPick } from './facilities-model';
 import { setStructuresPanelOpen } from './structures-panel';
 
-/** A hull-style tile shrunk to sit in a button, naming the kind of facility it adds. */
-function KindTile({ children, tone }: { children: ReactNode; tone: 'structure' | 'station' }) {
+/** The Engineering Complex the structure button wears, as the rows wear their hulls. */
+const RAITARU_TYPE_ID = 35825;
+
+/** The NPC station tile, shrunk to sit in a button. */
+function StationTile() {
   return (
     <span
       aria-hidden
-      className={cn(
-        'grid h-5 min-w-5 place-items-center rounded-ctl border px-0.5 font-display text-micro font-bold',
-        tone === 'structure' ? 'border-isk/30 bg-isk/[0.08] text-isk' : 'border-border-active text-muted',
-      )}
+      className="grid h-5 min-w-5 place-items-center rounded-ctl border border-border-active px-0.5 font-display text-micro font-bold text-muted"
     >
-      {children}
+      NPC
     </span>
   );
 }
@@ -54,7 +55,7 @@ function StructurePicker({
       label="Add a structure"
       trigger={
         <>
-          <KindTile tone="structure">Ra</KindTile>
+          <TypeIcon typeId={RAITARU_TYPE_ID} size={22} mono="Ra" />
           Structure
         </>
       }
@@ -161,7 +162,7 @@ export function AddFacilityRow({
             inputRef.current?.focus();
           }}
         >
-          <KindTile tone="station">NPC</KindTile>
+          <StationTile />
           Station
         </Button>
       </div>
