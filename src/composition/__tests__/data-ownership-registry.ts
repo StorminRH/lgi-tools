@@ -800,6 +800,17 @@ export const DATA_OWNERSHIP = [
     dataClass: 'personal',
   },
   {
+    table: schema.industryProfiles,
+    owner: 'features/industry-planner',
+    reads: [],
+    invariants: ['fk(user_id→user.id)', 'pk(id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'One insert or update per user action. Edits are revision-guarded in the update statement itself, so a stale writer changes nothing. Delete stamps deleted_at and keeps the row for later references. The per-user profile cap is application-enforced (count, insert, recount, compensating delete), like saved plans.',
+    },
+    dataClass: 'personal',
+  },
+  {
     table: schema.customStructures,
     owner: 'features/custom-structures',
     reads: [],

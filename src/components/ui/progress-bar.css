@@ -9,6 +9,19 @@
 .progress-soft[data-tone='evb'] {
   --bar: var(--color-evb);
 }
+/* green shares the default --color-isk, which matches toneHex.green. */
+.progress-soft[data-tone='blue'] {
+  --bar: var(--color-tone-blue);
+}
+.progress-soft[data-tone='orange'] {
+  --bar: var(--color-tone-orange);
+}
+.progress-soft[data-tone='red'] {
+  --bar: var(--color-tone-red);
+}
+.progress-soft[data-tone='neutral'] {
+  --bar: var(--color-muted);
+}
 .progress-soft-fill {
   position: absolute;
   inset: 0 auto 0 0;

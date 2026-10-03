@@ -62,6 +62,13 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
   'marginal',
 );
 
+/** The production profile the industry workspace opens on; checked against the live list. */
+export const industryProfile = define<string | null>(
+  'industry.profileId',
+  z.string().min(1).max(100).nullable(),
+  null,
+);
+
 export const atlasCameraFollow = define<boolean>(
   'atlas.cameraFollow',
   z.boolean(),
@@ -116,6 +123,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   plannerBuildCharacter,
   sitesDetailMode,
   industryCostBasis,
+  industryProfile,
   atlasCameraFollow,
   atlasClickFocus,
   atlasDockCharacter,

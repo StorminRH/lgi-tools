@@ -55,7 +55,7 @@ function LiveJobs({
   const { jobsByCharacter, names, now, loading, failed } = useJobsLive(eligibleIds);
 
   return (
-    <div className="reveal reveal-1 w-full max-w-[760px] flex flex-col gap-6">
+    <div className="reveal reveal-1 w-full flex flex-col gap-6">
       <CharacterStripSection
         characters={characters}
         strip={strip}

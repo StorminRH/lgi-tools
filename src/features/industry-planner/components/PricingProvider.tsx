@@ -41,7 +41,6 @@ import { createBuildSystemApplier } from '../build-system-apply';
 
 import { computeBuildTimes, type BuildTimes } from '../build-time';
 import {
-  availableStructuresEndpoint,
   buildLocationEndpoint,
   ownedAssetsEndpoint,
   ownedBlueprintsEndpoint,
@@ -49,6 +48,7 @@ import {
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import { skillTimeFactorsFor, type SkillTimeFactors } from '../skill-time';
 import { useBuildCharacterSkillLevels } from '../use-build-character-skills';
+import { readAvailableStructures } from '../use-available-structures';
 import { useResourceRead } from '../use-resource-read';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
@@ -345,13 +345,6 @@ function usePlannerLocationWrites(
     enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null,
     onData: setFetchedReactionLocation,
   });
-  const readAvailableStructures = useCallback(
-    async (signal: AbortSignal): Promise<AvailableStructure[] | null> => {
-      const res = await apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal });
-      return res.ok ? res.data.structures : null;
-    },
-    [],
-  );
   useResourceRead(readAvailableStructures, {
     enabled: true,
     onData: setAvailableStructures,

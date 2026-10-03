@@ -41,6 +41,7 @@ export function Dialog({
   className,
   finalFocus,
   initialFocus,
+  keepMounted = false,
 }: {
   open: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -50,12 +51,13 @@ export function Dialog({
   className?: string;
   finalFocus?: DialogFocusTarget;
   initialFocus?: RefObject<HTMLElement | null>;
+  keepMounted?: boolean;
 }) {
   const [popupEl, setPopupEl] = useState<HTMLDivElement | null>(null);
 
   return (
     <Base.Root open={open} onOpenChange={(next) => onOpenChange?.(next)} modal>
-      <Base.Portal>
+      <Base.Portal keepMounted={keepMounted}>
         <Base.Backdrop className="fixed inset-0 z-overlay bg-black/60 backdrop-blur-sm transition-opacity duration-panel data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
         <Base.Popup
           ref={setPopupEl}

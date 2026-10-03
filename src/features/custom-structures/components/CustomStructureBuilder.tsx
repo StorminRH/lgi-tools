@@ -427,10 +427,12 @@ export function CustomStructureBuilder({
   structureTypes,
   structureRigs,
   initial,
+  onStructuresChange,
 }: {
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
   initial: CustomStructureRow[];
+  onStructuresChange?: () => void;
 }) {
   const draft = useCustomStructureDraft(structureTypes, structureRigs, initial);
 
@@ -471,6 +473,20 @@ export function CustomStructureBuilder({
     draft.setName(resolveFitName(draft.name, parsed.structureTypeId, draft.typeName));
   }
 
+  function applyStructureResult(
+    result: { ok: true; data: { structures: CustomStructureRow[] } } | { ok: false },
+    errorMessage?: string,
+  ): boolean {
+    draft.setBusy(false);
+    if (!result.ok) {
+      if (errorMessage) draft.setError(errorMessage);
+      return false;
+    }
+    draft.setStructures(result.data.structures);
+    onStructuresChange?.();
+    return true;
+  }
+
   async function onSave() {
     const ready = readyBuildInput(draft.structureTypeId, draft.name, draft.busy);
     if (!ready) return;
@@ -490,12 +506,7 @@ export function CustomStructureBuilder({
       }),
       cache: 'no-store',
     });
-    draft.setBusy(false);
-    if (!res.ok) {
-      draft.setError('Could not save — check the structure and rigs.');
-      return;
-    }
-    draft.setStructures(res.data.structures);
+    if (!applyStructureResult(res, 'Could not save — check the structure and rigs.')) return;
     draft.setName('');
     draft.setPaste('');
     draft.setPin(null);
@@ -507,8 +518,7 @@ export function CustomStructureBuilder({
     if (draft.busy) return;
     draft.setBusy(true);
     const res = await apiFetch(deleteCustomStructureEndpoint, { body: { id }, cache: 'no-store' });
-    draft.setBusy(false);
-    if (res.ok) draft.setStructures(res.data.structures);
+    applyStructureResult(res);
   }
 
   async function onSetPin(id: string, systemId: number | null) {
@@ -516,12 +526,7 @@ export function CustomStructureBuilder({
     draft.setBusy(true);
     draft.setError(null);
     const res = await apiFetch(setCustomStructurePinEndpoint, { body: { id, systemId }, cache: 'no-store' });
-    draft.setBusy(false);
-    if (!res.ok) {
-      draft.setError('Could not update the pin — try again.');
-      return;
-    }
-    draft.setStructures(res.data.structures);
+    if (!applyStructureResult(res, 'Could not update the pin — try again.')) return;
     draft.setPinningId(null);
   }
 
@@ -530,12 +535,7 @@ export function CustomStructureBuilder({
     draft.setBusy(true);
     draft.setError(null);
     const res = await apiFetch(setCustomStructureTaxEndpoint, { body: { id, taxPct }, cache: 'no-store' });
-    draft.setBusy(false);
-    if (!res.ok) {
-      draft.setError('Could not update the tax — try again.');
-      return;
-    }
-    draft.setStructures(res.data.structures);
+    if (!applyStructureResult(res, 'Could not update the tax — try again.')) return;
     draft.setTaxingId(null);
   }
 

@@ -1,17 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import {
-  addTransitionType,
-  startTransition,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  ViewTransition,
-} from 'react';
+import { useCallback, useMemo, ViewTransition } from 'react';
 import { cn } from '@/components/ui/cn';
 import type {
   BoardCharacter,
@@ -19,38 +8,12 @@ import type {
   BoardResponse,
   SkillCatalogGroup,
 } from '@/composition/board/api-contract';
-import {
-  type BoardView,
-  boardTransitionType,
-  boardViewFrom,
-  boardViewHref,
-  characterParam,
-  OVERVIEW,
-  railOrder,
-  skillNames,
-  tileModel,
-} from './board-view-model';
+import { boardViewFrom, railOrder, skillNames, tileModel } from './board-view-model';
 import { OVERVIEW_MOTION } from './board-motion';
 import { CharacterDetail } from './CharacterDetail';
 import { OverviewCards } from './OverviewCards';
 import { PilotRail } from './PilotRail';
-
-// Marks the history entry a pilot was focused from the overview, so going
-// back steps back to it instead of stacking a new overview entry on top.
-const FOCUSED_FROM_OVERVIEW = 'lgiBoardFocused';
-
-function focusedFromOverview(): boolean {
-  const state: unknown = window.history.state;
-  return typeof state === 'object' && state !== null && FOCUSED_FROM_OVERVIEW in state;
-}
-
-function writeView(view: BoardView): void {
-  const href = boardViewHref(window.location.pathname, window.location.search, view);
-  if (view.view === 'character') window.history.pushState({ [FOCUSED_FROM_OVERVIEW]: true }, '', href);
-  else window.history.replaceState(null, '', href);
-}
-
-const urlParam = () => characterParam(new URLSearchParams(window.location.search));
+import { useFocusView } from './use-focus-view';
 
 const SHEET_GRID = 'grid gap-x-10 gap-y-6 xl:grid-cols-[280px_minmax(0,1fr)]';
 
@@ -97,10 +60,6 @@ function SinglePilot({
   );
 }
 
-// The view lives in `?character=`: pushState keeps Back and Forward inside the
-// page, and useSearchParams seeds the first render so a reload opens the same
-// view. The view itself is local state set in startTransition, because Next's
-// history sync commits outside the transition and <ViewTransition> never ran.
 // Every part the transition animates is a direct child of the persistent
 // container: React runs enter and exit only on a <ViewTransition> with no new
 // DOM node above it.
@@ -115,78 +74,9 @@ function PilotBoard({
   now: number;
   mainId: number | null;
 }) {
-  const params = useSearchParams();
-  const [param, setParam] = useState(() => characterParam(params));
-  const view = boardViewFrom(param, board.characters);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const backRef = useRef<HTMLButtonElement>(null);
-  const lastOpened = useRef<number | null>(view.view === 'character' ? view.characterId : null);
-
-  const show = useCallback(
-    (next: string | null) => {
-      startTransition(() => {
-        addTransitionType(boardTransitionType(boardViewFrom(next, board.characters)));
-        setParam(next);
-      });
-    },
-    [board.characters],
-  );
-
-  // Reconcile history navigation after Next updates the URL. Starting this
-  // transition inside popstate makes React skip the animation for restoration.
-  const searchParam = characterParam(params);
-  useEffect(() => {
-    if (searchParam !== param) show(searchParam);
-  }, [searchParam, param, show]);
-
-  const toOverview = useCallback(() => {
-    if (urlParam() === null) return;
-    if (focusedFromOverview()) {
-      window.history.back();
-      return;
-    }
-    writeView(OVERVIEW);
-    show(null);
-  }, [show]);
-
-  const open = useCallback(
-    (characterId: number) => {
-      lastOpened.current = characterId;
-      writeView({ view: 'character', characterId });
-      show(String(characterId));
-    },
-    [show],
-  );
-
-  // On the always-mounted board, not on the sheet: an Escape pressed while
-  // the sheet is still animating in was missed when the sheet owned it.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      // An open drawer or dialog owns Escape: it closes first, the sheet stays.
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (document.querySelector('[data-drawer-popup], [role="dialog"]') !== null) return;
-      toOverview();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [toOverview]);
-
+  const resolve = useCallback((param: string | null) => boardViewFrom(param, board.characters), [board.characters]);
+  const { view, open, toOverview, rootRef, backRef } = useFocusView(resolve, 'data-pilot-id');
   const shownId = view.view === 'character' ? view.characterId : null;
-  const shownBefore = useRef(shownId);
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (root === null || shownBefore.current === shownId) return;
-    shownBefore.current = shownId;
-    if (root.getBoundingClientRect().top < 0) root.scrollIntoView({ block: 'start' });
-    if (shownId !== null) {
-      lastOpened.current = shownId;
-      backRef.current?.focus({ preventScroll: true });
-    } else if (lastOpened.current !== null) {
-      root.querySelector<HTMLElement>(`[data-pilot-id="${lastOpened.current}"]`)?.focus({ preventScroll: true });
-    }
-  }, [shownId]);
 
   const selected = board.characters.find((c) => c.characterId === shownId);
   if (selected !== undefined) {

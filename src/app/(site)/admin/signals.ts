@@ -3,7 +3,9 @@ import {
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  GSC_OUTCOME_RULES,
   HOUSEKEEPING_HEALTHY_OUTCOMES,
+  type OutcomeRules,
   PRICES_HEALTHY_OUTCOMES,
   SDE_HEALTHY_OUTCOMES,
   SDE_NEUTRAL_OUTCOMES,
@@ -79,6 +81,13 @@ export interface CronStatuses {
   housekeeping: SubsystemStatus;
 }
 
+export const CRON_OUTCOME_RULES = {
+  price: { healthy: PRICES_HEALTHY_OUTCOMES },
+  sde: { healthy: SDE_HEALTHY_OUTCOMES, neutral: SDE_NEUTRAL_OUTCOMES },
+  gsc: GSC_OUTCOME_RULES,
+  housekeeping: { healthy: HOUSEKEEPING_HEALTHY_OUTCOMES },
+} as const satisfies Record<keyof CronStatuses, OutcomeRules>;
+
 export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses {
   const lastFor = (action: UsageAction) =>
     crons.lastRuns.find((run) => run.action === action) ?? null;
@@ -86,15 +95,14 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
     price: deriveCronStatus({
       lastRun: lastFor('cron_prices'),
       outcomes: crons.priceOutcomes,
-      healthy: PRICES_HEALTHY_OUTCOMES,
+      ...CRON_OUTCOME_RULES.price,
       expectedEveryHours: 24,
       now,
     }),
     sde: deriveCronStatus({
       lastRun: lastFor('cron_sde'),
       outcomes: crons.sdeOutcomes,
-      healthy: SDE_HEALTHY_OUTCOMES,
-      neutral: SDE_NEUTRAL_OUTCOMES,
+      ...CRON_OUTCOME_RULES.sde,
       expectedEveryHours: 24,
       now,
     }),
@@ -108,7 +116,7 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
     housekeeping: deriveCronStatus({
       lastRun: lastFor('cron_housekeeping'),
       outcomes: crons.housekeepingOutcomes,
-      healthy: HOUSEKEEPING_HEALTHY_OUTCOMES,
+      ...CRON_OUTCOME_RULES.housekeeping,
       expectedEveryHours: 24,
       now,
     }),

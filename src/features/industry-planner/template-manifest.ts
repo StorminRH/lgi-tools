@@ -255,6 +255,9 @@ export const PREF_CLASSIFICATION: Readonly<Record<string, TemplateFieldKey | 'ex
   'planner.buildLocation': 'buildSystem',
   'planner.buildCharacterId': 'buildCharacterId',
   'industry.costBasis': 'costBasis',
+  // Which profile the workspace shows is navigation context; templates record
+  // their own profile reference.
+  'industry.profileId': 'exempt',
 };
 
 export function captureTemplate(
