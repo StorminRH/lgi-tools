@@ -13,11 +13,11 @@ const CARD = cn(
 );
 
 /**
- * A buildable's chain, once the pointer settles on it, sits in a glass bubble:
- * a frosted inset with a faint rim and glow, easing in as slowly as a card lifts.
+ * A buildable's chain, once the pointer settles on it, rises slightly over a
+ * soft glow, easing in as slowly as a card lifts.
  */
-const BUBBLE =
-  "after:pointer-events-none after:absolute after:inset-1 after:rounded-card after:bg-white/[0.04] after:opacity-0 after:shadow-node-bubble after:transition-opacity after:duration-lift after:ease-out-expo after:content-['']";
+const GLOW =
+  "after:pointer-events-none after:absolute after:inset-1 after:rounded-card after:opacity-0 after:shadow-node-lift after:transition-opacity after:duration-lift after:ease-out-expo after:content-['']";
 
 export interface NodeCardView {
   interactive: boolean;
@@ -38,7 +38,7 @@ export function nodeCardView(args: {
     iconDesc: args.icon ?? itemImage(args.typeId),
     className: cn(
       CARD,
-      BUBBLE,
+      GLOW,
       'relative transition-[opacity,background-color,translate] duration-lift ease-out-expo motion-reduce:transition-none',
       args.lit && 'after:opacity-100 motion-safe:-translate-y-0.5',
       args.dimmed && 'opacity-60',

@@ -420,7 +420,7 @@
   --shadow-dot-blue: 0 0 4px var(--color-dot-blue-glow);
   --shadow-selected-rail: inset 2px 0 0 var(--color-isk);
   /* The planner's glass bubble round a hovered buildable's chain. */
-  --shadow-node-bubble: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px var(--color-card-glow-ring), 0 14px 28px -18px var(--color-card-glow-shadow);
+  --shadow-node-lift: 0 0 0 1px var(--color-card-glow-ring), 0 0 20px -4px color-mix(in oklab, var(--color-isk) 55%, transparent);
 }
 
 /* Canvas renderers read these by var() name at runtime, so emit them even
