@@ -12,7 +12,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadFailed } from '@/components/ui/load-failed';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
-import type { IndustryJob } from '../esi-projection';
 import { jobRowFrameData, jobsCardModel } from '../job-view';
 import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
@@ -74,7 +73,6 @@ function LiveJobs({
               <LiveCharacterCard
                 key={character.characterId}
                 character={character}
-                syncError={null}
                 lastSyncedAt={live?.lastRefreshedAt}
                 hasData={data !== null}
                 isEmpty={isEmpty}
@@ -112,10 +110,6 @@ function renderJobsCard(
         next done in {formatRemaining(model.nextDoneMs)}
       </span>
     ),
-    rows: data !== null && data.jobs.map((job) => <JobRow key={job.job_id} job={job} names={names} now={now} />),
+    rows: data !== null && data.jobs.map((job) => <JobRowFrame key={job.job_id} {...jobRowFrameData(job, names, now)} />),
   };
-}
-
-function JobRow({ job, names, now }: { job: IndustryJob; names: Record<string, string>; now: number }) {
-  return <JobRowFrame {...jobRowFrameData(job, names, now)} />;
 }
