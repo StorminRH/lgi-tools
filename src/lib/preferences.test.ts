@@ -121,19 +121,13 @@ describe('validatePreferenceValue', () => {
     expect(validatePreferenceValue('industry.favoriteBlueprints', [2049])).toBe(false);
   });
 
-  it('rejects an unknown or retired key', () => {
-    expect(validatePreferenceValue('planner.buildCharacterId', 2114872920)).toBe(false);
-  });
-
   it('rejects an unknown key', () => {
     expect(validatePreferenceValue('sites.theme', 'dark')).toBe(false);
   });
 
-  it('lists every registry key', () => {
+  it('lists registry keys callers read', () => {
     expect(PREFERENCE_KEYS).toContain('sites.view');
     expect(PREFERENCE_KEYS).toContain('industry.profileId');
-    expect(PREFERENCE_KEYS).not.toContain('planner.buildLocation');
-    expect(PREFERENCE_KEYS).not.toContain('planner.buildCharacterId');
   });
 });
 

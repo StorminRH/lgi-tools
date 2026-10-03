@@ -54,7 +54,7 @@ function FacilityTile({ view, hulls }: { view: FacilityView; hulls: readonly Hul
     );
   }
   const hull = hulls.find((h) => h.typeId === view.structure?.structureTypeId)?.name ?? null;
-  return <StructureHullTile hullName={hull} groupId={view.structure?.groupId ?? null} />;
+  return <StructureHullTile typeId={view.structure?.structureTypeId ?? null} hullName={hull} />;
 }
 
 function facilityKind(view: FacilityView, hulls: readonly HullName[]): string {

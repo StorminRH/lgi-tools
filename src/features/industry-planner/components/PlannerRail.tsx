@@ -24,6 +24,7 @@ import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitKpis } from './CockpitKpis';
+import { IndustryGlyph } from './IndustryGlyph';
 import { LoadFailed } from '@/components/ui/load-failed';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { MultibuyPanel } from './MultibuyPanel';
@@ -153,16 +154,6 @@ function ProfileSwitch() {
   );
 }
 
-/** Two arrows chasing each other: the job repeated, run after run. */
-function RunsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full fill-none stroke-muted" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 11a7 7 0 0 1 12.5-4.3M20 13a7 7 0 0 1-12.5 4.3" />
-      <path d="M17 3v4h-4M7 21v-4h4" />
-    </svg>
-  );
-}
-
 /** A stepper marked by its icon alone; the stepper carries the name for assistive tech. */
 function StepperRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
@@ -210,7 +201,7 @@ function BuildSteppers({ structure }: { structure: BlueprintStructure }) {
           />
         </StepperRow>
       )}
-      <StepperRow icon={<RunsIcon />}>
+      <StepperRow icon={<IndustryGlyph glyph="runs" className="text-muted" />}>
         <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" reserveTrailing />
       </StepperRow>
     </div>
