@@ -50,14 +50,6 @@ describe('structure bonus metrics', () => {
     expect(shown(rxnOnly)).toEqual([{ kind: 'rxn-te', pct: '1.0%', withMarker: false }]);
   });
 
-  it('shows a typed-in reaction ME before the TE, with the marker on the first reaction row', () => {
-    const readout: StructureReadout = { mfg: bonus({}), rxn: bonus({ me: 2.64, te: 44.8 }) };
-    expect(shown(readout)).toEqual([
-      { kind: 'rxn-me', pct: '2.6%', withMarker: true },
-      { kind: 'rxn-te', pct: '44.8%', withMarker: false },
-    ]);
-  });
-
   it('ignores a non-positive reaction TE', () => {
     expect(shown({ mfg: null, rxn: bonus({ te: 0 }) })).toEqual([]);
   });

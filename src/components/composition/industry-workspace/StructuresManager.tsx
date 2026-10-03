@@ -69,7 +69,7 @@ function StructureRow({
   return (
     <li className={cn(rowGrid, 'group items-center gap-x-3 gap-y-2 px-2 py-2.5 sm:gap-y-1.5')}>
       <span className="[grid-area:tile]">
-        <StructureHullTile hullName={hull?.name ?? null} groupId={hull?.groupId ?? null} />
+        <StructureHullTile typeId={typeId} hullName={hull?.name ?? null} />
       </span>
       <div className="flex min-w-0 flex-col gap-1 [grid-area:name]">
         <span className="truncate font-ui text-nav font-medium text-name">{name}</span>

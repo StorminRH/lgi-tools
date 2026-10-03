@@ -8,6 +8,7 @@ import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
 import type { OwnedComponentDetail } from '../types';
+import { IndustryGlyph } from './IndustryGlyph';
 
 export interface MeProps {
   blueprintTypeId: number;
@@ -40,59 +41,22 @@ function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, 
 
 export type IconState = NodeMeState | 'bonus' | 'reaction';
 
-export function GemIcon({ state }: { state: IconState }) {
+/** CCP's glyph in its efficiency tone. The glow sits on a wrapper because a mask clips its own element's filter. */
+function ToneGlyph({ glyph, state }: { glyph: 'me' | 'te'; state: IconState }) {
   const tone = EFFICIENCY_TONE_CLASSES[state];
-  if (state === 'unowned') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full">
-        <g transform="translate(-0.5 0)">
-          <path
-            d="M6 3h12l4 6-10 13L2 9Z"
-            className={cn(tone.fill, tone.stroke)}
-            strokeWidth={2}
-            strokeLinejoin="round"
-          />
-        </g>
-      </svg>
-    );
-  }
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', tone.glow)}>
-      <g transform="translate(-0.5 0)">
-        <path d="M6 3h12l4 6-10 13L2 9Z" className={tone.fill} strokeLinejoin="round" />
-        <path
-          d="M11 3 8 9l4 13 4-13-3-6M2 9h20"
-          className="fill-none stroke-bg"
-          strokeWidth={1.3}
-          strokeOpacity={0.5}
-          strokeLinejoin="round"
-        />
-      </g>
-    </svg>
+    <span aria-hidden className={cn('block size-full', tone.glow)}>
+      <IndustryGlyph glyph={glyph} className={tone.text} />
+    </span>
   );
 }
 
+export function GemIcon({ state }: { state: IconState }) {
+  return <ToneGlyph glyph="me" state={state} />;
+}
+
 export function HourglassIcon({ state }: { state: IconState }) {
-  const tone = EFFICIENCY_TONE_CLASSES[state];
-  if (state === 'unowned') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full">
-        <path
-          d="M5 3h14l-7 9 7 9H5l7-9Z"
-          className={cn(tone.fill, tone.stroke)}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-        <path d="M4 3h16M4 21h16" className="stroke-muted" strokeWidth={2} strokeLinecap="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', tone.glow)}>
-      <path d="M5 3h14l-7 9 7 9H5l7-9Z" className={tone.fill} strokeLinejoin="round" />
-      <path d="M4 3h16M4 21h16" className="stroke-bg" strokeWidth={1.6} strokeLinecap="round" />
-    </svg>
-  );
+  return <ToneGlyph glyph="te" state={state} />;
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
