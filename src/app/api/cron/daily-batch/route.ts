@@ -15,7 +15,8 @@ import { revalueNetWorthDeclaration } from '../revalue-net-worth/declaration';
  * The daily Vercel cron. Hobby fires it anywhere in the 12:00 UTC hour, after
  * CCP's 11:00 downtime; running the steps in one invocation keeps their order
  * fixed. The ESI refresh queue drains after the price sweeps so deferred
- * holdings land before net worth is revalued at the new prices. Housekeeping
+ * holdings land before net worth is revalued at the new prices; without new
+ * prices there is no revalue, and the board carries yesterday's day. Housekeeping
  * runs last under its own time budget, so a backlog never delays the
  * refreshes. The SDE refresh keeps its own later window and invocation.
  */
@@ -30,7 +31,7 @@ export const GET = defineCronBatchRoute<CronBatchResponse>([
   cronBatchStep(refreshPricesDeclaration),
   cronBatchStep(refreshIndustryIndicesDeclaration),
   cronBatchStep(drainEsiRefreshJobsDeclaration),
-  cronBatchStep(revalueNetWorthDeclaration),
+  cronBatchStep(revalueNetWorthDeclaration, undefined, refreshPricesDeclaration),
   cronBatchStep(refreshWhStaticsDeclaration, isMonday),
   cronBatchStep(housekeepingDeclaration),
 ]);

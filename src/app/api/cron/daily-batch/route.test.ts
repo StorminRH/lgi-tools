@@ -78,6 +78,22 @@ describe('GET /api/cron/daily-batch', () => {
     });
   });
 
+  it('skips the net-worth revalue when the price sweep fails', async () => {
+    vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    h.workByName.set('cron:prices', async () => { throw new Error('prices down'); });
+
+    const response = await GET(authedRequest());
+
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:housekeeping']);
+    await expect(response.json()).resolves.toMatchObject({
+      steps: expect.arrayContaining([
+        { name: 'cron:prices', status: 'failed' },
+        { name: 'cron:net-worth', status: 'skipped' },
+      ]),
+    });
+  });
+
   it('starts later jobs within the invocation window after a slow purge backlog', async () => {
     vi.setSystemTime(new Date('2026-09-28T12:20:00Z'));
     const started = Date.now();
