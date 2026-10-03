@@ -77,10 +77,24 @@ test.describe('authenticated smoke', () => {
     await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 
-    for (const route of ['/industry', '/atlas', '/jobs', '/structures', '/settings/characters'] as const) {
+    for (const [route, destination] of [
+      ['/industry', '/industry'],
+      ['/atlas', '/atlas'],
+      ['/jobs', '/industry/jobs'],
+      ['/structures', '/industry?panel=structures'],
+      ['/settings/characters', '/settings/characters'],
+    ] as const) {
       await page.goto(route);
+      await expect(page).toHaveURL(destination);
       await expect(page.locator('body')).toBeVisible();
       await expectAuthenticatedSession(page);
+      if (route === '/structures') {
+        const drawer = page.getByRole('dialog', { name: 'Structures' });
+        await expect(drawer).toBeVisible();
+        await drawer.getByRole('button', { name: 'Close side panel' }).click();
+        await expect(drawer).toBeHidden();
+        await expect(page).toHaveURL('/industry');
+      }
       await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     }
 
