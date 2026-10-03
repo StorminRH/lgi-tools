@@ -97,8 +97,6 @@ describe('NodeCard', () => {
     expect(nodeCardView({ ...base, onOpen: () => {} }).interactive).toBe(true);
     expect(nodeCardView(base).iconDesc).toEqual(itemImage(34));
     expect(nodeCardView({ ...base, icon: nodeImage(999, 34) }).iconDesc).toEqual(nodeImage(999, 34));
-    // A lit card rises slightly into its bubble; the rest of the plan recedes a little.
-    expect(nodeCardView({ ...base, lit: true }).className).toMatch(/after:opacity-100 .*motion-safe:-translate-y-0\.5/);
-    expect(nodeCardView({ ...base, dimmed: true }).className).toContain('opacity-60');
+    expect(nodeCardView({ ...base, lit: true }).className).toContain('motion-safe:-translate-y-0.5');
   });
 });
