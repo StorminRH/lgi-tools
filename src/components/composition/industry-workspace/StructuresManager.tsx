@@ -19,6 +19,7 @@ import type { AvailableStructure } from '@/features/industry-planner/types';
 import { refreshAvailableStructures, useAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { CorpRigEditor } from '@/features/owned-structures/components/CorpRigEditor';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '@/features/owned-structures/types';
+import { type NewStructure, settleNewStructure, useNewStructureAsked } from './structures-panel';
 
 type Filter = 'all' | 'corp' | 'yours';
 type Composer = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'corp'; structureId: number } | null;
@@ -255,6 +256,17 @@ const withCorpRigs = (structureId: number, saved: Pick<CorpStructurePageStructur
     structures: corp.structures.map((s) => (s.structureId === structureId ? { ...s, ...saved } : s)),
   });
 
+/** The structure a save just added, in the shape a profile takes it. */
+export function savedStructure(
+  before: readonly CustomStructureRow[],
+  after: readonly CustomStructureRow[],
+  types: readonly StructureTypeOption[],
+): NewStructure | null {
+  const row = after.find((s) => !before.some((b) => b.id === s.id));
+  const groupId = row && types.find((t) => t.typeId === row.structureTypeId)?.groupId;
+  return row && groupId !== undefined ? { id: row.id, name: row.name, systemId: row.systemId, groupId } : null;
+}
+
 export function StructuresManager({
   structureTypes,
   structureRigs,
@@ -268,7 +280,10 @@ export function StructuresManager({
 }) {
   const [custom, setCustom] = useState(initialCustom);
   const [corps, setCorps] = useState(() => initialCorps.filter((c) => c.structures.length > 0));
-  const [composer, setComposer] = useState<Composer>(null);
+  const [ownComposer, setComposer] = useState<Composer>(null);
+  // A profile asking for a new structure opens the form, and gets what it saves.
+  const forProfile = useNewStructureAsked();
+  const composer: Composer = forProfile ? { kind: 'new' } : ownComposer;
   const [filter, setFilter] = useState<Filter>('all');
   const lookups = useLookups(structureTypes);
   const counts = { corp: corps.reduce((n, c) => n + c.structures.length, 0), yours: custom.length };
@@ -284,10 +299,11 @@ export function StructuresManager({
       structureRigs={structureRigs}
       editing={row}
       onSaved={(structures) => {
+        if (row === null && forProfile) settleNewStructure(savedStructure(custom, structures, structureTypes));
         setCustom(structures);
         settle();
       }}
-      onClose={() => setComposer(null)}
+      onClose={() => (row === null && forProfile ? settleNewStructure(null) : setComposer(null))}
     />
   );
 

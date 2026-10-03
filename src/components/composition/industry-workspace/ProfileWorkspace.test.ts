@@ -342,7 +342,7 @@ test('a profile at its facility limit cannot take another', () => {
   }));
   const addField = () => /<input[^>]*aria-label="Add a facility"[^>]*>/.exec(render())![0];
   live.profiles = [team];
-  expect(addField()).toContain('placeholder="Add facility"');
+  expect(addField()).toContain('placeholder="Add a facility"');
   expect(addField()).not.toContain('disabled=""');
   live.profiles = [{ ...team, document: { ...team.document, facilities: [...team.document.facilities, ...stations] } }];
   expect(addField()).toContain('placeholder="Facility limit reached"');
