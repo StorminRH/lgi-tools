@@ -30,10 +30,6 @@ export function createFailureMessage(status: number): string {
   return "Couldn't create the profile.";
 }
 
-function clampName(name: string): string {
-  return name.slice(0, MAX_PROFILE_NAME_LEN).trim();
-}
-
 /** "Production", then "Production 2", "Production 3"… skipping names in use. */
 export function suggestProfileName(existing: readonly { name: string }[]): string {
   const taken = new Set(existing.map((p) => p.name.toLowerCase()));
@@ -45,9 +41,11 @@ export function suggestProfileName(existing: readonly { name: string }[]): strin
 
 export function copyName(name: string, existing: readonly { name: string }[]): string {
   const taken = new Set(existing.map((p) => p.name.toLowerCase()));
-  const base = clampName(`${name} copy`);
-  if (!taken.has(base.toLowerCase())) return base;
-  let n = 2;
-  while (taken.has(clampName(`${name} copy ${n}`).toLowerCase())) n += 1;
-  return clampName(`${name} copy ${n}`);
+  const candidate = (n: number) => {
+    const suffix = n === 1 ? ' copy' : ` copy ${n}`;
+    return `${name.slice(0, MAX_PROFILE_NAME_LEN - suffix.length).trim()}${suffix}`;
+  };
+  let n = 1;
+  while (taken.has(candidate(n).toLowerCase())) n += 1;
+  return candidate(n);
 }

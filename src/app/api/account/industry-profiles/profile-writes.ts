@@ -1,11 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { createIndustryProfile } from '@/features/industry-planner/profiles/queries';
 import {
-  countIndustryProfiles,
-  createIndustryProfile,
-  deleteIndustryProfile,
-} from '@/features/industry-planner/profiles/queries';
-import {
-  MAX_PROFILES_PER_USER,
   type ProfileDocument,
   unlinkedNewMembers,
 } from '@/features/industry-planner/profiles/profile-document';
@@ -21,18 +16,10 @@ export async function addsUnlinkedMembers(
   return unlinkedNewMembers(next, previous, linked).length > 0;
 }
 
-/**
- * Inserts a profile under the per-account cap. The recount after the insert
- * undoes a write that a concurrent create pushed over the cap.
- */
 export async function insertWithinCap(
   userId: string,
   input: { name: string; document: ProfileDocument },
 ): Promise<string | null> {
-  if ((await countIndustryProfiles(userId)) >= MAX_PROFILES_PER_USER) return null;
   const id = randomUUID();
-  await createIndustryProfile(userId, { id, ...input });
-  if ((await countIndustryProfiles(userId)) <= MAX_PROFILES_PER_USER) return id;
-  await deleteIndustryProfile(userId, id);
-  return null;
+  return await createIndustryProfile(userId, { id, ...input }) ? id : null;
 }

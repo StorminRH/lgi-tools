@@ -86,12 +86,20 @@ function parsePct(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 && n <= MAX_BONUS_PCT ? n : null;
 }
 
-function parseBonusDraft(draft: BonusDraft): EnteredBonuses | null {
-  const [me, te, cost, rxnMe, rxnTe] = [draft.me, draft.te, draft.cost, draft.rxnMe, draft.rxnTe].map(parsePct);
-  if ([me, te, cost, rxnMe, rxnTe].some((n) => n === null)) return null;
+type ParsedBonuses = { ok: true; bonuses: EnteredBonuses | null } | { ok: false };
+
+/** An all-blank grid is no entry (`null`, so the hull applies); otherwise blanks read as 0. */
+function parseBonusDraft(draft: BonusDraft): ParsedBonuses {
+  const cells = [draft.me, draft.te, draft.cost, draft.rxnMe, draft.rxnTe];
+  if (cells.every((c) => c.trim() === '')) return { ok: true, bonuses: null };
+  const [me, te, cost, rxnMe, rxnTe] = cells.map(parsePct);
+  if ([me, te, cost, rxnMe, rxnTe].some((n) => n === null)) return { ok: false };
   return {
-    manufacturing: { me: me!, te: te!, cost: cost! },
-    reactions: { me: rxnMe!, te: rxnTe! },
+    ok: true,
+    bonuses: {
+      manufacturing: { me: me!, te: te!, cost: cost! },
+      reactions: { me: rxnMe!, te: rxnTe! },
+    },
   };
 }
 
@@ -114,8 +122,8 @@ export function payloadFromDraft(draft: StructureDraft): PayloadResult {
   const tax = parseFacilityTaxDraft(draft.taxDraft);
   if (!tax.ok) return { ok: false, field: 'tax' };
   const rigs = draft.mode === 'rigs';
-  const bonuses = rigs ? null : parseBonusDraft(draft.bonus);
-  if (!rigs && bonuses === null) return { ok: false, field: 'bonus' };
+  const parsed: ParsedBonuses = rigs ? { ok: true, bonuses: null } : parseBonusDraft(draft.bonus);
+  if (!parsed.ok) return { ok: false, field: 'bonus' };
   return {
     ok: true,
     payload: {
@@ -124,7 +132,7 @@ export function payloadFromDraft(draft: StructureDraft): PayloadResult {
       rigTypeIds: rigs ? draft.rigSlots.filter((r): r is number => r !== null) : [],
       systemId: draft.systemId,
       taxPct: tax.value,
-      bonuses,
+      bonuses: parsed.bonuses,
     },
   };
 }

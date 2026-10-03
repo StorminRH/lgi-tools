@@ -30,6 +30,8 @@ const RIG_A_MATERIAL: StructureModifier = {
 };
 
 // The Athanor hull and RIG_B carry no manufacturing bonus, so they have no entry.
+const TARGET_FILTER_SETS = [[2], [3, 7, 8], [18]];
+
 const MODIFIERS: ModifierMap = new Map([
   [RAITARU, [RAITARU_MATERIAL, RAITARU_TIME]],
   [RIG_A, [RIG_A_MATERIAL]],
@@ -79,6 +81,7 @@ describe('buildAvailableStructures', () => {
       [],
       STRUCTURE_TYPES,
       MODIFIERS,
+      TARGET_FILTER_SETS,
     );
     expect(rows).toEqual([
       {
@@ -89,6 +92,7 @@ describe('buildAvailableStructures', () => {
         groupId: 1404,
         hostsCapitals: false,
         systemId: 30002187,
+        targetFilterSets: TARGET_FILTER_SETS,
         modifiers: [RAITARU_MATERIAL, RAITARU_TIME, RIG_A_MATERIAL],
         securityClass: null,
         taxPct: 1.5,
@@ -104,12 +108,13 @@ describe('buildAvailableStructures', () => {
       [corp()],
       STRUCTURE_TYPES,
       MODIFIERS,
+      TARGET_FILTER_SETS,
     );
     expect(rows.map((r) => r.enteredBonuses)).toEqual([bonuses, null]);
   });
 
   it('maps a corp structure with a namespaced id and its real system + security band', () => {
-    const rows = buildAvailableStructures([], [corp()], STRUCTURE_TYPES, MODIFIERS);
+    const rows = buildAvailableStructures([], [corp()], STRUCTURE_TYPES, MODIFIERS, TARGET_FILTER_SETS);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       id: 'corp:1035000000000',
@@ -123,10 +128,11 @@ describe('buildAvailableStructures', () => {
       taxPct: 0.5,
     });
     expect(rows[0]!.modifiers).toEqual([RIG_A_MATERIAL]);
+    expect(rows[0]!.targetFilterSets).toEqual(TARGET_FILTER_SETS);
   });
 
   it('falls back a nameless corp structure to its type name', () => {
-    const [byType] = buildAvailableStructures([], [corp({ name: null })], STRUCTURE_TYPES, MODIFIERS);
+    const [byType] = buildAvailableStructures([], [corp({ name: null })], STRUCTURE_TYPES, MODIFIERS, TARGET_FILTER_SETS);
     expect(byType!.name).toBe('Athanor');
   });
 
@@ -136,12 +142,13 @@ describe('buildAvailableStructures', () => {
       [corp({ typeId: 88888 })],
       STRUCTURE_TYPES,
       MODIFIERS,
+      TARGET_FILTER_SETS,
     );
     expect(rows).toEqual([]);
   });
 
   it('resolves a structure whose hull and rigs carry no modifiers to an empty list', () => {
-    const rows = buildAvailableStructures([custom()], [], STRUCTURE_TYPES, new Map());
+    const rows = buildAvailableStructures([custom()], [], STRUCTURE_TYPES, new Map(), TARGET_FILTER_SETS);
     expect(rows[0]!.modifiers).toEqual([]);
   });
 
@@ -151,6 +158,7 @@ describe('buildAvailableStructures', () => {
       [],
       STRUCTURE_TYPES,
       MODIFIERS,
+      TARGET_FILTER_SETS,
     );
     expect(rows.map((r) => r.modifiers)).toEqual([
       [RAITARU_MATERIAL, RAITARU_TIME, RIG_A_MATERIAL],
@@ -161,7 +169,7 @@ describe('buildAvailableStructures', () => {
   it('carries whether each hull can fit a capital shipyard', () => {
     const SOTIYO = 35827;
     const types = [...STRUCTURE_TYPES, { typeId: SOTIYO, name: 'Sotiyo', groupId: 1404, hostsCapitals: true }];
-    const rows = buildAvailableStructures([custom(), custom({ id: 'uuid-2', structureTypeId: SOTIYO })], [corp({ typeId: SOTIYO })], types, MODIFIERS);
+    const rows = buildAvailableStructures([custom(), custom({ id: 'uuid-2', structureTypeId: SOTIYO })], [corp({ typeId: SOTIYO })], types, MODIFIERS, TARGET_FILTER_SETS);
     expect(rows.map((r) => [r.id, r.hostsCapitals])).toEqual([
       ['uuid-1', false],
       ['uuid-2', true],
@@ -175,6 +183,7 @@ describe('buildAvailableStructures', () => {
       [corp()],
       STRUCTURE_TYPES,
       MODIFIERS,
+      TARGET_FILTER_SETS,
     );
     expect(rows.map((r) => r.id)).toEqual(['uuid-1', 'uuid-2', 'corp:1035000000000']);
   });

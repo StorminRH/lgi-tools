@@ -11,7 +11,8 @@ import { ALL_MANUFACTURING, CATEGORY_KEYS, type CategoryKey } from './production
 export const MAX_PROFILE_NAME_LEN = 60;
 export const MAX_PROFILES_PER_USER = 20;
 const MAX_PROFILE_MEMBERS = 60;
-const MAX_PROFILE_FACILITIES = 30;
+// A valid v1 profile can hold three facility overrides per member and two defaults.
+const MAX_PROFILE_FACILITIES = MAX_PROFILE_MEMBERS * 3 + 2;
 
 const categoriesSchema = z.array(z.enum(CATEGORY_KEYS)).max(CATEGORY_KEYS.length);
 
@@ -58,7 +59,7 @@ function documentIssues(doc: Pick<ProfileDocument, 'members' | 'facilities'>): s
 type V1Document = {
   v: 1;
   members?: { characterId: number; name: string }[];
-  rules?: { characterId: number; responsibility: string }[];
+  rules?: { characterId: number; responsibility: string; facility?: { id: string; name: string } | null }[];
   defaults?: Record<string, { id: string; name: string } | null>;
 };
 
@@ -84,17 +85,23 @@ function upgradeV1(doc: V1Document): z.input<typeof profileDocumentSchema> {
     ['reactionFacility', 'reactions'],
   ];
   const facilities = new Map<string, ProfileFacility>();
-  for (const [slot, category] of defaults) {
-    const ref = doc.defaults?.[slot];
-    if (!ref) continue;
+  const addFacility = (ref: { id: string; name: string }, category: CategoryKey) => {
     const held = facilities.get(ref.id);
     facilities.set(ref.id, {
       kind: 'structure',
       id: ref.id,
       name: ref.name,
       systemId: null,
-      categories: [...(held?.categories ?? []), category],
+      categories: [...new Set([...(held?.categories ?? []), category])],
     });
+  };
+  for (const [slot, category] of defaults) {
+    const ref = doc.defaults?.[slot];
+    if (ref) addFacility(ref, category);
+  }
+  for (const rule of doc.rules ?? []) {
+    const category = V1_CATEGORY[rule.responsibility];
+    if (rule.facility && category) addFacility(rule.facility, category);
   }
   return {
     v: 2,

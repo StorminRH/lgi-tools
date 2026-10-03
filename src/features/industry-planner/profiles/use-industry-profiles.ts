@@ -34,14 +34,14 @@ function statusOf(res: { ok: false; status?: number } | null): number {
 
 async function listProfiles(): Promise<ProfilesResult> {
   const res = await apiFetch(industryProfilesEndpoint, { cache: 'no-store' }).catch(() => null);
-  return res?.ok ? { ok: true, profiles: res.data.profiles } : { ok: false, status: statusOf(res) };
+  return res?.ok ? res : { ok: false, status: statusOf(res) };
 }
 
 async function updateProfile(
   body: { id: string; expectedRevision: number } & PendingEdit,
 ): Promise<ProfilesResult> {
   const res = await apiFetch(updateIndustryProfileEndpoint, { body }).catch(() => null);
-  return res?.ok ? { ok: true, profiles: res.data.profiles } : { ok: false, status: statusOf(res) };
+  return res?.ok ? res : { ok: false, status: statusOf(res) };
 }
 
 /** The signed-in account's production profiles, with create, edit and delete. */
@@ -64,13 +64,12 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
   const addProfile = useCallback(
     async (call: () => Promise<AddOutcome>): Promise<string | null> => {
       setBusy(true);
-      const res = await call().catch(() => null);
+      const res = await sync.request(call).catch(() => null);
       setBusy(false);
       if (!res?.ok) {
         toast.error(createFailureMessage(statusOf(res)));
         return null;
       }
-      sync.accept(res.data.profiles);
       return res.data.id;
     },
     [sync],
@@ -91,14 +90,12 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
       setBusy(true);
-      const res = await apiFetch(deleteIndustryProfileEndpoint, { body: { id } }).catch(() => null);
+      const res = await sync.request(() => apiFetch(deleteIndustryProfileEndpoint, { body: { id } })).catch(() => null);
       setBusy(false);
       if (!res?.ok) {
         toast.error("Couldn't delete the profile.");
         return false;
       }
-      sync.forget(id);
-      sync.accept(res.data.profiles);
       return true;
     },
     [sync],

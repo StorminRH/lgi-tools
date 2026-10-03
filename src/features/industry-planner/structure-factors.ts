@@ -69,7 +69,7 @@ function bonusFor(
   if (securityClass === null) return null;
   const input = { modifiers: structure.modifiers, securityClass, activityId };
   return scope === 'headline'
-    ? headlineStructureBonus(input)
+    ? headlineStructureBonus({ ...input, filterSets: structure.targetFilterSets })
     : computeStructureBonus({ ...input, filterIds: scope.filterIds });
 }
 

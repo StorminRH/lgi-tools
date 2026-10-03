@@ -18,7 +18,7 @@ type CronRegistryEntry =
 const cronRegistry = {
   '/api/cron/daily-batch': {
     justification:
-      'Runs the purge-maps, prices, industry-indices, Monday wh-statics, and housekeeping batch declarations in order.',
+      'Runs the purge-maps, prices, industry-indices, ESI refresh queue drain, net worth revalue, Monday wh-statics, and housekeeping batch declarations in order.',
   },
   '/api/cron/refresh-gsc': { declaration: refreshGscDeclaration },
   '/api/cron/refresh-sde': { declaration: refreshSdeDeclaration },

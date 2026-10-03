@@ -1,13 +1,17 @@
 import { createElement, type ComponentProps, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import type { SidePanel } from '@/components/ui/side-panel';
 
-const location = vi.hoisted(() => ({ params: new URLSearchParams(), pathname: '/industry' }));
+const location = vi.hoisted(() => ({ params: new URLSearchParams(), pathname: '/industry', plannerHref: null as string | null }));
 const structuresPanel = vi.hoisted(() => ({ props: null as ComponentProps<typeof SidePanel> | null }));
 vi.mock('next/navigation', () => ({
   useSearchParams: () => location.params,
   usePathname: () => location.pathname,
+}));
+vi.mock('@/lib/client-store', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/client-store')>()),
+  useClientStore: () => location.plannerHref,
 }));
 vi.mock('next/link', () => ({
   default: ({ href, children, transitionTypes: _types, ...props }: { href: string; children: ReactNode; transitionTypes?: string[] }) =>
@@ -34,6 +38,8 @@ const tabs = (html: string) =>
     current: (attrs ?? '').includes('aria-current="page"'),
   }));
 
+beforeEach(() => { location.plannerHref = null; });
+
 test.each([
   ['/industry', 'Profiles'],
   ['/industry/planner', 'Planner'],
@@ -56,6 +62,19 @@ test('the static shell carries the tabs before the route is known, none of them 
   expect(links.map((l) => l.label)).toEqual(['Profiles', 'Planner', 'Active jobs']);
   expect(links.some((l) => l.current)).toBe(false);
 });
+
+test.each(['/industry/683', '/industry', '/industry/jobs'])(
+  'after a blueprint opens, %s keeps both its Planner return link and scoped search entry',
+  (pathname) => {
+    location.pathname = pathname;
+    location.plannerHref = '/industry/683';
+    const html = renderToStaticMarkup(createElement(IndustryNav));
+    const links = tabs(html);
+    expect(links.find((link) => link.label === 'Planner')?.href).toBe('/industry/683');
+    expect(links.find((link) => link.label === 'Search')?.href).toBe('/industry/planner');
+    expect(html).toContain('aria-label="Search blueprints"');
+  },
+);
 
 const drawer = () => renderToStaticMarkup(createElement(StructuresDrawer, null, 'Structures editor contents'));
 

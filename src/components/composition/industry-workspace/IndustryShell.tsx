@@ -62,6 +62,16 @@ function NavFrame({ active, plannerHref }: { active: Section | null; plannerHref
       <Tab href="/industry/jobs" active={active === 'jobs'}>
         Active jobs
       </Tab>
+      {plannerHref !== EMPTY_PLANNER ? (
+        <Link
+          href={EMPTY_PLANNER}
+          aria-label="Search blueprints"
+          transitionTypes={TAB_TRANSITION}
+          className={cn(tabClass, 'ml-auto shrink-0 whitespace-nowrap')}
+        >
+          Search
+        </Link>
+      ) : null}
     </nav>
   );
 }

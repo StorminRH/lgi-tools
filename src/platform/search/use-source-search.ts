@@ -1,14 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { searchOneSource, type SearchResult } from './index';
 
 /**
  * One scoped source's results for a field as it is typed: debounced, and a
  * newer query cancels the one still in flight.
  */
-export function useSourceSearch(query: string, sourceId: string, debounceMs: number): SearchResult[] {
-  const [hits, setHits] = useState<SearchResult[]>([]);
+export function useSourceSearch<T>(
+  query: string,
+  search: (query: string, signal: AbortSignal) => Promise<T[]>,
+  debounceMs: number,
+): T[] {
+  const [hits, setHits] = useState<T[]>([]);
   const ctrlRef = useRef<AbortController | null>(null);
 
   const run = useCallback(
@@ -16,11 +19,11 @@ export function useSourceSearch(query: string, sourceId: string, debounceMs: num
       ctrlRef.current?.abort();
       const ctrl = new AbortController();
       ctrlRef.current = ctrl;
-      const results = await searchOneSource(input, sourceId, ctrl.signal).catch(() => null);
+      const results = await search(input, ctrl.signal).catch(() => null);
       if (results === null || ctrl.signal.aborted) return;
       setHits(results);
     },
-    [sourceId],
+    [search],
   );
 
   useEffect(() => {

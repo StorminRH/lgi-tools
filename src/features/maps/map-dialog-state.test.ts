@@ -5,7 +5,6 @@ import {
   connectedDialogFocus,
   currentAdminMap,
   dropLostAdminEdit,
-  editingMapRows,
   mapDialogAuthorityKey,
   reconcileAuthorityScopedMapDialogs,
 } from './map-dialog-state';
@@ -26,9 +25,6 @@ describe('map dialog state', () => {
       currentAdminMap([{ ...ADMIN_MAP, role: 'editor' }], ADMIN_MAP.id),
     ).toBeNull();
     expect(currentAdminMap([], ADMIN_MAP.id)).toBeNull();
-    expect(editingMapRows({ [ADMIN_MAP.id]: [1] }, ADMIN_MAP)).toEqual([1]);
-    expect(editingMapRows({}, ADMIN_MAP)).toEqual([]);
-    expect(editingMapRows({ [ADMIN_MAP.id]: [1] }, null)).toEqual([]);
 
     const authorized = mapDialogAuthorityKey(true, [ADMIN_MAP]);
     const unavailable = mapDialogAuthorityKey(false, []);

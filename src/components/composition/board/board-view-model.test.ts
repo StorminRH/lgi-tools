@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from 'vitest';
-import { boardResponseSchema } from '@/composition/board/api-contract';
+import { type BoardHistoryDay, boardResponseSchema } from '@/composition/board/api-contract';
 import { buildDemoBoard, FIXTURE_NOW } from '@/composition/board/demo-board';
 import {
   balanceChart,
@@ -426,7 +426,7 @@ describe('net worth', () => {
   const worthOf = (total: number, liquid: number) => ({
     state: 'ready' as const,
     refreshedAt: NOW,
-    data: { total, liquid, assets: total - liquid, sellOrders: 0, buyEscrow: 0, implants: 0 },
+    data: { total, liquid },
   });
 
   it('sums net worth over the pilots that have one and says how many', () => {
@@ -477,6 +477,18 @@ describe('net worth', () => {
     ]);
   });
 
+  it("holds a pilot's last recorded worth on a day it is missing, and ignores pilots off the roster", () => {
+    const other = { ...pilot, characterId: 8, journal: journalOf('2026-09-26T00:00:00.000Z', []) };
+    const days: BoardHistoryDay[] = [
+      { ...history[0]!, pilots: { '7': { netWorth: 90, liquidIsk: 35 }, '8': { netWorth: 1_000, liquidIsk: 5 }, '9': { netWorth: 50, liquidIsk: 1 } } },
+      { ...history[1]!, pilots: { '7': { netWorth: 100, liquidIsk: 40 } } },
+    ];
+    expect(accountWorthSeries(days, [pilot, other], NOW).filter((point) => point.assets !== null)).toEqual([
+      { t: day('2026-09-26'), liquid: 40, assets: 1_050 },
+      { t: day('2026-09-27'), liquid: 45, assets: 1_055 },
+    ]);
+  });
+
   it('builds one pilot’s series from its own entry in each recorded day', () => {
     const skipped = [{ ...history[0]!, pilots: {} }, history[1]!];
     expect(pilotWorthSeries(skipped, pilot, NOW)).toEqual([
@@ -508,5 +520,13 @@ describe('worth chart mode', () => {
   it('fits each segment to its own range', () => {
     const series = [point(100, null), point(200, 3_000), point(150, 3_050)];
     expect(splitDomains(series)).toEqual({ upper: [2_880, 3_520], lower: [90, 210] });
+  });
+
+  it('never fits a segment tighter than 5% of its midpoint, so a market wobble stays a ripple', () => {
+    const series = [point(377e6, 4_043e6), point(379e6, 4_061e6), point(379e6, 4_041e6)];
+    const { upper, lower } = splitDomains(series);
+    expect(upper[1] - upper[0]).toBeCloseTo(0.05 * ((upper[0] + upper[1]) / 2));
+    expect((upper[0] + upper[1]) / 2).toBeCloseTo(4_430e6);
+    expect(lower[1] - lower[0]).toBeCloseTo(0.05 * 378e6);
   });
 });

@@ -93,10 +93,10 @@ describe('reassignCharacter', () => {
     });
     expect(state.calls.delete).toBe(1);
     expect(runners.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
-    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
-      userId: 'eve-user-2',
-      characterId: 100,
-    });
+    expect(runners.runAfterCharacterLinkChanged.mock.calls).toEqual([
+      [{ userId: 'eve-user-2', characterId: 100 }],
+      [{ userId: 'admin-1', characterId: 100 }],
+    ]);
   });
 
   it('keeps the source user when required collaborative purge fails', async () => {
@@ -142,6 +142,7 @@ describe('reassignCharacter', () => {
       characterId: 100, fromUserId: 'eve-user-2', toUserId: 'admin-1', runners,
     })).resolves.toEqual({ sourceDeleted: true });
     expect(runners.runAfterFailedCharacterUnlink).toHaveBeenCalledWith(100);
+    expect(runners.runAfterCharacterLinkChanged.mock.calls).toEqual([[{ userId: 'eve-user-2', characterId: 100 }]]);
   });
 
 });

@@ -567,6 +567,32 @@ describe('defineCronBatchRoute', () => {
     expect(recorded).toEqual(['refreshed', 'failed', 'refreshed']);
   });
 
+  it('skips a step whose required step failed, and runs it when that step succeeds', async () => {
+    const work = vi.fn(async () => {});
+    const a = step('cron:a', async () => { throw new Error('a failed'); });
+    const GET = defineCronBatchRoute([cronBatchStep(a), cronBatchStep(step('cron:b', work), undefined, a)]);
+
+    const response = await GET(authedRequest());
+
+    expect(work).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      steps: [
+        { name: 'cron:a', status: 'failed' },
+        { name: 'cron:b', status: 'skipped' },
+      ],
+    });
+
+    const passing = step('cron:a', async () => {});
+    const next = defineCronBatchRoute([cronBatchStep(passing), cronBatchStep(step('cron:b', work), undefined, passing)]);
+    await expect((await next(authedRequest())).json()).resolves.toEqual({
+      steps: [
+        { name: 'cron:a', status: 'ok' },
+        { name: 'cron:b', status: 'ok' },
+      ],
+    });
+    expect(work).toHaveBeenCalledTimes(1);
+  });
+
   it('skips a step that is not due', async () => {
     const work = vi.fn(async () => {});
     const GET = defineCronBatchRoute([
