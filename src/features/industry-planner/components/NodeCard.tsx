@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useRef, type FocusEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -197,12 +197,28 @@ function NodeIcon({
   );
 }
 
-/** The pointer on the card, or focus on its button, lights the item's chain. */
-function hoverProps(onHover: ((entering: boolean) => void) | undefined) {
-  if (!onHover) return { card: {}, button: {} };
+/** Keep the chain lit while the pointer or focus is anywhere in the card. */
+function useHoverProps(onHover: ((entering: boolean) => void) | undefined) {
+  const inside = useRef({ pointer: false, focus: false });
+  if (!onHover) return {};
   return {
-    card: { onPointerEnter: () => onHover(true), onPointerLeave: () => onHover(false) },
-    button: { onFocus: () => onHover(true), onBlur: () => onHover(false) },
+    onPointerEnter: () => {
+      inside.current.pointer = true;
+      onHover(true);
+    },
+    onPointerLeave: () => {
+      inside.current.pointer = false;
+      onHover(inside.current.focus);
+    },
+    onFocus: () => {
+      inside.current.focus = true;
+      onHover(true);
+    },
+    onBlur: (event: FocusEvent<HTMLDivElement>) => {
+      if (event.currentTarget.contains(event.relatedTarget)) return;
+      inside.current.focus = false;
+      onHover(inside.current.pointer);
+    },
   };
 }
 
@@ -240,16 +256,15 @@ export function NodeCard({
   onHover?: (entering: boolean) => void;
 }) {
   const view = nodeCardView({ onOpen, icon, typeId, lit, dimmed });
-  const hover = hoverProps(view.interactive ? onHover : undefined);
+  const hover = useHoverProps(view.interactive ? onHover : undefined);
   return (
-    <div className={view.className} {...hover.card}>
+    <div className={view.className} {...hover}>
       {view.interactive && (
         <Button
           variant="bare"
           type="button"
           aria-label={`Open ${name}`}
           onClick={onOpen}
-          {...hover.button}
           className="absolute inset-0 z-0"
         />
       )}

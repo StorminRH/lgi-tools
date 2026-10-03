@@ -59,6 +59,10 @@ describe('cn', () => {
 
     expect(cn('shadow-card-edge', 'shadow-dd')).toBe('shadow-dd');
     expect(cn('shadow-field-inset', 'shadow-none')).toBe('shadow-none');
+    expect(cn('after:shadow-node-bubble', 'after:shadow-red-500')).toBe(
+      'after:shadow-node-bubble after:shadow-red-500',
+    );
+    expect(cn('after:shadow-node-bubble', 'after:shadow-none')).toBe('after:shadow-none');
   });
 
   it('resolves named radius tokens against other radii — last wins', () => {
