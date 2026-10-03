@@ -28,47 +28,48 @@ async function resolveRedirect(page: (props: RedirectProps) => ReactElement, que
   return content.type(content.props);
 }
 
-test.each([
-  ['plans', BuildTemplatesPage],
-  ['jobs', JobsPage],
-] as const)('the legacy %s route redirects to its workspace tab and preserves query values', async (tab, page) => {
-  navigation.redirect.mockClear();
-  await expect(resolveRedirect(page, {
-    profile: 'caps',
-    character: '9001',
-    filter: ['ready', 'active'],
-    search: 'Rifter & parts',
-    tab: 'obsolete',
-    omitted: undefined,
-  })).rejects.toThrow('NEXT_REDIRECT /industry?');
-  expect(navigation.redirect).toHaveBeenCalledTimes(1);
-  const destination = new URL(navigation.redirect.mock.lastCall?.[0] ?? '', 'https://example.test');
-  expect(destination.pathname).toBe('/industry');
-  expect(destination.searchParams.getAll('tab')).toEqual([tab]);
+const LEGACY_QUERY: Query = {
+  profile: 'caps',
+  character: '9001',
+  filter: ['ready', 'active'],
+  search: 'Rifter & parts',
+  tab: 'obsolete',
+  omitted: undefined,
+};
+
+function expectKeptQuery(destination: URL) {
   expect(destination.searchParams.get('profile')).toBe('caps');
   expect(destination.searchParams.get('character')).toBe('9001');
   expect(destination.searchParams.getAll('filter')).toEqual(['ready', 'active']);
   expect(destination.searchParams.get('search')).toBe('Rifter & parts');
   expect(destination.searchParams.has('omitted')).toBe(false);
+  // Sections have their own paths now, so the old section query is dropped.
+  expect(destination.searchParams.has('tab')).toBe(false);
+}
 
-  await expect(resolveRedirect(page, {})).rejects.toThrow(`NEXT_REDIRECT /industry?tab=${tab}`);
+test.each([
+  ['/jobs', JobsPage, '/industry/jobs'],
+  ['/industry/templates', BuildTemplatesPage, '/industry'],
+] as const)('the legacy %s route redirects to its section and keeps its query values', async (_route, page, path) => {
+  navigation.redirect.mockClear();
+  await expect(resolveRedirect(page, LEGACY_QUERY)).rejects.toThrow(`NEXT_REDIRECT ${path}?`);
+  expect(navigation.redirect).toHaveBeenCalledTimes(1);
+  const destination = new URL(navigation.redirect.mock.lastCall?.[0] ?? '', 'https://example.test');
+  expect(destination.pathname).toBe(path);
+  expectKeptQuery(destination);
+
+  await expect(resolveRedirect(page, {})).rejects.toThrow(new RegExp(`NEXT_REDIRECT ${path}$`));
 });
 
-test('the legacy structures route opens the workspace panel without changing the selected tab or other query values', async () => {
+test('the legacy structures route opens the drawer over the workspace and keeps its query values', async () => {
   navigation.redirect.mockClear();
-  await expect(resolveRedirect(StructuresPage, {
-    tab: 'jobs', panel: 'obsolete', profile: 'caps', character: '9001',
-    filter: ['ready', 'active'], search: 'Rifter & parts', omitted: undefined,
-  })).rejects.toThrow('NEXT_REDIRECT /industry?');
+  await expect(resolveRedirect(StructuresPage, { ...LEGACY_QUERY, panel: 'obsolete' })).rejects.toThrow(
+    'NEXT_REDIRECT /industry?',
+  );
   const destination = new URL(navigation.redirect.mock.lastCall?.[0] ?? '', 'https://example.test');
   expect(destination.pathname).toBe('/industry');
   expect(destination.searchParams.getAll('panel')).toEqual(['structures']);
-  expect(destination.searchParams.get('tab')).toBe('jobs');
-  expect(destination.searchParams.get('profile')).toBe('caps');
-  expect(destination.searchParams.get('character')).toBe('9001');
-  expect(destination.searchParams.getAll('filter')).toEqual(['ready', 'active']);
-  expect(destination.searchParams.get('search')).toBe('Rifter & parts');
-  expect(destination.searchParams.has('omitted')).toBe(false);
+  expectKeptQuery(destination);
 
   await expect(resolveRedirect(StructuresPage, {})).rejects.toThrow('NEXT_REDIRECT /industry?panel=structures');
 });

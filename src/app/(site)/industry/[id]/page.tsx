@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
-import { PageShell } from '@/components/ui/page-shell';
+import { IndustrySection, RememberPlanner } from '@/components/composition/industry-workspace/IndustryShell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
@@ -116,6 +116,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="w-full">
       <JsonLd data={breadcrumbJsonLd} />
+      <RememberPlanner blueprintTypeId={id} />
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
 
       <PricingProvider
@@ -155,12 +156,12 @@ export default function BlueprintPlannerPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <PageShell mode="detail">
+    <IndustrySection>
       <div className="flex flex-col items-center pb-20">
         <Suspense fallback={<PlannerSkeleton />}>
           <PlannerContent params={params} />
         </Suspense>
       </div>
-    </PageShell>
+    </IndustrySection>
   );
 }

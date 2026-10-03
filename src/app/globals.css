@@ -29,7 +29,7 @@
 @import "../components/composition/HomeHero.css";
 @import "../components/composition/SignedInFold.css";
 @import "../components/composition/board/HomeBoardView.css";
-@import "../components/composition/industry-workspace/IndustryWorkspaceTabs.css";
+@import "../components/composition/industry-workspace/IndustryShell.css";
 @import "../components/type-icon.css";
 @import "../features/wormhole-sites/components/LazySiteDetails.css";
 @import "../features/wormhole-sites/components/SiteCardLightbox.css";

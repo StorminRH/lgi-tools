@@ -1,16 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { IndustryWorkspaceTabs } from '@/components/composition/industry-workspace/IndustryWorkspaceTabs';
+import { IndustrySection } from '@/components/composition/industry-workspace/IndustryShell';
 import { WorkspaceSkeleton } from '@/components/composition/industry-workspace/WorkspaceStates';
-import { PageShell } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
 import { getStructureTypes } from '@/data/eve-data/queries';
-import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 import { activeJobCharacterIds, corpJobCharacterIds } from './active-job-character-ids';
 import { IndustryLanding } from './IndustryLanding';
-import { CustomStructuresContent } from './CustomStructuresContent';
-import { JobsContent, JobsLoading } from './JobsContent';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
@@ -37,32 +32,13 @@ async function Workspace() {
   return <IndustryLanding characterIds={characterIds} corpEligibleCharacterIds={corpIds} hulls={hulls} />;
 }
 
-export default function IndustryDashboardPage() {
+export default function IndustryProfilesPage() {
   return (
-    <PageShell mode="workspace">
+    <IndustrySection>
       <h1 className="sr-only">Industry</h1>
-      <div className="pb-16 flex flex-col gap-5">
-        <Suspense fallback={<WorkspaceSkeleton />}>
-          <IndustryWorkspaceTabs
-            customStructures={
-              <Suspense fallback={<Skeleton label="Loading custom structures" className="h-56 w-full rounded-card" />}>
-                <CustomStructuresContent />
-              </Suspense>
-            }
-            profiles={
-              <Suspense fallback={<WorkspaceSkeleton />}>
-                <Workspace />
-              </Suspense>
-            }
-            plans={<SavedPlansManager />}
-            jobs={
-              <Suspense fallback={<JobsLoading />}>
-                <JobsContent />
-              </Suspense>
-            }
-          />
-        </Suspense>
-      </div>
-    </PageShell>
+      <Suspense fallback={<WorkspaceSkeleton />}>
+        <Workspace />
+      </Suspense>
+    </IndustrySection>
   );
 }
