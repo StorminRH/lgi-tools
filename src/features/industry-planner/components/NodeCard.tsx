@@ -177,6 +177,35 @@ function BuildableIcon({
   );
 }
 
+/** A buildable's icon opens its research adjusters; anything else just shows. */
+function NodeIcon({
+  icon,
+  name,
+  efficiency,
+  detail,
+}: {
+  icon: EveImageDescriptor;
+  name: string;
+  efficiency: NodeEfficiency | undefined;
+  detail: OwnedComponentDetail | undefined;
+}) {
+  if (efficiency) return <BuildableIcon icon={icon} name={name} efficiency={efficiency} detail={detail} />;
+  return (
+    <span className={cn(FRAME, 'border-transparent')}>
+      <TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />
+    </span>
+  );
+}
+
+/** The pointer on the card, or focus on its button, lights the item's chain. */
+function hoverProps(onHover: ((entering: boolean) => void) | undefined) {
+  if (!onHover) return { card: {}, button: {} };
+  return {
+    card: { onPointerEnter: () => onHover(true), onPointerLeave: () => onHover(false) },
+    button: { onFocus: () => onHover(true), onBlur: () => onHover(false) },
+  };
+}
+
 export function NodeCard({
   typeId,
   icon,
@@ -188,10 +217,10 @@ export function NodeCard({
   detail,
   ownedQty,
   heldBy,
-  selected,
-  related,
-  faded,
-  onSelect,
+  lit,
+  dimmed,
+  onOpen,
+  onHover,
 }: {
   typeId: number;
   icon?: EveImageDescriptor;
@@ -203,34 +232,29 @@ export function NodeCard({
   detail?: OwnedComponentDetail;
   ownedQty?: number;
   heldBy?: AssetHolding[];
-  selected: boolean;
-  related: boolean;
-  faded: boolean;
-  onSelect?: () => void;
+  lit: boolean;
+  dimmed: boolean;
+  /** Opens the item's job; only buildables have one. */
+  onOpen?: () => void;
+  /** Pointer or focus entering (true) and leaving (false) a buildable. */
+  onHover?: (entering: boolean) => void;
 }) {
-  const view = nodeCardView({ onSelect, icon, typeId, selected, related, faded });
+  const view = nodeCardView({ onOpen, icon, typeId, lit, dimmed });
+  const hover = hoverProps(view.interactive ? onHover : undefined);
   return (
-    <div
-      className={view.className}
-    >
+    <div className={view.className} {...hover.card}>
       {view.interactive && (
         <Button
           variant="bare"
           type="button"
-          aria-label={`Trace ${name}`}
-          aria-pressed={selected}
-          onClick={onSelect}
+          aria-label={`Open ${name}`}
+          onClick={onOpen}
+          {...hover.button}
           className="absolute inset-0 z-0"
         />
       )}
       <span className="relative z-10 pointer-events-none [grid-area:icon] [&_button]:pointer-events-auto">
-        {efficiency ? (
-          <BuildableIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
-        ) : (
-          <span className={cn(FRAME, 'border-transparent')}>
-            <TypeIcon {...view.iconDesc} size={30} mono={name.slice(0, 2)} />
-          </span>
-        )}
+        <NodeIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
       </span>
       <div className="relative z-10 pointer-events-none flex min-w-0 flex-col gap-px [grid-area:name]">
         <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
