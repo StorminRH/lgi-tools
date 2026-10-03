@@ -266,6 +266,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       userId: SOURCE_ID,
       characterId: MOVED_CHAR,
     });
+    expect(runners.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: TARGET_ID, characterId: MOVED_CHAR });
 
     const [moved] = await harness.db
       .select({ userId: account.userId })

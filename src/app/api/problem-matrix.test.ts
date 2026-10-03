@@ -75,7 +75,7 @@ vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
   deleteSavedPlan: vi.fn(),
   listSavedPlans: vi.fn(),
 }));
-vi.mock('@/features/custom-structures/system-pin', () => ({
+vi.mock('@/features/custom-structures/save-boundary', () => ({
   rejectInvalidCustomStructure: (...args: unknown[]) => h.rejectInvalidCustomStructure(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({

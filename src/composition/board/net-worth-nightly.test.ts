@@ -10,7 +10,9 @@ vi.mock('./board-view', () => ({ recordNetWorthSnapshot: mocks.record }));
 
 import { revalueAllNetWorth } from './net-worth-nightly';
 
+// UTC day 20728, so a three-account run starts one place in.
 const NOW = new Date('2026-10-02T12:10:00Z');
+const TOMORROW = new Date('2026-10-03T12:10:00Z');
 
 describe('revalueAllNetWorth', () => {
   beforeEach(() => {
@@ -30,7 +32,19 @@ describe('revalueAllNetWorth', () => {
     await expect(revalueAllNetWorth(NOW.getTime() + 60_000, NOW)).resolves.toEqual({
       accounts: 3, revalued: 3, failed: 0, deferred: 0,
     });
-    expect(mocks.record.mock.calls).toEqual([['a', NOW], ['b', NOW], ['c', NOW]]);
+    expect(mocks.record.mock.calls).toEqual([['b', NOW], ['c', NOW], ['a', NOW]]);
+  });
+
+  it('starts one account further on each day, so a deadline never cuts the same tail', async () => {
+    await revalueAllNetWorth(TOMORROW.getTime() + 60_000, TOMORROW);
+    expect(mocks.record.mock.calls.map(([userId]) => userId)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('reports nothing to do with no linked account', async () => {
+    mocks.listUserIds.mockResolvedValue([]);
+    await expect(revalueAllNetWorth(NOW.getTime() + 60_000, NOW)).resolves.toEqual({
+      accounts: 0, revalued: 0, failed: 0, deferred: 0,
+    });
   });
 
   it('counts a failed account and carries on with the rest', async () => {
@@ -48,5 +62,6 @@ describe('revalueAllNetWorth', () => {
     await expect(revalueAllNetWorth(NOW.getTime() + 60_000, NOW)).resolves.toEqual({
       accounts: 3, revalued: 2, failed: 0, deferred: 1,
     });
+    expect(mocks.record.mock.calls.map(([userId]) => userId)).toEqual(['b', 'c']);
   });
 });

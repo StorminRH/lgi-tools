@@ -20,7 +20,7 @@ export const revalueNetWorthDeclaration: CronRouteDeclaration<NetWorthRevalueSum
   work: async () => {
     const summary = await revalueAllNetWorth(Date.now() + REVALUE_BUDGET_MS);
     return {
-      outcome: summary.failed > 0 ? 'partial' : 'revalued',
+      outcome: summary.failed > 0 || summary.deferred > 0 ? 'partial' : 'revalued',
       workDone: summary.revalued > 0,
       failed: summary.failed > 0,
       telemetry: { ...summary },

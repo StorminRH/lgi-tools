@@ -9,6 +9,14 @@ export interface NetWorthRevalueSummary {
   deferred: number;
 }
 
+const DAY_MS = 86_400_000;
+
+/** Starts the list one place further on each UTC day, so a deadline cuts a different tail every night. */
+function rotateByDay<T>(items: readonly T[], now: Date): T[] {
+  const start = items.length === 0 ? 0 : Math.floor(now.getTime() / DAY_MS) % items.length;
+  return [...items.slice(start), ...items.slice(0, start)];
+}
+
 /**
  * Revalues every account with a linked pilot from the holdings and prices already in Neon, after the
  * nightly price sweep, so each account gets one day per day at one set of prices whether or not anyone
@@ -16,7 +24,7 @@ export interface NetWorthRevalueSummary {
  * accounts at the deadline.
  */
 export async function revalueAllNetWorth(deadline: number, now = new Date()): Promise<NetWorthRevalueSummary> {
-  const userIds = await listUserIdsWithLinkedCharacters();
+  const userIds = rotateByDay(await listUserIdsWithLinkedCharacters(), now);
   const summary: NetWorthRevalueSummary = { accounts: userIds.length, revalued: 0, failed: 0, deferred: 0 };
   for (const [i, userId] of userIds.entries()) {
     if (Date.now() >= deadline) {

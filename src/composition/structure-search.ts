@@ -54,9 +54,11 @@ async function searchWithToken(
 }
 
 /**
- * Upwell structures a linked character can access whose name contains `search`.
- * Uses the first linked character holding both search scopes; with none, there
- * is nothing ESI will show us, so the answer is empty rather than an error.
+ * Upwell structures any linked character can access whose name contains `search`.
+ * Searches with every linked character holding both search scopes and a usable
+ * token, since each sees only its own access lists, and merges the hits by
+ * structure. With no scoped character there is nothing ESI will show us, so the
+ * answer is empty; scoped characters without a usable token throw.
  */
 export async function searchUpwellStructures(
   userId: string,
@@ -68,11 +70,15 @@ export async function searchUpwellStructures(
   );
   if (scoped.length === 0) return [];
 
-  for (const character of scoped) {
-    const token = await getFreshAccessTokenForCharacter(character.characterId);
-    if (token.kind === 'ok') {
-      return searchWithToken(character.characterId, token.accessToken, search);
-    }
-  }
-  throw new Error('No scoped linked character has a usable ESI access token');
+  const tokens = await Promise.all(
+    scoped.map(async ({ characterId }) => ({ characterId, token: await getFreshAccessTokenForCharacter(characterId) })),
+  );
+  const usable = tokens.flatMap(({ characterId, token }) =>
+    token.kind === 'ok' ? [{ characterId, accessToken: token.accessToken }] : [],
+  );
+  if (usable.length === 0) throw new Error('No scoped linked character has a usable ESI access token');
+
+  const found = await Promise.all(usable.map((c) => searchWithToken(c.characterId, c.accessToken, search)));
+  const byId = new Map(found.flat().map((hit) => [hit.structureId, hit]));
+  return [...byId.values()].slice(0, MAX_STRUCTURE_RESULTS);
 }

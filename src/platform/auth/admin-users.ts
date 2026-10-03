@@ -270,6 +270,8 @@ export async function reassignCharacter({
       await repointActiveToOldest(fromUserId);
     }
     await runners.runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
+    // The receiving account gains the pilot as a fresh link would, which also revalues its roster.
+    if (moved.length > 0) await runners.runAfterCharacterLinkChanged({ userId: toUserId, characterId });
   }
   return { sourceDeleted };
 }

@@ -374,7 +374,7 @@ function pilotWorthOf(raw: BoardRaw, names: NameBook): PilotWorth | null {
   return { netWorth: total, liquidIsk: liquid };
 }
 
-interface StoredWorth {
+export interface StoredWorth {
   worth: PilotWorth;
   at: number;
 }
@@ -421,7 +421,7 @@ export function assembleBoardCharacter(
   raw: BoardRaw,
   names: NameBook,
   now: number,
-  stored?: { worth: PilotWorth; at: number },
+  stored?: StoredWorth,
 ): BoardCharacter {
   const { identity, health, sheet } = raw;
   const eligible = (key: SheetSectionKey) => canSyncSection(key, health);

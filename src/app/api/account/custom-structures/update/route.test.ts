@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
 vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
-vi.mock('@/features/custom-structures/system-pin', () => ({
+vi.mock('@/features/custom-structures/save-boundary', () => ({
   rejectInvalidCustomStructure: (...args: unknown[]) => h.rejectInvalidMock(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({

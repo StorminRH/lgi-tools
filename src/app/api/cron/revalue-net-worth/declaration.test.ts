@@ -32,6 +32,15 @@ describe('revalueNetWorthDeclaration', () => {
     });
   });
 
+  it('marks a run cut short by its deadline partial, though no account failed', async () => {
+    revalueAllNetWorth.mockResolvedValue({ accounts: 3, revalued: 2, failed: 0, deferred: 1 });
+    await expect(revalueNetWorthDeclaration.work(context, undefined)).resolves.toMatchObject({
+      outcome: 'partial',
+      workDone: true,
+      failed: false,
+    });
+  });
+
   it('is idle with no linked account', async () => {
     revalueAllNetWorth.mockResolvedValue({ accounts: 0, revalued: 0, failed: 0, deferred: 0 });
     await expect(revalueNetWorthDeclaration.work(context, undefined)).resolves.toMatchObject({
