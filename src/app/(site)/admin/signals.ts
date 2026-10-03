@@ -1,8 +1,10 @@
 import type { EsiRefreshQueueStat } from '@/data/esi-refresh-jobs/types';
 import {
+  type AlertTarget,
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  ESI_AVAILABILITY_TARGET,
   GSC_OUTCOME_RULES,
   HOUSEKEEPING_HEALTHY_OUTCOMES,
   type OutcomeRules,
@@ -11,6 +13,7 @@ import {
   SDE_NEUTRAL_OUTCOMES,
   type StatusLevel,
   type SubsystemStatus,
+  targetLevel,
 } from '@/data/telemetry/health-metrics';
 import type {
   CronLastRun,
@@ -128,21 +131,13 @@ export function deriveCronStatuses(crons: CronSignals, now: Date): CronStatuses 
 const SLI_TARGETS = {
   readSuccess: { warn: 0.99, fail: 0.95, direction: 'min' },
   mutationSuccess: { warn: 0.99, fail: 0.95, direction: 'min' },
-  esiSuccess: { warn: 0.95, fail: 0.8, direction: 'min' },
+  esiSuccess: ESI_AVAILABILITY_TARGET,
   latencyP95: { warn: 1500, fail: 3000, direction: 'max' },
-} as const satisfies Record<
-  keyof SliSignals,
-  { warn: number; fail: number; direction: 'min' | 'max' }
->;
+} as const satisfies Record<keyof SliSignals, AlertTarget>;
 
 export function sliLevel(key: keyof SliSignals, value: Loaded<number | null>): StatusLevel {
   if (value === SECTION_LOAD_FAILED || value === null || Number.isNaN(value)) return 'neutral';
-  const target = SLI_TARGETS[key];
-  const breaches = (limit: number) =>
-    target.direction === 'min' ? value < limit : value > limit;
-  if (breaches(target.fail)) return 'red';
-  if (breaches(target.warn)) return 'amber';
-  return 'green';
+  return targetLevel(value, SLI_TARGETS[key]);
 }
 
 export function formatSliValue(key: keyof SliSignals, value: Loaded<number | null>): string {

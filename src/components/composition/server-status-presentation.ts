@@ -1,29 +1,92 @@
-import type { ServerStatus } from '@/data/eve-status/types';
-import { formatQuantity } from '@/lib/format/number';
+import type { EsiHealth } from '@/composition/esi-health';
+import type { SdeBuild, ServerStatus } from '@/data/eve-status/types';
+import type { StatusLevel } from '@/data/telemetry/health-metrics';
+import { formatPct, formatQuantity } from '@/lib/format/number';
+import { formatUtcDate, formatUtcTime } from '@/lib/format/time';
 
 export function serverStatusPresentation(status: ServerStatus): {
-  label: string;
+  value: string;
   ariaLabel: string;
-  reachable: boolean;
 } {
   switch (status.state) {
     case 'online':
       return {
-        label: `TQ · ${formatQuantity(status.players)}`,
+        value: formatQuantity(status.players),
         ariaLabel: `Tranquility online — ${formatQuantity(status.players)} players`,
-        reachable: true,
       };
     case 'vip':
-      return {
-        label: 'TQ · VIP',
-        ariaLabel: 'Tranquility in VIP-only mode',
-        reachable: true,
-      };
+      return { value: 'VIP', ariaLabel: 'Tranquility in VIP-only mode' };
     case 'offline':
-      return {
-        label: 'TQ · offline',
-        ariaLabel: 'Tranquility server offline',
-        reachable: false,
-      };
+      return { value: 'offline', ariaLabel: 'Tranquility server offline' };
   }
+}
+
+export interface EveStatusRow {
+  label: string;
+  value: string;
+  level: StatusLevel;
+}
+
+export interface EveStatusSection {
+  heading: string;
+  rows: EveStatusRow[];
+}
+
+const TQ_STATE: Record<ServerStatus['state'], Pick<EveStatusRow, 'value' | 'level'>> = {
+  online: { value: 'Online', level: 'green' },
+  vip: { value: 'VIP only', level: 'amber' },
+  offline: { value: 'Offline', level: 'red' },
+};
+
+function tranquilityRows(status: ServerStatus): EveStatusRow[] {
+  const rows: EveStatusRow[] = [{ label: 'Status', ...TQ_STATE[status.state] }];
+  if (status.state !== 'offline') {
+    rows.push({ label: 'Players', value: formatQuantity(status.players), level: 'green' });
+    if (status.startedAt !== null) {
+      rows.push({ label: 'Up since', value: `${formatUtcTime(new Date(status.startedAt))} UTC`, level: 'green' });
+    }
+  }
+  return rows;
+}
+
+function esiRows(esi: EsiHealth): EveStatusRow[] {
+  const { availability, budget } = esi;
+  return [
+    availability.state === 'measured'
+      ? { label: 'Success, last hour', value: formatPct(availability.rate * 100), level: availability.level }
+      : { label: 'Success, last hour', value: availability.state === 'idle' ? 'No calls' : 'Unknown', level: 'neutral' },
+    budget.state === 'unknown'
+      ? { label: 'Error budget', value: 'Unknown', level: 'neutral' }
+      : {
+          label: 'Error budget',
+          value: budget.state === 'paused' ? 'Paused' : `${budget.remaining} of ${budget.ceiling}`,
+          level: budget.state === 'paused' ? 'red' : 'green',
+        },
+  ];
+}
+
+/** The SDE build LGI runs on, flagged when Tranquility has moved past it. */
+function sdeRows(sde: SdeBuild | null, status: ServerStatus): EveStatusRow[] {
+  if (sde === null) return [{ label: 'Build', value: 'Unknown', level: 'neutral' }];
+  const behind = status.state !== 'offline' && status.build !== null && Number(sde.build) < Number(status.build);
+  return [
+    { label: 'Build', value: behind ? `${sde.build} · behind` : sde.build, level: behind ? 'amber' : 'green' },
+    { label: 'Ingested', value: formatUtcDate(sde.ingestedAt), level: 'green' },
+  ];
+}
+
+export function eveStatusSections({
+  status,
+  sde,
+  esi,
+}: {
+  status: ServerStatus;
+  sde: SdeBuild | null;
+  esi: EsiHealth;
+}): EveStatusSection[] {
+  return [
+    { heading: 'Tranquility', rows: tranquilityRows(status) },
+    { heading: 'ESI', rows: esiRows(esi) },
+    { heading: 'Static data', rows: sdeRows(sde, status) },
+  ];
 }
