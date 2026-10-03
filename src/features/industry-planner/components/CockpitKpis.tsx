@@ -23,6 +23,7 @@ import type { CostBasis } from '../cost-basis-view';
 import { timeLeverRows } from '../time-lever-rows';
 import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
+import { hasUnpricedInputs } from '../fee-breakdown';
 import { FeeBreakdownPanel } from './FeeBreakdownPanel';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { LoadFailed } from './LoadFailed';
@@ -163,7 +164,7 @@ function FeeHover({
 }) {
   // Wide enough that an indented line such as an assumed facility tax reads in full.
   return (
-    <KpiHelp label="Fee breakdown" keepSide className="w-[296px]">
+    <KpiHelp label="Fee breakdown" keepSide attention={hasUnpricedInputs(net)} className="w-[296px]">
       <FeeBreakdownPanel net={net} systemName={systemName} nameOf={nameOf} />
     </KpiHelp>
   );

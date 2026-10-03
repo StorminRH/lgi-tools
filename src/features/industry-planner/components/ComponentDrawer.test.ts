@@ -38,7 +38,11 @@ const h = vi.hoisted(() => ({
   profile: null as IndustryProfileRow | null,
   plan: null as ProfilePlan | null,
   owned: new Map<number, { ownedQty: number }>(),
-  net: null as { componentJobs: { jobs: { typeId: number; runs: number; systemId: number; fee: { total: number | null } }[] } } | null,
+  net: null as {
+    componentJobs: {
+      jobs: { typeId: number; runs: number; systemId: number; fee: { total: number | null; missingAdjustedPriceTypeIds: number[] } }[];
+    };
+  } | null,
 }));
 
 vi.mock('@/components/ui/side-panel', () => ({
@@ -121,7 +125,7 @@ test('without a profile no install fee is charged or shown', () => {
 });
 
 test('under a profile the job’s install fee shows and is part of a built unit', () => {
-  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 930 } }] } };
+  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 930, missingAdjustedPriceTypeIds: [] } }] } };
   const html = render([10]);
   expect(html).toMatch(/Install fee<\/span><span[^>]*>930.00</);
   // (4,070 + 930) / 4 = 1,250 built still beats 9,000 bought.
@@ -156,4 +160,11 @@ test('under a profile the job shows where it runs and who runs it', () => {
   expect(html).toContain('1DQ1-A Tatara');
   expect(html).toContain('1DQ1-A <span');
   expect(html).toContain('Builder');
+});
+
+test('a fee that counts an unpriced input as nothing shows amber and names it', () => {
+  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 600, missingAdjustedPriceTypeIds: [40] } }] } };
+  const html = render([10]);
+  expect(html).toMatch(/Install fee<\/span><span[^>]*text-dps-mid[^>]*>600.00</);
+  expect(html).toContain('No CCP price · Tritanium');
 });

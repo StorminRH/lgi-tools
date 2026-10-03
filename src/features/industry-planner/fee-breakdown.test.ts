@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildFeeBreakdown } from './fee-breakdown';
+import { buildFeeBreakdown, hasUnpricedInputs } from './fee-breakdown';
 import type { ComponentJobFees, NetMarginView } from './types';
 
 const NAMES: Record<number, string> = { 10: 'Capital Armor Plates', 20: 'Fernite Carbide', 30: 'Tungsten Carbide' };
 const nameOf = (typeId: number) => NAMES[typeId] ?? `Type ${typeId}`;
 
-const job = (typeId: number, total: number | null) => ({
+const job = (typeId: number, total: number | null, missingAdjustedPriceTypeIds: number[] = []) => ({
   typeId,
   blueprintTypeId: typeId + 100,
   reaction: false,
@@ -20,7 +20,7 @@ const job = (typeId: number, total: number | null) => ({
     sccSurcharge: 40,
     total,
     missingSystemCostIndex: total === null,
-    missingAdjustedPriceTypeIds: [],
+    missingAdjustedPriceTypeIds,
   },
 });
 
@@ -119,6 +119,7 @@ describe('buildFeeBreakdown', () => {
         { label: 'Tungsten Carbide', value: 7 },
       ],
       total: 167.5,
+      partial: false,
     });
     expect(b.finalJobTotal).toBe(659);
   });
@@ -132,5 +133,22 @@ describe('buildFeeBreakdown', () => {
   it('a build with nothing below the product lists no component jobs', () => {
     const b = buildFeeBreakdown(net({ componentJobs: { jobs: [], total: 0 } }), nameOf);
     expect(b.components).toBeNull();
+  });
+
+  it('a fee that counts an input as nothing names it, and its total reads as partial', () => {
+    const view = net({ componentJobs: { jobs: [job(10, 315.64, [30]), job(20, 40)], total: 355.64 } });
+    const b = buildFeeBreakdown(view, nameOf);
+    expect(b.components!.jobs[0]).toEqual({ label: 'Capital Armor Plates', value: 315.64, unpriced: ['Tungsten Carbide'] });
+    expect(b.components!.jobs[1]).toEqual({ label: 'Fernite Carbide', value: 40 });
+    expect(b.components!.partial).toBe(true);
+    expect(b.finalJobUnpriced).toEqual([]);
+    expect(hasUnpricedInputs(view)).toBe(true);
+  });
+
+  it("the product's own unpriced inputs are named on the final job", () => {
+    const view = net({ missingAdjustedPriceTypeIds: [20] });
+    expect(buildFeeBreakdown(view, nameOf).finalJobUnpriced).toEqual(['Fernite Carbide']);
+    expect(hasUnpricedInputs(view)).toBe(true);
+    expect(hasUnpricedInputs(net({}))).toBe(false);
   });
 });

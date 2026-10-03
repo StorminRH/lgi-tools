@@ -4,19 +4,19 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
 import type { BlueprintStructure } from '../types';
 
-const h = vi.hoisted(() => ({ locationFailed: false, retryLocation: vi.fn() }));
+const h = vi.hoisted(() => ({ locationFailed: false, retryLocation: vi.fn(), pricing: null as unknown }));
 
 vi.mock('@/components/use-system-search', () => ({ useSystemName: () => undefined }));
 vi.mock('./MarketScorePanel', () => ({ MarketScorePanel: () => null }));
 vi.mock('./planner-contexts', () => ({
-  useMarketData: () => ({ pricing: null, seeded: false, refreshing: false }),
+  useMarketData: () => ({ pricing: h.pricing, seeded: true, refreshing: false }),
   usePlannerConfig: () => ({ runs: 1, costBasis: 'marginal', setCostBasis: vi.fn() }),
   useBuildPlan: () => ({
     buildTimes: { topJob: null, totalProduction: null, topTe: 0, breakdown: [] },
     skillTimeFactors: { skillTimeFactorOf: () => 1, active: false },
   }),
   useBuildSetup: () => ({
-    location: null,
+    location: h.pricing ? { systemName: 'Amamake' } : null,
     reactionSystem: null,
     reactionNetAvailable: false,
     structureFactors: { structureTeFactorOf: () => 1 },
@@ -35,7 +35,39 @@ const render = () =>
 
 beforeEach(() => {
   h.locationFailed = false;
+  h.pricing = null;
 });
+
+const fee = (missingAdjustedPriceTypeIds: number[]) => ({
+  estimatedItemValue: 1_000,
+  jobGrossCost: 100,
+  facilityTax: 2.5,
+  sccSurcharge: 40,
+  total: 142.5,
+  missingSystemCostIndex: false,
+  missingAdjustedPriceTypeIds,
+});
+const priced = (missing: number[]) => ({
+  rows: [],
+  intermediatePrices: [],
+  product: { typeId: 1, name: 'Widget', quantityPerRun: 1, bestSell: 1_000, pct5Sell: null, staleAfterMs: null, buyDepth: null, sellDepth: null, regionalDiscount: null },
+  summary: { basis: 'marginal', bases: { batched: 0, marginal: 0 }, inputCost: 500, revenue: 1_000, margin: 500, marginPct: 50, incomplete: false },
+  net: {
+    netMargin: 300,
+    netMarginPct: 30,
+    netCost: 700,
+    systemCostIndex: 0.1,
+    facilityTaxRate: 0.0025,
+    facilityTaxAssumed: true,
+    jobFee: fee([]),
+    sellSide: { salesTax: 75, brokerFee: 30, total: 105 },
+    componentJobs: {
+      jobs: [{ typeId: 2, blueprintTypeId: 102, reaction: false, runs: 1, systemId: 1, systemCostIndex: 0.1, facilityTaxRate: 0.0025, fee: fee(missing) }],
+      total: 142.5,
+    },
+  },
+});
+const feeMark = (html: string) => html.match(/<button[^>]*aria-label="Fee breakdown"[^>]*>/)?.[0] ?? '';
 
 test('fees that keep failing show one retrying notice directly above the margin', () => {
   h.locationFailed = true;
@@ -54,4 +86,13 @@ test('fees that keep failing show one retrying notice directly above the margin'
 
 test('with fees loaded there is no notice', () => {
   expect(render()).not.toContain('role="alert"');
+});
+
+test('a fee that counts an unpriced input as nothing turns the fee mark amber; the margin keeps its number', () => {
+  h.pricing = priced([34]);
+  const html = render();
+  expect(feeMark(html)).toContain('text-dps-mid');
+  expect(html).toContain('+300.00');
+  h.pricing = priced([]);
+  expect(feeMark(render())).not.toContain('text-dps-mid');
 });
