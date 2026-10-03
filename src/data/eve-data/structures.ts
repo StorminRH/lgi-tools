@@ -48,6 +48,18 @@ export function matchingFilterIds(
     .map((f) => f.id);
 }
 
+export function attainableFilterSets(
+  filters: readonly TargetFilter[],
+  groups: readonly { groupId: number; categoryId: number }[],
+): number[][] {
+  const sets = new Map<string, number[]>();
+  for (const group of groups) {
+    const ids = matchingFilterIds(filters, group).sort((a, b) => a - b);
+    sets.set(ids.join(','), ids);
+  }
+  return [...sets.values()];
+}
+
 /**
  * Whether a rig physically fits a structure: CCP's actual fitting rule, not a
  * "role". The structure's group id must be one of the rig's canFitShipGroup ids

@@ -60,6 +60,7 @@ function productionActivity(activity: number | undefined): IndustryActivityId | 
 /** Reactions need a refinery and capital ships a capital shipyard; NPC stations offer neither. */
 function canHost(facility: PlanFacility, activity: IndustryActivityId, filterIds: readonly number[]): boolean {
   const { structure } = facility;
+  if (facility.kind === 'structure' && structure === null) return false;
   if (activity === REACTION_ACTIVITY) return structure !== null && hostsReactions(structure.groupId);
   return !filterIds.includes(CAPITAL_SHIPS_FILTER_ID) || structure?.hostsCapitals === true;
 }
@@ -175,7 +176,7 @@ export function planFacilities(
 ): PlanFacility[] {
   return doc.facilities.map((facility) => {
     const structure = facility.kind === 'structure' ? (structures?.find((s) => s.id === facility.id) ?? null) : null;
-    const systemId = structure?.systemId ?? facility.systemId;
+    const systemId = structure === null ? facility.systemId : structure.systemId;
     return {
       key: facilityKey(facility),
       id: facility.id,

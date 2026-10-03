@@ -10,6 +10,7 @@ import {
   accountBelongsToUser,
   getStoredActiveCharacterId,
   listLinkedCharacters,
+  listUserIdsWithLinkedCharacters,
   repointActiveToOldest,
   resolveActiveCharacter,
   setActiveCharacter,
@@ -158,6 +159,16 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
     await expect(accountBelongsToUser(USER_ID, SECOND_CHAR)).resolves.toBe(false);
     await setActiveCharacter(USER_ID, FIRST_CHAR);
     await expect(getStoredActiveCharacterId(USER_ID)).resolves.toBe(FIRST_CHAR);
+  });
+
+  it('lists each account with a linked pilot once, in id order', async () => {
+    await seedUser('a-unlinked-user');
+    await seedUser('z-other-user');
+    await seedEveAccount('first', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
+    await seedEveAccount('second', SECOND_CHAR, new Date('2026-07-02T00:00:00Z'));
+    await insertEveAccount(harness.db, { id: 'other', characterId: 90000003, userId: 'z-other-user' });
+
+    await expect(listUserIdsWithLinkedCharacters()).resolves.toEqual([USER_ID, 'z-other-user']);
   });
 
   it('drops a non-numeric EVE account id without failing the list', async () => {

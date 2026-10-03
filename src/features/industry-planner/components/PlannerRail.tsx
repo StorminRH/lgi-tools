@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Banner } from '@/components/ui/banner';
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { scrollArea } from '@/components/ui/scroll-area';
@@ -74,8 +75,8 @@ const ctaClass = 'w-full justify-center';
  */
 function ProfileSwitch() {
   const { session, loading } = useAuth();
-  const { profiles, profile, setProfileId } = useBuildSetup();
-  if (loading || (session !== null && profiles === null)) {
+  const { profiles, profilesFailed, refreshProfiles, profile, setProfileId, locationFailed, retryLocation } = useBuildSetup();
+  if (loading) {
     return <Skeleton label="Loading profiles" className="h-9 w-full rounded-ctl" />;
   }
   if (session === null) {
@@ -89,7 +90,15 @@ function ProfileSwitch() {
       </Button>
     );
   }
-  if (profile === null || profiles === null) {
+  if (profiles === null) {
+    return profilesFailed ? (
+      <div className="flex items-center justify-between gap-2 text-ui text-muted">
+        <span>Could not load profiles.</span>
+        <Button type="button" variant="bare" onClick={refreshProfiles}>Retry</Button>
+      </div>
+    ) : <Skeleton label="Loading profiles" className="h-9 w-full rounded-ctl" />;
+  }
+  if (profile === null) {
     return (
       <Link
         href={PROFILES_HREF}
@@ -101,13 +110,21 @@ function ProfileSwitch() {
     );
   }
   return (
-    <Select
-      value={profile.id}
-      onValueChange={setProfileId}
-      items={profiles.map((p) => ({ value: p.id, label: p.name }))}
-      ariaLabel="Production profile"
-      className="w-full"
-    />
+    <div className="flex flex-col gap-2">
+      <Select
+        value={profile.id}
+        onValueChange={setProfileId}
+        items={profiles.map((p) => ({ value: p.id, label: p.name }))}
+        ariaLabel="Production profile"
+        className="w-full"
+      />
+      {locationFailed && (
+        <Banner tone="warn">
+          <p>Could not load system fees. Estimates exclude these fees.</p>
+          <Button type="button" variant="bare" onClick={retryLocation}>Retry system fees</Button>
+        </Banner>
+      )}
+    </div>
   );
 }
 

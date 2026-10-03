@@ -34,19 +34,17 @@ import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import type { MarginMode } from '../cockpit-margin';
 import type { NetMode } from '../multibuy';
-import { createBuildSystemApplier } from '../build-system-apply';
 
 import { computeBuildTimes, type BuildTimes } from '../build-time';
 import {
-  buildLocationEndpoint,
   ownedAssetsEndpoint,
   ownedBlueprintsEndpoint,
 } from '../api-contract';
-import { REACTION_ACTIVITY } from '../structure-bonus';
 import { useComponentFeeSources, type ComponentFeeInputs } from './use-component-fee-sources';
 import { useProfileFactors } from './use-planner-profile';
+import type { ProfilePlan } from '../profiles/profile-plan';
+import { usePlannerLocationWrites } from './use-planner-location-writes';
 import { NO_SKILL_FACTORS, type SkillTimeFactors } from '../skill-time';
-import { readAvailableStructures } from '../use-available-structures';
 import { useResourceRead } from '../use-resource-read';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
@@ -224,74 +222,6 @@ function usePlannerLocationState(structure: BlueprintStructure) {
   };
 }
 
-/**
- * Reads the build and reaction systems' cost indices and prices, and the
- * account's structures. A profile picks the systems; with none, nothing is
- * read and the build prices without fees.
- */
-function usePlannerLocationWrites(
-  structure: BlueprintStructure,
-  setLocation: (loc: SelectedLocation | null) => void,
-  reactionSystemId: number | null,
-  setFetchedReactionLocation: Dispatch<SetStateAction<ReactionLocationSnapshot | null>>,
-  setAvailableStructures: Dispatch<SetStateAction<AvailableStructure[] | null>>,
-) {
-  const applyBuildSystem = useMemo(
-    () =>
-      createBuildSystemApplier({
-        fetchLocation: async (systemId, signal) => {
-          const res = await apiFetch(buildLocationEndpoint, {
-            body: { systemId, blueprintId: structure.blueprintTypeId },
-            cache: 'no-store',
-            signal,
-          });
-          return res.ok ? res.data : null;
-        },
-        onApplied: (sys, data) =>
-          setLocation({
-            systemId: sys.systemId,
-            systemName: sys.systemName,
-            security: sys.security,
-            stations: data.stations,
-            costIndices: data.costIndices,
-            adjustedPrices: new Map(data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice])),
-          }),
-        onPersist: () => {},
-      }),
-    [structure.blueprintTypeId, setLocation],
-  );
-  const readReactionLocation = useCallback(
-    async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
-      if (reactionSystemId === null) return null;
-      const res = await apiFetch(buildLocationEndpoint, {
-        body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
-        cache: 'no-store',
-        signal,
-      });
-      return res.ok
-        ? {
-            systemId: reactionSystemId,
-            blueprintTypeId: structure.blueprintTypeId,
-            costIndex: res.data.costIndices.reaction ?? null,
-            adjustedPrices: new Map(
-              res.data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
-            ),
-          }
-        : null;
-    },
-    [reactionSystemId, structure.blueprintTypeId],
-  );
-  useResourceRead(readReactionLocation, {
-    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null,
-    onData: setFetchedReactionLocation,
-  });
-  useResourceRead(readAvailableStructures, {
-    enabled: true,
-    onData: setAvailableStructures,
-  });
-  return applyBuildSystem;
-}
-
 function usePlannerOwnedResources(structure: BlueprintStructure) {
   const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
   const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
@@ -360,7 +290,14 @@ interface PriceAssembleMirrors {
   readonly structureFactors: StructureFactors;
 }
 
-function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirrors) {
+function usePriceClock(
+  structure: BlueprintStructure,
+  inputs: Omit<PriceAssembleMirrors, 'components'>,
+  plan: ProfilePlan | null,
+) {
+  // Pricing owns the per-job fee sources for the profile installing the build.
+  const components = useComponentFeeSources(structure, plan);
+  const mirrors: PriceAssembleMirrors = { ...inputs, components };
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [priceSnapshot] = useState(() => createPriceSnapshot());
@@ -546,7 +483,7 @@ export function PricingProvider({
 }) {
   const prefs = usePlannerPrefs();
   const locationState = usePlannerLocationState(structure);
-  const applyBuildSystem = usePlannerLocationWrites(
+  const locationWrites = usePlannerLocationWrites(
     structure,
     locationState.setLocation,
     locationState.reactionSystem?.systemId ?? null,
@@ -554,7 +491,13 @@ export function PricingProvider({
     locationState.setAvailableStructures,
   );
   // Under a profile each job takes its own facility's bonus and character; with none, the build is baseline.
-  const profile = useProfileFactors(structure, { ...locationState, applyBuildSystem });
+  const profile = useProfileFactors(structure, {
+    ...locationState,
+    applyBuildSystem: locationWrites.applyBuildSystem,
+    locationRefreshKey: locationWrites.retry,
+  });
+  const locationFailed = locationWrites.failureSystemId !== null &&
+    locationWrites.failureSystemId === profile.plan?.top.facility?.systemId;
   const { structureFactors } = profile;
   const owned = usePlannerOwnedResources(structure);
   const ledger = usePlannerLedger(
@@ -565,10 +508,7 @@ export function PricingProvider({
     structureFactors,
     profile.skillTimeFactors ?? NO_SKILL_FACTORS,
   );
-  // Every job below the product's is charged where the profile installs it.
-  const components = useComponentFeeSources(structure, profile.plan);
   const clock = usePriceClock(structure, {
-    components,
     costBasis: prefs.costBasis,
     ledger: ledger.ledger,
     ledgerMeOpts: ledger.ledgerMeOpts,
@@ -578,7 +518,7 @@ export function PricingProvider({
     runs: prefs.runs,
     selectedStructure: locationState.selectedStructure,
     structureFactors,
-  });
+  }, profile.plan);
   const market = useMarketRefresh(
     structure,
     clock.seeded,
@@ -637,6 +577,10 @@ export function PricingProvider({
       structureFactors,
       reactionNetAvailable,
       profiles: profile.profiles,
+      profilesFailed: profile.profilesFailed,
+      refreshProfiles: profile.refreshProfiles,
+      locationFailed,
+      retryLocation: locationWrites.retryLocation,
       profile: profile.profile,
       setProfileId: profile.setProfileId,
       profilePlan: profile.plan,
@@ -647,6 +591,10 @@ export function PricingProvider({
       structureFactors,
       reactionNetAvailable,
       profile.profiles,
+      profile.profilesFailed,
+      profile.refreshProfiles,
+      locationFailed,
+      locationWrites.retryLocation,
       profile.profile,
       profile.setProfileId,
       profile.plan,

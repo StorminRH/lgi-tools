@@ -11,17 +11,29 @@ export async function readSdeSentinelCounts(db: PostgresJsDb): Promise<SdeRowCou
     rowCount: string;
     universeRowCount: string;
     jumpsRowCount: string;
+    filtersRowCount: string;
+    modifiersRowCount: string;
+    assemblyLinesRowCount: string;
+    installationTypesRowCount: string;
   }>(sql`
     SELECT
       (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
       (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
-      (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
+      (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount",
+      (SELECT COUNT(*) FROM industry_target_filters)::text AS "filtersRowCount",
+      (SELECT COUNT(*) FROM industry_modifiers)::text AS "modifiersRowCount",
+      (SELECT COUNT(*) FROM industry_assembly_lines)::text AS "assemblyLinesRowCount",
+      (SELECT COUNT(*) FROM industry_installation_types)::text AS "installationTypesRowCount"
   `);
   if (!countsRow) throw new Error('SDE sentinel count query returned no row');
   return {
     typeDogma: Number(countsRow.rowCount),
     npcStations: Number(countsRow.universeRowCount),
     systemJumps: Number(countsRow.jumpsRowCount),
+    industryTargetFilters: Number(countsRow.filtersRowCount),
+    industryModifiers: Number(countsRow.modifiersRowCount),
+    industryAssemblyLines: Number(countsRow.assemblyLinesRowCount),
+    industryInstallationTypes: Number(countsRow.installationTypesRowCount),
   };
 }
 

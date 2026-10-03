@@ -30,15 +30,17 @@ describe('payloadFromDraft', () => {
     });
   });
 
-  it('reads empty bonus cells as 0 and an empty tax as never entered', () => {
+  it('sends an all-blank bonus grid as no bonuses and an empty tax as never entered', () => {
     const result = payloadFromDraft(draft({ name: ' Home ', structureTypeId: 35825 }));
+    expect(result).toMatchObject({ ok: true, payload: { name: 'Home', taxPct: null, bonuses: null } });
+  });
+
+  it('reads the blank cells of a partly filled bonus grid as 0', () => {
+    const bonus = { ...emptyStructureDraft().bonus, te: '20', rxnMe: ' 2.4 ' };
+    const result = payloadFromDraft(draft({ name: 'Home', structureTypeId: 35825, bonus }));
     expect(result).toMatchObject({
       ok: true,
-      payload: {
-        name: 'Home',
-        taxPct: null,
-        bonuses: { manufacturing: { me: 0, te: 0, cost: 0 }, reactions: { me: 0, te: 0 } },
-      },
+      payload: { bonuses: { manufacturing: { me: 0, te: 20, cost: 0 }, reactions: { me: 2.4, te: 0 } } },
     });
   });
 

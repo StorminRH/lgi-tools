@@ -9,6 +9,8 @@ import type { AvailableStructure, BlueprintStructure } from '../types';
 const h = vi.hoisted(() => ({
   profileId: null as string | null,
   profiles: null as IndustryProfileRow[] | null,
+  profilesFailed: false,
+  refreshProfiles: vi.fn(),
   plan: null as ProfilePlan | null,
   readLevels: null as ((signal: AbortSignal) => Promise<unknown>) | null,
   apiFetch: vi.fn(),
@@ -31,7 +33,7 @@ vi.mock('@/components/use-system-search', () => ({
 }));
 vi.mock('@/platform/auth/components/AuthProvider', () => ({ useAuth: () => ({ session: {} }) }));
 vi.mock('@/transport/api-client', () => ({ apiFetch: h.apiFetch }));
-vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles }) }));
+vi.mock('../profiles/use-industry-profiles', () => ({ useIndustryProfiles: () => ({ profiles: h.profiles, listFailed: h.profilesFailed, refresh: h.refreshProfiles }) }));
 vi.mock('../use-resource-read', () => ({
   useResourceRead: (read: (signal: AbortSignal) => Promise<unknown>) => {
     h.readLevels = read;
@@ -76,11 +78,12 @@ const planAt = (top: PlanFacility | null): ProfilePlan => ({
 
 function writers(currentSystemId: number | null = null) {
   return {
+    locationRefreshKey: 0,
     location: currentSystemId === null ? null : ({ systemId: currentSystemId } as never),
     setLocation: vi.fn(),
     availableStructures: [SOTIYO],
     structureFactors: MANUAL,
-    applyBuildSystem: vi.fn(async () => ({ ok: true }) as never),
+    applyBuildSystem: vi.fn(async () => ({ status: 'failed' as const })),
     setSelectedStructure: vi.fn(),
     setReactionSystem: vi.fn(),
     setReactionStructure: vi.fn(),
@@ -93,7 +96,15 @@ const built = (activityId: number) =>
 beforeEach(() => {
   h.profileId = null;
   h.profiles = null;
+  h.profilesFailed = false;
   h.plan = null;
+});
+
+test('a failed profile list stays at baseline and exposes the existing retry callback', () => {
+  h.profilesFailed = true;
+  const state = useProfileFactors(built(MANUFACTURING_ACTIVITY), writers());
+  expect(state).toMatchObject({ profiles: null, profile: null, plan: null, profilesFailed: true, structureFactors: MANUAL });
+  expect(state.refreshProfiles).toBe(h.refreshProfiles);
 });
 
 test('the planner builds with the profile last used, or else the first', () => {
@@ -129,7 +140,7 @@ test('a profile prices the product where its facility stands, moving the build t
   expect(w.setSelectedStructure).toHaveBeenCalledWith(null);
   expect(w.applyBuildSystem).toHaveBeenCalledWith(
     { systemId: 30002537, systemName: 'Amamake', security: 0.4 },
-    { persist: false },
+    { persist: false, signal: expect.any(AbortSignal) },
   );
 });
 

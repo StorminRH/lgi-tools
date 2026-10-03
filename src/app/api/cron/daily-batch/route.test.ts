@@ -25,6 +25,10 @@ vi.mock('../refresh-prices/declaration', () => ({ refreshPricesDeclaration: h.de
 vi.mock('../refresh-industry-indices/declaration', () => ({
   refreshIndustryIndicesDeclaration: h.declaration('cron:industry-indices'),
 }));
+vi.mock('../drain-esi-refresh-jobs/declaration', () => ({
+  drainEsiRefreshJobsDeclaration: h.declaration('cron:esi-refresh-jobs'),
+}));
+vi.mock('../revalue-net-worth/declaration', () => ({ revalueNetWorthDeclaration: h.declaration('cron:net-worth') }));
 vi.mock('../refresh-wh-statics/declaration', () => ({ refreshWhStaticsDeclaration: h.declaration('cron:wh-statics') }));
 vi.mock('@/db', () => ({ directClient: {} }));
 vi.mock('@/data/telemetry/queries', () => ({
@@ -60,17 +64,33 @@ describe('GET /api/cron/daily-batch', () => {
     vi.restoreAllMocks();
   });
 
-  it('runs wormhole statics only on Mondays and housekeeping last', async () => {
+  it('drains the refresh queue and revalues net worth after the price sweeps, wormhole statics only on Mondays and housekeeping last', async () => {
     vi.setSystemTime(new Date('2026-09-28T12:20:00Z'));
     expect((await GET(authedRequest())).status).toBe(200);
-    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics', 'cron:housekeeping']);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:net-worth', 'cron:wh-statics', 'cron:housekeeping']);
 
     h.order.length = 0;
     vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
     const response = await GET(authedRequest());
-    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:housekeeping']);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:net-worth', 'cron:housekeeping']);
     await expect(response.json()).resolves.toMatchObject({
       steps: expect.arrayContaining([{ name: 'cron:wh-statics', status: 'skipped' }]),
+    });
+  });
+
+  it('skips the net-worth revalue when the price sweep fails', async () => {
+    vi.setSystemTime(new Date('2026-09-29T12:20:00Z'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    h.workByName.set('cron:prices', async () => { throw new Error('prices down'); });
+
+    const response = await GET(authedRequest());
+
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:housekeeping']);
+    await expect(response.json()).resolves.toMatchObject({
+      steps: expect.arrayContaining([
+        { name: 'cron:prices', status: 'failed' },
+        { name: 'cron:net-worth', status: 'skipped' },
+      ]),
     });
   });
 
@@ -103,11 +123,13 @@ describe('GET /api/cron/daily-batch', () => {
     expect(response.status).toBe(200);
     expect(tombstoned).toEqual(['map-0', 'map-1', 'map-2', 'map-3', 'map-4']);
     expect(pricesStartedAt).toBe(started + 60_000);
-    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:wh-statics', 'cron:housekeeping']);
+    expect(h.order).toEqual(['cron:purge-maps', 'cron:prices', 'cron:industry-indices', 'cron:esi-refresh-jobs', 'cron:net-worth', 'cron:wh-statics', 'cron:housekeeping']);
     await expect(response.json()).resolves.toEqual({ steps: [
       { name: 'cron:purge-maps', status: 'ok' },
       { name: 'cron:prices', status: 'ok' },
       { name: 'cron:industry-indices', status: 'ok' },
+      { name: 'cron:esi-refresh-jobs', status: 'ok' },
+      { name: 'cron:net-worth', status: 'ok' },
       { name: 'cron:wh-statics', status: 'ok' },
       { name: 'cron:housekeeping', status: 'ok' },
     ] });

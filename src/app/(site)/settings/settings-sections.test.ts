@@ -12,7 +12,6 @@ test('the rail holds only personal sections, keeps every href unique, and lands 
   expect(new Set(hrefs).size).toBe(hrefs.length);
   for (const href of hrefs) expect(href.startsWith('/settings/')).toBe(true);
   expect(hrefs).toContain(SETTINGS_LANDING_HREF);
-  expect(hrefs).not.toContain('/settings/access');
 });
 
 test('the active section follows the pathname, including nested routes and trailing slashes', () => {

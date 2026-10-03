@@ -19,10 +19,9 @@ import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from '@/features/indus
 import type { CharacterJobsData } from '@/features/industry-jobs/types';
 import { canSyncSkillQueue, SKILL_SYNC_SCOPES } from '@/features/skill-queue/sync-eligibility';
 import { canSyncAssets, ASSETS_SYNC_SCOPES } from '@/features/owned-assets/sync-eligibility';
-import type { NetWorthDay } from '@/features/net-worth/types';
+import type { NetWorthDay, PilotWorth } from '@/features/net-worth/types';
 import {
   type AssetLine,
-  type NetWorthBreakdown,
   type PriceBook,
   type TypeCategories,
   valueCharacter,
@@ -351,19 +350,17 @@ function mapIndustry(
   };
 }
 
-function toNetWorthData(breakdown: NetWorthBreakdown): BoardNetWorthData {
-  const { total, liquid, assets, sellOrders, buyEscrow, implants } = breakdown;
-  return { total, liquid, assets, sellOrders, buyEscrow, implants };
+/** A pilot's worth needs both a wallet and assets it may sync; without them it asks for a reconnect. */
+function worthEligible(raw: BoardRaw): boolean {
+  return canSyncSection('wallet', raw.health) && canSyncAssets(raw.health) && raw.sheet?.wallet?.denied !== true;
 }
 
-/** Ready once the wallet and the assets have both synced; implants, clones and orders add what they have. */
-function netWorthOf(raw: BoardRaw, names: NameBook): BoardSection<BoardNetWorthData> {
+/** Values the stored holdings at stored prices; null until the wallet and the assets have both synced. */
+function pilotWorthOf(raw: BoardRaw, names: NameBook): PilotWorth | null {
   const wallet = raw.sheet?.wallet;
-  const eligible = canSyncSection('wallet', raw.health) && canSyncAssets(raw.health);
-  if (!eligible || wallet?.denied === true) return { state: 'reconnect' };
-  if (wallet === undefined || raw.assets.rows === null) return { state: 'pending' };
+  if (!worthEligible(raw) || wallet === undefined || wallet.denied === true || raw.assets.rows === null) return null;
   const implants = implantIdsOf(raw);
-  const breakdown = valueCharacter(
+  const { total, liquid } = valueCharacter(
     {
       wallet: wallet.data.balance,
       assets: raw.assets.rows,
@@ -374,10 +371,32 @@ function netWorthOf(raw: BoardRaw, names: NameBook): BoardSection<BoardNetWorthD
     names.prices,
     names.typeCategories,
   );
+  return { netWorth: total, liquidIsk: liquid };
+}
+
+export interface StoredWorth {
+  worth: PilotWorth;
+  at: number;
+}
+
+/** Each pilot's latest recorded worth: a pilot missing from a later day keeps its last value. */
+function latestStoredWorth(history: readonly BoardHistoryDay[]): Map<string, StoredWorth> {
+  const latest = new Map<string, StoredWorth>();
+  for (const day of history) {
+    const at = Date.parse(`${day.day}T00:00:00Z`);
+    for (const [id, worth] of Object.entries(day.pilots)) latest.set(id, { worth, at });
+  }
+  return latest;
+}
+
+/** The recorded worth, never a live valuation: the nightly revalue and a character link write it. */
+function storedWorthOf(raw: BoardRaw, stored: StoredWorth | undefined): BoardSection<BoardNetWorthData> {
+  if (!worthEligible(raw)) return { state: 'reconnect' };
+  if (stored === undefined) return { state: 'pending' };
   return {
     state: 'ready',
-    refreshedAt: Math.min(Date.parse(wallet.refreshedAt), raw.assets.refreshedAt ?? Number.MAX_SAFE_INTEGER),
-    data: toNetWorthData(breakdown),
+    refreshedAt: stored.at,
+    data: { total: stored.worth.netWorth, liquid: stored.worth.liquidIsk },
   };
 }
 
@@ -398,7 +417,12 @@ function boardGaps(raw: BoardRaw): BoardGap[] {
   );
 }
 
-export function assembleBoardCharacter(raw: BoardRaw, names: NameBook, now: number): BoardCharacter {
+export function assembleBoardCharacter(
+  raw: BoardRaw,
+  names: NameBook,
+  now: number,
+  stored?: StoredWorth,
+): BoardCharacter {
   const { identity, health, sheet } = raw;
   const eligible = (key: SheetSectionKey) => canSyncSection(key, health);
   const structures = sheet?.structures?.data ?? null;
@@ -429,7 +453,7 @@ export function assembleBoardCharacter(raw: BoardRaw, names: NameBook, now: numb
     industry: datasetOf(canSyncIndustryJobs(health), raw.jobs.data, raw.jobs.refreshedAt, (data) =>
       mapIndustry(data, raw.skills.levels, now),
     ),
-    netWorth: netWorthOf(raw, names),
+    netWorth: storedWorthOf(raw, stored),
   };
 }
 
@@ -444,24 +468,24 @@ export function toHistoryDay(day: NetWorthDay): BoardHistoryDay {
   };
 }
 
-/** The account's day from the assembled roster: only pilots with a ready net worth count. */
-export function netWorthSnapshot(characters: readonly BoardCharacter[], day: string): NetWorthDay {
+/** The account's day valued from stored holdings and prices: only pilots with a computable worth count. */
+export function netWorthSnapshot(raws: readonly BoardRaw[], names: NameBook, day: string): NetWorthDay {
   const pilots: NetWorthDay['pilots'] = {};
   let netWorth = 0;
   let liquidIsk = 0;
-  for (const character of characters) {
-    if (character.netWorth.state !== 'ready') continue;
-    const { total, liquid } = character.netWorth.data;
-    pilots[String(character.characterId)] = { netWorth: total, liquidIsk: liquid };
-    netWorth += total;
-    liquidIsk += liquid;
+  for (const raw of raws) {
+    const worth = pilotWorthOf(raw, names);
+    if (worth === null) continue;
+    pilots[String(raw.identity.characterId)] = worth;
+    netWorth += worth.netWorth;
+    liquidIsk += worth.liquidIsk;
   }
   return {
     day,
     netWorth: Math.round(netWorth * 100) / 100,
     liquidIsk: Math.round(liquidIsk * 100) / 100,
     pilotsIncluded: Object.keys(pilots).length,
-    pilotsTotal: characters.length,
+    pilotsTotal: raws.length,
     pilots,
   };
 }
@@ -472,8 +496,11 @@ export function assembleBoard(
   now: number,
   history: BoardHistoryDay[],
 ): BoardResponse {
+  const stored = latestStoredWorth(history);
   return {
-    characters: raws.map((raw) => assembleBoardCharacter(raw, names, now)),
+    characters: raws.map((raw) =>
+      assembleBoardCharacter(raw, names, now, stored.get(String(raw.identity.characterId))),
+    ),
     skillCatalog: names.skillCatalog,
     history,
   };

@@ -293,10 +293,12 @@ export function StructureComposer({
 
   function pickStructure(hit: StructureSearchResult) {
     const known = structureTypes.some((t) => t.typeId === hit.structureTypeId);
+    const structureTypeId = known ? hit.structureTypeId : null;
     update({
       name: hit.name,
       systemId: hit.systemId,
-      ...(known ? { structureTypeId: hit.structureTypeId } : {}),
+      structureTypeId,
+      ...(structureTypeId === draft.structureTypeId ? {} : { rigSlots: slotsFromRigs([]) }),
     });
     sys.setQuery('');
   }

@@ -39,9 +39,9 @@ const harness = await createDbTestHarness({
   resetBetweenTests: 'truncate',
 });
 
+// Envs stay stubbed until the harness's afterAll, which needs its DATABASE_URL stub to close the clients.
 afterEach(() => {
   vi.unstubAllGlobals();
-  vi.unstubAllEnvs();
 });
 
 describe.skipIf(!harness.reachable)('corporation revocation from Postgres to Convex', () => {

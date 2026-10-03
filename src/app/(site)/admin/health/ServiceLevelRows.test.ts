@@ -62,9 +62,16 @@ describe('service level details', () => {
     details.read = { range, groups: [failure('read-preferences')], daily: [] };
     details.mutation = { range, groups: [failure('save-preferences')], daily: [] };
     const operation = detailKey === 'read' ? 'read-preferences' : 'save-preferences';
+    const collapsedCode = { ...failure(operation), code: 'unexpected' };
+    const unnamedClass = {
+      ...failure(operation),
+      outcome: 'dependency_unavailable',
+      code: 'projection_unavailable',
+      errorClass: null,
+    };
     details[detailKey] = {
       range,
-      groups: [failure(operation)],
+      groups: [failure(operation), collapsedCode, unnamedClass],
       daily: [{ day: '2026-09-19', failures: 0 }, { day: '2026-09-20', failures: 4 }],
       validationRejected: 1500,
     };
@@ -74,6 +81,8 @@ describe('service level details', () => {
     expect(html).toContain(`account · ${operation}`);
     expect(html).not.toContain(detailKey === 'read' ? 'save-preferences' : 'read-preferences');
     expect(html).toContain('unexpected · save_failed · 23502');
+    expect(html).toContain('unexpected · 23502');
+    expect(html).toContain('dependency_unavailable · projection_unavailable');
     expect(html).toContain('aria-label="Top failure groups"');
     expect(html).toContain('1,200');
     expect(html).toContain('2026-09-20');
@@ -140,6 +149,11 @@ describe('service level details', () => {
   it('shows slow-operation timing and its slowest dependency', () => {
     const details = emptyDetails();
     expect(render('critical_latency_p95', details)).toContain('No operations in this period.');
+    details.slowest = [{
+      feature: 'planner', operation: 'read-owned-assets', p95Ms: 2400,
+      count: 1, slowestDependency: null,
+    }];
+    expect(render('critical_latency_p95', details)).toContain('1 run');
     details.slowest = [{
       feature: 'planner', operation: 'read-owned-assets', p95Ms: 2400,
       count: 1200, slowestDependency: 'esi',

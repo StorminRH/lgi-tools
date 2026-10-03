@@ -376,7 +376,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
 
 const DEFAULT_SOURCE_IDS = ['recents', 'sites', 'blueprints', 'tools', 'commands'] as const;
 
-const REGISTERED_SOURCE_IDS = [...DEFAULT_SOURCE_IDS, 'systems', 'structures'] as const;
+const REGISTERED_SOURCE_IDS = [...DEFAULT_SOURCE_IDS, 'systems'] as const;
 
 const SECTION_NAME_BY_ID: Record<(typeof DEFAULT_SOURCE_IDS)[number], string> = {
   recents: 'Recent',
@@ -465,10 +465,5 @@ describe('default-scope-excluded sources (systems)', () => {
   it('pins the flag on the registered systems source', () => {
     const systems = listRegisteredSources().find((s) => s.id === 'systems');
     expect(systems?.excludeFromDefaultScope).toBe(true);
-  });
-
-  it('keeps the ESI-backed structures source out of the header search', () => {
-    const structures = listRegisteredSources().find((s) => s.id === 'structures');
-    expect(structures?.excludeFromDefaultScope).toBe(true);
   });
 });

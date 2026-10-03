@@ -5,7 +5,7 @@ import {
   updateCustomStructureRequestSchema,
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, updateCustomStructure } from '@/features/custom-structures/queries';
-import { rejectInvalidCustomStructure } from '@/features/custom-structures/system-pin';
+import { rejectInvalidCustomStructure } from '@/features/custom-structures/save-boundary';
 import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';

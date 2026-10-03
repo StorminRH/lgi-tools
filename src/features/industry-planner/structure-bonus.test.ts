@@ -145,14 +145,44 @@ describe('computeStructureBonus — reactions', () => {
 describe('headlineStructureBonus', () => {
   it('is the best any one category gets, metric by metric', () => {
     const split = [...RAITARU, rig('material', -2.4, EQUIPMENT), rig('time', -24, CHARGES)];
-    const headline = headlineStructureBonus({ modifiers: split, securityClass: 'high', activityId: MANUFACTURING_ACTIVITY });
+    const headline = headlineStructureBonus({ filterSets: [[EQUIPMENT], [CHARGES]], modifiers: split, securityClass: 'high', activityId: MANUFACTURING_ACTIVITY });
     expect(headline.me).toBeCloseTo(mfg(split, 'high', [EQUIPMENT]).me, 9);
     expect(headline.te).toBeCloseTo(mfg(split, 'high', [CHARGES]).te, 9);
     expect(headline.costBonus).toBeCloseTo(3, 6);
   });
 
+  it('includes the overlapping basic and advanced medium ship filters for Odysseus on an Azbel', () => {
+    const modifiers = [
+      ...AZBEL,
+      rig('material', -2.4, 7),
+      rig('time', -24, 7),
+      rig('material', -2.4, 8),
+      rig('time', -24, 8),
+    ];
+    const headline = headlineStructureBonus({
+      modifiers,
+      securityClass: 'null',
+      activityId: MANUFACTURING_ACTIVITY,
+      filterSets: [[3, 7], [3, 8], [3, 7, 8]],
+    });
+    expect(headline.me).toBeCloseTo(10.72772416, 8);
+    expect(headline.te).toBeCloseTo(80.31872, 8);
+    expect(headline).toEqual(mfg(modifiers, 'null', [3, 7, 8]));
+  });
+
+  it('never stacks rigs whose targets no product matches together', () => {
+    const modifiers = [...AZBEL, rig('material', -2.4, EQUIPMENT), rig('material', -2.4, CHARGES)];
+    const headline = headlineStructureBonus({
+      modifiers,
+      securityClass: 'null',
+      activityId: MANUFACTURING_ACTIVITY,
+      filterSets: [[EQUIPMENT], [CHARGES]],
+    });
+    expect(headline.me).toBeCloseTo(5.9896, 8);
+  });
+
   it('is the hull alone when no rig is fitted', () => {
-    expect(headlineStructureBonus({ modifiers: RAITARU, securityClass: 'null', activityId: MANUFACTURING_ACTIVITY })).toEqual(
+    expect(headlineStructureBonus({ filterSets: [], modifiers: RAITARU, securityClass: 'null', activityId: MANUFACTURING_ACTIVITY })).toEqual(
       mfg(RAITARU, 'null'),
     );
   });

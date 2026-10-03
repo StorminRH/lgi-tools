@@ -210,7 +210,7 @@ export function FacilitiesPanel({
               key={view.key}
               view={view}
               hulls={hulls}
-              system={systemOf(view.facility.systemId)}
+              system={systemOf(view.systemId)}
               open={openKey === view.key}
               onOpenChange={(open) => setOpenKey((current) => (open ? view.key : current === view.key ? null : current))}
               onEdit={onEdit}

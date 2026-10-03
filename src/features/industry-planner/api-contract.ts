@@ -212,6 +212,7 @@ export const availableStructureSchema = z.object({
   hostsCapitals: z.boolean(),
   systemId: z.number().nullable(),
   modifiers: z.array(structureModifierSchema),
+  targetFilterSets: z.array(z.array(z.number())),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),
   taxPct: z.number().nullable(),
   enteredBonuses: enteredBonusesSchema.nullable(),

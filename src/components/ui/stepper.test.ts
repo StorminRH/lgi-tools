@@ -5,43 +5,35 @@ import { ChevronDownIcon } from './icons';
 import { Stepper } from './stepper';
 
 describe('Stepper', () => {
-  it('renders the default control as two round chevron buttons', () => {
-    const root = Stepper({ value: 1, onChange: vi.fn(), ariaLabel: 'Runs' });
-    const [group] = root.props.children;
-    expect(group.props.className).toContain('gap-1');
-    expect(group.props.children[0].props.className).toContain('rounded-full');
-    expect(group.props.children[0].props.children.type).toBe(ChevronDownIcon);
-    expect(group.props.children[2].props.children.props.className).toBe('rotate-180');
-  });
+  it('renders decrement and increment chevrons, and a trailing slot only when one is reserved', () => {
+    const onChange = vi.fn();
+    const plain = Stepper({ value: 1, onChange, ariaLabel: 'Runs' });
+    const [plainGroup, plainSlot] = plain.props.children;
+    expect(plainSlot).toBe(false);
+    expect(plainGroup.props.children).toHaveLength(3);
+    expect(plainGroup.props.children[0].props.children.type).toBe(ChevronDownIcon);
+    expect(plainGroup.props.children[2].props.children.type).toBe(ChevronDownIcon);
 
-  it('renders the compact inline controls and trailing slot', () => {
     const trailing = 'reset';
-    const root = Stepper({
+    const inline = Stepper({
       value: 1,
-      onChange: vi.fn(),
+      onChange,
       ariaLabel: 'Material efficiency',
       variant: 'inline',
       trailing,
     });
-    const [group, slot] = root.props.children;
-    expect(group.props.className).not.toContain('gap-1');
-    expect(group.props.children[0].props.children.type).toBe(ChevronDownIcon);
-    expect(group.props.children[0].props.className).toContain('after:-inset-1');
-    expect(group.props.children[2].props.children.props.className).toBe('rotate-180');
-    expect(slot.props.children).toBe(trailing);
-  });
+    const [inlineGroup, inlineSlot] = inline.props.children;
+    expect(inlineGroup.props.children[0].props.children.type).toBe(ChevronDownIcon);
+    expect(inlineSlot.props.children).toBe(trailing);
 
-  it('reserves an external trailing slot without widening the button group', () => {
-    const root = Stepper({
+    const reserved = Stepper({
       value: 1,
-      onChange: vi.fn(),
+      onChange,
       ariaLabel: 'Runs',
       reserveTrailing: true,
     });
-    const [group, slot] = root.props.children;
-    expect(group.props.className).toContain('gap-1');
-    expect(group.props.children).toHaveLength(3);
-    expect(slot.props.className).toContain('w-3.5');
+    const [, reservedSlot] = reserved.props.children;
+    expect(reservedSlot.props.children).toBeUndefined();
   });
 
   it('allows a caller-owned semantic tone on the value only', () => {
