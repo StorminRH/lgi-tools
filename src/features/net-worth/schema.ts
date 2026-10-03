@@ -3,7 +3,8 @@ import { user } from '@/db/auth-schema';
 import type { PilotWorth } from './types';
 
 /**
- * One row per account per UTC day; the last board view of the day wins. Keyed to the account, not the
+ * One row per account per UTC day, written by the nightly revalue and on a roster change; the last write of
+ * the day wins. Keyed to the account, not the
  * character. Unlink and owner transfer erase every day that included the removed pilot.
  */
 export const netWorthDays = pgTable(

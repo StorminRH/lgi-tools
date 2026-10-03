@@ -520,16 +520,30 @@ function stackWorth(
   ];
 }
 
-/** The account's net worth over time, ISK below and everything else above it. */
+/**
+ * The account's net worth over time, ISK below and everything else above it. Each day sums every current
+ * pilot's latest recorded worth by then, so a pilot missing from one night holds its last value instead of
+ * dropping the total.
+ */
 export function accountWorthSeries(
   history: readonly BoardHistoryDay[],
   characters: readonly BoardCharacter[],
   now: number,
 ): WorthPoint[] {
-  return stackWorth(
-    history.map((day) => ({ t: dayStart(day.day), netWorth: day.netWorth, liquid: day.liquidIsk })),
-    netWorthSeries(characters, now).points,
-  );
+  const roster = new Set(characters.map((character) => String(character.characterId)));
+  const latest = new Map<string, BoardHistoryDay['pilots'][string]>();
+  const recorded = history.flatMap((day) => {
+    for (const [id, pilot] of Object.entries(day.pilots)) if (roster.has(id)) latest.set(id, pilot);
+    if (latest.size === 0) return [];
+    let netWorth = 0;
+    let liquid = 0;
+    for (const pilot of latest.values()) {
+      netWorth += pilot.netWorth;
+      liquid += pilot.liquidIsk;
+    }
+    return [{ t: dayStart(day.day), netWorth, liquid }];
+  });
+  return stackWorth(recorded, netWorthSeries(characters, now).points);
 }
 
 /** One pilot's net worth over time, from its entry in each recorded day. */
@@ -640,8 +654,21 @@ export function worthChartMode(series: readonly WorthPoint[]): WorthChartMode {
   return Math.min(...worths) > BREAK_AXIS_RATIO * topLiquid ? 'broken' : 'stacked';
 }
 
-/** The two fitted ranges of a broken axis: net worth above, ISK below. */
+/**
+ * A broken-axis band never spans less than this share of its midpoint: asset prices move with the market,
+ * and a band fitted to a 0.5% wobble would draw it as a cliff.
+ */
+const MIN_BAND_SPAN = 0.05;
+
+function bandDomain(values: readonly number[]): [number, number] {
+  const [low, high] = fittedDomain(values);
+  const mid = (low + high) / 2;
+  const half = Math.max((high - low) / 2, (Math.abs(mid) * MIN_BAND_SPAN) / 2);
+  return [mid - half, mid + half];
+}
+
+/** The two ranges of a broken axis, each at least MIN_BAND_SPAN tall: net worth above, ISK below. */
 export function splitDomains(series: readonly WorthPoint[]): { upper: [number, number]; lower: [number, number] } {
   const worths = series.flatMap((point) => (point.assets === null ? [] : [point.liquid + point.assets]));
-  return { upper: fittedDomain(worths), lower: fittedDomain(series.map((point) => point.liquid)) };
+  return { upper: bandDomain(worths), lower: bandDomain(series.map((point) => point.liquid)) };
 }

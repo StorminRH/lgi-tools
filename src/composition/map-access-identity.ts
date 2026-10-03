@@ -10,6 +10,7 @@ import {
   getOwnedMapIds,
 } from '@/data/maps/queries';
 import { bestEffort } from '@/lib/best-effort';
+import { revalueAfterRosterChange } from '@/composition/board/net-worth-link';
 import { eraseNetWorthHistoryForCharacter } from '@/features/net-worth/purge';
 import type { IdentityProjectionRunners } from '@/platform/auth/identity-projection-runners';
 import { deliverCapturedMapAccessChanges } from './map-affiliation-access';
@@ -86,5 +87,6 @@ export const identityProjectionRunners: IdentityProjectionRunners = {
       `${args.userId}:${args.characterId}`,
       () => afterCharacterLinkChanged(args),
     );
+    await revalueAfterRosterChange(args.userId);
   },
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SectionEnvelope, SheetSections } from '@/features/character-sheet/types';
-import { BOARD_GAPS, type BoardCharacter } from './api-contract';
+import { BOARD_GAPS, type BoardCharacter, type BoardHistoryDay } from './api-contract';
 import {
   assembleBoard,
   assembleBoardCharacter,
@@ -364,47 +364,63 @@ describe('assembleBoardCharacter ready data', () => {
   });
 });
 
-describe('assembleBoardCharacter net worth', () => {
-  it('values wallet, assets, sell orders, escrow and implants, dated at the older of wallet and assets', () => {
-    const character = assembleBoardCharacter(raw(), NAMES, NOW);
-    expect(character.netWorth).toEqual({
-      state: 'ready',
-      refreshedAt: REFRESHED_MS - HOUR,
-      data: {
-        liquid: 3204115882.15,
-        assets: 3_500_000 + 224_000_000 + 46_900_000,
-        sellOrders: 448_000_000,
-        buyEscrow: 1_750,
-        implants: 90_000_000 + 90_000_000 + 18_000_000 + 18_000_000,
-        total: 3204115882.15 + 274_400_000 + 448_000_000 + 1_750 + 216_000_000,
-      },
-    });
+describe('net worth valuation', () => {
+  const TOTAL = 3204115882.15 + 274_400_000 + 448_000_000 + 1_750 + 216_000_000;
+  const pilotOf = (raws: BoardRaw[]) => netWorthSnapshot(raws, NAMES, '2026-09-27').pilots;
+
+  it('values wallet, assets, sell orders, escrow and implants from stored holdings and prices', () => {
+    expect(pilotOf([raw()])).toEqual({ '9900000001': { netWorth: TOTAL, liquidIsk: 3204115882.15 } });
   });
 
-  it('is pending until both the wallet and the assets have synced, and reconnect without the assets scope', () => {
-    expect(assembleBoardCharacter(raw({ assets: { rows: null, refreshedAt: null } }), NAMES, NOW).netWorth).toEqual({
-      state: 'pending',
-    });
+  it('leaves out a pilot until both the wallet and the assets have synced, or without the assets scope', () => {
+    expect(pilotOf([raw({ assets: { rows: null, refreshedAt: null } })])).toEqual({});
     const { wallet: _wallet, ...noWallet } = FULL_SHEET;
-    expect(assembleBoardCharacter(raw({ sheet: noWallet }), NAMES, NOW).netWorth).toEqual({ state: 'pending' });
-    const health = { hasRefreshToken: true, missingScopes: ['esi-assets.read_assets.v1'] };
-    const character = assembleBoardCharacter(raw({ health }), NAMES, NOW);
-    expect(character.netWorth).toEqual({ state: 'reconnect' });
-    expect(character.gaps).toEqual(['assets']);
+    expect(pilotOf([raw({ sheet: noWallet })])).toEqual({});
+    expect(pilotOf([raw({ health: { hasRefreshToken: true, missingScopes: ['esi-assets.read_assets.v1'] } })])).toEqual({});
   });
 
-  it('counts a synced empty hangar as ready and adds nothing from denied implants or orders', () => {
+  it('counts a synced empty hangar and adds nothing from denied implants or orders', () => {
     const sheet: SheetSections = {
       ...FULL_SHEET,
       implants: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
       orders: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true },
     };
-    const character = assembleBoardCharacter(raw({ sheet, assets: { rows: [], refreshedAt: REFRESHED_MS } }), NAMES, NOW);
-    expect(character.netWorth).toEqual({
-      state: 'ready',
-      refreshedAt: REFRESHED_MS,
-      data: { liquid: 3204115882.15, assets: 0, sellOrders: 0, buyEscrow: 0, implants: 36_000_000, total: 3204115882.15 + 36_000_000 },
+    expect(pilotOf([raw({ sheet, assets: { rows: [], refreshedAt: REFRESHED_MS } })])).toEqual({
+      '9900000001': { netWorth: 3204115882.15 + 36_000_000, liquidIsk: 3204115882.15 },
     });
+  });
+});
+
+describe('assembleBoardCharacter net worth', () => {
+  const day = (date: string, pilots: BoardHistoryDay['pilots']): BoardHistoryDay => ({
+    day: date,
+    netWorth: 0,
+    liquidIsk: 0,
+    included: Object.keys(pilots).length,
+    total: 2,
+    pilots,
+  });
+
+  it("serves each pilot's latest recorded day, dated at that day, without valuing on view", () => {
+    const other = raw({ identity: { ...raw().identity, characterId: 2 } });
+    const board = assembleBoard([raw(), other], NAMES, NOW, [
+      day('2026-09-25', { '9900000001': { netWorth: 10, liquidIsk: 4 }, '2': { netWorth: 7, liquidIsk: 1 } }),
+      day('2026-09-26', { '9900000001': { netWorth: 12, liquidIsk: 5 } }),
+    ]);
+    expect(board.characters.map((character) => character.netWorth)).toEqual([
+      { state: 'ready', refreshedAt: Date.parse('2026-09-26T00:00:00Z'), data: { total: 12, liquid: 5 } },
+      { state: 'ready', refreshedAt: Date.parse('2026-09-25T00:00:00Z'), data: { total: 7, liquid: 1 } },
+    ]);
+  });
+
+  it('is pending with no recorded day, and reconnect without the assets scope or with a denied wallet', () => {
+    expect(assembleBoardCharacter(raw(), NAMES, NOW).netWorth).toEqual({ state: 'pending' });
+    const health = { hasRefreshToken: true, missingScopes: ['esi-assets.read_assets.v1'] };
+    const character = assembleBoardCharacter(raw({ health }), NAMES, NOW);
+    expect(character.netWorth).toEqual({ state: 'reconnect' });
+    expect(character.gaps).toEqual(['assets']);
+    const denied: SheetSections = { ...FULL_SHEET, wallet: { data: null, refreshedAt: REFRESHED, etags: {}, denied: true } };
+    expect(assembleBoardCharacter(raw({ sheet: denied }), NAMES, NOW).netWorth).toEqual({ state: 'reconnect' });
   });
 });
 
@@ -434,14 +450,9 @@ describe('collectNameIds', () => {
 });
 
 describe('netWorthSnapshot and toHistoryDay', () => {
-  it('sums only the pilots with a ready net worth and reports included of total', () => {
-    const ready = assembleBoardCharacter(raw(), NAMES, NOW);
-    const pending = assembleBoardCharacter(
-      raw({ identity: { ...raw().identity, characterId: 2 }, assets: { rows: null, refreshedAt: null } }),
-      NAMES,
-      NOW,
-    );
-    const snapshot = netWorthSnapshot([ready, pending], '2026-09-27');
+  it('sums only the pilots with a computable net worth and reports included of total', () => {
+    const pending = raw({ identity: { ...raw().identity, characterId: 2 }, assets: { rows: null, refreshedAt: null } });
+    const snapshot = netWorthSnapshot([raw(), pending], NAMES, '2026-09-27');
     const total = 3204115882.15 + 274_400_000 + 448_000_000 + 1_750 + 216_000_000;
     expect(snapshot).toEqual({
       day: '2026-09-27',
