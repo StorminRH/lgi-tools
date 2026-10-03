@@ -55,12 +55,8 @@ const {
   validatePreferenceValue,
   peekLocalPreference,
   writeLocalPreference,
-  cookieNameFor,
-  writePreferenceCookie,
-  readPreferenceCookieValue,
   reconcilePreferences,
-  syncPreferenceCookies,
-  clearPreferenceCookies,
+  clearRetiredPreferenceCookies,
 } = await import('./preferences');
 
 const lsKey = (key: string) => `lgi:pref:${key}`;
@@ -135,28 +131,8 @@ describe('validatePreferenceValue', () => {
   });
 });
 
-describe('cookie codec', () => {
-  it('derives a cookie-safe name (dots → underscores)', () => {
-    expect(cookieNameFor(sitesView)).toBe('lgi_pref_sites_view');
-  });
-
-  it('reads a valid (url-encoded) cookie value', () => {
-    const raw = encodeURIComponent(JSON.stringify('table'));
-    expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
-  });
-
-  it('writes an ssrReadable key as a Lax, path-/, url-encoded cookie', () => {
-    lastCookieWrite = '';
-    writePreferenceCookie(sitesView, 'table');
-    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
-    expect(lastCookieWrite).toContain('Path=/');
-    expect(lastCookieWrite).toContain('SameSite=Lax');
-    expect(lastCookieWrite).not.toContain('Secure');
-    const raw = lastCookieWrite.split(';')[0]!.split('=')[1];
-    expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
-  });
-
-  it('expires every ssrReadable cookie and only those on clear', () => {
+describe('retired preference cookies', () => {
+  it('expires the cookies preferences were once mirrored into', () => {
     const writes: string[] = [];
     Object.defineProperty(globalThis, 'document', {
       configurable: true,
@@ -167,40 +143,14 @@ describe('cookie codec', () => {
       },
     });
     try {
-      clearPreferenceCookies();
-      expect(writes).toContain('lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax');
-      expect(writes).toContain('lgi_pref_strip_jobs_dimmed=; Path=/; Max-Age=0; SameSite=Lax');
-      expect(writes.some((w) => w.startsWith(`${cookieNameFor(atlasDockCharacter)}=`))).toBe(false);
+      clearRetiredPreferenceCookies();
+      expect(writes).toEqual([
+        'lgi_pref_sites_view=; Path=/; Max-Age=0; SameSite=Lax',
+        'lgi_pref_strip_jobs_dimmed=; Path=/; Max-Age=0; SameSite=Lax',
+      ]);
     } finally {
       installDocumentShim();
     }
-  });
-
-  it('does not write a cookie for a non-ssrReadable key', () => {
-    lastCookieWrite = '';
-    writePreferenceCookie(atlasDockCharacter, 90000001);
-    expect(lastCookieWrite).toBe('');
-  });
-
-  it('marks the cookie Secure on https', () => {
-    const loc = globalThis.location as unknown as { protocol: string };
-    loc.protocol = 'https:';
-    try {
-      lastCookieWrite = '';
-      writePreferenceCookie(sitesView, 'cards');
-      expect(lastCookieWrite).toContain('; Secure');
-    } finally {
-      loc.protocol = 'http:';
-    }
-  });
-
-  it('falls back on a missing cookie', () => {
-    expect(readPreferenceCookieValue(undefined, sitesView)).toBe('cards');
-  });
-
-  it('falls back on a garbage or schema-mismatched cookie', () => {
-    expect(readPreferenceCookieValue('%%not-json', sitesView)).toBe('cards');
-    expect(readPreferenceCookieValue(encodeURIComponent('"list"'), sitesView)).toBe('cards');
   });
 });
 
@@ -231,13 +181,12 @@ describe('reconcilePreferences', () => {
 });
 
 describe('strip dimmed-set defs', () => {
-  it('registers one ssr-readable def per strip surface with the [] lit-by-default fallback', () => {
+  it('registers one def per strip surface with the [] lit-by-default fallback', () => {
     for (const id of STRIP_SURFACE_IDS) {
       const def = stripDimmedDef(id);
       expect(def.key).toBe(`strip.${id}.dimmed`);
       expect(PREFERENCE_KEYS).toContain(def.key);
       expect(def.fallback).toEqual([]);
-      expect(def.ssrReadable).toBe(true);
     }
   });
 
@@ -282,18 +231,3 @@ describe('retired preference keys', () => {
   });
 });
 
-describe('syncPreferenceCookies', () => {
-  it('writes resolved values to the SSR cookie and leaves localStorage alone', () => {
-    lastCookieWrite = '';
-    window.localStorage.setItem(lsKey(sitesView.key), JSON.stringify('cards'));
-    syncPreferenceCookies(new Map([[sitesView.key, 'table']]));
-    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
-    expect(peekLocalPreference(sitesView)).toBe('cards');
-  });
-
-  it('leaves unresolved keys alone', () => {
-    lastCookieWrite = '';
-    syncPreferenceCookies(new Map());
-    expect(lastCookieWrite).toBe('');
-  });
-});

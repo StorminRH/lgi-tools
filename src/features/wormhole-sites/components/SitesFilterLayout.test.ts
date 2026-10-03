@@ -1,9 +1,20 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The view is an account preference; the test picks it the way the store would.
+const prefs = vi.hoisted(() => ({ view: 'cards' as 'cards' | 'table' }));
+vi.mock('@/components/PreferencesProvider', () => ({
+  usePreference: (def: { key: string; fallback: unknown }) => [
+    def.key === 'sites.view' ? prefs.view : def.fallback,
+    () => {},
+  ],
+}));
+
 import { SitesFilterLayout, SitesResults, SitesViewTools } from './SitesFilterLayout';
 
-function markup(initialView: 'cards' | 'table' = 'cards') {
+function markup(view: 'cards' | 'table' = 'cards') {
+  prefs.view = view;
   const cards = [
     {
       meta: { id: 1, type: 'combat' as const, clsSet: ['C1' as const] },
@@ -14,11 +25,10 @@ function markup(initialView: 'cards' | 'table' = 'cards') {
     createElement(SitesFilterLayout, {
       sites: cards.map((card) => card.meta),
       total: 1,
-      tools: createElement(SitesViewTools, { initialView }),
+      tools: createElement(SitesViewTools),
     }, createElement(SitesResults, {
       cards,
       table: createElement('div', { 'data-sites-table': true }),
-      initialView,
     })),
   );
 }

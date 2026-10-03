@@ -55,11 +55,11 @@ test('without a tracking strip, all pilots remain visible and a settled read sho
 
 test('a loading strip filters pilots and forwards portrait changes to its preference', () => {
   h.dimmed = [1];
-  const html = render({ strip: { surfaceId: 'jobs' }, initialDimmed: [1], loading: true });
+  const html = render({ strip: { surfaceId: 'jobs' }, loading: true });
   expect(html).toContain('Loading…');
   expect(html).toContain('<p>Pilot Two</p>');
   expect(html).not.toContain('Every character is hidden');
-  expect(h.preference).toHaveBeenCalledWith(expect.objectContaining({ key: 'strip.jobs.dimmed' }), { serverValue: [1] });
+  expect(h.preference).toHaveBeenCalledWith(expect.objectContaining({ key: 'strip.jobs.dimmed' }));
   const props = h.strip.mock.calls[0]![0];
   expect(props.characters).toEqual(characters);
   props.onChange([2]);

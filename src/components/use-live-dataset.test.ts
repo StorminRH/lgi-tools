@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   refIndex: 0,
   setters: [] as Array<ReturnType<typeof vi.fn>>,
   state: [] as unknown[],
+  memories: [] as Array<{ value: unknown; get: () => unknown; set: (next: unknown) => void }>,
 }));
 
 vi.mock('react', () => ({
@@ -33,6 +34,21 @@ vi.mock('react', () => ({
     return [value, setter];
   },
 }));
+// A plain remembered store: what the hook last read, readable between renders.
+vi.mock('./remembered-read', () => ({
+  createRememberedRead: () => {
+    const memory = {
+      value: null as unknown,
+      get: () => memory.value,
+      set: (next: unknown) => {
+        memory.value = next;
+      },
+    };
+    h.memories.push(memory);
+    return memory;
+  },
+  useRememberedRead: (memory: { get: () => unknown }) => memory.get(),
+}));
 vi.mock('@/transport/api-client', () => ({
   apiFetch: (...args: unknown[]) => h.apiFetch(...args),
 }));
@@ -46,10 +62,11 @@ const neverCold = () => false;
 const ok = (data: unknown) => ({ ok: true, data });
 const serverError = { ok: false, kind: 'http', status: 500 };
 
-// useState call order inside the hook: response, failed, attempts, now.
-const setResponse = () => h.setters[0]!;
-const setFailed = () => h.setters[1]!;
-const setAttempts = () => h.setters[2]!;
+// useState call order inside the hook: failed, attempts, now.
+const setFailed = () => h.setters[0]!;
+const setAttempts = () => h.setters[1]!;
+// The one endpoint the tests read, so the one memory the hook keeps.
+const remembered = () => h.memories[0]?.get() ?? null;
 
 async function flush(): Promise<void> {
   await vi.advanceTimersByTimeAsync(0);
@@ -63,6 +80,7 @@ beforeEach(() => {
   h.refIndex = 0;
   h.setters.length = 0;
   h.state.length = 0;
+  for (const memory of h.memories) memory.set(null);
 });
 
 afterEach(() => {
@@ -81,7 +99,7 @@ describe('useLiveDataset', () => {
     h.apiFetch.mockResolvedValue(ok({ rows: 1 }));
     useLiveDataset(endpoint, 'k', neverCold);
     await flush();
-    expect(setResponse()).toHaveBeenCalledWith({ rows: 1 });
+    expect(remembered()).toEqual({ rows: 1 });
     expect(setFailed()).toHaveBeenCalledWith(false);
   });
 
@@ -95,7 +113,7 @@ describe('useLiveDataset', () => {
     await vi.advanceTimersByTimeAsync(4_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
     expect(setFailed()).toHaveBeenCalledWith(true);
-    expect(setResponse()).not.toHaveBeenCalled();
+    expect(remembered()).toBeNull();
 
     await vi.advanceTimersByTimeAsync(60_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
@@ -105,7 +123,7 @@ describe('useLiveDataset', () => {
     h.apiFetch.mockResolvedValueOnce(serverError).mockResolvedValueOnce(ok({ rows: 2 }));
     useLiveDataset(endpoint, 'k', neverCold);
     await vi.advanceTimersByTimeAsync(4_000);
-    expect(setResponse()).toHaveBeenCalledWith({ rows: 2 });
+    expect(remembered()).toEqual({ rows: 2 });
     expect(setFailed()).not.toHaveBeenCalledWith(true);
   });
 
@@ -146,7 +164,6 @@ describe('useLiveDataset', () => {
     await flush();
     h.setters.length = 0;
     h.refIndex = 0;
-    h.state.push({ rows: 1 }, false);
     useLiveDataset(endpoint, 'b', neverCold);
     await vi.advanceTimersByTimeAsync(10_000);
     expect(h.apiFetch).toHaveBeenCalledTimes(2);
@@ -155,9 +172,19 @@ describe('useLiveDataset', () => {
 
   it('reports failed and not loading once the failure has settled', () => {
     h.apiFetch.mockReturnValue(new Promise(() => {}));
-    h.state.push(null, true);
+    h.state.push(true);
     const result = useLiveDataset(endpoint, 'k', neverCold);
     expect(result).toMatchObject({ response: null, loading: false, failed: true });
+  });
+
+  it('draws the last response at once when it mounts again', async () => {
+    h.apiFetch.mockResolvedValueOnce(ok({ rows: 3 })).mockReturnValue(new Promise(() => {}));
+    useLiveDataset(endpoint, 'k', neverCold);
+    await flush();
+    h.setters.length = 0;
+    const again = useLiveDataset(endpoint, 'k', neverCold);
+    expect(again).toMatchObject({ response: { rows: 3 }, loading: false });
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
   });
 
   it('ignores a response that lands after unmount', async () => {

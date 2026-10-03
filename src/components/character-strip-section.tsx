@@ -2,33 +2,31 @@
 
 import type { ReactNode } from 'react';
 import { CharacterStrip } from '@/components/character-strip';
-import { deriveStripView, stripPreferenceBinding } from '@/components/character-strip-view';
+import { deriveStripView } from '@/components/character-strip-view';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
+import { stripDimmedDef } from '@/lib/preferences';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 
 export function CharacterStripSection({
   characters,
   strip,
-  initialDimmed,
   loading,
   failure = null,
   children,
 }: {
   characters: PanelCharacter[];
   strip?: CharacterStripSpec;
-  initialDimmed?: number[];
   loading: boolean;
   failure?: ReactNode;
   children: (visible: PanelCharacter[]) => ReactNode;
 }) {
-  const binding = stripPreferenceBinding(strip, initialDimmed);
-  const [dimmedIds, setDimmedIds] = usePreference(binding.def, {
-    serverValue: binding.serverValue,
-  });
+  // Which pilots are hidden is an account setting, read from the preferences
+  // store rather than a cookie, so the strip never waits on the request.
+  const [dimmedIds, setDimmedIds] = usePreference(stripDimmedDef(strip?.surfaceId));
   const view = deriveStripView(strip, characters, dimmedIds, loading);
 
   return (
