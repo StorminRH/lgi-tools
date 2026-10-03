@@ -1,10 +1,10 @@
-import { getStructureTypes, getTypeAttributesBatch } from '@/data/eve-data/queries';
+import { getProductionModifiers, getStructureTypes } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
 import {
   buildAvailableStructures,
-  collectDogmaTypeIds,
+  collectModifierSourceTypeIds,
 } from '@/features/industry-planner/available-structures';
 import { getCurrentUserId } from '@/composition/session';
 import { apiResponse } from '@/transport/api-response';
@@ -24,7 +24,7 @@ export async function GET(): Promise<Response> {
     return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
   }
 
-  const dogma = await getTypeAttributesBatch(collectDogmaTypeIds(custom, corp));
-  const structures = buildAvailableStructures(custom, corp, structureTypes, dogma);
+  const modifiers = await getProductionModifiers(collectModifierSourceTypeIds(custom, corp));
+  const structures = buildAvailableStructures(custom, corp, structureTypes, modifiers);
   return apiResponse(availableStructuresEndpoint, 200, { structures });
 }

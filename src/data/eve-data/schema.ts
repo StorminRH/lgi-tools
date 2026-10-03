@@ -141,6 +141,59 @@ export const blueprintFlatMaterials = pgTable(
   }),
 );
 
+/**
+ * CCP's industry target filters: the named product classes (Charges, Capital
+ * Components, Composite Reactions…) that hull and rig bonuses aim at. A type
+ * belongs to a filter when its group or its group's category is listed.
+ */
+export const industryTargetFilters = pgTable('industry_target_filters', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  categoryIds: integer('category_ids').array().notNull(),
+  groupIds: integer('group_ids').array().notNull(),
+});
+
+/**
+ * Every hull and rig industry bonus, resolved at ingest from CCP's modifier
+ * sources through the type's dogma: one row per source type, activity, kind
+ * and the structure attribute it writes, with its target filter (null = every
+ * product). The factor multiplies the job's
+ * material, time or cost, already scaled for each security band; wormholes use
+ * the null-sec band.
+ */
+export const industryModifiers = pgTable(
+  'industry_modifiers',
+  {
+    sourceTypeId: integer('source_type_id').notNull(),
+    activity: text('activity').notNull(),
+    kind: text('kind').notNull(),
+    attributeId: integer('attribute_id').notNull(),
+    filterId: integer('filter_id'),
+    factorHigh: doublePrecision('factor_high').notNull(),
+    factorLow: doublePrecision('factor_low').notNull(),
+    factorNull: doublePrecision('factor_null').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.sourceTypeId, t.activity, t.kind, t.attributeId] }),
+  }),
+);
+
+/** What each assembly line can run: its activity and the product categories, groups or type lists it accepts. */
+export const industryAssemblyLines = pgTable('industry_assembly_lines', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  activityId: integer('activity_id').notNull(),
+  categoryIds: integer('category_ids').array().notNull(),
+  groupIds: integer('group_ids').array().notNull(),
+  typeListIds: integer('type_list_ids').array().notNull(),
+});
+
+/** The assembly lines an installation (a service module or station type) provides. */
+export const industryInstallationTypes = pgTable('industry_installation_types', {
+  typeId: integer('type_id').primaryKey(),
+  assemblyLineIds: integer('assembly_line_ids').array().notNull(),
+});
+
 export const eveRegions = pgTable('eve_regions', {
   id: integer('id').primaryKey(),
   name: text('name').notNull(),

@@ -8,6 +8,10 @@ export const SDE_SEED_TABLES = [
   'dgm_attribute_types',
   'type_dogma',
   'industry_blueprints',
+  'industry_target_filters',
+  'industry_modifiers',
+  'industry_assembly_lines',
+  'industry_installation_types',
   'eve_regions',
   'eve_constellations',
   'eve_solar_systems',
@@ -20,9 +24,11 @@ export const SDE_SEED_TABLES = [
 export const SDE_SEED_SOURCE_FILES = [
   'src/data/eve-data/coerce.ts',
   'src/data/eve-data/constants.ts',
+  'src/data/eve-data/industry-rules.ts',
   'src/data/eve-data/ingest.ts',
   'src/data/eve-data/meta.ts',
   'src/data/eve-data/schema.ts',
+  'src/data/eve-data/sde-io.ts',
   'src/data/eve-data/source.ts',
   'src/data/eve-data/universe.ts',
 ] as const;

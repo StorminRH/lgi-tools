@@ -18,6 +18,7 @@ import {
   type SdeJsonlPaths,
 } from './source';
 import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
+import { emitIndustryRules, parseIndustryRules } from './industry-rules';
 import { emitUniverseNeon, parseUniverse } from './universe';
 
 export type IngestSummary = {
@@ -33,6 +34,10 @@ export type IngestSummary = {
   systemJumpsWritten: number;
   stationOperationsWritten: number;
   npcStationsWritten: number;
+  targetFiltersWritten: number;
+  industryModifiersWritten: number;
+  assemblyLinesWritten: number;
+  installationTypesWritten: number;
   durationMs: number;
 };
 
@@ -82,6 +87,7 @@ export async function runIngest(
   const paths: SdeJsonlPaths = await downloadSdeJsonl();
 
   const universe = await parseUniverse(paths);
+  const industryRules = await parseIndustryRules(paths);
 
   const summary: IngestSummary = {
     categoriesWritten: 0,
@@ -96,6 +102,10 @@ export async function runIngest(
     systemJumpsWritten: 0,
     stationOperationsWritten: 0,
     npcStationsWritten: 0,
+    targetFiltersWritten: 0,
+    industryModifiersWritten: 0,
+    assemblyLinesWritten: 0,
+    installationTypesWritten: 0,
     durationMs: 0,
   };
 
@@ -243,6 +253,12 @@ export async function runIngest(
       summary.systemJumpsWritten = universeSummary.systemJumpsWritten;
       summary.stationOperationsWritten = universeSummary.stationOperationsWritten;
       summary.npcStationsWritten = universeSummary.npcStationsWritten;
+
+      const industrySummary = await emitIndustryRules(tx, industryRules);
+      summary.targetFiltersWritten = industrySummary.targetFiltersWritten;
+      summary.industryModifiersWritten = industrySummary.modifiersWritten;
+      summary.assemblyLinesWritten = industrySummary.assemblyLinesWritten;
+      summary.installationTypesWritten = industrySummary.installationTypesWritten;
     });
   } finally {
     if (!opts.keepCache) await cleanupSdeJsonl(paths);
