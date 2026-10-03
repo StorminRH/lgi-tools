@@ -40,6 +40,7 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
 
   const structuresSettled = ctx.availableStructures !== null;
   const rosterSettled = ctx.buildCharacters !== null;
+  const profilesSettled = ctx.profiles !== null;
 
   useEffect(() => {
     if (planId === null) return;
@@ -48,6 +49,7 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
       preferencesReady,
       structuresSettled,
       rosterSettled,
+      profilesSettled,
       timedOut: timedOutAttempt === attemptRef.current,
     });
     if (!open) return;
@@ -80,7 +82,7 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
         window.location.pathname + stripPlanParam(window.location.search) + window.location.hash,
       );
     });
-  }, [planId, preferencesReady, structuresSettled, rosterSettled, timedOutAttempt, ctx, structure]);
+  }, [planId, preferencesReady, structuresSettled, rosterSettled, profilesSettled, timedOutAttempt, ctx, structure]);
 
   return null;
 }

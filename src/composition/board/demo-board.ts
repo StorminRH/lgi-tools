@@ -14,7 +14,7 @@ import type { IndustryJob } from '@/features/industry-jobs/esi-projection';
 import type { SkillQueueEntry } from '@/features/skill-queue/esi-projection';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import type { AssetLine, PriceBook, TypeCategories } from '@/features/net-worth/valuation';
-import type { BoardCharacter, BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
+import type { BoardHistoryDay, BoardResponse, SkillCatalogGroup } from './api-contract';
 import {
   assembleBoard,
   type BoardRaw,
@@ -856,8 +856,8 @@ function pastWorth(today: number, daysAgo: number, seed: number): number {
   return roundIsk(today * drift * wobble);
 }
 
-function demoHistory(now: number, characters: BoardCharacter[]): BoardHistoryDay[] {
-  const today = netWorthSnapshot(characters, utcDayOf(now));
+function demoHistory(now: number, raws: readonly BoardRaw[]): BoardHistoryDay[] {
+  const today = netWorthSnapshot(raws, DEMO_NAMES, utcDayOf(now));
   if (today.pilotsIncluded === 0) return [];
   const days: BoardHistoryDay[] = [];
   for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo -= 1) {
@@ -885,6 +885,6 @@ function demoHistory(now: number, characters: BoardCharacter[]): BoardHistoryDay
 }
 
 export function buildDemoBoard(now: number, variant: DemoVariant): BoardResponse {
-  const board = assembleBoard(demoRaws(now, variant), DEMO_NAMES, now, []);
-  return { ...board, history: demoHistory(now, board.characters) };
+  const raws = demoRaws(now, variant);
+  return assembleBoard(raws, DEMO_NAMES, now, demoHistory(now, raws));
 }

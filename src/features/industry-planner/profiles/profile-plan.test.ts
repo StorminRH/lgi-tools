@@ -38,6 +38,7 @@ const structure = (
   groupId,
   hostsCapitals,
   systemId: 30002813,
+  targetFilterSets: [[EQUIPMENT], [COMPOSITE]],
   modifiers,
   securityClass: null,
   taxPct: 1,
@@ -225,4 +226,37 @@ test('a profile reads its saved structures from the account and its stations as 
   expect(planMembers(doc, new Map([[BUILDER, { 3380: 5 }]]))).toEqual([
     { characterId: BUILDER, categories: [], levels: { 3380: 5 } },
   ]);
+});
+
+
+test('a missing specific structure yields to a live broader facility or leaves the job uncovered', () => {
+  const missing: PlanFacility = { ...facility('structure:gone', ['modules'], null), kind: 'structure' };
+  const make = (facilities: PlanFacility[]) => profilePlan({
+    facilities,
+    members: [],
+    nodeActivityByBlueprint: { [MODULE_BP]: MANUFACTURING_ACTIVITY },
+    nodeFilterIds: { [MODULE_BP]: [EQUIPMENT] },
+    nodeTimeSkills: {},
+    topBlueprintTypeId: MODULE_BP,
+  });
+  const fallback = make([missing, facility('structure:azbel', ['manufacturing'], AZBEL)]);
+  expect(fallback.top.facility?.id).toBe('azbel');
+  expect(fallback.top.bonus?.me).toBeCloseTo(1, 6);
+  expect(fallback.top.bonus?.te).toBeCloseTo(20, 6);
+  const uncovered = make([missing]);
+  expect(uncovered.top.facility).toBeNull();
+  expect(uncovered.structureFactors.active).toBe(false);
+  expect(planSummary(uncovered, [MODULE_BP]).uncovered).toBe(1);
+});
+
+test('a live unpinned structure never revives the profile old system pin', () => {
+  const doc = {
+    ...emptyProfileDocument(),
+    facilities: [{
+      kind: 'structure' as const, id: 'raitaru', name: 'Old name', systemId: 30000001, categories: ['modules' as const],
+    }],
+  };
+  const [resolved] = planFacilities(doc, [{ ...RAITARU, systemId: null }], () => 0.95);
+  expect(resolved?.systemId).toBeNull();
+  expect(resolved?.security).toBeNull();
 });

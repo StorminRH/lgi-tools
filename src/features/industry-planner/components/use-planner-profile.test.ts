@@ -12,11 +12,15 @@ const h = vi.hoisted(() => ({
   plan: null as ProfilePlan | null,
   readLevels: null as ((signal: AbortSignal) => Promise<unknown>) | null,
   apiFetch: vi.fn(),
+  cleanups: [] as (() => void)[],
 }));
 
 vi.mock('react', () => ({
   useState: <T>(init: T) => [init, vi.fn()],
-  useEffect: (effect: () => void) => effect(),
+  useEffect: (effect: () => void | (() => void)) => {
+    const cleanup = effect();
+    if (cleanup) h.cleanups.push(cleanup);
+  },
   useMemo: <T>(make: () => T) => make(),
   useCallback: <T>(fn: T) => fn,
 }));
@@ -79,7 +83,7 @@ function writers(currentSystemId: number | null = null) {
     location: currentSystemId === null ? null : ({ systemId: currentSystemId } as never),
     availableStructures: [SOTIYO],
     structureFactors: MANUAL,
-    applyBuildSystem: vi.fn(async () => ({ ok: true }) as never),
+    applyBuildSystem: vi.fn(async () => ({ status: 'applied' }) as never),
     setSelectedStructure: vi.fn(),
     setStation: vi.fn(),
     setReactionSystem: vi.fn(),
@@ -95,6 +99,7 @@ beforeEach(() => {
   h.profileId = null;
   h.profiles = null;
   h.plan = null;
+  h.cleanups = [];
 });
 
 test('without a profile the picked structures and build character apply', () => {
@@ -122,7 +127,7 @@ test('a profile prices the product where its facility stands, moving the build t
   expect(w.setStation).toHaveBeenCalledWith(60003760, 'Jita IV - Moon 4');
 });
 
-test('a structure in the system already in use only swaps the structure', async () => {
+test('a structure in the system already in use swaps the structure and clears any station', async () => {
   h.profileId = 'caps';
   h.profiles = [CAPS];
   h.plan = planAt(facility({}));
@@ -130,12 +135,50 @@ test('a structure in the system already in use only swaps the structure', async 
   useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
   expect(w.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
   expect(w.applyBuildSystem).not.toHaveBeenCalled();
+  expect(w.setStation).toHaveBeenCalledWith(null, 'Sotiyo');
 
   const moved = writers(30002537);
   useProfileFactors(built(MANUFACTURING_ACTIVITY), moved);
   await settle();
   expect(moved.applyBuildSystem).toHaveBeenCalledTimes(1);
-  expect(moved.setStation).not.toHaveBeenCalled();
+  expect(moved.setStation).toHaveBeenCalledWith(null, 'Sotiyo');
+});
+
+test('a station in the current system applies without fetching a new system', () => {
+  h.profileId = 'caps';
+  h.profiles = [CAPS];
+  h.plan = planAt(facility({ kind: 'station', id: '60003760', name: 'Station', structure: null }));
+  const w = writers(30004759);
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
+  expect(w.applyBuildSystem).not.toHaveBeenCalled();
+  expect(w.setStation).toHaveBeenCalledWith(60003760, 'Station');
+});
+
+test.each(['failed', 'superseded'])('a %s system request cannot select its profile station', async (status) => {
+  h.profileId = 'caps';
+  h.profiles = [CAPS];
+  h.plan = planAt(facility({ kind: 'station', id: '60003760', structure: null }));
+  const w = writers(30002537);
+  w.applyBuildSystem.mockImplementation(async () => ({ status }) as never);
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
+  await settle();
+  expect(w.setStation).not.toHaveBeenCalled();
+});
+
+test('changing profile cancels the station write from its previous pending system request', async () => {
+  h.profileId = 'caps';
+  h.profiles = [CAPS];
+  h.plan = planAt(facility({ kind: 'station', id: '60003760', structure: null }));
+  const w = writers(30002537);
+  let complete!: (value: never) => void;
+  w.applyBuildSystem.mockImplementation(() => new Promise<never>((resolve) => { complete = resolve; }));
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
+  for (const cleanup of h.cleanups) cleanup();
+  h.profileId = null;
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
+  complete({ status: 'applied' } as never);
+  await settle();
+  expect(w.setStation).not.toHaveBeenCalled();
 });
 
 test('a reaction runs at the facility the profile gives reactions', () => {

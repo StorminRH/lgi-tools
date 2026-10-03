@@ -86,7 +86,23 @@ describe('searchUpwellStructures', () => {
       .mockResolvedValueOnce({ kind: 'ok', accessToken: 'tok-2' });
     esiAnswers([], {});
     expect(await searchUpwellStructures('user-1', 'any')).toEqual([]);
-    expect(h.esiFetch.mock.calls[0]![0]).toContain('/characters/2/search/');
+    expect(h.esiFetch.mock.calls.map(([url]) => url as string)).toEqual([
+      expect.stringContaining('/characters/2/search/'),
+    ]);
+  });
+
+  it('searches with every scoped character and merges what each can see, once per structure', async () => {
+    h.listLinkedCharacters.mockResolvedValue([pilot(1, BOTH_SCOPES), pilot(2, BOTH_SCOPES)]);
+    h.getFreshAccessTokenForCharacter.mockImplementation(async (id: number) => ({ kind: 'ok', accessToken: `tok-${id}` }));
+    const seen: Record<string, number[]> = { 'tok-1': [10, 30], 'tok-2': [20, 30] };
+    h.esiFetch.mockImplementation(async (url: string, init: { headers: { Authorization: string } }) => {
+      const token = init.headers.Authorization.replace('Bearer ', '');
+      if (url.includes('/search/')) return json(200, { structure: seen[token] });
+      const id = Number(/structures\/(\d+)\//.exec(url)?.[1]);
+      return json(200, { name: `S${id}`, solar_system_id: 30000142, type_id: 35825 });
+    });
+    const results = await searchUpwellStructures('user-1', 'any');
+    expect(results.map((r) => r.structureId)).toEqual([10, 30, 20]);
   });
 
   it('throws when no scoped character has a usable token', async () => {

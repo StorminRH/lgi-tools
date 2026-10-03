@@ -5,7 +5,7 @@ import {
   SDE_REFINERY_GROUP_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
-import { matchingFilterIds, moduleFitsHull, rigFitsStructure, shapeStructureRigs, type TargetFilter } from './structures';
+import { attainableFilterSets, matchingFilterIds, moduleFitsHull, rigFitsStructure, shapeStructureRigs, type TargetFilter } from './structures';
 import type { AttrMap } from './types';
 
 describe('matchingFilterIds', () => {
@@ -34,6 +34,27 @@ describe('matchingFilterIds', () => {
   it('returns nothing for a product no filter targets', () => {
     expect(matchingFilterIds(FILTERS, { groupId: 18, categoryId: 4 })).toEqual([]);
     expect(matchingFilterIds([], { groupId: 334, categoryId: 17 })).toEqual([]);
+  });
+});
+
+describe('attainableFilterSets', () => {
+  it('has no target combinations without any SDE groups', () => {
+    expect(attainableFilterSets([], [])).toEqual([]);
+  });
+
+  it('dedupes actual group matches and retains Odysseus overlapping ship targets', () => {
+    const filters: TargetFilter[] = [
+      { id: 8, name: 'Medium T2 Ships', categoryIds: [32], groupIds: [358, 4902] },
+      { id: 3, name: 'Ships', categoryIds: [6, 32], groupIds: [] },
+      { id: 7, name: 'Medium T1 Ships', categoryIds: [], groupIds: [26, 4902] },
+    ];
+    expect(attainableFilterSets(filters, [
+      { groupId: 26, categoryId: 6 },
+      { groupId: 358, categoryId: 6 },
+      { groupId: 4902, categoryId: 6 },
+      { groupId: 954, categoryId: 32 },
+      { groupId: 18, categoryId: 4 },
+    ])).toEqual([[3, 7], [3, 8], [3, 7, 8], []]);
   });
 });
 

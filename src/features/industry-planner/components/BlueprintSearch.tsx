@@ -5,16 +5,18 @@ import { useState } from 'react';
 import * as Combobox from '@/components/ui/combobox';
 import { SearchIcon } from '@/components/ui/icons';
 import { TypeIcon } from '@/components/type-icon';
-import type { SearchResult } from '@/platform/search';
+import { searchOneSource, type SearchResult } from '@/platform/search';
 import { useSourceSearch } from '@/platform/search/use-source-search';
 
 const SEARCH_DEBOUNCE_MS = 150;
+
+const searchBlueprints = (query: string, signal: AbortSignal) => searchOneSource(query, 'blueprints', signal);
 
 /** Finds a blueprint and opens it in the planner. */
 export function BlueprintSearch() {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const found = useSourceSearch(query.trim(), 'blueprints', SEARCH_DEBOUNCE_MS);
+  const found = useSourceSearch(query.trim(), searchBlueprints, SEARCH_DEBOUNCE_MS);
   const hits = query.trim() === '' ? [] : found;
   const open = (hit: SearchResult) => router.push(hit.href, { transitionTypes: ['industry-tab'] });
   return (

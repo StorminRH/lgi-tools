@@ -36,6 +36,7 @@ const available = (id: string, structureTypeId: number, groupId: number): Availa
   groupId,
   hostsCapitals: false,
   systemId: 30002537,
+  targetFilterSets: [[]],
   modifiers: [
     { activity: 'manufacturing', kind: 'material', filterId: null, factor: flat(0.99) },
     { activity: 'manufacturing', kind: 'time', filterId: null, factor: flat(0.85) },

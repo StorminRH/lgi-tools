@@ -554,6 +554,13 @@
       "when": 1790980524250,
       "tag": "0078_industry_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1790993417616,
+      "tag": "0079_industry_rules_runtime_grants",
+      "breakpoints": true
     }
   ]
 }

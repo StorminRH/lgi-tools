@@ -22,7 +22,7 @@ export interface PortraitToggleChange {
 }
 
 /** The single portrait a toggle-group change flipped, or null when nothing changed. */
-export function portraitToggleChange(
+function portraitToggleChange(
   selectedIds: ReadonlySet<number>,
   nextValues: readonly string[],
 ): PortraitToggleChange | null {

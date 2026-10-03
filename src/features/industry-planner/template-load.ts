@@ -6,9 +6,10 @@ export function templateGateOpen(g: {
   preferencesReady: boolean;
   structuresSettled: boolean;
   rosterSettled: boolean;
+  profilesSettled: boolean;
   timedOut: boolean;
 }): boolean {
-  return g.timedOut || (g.preferencesReady && g.structuresSettled && g.rosterSettled);
+  return g.timedOut || (g.preferencesReady && g.structuresSettled && g.rosterSettled && g.profilesSettled);
 }
 
 export type TemplateLoadOutcome =

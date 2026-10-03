@@ -117,6 +117,16 @@ describe('applyTemplate per-field fail-open degrades', () => {
     expect(target.state.runs).toBe(3);
   });
 
+  it('an unavailable profile list at the deadline clears the saved reference with an accurate note', async () => {
+    const target = makeMockPlanner();
+    const ctx = { ...target.ctx, profiles: null };
+    const snap = captureTemplate(target.ctx, 999);
+    snap.profileId = 'saved-profile';
+    const notes = await applyTemplate(makeApplyCtx(ctx), snap);
+    expect(notes).toEqual(["Production profiles couldn't load — using the planner's own picks"]);
+    expect(target.state.profileId).toBeNull();
+  });
+
   it('a character no longer on the roster falls open to the active mirror', async () => {
     const { notes, target } = await degradeCase((snap) => {
       snap.buildCharacterId = 404;

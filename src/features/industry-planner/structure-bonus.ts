@@ -60,10 +60,9 @@ export function headlineStructureBonus(input: {
   modifiers: readonly StructureModifier[];
   securityClass: SecurityClass;
   activityId: IndustryActivityId;
+  filterSets: readonly (readonly number[])[];
 }): StructureBonus {
-  const activity = ACTIVITY_KEY[input.activityId];
-  const targets = new Set(input.modifiers.flatMap((m) => (m.activity === activity && m.filterId !== null ? [m.filterId] : [])));
-  const candidates = [[], ...[...targets].map((id) => [id])].map((filterIds) =>
+  const candidates = [[], ...input.filterSets].map((filterIds) =>
     computeStructureBonus({ ...input, filterIds }),
   );
   return {
