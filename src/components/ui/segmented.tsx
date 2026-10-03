@@ -3,8 +3,10 @@
 import { Toggle } from '@base-ui/react/toggle';
 import { ToggleGroup } from '@base-ui/react/toggle-group';
 import { cva } from 'class-variance-authority';
+import { useRef } from 'react';
 import { cn } from './cn';
 import type { Tone } from './tones';
+import { useSlidingThumb } from './use-sliding-thumb';
 
 export type SegmentedTone = Extract<Tone, 'green'>;
 
@@ -56,6 +58,15 @@ const track = cva(
   },
 );
 
+/**
+ * The pressed segment's fill, drawn once under the track so it can slide
+ * between segments. Once it is placed, the segments themselves go clear.
+ */
+const thumb =
+  'pointer-events-none absolute left-[var(--thumb-left)] top-[var(--thumb-top)] h-[var(--thumb-height)] w-[var(--thumb-width)] rounded-full border border-border-active bg-row-on opacity-0 shadow-card-edge duration-lift ease-out-expo group-data-[thumb]/segmented:opacity-100 group-data-[thumb]/segmented:transition-[left,width] motion-reduce:transition-none';
+const clearOnThumb =
+  'relative z-10 group-data-[thumb]/segmented:border-transparent group-data-[thumb]/segmented:bg-transparent group-data-[thumb]/segmented:shadow-none';
+
 export function SegmentedControl({
   options,
   value,
@@ -91,22 +102,47 @@ export function SegmentedControl({
     );
   }
 
+  return <ToggleSegments options={options} value={value} onChange={onChange} label={label} tone={tone} density={density} className={className} />;
+}
+
+function ToggleSegments({
+  options,
+  value,
+  onChange,
+  label,
+  tone,
+  density,
+  className,
+}: {
+  options: readonly SegmentedOption[];
+  value: string;
+  onChange?: (value: string) => void;
+  label: string;
+  tone: SegmentedTone;
+  density: 'default' | 'compact';
+  className?: string;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLSpanElement>(null);
+  useSlidingThumb(trackRef, thumbRef, value);
   return (
     <ToggleGroup
+      ref={trackRef}
       value={[value]}
       onValueChange={(next) => {
         const selected = next[0];
         if (selected !== undefined) onChange?.(selected);
       }}
       aria-label={label}
-      className={cn(track({ density }), className)}
+      className={cn(track({ density }), 'group/segmented relative isolate', className)}
     >
+      <span ref={thumbRef} aria-hidden className={thumb} />
       {options.map((option) => (
         <Toggle
           key={option.value}
           value={option.value}
           disabled={option.disabled}
-          className={segment({ tone, active: value === option.value, density })}
+          className={cn(segment({ tone, active: value === option.value, density }), clearOnThumb)}
         >
           {option.label}
         </Toggle>

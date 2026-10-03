@@ -244,9 +244,7 @@ function BonusSection({
       label="Structure bonuses"
       value={tab}
       onValueChange={choose}
-      listClassName="gap-5 border-b-0"
-      tabClassName={cn(label, 'px-0 py-1 text-muted hover:text-text data-[active]:text-name')}
-      panelClassName="p-0 pt-2"
+      panelClassName="p-0 pt-3"
       tabs={[
         {
           value: 'values',

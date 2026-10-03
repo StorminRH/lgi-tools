@@ -34,16 +34,20 @@ async function openCreated(ctx: DialogContext, pending: Promise<string | null>):
   ctx.onSelectProfile(id);
 }
 
+const NO_ROSTER: readonly RosterCharacter[] = [];
+
 function CreateProfileDialog({ ctx }: { ctx: DialogContext }) {
   return (
     <ProfileNameDialog
       mode="create"
       initialName={suggestProfileName(ctx.state.profiles)}
-      rosterSize={ctx.roster.length}
+      roster={ctx.roster}
       busy={ctx.state.busy}
       onClose={ctx.onClose}
-      onSubmit={(name, includeRoster) => {
-        const members = includeRoster ? ctx.roster.map((c) => ({ characterId: c.characterId, name: c.name })) : [];
+      onSubmit={(name, characterIds) => {
+        const members = ctx.roster
+          .filter((c) => characterIds.includes(c.characterId))
+          .map((c) => ({ characterId: c.characterId, name: c.name }));
         void openCreated(ctx, ctx.state.create(name, emptyProfileDocument(members)));
       }}
     />
@@ -55,7 +59,7 @@ function RenameProfileDialog({ ctx, profile }: { ctx: DialogContext; profile: In
     <ProfileNameDialog
       mode="rename"
       initialName={profile.name}
-      rosterSize={0}
+      roster={NO_ROSTER}
       busy={ctx.state.busy}
       onClose={ctx.onClose}
       onSubmit={(name) => {
@@ -71,7 +75,7 @@ function DuplicateProfileDialog({ ctx, profile }: { ctx: DialogContext; profile:
     <ProfileNameDialog
       mode="duplicate"
       initialName={copyName(profile.name, ctx.state.profiles)}
-      rosterSize={0}
+      roster={NO_ROSTER}
       busy={ctx.state.busy}
       onClose={ctx.onClose}
       onSubmit={(name) => void openCreated(ctx, ctx.state.duplicate(profile.id, name))}

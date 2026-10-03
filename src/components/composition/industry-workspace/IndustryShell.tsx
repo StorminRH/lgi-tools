@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { type ReactNode, startTransition, useEffect, useState, ViewTransition } from 'react';
 import { cn } from '@/components/ui/cn';
+import { tabItem, tabSpotlight, tabTrack } from '@/components/ui/tabs';
 import { SidePanel } from '@/components/ui/side-panel';
 import { refreshAvailableStructures } from '@/features/industry-planner/use-available-structures';
 import { createClientStore, useClientStore } from '@/lib/client-store';
@@ -29,21 +30,18 @@ function sectionOf(pathname: string): Section {
   return 'profiles';
 }
 
-const tabClass =
-  'relative px-3.5 py-2 font-ui text-nav text-muted outline-none transition-colors hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub aria-[current=page]:text-name';
-
 function Tab({ href, active, children }: { href: string; active: boolean; children: ReactNode }) {
   return (
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
       transitionTypes={TAB_TRANSITION}
-      className={cn(tabClass, 'shrink-0 whitespace-nowrap')}
+      className={cn(tabItem, 'isolate aria-[current=page]:text-isk')}
     >
       {children}
       {active ? (
         <ViewTransition name="industry-tab-indicator" share="morph" default="none">
-          <span aria-hidden className="absolute inset-x-0 -bottom-px h-0.5 bg-isk" />
+          <span aria-hidden className={cn(tabSpotlight, 'absolute inset-0 -z-10')} />
         </ViewTransition>
       ) : null}
     </Link>
@@ -52,7 +50,7 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
 
 function NavFrame({ active, plannerHref }: { active: Section | null; plannerHref: string }) {
   return (
-    <nav aria-label="Industry workspace sections" className="flex gap-0.5 overflow-x-auto border-b border-border">
+    <nav aria-label="Industry workspace sections" className={cn(tabTrack, 'self-start')}>
       <Tab href="/industry" active={active === 'profiles'}>
         Profiles
       </Tab>

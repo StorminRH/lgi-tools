@@ -21,6 +21,12 @@ export interface PortraitToggleChange {
   readonly selected: boolean;
 }
 
+/** The chosen character ids after one portrait flips. */
+export function toggleCharacterId(characterIds: readonly number[], change: PortraitToggleChange): number[] {
+  const rest = characterIds.filter((characterId) => characterId !== change.characterId);
+  return change.selected ? [...rest, change.characterId] : rest;
+}
+
 /** The single portrait a toggle-group change flipped, or null when nothing changed. */
 function portraitToggleChange(
   selectedIds: ReadonlySet<number>,
