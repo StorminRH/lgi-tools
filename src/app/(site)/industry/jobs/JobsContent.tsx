@@ -26,7 +26,7 @@ export async function JobsContent() {
   if (found === null) {
     return (
       <JobsIntro
-        line="Every industry job across your characters and corporations, live as they run."
+        line="View active jobs across your characters and corporations."
         action={<EveSignInButton callbackURL="/industry/jobs" />}
       />
     );
