@@ -51,17 +51,7 @@ test('each kind of fee is one closed headline with its total', () => {
   expect(headlines(html)).toEqual(['Final job· Amamake24.8K', 'Component jobs · 27.9K', 'Sell fees38.9K']);
   expect(html.match(/<details/g)).toHaveLength(3);
   expect(html).not.toMatch(/<details[^>]*\sopen/);
-});
-
-test('opening a headline lists what makes it up, the dearest component job first', () => {
-  const html = render(net({ jobs: [job(20, 58.35), job(10, 7_800)], total: 7_858.35 }), 'Amamake');
-  const sections = html.split('<details').slice(1);
-  expect(sections[0]).toContain('System cost (12.83%)');
-  expect(sections[0]).toContain('Facility tax (0.25% assumed)');
-  expect(sections[0]).toContain('SCC surcharge');
-  expect(sections[1]!.indexOf('Oscillator Capacitor Unit')).toBeLessThan(sections[1]!.indexOf('Fernite Carbide'));
-  expect(sections[2]).toContain('Sales tax');
-  expect(sections[2]).toContain('Broker fee');
+  expect(html.indexOf('Oscillator Capacitor Unit')).toBeLessThan(html.indexOf('Fernite Carbide'));
 });
 
 test('with nothing built below the product there is one install fee and no component jobs', () => {

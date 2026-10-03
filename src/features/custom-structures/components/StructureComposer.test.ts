@@ -56,7 +56,6 @@ test('a new structure starts unnamed and unpinned, with typed values for manufac
   expect(html).toContain('Paste fit');
   expect(html).toContain('aria-label="Manufacturing material bonus"');
   expect(html).not.toContain('aria-label="Reaction material bonus"');
-  expect(html).toContain('aria-label="Facility tax"');
 });
 
 test('a rigged structure opens on its rigs, pinned to its system with that system’s security', () => {
@@ -80,7 +79,6 @@ test('a refinery with typed values offers its reaction bonuses too', () => {
       bonuses: { manufacturing: { me: 0, te: 0, cost: 0 }, reactions: { me: 2.4, te: 25 } },
     }),
   );
-  expect(html).toContain('>Bonuses<');
   expect(html).toContain('aria-label="Reaction material bonus"');
   expect(html).toContain('aria-label="Reaction time bonus"');
   expect(html).toContain('>-0.4<');

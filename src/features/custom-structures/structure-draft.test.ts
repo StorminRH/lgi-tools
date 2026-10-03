@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftFromFit, draftFromRow, emptyStructureDraft, payloadFromDraft, slotsFromRigs, type StructureDraft } from './structure-draft';
+import { draftFromFit, draftFromRow, emptyStructureDraft, payloadFromDraft, type StructureDraft } from './structure-draft';
 import type { CustomStructureRow } from './types';
 
 const ROW: CustomStructureRow = {
@@ -78,12 +78,6 @@ describe('draftFromRow', () => {
   });
 });
 
-describe('slotsFromRigs', () => {
-  it('fills three slots in order', () => {
-    expect(slotsFromRigs([1, 2])).toEqual([1, 2, null]);
-  });
-});
-
 describe('draftFromFit', () => {
   const TYPES = [{ typeId: 35825, name: 'Raitaru' }];
   const RIGGED = { structureTypeId: 35825, rigTypeIds: [43920, 37180], name: 'Amamake Raitaru' };
@@ -92,7 +86,7 @@ describe('draftFromFit', () => {
     const next = draftFromFit({ name: '  ' }, RIGGED, TYPES);
     expect(next).toEqual({
       structureTypeId: 35825,
-      rigSlots: slotsFromRigs([43920, 37180]),
+      rigSlots: [43920, 37180, null],
       mode: 'rigs',
       name: 'Amamake Raitaru',
     });
@@ -105,6 +99,6 @@ describe('draftFromFit', () => {
   });
 
   it('caps a long fit name at the structure name limit', () => {
-    expect(draftFromFit({ name: '' }, { ...RIGGED, name: 'x'.repeat(200) }, TYPES).name?.length).toBeLessThan(200);
+    expect(draftFromFit({ name: '' }, { ...RIGGED, name: 'x'.repeat(200) }, TYPES).name).toBe('x'.repeat(80));
   });
 });

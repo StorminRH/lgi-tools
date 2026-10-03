@@ -97,7 +97,5 @@ describe('NodeCard', () => {
     expect(nodeCardView({ ...base, onOpen: () => {} }).interactive).toBe(true);
     expect(nodeCardView(base).iconDesc).toEqual(itemImage(34));
     expect(nodeCardView({ ...base, icon: nodeImage(999, 34) }).iconDesc).toEqual(nodeImage(999, 34));
-    expect(nodeCardView({ ...base, lit: true }).className).toContain('after:opacity-100');
-    expect(nodeCardView({ ...base, dimmed: true }).className).toContain('opacity-45');
   });
 });

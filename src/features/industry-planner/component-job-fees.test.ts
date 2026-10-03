@@ -49,10 +49,10 @@ describe('computeComponentJobFees', () => {
     expect(total).toBeCloseTo(166.6 + 37.5, 9);
   });
 
-  it('the total is the sum of the jobs it lists, and a job with no runs is not one', () => {
+  it('leaves out a job with no runs, and the others still add up to the same fees', () => {
     const { jobs, total } = computeComponentJobFees([PLATES, IDLE, CARBIDE], sources());
     expect(jobs.map((j) => j.typeId)).toEqual([10, 20]);
-    expect(total).toBeCloseTo(jobs.reduce((sum, j) => sum + j.fee.total!, 0), 9);
+    expect(total).toBeCloseTo(166.6 + 37.5, 9);
   });
 
   it('a job in a system with no index keeps its tax and surcharge but leaves the total open', () => {
