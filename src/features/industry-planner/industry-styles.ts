@@ -27,7 +27,8 @@ export const EFFICIENCY_TONE_CLASSES: Record<
     glow: '',
     stroke: 'stroke-muted',
     text: 'text-muted',
-    frame: 'border-border-soft',
+    // An unowned blueprint's icon looks like any other until its research says something.
+    frame: 'border-transparent',
   },
   owned: {
     fill: 'fill-evb-bright',
