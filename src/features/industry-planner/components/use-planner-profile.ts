@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
+import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
 import { useSystemSearch } from '@/components/use-system-search';
 import { industryProfile } from '@/lib/preferences';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
@@ -36,6 +37,9 @@ async function readTeamSkillLevels(signal: AbortSignal): Promise<LevelsByCharact
 }
 
 const NO_LEVELS: LevelsByCharacter = new Map();
+// The last levels outlive the planner, so opening another blueprint plans with them at once.
+const levelsMemory = createRememberedRead<LevelsByCharacter>();
+const rememberLevels = (levels: LevelsByCharacter) => levelsMemory.set(levels);
 
 /**
  * The production profile applied to this build: each job's facility from the
@@ -50,8 +54,8 @@ function usePlannerProfile(
   // The planner and the Profiles tab share the profile last used.
   const [profileId, setProfileId] = usePreference(industryProfile);
   const profile = profiles?.find((p) => p.id === profileId) ?? profiles?.[0] ?? null;
-  const [levels, setLevels] = useState<LevelsByCharacter>(NO_LEVELS);
-  useResourceRead(readTeamSkillLevels, { enabled: profile !== null, onData: setLevels });
+  const levels = useRememberedRead(levelsMemory) ?? NO_LEVELS;
+  useResourceRead(readTeamSkillLevels, { enabled: profile !== null, onData: rememberLevels });
   const { systems } = useSystemSearch();
   const securityOf = useCallback(
     (systemId: number) => systems.find((s) => s.id === systemId)?.security ?? null,

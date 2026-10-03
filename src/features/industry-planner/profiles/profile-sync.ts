@@ -18,12 +18,14 @@ export interface ProfileSync {
 }
 
 export function createProfileSync(deps: {
+  /** Rows already on screen from an earlier read, so edits work before the next one lands. */
+  initial?: IndustryProfileRow[] | null;
   list: () => Promise<ProfilesResult>;
   update: (body: { id: string; expectedRevision: number } & PendingEdit) => Promise<ProfilesResult>;
   publish: (state: ProfileSyncState) => void;
   notify: (message: string) => void;
 }): ProfileSync {
-  let rows: IndustryProfileRow[] | null = null;
+  let rows: IndustryProfileRow[] | null = deps.initial ?? null;
   const pending = new Map<string, PendingEdit & { expectedRevision: number }>();
   let listFailed = false;
   let tail: Promise<void> = Promise.resolve();

@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/transport/api-client';
 import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { loadFailureStep, RECONCILE_ONCE, reconcileDelay } from '@/lib/live-dataset';
+import { createRememberedRead, type RememberedRead, useRememberedRead } from './remembered-read';
 
 const TICK_MS = 30_000;
 const RETRY_DELAY_MS = 4_000;
@@ -18,6 +19,18 @@ export interface LiveDatasetState {
   retry: () => void;
 }
 
+// One remembered response per endpoint, shared by every reader of it.
+const memories = new Map<string, RememberedRead<unknown>>();
+
+function memoryFor<TResponse>(path: string): RememberedRead<TResponse> {
+  let memory = memories.get(path);
+  if (memory === undefined) {
+    memory = createRememberedRead<unknown>();
+    memories.set(path, memory);
+  }
+  return memory as RememberedRead<TResponse>;
+}
+
 export function useLiveDataset<TResponse, TKey extends string | boolean>(
   endpoint: EndpointContract<null, { 200: JsonCodec<TResponse> }> & {
     method: 'GET';
@@ -29,13 +42,14 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
   // Pass a module-level array: it is an effect dependency.
   reconcileSchedule: readonly number[] = RECONCILE_ONCE,
 ): { response: TResponse | null } & Omit<LiveDatasetState, 'names'> {
-  const [response, setResponse] = useState<TResponse | null>(null);
+  // The last response outlives this component, so a page that mounts again
+  // draws it at once and refreshes quietly. Once data is on screen, a later
+  // failure keeps it instead of replacing it with the failure line.
+  const memory = memoryFor<TResponse>(endpoint.path);
+  const response = useRememberedRead(memory);
   const [failed, setFailed] = useState(false);
   // Bumped by retry so the load effect runs again from the start.
   const [attempts, setAttempts] = useState(0);
-  // Outlives effect re-runs, like `response`: once data is on screen, a later
-  // run's failures keep it instead of replacing it with the failure line.
-  const loaded = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +64,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
     // A failed fetch must still settle the dataset: one delayed retry, then
     // `failed`, so consumers can swap their loading state for an error line.
     const onFailure = () => {
-      const step = loadFailureStep(loaded.current, retried);
+      const step = loadFailureStep(memory.get() !== null, retried);
       if (step === 'retry') {
         retried = true;
         schedule(RETRY_DELAY_MS);
@@ -66,8 +80,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
         onFailure();
         return;
       }
-      loaded.current = true;
-      setResponse(result.data);
+      memory.set(result.data);
       setFailed(false);
       const delay = reconcileDelay(attempt, result.data, coldKey, isCold, reconcileSchedule);
       if (delay !== null) {
@@ -81,7 +94,7 @@ export function useLiveDataset<TResponse, TKey extends string | boolean>(
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [endpoint, coldKey, isCold, reconcileSchedule, attempts]);
+  }, [endpoint, memory, coldKey, isCold, reconcileSchedule, attempts]);
 
   const retry = useCallback(() => {
     setFailed(false);

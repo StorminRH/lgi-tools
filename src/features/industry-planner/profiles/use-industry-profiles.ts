@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { createRememberedRead, useRememberedRead } from '@/components/remembered-read';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import {
@@ -44,15 +45,24 @@ async function updateProfile(
   return res ?? { ok: false };
 }
 
+// The last list outlives the pages that show it: Profiles and the planner
+// draw it at once on a return and refresh it quietly.
+const profilesMemory = createRememberedRead<IndustryProfileRow[]>();
+
 /** The signed-in account's production profiles, with create, edit and delete. */
 export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
+  const remembered = useRememberedRead(profilesMemory);
   const [state, setState] = useState<ProfileSyncState>({ profiles: null, listFailed: false });
   const [busy, setBusy] = useState(false);
   const [sync] = useState<ProfileSync>(() =>
     createProfileSync({
+      initial: profilesMemory.get(),
       list: listProfiles,
       update: updateProfile,
-      publish: setState,
+      publish: (next) => {
+        setState(next);
+        if (next.profiles !== null) profilesMemory.set(next.profiles);
+      },
       notify: (message) => toast.error(message),
     }),
   );
@@ -103,5 +113,5 @@ export function useIndustryProfiles(enabled: boolean): IndustryProfilesState {
 
   const refresh = useCallback(() => void sync.refresh(), [sync]);
 
-  return { ...state, busy, refresh, create, duplicate, save: sync.save, remove };
+  return { ...state, profiles: state.profiles ?? remembered, busy, refresh, create, duplicate, save: sync.save, remove };
 }

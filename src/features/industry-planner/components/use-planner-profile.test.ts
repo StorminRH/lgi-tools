@@ -21,6 +21,7 @@ vi.mock('react', () => ({
   useEffect: (effect: () => void) => effect(),
   useMemo: <T>(make: () => T) => make(),
   useCallback: <T>(fn: T) => fn,
+  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
 }));
 vi.mock('@/components/PreferencesProvider', () => ({ usePreference: () => [h.profileId, vi.fn()] }));
 vi.mock('@/components/use-system-search', () => ({
