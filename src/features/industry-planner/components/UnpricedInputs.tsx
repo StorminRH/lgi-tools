@@ -5,7 +5,7 @@ export function UnpricedInputs({ names, className }: { names: readonly string[];
   if (names.length === 0) return null;
   return (
     <span className={cn('truncate text-label text-dps-mid', className)}>
-      No CCP price · {names.join(', ')}
+      Price unavailable · {names.join(', ')}
     </span>
   );
 }
