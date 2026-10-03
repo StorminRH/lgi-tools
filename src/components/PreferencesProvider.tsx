@@ -112,6 +112,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   return <PreferencesContext.Provider value={set}>{children}</PreferencesContext.Provider>;
 }
 
+/** Whether this visitor's preferences have been read, so a list can wait instead of showing empty. */
+export function usePreferencesReady(): boolean {
+  return useClientStore(preferencesStore).ready;
+}
+
 export function usePreference<T>(
   def: PreferenceDef<T>,
   opts?: { serverValue?: T },

@@ -3,7 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { SidePanel } from '@/components/ui/side-panel';
 
-const location = vi.hoisted(() => ({ params: new URLSearchParams(), pathname: '/industry', plannerHref: null as string | null }));
+const location = vi.hoisted(() => ({
+  params: new URLSearchParams(),
+  pathname: '/industry',
+  plannerHref: null as string | null,
+  runEffects: false,
+}));
 const structuresPanel = vi.hoisted(() => ({ props: null as ComponentProps<typeof SidePanel> | null }));
 vi.mock('next/navigation', () => ({
   useSearchParams: () => location.params,
@@ -11,7 +16,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/lib/client-store', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/client-store')>()),
-  useClientStore: () => location.plannerHref,
+  useClientStore: (store: { get: () => unknown }) => location.plannerHref ?? store.get(),
 }));
 vi.mock('next/link', () => ({
   default: ({ href, children, transitionTypes: _types, ...props }: { href: string; children: ReactNode; transitionTypes?: string[] }) =>
@@ -27,9 +32,12 @@ vi.mock('@/components/ui/side-panel', () => ({
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react')>()),
   ViewTransition: ({ children }: { children: ReactNode }) => children,
+  useEffect: (effect: () => void) => {
+    if (location.runEffects) effect();
+  },
 }));
 
-import { IndustryNav, IndustryNavFallback, StructuresDrawer } from './IndustryShell';
+import { IndustryNav, IndustryNavFallback, RememberPlanner, StructuresDrawer } from './IndustryShell';
 
 const tabs = (html: string) =>
   [...html.matchAll(/<a ([^>]*)>([^<]*)/g)].map(([, attrs, label]) => ({
@@ -38,7 +46,10 @@ const tabs = (html: string) =>
     current: (attrs ?? '').includes('aria-current="page"'),
   }));
 
-beforeEach(() => { location.plannerHref = null; });
+beforeEach(() => {
+  location.plannerHref = null;
+  location.runEffects = false;
+});
 
 test.each([
   ['/industry', 'Profiles'],
@@ -63,18 +74,29 @@ test('the static shell carries the tabs before the route is known, none of them 
   expect(links.some((l) => l.current)).toBe(false);
 });
 
-test.each(['/industry/683', '/industry', '/industry/jobs'])(
-  'after a blueprint opens, %s keeps both its Planner return link and scoped search entry',
-  (pathname) => {
-    location.pathname = pathname;
-    location.plannerHref = '/industry/683';
-    const html = renderToStaticMarkup(createElement(IndustryNav));
-    const links = tabs(html);
-    expect(links.find((link) => link.label === 'Planner')?.href).toBe('/industry/683');
-    expect(links.find((link) => link.label === 'Search')?.href).toBe('/industry/planner');
-    expect(html).toContain('aria-label="Search blueprints"');
-  },
-);
+test.each([
+  ['/industry', '/industry/683'],
+  ['/industry/jobs', '/industry/683'],
+  // Inside the planner its own tab goes back to the search.
+  ['/industry/683', '/industry/planner'],
+  ['/industry/planner', '/industry/planner'],
+])('after a blueprint opens, the Planner tab on %s goes to %s, and there is no separate search tab', (pathname, href) => {
+  location.pathname = pathname;
+  location.plannerHref = '/industry/683';
+  const links = tabs(renderToStaticMarkup(createElement(IndustryNav)));
+  expect(links.map((l) => l.label)).toEqual(['Profiles', 'Planner', 'Active jobs']);
+  expect(links.find((link) => link.label === 'Planner')?.href).toBe(href);
+});
+
+test('the Planner tab returns to the blueprint last opened, or to the search when that was left last', () => {
+  location.pathname = '/industry';
+  location.runEffects = true;
+  const plannerHref = () => tabs(renderToStaticMarkup(createElement(IndustryNav))).find((l) => l.label === 'Planner')?.href;
+  renderToStaticMarkup(createElement(RememberPlanner, { blueprintTypeId: 683 }));
+  expect(plannerHref()).toBe('/industry/683');
+  renderToStaticMarkup(createElement(RememberPlanner));
+  expect(plannerHref()).toBe('/industry/planner');
+});
 
 const drawer = () => renderToStaticMarkup(createElement(StructuresDrawer, null, 'Structures editor contents'));
 

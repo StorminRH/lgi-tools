@@ -56,22 +56,13 @@ function NavFrame({ active, plannerHref }: { active: Section | null; plannerHref
       <Tab href="/industry" active={active === 'profiles'}>
         Profiles
       </Tab>
-      <Tab href={plannerHref} active={active === 'planner'}>
+      {/* From inside the planner, its tab goes back to the search. */}
+      <Tab href={active === 'planner' ? EMPTY_PLANNER : plannerHref} active={active === 'planner'}>
         Planner
       </Tab>
       <Tab href="/industry/jobs" active={active === 'jobs'}>
         Active jobs
       </Tab>
-      {plannerHref !== EMPTY_PLANNER ? (
-        <Link
-          href={EMPTY_PLANNER}
-          aria-label="Search blueprints"
-          transitionTypes={TAB_TRANSITION}
-          className={cn(tabClass, 'ml-auto shrink-0 whitespace-nowrap')}
-        >
-          Search
-        </Link>
-      ) : null}
     </nav>
   );
 }
@@ -87,10 +78,10 @@ export function IndustryNavFallback() {
   return <NavFrame active={null} plannerHref={EMPTY_PLANNER} />;
 }
 
-/** Records the blueprint on screen as the one the Planner tab returns to. */
-export function RememberPlanner({ blueprintTypeId }: { blueprintTypeId: number }) {
+/** Records the blueprint on screen, or the search without one, as where the Planner tab returns. */
+export function RememberPlanner({ blueprintTypeId }: { blueprintTypeId?: number }) {
   useEffect(() => {
-    lastPlanner.set(`/industry/${blueprintTypeId}`);
+    lastPlanner.set(blueprintTypeId === undefined ? EMPTY_PLANNER : `/industry/${blueprintTypeId}`);
   }, [blueprintTypeId]);
   return null;
 }

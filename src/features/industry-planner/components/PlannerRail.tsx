@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { TypeIcon } from '@/components/type-icon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { StarIcon } from '@/components/ui/icons';
 import { LivePrice } from '@/components/ui/live-price';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { Select } from '@/components/ui/select';
@@ -17,6 +18,7 @@ import { formatQuantity } from '@/lib/format/number';
 import { authClient } from '@/platform/auth/auth-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { batchedCostOfRows } from '../cost-basis-view';
+import { useFavoriteBlueprints } from '../favorite-blueprints';
 import { activityLabel, PLANNER_TOOL_TRIGGER_CLASS } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { MANUFACTURING_ACTIVITY } from '../structure-bonus';
@@ -29,6 +31,26 @@ import { MultibuyPanel } from './MultibuyPanel';
 import { useBuildPlan, useBuildSetup, useMarketData, usePlannerConfig } from './planner-contexts';
 
 const PROFILES_HREF = '/industry';
+const SEARCH_HREF = '/industry/planner';
+
+/** Stars the blueprint so the planner's landing page lists it. */
+function FavoriteStar({ typeId, name }: { typeId: number; name: string }) {
+  const { favorites, toggle } = useFavoriteBlueprints();
+  const starred = favorites?.some((f) => f.typeId === typeId) ?? false;
+  return (
+    <Button
+      variant="bare"
+      type="button"
+      aria-label="Favorite"
+      aria-pressed={starred}
+      disabled={favorites === null}
+      onClick={() => toggle({ typeId, name })}
+      className="mt-1 size-7 shrink-0 justify-center rounded-ctl text-muted hover:text-isk aria-pressed:text-isk"
+    >
+      <StarIcon size={18} className={cn(starred && 'fill-current')} />
+    </Button>
+  );
+}
 
 /**
  * The blueprint floats on the backdrop like a pilot's portrait, its research
@@ -39,7 +61,17 @@ function BlueprintIdentity({ structure }: { structure: BlueprintStructure }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <h2 className="font-display text-h2 font-bold leading-tight text-name">{structure.product.name}</h2>
+        <Link
+          href={SEARCH_HREF}
+          transitionTypes={['industry-tab']}
+          className="mb-2 inline-flex items-center gap-2 self-start rounded-ctl py-1 font-data text-ui text-muted no-underline hover:text-isk"
+        >
+          <span aria-hidden>←</span> Back to search
+        </Link>
+        <div className="flex items-start gap-2">
+          <h2 className="min-w-0 font-display text-h2 font-bold leading-tight text-name">{structure.product.name}</h2>
+          <FavoriteStar typeId={structure.blueprintTypeId} name={structure.product.name} />
+        </div>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
           {group && (
             <>
