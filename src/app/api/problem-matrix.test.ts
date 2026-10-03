@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
   getStructureRigs: vi.fn(),
   getBlueprintStructure: vi.fn(),
   countSavedPlans: vi.fn(),
-  rejectUnknownSystemPin: vi.fn(),
+  rejectInvalidCustomStructure: vi.fn(),
   countCustomStructures: vi.fn(),
   getPricedSiteDetail: vi.fn(),
 }));
@@ -75,8 +75,8 @@ vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
   deleteSavedPlan: vi.fn(),
   listSavedPlans: vi.fn(),
 }));
-vi.mock('@/features/custom-structures/system-pin', () => ({
-  rejectUnknownSystemPin: (...args: unknown[]) => h.rejectUnknownSystemPin(...args),
+vi.mock('@/features/custom-structures/save-boundary', () => ({
+  rejectInvalidCustomStructure: (...args: unknown[]) => h.rejectInvalidCustomStructure(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({
   countCustomStructures: (...args: unknown[]) => h.countCustomStructures(...args),
@@ -196,7 +196,7 @@ beforeEach(() => {
     product: { typeId: 22544, name: 'Hulk' },
   });
   h.countSavedPlans.mockReset().mockResolvedValue(0);
-  h.rejectUnknownSystemPin.mockReset().mockResolvedValue({ ok: true });
+  h.rejectInvalidCustomStructure.mockReset().mockResolvedValue({ ok: true });
   h.countCustomStructures.mockReset().mockResolvedValue(0);
   h.getPricedSiteDetail.mockReset().mockResolvedValue(null);
 });

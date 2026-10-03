@@ -6,10 +6,21 @@ export type ValueAxisGridProps = {
   format: (value: number) => string;
 };
 
+// Ticks closer together than the format's precision print the same label; keep the first of each.
+function distinctTicks(ticks: readonly number[], format: (value: number) => string): number[] {
+  const seen = new Set<string>();
+  return ticks.filter((t) => {
+    const label = format(t);
+    if (seen.has(label)) return false;
+    seen.add(label);
+    return true;
+  });
+}
+
 export function ValueAxisGrid({ ticks, y, left, right, format }: ValueAxisGridProps) {
   return (
     <>
-      {ticks.map((t) => (
+      {distinctTicks(ticks, format).map((t) => (
         <g key={t}>
           <line
             x1={left}

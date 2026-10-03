@@ -135,6 +135,16 @@ export async function searchAll(
   return out;
 }
 
+/** One scoped source's results for a form field: no session, no recents. */
+export async function searchOneSource(
+  query: string,
+  sourceId: string,
+  signal: AbortSignal,
+): Promise<SearchResult[]> {
+  const sections = await searchAll(query, { session: null, isAdmin: false, recents: [], signal }, [sourceId]);
+  return sections[0]?.results ?? [];
+}
+
 export function __resetSearchSources(): void {
   sources.length = 0;
 }

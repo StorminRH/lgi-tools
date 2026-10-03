@@ -121,13 +121,10 @@ const industryDataSchema = z.object({
 });
 export type BoardIndustryData = z.infer<typeof industryDataSchema>;
 
+/** The pilot's latest recorded worth; the nightly revalue writes it, the board view never computes it. */
 const netWorthDataSchema = z.object({
   total: z.number(),
   liquid: z.number(),
-  assets: z.number(),
-  sellOrders: z.number(),
-  buyEscrow: z.number(),
-  implants: z.number(),
 });
 export type BoardNetWorthData = z.infer<typeof netWorthDataSchema>;
 

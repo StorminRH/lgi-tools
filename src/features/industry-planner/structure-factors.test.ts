@@ -10,6 +10,7 @@ import {
   composeFeeInputs,
   hostsReactions,
   structureFactorsFor,
+  structureBonusesAt,
   structureReadouts,
 } from './structure-factors';
 
@@ -22,6 +23,7 @@ const make = (over: Partial<AvailableStructure>): AvailableStructure => ({
   systemId: null,
   structureAttrs: {},
   rigAttrs: [],
+  enteredBonuses: null,
   securityClass: null,
   taxPct: null,
   ...over,
@@ -356,5 +358,67 @@ describe('composeFeeInputs', () => {
     })!;
     expect(fee.reaction).toEqual({ systemCostIndex: 0.03, facilityTaxPct: 1 });
     expect(fee.facilityTaxPct).toBe(1);
+  });
+});
+
+describe('structureFactorsFor — typed-in bonuses', () => {
+  const ENTERED = {
+    manufacturing: { me: 3.38, te: 39.2, cost: 4 },
+    reactions: { me: 2.64, te: 44.8 },
+  };
+
+  it('applies typed-in values as-is: no hull, no rigs, no security, even without a system', () => {
+    const f = structureFactorsFor({
+      selectedStructure: refinery({
+        structureAttrs: { 2721: 0.75 },
+        rigAttrs: [REACTOR_RIG],
+        enteredBonuses: ENTERED,
+      }),
+      locationSecurity: null,
+      nodeActivityByBlueprint: NODE_ACTIVITY,
+    });
+    expect(f.active).toBe(true);
+    expect(f.structureMeFactorOf(100)).toBeCloseTo(1 - 0.0338, 9);
+    expect(f.structureTeFactorOf(100)).toBeCloseTo(1 - 0.392, 9);
+    expect(f.structureCostBonusPct).toBe(4);
+    expect(f.structureMeFactorOf(200)).toBeCloseTo(1 - 0.0264, 9);
+    expect(f.structureTeFactorOf(200)).toBeCloseTo(1 - 0.448, 9);
+  });
+
+  it('gives the same numbers in high, low and null security', () => {
+    const factorsAt = (locationSecurity: number) =>
+      structureFactorsFor({
+        selectedStructure: ec({ enteredBonuses: ENTERED }),
+        locationSecurity,
+        nodeActivityByBlueprint: NODE_ACTIVITY,
+      });
+    const meFactors = [0.9, 0.3, -0.5].map((sec) => factorsAt(sec).structureMeFactorOf(100));
+    expect(new Set(meFactors).size).toBe(1);
+  });
+});
+
+describe('structureBonusesAt', () => {
+  it('uses typed-in values as-is and reads reactions only on a refinery', () => {
+    const entered = { manufacturing: { me: 1, te: 15, cost: 3 }, reactions: { me: 2, te: 20 } };
+    expect(structureBonusesAt(ec({ enteredBonuses: entered }), null)).toEqual({
+      mfg: { me: 1, te: 15, costBonus: 3 },
+      rxn: null,
+    });
+    expect(structureBonusesAt(refinery({ enteredBonuses: entered }), null).rxn).toEqual({
+      me: 2,
+      te: 20,
+      costBonus: 0,
+    });
+  });
+
+  it('scales a fitted rig by the system security and has nothing without a system', () => {
+    const fitted = ec({ structureAttrs: { 2600: 0.99 }, rigAttrs: [ME_RIG] });
+    expect(structureBonusesAt(fitted, -0.4).mfg?.me).toBeCloseTo((1 - 0.99 * (1 - 0.042)) * 100, 6);
+    expect(structureBonusesAt(fitted, null)).toEqual({ mfg: null, rxn: null });
+  });
+
+  it('takes a corp structure security band from the synced row', () => {
+    const corp = ec({ source: 'corp', securityClass: 'high', structureAttrs: { 2600: 0.99 }, rigAttrs: [ME_RIG] });
+    expect(structureBonusesAt(corp, null).mfg?.me).toBeCloseTo((1 - 0.99 * 0.98) * 100, 6);
   });
 });

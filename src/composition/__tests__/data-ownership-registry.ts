@@ -721,7 +721,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(user_id,day)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One statement per board view: a data-modifying CTE upserts the account\'s row for the UTC day (last view of the day wins) and the outer DELETE prunes the account to its newest 365 days, ranked against the pre-statement rows plus today, so the snapshot and its prune land together on the transaction-free request path.',
+      note: 'One statement per revalue (the nightly daily-batch step, or a roster change): a data-modifying CTE upserts the account\'s row for the UTC day (last write of the day wins) and the outer DELETE prunes the account to its newest 365 days, ranked against the pre-statement rows plus today, so the snapshot and its prune land together without a transaction on the neon-http driver both writers share.',
     },
     dataClass: 'personal',
   },

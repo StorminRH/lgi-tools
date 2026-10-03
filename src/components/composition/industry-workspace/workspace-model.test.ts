@@ -158,6 +158,7 @@ const structure = (overrides: Partial<AvailableStructure>): AvailableStructure =
   structureAttrs: { 2600: 0.99, 2601: 0.97, 2602: 0.85 },
   // One rig: −2% material and −20% time before the security multiplier (×2.1 in null-sec).
   rigAttrs: [{ 2594: -2, 2593: -20, 2355: 1, 2356: 1.9, 2357: 2.1 }],
+  enteredBonuses: null,
   securityClass: null,
   taxPct: 1.5,
   ...overrides,

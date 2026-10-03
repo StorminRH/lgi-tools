@@ -31,9 +31,6 @@ export interface IdempotencyEntry {
 const VERCEL_CRON_REDELIVERY =
   'Schedule overlap only — Vercel does not automatically retry a failed cron run.';
 
-const MANUAL_CRON_REDELIVERY =
-  'Manual CRON_SECRET GET only — these routes are not in vercel.json after the Hobby downgrade dropped sub-daily schedules.';
-
 const DAILY_BATCH_STEP_REDELIVERY =
   'A step of the daily-batch Vercel cron, plus a manual CRON_SECRET GET of its own route; Vercel does not automatically retry a failed run.';
 
@@ -45,7 +42,7 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     id: 'cron/drain-esi-refresh-jobs',
     workKind: 'http-route',
     module: 'src/app/api/cron/drain-esi-refresh-jobs/declaration.ts',
-    redeliverySource: MANUAL_CRON_REDELIVERY,
+    redeliverySource: DAILY_BATCH_STEP_REDELIVERY,
     verdict: 'key-protected',
     evidence:
       'defineCronRoute serializes the run under the ADVISORY_LOCK_ESI_REFRESH_QUEUE session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
@@ -58,7 +55,16 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
     redeliverySource: VERCEL_CRON_REDELIVERY,
     verdict: 'coordinated-elsewhere',
     evidence:
-      'Runs the purge-maps, prices, industry-indices, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+      'Runs the purge-maps, prices, industry-indices, drain-esi-refresh-jobs, revalue-net-worth, wh-statics, and housekeeping declarations in order; each step keeps its own lock or idempotency guard, listed under its own entry.',
+  },
+  {
+    id: 'cron/revalue-net-worth',
+    workKind: 'vercel-cron',
+    module: 'src/app/api/cron/revalue-net-worth/declaration.ts',
+    redeliverySource: DAILY_BATCH_ONLY_REDELIVERY,
+    verdict: 'inherently-idempotent',
+    evidence:
+      "Declares lock mode none: each account's day is one upsert keyed by (user_id, day) from the holdings and prices already in Neon, so a repeat or overlapping run rewrites the same row with the same inputs.",
   },
   {
     id: 'cron/housekeeping',
@@ -386,6 +392,10 @@ const customStructuresParseFitRoute = readRoute({
   route: 'src/app/api/account/custom-structures/parse-fit/route.ts',
   evidence: 'Parses a pasted fit against reference data; writes nothing.',
 });
+const customStructuresSearchRoute = readRoute({
+  route: 'src/app/api/account/custom-structures/search/route.ts',
+  evidence: 'Reads matching structures from ESI with the caller’s token; writes nothing.',
+});
 const accountActiveCharacterRoute = mutationRoute({
   route: 'src/app/api/account/active-character/route.ts',
   verdict: 'inherently-idempotent',
@@ -409,17 +419,11 @@ const corpStructuresRigsRoute = mutationRoute({
   evidence:
     'Replaces a structure’s rig set with the posted set; a repeat replaces it with the same set.',
 });
-const customStructuresSetPinRoute = mutationRoute({
-  route: 'src/app/api/account/custom-structures/set-pin/route.ts',
+const customStructuresUpdateRoute = mutationRoute({
+  route: 'src/app/api/account/custom-structures/update/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'Sets a structure’s system pin to a named id; a repeat sets the same pin.',
-});
-const customStructuresSetTaxRoute = mutationRoute({
-  route: 'src/app/api/account/custom-structures/set-tax/route.ts',
-  verdict: 'inherently-idempotent',
-  evidence:
-    'Sets a structure’s tax rate to a named value; a repeat sets the same rate.',
+    'Overwrites a named structure with the posted fields; a repeat writes the same fields.',
 });
 const savedPlansRenameRoute = mutationRoute({
   route: 'src/app/api/account/saved-plans/rename/route.ts',
@@ -643,12 +647,12 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   industryOwnedBlueprintsRoute,
   industrySkillLevelsRoute,
   customStructuresParseFitRoute,
+  customStructuresSearchRoute,
   accountActiveCharacterRoute,
   preferencesRoute,
   corpSharingRoute,
   corpStructuresRigsRoute,
-  customStructuresSetPinRoute,
-  customStructuresSetTaxRoute,
+  customStructuresUpdateRoute,
   savedPlansRenameRoute,
   savedPlansFavoriteRoute,
   adminRoleRoute,

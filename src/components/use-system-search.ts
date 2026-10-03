@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
-import { searchAll } from '@/platform/search';
+import { searchOneSource } from '@/platform/search';
 
 export type SystemParams = { system: SystemSearchEntry };
 export type SystemErr = { kind: 'not_found' };
@@ -79,11 +79,7 @@ export function useSystemSearch(): SystemSearch {
     ctrlRef.current?.abort();
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
-    const sections = await searchAll(
-      input,
-      { session: null, isAdmin: false, recents: [], signal: ctrl.signal },
-      ['systems'],
-    );
+    const results = await searchOneSource(input, 'systems', ctrl.signal);
     if (!healedRef.current) {
       const loaded = getLoadedSystems();
       if (loaded !== null) {
@@ -91,7 +87,7 @@ export function useSystemSearch(): SystemSearch {
         setSystems(loaded);
       }
     }
-    return sections[0]?.results.map((r) => r.label) ?? [];
+    return results.map((r) => r.label);
   }, []);
 
   return { systems, parse, suggest };
