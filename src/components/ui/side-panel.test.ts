@@ -16,11 +16,11 @@ vi.mock('./dialog', () => ({
 
 import { SidePanel } from './side-panel';
 
-test.each([false, true])('side panel requests persistent mounting with controlled open=%s and trigger focus restoration', (open) => {
+test('side panel stays mounted, forwards open, and labels itself from its title', () => {
   const onOpenChange = vi.fn();
   const finalFocus = { current: null };
   const props = {
-    open,
+    open: true,
     onOpenChange,
     finalFocus,
     title: 'Custom structures',
@@ -28,7 +28,7 @@ test.each([false, true])('side panel requests persistent mounting with controlle
   };
   const html = renderToStaticMarkup(createElement(SidePanel, props));
 
-  expect(dialog.props).toMatchObject({ open, keepMounted: true, finalFocus });
+  expect(dialog.props).toMatchObject({ open: true, keepMounted: true, finalFocus });
   dialog.props?.onOpenChange?.(false);
   expect(onOpenChange).toHaveBeenCalledWith(false);
   expect(html).toContain('value="Unsaved fitting"');
@@ -37,4 +37,7 @@ test.each([false, true])('side panel requests persistent mounting with controlle
   expect(label).toBeTruthy();
   expect(html.match(/<h2 id="([^"]+)"/)?.[1]).toBe(label);
   expect(html).toContain('>Custom structures</h2>');
+
+  renderToStaticMarkup(createElement(SidePanel, { ...props, open: false }));
+  expect(dialog.props).toMatchObject({ open: false, keepMounted: true, finalFocus });
 });
