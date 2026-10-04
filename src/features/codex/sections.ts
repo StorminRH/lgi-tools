@@ -1,4 +1,4 @@
-import type { CodexBlockNode, CodexDoc } from './doc';
+import type { CodexBlockNode, CodexDoc, CodexNode } from './doc';
 
 export const LEAD_SECTION_ID = 'lead';
 
@@ -28,6 +28,19 @@ export function codexSections(doc: CodexDoc): CodexSection[] {
     }
   }
   return sections.filter((section) => section.heading !== null || section.blocks.length > 0);
+}
+
+export type InfoboxBlock = Extract<CodexBlockNode, { type: 'dataBlock' }>;
+
+export function leadInfobox(doc: CodexDoc): InfoboxBlock | null {
+  const first = doc.content[0];
+  return first?.type === 'dataBlock' && first.attrs.layout === 'infobox' ? first : null;
+}
+
+const isBlankText = (node: CodexNode) => node.type === 'text' && node.text.trim() === '';
+
+export function isBlankSection(blocks: readonly CodexBlockNode[]): boolean {
+  return blocks.every((block) => block.type === 'paragraph' && block.content.every(isBlankText));
 }
 
 export function sectionBounds(

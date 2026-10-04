@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { parseCodexDoc, type CodexBlockNode, type CodexDoc } from './doc';
-import { codexSections, sectionBounds } from './sections';
+import { codexSections, isBlankSection, leadInfobox, sectionBounds } from './sections';
 
 const paragraph = (id: string) => ({
   type: 'paragraph',
@@ -81,4 +81,30 @@ test('splits the blocks around a section body', () => {
   });
   expect(around('tank')).toBeNull();
   expect(around('missing')).toBeNull();
+});
+
+function parsed(content: unknown[]): CodexDoc {
+  const result = parseCodexDoc({ type: 'doc', attrs: { schemaVersion: 1 }, content });
+  if (!result.ok) throw new Error(result.problems.join('; '));
+  return result.doc;
+}
+
+const dataBlock = (layout: 'infobox' | 'card') => ({
+  type: 'dataBlock',
+  attrs: { id: 'data', source: 'wormholeType', key: 'C247', fields: layout === 'card' ? [] : ['totalMass'], layout },
+});
+
+test('lifts only an infobox that opens the page', () => {
+  expect(leadInfobox(parsed([dataBlock('infobox'), heading('overview', 2)]))?.attrs.id).toBe('data');
+  expect(leadInfobox(parsed([dataBlock('card'), heading('waves', 2)]))).toBeNull();
+  expect(leadInfobox(parsed([paragraph('intro'), dataBlock('infobox')]))).toBeNull();
+});
+
+test('a section is blank when it holds nothing but empty paragraphs', () => {
+  const blank = (text: string) => parsed([{ type: 'paragraph', attrs: { id: 'p' }, content: text ? [{ type: 'text', text }] : [] }]).content;
+  expect(isBlankSection([])).toBe(true);
+  expect(isBlankSection(blank(''))).toBe(true);
+  expect(isBlankSection(blank('  '))).toBe(true);
+  expect(isBlankSection(blank('x'))).toBe(false);
+  expect(isBlankSection(parsed([dataBlock('infobox')]).content)).toBe(false);
 });

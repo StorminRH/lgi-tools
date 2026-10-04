@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   loadCodexPage: vi.fn(),
+  getWormholeCodex: vi.fn(),
   getFullSession: vi.fn(),
   adminArticle: vi.fn(),
   notFound: vi.fn(() => {
@@ -18,7 +19,10 @@ vi.mock('next/link', () => ({
 }));
 vi.mock('@/features/codex/queries', () => ({
   loadCodexPage: (subject: unknown) => mocks.loadCodexPage(subject),
+  listCodexPages: async () => [],
 }));
+vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
+vi.mock('@/data/eve-data/universe-assets', () => ({ getWormholeCodex: mocks.getWormholeCodex }));
 vi.mock('@/composition/session', () => ({ getFullSession: () => mocks.getFullSession() }));
 vi.mock('@/features/codex/components/CodexAdminArticle', () => ({
   CodexAdminArticle: (props: Record<string, unknown>) => {
@@ -50,7 +54,20 @@ const page = {
   },
 };
 
+const C247 = {
+  code: 'C247',
+  typeId: 30691,
+  farSide: false,
+  totalMass: 2_000_000_000,
+  maxJumpMass: 375_000_000,
+  massRegen: 0,
+  lifetimeMinutes: 960,
+  sizeClass: 'L',
+  targetClass: 3,
+};
+
 beforeEach(() => {
+  mocks.getWormholeCodex.mockResolvedValue({ version: 'v', types: [C247], effects: [] });
   mocks.loadCodexPage.mockReset();
   mocks.adminArticle.mockReset();
   mocks.getFullSession.mockReset().mockResolvedValue(null);
@@ -156,4 +173,35 @@ test('the admin starts a new guide from a title on an empty address', async () =
   await expect(
     CodexAdminReader({ params: params('guides', 'new-one'), searchParams: query() }),
   ).rejects.toThrow('NEXT_NOT_FOUND');
+});
+
+test('the admin edits an unwritten entity page from its template', async () => {
+  mocks.getFullSession.mockResolvedValue({ isAdmin: true });
+  mocks.loadCodexPage.mockResolvedValue(null);
+
+  await renderReader('wormholes', 'c247');
+  expect(mocks.adminArticle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ subject: { kind: 'wormholes', key: 'c247' }, baseRevisionId: null, newTitle: null }),
+  );
+  const { sections } = mocks.adminArticle.mock.lastCall![0] as { sections: { id: string; empty: boolean }[] };
+  expect(sections.map((section) => section.id)).toEqual(['lead', 'overview', 'where-it-appears', 'rolling-and-mass']);
+  expect(sections.map((section) => section.empty)).toEqual([false, true, true, true]);
+
+  await renderReader('wormholes', 'c247', { edit: 'lead' });
+  expect(mocks.adminArticle).toHaveBeenLastCalledWith(expect.objectContaining({ initialScope: null }));
+  await renderReader('wormholes', 'c247', { edit: 'overview' });
+  expect(mocks.adminArticle).toHaveBeenLastCalledWith(expect.objectContaining({ initialScope: 'overview' }));
+
+  const titled = await renderReader('wormholes', 'c247', { title: 'Sneaky' });
+  expect(titled).not.toContain('A page already lives');
+});
+
+test('a signed-in pilot who is not the admin reads the template page', async () => {
+  mocks.getFullSession.mockResolvedValue({ isAdmin: false });
+  mocks.loadCodexPage.mockResolvedValue(null);
+
+  const html = await renderReader('wormholes', 'c247');
+  expect(html).toContain('No guide yet.');
+  expect(html).not.toContain('Edit page');
+  expect(mocks.adminArticle).not.toHaveBeenCalled();
 });

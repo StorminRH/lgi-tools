@@ -61,6 +61,13 @@ export const SiteIcon = strokeIcon(
     <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" />
   </>,
 );
+export const GuideIcon = strokeIcon(
+  <>
+    <path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z" />
+    <path d="M9 9h6M9 13h6" />
+  </>,
+);
+export const ArrowRightIcon = strokeIcon(<path d="M5 12h14M13 6l6 6-6 6" />);
 export const ClassIcon = strokeIcon(
   <>
     <path d="M4 7h16M4 12h16M4 17h10" />

@@ -2,43 +2,63 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, Suspense, type ReactNode } from 'react';
 import { codexComponents } from '@/components/composition/codex-data-block';
+import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SITE_URL } from '@/config/site-url';
+import { codexTemplate, type CodexTemplate } from '@/composition/codex-templates';
+import type { CodexDoc } from '@/features/codex/doc';
+import { CodexEmptySection } from '@/features/codex/components/CodexEmptySection';
 import { CodexPageLayout } from '@/features/codex/components/CodexPageLayout';
-import { loadCodexPage } from '@/features/codex/queries';
+import { formatCodexDate } from '@/features/codex/format';
+import { loadCodexPage, type CodexPageView } from '@/features/codex/queries';
 import { CodexArticle, codexOutline } from '@/features/codex/render';
-import { CODEX_SUBJECTS, codexPageHref, resolveCodexSubject, type CodexSubject } from '@/features/codex/subjects';
+import { leadInfobox } from '@/features/codex/sections';
+import {
+  CODEX_SUBJECTS,
+  codexKindHref,
+  codexPageHref,
+  resolveCodexSubject,
+  type CodexSubject,
+} from '@/features/codex/subjects';
 import { buildPageMetadata } from '@/lib/page-metadata';
+import { buildBreadcrumbList } from '@/lib/structured-data';
 
 export type CodexParams = Promise<{ kind: string; key: string }>;
 
-export type CodexPage = NonNullable<Awaited<ReturnType<typeof loadCodexPage>>>;
+export type CodexPage =
+  | CodexPageView
+  | { readonly title: string; readonly doc: CodexDoc; readonly revisionId: null; readonly updatedAt: null };
 
-export const loadPage = cache(async (kind: string, key: string) => {
+interface LoadedPage {
+  readonly subject: CodexSubject;
+  readonly page: CodexPage | null;
+  readonly template: CodexTemplate | null;
+}
+
+export const loadPage = cache(async (kind: string, key: string): Promise<LoadedPage> => {
   const subject = resolveCodexSubject(kind, key);
   if (!subject) notFound();
-  return { subject, page: await loadCodexPage(subject) };
+  if (!CODEX_SUBJECTS[subject.kind].entity) return { subject, page: await loadCodexPage(subject), template: null };
+  const [row, template] = await Promise.all([loadCodexPage(subject), codexTemplate(subject)]);
+  if (!template) notFound();
+  const page = row ?? { title: template.title, doc: template.doc, revisionId: null, updatedAt: null };
+  return { subject, page, template };
 });
 
-const UPDATED_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
-export function describe(subject: CodexSubject, title: string) {
+export function describe(subject: CodexSubject, title: string, description?: string) {
   return buildPageMetadata({
     title,
-    description: `${title}: a pilot-written ${CODEX_SUBJECTS[subject.kind].singular.toLowerCase()} in the LGI.tools Codex.`,
+    description:
+      description ?? `${title}: a pilot-written ${CODEX_SUBJECTS[subject.kind].singular.toLowerCase()} in the LGI.tools Codex.`,
     canonical: codexPageHref(subject),
   });
 }
 
 function OnThisPage({ items }: { items: { id: string; label: string }[] }) {
   return (
-    <nav aria-label="On this page" className="hidden font-ui lg:sticky lg:top-24 lg:block">
+    <nav aria-label="On this page" className="hidden font-ui lg:sticky lg:top-24 lg:block lg:w-[200px]">
       <div className="mb-2 text-label font-semibold uppercase tracking-eyebrow text-muted">On this page</div>
       <ul className="space-y-1 border-l border-border-soft">
         {items.map((item, index) => (
@@ -62,8 +82,15 @@ function OnThisPage({ items }: { items: { id: string; label: string }[] }) {
 
 export function CodexHeader({ subject, title, updated }: { subject: CodexSubject; title: string; updated: string }) {
   const spec = CODEX_SUBJECTS[subject.kind];
+  const breadcrumb = buildBreadcrumbList([
+    { name: 'Home', url: `${SITE_URL}/` },
+    { name: 'Codex', url: `${SITE_URL}/codex` },
+    { name: spec.label, url: `${SITE_URL}${codexKindHref(subject.kind)}` },
+    { name: title, url: `${SITE_URL}${codexPageHref(subject)}` },
+  ]);
   return (
     <>
+      <JsonLd data={breadcrumb} />
       <nav
         aria-label="Breadcrumb"
         className="mb-4 flex flex-wrap items-center gap-2 text-label uppercase tracking-[0.12em] text-muted"
@@ -72,7 +99,9 @@ export function CodexHeader({ subject, title, updated }: { subject: CodexSubject
           Codex
         </Link>
         <span className="text-faint">/</span>
-        <span>{spec.label}</span>
+        <Link href={codexKindHref(subject.kind)} className="hover:text-name">
+          {spec.label}
+        </Link>
         <span className="text-faint">/</span>
         <span className="text-text">{title}</span>
       </nav>
@@ -81,7 +110,7 @@ export function CodexHeader({ subject, title, updated }: { subject: CodexSubject
           {title}
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Pill tone="green">{spec.singular}</Pill>
+          <Pill tone={spec.tone}>{spec.singular}</Pill>
           <span className="font-ui text-ui text-muted">{updated}</span>
         </div>
       </header>
@@ -102,22 +131,43 @@ export const licenseFooter: ReactNode = (
   </footer>
 );
 
-export function codexPageFrame(subject: CodexSubject, page: CodexPage) {
+function sideColumn(subject: CodexSubject, page: CodexPage): { aside: ReactNode; omit: string | undefined } {
+  const lead = CODEX_SUBJECTS[subject.kind].entity ? leadInfobox(page.doc) : null;
+  if (lead) {
+    return {
+      aside: (
+        <div className="order-first lg:order-none lg:sticky lg:top-24 lg:w-[320px]">
+          {codexComponents.dataBlock({ attrs: lead.attrs, children: null })}
+        </div>
+      ),
+      omit: lead.attrs.id,
+    };
+  }
   const outline = codexOutline(page.doc);
+  return { aside: outline.length > 0 ? <OnThisPage items={outline} /> : null, omit: undefined };
+}
+
+export function codexPageFrame(subject: CodexSubject, page: CodexPage) {
+  const updated = page.updatedAt === null ? 'Not written yet' : `Updated ${formatCodexDate(page.updatedAt)}`;
   return {
-    header: <CodexHeader subject={subject} title={page.title} updated={`Updated ${UPDATED_FORMAT.format(page.updatedAt)}`} />,
-    aside: outline.length > 0 ? <OnThisPage items={outline} /> : null,
+    header: <CodexHeader subject={subject} title={page.title} updated={updated} />,
+    ...sideColumn(subject, page),
   };
 }
 
 export function CodexReaderView({ subject, page }: { subject: CodexSubject; page: CodexPage }) {
-  const { header, aside } = codexPageFrame(subject, page);
+  const { header, aside, omit } = codexPageFrame(subject, page);
   return (
     <CodexPageLayout
       header={header}
       article={
         <>
-          <CodexArticle doc={page.doc} components={codexComponents} />
+          <CodexArticle
+            doc={page.doc}
+            components={codexComponents}
+            omit={omit}
+            placeholder={CODEX_SUBJECTS[subject.kind].entity ? <CodexEmptySection /> : undefined}
+          />
           {licenseFooter}
         </>
       }

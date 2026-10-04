@@ -1,5 +1,5 @@
 import { asc } from 'drizzle-orm';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -7,6 +7,9 @@ import {
 } from '@/db/__tests__/support/db-test-harness';
 import { codexPurgeContributor } from './purge';
 import { codexPages, codexRevisions } from './schema';
+
+const cache = vi.hoisted(() => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => cache);
 
 const harness = await createDbTestHarness({
   schema: 'test_codex_purge',
@@ -48,13 +51,16 @@ test.skipIf(!harness.reachable)('purge keeps revision text and drops who wrote i
       .orderBy(asc(codexRevisions.summary));
 
   await codexPurgeContributor.purgeCharacter!({ kind: 'character', userId: 'other', characterId: 9002 });
+  expect(cache.revalidateTag.mock.calls).toEqual([['codex:index', { expire: 0 }]]);
   expect(await rows()).toEqual([
     { summary: 'a', userId: 'author', characterId: 9001 },
     { summary: 'b', userId: 'other', characterId: 9001 },
     { summary: 'c', userId: 'other', characterId: null },
   ]);
 
+  cache.revalidateTag.mockClear();
   await codexPurgeContributor.purgeUser!({ kind: 'user', userId: 'author' });
+  expect(cache.revalidateTag.mock.calls).toEqual([['codex:index', { expire: 0 }]]);
   expect(await rows()).toEqual([
     { summary: 'a', userId: null, characterId: null },
     { summary: 'b', userId: 'other', characterId: 9001 },

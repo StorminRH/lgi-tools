@@ -10,8 +10,9 @@ import { Pill } from '@/components/ui/pill';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RenderedCodexSection } from '../render';
 import { PAGE_SCOPE } from '../sections';
-import { codexHistoryHref, codexPageHref, type CodexEditorNotice, type CodexSubject } from '../subjects';
+import { CODEX_SUBJECTS, codexHistoryHref, codexPageHref, type CodexEditorNotice, type CodexSubject } from '../subjects';
 import type { CodexSourceCatalogue } from './CodexDataView';
+import { CodexEmptySection } from './CodexEmptySection';
 import { CodexPageLayout } from './CodexPageLayout';
 import { CodexSectionFrame } from './CodexSectionFrame';
 import { openCodexScope } from './editing-scope';
@@ -25,7 +26,17 @@ function EditorSkeleton() {
   return <Skeleton label="Loading editor" className="h-56 w-full rounded-card" />;
 }
 
-function PageActions({ subject, locked, onEdit }: { subject: CodexSubject; locked: boolean; onEdit: () => void }) {
+function PageActions({
+  subject,
+  locked,
+  historyless,
+  onEdit,
+}: {
+  subject: CodexSubject;
+  locked: boolean;
+  historyless: boolean;
+  onEdit: () => void;
+}) {
   const history = (
     <>
       <HistoryIcon size={14} />
@@ -34,7 +45,7 @@ function PageActions({ subject, locked, onEdit }: { subject: CodexSubject; locke
   );
   return (
     <div className="flex items-center gap-2">
-      {locked ? (
+      {locked || historyless ? (
         <Button variant="secondary" size="sm" disabled>
           {history}
         </Button>
@@ -125,6 +136,23 @@ export function CodexAdminArticle({
     );
   };
 
+  const sectionBody = (section: RenderedCodexSection) => {
+    if (scope === section.id) return editor(section.id, section.blocks);
+    if (section.heading === null || !section.empty || !CODEX_SUBJECTS[subject.kind].entity) {
+      return <Fragment key={section.id}>{section.body}</Fragment>;
+    }
+    return (
+      <CodexEmptySection
+        action={
+          <Button variant="secondary" size="sm" disabled={locked} onClick={() => open(section.id)}>
+            <PencilIcon size={14} />
+            Write section
+          </Button>
+        }
+      />
+    );
+  };
+
   const article =
     scope === PAGE_SCOPE ? (
       editor(
@@ -133,7 +161,7 @@ export function CodexAdminArticle({
       )
     ) : (
       <>
-        {sections.map((section) => (
+        {sections.filter((section) => !section.lifted).map((section) => (
           <CodexSectionFrame
             key={section.id}
             id={section.id}
@@ -141,11 +169,7 @@ export function CodexAdminArticle({
             action={sectionAction(section)}
             editing={scope === section.id}
           >
-            {scope === section.id ? (
-              editor(section.id, section.blocks)
-            ) : (
-              <Fragment key={section.id}>{section.body}</Fragment>
-            )}
+            {sectionBody(section)}
           </CodexSectionFrame>
         ))}
         {footer}
@@ -153,7 +177,14 @@ export function CodexAdminArticle({
     );
 
   const actions =
-    newTitle === null ? <PageActions subject={subject} locked={locked} onEdit={() => open(PAGE_SCOPE)} /> : null;
+    newTitle === null ? (
+      <PageActions
+        subject={subject}
+        locked={locked}
+        historyless={baseRevisionId === null}
+        onEdit={() => open(PAGE_SCOPE)}
+      />
+    ) : null;
 
   return <CodexPageLayout header={header} actions={actions} article={article} aside={aside} />;
 }

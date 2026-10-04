@@ -291,3 +291,87 @@ test.skipIf(!harness.reachable)('keeps the untouched blocks exactly as they were
     table,
   ]);
 });
+
+const templateDoc = (source: string, key: string, layout: 'infobox' | 'card', headings: [string, string][]) => ({
+  type: 'doc' as const,
+  attrs: { schemaVersion: 1 as const },
+  content: [
+    { type: 'dataBlock' as const, attrs: { id: 'data', source, key, fields: [], layout }, content: [] },
+    ...headings.map(([id, text]) => ({
+      type: 'heading' as const,
+      attrs: { id, level: 2 as const },
+      content: [{ type: 'text' as const, text, marks: [] }],
+    })),
+  ],
+});
+
+const SITE_TEMPLATE = templateDoc('site', '20', 'card', [
+  ['waves', 'Waves'],
+  ['strategy', 'Strategy'],
+  ['videos', 'Videos'],
+]);
+
+function firstSitePublish(template: typeof SITE_TEMPLATE | null) {
+  return publishCodexRevision({
+    subject: { kind: 'sites', key: '20' },
+    title: 'Outpost Frontier Stronghold',
+    baseRevisionId: null,
+    template,
+    edit: { kind: 'section', sectionId: 'strategy', blocks: [paragraph('tip', 'Warp in at 30 km.')] },
+    summary: null,
+    author,
+  });
+}
+
+test.skipIf(!harness.reachable)('writes the first section of a template page and keeps the template around it', async () => {
+  expect(await firstSitePublish(SITE_TEMPLATE)).toMatchObject({ status: 'published' });
+
+  expect(await harness.db.select().from(codexPages)).toHaveLength(1);
+  const [revision] = await storedRevisions();
+  expect(revision!.parent).toBeNull();
+  const content = contentOf(revision!.doc) as { type: string; attrs: { id?: string } }[];
+  expect(content[0]!.type).toBe('dataBlock');
+  expect(content[1]!.attrs.id).toBe('waves');
+  expect(content.map((block) => block.attrs.id)).toEqual(['data', 'waves', 'strategy', 'tip', 'videos']);
+});
+
+test.skipIf(!harness.reachable)('refuses a section edit on a new entity page sent without its template', async () => {
+  expect(await firstSitePublish(null)).toEqual({ status: 'invalid', problems: ['section "strategy" is not on this page'] });
+  expect(await harness.db.select().from(codexPages)).toEqual([]);
+  expect(await storedRevisions()).toEqual([]);
+});
+
+test.skipIf(!harness.reachable)('lets exactly one of two first publishes on a template page win', async () => {
+  const template = templateDoc('wormholeType', 'C247', 'infobox', [['overview', 'Overview']]);
+  let arrived = 0;
+  let releaseBoth = () => {};
+  const bothRead = new Promise<void>((resolve) => {
+    releaseBoth = resolve;
+  });
+  headRead.hold = () => {
+    arrived += 1;
+    if (arrived === 2) releaseBoth();
+    return bothRead;
+  };
+  const results = await Promise.all(
+    ['First.', 'Second.'].map((text) =>
+      publishCodexRevision(
+        {
+          subject: { kind: 'wormholes', key: 'c247' },
+          title: 'C247',
+          baseRevisionId: null,
+          template,
+          edit: { kind: 'section', sectionId: 'overview', blocks: [paragraph(undefined, text)] },
+          summary: null,
+          author,
+        },
+        nextId,
+      ),
+    ),
+  );
+  headRead.hold = null;
+
+  expect(results.map((result) => result.status).sort()).toEqual(['conflict', 'published']);
+  expect(await harness.db.select().from(codexPages)).toHaveLength(1);
+  expect(await storedRevisions()).toHaveLength(1);
+});

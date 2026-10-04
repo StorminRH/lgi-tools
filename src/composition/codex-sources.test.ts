@@ -67,6 +67,7 @@ const SITE = {
 };
 
 const GAS_SITE = { ...SITE, id: 50, name: 'Bountiful Frontier Reservoir', siteType: 'gas', wormholeClass: null };
+const UNPUBLISHED_SITE = { ...SITE, id: 70, name: 'Unreleased Sleeper Cache' };
 
 const GILA = {
   id: 17715,
@@ -109,6 +110,7 @@ beforeEach(() => {
     SITE,
     GAS_SITE,
     { id: 21, name: 'Perimeter Ambush Point', siteType: 'combat', wormholeClass: 'C1' },
+    UNPUBLISHED_SITE,
   ]);
   seedEveType(GILA);
 });
@@ -204,7 +206,7 @@ describe('wormhole class source', () => {
       key: 'C3',
       canonicalKey: false,
     });
-    expect(view.rows.map((row) => row.value)).toEqual(['Black Hole, Pulsar', 'C247 (L)', '3', 'High-sec ×2 · C2 ×1']);
+    expect(view.rows.map((row) => row.value)).toEqual(['Black Hole, Pulsar', 'C247\u00a0(L)', '3', 'High\u2011sec\u00a0×2\u00a0· C2\u00a0×1']);
     const empty = await rowsFor({
       source: 'wormholeClass',
       key: 'C5',
@@ -287,6 +289,14 @@ describe('resolveDataBlock', () => {
       canonicalKey: false,
     });
     expect(resolveDataBlock(attrs({ source: 'site', key: '20', layout: 'card' }))).toMatchObject({ ok: true, fields: [] });
+  });
+
+  it('refuses a site the catalogue has not published', () => {
+    expect(resolveDataBlock({ source: 'site', key: '70', fields: ['waves'], layout: 'infobox' })).toEqual({
+      ok: false,
+      reason: 'bad-key',
+    });
+    expect(resolveDataBlock({ source: 'site', key: '20', fields: ['waves'], layout: 'infobox' })).toMatchObject({ ok: true });
   });
 });
 
@@ -394,6 +404,11 @@ describe('searchCodexSource', () => {
     });
   });
 
+  it('never offers an unpublished site', async () => {
+    const hits = await searchCodexSource('site', UNPUBLISHED_SITE.name);
+    expect(hits!.map((hit) => hit.key)).not.toContain('70');
+  });
+
   it('fuzzy-matches site names', async () => {
     expect(await searchCodexSource('site', 'frontier')).toContainEqual({
       key: '20',
@@ -417,11 +432,11 @@ describe('searchCodexSource', () => {
       ['C1', 'C1'],
       ['C12', 'Thera'],
       ['C13', 'Shattered C13'],
-      ['C14', 'C14'],
-      ['C15', 'C15'],
-      ['C16', 'C16'],
-      ['C17', 'C17'],
-      ['C18', 'C18'],
+      ['C14', 'Sentinel'],
+      ['C15', 'Barbican'],
+      ['C16', 'Vidette'],
+      ['C17', 'Conflux'],
+      ['C18', 'Redoubt'],
     ]);
   });
 

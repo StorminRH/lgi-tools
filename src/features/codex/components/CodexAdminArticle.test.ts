@@ -1,14 +1,34 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement, isValidElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
+// A minimal hook store lets a test press a button by calling its handler and render again.
+const hooks = vi.hoisted(() => ({ states: [] as unknown[], cursor: 0 }));
+
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  useState: <T>(init: T) => {
+    const index = hooks.cursor++;
+    if (!(index in hooks.states)) hooks.states[index] = init;
+    const set = (next: T) => {
+      hooks.states[index] = next;
+    };
+    return [hooks.states[index], set];
+  },
+}));
 vi.mock('next/dynamic', () => ({
-  default: () => (props: { sectionId: string | null; goneSectionId: string | null; notice: string | null }) =>
-    createElement('form', {
-      'data-editor': props.sectionId ?? 'page',
-      'data-gone-section': props.goneSectionId ?? 'none',
-      'data-notice': props.notice ?? 'none',
-    }),
+  default:
+    (_load: unknown, options: { loading: () => ReactNode }) =>
+    (props: { sectionId: string | null; goneSectionId: string | null; notice: string | null }) =>
+      createElement(
+        'form',
+        {
+          'data-editor': props.sectionId ?? 'page',
+          'data-gone-section': props.goneSectionId ?? 'none',
+          'data-notice': props.notice ?? 'none',
+        },
+        options.loading(),
+      ),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock('next/link', () => ({
@@ -18,9 +38,11 @@ vi.mock('next/link', () => ({
 import type { RenderedCodexSection } from '../render';
 import { CodexAdminArticle } from './CodexAdminArticle';
 
-const section = (id: string, title: string | null): RenderedCodexSection => ({
+const section = (id: string, title: string | null, empty = false, lifted = false): RenderedCodexSection => ({
   id,
   title,
+  empty,
+  lifted,
   heading:
     title === null
       ? null
@@ -35,8 +57,10 @@ const render = (
     initialNotice: null,
     goneSectionId: null,
   },
-) =>
-  renderToStaticMarkup(
+) => {
+  hooks.states = [];
+  hooks.cursor = 0;
+  return renderToStaticMarkup(
     createElement(CodexAdminArticle, {
       subject: { kind: 'guides', key: 'rolling-a-c3' },
       newTitle: null,
@@ -50,6 +74,7 @@ const render = (
       ...conflict,
     }),
   );
+};
 
 const disabledButtons = (html: string) =>
   [...html.matchAll(/<button([^>]*disabled=""[^>]*)>(.*?)<\/button>/g)].map(
@@ -92,4 +117,94 @@ test('a conflict on a section the newer page no longer has opens the whole page 
 
   expect(html).toContain('data-editor="page" data-gone-section="gone" data-notice="conflict"');
   expect(disabledButtons(html)).toEqual(['History', 'Edit page']);
+});
+
+const templateProps = {
+  subject: { kind: 'wormholes', key: 'c247' },
+  newTitle: null,
+  baseRevisionId: null,
+  header: createElement('h1', null, 'C247'),
+  aside: null,
+  footer: null,
+  sections: [
+    section('lead', null, false, true),
+    section('overview', 'Overview', true),
+    section('where-it-appears', 'Where it appears', true),
+    section('rolling-and-mass', 'Rolling and mass', true),
+  ],
+  initialScope: null,
+  initialNotice: null,
+  catalogue: { sources: [] },
+} as const;
+
+type Props = { id?: string; onClick?: () => void; children?: ReactNode } & Record<string, unknown>;
+
+function* elements(node: unknown, sectionId: string | null): Generator<{ props: Props; sectionId: string | null }> {
+  if (Array.isArray(node)) {
+    for (const child of node) yield* elements(child, sectionId);
+    return;
+  }
+  if (!isValidElement(node)) return;
+  const props = node.props as Props;
+  const inSection = typeof props.id === 'string' && 'title' in props ? props.id : sectionId;
+  yield { props, sectionId: inSection };
+  for (const value of Object.values(props)) yield* elements(value, inSection);
+}
+
+const text = (node: ReactNode): string =>
+  typeof node === 'string' ? node : Array.isArray(node) ? node.map(text).join('') : isValidElement(node) ? text((node.props as Props).children) : '';
+
+const sectionHtml = (html: string, id: string) =>
+  new RegExp(`<section id="${id}"[^>]*>(.*?)</section>`).exec(html)?.[1] ?? '';
+
+test('an unwritten section offers to write it, and pressing that opens the editor only there', () => {
+  hooks.states = [];
+  hooks.cursor = 0;
+  const tree = CodexAdminArticle(templateProps);
+  const writeButtons = [...elements(tree, null)].filter(({ props }) => text(props.children) === 'Write section');
+  expect(writeButtons.map(({ sectionId }) => sectionId)).toEqual(['overview', 'where-it-appears', 'rolling-and-mass']);
+
+  writeButtons.find(({ sectionId }) => sectionId === 'where-it-appears')!.props.onClick!();
+  hooks.cursor = 0;
+  const html = renderToStaticMarkup(createElement(CodexAdminArticle, templateProps));
+
+  expect(html.match(/Loading editor/g)).toHaveLength(1);
+  expect(sectionHtml(html, 'where-it-appears')).toContain('Loading editor');
+  expect(html.match(/No guide yet\./g)).toHaveLength(2);
+});
+
+test('an unwritten page has no history to open yet', () => {
+  hooks.states = [];
+  hooks.cursor = 0;
+  const html = renderToStaticMarkup(createElement(CodexAdminArticle, templateProps));
+
+  expect(html.match(/Write section/g)).toHaveLength(3);
+  expect(disabledButtons(html)).toEqual(['History']);
+  expect(html).not.toContain('/history');
+});
+
+test('a lead whose only block lifts into the side column offers no pencil', () => {
+  hooks.states = [];
+  hooks.cursor = 0;
+  const html = renderToStaticMarkup(createElement(CodexAdminArticle, templateProps));
+  expect(html).not.toContain('Edit introduction');
+  expect(html).not.toContain('lead text');
+  expect(html.match(/aria-label="Edit section"/g)).toHaveLength(3);
+  expect(render(null)).toContain('aria-label="Edit introduction"');
+});
+
+test('an empty guide section keeps its bare body instead of the entity placeholder', () => {
+  hooks.states = [];
+  hooks.cursor = 0;
+  const html = renderToStaticMarkup(
+    createElement(CodexAdminArticle, {
+      ...templateProps,
+      subject: { kind: 'guides', key: 'rolling-a-c3' },
+      baseRevisionId: 'rev-2',
+      sections: [section('lead', null), section('scanning', 'Scanning', true)],
+    }),
+  );
+  expect(html).not.toContain('No guide yet');
+  expect(html).not.toContain('Write section');
+  expect(sectionHtml(html, 'scanning')).toContain('scanning text');
 });

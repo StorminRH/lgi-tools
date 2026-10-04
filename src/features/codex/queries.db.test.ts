@@ -6,7 +6,7 @@ import { codexPages, codexRevisions } from './schema';
 const cache = vi.hoisted(() => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
 vi.mock('next/cache', () => cache);
 
-import { listCodexPages, listCodexRevisions, loadCodexPage } from './queries';
+import { listCodexPages, listCodexRevisions, listRecentCodexEdits, loadCodexPage } from './queries';
 
 const harness = await createDbTestHarness({
   schema: 'test_codex_queries',
@@ -142,4 +142,65 @@ test.skipIf(!harness.reachable)('lists a page history newest first with its auth
       },
     ],
   });
+});
+
+test.skipIf(!harness.reachable)('lists the most recently updated pages with the author of their current revision', async () => {
+  await seedCharacter(harness.db, 2123732314, { name: 'Stormin Jr' });
+  const seedPage = async (
+    subject: { kind: string; key: string; title: string },
+    updatedAt: Date,
+    revisions: { characterId: number | null; summary: string | null }[],
+  ) => {
+    const [page] = await harness.db
+      .insert(codexPages)
+      .values({ subjectKind: subject.kind, subjectKey: subject.key, title: subject.title })
+      .returning();
+    let head: string | null = null;
+    for (const [index, revision] of revisions.entries()) {
+      const [row]: { id: string }[] = await harness.db
+        .insert(codexRevisions)
+        .values({
+          pageId: page!.id,
+          parentRevisionId: head,
+          doc: docWith(`Draft ${index}`),
+          schemaVersion: 1,
+          origin: 'admin',
+          ...revision,
+        })
+        .returning({ id: codexRevisions.id });
+      head = row!.id;
+    }
+    await harness.db.update(codexPages).set({ currentRevisionId: head, updatedAt }).where(eq(codexPages.id, page!.id));
+  };
+  const siteUpdated = new Date('2026-10-03T10:00:00Z');
+  const guideUpdated = new Date('2026-10-01T10:00:00Z');
+  await seedPage({ kind: 'guides', key: 'rolling-a-c3', title: 'Rolling a C3 static' }, guideUpdated, [
+    { characterId: null, summary: null },
+  ]);
+  await seedPage({ kind: 'sites', key: '20', title: 'Outpost Frontier Stronghold' }, siteUpdated, [
+    { characterId: null, summary: 'First draft' },
+    { characterId: 2123732314, summary: 'Rewrote strategy' },
+  ]);
+
+  expect(await listRecentCodexEdits(5)).toEqual([
+    {
+      kind: 'sites',
+      key: '20',
+      title: 'Outpost Frontier Stronghold',
+      updatedAt: siteUpdated,
+      summary: 'Rewrote strategy',
+      origin: 'admin',
+      character: { id: 2123732314, name: 'Stormin Jr' },
+    },
+    {
+      kind: 'guides',
+      key: 'rolling-a-c3',
+      title: 'Rolling a C3 static',
+      updatedAt: guideUpdated,
+      summary: null,
+      origin: 'admin',
+      character: null,
+    },
+  ]);
+  expect(cache.cacheTag).toHaveBeenCalledWith('codex:index');
 });

@@ -52,8 +52,8 @@ export async function generateMetadata({
   searchParams: SearchParams;
 }): Promise<Metadata> {
   const { kind, key } = await params;
-  const { subject, page } = await loadPage(kind, key);
-  if (page) return describe(subject, page.title);
+  const { subject, page, template } = await loadPage(kind, key);
+  if (page) return describe(subject, page.title, template?.description);
   const { title } = readEditRequest(await searchParams);
   if (title && (await viewerIsAdmin())) return describe(subject, title);
   notFound();
@@ -83,14 +83,14 @@ export async function CodexAdminReader({ params, searchParams }: { params: Codex
   }
   if (!isAdmin) return <CodexReaderView subject={subject} page={page} />;
 
-  const { header, aside } = codexPageFrame(subject, page);
-  const sections = renderCodexSections(page.doc, codexComponents);
-  const scopes = new Set([PAGE_SCOPE, ...sections.map((section) => section.id)]);
+  const { header, aside, omit } = codexPageFrame(subject, page);
+  const sections = renderCodexSections(page.doc, codexComponents, omit);
+  const scopes = new Set([PAGE_SCOPE, ...sections.flatMap((section) => (section.lifted ? [] : [section.id]))]);
   const requested = request.edit !== null && scopes.has(request.edit) ? request.edit : null;
   const goneSectionId = request.notice !== null && request.edit !== null && requested === null ? request.edit : null;
   return (
     <>
-      {request.title && !request.edit ? (
+      {page.revisionId !== null && request.title && !request.edit ? (
         <Banner tone="warn" className="mb-6">
           A page already lives at this address, so no new guide was started. Pick another address on the Codex home.
         </Banner>

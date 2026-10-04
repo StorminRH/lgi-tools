@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { DocTable } from '@/components/ui/static-table';
 import { CodexSectionFrame } from './components/CodexSectionFrame';
-import type { CodexDoc, CodexMark, CodexNode, CodexTextNode } from './doc';
+import type { CodexBlockNode, CodexDoc, CodexMark, CodexNode, CodexTextNode } from './doc';
 import {
   CODEX_CALLOUT_LABELS,
   type CodexInjectedNodeName,
@@ -9,7 +9,7 @@ import {
   type CodexNodeAttrs,
   type CodexNodeName,
 } from './nodes';
-import { codexSections, type CodexSection } from './sections';
+import { codexSections, isBlankSection, type CodexSection } from './sections';
 
 type BlockName = Exclude<CodexNodeName, 'text'>;
 type BuiltinName = Exclude<BlockName, CodexInjectedNodeName>;
@@ -107,30 +107,48 @@ export function codexOutline(doc: CodexDoc): { id: string; label: string }[] {
 export interface RenderedCodexSection extends CodexSection {
   readonly title: ReactNode | null;
   readonly body: ReactNode;
+  readonly empty: boolean;
+  readonly lifted: boolean;
 }
+
+const blockId = (block: CodexBlockNode) => ('id' in block.attrs ? block.attrs.id : undefined);
 
 export function renderCodexSections(
   doc: CodexDoc,
   components: CodexInjectedComponents,
+  omit?: string,
 ): RenderedCodexSection[] {
   const renderers = { ...BLOCKS, ...components } as Renderers;
-  return codexSections(doc).map((section) => ({
-    ...section,
-    title: section.heading ? renderNodes(section.heading.content, renderers) : null,
-    body: <div className="codex-prose">{renderNodes(section.blocks, renderers)}</div>,
-  }));
+  return codexSections(doc).map((section) => {
+    const shown = omit === undefined ? section.blocks : section.blocks.filter((block) => blockId(block) !== omit);
+    return {
+      ...section,
+      title: section.heading ? renderNodes(section.heading.content, renderers) : null,
+      body: <div className="codex-prose">{renderNodes(shown, renderers)}</div>,
+      empty: isBlankSection(section.blocks),
+      lifted: section.heading === null && omit !== undefined && shown.length === 0,
+    };
+  });
 }
 
 export function CodexArticle({
   doc,
   components,
+  omit,
+  placeholder,
 }: {
   doc: CodexDoc;
   components: CodexInjectedComponents;
+  omit?: string;
+  placeholder?: ReactNode;
 }) {
-  return renderCodexSections(doc, components).map(({ id, title, body }) => (
-    <CodexSectionFrame key={id} id={id} title={title}>
-      {body}
-    </CodexSectionFrame>
-  ));
+  return renderCodexSections(doc, components, omit).flatMap(({ id, title, body, empty, lifted }) =>
+    lifted
+      ? []
+      : [
+          <CodexSectionFrame key={id} id={id} title={title}>
+            {title !== null && empty && placeholder ? placeholder : body}
+          </CodexSectionFrame>,
+        ],
+  );
 }

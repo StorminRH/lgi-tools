@@ -18,6 +18,7 @@ import type {
   CodexSourceIcon,
 } from '@/features/codex/components/CodexDataView';
 import type { CodexDataLayout } from '@/features/codex/nodes';
+import { isPublishedWormholeSiteId } from '@/features/wormhole-sites/catalogue-boundary';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
 import { formatIskHeader } from '@/features/wormhole-sites/format';
 import { siteClassLabel } from '@/features/wormhole-sites/gas-classes';
@@ -58,6 +59,11 @@ const CLASS_LABEL: Readonly<Record<number, string>> = {
   9: 'Null-sec',
   12: 'Thera',
   13: 'Shattered C13',
+  14: 'Sentinel',
+  15: 'Barbican',
+  16: 'Vidette',
+  17: 'Conflux',
+  18: 'Redoubt',
   25: 'Pochven',
 };
 
@@ -87,6 +93,9 @@ function cleanDescription(raw: string): string {
 const MAX_INT4 = 2_147_483_647;
 
 const numericKey = (raw: string) => (/^[1-9]\d{0,9}$/.test(raw) && Number(raw) <= MAX_INT4 ? raw : null);
+
+const publishedSiteKey = (raw: string) =>
+  numericKey(raw) !== null && isPublishedWormholeSiteId(Number(raw)) ? raw : null;
 
 const isTyped = (entry: WormholeCodexEntry): entry is TypedWormholeCodexEntry => !entry.farSide;
 
@@ -214,10 +223,11 @@ const site: CodexSource<SiteDetail> = {
   provenance: 'SDE · Prices',
   icon: 'site',
   layouts: [...BLOCK_LAYOUTS, 'card'],
-  parseKey: numericKey,
+  parseKey: publishedSiteKey,
   search: async (query) => {
     const index = await getSiteSearchIndex();
     return index
+      .filter((entry) => isPublishedWormholeSiteId(entry.id))
       .flatMap((entry) => {
         const match = fuzzyMatch(query, entry.name);
         return match ? [{ entry, score: match.score }] : [];
@@ -259,11 +269,12 @@ const wormholeClass: CodexSource<WormholeClassRow> = {
   title: (row) => classLabel(row.classId),
   fields: {
     effects: { label: 'Effects', format: (row) => listOrNone(row.effects, ', ') },
-    inbound: { label: 'Leads in', format: (row) => listOrNone(row.inbound.map(({ code, size }) => `${code} (${size})`), ', ') },
+    inbound: { label: 'Leads in', format: (row) => listOrNone(row.inbound.map(({ code, size }) => `${code}\u00a0(${size})`), ', ') },
     systemCount: { label: 'Systems', format: (row) => String(row.systemCount) },
     staticMix: {
       label: 'Static targets',
-      format: (row) => listOrNone(row.staticMix.map(({ label, count }) => `${label} ×${count}`), ' · '),
+      format: (row) =>
+        listOrNone(row.staticMix.map(({ label, count }) => `${label.replace('-', '\u2011')}\u00a0×${count}`), '\u00a0· '),
     },
   },
   defaultFields: ['effects', 'inbound', 'systemCount'],

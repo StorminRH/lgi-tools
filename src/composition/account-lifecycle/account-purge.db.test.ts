@@ -29,6 +29,10 @@ vi.mock('@/platform/auth/eve-token-service', () => ({
 vi.mock('@/composition/map-purge', () => ({
   purgeMapChain: mapPurge.purgeMapChain,
 }));
+vi.mock('next/cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/cache')>()),
+  revalidateTag: vi.fn(),
+}));
 
 import { finishPendingDeletion, nukeAccount, purgeOwnCharacter, retryRequestedDeletions } from './account-purge';
 import { enqueueDeletion, requestDeletion, readDeletionJobs, type DeletionJob } from '@/platform/auth/deletion-jobs';

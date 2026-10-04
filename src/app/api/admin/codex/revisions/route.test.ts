@@ -9,6 +9,7 @@ const getSessionMock = vi.fn();
 const sameOriginMock = vi.fn();
 const publishMock = vi.fn();
 const dataBlockProblemsMock = vi.fn();
+const codexTemplateMock = vi.fn();
 
 vi.mock('@/composition/auth', () => ({ auth: { api: { getSession: () => getSessionMock() } } }));
 vi.mock('@/platform/auth/same-origin', () => ({ requireSameOrigin: () => sameOriginMock() }));
@@ -17,6 +18,9 @@ vi.mock('@/features/codex/publish', () => ({
 }));
 vi.mock('@/composition/codex-sources', () => ({
   codexDataBlockProblems: (blocks: unknown) => dataBlockProblemsMock(blocks),
+}));
+vi.mock('@/composition/codex-templates', () => ({
+  codexTemplate: (subject: unknown) => codexTemplateMock(subject),
 }));
 vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
@@ -52,6 +56,7 @@ describe('POST /api/admin/codex/revisions', () => {
     sameOriginMock.mockReset().mockReturnValue({ ok: true });
     publishMock.mockReset().mockResolvedValue({ status: 'published', revisionId: OLD });
     dataBlockProblemsMock.mockReset().mockResolvedValue([]);
+    codexTemplateMock.mockReset().mockResolvedValue(null);
   });
 
   it('refuses a caller without admin authority', async () => {
@@ -138,5 +143,32 @@ describe('POST /api/admin/codex/revisions', () => {
     expect((await send({ ...sectionEdit, key: 'Bad Slug' })).status).toBe(400);
     expect((await send({ ...sectionEdit, baseRevisionId: 'nope' })).status).toBe(400);
     expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  it('seeds the first publish on an entity page from its template, under the entity title', async () => {
+    const doc = { type: 'doc', attrs: { schemaVersion: 1 }, content: [] };
+    codexTemplateMock.mockResolvedValue({ title: 'C247', description: 'C247: …', doc });
+    const first = { ...sectionEdit, kind: 'wormholes', key: 'c247', baseRevisionId: '', sectionId: 'overview', title: 'Spoofed' };
+
+    expect(await send(first)).toEqual({ status: 303, location: 'http://localhost:3000/codex/wormholes/c247#overview' });
+    expect(codexTemplateMock).toHaveBeenCalledWith({ kind: 'wormholes', key: 'c247' });
+    expect(publishMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: { kind: 'wormholes', key: 'c247' }, title: 'C247', baseRevisionId: null, template: doc }),
+    );
+  });
+
+  it('refuses a first publish on an entity page that has no template', async () => {
+    const unpublished = { ...sectionEdit, kind: 'sites', key: '70', baseRevisionId: '', sectionId: 'overview' };
+    expect(await send(unpublished)).toEqual({
+      status: 303,
+      location: 'http://localhost:3000/codex/sites/70?edit=overview&notice=invalid',
+    });
+    expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  it('never looks up a template for a guide or a page that already has a head', async () => {
+    await send({ ...sectionEdit, baseRevisionId: '', title: 'Rolling a C3' });
+    await send({ ...sectionEdit, kind: 'wormholes', key: 'c247' });
+    expect(codexTemplateMock).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ export interface CodexPublishRequest {
   readonly subject: CodexSubject;
   readonly title: string | null;
   readonly baseRevisionId: string | null;
+  readonly template?: CodexDoc | null;
   readonly edit: CodexEdit;
   readonly summary: string | null;
   readonly author: { readonly userId: string; readonly characterId: number | null };
@@ -114,8 +115,7 @@ function editSection(
 
 async function composeDoc(
   pageId: string | null,
-  baseRevisionId: string | null,
-  edit: CodexEdit,
+  { baseRevisionId, template, edit }: CodexPublishRequest,
   newId: () => string,
 ): Promise<Composed> {
   if (edit.kind === 'restore') {
@@ -124,9 +124,10 @@ async function composeDoc(
       : readRevisionDoc(pageId, edit.revisionId);
   }
   if (edit.kind === 'page') return composeContent(withFreshIds(edit.blocks, [], newId));
+  const fresh = template ?? EMPTY_DOC;
   const base =
     pageId === null || baseRevisionId === null
-      ? ({ ok: true, doc: EMPTY_DOC, stored: EMPTY_DOC } as const)
+      ? ({ ok: true, doc: fresh, stored: fresh } as const)
       : await readRevisionDoc(pageId, baseRevisionId);
   return base.ok ? editSection(base, edit.sectionId, edit.blocks, newId) : base;
 }
@@ -176,7 +177,7 @@ export async function publishCodexRevision(
   const page = await readCodexPageHead(request.subject);
   if ((page?.currentRevisionId ?? null) !== request.baseRevisionId) return CONFLICT;
 
-  const composed = await composeDoc(page?.id ?? null, request.baseRevisionId, request.edit, newId);
+  const composed = await composeDoc(page?.id ?? null, request, newId);
   if (!composed.ok) return { status: 'invalid', problems: composed.problems };
   let pageId = page?.id;
   if (!pageId) {

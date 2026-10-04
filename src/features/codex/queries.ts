@@ -73,8 +73,14 @@ export interface CodexRevisionRow {
   readonly createdAt: Date;
   readonly origin: 'admin' | 'proposal' | 'revert';
   readonly summary: string | null;
-  readonly character: { readonly id: number; readonly name: string } | null;
+  readonly character: CodexAuthor;
   readonly current: boolean;
+}
+
+export type CodexAuthor = { readonly id: number; readonly name: string } | null;
+
+function authorOf(id: number | null, name: string | null): CodexAuthor {
+  return id !== null && name !== null ? { id, name } : null;
 }
 
 export async function readCodexPageHead({ kind, key }: CodexSubject) {
@@ -112,9 +118,47 @@ export async function listCodexRevisions(
     title: page.title,
     revisions: rows.map(({ characterId, characterName, ...row }) => ({
       ...row,
-      character:
-        characterId !== null && characterName !== null ? { id: characterId, name: characterName } : null,
+      character: authorOf(characterId, characterName),
       current: row.id === page.currentRevisionId,
     })),
   };
+}
+
+export interface CodexRecentEdit {
+  readonly kind: CodexSubjectKind;
+  readonly key: string;
+  readonly title: string;
+  readonly updatedAt: Date;
+  readonly summary: string | null;
+  readonly origin: CodexRevisionRow['origin'];
+  readonly character: CodexAuthor;
+}
+
+export async function listRecentCodexEdits(limit = 5): Promise<CodexRecentEdit[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(codexCacheTags.index);
+  const rows = await withColdStartRetry(() =>
+    db
+      .select({
+        kind: codexPages.subjectKind,
+        key: codexPages.subjectKey,
+        title: codexPages.title,
+        updatedAt: codexPages.updatedAt,
+        summary: codexRevisions.summary,
+        origin: codexRevisions.origin,
+        characterId: characters.characterId,
+        characterName: characters.name,
+      })
+      .from(codexPages)
+      .innerJoin(codexRevisions, eq(codexRevisions.id, codexPages.currentRevisionId))
+      .leftJoin(characters, eq(characters.characterId, codexRevisions.characterId))
+      .orderBy(desc(codexPages.updatedAt))
+      .limit(limit),
+  );
+  return rows.map(({ kind, characterId, characterName, ...row }) => ({
+    ...row,
+    kind: kind as CodexSubjectKind,
+    character: authorOf(characterId, characterName),
+  }));
 }

@@ -3,9 +3,10 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { parseCodexDoc, type CodexDoc } from './doc';
+import { CodexEmptySection } from './components/CodexEmptySection';
 import { CodexPageLayout } from './components/CodexPageLayout';
 import { CODEX_CALLOUT_LABELS } from './nodes';
-import { CodexArticle, codexOutline, type CodexInjectedComponents } from './render';
+import { CodexArticle, codexOutline, renderCodexSections, type CodexInjectedComponents } from './render';
 
 const components: CodexInjectedComponents = {
   dataBlock: ({ attrs }) =>
@@ -141,4 +142,71 @@ test('an infobox floats across section boundaries only on wide screens, where in
   expect(renderToStaticMarkup(createElement(CodexPageLayout, { header: null, article: 'Body', aside: null }))).toContain(
     '<article class="flow-root min-w-0 max-w-[760px]">Body</article>',
   );
+});
+
+function c247Template(): CodexDoc {
+  const heading = (id: string, label: string) => ({ type: 'heading', attrs: { id, level: 2 }, content: [text(label)] });
+  const result = parseCodexDoc({
+    type: 'doc',
+    attrs: { schemaVersion: 1 },
+    content: [
+      {
+        type: 'dataBlock',
+        attrs: { id: 'data', source: 'wormholeType', key: 'C247', fields: ['targetClass', 'totalMass'], layout: 'infobox' },
+        content: [],
+      },
+      heading('overview', 'Overview'),
+      heading('where-it-appears', 'Where it appears'),
+      heading('rolling-and-mass', 'Rolling and mass'),
+    ],
+  });
+  if (!result.ok) throw new Error(result.problems.join('; '));
+  return result.doc;
+}
+
+test('a lifted block stays in its section but leaves the rendered body', () => {
+  const [lead] = renderCodexSections(c247Template(), components, 'data');
+  expect(lead!.blocks).toHaveLength(1);
+  expect(renderToStaticMarkup(lead!.body)).not.toContain('data-stub');
+});
+
+test('a template page reads as empty sections waiting for a first guide', () => {
+  const html = renderToStaticMarkup(
+    createElement(CodexArticle, {
+      doc: c247Template(),
+      components,
+      omit: 'data',
+      placeholder: createElement(CodexEmptySection),
+    }),
+  );
+  expect(html.match(/No guide yet\./g)).toHaveLength(3);
+  expect(html).not.toContain('<button');
+  expect(html).not.toContain('data-stub');
+});
+
+test('a heading with no body renders bare when the page offers no placeholder', () => {
+  const result = parseCodexDoc({
+    type: 'doc',
+    attrs: { schemaVersion: 1 },
+    content: [{ type: 'heading', attrs: { id: 'scanning', level: 2 }, content: [text('Scanning')] }],
+  });
+  if (!result.ok) throw new Error(result.problems.join('; '));
+  const html = renderToStaticMarkup(createElement(CodexArticle, { doc: result.doc, components }));
+  expect(html).toContain('<div class="codex-prose"></div></section>');
+  expect(html).not.toContain('No guide yet');
+});
+
+test('only a heading-less section whose every block is lifted is marked lifted', () => {
+  expect(renderCodexSections(c247Template(), components, 'data').map((section) => section.lifted)).toEqual([
+    true,
+    false,
+    false,
+    false,
+  ]);
+  expect(renderCodexSections(c247Template(), components).map((section) => section.lifted)).toEqual([
+    false,
+    false,
+    false,
+    false,
+  ]);
 });

@@ -15,12 +15,12 @@ function isUnpublishedDirectSitePath(pathname: string): boolean {
   return id === null || !isPublishedWormholeSiteId(id);
 }
 
-const CODEX_PAGE_PATH = /^\/codex\/[^/]+\/[^/]+$/;
+const CODEX_ADMIN_PATH = /^\/codex(\/[^/]+\/[^/]+)?$/;
 
 function routeResponse(request: NextRequest, isUnpublishedSite: boolean): NextResponse {
   if (isUnpublishedSite) return NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
-  // Only signed-in viewers reach the Codex route that carries the admin editor, so readers never download it.
-  if (!CODEX_PAGE_PATH.test(request.nextUrl.pathname) || !getSessionCookie(request)) return NextResponse.next();
+  // Only signed-in viewers reach the Codex routes that carry admin controls, so readers never download them.
+  if (!CODEX_ADMIN_PATH.test(request.nextUrl.pathname) || !getSessionCookie(request)) return NextResponse.next();
   const url = request.nextUrl.clone();
   url.pathname = `${url.pathname}/admin`;
   return NextResponse.rewrite(url);
@@ -74,6 +74,7 @@ export const config = {
         { type: "header", key: "purpose", value: "prefetch" },
       ],
     },
+    { source: "/codex" },
     { source: "/codex/:kind/:key" },
   ],
 };
