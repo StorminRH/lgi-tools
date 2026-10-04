@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { characters } from '@/db/auth-schema';
@@ -9,6 +9,7 @@ import type { CodexSubject, CodexSubjectKind } from './subjects';
 
 export const codexCacheTags = {
   index: 'codex:index',
+  credits: 'codex:credits',
   page: (kind: CodexSubjectKind, key: string) => `codex:page:${kind}:${key}`,
 };
 
@@ -161,4 +162,30 @@ export async function listRecentCodexEdits(limit = 5): Promise<CodexRecentEdit[]
     kind: kind as CodexSubjectKind,
     character: authorOf(characterId, characterName),
   }));
+}
+
+export interface CodexCredit {
+  readonly characterId: number;
+  readonly name: string;
+  readonly edits: number;
+}
+
+export async function listCodexCredits({ kind, key }: CodexSubject): Promise<CodexCredit[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(codexCacheTags.page(kind, key), codexCacheTags.credits);
+  return withColdStartRetry(() =>
+    db
+      .select({
+        characterId: characters.characterId,
+        name: characters.name,
+        edits: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(codexRevisions)
+      .innerJoin(codexPages, eq(codexPages.id, codexRevisions.pageId))
+      .innerJoin(characters, eq(characters.characterId, codexRevisions.characterId))
+      .where(and(eq(codexPages.subjectKind, kind), eq(codexPages.subjectKey, key)))
+      .groupBy(characters.characterId, characters.name)
+      .orderBy(sql`min(${codexRevisions.createdAt})`, asc(characters.characterId)),
+  );
 }

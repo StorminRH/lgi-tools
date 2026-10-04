@@ -1,4 +1,5 @@
 import type { CodexBlockNode, CodexDoc, CodexNode } from './doc';
+import { CODEX_NODES, type CodexNodeSpec } from './nodes';
 
 export const LEAD_SECTION_ID = 'lead';
 
@@ -54,4 +55,11 @@ export function sectionBounds(
   if (start === 0 && sectionId !== LEAD_SECTION_ID) return null;
   const next = content.findIndex((block, index) => index >= start && isSectionHeading(block));
   return { start, end: next === -1 ? content.length : next };
+}
+
+export function plainText(node: CodexNode): string {
+  if (node.type === 'text') return node.text;
+  const children: CodexNodeSpec['content'] = CODEX_NODES[node.type].content;
+  const inline = Array.isArray(children) && children.includes('text');
+  return node.content.map(plainText).join(inline ? '' : '\n');
 }

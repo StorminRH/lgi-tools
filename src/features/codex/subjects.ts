@@ -92,7 +92,13 @@ export function resolveCodexSubject(kind: string, rawKey: string): CodexSubject 
   return key === null ? null : { kind, key };
 }
 
-export type CodexEditorNotice = 'conflict' | 'invalid';
+const CODEX_EDITOR_NOTICES = ['conflict', 'invalid', 'license', 'summary', 'daily-limit', 'page-limit'] as const;
+
+export type CodexEditorNotice = (typeof CODEX_EDITOR_NOTICES)[number];
+
+export function isCodexEditorNotice(value: string | null): value is CodexEditorNotice {
+  return (CODEX_EDITOR_NOTICES as readonly (string | null)[]).includes(value);
+}
 
 export function codexPageHref(
   subject: CodexSubject,

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  credits: [] as { characterId: number; name: string; edits: number }[],
   loadCodexPage: vi.fn(),
   getWormholeCodex: vi.fn(),
   getFullSession: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('next/link', () => ({
 vi.mock('@/features/codex/queries', () => ({
   loadCodexPage: (subject: unknown) => mocks.loadCodexPage(subject),
   listCodexPages: async () => [],
+  listCodexCredits: async () => mocks.credits,
 }));
 vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
 vi.mock('@/data/eve-data/universe-assets', () => ({ getWormholeCodex: mocks.getWormholeCodex }));
@@ -196,8 +198,42 @@ test('the admin edits an unwritten entity page from its template', async () => {
   expect(titled).not.toContain('A page already lives');
 });
 
-test('a signed-in pilot who is not the admin reads the template page', async () => {
-  mocks.getFullSession.mockResolvedValue({ isAdmin: false });
+test('a signed-in pilot with a character suggests edits in the same article', async () => {
+  mocks.getFullSession.mockResolvedValue({ isAdmin: false, characterId: 1, name: 'Karaka' });
+  mocks.loadCodexPage.mockResolvedValue(page);
+
+  await renderReader('guides', 'rolling-a-c3', { edit: 'ships', notice: 'license' });
+  expect(mocks.adminArticle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ mode: 'suggest', viewerName: 'Karaka', initialScope: 'ships', initialNotice: 'license' }),
+  );
+
+  await renderReader('guides', 'rolling-a-c3', { edit: 'page', notice: 'conflict' });
+  expect(mocks.adminArticle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ initialScope: null, goneSectionId: null }),
+  );
+
+  mocks.loadCodexPage.mockResolvedValue(null);
+  await expect(
+    CodexAdminReader({ params: params('guides', 'new-one'), searchParams: query({ title: 'New one' }) }),
+  ).rejects.toThrow('NEXT_NOT_FOUND');
+});
+
+test('the admin publishes', async () => {
+  mocks.getFullSession.mockResolvedValue({ isAdmin: true, characterId: null, name: 'Stormin' });
+  mocks.loadCodexPage.mockResolvedValue(page);
+  mocks.credits = [{ characterId: 9001, name: 'Tester', edits: 2 }];
+
+  await renderReader('guides', 'rolling-a-c3');
+  const props = mocks.adminArticle.mock.lastCall![0] as { mode: string; viewerName: string; footer: ReactNode };
+  expect(props).toMatchObject({ mode: 'publish', viewerName: 'Stormin' });
+  const footer = renderToStaticMarkup(createElement('div', null, props.footer));
+  expect(footer).toContain('Contributors');
+  expect(footer).toContain('2 edits');
+  mocks.credits = [];
+});
+
+test('a signed-in viewer without a character reads the template page', async () => {
+  mocks.getFullSession.mockResolvedValue({ isAdmin: false, characterId: null });
   mocks.loadCodexPage.mockResolvedValue(null);
 
   const html = await renderReader('wormholes', 'c247');

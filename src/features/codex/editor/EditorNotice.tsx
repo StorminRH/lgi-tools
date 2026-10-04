@@ -2,6 +2,14 @@ import { Banner } from '@/components/ui/banner';
 import { LEAD_SECTION_ID } from '../sections';
 import { codexPageHref, type CodexEditorNotice, type CodexSubject } from '../subjects';
 
+const NOTICE_COPY: Record<Exclude<CodexEditorNotice, 'conflict'>, string> = {
+  invalid: 'That save was rejected because the content did not pass the page checks. Your text is kept below.',
+  license: 'Tick the CC BY-SA 4.0 license box to submit your suggestion.',
+  summary: 'Add a short summary so the reviewer knows what changed.',
+  'daily-limit': 'You have sent 10 suggestions today. Try again tomorrow.',
+  'page-limit': 'You already have 5 suggestions waiting on this page. Wait for a review or withdraw one.',
+};
+
 export function EditorNotice({
   notice,
   subject,
@@ -13,10 +21,10 @@ export function EditorNotice({
   sectionId: string | null;
   goneSectionId?: string | null;
 }) {
-  if (notice === 'invalid') {
+  if (notice !== 'conflict') {
     return (
       <Banner tone="warn" className="m-3">
-        That save was rejected because the content did not pass the page checks. Your text is kept below.
+        {NOTICE_COPY[notice]}
       </Banner>
     );
   }

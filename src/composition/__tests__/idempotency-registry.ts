@@ -451,6 +451,18 @@ const adminCodexRevisionsRoute = mutationRoute({
   evidence:
     'Every publish and restore names the base revision it was made against, and one atomic compare-and-set statement moves the page head and appends the revision only while the head still equals that base; a replayed form finds the head already moved and lands as a conflict without writing a second revision. A first publish creates the page row behind the unique (subject_kind, subject_key) index.',
 });
+const adminCodexProposalsRoute = mutationRoute({
+  route: 'src/app/api/admin/codex/proposals/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'Approve publishes through the page compare-and-set statement, whose claimed CTE flips the proposal from pending to approved only while it is still pending and the head still equals its base, behind a unique (origin_ref) index on proposal revisions; deny is an UPDATE guarded by status = pending. A replayed review finds the proposal no longer pending and changes nothing.',
+});
+const codexProposalsRoute = mutationRoute({
+  route: 'src/app/api/codex/proposals/route.ts',
+  verdict: 'key-protected',
+  evidence:
+    'The editor mints the proposal id once per open, and submit inserts it with ON CONFLICT (id) DO NOTHING against the unique primary key, so a replayed form lands as a duplicate without a second row; withdraw is an UPDATE guarded by status = pending and the submitter, so a replay changes nothing.',
+});
 const adminWhStaticsRoute = mutationRoute({
   route: 'src/app/api/admin/wh-statics/route.ts',
   verdict: 'key-protected',
@@ -668,6 +680,8 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   savedPlansFavoriteRoute,
   adminRoleRoute,
   adminCodexRevisionsRoute,
+  adminCodexProposalsRoute,
+  codexProposalsRoute,
   adminWhStaticsRoute,
   mapsSignatureEliminationRoute,
   mapsJumpRoute,

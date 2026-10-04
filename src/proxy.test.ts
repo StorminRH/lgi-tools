@@ -87,7 +87,7 @@ describe("proxy site detail fallback", () => {
   );
 });
 
-describe("proxy Codex admin route", () => {
+describe("proxy Codex edit route", () => {
   function codexRequest(pathname: string, cookie?: string): NextRequest {
     return new NextRequest(`https://lgi.tools${pathname}`, {
       headers: cookie ? { host: "lgi.tools", cookie } : { host: "lgi.tools" },
@@ -101,7 +101,7 @@ describe("proxy Codex admin route", () => {
     const response = proxy(codexRequest("/codex/guides/rolling-a-c3?edit=ships", cookie));
 
     expect(getRewrittenUrl(response)).toBe(
-      `${CANONICAL_ORIGIN}/codex/guides/rolling-a-c3/admin?edit=ships`,
+      `${CANONICAL_ORIGIN}/codex/guides/rolling-a-c3/edit?edit=ships`,
     );
     expect(response.headers.get("Content-Security-Policy")).toContain("default-src 'self'");
   });
@@ -122,7 +122,7 @@ describe("proxy Codex admin route", () => {
   it("sends a signed-in viewer of the Codex home to the route that carries New guide, keeping the search", () => {
     const response = proxy(codexRequest("/codex?q=c247", "better-auth.session_token=abc"));
 
-    expect(getRewrittenUrl(response)).toBe(`${CANONICAL_ORIGIN}/codex/admin?q=c247`);
+    expect(getRewrittenUrl(response)).toBe(`${CANONICAL_ORIGIN}/codex/edit?q=c247`);
     expect(unstable_doesMiddlewareMatch({ config, url: "/codex", headers: { "next-router-prefetch": "1" } })).toBe(true);
     expect(isRewrite(proxy(codexRequest("/codex", "theme=dark")))).toBe(false);
   });

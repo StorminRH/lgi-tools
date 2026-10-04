@@ -33,6 +33,15 @@ const target = {
   baseRevisionId: z.union([z.literal('').transform(() => null), z.uuid()]),
 };
 
+function withSubject<T extends { kind: string; key: string }>(form: T, context: z.RefinementCtx) {
+  const subject = resolveCodexSubject(form.kind, form.key);
+  if (!subject) {
+    context.addIssue({ code: 'custom', message: 'unknown Codex page' });
+    return z.NEVER;
+  }
+  return { ...form, subject };
+}
+
 export const codexRevisionFormSchema = z
   .discriminatedUnion('action', [
     z.object({
@@ -45,14 +54,7 @@ export const codexRevisionFormSchema = z
     }),
     z.object({ action: z.literal('restore'), ...target, revisionId: z.uuid() }),
   ])
-  .transform((form, context) => {
-    const subject = resolveCodexSubject(form.kind, form.key);
-    if (!subject) {
-      context.addIssue({ code: 'custom', message: 'unknown Codex page' });
-      return z.NEVER;
-    }
-    return { ...form, subject };
-  });
+  .transform(withSubject);
 
 export type CodexRevisionForm = z.output<typeof codexRevisionFormSchema>;
 
@@ -72,7 +74,38 @@ export function editFromForm(form: CodexRevisionForm): CodexEdit {
     : { kind: 'section', sectionId: form.sectionId, blocks: form.blocks };
 }
 
-const codexSourceHitSchema = z.object({ key: z.string(), title: z.string(), hint: z.string() });
+export const codexProposalFormSchema = z
+  .discriminatedUnion('action', [
+    z.object({
+      action: z.literal('submit'),
+      proposalId: z.uuid(),
+      ...target,
+      sectionId: z.string().trim().min(1).max(200),
+      blocks: blocksJson,
+      summary: z.string().max(200).optional(),
+      license: z.string().optional(),
+    }),
+    z.object({ action: z.literal('withdraw'), proposalId: z.uuid() }),
+  ])
+  .transform((form, context) => (form.action === 'withdraw' ? form : withSubject(form, context)));
+
+export type CodexProposalForm = z.output<typeof codexProposalFormSchema>;
+
+export function pickProposalForm(form: FormData): Record<string, unknown> {
+  return Object.fromEntries(
+    ['action', 'proposalId', 'kind', 'key', 'baseRevisionId', 'sectionId', 'blocks', 'summary', 'license'].map(
+      (name) => [name, form.get(name) ?? undefined],
+    ),
+  );
+}
+
+export const codexReviewFormSchema = z.object({
+  proposalId: z.uuid(),
+  action: z.enum(['approve', 'deny']),
+  note: z.string().max(1000).optional(),
+});
+
+const codexSourceHitSchema =z.object({ key: z.string(), title: z.string(), hint: z.string() });
 
 export type CodexSourceHit = z.infer<typeof codexSourceHitSchema>;
 

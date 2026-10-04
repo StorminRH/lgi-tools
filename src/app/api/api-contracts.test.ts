@@ -29,11 +29,13 @@ const FORM_ROUTES = new Set([
   'account/characters/unlink/route.ts',
   'admin/characters/reassign/route.ts',
   'admin/characters/unlink/route.ts',
+  'admin/codex/proposals/route.ts',
   'admin/codex/revisions/route.ts',
   'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
   'admin/wh-statics/route.ts',
+  'codex/proposals/route.ts',
 ]);
 
 const CONTRACTLESS_ROUTES = new Set([

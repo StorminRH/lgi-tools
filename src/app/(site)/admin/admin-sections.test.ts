@@ -41,13 +41,19 @@ describe('adminSectionHref', () => {
 
 describe('deriveNavBadges', () => {
   it('is empty when nothing is waiting', () => {
-    expect(deriveNavBadges({ deadLettered: 0, staticsPending: false })).toEqual({});
+    expect(deriveNavBadges({ deadLettered: 0, staticsPending: false, codexPending: 0 })).toEqual({});
   });
 
   it('badges dead letters and a pending statics review', () => {
-    expect(deriveNavBadges({ deadLettered: 1200, staticsPending: true })).toEqual({
+    expect(deriveNavBadges({ deadLettered: 1200, staticsPending: true, codexPending: 0 })).toEqual({
       queue: { label: '1,200', tone: 'red' },
       statics: { label: '1', tone: 'orange' },
+    });
+  });
+
+  it('badges pending Codex suggestions with their count', () => {
+    expect(deriveNavBadges({ deadLettered: 0, staticsPending: false, codexPending: 3 })).toEqual({
+      codex: { label: '3', tone: 'orange' },
     });
   });
 });

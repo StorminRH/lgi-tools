@@ -84,6 +84,7 @@ const TABLE_NAMES = [
   'pending_deletions',
   'codex_pages',
   'codex_revisions',
+  'codex_proposals',
   'verification',
   'jwks',
 ] as const;

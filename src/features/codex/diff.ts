@@ -1,0 +1,105 @@
+import { diffWordsWithSpace } from 'diff';
+import type { CodexBlockNode, CodexNode } from './doc';
+import { plainText } from './sections';
+
+export type CodexWordChange = { readonly op: 'same' | 'added' | 'removed'; readonly text: string };
+
+const DATA_ATTRS = ['source', 'key', 'fields', 'layout'] as const;
+
+export type CodexAttrChange = {
+  readonly name: (typeof DATA_ATTRS)[number];
+  readonly before: string;
+  readonly after: string;
+};
+
+export type CodexBlockDiff =
+  | { readonly kind: 'added' | 'removed'; readonly id: string; readonly text: string }
+  | { readonly kind: 'moved'; readonly id: string; readonly from: number; readonly to: number }
+  | { readonly kind: 'changed'; readonly id: string; readonly words: readonly CodexWordChange[] }
+  | { readonly kind: 'changed'; readonly id: string; readonly change: 'format' }
+  | { readonly kind: 'changed'; readonly id: string; readonly attrs: readonly CodexAttrChange[] };
+
+function blockId(block: CodexBlockNode, index: number): string {
+  return ('id' in block.attrs && block.attrs.id) || `#${index}`;
+}
+
+function attrText(value: unknown): string {
+  return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+}
+
+function attrChanges(before: CodexBlockNode, after: CodexBlockNode): CodexAttrChange[] {
+  if (before.type !== 'dataBlock' || after.type !== 'dataBlock') return [];
+  return DATA_ATTRS.flatMap((name) => {
+    const was = attrText(before.attrs[name]);
+    const now = attrText(after.attrs[name]);
+    return was === now ? [] : [{ name, before: was, after: now }];
+  });
+}
+
+// The editor gives nested paragraphs ids that stored documents may lack; only top-level ids align blocks.
+function withoutId(node: CodexNode): unknown {
+  if (node.type === 'text') return node;
+  const { id: _id, ...attrs }: Record<string, unknown> = node.attrs;
+  return { ...node, attrs, content: node.content.map(withoutId) };
+}
+
+function canonical(block: CodexBlockNode): string {
+  return JSON.stringify({ ...block, content: block.content.map(withoutId) });
+}
+
+function changeOf(id: string, before: CodexBlockNode, after: CodexBlockNode): CodexBlockDiff | null {
+  if (canonical(before) === canonical(after)) return null;
+  const attrs = attrChanges(before, after);
+  if (attrs.length > 0) return { kind: 'changed', id, attrs };
+  const was = plainText(before);
+  const now = plainText(after);
+  if (was === now) return { kind: 'changed', id, change: 'format' };
+  const words = diffWordsWithSpace(was, now).map(
+    (part): CodexWordChange => ({ op: part.added ? 'added' : part.removed ? 'removed' : 'same', text: part.value }),
+  );
+  return { kind: 'changed', id, words };
+}
+
+function indexed(blocks: readonly CodexBlockNode[]) {
+  return new Map(blocks.map((block, index) => [blockId(block, index), block]));
+}
+
+export function diffCodexBlocks(
+  before: readonly CodexBlockNode[],
+  after: readonly CodexBlockNode[],
+): CodexBlockDiff[] {
+  const was = indexed(before);
+  const now = indexed(after);
+  const order = (ids: Iterable<string>, other: Map<string, CodexBlockNode>) =>
+    new Map([...ids].filter((id) => other.has(id)).map((id, index) => [id, index]));
+  const fromIndex = order(was.keys(), now);
+  const toIndex = order(now.keys(), was);
+  const diff: CodexBlockDiff[] = [];
+  for (const [id, block] of was) {
+    if (!now.has(id)) diff.push({ kind: 'removed', id, text: plainText(block) });
+  }
+  for (const [id, from] of fromIndex) {
+    const to = toIndex.get(id)!;
+    if (from !== to) diff.push({ kind: 'moved', id, from, to });
+    const change = changeOf(id, was.get(id)!, now.get(id)!);
+    if (change) diff.push(change);
+  }
+  for (const [id, block] of now) {
+    if (!was.has(id)) diff.push({ kind: 'added', id, text: plainText(block) });
+  }
+  return diff;
+}
+
+const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+function wordChanges(entry: CodexBlockDiff): readonly CodexWordChange[] {
+  if (entry.kind === 'added' || entry.kind === 'removed') return [{ op: entry.kind, text: entry.text }];
+  return 'words' in entry ? entry.words : [];
+}
+
+export function wordStats(diff: readonly CodexBlockDiff[]): { added: number; removed: number } {
+  const parts = diff.flatMap(wordChanges);
+  const count = (op: CodexWordChange['op']) =>
+    parts.reduce((sum, part) => (part.op === op ? sum + countWords(part.text) : sum), 0);
+  return { added: count('added'), removed: count('removed') };
+}

@@ -10,7 +10,7 @@ async function NewGuideSlot() {
   return session?.isAdmin ? <NewGuideForm /> : null;
 }
 
-export default function CodexAdminIndexPage({ searchParams }: { searchParams: SearchParams }) {
+export default function CodexSignedInIndexPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <CodexIndex
       searchParams={searchParams}

@@ -461,10 +461,19 @@ const tiptapImportPatterns = [
   },
 ];
 
+const diffImportPatterns = [
+  {
+    regex: "^diff(?:/|$)",
+    message:
+      "The text-diff package is owned by src/features/codex/diff.ts. Import diffCodexBlocks from there.",
+  },
+];
+
 const crossCuttingImportPatterns = [
   ...stalenessImportPatterns,
   ...reactFlowImportPatterns,
   ...tiptapImportPatterns,
+  ...diffImportPatterns,
 ];
 
 const upstashRedisImportPatterns = [
@@ -838,6 +847,7 @@ const eslintConfig = defineConfig([
             ...vendorImportPatterns,
             ...stalenessImportPatterns,
             ...tiptapImportPatterns,
+            ...diffImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -860,10 +870,33 @@ const eslintConfig = defineConfig([
             ...vendorImportPatterns,
             ...stalenessImportPatterns,
             ...reactFlowImportPatterns,
+            ...diffImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
             ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/codex/diff.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...nextImageImportPaths,
+          ],
+          patterns: [
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
+            ...reactFlowImportPatterns,
+            ...tiptapImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
           ],
         },
       ],

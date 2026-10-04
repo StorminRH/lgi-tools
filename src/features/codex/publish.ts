@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { parseCodexDoc, type CodexBlockNode, type CodexDoc, type CodexNode } from './doc';
 import { codexCacheTags, readCodexPageHead } from './queries';
-import { codexPages, codexRevisions } from './schema';
+import { codexPages, codexProposals, codexRevisions } from './schema';
 import { sectionBounds } from './sections';
 import type { CodexSubject } from './subjects';
 
@@ -21,14 +21,21 @@ export interface CodexPublishRequest {
   readonly edit: CodexEdit;
   readonly summary: string | null;
   readonly author: { readonly userId: string; readonly characterId: number | null };
+  readonly proposalId?: string;
 }
+
+export type CodexTemplateSeed =
+  | { readonly ok: true; readonly template: { readonly title: string; readonly doc: CodexDoc } | null }
+  | { readonly ok: false };
 
 export type CodexPublishResult =
   | { readonly status: 'published'; readonly revisionId: string }
   | { readonly status: 'conflict' }
   | { readonly status: 'invalid'; readonly problems: readonly string[] };
 
-type Composed = { ok: true; doc: CodexDoc; stored: CodexStoredDoc } | { ok: false; problems: string[] };
+type Composed =
+  | { ok: true; doc: CodexDoc; stored: CodexStoredDoc; edited?: readonly CodexBlockNode[] }
+  | { ok: false; problems: string[] };
 
 interface CodexStoredDoc {
   readonly content: readonly unknown[];
@@ -109,13 +116,14 @@ function editSection(
   const kept = base.stored.content;
   return {
     ...composed,
+    edited,
     stored: { ...composed.doc, content: [...kept.slice(0, bounds.start), ...edited, ...kept.slice(bounds.end)] },
   };
 }
 
-async function composeDoc(
+async function composeCodexSection(
   pageId: string | null,
-  { baseRevisionId, template, edit }: CodexPublishRequest,
+  { baseRevisionId, template, edit }: Pick<CodexPublishRequest, 'baseRevisionId' | 'template' | 'edit'>,
   newId: () => string,
 ): Promise<Composed> {
   if (edit.kind === 'restore') {
@@ -130,6 +138,18 @@ async function composeDoc(
       ? ({ ok: true, doc: fresh, stored: fresh } as const)
       : await readRevisionDoc(pageId, baseRevisionId);
   return base.ok ? editSection(base, edit.sectionId, edit.blocks, newId) : base;
+}
+
+export async function composeCodexSectionBlocks(
+  pageId: string | null,
+  request: Pick<CodexPublishRequest, 'baseRevisionId' | 'template'> & { sectionId: string; blocks: readonly unknown[] },
+): Promise<readonly CodexBlockNode[] | null> {
+  const composed = await composeCodexSection(
+    pageId,
+    { ...request, edit: { kind: 'section', sectionId: request.sectionId, blocks: request.blocks } },
+    () => crypto.randomUUID(),
+  );
+  return composed.ok && composed.edited ? composed.edited : null;
 }
 
 async function ensurePage({ kind, key }: CodexSubject, title: string): Promise<string> {
@@ -151,19 +171,35 @@ async function appendRevisionIfHead(
   revisionId: string,
 ): Promise<boolean> {
   const restore = request.edit.kind === 'restore' ? request.edit.revisionId : null;
+  const proposalId = request.proposalId ?? null;
+  const origin = restore !== null ? 'revert' : proposalId !== null ? 'proposal' : 'admin';
+  const proposalPending =
+    proposalId === null
+      ? sql``
+      : sql`AND EXISTS (SELECT 1 FROM ${codexProposals} WHERE id = ${proposalId}::uuid AND status = 'pending' FOR UPDATE)`;
+  const claimProposal =
+    proposalId === null
+      ? sql``
+      : sql`, claimed AS (
+      UPDATE ${codexProposals}
+      SET status = 'approved', result_revision_id = ${revisionId}::uuid, decided_at = now()
+      WHERE id = ${proposalId}::uuid AND status = 'pending' AND EXISTS (SELECT 1 FROM moved)
+      RETURNING id
+    )`;
   const result = await db.execute(sql`
     WITH moved AS (
       UPDATE ${codexPages}
       SET current_revision_id = ${revisionId}::uuid, updated_at = now()
       WHERE id = ${pageId}::uuid
         AND current_revision_id IS NOT DISTINCT FROM ${request.baseRevisionId}::uuid
+        ${proposalPending}
       RETURNING id
-    )
+    )${claimProposal}
     INSERT INTO ${codexRevisions}
       (id, page_id, parent_revision_id, doc, schema_version, user_id, character_id, origin, origin_ref, summary)
     SELECT ${revisionId}::uuid, moved.id, ${request.baseRevisionId}::uuid, ${JSON.stringify(stored)}::jsonb,
       ${doc.attrs.schemaVersion}, ${request.author.userId}, ${request.author.characterId},
-      ${restore === null ? 'admin' : 'revert'}, ${restore}, ${request.summary}
+      ${origin}, ${restore ?? proposalId}, ${request.summary}
     FROM moved
     RETURNING id
   `);
@@ -177,7 +213,7 @@ export async function publishCodexRevision(
   const page = await readCodexPageHead(request.subject);
   if ((page?.currentRevisionId ?? null) !== request.baseRevisionId) return CONFLICT;
 
-  const composed = await composeDoc(page?.id ?? null, request, newId);
+  const composed = await composeCodexSection(page?.id ?? null, request, newId);
   if (!composed.ok) return { status: 'invalid', problems: composed.problems };
   let pageId = page?.id;
   if (!pageId) {

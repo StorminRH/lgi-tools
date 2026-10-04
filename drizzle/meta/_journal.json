@@ -568,6 +568,13 @@
       "when": 1791114545358,
       "tag": "0080_codex_pages",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1791140809264,
+      "tag": "0081_codex_proposals",
+      "breakpoints": true
     }
   ]
 }

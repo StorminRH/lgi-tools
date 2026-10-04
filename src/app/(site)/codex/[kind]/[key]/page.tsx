@@ -21,9 +21,9 @@ export async function generateMetadata({ params }: { params: CodexParams }): Pro
 
 export async function CodexReader({ params }: { params: CodexParams }) {
   const { kind, key } = await params;
-  const { subject, page } = await loadPage(kind, key);
+  const { subject, page, credits } = await loadPage(kind, key);
   if (!page) notFound();
-  return <CodexReaderView subject={subject} page={page} />;
+  return <CodexReaderView subject={subject} page={page} credits={credits} />;
 }
 
 export default function CodexSubjectPage({ params }: { params: CodexParams }) {

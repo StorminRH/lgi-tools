@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { chunk, dedupe } from '@/lib/array';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
-import { SYNTHETIC_PILOT } from './synthetic-pilot';
+import { SYNTHETIC_CHARACTER_IDS } from './synthetic-pilot';
 
 const AFFILIATION_BATCH_MAX = 1000;
 
@@ -110,7 +110,7 @@ export async function fetchAffiliations(
 ): Promise<AffiliationFetchResult> {
   const unique =
     process.env.NODE_ENV === 'development'
-      ? dedupe(characterIds).filter((id) => id !== SYNTHETIC_PILOT.characterId)
+      ? dedupe(characterIds).filter((id) => !SYNTHETIC_CHARACTER_IDS.has(id))
       : dedupe(characterIds);
   if (unique.length === 0) return { rows: [], transientFailure: false };
 

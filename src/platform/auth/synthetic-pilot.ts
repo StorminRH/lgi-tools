@@ -5,6 +5,20 @@ export const SYNTHETIC_PILOT = {
   role: 'USER',
 } as const;
 
+export const SYNTHETIC_CONTRIBUTOR = {
+  userId: 'e2e-contributor',
+  characterId: 9_000_002,
+  name: 'E2E Contributor',
+  role: 'USER',
+} as const;
+
+export type SyntheticPilot = typeof SYNTHETIC_PILOT | typeof SYNTHETIC_CONTRIBUTOR;
+
+export const SYNTHETIC_CHARACTER_IDS: ReadonlySet<number> = new Set([
+  SYNTHETIC_PILOT.characterId,
+  SYNTHETIC_CONTRIBUTOR.characterId,
+]);
+
 export const SYNTHETIC_PILOT_MINT_PATH = '/api/dev/synthetic-pilot' as const;
 
 export function canMintSyntheticPilotRequest(request: Request): boolean {

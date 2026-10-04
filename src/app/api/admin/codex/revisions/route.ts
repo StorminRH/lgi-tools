@@ -2,7 +2,6 @@ import type { NextRequest } from 'next/server';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { capabilityRoute } from '@/app/api/capability-route';
 import { codexDataBlockProblems } from '@/composition/codex-sources';
-import { codexTemplate, type CodexTemplate } from '@/composition/codex-templates';
 import { publishCodexRevision } from '@/features/codex/publish';
 import {
   codexRevisionFormSchema,
@@ -11,10 +10,11 @@ import {
   type CodexRevisionForm,
 } from '@/features/codex/api-contract';
 import { LEAD_SECTION_ID, PAGE_SCOPE } from '@/features/codex/sections';
-import { CODEX_SUBJECTS, codexHistoryHref, codexPageHref } from '@/features/codex/subjects';
+import { codexHistoryHref, codexPageHref } from '@/features/codex/subjects';
 import { validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
+import { firstPublishTemplate } from '@/app/api/codex/template-seed';
 
 function redirectTo(request: NextRequest, path: string): Response {
   return Response.redirect(new URL(path, request.url), 303);
@@ -32,14 +32,6 @@ function landing(form: CodexRevisionForm, status: 'published' | 'conflict' | 'in
   return codexPageHref(form.subject, { edit, notice: status, title: form.title });
 }
 
-type TemplateSeed = { ok: true; template: CodexTemplate | null } | { ok: false };
-
-async function firstPublishTemplate(form: CodexRevisionForm): Promise<TemplateSeed> {
-  if (!CODEX_SUBJECTS[form.subject.kind].entity || form.baseRevisionId !== null) return { ok: true, template: null };
-  const template = await codexTemplate(form.subject);
-  return template ? { ok: true, template } : { ok: false };
-}
-
 // authz: admin
 export const POST = capabilityRoute('admin.codex-publish', handlePost);
 
@@ -54,7 +46,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
   if (!parsed.ok) return problemResponse(parsed.failure);
   const form = parsed.data;
 
-  const seed = await firstPublishTemplate(form);
+  const seed = await firstPublishTemplate(form.subject, form.baseRevisionId);
   if (!seed.ok) return redirectTo(request, landing(form, 'invalid'));
   const { template } = seed;
 

@@ -8,6 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { HistoryIcon, PencilIcon } from './icons';
 import { Pill } from '@/components/ui/pill';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CODEX_EDIT_MODES, type CodexEditMode } from '../edit-modes';
 import type { RenderedCodexSection } from '../render';
 import { PAGE_SCOPE } from '../sections';
 import { CODEX_SUBJECTS, codexHistoryHref, codexPageHref, type CodexEditorNotice, type CodexSubject } from '../subjects';
@@ -63,6 +64,8 @@ function PageActions({
 }
 
 export function CodexAdminArticle({
+  mode,
+  viewerName,
   subject,
   newTitle,
   baseRevisionId,
@@ -75,6 +78,8 @@ export function CodexAdminArticle({
   goneSectionId = null,
   catalogue,
 }: {
+  mode: CodexEditMode;
+  viewerName: string;
   subject: CodexSubject;
   newTitle: string | null;
   baseRevisionId: string | null;
@@ -88,6 +93,7 @@ export function CodexAdminArticle({
   catalogue: CodexSourceCatalogue;
 }) {
   const router = useRouter();
+  const labels = CODEX_EDIT_MODES[mode];
   const [scope, setScope] = useState(initialScope);
   const [notice, setNotice] = useState(initialNotice);
   const locked = scope !== null;
@@ -108,6 +114,8 @@ export function CodexAdminArticle({
   const editor = (sectionId: string | null, blocks: readonly unknown[]) => (
     <Suspense fallback={<EditorSkeleton />}>
       <CodexEditor
+        mode={mode}
+        viewerName={viewerName}
         subject={subject}
         newTitle={newTitle}
         baseRevisionId={baseRevisionId}
@@ -123,10 +131,18 @@ export function CodexAdminArticle({
 
   const sectionAction = (section: RenderedCodexSection) => {
     if (scope === section.id) return section.heading ? <Pill tone="green">Editing</Pill> : null;
+    if (mode === 'suggest') {
+      return (
+        <Button variant="ghost" size="sm" disabled={locked} onClick={() => open(section.id)} className="px-2">
+          <PencilIcon size={14} />
+          {labels.pencil}
+        </Button>
+      );
+    }
     return (
       <Button
         variant="bare"
-        aria-label={section.heading ? 'Edit section' : 'Edit introduction'}
+        aria-label={section.heading ? labels.pencil : labels.pencilLead}
         disabled={locked}
         onClick={() => open(section.id)}
         className="size-8 justify-center rounded-full border border-transparent text-faint hover:border-border hover:text-isk"
@@ -146,7 +162,7 @@ export function CodexAdminArticle({
         action={
           <Button variant="secondary" size="sm" disabled={locked} onClick={() => open(section.id)}>
             <PencilIcon size={14} />
-            Write section
+            {labels.empty}
           </Button>
         }
       />
@@ -177,7 +193,7 @@ export function CodexAdminArticle({
     );
 
   const actions =
-    newTitle === null ? (
+    newTitle === null && labels.pageActions ? (
       <PageActions
         subject={subject}
         locked={locked}

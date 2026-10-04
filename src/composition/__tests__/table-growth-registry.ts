@@ -196,6 +196,11 @@ export const TABLE_GROWTH_STORIES = [
     reason: 'append-only page history; every revision is CC BY-SA licensed text that attribution and reverts depend on, and account purge clears only its author columns',
     authority: 'content/changelog/v4.2.md (v4.2.0: every guide keeps its full edit history)',
   },
+  {
+    kind: 'purge-managed',
+    table: schema.codexProposals,
+    purgeContributor: 'codex',
+  },
 
   { kind: 'bounded', table: schema.sites, reason: 'replaced from the finite sites catalogue' },
   { kind: 'bounded', table: schema.waves, reason: 'children of the replaced sites catalogue' },

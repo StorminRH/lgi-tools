@@ -62,6 +62,8 @@ const render = (
   hooks.cursor = 0;
   return renderToStaticMarkup(
     createElement(CodexAdminArticle, {
+      mode: 'publish',
+      viewerName: 'Stormin',
       subject: { kind: 'guides', key: 'rolling-a-c3' },
       newTitle: null,
       baseRevisionId: 'rev-2',
@@ -120,6 +122,8 @@ test('a conflict on a section the newer page no longer has opens the whole page 
 });
 
 const templateProps = {
+  mode: 'publish',
+  viewerName: 'Stormin',
   subject: { kind: 'wormholes', key: 'c247' },
   newTitle: null,
   baseRevisionId: null,
@@ -207,4 +211,17 @@ test('an empty guide section keeps its bare body instead of the entity placehold
   expect(html).not.toContain('No guide yet');
   expect(html).not.toContain('Write section');
   expect(sectionHtml(html, 'scanning')).toContain('scanning text');
+});
+
+test('a suggester gets labelled suggest pencils, none on a lifted lead, and no page actions', () => {
+  hooks.states = [];
+  hooks.cursor = 0;
+  const html = renderToStaticMarkup(createElement(CodexAdminArticle, { ...templateProps, mode: 'suggest', viewerName: 'Karaka' }));
+
+  expect(html.match(/Suggest edit/g)).toHaveLength(3);
+  expect(html).not.toContain('lead text');
+  expect(html.match(/Suggest the first one/g)).toHaveLength(3);
+  expect(html).not.toContain('Edit page');
+  expect(html).not.toContain('History');
+  expect(html).not.toContain('Write section');
 });

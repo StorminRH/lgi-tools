@@ -11,8 +11,9 @@ import { codexTemplate, type CodexTemplate } from '@/composition/codex-templates
 import type { CodexDoc } from '@/features/codex/doc';
 import { CodexEmptySection } from '@/features/codex/components/CodexEmptySection';
 import { CodexPageLayout } from '@/features/codex/components/CodexPageLayout';
+import { CodexFooter } from '@/features/codex/credits';
 import { formatCodexDate } from '@/features/codex/format';
-import { loadCodexPage, type CodexPageView } from '@/features/codex/queries';
+import { listCodexCredits, loadCodexPage, type CodexCredit, type CodexPageView } from '@/features/codex/queries';
 import { CodexArticle, codexOutline } from '@/features/codex/render';
 import { leadInfobox } from '@/features/codex/sections';
 import {
@@ -35,16 +36,22 @@ interface LoadedPage {
   readonly subject: CodexSubject;
   readonly page: CodexPage | null;
   readonly template: CodexTemplate | null;
+  readonly credits: readonly CodexCredit[];
 }
 
 export const loadPage = cache(async (kind: string, key: string): Promise<LoadedPage> => {
   const subject = resolveCodexSubject(kind, key);
   if (!subject) notFound();
-  if (!CODEX_SUBJECTS[subject.kind].entity) return { subject, page: await loadCodexPage(subject), template: null };
-  const [row, template] = await Promise.all([loadCodexPage(subject), codexTemplate(subject)]);
+  const entity = CODEX_SUBJECTS[subject.kind].entity;
+  const [row, template, credits] = await Promise.all([
+    loadCodexPage(subject),
+    entity ? codexTemplate(subject) : null,
+    listCodexCredits(subject),
+  ]);
+  if (!entity) return { subject, page: row, template: null, credits };
   if (!template) notFound();
   const page = row ?? { title: template.title, doc: template.doc, revisionId: null, updatedAt: null };
-  return { subject, page, template };
+  return { subject, page, template, credits };
 });
 
 export function describe(subject: CodexSubject, title: string, description?: string) {
@@ -118,19 +125,6 @@ export function CodexHeader({ subject, title, updated }: { subject: CodexSubject
   );
 }
 
-export const licenseFooter: ReactNode = (
-  <footer className="mt-14 border-t border-border-soft pt-6 font-ui text-label text-faint">
-    Text available under{' '}
-    <a
-      href="https://creativecommons.org/licenses/by-sa/4.0/"
-      className="text-muted underline-offset-2 hover:text-name hover:underline"
-    >
-      CC BY-SA 4.0
-    </a>
-    . EVE Online data and images © Fenris Creations.
-  </footer>
-);
-
 function sideColumn(subject: CodexSubject, page: CodexPage): { aside: ReactNode; omit: string | undefined } {
   const lead = CODEX_SUBJECTS[subject.kind].entity ? leadInfobox(page.doc) : null;
   if (lead) {
@@ -155,7 +149,15 @@ export function codexPageFrame(subject: CodexSubject, page: CodexPage) {
   };
 }
 
-export function CodexReaderView({ subject, page }: { subject: CodexSubject; page: CodexPage }) {
+export function CodexReaderView({
+  subject,
+  page,
+  credits,
+}: {
+  subject: CodexSubject;
+  page: CodexPage;
+  credits: readonly CodexCredit[];
+}) {
   const { header, aside, omit } = codexPageFrame(subject, page);
   return (
     <CodexPageLayout
@@ -168,7 +170,7 @@ export function CodexReaderView({ subject, page }: { subject: CodexSubject; page
             omit={omit}
             placeholder={CODEX_SUBJECTS[subject.kind].entity ? <CodexEmptySection /> : undefined}
           />
-          {licenseFooter}
+          <CodexFooter credits={credits} />
         </>
       }
       aside={aside}

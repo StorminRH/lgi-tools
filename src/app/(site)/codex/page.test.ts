@@ -18,7 +18,7 @@ vi.mock('@/composition/codex-templates', () => ({ listCodexEntries: mocks.listCo
 vi.mock('@/features/codex/queries', () => ({ listRecentCodexEdits: mocks.listRecentCodexEdits }));
 vi.mock('@/composition/session', () => ({ getFullSession: mocks.getFullSession }));
 
-import CodexAdminIndexPage, { metadata as adminMetadata } from './admin/page';
+import CodexSignedInIndexPage, { metadata as signedInMetadata } from './edit/page';
 import { CodexIndex, CodexSearchResults, RecentEdits } from './codex-index';
 import CodexIndexPage, { metadata } from './page';
 
@@ -107,13 +107,13 @@ test('the search box keeps the submitted query above its results', async () => {
 });
 
 test('only the admin gets the New guide control, and only on the signed-in route', async () => {
-  expect(adminMetadata).toBe(metadata);
+  expect(signedInMetadata).toBe(metadata);
   mocks.getFullSession.mockResolvedValue({ isAdmin: true });
   expect(await renderPage(CodexIndexPage({ searchParams: query() }))).not.toContain('New guide');
-  expect(await renderPage(CodexAdminIndexPage({ searchParams: query() }))).toContain('New guide');
+  expect(await renderPage(CodexSignedInIndexPage({ searchParams: query() }))).toContain('New guide');
 
   mocks.getFullSession.mockResolvedValue({ isAdmin: false });
-  const signedIn = await renderPage(CodexAdminIndexPage({ searchParams: query() }));
+  const signedIn = await renderPage(CodexSignedInIndexPage({ searchParams: query() }));
   expect(signedIn).toContain('href="/codex/guides"');
   expect(signedIn).not.toContain('New guide');
 });

@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  credits: [] as { characterId: number; name: string; edits: number }[],
   loadCodexPage: vi.fn(),
   getWormholeCodex: vi.fn(),
   getSystemDirectory: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('next/link', () => ({
 vi.mock('@/features/codex/queries', () => ({
   loadCodexPage: (subject: unknown) => mocks.loadCodexPage(subject),
   listCodexPages: async () => [],
+  listCodexCredits: async () => mocks.credits,
 }));
 vi.mock('next/cache', () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
 vi.mock('@/data/eve-data/universe-assets', () => ({
@@ -243,7 +245,7 @@ test('the reader routes reach no Codex admin or editor module', () => {
   const home = reachableModules('src/app/(site)/codex/page.tsx');
   expect(home).toContain('src/app/(site)/codex/codex-index.tsx');
   expect(home.filter((file) => ADMIN_MODULE.test(file))).toEqual([]);
-  expect(reachableModules('src/app/(site)/codex/admin/page.tsx')).toContain(
+  expect(reachableModules('src/app/(site)/codex/edit/page.tsx')).toContain(
     'src/features/codex/components/NewGuideForm.tsx',
   );
 });
@@ -253,6 +255,6 @@ test('only the signed-in Codex route imports the admin article', () => {
     .map((file) => path.join('src/app', String(file)))
     .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
   expect(
-    appFiles.filter((file) => /CodexAdminArticle|CodexAdminSlot|CodexEditor/.test(readFileSync(file, 'utf8'))),
-  ).toEqual(['src/app/(site)/codex/[kind]/[key]/admin/page.tsx']);
+    appFiles.filter((file) => /\b(CodexAdminArticle|CodexAdminSlot|CodexEditor)\b/.test(readFileSync(file, 'utf8'))),
+  ).toEqual(['src/app/(site)/codex/[kind]/[key]/edit/page.tsx']);
 });

@@ -9,6 +9,7 @@ export type AdminSectionId =
   | 'search'
   | 'queue'
   | 'statics'
+  | 'codex'
   | 'users'
   | 'primitives'
   | 'cards'
@@ -76,6 +77,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     id: 'actions',
     label: 'Actions',
     sections: [
+      section('codex', '/admin/codex', 'Codex suggestions'),
       section('queue', '/admin/queue', 'Refresh queue'),
       section('statics', '/admin/statics', 'Wormhole statics'),
     ],
@@ -116,8 +118,12 @@ export function adminSectionHref(target: AdminSection, rawRange: string | null):
 export function deriveNavBadges(input: {
   deadLettered: number;
   staticsPending: boolean;
+  codexPending: number;
 }): AdminNavBadges {
   const badges: AdminNavBadges = {};
+  if (input.codexPending > 0) {
+    badges.codex = { label: input.codexPending.toLocaleString(), tone: 'orange' };
+  }
   if (input.deadLettered > 0) {
     badges.queue = { label: input.deadLettered.toLocaleString(), tone: 'red' };
   }

@@ -6,6 +6,8 @@ export const E2E_CHARACTER_NAME = SYNTHETIC_PILOT.name;
 
 export const DEFAULT_STORAGE_STATE_PATH = 'e2e/auth-storage.json';
 
+export const PLAIN_STORAGE_STATE_PATH = 'e2e/auth-storage-plain.json';
+
 export function resolveE2eStorageStatePath(): string {
   return process.env.E2E_STORAGE_STATE ?? DEFAULT_STORAGE_STATE_PATH;
 }

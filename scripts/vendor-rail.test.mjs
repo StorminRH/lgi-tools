@@ -28,6 +28,7 @@ const rejectConvexReact = ['convex/react', 'The Convex browser client is owned b
 const rejectGoogleAuth = ['google-auth-library', 'Google auth clients are constructed only in @/data/gsc'];
 const rejectTiptapReact = ['@tiptap/react', 'TipTap is confined to the Codex editor island'];
 const rejectTiptapCore = ['@tiptap/core', 'TipTap is confined to the Codex editor island'];
+const rejectDiff = ['diff', 'owned by src/features/codex/diff.ts'];
 
 const allowUpstashRedis = ['src/lib/upstash.ts', '@upstash/redis'];
 const allowRateLimit = ['src/lib/rate-limit.ts', '@upstash/ratelimit'];
@@ -49,6 +50,7 @@ const allowGoogleGsc = ['src/data/gsc/source.ts', 'google-auth-library'];
 const allowTiptapEditor = ['src/features/codex/editor/CodexEditor.tsx', '@tiptap/react'];
 const allowTiptapExtensions = ['src/features/codex/editor/extensions.ts', '@tiptap/starter-kit'];
 const allowTiptapHeading = ['src/features/codex/editor/extensions.ts', '@tiptap/extension-heading'];
+const allowDiff = ['src/features/codex/diff.ts', 'diff'];
 
 const crossUpstashRatelimit = ['src/lib/upstash.ts', '@upstash/ratelimit'];
 const crossRateLimitRedis = ['src/lib/rate-limit.ts', '@upstash/redis'];
@@ -103,6 +105,7 @@ describe('vendor rail', () => {
       rejectGoogleAuth,
       rejectTiptapReact,
       rejectTiptapCore,
+      rejectDiff,
     ])('rejects a feature module importing %s', async (packageName, fragment) => {
       await expectImportHas(PROBE, packageName, fragment);
     });
@@ -132,6 +135,7 @@ describe('vendor rail', () => {
       allowTiptapEditor,
       allowTiptapExtensions,
       allowTiptapHeading,
+      allowDiff,
     ])('allows %s importing its own vendor %s', async (filePath, packageName) => {
       await expectImportEmpty(filePath, packageName);
     });

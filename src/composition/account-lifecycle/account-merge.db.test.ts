@@ -14,6 +14,7 @@ import {
   seedEveAccount,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
+import { codexPages, codexProposals, codexRevisions } from '@/features/codex/schema';
 import { customStructures } from '@/features/custom-structures/schema';
 import { corpIndustryJobs, corpIndustryJobSyncs } from '@/features/industry-jobs/schema';
 import { industryProfiles, savedPlans } from '@/features/industry-planner/schema';
@@ -55,6 +56,7 @@ const harness = await createDbTestHarness({
     'pending_deletions',
     'codex_pages',
     'codex_revisions',
+    'codex_proposals',
   ],
   foreignKeys: [
     { table: 'pending_tracking_merges', column: 'user_id', refTable: 'user', refColumn: 'id', onDelete: 'cascade' },
@@ -327,6 +329,39 @@ describe.skipIf(!harness.reachable)('mergeUsers (real Postgres, one transaction)
     expect(await ownersOf(harness.db.select().from(session).orderBy(asc(session.token)))).toEqual([NEW, NEW, OLD]);
     expect(await harness.db.select().from(pendingTrackingMerges)).toEqual([]);
     expect(await harness.db.select().from(pendingMapAccessChanges)).toEqual([]);
+  });
+
+  it('moves a pending Codex suggestion and a published Codex revision onto the surviving user', async () => {
+    await seedPair();
+    const [page] = await harness.db
+      .insert(codexPages)
+      .values({ subjectKind: 'guides', subjectKey: 'scanning', title: 'Scanning' })
+      .returning();
+    const [revision] = await harness.db
+      .insert(codexRevisions)
+      .values({ pageId: page!.id, doc: {}, schemaVersion: 1, userId: NEW, characterId: NEW_CHAR, origin: 'admin' })
+      .returning();
+    const [suggestion] = await harness.db
+      .insert(codexProposals)
+      .values({
+        id: '44444444-4444-4444-8444-444444444444',
+        subjectKind: 'guides',
+        subjectKey: 'scanning',
+        pageTitle: 'Scanning',
+        sectionId: 'lead',
+        doc: [],
+        userId: NEW,
+        characterId: NEW_CHAR,
+        summary: 'Fix the scan order',
+      })
+      .returning();
+
+    await merge(request());
+
+    expect(await harness.db.select().from(codexProposals)).toEqual([
+      { ...suggestion, userId: OLD, characterId: NEW_CHAR, status: 'pending' },
+    ]);
+    expect(await harness.db.select().from(codexRevisions)).toEqual([{ ...revision, userId: OLD, characterId: NEW_CHAR }]);
   });
 
   it('rekeys an earlier pending transfer when its survivor is merged again', async () => {

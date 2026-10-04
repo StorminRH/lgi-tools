@@ -1,8 +1,16 @@
 'use client';
 
-import { EditorContent, useEditor, useEditorState, type Editor, type JSONContent } from '@tiptap/react';
+import {
+  EditorContent,
+  useEditor,
+  useEditorState,
+  type ChainedCommands,
+  type Editor,
+  type JSONContent,
+} from '@tiptap/react';
 import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/components/ui/cn';
 import {
   BoldIcon,
@@ -15,6 +23,7 @@ import {
 } from '../components/icons';
 import { Input } from '@/components/ui/input';
 import type { CodexSourceCatalogue } from '../components/CodexDataView';
+import { CODEX_EDIT_MODES, CODEX_LICENSE_LABEL, type CodexEditMode } from '../edit-modes';
 import { isSafeHref } from '../nodes';
 import type { CodexEditorNotice, CodexSubject } from '../subjects';
 import { DataBlockPicker } from './DataBlockPicker';
@@ -24,6 +33,8 @@ import { codexDraftKey, initialEditorBlocks, keepCodexDraft, takeConflictDraft }
 import { codexEditorExtensions, dataInsertion, editorBlocks } from './extensions';
 
 export interface CodexEditorProps {
+  readonly mode: CodexEditMode;
+  readonly viewerName: string;
   readonly subject: CodexSubject;
   readonly newTitle: string | null;
   readonly baseRevisionId: string | null;
@@ -81,6 +92,17 @@ const editorSurfaceClass = cn(
 );
 
 const Divider = () => <span aria-hidden className="mx-1 h-5 w-px bg-border" />;
+
+const IDLE_TOOLBAR = {
+  h2: false,
+  h3: false,
+  bold: false,
+  italic: false,
+  link: false,
+  bullets: false,
+  numbers: false,
+  callout: false,
+};
 
 function useToolbarState(editor: Editor | null) {
   return useEditorState({
@@ -156,8 +178,10 @@ function Toolbar({
   data: ReactNode;
   bar: RefObject<HTMLDivElement | null>;
 }) {
-  const state = useToolbarState(editor);
-  const chain = () => editor?.chain().focus();
+  const state = useToolbarState(editor) ?? IDLE_TOOLBAR;
+  const run = (command: (chain: ChainedCommands) => ChainedCommands) => () => {
+    if (editor) command(editor.chain().focus()).run();
+  };
   return (
     <div
       ref={bar}
@@ -165,30 +189,30 @@ function Toolbar({
       aria-label="Formatting"
       className="flex flex-wrap items-center gap-0.5 rounded-t-card border-b border-border-soft bg-row-hover px-2 py-1.5"
     >
-      <ToolButton label="Heading 2" wide active={state?.h2} onClick={() => chain()?.toggleHeading({ level: 2 }).run()}>
+      <ToolButton label="Heading 2" wide active={state.h2} onClick={run((chain) => chain.toggleHeading({ level: 2 }))}>
         H2
       </ToolButton>
-      <ToolButton label="Heading 3" wide active={state?.h3} onClick={() => chain()?.toggleHeading({ level: 3 }).run()}>
+      <ToolButton label="Heading 3" wide active={state.h3} onClick={run((chain) => chain.toggleHeading({ level: 3 }))}>
         H3
       </ToolButton>
       <Divider />
-      <ToolButton label="Bold" active={state?.bold} onClick={() => chain()?.toggleBold().run()}>
+      <ToolButton label="Bold" active={state.bold} onClick={run((chain) => chain.toggleBold())}>
         <BoldIcon size={15} />
       </ToolButton>
-      <ToolButton label="Italic" active={state?.italic} onClick={() => chain()?.toggleItalic().run()}>
+      <ToolButton label="Italic" active={state.italic} onClick={run((chain) => chain.toggleItalic())}>
         <ItalicIcon size={15} />
       </ToolButton>
-      <ToolButton label="Link" active={state?.link} onClick={onLink}>
+      <ToolButton label="Link" active={state.link} onClick={onLink}>
         <LinkIcon size={15} />
       </ToolButton>
       <Divider />
-      <ToolButton label="Bulleted list" active={state?.bullets} onClick={() => chain()?.toggleBulletList().run()}>
+      <ToolButton label="Bulleted list" active={state.bullets} onClick={run((chain) => chain.toggleBulletList())}>
         <BulletIcon size={15} />
       </ToolButton>
-      <ToolButton label="Numbered list" active={state?.numbers} onClick={() => chain()?.toggleOrderedList().run()}>
+      <ToolButton label="Numbered list" active={state.numbers} onClick={run((chain) => chain.toggleOrderedList())}>
         <NumberedIcon size={15} />
       </ToolButton>
-      <ToolButton label="Callout" active={state?.callout} onClick={() => chain()?.toggleWrap('callout').run()}>
+      <ToolButton label="Callout" active={state.callout} onClick={run((chain) => chain.toggleWrap('callout'))}>
         <CalloutIcon size={15} />
       </ToolButton>
       <Divider />
@@ -235,14 +259,17 @@ function EditorToolbar({ editor, catalogue }: { editor: Editor | null; catalogue
 }
 
 function TargetFields({
+  mode,
   subject,
   baseRevisionId,
   sectionId,
   newTitle,
-}: Pick<CodexEditorProps, 'subject' | 'baseRevisionId' | 'sectionId' | 'newTitle'>) {
+}: Pick<CodexEditorProps, 'mode' | 'subject' | 'baseRevisionId' | 'sectionId' | 'newTitle'>) {
+  const [proposalId] = useState(() => crypto.randomUUID());
   return (
     <>
-      <input type="hidden" name="action" value="publish" />
+      <input type="hidden" name="action" value={mode === 'publish' ? 'publish' : 'submit'} />
+      {mode === 'suggest' ? <input type="hidden" name="proposalId" value={proposalId} /> : null}
       <input type="hidden" name="kind" value={subject.kind} />
       <input type="hidden" name="key" value={subject.key} />
       <input type="hidden" name="baseRevisionId" value={baseRevisionId ?? ''} />
@@ -252,31 +279,59 @@ function TargetFields({
   );
 }
 
+function LicenseField() {
+  const [accepted, setAccepted] = useState(false);
+  return (
+    <label className="flex items-start gap-2.5 font-ui text-ui text-text">
+      <Checkbox checked={accepted} onCheckedChange={setAccepted} label={CODEX_LICENSE_LABEL} className="mt-px" />
+      <input type="hidden" name="license" value={accepted ? 'accepted' : ''} />
+      <span>
+        I license my contribution under{' '}
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" className="text-isk hover:underline">
+          CC BY-SA 4.0
+        </a>
+        . <span className="text-muted">An admin reviews every suggestion before it goes live.</span>
+      </span>
+    </label>
+  );
+}
+
 function EditorFooter({
+  mode,
+  viewerName,
   summary,
   saveLabel,
   canSave,
   onCancel,
 }: {
+  mode: CodexEditMode;
+  viewerName: string;
   summary: string;
   saveLabel: string;
   canSave: boolean;
   onCancel: () => void;
 }) {
+  const { summaryRequired, license } = CODEX_EDIT_MODES[mode];
   return (
     <div className="flex flex-col gap-3 rounded-b-card border-t border-border-soft bg-row-hover px-4 py-3">
       <label className="flex flex-col gap-1.5">
-        <span className="font-ui text-label font-semibold uppercase tracking-eyebrow text-muted">Edit summary</span>
+        <span className="font-ui text-label font-semibold uppercase tracking-eyebrow text-muted">
+          Edit summary{summaryRequired ? <span className="text-dps-mid"> · Required</span> : null}
+        </span>
         <Input
           size="sm"
           name="summary"
           maxLength={200}
-          placeholder="Briefly describe the change"
+          required={summaryRequired}
+          placeholder={summaryRequired ? 'What did you change, and why?' : 'Briefly describe the change'}
           defaultValue={summary}
         />
       </label>
+      {license ? <LicenseField /> : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="mr-auto font-ui text-ui text-faint">Publishes immediately · saved to history</span>
+        <span className="mr-auto font-ui text-ui text-faint">
+          {mode === 'publish' ? 'Publishes immediately · saved to history' : `Signed in as ${viewerName}`}
+        </span>
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
         </Button>
@@ -288,10 +343,7 @@ function EditorFooter({
   );
 }
 
-const EDITOR_LABELS = {
-  page: { text: 'Page text', save: 'Publish page' },
-  section: { text: 'Section text', save: 'Save section' },
-} as const;
+const EDITOR_TEXT_LABELS = { page: 'Page text', section: 'Section text' } as const;
 
 function useDraftForm(storageKey: string, editor: Editor | null) {
   const [saving, setSaving] = useState(false);
@@ -312,6 +364,8 @@ function useDraftForm(storageKey: string, editor: Editor | null) {
 }
 
 export function CodexEditor({
+  mode,
+  viewerName,
   subject,
   newTitle,
   baseRevisionId,
@@ -324,7 +378,7 @@ export function CodexEditor({
 }: CodexEditorProps) {
   const storageKey = codexDraftKey(subject, sectionId);
   const [draft] = useState(() => takeConflictDraft(subject, sectionId, goneSectionId, notice !== null));
-  const labels = sectionId === null ? EDITOR_LABELS.page : EDITOR_LABELS.section;
+  const scope = sectionId === null ? 'page' : 'section';
 
   const editor = useEditor({
     extensions: codexEditorExtensions,
@@ -332,7 +386,7 @@ export function CodexEditor({
     immediatelyRender: false,
     autofocus: 'start',
     editorProps: {
-      attributes: { class: 'codex-prose', 'aria-label': labels.text },
+      attributes: { class: 'codex-prose', 'aria-label': EDITOR_TEXT_LABELS[scope] },
     },
     onCreate: () => performance.mark('codex-editor-ready'),
   });
@@ -341,13 +395,13 @@ export function CodexEditor({
 
   return (
     <form
-      action="/api/admin/codex/revisions"
+      action={CODEX_EDIT_MODES[mode].action}
       method="post"
       onSubmit={save}
       data-codex-editor
       className="rounded-card border border-isk/30 bg-bg-deep/50 shadow-card-edge"
     >
-      <TargetFields subject={subject} baseRevisionId={baseRevisionId} sectionId={sectionId} newTitle={newTitle} />
+      <TargetFields mode={mode} subject={subject} baseRevisionId={baseRevisionId} sectionId={sectionId} newTitle={newTitle} />
       <input ref={blocksField} type="hidden" name="blocks" />
       {notice ? <EditorNotice notice={notice} subject={subject} sectionId={sectionId} goneSectionId={goneSectionId} /> : null}
       <EditorToolbar editor={editor} catalogue={catalogue} />
@@ -355,8 +409,10 @@ export function CodexEditor({
         <EditorContent editor={editor} />
       </div>
       <EditorFooter
+        mode={mode}
+        viewerName={viewerName}
         summary={draft?.summary ?? ''}
-        saveLabel={labels.save}
+        saveLabel={CODEX_EDIT_MODES[mode].save[scope]}
         canSave={editor !== null && !saving}
         onCancel={onCancel}
       />

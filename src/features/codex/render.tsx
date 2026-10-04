@@ -9,7 +9,7 @@ import {
   type CodexNodeAttrs,
   type CodexNodeName,
 } from './nodes';
-import { codexSections, isBlankSection, type CodexSection } from './sections';
+import { codexSections, isBlankSection, plainText, type CodexSection } from './sections';
 
 type BlockName = Exclude<CodexNodeName, 'text'>;
 type BuiltinName = Exclude<BlockName, CodexInjectedNodeName>;
@@ -92,10 +92,6 @@ function renderNode(node: CodexNode, renderers: Renderers): ReactNode {
     attrs: node.attrs,
     children: renderNodes(node.content, renderers),
   });
-}
-
-function plainText(node: CodexNode): string {
-  return node.type === 'text' ? node.text : node.content.map(plainText).join('');
 }
 
 export function codexOutline(doc: CodexDoc): { id: string; label: string }[] {
